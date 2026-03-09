@@ -32,6 +32,9 @@ Use the following sections in this file:
 
 - Memory mode: Manual recording at checkpoints / end of session
 - Preferred language: Chinese (中文)
+- **Session Sync Requirement (会话同步要求)
+  - 每次工作收尾时必须同步记忆
+  - 更新 MEMORY.md 后要同步到 claude-config 仓库
 - Tools:
 - **Bash Command Approval Rule**:
   - 把运行过、需要我批准的命令，除非是高危的，都加到 CLAUDE.md 配置文件里
@@ -103,6 +106,13 @@ Use the following sections in this file:
   - `Pull requests`: 代码审核
   - `Issues`: 任务管理
 
+### 2026-03-09 - Supabase MCP 配置方式
+- **Supabase MCP 三种认证方式**:
+  1. **OAuth 动态注册** (当前在用): 浏览器授权，无需配置 key，适合本地开发
+  2. **Personal Access Token (PAT)**: 在 Supabase 账户生成，配置在 headers 中，适合多设备同步
+  3. **手动 OAuth App**: 在组织设置中创建，适合需要固定 client_id/secret 的场景
+- **多设备开发建议**: 使用 PAT 方式更方便，配置文件可直接通过 claude-config 仓库同步
+
 ---
 
 ## Session Logs (会话记录)
@@ -142,3 +152,11 @@ Use the following sections in this file:
   - 补充缺失命令到 CLAUDE.md: claude plugin、claude agents、tavily-mcp
   - 清理项目级残留配置文件
   - 更新 claude-config 仓库并推送
+
+### 2026-03-09
+- **检查 Supabase MCP 配置**:
+  - 当前使用 OAuth 动态注册方式，项目 ref: <your-supabase-project-id>
+  - 测试连接成功，可访问 test_data 和 test_logs 表
+  - 研究了 Supabase MCP 三种认证方式的对比
+- **用户需求确认**: 讨论多台电脑开发时的配置方式，推荐使用 PAT 方式
+- **记忆同步要求**: 用户明确要求每次工作收尾时必须同步记忆并更新到 claude-config 仓库
