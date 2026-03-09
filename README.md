@@ -9,53 +9,177 @@
 | `.claude.json` | 全局配置（MCP 服务器等） |
 | `settings.json` | 全局设置（插件、权限等） |
 | `CLAUDE.md` | 权限白名单配置 |
+| `memory/MEMORY.md` | 项目记忆文件 |
 
-## 安装步骤
+## 配置原则
 
-### Windows (PowerShell，需要管理员权限)
+- **MCP 服务器**：全部配置在全局 `~/.claude.json`
+- **插件/技能**：全部配置在全局 `~/.claude/settings.json`
+- **权限白名单**：放在项目根目录 `C:/git/CLAUDE.md`
+- **不使用**：项目级 `.mcp.json`、项目级 `settings.json`/`settings.local.json`
 
+## 新电脑完整设置步骤
+
+### 前置条件
+
+1. 确保已安装 Claude Code
+2. 确保有 GitHub 访问权限
+3. 确保仓库路径为 `C:/git/claude-config`
+
+### 步骤 1: 克隆 claude-config 仓库
+
+```bash
+cd C:/git
+git clone git@github.com:<your-github-username>/claude-config.git
+```
+
+如果网络问题无法 clone，可以手动下载文件并创建目录结构。
+
+### 步骤 2: 备份当前配置（如果有）
+
+**Windows (PowerShell):**
 ```powershell
-# 1. 备份原配置
+# 备份用户级配置
 Move-Item $env:USERPROFILE\.claude.json $env:USERPROFILE\.claude.json.backup
 Move-Item $env:USERPROFILE\.claude\settings.json $env:USERPROFILE\.claude\settings.json.backup
 
-# 2. 创建符号链接（将此路径改为你实际的仓库路径）
-New-Item -ItemType SymbolicLink -Path $env:USERPROFILE\.claude.json -Target C:\git\claude-config\.claude.json
-New-Item -ItemType SymbolicLink -Path $env:USERPROFILE\.claude\settings.json -Target C:\git\claude-config\settings.json
-
-# 3. 复制 CLAUDE.md 到你的项目根目录（如需要）
-# Copy-Item C:\git\claude-config\CLAUDE.md C:\git\CLAUDE.md
+# 备份项目级配置（如果存在）
+if (Test-Path C:\git\.claude\settings.json) {
+    Move-Item C:\git\.claude\settings.json C:\git\.claude\settings.json.backup
+}
+if (Test-Path C:\git\.claude\settings.local.json) {
+    Move-Item C:\git\.claude\settings.local.json C:\git\.claude\settings.local.json.backup
+}
 ```
 
-### WSL / Linux / Mac
-
+**Git Bash:**
 ```bash
-# 1. 备份原配置
-mv ~/.claude.json ~/.claude.json.backup
-mv ~/.claude/settings.json ~/.claude/settings.json.backup
+# 备份用户级配置
+cp ~/.claude.json ~/.claude.json.backup
+cp ~/.claude/settings.json ~/.claude/settings.json.backup
 
-# 2. 创建符号链接（将此路径改为你实际的仓库路径）
-ln -s /mnt/c/git/claude-config/.claude.json ~/.claude.json
-ln -s /mnt/c/git/claude-config/settings.json ~/.claude/settings.json
+# 备份项目级配置（如果存在）
+[ -f C:/git/.claude/settings.json ] && cp C:/git/.claude/settings.json C:/git/.claude/settings.json.backup
+[ -f C:/git/.claude/settings.local.json ] && cp C:/git/.claude/settings.local.json C:/git/.claude/settings.local.json.backup
 ```
 
-## 同步流程
+### 步骤 3: 复制全局配置文件
 
-### 推送配置更新
+**Windows (PowerShell):**
+```powershell
+# 复制 .claude.json 到用户目录
+Copy-Item C:\git\claude-config\.claude.json $env:USERPROFILE\.claude.json -Force
+
+# 复制 settings.json 到用户 .claude 目录
+Copy-Item C:\git\claude-config\settings.json $env:USERPROFILE\.claude\settings.json -Force
+```
+
+**Git Bash:**
+```bash
+# 复制 .claude.json 到用户目录
+cp /c/git/claude-config/.claude.json ~/.claude.json
+
+# 复制 settings.json 到用户 .claude 目录
+cp /c/git/claude-config/settings.json ~/.claude/settings.json
+```
+
+### 步骤 4: 配置项目权限白名单
+
+**Windows (PowerShell):**
+```powershell
+# 复制 CLAUDE.md 到 C:/git 根目录
+Copy-Item C:\git\claude-config\CLAUDE.md C:\git\CLAUDE.md -Force
+
+# 删除项目级配置文件（确保使用全局配置）
+if (Test-Path C:\git\.claude\settings.json) {
+    Remove-Item C:\git\.claude\settings.json -Force
+}
+if (Test-Path C:\git\.claude\settings.local.json) {
+    Remove-Item C:\git\.claude\settings.local.json -Force
+}
+```
+
+**Git Bash:**
+```bash
+# 复制 CLAUDE.md 到 C:/git 根目录
+cp /c/git/claude-config/CLAUDE.md /c/git/CLAUDE.md
+
+# 删除项目级配置文件（确保使用全局配置）
+rm -f /c/git/.claude/settings.json
+rm -f /c/git/.claude/settings.local.json
+```
+
+### 步骤 5: 启用 Auto Memory
+
+**Windows (PowerShell):**
+```powershell
+# 创建 memory 目录
+$memoryDir = "$env:USERPROFILE\.claude\projects\C--git\memory"
+if (-not (Test-Path $memoryDir)) {
+    New-Item -ItemType Directory -Path $memoryDir -Force
+}
+
+# 复制 MEMORY.md
+Copy-Item C:\git\claude-config\memory\MEMORY.md "$memoryDir\MEMORY.md" -Force
+```
+
+**Git Bash:**
+```bash
+# 创建 memory 目录
+mkdir -p ~/.claude/projects/C--git/memory
+
+# 复制 MEMORY.md
+cp /c/git/claude-config/memory/MEMORY.md ~/.claude/projects/C--git/memory/MEMORY.md
+```
+
+### 步骤 6: 重启 Claude Code
+
+完全退出 Claude Code 并重新启动，使配置生效。
+
+### 验证配置
+
+重启后，确认以下内容：
+
+1. **MCP 服务器**：应该有 tavily、playwright、markitdown、github、supabase
+2. **插件/技能**：应该有 tavily@tavily-ai-skills、simplify、claude-api
+3. **权限模式**：应该使用全局 settings.json 中的配置
+4. **Auto Memory**：对话中应该自动加载 MEMORY.md
+
+---
+
+## 日常配置更新流程
+
+### 推送配置更新（在修改配置的电脑上）
 
 ```bash
 cd C:\git\claude-config
+
+# 1. 复制最新的配置到仓库
+cp ~/.claude.json /c/git/claude-config/.claude.json
+cp ~/.claude/settings.json /c/git/claude-config/settings.json
+cp /c/git/CLAUDE.md /c/git/claude-config/CLAUDE.md
+cp ~/.claude/projects/C--git/memory/MEMORY.md /c/git/claude-config/memory/MEMORY.md
+
+# 2. 提交并推送
 git add .
 git commit -m "Update config"
 git push
 ```
 
-### 拉取配置更新
+### 拉取配置更新（在其他电脑上）
 
 ```bash
 cd C:\git\claude-config
 git pull
+
+# 复制到对应位置
+cp /c/git/claude-config/.claude.json ~/.claude.json
+cp /c/git/claude-config/settings.json ~/.claude/settings.json
+cp /c/git/claude-config/CLAUDE.md /c/git/CLAUDE.md
+cp /c/git/claude-config/memory/MEMORY.md ~/.claude/projects/C--git/memory/MEMORY.md
 ```
+
+---
 
 ## 安全提示
 
@@ -68,8 +192,14 @@ git pull
 
 如果出问题，恢复备份：
 
+**Windows (PowerShell):**
 ```powershell
-# Windows
-Move-Item $env:USERPROFILE\.claude.json.backup $env:USERPROFILE\.claude.json
-Move-Item $env:USERPROFILE\.claude\settings.json.backup $env:USERPROFILE\.claude\settings.json
+Move-Item $env:USERPROFILE\.claude.json.backup $env:USERPROFILE\.claude.json -Force
+Move-Item $env:USERPROFILE\.claude\settings.json.backup $env:USERPROFILE\.claude\settings.json -Force
+```
+
+**Git Bash:**
+```bash
+mv ~/.claude.json.backup ~/.claude.json
+mv ~/.claude/settings.json.backup ~/.claude/settings.json
 ```
