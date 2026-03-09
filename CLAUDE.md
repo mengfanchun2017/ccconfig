@@ -574,7 +574,6 @@
 
 ## 禁止的命令（危险操作）
 - `rm -rf` - 强制递归删除
-- `git push` - 推送到远程仓库
 - `git reset --hard` - 硬重置
 - `git clean -f` - 强制清理
 - `mkfs` - 格式化文件系统
