@@ -109,25 +109,40 @@ rm -f /c/git/.claude/settings.json
 rm -f /c/git/.claude/settings.local.json
 ```
 
-### 步骤 5: 启用 Auto Memory
+### 步骤 5: 设置 Memory 同步链接（推荐）
 
-**Windows (PowerShell):**
-```powershell
-# 创建 memory 目录
-$memoryDir = "$env:USERPROFILE\.claude\projects\C--git\memory"
-if (-not (Test-Path $memoryDir)) {
-    New-Item -ItemType Directory -Path $memoryDir -Force
-}
+**重要**：使用符号链接可以让 Claude Code 直接读写 git 仓库中的 memory 文件，实现自动同步。
 
-# 复制 MEMORY.md
-Copy-Item C:\git\claude-config\memory\MEMORY.md "$memoryDir\MEMORY.md" -Force
+**Git Bash (推荐):**
+```bash
+# 备份现有的 memory（如果存在）
+cd ~/.claude/projects/C--git
+[ -d memory ] && mv memory memory.backup
+
+# 创建符号链接指向 git 仓库中的 memory
+ln -s /c/git/claude-config/memory memory
+
+# 验证链接
+ls -la memory
 ```
 
-**Git Bash:**
-```bash
-# 创建 memory 目录
-mkdir -p ~/.claude/projects/C--git/memory
+**Windows (PowerShell，需要管理员权限):**
+```powershell
+# 备份现有的 memory（如果存在）
+cd $env:USERPROFILE\.claude\projects\C--git
+if (Test-Path memory) {
+    Rename-Item memory memory.backup
+}
 
+# 创建符号链接指向 git 仓库中的 memory
+New-Item -ItemType SymbolicLink -Path memory -Target C:\git\claude-config\memory
+
+# 验证链接
+Get-Item memory
+```
+
+**如果符号链接无法使用，使用复制方式：**
+```bash
 # 复制 MEMORY.md
 cp /c/git/claude-config/memory/MEMORY.md ~/.claude/projects/C--git/memory/MEMORY.md
 ```
@@ -147,9 +162,54 @@ cp /c/git/claude-config/memory/MEMORY.md ~/.claude/projects/C--git/memory/MEMORY
 
 ---
 
+## Memory 同步工作流
+
+使用符号链接后，Memory 文件会自动同步。以下是多台电脑协同工作的流程：
+
+### 在新电脑上开始工作前
+
+1. **从 git 拉取最新版本**
+```bash
+cd C:\git\claude-config
+git pull
+```
+
+2. **与自己的版本融合**
+   - Claude Code 会自动加载 git 中的 MEMORY.md
+   - 如果有冲突，手动编辑合并内容
+
+### 日常工作中
+
+- **直接编辑**：在对话中直接更新 MEMORY.md（通过 /memory 命令或手动编辑）
+- **自动同步**：由于使用符号链接，修改会直接保存到 git 仓库目录
+
+### 收尾时（准备切换电脑前）
+
+1. **将更新的 memory 提交到 git**
+```bash
+cd C:\git\claude-config
+git add memory/MEMORY.md
+git commit -m "Update memory: [简要说明更新内容]"
+git push
+```
+
+### 在另一台电脑上继续工作
+
+1. **拉取最新的 memory**
+```bash
+cd C:\git\claude-config
+git pull
+```
+
+2. **开始工作** - Claude Code 会自动加载最新的 MEMORY.md
+
+---
+
 ## 日常配置更新流程
 
 ### 推送配置更新（在修改配置的电脑上）
+
+**注意**：Memory 文件通过符号链接自动同步，无需额外复制。
 
 ```bash
 cd C:\git\claude-config
@@ -158,7 +218,6 @@ cd C:\git\claude-config
 cp ~/.claude.json /c/git/claude-config/.claude.json
 cp ~/.claude/settings.json /c/git/claude-config/settings.json
 cp /c/git/CLAUDE.md /c/git/claude-config/CLAUDE.md
-cp ~/.claude/projects/C--git/memory/MEMORY.md /c/git/claude-config/memory/MEMORY.md
 
 # 2. 提交并推送
 git add .
@@ -172,11 +231,10 @@ git push
 cd C:\git\claude-config
 git pull
 
-# 复制到对应位置
+# 复制到对应位置（Memory 通过符号链接自动同步）
 cp /c/git/claude-config/.claude.json ~/.claude.json
 cp /c/git/claude-config/settings.json ~/.claude/settings.json
 cp /c/git/claude-config/CLAUDE.md /c/git/CLAUDE.md
-cp /c/git/claude-config/memory/MEMORY.md ~/.claude/projects/C--git/memory/MEMORY.md
 ```
 
 ---

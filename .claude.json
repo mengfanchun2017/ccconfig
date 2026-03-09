@@ -1,24 +1,24 @@
 {
-  "numStartups": 45,
+  "numStartups": 48,
   "installMethod": "global",
   "hasSeenTasksHint": true,
   "tipsHistory": {
     "new-user-warmup": 9,
     "plan-mode-for-complex-tasks": 32,
     "terminal-setup": 43,
-    "memory-command": 31,
+    "memory-command": 46,
     "theme-command": 41,
     "status-line": 27,
-    "prompt-queue": 43,
+    "prompt-queue": 48,
     "enter-to-steer-in-relatime": 42,
     "todo-list": 42,
     "install-github-app": 43,
-    "install-slack-app": 35,
-    "drag-and-drop-images": 35,
-    "double-esc-code-restore": 35,
-    "continue": 35,
-    "shift-tab": 37,
-    "image-paste": 27,
+    "install-slack-app": 45,
+    "drag-and-drop-images": 45,
+    "double-esc-code-restore": 45,
+    "continue": 45,
+    "shift-tab": 47,
+    "image-paste": 47,
     "custom-agents": 36,
     "agent-flag": 36,
     "desktop-app": 36,
@@ -30,7 +30,7 @@
     "custom-commands": 43,
     "default-permission-mode-config": 43
   },
-  "showExpandedTodos": true,
+  "promptQueueUseCount": 1,
   "cachedChromeExtensionInstalled": false,
   "firstStartTime": "2026-03-03T14:35:36.413Z",
   "hasCompletedOnboarding": true,
@@ -57,7 +57,7 @@
       "mcpContextUris": [],
       "mcpServers": {},
       "hasTrustDialogAccepted": true,
-      "projectOnboardingSeenCount": 3,
+      "projectOnboardingSeenCount": 4,
       "hasClaudeMdExternalIncludesApproved": false,
       "hasClaudeMdExternalIncludesWarningShown": false,
       "hasCompletedProjectOnboarding": true,
@@ -77,7 +77,7 @@
       "lastSessionId": "6a198cc1-f470-4171-963a-a08521f3e103"
     }
   },
-  "lastReleaseNotesSeen": "2.1.71",
+  "lastReleaseNotesSeen": "2.1.63",
   "officialMarketplaceAutoInstallAttempted": true,
   "officialMarketplaceAutoInstalled": true,
   "toolUsage": {
@@ -86,20 +86,60 @@
       "lastUsedAt": 1772549974087
     },
     "Bash": {
-      "usageCount": 36,
-      "lastUsedAt": 1772558249796
+      "usageCount": 259,
+      "lastUsedAt": 1773043949501
     },
     "Read": {
-      "usageCount": 10,
-      "lastUsedAt": 1772554266474
+      "usageCount": 32,
+      "lastUsedAt": 1773043838522
     },
     "Grep": {
       "usageCount": 1,
       "lastUsedAt": 1772549927391
     },
     "Write": {
+      "usageCount": 5,
+      "lastUsedAt": 1773029269395
+    },
+    "TaskUpdate": {
+      "usageCount": 9,
+      "lastUsedAt": 1773043040546
+    },
+    "TaskCreate": {
       "usageCount": 3,
-      "lastUsedAt": 1772552145280
+      "lastUsedAt": 1773042866155
+    },
+    "Edit": {
+      "usageCount": 7,
+      "lastUsedAt": 1773043635904
+    },
+    "mcp__github__get_commit": {
+      "usageCount": 1,
+      "lastUsedAt": 1773030560594
+    },
+    "mcp__github__get_file_contents": {
+      "usageCount": 5,
+      "lastUsedAt": 1773043654304
+    },
+    "mcp__github__create_or_update_file": {
+      "usageCount": 4,
+      "lastUsedAt": 1773043737884
+    },
+    "Glob": {
+      "usageCount": 3,
+      "lastUsedAt": 1773043812795
+    },
+    "ListMcpResourcesTool": {
+      "usageCount": 1,
+      "lastUsedAt": 1773043531030
+    },
+    "mcp__supabase__list_tables": {
+      "usageCount": 1,
+      "lastUsedAt": 1773043728028
+    },
+    "mcp__supabase__search_docs": {
+      "usageCount": 1,
+      "lastUsedAt": 1773043729153
     }
   },
   "skillUsage": {
