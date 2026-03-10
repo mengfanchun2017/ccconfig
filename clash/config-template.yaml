@@ -1,0 +1,132 @@
+# ========================================
+# Clash 数据科学完整配置模板
+# ========================================
+# 使用说明：
+# 1. 复制此文件到你的 Clash 配置目录
+# 2. 修改 proxies 和 proxy-groups 部分为你自己的代理
+# 3. 将 "你的代理组名" 替换为你实际的代理组名称
+# 4. 重启 Clash
+# ========================================
+
+# ----------------------------------------
+# 代理节点配置（请修改为你自己的代理）
+# ----------------------------------------
+proxies:
+  # 示例配置，请替换为你的实际代理
+  - name: "你的代理1"
+    type: vmess
+    server: your-server.com
+    port: 443
+    uuid: your-uuid
+    alterId: 0
+    cipher: auto
+    tls: true
+    network: ws
+    ws-path: /path
+    ws-headers:
+      Host: your-host.com
+
+# ----------------------------------------
+# 代理组配置（请修改为你自己的配置）
+# ----------------------------------------
+proxy-groups:
+  - name: "你的代理组名"
+    type: select
+    proxies:
+      - "你的代理1"
+      # 添加更多你的代理...
+
+  - name: DIRECT
+    type: select
+    proxies:
+      - DIRECT
+
+  - name: REJECT
+    type: select
+    proxies:
+      - REJECT
+
+# ----------------------------------------
+# 规则配置（数据科学专用）
+# ----------------------------------------
+rules:
+  # ======================================
+  # GitHub 相关
+  # ======================================
+  - DOMAIN-SUFFIX,github.com,你的代理组名
+  - DOMAIN-SUFFIX,githubusercontent.com,你的代理组名
+  - DOMAIN-SUFFIX,githubassets.com,你的代理组名
+  - DOMAIN-SUFFIX,github.io,你的代理组名
+  - DOMAIN-SUFFIX,gist.github.com,你的代理组名
+  - DOMAIN-SUFFIX,api.github.com,你的代理组名
+  - DOMAIN-SUFFIX,raw.githubusercontent.com,你的代理组名
+  - DOMAIN-SUFFIX,gitlab.com,你的代理组名
+
+  # ======================================
+  # Python / PyPI
+  # ======================================
+  - DOMAIN-SUFFIX,pypi.org,你的代理组名
+  - DOMAIN-SUFFIX,files.pythonhosted.org,你的代理组名
+  - DOMAIN-SUFFIX,pythonhosted.org,你的代理组名
+
+  # ======================================
+  # Conda / Anaconda
+  # ======================================
+  - DOMAIN-SUFFIX,anaconda.com,你的代理组名
+  - DOMAIN-SUFFIX,repo.anaconda.com,你的代理组名
+  - DOMAIN-SUFFIX,conda.anaconda.org,你的代理组名
+  - DOMAIN-SUFFIX,anaconda.org,你的代理组名
+  - DOMAIN-SUFFIX,conda-forge.org,你的代理组名
+  - DOMAIN-SUFFIX,azureedge.net,你的代理组名
+
+  # ======================================
+  # 机器学习 / AI
+  # ======================================
+  - DOMAIN-SUFFIX,huggingface.co,你的代理组名
+  - DOMAIN-SUFFIX,cdn-lfs.huggingface.co,你的代理组名
+  - DOMAIN-SUFFIX,hf.co,你的代理组名
+  - DOMAIN-SUFFIX,tensorflow.org,你的代理组名
+  - DOMAIN-SUFFIX,pytorch.org,你的代理组名
+  - DOMAIN-SUFFIX,download.pytorch.org,你的代理组名
+  - DOMAIN-SUFFIX,keras.io,你的代理组名
+  - DOMAIN-SUFFIX,scikit-learn.org,你的代理组名
+  - DOMAIN-SUFFIX,scipy.org,你的代理组名
+  - DOMAIN-SUFFIX,numpy.org,你的代理组名
+  - DOMAIN-SUFFIX,pandas.pydata.org,你的代理组名
+  - DOMAIN-SUFFIX,streamlit.io,你的代理组名
+  - DOMAIN-SUFFIX,plotly.com,你的代理组名
+  - DOMAIN-SUFFIX,matplotlib.org,你的代理组名
+  - DOMAIN-SUFFIX,xgboost.ai,你的代理组名
+
+  # ======================================
+  # 云服务 / 数据集
+  # ======================================
+  - DOMAIN-SUFFIX,colab.research.google.com,你的代理组名
+  - DOMAIN-SUFFIX,kaggle.com,你的代理组名
+  - DOMAIN-SUFFIX,storage.googleapis.com,你的代理组名
+  - DOMAIN-SUFFIX,s3.amazonaws.com,你的代理组名
+
+  # ======================================
+  # 学术 / 论文
+  # ======================================
+  - DOMAIN-SUFFIX,arxiv.org,你的代理组名
+  - DOMAIN-SUFFIX,export.arxiv.org,你的代理组名
+  - DOMAIN-SUFFIX,arxiv-export.library.cornell.edu,你的代理组名
+  - DOMAIN-SUFFIX,nature.com,你的代理组名
+  - DOMAIN-SUFFIX,science.org,你的代理组名
+
+  # ======================================
+  # OpenAI / API
+  # ======================================
+  - DOMAIN-SUFFIX,openai.com,你的代理组名
+  - DOMAIN-SUFFIX,api.openai.com,你的代理组名
+
+  # ======================================
+  # 国内 IP 直连
+  # ======================================
+  - GEOIP,CN,DIRECT
+
+  # ======================================
+  # 其他所有流量直连（必须放在最后！）
+  # ======================================
+  - MATCH,,DIRECT
