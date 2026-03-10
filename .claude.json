@@ -1,5 +1,5 @@
 {
-  "numStartups": 48,
+  "numStartups": 50,
   "installMethod": "global",
   "hasSeenTasksHint": true,
   "tipsHistory": {
@@ -31,6 +31,7 @@
     "default-permission-mode-config": 43
   },
   "promptQueueUseCount": 1,
+  "showExpandedTodos": true,
   "cachedChromeExtensionInstalled": false,
   "firstStartTime": "2026-03-03T14:35:36.413Z",
   "hasCompletedOnboarding": true,
@@ -86,48 +87,48 @@
       "lastUsedAt": 1772549974087
     },
     "Bash": {
-      "usageCount": 259,
-      "lastUsedAt": 1773043949501
+      "usageCount": 282,
+      "lastUsedAt": 1773117970803
     },
     "Read": {
-      "usageCount": 32,
-      "lastUsedAt": 1773043838522
+      "usageCount": 50,
+      "lastUsedAt": 1773117984815
     },
     "Grep": {
       "usageCount": 1,
       "lastUsedAt": 1772549927391
     },
     "Write": {
-      "usageCount": 5,
-      "lastUsedAt": 1773029269395
+      "usageCount": 8,
+      "lastUsedAt": 1773110292777
     },
     "TaskUpdate": {
-      "usageCount": 9,
-      "lastUsedAt": 1773043040546
+      "usageCount": 11,
+      "lastUsedAt": 1773117998021
     },
     "TaskCreate": {
-      "usageCount": 3,
-      "lastUsedAt": 1773042866155
+      "usageCount": 4,
+      "lastUsedAt": 1773117984883
     },
     "Edit": {
-      "usageCount": 7,
-      "lastUsedAt": 1773043635904
+      "usageCount": 10,
+      "lastUsedAt": 1773044819837
     },
     "mcp__github__get_commit": {
-      "usageCount": 1,
-      "lastUsedAt": 1773030560594
+      "usageCount": 2,
+      "lastUsedAt": 1773045304732
     },
     "mcp__github__get_file_contents": {
-      "usageCount": 5,
-      "lastUsedAt": 1773043654304
+      "usageCount": 7,
+      "lastUsedAt": 1773045412513
     },
     "mcp__github__create_or_update_file": {
-      "usageCount": 4,
-      "lastUsedAt": 1773043737884
+      "usageCount": 7,
+      "lastUsedAt": 1773045484722
     },
     "Glob": {
-      "usageCount": 3,
-      "lastUsedAt": 1773043812795
+      "usageCount": 6,
+      "lastUsedAt": 1773117926689
     },
     "ListMcpResourcesTool": {
       "usageCount": 1,
@@ -140,6 +141,14 @@
     "mcp__supabase__search_docs": {
       "usageCount": 1,
       "lastUsedAt": 1773043729153
+    },
+    "mcp__github__list_branches": {
+      "usageCount": 1,
+      "lastUsedAt": 1773045304583
+    },
+    "Skill": {
+      "usageCount": 1,
+      "lastUsedAt": 1773110463919
     }
   },
   "skillUsage": {
@@ -158,6 +167,10 @@
     "tavily:search": {
       "usageCount": 1,
       "lastUsedAt": 1772975203270
+    },
+    "42plugin": {
+      "usageCount": 1,
+      "lastUsedAt": 1773110462706
     }
   },
   "clientDataCache": {
