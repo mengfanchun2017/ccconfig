@@ -8,25 +8,35 @@
 
 ### 在当前设备开始工作前
 
-双击运行：
+**Windows (双击):**
 ```
 scripts\start-work.bat
 ```
 
+**Git Bash / Linux / Mac:**
+```bash
+scripts/start-work.sh
+```
+
 这个脚本会自动：
 1. 从 GitHub 拉取最新配置
-2. 同步配置文件到本地
+2. 同步配置文件到本地（settings.json 使用智能合并）
 3. 检查 Memory 链接状态
 
 ### 在当前设备结束工作后
 
-双击运行：
+**Windows (双击):**
 ```
 scripts\end-work.bat
 ```
 
+**Git Bash / Linux / Mac:**
+```bash
+scripts/end-work.sh
+```
+
 这个脚本会自动：
-1. 从本地收集最新配置到仓库
+1. 从本地收集最新配置到仓库（settings.json 只提取配置部分）
 2. 显示 git 状态
 3. 提交更改（可自定义提交信息）
 4. 推送到 GitHub
@@ -66,6 +76,47 @@ scripts\end-work.bat
 - **插件/技能**：全部配置在全局 `~/.claude/settings.json`
 - **权限白名单**：放在项目根目录 `C:/git/CLAUDE.md`
 - **不使用**：项目级 `.mcp.json`、项目级 `settings.json`/`settings.local.json`
+
+## settings.json 智能同步
+
+`settings.json` 包含两部分内容，智能同步脚本会分别处理：
+
+### 同步的配置部分（跨设备共享）
+
+| 配置项 | 说明 |
+|--------|------|
+| `env` | 环境变量配置 |
+| `permissions` | 权限配置 |
+| `model` | 默认模型配置 |
+| `extraKnownMarketplaces` | 额外的插件市场 |
+| `enabledPlugins` | 启用的插件/技能 |
+| `mcpServers` | MCP 服务器配置 |
+
+### 保留的本地状态（每台设备独立）
+
+| 状态项 | 说明 |
+|--------|------|
+| `numStartups` | 启动次数统计 |
+| `tipsHistory` | 提示显示历史 |
+| `toolUsage` | 工具使用统计 |
+| `skillUsage` | 技能使用统计 |
+| `projects` | 项目记录 |
+| `githubRepoPaths` | GitHub 仓库路径映射 |
+| ... | 其他本地状态数据 |
+
+### 手动使用智能同步脚本
+
+如果需要手动同步 settings.json：
+
+```bash
+# 从仓库拉取配置到本地（合并配置，保留本地状态）
+node scripts/sync-settings.js pull
+
+# 从本地推送配置到仓库（只提取配置部分）
+node scripts/sync-settings.js push
+```
+
+**前置条件**：需要安装 Node.js
 
 ## Git 代理配置（必需）
 
