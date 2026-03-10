@@ -20,6 +20,7 @@
       "TaskList",
       "AskUserQuestion",
       "NotebookEdit",
+      "Bash(*)",
       "Bash(winget:*)",
       "Bash(powershell:*)",
       "Bash(pwsh:*)",
