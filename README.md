@@ -33,6 +33,24 @@ scripts\end-work.bat
 
 ---
 
+## 🎯 Claude Code 对话关键词
+
+在与 Claude Code 对话时，可以直接使用以下关键词：
+
+| 关键词 | 功能 | 说明 |
+|--------|------|------|
+| `gitinit` | 开始工作 - 拉取配置 | 从 GitHub 拉取最新配置并同步到本地 |
+| `gitarc` | 结束工作 - 推送配置 | 收集本地配置并推送到 GitHub |
+
+**同步内容包括：**
+- `.claude.json` - 全局 MCP 配置
+- `settings.json` - 全局设置、插件、权限
+- `CLAUDE.md` - 权限白名单
+- `memory/MEMORY.md` - 项目记忆
+- 其他所有仓库内容
+
+---
+
 ## 包含的配置文件
 
 | 文件 | 说明 |
@@ -48,6 +66,19 @@ scripts\end-work.bat
 - **插件/技能**：全部配置在全局 `~/.claude/settings.json`
 - **权限白名单**：放在项目根目录 `C:/git/CLAUDE.md`
 - **不使用**：项目级 `.mcp.json`、项目级 `settings.json`/`settings.local.json`
+
+## Git 代理配置（必需）
+
+所有三台电脑都需要配置 Git 走代理：
+
+```bash
+git config --global http.proxy http://127.0.0.1:7897
+git config --global https.proxy http://127.0.0.1:7897
+```
+
+- **代理工具**: Clash Verge
+- **代理端口**: 7897
+- **注意**: VPN 需要常开
 
 ## 新电脑完整设置步骤
 
