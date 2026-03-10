@@ -113,6 +113,21 @@ Use the following sections in this file:
   3. **手动 OAuth App**: 在组织设置中创建，适合需要固定 client_id/secret 的场景
 - **多设备开发建议**: 使用 PAT 方式更方便，配置文件可直接通过 claude-config 仓库同步
 
+### 2026-03-10 - Git 代理与多设备同步配置
+- **Git 代理配置**:
+  - 使用 Clash Verge，代理端口: **7897**
+  - 配置命令: `git config --global http.proxy http://127.0.0.1:7897`
+  - 配置命令: `git config --global https.proxy http://127.0.0.1:7897`
+  - 三台电脑都使用相同的配置
+- **自动化脚本**:
+  - `scripts/start-work.bat`: 开始工作前运行，拉取最新配置并同步到本地
+  - `scripts/end-work.bat`: 结束工作后运行，收集本地配置并提交推送
+- **日常工作流**:
+  1. 到公司/家: 双击 `start-work.bat`
+  2. 正常工作
+  3. 结束工作: 双击 `end-work.bat`
+- **Git 远程仓库**: https://github.com/<your-github-username>/claude-config
+
 ---
 
 ## Session Logs (会话记录)
@@ -160,4 +175,14 @@ Use the following sections in this file:
   - 研究了 Supabase MCP 三种认证方式的对比
 - **用户需求确认**: 讨论多台电脑开发时的配置方式，推荐使用 PAT 方式
 - **记忆同步要求**: 用户明确要求每次工作收尾时必须同步记忆并更新到 claude-config 仓库
+
+### 2026-03-10
+- **完善多设备同步方案**:
+  - 创建自动化脚本: `start-work.bat` 和 `end-work.bat`
+  - 更新 README.md，添加快速使用指南
+  - 配置 Git 走 Clash 代理 (端口 7897)
+  - 所有三台电脑都使用相同配置: Clash Verge + 端口 7897
+  - 成功推送配置到 GitHub
+- **白名单更新**:
+  - 添加 `git push`、`git push --set-upstream`、`git config --global` 到 CLAUDE.md
 
