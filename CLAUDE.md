@@ -398,7 +398,7 @@
 - `java` - Java 运行时
 - `java -version` - Java 版本
 - `javac` - Java 编译器
-- `javac -version` - javac 版本
+- `javac --version` - javac 版本
 - `javadoc` - Java 文档生成
 - `jar` - JAR 工具
 - `mvn` - Maven 构建工具
@@ -596,3 +596,4 @@
 - 以上配置仅适用于当前项目
 - 对于未列出的命令，会询问是否允许执行
 - 可以选择单次允许或永久添加到白名单
+
