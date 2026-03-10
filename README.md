@@ -352,47 +352,6 @@ cp /c/git/claude-config/CLAUDE.md /c/git/CLAUDE.md
 
 ---
 
-## Clash 数据科学代理配置
-
-为了方便数据科学开发，我们提供了专用的 Clash 规则配置，让只有 GitHub、PyPI、HuggingFace 等网站走代理，其他所有流量直连。
-
-### 📂 配置文件位置
-
-```
-clash/
-├── README.md                    # 详细使用说明
-├── data-science-rules.yaml      # 仅规则部分（可复制到现有配置）
-└── config-template.yaml         # 完整配置模板（包含代理节点示例）
-```
-
-### 🚀 快速开始
-
-1. 打开 `clash/data-science-rules.yaml`
-2. 复制 `rules:` 下面的所有内容
-3. 粘贴到你的 Clash Verge 规则编辑器中
-4. 将规则中的 `PROXY` 替换为你实际的代理组名称
-5. 保存并重启 Clash Verge
-
-详细说明请查看 `clash/README.md`
-
-### ✨ 包含的网站
-
-- **GitHub / GitLab** - 代码托管
-- **PyPI / Anaconda / Conda-Forge** - Python 包管理
-- **HuggingFace / TensorFlow / PyTorch** - 机器学习
-- **Kaggle / Google Colab** - 云服务 / 数据集
-- **arXiv / Nature / Science** - 学术论文
-- **OpenAI** - API 访问
-
-### 🔧 Git 代理配置
-
-确保 Git 使用 Clash 代理（端口 7897）：
-
-```bash
-git config --global http.proxy http://127.0.0.1:7897
-git config --global https.proxy http://127.0.0.1:7897
-```
-
 ## 安全提示
 
 ⚠️ `.claude.json` 中包含 API Key，请确保：
