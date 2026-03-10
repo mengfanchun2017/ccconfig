@@ -127,6 +127,9 @@ Use the following sections in this file:
   2. 正常工作
   3. 结束工作: 双击 `end-work.bat`
 - **Git 远程仓库**: https://github.com/<your-github-username>/claude-config
+- **对话关键词**:
+  - `gitinit`: 开始工作 - 从 GitHub 拉取最新配置并同步到本地
+  - `gitarc`: 结束工作 - 收集本地配置并推送到 GitHub
 
 ---
 
