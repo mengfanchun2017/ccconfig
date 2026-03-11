@@ -510,6 +510,7 @@
 
 ### Claude Code 相关
 - `claude-code` - Claude Code CLI
+- `claude install` - Claude Code 安装/更新
 - `claude mcp` - Claude Code MCP 管理
 - `claude plugin` - Claude Code 插件管理
 - `claude agents` - Claude Code 代理管理
