@@ -244,15 +244,11 @@
       "Bash(tavily-mcp:*)",
       "Bash(playwright-mcp:*)",
       "Bash(markitdown-mcp-npx:*)",
-      "mcp__tavily__*",
-      "mcp__supabase__*",
+      "mcp__*",
       "Read(//c/git/$HOME/**)",
       "Read(//c/Users/franc/.claude/**)",
       "Bash(claude plugin:*)",
-      "Bash(claude agents:*)",
-      "mcp__playwright__*",
-      "mcp__markitdown__*",
-      "mcp__github__*"
+      "Bash(claude agents:*)"
     ],
     "deny": [
       "WebSearch",
