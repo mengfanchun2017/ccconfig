@@ -120,12 +120,6 @@ git config --global user.name "你的名字"
 git config --global user.email "你的邮箱"
 ```
 
-**配置 Git 代理（如果需要）：**
-```powershell
-git config --global http.proxy http://127.0.0.1:7897
-git config --global https.proxy http://127.0.0.1:7897
-```
-
 ---
 
 ### 1.4 安装 Node.js LTS（用于 MCP 服务器）
@@ -139,6 +133,19 @@ winget install OpenJS.NodeJS.LTS
 node --version
 npm --version
 ```
+
+---
+
+### 1.5 配置 Git 代理（如果需要）
+
+如果使用代理（Clash Verge）：
+
+```powershell
+git config --global http.proxy http://127.0.0.1:7897
+git config --global https.proxy http://127.0.0.1:7897
+```
+
+> 代理端口默认 7897，请根据实际情况调整。
 
 ---
 
@@ -218,6 +225,8 @@ cd C:\git\claude-config
 | 4 | 同步 `CLAUDE.md` → `C:\git\CLAUDE.md` |
 | 5 | 智能合并 settings.json（保留本地状态） |
 
+> **重要**：不要在项目目录下创建 `.claude/settings.local.json`，这会覆盖全局权限配置，导致 MCP 工具报权限错误。
+
 ### 手动同步（如果脚本不可用）
 
 ```powershell
@@ -254,7 +263,7 @@ claude mcp --help
 #### 1. Tavily MCP（网络搜索）
 
 ```powershell
-npm install -g @tavily/mcp-server
+npm install -g tavily-mcp
 ```
 
 验证：
@@ -357,13 +366,24 @@ claude doctor
 
 ### Claude Code 命令找不到
 
-1. 检查是否在 PATH 中：
+1. 检查是否在 PATH 中（注意要用 `where.exe`，不是 `where`）：
    ```powershell
    where.exe claude
+   # 或
+   Get-Command claude
    ```
 
-2. 原生版本默认位置：
-   - `%USERPROFILE%\.local\bin\claude.exe`
+> **注意**：PowerShell 中 `where` 是 `Where-Object` 的别名，用于过滤对象，不是找文件的命令。正确用法是 `where.exe claude` 或 `Get-Command claude`。
+
+2. WinGet 原生版本安装位置：
+   - 实际安装：`C:\Users\franc\AppData\Local\Microsoft\WinGet\Packages\Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe\claude.exe`
+   - 符号链接：`C:\Users\franc\AppData\Local\Microsoft\WinGet\Links\claude.exe`
+
+3. 验证安装方式：
+   ```powershell
+   # 查看安装方式（native = WinGet 安装）
+   cat $env:USERPROFILE\.claude.json | Select-String "installMethod"
+   ```
 
 3. 手动添加到 PATH：
    ```powershell
@@ -389,6 +409,44 @@ claude doctor
 ### 权限问题
 
 确保 `C:\git\CLAUDE.md` 存在，并且包含权限白名单配置。
+
+---
+
+### Native 安装后的清理
+
+如果之前用 npm 全局安装过 Claude Code，需要清理残留：
+
+```powershell
+# 检查是否有 npm 全局安装的 Claude Code 残留
+npm list -g claude-code
+
+# 删除残留目录（如果存在）
+rm -rf $env:NODE_PATH/../@anthropic-ai
+# 或
+rm -rf C:\Users\franc\nodejs\current\node_modules\@anthropic-ai
+```
+
+---
+
+### 验证 Native 安装
+
+```powershell
+# 1. 检查版本
+claude --version
+
+# 2. 检查安装方式（应为 native）
+Get-Content $env:USERPROFILE\.claude.json | ConvertFrom-Json | Select-Object -ExpandProperty installMethod
+
+# 3. 检查安装路径
+where.exe claude
+```
+
+输出示例：
+```
+2.1.70 (Claude Code)
+native
+C:\Users\franc\AppData\Local\Microsoft\WinGet\Links\claude.exe
+```
 
 ---
 
