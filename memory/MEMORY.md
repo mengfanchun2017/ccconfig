@@ -196,3 +196,25 @@ Use the following sections in this file:
   - 测试结果: `mcp__tavily__tavily_search`、`mcp__tavily__tavily_extract`、`mcp__tavily__tavily_research` 都可以直接调用，不需要批准
 - **关键知识点**: 项目级配置优先级高于全局配置，之前删除项目级配置后又被重新创建了
 
+### 2026-03-11 - Native 安装与配置位置
+- **Native 安装方式**:
+  - 使用 WinGet 安装: `winget install Claude.Code`
+  - 安装路径: `C:\Users\franc\AppData\Local\Microsoft\WinGet\Links\claude.exe`
+  - 版本: 2.1.70
+  - 配置文件位置: `C:\Users\franc\.claude.json` (主配置)
+- **清理旧配置文件**:
+  - 删除了 `C:\Users\franc\.claude\.claude.json` (旧版残留配置)
+  - 现在只有一个主配置文件: `~/.claude.json`
+- **项目级 MCP 禁用**:
+  - 可以在项目配置的 `disabledMcpServers` 中禁用特定 MCP
+  - 当前 C:/git 项目禁用了 tavily (用于测试)
+  - 注意: 禁用后 MCP 工具调用需要每次批准
+
+### 2026-03-12 - 删除 GitHub MCP
+- **原因**: 分析后发现 GitHub MCP 是 GitHub Copilot CLI 专用的，对 Claude Code 没用
+- **删除内容**: 从全局 mcpServers 中删除 github 条目
+- **影响**: 之后 git 操作只能通过 git 命令，不再能用 MCP 工具操作 GitHub
+- **单位电脑需操作**: 同样从 ~/.claude.json 中删除 github 条目
+
+---
+
