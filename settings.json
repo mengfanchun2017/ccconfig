@@ -1,7 +1,8 @@
 {
   "env": {
     "ANTHROPIC_AUTH_TOKEN": "285c3f63-0d19-4b57-95b5-4b1cb0f2f30a",
-    "ANTHROPIC_BASE_URL": "https://ark.cn-beijing.volces.com/api/coding"
+    "ANTHROPIC_BASE_URL": "https://ark.cn-beijing.volces.com/api/coding",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "Doubao-Seed-2.0-Code"
   },
   "permissions": {
     "allow": [
@@ -262,14 +263,14 @@
   "extraKnownMarketplaces": {
     "tavily-ai-skills": {
       "source": {
-        "source": "github",
-        "repo": "tavily-ai/skills"
+        "repo": "tavily-ai/skills",
+        "source": "github"
       }
     }
   },
   "enabledPlugins": {
-    "tavily@tavily-ai-skills": true,
+    "claude-api": true,
     "simplify": true,
-    "claude-api": true
+    "tavily@tavily-ai-skills": true
   }
 }
