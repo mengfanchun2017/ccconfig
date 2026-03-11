@@ -244,6 +244,7 @@
       "Bash(tavily-mcp:*)",
       "Bash(playwright-mcp:*)",
       "Bash(markitdown-mcp-npx:*)",
+      "mcp__tavily__*",
       "mcp__*",
       "Read(//c/git/$HOME/**)",
       "Read(//c/Users/franc/.claude/**)",
