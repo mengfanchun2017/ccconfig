@@ -241,6 +241,8 @@
       "Bash(sha256sum:*)",
       "Bash(claude mcp:*)",
       "Bash(tavily-mcp:*)",
+      "Bash(playwright-mcp:*)",
+      "Bash(markitdown-mcp-npx:*)",
       "mcp__tavily__tavily_search",
       "mcp__tavily__tavily_extract",
       "Read(//c/git/$HOME/**)",
