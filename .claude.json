@@ -204,13 +204,6 @@
       "command": "markitdown-mcp-npx",
       "args": []
     },
-    "github": {
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/",
-      "headers": {
-        "Authorization": "Bearer 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"
-      }
-    },
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=<your-supabase-project-id>"
