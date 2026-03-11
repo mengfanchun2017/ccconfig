@@ -1,235 +1,225 @@
 {
-  "numStartups": 55,
-  "installMethod": "global",
-  "autoUpdates": false,
+  "numStartups": 65,
+  "installMethod": "native",
   "hasSeenTasksHint": true,
   "tipsHistory": {
-    "agent-flag": 51,
-    "continue": 55,
-    "custom-agents": 51,
-    "custom-commands": 43,
-    "default-permission-mode-config": 53,
-    "desktop-app": 51,
-    "double-esc-code-restore": 55,
-    "drag-and-drop-images": 55,
-    "enter-to-steer-in-relatime": 42,
-    "feedback-command": 39,
-    "git-worktrees": 51,
-    "image-paste": 47,
-    "install-github-app": 55,
-    "install-slack-app": 55,
-    "memory-command": 46,
-    "mobile-app": 51,
     "new-user-warmup": 9,
-    "permissions": 51,
     "plan-mode-for-complex-tasks": 32,
-    "prompt-queue": 55,
-    "rename-conversation": 43,
-    "shift-tab": 47,
-    "status-line": 53,
-    "terminal-setup": 55,
-    "theme-command": 41,
-    "todo-list": 42,
-    "web-app": 51
+    "terminal-setup": 65,
+    "memory-command": 61,
+    "theme-command": 61,
+    "status-line": 52,
+    "prompt-queue": 65,
+    "enter-to-steer-in-relatime": 62,
+    "todo-list": 62,
+    "install-github-app": 65,
+    "install-slack-app": 57,
+    "drag-and-drop-images": 57,
+    "double-esc-code-restore": 57,
+    "continue": 57,
+    "shift-tab": 58,
+    "image-paste": 47,
+    "custom-agents": 51,
+    "agent-flag": 51,
+    "desktop-app": 51,
+    "web-app": 51,
+    "mobile-app": 51,
+    "feedback-command": 54,
+    "permissions": 61,
+    "rename-conversation": 58,
+    "custom-commands": 58,
+    "default-permission-mode-config": 65,
+    "git-worktrees": 61
   },
-  "promptQueueUseCount": 3,
-  "autoUpdatesProtectedForNative": true,
+  "promptQueueUseCount": 2,
   "cachedChromeExtensionInstalled": false,
-  "clientDataCache": {
-    "data": null,
-    "timestamp": 1772792282217
-  },
   "firstStartTime": "2026-03-03T14:35:36.413Z",
-  "githubRepoPaths": {
-    "<your-github-username>/delitice": [
-      "C:\\git\\delitice"
-    ]
-  },
   "hasCompletedOnboarding": true,
-  "lastPlanModeUse": 1772975979863,
-  "lastReleaseNotesSeen": "2.1.63",
-  "mcpServers": {
-    "github": {
-      "headers": {
-        "Authorization": "Bearer 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"
-      },
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/"
-    },
-    "markitdown": {
-      "args": [],
-      "command": "markitdown-mcp-npx",
-      "type": "stdio"
-    },
-    "playwright": {
-      "args": [],
-      "command": "playwright-mcp",
-      "env": {
-        "PLAYWRIGHT_MCP_BROWSER": "msedge"
-      },
-      "type": "stdio"
-    },
-    "supabase": {
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp?project_ref=<your-supabase-project-id>"
-    },
-    "tavily": {
-      "args": [],
-      "command": "tavily-mcp",
-      "env": {
-        "TAVILY_API_KEY": "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"
-      },
-      "type": "stdio"
-    }
-  },
-  "officialMarketplaceAutoInstallAttempted": true,
-  "officialMarketplaceAutoInstalled": true,
   "opusProMigrationComplete": true,
+  "sonnet1m45MigrationComplete": true,
+  "userID": "9ab5e76a07264a58d9f9af94e78e7549a30e39f940acd36f0e04af5942a68094",
   "projects": {
     "C:/WINDOWS/system32": {
       "allowedTools": [],
-      "disabledMcpjsonServers": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
       "enabledMcpjsonServers": [
         "playwright",
         "markitdown"
       ],
-      "hasClaudeMdExternalIncludesApproved": false,
-      "hasClaudeMdExternalIncludesWarningShown": false,
+      "disabledMcpjsonServers": [],
       "hasTrustDialogAccepted": true,
-      "mcpContextUris": [],
-      "mcpServers": {},
-      "projectOnboardingSeenCount": 1
+      "projectOnboardingSeenCount": 1,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false
     },
     "C:/git": {
       "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 4,
       "hasClaudeMdExternalIncludesApproved": false,
       "hasClaudeMdExternalIncludesWarningShown": false,
       "hasCompletedProjectOnboarding": true,
-      "hasTrustDialogAccepted": true,
+      "lastCost": 0,
       "lastAPIDuration": 0,
       "lastAPIDurationWithoutRetries": 0,
-      "lastCost": 0,
+      "lastToolDuration": 0,
       "lastDuration": 17189,
       "lastLinesAdded": 0,
       "lastLinesRemoved": 0,
-      "lastModelUsage": {},
-      "lastSessionId": "6a198cc1-f470-4171-963a-a08521f3e103",
-      "lastToolDuration": 0,
-      "lastTotalCacheCreationInputTokens": 0,
-      "lastTotalCacheReadInputTokens": 0,
       "lastTotalInputTokens": 0,
       "lastTotalOutputTokens": 0,
+      "lastTotalCacheCreationInputTokens": 0,
+      "lastTotalCacheReadInputTokens": 0,
       "lastTotalWebSearchRequests": 0,
-      "mcpContextUris": [],
-      "mcpServers": {},
-      "projectOnboardingSeenCount": 4
+      "lastModelUsage": {},
+      "lastSessionId": "6a198cc1-f470-4171-963a-a08521f3e103"
     }
   },
-  "showSpinnerTree": false,
-  "skillUsage": {
-    "42plugin": {
-      "lastUsedAt": 1773110462706,
-      "usageCount": 1
-    },
-    "init": {
-      "lastUsedAt": 1772550497338,
-      "usageCount": 1
-    },
-    "simplify": {
-      "lastUsedAt": 1772716161785,
-      "usageCount": 3
-    },
-    "tavily-best-practices": {
-      "lastUsedAt": 1772870766647,
-      "usageCount": 1
-    },
-    "tavily:search": {
-      "lastUsedAt": 1772975203270,
-      "usageCount": 1
-    }
-  },
-  "sonnet1m45MigrationComplete": true,
+  "lastReleaseNotesSeen": "2.1.72",
+  "officialMarketplaceAutoInstallAttempted": true,
+  "officialMarketplaceAutoInstalled": true,
   "toolUsage": {
+    "WebSearch": {
+      "usageCount": 2,
+      "lastUsedAt": 1772549974087
+    },
     "Bash": {
-      "usageCount": 314,
-      "lastUsedAt": 1773218229307
-    },
-    "Edit": {
-      "usageCount": 14,
-      "lastUsedAt": 1773214598071
-    },
-    "Glob": {
-      "usageCount": 8,
-      "lastUsedAt": 1773213989913
-    },
-    "Grep": {
-      "lastUsedAt": 1772549927391,
-      "usageCount": 1
-    },
-    "ListMcpResourcesTool": {
-      "lastUsedAt": 1773189237746,
-      "usageCount": 2
+      "usageCount": 283,
+      "lastUsedAt": 1773125268959
     },
     "Read": {
-      "usageCount": 68,
-      "lastUsedAt": 1773218091123
+      "usageCount": 52,
+      "lastUsedAt": 1773128845658
     },
-    "Skill": {
-      "lastUsedAt": 1773110463919,
-      "usageCount": 1
-    },
-    "TaskCreate": {
-      "lastUsedAt": 1773197218847,
-      "usageCount": 6
-    },
-    "TaskOutput": {
-      "lastUsedAt": 1773196290344,
-      "usageCount": 3
-    },
-    "TaskUpdate": {
-      "lastUsedAt": 1773188841613,
-      "usageCount": 13
-    },
-    "WebSearch": {
-      "lastUsedAt": 1772549974087,
-      "usageCount": 2
+    "Grep": {
+      "usageCount": 1,
+      "lastUsedAt": 1772549927391
     },
     "Write": {
-      "usageCount": 11,
-      "lastUsedAt": 1773218145404
+      "usageCount": 8,
+      "lastUsedAt": 1773110292777
     },
-    "mcp__github__create_or_update_file": {
-      "lastUsedAt": 1773045484722,
-      "usageCount": 7
+    "TaskUpdate": {
+      "usageCount": 12,
+      "lastUsedAt": 1773125294370
+    },
+    "TaskCreate": {
+      "usageCount": 5,
+      "lastUsedAt": 1773131887300
+    },
+    "Edit": {
+      "usageCount": 10,
+      "lastUsedAt": 1773044819837
     },
     "mcp__github__get_commit": {
-      "lastUsedAt": 1773045304732,
-      "usageCount": 2
+      "usageCount": 2,
+      "lastUsedAt": 1773045304732
     },
     "mcp__github__get_file_contents": {
-      "lastUsedAt": 1773045412513,
-      "usageCount": 7
+      "usageCount": 7,
+      "lastUsedAt": 1773045412513
     },
-    "mcp__github__list_branches": {
-      "lastUsedAt": 1773045304583,
-      "usageCount": 1
+    "mcp__github__create_or_update_file": {
+      "usageCount": 7,
+      "lastUsedAt": 1773045484722
+    },
+    "Glob": {
+      "usageCount": 6,
+      "lastUsedAt": 1773117926689
+    },
+    "ListMcpResourcesTool": {
+      "usageCount": 1,
+      "lastUsedAt": 1773043531030
     },
     "mcp__supabase__list_tables": {
-      "lastUsedAt": 1773043728028,
-      "usageCount": 1
+      "usageCount": 1,
+      "lastUsedAt": 1773043728028
     },
     "mcp__supabase__search_docs": {
-      "lastUsedAt": 1773043729153,
-      "usageCount": 1
-    },
-    "mcp__tavily__tavily_search": {
-      "usageCount": 2,
-      "lastUsedAt": 1773212397690
-    },
-    "mcp__tavily__tavily_extract": {
       "usageCount": 1,
-      "lastUsedAt": 1773212384960
+      "lastUsedAt": 1773043729153
+    },
+    "mcp__github__list_branches": {
+      "usageCount": 1,
+      "lastUsedAt": 1773045304583
+    },
+    "Skill": {
+      "usageCount": 1,
+      "lastUsedAt": 1773110463919
     }
   },
-  "userID": "9ab5e76a07264a58d9f9af94e78e7549a30e39f940acd36f0e04af5942a68094"
+  "skillUsage": {
+    "init": {
+      "usageCount": 1,
+      "lastUsedAt": 1772550497338
+    },
+    "simplify": {
+      "usageCount": 3,
+      "lastUsedAt": 1772716161785
+    },
+    "tavily-best-practices": {
+      "usageCount": 1,
+      "lastUsedAt": 1772870766647
+    },
+    "tavily:search": {
+      "usageCount": 3,
+      "lastUsedAt": 1773237848687
+    },
+    "42plugin": {
+      "usageCount": 1,
+      "lastUsedAt": 1773110462706
+    },
+    "tavily:research": {
+      "usageCount": 2,
+      "lastUsedAt": 1773235802748
+    }
+  },
+  "clientDataCache": {
+    "data": null,
+    "timestamp": 1772792282217
+  },
+  "showSpinnerTree": false,
+  "mcpServers": {
+    "tavily": {
+      "type": "stdio",
+      "command": "tavily-mcp",
+      "args": [],
+      "env": {
+        "TAVILY_API_KEY": "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"
+      }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "playwright-mcp",
+      "args": [],
+      "env": {
+        "PLAYWRIGHT_MCP_BROWSER": "msedge"
+      }
+    },
+    "markitdown": {
+      "type": "stdio",
+      "command": "markitdown-mcp-npx",
+      "args": []
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer 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"
+      }
+    },
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=<your-supabase-project-id>"
+    }
+  },
+  "lastPlanModeUse": 1772975979863,
+  "githubRepoPaths": {
+    "<your-github-username>/delitice": [
+      "C:\\git\\delitice"
+    ]
+  }
 }
