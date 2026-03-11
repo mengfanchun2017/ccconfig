@@ -189,3 +189,10 @@ Use the following sections in this file:
 - **白名单更新**:
   - 添加 `git push`、`git push --set-upstream`、`git config --global` 到 CLAUDE.md
 
+### 2026-03-11
+- **修复 tavily MCP 工具权限问题**:
+  - 问题根源: 项目级配置 `C:\git\.claude\settings.local.json` 覆盖了全局配置，只允许 3 个特定的 tavily 工具
+  - 解决方案: 删除项目级配置文件，在全局配置中添加 `"mcp__tavily__*"` 通配符
+  - 测试结果: `mcp__tavily__tavily_search`、`mcp__tavily__tavily_extract`、`mcp__tavily__tavily_research` 都可以直接调用，不需要批准
+- **关键知识点**: 项目级配置优先级高于全局配置，之前删除项目级配置后又被重新创建了
+
