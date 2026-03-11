@@ -1,79 +1,115 @@
 # Claude Code 全新安装指南
 
-本指南用于在一台全新的 Windows 11 电脑上从零开始安装和配置 Claude Code。
+适用于全新 Windows 11 环境的快速、专业部署流程。
+
+---
+
+## 部署流程图
+
+```
+┌─────────────────┐
+│  1. 环境准备     │ → PowerShell 7 + Git + Node.js + WinGet
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  2. 安装 Claude  │ → 原生版本（WinGet 或 PowerShell）
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  3. 克隆配置仓库 │ → git clone claude-config
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  4. 同步配置     │ → 运行 start-work.bat
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  5. 安装 MCP    │ → 使用 claude mcp 命令
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  6. 验证部署     │ → 检查 Claude + MCP + Skill
+└─────────────────┘
+```
 
 ---
 
 ## 目录
 
-1. [为什么选择原生安装器](#为什么选择原生安装器)
-2. [前置依赖安装](#前置依赖安装)
-3. [安装 Claude Code（原生版本）](#安装-claude-code原生版本)
-4. [安装 MCP 服务器](#安装-mcp-服务器)
-5. [安装 Skill（插件）](#安装-skill插件)
-6. [从 claude-config 同步配置](#从-claude-config-同步配置)
-7. [验证安装](#验证安装)
+1. [核心概念说明](#核心概念说明)
+2. [第一步：环境准备](#第一步环境准备)
+3. [第二步：安装 Claude Code（原生版本）](#第二步安装-claude-code原生版本)
+4. [第三步：克隆配置仓库](#第三步克隆配置仓库)
+5. [第四步：同步配置](#第四步同步配置)
+6. [第五步：安装 MCP 服务器](#第五步安装-mcp-服务器)
+7. [第六步：验证部署](#第六步验证部署)
+8. [日常使用](#日常使用)
+9. [故障排查](#故障排查)
 
 ---
 
-## 为什么选择原生安装器
+## 核心概念说明
 
-### npm/bun 安装方式已废弃
+| 组件 | 说明 | 依赖 |
+|------|------|------|
+| **Claude Code** | 主程序，原生二进制 | ❌ 无需 Node.js |
+| **MCP 服务器** | 扩展工具能力（搜索、浏览器等） | ✅ 需要 Node.js |
+| **Skill / Plugin** | 扩展对话能力（代码简化等） | ❌ 通常不需要 |
 
-官方不再推荐使用 `npm install -g @anthropic-ai/claude-code` 或 bun 安装方式，原因如下：
-
-| 对比项 | npm/bun 版本 | 原生安装器 |
-|--------|--------------|-----------|
-| **Node.js 依赖** | 需要安装 Node.js | 不需要，独立二进制文件 |
-| **稳定性** | 可能受 Node.js 版本影响 | 更稳定，无依赖冲突 |
-| **自动更新** | 更新机制不够稳定 | 自带更可靠的自动更新 |
-| **性能** | 稍慢（通过 Node.js 启动） | 更快（直接运行） |
-
-### 官方推荐的安装方式
-
-| 平台 | 推荐方式 |
-|------|---------|
-| Windows | WinGet 或 PowerShell 脚本 |
-| macOS | Homebrew 或 Shell 脚本 |
-| Linux | Shell 脚本 |
+> **重要**：
+> - Claude Code 原生版本不需要 Node.js
+> - 但 Tavily、Playwright 等 MCP 服务器是用 Node.js 写的，必须安装 Node.js
 
 ---
 
-## 前置依赖安装
+## 第一步：环境准备
 
-### 1. 检查并更新 PowerShell（推荐安装 PowerShell 7）
+### 1.1 检查并安装 WinGet
 
-Windows 11 自带 PowerShell 5，但推荐安装 PowerShell 7（跨平台版本）。
+Windows 11 通常自带 WinGet，验证一下：
 
-**检查当前 PowerShell 版本：**
 ```powershell
-$PSVersionTable.PSVersion
+winget --version
 ```
 
-**如果版本 < 7，安装 PowerShell 7：**
+如果没有：
+1. 打开 Microsoft Store
+2. 搜索「App Installer」
+3. 安装或更新
 
-方式一：使用 WinGet（推荐）
+---
+
+### 1.2 安装 PowerShell 7（推荐）
+
+Windows 11 自带 PowerShell 5，但推荐安装 PowerShell 7：
+
 ```powershell
+# 检查当前版本
+$PSVersionTable.PSVersion
+
+# 如果版本 < 7，安装
 winget install Microsoft.PowerShell
 ```
 
-方式二：直接下载安装
-访问 https://aka.ms/powershell-release?tag=stable 下载 MSI 安装包
-
-**验证安装：**
+验证：
 ```powershell
 pwsh --version
 ```
 
 ---
 
-### 2. 安装 Git
+### 1.3 安装 Git
 
 ```powershell
 winget install Git.Git
 ```
 
-验证安装：
+验证：
 ```powershell
 git --version
 ```
@@ -92,15 +128,13 @@ git config --global https.proxy http://127.0.0.1:7897
 
 ---
 
-### 3. 安装 Node.js（用于 MCP 服务器）
-
-很多 MCP 服务器需要 Node.js 运行时。
+### 1.4 安装 Node.js LTS（用于 MCP 服务器）
 
 ```powershell
 winget install OpenJS.NodeJS.LTS
 ```
 
-验证安装：
+验证：
 ```powershell
 node --version
 npm --version
@@ -108,43 +142,15 @@ npm --version
 
 ---
 
-### 4. 安装 Bun（可选，用于某些 MCP 服务器）
+## 第二步：安装 Claude Code（原生版本）
 
-```powershell
-powershell -c "irm bun.sh/install.ps1 | iex"
-```
-
-验证安装：
-```powershell
-bun --version
-```
-
----
-
-### 5. 安装 WinGet（如果没有）
-
-Windows 11 通常自带 WinGet，如果没有：
-
-1. 打开 Microsoft Store
-2. 搜索 "App Installer"
-3. 安装或更新
-
-验证：
-```powershell
-winget --version
-```
-
----
-
-## 安装 Claude Code（原生版本）
-
-### 方式一：使用 WinGet（最推荐）
+### 方式一：WinGet（最推荐）
 
 ```powershell
 winget install Anthropic.ClaudeCode
 ```
 
-### 方式二：使用 PowerShell 脚本
+### 方式二：PowerShell 脚本
 
 ```powershell
 irm https://claude.ai/install.ps1 | iex
@@ -158,236 +164,61 @@ claude --version
 
 应该输出类似：`2.1.63 (Claude Code)`
 
-### 首次启动
+### 首次启动（可选）
 
 ```powershell
 claude
 ```
 
-按照提示完成认证。
+按照提示完成认证（也可以等配置同步后再做）。
 
 ---
 
-## 安装 MCP 服务器
-
-MCP (Model Context Protocol) 服务器为 Claude Code 提供额外能力。
-
-### MCP 服务器安装方式
-
-**使用 `claude mcp` 命令管理：**
+## 第三步：克隆配置仓库
 
 ```powershell
-# 查看可用命令
-claude mcp --help
-
-# 列出已安装的 MCP 服务器
-claude mcp list
-```
-
----
-
-### 示例：安装 Tavily MCP（网络搜索）
-
-Tavily 提供网络搜索能力。
-
-#### 1. 获取 Tavily API Key
-
-访问 https://tavily.com 注册并获取 API Key。
-
-#### 2. 安装 Tavily MCP
-
-```powershell
-# 方式一：使用 claude mcp 安装（推荐）
-claude mcp install tavily
-
-# 方式二：手动全局安装 npm 包
-npm install -g @tavily/mcp-server
-```
-
-#### 3. 配置 Tavily MCP
-
-编辑 `~/.claude.json` 文件，添加：
-
-```json
-{
-  "mcpServers": {
-    "tavily": {
-      "command": "tavily-mcp",
-      "args": [],
-      "env": {
-        "TAVILY_API_KEY": "你的-tavily-api-key"
-      },
-      "type": "stdio"
-    }
-  }
-}
-```
-
-#### 4. 重启 Claude Code
-
-完全退出并重新启动 Claude Code。
-
----
-
-### 其他常用 MCP 服务器
-
-#### Playwright MCP（浏览器自动化）
-
-```powershell
-npm install -g @playwright/mcp
-```
-
-配置（~/.claude.json）：
-```json
-{
-  "playwright": {
-    "command": "playwright-mcp",
-    "args": [],
-    "env": {
-      "PLAYWRIGHT_MCP_BROWSER": "msedge"
-    },
-    "type": "stdio"
-  }
-}
-```
-
-#### MarkItDown MCP（文档解析）
-
-```powershell
-npm install -g markitdown-mcp-npx
-```
-
-配置（~/.claude.json）：
-```json
-{
-  "markitdown": {
-    "command": "markitdown-mcp-npx",
-    "args": [],
-    "type": "stdio"
-  }
-}
-```
-
-#### GitHub MCP
-
-GitHub MCP 使用 HTTP 方式，不需要安装本地包：
-
-```json
-{
-  "github": {
-    "url": "https://api.githubcopilot.com/mcp/",
-    "headers": {
-      "Authorization": "Bearer github_pat_你的-token"
-    },
-    "type": "http"
-  }
-}
-```
-
-#### Supabase MCP
-
-```json
-{
-  "supabase": {
-    "url": "https://mcp.supabase.com/mcp?project_ref=你的-project-ref",
-    "type": "http"
-  }
-}
-```
-
----
-
-## 安装 Skill（插件）
-
-Skill 是 Claude Code 的增强插件。
-
-### Skill 管理命令
-
-```powershell
-# 查看可用命令
-claude plugin --help
-
-# 列出已安装的插件
-claude plugin list
-
-# 搜索插件
-claude plugin search 关键词
-```
-
----
-
-### 示例：安装 Tavily Skill
-
-#### 1. 添加插件市场（如果需要）
-
-编辑 `~/.claude.json`：
-```json
-{
-  "extraKnownMarketplaces": {
-    "tavily-ai-skills": {
-      "source": {
-        "repo": "tavily-ai/skills",
-        "source": "github"
-      }
-    }
-  }
-}
-```
-
-#### 2. 安装 Skill
-
-```powershell
-claude plugin install tavily@tavily-ai-skills
-```
-
-#### 3. 启用 Skill
-
-编辑 `~/.claude.json`：
-```json
-{
-  "enabledPlugins": {
-    "tavily@tavily-ai-skills": true,
-    "simplify": true,
-    "claude-api": true
-  }
-}
-```
-
----
-
-## 从 claude-config 同步配置
-
-如果你已有配置仓库，可以直接同步。
-
-### 1. 克隆 claude-config 仓库
-
-```powershell
+# 创建项目目录
 cd C:\
 mkdir git
 cd git
+
+# 克隆配置仓库
 git clone git@github.com:<your-github-username>/claude-config.git
 ```
 
-### 2. 运行同步脚本
+> **如果 SSH 不行，使用 HTTPS：**
+> ```powershell
+> git clone https://github.com/<your-github-username>/claude-config.git
+> ```
 
-**Windows（双击）：**
+---
+
+## 第四步：同步配置
+
+### 运行同步脚本
+
+**Windows（双击即可）：**
 ```
-scripts\start-work.bat
+C:\git\claude-config\scripts\start-work.bat
 ```
 
 **PowerShell：**
 ```powershell
 cd C:\git\claude-config
-scripts\start-work.bat
+.\scripts\start-work.bat
 ```
 
-这个脚本会自动：
-1. 拉取最新配置
-2. 同步 `.claude.json` 到用户目录
-3. 同步 `settings.json` 到用户目录
-4. 同步 `CLAUDE.md` 到项目目录
+### 同步脚本做了什么
 
-### 3. 手动同步（如果脚本不可用）
+| 步骤 | 操作 |
+|------|------|
+| 1 | 从 GitHub 拉取最新配置 |
+| 2 | 同步 `.claude.json` → `%USERPROFILE%\.claude.json` |
+| 3 | 同步 `settings.json` → `%USERPROFILE%\.claude\settings.json` |
+| 4 | 同步 `CLAUDE.md` → `C:\git\CLAUDE.md` |
+| 5 | 智能合并 settings.json（保留本地状态） |
+
+### 手动同步（如果脚本不可用）
 
 ```powershell
 # 复制 .claude.json
@@ -402,38 +233,100 @@ Copy-Item C:\git\claude-config\CLAUDE.md C:\git\CLAUDE.md -Force
 
 ---
 
-## 验证安装
+## 第五步：安装 MCP 服务器
 
-### 1. 验证 Claude Code
+配置同步后，部分 MCP 服务器可能需要手动安装 npm 包。
+
+### MCP 管理命令
+
+```powershell
+# 列出已配置的 MCP 服务器
+claude mcp list
+
+# 查看帮助
+claude mcp --help
+```
+
+---
+
+### 安装常用 MCP 服务器
+
+#### 1. Tavily MCP（网络搜索）
+
+```powershell
+npm install -g @tavily/mcp-server
+```
+
+验证：
+```powershell
+tavily-mcp --help
+```
+
+#### 2. Playwright MCP（浏览器自动化）
+
+```powershell
+npm install -g @playwright/mcp
+```
+
+验证：
+```powershell
+playwright-mcp --help
+```
+
+#### 3. MarkItDown MCP（文档解析）
+
+```powershell
+npm install -g markitdown-mcp-npx
+```
+
+验证：
+```powershell
+markitdown-mcp-npx --help
+```
+
+---
+
+### GitHub & Supabase MCP
+
+这两个使用 HTTP 方式，不需要安装本地 npm 包，配置在 `.claude.json` 中已包含。
+
+---
+
+## 第六步：验证部署
+
+### 6.1 验证 Claude Code
 
 ```powershell
 claude --version
 claude doctor
 ```
 
-### 2. 验证 MCP 服务器
+### 6.2 验证 MCP 服务器
 
-启动 Claude Code 后，检查 MCP 服务器是否正常加载：
-
+启动 Claude Code，然后在对话中输入：
 ```
-在对话中输入：/mcp
-```
-
-应该看到已配置的 MCP 服务器列表。
-
-### 3. 验证 Skill
-
-```
-在对话中输入：/plugins
+/mcp
 ```
 
-应该看到已启用的 Skill 列表。
+应该看到：tavily、playwright、markitdown、github、supabase
 
-### 4. 测试 Tavily 搜索
+### 6.3 验证 Skill / Plugin
 
-在对话中说："搜索一下今天的新闻"
+在对话中输入：
+```
+/plugins
+```
 
-如果能返回搜索结果，说明 Tavily MCP 工作正常。
+应该看到：simplify、tavily@tavily-ai-skills、claude-api
+
+### 6.4 测试 Tavily 搜索
+
+在对话中说：
+```
+搜索一下今天的新闻
+```
+
+如果能返回搜索结果，说明部署成功！
 
 ---
 
@@ -453,8 +346,6 @@ claude doctor
 
 ### 对话关键词
 
-在与 Claude Code 对话时，可以使用：
-
 | 关键词 | 功能 |
 |--------|------|
 | `gitinit` | 开始工作 - 拉取配置 |
@@ -471,13 +362,15 @@ claude doctor
    where.exe claude
    ```
 
-2. 原生版本默认安装位置：
+2. 原生版本默认位置：
    - `%USERPROFILE%\.local\bin\claude.exe`
 
 3. 手动添加到 PATH：
    ```powershell
    [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:USERPROFILE\.local\bin", "User")
    ```
+
+---
 
 ### MCP 服务器不工作
 
@@ -486,86 +379,37 @@ claude doctor
    tavily-mcp --help
    ```
 
-2. 检查 `~/.claude.json` 配置格式是否正确（使用 JSON 验证工具）
+2. 检查 `%USERPROFILE%\.claude.json` 格式是否正确
 
-3. 查看 Claude Code 日志：
-   ```powershell
-   # 日志位置
-   %USERPROFILE%\.claude\logs\
-   ```
-
-### 权限问题
-
-确保 `CLAUDE.md` 在项目根目录（`C:\git\CLAUDE.md`），并且包含必要的权限配置。
+3. 查看日志：
+   - 位置：`%USERPROFILE%\.claude\logs\`
 
 ---
 
-## 附录：完整配置文件示例
+### 权限问题
 
-### ~/.claude.json 示例
+确保 `C:\git\CLAUDE.md` 存在，并且包含权限白名单配置。
 
-```json
-{
-  "enabledPlugins": {
-    "claude-api": true,
-    "simplify": true,
-    "tavily@tavily-ai-skills": true
-  },
-  "env": {
-    "ANTHROPIC_AUTH_TOKEN": "your-token",
-    "ANTHROPIC_BASE_URL": "https://api.anthropic.com"
-  },
-  "extraKnownMarketplaces": {
-    "tavily-ai-skills": {
-      "source": {
-        "repo": "tavily-ai/skills",
-        "source": "github"
-      }
-    }
-  },
-  "mcpServers": {
-    "tavily": {
-      "command": "tavily-mcp",
-      "args": [],
-      "env": {
-        "TAVILY_API_KEY": "tvly-dev-xxx"
-      },
-      "type": "stdio"
-    },
-    "playwright": {
-      "command": "playwright-mcp",
-      "args": [],
-      "env": {
-        "PLAYWRIGHT_MCP_BROWSER": "msedge"
-      },
-      "type": "stdio"
-    },
-    "markitdown": {
-      "command": "markitdown-mcp-npx",
-      "args": [],
-      "type": "stdio"
-    },
-    "github": {
-      "url": "https://api.githubcopilot.com/mcp/",
-      "headers": {
-        "Authorization": "Bearer github_pat_xxx"
-      },
-      "type": "http"
-    }
-  },
-  "permissions": {
-    "allow": [
-      "Read",
-      "Write",
-      "Edit",
-      "Glob",
-      "Grep",
-      "Bash(*)"
-    ],
-    "deny": []
-  }
-}
-```
+---
+
+## 附录
+
+### 完整部署检查清单
+
+- [ ] WinGet 已安装
+- [ ] PowerShell 7 已安装
+- [ ] Git 已安装并配置
+- [ ] Node.js LTS 已安装
+- [ ] Claude Code 原生版本已安装
+- [ ] claude-config 仓库已克隆到 `C:\git\claude-config`
+- [ ] start-work.bat 已运行，配置已同步
+- [ ] Tavily MCP npm 包已安装
+- [ ] Playwright MCP npm 包已安装
+- [ ] MarkItDown MCP npm 包已安装
+- [ ] Claude Code 能正常启动
+- [ ] `/mcp` 能看到所有 MCP 服务器
+- [ ] `/plugins` 能看到所有 Skill
+- [ ] Tavily 搜索测试通过
 
 ---
 
@@ -573,6 +417,5 @@ claude doctor
 
 - Claude Code 官方文档：https://code.claude.com/docs
 - MCP 规范：https://modelcontextprotocol.io
-- Tavily：https://tavily.com
 - claude-config 仓库：https://github.com/<your-github-username>/claude-config
 
