@@ -1,0 +1,12 @@
+{
+  "skills": {
+    "entries": {
+      "getnote": {
+        "apiKey": "***REMOVED***",
+        "env": {
+          "GETNOTE_CLIENT_ID": "REDACTED_GETNOTE_KEY"
+        }
+      }
+    }
+  }
+}
