@@ -1,0 +1,12 @@
+{
+  "skills": {
+    "entries": {
+      "getnote": {
+        "apiKey": "gk_live_a2d293f5704de2e4.ed580220765e3bae67b15a7845ef73bd1e00dceede0b2bbc",
+        "env": {
+          "GETNOTE_CLIENT_ID": "cli_3802f9db08b811f197679c63c078bacc"
+        }
+      }
+    }
+  }
+}
