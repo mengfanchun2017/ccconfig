@@ -123,6 +123,7 @@
 - `pwsh` - PowerShell Core
 - `reg query` - 注册表查询
 - `winget` - Windows 包管理器
+- `setx` - 设置永久环境变量
 
 ### Git 操作（相对安全）
 - `git status` - 查看状态
