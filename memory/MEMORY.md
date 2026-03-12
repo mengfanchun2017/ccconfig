@@ -196,6 +196,33 @@ Use the following sections in this file:
   - 测试结果: `mcp__tavily__tavily_search`、`mcp__tavily__tavily_extract`、`mcp__tavily__tavily_research` 都可以直接调用，不需要批准
 - **关键知识点**: 项目级配置优先级高于全局配置，之前删除项目级配置后又被重新创建了
 
+### 2026-03-12 - Get笔记
+- **配置文件**: ~/.openclaw/openclaw.json (apiKey, clientId)
+- **测试成功**: 创建了 t1, t2, t3 三个测试笔记，都带 claude 标签
+
+### 2026-03-12 - Secrets 管理工具分析
+| 服务 | 免费计划 | 国内访问 | 推荐场景 |
+|------|---------|----------|----------|
+| Doppler | ✅ Community 免费（无限用户） | ✅ 可访问 | 企业级 |
+| Infisical | ✅ Free (5身份) + 开源自托管 | ⚠️ 被墙 | 团队/开源 |
+| Bitwarden | ✅ 免费版（无限密码） | ✅ 可访问 | 个人/多设备 |
+| 1Password | ❌ 无免费 | ⚠️ 被墙 | 不推荐 |
+- **结论**: 当前配置文件方案已够用，暂不需要迁移
+- **敏感信息存放规则**:
+  - Key 放配置文件，MEMORY.md 只记录路径索引
+  - 配置文件同步到 claude-config 私有仓库（安全）
+  - 当前: ~/.openclaw/openclaw.json → 同步到 claude-config
+
+### 2026-03-12
+- **安装 Get笔记 Claude Skill**:
+  - Skill 来源: https://clawhub.ai/iswalle/getnote
+  - 安装位置: ~/.claude/skills/getnote/
+  - 功能: 记录笔记、查找笔记、知识库管理、链接/图片笔记等
+  - API 测试成功: 读取笔记列表 ✅, 创建笔记 ✅
+  - 环境变量: GETNOTE_API_KEY, GETNOTE_CLIENT_ID (已通过 setx 永久设置)
+  - 白名单更新: 添加 `setx` 命令到 CLAUDE.md
+  - 同步到 claude-config 仓库并推送成功
+
 ### 2026-03-11 - Native 安装与配置位置
 - **Native 安装方式**:
   - 使用 WinGet 安装: `winget install Claude.Code`
