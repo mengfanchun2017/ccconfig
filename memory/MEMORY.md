@@ -53,6 +53,22 @@ Use the following sections in this file:
 ## Project Context (项目上下文)
 
 - Current working directory: C:\git
+- **当前设备**: Francis_MiPro
+- **设备识别方式**: 使用 `hostname` 命令获取主机名
+
+---
+
+## 设备识别与WSL操作
+
+### 如何识别当前设备
+- 运行 `hostname` 命令获取 Windows 主机名
+- 对照设备列表确定当前是哪台电脑
+
+### WSL 命令执行注意
+- **Git Bash 下直接用 `wsl -e` 会失败**，因为 Git Bash 会错误转换路径
+- **正确方式**: 使用 `powershell.exe -Command "wsl -e ..."`
+- 示例: `powershell.exe -Command "wsl -e /home/franc/.npm-global/bin/openclaw --version"`
+- **如果需要加载 .bashrc 中的环境变量**（如 PATH），使用交互式 shell: `powershell.exe -Command "wsl -d Ubuntu-24.04 -e bash -ic 'openclaw --version'"`
 
 ---
 
@@ -130,6 +146,26 @@ Use the following sections in this file:
 - **对话关键词**:
   - `gitinit`: 开始工作 - 从 GitHub 拉取最新配置并同步到本地
   - `gitarc`: 结束工作 - 收集本地配置并推送到 GitHub
+
+---
+
+## OpenClaw 设备列表
+
+| 主机名 | 地址 | Token | 状态 | Dashboard |
+|--------|------|-------|------|------------|
+| Francis_MiPro | ws://127.0.0.1:18789 | franc123 | ✅ 运行中 | http://127.0.0.1:18789/#token=franc123 |
+
+---
+
+### 2026-03-15 - OpenClaw 安装 (Francis_MiPro)
+- **安装方式**: WSL Ubuntu 中 npm 全局安装
+- **安装路径**: /home/franc/.npm-global/bin/openclaw
+- **Gateway 端口**: 18789
+- **Token**: franc123
+- **Web UI**: http://127.0.0.1:18789/#token=franc123
+- **PATH 配置**: 在 WSL 的 ~/.bashrc 中添加 `export PATH="$PATH:/home/franc/.npm-global/bin"`
+- **启动命令**: `powershell.exe -Command "wsl -d Ubuntu-24.04 -e bash -ic 'openclaw gateway'"`
+- **状态命令**: `wsl openclaw status`
 
 ---
 
