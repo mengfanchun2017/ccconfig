@@ -105,7 +105,13 @@ Use the following sections in this file:
   - 后续新增 MCP、插件默认都加到全局配置
   - 除非特别要求，否则所有配置都放在全局
 
-### 2026-03-07 - GitHub Token 权限说明
+### 2026-03-15 - Claude Code 升级方法
+- **升级步骤**:
+  1. 关闭所有 Claude Code 窗口和进程 (taskkill /F /IM claude.exe)
+  2. 在 PowerShell 中运行: `winget upgrade Anthropic.ClaudeCode`
+  3. 重启 Claude Code
+- **注意**: Claude Code 在中国无法正常使用 API，需要代理或使用其他方式
+- **配置文件位置**: `C:\Users\franc\.claude\` - 升级不会丢失配置
 - **Fine-grained tokens vs Classic tokens**:
   - Fine-grained: 权限精确、可过期、更安全（推荐）
   - Classic: 配置简单、权限较粗
