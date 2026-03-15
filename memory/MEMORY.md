@@ -26,6 +26,11 @@ Use the following sections in this file:
 | Key Learnings | 技术知识点、坑点 |
 | Session Logs | 按时间记录的会话摘要 |
 
+### Multi-Device Memory (多终端记忆)
+- **设备识别**: 使用 `hostname` 命令获取当前主机名
+- **记忆结构**: 按主机名分区段记录，如 `### 2026-03-15 [Francis_MiPro]`
+- **同步时机**: 每次 `gitarc` 时自动更新本终端的会话记录
+
 ---
 
 ## User Preferences (用户偏好)
