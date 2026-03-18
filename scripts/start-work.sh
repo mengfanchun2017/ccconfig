@@ -29,16 +29,12 @@ CLAUDE_DIR=$(get_claude_dir)
 echo "Claude 配置目录: $CLAUDE_DIR"
 
 echo ""
-echo "[1/4] 从 GitHub 拉取最新配置..."
+echo "[1/3] 从 GitHub 拉取最新配置..."
 git pull
 echo_success "✅ 成功拉取最新配置"
 echo ""
 
-echo "[2/4] 同步 .claude.json..."
-cp -f "$REPO_DIR/.claude.json" "$USER_HOME/.claude.json"
-echo "   - .claude.json 已同步"
-
-echo "[3/4] 智能同步 settings.json..."
+echo "[2/3] 智能同步 settings.json..."
 if command -v node &> /dev/null; then
     node "$SCRIPT_DIR/sync-settings.js" pull
 else
@@ -48,8 +44,8 @@ else
     echo "   - settings.json 已复制"
 fi
 
-echo "[4/4] 同步 CLAUDE.md..."
-# CLAUDE.md 位于仓库中，由 git pull 更新，无需额外复制操作
+echo "[3/3] 同步 CLAUDE.md..."
+sync_claude_md "pull"
 echo ""
 
 echo "✅ 配置文件同步完成"
