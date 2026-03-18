@@ -12,7 +12,11 @@ echo "=== 正在自动备份 MEMORY.md... ==="
 
 # 源文件路径（用户级别的 MEMORY.md）
 # Windows Git Bash 下用 $HOME
+# 注意：需要根据实际项目名调整路径
 SOURCE_MEMORY="$HOME/.claude/projects/C--git/memory/MEMORY.md"
+
+# 如果是其他项目，修改上面的项目名：
+# SOURCE_MEMORY="$HOME/.claude/projects/你的项目名/memory/MEMORY.md"
 
 # 目标路径（claude-config 仓库里的 memory 目录）
 DEST_DIR="$(dirname "$0")/../memory"

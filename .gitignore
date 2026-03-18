@@ -1,5 +1,8 @@
 # Claude Code 本地配置（包含 API Key，不同步）
 .claude.json
 
+# GetNote 等外部工具配置（包含 API Key）
+openclaw.json
+
 # 可选：本地环境变量文件
 # .env
