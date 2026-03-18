@@ -54,18 +54,6 @@
       "type": "http",
       "url": "https://api.githubcopilot.com/mcp/"
     },
-    "playwright": {
-      "args": [],
-      "command": "playwright-mcp",
-      "env": {
-        "PLAYWRIGHT_MCP_BROWSER": "msedge"
-      },
-      "type": "stdio"
-    },
-    "supabase": {
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp?project_ref=<your-supabase-project-id>"
-    },
     "tavily": {
       "args": [],
       "command": "tavily-mcp",
@@ -74,16 +62,9 @@
       },
       "type": "stdio"
     },
-    "markitdown": {
-      "type": "stdio",
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "markitdown-mcp-npx"
-      ],
-      "env": {}
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=<your-supabase-project-id>"
     }
   },
   "officialMarketplaceAutoInstallAttempted": true,
