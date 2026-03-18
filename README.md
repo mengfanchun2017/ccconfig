@@ -27,15 +27,17 @@
 scripts\start-work.bat
 ```
 
-**Git Bash / Linux / Mac:**
+**WSL Ubuntu / Linux / Mac:**
 ```bash
-scripts/start-work.sh
+cd ~/git/claude-config
+./scripts/start-work.sh
 ```
 
 这个脚本会自动：
 1. 从 GitHub 拉取最新配置
 2. 同步配置文件到本地（settings.json 使用智能合并）
-3. 检查 Memory 链接状态
+3. 同步 CLAUDE.md 到本地主目录
+4. 检查 Memory 目录状态
 
 ### 在当前设备结束工作后
 
@@ -44,24 +46,83 @@ scripts/start-work.sh
 scripts\end-work.bat
 ```
 
-**Git Bash / Linux / Mac:**
+**WSL Ubuntu / Linux / Mac:**
 ```bash
-scripts/end-work.sh
+cd ~/git/claude-config
+./scripts/end-work.sh
 ```
 
 这个脚本会自动：
 1. 从本地收集最新配置到仓库（settings.json 只提取配置部分）
-2. 显示 git 状态
-3. 提交更改（可自定义提交信息）
-4. 推送到 GitHub
+2. 同步 CLAUDE.md 到仓库
+3. 显示 git 状态
+4. 提交更改（可自定义提交信息）
+5. 推送到 GitHub
 
 > **注意**：`.claude.json` 包含 LLM API 配置，保留在本地不同步。
 
 ---
 
+## 多平台支持
+
+### 支持的平台
+
+| 平台 | 脚本 | 说明 |
+|------|------|------|
+| Windows 11 | `start-work.bat` / `end-work.bat` | 双击运行 |
+| WSL Ubuntu | `start-work.sh` / `end-work.sh` | Bash 运行 |
+| Linux / Mac | `start-work.sh` / `end-work.sh` | Bash 运行 |
+
+### WSL Ubuntu 特别说明
+
+WSL 环境下脚本会自动检测并适配：
+
+- **用户主目录**：优先使用 Windows 主目录 (`/mnt/c/Users/franc`)，保持与 Windows 端配置一致
+- **CLAUDE.md**：同步到 Linux 主目录 `~/CLAUDE.md`
+- **配置文件**：存储在 Windows 主目录，确保多端共享
+
+#### WSL 下手动运行
+
+```bash
+# 进入仓库目录
+cd ~/git/claude-config
+
+# 开始工作
+./scripts/start-work.sh
+
+# 结束工作
+./scripts/end-work.sh
+
+# 或添加到 PATH（可选）
+# echo 'export PATH="$PATH:~/git/claude-config/scripts"' >> ~/.bashrc
+# source ~/.bashrc
+```
+
+#### WSL 下 CLAUDE Code 启动
+
+```bash
+# 在 WSL 中启动 Claude Code
+claude
+
+# 或使用 PowerShell 调用
+powershell.exe -Command "claude"
+```
+
+---
+
 ## 全新电脑部署
 
-### 部署流程图
+### 选择你的平台
+
+- [Windows 11](#windows-11-部署)
+- [WSL Ubuntu](#wsl-ubuntu-部署)
+- [Linux / Mac](#linux--mac-部署)
+
+---
+
+### Windows 11 部署
+
+#### 部署流程图
 
 ```
 ┌─────────────────┐
@@ -94,7 +155,7 @@ scripts/end-work.sh
 └─────────────────┘
 ```
 
-### 第一步：环境准备
+#### 第一步：环境准备
 
 #### 1.1 检查并安装 WinGet
 
@@ -344,6 +405,211 @@ claude doctor
 ```
 
 如果能返回搜索结果，说明部署成功！
+
+---
+
+### WSL Ubuntu 部署
+
+适用于在 Windows Subsystem for Linux (WSL) 中运行 Ubuntu 的用户。
+
+#### 部署流程图
+
+```
+┌─────────────────┐
+│  1. 环境准备     │ → Ubuntu 24.04 + Git + Node.js
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  2. 安装 Claude  │ → 原生版本（curl 安装）
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  3. 克隆配置仓库 │ → git clone claude-config
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  4. 同步配置     │ → 运行 start-work.sh
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  5. 安装 MCP    │ → 使用 npm 全局安装
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  6. 验证部署     │ → 检查 Claude + MCP + Skill
+└─────────────────┘
+```
+
+#### 第一步：环境准备
+
+##### 1.1 启用 WSL 并安装 Ubuntu 24.04
+
+```powershell
+# 以管理员身份打开 PowerShell
+wsl --install -d Ubuntu-24.04
+```
+
+或者手动从 Microsoft Store 安装 Ubuntu 24.04。
+
+##### 1.2 安装 Git
+
+```bash
+sudo apt update
+sudo apt install -y git
+```
+
+##### 1.3 安装 Node.js LTS
+
+```bash
+# 安装 Node.js LTS
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# 验证安装
+node --version
+npm --version
+```
+
+##### 1.4 配置 Git 代理（如果需要）
+
+如果使用代理（Clash Verge）：
+
+```bash
+git config --global http.proxy http://127.0.0.1:7897
+git config --global https.proxy http://127.0.0.1:7897
+```
+
+---
+
+#### 第二步：安装 Claude Code
+
+##### 方式一：官方安装脚本（推荐）
+
+```bash
+curl -sL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
+```
+
+##### 方式二：直接下载二进制
+
+```bash
+# 下载最新版本
+curl -LO https://github.com/anthropics/claude-code/releases/latest/download/claude-linux-x64
+
+# 移动到 PATH
+chmod +x claude-linux-x64
+sudo mv claude-linux-x64 /usr/local/bin/claude
+```
+
+##### 验证安装
+
+```bash
+claude --version
+```
+
+---
+
+#### 第三步：克隆配置仓库
+
+```bash
+# 创建项目目录
+mkdir -p ~/git
+cd ~/git
+
+# 克隆配置仓库
+git clone https://github.com/<your-github-username>/claude-config.git
+
+# 进入目录
+cd claude-config
+```
+
+---
+
+#### 第四步：同步配置
+
+```bash
+# 运行同步脚本
+./scripts/start-work.sh
+```
+
+**注意**：WSL 环境下：
+- `.claude.json` 存储在 Windows 主目录（`/mnt/c/Users/franc/.claude.json`），与 Windows 端共享
+- `settings.json` 同步到 Windows 主目录
+- `CLAUDE.md` 同步到 Linux 主目录 (`~/CLAUDE.md`)
+
+---
+
+#### 第五步：安装 MCP 服务器
+
+```bash
+# Tavily MCP
+npm install -g tavily-mcp
+
+# Playwright MCP
+npm install -g @playwright/mcp
+
+# MarkItDown MCP
+npm install -g markitdown-mcp-npx
+```
+
+---
+
+#### 第六步：验证部署
+
+```bash
+# 1. 验证 Claude Code
+claude --version
+
+# 2. 验证 MCP 服务器
+claude mcp list
+
+# 3. 验证插件
+claude plugin list
+
+# 4. 测试网络搜索（如果有网络问题，检查代理配置）
+claude
+# 在对话中说：搜索今天的新闻
+```
+
+---
+
+### Linux / Mac 部署
+
+适用于原生 Linux 或 Mac 系统。
+
+#### 部署流程
+
+```bash
+# 1. 安装依赖
+# Ubuntu/Debian:
+sudo apt install -y git nodejs npm
+
+# macOS (Homebrew):
+brew install git node
+
+# 2. 克隆仓库
+mkdir -p ~/git
+cd ~/git
+git clone https://github.com/<your-github-username>/claude-config.git
+cd claude-config
+
+# 3. 安装 Claude Code
+curl -sL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
+
+# 4. 同步配置
+./scripts/start-work.sh
+
+# 5. 安装 MCP
+npm install -g tavily-mcp @playwright/mcp markitdown-mcp-npx
+
+# 6. 验证
+claude --version
+claude mcp list
+```
 
 ---
 
