@@ -7,11 +7,7 @@ echo.
 
 cd /d "%~dp0.."
 
-echo [1/5] 从本地同步配置到仓库...
-
-echo 同步 .claude.json...
-copy /Y "%USERPROFILE%\.claude.json" .claude.json >nul
-echo   - .claude.json 已同步
+echo [1/4] 从本地同步配置到仓库...
 
 echo 智能同步 settings.json...
 node "%~dp0sync-settings.js" push
@@ -28,18 +24,18 @@ echo   - CLAUDE.md 已同步
 echo ✅ 配置文件收集完成
 echo.
 
-echo [2/5] 检查 git 状态...
+echo [2/4] 检查 git 状态...
 git status --short
 echo.
 
-echo [3/5] 提交更改...
+echo [3/4] 提交更改...
 git add .
 set /p commit_msg="请输入提交信息 (默认: 更新配置): "
 if "%commit_msg%"=="" set commit_msg=更新配置
 git commit -m "%commit_msg%"
 echo.
 
-echo [4/5] 推送到 GitHub...
+echo [4/4] 推送到 GitHub...
 git push
 if %errorlevel% neq 0 (
     echo ❌ Git push 失败！请检查网络连接。
