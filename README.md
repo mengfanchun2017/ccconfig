@@ -8,13 +8,15 @@
 
 1. [快速开始（日常使用）](#快速开始日常使用)
 2. [全新电脑部署](#全新电脑部署)
-3. [核心使用规范](#核心使用规范)
-4. [配置文件说明](#配置文件说明)
-5. [settings.json 智能同步](#settingsjson-智能同步)
-6. [Git 代理配置](#git-代理配置)
-7. [故障排查](#故障排查)
-8. [部署检查清单](#部署检查清单)
-9. [安全提示](#安全提示)
+3. [初始化脚本说明](#初始化脚本说明)
+4. [文件结构说明](#文件结构说明)
+5. [核心使用规范](#核心使用规范)
+6. [配置文件说明](#配置文件说明)
+7. [settings.json 智能同步](#settingsjson-智能同步)
+8. [Git 代理配置](#git-代理配置)
+9. [故障排查](#故障排查)
+10. [部署检查清单](#部署检查清单)
+11. [安全提示](#安全提示)
 
 ---
 
@@ -616,6 +618,129 @@ npm install -g tavily-mcp @playwright/mcp markitdown-mcp-npx
 claude --version
 claude mcp list
 ```
+
+---
+
+## 初始化脚本说明
+
+> **注意**：初始化脚本已包含在本仓库中。但因为仓库需要克隆后才能拉取，所以需要**先手动将脚本复制到本地**，然后再执行。
+
+### 使用流程
+
+```
+1. 从其他渠道获取初始化脚本（initgit.sh / initgit.ps1）
+   ↓
+2. 手动复制到目标目录（如 ~/ 或 C:\）
+   ↓
+3. 执行脚本（自动安装 git + gh + 登录 + 克隆仓库）
+   ↓
+4. 进入克隆后的仓库目录
+   ↓
+5. 执行日常同步脚本 start-work.sh / start-work.bat
+```
+
+### 脚本文件
+
+| 平台 | Git 初始化 | Claude 配置 |
+|------|-----------|-------------|
+| Ubuntu / Linux / WSL | `initgit.sh` | `initclaude.sh` |
+| Windows | `initgit.ps1` | `initclaude.ps1` |
+
+### initgit.sh 功能
+
+1. 检查/安装 git
+2. 自动下载安装 GitHub CLI (gh)
+3. 引导 `gh auth login` 登录 GitHub
+4. 询问仓库地址并克隆（默认：<your-github-username>/claude-config）
+
+### initclaude.sh 功能
+
+1. 选择 LLM 订阅厂商（目前支持 MINIMAX）
+2. 读取 `apillm.json` 配置模板
+3. 逐条询问用户配置（API 地址、API Key、模型名称）
+4. 跳过 Claude 登录引导
+5. 写入 ~/.claude/settings.json 配置
+6. 更新 ~/.bashrc 环境变量
+
+### apillm.json 格式
+
+```json
+{
+    "base_url": "https://api.minimaxi.com/anthropic",
+    "model_name": "MiniMax-M2.7"
+}
+```
+
+> **注意**：api_key 不保存到此文件，运行 initclaude.sh 时手动输入。
+
+### 初始化流程
+
+**Ubuntu / Linux / WSL:**
+```bash
+# 0. 添加执行权限
+chmod +x initgit.sh initclaude.sh
+
+# 1. 安装 Git + GitHub CLI + 登录 + 克隆仓库
+./initgit.sh
+
+# 2. 配置 Claude Code（选择 MINIMAX，逐条确认配置）
+./initclaude.sh
+
+# 3. 加载环境变量
+source ~/.bashrc
+
+# 4. 拉取配置仓库
+cd claude-config
+./scripts/start-work.sh
+```
+
+**Windows:**
+```powershell
+# 1. 安装 Git + GitHub CLI + 登录 + 克隆仓库
+.\initgit.ps1
+
+# 2. 配置 Claude Code（选择 MINIMAX，逐条确认配置）
+.\initclaude.ps1
+
+# 3. 拉取配置仓库
+cd claude-config
+.\scripts\start-work.bat
+```
+
+---
+
+## 文件结构说明
+
+### 仓库文件清单
+
+| 文件/目录 | 说明 | 同步 |
+|-----------|------|------|
+| `README.md` | 说明文档 | ✅ |
+| `CLAUDE.md` | 权限白名单配置 | ✅ |
+| `settings.json` | Claude Code 全局设置 | ✅ 智能同步 |
+| `apillm.json` | LLM API 配置模板（不含敏感信息） | ✅ |
+| `initgit.sh` | Ubuntu Git 初始化脚本 | ✅ |
+| `initgit.ps1` | Windows Git 初始化脚本 | ✅ |
+| `initclaude.sh` | Ubuntu Claude 配置脚本 | ✅ |
+| `initclaude.ps1` | Windows Claude 配置脚本 | ✅ |
+| `scripts/` | 日常同步脚本 | ✅ |
+| `hooks/` | Git hooks | ✅ |
+| `memory/` | 记忆文件目录 | ✅ |
+
+### 不同步的文件（本地保留）
+
+| 文件 | 说明 |
+|------|------|
+| `.claude.json` | 本地配置（含 API Key） |
+| `openclaw.json` | GetNote 等外部工具配置 |
+
+### 本地手动维护
+
+这些文件需要用户手动创建或从其他来源获取：
+
+| 文件 | 说明 |
+|------|------|
+| `initgit.sh` / `initgit.ps1` | 首次部署时手动复制到本地再执行 |
 
 ---
 
