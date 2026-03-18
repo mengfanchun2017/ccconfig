@@ -29,15 +29,7 @@ CLAUDE_DIR=$(get_claude_dir)
 echo "Claude 配置目录: $CLAUDE_DIR"
 
 echo ""
-echo "[1/5] 从本地同步配置到仓库..."
-
-echo "同步 .claude.json..."
-if [ -f "$USER_HOME/.claude.json" ]; then
-    cp -f "$USER_HOME/.claude.json" "$REPO_DIR/.claude.json"
-    echo "   - .claude.json 已同步"
-else
-    echo_warn "   ⚠️  未找到 .claude.json"
-fi
+echo "[1/4] 从本地同步配置到仓库..."
 
 echo "智能同步 settings.json..."
 if command -v node &> /dev/null; then
@@ -53,16 +45,16 @@ else
 fi
 
 echo "同步 CLAUDE.md..."
-# CLAUDE.md 在仓库中，由 git 管理，无需额外操作
+sync_claude_md "push"
 
 echo_success "✅ 配置文件收集完成"
 echo ""
 
-echo "[2/5] 检查 git 状态..."
+echo "[2/4] 检查 git 状态..."
 git status --short
 echo ""
 
-echo "[3/5] 提交更改..."
+echo "[3/4] 提交更改..."
 git add .
 if [ -z "$1" ]; then
     read -p "请输入提交信息 (默认: 更新配置): " commit_msg
@@ -75,12 +67,12 @@ fi
 git commit -m "$commit_msg"
 echo ""
 
-echo "[4/5] 推送到 GitHub..."
+echo "[4/4] 推送到 GitHub..."
 git push
 echo_success "✅ 成功推送到 GitHub"
 echo ""
 
-echo "[5/5] 同步 Memory..."
+echo "同步 Memory..."
 PROJECT_PATH="$REPO_DIR"
 MEMORY_DIR=$(get_memory_dir "$PROJECT_PATH")
 
