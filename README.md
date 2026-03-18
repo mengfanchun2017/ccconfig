@@ -338,35 +338,41 @@ npm install -g tavily-mcp
 ```
 
 验证：
-```powershell
+```bash
 tavily-mcp --help
 ```
 
-##### 2. Playwright MCP（浏览器自动化）
+##### 2. Playwright MCP（浏览器自动化，推荐安装）
 
-```powershell
+```bash
 npm install -g @playwright/mcp
 ```
 
 验证：
-```powershell
+```bash
 playwright-mcp --help
 ```
 
-##### 3. MarkItDown MCP（文档解析）
+##### 3. MarkItDown MCP（文档解析，推荐安装）
 
-```powershell
+```bash
 npm install -g markitdown-mcp-npx
 ```
 
 验证：
-```powershell
+```bash
 markitdown-mcp-npx --help
 ```
 
-##### GitHub & Supabase MCP
+##### 4. GitHub MCP
 
-这两个使用 HTTP 方式，不需要安装本地 npm 包，配置在本地 `.claude.json` 中。
+使用 HTTP 方式，不需要安装本地 npm 包，配置在本地 `.claude.json` 中。
+
+##### 5. Supabase MCP
+
+使用 HTTP 方式，不需要安装本地 npm 包，配置在本地 `.claude.json` 中。
+
+> **注意**：本地 `.claude.json` 需要手动配置 MCP 服务器。首次使用前请确保已在本地配置文件中添加以上 MCP。
 
 ---
 
