@@ -28,8 +28,20 @@ Use the following sections in this file:
 
 ### Multi-Device Memory (多终端记忆)
 - **设备识别**: 使用 `hostname` 命令获取当前主机名
-- **记忆结构**: 按主机名分区段记录，如 `### 2026-03-15 [Francis_MiPro]`
+- **记忆结构**: 会话记录时标记设备，如 `### 2026-03-19 [Francis_MiPro]`
 - **同步时机**: 每次 `gitarc` 时自动更新本终端的会话记录
+- **会话记录格式**: `### 2026-03-19 [设备主机名]`
+
+---
+
+## 设备列表
+
+| 主机名 | 操作系统 | 备注 |
+|--------|---------|------|
+| Francis_MiPro | Windows 11 家庭中文版 | 主工作电脑 |
+| (待添加) | | |
+
+> 注意：新增设备后在此表添加记录
 
 ---
 
@@ -79,14 +91,14 @@ Use the following sections in this file:
 
 ## Key Learnings (关键知识点)
 
-### 2026-03-07
+### 2026-03-07 [Francis_MiPro] - Windows 11
 - **Claude Code Memory System**:
   - Auto Memory: Built-in feature, uses `~/.claude/projects/{project}/memory/` directory
   - MEMORY.md: Auto-loaded into every conversation, needs manual updating
   - Memory MCP: Just a recommendation in docs, not an actual plugin
   - claude-md-management: Official plugin for managing CLAUDE.md files
 
-### 2026-03-07 - MCP 服务器配置
+### 2026-03-07 [Francis_MiPro] - Windows 11 - MCP 服务器配置
 - **Playwright MCP**:
   - 正确包名: `@playwright/mcp` (npm 上存在)
   - 全局安装: `npm install -g @playwright/mcp`
@@ -110,7 +122,7 @@ Use the following sections in this file:
   - 后续新增 MCP、插件默认都加到全局配置
   - 除非特别要求，否则所有配置都放在全局
 
-### 2026-03-15 - Claude Code 升级方法
+### 2026-03-15 [Francis_MiPro] - Windows 11 - Claude Code 升级方法
 - **升级步骤**:
   1. 关闭所有 Claude Code 窗口和进程 (taskkill /F /IM claude.exe)
   2. 在 PowerShell 中运行: `winget upgrade Anthropic.ClaudeCode`
@@ -133,26 +145,26 @@ Use the following sections in this file:
   - `Pull requests`: 代码审核
   - `Issues`: 任务管理
 
-### 2026-03-09 - Supabase MCP 配置方式
+### 2026-03-09 [Francis_MiPro] - Windows 11 - Supabase MCP 配置方式
 - **Supabase MCP 三种认证方式**:
   1. **OAuth 动态注册** (当前在用): 浏览器授权，无需配置 key，适合本地开发
   2. **Personal Access Token (PAT)**: 在 Supabase 账户生成，配置在 headers 中，适合多设备同步
   3. **手动 OAuth App**: 在组织设置中创建，适合需要固定 client_id/secret 的场景
 - **多设备开发建议**: 使用 PAT 方式更方便，配置文件可直接通过 claude-config 仓库同步
 
-### 2026-03-10 - Git 代理与多设备同步配置
+### 2026-03-10 [Francis_MiPro] - Windows 11 - Git 代理与多设备同步配置
 - **Git 代理配置**:
   - 使用 Clash Verge，代理端口: **7897**
   - 配置命令: `git config --global http.proxy http://127.0.0.1:7897`
   - 配置命令: `git config --global https.proxy http://127.0.0.1:7897`
   - 三台电脑都使用相同的配置
 - **自动化脚本**:
-  - `scripts/start.ps1`: 开始工作前运行，拉取最新配置并同步到本地
-  - `scripts/end.ps1`: 结束工作后运行，收集本地配置并提交推送
+  - `scripts/start-work.bat`: 开始工作前运行，拉取最新配置并同步到本地
+  - `scripts/end-work.bat`: 结束工作后运行，收集本地配置并提交推送
 - **日常工作流**:
-  1. 到公司/家: 双击 `start.ps1`
+  1. 到公司/家: 双击 `start-work.bat`
   2. 正常工作
-  3. 结束工作: 双击 `end.ps1`
+  3. 结束工作: 双击 `end-work.bat`
 - **Git 远程仓库**: https://github.com/<your-github-username>/claude-config
 - **对话关键词**:
   - `gitinit`: 开始工作 - 从 GitHub 拉取最新配置并同步到本地
@@ -168,7 +180,7 @@ Use the following sections in this file:
 
 ---
 
-### 2026-03-15 - OpenClaw 安装 (Francis_MiPro)
+### 2026-03-15 [Francis_MiPro] - Windows 11 - OpenClaw 安装
 - **安装方式**: WSL Ubuntu 中 npm 全局安装
 - **安装路径**: /home/franc/.npm-global/bin/openclaw
 - **Gateway 端口**: 18789
@@ -182,7 +194,16 @@ Use the following sections in this file:
 
 ## Session Logs (会话记录)
 
-### 2026-03-07
+### 2026-03-20 [Francis_MiPro] - Windows 11
+- 测试 memory 同步功能
+- 配置了 GitMCP（GitHub 仓库读取）
+
+### 2026-03-19 [Francis_MiPro] - Windows 11
+- 删除了 claude-config/memory 目录（重复记忆）
+- 更新记忆结构：添加设备列表，记录主机名和操作系统
+- 会话记录格式改为：`### 日期 [主机名] - 操作系统`
+
+### 2026-03-07 [Francis_MiPro] - Windows 11
 - Set up Auto Memory system
 - Created MEMORY.md with recording flow
 - Confirmed Auto Memory is enabled by default
@@ -218,7 +239,7 @@ Use the following sections in this file:
   - 清理项目级残留配置文件
   - 更新 claude-config 仓库并推送
 
-### 2026-03-09
+### 2026-03-09 [Francis_MiPro] - Windows 11
 - **检查 Supabase MCP 配置**:
   - 当前使用 OAuth 动态注册方式，项目 ref: <your-supabase-project-id>
   - 测试连接成功，可访问 test_data 和 test_logs 表
@@ -226,9 +247,9 @@ Use the following sections in this file:
 - **用户需求确认**: 讨论多台电脑开发时的配置方式，推荐使用 PAT 方式
 - **记忆同步要求**: 用户明确要求每次工作收尾时必须同步记忆并更新到 claude-config 仓库
 
-### 2026-03-10
+### 2026-03-10 [Francis_MiPro] - Windows 11
 - **完善多设备同步方案**:
-  - 创建自动化脚本: `start.ps1` 和 `end.ps1`
+  - 创建自动化脚本: `start-work.bat` 和 `end-work.bat`
   - 更新 README.md，添加快速使用指南
   - 配置 Git 走 Clash 代理 (端口 7897)
   - 所有三台电脑都使用相同配置: Clash Verge + 端口 7897
@@ -236,18 +257,18 @@ Use the following sections in this file:
 - **白名单更新**:
   - 添加 `git push`、`git push --set-upstream`、`git config --global` 到 CLAUDE.md
 
-### 2026-03-11
+### 2026-03-11 [Francis_MiPro] - Windows 11
 - **修复 tavily MCP 工具权限问题**:
   - 问题根源: 项目级配置 `C:\git\.claude\settings.local.json` 覆盖了全局配置，只允许 3 个特定的 tavily 工具
   - 解决方案: 删除项目级配置文件，在全局配置中添加 `"mcp__tavily__*"` 通配符
   - 测试结果: `mcp__tavily__tavily_search`、`mcp__tavily__tavily_extract`、`mcp__tavily__tavily_research` 都可以直接调用，不需要批准
 - **关键知识点**: 项目级配置优先级高于全局配置，之前删除项目级配置后又被重新创建了
 
-### 2026-03-12 - Get笔记
+### 2026-03-12 [Francis_MiPro] - Windows 11 - Get笔记
 - **配置文件**: ~/.openclaw/openclaw.json (apiKey, clientId)
 - **测试成功**: 创建了 t1, t2, t3 三个测试笔记，都带 claude 标签
 
-### 2026-03-12 - Secrets 管理工具分析
+### 2026-03-12 [Francis_MiPro] - Windows 11 - Secrets 管理工具分析
 | 服务 | 免费计划 | 国内访问 | 推荐场景 |
 |------|---------|----------|----------|
 | Doppler | ✅ Community 免费（无限用户） | ✅ 可访问 | 企业级 |
@@ -260,7 +281,7 @@ Use the following sections in this file:
   - 配置文件同步到 claude-config 私有仓库（安全）
   - 当前: ~/.openclaw/openclaw.json → 同步到 claude-config
 
-### 2026-03-12
+### 2026-03-12 [Francis_MiPro] - Windows 11
 - **安装 Get笔记 Claude Skill**:
   - Skill 来源: https://clawhub.ai/iswalle/getnote
   - 安装位置: ~/.claude/skills/getnote/
@@ -270,7 +291,7 @@ Use the following sections in this file:
   - 白名单更新: 添加 `setx` 命令到 CLAUDE.md
   - 同步到 claude-config 仓库并推送成功
 
-### 2026-03-11 - Native 安装与配置位置
+### 2026-03-11 [Francis_MiPro] - Windows 11 - Native 安装与配置位置
 - **Native 安装方式**:
   - 使用 WinGet 安装: `winget install Claude.Code`
   - 安装路径: `C:\Users\franc\AppData\Local\Microsoft\WinGet\Links\claude.exe`
@@ -284,7 +305,7 @@ Use the following sections in this file:
   - 当前 C:/git 项目禁用了 tavily (用于测试)
   - 注意: 禁用后 MCP 工具调用需要每次批准
 
-### 2026-03-12 - 删除 GitHub MCP
+### 2026-03-12 [Francis_MiPro] - Windows 11 - 删除 GitHub MCP
 - **原因**: 分析后发现 GitHub MCP 是 GitHub Copilot CLI 专用的，对 Claude Code 没用
 - **删除内容**: 从全局 mcpServers 中删除 github 条目
 - **影响**: 之后 git 操作只能通过 git 命令，不再能用 MCP 工具操作 GitHub
