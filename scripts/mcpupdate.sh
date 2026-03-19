@@ -1,12 +1,12 @@
 #!/bin/bash
 # Claude Code MCP 自动更新脚本
-# 作用：对比 mcp-list.json，安装本地缺失的 MCP
+# 作用：对比 mcplist.json，安装本地缺失的 MCP
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-MCP_LIST_FILE="$REPO_DIR/mcp-list.json"
+MCP_LIST_FILE="$REPO_DIR/mcplist.json"
 
 # 颜色定义
 RED='\033[0;31m'
@@ -25,9 +25,9 @@ echo_info "  Claude Code MCP 自动更新"
 echo_info "========================================"
 echo ""
 
-# 检查 mcp-list.json 是否存在
+# 检查 mcplist.json 是否存在
 if [ ! -f "$MCP_LIST_FILE" ]; then
-    echo_error "❌ 未找到 mcp-list.json"
+    echo_error "❌ 未找到 mcplist.json"
     exit 1
 fi
 
