@@ -72,7 +72,6 @@
       "Bash(chmod -R 777:*)",
       "Bash(chmod 777:*)",
       "Bash(chmod -R 000:*)",
-
       "Bash(sudo chmod:*)",
       "Bash(sudo chown:*)",
       "Bash(sudo dd:*)",
