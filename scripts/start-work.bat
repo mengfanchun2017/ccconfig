@@ -32,63 +32,66 @@ echo   - CLAUDE.md 已同步
 echo.
 
 echo [4/4] Memory 同步...
-echo 可用项目: git claude-config
-echo.
 
-echo 请选择要同步 Memory 的项目：
-echo   1) git          (对应 C:\git 目录)
-echo   2) claude-config (对应 C:\git\claude-config 目录)
-echo.
+:: 自动检测当前项目
+set "CURRENT_DIR=%CD%"
 
-set /p choice=请输入选项 [1]:
-if "%choice%"=="" set choice=1
+:: 移除驱动器号字母，只保留路径
+set "PATH_ONLY=%CURRENT_DIR:~2%"
 
-if "%choice%"=="1" goto sync_git
-if "%choice%"=="2" goto sync_claude_config
-if "%choice%"=="git" goto sync_git
-if "%choice%"=="claude-config" goto sync_claude_config
+:: 根据当前目录匹配项目
+if "%PATH_ONLY%"=="\git" goto sync_git
+if "%PATH_ONLY%"=="\claude-config" goto sync_claude_config
+if "%PATH_ONLY:~0,5%"=="\git\" goto sync_subproject
+if "%PATH_ONLY:~0,16%"=="\claude-config" goto sync_claude_config
+
+:: 默认匹配 git
+goto sync_git
+
+:sync_subproject
+:: 提取子目录名（如 \git\projectu -> projectu）
+for %%i in ("%PATH_ONLY:~4%") do set "CURRENT_PROJECT=%%~ni"
+echo   检测到当前项目: %CURRENT_PROJECT%
+goto sync_project_memory
 
 :sync_git
-echo 选中项目: git
-if exist "%USERPROFILE%\.claude\projects\C--git\memory" (
-    if exist "memory\git\MEMORY.md" (
-        copy /Y "memory\git\MEMORY.md" "%USERPROFILE%\.claude\projects\C--git\memory\MEMORY.md" >nul
-        echo   ✅ git 的 Memory 已同步
-    ) else (
-        echo   ⚠️  仓库中未找到 git 的 Memory
-    )
-) else (
-    mkdir "%USERPROFILE%\.claude\projects\C--git\memory" 2>nul
-    if exist "memory\git\MEMORY.md" (
-        copy /Y "memory\git\MEMORY.md" "%USERPROFILE%\.claude\projects\C--git\memory\MEMORY.md" >nul
-        echo   ✅ git 的 Memory 已同步
-    ) else (
-        echo   ⚠️  仓库中未找到 git 的 Memory
-    )
-)
-goto memory_done
+set "CURRENT_PROJECT=git"
+echo   检测到当前项目: git
+goto sync_project_memory
 
 :sync_claude_config
-echo 选中项目: claude-config
-if exist "%USERPROFILE%\.claude\projects\C--git-claude-config\memory" (
+set "CURRENT_PROJECT=claude-config"
+echo   检测到当前项目: claude-config
+goto sync_project_memory
+
+:sync_project_memory
+if "%CURRENT_PROJECT%"=="git" (
+    if exist "memory\git\MEMORY.md" (
+        if not exist "%USERPROFILE%\.claude\projects\C--git\memory" mkdir "%USERPROFILE%\.claude\projects\C--git\memory"
+        copy /Y "memory\git\MEMORY.md" "%USERPROFILE%\.claude\projects\C--git\memory\MEMORY.md" >nul
+        echo   ✅ git 的 Memory 已同步
+    ) else (
+        echo   ⚠️  仓库中未找到 git 的 Memory
+    )
+) else if "%CURRENT_PROJECT%"=="claude-config" (
     if exist "memory\claude-config\MEMORY.md" (
+        if not exist "%USERPROFILE%\.claude\projects\C--git-claude-config\memory" mkdir "%USERPROFILE%\.claude\projects\C--git-claude-config\memory"
         copy /Y "memory\claude-config\MEMORY.md" "%USERPROFILE%\.claude\projects\C--git-claude-config\memory\MEMORY.md" >nul
         echo   ✅ claude-config 的 Memory 已同步
     ) else (
         echo   ⚠️  仓库中未找到 claude-config 的 Memory
     )
 ) else (
-    mkdir "%USERPROFILE%\.claude\projects\C--git-claude-config\memory" 2>nul
-    if exist "memory\claude-config\MEMORY.md" (
-        copy /Y "memory\claude-config\MEMORY.md" "%USERPROFILE%\.claude\projects\C--git-claude-config\memory\MEMORY.md" >nul
-        echo   ✅ claude-config 的 Memory 已同步
+    :: 子项目
+    if exist "memory\%CURRENT_PROJECT%\MEMORY.md" (
+        set "PROJECT_DIR=C--git-%CURRENT_PROJECT%"
+        if not exist "%USERPROFILE%\.claude\projects\%PROJECT_DIR%\memory" mkdir "%USERPROFILE%\.claude\projects\%PROJECT_DIR%\memory"
+        copy /Y "memory\%CURRENT_PROJECT%\MEMORY.md" "%USERPROFILE%\.claude\projects\%PROJECT_DIR%\memory\MEMORY.md" >nul
+        echo   ✅ %CURRENT_PROJECT% 的 Memory 已同步
     ) else (
-        echo   ⚠️  仓库中未找到 claude-config 的 Memory
+        echo   ⚠️  仓库中未找到 %CURRENT_PROJECT% 的 Memory
     )
 )
-goto memory_done
-
-:memory_done
 echo.
 
 echo ========================================
