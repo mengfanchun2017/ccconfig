@@ -1,0 +1,32 @@
+{
+  "description": "MCP 服务器列表 - 用于多设备同步安装",
+  "mcp": [
+    {
+      "name": "tavily",
+      "description": "网络搜索",
+      "install": "npx tavily-mcp"
+    },
+    {
+      "name": "playwright",
+      "description": "浏览器自动化",
+      "install": "npx @playwright/mcp"
+    },
+    {
+      "name": "markitdown",
+      "description": "文档解析",
+      "install": "npx markitdown-mcp-npx"
+    },
+    {
+      "name": "github",
+      "description": "GitHub API",
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
+    },
+    {
+      "name": "supabase",
+      "description": "Supabase 数据库",
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=<your-supabase-project-id>"
+    }
+  ]
+}
