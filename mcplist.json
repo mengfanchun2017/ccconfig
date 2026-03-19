@@ -1,5 +1,6 @@
 {
   "description": "MCP 服务器列表 - 用于多设备同步安装",
+  "note": "安装注意事项：\n1. playwright: 使用 'npx @playwright/mcp'，配置时用 {command: 'npx', args: ['@playwright/mcp']}\n2. 其他 stdio MCP 同理，优先全局安装而非 npx",
   "mcp": [
     {
       "name": "tavily",
@@ -9,24 +10,27 @@
     {
       "name": "playwright",
       "description": "浏览器自动化",
-      "install": "npx @playwright/mcp"
-    },
-    {
-      "name": "markitdown",
-      "description": "文档解析",
-      "install": "npx markitdown-mcp-npx"
-    },
-    {
-      "name": "github",
-      "description": "GitHub API",
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/"
+      "install": "npx @playwright/mcp",
+      "note": "配置用 npx 而非直接命令名"
     },
     {
       "name": "supabase",
       "description": "Supabase 数据库",
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=<your-supabase-project-id>"
+    },
+    {
+      "name": "gitmcp",
+      "description": "GitHub 仓库读取",
+      "type": "http",
+      "url": "https://gitmcp.io/docs"
+    },
+    {
+      "name": "lark-mcp",
+      "description": "飞书/ Lark MCP - 消息/文档/日历/知识库",
+      "install": "npx -y @larksuiteoapi/lark-mcp",
+      "type": "stdio",
+      "note": "需要飞书开放平台应用凭证 (app_id/app_secret)，配置到全局 ~/.claude.json"
     }
   ]
 }
