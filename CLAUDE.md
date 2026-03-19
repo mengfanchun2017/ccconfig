@@ -515,6 +515,8 @@
 - `claude plugin` - Claude Code 插件管理
 - `claude agents` - Claude Code 代理管理
 - `tavily-mcp` - Tavily MCP 服务器
+- `Edit(scripts/sync-settings.js)` - 允许编辑同步脚本
+- `Edit(CLAUDE.md)` - 允许编辑配置文件
 
 ### 文本处理
 - `awk` - Awk 文本处理

@@ -136,12 +136,12 @@ Use the following sections in this file:
   - 配置命令: `git config --global https.proxy http://127.0.0.1:7897`
   - 三台电脑都使用相同的配置
 - **自动化脚本**:
-  - `scripts/start-work.bat`: 开始工作前运行，拉取最新配置并同步到本地
-  - `scripts/end-work.bat`: 结束工作后运行，收集本地配置并提交推送
+  - `scripts/start.ps1`: 开始工作前运行，拉取最新配置并同步到本地
+  - `scripts/end.ps1`: 结束工作后运行，收集本地配置并提交推送
 - **日常工作流**:
-  1. 到公司/家: 双击 `start-work.bat`
+  1. 到公司/家: 双击 `start.ps1`
   2. 正常工作
-  3. 结束工作: 双击 `end-work.bat`
+  3. 结束工作: 双击 `end.ps1`
 - **Git 远程仓库**: https://github.com/<your-github-username>/claude-config
 - **对话关键词**:
   - `gitinit`: 开始工作 - 从 GitHub 拉取最新配置并同步到本地
@@ -217,7 +217,7 @@ Use the following sections in this file:
 
 ### 2026-03-10
 - **完善多设备同步方案**:
-  - 创建自动化脚本: `start-work.bat` 和 `end-work.bat`
+  - 创建自动化脚本: `start.ps1` 和 `end.ps1`
   - 更新 README.md，添加快速使用指南
   - 配置 Git 走 Clash 代理 (端口 7897)
   - 所有三台电脑都使用相同配置: Clash Verge + 端口 7897

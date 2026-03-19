@@ -11,7 +11,6 @@ const path = require('path');
 const CONFIG_KEYS = [
   'env',
   'permissions',
-  'model',
   'extraKnownMarketplaces',
   'enabledPlugins',
   'mcpServers'
@@ -19,6 +18,7 @@ const CONFIG_KEYS = [
 
 // 本地状态部分的键名 - 这些保留本地值
 const STATE_KEYS = [
+  'model',  // 模型是本地偏好，不同步
   'numStartups',
   'installMethod',
   'hasSeenTasksHint',

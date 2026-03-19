@@ -33,22 +33,12 @@ $ClaudeDir = Join-Path $UserHome ".claude"
 Write-Host "Claude 配置目录: $ClaudeDir"
 
 Write-Host ""
-Write-Host "[1/4] 从 GitHub 拉取最新配置..." -ForegroundColor Yellow
+Write-Host "[1/3] 从 GitHub 拉取最新配置..." -ForegroundColor Yellow
 git pull
 Write-Host "✅ 成功拉取最新配置" -ForegroundColor Green
 Write-Host ""
 
-Write-Host "[2/4] 同步 .claude.json..." -ForegroundColor Yellow
-$ClaudeJsonSrc = Join-Path $RepoDir ".claude.json"
-$ClaudeJsonDst = Join-Path $UserHome ".claude.json"
-if (Test-Path $ClaudeJsonSrc) {
-    Copy-Item -Path $ClaudeJsonSrc -Destination $ClaudeJsonDst -Force
-    Write-Host "   - .claude.json 已同步"
-} else {
-    Write-Host "   ⚠️  未找到 .claude.json" -ForegroundColor Yellow
-}
-
-Write-Host "[3/4] 智能同步 settings.json..." -ForegroundColor Yellow
+Write-Host "[2/3] 智能同步 settings.json..." -ForegroundColor Yellow
 if (Get-Command node -ErrorAction SilentlyContinue) {
     & node "$ScriptDir\sync-settings.js" pull
 } else {
@@ -66,7 +56,7 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     }
 }
 
-Write-Host "[4/4] 同步 CLAUDE.md..." -ForegroundColor Yellow
+Write-Host "[3/3] 同步 CLAUDE.md..." -ForegroundColor Yellow
 # CLAUDE.md 位于仓库中，由 git pull 更新，无需额外复制操作
 
 Write-Host ""

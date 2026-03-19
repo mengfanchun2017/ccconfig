@@ -1,20 +1,20 @@
 # Claude Code MCP 自动更新脚本
-# 作用：对比 mcp-list.json，安装本地缺失的 MCP
+# 作用：对比 mcplist.json，安装本地缺失的 MCP
 
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoDir = Split-Path -Parent $ScriptDir
-$McpListFile = Join-Path $RepoDir "mcp-list.json"
+$McpListFile = Join-Path $RepoDir "mcplist.json"
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  Claude Code MCP 自动更新" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# 检查 mcp-list.json 是否存在
+# 检查 mcplist.json 是否存在
 if (-not (Test-Path $McpListFile)) {
-    Write-Host "❌ 未找到 mcp-list.json" -ForegroundColor Red
+    Write-Host "❌ 未找到 mcplist.json" -ForegroundColor Red
     exit 1
 }
 
