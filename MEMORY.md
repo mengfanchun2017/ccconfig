@@ -135,17 +135,15 @@ Use the following sections in this file:
   - 配置命令: `git config --global http.proxy http://127.0.0.1:7897`
   - 配置命令: `git config --global https.proxy http://127.0.0.1:7897`
   - 三台电脑都使用相同的配置
-- **自动化脚本**:
-  - `scripts/start.ps1`: 开始工作前运行，拉取最新配置并同步到本地
-  - `scripts/end.ps1`: 结束工作后运行，收集本地配置并提交推送
+- **自动化脚本** (位于 `scripts/`):
+  - `start.sh` / `start.ps1`: 开始工作前运行，拉取最新配置并同步到本地
+  - `end.sh` / `end.ps1`: 结束工作后运行，收集本地配置并提交推送
+  - `mcpupdate.sh` / `mcpupdate.ps1`: 更新 MCP 服务器
 - **日常工作流**:
-  1. 到公司/家: 双击 `start.ps1`
+  1. 到公司/家: `./start.sh` 或 `./start.ps1`
   2. 正常工作
-  3. 结束工作: 双击 `end.ps1`
+  3. 结束工作: `./end.sh` 或 `./end.ps1`
 - **Git 远程仓库**: https://github.com/<your-github-username>/claude-config
-- **对话关键词**:
-  - `gitinit`: 开始工作 - 从 GitHub 拉取最新配置并同步到本地
-  - `gitarc`: 结束工作 - 收集本地配置并推送到 GitHub
 
 ---
 
