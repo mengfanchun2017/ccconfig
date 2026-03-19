@@ -194,6 +194,13 @@ Use the following sections in this file:
 
 ## Session Logs (会话记录)
 
+### 2026-03-20 [Francis_MiPro] - Windows 11
+- 测试 memory 同步功能
+- 配置了 GitMCP（GitHub 仓库读取）
+- 更新 mcpcheck 脚本（新增单独安装/添加选项）
+- 删除了 mcpupdate（功能已被 mcpcheck 包含）
+- 安装飞书 MCP (lark-mcp) - 待解决: 应用需要添加到知识库成员
+
 ### 2026-03-19 [Francis_MiPro] - Windows 11
 - 删除了 claude-config/memory 目录（重复记忆）
 - 更新记忆结构：添加设备列表，记录主机名和操作系统
