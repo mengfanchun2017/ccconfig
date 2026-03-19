@@ -31,15 +31,64 @@ copy /Y CLAUDE.md "C:\git\CLAUDE.md" >nul
 echo   - CLAUDE.md 已同步
 echo.
 
-echo ✅ 配置文件同步完成
+echo [4/4] Memory 同步...
+echo 可用项目: git claude-config
 echo.
 
-echo 检查 Memory 符号链接...
+echo 请选择要同步 Memory 的项目：
+echo   1) git          (对应 C:\git 目录)
+echo   2) claude-config (对应 C:\git\claude-config 目录)
+echo.
+
+set /p choice=请输入选项 [1]:
+if "%choice%"=="" set choice=1
+
+if "%choice%"=="1" goto sync_git
+if "%choice%"=="2" goto sync_claude_config
+if "%choice%"=="git" goto sync_git
+if "%choice%"=="claude-config" goto sync_claude_config
+
+:sync_git
+echo 选中项目: git
 if exist "%USERPROFILE%\.claude\projects\C--git\memory" (
-    echo   - Memory 目录已存在
+    if exist "memory\git\MEMORY.md" (
+        copy /Y "memory\git\MEMORY.md" "%USERPROFILE%\.claude\projects\C--git\memory\MEMORY.md" >nul
+        echo   ✅ git 的 Memory 已同步
+    ) else (
+        echo   ⚠️  仓库中未找到 git 的 Memory
+    )
 ) else (
-    echo   ⚠️  Memory 目录不存在，请参考 README.md 手动设置
+    mkdir "%USERPROFILE%\.claude\projects\C--git\memory" 2>nul
+    if exist "memory\git\MEMORY.md" (
+        copy /Y "memory\git\MEMORY.md" "%USERPROFILE%\.claude\projects\C--git\memory\MEMORY.md" >nul
+        echo   ✅ git 的 Memory 已同步
+    ) else (
+        echo   ⚠️  仓库中未找到 git 的 Memory
+    )
 )
+goto memory_done
+
+:sync_claude_config
+echo 选中项目: claude-config
+if exist "%USERPROFILE%\.claude\projects\C--git-claude-config\memory" (
+    if exist "memory\claude-config\MEMORY.md" (
+        copy /Y "memory\claude-config\MEMORY.md" "%USERPROFILE%\.claude\projects\C--git-claude-config\memory\MEMORY.md" >nul
+        echo   ✅ claude-config 的 Memory 已同步
+    ) else (
+        echo   ⚠️  仓库中未找到 claude-config 的 Memory
+    )
+) else (
+    mkdir "%USERPROFILE%\.claude\projects\C--git-claude-config\memory" 2>nul
+    if exist "memory\claude-config\MEMORY.md" (
+        copy /Y "memory\claude-config\MEMORY.md" "%USERPROFILE%\.claude\projects\C--git-claude-config\memory\MEMORY.md" >nul
+        echo   ✅ claude-config 的 Memory 已同步
+    ) else (
+        echo   ⚠️  仓库中未找到 claude-config 的 Memory
+    )
+)
+goto memory_done
+
+:memory_done
 echo.
 
 echo ========================================
