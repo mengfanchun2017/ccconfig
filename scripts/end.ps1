@@ -33,17 +33,7 @@ $ClaudeDir = Join-Path $UserHome ".claude"
 Write-Host "Claude 配置目录: $ClaudeDir"
 
 Write-Host ""
-Write-Host "[1/5] 从本地同步配置到仓库..." -ForegroundColor Yellow
-
-Write-Host "同步 .claude.json..."
-$ClaudeJsonSrc = Join-Path $UserHome ".claude.json"
-$ClaudeJsonDst = Join-Path $RepoDir ".claude.json"
-if (Test-Path $ClaudeJsonSrc) {
-    Copy-Item -Path $ClaudeJsonSrc -Destination $ClaudeJsonDst -Force
-    Write-Host "   - .claude.json 已同步"
-} else {
-    Write-Host "   ⚠️  未找到 .claude.json" -ForegroundColor Yellow
-}
+Write-Host "[1/4] 从本地同步配置到仓库..." -ForegroundColor Yellow
 
 Write-Host "智能同步 settings.json..."
 if (Get-Command node -ErrorAction SilentlyContinue) {
@@ -66,11 +56,11 @@ Write-Host "同步 CLAUDE.md..." -ForegroundColor Yellow
 Write-Host "✅ 配置文件收集完成" -ForegroundColor Green
 Write-Host ""
 
-Write-Host "[2/5] 检查 git 状态..." -ForegroundColor Yellow
+Write-Host "[2/4] 检查 git 状态..." -ForegroundColor Yellow
 git status --short
 Write-Host ""
 
-Write-Host "[3/5] 提交更改..." -ForegroundColor Yellow
+Write-Host "[3/4] 提交更改..." -ForegroundColor Yellow
 git add .
 
 if ($args.Count -gt 0) {
@@ -84,12 +74,12 @@ if ([string]::IsNullOrWhiteSpace($CommitMsg)) {
 git commit -m $CommitMsg
 Write-Host ""
 
-Write-Host "[4/5] 推送到 GitHub..." -ForegroundColor Yellow
+Write-Host "[4/4] 推送到 GitHub..." -ForegroundColor Yellow
 git push
 Write-Host "✅ 成功推送到 GitHub" -ForegroundColor Green
 Write-Host ""
 
-Write-Host "[5/5] 同步 Memory..." -ForegroundColor Yellow
+Write-Host "[Memory] 同步 Memory..." -ForegroundColor Yellow
 
 # 转换项目路径为 Claude Code 使用的目录名
 $ProjectPath = $RepoDir -replace '\\', '-'

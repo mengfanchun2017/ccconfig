@@ -26,13 +26,13 @@
 
 **Windows (双击):**
 ```
-scripts\start-work.bat
+scripts\start.ps1
 ```
 
 **WSL Ubuntu / Linux / Mac:**
 ```bash
 cd ~/git/claude-config
-./scripts/start-work.sh
+./scripts/start.sh
 ```
 
 这个脚本会自动：
@@ -45,13 +45,13 @@ cd ~/git/claude-config
 
 **Windows (双击):**
 ```
-scripts\end-work.bat
+scripts\end.ps1
 ```
 
 **WSL Ubuntu / Linux / Mac:**
 ```bash
 cd ~/git/claude-config
-./scripts/end-work.sh
+./scripts/end.sh
 ```
 
 这个脚本会自动：
@@ -71,9 +71,9 @@ cd ~/git/claude-config
 
 | 平台 | 脚本 | 说明 |
 |------|------|------|
-| Windows 11 | `start-work.bat` / `end-work.bat` | 双击运行 |
-| WSL Ubuntu | `start-work.sh` / `end-work.sh` | Bash 运行 |
-| Linux / Mac | `start-work.sh` / `end-work.sh` | Bash 运行 |
+| Windows 11 | `start.ps1` / `end.ps1` | 双击运行 |
+| WSL Ubuntu | `start.sh` / `end.sh` | Bash 运行 |
+| Linux / Mac | `start.sh` / `end.sh` | Bash 运行 |
 
 ### WSL Ubuntu 特别说明
 
@@ -90,10 +90,10 @@ WSL 环境下脚本会自动检测并适配：
 cd ~/git/claude-config
 
 # 开始工作
-./scripts/start-work.sh
+./scripts/start.sh
 
 # 结束工作
-./scripts/end-work.sh
+./scripts/end.sh
 
 # 或添加到 PATH（可选）
 # echo 'export PATH="$PATH:~/git/claude-config/scripts"' >> ~/.bashrc
@@ -143,7 +143,7 @@ powershell.exe -Command "claude"
          │
          ▼
 ┌─────────────────┐
-│  4. 同步配置     │ → 运行 start-work.bat
+│  4. 同步配置     │ → 运行 start.ps1
 └────────┬────────┘
          │
          ▼
@@ -280,13 +280,13 @@ git clone git@github.com:<your-github-username>/claude-config.git
 
 **Windows（双击即可）：**
 ```
-C:\git\claude-config\scripts\start-work.bat
+C:\git\claude-config\scripts\start.ps1
 ```
 
 **PowerShell：**
 ```powershell
 cd C:\git\claude-config
-.\scripts\start-work.bat
+.\scripts\start.ps1
 ```
 
 #### 同步脚本做了什么
@@ -439,7 +439,7 @@ claude doctor
          │
          ▼
 ┌─────────────────┐
-│  4. 同步配置     │ → 运行 start-work.sh
+│  4. 同步配置     │ → 运行 start.sh
 └────────┬────────┘
          │
          ▼
@@ -541,7 +541,7 @@ cd claude-config
 
 ```bash
 # 运行同步脚本
-./scripts/start-work.sh
+./scripts/start.sh
 ```
 
 **注意**：WSL 环境下：
@@ -609,7 +609,7 @@ cd claude-config
 curl -sL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
 
 # 4. 同步配置
-./scripts/start-work.sh
+./scripts/start.sh
 
 # 5. 安装 MCP
 npm install -g tavily-mcp @playwright/mcp markitdown-mcp-npx
@@ -636,7 +636,7 @@ claude mcp list
    ↓
 4. 进入克隆后的仓库目录
    ↓
-5. 执行日常同步脚本 start-work.sh / start-work.bat
+5. 执行日常同步脚本 start.sh / start.ps1
 ```
 
 ### 脚本文件
@@ -691,7 +691,7 @@ source ~/.bashrc
 
 # 4. 拉取配置仓库
 cd claude-config
-./scripts/start-work.sh
+./scripts/start.sh
 ```
 
 **Windows:**
@@ -704,7 +704,7 @@ cd claude-config
 
 # 3. 拉取配置仓库
 cd claude-config
-.\scripts\start-work.bat
+.\scripts\start.ps1
 ```
 
 ---
@@ -979,7 +979,7 @@ C:\Users\franc\AppData\Local\Microsoft\WinGet\Links\claude.exe
 - [ ] Claude Code 原生版本已安装
 - [ ] claude-config 仓库已克隆到 `C:\git\claude-config`
 - [ ] 本地 `.claude.json` 已配置（包含 API 密钥）
-- [ ] start-work.bat 已运行，配置已同步
+- [ ] start.ps1 已运行，配置已同步
 - [ ] Tavily MCP npm 包已安装
 - [ ] Playwright MCP npm 包已安装
 - [ ] MarkItDown MCP npm 包已安装
