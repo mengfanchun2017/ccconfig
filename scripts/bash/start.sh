@@ -57,7 +57,7 @@ CURRENT_PROJECT=$(basename "$(pwd)")
 echo "   检测到当前项目: $CURRENT_PROJECT"
 
 # 检查仓库中是否存在该项目对应的 memory 目录
-if [ -d "$REPO_DIR/config/memory/$CURRENT_PROJECT" ]; then
+if [ -d "$REPO_DIR/memory/$CURRENT_PROJECT" ]; then
     # 构建 Claude Code 项目路径
     # Linux/WSL: /home/francis/git -> /home/francis/.claude/projects/-home-francis-git/
     # Windows: C:\git -> C:\Users\franc\.claude\projects\C--git\
@@ -69,11 +69,11 @@ if [ -d "$REPO_DIR/config/memory/$CURRENT_PROJECT" ]; then
 
     # 创建目录并复制
     mkdir -p "$MEMORY_DIR"
-    cp -f "$REPO_DIR/config/memory/$CURRENT_PROJECT/MEMORY.md" "$MEMORY_DIR/MEMORY.md"
+    cp -f "$REPO_DIR/memory/$CURRENT_PROJECT/MEMORY.md" "$MEMORY_DIR/MEMORY.md"
     echo_success "   ✅ $CURRENT_PROJECT 的 Memory 已同步"
 else
     echo_warn "⚠️  仓库中未找到 $CURRENT_PROJECT 的 Memory，跳过"
-    echo "   可用项目: $(ls -d $REPO_DIR/config/memory/*/ 2>/dev/null | sed 's|/$||' | sed 's|$REPO_DIR/config/memory/||' | tr '\n' ' ')"
+    echo "   可用项目: $(ls -d $REPO_DIR/memory/*/ 2>/dev/null | sed 's|/$||' | sed 's|$REPO_DIR/memory/||' | tr '\n' ' ')"
 fi
 echo ""
 
