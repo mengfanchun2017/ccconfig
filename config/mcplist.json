@@ -1,36 +1,162 @@
 {
   "description": "MCP 服务器列表 - 用于多设备同步安装",
-  "note": "安装注意事项：\n1. playwright: 使用 'npx @playwright/mcp'，配置时用 {command: 'npx', args: ['@playwright/mcp']}\n2. 其他 stdio MCP 同理，优先全局安装而非 npx",
+  "note": "安装注意事项：\n1. stdio 类型: 使用 npx 全局安装或 npx 直接运行\n2. http 类型: 需要配置 URL 端点\n3. 有些 MCP 需要 API 密钥，请在配置后使用",
   "mcp": [
     {
       "name": "tavily",
-      "description": "网络搜索",
-      "install": "npx tavily-mcp"
+      "description": "网络搜索 - 支持中文搜索",
+      "type": "stdio",
+      "install": "npx tavily-mcp",
+      "env": {
+        "TAVILY_API_KEY": "你的 Tavily API Key"
+      }
     },
     {
       "name": "playwright",
-      "description": "浏览器自动化",
+      "description": "浏览器自动化 - 网页截图/抓取/交互",
+      "type": "stdio",
       "install": "npx @playwright/mcp",
-      "note": "配置用 npx 而非直接命令名"
-    },
-    {
-      "name": "supabase",
-      "description": "Supabase 数据库",
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp?project_ref=<your-supabase-project-id>"
+      "note": "需要先安装 Playwright: npx playwright install"
     },
     {
       "name": "gitmcp",
-      "description": "GitHub 仓库读取",
+      "description": "GitHub 仓库读取 - 代码搜索/Issue/PR",
       "type": "http",
-      "url": "https://gitmcp.io/docs"
+      "url": "https://gitmcp.io/docs",
+      "env": {
+        "GITHUB_TOKEN": "GitHub Personal Access Token"
+      }
+    },
+    {
+      "name": "supabase",
+      "description": "Supabase 数据库 - PostgreSQL/Edge Functions",
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp",
+      "env": {
+        "SUPABASE_PROJECT_REF": "你的项目 Ref"
+      }
     },
     {
       "name": "lark-mcp",
-      "description": "飞书/ Lark MCP - 消息/文档/日历/知识库",
-      "install": "npx -y @larksuiteoapi/lark-mcp",
+      "description": "飞书/ Lark - 消息/文档/日历/知识库",
       "type": "stdio",
-      "note": "需要飞书开放平台应用凭证 (app_id/app_secret)，配置到全局 ~/.claude.json"
+      "install": "npx -y @larksuiteoapi/lark-mcp",
+      "note": "需要飞书开放平台应用凭证 (app_id/app_secret)"
+    },
+    {
+      "name": "filesystem",
+      "description": "文件系统增强 - 安全的文件读写操作",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-filesystem",
+      "args": ["/home", "/tmp"]
+    },
+    {
+      "name": "github",
+      "description": "GitHub 官方 MCP - 仓库/Issue/PR/ Actions",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-github",
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "GitHub PAT"
+      }
+    },
+    {
+      "name": "sqlite",
+      "description": "SQLite 数据库 - 本地数据库查询",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-sqlite",
+      "args": ["/tmp/mcp.db"]
+    },
+    {
+      "name": "puppeteer",
+      "description": "浏览器自动化 (Chrome) - 网页抓取/交互",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-puppeteer"
+    },
+    {
+      "name": "sentry",
+      "description": "Sentry 错误追踪 - Issue/Event/Project",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-sentry",
+      "env": {
+        "SENTRY_ORG": "组织slug",
+        "SENTRY_AUTH_TOKEN": "Auth Token"
+      }
+    },
+    {
+      "name": "aws-kb-retrieval",
+      "description": "AWS Knowledge Base - Bedrock 知识库检索",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-aws-kb-retrieval",
+      "note": "需要 AWS credentials 配置"
+    },
+    {
+      "name": "google-maps",
+      "description": "Google Maps - 地点搜索/路线规划/时区",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-google-maps",
+      "env": {
+        "GOOGLE_MAPS_API_KEY": "Google Maps API Key"
+      }
+    },
+    {
+      "name": "slack",
+      "description": "Slack 消息 - 频道消息/搜索/用户",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-slack",
+      "env": {
+        "SLACK_BOT_TOKEN": "xoxb-...",
+        "SLACK_TEAM_ID": "T..."
+      }
+    },
+    {
+      "name": "everart",
+      "description": "EverArt AI - AI 图片生成",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-everart",
+      "env": {
+        "EVERART_API_TOKEN": "API Token"
+      }
+    },
+    {
+      "name": "postgres",
+      "description": "PostgreSQL 数据库 - 远程数据库查询",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-postgres",
+      "args": ["postgresql://user:pass@localhost:5432/db"]
+    },
+    {
+      "name": "brave-search",
+      "description": "Brave 搜索 - 无追踪的网络搜索",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-brave-search",
+      "env": {
+        "BRAVE_API_KEY": "Brave Search API Key"
+      }
+    },
+    {
+      "name": "memory",
+      "description": "知识图谱记忆 - 跨会话持久化记忆",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-memory"
+    },
+    {
+      "name": "everything",
+      "description": "Windows everything - 快速文件搜索 (仅 Windows)",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-everything",
+      "note": "仅支持 Windows，需要 Everything 搜索引擎"
+    },
+    {
+      "name": "fetch",
+      "description": "网页获取 - HTML 内容抓取",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-fetch"
+    },
+    {
+      "name": "sequential-thinking",
+      "description": "顺序思考 - 复杂问题的分解推理",
+      "type": "stdio",
+      "install": "npx @modelcontextprotocol/server-sequential-thinking"
     }
   ]
 }

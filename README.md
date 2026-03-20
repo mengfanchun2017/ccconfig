@@ -63,6 +63,26 @@ cd ~/git/claude-config
 
 > **注意**：`.claude.json` 包含 LLM API 配置，保留在本地不同步。
 
+### MCP 服务器同步检查
+
+可以使用 `mcpcheck.sh` / `mcpcheck.ps1` 来检查和同步 MCP 服务器配置：
+
+**Windows:**
+```
+scripts\pwsh\mcpcheck.ps1
+```
+
+**Linux / Mac:**
+```bash
+./scripts/bash/mcpcheck.sh
+```
+
+功能：
+- 对比 mcplist.json 与当前环境
+- 显示已安装/缺失/多余的 MCP
+- 支持一键安装缺失的 MCP
+- 支持双向同步
+
 ---
 
 ## 多平台支持
