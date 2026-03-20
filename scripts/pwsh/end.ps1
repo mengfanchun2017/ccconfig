@@ -88,7 +88,7 @@ $MemoryDir = Join-Path $ClaudeDir "projects\$ProjectPath\memory"
 $MemoryFile = Join-Path $MemoryDir "MEMORY.md"
 
 if ((Test-Path $MemoryDir) -and (Test-Path $MemoryFile)) {
-    $RepoMemoryDir = Join-Path $RepoDir "config\memory"
+    $RepoMemoryDir = Join-Path $RepoDir "memory"
     if (-not (Test-Path $RepoMemoryDir)) {
         New-Item -ItemType Directory -Path $RepoMemoryDir -Force | Out-Null
     }

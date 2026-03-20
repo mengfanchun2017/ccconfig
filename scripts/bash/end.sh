@@ -66,9 +66,9 @@ MEMORY_DIR=$(get_memory_dir "$CLAUDE_PROJECT_PATH")
 echo "   Memory 目录: $MEMORY_DIR"
 
 if [ -d "$MEMORY_DIR" ] && [ -f "$MEMORY_DIR/MEMORY.md" ]; then
-    mkdir -p "$REPO_DIR/config/memory/$CURRENT_PROJECT"
-    cp -f "$MEMORY_DIR/MEMORY.md" "$REPO_DIR/config/memory/$CURRENT_PROJECT/MEMORY.md"
-    git add "$REPO_DIR/config/memory/$CURRENT_PROJECT/MEMORY.md"
+    mkdir -p "$REPO_DIR/memory/$CURRENT_PROJECT"
+    cp -f "$MEMORY_DIR/MEMORY.md" "$REPO_DIR/memory/$CURRENT_PROJECT/MEMORY.md"
+    git add "$REPO_DIR/memory/$CURRENT_PROJECT/MEMORY.md"
     echo_success "   ✅ $CURRENT_PROJECT 的 Memory 已同步"
 else
     echo_warn "   ⚠️  未找到 Memory: $MEMORY_DIR/MEMORY.md"
