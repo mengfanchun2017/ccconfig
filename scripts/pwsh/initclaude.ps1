@@ -14,7 +14,8 @@ function Write-Error { param($m) Write-Host "❌ $m" -ForegroundColor Red }
 
 # 配置目录和文件
 $CLAUDE_DIR = "$env:USERPROFILE\.claude"
-$CONFIG_FILE = Join-Path $PSScriptRoot "apillm.json"
+$RepoDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$CONFIG_FILE = Join-Path $RepoDir "config\apillm.json"
 
 # -------------------------- 模式选择 --------------------------
 if (-not $args) {

@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # 加载公共函数库
-source "$SCRIPT_DIR/lib-common.sh"
+source "$SCRIPT_DIR/../../src/lib-common.sh"
 
 # 检测当前系统
 OS_TYPE=$(detect_os)
@@ -37,11 +37,11 @@ echo ""
 
 echo "[2/4] 智能同步 settings.json..."
 if command -v node &> /dev/null; then
-    node "$SCRIPT_DIR/sync-settings.js" pull
+    node "$SCRIPT_DIR/../sync-settings.js" pull
 else
     echo_warn "⚠️  Node.js 未找到，使用直接复制方式"
     mkdir -p "$CLAUDE_DIR"
-    cp -f "$REPO_DIR/settings.json" "$CLAUDE_DIR/settings.json"
+    cp -f "$REPO_DIR/config/settings.json" "$CLAUDE_DIR/settings.json"
     echo "   - settings.json 已复制"
 fi
 
@@ -57,7 +57,7 @@ CURRENT_PROJECT=$(basename "$(pwd)")
 echo "   检测到当前项目: $CURRENT_PROJECT"
 
 # 检查仓库中是否存在该项目对应的 memory 目录
-if [ -d "memory/$CURRENT_PROJECT" ]; then
+if [ -d "$REPO_DIR/config/memory/$CURRENT_PROJECT" ]; then
     # 构建 Claude Code 项目路径
     # Linux/WSL: /home/francis/git -> /home/francis/.claude/projects/-home-francis-git/
     # Windows: C:\git -> C:\Users\franc\.claude\projects\C--git\
@@ -69,11 +69,11 @@ if [ -d "memory/$CURRENT_PROJECT" ]; then
 
     # 创建目录并复制
     mkdir -p "$MEMORY_DIR"
-    cp -f "memory/$CURRENT_PROJECT/MEMORY.md" "$MEMORY_DIR/MEMORY.md"
+    cp -f "$REPO_DIR/config/memory/$CURRENT_PROJECT/MEMORY.md" "$MEMORY_DIR/MEMORY.md"
     echo_success "   ✅ $CURRENT_PROJECT 的 Memory 已同步"
 else
     echo_warn "⚠️  仓库中未找到 $CURRENT_PROJECT 的 Memory，跳过"
-    echo "   可用项目: $(ls -d memory/*/ 2>/dev/null | sed 's|/$||' | sed 's|memory/||' | tr '\n' ' ')"
+    echo "   可用项目: $(ls -d $REPO_DIR/config/memory/*/ 2>/dev/null | sed 's|/$||' | sed 's|$REPO_DIR/config/memory/||' | tr '\n' ' ')"
 fi
 echo ""
 

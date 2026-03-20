@@ -144,7 +144,7 @@ get_claude_md_path() {
 sync_claude_md() {
     local action="$1"
     local os=$(detect_os)
-    local repo_claude_md="$REPO_DIR/CLAUDE.md"
+    local repo_claude_md="$REPO_DIR/config/CLAUDE.md"
 
     case "$os" in
         wsl|linux)

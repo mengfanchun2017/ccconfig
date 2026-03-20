@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # 加载公共函数库
-source "$SCRIPT_DIR/lib-common.sh"
+source "$SCRIPT_DIR/../../src/lib-common.sh"
 
 # 检测当前系统
 OS_TYPE=$(detect_os)
@@ -34,11 +34,11 @@ echo "[1/5] 从本地同步配置到仓库..."
 
 echo "智能同步 settings.json..."
 if command -v node &> /dev/null; then
-    node "$SCRIPT_DIR/sync-settings.js" push
+    node "$SCRIPT_DIR/../sync-settings.js" push
 else
     echo_warn "⚠️  Node.js 未找到，使用直接复制方式"
     if [ -f "$CLAUDE_DIR/settings.json" ]; then
-        cp -f "$CLAUDE_DIR/settings.json" "$REPO_DIR/settings.json"
+        cp -f "$CLAUDE_DIR/settings.json" "$REPO_DIR/config/settings.json"
         echo "   - settings.json 已复制"
     else
         echo_warn "   ⚠️  未找到 settings.json"
@@ -66,9 +66,9 @@ MEMORY_DIR=$(get_memory_dir "$CLAUDE_PROJECT_PATH")
 echo "   Memory 目录: $MEMORY_DIR"
 
 if [ -d "$MEMORY_DIR" ] && [ -f "$MEMORY_DIR/MEMORY.md" ]; then
-    mkdir -p "memory/$CURRENT_PROJECT"
-    cp -f "$MEMORY_DIR/MEMORY.md" "memory/$CURRENT_PROJECT/MEMORY.md"
-    git add "memory/$CURRENT_PROJECT/MEMORY.md"
+    mkdir -p "$REPO_DIR/config/memory/$CURRENT_PROJECT"
+    cp -f "$MEMORY_DIR/MEMORY.md" "$REPO_DIR/config/memory/$CURRENT_PROJECT/MEMORY.md"
+    git add "$REPO_DIR/config/memory/$CURRENT_PROJECT/MEMORY.md"
     echo_success "   ✅ $CURRENT_PROJECT 的 Memory 已同步"
 else
     echo_warn "   ⚠️  未找到 Memory: $MEMORY_DIR/MEMORY.md"

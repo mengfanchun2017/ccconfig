@@ -26,13 +26,13 @@
 
 **Windows (双击):**
 ```
-scripts\start.ps1
+scripts\pwsh\start.ps1
 ```
 
 **WSL Ubuntu / Linux / Mac:**
 ```bash
 cd ~/git/claude-config
-./scripts/start.sh
+./scripts/bash/start.sh
 ```
 
 这个脚本会自动：
@@ -45,13 +45,13 @@ cd ~/git/claude-config
 
 **Windows (双击):**
 ```
-scripts\end.ps1
+scripts\pwsh\end.ps1
 ```
 
 **WSL Ubuntu / Linux / Mac:**
 ```bash
 cd ~/git/claude-config
-./scripts/end.sh
+./scripts/bash/end.sh
 ```
 
 这个脚本会自动：
@@ -90,10 +90,10 @@ WSL 环境下脚本会自动检测并适配：
 cd ~/git/claude-config
 
 # 开始工作
-./scripts/start.sh
+./scripts/bash/start.sh
 
 # 结束工作
-./scripts/end.sh
+./scripts/bash/end.sh
 
 # 或添加到 PATH（可选）
 # echo 'export PATH="$PATH:~/git/claude-config/scripts"' >> ~/.bashrc
@@ -143,7 +143,7 @@ powershell.exe -Command "claude"
          │
          ▼
 ┌─────────────────┐
-│  4. 同步配置     │ → 运行 start.ps1
+│  4. 同步配置     │ → 运行 scripts/pwsh/start.ps1
 └────────┬────────┘
          │
          ▼
@@ -280,13 +280,13 @@ git clone git@github.com:<your-github-username>/claude-config.git
 
 **Windows（双击即可）：**
 ```
-C:\git\claude-config\scripts\start.ps1
+C:\git\claude-config\scripts\pwsh\start.ps1
 ```
 
 **PowerShell：**
 ```powershell
 cd C:\git\claude-config
-.\scripts\start.ps1
+.\scripts\pwsh\start.ps1
 ```
 
 #### 同步脚本做了什么
@@ -541,7 +541,7 @@ cd claude-config
 
 ```bash
 # 运行同步脚本
-./scripts/start.sh
+./scripts/bash/start.sh
 ```
 
 **注意**：WSL 环境下：
@@ -609,7 +609,7 @@ cd claude-config
 curl -sL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
 
 # 4. 同步配置
-./scripts/start.sh
+./scripts/bash/start.sh
 
 # 5. 安装 MCP
 npm install -g tavily-mcp @playwright/mcp markitdown-mcp-npx
@@ -644,7 +644,7 @@ claude mcp list
 | 平台 | Git 初始化 | Claude 配置 |
 |------|-----------|-------------|
 | Ubuntu / Linux / WSL | `initgit.sh` | `initclaude.sh` |
-| Windows | `initgit.ps1` | `initclaude.ps1` |
+| Windows | `pwsh/initgit.ps1` | `pwsh/initclaude.ps1` |
 
 ### initgit.sh 功能
 
@@ -691,20 +691,20 @@ source ~/.bashrc
 
 # 4. 拉取配置仓库
 cd claude-config
-./scripts/start.sh
+./scripts/bash/start.sh
 ```
 
 **Windows:**
 ```powershell
 # 1. 安装 Git + GitHub CLI + 登录 + 克隆仓库
-.\initgit.ps1
+.\scripts\pwsh\initgit.ps1
 
 # 2. 配置 Claude Code（选择 MINIMAX，逐条确认配置）
-.\initclaude.ps1
+.\scripts\pwsh\initclaude.ps1
 
 # 3. 拉取配置仓库
 cd claude-config
-.\scripts\start.ps1
+.\scripts\pwsh\start.ps1
 ```
 
 ---
@@ -716,16 +716,16 @@ cd claude-config
 | 文件/目录 | 说明 | 同步 |
 |-----------|------|------|
 | `README.md` | 说明文档 | ✅ |
-| `CLAUDE.md` | 权限白名单配置 | ✅ |
-| `settings.json` | Claude Code 全局设置 | ✅ 智能同步 |
-| `apillm.json` | LLM API 配置模板（不含敏感信息） | ✅ |
-| `initgit.sh` | Ubuntu Git 初始化脚本 | ✅ |
-| `initgit.ps1` | Windows Git 初始化脚本 | ✅ |
-| `initclaude.sh` | Ubuntu Claude 配置脚本 | ✅ |
-| `initclaude.ps1` | Windows Claude 配置脚本 | ✅ |
-| `scripts/` | 日常同步脚本 | ✅ |
-| `hooks/` | Git hooks | ✅ |
-| `memory/` | 记忆文件目录 | ✅ |
+| `LICENSE` | MIT 开源许可证 | ✅ |
+| `config/CLAUDE.md` | 权限白名单配置 | ✅ |
+| `config/settings.json` | Claude Code 全局设置 | ✅ 智能同步 |
+| `config/apillm.json` | LLM API 配置模板（不含敏感信息） | ✅ |
+| `config/mcplist.json` | MCP 服务器列表 | ✅ |
+| `config/memory/` | 记忆文件目录 | ✅ |
+| `config/hooks/` | Git hooks | ✅ |
+| `scripts/bash/` | Bash 脚本（Linux/WSL/macOS） | ✅ |
+| `scripts/pwsh/` | PowerShell 脚本（Windows） | ✅ |
+| `src/lib-common.sh` | 公共函数库 | ✅ |
 
 ### 不同步的文件（本地保留）
 

@@ -37,11 +37,11 @@ Write-Host "[1/4] 从本地同步配置到仓库..." -ForegroundColor Yellow
 
 Write-Host "智能同步 settings.json..."
 if (Get-Command node -ErrorAction SilentlyContinue) {
-    & node "$ScriptDir\sync-settings.js" push
+    & node "$ScriptDir\..\sync-settings.js" push
 } else {
     Write-Host "⚠️  Node.js 未找到，使用直接复制方式" -ForegroundColor Yellow
     $SettingsSrc = Join-Path $ClaudeDir "settings.json"
-    $SettingsDst = Join-Path $RepoDir "settings.json"
+    $SettingsDst = Join-Path $RepoDir "config\settings.json"
     if (Test-Path $SettingsSrc) {
         Copy-Item -Path $SettingsSrc -Destination $SettingsDst -Force
         Write-Host "   - settings.json 已复制"
@@ -88,7 +88,7 @@ $MemoryDir = Join-Path $ClaudeDir "projects\$ProjectPath\memory"
 $MemoryFile = Join-Path $MemoryDir "MEMORY.md"
 
 if ((Test-Path $MemoryDir) -and (Test-Path $MemoryFile)) {
-    $RepoMemoryDir = Join-Path $RepoDir "memory"
+    $RepoMemoryDir = Join-Path $RepoDir "config\memory"
     if (-not (Test-Path $RepoMemoryDir)) {
         New-Item -ItemType Directory -Path $RepoMemoryDir -Force | Out-Null
     }

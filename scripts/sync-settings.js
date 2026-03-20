@@ -95,7 +95,7 @@ function writeJson(filePath, data) {
 function pullSettings() {
   console.log('📥 拉取 settings.json 配置...');
 
-  const repoPath = path.join(__dirname, '..', 'settings.json');
+  const repoPath = path.join(__dirname, '..', 'config', 'settings.json');
   const localPath = path.join(
     process.env.USERPROFILE || process.env.HOME,
     '.claude',
@@ -134,7 +134,7 @@ function pushSettings() {
     '.claude',
     'settings.json'
   );
-  const repoPath = path.join(__dirname, '..', 'settings.json');
+  const repoPath = path.join(__dirname, '..', 'config', 'settings.json');
 
   const localSettings = readJson(localPath);
   const repoSettings = readJson(repoPath);
