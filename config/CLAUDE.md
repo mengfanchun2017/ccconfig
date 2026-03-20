@@ -515,7 +515,7 @@
 - `claude plugin` - Claude Code 插件管理
 - `claude agents` - Claude Code 代理管理
 - `tavily-mcp` - Tavily MCP 服务器
-- `Edit(scripts/sync-settings.js)` - 允许编辑同步脚本
+- `Edit(scripts/shared/sync-settings.js)` - 允许编辑同步脚本
 - `Edit(CLAUDE.md)` - 允许编辑配置文件
 - `Bash(scripts/*.sh)` - 允许执行 scripts 目录下的 shell 脚本
 - `Bash(scripts/*.ps1)` - 允许执行 scripts 目录下的 PowerShell 脚本
