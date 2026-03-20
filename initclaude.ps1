@@ -137,24 +137,24 @@ if (-not (Test-Path $CLAUDE_DIR)) {
     New-Item -ItemType Directory -Path $CLAUDE_DIR -Force | Out-Null
 }
 
-# 1. 跳过登录引导
-@{
+# 1. 跳过登录引导 + API 配置 (写入 ~/.claude.json - 不参与同步)
+$claudeJsonPath = "$env:USERPROFILE\.claude.json"
+$userConfig = @{
     hasCompletedOnboarding = $true
-} | ConvertTo-Json | Set-Content "$env:USERPROFILE\.claude.json" -Encoding UTF8
-Write-Success "已设置跳过登录引导"
+    ANTHROPIC_BASE_URL = $BASE_URL
+    ANTHROPIC_AUTH_TOKEN = $API_KEY
+    ANTHROPIC_MODEL = $MODEL_NAME
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"
+}
 
-# 2. 写入配置
-$settingsContent = @{
-    env = @{
-        ANTHROPIC_BASE_URL = $BASE_URL
-        ANTHROPIC_AUTH_TOKEN = $API_KEY
-        ANTHROPIC_MODEL = $MODEL_NAME
-        CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1"
-    }
-} | ConvertTo-Json -Depth 3
+if (Test-Path $claudeJsonPath) {
+    # 合并现有配置
+    $existing = Get-Content $claudeJsonPath -Raw | ConvertFrom-Json
+    $existing.PSObject.Properties | ForEach-Object { $userConfig[$_.Name] = $_.Value }
+}
 
-$settingsContent | Set-Content "$CLAUDE_DIR\settings.json" -Encoding UTF8
-Write-Success "已配置 Claude Code 设置"
+$userConfig | ConvertTo-Json -Depth 3 | Set-Content $claudeJsonPath -Encoding UTF8
+Write-Success "已配置 Claude Code 设置（写入 ~/.claude.json，不参与同步）"
 
 # 3. 设置环境变量（永久）
 [System.Environment]::SetEnvironmentVariable("ANTHROPIC_BASE_URL", $BASE_URL, "User")
