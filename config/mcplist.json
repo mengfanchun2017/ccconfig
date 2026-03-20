@@ -15,6 +15,18 @@
       "install": "npx @playwright/mcp",
       "install_local": "npm install -g @playwright/mcp && npx playwright install",
       "note": "需要先安装 Playwright: npx playwright install"
+    },
+    {
+      "name": "minimax",
+      "description": "MiniMax AI - 网络搜索和图片理解",
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["minimax-coding-plan-mcp", "-y"],
+      "install": "uvx minimax-coding-plan-mcp",
+      "tools": ["web_search", "understand_image"],
+      "note": "需要先安装 uv: curl -LsSf https://astral.sh/uv/install.sh | sh",
+      "doc_url": "https://github.com/MiniMax-AI/MiniMax-MCP",
+      "add_url": "在 Claude Code 中执行 /mcp 添加服务器"
     }
   ]
 }
