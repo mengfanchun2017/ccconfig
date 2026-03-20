@@ -1,88 +1,44 @@
 #!/bin/bash
-# Claude Code - 结束工作 (多平台版本)
-# 支持: Windows (PowerShell/Git Bash), WSL (Ubuntu), Linux
-# 自动检测当前项目：只匹配最后一级目录名
+# Claude Code - 结束工作 (Linux/WSL)
+#
+# ============================================================
+# 功能说明
+# ============================================================
+#
+# 由于 start.sh 已通过符号链接建立双向同步，
+# 本脚本主要完成 Git 操作：
+#   1. git add .     - 暂存所有更改
+#   2. git commit    - 提交更改
+#   3. git push      - 推送到 GitHub
+#
+# 注意：MEMORY.md 等文件已通过符号链接同步，
+#       无需额外复制操作。
+# ============================================================
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# 加载公共函数库
-source "$SCRIPT_DIR/../../src/lib-common.sh"
-
-# 检测当前系统
-OS_TYPE=$(detect_os)
 echo "========================================"
 echo "  Claude Code - 结束工作"
-echo "  当前系统: $OS_TYPE"
+echo "  当前系统: Linux/WSL"
 echo "========================================"
+echo ""
+echo "仓库目录: $REPO_DIR"
 echo ""
 
 cd "$REPO_DIR"
 
-# 获取用户主目录
-USER_HOME=$(get_user_home)
-echo "用户主目录: $USER_HOME"
-
-# 获取 Claude 配置目录
-CLAUDE_DIR=$(get_claude_dir)
-echo "Claude 配置目录: $CLAUDE_DIR"
-
-echo ""
-echo "[1/5] 从本地同步配置到仓库..."
-
-echo "智能同步 settings.json..."
-if command -v node &> /dev/null; then
-    node "$SCRIPT_DIR/../sync-settings.js" push
-else
-    echo_warn "⚠️  Node.js 未找到，使用直接复制方式"
-    if [ -f "$CLAUDE_DIR/settings.json" ]; then
-        cp -f "$CLAUDE_DIR/settings.json" "$REPO_DIR/config/settings.json"
-        echo "   - settings.json 已复制"
-    else
-        echo_warn "   ⚠️  未找到 settings.json"
-    fi
-fi
-
-echo "同步 CLAUDE.md..."
-sync_claude_md "push"
-
-echo_success "✅ 配置文件收集完成"
-echo ""
-
-# ========== Memory 自动同步 ==========
-echo "Memory 同步..."
-
-# 获取当前完整路径和目录名
-CLAUDE_PROJECT_PATH="$(pwd)"
-CURRENT_PROJECT=$(basename "$CLAUDE_PROJECT_PATH")
-echo "   检测到当前项目: $CURRENT_PROJECT"
-
-# 获取本地 Memory 目录
-MEMORY_DIR=$(get_memory_dir "$CLAUDE_PROJECT_PATH")
-echo "   Memory 目录: $MEMORY_DIR"
-
-# 获取仓库中的 memory 目录名（转换后的格式，与 get_memory_dir 一致）
-REPO_MEMORY_NAME=$(echo "$CLAUDE_PROJECT_PATH" | sed 's/^\///' | sed 's/\//-/g')
-echo "   仓库 Memory 目录: $REPO_MEMORY_NAME"
-
-if [ -d "$MEMORY_DIR" ] && [ -f "$MEMORY_DIR/MEMORY.md" ]; then
-    mkdir -p "$REPO_DIR/memory/$REPO_MEMORY_NAME"
-    cp -f "$MEMORY_DIR/MEMORY.md" "$REPO_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md"
-    git add "$REPO_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md"
-    echo_success "   ✅ $REPO_MEMORY_NAME 的 Memory 已同步"
-else
-    echo_warn "   ⚠️  未找到 Memory: $MEMORY_DIR/MEMORY.md"
-fi
-echo ""
-
-echo "[2/5] 检查 git 状态..."
+# ========== Git 状态 ==========
+echo "[1/3] 检查 git 状态..."
 git status --short
 echo ""
 
-echo "[3/5] 提交更改..."
+# ========== Git 提交 ==========
+echo "[2/3] 提交更改..."
 git add .
+
 if [ -z "$1" ]; then
     read -p "请输入提交信息 (默认: 更新配置): " commit_msg
 else
@@ -92,14 +48,13 @@ if [ -z "$commit_msg" ]; then
     commit_msg="更新配置"
 fi
 git commit -m "$commit_msg"
+echo "✅ 已提交: $commit_msg"
 echo ""
 
-echo "[4/5] 推送到 GitHub..."
+# ========== Git 推送 ==========
+echo "[3/3] 推送到 GitHub..."
 git push
-echo_success "✅ 成功推送到 GitHub"
-echo ""
-
-echo "[5/5] 完成"
+echo "✅ 成功推送到 GitHub"
 echo ""
 
 echo "========================================"
