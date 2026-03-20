@@ -32,6 +32,20 @@ else
     exit 1
 fi
 
+# -------------------------- 配置 Git 用户身份 --------------------------
+print_info "配置 Git 用户身份..."
+if [[ -z "$(git config --global user.email 2>/dev/null)" ]]; then
+    echo -n "请输入 GitHub 注册邮箱: "
+    read GIT_EMAIL
+    echo -n "请输入 GitHub 用户名: "
+    read GIT_NAME
+    git config --global user.email "$GIT_EMAIL"
+    git config --global user.name "$GIT_NAME"
+    print_success "Git 用户身份已配置"
+else
+    print_success "Git 用户身份已配置: $(git config --global user.email)"
+fi
+
 # -------------------------- 检查并安装 gh --------------------------
 print_info "检查 GitHub CLI (gh)..."
 if command -v gh &> /dev/null; then
