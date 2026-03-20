@@ -6,17 +6,95 @@
 
 ## 目录
 
-1. [快速开始（日常使用）](#快速开始日常使用)
-2. [全新电脑部署](#全新电脑部署)
-3. [初始化脚本说明](#初始化脚本说明)
-4. [文件结构说明](#文件结构说明)
-5. [核心使用规范](#核心使用规范)
-6. [配置文件说明](#配置文件说明)
-7. [settings.json 智能同步](#settingsjson-智能同步)
-8. [Git 代理配置](#git-代理配置)
-9. [故障排查](#故障排查)
-10. [部署检查清单](#部署检查清单)
-11. [安全提示](#安全提示)
+1. [架构说明](#架构说明)
+2. [快速开始（日常使用）](#快速开始日常使用)
+3. [全新电脑部署](#全新电脑部署)
+4. [初始化脚本说明](#初始化脚本说明)
+5. [文件结构说明](#文件结构说明)
+6. [核心使用规范](#核心使用规范)
+7. [配置文件说明](#配置文件说明)
+8. [settings.json 智能同步](#settingsjson-智能同步)
+9. [Git 代理配置](#git-代理配置)
+10. [故障排查](#故障排查)
+11. [部署检查清单](#部署检查清单)
+12. [安全提示](#安全提示)
+
+---
+
+## 架构说明
+
+### 核心机制：符号链接双向同步
+
+本仓库通过**符号链接（symlink）**实现本地配置与仓库的实时双向同步。
+
+```
+符号链接原理：
+   仓库文件 ─────────────────────────┐
+       │                             │
+       ↓                             │
+   符号链接 (快捷方式)                 │
+       │                             │
+       ↓                             ↓
+   本地路径 ←────── 修改任意一个 ──────→ 另一处同步变化
+```
+
+### 同步结构
+
+| 文件 | 仓库位置 | 本地位置 (Linux) | 本地位置 (Windows) |
+|------|----------|------------------|-------------------|
+| settings.json | `config/settings.json` | `~/.claude/settings.json` | `%USERPROFILE%\.claude\settings.json` |
+| CLAUDE.md | `config/CLAUDE.md` | `~/CLAUDE.md` | `%USERPROFILE%\CLAUDE.md` |
+| MEMORY.md | `memory/{项目名}/MEMORY.md` | `~/.claude/projects/{项目名}/memory/MEMORY.md` | `%USERPROFILE%\.claude\projects\{项目名}\memory\MEMORY.md` |
+
+### 脚本架构
+
+```
+scripts/
+├── bash/              # Linux/WSL/macOS 独立实现
+│   ├── start.sh       # 创建符号链接 + git pull
+│   ├── end.sh         # git add/commit/push
+│   ├── mcpcheck.sh    # MCP 环境检查
+│   ├── initgit.sh     # Git + GitHub CLI 安装
+│   ├── initclaude.sh  # Claude API 配置
+│   └── initmcp.sh     # Node.js + uv 安装
+│
+├── pwsh/              # Windows PowerShell 独立实现（与 bash 对称）
+│   ├── start.ps1      # 创建符号链接 + git pull
+│   ├── end.ps1        # git add/commit/push
+│   ├── mcpcheck.ps1  # MCP 环境检查
+│   ├── initgit.ps1   # Git + GitHub CLI 安装
+│   ├── initclaude.ps1 # Claude API 配置
+│   └── initmcp.ps1   # Node.js + uv 安装
+│
+└── shared/            # 真正可跨平台共享的脚本
+    └── sync-settings.js # settings.json 智能合并
+```
+
+**设计原则**：
+- Bash 和 PowerShell 是不同语言，**不共享代码**
+- 各平台脚本独立完整实现，功能一一对称
+- 无公共函数库，避免复杂性
+
+### Memory 同步说明
+
+Claude Code 会为每个项目维护记忆文件 `MEMORY.md`。本仓库的 `memory/` 目录按项目组织：
+
+```
+memory/
+└── home-francis-git/           # 项目名转换：/home/francis/git → -home-francis-git
+    └── MEMORY.md               # 该项目的记忆文件
+```
+
+当运行 `start.sh` 时，会自动检测当前目录：
+- 如果在 `claude-config` 仓库内，自动使用**父项目**（`/home/francis/git`）的 memory
+- 如果在其他项目目录，使用该项目本身的 memory
+
+### 优点
+
+1. **修改即时同步** - 无需手动 push/pull 配置文件
+2. **仓库统一管理** - 所有变更在仓库中，方便版本控制
+3. **多设备共享** - 符号链接在本地，但文件在仓库，任何设备 clone 后链接即可
+4. **保持独立** - bash/pwsh 脚本互不依赖，各自维护
 
 ---
 
@@ -37,9 +115,9 @@ cd ~/git/claude-config
 
 这个脚本会自动：
 1. 从 GitHub 拉取最新配置
-2. 同步配置文件到本地（settings.json 使用智能合并）
-3. 同步 CLAUDE.md 到本地主目录
-4. 检查 Memory 目录状态
+2. 通过符号链接同步 settings.json 到本地
+3. 通过符号链接同步 CLAUDE.md 到本地主目录
+4. 通过符号链接同步 MEMORY.md（自动检测项目）
 
 ### 在当前设备结束工作后
 
@@ -55,11 +133,9 @@ cd ~/git/claude-config
 ```
 
 这个脚本会自动：
-1. 从本地收集最新配置到仓库（settings.json 只提取配置部分）
-2. 同步 CLAUDE.md 到仓库
-3. 显示 git 状态
-4. 提交更改（可自定义提交信息）
-5. 推送到 GitHub
+1. 显示 git 状态（符号链接已实时同步，无需额外复制）
+2. 提交更改（可自定义提交信息）
+3. 推送到 GitHub
 
 > **注意**：`.claude.json` 包含 LLM API 配置，保留在本地不同步。
 
@@ -737,14 +813,15 @@ cd claude-config
 |-----------|------|------|
 | `README.md` | 说明文档 | ✅ |
 | `LICENSE` | MIT 开源许可证 | ✅ |
-| `config/CLAUDE.md` | 权限白名单配置 | ✅ |
-| `config/settings.json` | Claude Code 全局设置 | ✅ 智能同步 |
+| `config/CLAUDE.md` | 权限白名单配置 | ✅ 符号链接 |
+| `config/settings.json` | Claude Code 全局设置 | ✅ 符号链接 |
 | `config/apillm.json` | LLM API 配置模板（不含敏感信息） | ✅ |
 | `config/mcplist.json` | MCP 服务器列表 | ✅ |
-| `memory/` | 项目记忆目录（按项目名子目录，如 memory/git/MEMORY.md） | ✅ |
-| `scripts/bash/` | Bash 脚本（Linux/WSL/macOS） | ✅ |
-| `scripts/pwsh/` | PowerShell 脚本（Windows） | ✅ |
-| `src/lib-common.sh` | 公共函数库 | ✅ |
+| `memory/` | 项目记忆目录（按项目名子目录） | ✅ 符号链接 |
+| `scripts/bash/` | Bash 脚本（Linux/WSL/macOS），各脚本独立实现 | ✅ |
+| `scripts/pwsh/` | PowerShell 脚本（Windows），与 bash 对称 | ✅ |
+| `scripts/shared/` | 跨平台共享脚本 | ✅ |
+| `src/README.md` | src 目录说明 | ✅ |
 
 ### 不同步的文件（本地保留）
 
@@ -824,44 +901,38 @@ cd claude-config
 
 ---
 
-## settings.json 智能同步
+## settings.json 双向同步
 
-`settings.json` 包含两部分内容，智能同步脚本会分别处理：
+`settings.json` 现在通过**符号链接**与仓库实时同步。两个路径指向同一个文件，修改立即生效。
 
-### 同步的配置部分（跨设备共享）
+### 同步机制
 
-| 配置项 | 说明 |
-|--------|------|
-| `permissions` | 权限配置 |
-| `mcpServers` | MCP 服务器配置 |
-| `enabledPlugins` | 启用的插件/技能 |
-| `extraKnownMarketplaces` | 额外的插件市场 |
+```
+仓库: config/settings.json ←──symlink── 本地: ~/.claude/settings.json
+```
 
-### 保留的本地状态（每台设备独立）
+修改任一文件，另一处立即同步变化。
 
-| 状态项 | 说明 |
-|--------|------|
-| `numStartups` | 启动次数统计 |
-| `tipsHistory` | 提示显示历史 |
-| `toolUsage` | 工具使用统计 |
-| `skillUsage` | 技能使用统计 |
-| `projects` | 项目记录 |
-| `githubRepoPaths` | GitHub 仓库路径映射 |
-| ... | 其他本地状态数据 |
+### 如果需要智能合并
 
-### 手动使用智能同步脚本
-
-如果需要手动同步 settings.json：
+`sync-settings.js` 仍然可用，用于需要智能合并的场景：
 
 ```bash
 # 从仓库拉取配置到本地（合并配置，保留本地状态）
-node scripts/sync-settings.js pull
+node scripts/shared/sync-settings.js pull
 
 # 从本地推送配置到仓库（只提取配置部分）
-node scripts/sync-settings.js push
+node scripts/shared/sync-settings.js push
 ```
 
 **前置条件**：需要安装 Node.js
+
+### 两种同步方式对比
+
+| 方式 | 适用场景 | 优点 |
+|------|----------|------|
+| 符号链接（默认） | 大部分场景 | 实时同步，无需手动 |
+| 智能合并 | 多设备配置差异化 | 保留本地状态，提取共享配置 |
 
 ---
 

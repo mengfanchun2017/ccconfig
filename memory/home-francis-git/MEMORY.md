@@ -199,6 +199,42 @@ Use the following sections in this file:
 
 ## Session Logs (会话记录)
 
+### 2026-03-20 [Francis_MiPro] - Windows 11 - claude-config 重构
+
+**重大架构变更：bash/pwsh 脚本分离 + 符号链接双向同步**
+
+**问题**：
+- 原来的 `src/lib-common.sh` 被 bash 脚本引用但包含 Windows 检测代码（无意义）
+- `start.sh` 和 `end.sh` 依赖 lib-common，但这些函数对 bash 无用
+- bash 和 pwsh 脚本功能对称但共享了不该共享的代码
+
+**解决方案**：
+1. **删除 lib-common.sh** - bash 和 PowerShell 无法共享代码，各自独立实现
+2. **符号链接替代复制** - 所有配置文件通过符号链接同步，双向实时
+3. **新目录结构**：
+   ```
+   scripts/
+   ├── bash/           # Linux/WSL 独立实现
+   ├── pwsh/           # Windows PowerShell 独立实现（与 bash 对称）
+   └── shared/         # 仅放真正的跨平台脚本（如 sync-settings.js）
+   ```
+
+**同步机制**：
+- `settings.json`: 仓库 `config/settings.json` ↔ 本地 `~/.claude/settings.json`
+- `CLAUDE.md`: 仓库 `config/CLAUDE.md` ↔ 本地 `~/CLAUDE.md`
+- `MEMORY.md`: 仓库 `memory/home-francis-git/MEMORY.md` ↔ 本地 `~/.claude/projects/home-francis-git/memory/MEMORY.md`
+
+**符号链接 = 两个路径指向同一文件，修改任一另一处同步变化**
+
+**测试结果**：
+- ✅ start.sh 正常工作
+- ✅ 符号链接正确创建
+- ✅ README.md 已更新架构说明
+
+**待办**：
+- [ ] Windows 端测试 start.ps1
+- [ ] commit 并推送更改
+
 ### 2026-03-20 [Francis_MiPro] - Windows 11
 - 测试 memory 同步功能
 - 配置了 GitMCP（GitHub 仓库读取）
