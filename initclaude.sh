@@ -208,18 +208,56 @@ cat > "$HOME/.claude.json" << 'EOF'
 EOF
 print_success "已设置跳过登录引导"
 
-# 2. 写入配置
-cat > "$CLAUDE_DIR/settings.json" << EOF
+# 2. 写入用户配置 (~/.claude.json) - 不参与同步
+# 注意：API 配置写入 ~/.claude.json 而非 settings.json，避免被 sync-settings.js 同步
+CLAUDE_JSON="$HOME/.claude.json"
+if [[ -f "$CLAUDE_JSON" ]]; then
+    # 合并配置，保留已有内容
+    # 使用 jq 或 python 处理 JSON 合并
+    if command -v python3 &> /dev/null; then
+        python3 << PYEOF
+import json
+import os
+config_file = os.path.expanduser("~/.claude.json")
+try:
+    with open(config_file, 'r') as f:
+        config = json.load(f)
+except:
+    config = {}
+config.update({
+    "hasCompletedOnboarding": True,
+    "ANTHROPIC_BASE_URL": "$BASE_URL",
+    "ANTHROPIC_AUTH_TOKEN": "$API_KEY",
+    "ANTHROPIC_MODEL": "$MODEL_NAME",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+})
+with open(config_file, 'w') as f:
+    json.dump(config, f, indent=4)
+PYEOF
+    else
+        # 如果没有 python3，直接覆盖
+        cat > "$CLAUDE_JSON" << EOF
 {
-    "env": {
-        "ANTHROPIC_BASE_URL": "$BASE_URL",
-        "ANTHROPIC_AUTH_TOKEN": "$API_KEY",
-        "ANTHROPIC_MODEL": "$MODEL_NAME",
-        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
-    }
+    "hasCompletedOnboarding": true,
+    "ANTHROPIC_BASE_URL": "$BASE_URL",
+    "ANTHROPIC_AUTH_TOKEN": "$API_KEY",
+    "ANTHROPIC_MODEL": "$MODEL_NAME",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
 }
 EOF
-print_success "已配置 Claude Code 设置"
+    fi
+else
+    cat > "$CLAUDE_JSON" << EOF
+{
+    "hasCompletedOnboarding": true,
+    "ANTHROPIC_BASE_URL": "$BASE_URL",
+    "ANTHROPIC_AUTH_TOKEN": "$API_KEY",
+    "ANTHROPIC_MODEL": "$MODEL_NAME",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+}
+EOF
+fi
+print_success "已配置 Claude Code 设置（写入 ~/.claude.json）"
 
 # 3. 更新 ~/.bashrc
 BASHRC="$HOME/.bashrc"
