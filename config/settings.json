@@ -2,6 +2,7 @@
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.minimaxi.com/anthropic",
     "ANTHROPIC_AUTH_TOKEN": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY",
+    "ANTHROPIC_MODEL": "MiniMax-M2.7",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
   },
   "permissions": {
