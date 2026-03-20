@@ -517,6 +517,8 @@
 - `tavily-mcp` - Tavily MCP 服务器
 - `Edit(scripts/sync-settings.js)` - 允许编辑同步脚本
 - `Edit(CLAUDE.md)` - 允许编辑配置文件
+- `Bash(scripts/*.sh)` - 允许执行 scripts 目录下的 shell 脚本
+- `Bash(scripts/*.ps1)` - 允许执行 scripts 目录下的 PowerShell 脚本
 
 ### 文本处理
 - `awk` - Awk 文本处理
