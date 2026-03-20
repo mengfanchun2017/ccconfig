@@ -79,7 +79,7 @@ if (Test-Path $MemoryDir) {
     Write-Host "   - 已创建 Memory 目录: $MemoryDir"
 
     # 如果仓库中有 MEMORY.md，复制过去
-    $RepoMemoryMd = Join-Path $RepoDir "config\memory\MEMORY.md"
+    $RepoMemoryMd = Join-Path $RepoDir "memory\MEMORY.md"
     if (Test-Path $RepoMemoryMd) {
         Copy-Item -Path $RepoMemoryMd -Destination (Join-Path $MemoryDir "MEMORY.md") -Force
         Write-Host "   - 已复制 MEMORY.md 到 Memory 目录"

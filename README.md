@@ -741,8 +741,7 @@ cd claude-config
 | `config/settings.json` | Claude Code 全局设置 | ✅ 智能同步 |
 | `config/apillm.json` | LLM API 配置模板（不含敏感信息） | ✅ |
 | `config/mcplist.json` | MCP 服务器列表 | ✅ |
-| `config/memory/` | 记忆文件目录 | ✅ |
-| `config/hooks/` | Git hooks | ✅ |
+| `memory/` | 项目记忆目录（按项目名子目录，如 memory/git/MEMORY.md） | ✅ |
 | `scripts/bash/` | Bash 脚本（Linux/WSL/macOS） | ✅ |
 | `scripts/pwsh/` | PowerShell 脚本（Windows） | ✅ |
 | `src/lib-common.sh` | 公共函数库 | ✅ |
