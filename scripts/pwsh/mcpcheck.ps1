@@ -289,7 +289,7 @@ switch ($choice) {
                         [Environment]::SetEnvironmentVariable($prop.Name, $prop.Value, "Process")
                     }
                 }
-                claude mcp add $m.name -- $m.install 2>&1 | Out-Null
+                claude mcp add -s user $m.name -- $m.install 2>&1 | Out-Null
                 Write-Good " ✅"
             } catch {
                 Write-Bad " ❌ $_"
@@ -315,7 +315,7 @@ switch ($choice) {
                     Write-Good "✅ 安装成功"
                     # 重新注册
                     Write-Host "注册: $($m.name) ..." -NoNewline
-                    claude mcp add $m.name -- $m.install 2>&1 | Out-Null
+                    claude mcp add -s user $m.name -- $m.install 2>&1 | Out-Null
                     if ($?) { Write-Good " ✅" } else { Write-Bad " ❌" }
                 } else {
                     Write-Bad "❌ 安装失败"
@@ -334,7 +334,7 @@ switch ($choice) {
             Write-Host "修复 $($m.name) ..." -NoNewline
             $null = Invoke-Expression $m.installLocal 2>$null
             if ($LASTEXITCODE -eq 0) {
-                if (claude mcp add $m.name -- $m.install 2>$null) {
+                if (claude mcp add -s user $m.name -- $m.install 2>$null) {
                     Write-Good " ✅"
                     $fixed++
                 } else {
@@ -397,7 +397,7 @@ switch ($choice) {
                         [Environment]::SetEnvironmentVariable($prop.Name, $prop.Value, "Process")
                     }
                 }
-                claude mcp add $m.name -- $m.install 2>&1 | Out-Null
+                claude mcp add -s user $m.name -- $m.install 2>&1 | Out-Null
                 $installed++
             } catch { }
         }
@@ -483,7 +483,7 @@ switch ($choice) {
                             [Environment]::SetEnvironmentVariable($prop.Name, $prop.Value, "Process")
                         }
                     }
-                    claude mcp add $selected.name -- $selected.install 2>&1 | Out-Null
+                    claude mcp add -s user $selected.name -- $selected.install 2>&1 | Out-Null
                     if ($?) { Write-Good "✅" } else { Write-Bad "❌" }
                 }
             }
@@ -495,7 +495,7 @@ switch ($choice) {
                     if ($confirm -eq "y") {
                         Invoke-Expression $selected.installLocal 2>&1 | Select-Object -Last 3
                         if ($LASTEXITCODE -eq 0) {
-                            claude mcp add $selected.name -- $selected.install 2>&1 | Out-Null
+                            claude mcp add -s user $selected.name -- $selected.install 2>&1 | Out-Null
                             if ($?) { Write-Good "✅" } else { Write-Bad "❌" }
                         }
                     }

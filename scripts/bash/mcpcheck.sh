@@ -333,7 +333,8 @@ do_install_mcp() {
         export $env_vars
     fi
 
-    if claude mcp add $name -- $install_cmd 2>&1; then
+    # 使用 --scope user 添加到用户全局配置
+    if claude mcp add -s user $name -- $install_cmd 2>&1; then
         good "✅"
         return 0
     else
@@ -416,7 +417,7 @@ case "$choice" in
             # 尝试安装
             if eval "$install_local" &>/dev/null; then
                 # 安装成功，重新注册
-                if claude mcp add $name -- $install &>/dev/null; then
+                if claude mcp add -s user $name -- $install &>/dev/null; then
                     good "✅"
                     ((fixed++))
                 else
