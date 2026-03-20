@@ -35,6 +35,79 @@ if ! command -v claude &> /dev/null; then
     exit 1
 fi
 
+# ========== Python 辅助函数 ==========
+# 读取 MCP 列表并输出格式化的文本
+read_mcp_list() {
+    python3 - "$MCP_LIST_FILE" << 'PYTHON_EOF'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    for m in data.get('mcp', []):
+        name = m.get('name', '')
+        desc = m.get('description', '')
+        mtype = m.get('type', 'stdio')
+        install = m.get('install', '')
+        args_list = m.get('args', [])
+        args_str = ' '.join(args_list) if args_list else ''
+        print(f"{name}|{desc}|{mtype}|{install}|{args_str}")
+except Exception as e:
+    print(f"Error: {e}", file=sys.stderr)
+    sys.exit(1)
+PYTHON_EOF
+}
+
+# 检查某个 MCP 是否存在于列表中
+mcp_exists_in_list() {
+    python3 - "$MCP_LIST_FILE" "$1" << 'PYTHON_EOF'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    name = sys.argv[2]
+    exists = any(m.get('name') == name for m in data.get('mcp', []))
+    print('true' if exists else 'false')
+except:
+    print('false')
+PYTHON_EOF
+}
+
+# 添加 MCP 到列表
+add_mcp_to_list() {
+    python3 - "$MCP_LIST_FILE" "$1" << 'PYTHON_EOF'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    name = sys.argv[2]
+    # 检查是否已存在
+    if any(m.get('name') == name for m in data.get('mcp', [])):
+        print(f"  {name} 已存在于列表中")
+        return
+
+    data['mcp'].append({
+        'name': name,
+        'description': '（待补充）',
+        'type': 'http'
+    })
+
+    with open(sys.argv[1], 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+    print('ok')
+except Exception as e:
+    print(f"Error: {e}", file=sys.stderr)
+    sys.exit(1)
+PYTHON_EOF
+}
+
 # 获取当前已安装的 MCP
 declare -A InstalledMcp
 while IFS= read -r line; do
@@ -44,15 +117,7 @@ while IFS= read -r line; do
 done < <(claude mcp list 2>&1 || true)
 
 # ========== 读取列表 ==========
-McpNames=$(node -e "
-const list = require('$MCP_LIST_FILE');
-list.mcp.forEach(m => {
-    const type = m.type || 'stdio';
-    const install = m.install || '';
-    const args = m.args ? m.args.join(' ') : '';
-    console.log(m.name + '|' + (m.description || '') + '|' + type + '|' + install + '|' + args);
-});
-")
+McpNames=$(read_mcp_list)
 
 # ========== 对比分析 ==========
 Matched=""
@@ -72,7 +137,7 @@ done <<< "$McpNames"
 
 # 检查环境中的 MCP 是否在列表中
 for env_name in "${!InstalledMcp[@]}"; do
-    found=$(node -e "const list = require('$MCP_LIST_FILE'); console.log(list.mcp.some(m => m.name === '$env_name'))" 2>/dev/null || echo "false")
+    found=$(mcp_exists_in_list "$env_name")
     if [[ "$found" == "false" ]]; then
         ExtraInEnv="$ExtraInEnv$env_name\n"
     fi
@@ -170,14 +235,12 @@ case "$choice" in
         while read -r name; do
             [[ -z "$name" ]] && continue
             echo -n "添加: $name ... "
-
-            node -e "
-const fs = require('fs');
-const list = JSON.parse(fs.readFileSync('$MCP_LIST_FILE', 'utf8'));
-list.mcp.push({name:'$name', description:'（待补充）', type:'http'});
-fs.writeFileSync('$MCP_LIST_FILE', JSON.stringify(list, null, 2));
-"
-            good "✅"
+            result=$(add_mcp_to_list "$name")
+            if [[ "$result" == "ok" ]]; then
+                good "✅"
+            else
+                echo "$result"
+            fi
         done <<< "$ExtraInEnv"
 
         echo ""
@@ -196,12 +259,7 @@ fs.writeFileSync('$MCP_LIST_FILE', JSON.stringify(list, null, 2));
         info "1/2: 补充列表..."
         while read -r name; do
             [[ -z "$name" ]] && continue
-            node -e "
-const fs = require('fs');
-const list = JSON.parse(fs.readFileSync('$MCP_LIST_FILE', 'utf8'));
-list.mcp.push({name:'$name', description:'（待补充）', type:'http'});
-fs.writeFileSync('$MCP_LIST_FILE', JSON.stringify(list, null, 2));
-"
+            add_mcp_to_list "$name" > /dev/null
         done <<< "$ExtraInEnv"
         good "✅ 列表已更新"
 
@@ -292,13 +350,12 @@ fs.writeFileSync('$MCP_LIST_FILE', JSON.stringify(list, null, 2));
         if [[ -n "$selected" ]]; then
             name=$(echo "$selected" | cut -d'|' -f2)
             echo -n "添加: $name ... "
-            node -e "
-const fs = require('fs');
-const list = JSON.parse(fs.readFileSync('$MCP_LIST_FILE', 'utf8'));
-list.mcp.push({name:'$name', description:'（待补充）', type:'http'});
-fs.writeFileSync('$MCP_LIST_FILE', JSON.stringify(list, null, 2));
-"
-            good "✅ 已添加，请补充描述信息"
+            result=$(add_mcp_to_list "$name")
+            if [[ "$result" == "ok" ]]; then
+                good "✅ 已添加，请补充描述信息"
+            else
+                echo "$result"
+            fi
         else
             bad "❌ 无效选择"
         fi
