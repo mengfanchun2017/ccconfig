@@ -54,22 +54,24 @@ echo ""
 # ========== Memory 自动同步 ==========
 echo "Memory 同步..."
 
-# 获取当前目录的最后一级目录名
-CURRENT_PROJECT=$(basename "$(pwd)")
+# 获取当前完整路径和目录名
+CLAUDE_PROJECT_PATH="$(pwd)"
+CURRENT_PROJECT=$(basename "$CLAUDE_PROJECT_PATH")
 echo "   检测到当前项目: $CURRENT_PROJECT"
-
-# 构建 Claude Code 项目路径
-CLAUDE_PROJECT_PATH="$HOME/$CURRENT_PROJECT"
 
 # 获取本地 Memory 目录
 MEMORY_DIR=$(get_memory_dir "$CLAUDE_PROJECT_PATH")
 echo "   Memory 目录: $MEMORY_DIR"
 
+# 获取仓库中的 memory 目录名（转换后的格式，与 get_memory_dir 一致）
+REPO_MEMORY_NAME=$(echo "$CLAUDE_PROJECT_PATH" | sed 's/^\//' | sed 's/\//-/g')
+echo "   仓库 Memory 目录: $REPO_MEMORY_NAME"
+
 if [ -d "$MEMORY_DIR" ] && [ -f "$MEMORY_DIR/MEMORY.md" ]; then
-    mkdir -p "$REPO_DIR/memory/$CURRENT_PROJECT"
-    cp -f "$MEMORY_DIR/MEMORY.md" "$REPO_DIR/memory/$CURRENT_PROJECT/MEMORY.md"
-    git add "$REPO_DIR/memory/$CURRENT_PROJECT/MEMORY.md"
-    echo_success "   ✅ $CURRENT_PROJECT 的 Memory 已同步"
+    mkdir -p "$REPO_DIR/memory/$REPO_MEMORY_NAME"
+    cp -f "$MEMORY_DIR/MEMORY.md" "$REPO_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md"
+    git add "$REPO_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md"
+    echo_success "   ✅ $REPO_MEMORY_NAME 的 Memory 已同步"
 else
     echo_warn "   ⚠️  未找到 Memory: $MEMORY_DIR/MEMORY.md"
 fi
