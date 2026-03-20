@@ -62,7 +62,7 @@ MEMORY_DIR=$(get_memory_dir "$CLAUDE_PROJECT_PATH")
 echo "   Memory 目录: $MEMORY_DIR"
 
 # 获取仓库中的 memory 目录名（转换后的格式，与 get_memory_dir 一致）
-REPO_MEMORY_NAME=$(echo "$CLAUDE_PROJECT_PATH" | sed 's/^\//' | sed 's/\//-/g')
+REPO_MEMORY_NAME=$(echo "$CLAUDE_PROJECT_PATH" | sed 's/^\///' | sed 's/\//-/g')
 echo "   仓库 Memory 目录: $REPO_MEMORY_NAME"
 
 # 检查仓库中是否存在该项目对应的 memory 目录

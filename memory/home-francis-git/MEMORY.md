@@ -31,6 +31,10 @@ Use the following sections in this file:
 - **记忆结构**: 会话记录时标记设备，如 `### 2026-03-19 [Francis_MiPro]`
 - **同步时机**: 每次 `gitarc` 时自动更新本终端的会话记录
 - **会话记录格式**: `### 2026-03-19 [设备主机名]`
+- **Memory 目录命名规则**:
+  - Linux/WSL: `/home/francis/git` → `home-francis-git`（仓库中）
+  - Windows: `C:\git` → `C--git`（仓库中）
+  - 脚本使用 `get_memory_dir()` 自动转换，不要手动创建目录
 
 ---
 
@@ -159,12 +163,13 @@ Use the following sections in this file:
   - 配置命令: `git config --global https.proxy http://127.0.0.1:7897`
   - 三台电脑都使用相同的配置
 - **自动化脚本**:
-  - `scripts/start-work.bat`: 开始工作前运行，拉取最新配置并同步到本地
-  - `scripts/end-work.bat`: 结束工作后运行，收集本地配置并提交推送
+  - **重要**: 脚本从**主工作目录**运行，不是从 claude-config 仓库内运行
+  - 运行方式: `cd /home/francis/git && bash claude-config/scripts/bash/start.sh`
+  - 脚本会自动检测当前目录作为项目目录
 - **日常工作流**:
-  1. 到公司/家: 双击 `start-work.bat`
-  2. 正常工作
-  3. 结束工作: 双击 `end-work.bat`
+  1. 到公司/家: `bash claude-config/scripts/bash/start.sh` 或 `gitinit`
+  2. 正常工作（在 Claude Code 中）
+  3. 结束工作: `bash claude-config/scripts/bash/end.sh` 或 `gitarc`
 - **Git 远程仓库**: https://github.com/<your-github-username>/claude-config
 - **对话关键词**:
   - `gitinit`: 开始工作 - 从 GitHub 拉取最新配置并同步到本地
