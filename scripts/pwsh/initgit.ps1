@@ -120,15 +120,58 @@ if (gh repo clone $REPO $TARGET_DIR 2>&1) {
     }
 }
 
+# -------------------------- 安装 Claude Code --------------------------
+Write-Host ""
+Write-Host "=========================================="
+Write-Host "📦 安装 Claude Code"
+Write-Host "=========================================="
+Write-Host ""
+
+# 检查 Claude Code 是否已安装
+$claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
+if ($claudeCmd) {
+    $claudeVersion = claude --version 2>&1
+    Write-Success "Claude Code 已安装: $claudeVersion"
+} else {
+    Write-Info "正在安装 Claude Code..."
+
+    # 尝试使用 npm 全局安装
+    Write-Info "使用 npm 全局安装..."
+    npm install -g @anthropic-ai/claude-code
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Claude Code 安装完成"
+    } else {
+        Write-Warning "npm 安装失败，尝试其他方式..."
+
+        # 尝试使用 PowerShell 安装脚本
+        Write-Info "尝试使用官方安装脚本..."
+        try {
+            Invoke-WebRequest -Uri "https://claude.ai/install.ps1" -UseBasicParsing | Invoke-Expression
+        } catch {
+            Write-Warning "官方安装脚本失败，请手动安装: npm install -g @anthropic-ai/claude-code"
+        }
+    }
+}
+
+# 刷新 PATH
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+
+# 验证安装
+$claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
+if ($claudeCmd) {
+    Write-Success "Claude Code 版本: $(claude --version 2>&1)"
+}
+
 # -------------------------- 完成 --------------------------
 Write-Host ""
 Write-Host "🎉 环境初始化完成！" -ForegroundColor Green
 Write-Host ""
 Write-Host "仓库位置: $TARGET_DIR"
+$claudeVersion = claude --version 2>&1
+Write-Host "Claude Code: $claudeVersion"
 Write-Host ""
 Write-Host "下一步："
 Write-Host "  cd $TARGET_DIR"
-if ($TARGET_DIR -like "*\claude-config") {
-    Write-Host "  .\scripts\pwsh\start.ps1"
-}
+Write-Host "  .\scripts\pwsh\initclaude.ps1  # 配置 LLM API"
 Write-Host ""

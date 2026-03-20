@@ -16,7 +16,7 @@ CYAN='\033[0;36m'
 GRAY='\033[0;90m'
 NC='\033[0m'
 
-title() { echo -e "\n========================================\n  $1\n========================================\n" -e "${CYAN}"; }
+title() { echo -e "\n========================================\n  $1\n========================================\n${CYAN}"; }
 section() { echo -e "\n【$1】${YELLOW}"; }
 item() { echo -e "  $1${NC}"; }
 good() { echo -e "  $1${GREEN}"; }
@@ -29,6 +29,12 @@ if [ ! -f "$MCP_LIST_FILE" ]; then
     exit 1
 fi
 
+# 检查 claude 命令
+if ! command -v claude &> /dev/null; then
+    bad "❌ Claude Code 未安装，请先运行 initgit.sh"
+    exit 1
+fi
+
 # 获取当前已安装的 MCP
 declare -A InstalledMcp
 while IFS= read -r line; do
@@ -37,24 +43,30 @@ while IFS= read -r line; do
     fi
 done < <(claude mcp list 2>&1 || true)
 
-# ========== 对比分析 ==========
-# 读取列表
+# ========== 读取列表 ==========
 McpNames=$(node -e "
 const list = require('$MCP_LIST_FILE');
-list.mcp.forEach(m => console.log(m.name + '|' + (m.description || '') + '|' + (m.type || 'stdio') + '|' + (m.install || '')));
+list.mcp.forEach(m => {
+    const type = m.type || 'stdio';
+    const install = m.install || '';
+    const args = m.args ? m.args.join(' ') : '';
+    console.log(m.name + '|' + (m.description || '') + '|' + type + '|' + install + '|' + args);
+});
 ")
 
-# 分类
+# ========== 对比分析 ==========
 Matched=""
 MissingFromList=""
 ExtraInEnv=""
 
 # 检查列表中的每个 MCP
-while IFS='|' read -r name desc type install; do
+while IFS='|' read -r name desc type install args; do
+    [[ -z "$name" ]] && continue
+    full_cmd="$install $args"
     if [[ -n "${InstalledMcp[$name]}" ]]; then
         Matched="$Matched$name|$desc\n"
     else
-        MissingFromList="$MissingFromList$name|$desc|$type|$install\n"
+        MissingFromList="$MissingFromList$name|$desc|$type|$full_cmd\n"
     fi
 done <<< "$McpNames"
 
@@ -80,7 +92,7 @@ fi
 # 缺失的部分
 if [[ -n "$MissingFromList" ]]; then
     section "❌ 列表中有但环境缺失"
-    while IFS='|' read -r name desc type install; do
+    while IFS='|' read -r name desc type install args; do
         [[ -z "$name" ]] && continue
         [[ "$type" == "http" ]] && type_tag="[HTTP]" || type_tag="[STDIO]"
         item "$name - $desc $type_tag"
@@ -106,6 +118,7 @@ if [[ "$has_diff" == "false" ]]; then
 fi
 
 title "请选择操作"
+
 echo -e "  1) 安装所有缺失的 MCP 到现有环境${NC}"
 echo -e "  2) 补充缺失项到 mcplist.json${NC}"
 
@@ -128,7 +141,7 @@ case "$choice" in
         installed=0
         skipped=0
 
-        while IFS='|' read -r name desc type install; do
+        while IFS='|' read -r name desc type install args; do
             [[ -z "$name" ]] && continue
 
             if [[ "$type" == "http" ]]; then
@@ -138,7 +151,7 @@ case "$choice" in
             fi
 
             echo -n "安装: $name ... "
-            if claude mcp add $name -- $install 2>/dev/null; then
+            if claude mcp add $name -- $install $args 2>/dev/null; then
                 good "✅"
                 ((installed++))
             else
@@ -154,12 +167,10 @@ case "$choice" in
         # 补充缺失项到 mcplist.json
         title "补充到 mcplist.json"
 
-        # 读取现有内容
         while read -r name; do
             [[ -z "$name" ]] && continue
             echo -n "添加: $name ... "
 
-            # 使用 node 添加
             node -e "
 const fs = require('fs');
 const list = JSON.parse(fs.readFileSync('$MCP_LIST_FILE', 'utf8'));
@@ -197,10 +208,10 @@ fs.writeFileSync('$MCP_LIST_FILE', JSON.stringify(list, null, 2));
         # 再安装缺失
         info "2/2: 安装缺失..."
         installed=0
-        while IFS='|' read -r name desc type install; do
+        while IFS='|' read -r name desc type install args; do
             [[ -z "$name" ]] && continue
             [[ "$type" == "http" ]] && continue
-            if claude mcp add $name -- $install 2>/dev/null; then
+            if claude mcp add $name -- $install $args 2>/dev/null; then
                 ((installed++))
             fi
         done <<< "$MissingFromList"
@@ -214,16 +225,16 @@ fs.writeFileSync('$MCP_LIST_FILE', JSON.stringify(list, null, 2));
         section "可安装的 MCP（不在环境中）:"
         i=1
         installable=()
-        while IFS='|' read -r name desc type install; do
+        while IFS='|' read -r name desc type install args; do
             [[ -z "$name" ]] && continue
             [[ "$type" == "http" ]] && continue
-            echo -e "  $i) $name - $desc" ${NC}
-            installable+=("$i|$name|$install")
+            echo -e "  $i) $name - $desc${NC}"
+            installable+=("$i|$name|$install $args")
             ((i++))
         done <<< "$MissingFromList"
 
         if [[ ${#installable[@]} -eq 0 ]]; then
-            info "没有可安装的 MCP"
+            info "没有可安装的 MCP（HTTP 类型需手动配置）"
             exit 0
         fi
 
@@ -238,7 +249,7 @@ fs.writeFileSync('$MCP_LIST_FILE', JSON.stringify(list, null, 2));
         selected=$(echo "${installable[@]}" | tr ' ' '\n' | grep "^$sel|")
         if [[ -n "$selected" ]]; then
             name=$(echo "$selected" | cut -d'|' -f2)
-            install_cmd=$(echo "$selected" | cut -d'|' -f3)
+            install_cmd=$(echo "$selected" | cut -d'|' -f3-)
             echo -n "安装: $name ... "
             if claude mcp add $name -- $install_cmd 2>/dev/null; then
                 good "✅ 安装成功"
@@ -259,7 +270,7 @@ fs.writeFileSync('$MCP_LIST_FILE', JSON.stringify(list, null, 2));
         addable=()
         while read -r name; do
             [[ -z "$name" ]] && continue
-            echo -e "  $i) $name" ${NC}
+            echo -e "  $i) $name${NC}"
             addable+=("$i|$name")
             ((i++))
         done <<< "$ExtraInEnv"

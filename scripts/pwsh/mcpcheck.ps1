@@ -21,6 +21,13 @@ if (-not (Test-Path $McpListFile)) {
     exit 1
 }
 
+# 检查 claude 命令
+$claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
+if (-not $claudeCmd) {
+    Write-Bad "❌ Claude Code 未安装，请先运行 initgit.ps1"
+    exit 1
+}
+
 $McpList = Get-Content $McpListFile -Raw | ConvertFrom-Json
 
 # 获取当前已安装的 MCP
@@ -124,8 +131,11 @@ switch ($choice) {
 
             Write-Host "安装: $($mcp.name) ..." -NoNewline
             try {
-                $parts = $mcp.install -split ' '
-                $args = $parts[1..($parts.Length - 1)]
+                $installParts = $mcp.install -split ' '
+                $args = @($installParts[1..($installParts.Length - 1)])
+                if ($mcp.args -and $mcp.args.Count -gt 0) {
+                    $args += $mcp.args
+                }
                 claude mcp add $mcp.name -- @args 2>&1 | Out-Null
                 Write-Good " ✅"
                 $installed++
@@ -145,7 +155,6 @@ switch ($choice) {
         foreach ($name in $ExtraInEnv) {
             Write-Host "添加: $name ..." -NoNewline
 
-            # 尝试获取 MCP 信息（这里用简单方式）
             $newMcp = @{
                 name = $name
                 description = "（待补充）"
@@ -189,8 +198,11 @@ switch ($choice) {
         foreach ($mcp in $MissingFromList) {
             if ($mcp.type -eq "http") { continue }
             try {
-                $parts = $mcp.install -split ' '
-                $args = $parts[1..($parts.Length - 1)]
+                $installParts = $mcp.install -split ' '
+                $args = @($installParts[1..($installParts.Length - 1)])
+                if ($mcp.args -and $mcp.args.Count -gt 0) {
+                    $args += $mcp.args
+                }
                 claude mcp add $mcp.name -- @args 2>&1 | Out-Null
                 $installed++
             } catch { }
@@ -213,7 +225,7 @@ switch ($choice) {
         }
 
         if ($installable.Count -eq 0) {
-            Write-Info "没有可安装的 MCP"
+            Write-Info "没有可安装的 STDIO MCP（HTTP 类型需手动配置）"
             exit 0
         }
 
@@ -230,8 +242,11 @@ switch ($choice) {
             $mcp = $selected.mcp
             Write-Host "安装: $($mcp.name) ..." -NoNewline
             try {
-                $parts = $mcp.install -split ' '
-                $args = $parts[1..($parts.Length - 1)]
+                $installParts = $mcp.install -split ' '
+                $args = @($installParts[1..($installParts.Length - 1)])
+                if ($mcp.args -and $mcp.args.Count -gt 0) {
+                    $args += $mcp.args
+                }
                 claude mcp add $mcp.name -- @args 2>&1 | Out-Null
                 Write-Good " ✅ 安装成功"
             } catch {
