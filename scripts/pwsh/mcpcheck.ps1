@@ -5,7 +5,7 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoDir = Split-Path -Parent $ScriptDir
-$McpListFile = Join-Path $RepoDir "mcplist.json"
+$McpListFile = Join-Path $RepoDir "config\mcplist.json"
 
 # 颜色函数
 function Write-Title { param($m) Write-Host "`n========================================" -ForegroundColor Cyan; Write-Host "  $m" -ForegroundColor Cyan; Write-Host "========================================`n" -ForegroundColor Cyan }

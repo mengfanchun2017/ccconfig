@@ -129,6 +129,6 @@ Write-Host ""
 Write-Host "下一步："
 Write-Host "  cd $TARGET_DIR"
 if ($TARGET_DIR -like "*\claude-config") {
-    Write-Host "  .\scripts\start.ps1"
+    Write-Host "  .\scripts\pwsh\start.ps1"
 }
 Write-Host ""
