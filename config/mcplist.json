@@ -6,15 +6,14 @@
       "description": "网络搜索 - 支持中文搜索",
       "type": "stdio",
       "install": "npx tavily-mcp",
-      "env": {
-        "TAVILY_API_KEY": "你的 Tavily API Key"
-      }
+      "install_local": "npm install -g tavily-mcp"
     },
     {
       "name": "playwright",
       "description": "浏览器自动化 - 网页截图/抓取/交互",
       "type": "stdio",
       "install": "npx @playwright/mcp",
+      "install_local": "npm install -g @playwright/mcp && npx playwright install",
       "note": "需要先安装 Playwright: npx playwright install"
     }
   ]
