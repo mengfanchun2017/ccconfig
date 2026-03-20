@@ -52,27 +52,27 @@ echo ""
 # ========== Memory 自动同步 ==========
 echo "[4/4] Memory 同步..."
 
-# 获取当前目录的最后一级目录名
-CURRENT_PROJECT=$(basename "$(pwd)")
+# 获取当前完整路径和目录名
+CLAUDE_PROJECT_PATH="$(pwd)"
+CURRENT_PROJECT=$(basename "$CLAUDE_PROJECT_PATH")
 echo "   检测到当前项目: $CURRENT_PROJECT"
 
+# 获取本地 Memory 目录
+MEMORY_DIR=$(get_memory_dir "$CLAUDE_PROJECT_PATH")
+echo "   Memory 目录: $MEMORY_DIR"
+
+# 获取仓库中的 memory 目录名（转换后的格式，与 get_memory_dir 一致）
+REPO_MEMORY_NAME=$(echo "$CLAUDE_PROJECT_PATH" | sed 's/^\//' | sed 's/\//-/g')
+echo "   仓库 Memory 目录: $REPO_MEMORY_NAME"
+
 # 检查仓库中是否存在该项目对应的 memory 目录
-if [ -d "$REPO_DIR/memory/$CURRENT_PROJECT" ]; then
-    # 构建 Claude Code 项目路径
-    # Linux/WSL: /home/francis/git -> /home/francis/.claude/projects/-home-francis-git/
-    # Windows: C:\git -> C:\Users\franc\.claude\projects\C--git\
-    CLAUDE_PROJECT_PATH="$HOME/$(basename "$(pwd)")"
-
-    # 获取本地 Memory 目录
-    MEMORY_DIR=$(get_memory_dir "$CLAUDE_PROJECT_PATH")
-    echo "   Memory 目录: $MEMORY_DIR"
-
+if [ -d "$REPO_DIR/memory/$REPO_MEMORY_NAME" ]; then
     # 创建目录并复制
     mkdir -p "$MEMORY_DIR"
-    cp -f "$REPO_DIR/memory/$CURRENT_PROJECT/MEMORY.md" "$MEMORY_DIR/MEMORY.md"
-    echo_success "   ✅ $CURRENT_PROJECT 的 Memory 已同步"
+    cp -f "$REPO_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md" "$MEMORY_DIR/MEMORY.md"
+    echo_success "   ✅ $REPO_MEMORY_NAME 的 Memory 已同步"
 else
-    echo_warn "⚠️  仓库中未找到 $CURRENT_PROJECT 的 Memory，跳过"
+    echo_warn "   ⚠️  仓库中未找到 $REPO_MEMORY_NAME 的 Memory，跳过"
     echo "   可用项目: $(ls -d $REPO_DIR/memory/*/ 2>/dev/null | sed 's|/$||' | sed 's|$REPO_DIR/memory/||' | tr '\n' ' ')"
 fi
 echo ""

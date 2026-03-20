@@ -201,6 +201,19 @@ Use the following sections in this file:
 - 删除了 mcpupdate（功能已被 mcpcheck 包含）
 - 安装飞书 MCP (lark-mcp) - 待解决: 应用需要添加到知识库成员
 
+### 2026-03-20 [修复] - Memory 同步路径问题
+- **问题**: `start.sh` 和 `end.sh` 中的 memory 路径计算错误
+  - 错误: `CLAUDE_PROJECT_PATH="$HOME/$CURRENT_PROJECT"` (得到 `~/.claude/projects/git/memory`)
+  - 正确: `CLAUDE_PROJECT_PATH="$(pwd)"` 然后传给 `get_memory_dir()` (得到 `~/.claude/projects/home-francis-git/memory`)
+- **修复内容**:
+  1. 重命名 `memory/git/` → `memory/home-francis-git/`
+  2. 修复 `start.sh`: 使用完整路径 `$(pwd)` 和 `get_memory_dir()` 正确计算 memory 目录
+  3. 修复 `end.sh`: 同上
+- **memory 目录命名规范** (由 `get_memory_dir()` 决定):
+  - Linux/WSL: `/home/francis/git` → `home-francis-git`
+  - Windows: `C:\git` → `C--git`
+  - 所以跨设备同步时注意目录名不同
+
 ### 2026-03-19 [Francis_MiPro] - Windows 11
 - 删除了 claude-config/memory 目录（重复记忆）
 - 更新记忆结构：添加设备列表，记录主机名和操作系统
