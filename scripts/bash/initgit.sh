@@ -232,14 +232,57 @@ if command -v claude &> /dev/null; then
     print_success "Claude Code 版本: $(claude --version)"
 fi
 
-# -------------------------- 完成 --------------------------
+# -------------------------- 符号链接检查 --------------------------
 echo ""
+echo "========================================"
+echo "  🔍 符号链接状态检查"
+echo "========================================"
+
+CLAUDE_DIR="$HOME/.claude"
+
+check_symlink() {
+    local link="$1"
+    local name="$2"
+    if [ -L "$link" ]; then
+        if [ -e "$link" ]; then
+            echo "   ✅ $name: 正常"
+            return 0
+        else
+            echo "   ❌ $name: 链接断开"
+            return 1
+        fi
+    elif [ -e "$link" ]; then
+        echo "   ⚠️  $name: 是文件而非链接"
+        return 2
+    else
+        echo "   ⭕ $name: 未配置"
+        return 3
+    fi
+}
+
+check_symlink "$CLAUDE_DIR/settings.json" "settings.json"
+check_symlink "$HOME/CLAUDE.md" "CLAUDE.md"
+check_symlink "$CLAUDE_DIR/projects/home-francis-git/memory/MEMORY.md" "MEMORY.md"
+
+echo ""
+
+# -------------------------- 完成 --------------------------
 echo "🎉 环境初始化完成！"
 echo ""
 echo "仓库位置: $TARGET_DIR"
 echo "Claude Code: $(claude --version 2>/dev/null || echo '已安装')"
 echo ""
-echo "下一步："
-echo "  cd $TARGET_DIR"
-echo "  ./scripts/bash/initclaude.sh  # 配置 LLM API"
+echo "========================================"
+echo "  📋 下一步操作"
+echo "========================================"
+echo ""
+echo "  1. 运行 start.sh 建立符号链接并拉取配置："
+echo "     cd $TARGET_DIR"
+echo "     ./scripts/bash/start.sh"
+echo ""
+echo "  2. 配置 LLM API："
+echo "     ./scripts/bash/initclaude.sh"
+echo ""
+echo "  3. 安装 MCP 环境（如需要）："
+echo "     ./scripts/bash/initmcp.sh"
 echo ""
