@@ -94,3 +94,34 @@ echo ""
 echo "提示: 所有配置已通过符号链接与仓库同步"
 echo "      对任意文件的修改都会双向同步"
 echo ""
+
+# ========== 符号链接检查 ==========
+echo "========================================"
+echo "  🔍 符号链接状态检查"
+echo "========================================"
+
+check_symlink() {
+    local link="$1"
+    local name="$2"
+    if [ -L "$link" ]; then
+        if [ -e "$link" ]; then
+            echo "   ✅ $name: 正常"
+            return 0
+        else
+            echo "   ❌ $name: 链接断开（目标不存在）"
+            return 1
+        fi
+    elif [ -e "$link" ]; then
+        echo "   ⚠️  $name: 是文件而非链接"
+        return 2
+    else
+        echo "   ❌ $name: 不存在"
+        return 3
+    fi
+}
+
+check_symlink "$CLAUDE_DIR/settings.json" "settings.json"
+check_symlink "$HOME/CLAUDE.md" "CLAUDE.md"
+check_symlink "$MEMORY_DIR/MEMORY.md" "MEMORY.md"
+
+echo ""
