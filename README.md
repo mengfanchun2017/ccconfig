@@ -139,6 +139,17 @@ cd ~/git/claude-config
 
 > **注意**：`.claude.json` 包含 LLM API 配置，保留在本地不同步。
 
+### 快捷命令（关键词）
+
+在 Claude Code 对话中使用这些关键词快速触发脚本：
+
+| 关键词 | 功能 | 说明 |
+|--------|------|------|
+| `gitinit` | 开始工作 | 等同于运行 `start.sh`，拉取配置并建立符号链接 |
+| `gitarc` | 结束工作 | 等同于运行 `end.sh`，提交并推送更改到 GitHub |
+
+**使用方式**：直接在对话中输入 `gitinit` 或 `gitarc`，Claude Code 会执行相应脚本。
+
 ### MCP 服务器同步检查
 
 可以使用 `mcpcheck.sh` / `mcpcheck.ps1` 来检查和同步 MCP 服务器配置：
