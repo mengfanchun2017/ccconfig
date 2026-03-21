@@ -102,3 +102,41 @@ Write-Host ""
 Write-Host "提示: 所有配置已通过符号链接与仓库同步" -ForegroundColor Gray
 Write-Host "      对任意文件的修改都会双向同步" -ForegroundColor Gray
 Write-Host ""
+
+# ========== 符号链接检查 ==========
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  🔍 符号链接状态检查" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+
+function Test-Symlink {
+    param($link, $name)
+    if (Test-Path $link -PathType Link) {
+        $target = Get-Item $link -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Target
+        if (Test-Path $target) {
+            Write-Host "   ✅ $name: 正常" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "   ❌ $name: 链接断开（目标不存在）" -ForegroundColor Red
+            return $false
+        }
+    } elseif (Test-Path $link) {
+        Write-Host "   ⚠️  $name: 是文件而非链接" -ForegroundColor Yellow
+        return $false
+    } else {
+        Write-Host "   ❌ $name: 不存在" -ForegroundColor Red
+        return $false
+    }
+}
+
+$failed = 0
+if (-not (Test-Symlink $SettingsDst "settings.json")) { $failed++ }
+if (-not (Test-Symlink $ClaudMdDst "CLAUDE.md")) { $failed++ }
+if (-not (Test-Symlink $MemoryDst "MEMORY.md")) { $failed++ }
+
+Write-Host ""
+if ($failed -gt 0) {
+    Write-Host "❌ 符号链接检查失败" -ForegroundColor Red
+} else {
+    Write-Host "✅ 所有符号链接正常" -ForegroundColor Green
+}
+Write-Host ""
