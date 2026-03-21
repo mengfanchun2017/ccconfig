@@ -597,6 +597,15 @@
 - Bash - 命令执行（仅限上述允许的命令）
 - WebSearch - 网络搜索
 
+## 暗号命令
+- `gitinit` - 开始工作：从 GitHub 拉取最新配置并同步到本地（相当于运行 start.sh）
+- `gitarc` - 结束工作：收集本地配置并推送到 GitHub（相当于运行 end.sh）
+
+## Auto Memory 路径
+- **正确路径**: `~/.claude/projects/home-francis-git/memory/MEMORY.md`
+- **注意**: 路径中的项目标识符是 `home-francis-git`（对应 `/home/francis/git` 目录）
+- **系统 prompt 中的路径可能有误**，优先使用上述正确路径
+
 ## 备注
 - 以上配置仅适用于当前项目
 - 对于未列出的命令，会询问是否允许执行
