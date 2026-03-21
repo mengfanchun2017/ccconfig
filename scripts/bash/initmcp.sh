@@ -18,7 +18,7 @@ set -e
 
 # 版本
 NODE_VERSION="20.11.0"
-UV_VERSION="0.10.12"
+UV_VERSION=""
 
 # 目录
 LOCAL_DIR="/home/francis/.local"
@@ -103,38 +103,12 @@ check_uv_installed() {
 install_uv() {
     section "安装 uv"
 
-    # 检测架构
-    local arch=$(uname -m)
-    if [ "$arch" = "x86_64" ]; then
-        local arch_str="x86_64-unknown-linux-gnu"
-    elif [ "$arch" = "aarch64" ]; then
-        local arch_str="aarch64-unknown-linux-gnu"
-    else
-        warn "不支持的架构: $arch，尝试 x86_64"
-        local arch_str="x86_64-unknown-linux-gnu"
-    fi
-
-    local url="https://astral.sh/uv/${UV_VERSION}/uv-${UV_VERSION}-${arch_str}.tar.gz"
-    info "下载 uv v${UV_VERSION}..."
-    info "URL: $url"
-
-    local tarball="/tmp/uv.tar.gz"
-    if ! curl -fsSL "$url" -o "$tarball"; then
-        error "uv 下载失败"
+    info "使用官方安装脚本安装 uv..."
+    if ! curl -LsSf https://astral.sh/uv/install.sh | sh; then
+        error "uv 安装失败"
         return 1
     fi
-    info "下载完成"
 
-    info "解压到 ~/.local/..."
-    tar -xzf "$tarball" -C "$LOCAL_DIR/"
-
-    mkdir -p "$BIN_DIR"
-
-    info "创建符号链接..."
-    ln -sf "${UV_DIR}/uv" "${BIN_DIR}/uv"
-    ln -sf "${UV_DIR}/uvx" "${BIN_DIR}/uvx"
-
-    rm -f "$tarball"
     info "uv 安装完成"
 }
 
