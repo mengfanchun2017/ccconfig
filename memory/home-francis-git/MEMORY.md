@@ -240,6 +240,12 @@ Use the following sections in this file:
 **Windows 待测**：
 - start.ps1 / end.ps1 的符号链接检查
 
+### 2026-03-21 [Francis_MiPro] - Windows 11 - initgit.sh 添加符号链接检查
+- `initgit.sh` 完成后添加符号链接状态检查
+- 检查 settings.json, CLAUDE.md, MEMORY.md 是否已链接
+- 输出清晰的下一步操作指引
+- 符号链接检查逻辑：✅正常 / ❌断开 / ⚠️文件 / ⭕未配置
+
 ### 2026-03-20 [Francis_MiPro] - Windows 11
 - 测试 memory 同步功能
 - 配置了 GitMCP（GitHub 仓库读取）
