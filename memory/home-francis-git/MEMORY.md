@@ -230,10 +230,15 @@ Use the following sections in this file:
 - ✅ start.sh 正常工作
 - ✅ 符号链接正确创建
 - ✅ README.md 已更新架构说明
+- ✅ start.ps1/end.ps1 已更新符号链接检查
+- ✅ initgit.sh 添加 Git 身份检查
 
-**待办**：
-- [ ] Windows 端测试 start.ps1
-- [ ] commit 并推送更改
+**关键词已添加到 README**：
+- `gitinit` - 开始工作
+- `gitarc` - 结束工作
+
+**Windows 待测**：
+- start.ps1 / end.ps1 的符号链接检查
 
 ### 2026-03-20 [Francis_MiPro] - Windows 11
 - 测试 memory 同步功能
