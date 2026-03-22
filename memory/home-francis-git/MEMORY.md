@@ -399,5 +399,11 @@ Use the following sections in this file:
 - **Project Ref**: <your-supabase-project-id> (https://<your-supabase-project-id>.supabase.co)
 - **可用工具**: search_docs, list_tables, execute_sql, get_logs, list_edge_functions 等 23 个
 
+### 2026-03-22 [Francis_MiPro] - Windows 11 - Supabase RLS 测试与修复
+- **RLS 开启后测试**: 读取和写入都成功（使用 RETURNING * 确认）
+- **mcpcheck.sh RLS 提醒**: 添加 Supabase RLS 必要性说明和配置方法
+- **白名单修复**: 添加 claude mcp start/stop/list 命令
+- **CLAUDE.md 路径修复**: 添加 claude-config/scripts/bash/*.sh 白名单
+
 ---
 
