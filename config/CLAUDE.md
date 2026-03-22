@@ -519,6 +519,8 @@
 - `Edit(CLAUDE.md)` - 允许编辑配置文件
 - `Bash(scripts/*.sh)` - 允许执行 scripts 目录下的 shell 脚本
 - `Bash(scripts/*.ps1)` - 允许执行 scripts 目录下的 PowerShell 脚本
+- `Bash(claude-config/scripts/bash/*.sh)` - 允许执行 claude-config 中的 shell 脚本
+- `Bash(claude-config/scripts/pwsh/*.ps1)` - 允许执行 claude-config 中的 PowerShell 脚本
 
 ### Playwright 浏览器自动化
 - `npx playwright` - Playwright CLI
