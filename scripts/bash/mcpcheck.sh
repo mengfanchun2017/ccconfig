@@ -303,6 +303,30 @@ PYEOF
             warn "  Token 为空，已跳过"
         fi
     fi
+
+    # ========== RLS 提醒 ==========
+    echo ""
+    section "🔒 Supabase Row Level Security (RLS) 提醒"
+    echo -e "  ${CYAN}您的 Supabase 数据库已启用 RLS (Row Level Security)${NC}"
+    echo ""
+    echo -e "  ${YELLOW}为什么要启用 RLS:${NC}"
+    echo "    - RLS 为数据库表添加行级安全策略"
+    echo "    - 即使 API Key 被泄露，攻击者也无法访问未授权的数据"
+    echo "    - 这是 Supabase 安全的核心特性"
+    echo ""
+    echo -e "  ${YELLOW}如何管理 RLS:${NC}"
+    echo "    1. 访问 https://supabase.com/dashboard"
+    echo "    2. 选择您的项目 → Table Editor → 选择表"
+    echo "    3. 点击 'RLS' 开关启用/禁用"
+    echo "    4. 在 'Policies' 标签中配置访问策略"
+    echo ""
+    echo -e "  ${YELLOW}使用 MCP 时的注意事项:${NC}"
+    echo "    - MCP 使用 Personal Access Token (PAT)，具有 service_role 权限"
+    echo "    - 这意味着 MCP 可以绕过 RLS（如果表有 INSERT 权限）"
+    echo "    - 写入操作建议使用 RETURNING 子句确认结果"
+    echo ""
+    echo -e "  ${CYAN}开启 RLS 后，MCP 仍然可以正常读写数据${NC}"
+    echo ""
 }
 
 # ========== Key 管理函数 ==========
