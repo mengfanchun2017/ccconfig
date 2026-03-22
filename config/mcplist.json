@@ -43,6 +43,21 @@
       "type": "stdio",
       "install": "npx -y octocode-mcp@latest",
       "install_local": "npm install -g octocode-mcp"
+    },
+    {
+      "name": "supabase",
+      "description": "Supabase 数据库 - 查询/管理数据库、Edge Functions、Storage",
+      "type": "stdio",
+      "install": "npx -y @supabase/mcp-server-supabase --project-ref <your-supabase-project-id> --access-token <YOUR_TOKEN>",
+      "install_local": "npm install -g @supabase/mcp-server-supabase",
+      "needsKey": false,
+      "keyEnv": "",
+      "keyUrl": "https://supabase.com/dashboard/account/tokens",
+      "projectRef": "<your-supabase-project-id>",
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server-supabase", "--project-ref", "<your-supabase-project-id>", "--access-token", "<YOUR_TOKEN>"],
+      "note": "需要创建 Personal Access Token 并设置 project-ref 限制只能访问该库",
+      "doc_url": "https://supabase.com/docs/guides/getting-started/mcp"
     }
   ]
 }

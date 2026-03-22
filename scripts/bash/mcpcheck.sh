@@ -137,7 +137,9 @@ try:
         needs_key = str(m.get('needsKey', False)).lower()
         key_env = m.get('keyEnv', '')
         key_url = m.get('keyUrl', '')
-        print(f"{name}|{desc}|{mtype}|{install}|{install_local}|{needs_key}|{key_env}|{key_url}")
+        command = m.get('command', '')
+        args = ' '.join(m.get('args', [])) if isinstance(m.get('args', []), list) else ''
+        print(f"{name}|{desc}|{mtype}|{install}|{install_local}|{needs_key}|{key_env}|{key_url}|{command}|{args}")
 except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
     sys.exit(1)
@@ -190,6 +192,117 @@ except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
     sys.exit(1)
 PYEOF
+}
+
+# ========== Supabase 特殊处理函数 ==========
+
+# 检查并提示 Supabase token 和 project-ref
+check_supabase_config() {
+    local has_supabase=false
+    local supabase_entry=""
+
+    # 检查 mcplist 中是否有 supabase
+    while IFS='|' read -r name desc type install install_local needs_key key_env key_url command args; do
+        [[ "$name" == "supabase" ]] && has_supabase=true && supabase_entry="$install" && break
+    done <<< "$McpNames"
+
+    [[ "$has_supabase" == "false" ]] && return 0
+
+    # 检查 ~/.claude.json 中 supabase 是否已配置正确的 token
+    local current_config=$(python3 - "$CLAUDE_JSON" << 'PYEOF'
+import json
+import sys
+try:
+    with open(sys.argv[1], 'r') as f:
+        data = json.load(f)
+    supabase = data.get('mcpServers', {}).get('supabase', {})
+    args = supabase.get('args', [])
+    for i, arg in enumerate(args):
+        if arg == '--access-token' and i+1 < len(args):
+            print(args[i+1])
+            sys.exit(0)
+    print('')
+except:
+    print('')
+PYEOF
+)
+
+    if [[ -z "$current_config" ]] || [[ "$current_config" == "<YOUR_TOKEN>" ]]; then
+        echo ""
+        section "🔑 Supabase MCP 配置"
+        echo -e "  ${CYAN}Supabase MCP 需要访问令牌来操作数据库${NC}"
+        echo ""
+
+        # 提示输入 token
+        echo -n "  请输入 SUPABASE_ACCESS_TOKEN (sbp_...): "
+        read -s supabase_token
+        echo ""
+
+        if [[ -n "$supabase_token" ]]; then
+            # 获取 project-ref (从 mcplist 的 install 字段)
+            local project_ref=$(echo "$supabase_entry" | grep -oP '(?<=--project-ref\s)\S+' || echo "<your-supabase-project-id>")
+
+            # 更新 ~/.claude.json
+            python3 - "$CLAUDE_JSON" "$supabase_token" "$project_ref" << 'PYEOF'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], 'r') as f:
+        data = json.load(f)
+
+    token = sys.argv[2]
+    project_ref = sys.argv[3]
+
+    # 查找 supabase MCP 配置
+    if 'mcpServers' not in data:
+        data['mcpServers'] = {}
+
+    if 'supabase' not in data['mcpServers']:
+        data['mcpServers']['supabase'] = {
+            'command': 'npx',
+            'args': ['-y', '@supabase/mcp-server-supabase', '--project-ref', project_ref, '--access-token', token]
+        }
+    else:
+        # 更新现有的 token
+        args = data['mcpServers']['supabase'].get('args', [])
+        new_args = []
+        skip_next = False
+        for arg in args:
+            if skip_next:
+                skip_next = False
+                continue
+            if arg == '--access-token':
+                new_args.append(arg)
+                new_args.append(token)
+                skip_next = True
+            elif arg == '<YOUR_TOKEN>':
+                new_args.append(token)
+            else:
+                new_args.append(arg)
+        data['mcpServers']['supabase']['args'] = new_args
+
+    with open(sys.argv[1], 'w') as f:
+        json.dump(data, f, indent=2)
+
+    print('ok')
+except Exception as e:
+    print(f"Error: {e}")
+    sys.exit(1)
+PYEOF
+
+            if [[ "$?" == "0" ]]; then
+                good "✅ Supabase token 已配置"
+                # 重启 MCP
+                claude mcp stop supabase 2>/dev/null || true
+                claude mcp start supabase 2>/dev/null || true
+            else
+                bad "❌ Supabase token 配置失败"
+            fi
+        else
+            warn "  Token 为空，已跳过"
+        fi
+    fi
 }
 
 # ========== Key 管理函数 ==========
@@ -383,27 +496,35 @@ declare -a ExtraInEnvArr=()
 declare -a FailedCmdArr=()
 
 # 检查列表中的每个 MCP
-# 格式: name|desc|type|install|install_local|needs_key|key_env|key_url
-while IFS='|' read -r name desc type install install_local needs_key key_env key_url; do
+# 格式: name|desc|type|install|install_local|needs_key|key_env|key_url|command|args
+while IFS='|' read -r name desc type install install_local needs_key key_env key_url command args; do
     [[ -z "$name" ]] && continue
+
+    # 优先使用 command+args，其次使用 install
+    if [[ -n "$command" ]]; then
+        actual_install="$command $args"
+    elif [[ -n "$install" ]]; then
+        actual_install="$install"
+    else
+        actual_install=""
+    fi
 
     if [[ -n "${RegisteredMcp[$name]}" ]]; then
         # MCP 已注册，检测命令是否实际可用
-        # 解析 install 命令获取 command 和 args
-        if [[ -z "$install" ]]; then
+        if [[ -z "$actual_install" ]]; then
             # install 为空时，跳过命令检测（配置不完整但已注册）
             info "⚬ $name: 已注册（配置待完善）"
         else
-            cmd_parts=($install)
+            cmd_parts=($actual_install)
             cmd="${cmd_parts[0]}"
-            install_args="${install#$cmd }"
+            install_args="${actual_install#$cmd }"
 
             if ! check_mcp_command "$cmd" "$install_args"; then
                 # 命令不可用
                 if [[ -n "$install_local" ]]; then
-                    FailedCmdArr+=("$name|$desc|$install|$install_local")
+                    FailedCmdArr+=("$name|$desc|$actual_install|$install_local")
                 else
-                    FailedCmdArr+=("$name|$desc|$install|")
+                    FailedCmdArr+=("$name|$desc|$actual_install|")
                 fi
             else
                 MatchedArr+=("$name|$desc")
@@ -411,7 +532,7 @@ while IFS='|' read -r name desc type install install_local needs_key key_env key
         fi
     else
         # MCP 未注册
-        MissingFromListArr+=("$name|$desc|$type|$install|$install_local|$needs_key|$key_env|$key_url")
+        MissingFromListArr+=("$name|$desc|$type|$actual_install|$install_local|$needs_key|$key_env|$key_url")
     fi
 done <<< "$McpNames"
 
@@ -481,6 +602,9 @@ item "列表中: $total_list | 正常: $total_matched | 缺失: $total_missing |
 
 # ========== Key 检查（无论是否有 action 都检查）==========
 check_and_prompt_keys "registered"
+
+# ========== Supabase 特殊检查 ==========
+check_supabase_config
 
 # ========== 交互菜单 ==========
 has_action_needed=false
