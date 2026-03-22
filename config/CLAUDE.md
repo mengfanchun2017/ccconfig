@@ -520,6 +520,25 @@
 - `Bash(scripts/*.sh)` - 允许执行 scripts 目录下的 shell 脚本
 - `Bash(scripts/*.ps1)` - 允许执行 scripts 目录下的 PowerShell 脚本
 
+### Playwright 浏览器自动化
+- `npx playwright` - Playwright CLI
+- `npx playwright install` - 安装 Playwright 浏览器
+- `npx playwright install chromium` - 安装 Chromium 浏览器
+- `npx playwright install chrome` - 安装 Chrome 浏览器
+- `npx playwright install firefox` - 安装 Firefox 浏览器
+- `npx playwright install webkit` - 安装 WebKit 浏览器
+- `npx @playwright/mcp` - Playwright MCP 服务器
+- `playwright screenshot` - 截图命令
+- `playwright pdf` - 生成 PDF 命令
+- `@playwright/test` - Playwright 测试框架
+- `npx @playwright/test` - Playwright 测试运行器
+
+### 中文字体支持
+- `fc-list` - 列出系统字体
+- `fc-cache` - 刷新字体缓存
+- `apt-get install fonts-noto-cjk` - 安装 Noto 中文字体（需 sudo）
+- `apt-get install fontconfig` - 安装字体配置工具
+
 ### 文本处理
 - `awk` - Awk 文本处理
 - `sed` - Sed 流编辑器
