@@ -512,6 +512,9 @@
 - `claude-code` - Claude Code CLI
 - `claude install` - Claude Code 安装/更新
 - `claude mcp` - Claude Code MCP 管理
+- `claude mcp list` - 查看已注册的 MCP 服务器
+- `claude mcp start` - 启动 MCP 服务器
+- `claude mcp stop` - 停止 MCP 服务器
 - `claude plugin` - Claude Code 插件管理
 - `claude agents` - Claude Code 代理管理
 - `tavily-mcp` - Tavily MCP 服务器
