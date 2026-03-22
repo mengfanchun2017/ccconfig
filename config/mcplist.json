@@ -6,27 +6,43 @@
       "description": "网络搜索 - 支持中文搜索",
       "type": "stdio",
       "install": "npx tavily-mcp",
-      "install_local": "npm install -g tavily-mcp"
+      "install_local": "npm install -g tavily-mcp",
+      "needsKey": true,
+      "keyEnv": "TAVILY_API_KEY",
+      "keyUrl": "https://tavily.com"
     },
     {
       "name": "playwright",
       "description": "浏览器自动化 - 网页截图/抓取/交互",
       "type": "stdio",
       "install": "npx @playwright/mcp",
-      "install_local": "npm install -g @playwright/mcp && npx playwright install",
-      "note": "需要先安装 Playwright: npx playwright install"
+      "install_local": "npm install -g @playwright/mcp && npx playwright install chromium",
+      "note": "官方推荐仅安装 chromium: npx playwright install chromium"
     },
     {
       "name": "minimax",
       "description": "MiniMax AI - 网络搜索和图片理解",
       "type": "stdio",
       "command": "uvx",
-      "args": ["minimax-coding-plan-mcp", "-y"],
+      "args": [
+        "minimax-coding-plan-mcp",
+        "-y"
+      ],
       "install": "uvx minimax-coding-plan-mcp",
-      "tools": ["web_search", "understand_image"],
+      "tools": [
+        "web_search",
+        "understand_image"
+      ],
       "note": "需要先安装 uv: curl -LsSf https://astral.sh/uv/install.sh | sh",
       "doc_url": "https://github.com/MiniMax-AI/MiniMax-MCP",
       "add_url": "在 Claude Code 中执行 /mcp 添加服务器"
+    },
+    {
+      "name": "octocode",
+      "description": "GitHub 代码搜索和仓库分析",
+      "type": "stdio",
+      "install": "npx -y octocode-mcp@latest",
+      "install_local": "npm install -g octocode-mcp"
     }
   ]
 }

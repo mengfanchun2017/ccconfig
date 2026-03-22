@@ -379,5 +379,12 @@ Use the following sections in this file:
 - **影响**: 之后 git 操作只能通过 git 命令，不再能用 MCP 工具操作 GitHub
 - **单位电脑需操作**: 同样从 ~/.claude.json 中删除 github 条目
 
+### 2026-03-22 [Francis_MiPro] - Windows 11 - MCP 检查与 Playwright 测试
+- **MCP 状态**: tavily ✅, playwright ✅, minimax ✅, octocode ✅
+- **octocode 修复**: mcplist.json 缺少 install 字段, mcpcheck.sh 对空值处理不当
+- **Playwright 优化**: 仅装 chromium，删除 firefox/webkit/mcp-chrome
+- **权限白名单**: 添加所有 Playwright 命令 + 中文字体命令
+- **initmcp.sh**: 添加 Playwright 浏览器 + 中文字体安装
+
 ---
 

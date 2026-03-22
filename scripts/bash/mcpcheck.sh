@@ -134,11 +134,10 @@ try:
         mtype = m.get('type', 'stdio')
         install = m.get('install', '')
         install_local = m.get('install_local', '')
-        args_list = m.get('args', [])
-        args_str = ' '.join(args_list) if args_list else ''
-        env_list = m.get('env', {})
-        env_str = ' '.join([f"{k}={v}" for k, v in env_list.items()]) if env_list else ''
-        print(f"{name}|{desc}|{mtype}|{install}|{install_local}|{args_str}|{env_str}")
+        needs_key = str(m.get('needsKey', False)).lower()
+        key_env = m.get('keyEnv', '')
+        key_url = m.get('keyUrl', '')
+        print(f"{name}|{desc}|{mtype}|{install}|{install_local}|{needs_key}|{key_env}|{key_url}")
 except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
     sys.exit(1)
@@ -160,6 +159,189 @@ try:
 except:
     print('false')
 PYTHON_EOF
+}
+
+# 添加 MCP 到列表
+add_mcp_to_list() {
+    python3 - "$MCP_LIST_FILE" "$1" << 'PYEOF'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    name = sys.argv[2]
+    if any(m.get('name') == name for m in data.get('mcp', [])):
+        print(f"  {name} 已存在")
+        sys.exit(0)
+
+    data['mcp'].append({
+        'name': name,
+        'description': '（待补充）',
+        'type': 'stdio'
+    })
+
+    with open(sys.argv[1], 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+    print('ok')
+except Exception as e:
+    print(f"Error: {e}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+}
+
+# ========== Key 管理函数 ==========
+CLAUDE_JSON="$HOME/.claude.json"
+
+# 从 ~/.claude.json 读取某个 MCP 的当前 key
+get_current_key() {
+    local mcp_name="$1"
+    local key_env="$2"
+
+    python3 - "$CLAUDE_JSON" "$mcp_name" "$key_env" << 'PYEOF'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], 'r') as f:
+        data = json.load(f)
+    mcp_name = sys.argv[2]
+    key_env = sys.argv[3]
+
+    mcp_servers = data.get('mcpServers', {})
+    if mcp_name in mcp_servers:
+        env = mcp_servers[mcp_name].get('env', {})
+        if key_env in env:
+            print(env[key_env])
+        else:
+            print('')
+    else:
+        print('')
+except:
+    print('')
+PYEOF
+}
+
+# 更新 ~/.claude.json 中某个 MCP 的 key
+update_mcp_key() {
+    local mcp_name="$1"
+    local key_env="$2"
+    local key_value="$3"
+
+    python3 - "$CLAUDE_JSON" "$mcp_name" "$key_env" "$key_value" << 'PYEOF'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], 'r') as f:
+        data = json.load(f)
+    mcp_name = sys.argv[2]
+    key_env = sys.argv[3]
+    key_value = sys.argv[4]
+
+    mcp_servers = data.get('mcpServers', {})
+    if mcp_name not in mcp_servers:
+        print(f"Error: {mcp_name} not found in mcpServers")
+        sys.exit(1)
+
+    if 'env' not in mcp_servers[mcp_name]:
+        mcp_servers[mcp_name]['env'] = {}
+
+    mcp_servers[mcp_name]['env'][key_env] = key_value
+
+    with open(sys.argv[1], 'w') as f:
+        json.dump(data, f, indent=2)
+
+    print('ok')
+except Exception as e:
+    print(f"Error: {e}")
+    sys.exit(1)
+PYEOF
+}
+
+# ========== Key 检查和处理 ==========
+check_and_prompt_keys() {
+    local mode="$1"  # "missing" or "registered"
+
+    title "🔑 API Key 检查"
+
+    local has_key_issues=false
+    declare -a KeyIssuesArr=()
+
+    # 检查列表中所有需要 key 的 MCP
+    while IFS='|' read -r name desc type install install_local needs_key key_env key_url; do
+        [[ -z "$name" ]] && continue
+        [[ "$needs_key" != "true" ]] && continue
+        [[ -z "$key_env" ]] && continue
+
+        current_key=$(get_current_key "$name" "$key_env")
+
+        if [[ -z "$current_key" ]]; then
+            has_key_issues=true
+            if [[ "$mode" == "missing" ]]; then
+                KeyIssuesArr+=("$name|$desc|$key_env|$key_url|")
+            else
+                KeyIssuesArr+=("$name|$desc|$key_env|$key_url|existing")
+            fi
+        fi
+    done <<< "$McpNames"
+
+    if [[ "$has_key_issues" == "false" ]]; then
+        good "✅ 所有需要 Key 的 MCP 都已配置"
+        return 0
+    fi
+
+    section "⚠️ 需要配置 Key 的 MCP"
+
+    for item in "${KeyIssuesArr[@]}"; do
+        IFS='|' read -r name desc key_env key_url extra <<< "$item"
+        [[ -z "$name" ]] && continue
+
+        current_key=$(get_current_key "$name" "$key_env")
+        is_existing=false
+        [[ "$extra" == "existing" ]] && is_existing=true
+
+        if [[ -n "$current_key" ]]; then
+            echo -e "\n  $name ($desc)"
+            info "  当前 Key: ${current_key:0:10}..."
+            echo -e "  ${YELLOW}[已配置]${NC}"
+        else
+            echo -e "\n  $name ($desc)"
+            [[ -n "$key_url" ]] && info "  Key 地址: $key_url"
+
+            echo -e "  ${RED}[缺失]${NC} - 环境变量 $key_env 为空"
+            echo -e "  ${CYAN}  1) 输入 Key"
+            echo -e "  2) 跳过，稍后手动配置"
+            [[ "$is_existing" == "true" ]] && echo -e "  3) 保持当前状态（不配置）"
+            echo ""
+
+            read -p "请选择 [1/2/3]: " key_choice
+
+            case "$key_choice" in
+                1)
+                    read -p "请输入 $key_env: " new_key
+                    if [[ -n "$new_key" ]]; then
+                        result=$(update_mcp_key "$name" "$key_env" "$new_key")
+                        if [[ "$result" == "ok" ]]; then
+                            good "✅ Key 已更新"
+                        else
+                            bad "❌ 更新失败: $result"
+                        fi
+                    else
+                        warn "Key 为空，已跳过"
+                    fi
+                    ;;
+                2|3)
+                    info "已跳过"
+                    ;;
+                *)
+                    warn "无效选择，已跳过"
+                    ;;
+            esac
+        fi
+    done
 }
 
 # ========== 主程序 ==========
@@ -194,35 +376,42 @@ done < <(claude mcp list 2>&1 | grep -v "^Checking" | grep -v "^$" || true)
 McpNames=$(read_mcp_list)
 
 # ========== 对比分析 ==========
-Matched=""
-MissingFromList=""
-ExtraInEnv=""
-FailedCmd=""
+# 使用数组代替字符串拼接，避免 \n 字面字符问题
+declare -a MatchedArr=()
+declare -a MissingFromListArr=()
+declare -a ExtraInEnvArr=()
+declare -a FailedCmdArr=()
 
 # 检查列表中的每个 MCP
-while IFS='|' read -r name desc type install install_local args env; do
+# 格式: name|desc|type|install|install_local|needs_key|key_env|key_url
+while IFS='|' read -r name desc type install install_local needs_key key_env key_url; do
     [[ -z "$name" ]] && continue
 
     if [[ -n "${RegisteredMcp[$name]}" ]]; then
         # MCP 已注册，检测命令是否实际可用
         # 解析 install 命令获取 command 和 args
-        cmd_parts=($install)
-        cmd="${cmd_parts[0]}"
-        install_args="${install#$cmd }"
-
-        if ! check_mcp_command "$cmd" "$install_args"; then
-            # 命令不可用
-            if [[ -n "$install_local" ]]; then
-                FailedCmd="$FailedCmd$name|$desc|$install|$install_local\n"
-            else
-                FailedCmd="$FailedCmd$name|$desc|$install|\n"
-            fi
+        if [[ -z "$install" ]]; then
+            # install 为空时，跳过命令检测（配置不完整但已注册）
+            info "⚬ $name: 已注册（配置待完善）"
         else
-            Matched="$Matched$name|$desc\n"
+            cmd_parts=($install)
+            cmd="${cmd_parts[0]}"
+            install_args="${install#$cmd }"
+
+            if ! check_mcp_command "$cmd" "$install_args"; then
+                # 命令不可用
+                if [[ -n "$install_local" ]]; then
+                    FailedCmdArr+=("$name|$desc|$install|$install_local")
+                else
+                    FailedCmdArr+=("$name|$desc|$install|")
+                fi
+            else
+                MatchedArr+=("$name|$desc")
+            fi
         fi
     else
         # MCP 未注册
-        MissingFromList="$MissingFromList$name|$desc|$type|$install|$install_local|$env\n"
+        MissingFromListArr+=("$name|$desc|$type|$install|$install_local|$needs_key|$key_env|$key_url")
     fi
 done <<< "$McpNames"
 
@@ -230,71 +419,77 @@ done <<< "$McpNames"
 for env_name in "${!RegisteredMcp[@]}"; do
     found=$(mcp_exists_in_list "$env_name")
     if [[ "$found" == "false" ]]; then
-        ExtraInEnv="$ExtraInEnv$env_name\n"
+        ExtraInEnvArr+=("$env_name")
     fi
 done
 
 # ========== 显示结果 ==========
 
 # 正常的部分
-if [[ -n "$Matched" ]]; then
+if [[ ${#MatchedArr[@]} -gt 0 ]]; then
     section "✅ 正常工作"
-    while IFS='|' read -r name desc; do
+    for item in "${MatchedArr[@]}"; do
+        IFS='|' read -r name desc <<< "$item"
         good "✓ $name: $desc"
-    done <<< "$Matched"
+    done
 fi
 
 # 缺失的部分
-if [[ -n "$MissingFromList" ]]; then
+if [[ ${#MissingFromListArr[@]} -gt 0 ]]; then
     section "❌ 列表中有但未注册"
-    while IFS='|' read -r name desc type install install_local env; do
-        [[ -z "$name" ]] && continue
+    for item in "${MissingFromListArr[@]}"; do
+        IFS='|' read -r name desc type install install_local needs_key key_env key_url <<< "$item"
         [[ "$type" == "http" ]] && type_tag="[HTTP]" || type_tag="[STDIO]"
         item "$name - $desc $type_tag"
         info "  安装命令: $install"
-        if [[ -n "$env" ]]; then
-            info "  环境变量: $env"
+        if [[ -n "$key_env" ]]; then
+            info "  需要 Key: $key_env"
         fi
-    done <<< "$MissingFromList"
+    done
 fi
 
 # 命令无效的部分
-if [[ -n "$FailedCmd" ]]; then
+if [[ ${#FailedCmdArr[@]} -gt 0 ]]; then
     section "⚠️ 注册了但命令不可用"
-    while IFS='|' read -r name desc install install_local; do
-        [[ -z "$name" ]] && continue
+    for item in "${FailedCmdArr[@]}"; do
+        IFS='|' read -r name desc install install_local <<< "$item"
         item "$name: $install"
         if [[ -n "$install_local" ]]; then
             info "  本地安装: $install_local"
         fi
-    done <<< "$FailedCmd"
+    done
 fi
 
 # 多出的部分
-if [[ -n "$ExtraInEnv" ]]; then
+if [[ ${#ExtraInEnvArr[@]} -gt 0 ]]; then
     section "⚠️ 环境中注册但列表中无"
-    while read -r name; do
-        [[ -n "$name" ]] && item "$name"
-    done <<< "$ExtraInEnv"
+    for name in "${ExtraInEnvArr[@]}"; do
+        item "$name"
+    done
 fi
 
 # ========== 总结 ==========
-total_list=$(echo "$McpNames" | grep -c "^[^|]")
-total_matched=$(echo "$Matched" | grep -c "^[^|]")
-total_missing=$(echo "$MissingFromList" | grep -c "^[^|]")
-total_failed=$(echo "$FailedCmd" | grep -c "^[^|]")
-total_extra=$(echo "$ExtraInEnv" | grep -c "^[^|]")
+total_list=${#McpNames_arr[@]}
+[[ $total_list -eq 0 ]] && total_list=$(echo "$McpNames" | grep -c "^[^|]") 2>/dev/null || true
+total_matched=${#MatchedArr[@]}
+total_missing=${#MissingFromListArr[@]}
+total_failed=${#FailedCmdArr[@]}
+total_extra=${#ExtraInEnvArr[@]}
 
 section "统计"
 item "列表中: $total_list | 正常: $total_matched | 缺失: $total_missing | 失败: $total_failed | 多余: $total_extra"
 
+# ========== Key 检查（无论是否有 action 都检查）==========
+check_and_prompt_keys "registered"
+
 # ========== 交互菜单 ==========
 has_action_needed=false
-[[ -n "$MissingFromList" ]] || [[ -n "$FailedCmd" ]] || [[ -n "$ExtraInEnv" ]] && has_action_needed=true
+[[ ${#MissingFromListArr[@]} -gt 0 ]] || [[ ${#FailedCmdArr[@]} -gt 0 ]] || [[ ${#ExtraInEnvArr[@]} -gt 0 ]] && has_action_needed=true
 
 if [[ "$has_action_needed" == "false" ]]; then
     title "检查完成"
     good "✅ 所有 MCP 都正常工作"
+    good "✅ Key 检查已完成"
     exit 0
 fi
 
@@ -303,13 +498,13 @@ title "请选择操作"
 echo -e "  1) 安装缺失的 MCP（需要命令可用）${NC}"
 echo -e "  2) 修复命令不可用的 MCP${NC}"
 
-if [[ -n "$FailedCmd" ]]; then
+if [[ ${#FailedCmdArr[@]} -gt 0 ]]; then
     echo -e "  3) 尝试自动修复（使用 install_local）${NC}"
 fi
 
 echo -e "  4) 补充缺失项到 mcplist.json${NC}"
 
-if [[ -n "$ExtraInEnv" ]]; then
+if [[ ${#ExtraInEnvArr[@]} -gt 0 ]]; then
     echo -e "  5) 双向同步（安装+补充）${NC}"
 fi
 
@@ -354,8 +549,8 @@ case "$choice" in
             exit 1
         fi
 
-        while IFS='|' read -r name desc type install install_local env; do
-            [[ -z "$name" ]] && continue
+        for item in "${MissingFromListArr[@]}"; do
+            IFS='|' read -r name desc type install install_local needs_key key_env key_url <<< "$item"
 
             # 检查 install 命令的依赖
             cmd_parts=($install)
@@ -370,16 +565,16 @@ case "$choice" in
                 continue
             fi
 
-            do_install_mcp "$name" "$install" "$env"
-        done <<< "$MissingFromList"
+            do_install_mcp "$name" "$install" ""
+        done
         ;;
 
     2)
         # 修复命令不可用的 MCP
         title "修复命令不可用的 MCP"
 
-        while IFS='|' read -r name desc install install_local; do
-            [[ -z "$name" ]] && continue
+        for item in "${FailedCmdArr[@]}"; do
+            IFS='|' read -r name desc install install_local <<< "$item"
 
             if [[ -z "$install_local" ]]; then
                 warn "⏭ $name: 没有本地安装命令"
@@ -400,7 +595,7 @@ case "$choice" in
                     bad "❌ 安装失败"
                 fi
             fi
-        done <<< "$FailedCmd"
+        done
         ;;
 
     3)
@@ -408,8 +603,8 @@ case "$choice" in
         title "自动修复"
 
         fixed=0
-        while IFS='|' read -r name desc install install_local; do
-            [[ -z "$name" ]] && continue
+        for item in "${FailedCmdArr[@]}"; do
+            IFS='|' read -r name desc install install_local <<< "$item"
             [[ -z "$install_local" ]] && continue
 
             echo -n "修复 $name ... "
@@ -426,7 +621,7 @@ case "$choice" in
             else
                 bad "❌ 安装失败"
             fi
-        done <<< "$FailedCmd"
+        done
 
         good "✅ 完成：修复 $fixed 个"
         ;;
@@ -435,37 +630,7 @@ case "$choice" in
         # 补充缺失项到 mcplist.json
         title "补充到 mcplist.json"
 
-        add_mcp_to_list() {
-            python3 - "$MCP_LIST_FILE" "$1" << 'PYEOF'
-import json
-import sys
-
-try:
-    with open(sys.argv[1], 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
-    name = sys.argv[2]
-    if any(m.get('name') == name for m in data.get('mcp', [])):
-        print(f"  {name} 已存在")
-        return
-
-    data['mcp'].append({
-        'name': name,
-        'description': '（待补充）',
-        'type': 'stdio'
-    })
-
-    with open(sys.argv[1], 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-    print('ok')
-except Exception as e:
-    print(f"Error: {e}", file=sys.stderr)
-    sys.exit(1)
-PYEOF
-        }
-
-        while read -r name; do
+        for name in "${ExtraInEnvArr[@]}"; do
             [[ -z "$name" ]] && continue
             echo -n "添加: $name ... "
             result=$(add_mcp_to_list "$name")
@@ -474,7 +639,7 @@ PYEOF
             else
                 echo "$result"
             fi
-        done <<< "$ExtraInEnv"
+        done
 
         good "✅ 已更新 mcplist.json，请补充描述信息"
         ;;
@@ -485,40 +650,30 @@ PYEOF
 
         # 补充列表
         info "1/2: 补充列表..."
-        add_mcp_to_list() {
-            python3 - "$MCP_LIST_FILE" "$1" << 'PYEOF'
-import json
-import sys
-with open(sys.argv[1], 'r') as f: data = json.load(f)
-name = sys.argv[2]
-if not any(m.get('name') == name for m in data.get('mcp', [])):
-    data['mcp'].append({'name': name, 'description': '（待补充）', 'type': 'stdio'})
-    with open(sys.argv[1], 'w') as f: json.dump(data, f, indent=2, ensure_ascii=False)
-PYEOF
-        }
-        while read -r name; do
+        for name in "${ExtraInEnvArr[@]}"; do
             [[ -z "$name" ]] && continue
             add_mcp_to_list "$name" 2>/dev/null
-        done <<< "$ExtraInEnv"
+        done
         good "✅ 列表已更新"
 
         # 安装缺失
         info "2/2: 安装缺失..."
         installed=0
-        while IFS='|' read -r name desc type install install_local env; do
+        for item in "${MissingFromListArr[@]}"; do
+            IFS='|' read -r name desc type install install_local needs_key key_env key_url <<< "$item"
             [[ -z "$name" ]] && continue
             [[ "$type" == "http" ]] && continue
 
             cmd_parts=($install)
             cmd="${cmd_parts[0]}"
-            if [[ "$cmd" == "npx" && ! -v available_managers =~ npx ]]; then
+            if [[ "$cmd" == "npx" && ! " ${available_managers} " =~ " npx " ]]; then
                 continue
             fi
 
-            if do_install_mcp "$name" "$install" "$env"; then
+            if do_install_mcp "$name" "$install" ""; then
                 ((installed++))
             fi
-        done <<< "$MissingFromList"
+        done
         good "✅ 完成：安装 $installed 个"
         ;;
 
@@ -529,23 +684,25 @@ PYEOF
         all_items=()
         idx=1
 
-        while IFS='|' read -r name desc type install install_local env; do
+        for item in "${MissingFromListArr[@]}"; do
+            IFS='|' read -r name desc type install install_local needs_key key_env key_url <<< "$item"
             [[ -z "$name" ]] && continue
-            all_items+=("$idx|MISSING|$name|$desc|$install|$install_local|$env")
+            all_items+=("$idx|MISSING|$name|$desc|$install|$install_local|$needs_key|$key_env|$key_url")
             ((idx++))
-        done <<< "$MissingFromList"
+        done
 
-        while IFS='|' read -r name desc install install_local; do
+        for item in "${FailedCmdArr[@]}"; do
+            IFS='|' read -r name desc install install_local <<< "$item"
             [[ -z "$name" ]] && continue
-            all_items+=("$idx|FAILED|$name|$desc|$install|$install_local|")
+            all_items+=("$idx|FAILED|$name|$desc|$install|$install_local|||")
             ((idx++))
-        done <<< "$FailedCmd"
+        done
 
-        while read -r name; do
+        for name in "${ExtraInEnvArr[@]}"; do
             [[ -z "$name" ]] && continue
-            all_items+=("$idx|EXTRA|$name|||")
+            all_items+=("$idx|EXTRA|$name|||||")
             ((idx++))
-        done <<< "$ExtraInEnv"
+        done
 
         if [[ ${#all_items[@]} -eq 0 ]]; then
             info "没有可处理的 MCP"
