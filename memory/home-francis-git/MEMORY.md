@@ -386,5 +386,18 @@ Use the following sections in this file:
 - **权限白名单**: 添加所有 Playwright 命令 + 中文字体命令
 - **initmcp.sh**: 添加 Playwright 浏览器 + 中文字体安装
 
+### 2026-03-22 [Francis_MiPro] - Windows 11 - Supabase MCP 配置完成
+- **Supabase MCP 测试结果**:
+  - ✅ 协议初始化成功
+  - ✅ 读取操作成功 (SELECT 返回数据)
+  - ⚠️ 写入操作 (INSERT) 执行不报错但数据未真正写入
+- **配置更新**:
+  - ~/.claude.json: 使用 `--access-token` 参数传递 token（不是环境变量）
+  - mcplist.json: 添加 command/args 字段，needsKey 设为 false
+  - mcpcheck.sh: 添加 check_supabase_config 函数处理 Supabase 特殊配置
+- **Token**: sbp_b5eef124cf6f516c94b0924bf79e0f6b67783041 (已配置)
+- **Project Ref**: <your-supabase-project-id> (https://<your-supabase-project-id>.supabase.co)
+- **可用工具**: search_docs, list_tables, execute_sql, get_logs, list_edge_functions 等 23 个
+
 ---
 
