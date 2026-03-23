@@ -109,15 +109,36 @@ print_info "检查 GitHub 登录状态..."
 if gh auth status &> /dev/null; then
     print_success "已登录 GitHub: $(gh api user --jq '.login')"
 else
-    print_info "需要登录 GitHub..."
-    gh auth login
+    echo ""
+    echo "=========================================="
+    echo "  GitHub 手动登录"
+    echo "=========================================="
+    echo ""
+    echo "由于 WSL/Linux 环境无法自动打开浏览器，请使用手动方式登录："
+    echo ""
+    echo "  1. 访问: https://github.com/settings/tokens"
+    echo "  2. 点击 'Generate new token (classic)'"
+    echo "  3. 设置名称(如: claude-config)，选择 needed_scopes:"
+    echo "     - repo (所有)"
+    echo "     - workflow (如果使用 Actions)"
+    echo "  4. 点击 'Generate token' 并复制 token"
+    echo ""
+    echo -n "请输入 GitHub Personal Access Token: "
+    read -s GH_TOKEN
+    echo ""
 
-    # 等待验证完成
-    print_info "等待浏览器验证完成..."
-    while ! gh auth status &> /dev/null; do
-        sleep 2
-    done
-    print_success "登录成功: $(gh api user --jq '.login')"
+    if [[ -z "$GH_TOKEN" ]]; then
+        print_error "Token 为空，登录取消"
+        exit 1
+    fi
+
+    print_info "正在验证 token..."
+    if echo "$GH_TOKEN" | gh auth login --with-token; then
+        print_success "GitHub 登录成功!"
+    else
+        print_error "Token 验证失败，请检查是否正确"
+        exit 1
+    fi
 fi
 
 # -------------------------- 获取仓库信息 --------------------------
