@@ -120,10 +120,11 @@ else
     cp "gh_${GH_VERSION}_linux_amd64/bin/gh" "$GH_DIR/"
     chmod +x "$GH_DIR/gh"
 
-    # 配置 PATH
-    if ! grep -q '~/.local/bin' "$HOME/.bashrc" 2>/dev/null; then
+    # 配置 PATH（只有不存在时才添加，避免重复）
+    if ! grep -q "\.local/bin" "$HOME/.bashrc" 2>/dev/null; then
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
     fi
+    # 立即更新当前会话 PATH，确保安装后能找到 gh
     export PATH="$GH_DIR:$PATH"
 
     print_success "gh 已安装到 $GH_DIR"
