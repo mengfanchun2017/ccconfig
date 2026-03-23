@@ -159,9 +159,11 @@
 - `git remote -v` - 查看远程仓库
 - `git fetch` - 获取远程更新
 - `git pull` - 拉取远程更新
+- `git push` - 推送到远程仓库
 - `git clone` - 克隆仓库
 - `git config` - Git 配置
 - `git config --list` - 查看配置
+- `git config --global` - 全局 Git 配置
 - `git init` - 初始化仓库
 - `git mv` - 移动/重命名文件
 - `git rm` - 从 Git 移除文件
