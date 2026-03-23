@@ -115,6 +115,7 @@
       "Bash(sc:*)",
       "Bash(net:*)",
       "Bash(git:*)",
+      "Bash(hostname:*)",
       "Bash(node:*)",
       "Bash(npm:*)",
       "Bash(npx:*)",
