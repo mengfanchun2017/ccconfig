@@ -3,6 +3,7 @@
 # ==============================================
 # Git + GitHub CLI 环境初始化脚本
 # 功能：安装 gh、登录 GitHub、克隆配置仓库
+# 不包含：Claude Code 安装（由 initclaude.sh 负责）
 # ==============================================
 
 # set -e 会导致 read 在某些情况下退出，改用 trap 捕获错误
@@ -225,125 +226,18 @@ while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
     fi
 done
 
-# -------------------------- 安装 Claude Code --------------------------
-echo ""
-echo "=========================================="
-echo "📦 安装 Claude Code"
-echo "=========================================="
-echo ""
-
-# 检查 Claude Code 是否已安装
-if command -v claude &> /dev/null; then
-    print_success "Claude Code 已安装: $(claude --version)"
-else
-    print_info "正在安装 Claude Code..."
-
-    # 检测系统架构
-    ARCH=$(uname -m)
-    if [[ "$ARCH" == "x86_64" ]]; then
-        ARCH_NAME="amd64"
-    elif [[ "$ARCH" == "aarch64" ]]; then
-        ARCH_NAME="arm64"
-    else
-        ARCH_NAME="amd64"
-    fi
-
-    # 下载最新版本
-    TMP_DIR=$(mktemp -d)
-    cd "$TMP_DIR"
-
-    # 获取最新版本号
-    LATEST_VERSION=$(curl -s https://api.github.com/repos/anthropics/claude-code/releases/latest | grep -o '"tag_name": *[^,]*' | cut -d'"' -f4)
-    if [[ -z "$LATEST_VERSION" ]]; then
-        LATEST_VERSION="latest"
-    fi
-
-    print_info "下载版本: $LATEST_VERSION"
-
-    # 下载二进制
-    curl -fsSL "https://github.com/anthropics/claude-code/releases/download/${LATEST_VERSION}/claude-linux-${ARCH_NAME}" -o claude
-
-    if [[ ! -f claude ]]; then
-        print_error "下载失败，请检查网络"
-        cd - > /dev/null
-        rm -rf "$TMP_DIR"
-        exit 1
-    fi
-
-    chmod +x claude
-
-    # 安装到用户本地 bin
-    mkdir -p "$HOME/.local/bin"
-    mv claude "$HOME/.local/bin/claude"
-
-    # 添加到 PATH
-    if ! grep -q '~/.local/bin' "$HOME/.bashrc" 2>/dev/null; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
-    fi
-    export PATH="$HOME/.local/bin:$PATH"
-
-    cd - > /dev/null
-    rm -rf "$TMP_DIR"
-
-    print_success "Claude Code 已安装到 ~/.local/bin/claude"
-fi
-
-# 验证安装
-if command -v claude &> /dev/null; then
-    print_success "Claude Code 版本: $(claude --version)"
-fi
-
-# -------------------------- 符号链接检查 --------------------------
-echo ""
-echo "========================================"
-echo "  🔍 符号链接状态检查"
-echo "========================================"
-
-CLAUDE_DIR="$HOME/.claude"
-
-check_symlink() {
-    local link="$1"
-    local name="$2"
-    if [ -L "$link" ]; then
-        if [ -e "$link" ]; then
-            echo "   ✅ $name: 正常"
-            return 0
-        else
-            echo "   ❌ $name: 链接断开"
-            return 1
-        fi
-    elif [ -e "$link" ]; then
-        echo "   ⚠️  $name: 是文件而非链接"
-        return 2
-    else
-        echo "   ⭕ $name: 未配置"
-        return 3
-    fi
-}
-
-check_symlink "$CLAUDE_DIR/settings.json" "settings.json"
-check_symlink "$HOME/CLAUDE.md" "CLAUDE.md"
-check_symlink "$CLAUDE_DIR/projects/home-francis-git/memory/MEMORY.md" "MEMORY.md"
-
-echo ""
-
 # -------------------------- 完成 --------------------------
-echo "🎉 环境初始化完成！"
+echo "🎉 Git + GitHub 环境初始化完成！"
 echo ""
 echo "仓库位置: $TARGET_DIR"
-echo "Claude Code: $(claude --version 2>/dev/null || echo '已安装')"
 echo ""
 echo "========================================"
 echo "  📋 下一步操作"
 echo "========================================"
 echo ""
-echo "  1. 运行 start.sh 建立符号链接并拉取配置："
-echo "     cd $TARGET_DIR"
-echo "     bash claude-config/scripts/bash/start.sh"
-echo ""
-echo "  2. 配置 LLM API："
+echo "  1. 安装 Claude Code："
 echo "     bash claude-config/scripts/bash/initclaude.sh"
 echo ""
-echo "  3. 安装 MCP 环境（如需要）："
+echo "  2. 配置 MCP 环境（如需要）："
 echo "     bash claude-config/scripts/bash/initmcp.sh"
 echo ""
