@@ -40,15 +40,28 @@ GIT_NAME=$(git config --global user.name 2>/dev/null)
 if [[ -z "$GIT_EMAIL" || -z "$GIT_NAME" ]]; then
     print_warning "Git 用户身份未配置，正在设置..."
     if [[ -z "$GIT_EMAIL" ]]; then
-        echo -n "请输入 GitHub 注册邮箱: "
+        echo ""
+        echo "=========================================="
+        echo "  请输入 GitHub 注册邮箱"
+        echo "=========================================="
+        echo -n "邮箱: "
         read GIT_EMAIL
-        git config --global user.email "$GIT_EMAIL"
+        if [[ -n "$GIT_EMAIL" ]]; then
+            git config --global user.email "$GIT_EMAIL"
+        fi
     fi
     if [[ -z "$GIT_NAME" ]]; then
-        echo -n "请输入 GitHub 用户名: "
+        echo ""
+        echo "=========================================="
+        echo "  请输入 GitHub 用户名"
+        echo "=========================================="
+        echo -n "用户名: "
         read GIT_NAME
-        git config --global user.name "$GIT_NAME"
+        if [[ -n "$GIT_NAME" ]]; then
+            git config --global user.name "$GIT_NAME"
+        fi
     fi
+    echo ""
     print_success "Git 用户身份已配置: $(git config --global user.email)"
 else
     print_success "Git 用户身份已配置: $GIT_EMAIL ($GIT_NAME)"
