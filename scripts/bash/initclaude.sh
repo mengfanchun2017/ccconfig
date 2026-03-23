@@ -280,6 +280,15 @@ EOF
     print_success "已添加环境变量到 ~/.bashrc"
 fi
 
+# -------------------------- 同步 settings.json --------------------------
+echo ""
+echo "📋 同步 settings.json..."
+mkdir -p "$CLAUDE_DIR"
+rm -f "$CLAUDE_DIR/settings.json" 2>/dev/null || true
+ln -sf "$REPO_DIR/config/settings.json" "$CLAUDE_DIR/settings.json"
+print_success "已建立 settings.json 符号链接"
+echo ""
+
 # -------------------------- 完成 --------------------------
 echo ""
 if [[ "$MODE" == "init" ]]; then
@@ -289,8 +298,7 @@ else
 fi
 echo ""
 echo "下一步操作："
-echo "  1. 运行 'source ~/.bashrc' 加载环境变量"
-echo "  2. 输入 'claude' 开始使用！"
+echo "  1. 输入 'claude' 开始使用！"
 echo ""
-print_warning "API 密钥仅写入 Claude 配置，未保存到 apillm.json"
+print_warning "API 密钥仅写入 ~/.claude.json，未保存到仓库"
 echo ""
