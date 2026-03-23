@@ -1,20 +1,23 @@
 #!/bin/bash
-# MCP 环境准备脚本
-# 用途：为 Claude Code MCP 安装运行时环境依赖
+# Claude Code 环境准备脚本
+# 用途：安装运行时环境依赖 + 建立符号链接
 #
 # 使用方法：
-#   bash claude-config/scripts/bash/initmcp.sh
+#   bash claude-config/scripts/bash/initenv.sh
 #
-# 此脚本会检测并安装 MCP 服务器所需的依赖：
-#   1. Node.js (用于 npm/npx-based MCP 服务器)
-#   2. uv (用于 Python-based MCP 服务器)
-#   3. Playwright (浏览器自动化 - 网页截图/抓取/交互)
-#   4. 中文字体 (用于显示中文网页)
+# 此脚本会：
+#   1. 安装 MCP 服务器所需的运行时环境
+#      - Node.js (用于 npm/npx-based MCP 服务器)
+#      - uv (用于 Python-based MCP 服务器)
+#      - Playwright (浏览器自动化)
+#      - 中文字体
+#   2. 建立符号链接实现配置双向同步
+#      - settings.json → ~/.claude/settings.json
+#      - CLAUDE.md → ~/CLAUDE.md
+#      - MEMORY.md → ~/.claude/projects/.../memory/MEMORY.md
 #
 # 安装完成后，请运行 mcpcheck.sh 安装具体的 MCP 服务器：
-#   bash scripts/bash/mcpcheck.sh
-#
-# MCP 服务器安装完成后，在 Claude Code 中执行 /mcp 添加服务器
+#   bash claude-config/scripts/bash/mcpcheck.sh
 
 set -e
 
@@ -202,16 +205,22 @@ verify_fonts() {
 
 # ========== 主流程 ==========
 main() {
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    CLAUDE_DIR="$HOME/.claude"
+
     echo "========================================"
-    echo "  MCP 环境准备脚本"
+    echo "  Claude Code 环境准备脚本"
     echo "========================================"
     echo ""
 
-    echo "此脚本将安装 MCP 服务器所需的运行时环境："
-    echo "  1. Node.js - 用于 npm/npx-based MCP 服务器"
-    echo "  2. uv - 用于 Python-based MCP 服务器"
-    echo "  3. Playwright - 用于浏览器自动化"
-    echo "  4. 中文字体 - 用于显示中文网页"
+    echo "此脚本将："
+    echo "  1. 安装 MCP 服务器所需的运行时环境"
+    echo "     - Node.js - npm/npx-based MCP 服务器"
+    echo "     - uv - Python-based MCP 服务器"
+    echo "     - Playwright - 浏览器自动化"
+    echo "     - 中文字体"
+    echo "  2. 建立符号链接实现配置双向同步"
     echo ""
     echo "安装完成后请运行 mcpcheck.sh 安装具体的 MCP 服务器"
     echo ""
@@ -270,15 +279,73 @@ main() {
     fi
     verify_fonts
 
+    # ========== 建立符号链接 ==========
+    section "建立符号链接"
+
+    # 获取当前项目路径
+    CLAUDE_PROJECT_PATH="$(pwd)"
+    CURRENT_PROJECT=$(basename "$CLAUDE_PROJECT_PATH")
+
+    # 如果是 claude-config 仓库，使用父目录
+    if [ "$CURRENT_PROJECT" = "claude-config" ]; then
+        ACTUAL_PROJECT_PATH="$(dirname "$CLAUDE_PROJECT_PATH")"
+    else
+        ACTUAL_PROJECT_PATH="$CLAUDE_PROJECT_PATH"
+    fi
+
+    # 转换路径为 Claude Code 格式: /home/francis/git -> -home-francis-git
+    REPO_MEMORY_NAME=$(echo "$ACTUAL_PROJECT_PATH" | sed 's/^\///' | sed 's/\//-/g')
+    MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
+    MEMORY_REPO_PATH="$REPO_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md"
+
+    # 符号链接检查函数
+    setup_symlink() {
+        local link="$1"
+        local target="$2"
+        local name="$3"
+
+        if [ -L "$link" ] && [ "$(readlink -f "$link")" = "$(readlink -f "$target")" ]; then
+            info "$name: 已链接，跳过"
+            return 0
+        elif [ -L "$link" ] || [ -e "$link" ]; then
+            rm -f "$link"
+        fi
+
+        mkdir -p "$(dirname "$link")"
+        ln -sf "$target" "$link"
+        good "$name: 已建立链接"
+        return 0
+    }
+
+    # settings.json
+    setup_symlink "$CLAUDE_DIR/settings.json" "$REPO_DIR/config/settings.json" "settings.json"
+
+    # CLAUDE.md
+    setup_symlink "$HOME/CLAUDE.md" "$REPO_DIR/config/CLAUDE.md" "CLAUDE.md"
+
+    # MEMORY.md
+    if [ -d "$REPO_DIR/memory/$REPO_MEMORY_NAME" ]; then
+        mkdir -p "$MEMORY_DIR"
+        setup_symlink "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "MEMORY.md"
+    else
+        info "MEMORY.md: 仓库中未找到对应目录，跳过"
+    fi
+
+    echo ""
+
     section "安装完成"
     echo ""
-    info "MCP 环境已准备就绪"
+    info "环境准备就绪，符号链接已建立"
     echo ""
-    echo "下一步："
+    echo "========================================"
+    echo "  📋 下一步操作"
+    echo "========================================"
+    echo ""
     echo "  1. 运行 mcpcheck.sh 安装具体的 MCP 服务器"
     echo "     bash claude-config/scripts/bash/mcpcheck.sh"
     echo ""
-    echo "  2. 在 Claude Code 中执行 /mcp 添加服务器"
+    echo "  2. 运行 start.sh 开始工作"
+    echo "     bash claude-config/scripts/bash/start.sh"
     echo ""
 }
 
