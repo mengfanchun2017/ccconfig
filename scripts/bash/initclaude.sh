@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ==============================================
-# Claude Code 配置脚本
-# 功能：初始化或更新 Claude Code 的自定义 LLM API 配置
+# Claude Code 安装 + 配置脚本
+# 功能：安装 Claude Code 并配置自定义 LLM API
 # 支持：交互式输入 或 读取 apillm.json
 # ==============================================
 
@@ -79,11 +79,113 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# -------------------------- Claude Code 安装检查 --------------------------
+echo "=========================================="
+echo "  📦 Claude Code 安装检查"
+echo "=========================================="
+echo ""
+
+if command -v claude &> /dev/null; then
+    CURRENT_VERSION=$(claude --version 2>/dev/null || echo "未知版本")
+    print_success "Claude Code 已安装: $CURRENT_VERSION"
+    echo ""
+    echo "是否升级到最新版本？"
+    echo "  1) 升级到最新版本"
+    echo "  2) 保持当前版本"
+    echo ""
+    read -p "请输入选项 [2]: " upgrade_choice
+    upgrade_choice="${upgrade_choice:-2}"
+
+    if [[ "$upgrade_choice" == "1" ]]; then
+        print_info "正在升级 Claude Code..."
+        # 下载最新版本
+        TMP_DIR=$(mktemp -d)
+        cd "$TMP_DIR"
+        ARCH=$(uname -m)
+        if [[ "$ARCH" == "x86_64" ]]; then
+            ARCH_NAME="amd64"
+        elif [[ "$ARCH" == "aarch64" ]]; then
+            ARCH_NAME="arm64"
+        else
+            ARCH_NAME="amd64"
+        fi
+        LATEST_VERSION=$(curl -s https://api.github.com/repos/anthropics/claude-code/releases/latest | grep -o '"tag_name": *[^,]*' | cut -d'"' -f4)
+        if [[ -z "$LATEST_VERSION" ]]; then
+            LATEST_VERSION="latest"
+        fi
+        print_info "下载版本: $LATEST_VERSION"
+        curl -fsSL "https://github.com/anthropics/claude-code/releases/download/${LATEST_VERSION}/claude-linux-${ARCH_NAME}" -o claude
+        if [[ ! -f claude ]]; then
+            print_error "下载失败，请检查网络"
+            cd - > /dev/null
+            rm -rf "$TMP_DIR"
+            exit 1
+        fi
+        chmod +x claude
+        mkdir -p "$HOME/.local/bin"
+        mv claude "$HOME/.local/bin/claude"
+        cd - > /dev/null
+        rm -rf "$TMP_DIR"
+        print_success "Claude Code 已升级到最新版本"
+    fi
+else
+    print_warning "Claude Code 未安装，正在安装..."
+    echo ""
+
+    # 检测系统架构
+    ARCH=$(uname -m)
+    if [[ "$ARCH" == "x86_64" ]]; then
+        ARCH_NAME="amd64"
+    elif [[ "$ARCH" == "aarch64" ]]; then
+        ARCH_NAME="arm64"
+    else
+        ARCH_NAME="amd64"
+    fi
+
+    # 下载最新版本
+    TMP_DIR=$(mktemp -d)
+    cd "$TMP_DIR"
+
+    LATEST_VERSION=$(curl -s https://api.github.com/repos/anthropics/claude-code/releases/latest | grep -o '"tag_name": *[^,]*' | cut -d'"' -f4)
+    if [[ -z "$LATEST_VERSION" ]]; then
+        LATEST_VERSION="latest"
+    fi
+    print_info "下载版本: $LATEST_VERSION"
+    curl -fsSL "https://github.com/anthropics/claude-code/releases/download/${LATEST_VERSION}/claude-linux-${ARCH_NAME}" -o claude
+
+    if [[ ! -f claude ]]; then
+        print_error "下载失败，请检查网络"
+        cd - > /dev/null
+        rm -rf "$TMP_DIR"
+        exit 1
+    fi
+
+    chmod +x claude
+    mkdir -p "$HOME/.local/bin"
+    mv claude "$HOME/.local/bin/claude"
+
+    # 确保 PATH 包含 ~/.local/bin
+    if ! grep -q "\.local/bin" "$HOME/.bashrc" 2>/dev/null; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+    fi
+    export PATH="$HOME/.local/bin:$PATH"
+
+    cd - > /dev/null
+    rm -rf "$TMP_DIR"
+    print_success "Claude Code 已安装到 ~/.local/bin/claude"
+fi
+
+echo ""
+
 # -------------------------- 模式选择 --------------------------
 if [[ -z "$MODE" ]]; then
+    echo "=========================================="
+    echo "  ⚙️  配置模式"
+    echo "=========================================="
+    echo ""
     echo "请选择操作模式："
-    echo "  1) 初始化 (init)  - 首次配置"
-    echo "  2) 更新 (update)  - 修改现有配置"
+    echo "  1) 初始化 (init)  - 首次配置 API"
+    echo "  2) 更新 (update)   - 修改现有 API 配置"
     echo ""
     read -p "请输入选项 [1]: " choice
     choice="${choice:-1}"
@@ -361,13 +463,19 @@ echo ""
 # -------------------------- 完成 --------------------------
 echo ""
 if [[ "$MODE" == "init" ]]; then
-    echo "🎉 Claude Code 初始化完成！"
+    echo "🎉 Claude Code 安装和初始化完成！"
 else
     echo "🎉 Claude Code 配置更新完成！"
 fi
 echo ""
-echo "下一步操作："
+echo "========================================"
+echo "  📋 下一步操作"
+echo "========================================"
+echo ""
 echo "  1. 输入 'claude' 开始使用！"
+echo ""
+echo "  2. 配置 MCP 环境（如需要）："
+echo "     bash claude-config/scripts/bash/initmcp.sh"
 echo ""
 if [[ "$key_choice" == "1" || ( -n "$API_KEY" && "$API_KEY" != "$EXISTING_KEY" ) ]]; then
     print_warning "API 密钥已更新并写入 ~/.claude.json"
