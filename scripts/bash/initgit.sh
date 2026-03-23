@@ -146,17 +146,18 @@ else
     echo "将启动 GitHub Device Flow 授权..."
     echo ""
     echo "操作步骤:"
-    echo "  1. 下方会显示一个 8 位代码 (如 AAA7-55E5)"
+    echo "  1. 下方会显示一个 8 位代码和网址"
     echo "  2. 复制这个代码"
-    echo "  3. 打开浏览器访问 https://github.com/login/device"
+    echo "  3. 手动打开浏览器访问显示的网址"
     echo "  4. 输入代码并点击授权"
     echo "  5. 授权完成后此脚本会自动继续"
     echo ""
 
-    # 使用 script 创建伪终端，让 gh auth login 能交互式运行并显示 8 位码
-    # -t 分配伪终端，-q 静默模式，-c 指定要运行的命令
-    # 输出到当前终端，用户可以看到 8 位码
-    script -t /dev/null -q -c "gh auth login --hostname github.com"
+    # 使用 script -q 创建伪终端运行 gh auth login
+    # --git-protocol https 跳过协议选择
+    # BROWSER=true 防止脚本尝试自动打开浏览器
+    # 输出直接显示在终端，用户可以看到 8 位码
+    script -q -c "BROWSER=true gh auth login --git-protocol https --skip-ssh-key --hostname github.com"
 
     # 验证登录状态
     if gh auth status &> /dev/null; then
