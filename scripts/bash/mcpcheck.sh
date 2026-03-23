@@ -450,6 +450,11 @@ check_and_prompt_keys() {
         [[ "$needs_key" != "true" ]] && continue
         [[ -z "$key_env" ]] && continue
 
+        # 跳过未注册的 MCP（需要先安装才能配置 Key）
+        if ! is_mcp_registered "$name"; then
+            continue
+        fi
+
         current_key=$(get_current_key "$name" "$key_env")
 
         if [[ -z "$current_key" ]]; then
@@ -467,7 +472,7 @@ check_and_prompt_keys() {
         return 0
     fi
 
-    section "⚠️ 需要配置 Key 的 MCP"
+    section "⚠️ 需要配置 Key 的 MCP（已注册的）"
 
     for item in "${KeyIssuesArr[@]}"; do
         IFS='|' read -r name desc key_env key_url extra <<< "$item"
@@ -1003,3 +1008,65 @@ case "$choice" in
         info "已跳过"
         ;;
 esac
+
+# 安装完成后，重新检查 MCP 注册状态并配置 Key
+echo ""
+title "📋 安装后检查"
+
+# 重新获取已注册的 MCP
+declare -A NewRegisteredMcp
+while IFS= read -r line; do
+    if [[ $line =~ ^[[:space:]]*([^:]+): ]]; then
+        NewRegisteredMcp["${BASH_REMATCH[1]}"]=1
+    fi
+done < <(claude mcp list 2>&1 | grep -v "^Checking" | grep -v "^$" || true)
+
+# 检查是否有新的 MCP 已注册但 Key 还未配置
+echo "检查已注册的 MCP Key 配置状态..."
+
+has_new_keys=false
+while IFS='|' read -r name desc type install install_local needs_key key_env key_url; do
+    [[ -z "$name" ]] && continue
+    [[ "$needs_key" != "true" ]] && continue
+    [[ -z "$key_env" ]] && continue
+
+    # 检查是否已注册
+    mcp_name_lower=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+    registered=false
+    for key in "${!NewRegisteredMcp[@]}"; do
+        if [[ "${key,,}" == "$mcp_name_lower" ]]; then
+            registered=true
+            break
+        fi
+    done
+
+    if [[ "$registered" == "true" ]]; then
+        current_key=$(get_current_key "$name" "$key_env")
+        if [[ -z "$current_key" ]]; then
+            has_new_keys=true
+            echo -e "\n  $name ($desc)"
+            info "  Key 地址: $key_url"
+            echo -n "  请输入 $key_env: "
+            read -s new_key
+            echo ""
+            if [[ -n "$new_key" ]]; then
+                result=$(update_mcp_key "$name" "$key_env" "$new_key")
+                if [[ "$result" == "ok" ]]; then
+                    good "  ✅ Key 已配置"
+                else
+                    bad "  ❌ 配置失败: $result"
+                fi
+            else
+                info "  已跳过"
+            fi
+        fi
+    fi
+done <<< "$McpNames"
+
+if [[ "$has_new_keys" == "false" ]]; then
+    good "✅ 所有已注册的 MCP Key 都已配置"
+fi
+
+echo ""
+title "✅ MCP 检查完成"
+echo "提示: 可以在 Claude Code 中执行 /mcp 查看已注册的 MCP"
