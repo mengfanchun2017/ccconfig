@@ -111,33 +111,30 @@ if gh auth status &> /dev/null; then
 else
     echo ""
     echo "=========================================="
-    echo "  GitHub 手动登录"
+    echo "  GitHub 登录"
     echo "=========================================="
     echo ""
-    echo "由于 WSL/Linux 环境无法自动打开浏览器，请使用手动方式登录："
+    echo "由于无法自动打开浏览器，请手动操作："
     echo ""
-    echo "  1. 访问: https://github.com/settings/tokens"
-    echo "  2. 点击 'Generate new token (classic)'"
-    echo "  3. 设置名称(如: claude-config)，选择 needed_scopes:"
-    echo "     - repo (所有)"
-    echo "     - workflow (如果使用 Actions)"
-    echo "  4. 点击 'Generate token' 并复制 token"
+    echo "  步骤 1: 在浏览器中打开 https://github.com/login/device"
     echo ""
-    echo -n "请输入 GitHub Personal Access Token: "
-    read -s GH_TOKEN
+    echo "  步骤 2: 运行以下命令获取 8 位代码:"
+    echo ""
+    echo "     gh auth login"
+    echo ""
+    echo "  步骤 3: 在浏览器页面输入命令显示的代码"
+    echo ""
+    echo "  步骤 4: 点击 'Authorize' 完成授权"
+    echo ""
+    echo -n "完成授权后按 Enter 继续... "
+    read -r
     echo ""
 
-    if [[ -z "$GH_TOKEN" ]]; then
-        print_error "Token 为空，登录取消"
-        exit 1
-    fi
-
-    print_info "正在验证 token..."
-    if echo "$GH_TOKEN" | gh auth login --with-token; then
-        print_success "GitHub 登录成功!"
+    # 验证登录状态
+    if gh auth status &> /dev/null; then
+        print_success "GitHub 登录成功: $(gh api user --jq '.login')"
     else
-        print_error "Token 验证失败，请检查是否正确"
-        exit 1
+        print_warning "登录未完成，可以稍后运行 'gh auth login'"
     fi
 fi
 
