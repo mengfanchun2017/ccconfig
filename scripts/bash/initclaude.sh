@@ -123,6 +123,16 @@ echo ""
 # -------------------------- 配置获取 --------------------------
 IMPORTED=false
 
+# 检查是否已有 API Key
+EXISTING_KEY=""
+EXISTING_URL=""
+EXISTING_MODEL=""
+if [[ -f "$HOME/.claude.json" ]]; then
+    EXISTING_KEY=$(grep -o '"ANTHROPIC_AUTH_TOKEN": *"[^"]*"' "$HOME/.claude.json" 2>/dev/null | cut -d'"' -f4)
+    EXISTING_URL=$(grep -o '"ANTHROPIC_BASE_URL": *"[^"]*"' "$HOME/.claude.json" 2>/dev/null | cut -d'"' -f4)
+    EXISTING_MODEL=$(grep -o '"ANTHROPIC_MODEL": *"[^"]*"' "$HOME/.claude.json" 2>/dev/null | cut -d'"' -f4)
+fi
+
 # 读取 apillm.json 配置模板
 if [[ -f "$CONFIG_FILE" ]]; then
     CURRENT_URL=$(grep -o '"base_url": *"[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
@@ -133,6 +143,20 @@ if [[ -f "$CONFIG_FILE" ]]; then
     echo "  模型:     ${CURRENT_MODEL:-未设置}"
     echo ""
 
+    if [[ -n "$EXISTING_KEY" ]]; then
+        echo "📋 当前已有 API Key 配置："
+        echo "  API 地址: ${EXISTING_URL:-未设置}"
+        echo "  模型:     ${EXISTING_MODEL:-未设置}"
+        echo "  Key:      ${EXISTING_KEY:0:15}..."
+        echo ""
+        echo "是否更新 API Key？"
+        echo "  1) 更新 (输入新的 key)"
+        echo "  2) 保留现有 key"
+        echo ""
+        read -p "请输入选项 [2]: " key_choice
+        key_choice="${key_choice:-2}"
+    fi
+
     # 逐条询问用户
     echo "请逐项确认或修改配置："
     echo ""
@@ -142,13 +166,19 @@ if [[ -f "$CONFIG_FILE" ]]; then
     read input
     BASE_URL="${input:-$CURRENT_URL}"
 
-    # API Key
-    echo ""
-    echo "API Key 示例: sk-cp-xxx..."
-    echo -n "API Key: "
-    read -s input
-    echo
-    API_KEY="${input}"
+    # API Key - 根据选择处理
+    if [[ "$key_choice" == "1" ]]; then
+        echo ""
+        echo "API Key 示例: sk-cp-xxx..."
+        echo -n "API Key: "
+        read -s input
+        echo
+        API_KEY="${input}"
+    else
+        API_KEY="$EXISTING_KEY"
+        echo ""
+        echo "✅ 保留现有 API Key: ${API_KEY:0:15}..."
+    fi
 
     # Model Name
     echo ""
@@ -163,21 +193,47 @@ fi
 
 # 如果没有 apillm.json，使用默认值
 if [[ "$IMPORTED" == "false" ]]; then
+    if [[ -n "$EXISTING_KEY" ]]; then
+        echo "📋 当前已有 API Key 配置："
+        echo "  API 地址: ${EXISTING_URL:-未设置}"
+        echo "  模型:     ${EXISTING_MODEL:-未设置}"
+        echo "  Key:      ${EXISTING_KEY:0:15}..."
+        echo ""
+        echo "是否更新 API Key？"
+        echo "  1) 更新 (输入新的 key)"
+        echo "  2) 保留现有 key"
+        echo ""
+        read -p "请输入选项 [2]: " key_choice
+        key_choice="${key_choice:-2}"
+    fi
+
     echo -n "API 基础地址 [https://api.minimaxi.com/anthropic]: "
     read input
     BASE_URL="${input:-https://api.minimaxi.com/anthropic}"
 
-    echo ""
-    echo "API Key 示例: sk-cp-xxx..."
-    echo -n "API Key: "
-    read -s input
-    echo
-    API_KEY="${input}"
+    if [[ "$key_choice" == "1" ]]; then
+        echo ""
+        echo "API Key 示例: sk-cp-xxx..."
+        echo -n "API Key: "
+        read -s input
+        echo
+        API_KEY="${input}"
+    else
+        API_KEY="$EXISTING_KEY"
+    fi
 
-    echo ""
-    echo -n "模型名称 [MiniMax-M2.7]: "
-    read input
-    MODEL_NAME="${input:-MiniMax-M2.7}"
+    if [[ -z "$API_KEY" ]]; then
+        echo ""
+        echo -n "模型名称 [MiniMax-M2.7]: "
+        read input
+        MODEL_NAME="${input:-MiniMax-M2.7}"
+    else
+        MODEL_NAME="${EXISTING_MODEL:-MiniMax-M2.7}"
+        echo ""
+        echo -n "模型名称 [${MODEL_NAME}]: "
+        read input
+        MODEL_NAME="${input:-$MODEL_NAME}"
+    fi
 fi
 
 # 验证
@@ -300,5 +356,9 @@ echo ""
 echo "下一步操作："
 echo "  1. 输入 'claude' 开始使用！"
 echo ""
-print_warning "API 密钥仅写入 ~/.claude.json，未保存到仓库"
+if [[ "$key_choice" == "1" || ( -n "$API_KEY" && "$API_KEY" != "$EXISTING_KEY" ) ]]; then
+    print_warning "API 密钥已更新并写入 ~/.claude.json"
+else
+    print_info "保留现有 API 密钥，未做更改"
+fi
 echo ""

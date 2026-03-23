@@ -75,12 +75,21 @@ echo "✅ 符号链接检查通过"
 echo ""
 
 # ========== Git 状态 ==========
-echo "[1/3] 检查 git 状态..."
+echo "[1/4] 检查 git 状态..."
 git status --short
 echo ""
 
+# ========== Git 拉取并检查更新 ==========
+echo "[2/4] 检查远程更新..."
+git pull --rebase || {
+    echo "⚠️  拉取冲突，请手动解决后重试"
+    exit 1
+}
+echo "✅ 已同步远程更新"
+echo ""
+
 # ========== Git 提交 ==========
-echo "[2/3] 提交更改..."
+echo "[3/4] 提交更改..."
 git add .
 
 if [ -z "$1" ]; then
@@ -96,7 +105,7 @@ echo "✅ 已提交: $commit_msg"
 echo ""
 
 # ========== Git 推送 ==========
-echo "[3/3] 推送到 GitHub..."
+echo "[4/4] 推送到 GitHub..."
 git push
 echo "✅ 成功推送到 GitHub"
 echo ""
