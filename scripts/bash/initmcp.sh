@@ -3,7 +3,7 @@
 # 用途：为 Claude Code MCP 安装运行时环境依赖
 #
 # 使用方法：
-#   bash scripts/bash/initmcp.sh
+#   bash claude-config/scripts/bash/initmcp.sh
 #
 # 此脚本会检测并安装 MCP 服务器所需的依赖：
 #   1. Node.js (用于 npm/npx-based MCP 服务器)
@@ -20,7 +20,7 @@ set -e
 
 # 版本
 NODE_VERSION="20.11.0"
-UV_VERSION=""
+UV_VERSION="0.10.12"
 
 # 目录
 LOCAL_DIR="/home/francis/.local"
@@ -276,7 +276,7 @@ main() {
     echo ""
     echo "下一步："
     echo "  1. 运行 mcpcheck.sh 安装具体的 MCP 服务器"
-    echo "     bash scripts/bash/mcpcheck.sh"
+    echo "     bash claude-config/scripts/bash/mcpcheck.sh"
     echo ""
     echo "  2. 在 Claude Code 中执行 /mcp 添加服务器"
     echo ""
