@@ -114,22 +114,31 @@ else
     echo "  GitHub 登录"
     echo "=========================================="
     echo ""
-    echo "请打开一个新的终端窗口，运行以下命令:"
+    echo "将启动 GitHub Device Flow 授权..."
     echo ""
-    echo "  gh auth login"
+    echo "操作步骤:"
+    echo "  1. 下方会显示一个 8 位代码 (如 AAA7-55E5)"
+    echo "  2. 脚本会自动打开浏览器 (如果失败请手动打开)"
+    echo "  3. 在 GitHub 页面输入代码并授权"
+    echo "  4. 授权完成后此脚本会自动继续"
     echo ""
-    echo "该命令会显示:"
-    echo "  - 8 位代码 (如 AAA7-55E5)"
-    echo "  - 打开的网址"
+    echo "如果浏览器未能自动打开，请手动访问:"
+    echo "  https://github.com/login/device"
     echo ""
-    echo "然后在浏览器中:"
-    echo "  1. 打开 https://github.com/login/device"
-    echo "  2. 输入命令显示的 8 位代码"
-    echo "  3. 点击 Authorize 授权"
+    echo -n "正在启动授权流程... "
     echo ""
-    echo -n "完成授权后按 Enter 继续... "
-    read -r
-    echo ""
+
+    # 使用 script 命令创建一个伪终端来运行 gh auth login
+    # 这样可以捕获显示的代码并允许交互式认证完成
+    # --allow-false 选项允许终端类型检测失败
+    if command -v script &> /dev/null; then
+        # script -q 静默输出，-c 指定命令，/dev/null 丢弃会话文件
+        # -q 安静模式，-c 执行命令
+        script -q /dev/null gh auth login 2>&1 || true
+    else
+        # 没有 script 命令，直接运行 (可能会失败但至少显示代码)
+        gh auth login 2>&1 || true
+    fi
 
     # 验证登录状态
     if gh auth status &> /dev/null; then
