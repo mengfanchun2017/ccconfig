@@ -97,82 +97,27 @@ if command -v claude &> /dev/null; then
     upgrade_choice="${upgrade_choice:-2}"
 
     if [[ "$upgrade_choice" == "1" ]]; then
-        print_info "正在升级 Claude Code..."
-        # 下载最新版本
-        TMP_DIR=$(mktemp -d)
-        cd "$TMP_DIR"
-        ARCH=$(uname -m)
-        if [[ "$ARCH" == "x86_64" ]]; then
-            ARCH_NAME="amd64"
-        elif [[ "$ARCH" == "aarch64" ]]; then
-            ARCH_NAME="arm64"
+        print_info "正在升级 Claude Code（使用官方安装脚本）..."
+        if curl -fsSL https://claude.ai/install.sh | bash; then
+            print_success "Claude Code 已升级到最新版本"
         else
-            ARCH_NAME="amd64"
-        fi
-        LATEST_VERSION=$(curl -s https://api.github.com/repos/anthropics/claude-code/releases/latest | grep -o '"tag_name": *[^,]*' | cut -d'"' -f4)
-        if [[ -z "$LATEST_VERSION" ]]; then
-            LATEST_VERSION="latest"
-        fi
-        print_info "下载版本: $LATEST_VERSION"
-        curl -fsSL "https://github.com/anthropics/claude-code/releases/download/${LATEST_VERSION}/claude-linux-${ARCH_NAME}" -o claude
-        if [[ ! -f claude ]]; then
-            print_error "下载失败，请检查网络"
-            cd - > /dev/null
-            rm -rf "$TMP_DIR"
+            print_error "升级失败，请检查网络"
             exit 1
         fi
-        chmod +x claude
-        mkdir -p "$HOME/.local/bin"
-        mv claude "$HOME/.local/bin/claude"
-        cd - > /dev/null
-        rm -rf "$TMP_DIR"
-        print_success "Claude Code 已升级到最新版本"
     fi
 else
     print_warning "Claude Code 未安装，正在安装..."
     echo ""
 
-    # 检测系统架构
-    ARCH=$(uname -m)
-    if [[ "$ARCH" == "x86_64" ]]; then
-        ARCH_NAME="amd64"
-    elif [[ "$ARCH" == "aarch64" ]]; then
-        ARCH_NAME="arm64"
+    print_info "使用官方安装脚本: curl -fsSL https://claude.ai/install.sh | bash"
+    echo ""
+
+    if curl -fsSL https://claude.ai/install.sh | bash; then
+        print_success "Claude Code 安装成功"
     else
-        ARCH_NAME="amd64"
-    fi
-
-    # 下载最新版本
-    TMP_DIR=$(mktemp -d)
-    cd "$TMP_DIR"
-
-    LATEST_VERSION=$(curl -s https://api.github.com/repos/anthropics/claude-code/releases/latest | grep -o '"tag_name": *[^,]*' | cut -d'"' -f4)
-    if [[ -z "$LATEST_VERSION" ]]; then
-        LATEST_VERSION="latest"
-    fi
-    print_info "下载版本: $LATEST_VERSION"
-    curl -fsSL "https://github.com/anthropics/claude-code/releases/download/${LATEST_VERSION}/claude-linux-${ARCH_NAME}" -o claude
-
-    if [[ ! -f claude ]]; then
-        print_error "下载失败，请检查网络"
-        cd - > /dev/null
-        rm -rf "$TMP_DIR"
+        print_error "安装失败，请检查网络"
         exit 1
     fi
-
-    chmod +x claude
-    mkdir -p "$HOME/.local/bin"
-    mv claude "$HOME/.local/bin/claude"
-
-    # 确保 PATH 包含 ~/.local/bin
-    if ! grep -q "\.local/bin" "$HOME/.bashrc" 2>/dev/null; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
-    fi
-    export PATH="$HOME/.local/bin:$PATH"
-
-    cd - > /dev/null
-    rm -rf "$TMP_DIR"
-    print_success "Claude Code 已安装到 ~/.local/bin/claude"
 fi
 
 echo ""
