@@ -146,7 +146,7 @@ except Exception as e:
 PYTHON_EOF
 }
 
-# 检查某个 MCP 是否存在于列表中
+# 检查某个 MCP 是否存在于列表中（忽略大小写）
 mcp_exists_in_list() {
     python3 - "$MCP_LIST_FILE" "$1" << 'PYTHON_EOF'
 import json
@@ -155,8 +155,8 @@ import sys
 try:
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
         data = json.load(f)
-    name = sys.argv[2]
-    exists = any(m.get('name') == name for m in data.get('mcp', []))
+    name = sys.argv[2].lower()
+    exists = any(m.get('name', '').lower() == name for m in data.get('mcp', []))
     print('true' if exists else 'false')
 except:
     print('false')
@@ -198,29 +198,51 @@ PYEOF
 
 # 检查并提示 Supabase token 和 project-ref
 check_supabase_config() {
+    # 检查 Supabase 是否实际已注册（支持大小写不敏感）
     local has_supabase=false
-    local supabase_entry=""
-
-    # 检查 mcplist 中是否有 supabase
-    while IFS='|' read -r name desc type install install_local needs_key key_env key_url command args; do
-        [[ "$name" == "supabase" ]] && has_supabase=true && supabase_entry="$install" && break
-    done <<< "$McpNames"
+    for key in "${!RegisteredMcp[@]}"; do
+        if [[ "${key,,}" == "supabase" ]]; then
+            has_supabase=true
+            break
+        fi
+    done
 
     [[ "$has_supabase" == "false" ]] && return 0
 
-    # 检查 ~/.claude.json 中 supabase 是否已配置正确的 token
+    local supabase_entry=""
+    # 获取 mcplist 中的 supabase 配置
+    while IFS='|' read -r name desc type install install_local needs_key key_env key_url command args; do
+        [[ "$name" == "supabase" ]] && supabase_entry="$install" && break
+    done <<< "$McpNames"
+
+    # 检查 ~/.claude.json 中 supabase 是否已配置正确的 token（检查 root 和 project 级别）
     local current_config=$(python3 - "$CLAUDE_JSON" << 'PYEOF'
 import json
 import sys
 try:
     with open(sys.argv[1], 'r') as f:
         data = json.load(f)
+
+    # 1. 检查 root-level mcpServers
     supabase = data.get('mcpServers', {}).get('supabase', {})
-    args = supabase.get('args', [])
-    for i, arg in enumerate(args):
-        if arg == '--access-token' and i+1 < len(args):
-            print(args[i+1])
-            sys.exit(0)
+    if supabase:
+        args = supabase.get('args', [])
+        for i, arg in enumerate(args):
+            if arg == '--access-token' and i+1 < len(args):
+                print(args[i+1])
+                sys.exit(0)
+
+    # 2. 检查 project-level mcpServers
+    projects = data.get('projects', {})
+    for proj_path, proj_data in projects.items():
+        proj_supabase = proj_data.get('mcpServers', {}).get('supabase', {})
+        if proj_supabase:
+            args = proj_supabase.get('args', [])
+            for i, arg in enumerate(args):
+                if arg == '--access-token' and i+1 < len(args):
+                    print(args[i+1])
+                    sys.exit(0)
+
     print('')
 except:
     print('')
@@ -333,6 +355,7 @@ PYEOF
 CLAUDE_JSON="$HOME/.claude.json"
 
 # 从 ~/.claude.json 读取某个 MCP 的当前 key
+# 同时检查 root-level 和 project-level 的 mcpServers
 get_current_key() {
     local mcp_name="$1"
     local key_env="$2"
@@ -340,6 +363,7 @@ get_current_key() {
     python3 - "$CLAUDE_JSON" "$mcp_name" "$key_env" << 'PYEOF'
 import json
 import sys
+import os
 
 try:
     with open(sys.argv[1], 'r') as f:
@@ -347,15 +371,28 @@ try:
     mcp_name = sys.argv[2]
     key_env = sys.argv[3]
 
+    # 1. 先检查 root-level mcpServers (全局注册)
     mcp_servers = data.get('mcpServers', {})
     if mcp_name in mcp_servers:
         env = mcp_servers[mcp_name].get('env', {})
         if key_env in env:
             print(env[key_env])
-        else:
-            print('')
-    else:
-        print('')
+            sys.exit(0)
+
+    # 2. 检查当前项目目录的 project-level mcpServers
+    current_dir = os.path.basename(os.getcwd())
+    projects = data.get('projects', {})
+
+    # 尝试匹配当前目录相关的项目配置
+    for proj_path, proj_data in projects.items():
+        proj_mcp = proj_data.get('mcpServers', {})
+        if mcp_name in proj_mcp:
+            env = proj_mcp[mcp_name].get('env', {})
+            if key_env in env:
+                print(env[key_env])
+                sys.exit(0)
+
+    print('')
 except:
     print('')
 PYEOF
@@ -512,6 +549,42 @@ done < <(claude mcp list 2>&1 | grep -v "^Checking" | grep -v "^$" || true)
 # 获取 MCP 列表
 McpNames=$(read_mcp_list)
 
+# ========== 辅助函数：大小写不敏感查找 ==========
+# 检查 MCP 是否已注册（支持大小写不敏感匹配）
+is_mcp_registered() {
+    local mcp_name="$1"
+    local mcp_name_lower=$(echo "$mcp_name" | tr '[:upper:]' '[:lower:]')
+
+    # 检查原始大小写
+    [[ -n "${RegisteredMcp[$mcp_name]}" ]] && return 0
+
+    # 检查小写版本
+    for key in "${!RegisteredMcp[@]}"; do
+        if [[ "${key,,}" == "$mcp_name_lower" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# 获取 MCP 的实际注册名（用于后续操作）
+get_registered_name() {
+    local mcp_name="$1"
+    local mcp_name_lower=$(echo "$mcp_name" | tr '[:upper:]' '[:lower:]')
+
+    # 优先返回原始大小写匹配
+    [[ -n "${RegisteredMcp[$mcp_name]}" ]] && echo "$mcp_name" && return
+
+    # 否则返回任意大小写匹配
+    for key in "${!RegisteredMcp[@]}"; do
+        if [[ "${key,,}" == "$mcp_name_lower" ]]; then
+            echo "$key"
+            return
+        fi
+    done
+    echo ""
+}
+
 # ========== 对比分析 ==========
 # 使用数组代替字符串拼接，避免 \n 字面字符问题
 declare -a MatchedArr=()
@@ -533,7 +606,7 @@ while IFS='|' read -r name desc type install install_local needs_key key_env key
         actual_install=""
     fi
 
-    if [[ -n "${RegisteredMcp[$name]}" ]]; then
+    if is_mcp_registered "$name"; then
         # MCP 已注册，检测命令是否实际可用
         if [[ -z "$actual_install" ]]; then
             # install 为空时，跳过命令检测（配置不完整但已注册）
