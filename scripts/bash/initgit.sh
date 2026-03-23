@@ -118,27 +118,16 @@ else
     echo ""
     echo "操作步骤:"
     echo "  1. 下方会显示一个 8 位代码 (如 AAA7-55E5)"
-    echo "  2. 脚本会自动打开浏览器 (如果失败请手动打开)"
-    echo "  3. 在 GitHub 页面输入代码并授权"
-    echo "  4. 授权完成后此脚本会自动继续"
-    echo ""
-    echo "如果浏览器未能自动打开，请手动访问:"
-    echo "  https://github.com/login/device"
-    echo ""
-    echo -n "正在启动授权流程... "
+    echo "  2. 复制这个代码"
+    echo "  3. 打开浏览器访问 https://github.com/login/device"
+    echo "  4. 输入代码并点击授权"
+    echo "  5. 授权完成后此脚本会自动继续"
     echo ""
 
-    # 使用 script 命令创建一个伪终端来运行 gh auth login
-    # 这样可以捕获显示的代码并允许交互式认证完成
-    # --allow-false 选项允许终端类型检测失败
-    if command -v script &> /dev/null; then
-        # script -q 静默输出，-c 指定命令，/dev/null 丢弃会话文件
-        # -q 安静模式，-c 执行命令
-        script -q /dev/null gh auth login 2>&1 || true
-    else
-        # 没有 script 命令，直接运行 (可能会失败但至少显示代码)
-        gh auth login 2>&1 || true
-    fi
+    # 使用 script 创建伪终端，让 gh auth login 能交互式运行并显示 8 位码
+    # -t 分配伪终端，-q 静默模式
+    # 输出到当前终端，用户可以看到 8 位码
+    script -t /dev/null -q gh auth login --hostname github.com
 
     # 验证登录状态
     if gh auth status &> /dev/null; then
