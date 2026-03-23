@@ -38,34 +38,63 @@ print_info "检查 Git 用户身份..."
 GIT_EMAIL=$(git config --global user.email 2>/dev/null)
 GIT_NAME=$(git config --global user.name 2>/dev/null)
 
-if [[ -z "$GIT_EMAIL" || -z "$GIT_NAME" ]]; then
-    print_warning "Git 用户身份未配置，正在设置..."
+if [[ -z "$GIT_EMAIL" && -z "$GIT_NAME" ]]; then
+    # 两者都没有，完全新配置
+    echo ""
+    echo "=========================================="
+    echo "  请输入 GitHub 注册信息"
+    echo "=========================================="
+    echo -n "邮箱: "
+    read GIT_EMAIL
+    if [[ -n "$GIT_EMAIL" ]]; then
+        git config --global user.email "$GIT_EMAIL"
+    fi
+    echo -n "GitHub 用户名: "
+    read GIT_NAME
+    if [[ -n "$GIT_NAME" ]]; then
+        git config --global user.name "$GIT_NAME"
+    fi
+    echo ""
+    if [[ -n "$GIT_EMAIL" && -n "$GIT_NAME" ]]; then
+        print_success "Git 用户身份已配置: $GIT_EMAIL ($GIT_NAME)"
+    fi
+elif [[ -z "$GIT_EMAIL" || -z "$GIT_NAME" ]]; then
+    # 只有一个有值，提示用户补充
+    print_warning "Git 用户身份不完整，正在补充..."
     if [[ -z "$GIT_EMAIL" ]]; then
-        echo ""
-        echo "=========================================="
-        echo "  请输入 GitHub 注册邮箱"
-        echo "=========================================="
-        echo -n "邮箱: "
+        echo -n "请输入 GitHub 注册邮箱: "
         read GIT_EMAIL
         if [[ -n "$GIT_EMAIL" ]]; then
             git config --global user.email "$GIT_EMAIL"
         fi
     fi
     if [[ -z "$GIT_NAME" ]]; then
-        echo ""
-        echo "=========================================="
-        echo "  请输入 GitHub 用户名"
-        echo "=========================================="
-        echo -n "用户名: "
+        echo -n "请输入 GitHub 用户名: "
         read GIT_NAME
         if [[ -n "$GIT_NAME" ]]; then
             git config --global user.name "$GIT_NAME"
         fi
     fi
     echo ""
-    print_success "Git 用户身份已配置: $(git config --global user.email)"
+    if [[ -n "$GIT_EMAIL" && -n "$GIT_NAME" ]]; then
+        print_success "Git 用户身份已配置: $GIT_EMAIL ($GIT_NAME)"
+    fi
 else
-    print_success "Git 用户身份已配置: $GIT_EMAIL ($GIT_NAME)"
+    # 两者都有，显示并询问是否修改
+    print_success "Git 用户身份: $GIT_EMAIL ($GIT_NAME)"
+    echo -n "是否修改? [y/N]: "
+    read modify
+    if [[ "$modify" =~ ^[Yy]$ ]]; then
+        echo -n "新邮箱 [留空保持不变]: "
+        read new_email
+        [[ -n "$new_email" ]] && git config --global user.email "$new_email"
+        echo -n "新用户名 [留空保持不变]: "
+        read new_name
+        [[ -n "$new_name" ]] && git config --global user.name "$new_name"
+        GIT_EMAIL=$(git config --global user.email 2>/dev/null)
+        GIT_NAME=$(git config --global user.name 2>/dev/null)
+        print_success "Git 用户身份已更新: $GIT_EMAIL ($GIT_NAME)"
+    fi
 fi
 
 # -------------------------- 检查并安装 gh --------------------------
@@ -125,9 +154,9 @@ else
     echo ""
 
     # 使用 script 创建伪终端，让 gh auth login 能交互式运行并显示 8 位码
-    # -t 分配伪终端，-q 静默模式
+    # -t 分配伪终端，-q 静默模式，-c 指定要运行的命令
     # 输出到当前终端，用户可以看到 8 位码
-    script -t /dev/null -q gh auth login --hostname github.com
+    script -t /dev/null -q -c "gh auth login --hostname github.com"
 
     # 验证登录状态
     if gh auth status &> /dev/null; then
