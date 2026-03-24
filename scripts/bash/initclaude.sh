@@ -86,23 +86,44 @@ echo "=========================================="
 echo ""
 
 if command -v claude &> /dev/null; then
-    CURRENT_VERSION=$(claude --version 2>/dev/null || echo "未知版本")
+    CURRENT_VERSION=$(claude --version 2>/dev/null | head -1 | sed 's/.* //' || echo "未知版本")
     print_success "Claude Code 已安装: $CURRENT_VERSION"
-    echo ""
-    echo "是否升级到最新版本？"
-    echo "  1) 升级到最新版本"
-    echo "  2) 保持当前版本"
-    echo ""
-    read -p "请输入选项 [2]: " upgrade_choice
-    upgrade_choice="${upgrade_choice:-2}"
 
-    if [[ "$upgrade_choice" == "1" ]]; then
-        print_info "正在升级 Claude Code（使用官方安装脚本）..."
-        if curl -fsSL https://claude.ai/install.sh | bash; then
-            print_success "Claude Code 已升级到最新版本"
-        else
-            print_error "升级失败，请检查网络"
-            exit 1
+    # 获取最新版本
+    print_info "检查最新版本..."
+    LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/anthropics/claude-code/releases/latest 2>/dev/null | grep -o '"tag_name": *[^,]*' | cut -d'"' -f4 | sed 's/^v//')
+
+    if [[ -z "$LATEST_VERSION" ]]; then
+        LATEST_VERSION="$CURRENT_VERSION"  # 获取失败时假设已最新
+    fi
+
+    echo ""
+    echo "最新版本: $LATEST_VERSION"
+
+    # 比较版本
+    if [[ "$CURRENT_VERSION" == "$LATEST_VERSION" ]]; then
+        echo ""
+        print_info "✅ 已是最新版本，无需升级"
+        upgrade_choice="2"
+    else
+        echo ""
+        echo "发现新版本: $LATEST_VERSION (当前: $CURRENT_VERSION)"
+        echo "是否升级？"
+        echo "  1) 升级到最新版本"
+        echo "  2) 保持当前版本"
+        echo ""
+        read -p "请输入选项 [2]: " upgrade_choice
+        upgrade_choice="${upgrade_choice:-2}"
+
+        if [[ "$upgrade_choice" == "1" ]]; then
+            print_info "正在升级 Claude Code（使用官方安装脚本）..."
+            if curl -fsSL https://claude.ai/install.sh | bash; then
+                NEW_VERSION=$(claude --version 2>/dev/null | head -1 | sed 's/.* //')
+                print_success "Claude Code 已升级: $CURRENT_VERSION → $NEW_VERSION"
+            else
+                print_error "升级失败，请检查网络"
+                exit 1
+            fi
         fi
     fi
 else
@@ -113,7 +134,8 @@ else
     echo ""
 
     if curl -fsSL https://claude.ai/install.sh | bash; then
-        print_success "Claude Code 安装成功"
+        NEW_VERSION=$(claude --version 2>/dev/null | head -1 | sed 's/.* //')
+        print_success "Claude Code 安装成功: $NEW_VERSION"
     else
         print_error "安装失败，请检查网络"
         exit 1
