@@ -29,6 +29,9 @@
         "-y"
       ],
       "install": "uvx minimax-coding-plan-mcp",
+      "needsKey": true,
+      "keyEnv": "MINIMAX_API_KEY",
+      "keyUrl": "https://platform.minimaxi.com",
       "tools": [
         "web_search",
         "understand_image"

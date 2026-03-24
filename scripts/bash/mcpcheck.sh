@@ -118,6 +118,37 @@ check_mcp_command() {
     return 1
 }
 
+# 检测 MCP 运行时状态（检测命令是否存在，以及运行时错误如缺少环境变量）
+# 返回: 0=正常, 1=命令不存在, 2=运行时错误
+check_mcp_runtime() {
+    local cmd="$1"
+    local install_args="$2"
+    local key_env="$3"  # 可选：需要的环境变量名
+
+    # 首先检查命令是否存在
+    if ! check_mcp_command "$cmd" "$install_args"; then
+        return 1
+    fi
+
+    # 构建完整命令
+    local full_cmd="$cmd $install_args"
+
+    # 尝试运行 MCP，捕获错误输出（超时 3 秒）
+    # MCP 服务器通常启动时会立即输出错误（如缺少 API key）
+    # 注意：使用 < /dev/null 避免 stdin 被 inherited 导致 MCP 读取到 here-string 内容
+    local error_output
+    error_output=$(timeout 3s $full_cmd < /dev/null 2>&1) || true
+    local exit_code=$?
+
+    # 检查是否包含常见运行时错误（支持多行错误输出）
+    # -z 将 NUL 作为行分隔符，使 . 可以匹配换行符
+    if echo "$error_output" | grep -qzi "API_KEY\|ACCESS_TOKEN\|environment variable\|missing.*required\|key.*is required\|required.*environment"; then
+        return 2
+    fi
+
+    return 0
+}
+
 # ========== Python 辅助函数 ==========
 # 读取 MCP 列表并输出格式化的文本
 read_mcp_list() {
@@ -455,6 +486,11 @@ check_and_prompt_keys() {
             continue
         fi
 
+        # 跳过运行时错误的 MCP（会在主菜单选项 1 中单独处理）
+        if [[ " ${RuntimeErrorArr[*]} " =~ " $name|" ]]; then
+            continue
+        fi
+
         current_key=$(get_current_key "$name" "$key_env")
 
         if [[ -z "$current_key" ]]; then
@@ -596,15 +632,16 @@ declare -a MatchedArr=()
 declare -a MissingFromListArr=()
 declare -a ExtraInEnvArr=()
 declare -a FailedCmdArr=()
+declare -a RuntimeErrorArr=()  # 命令存在但运行时缺少 key 的 MCP
 
 # 检查列表中的每个 MCP
-# 格式: name|desc|type|install|install_local|needs_key|key_env|key_url|command|args
-while IFS='|' read -r name desc type install install_local needs_key key_env key_url command args; do
+# 格式: name|desc|type|install|install_local|needs_key|key_env|key_url|mcp_cmd|mcp_args
+while IFS='|' read -r name desc type install install_local needs_key key_env key_url mcp_cmd mcp_args; do
     [[ -z "$name" ]] && continue
 
-    # 优先使用 command+args，其次使用 install
-    if [[ -n "$command" ]]; then
-        actual_install="$command $args"
+    # 优先使用 mcp_cmd+mcp_args，其次使用 install
+    if [[ -n "$mcp_cmd" ]]; then
+        actual_install="$mcp_cmd $mcp_args"
     elif [[ -n "$install" ]]; then
         actual_install="$install"
     else
@@ -621,6 +658,7 @@ while IFS='|' read -r name desc type install install_local needs_key key_env key
             cmd="${cmd_parts[0]}"
             install_args="${actual_install#$cmd }"
 
+            # 先检查命令是否存在
             if ! check_mcp_command "$cmd" "$install_args"; then
                 # 命令不可用
                 if [[ -n "$install_local" ]]; then
@@ -629,7 +667,16 @@ while IFS='|' read -r name desc type install install_local needs_key key_env key
                     FailedCmdArr+=("$name|$desc|$actual_install|")
                 fi
             else
-                MatchedArr+=("$name|$desc")
+                # 命令存在，检测运行时状态（是否缺少 key）
+                runtime_result=0
+                check_mcp_runtime "$cmd" "$install_args" "$key_env" || runtime_result=$?
+
+                if [[ $runtime_result -eq 2 ]]; then
+                    # 运行时错误（通常是缺少 API key）
+                    RuntimeErrorArr+=("$name|$desc|$key_env|$key_url")
+                else
+                    MatchedArr+=("$name|$desc")
+                fi
             fi
         fi
     else
@@ -683,6 +730,16 @@ if [[ ${#FailedCmdArr[@]} -gt 0 ]]; then
     done
 fi
 
+# 运行时错误（命令存在但缺少 key）
+if [[ ${#RuntimeErrorArr[@]} -gt 0 ]]; then
+    section "🔑 注册了但缺少 API Key"
+    for item in "${RuntimeErrorArr[@]}"; do
+        IFS='|' read -r name desc key_env key_url <<< "$item"
+        item "$name: 缺少 $key_env"
+        [[ -n "$key_url" ]] && info "  Key 地址: $key_url"
+    done
+fi
+
 # 多出的部分
 if [[ ${#ExtraInEnvArr[@]} -gt 0 ]]; then
     section "⚠️ 环境中注册但列表中无"
@@ -712,7 +769,7 @@ check_supabase_config
 has_action_needed=false
 [[ ${#MissingFromListArr[@]} -gt 0 ]] || [[ ${#FailedCmdArr[@]} -gt 0 ]] || [[ ${#ExtraInEnvArr[@]} -gt 0 ]] && has_action_needed=true
 
-if [[ "$has_action_needed" == "false" ]]; then
+if [[ "$has_action_needed" == "false" ]] && [[ ${#RuntimeErrorArr[@]} -eq 0 ]]; then
     title "检查完成"
     good "✅ 所有 MCP 都正常工作"
     good "✅ Key 检查已完成"
@@ -721,24 +778,28 @@ fi
 
 title "请选择操作"
 
-echo -e "  1) 安装缺失的 MCP（需要命令可用）${NC}"
-echo -e "  2) 修复命令不可用的 MCP${NC}"
+if [[ ${#RuntimeErrorArr[@]} -gt 0 ]]; then
+    echo -e "  1) 配置缺少的 API Key${NC}"
+fi
+
+echo -e "  2) 安装缺失的 MCP（需要命令可用）${NC}"
+echo -e "  3) 修复命令不可用的 MCP${NC}"
 
 if [[ ${#FailedCmdArr[@]} -gt 0 ]]; then
-    echo -e "  3) 尝试自动修复（使用 install_local）${NC}"
+    echo -e "  4) 尝试自动修复（使用 install_local）${NC}"
 fi
 
-echo -e "  4) 补充缺失项到 mcplist.json${NC}"
+echo -e "  5) 补充缺失项到 mcplist.json${NC}"
 
 if [[ ${#ExtraInEnvArr[@]} -gt 0 ]]; then
-    echo -e "  5) 双向同步（安装+补充）${NC}"
+    echo -e "  6) 双向同步（安装+补充）${NC}"
 fi
 
-echo -e "  6) 单独处理某个 MCP${NC}"
+echo -e "  7) 单独处理某个 MCP${NC}"
 echo -e "  0) 跳过，不做任何修改${GRAY}"
 echo ""
 
-read -p "请输入选项 [0-6]: " choice
+read -p "请输入选项 [0-7]: " choice
 echo ""
 
 # ========== 安装函数 ==========
@@ -766,6 +827,34 @@ do_install_mcp() {
 
 case "$choice" in
     1)
+        # 配置缺少 API Key 的 MCP
+        title "配置 API Key"
+
+        for item in "${RuntimeErrorArr[@]}"; do
+            IFS='|' read -r name desc key_env key_url <<< "$item"
+            [[ -z "$name" ]] && continue
+
+            echo -e "\n  $name"
+            [[ -n "$key_url" ]] && info "  Key 地址: $key_url"
+            echo -n "  请输入 $key_env: "
+            read -s new_key
+            echo ""
+
+            if [[ -n "$new_key" ]]; then
+                result=$(update_mcp_key "$name" "$key_env" "$new_key")
+                if [[ "$result" == "ok" ]]; then
+                    good "  ✅ Key 已配置"
+                else
+                    bad "  ❌ 配置失败: $result"
+                fi
+            else
+                info "  已跳过"
+            fi
+        done
+        good "✅ Key 配置完成"
+        ;;
+
+    2)
         # 安装缺失的 MCP
         title "安装缺失的 MCP"
 
@@ -795,7 +884,7 @@ case "$choice" in
         done
         ;;
 
-    2)
+    3)
         # 修复命令不可用的 MCP
         title "修复命令不可用的 MCP"
 
@@ -824,7 +913,7 @@ case "$choice" in
         done
         ;;
 
-    3)
+    4)
         # 自动修复
         title "自动修复"
 
@@ -852,7 +941,7 @@ case "$choice" in
         good "✅ 完成：修复 $fixed 个"
         ;;
 
-    4)
+    5)
         # 补充缺失项到 mcplist.json
         title "补充到 mcplist.json"
 
@@ -870,7 +959,7 @@ case "$choice" in
         good "✅ 已更新 mcplist.json，请补充描述信息"
         ;;
 
-    5)
+    6)
         # 双向同步
         title "双向同步"
 
@@ -903,7 +992,7 @@ case "$choice" in
         good "✅ 完成：安装 $installed 个"
         ;;
 
-    6)
+    7)
         # 单独处理
         title "单独处理"
 
@@ -921,6 +1010,13 @@ case "$choice" in
             IFS='|' read -r name desc install install_local <<< "$item"
             [[ -z "$name" ]] && continue
             all_items+=("$idx|FAILED|$name|$desc|$install|$install_local|||")
+            ((idx++))
+        done
+
+        for item in "${RuntimeErrorArr[@]}"; do
+            IFS='|' read -r name desc key_env key_url <<< "$item"
+            [[ -z "$name" ]] && continue
+            all_items+=("$idx|RUNTIME|$name|$desc||$key_env|$key_url")
             ((idx++))
         done
 
@@ -942,6 +1038,7 @@ case "$choice" in
             case "$type" in
                 MISSING) type_str="[缺失]" ;;
                 FAILED)  type_str="[失败]" ;;
+                RUNTIME) type_str="[缺Key]" ;;
                 EXTRA)   type_str="[多余]" ;;
             esac
             echo -e "  $i) $type_str $name - $desc"
@@ -992,6 +1089,24 @@ case "$choice" in
                     fi
                 else
                     warn "没有本地安装命令可用"
+                fi
+                ;;
+            RUNTIME)
+                echo -e "\n配置 $name 的 API Key"
+                IFS='|' read -r _ _ key_env key_url <<< "$selected"
+                [[ -n "$key_url" ]] && info "  Key 地址: $key_url"
+                echo -n "  请输入 $key_env: "
+                read -s new_key
+                echo ""
+                if [[ -n "$new_key" ]]; then
+                    result=$(update_mcp_key "$name" "$key_env" "$new_key")
+                    if [[ "$result" == "ok" ]]; then
+                        good "  ✅ Key 已配置"
+                    else
+                        bad "  ❌ 配置失败: $result"
+                    fi
+                else
+                    info "  已跳过"
                 fi
                 ;;
             EXTRA)
