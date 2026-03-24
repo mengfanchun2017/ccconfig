@@ -75,23 +75,41 @@ echo "✅ 符号链接检查通过"
 echo ""
 
 # ========== Git 状态 ==========
-echo "[1/4] 检查 git 状态..."
+echo "[1/5] 检查 git 状态..."
 git status --short
 echo ""
 
-# ========== Git 拉取并检查更新 ==========
-echo "[2/4] 检查远程更新..."
+# ========== Git 拉取（暂存更改后操作）==========
+echo "[2/5] 暂存本地更改..."
+git add .
+git stash
+echo "✅ 已暂存"
+
+echo "[3/5] 检查远程更新..."
 git pull --rebase || {
-    echo "⚠️  拉取冲突，请手动解决后重试"
+    echo "⚠️  拉取冲突，正在恢复暂存..."
+    git stash pop
+    echo "❌ 请手动解决冲突后重试"
     exit 1
 }
 echo "✅ 已同步远程更新"
 echo ""
 
-# ========== Git 提交 ==========
-echo "[3/4] 提交更改..."
-git add .
+# ========== 恢复并重新提交 ==========
+echo "[4/5] 恢复本地更改..."
+if git stash pop; then
+    echo "✅ 已恢复"
+else
+    echo "⚠️  恢复时有冲突，请手动检查"
+fi
 
+# 重新 add
+git add .
+echo "✅ 已暂存本地更改"
+echo ""
+
+# ========== Git 提交 ==========
+echo "[5/5] 提交并推送..."
 if [ -z "$1" ]; then
     read -p "请输入提交信息 (默认: 更新配置): " commit_msg
 else
@@ -100,12 +118,16 @@ fi
 if [ -z "$commit_msg" ]; then
     commit_msg="更新配置"
 fi
-git commit -m "$commit_msg"
-echo "✅ 已提交: $commit_msg"
+
+if git diff --cached --quiet; then
+    echo "没有可提交的内容"
+else
+    git commit -m "$commit_msg"
+    echo "✅ 已提交: $commit_msg"
+fi
 echo ""
 
 # ========== Git 推送 ==========
-echo "[4/4] 推送到 GitHub..."
 git push
 echo "✅ 成功推送到 GitHub"
 echo ""
