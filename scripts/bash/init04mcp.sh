@@ -575,7 +575,7 @@ while IFS= read -r line; do
     if [[ $line =~ ^[[:space:]]*([^:]+): ]]; then
         RegisteredMcp["${BASH_REMATCH[1]}"]=1
     fi
-done < <(claude mcp list 2>&1 | grep -v "^Checking" | grep -v "^$" || true)
+done < <(timeout 15 claude mcp list 2>&1 | grep -v "^Checking" | grep -v "^$" || true)
 
 # 获取 MCP 列表
 McpNames=$(read_mcp_list)
@@ -1150,7 +1150,7 @@ while IFS= read -r line; do
     if [[ $line =~ ^[[:space:]]*([^:]+): ]]; then
         NewRegisteredMcp["${BASH_REMATCH[1]}"]=1
     fi
-done < <(claude mcp list 2>&1 | grep -v "^Checking" | grep -v "^$" || true)
+done < <(timeout 15 claude mcp list 2>&1 | grep -v "^Checking" | grep -v "^$" || true)
 
 # 检查是否有新的 MCP 已注册但 Key 还未配置
 echo "检查已注册的 MCP Key 配置状态..."
