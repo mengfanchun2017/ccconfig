@@ -283,9 +283,9 @@ PYEOF
     local current_token="${config_info%%|*}"
     local current_project_id="${config_info##*|}"
 
-    # 检查 token 是否有效 (eyJ_ JWT格式 或 sbp_ PAT格式)
+    # 检查 token 是否有效 (非空即可，格式可能是 eyJ_ JWT 或 sbp_ PAT 或 UUID)
     local token_valid=false
-    if [[ "$current_token" == eyJ_* ]] || [[ "$current_token" == sbp_* ]]; then
+    if [[ -n "$current_token" ]]; then
         token_valid=true
     fi
 
@@ -464,6 +464,11 @@ check_and_prompt_keys() {
 
         # 跳过未注册的 MCP（需要先安装才能配置 Key）
         if ! is_mcp_registered "$name"; then
+            continue
+        fi
+
+        # Supabase 使用专用配置，跳过通用处理
+        if [[ "${name,,}" == "supabase" ]]; then
             continue
         fi
 
