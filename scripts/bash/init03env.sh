@@ -309,6 +309,9 @@ main() {
     echo "安装完成后请运行 mcpcheck.sh 安装具体的 MCP 服务器"
     echo ""
 
+    # 确保 PATH 包含 ~/.local/bin（必须在检查/安装任何工具之前）
+    setup_path
+
     # Node.js
     section "检测 Node.js"
     if check_node_installed; then
@@ -318,9 +321,6 @@ main() {
         install_nodejs
         verify_nodejs
     fi
-
-    # 确保 PATH 包含 ~/.local/bin
-    setup_path
 
     # uv
     section "检测 uv"
