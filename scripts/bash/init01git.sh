@@ -100,6 +100,10 @@ fi
 
 # -------------------------- 检查并安装 gh --------------------------
 print_info "检查 GitHub CLI (gh)..."
+
+# 先确保 PATH 包含 ~/.local/bin（可能刚写入 .bashrc 但当前会话未加载）
+export PATH="$HOME/.local/bin:$PATH"
+
 if command -v gh &> /dev/null; then
     print_success "gh 已安装: $(gh --version)"
 else
