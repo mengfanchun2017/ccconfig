@@ -226,8 +226,8 @@ PYEOF
 }
 
 # ========== Supabase 特殊处理函数 ==========
+# 使用项目级 API Key (JWT) 而非账户级 PAT
 
-# 检查并提示 Supabase token 和 project-ref
 check_supabase_config() {
     # 检查 Supabase 是否实际已注册（支持大小写不敏感）
     local has_supabase=false
@@ -240,151 +240,126 @@ check_supabase_config() {
 
     [[ "$has_supabase" == "false" ]] && return 0
 
-    # 从 mcplist 获取 projectRef
-    local supabase_entry=""
-    local project_ref="<your-supabase-project-id>"
-    while IFS='|' read -r name desc type install install_local needs_key key_env key_url command args extra1 extra2; do
-        [[ "$name" == "supabase" ]] && supabase_entry="$install" && break
-    done <<< "$McpNames"
+    # 从 mcplist 获取默认值
+    local default_project_ref="<your-supabase-project-id>"
 
-    # 检查 ~/.claude.json 中 supabase 是否已配置正确的 token
-    # 新版本使用 env.SUPABASE_ACCESS_TOKEN
-    local current_token=$(python3 - "$CLAUDE_JSON" << 'PYEOF'
-import json
-import sys
+    # 获取当前配置的 token 和 project_id
+    local config_info=$(python3 - "$CLAUDE_JSON" "$default_project_ref" << 'PYEOF'
+import json, sys
+
+project_ref = sys.argv[2]
+current_token = ""
+current_project_id = project_ref
+
 try:
     with open(sys.argv[1], 'r') as f:
         data = json.load(f)
 
-    # 1. 检查 root-level mcpServers
     supabase = data.get('mcpServers', {}).get('supabase', {})
     if supabase:
         env = supabase.get('env', {})
-        if env.get('SUPABASE_ACCESS_TOKEN', '').startswith('sbp_'):
-            print(env.get('SUPABASE_ACCESS_TOKEN', ''))
-            sys.exit(0)
-
-    # 2. 检查 project-level mcpServers
-    projects = data.get('projects', {})
-    for proj_path, proj_data in projects.items():
-        proj_supabase = proj_data.get('mcpServers', {}).get('supabase', {})
-        if proj_supabase:
-            env = proj_supabase.get('env', {})
-            if env.get('SUPABASE_ACCESS_TOKEN', '').startswith('sbp_'):
-                print(env.get('SUPABASE_ACCESS_TOKEN', ''))
-                sys.exit(0)
-
-    print('')
+        current_token = env.get('SUPABASE_PROJECT_ACCESS_TOKEN', '')
+        if env.get('SUPABASE_PROJECT_ID'):
+            current_project_id = env.get('SUPABASE_PROJECT_ID')
+    else:
+        # 检查 project-level
+        projects = data.get('projects', {})
+        for proj_path, proj_data in projects.items():
+            proj_supabase = proj_data.get('mcpServers', {}).get('supabase', {})
+            if proj_supabase:
+                env = proj_supabase.get('env', {})
+                current_token = env.get('SUPABASE_PROJECT_ACCESS_TOKEN', '')
+                if env.get('SUPABASE_PROJECT_ID'):
+                    current_project_id = env.get('SUPABASE_PROJECT_ID')
+                break
 except:
-    print('')
+    pass
+
+# 输出: token|project_id
+print(f"{current_token}|{current_project_id}", end='')
 PYEOF
 )
 
-    # 如果没有有效的 sbp_ token，提示用户输入
-    if [[ -z "$current_token" ]] || [[ ! "$current_token" == sbp_* ]]; then
-        echo ""
-        section "🔑 Supabase MCP 配置"
+    local current_token="${config_info%%|*}"
+    local current_project_id="${config_info##*|}"
 
-        # 获取 projectRef
-        project_ref=$(python3 - "$CLAUDE_JSON" << 'PYEOF'
+    # 检查 token 是否有效 (eyJ_ JWT格式 或 sbp_ PAT格式)
+    local token_valid=false
+    if [[ "$current_token" == eyJ_* ]] || [[ "$current_token" == sbp_* ]]; then
+        token_valid=true
+    fi
+
+    echo ""
+    section "🔑 Supabase MCP 配置"
+    echo -e "  ${CYAN}当前状态:${NC}"
+    if [[ "$token_valid" == "true" ]]; then
+        echo "  Token: ${current_token:0:20}..."
+    else
+        echo "  Token: 未配置"
+    fi
+    echo "  项目ID: $current_project_id"
+    echo ""
+
+    # token 无效时才提示输入
+    if [[ "$token_valid" != "true" ]]; then
+        echo -e "  ${YELLOW}获取项目 API Key:${NC}"
+        echo "  1. 打开 https://supabase.com/dashboard/project/$current_project_id/settings/api"
+        echo "  2. 找到 ${CYAN}project_access_token${NC} (JWT 格式，eyJ 开头)"
+        echo "  3. 复制并粘贴下方"
+        echo ""
+        echo -n "  请输入 project_access_token (eyJ...)，直接回车跳过: "
+        read -s new_token
+        echo ""
+
+        if [[ -n "$new_token" ]]; then
+            if python3 - "$CLAUDE_JSON" "$new_token" "$current_project_id" << 'PYEOF'
 import json, sys
-try:
-    d=json.load(open(sys.argv[1]))
-    s=d.get('mcpServers',{}).get('supabase',{}).get('env',{})
-    print(s.get('SUPABASE_PROJECT_ID','<your-supabase-project-id>'), end='')
-except:
-    print('<your-supabase-project-id>', end='')
-PYEOF
-)
 
-        echo -e "  ${CYAN}当前状态:${NC}"
-        if [[ -n "$current_token" ]]; then
-            echo "  Token: ${current_token:0:15}..."
-        else
-            echo "  Token: 未配置"
-        fi
-        echo "  项目ID: $project_ref"
-        echo ""
-
-        echo -e "  ${YELLOW}SUPABASE_ACCESS_TOKEN 说明:${NC}"
-        echo "  - 这是 Supabase 账户级别的 Personal Access Token (PAT)"
-        echo "  - 格式: sbp_ 开头"
-        echo "  - 不是项目的 anon key (eyJ_ 开头)"
-        echo "  - 获取: https://supabase.com/dashboard/account/tokens"
-        echo ""
-
-        echo -n "  请输入 SUPABASE_ACCESS_TOKEN (sbp_...)，直接回车跳过: "
-        read -s supabase_token
-        echo ""
-
-        if [[ -n "$supabase_token" ]]; then
-            # 更新 ~/.claude.json，使用 env 方式
-            if python3 - "$CLAUDE_JSON" "$supabase_token" "$project_ref" << 'PYEOF'
-import json
-import sys
+token = sys.argv[2]
+project_id = sys.argv[3]
 
 try:
     with open(sys.argv[1], 'r') as f:
         data = json.load(f)
 
-    token = sys.argv[2]
-    project_ref = sys.argv[3]
-
-    # 初始化 mcpServers
     if 'mcpServers' not in data:
         data['mcpServers'] = {}
 
-    # 更新 supabase 配置，使用 env 方式
     data['mcpServers']['supabase'] = {
         'command': 'npx',
         'args': ['-y', '@supabase/mcp-server-supabase'],
         'env': {
-            'SUPABASE_ACCESS_TOKEN': token,
-            'SUPABASE_PROJECT_ID': project_ref
+            'SUPABASE_PROJECT_ACCESS_TOKEN': token,
+            'SUPABASE_PROJECT_ID': project_id
         }
     }
 
     with open(sys.argv[1], 'w') as f:
         json.dump(data, f, indent=2)
+    print('ok', end='')
 except Exception as e:
-    print(f"Error: {e}")
+    print(f'error:{e}', end='')
     sys.exit(1)
 PYEOF
             then
                 good "✅ Supabase token 已配置"
-                # 重启 MCP
                 claude mcp stop supabase 2>/dev/null || true
                 claude mcp start supabase 2>/dev/null || true
             else
-                bad "❌ Supabase token 配置失败"
+                bad "❌ 配置失败"
             fi
         else
             info "已跳过"
         fi
+    else
+        good "✅ Token 已配置，无需更新"
     fi
 
-    # ========== RLS 提醒 ==========
+    # RLS 提醒
     echo ""
-    section "🔒 Supabase Row Level Security (RLS) 提醒"
-    echo -e "  ${CYAN}您的 Supabase 数据库已启用 RLS (Row Level Security)${NC}"
-    echo ""
-    echo -e "  ${YELLOW}为什么要启用 RLS:${NC}"
-    echo "    - RLS 为数据库表添加行级安全策略"
-    echo "    - 即使 API Key 被泄露，攻击者也无法访问未授权的数据"
-    echo "    - 这是 Supabase 安全的核心特性"
-    echo ""
-    echo -e "  ${YELLOW}如何管理 RLS:${NC}"
-    echo "    1. 访问 https://supabase.com/dashboard"
-    echo "    2. 选择您的项目 → Table Editor → 选择表"
-    echo "    3. 点击 'RLS' 开关启用/禁用"
-    echo "    4. 在 'Policies' 标签中配置访问策略"
-    echo ""
-    echo -e "  ${YELLOW}使用 MCP 时的注意事项:${NC}"
-    echo "    - MCP 使用 Personal Access Token (PAT)，具有 service_role 权限"
-    echo "    - 这意味着 MCP 可以绕过 RLS（如果表有 INSERT 权限）"
-    echo "    - 写入操作建议使用 RETURNING 子句确认结果"
-    echo ""
-    echo -e "  ${CYAN}开启 RLS 后，MCP 仍然可以正常读写数据${NC}"
+    section "🔒 Supabase RLS 提醒"
+    echo "  MCP 使用 project_access_token 具有 service_role 权限"
+    echo "  如需限制访问，请在 Supabase 控制台配置 RLS 策略"
     echo ""
 }
 
