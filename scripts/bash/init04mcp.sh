@@ -778,29 +778,43 @@ fi
 
 title "请选择操作"
 
+# 始终显示所有选项，灰色表示当前不可用
 if [[ ${#RuntimeErrorArr[@]} -gt 0 ]]; then
-    echo -e "  1) 配置缺少的 API Key${NC}"
+    echo -e "  1) 配置缺少的 API Key${GREEN} [有 ${#RuntimeErrorArr[@]} 个需要配置]${NC}"
+else
+    echo -e "  1) 配置缺少的 API Key${GRAY} [无需配置]${NC}"
 fi
 
-echo -e "  2) 安装缺失的 MCP（需要命令可用）${NC}"
-echo -e "  3) 修复命令不可用的 MCP${NC}"
+echo -e "  2) 安装缺失的 MCP（需要命令可用）${GREEN} [有 ${#MissingArr[@]} 个]${NC}"
+echo -e "  3) 修复命令不可用的 MCP${GREEN} [有 ${#FailedCmdArr[@]} 个]${NC}"
 
 if [[ ${#FailedCmdArr[@]} -gt 0 ]]; then
-    echo -e "  4) 尝试自动修复（使用 install_local）${NC}"
+    echo -e "  4) 尝试自动修复（使用 install_local）${GREEN} [有 ${#FailedCmdArr[@]} 个可修复]${NC}"
+else
+    echo -e "  4) 尝试自动修复（使用 install_local）${GRAY} [无需修复]${NC}"
 fi
 
-echo -e "  5) 补充缺失项到 mcplist.json${NC}"
+echo -e "  5) 补充缺失项到 mcplist.json${GREEN} [有 ${#ExtraInEnvArr[@]} 个额外项]${NC}"
 
 if [[ ${#ExtraInEnvArr[@]} -gt 0 ]]; then
-    echo -e "  6) 双向同步（安装+补充）${NC}"
+    echo -e "  6) 双向同步（安装+补充）${GREEN} [有 ${#ExtraInEnvArr[@]} 个]${NC}"
+else
+    echo -e "  6) 双向同步（安装+补充）${GRAY} [无需同步]${NC}"
 fi
 
-echo -e "  7) 单独处理某个 MCP${NC}"
-echo -e "  0) 跳过，不做任何修改${GRAY}"
+echo -e "  7) 单独处理某个 MCP"
+echo -e "  0) 跳过，不做任何修改"
 echo ""
 
 read -p "请输入选项 [0-7]: " choice
 echo ""
+
+# 验证选项有效性
+case "$choice" in
+    1) [[ ${#RuntimeErrorArr[@]} -eq 0 ]] && choice="inv" ;;
+    4) [[ ${#FailedCmdArr[@]} -eq 0 ]] && choice="inv" ;;
+    6) [[ ${#ExtraInEnvArr[@]} -eq 0 ]] && choice="inv" ;;
+esac
 
 # ========== 安装函数 ==========
 do_install_mcp() {
@@ -1120,7 +1134,11 @@ case "$choice" in
         ;;
 
     *)
-        info "已跳过"
+        if [[ "$choice" == "inv" ]]; then
+            bad "❌ 该选项当前不可用"
+        else
+            info "已跳过"
+        fi
         ;;
 esac
 
