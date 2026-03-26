@@ -108,7 +108,11 @@ else
     ACTUAL_PROJECT_PATH="$CLAUDE_PROJECT_PATH"
 fi
 
-REPO_MEMORY_NAME=$(echo "$ACTUAL_PROJECT_PATH" | sed 's/^\///' | sed 's/\//-/g')
+# Claude Code 使用 basename 作为项目名
+# 所以 memory 路径应该与 Claude Code 一致
+REPO_MEMORY_NAME="$CURRENT_PROJECT"
+MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
+MEMORY_REPO_PATH="$REPO_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md"
 MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
 MEMORY_REPO_PATH="$REPO_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md"
 
