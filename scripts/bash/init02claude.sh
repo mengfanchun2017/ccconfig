@@ -145,32 +145,62 @@ fi
 
 echo ""
 
-# -------------------------- 模式选择 --------------------------
-if [[ -z "$MODE" ]]; then
-    echo "=========================================="
-    echo "  ⚙️  配置模式"
-    echo "=========================================="
-    echo ""
-    echo "请选择操作模式："
-    echo "  1) 初始化 (init)  - 首次配置 API"
-    echo "  2) 更新 (update)   - 修改现有 API 配置"
-    echo ""
-    read -p "请输入选项 [1]: " choice
-    choice="${choice:-1}"
+# -------------------------- 显示当前配置 --------------------------
+echo "=========================================="
+echo "  📋 当前配置状态"
+echo "=========================================="
 
-    if [[ "$choice" == "1" ]]; then
-        MODE="init"
-    else
-        MODE="update"
+# 读取当前配置
+CURRENT_CONFIGURED="未配置"
+if [[ -f "$HOME/.claude.json" ]]; then
+    _key=$(grep -o '"ANTHROPIC_AUTH_TOKEN": *"[^"]*"' "$HOME/.claude.json" 2>/dev/null | cut -d'"' -f4)
+    _url=$(grep -o '"ANTHROPIC_BASE_URL": *"[^"]*"' "$HOME/.claude.json" 2>/dev/null | cut -d'"' -f4)
+    _model=$(grep -o '"ANTHROPIC_MODEL": *"[^"]*"' "$HOME/.claude.json" 2>/dev/null | cut -d'"' -f4)
+
+    if [[ -n "$_key" && -n "$_url" && -n "$_model" ]]; then
+        CURRENT_CONFIGURED="已配置"
+        echo ""
+        echo "  API 地址: ${_url}"
+        echo "  API Key:  ${_key:0:15}..."
+        echo "  模型:     $_model"
     fi
 fi
 
-echo ""
-if [[ "$MODE" == "init" ]]; then
-    echo "🚀 开始初始化 Claude Code 配置..."
-else
-    echo "🚀 开始更新 Claude Code 配置..."
+if [[ "$CURRENT_CONFIGURED" == "未配置" ]]; then
+    echo ""
+    print_warning "尚未配置 API"
 fi
+
+echo ""
+echo "=========================================="
+echo "  ⚙️  请选择操作"
+echo "=========================================="
+echo ""
+echo "  1) 保持现有配置"
+echo "  2) 修改配置"
+echo ""
+read -p "请输入选项 [1]: " choice
+choice="${choice:-1}"
+
+if [[ "$choice" != "2" ]]; then
+    echo ""
+    print_info "已取消，保持现有配置"
+    echo ""
+    echo "========================================"
+    echo "  📋 下一步操作"
+    echo "========================================"
+    echo ""
+    echo "  1. 运行以下命令加载 PATH："
+    echo "     source ~/.bashrc"
+    echo ""
+    echo "  2. 配置环境 + 建立符号链接："
+    echo "     bash claude-config/scripts/bash/init03env.sh"
+    echo ""
+    exit 0
+fi
+
+echo ""
+echo "🚀 开始配置 Claude Code API..."
 echo "=========================================="
 echo ""
 
@@ -440,11 +470,7 @@ if [[ ":$PATH:" != *":$LOCAL_BIN:"* ]]; then
 fi
 
 echo ""
-if [[ "$MODE" == "init" ]]; then
-    echo "🎉 Claude Code 安装和初始化完成！"
-else
-    echo "🎉 Claude Code 配置更新完成！"
-fi
+echo "🎉 Claude Code 配置完成！"
 echo ""
 echo "========================================"
 echo "  📋 下一步操作"
