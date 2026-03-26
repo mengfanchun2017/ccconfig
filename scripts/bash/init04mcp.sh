@@ -287,29 +287,13 @@ PYEOF
 
         # 获取 projectRef
         project_ref=$(python3 - "$CLAUDE_JSON" << 'PYEOF'
-import json
-import sys
+import json, sys
 try:
-    with open(sys.argv[1], 'r') as f:
-        data = json.load(f)
-
-    supabase = data.get('mcpServers', {}).get('supabase', {})
-    if supabase:
-        env = supabase.get('env', {})
-        print(env.get('SUPABASE_PROJECT_ID', '<your-supabase-project-id>'))
-        sys.exit(0)
-
-    projects = data.get('projects', {})
-    for proj_path, proj_data in projects.items():
-        proj_supabase = proj_data.get('mcpServers', {}).get('supabase', {})
-        if proj_supabase:
-            env = proj_supabase.get('env', {})
-            print(env.get('SUPABASE_PROJECT_ID', '<your-supabase-project-id>'))
-            sys.exit(0)
-
-    print('<your-supabase-project-id>')
+    d=json.load(open(sys.argv[1]))
+    s=d.get('mcpServers',{}).get('supabase',{}).get('env',{})
+    print(s.get('SUPABASE_PROJECT_ID','<your-supabase-project-id>'), end='')
 except:
-    print('<your-supabase-project-id>')
+    print('<your-supabase-project-id>', end='')
 PYEOF
 )
 
