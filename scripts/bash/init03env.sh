@@ -431,9 +431,6 @@ main() {
     echo "  安装 MCP 服务器："
     echo "  bash claude-config/scripts/bash/init04mcp.sh"
     echo ""
-    echo "  或运行每日启动（同步 + 开始工作）："
-    echo "  bash claude-config/scripts/bash/start.sh"
-    echo ""
 }
 
 main "$@"
