@@ -284,8 +284,6 @@ PYEOF
     if [[ -z "$current_token" ]] || [[ ! "$current_token" == sbp_* ]]; then
         echo ""
         section "🔑 Supabase MCP 配置"
-        echo -e "  ${CYAN}Supabase MCP 需要访问令牌来操作数据库${NC}"
-        echo ""
 
         # 获取 projectRef
         project_ref=$(python3 - "$CLAUDE_JSON" << 'PYEOF'
@@ -314,17 +312,30 @@ except:
     print('<your-supabase-project-id>')
 PYEOF
 )
+
+        echo -e "  ${CYAN}当前状态:${NC}"
+        if [[ -n "$current_token" ]]; then
+            echo "  Token: ${current_token:0:15}..."
+        else
+            echo "  Token: 未配置"
+        fi
         echo "  项目ID: $project_ref"
         echo ""
 
-        # 提示输入 token
-        echo -n "  请输入 SUPABASE_ACCESS_TOKEN (sbp_...): "
+        echo -e "  ${YELLOW}SUPABASE_ACCESS_TOKEN 说明:${NC}"
+        echo "  - 这是 Supabase 账户级别的 Personal Access Token (PAT)"
+        echo "  - 格式: sbp_ 开头"
+        echo "  - 不是项目的 anon key (eyJ_ 开头)"
+        echo "  - 获取: https://supabase.com/dashboard/account/tokens"
+        echo ""
+
+        echo -n "  请输入 SUPABASE_ACCESS_TOKEN (sbp_...)，直接回车跳过: "
         read -s supabase_token
         echo ""
 
         if [[ -n "$supabase_token" ]]; then
             # 更新 ~/.claude.json，使用 env 方式
-            python3 - "$CLAUDE_JSON" "$supabase_token" "$project_ref" << 'PYEOF'
+            if python3 - "$CLAUDE_JSON" "$supabase_token" "$project_ref" << 'PYEOF'
 import json
 import sys
 
@@ -351,14 +362,11 @@ try:
 
     with open(sys.argv[1], 'w') as f:
         json.dump(data, f, indent=2)
-
-    print('ok')
 except Exception as e:
     print(f"Error: {e}")
     sys.exit(1)
 PYEOF
-
-            if [[ "$?" == "0" ]]; then
+            then
                 good "✅ Supabase token 已配置"
                 # 重启 MCP
                 claude mcp stop supabase 2>/dev/null || true
@@ -367,7 +375,7 @@ PYEOF
                 bad "❌ Supabase token 配置失败"
             fi
         else
-            warn "  Token 为空，已跳过"
+            info "已跳过"
         fi
     fi
 
