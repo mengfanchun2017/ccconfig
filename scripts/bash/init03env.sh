@@ -144,8 +144,9 @@ verify_uv() {
 # ========== Playwright 浏览器 ==========
 check_playwright_installed() {
     if check_command npx; then
-        if npx playwright --version &>/dev/null; then
-            local version=$(npx playwright --version 2>/dev/null || echo "unknown")
+        # 使用 timeout 避免 npx 长时间卡住（最多 10 秒）
+        local version=$(timeout 10 npx playwright --version 2>/dev/null || echo "")
+        if [[ -n "$version" ]]; then
             info "Playwright 已安装: $version"
             return 0
         fi
@@ -193,7 +194,7 @@ verify_playwright() {
     echo ""
     info "Playwright 验证:"
     if check_command npx; then
-        echo "  npx playwright: $(npx playwright --version 2>/dev/null || echo '未安装')"
+        echo "  npx playwright: $(timeout 10 npx playwright --version 2>/dev/null || echo '未安装')"
         echo "  浏览器缓存: $(ls ~/.cache/ms-playwright/ 2>/dev/null | wc -l) 个"
     fi
     echo ""
