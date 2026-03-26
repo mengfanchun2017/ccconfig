@@ -428,11 +428,11 @@ main() {
     echo "  📋 下一步操作"
     echo "========================================"
     echo ""
-    echo "  1. 运行 init04mcp.sh 安装具体的 MCP 服务器"
-    echo "     bash claude-config/scripts/bash/init04mcp.sh"
+    echo "  安装 MCP 服务器："
+    echo "  bash claude-config/scripts/bash/init04mcp.sh"
     echo ""
-    echo "  2. 运行 start.sh 开始工作"
-    echo "     bash claude-config/scripts/bash/start.sh"
+    echo "  或运行每日启动（同步 + 开始工作）："
+    echo "  bash claude-config/scripts/bash/start.sh"
     echo ""
 }
 
