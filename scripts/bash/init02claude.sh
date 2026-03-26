@@ -85,6 +85,9 @@ echo "  📦 Claude Code 安装检查"
 echo "=========================================="
 echo ""
 
+# 确保 PATH 包含 ~/.local/bin（安装后 .bashrc 已更新但当前会话可能未加载）
+export PATH="$HOME/.local/bin:$PATH"
+
 if command -v claude &> /dev/null; then
     # 提取版本号，例如从 "2.1.81 (Claude Code)" 中提取 "2.1.81"
     CURRENT_VERSION=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "未知版本")
