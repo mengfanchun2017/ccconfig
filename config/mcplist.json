@@ -54,17 +54,17 @@
       "install": "npx -y @supabase/mcp-server-supabase",
       "install_local": "npm install -g @supabase/mcp-server-supabase",
       "needsKey": true,
-      "keyEnv": "SUPABASE_ACCESS_TOKEN",
+      "keyEnv": "SUPABASE_PROJECT_ACCESS_TOKEN",
       "keyEnv2": "SUPABASE_PROJECT_ID",
-      "keyUrl": "https://supabase.com/dashboard/account/tokens",
+      "keyUrl": "https://supabase.com/dashboard/project/<your-supabase-project-id>/settings/api",
       "projectRef": "<your-supabase-project-id>",
       "command": "npx",
       "args": ["-y", "@supabase/mcp-server-supabase"],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "",
+        "SUPABASE_PROJECT_ACCESS_TOKEN": "",
         "SUPABASE_PROJECT_ID": "<your-supabase-project-id>"
       },
-      "note": "需要 SUPABASE_ACCESS_TOKEN (sbp_开头) 和 SUPABASE_PROJECT_ID",
+      "note": "需要项目级 API Key (设置 -> API -> project_access_token)",
       "doc_url": "https://supabase.com/docs/guides/getting-started/mcp"
     }
   ]
