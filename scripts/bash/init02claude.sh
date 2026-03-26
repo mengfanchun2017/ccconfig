@@ -453,25 +453,31 @@ fi
 
 # 确保 ~/.local/bin 在 PATH 中
 LOCAL_BIN="$HOME/.local/bin"
+PATH_WAS_UPDATED=false
 if [[ ":$PATH:" != *":$LOCAL_BIN:"* ]]; then
     if ! grep -q "\.local/bin" "$HOME/.bashrc" 2>/dev/null; then
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
     fi
     export PATH="$LOCAL_BIN:$PATH"
+    PATH_WAS_UPDATED=true
 fi
 
 echo ""
 echo "🎉 Claude Code 配置完成！"
+
+if [[ "$PATH_WAS_UPDATED" == "true" ]]; then
+    echo ""
+    echo "⚠️  PATH 已更新，请关闭此终端重新打开"
+    echo "   或在当前终端执行: source ~/.bashrc"
+fi
+
 echo ""
 echo "========================================"
 echo "  📋 下一步操作"
 echo "========================================"
 echo ""
-echo "  1. 运行以下命令加载 PATH："
-echo "     source ~/.bashrc"
-echo ""
-echo "  2. 配置环境 + 建立符号链接："
-echo "     bash claude-config/scripts/bash/init03env.sh"
+echo "  配置环境 + 建立符号链接："
+echo "  bash claude-config/scripts/bash/init03env.sh"
 echo ""
 if [[ "$key_choice" == "1" || ( -n "$API_KEY" && "$API_KEY" != "$EXISTING_KEY" ) ]]; then
     print_warning "API 密钥已更新并写入 ~/.claude.json"
