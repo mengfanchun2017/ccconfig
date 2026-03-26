@@ -163,7 +163,7 @@ scripts\pwsh\init04mcp.ps1
 
 **Linux / Mac:**
 ```bash
-./scripts/bash/init04mcp.sh
+bash claude-config/scripts/bash/init04mcp.sh
 ```
 
 功能：
@@ -780,20 +780,20 @@ claude mcp list
 cd ~/git/claude-config
 
 # 01: 安装 Git + GitHub CLI + 克隆/更新仓库
-bash scripts/bash/init01git.sh
+bash claude-config/scripts/bash/init01git.sh
 
 # 02: 安装 Claude Code + 配置 API
-bash scripts/bash/init02claude.sh
+bash claude-config/scripts/bash/init02claude.sh
 source ~/.bashrc
 
 # 03: 安装 Node.js + uv + Playwright + 字体 + 符号链接
-bash scripts/bash/init03env.sh
+bash claude-config/scripts/bash/init03env.sh
 
 # 04: 检查/安装 MCP 服务器
-bash scripts/bash/init04mcp.sh
+bash claude-config/scripts/bash/init04mcp.sh
 
 # 可选: 配置浏览器后端（如果需要）
-bash scripts/bash/initoptplaywright.sh
+bash claude-config/scripts/bash/initoptplaywright.sh
 
 # 最后: 同步配置
 bash scripts/bash/start.sh
@@ -828,14 +828,14 @@ cd C:\git\claude-config
 
 ```bash
 # 只更新仓库和配置
-bash scripts/bash/init01git.sh
+bash claude-config/scripts/bash/init01git.sh
 bash scripts/bash/start.sh
 
 # 只检查/安装 MCP
-bash scripts/bash/init04mcp.sh
+bash claude-config/scripts/bash/init04mcp.sh
 
 # 重新配置浏览器后端
-bash scripts/bash/initoptplaywright.sh
+bash claude-config/scripts/bash/initoptplaywright.sh
 ```
 
 ---
