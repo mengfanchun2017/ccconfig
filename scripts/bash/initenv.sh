@@ -147,11 +147,31 @@ install_playwright_browsers() {
     fi
 
     info "安装 Playwright chromium (官方推荐)..."
-    if npx playwright install chromium 2>&1; then
+
+    # 先在临时目录安装 playwright（避免项目目录未初始化导致的警告）
+    local tmp_dir="/tmp/pw-install-$$"
+    mkdir -p "$tmp_dir"
+    cd "$tmp_dir"
+    npm init -y > /dev/null 2>&1
+    npm install playwright > /dev/null 2>&1
+
+    # 使用临时目录的 playwright 安装 chromium
+    if ./node_modules/.bin/playwright install chromium 2>&1; then
         good "Chromium 安装成功"
     else
-        warn "Chromium 安装可能需要 sudo 权限"
+        # 降级：尝试直接使用 npx
+        warn "尝试使用 npx 安装..."
+        cd - > /dev/null
+        if npx playwright install chromium 2>&1; then
+            good "Chromium 安装成功"
+        else
+            warn "Chromium 安装可能需要 sudo 权限"
+        fi
     fi
+
+    # 清理临时目录
+    cd - > /dev/null
+    rm -rf "$tmp_dir"
 }
 
 verify_playwright() {
@@ -176,18 +196,20 @@ check_chinese_fonts() {
 install_chinese_fonts() {
     section "安装中文字体"
 
-    info "安装 Noto CJK 中文字体..."
+    # 使用 wqy-microhei (文泉驿微米黑) - 体积小，兼容性好，一个字体覆盖简繁体
+    info "安装文泉驿微米黑中文字体..."
     if command -v apt-get &>/dev/null; then
+        local fonts_pkg="fonts-wqy-microhei"
         # 检测 sudo
         if command -v sudo &>/dev/null; then
-            sudo apt-get update && sudo apt-get install -y fonts-noto-cjk fontconfig 2>&1 || {
+            sudo apt-get update && sudo apt-get install -y $fonts_pkg fontconfig 2>&1 || {
                 warn "需要 sudo 权限，请手动执行:"
-                echo "  sudo apt-get install fonts-noto-cjk fontconfig"
+                echo "  sudo apt-get install $fonts_pkg fontconfig"
             }
         else
-            apt-get update && apt-get install -y fonts-noto-cjk fontconfig 2>&1 || {
+            apt-get update && apt-get install -y $fonts_pkg fontconfig 2>&1 || {
                 warn "需要 root 权限，请手动执行:"
-                echo "  apt-get install fonts-noto-cjk fontconfig"
+                echo "  apt-get install $fonts_pkg fontconfig"
             }
         fi
         fc-cache -f 2>/dev/null && info "字体缓存已刷新" || true
