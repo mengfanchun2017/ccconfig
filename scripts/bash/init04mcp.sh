@@ -240,14 +240,16 @@ check_supabase_config() {
 
     [[ "$has_supabase" == "false" ]] && return 0
 
+    # 从 mcplist 获取 projectRef
     local supabase_entry=""
-    # 获取 mcplist 中的 supabase 配置
-    while IFS='|' read -r name desc type install install_local needs_key key_env key_url command args; do
+    local project_ref="<your-supabase-project-id>"
+    while IFS='|' read -r name desc type install install_local needs_key key_env key_url command args extra1 extra2; do
         [[ "$name" == "supabase" ]] && supabase_entry="$install" && break
     done <<< "$McpNames"
 
-    # 检查 ~/.claude.json 中 supabase 是否已配置正确的 token（检查 root 和 project 级别）
-    local current_config=$(python3 - "$CLAUDE_JSON" << 'PYEOF'
+    # 检查 ~/.claude.json 中 supabase 是否已配置正确的 token
+    # 新版本使用 env.SUPABASE_ACCESS_TOKEN
+    local current_token=$(python3 - "$CLAUDE_JSON" << 'PYEOF'
 import json
 import sys
 try:
@@ -257,22 +259,20 @@ try:
     # 1. 检查 root-level mcpServers
     supabase = data.get('mcpServers', {}).get('supabase', {})
     if supabase:
-        args = supabase.get('args', [])
-        for i, arg in enumerate(args):
-            if arg == '--access-token' and i+1 < len(args):
-                print(args[i+1])
-                sys.exit(0)
+        env = supabase.get('env', {})
+        if env.get('SUPABASE_ACCESS_TOKEN', '').startswith('sbp_'):
+            print(env.get('SUPABASE_ACCESS_TOKEN', ''))
+            sys.exit(0)
 
     # 2. 检查 project-level mcpServers
     projects = data.get('projects', {})
     for proj_path, proj_data in projects.items():
         proj_supabase = proj_data.get('mcpServers', {}).get('supabase', {})
         if proj_supabase:
-            args = proj_supabase.get('args', [])
-            for i, arg in enumerate(args):
-                if arg == '--access-token' and i+1 < len(args):
-                    print(args[i+1])
-                    sys.exit(0)
+            env = proj_supabase.get('env', {})
+            if env.get('SUPABASE_ACCESS_TOKEN', '').startswith('sbp_'):
+                print(env.get('SUPABASE_ACCESS_TOKEN', ''))
+                sys.exit(0)
 
     print('')
 except:
@@ -280,10 +280,41 @@ except:
 PYEOF
 )
 
-    if [[ -z "$current_config" ]] || [[ "$current_config" == "<YOUR_TOKEN>" ]]; then
+    # 如果没有有效的 sbp_ token，提示用户输入
+    if [[ -z "$current_token" ]] || [[ ! "$current_token" == sbp_* ]]; then
         echo ""
         section "🔑 Supabase MCP 配置"
         echo -e "  ${CYAN}Supabase MCP 需要访问令牌来操作数据库${NC}"
+        echo ""
+
+        # 获取 projectRef
+        project_ref=$(python3 - "$CLAUDE_JSON" << 'PYEOF'
+import json
+import sys
+try:
+    with open(sys.argv[1], 'r') as f:
+        data = json.load(f)
+
+    supabase = data.get('mcpServers', {}).get('supabase', {})
+    if supabase:
+        env = supabase.get('env', {})
+        print(env.get('SUPABASE_PROJECT_ID', '<your-supabase-project-id>'))
+        sys.exit(0)
+
+    projects = data.get('projects', {})
+    for proj_path, proj_data in projects.items():
+        proj_supabase = proj_data.get('mcpServers', {}).get('supabase', {})
+        if proj_supabase:
+            env = proj_supabase.get('env', {})
+            print(env.get('SUPABASE_PROJECT_ID', '<your-supabase-project-id>'))
+            sys.exit(0)
+
+    print('<your-supabase-project-id>')
+except:
+    print('<your-supabase-project-id>')
+PYEOF
+)
+        echo "  项目ID: $project_ref"
         echo ""
 
         # 提示输入 token
@@ -292,10 +323,7 @@ PYEOF
         echo ""
 
         if [[ -n "$supabase_token" ]]; then
-            # 获取 project-ref (从 mcplist 的 install 字段)
-            local project_ref=$(echo "$supabase_entry" | grep -oP '(?<=--project-ref\s)\S+' || echo "<your-supabase-project-id>")
-
-            # 更新 ~/.claude.json
+            # 更新 ~/.claude.json，使用 env 方式
             python3 - "$CLAUDE_JSON" "$supabase_token" "$project_ref" << 'PYEOF'
 import json
 import sys
@@ -307,33 +335,19 @@ try:
     token = sys.argv[2]
     project_ref = sys.argv[3]
 
-    # 查找 supabase MCP 配置
+    # 初始化 mcpServers
     if 'mcpServers' not in data:
         data['mcpServers'] = {}
 
-    if 'supabase' not in data['mcpServers']:
-        data['mcpServers']['supabase'] = {
-            'command': 'npx',
-            'args': ['-y', '@supabase/mcp-server-supabase', '--project-ref', project_ref, '--access-token', token]
+    # 更新 supabase 配置，使用 env 方式
+    data['mcpServers']['supabase'] = {
+        'command': 'npx',
+        'args': ['-y', '@supabase/mcp-server-supabase'],
+        'env': {
+            'SUPABASE_ACCESS_TOKEN': token,
+            'SUPABASE_PROJECT_ID': project_ref
         }
-    else:
-        # 更新现有的 token
-        args = data['mcpServers']['supabase'].get('args', [])
-        new_args = []
-        skip_next = False
-        for arg in args:
-            if skip_next:
-                skip_next = False
-                continue
-            if arg == '--access-token':
-                new_args.append(arg)
-                new_args.append(token)
-                skip_next = True
-            elif arg == '<YOUR_TOKEN>':
-                new_args.append(token)
-            else:
-                new_args.append(arg)
-        data['mcpServers']['supabase']['args'] = new_args
+    }
 
     with open(sys.argv[1], 'w') as f:
         json.dump(data, f, indent=2)
