@@ -82,8 +82,13 @@ echo ""
 # ========== Git 拉取（暂存更改后操作）==========
 echo "[2/5] 暂存本地更改..."
 git add .
-git stash
-echo "✅ 已暂存"
+if git stash | grep -q "No local changes to save"; then
+    echo "(无本地更改需要暂存)"
+    STASHED=false
+else
+    echo "✅ 已暂存"
+    STASHED=true
+fi
 
 echo "[3/5] 检查远程更新..."
 if git pull --rebase origin main; then
@@ -103,10 +108,14 @@ echo ""
 
 # ========== 恢复并重新提交 ==========
 echo "[4/5] 恢复本地更改..."
-if git stash pop 2>&1; then
-    echo "✅ 已恢复"
+if [[ "$STASHED" == "true" ]]; then
+    if git stash pop 2>&1; then
+        echo "✅ 已恢复"
+    else
+        echo "⚠️  恢复时有冲突，请手动检查"
+    fi
 else
-    echo "⚠️  恢复时有冲突，请手动检查"
+    echo "(无暂存内容，跳过恢复)"
 fi
 
 # 重新 add
