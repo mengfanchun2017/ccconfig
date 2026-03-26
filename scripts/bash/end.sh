@@ -86,18 +86,24 @@ git stash
 echo "✅ 已暂存"
 
 echo "[3/5] 检查远程更新..."
-git pull --rebase || {
-    echo "⚠️  拉取冲突，正在恢复暂存..."
-    git stash pop
-    echo "❌ 请手动解决冲突后重试"
+if git pull --rebase origin main; then
+    echo "✅ 已同步远程更新"
+else
+    echo "⚠️  拉取失败，尝试恢复暂存..."
+    if git stash pop 2>&1; then
+        echo "⚠️  已恢复本地更改，但未推送"
+    else
+        echo "❌ 有冲突，请手动解决后重试"
+        echo "   冲突文件："
+        git diff --name-only --diff-filter=U
+    fi
     exit 1
-}
-echo "✅ 已同步远程更新"
+fi
 echo ""
 
 # ========== 恢复并重新提交 ==========
 echo "[4/5] 恢复本地更改..."
-if git stash pop; then
+if git stash pop 2>&1; then
     echo "✅ 已恢复"
 else
     echo "⚠️  恢复时有冲突，请手动检查"

@@ -18,6 +18,19 @@
 
 set -e
 
+# ========== 颜色定义 ==========
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+# ========== 通用函数 ==========
+info() { echo -e "${GREEN}[INFO]${NC} $1"; }
+good() { echo -e "${GREEN}[ OK ]${NC} $1"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+error() { echo -e "${RED}[ERROR]${NC} $1"; }
+section() { echo ""; echo -e "${YELLOW}=== $1 ===${NC}"; }
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CLAUDE_DIR="$HOME/.claude"
@@ -32,6 +45,39 @@ echo "Claude 目录: $CLAUDE_DIR"
 echo ""
 
 # ========== Git Pull ==========
+# 先切换到仓库目录
+cd "$REPO_DIR"
+
+# 如果本地有更改，先 stash，pull 后再 pop
+echo "[1/4] 从 GitHub 拉取最新配置..."
+if ! git fetch origin main 2>/dev/null; then
+    warn "无法连接远程仓库，跳过拉取"
+elif [ "$(git rev HEAD..origin/main 2>/dev/null)" != "" ]; then
+    # 有远程更新
+    if ! git stash list | grep -q "No local changes to save"; then
+        # 有未提交的更改需要 stash
+        info "本地有未提交的更改，先暂存..."
+        git stash push -m "start.sh auto stash" 2>/dev/null || true
+    fi
+
+    if git pull --rebase origin main; then
+        good "成功拉取最新配置"
+
+        # 恢复本地 stash
+        if git stash list | grep -q "start.sh auto stash"; then
+            info "恢复本地更改..."
+            git stash pop
+        fi
+    else
+        warn "拉取失败，请手动检查"
+        # 尝试恢复 stash
+        git stash pop 2>/dev/null || true
+    fi
+else
+    good "已是最新配置"
+fi
+echo ""
+
 # ========== 符号链接检查函数 ==========
 setup_symlink() {
     local link="$1"
@@ -51,11 +97,6 @@ setup_symlink() {
     echo "   🔗 $name: 重新创建链接"
     return 0
 }
-
-echo "[1/4] 从 GitHub 拉取最新配置..."
-git pull
-echo "✅ 成功拉取最新配置"
-echo ""
 
 # ========== 获取项目信息 ==========
 CLAUDE_PROJECT_PATH="$(pwd)"
