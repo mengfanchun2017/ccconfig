@@ -317,8 +317,8 @@ main() {
 
     # Playwright 浏览器
     section "检测 Playwright 浏览器"
-    if ls ~/.cache/ms-playwright/chromium-*/chrome-linux/chrome &>/dev/null || \
-       ls ~/.cache/ms-playwright/chromium_headless_shell-*/chrome-linux/chrome &>/dev/null; then
+    if ls ~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome &>/dev/null || \
+       ls ~/.cache/ms-playwright/chromium_headless_shell-*/chrome-linux64/chrome &>/dev/null; then
         warn "跳过浏览器安装（已存在）"
     else
         install_playwright_browsers
