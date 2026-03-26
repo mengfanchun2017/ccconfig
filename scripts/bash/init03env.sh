@@ -3,7 +3,7 @@
 # 用途：安装运行时环境依赖 + 建立符号链接
 #
 # 使用方法（从仓库上级目录运行）：
-#   bash scripts/bash/init03env.sh
+#   bash claude-config/scripts/bash/init03env.sh
 #
 # 此脚本会：
 #   1. 安装 MCP 服务器所需的运行时环境
@@ -17,7 +17,7 @@
 #      - MEMORY.md → ~/.claude/projects/.../memory/MEMORY.md
 #
 # 安装完成后，请运行 init04mcp.sh 安装具体的 MCP 服务器：
-#   bash scripts/bash/init04mcp.sh
+#   bash claude-config/scripts/bash/init04mcp.sh
 
 set -e
 
@@ -382,10 +382,10 @@ main() {
     echo "========================================"
     echo ""
     echo "  1. 运行 init04mcp.sh 安装具体的 MCP 服务器"
-    echo "     bash scripts/bash/init04mcp.sh"
+    echo "     bash claude-config/scripts/bash/init04mcp.sh"
     echo ""
     echo "  2. 运行 start.sh 开始工作"
-    echo "     bash scripts/bash/start.sh"
+    echo "     bash claude-config/scripts/bash/start.sh"
     echo ""
 }
 
