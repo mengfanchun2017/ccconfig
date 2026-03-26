@@ -187,8 +187,7 @@ echo -n "克隆到目录 [默认: $DEFAULT_TARGET]: "
 read TARGET_DIR
 TARGET_DIR="${TARGET_DIR:-$DEFAULT_TARGET}"
 
-# -------------------------- 克隆仓库 --------------------------
-print_info "正在克隆仓库..."
+# -------------------------- 检查/克隆仓库 --------------------------
 print_info "仓库: $REPO"
 print_info "目标: $TARGET_DIR"
 
@@ -196,36 +195,130 @@ print_info "目标: $TARGET_DIR"
 PARENT_DIR=$(dirname "$TARGET_DIR")
 mkdir -p "$PARENT_DIR"
 
-# 重试逻辑
-MAX_RETRIES=3
-RETRY_COUNT=0
+# 检查目标目录是否已存在
+if [[ -d "$TARGET_DIR" ]]; then
+    # 目录已存在，检查是否是 git 仓库
+    if [[ -d "$TARGET_DIR/.git" ]]; then
+        # 是 git 仓库，检查是否是同一个仓库
+        cd "$TARGET_DIR"
+        CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null | sed 's/\.git$//' | sed 's|git@github.com:|https://github.com/|')
+        EXPECTED_REMOTE="https://github.com/$REPO"
 
-while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
-    if gh repo clone "$REPO" "$TARGET_DIR" 2>&1; then
-        print_success "克隆完成!"
-        break
-    else
-        RETRY_COUNT=$((RETRY_COUNT + 1))
-        if [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; then
+        if [[ "$CURRENT_REMOTE" == "$EXPECTED_REMOTE" ]] || [[ "git@github.com:$REPO" == "$CURRENT_REMOTE" ]]; then
             echo ""
-            print_warning "网络错误 (尝试 $RETRY_COUNT/$MAX_RETRIES)"
+            print_info "检测到已有仓库: $TARGET_DIR"
             echo ""
-            echo "请选择："
-            echo "  [R] 重试 - 网络弄好了继续"
-            echo "  [Q] 退出"
+            echo "请选择操作："
+            echo "  1) 更新仓库 (git pull) - 拉取最新代码"
+            echo "  2) 跳过克隆 - 保持现有状态"
+            echo "  3) 退出"
             echo ""
-            read -p "请输入 [R]: " choice
-            choice="${choice:-R}"
-            if [[ "$choice" == "q" || "$choice" == "Q" ]]; then
+            read -p "请输入选项 [1]: " clone_choice
+            clone_choice="${clone_choice:-1}"
+
+            if [[ "$clone_choice" == "1" ]]; then
+                print_info "正在更新仓库..."
+                if git pull origin main; then
+                    print_success "仓库更新完成!"
+                else
+                    print_warning "更新失败，请手动检查"
+                fi
+            elif [[ "$clone_choice" == "2" ]]; then
+                print_info "跳过克隆操作"
+            else
                 print_info "已退出"
                 exit 0
             fi
         else
-            print_error "已达到最大重试次数"
-            exit 1
+            # 目录存在但不是同一个仓库
+            echo ""
+            print_warning "目标目录已存在，但不是同一个仓库"
+            echo "  当前仓库: $CURRENT_REMOTE"
+            echo "  期望仓库: $EXPECTED_REMOTE"
+            echo ""
+            echo "请选择操作："
+            echo "  1) 删除旧目录并重新克隆"
+            echo "  2) 改名克隆到其他目录"
+            echo "  3) 退出"
+            echo ""
+            read -p "请输入选项 [2]: " fix_choice
+            fix_choice="${fix_choice:-2}"
+
+            if [[ "$fix_choice" == "1" ]]; then
+                print_info "删除旧目录..."
+                rm -rf "$TARGET_DIR"
+            elif [[ "$fix_choice" == "2" ]]; then
+                TIMESTAMP=$(date +%Y%m%d%H%M%S)
+                NEW_TARGET="${TARGET_DIR}-old-${TIMESTAMP}"
+                print_info "将旧目录移动到: $NEW_TARGET"
+                mv "$TARGET_DIR" "$NEW_TARGET"
+            else
+                print_info "已退出"
+                exit 0
+            fi
+        fi
+    else
+        # 目录存在但不是 git 仓库
+        echo ""
+        print_warning "目标目录已存在，但不是 git 仓库"
+        echo ""
+        echo "请选择操作："
+        echo "  1) 删除并重新克隆"
+        echo "  2) 改名克隆到其他目录"
+        echo "  3) 退出"
+        echo ""
+        read -p "请输入选项 [2]: " fix_choice
+        fix_choice="${fix_choice:-2}"
+
+        if [[ "$fix_choice" == "1" ]]; then
+            rm -rf "$TARGET_DIR"
+        elif [[ "$fix_choice" == "2" ]]; then
+            TIMESTAMP=$(date +%Y%m%d%H%M%S)
+            NEW_TARGET="${TARGET_DIR}-old-${TIMESTAMP}"
+            print_info "将旧目录移动到: $NEW_TARGET"
+            mv "$TARGET_DIR" "$NEW_TARGET"
+        else
+            print_info "已退出"
+            exit 0
         fi
     fi
-done
+fi
+
+# 如果目录不存在，执行克隆
+if [[ ! -d "$TARGET_DIR" ]]; then
+    print_info "正在克隆仓库..."
+
+    # 重试逻辑
+    MAX_RETRIES=3
+    RETRY_COUNT=0
+
+    while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
+        if gh repo clone "$REPO" "$TARGET_DIR" 2>&1; then
+            print_success "克隆完成!"
+            break
+        else
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; then
+                echo ""
+                print_warning "网络错误 (尝试 $RETRY_COUNT/$MAX_RETRIES)"
+                echo ""
+                echo "请选择："
+                echo "  [R] 重试 - 网络弄好了继续"
+                echo "  [Q] 退出"
+                echo ""
+                read -p "请输入 [R]: " choice
+                choice="${choice:-R}"
+                if [[ "$choice" == "q" || "$choice" == "Q" ]]; then
+                    print_info "已退出"
+                    exit 0
+                fi
+            else
+                print_error "已达到最大重试次数"
+                exit 1
+            fi
+        fi
+    done
+fi
 
 # -------------------------- 完成 --------------------------
 echo "🎉 Git + GitHub 环境初始化完成！"
@@ -237,5 +330,5 @@ echo "  📋 下一步操作"
 echo "========================================"
 echo ""
 echo "  1. 安装并配置 Claude Code："
-echo "     bash claude-config/scripts/bash/initclaude.sh"
+echo "     bash scripts/bash/init02claude.sh"
 echo ""

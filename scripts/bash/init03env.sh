@@ -96,6 +96,21 @@ verify_nodejs() {
     echo ""
 }
 
+setup_path() {
+    # 确保 ~/.local/bin 在 PATH 中
+    local local_bin="$HOME/.local/bin"
+    if [[ ":$PATH:" != *":$local_bin:"* ]]; then
+        info "添加 $local_bin 到 PATH..."
+        if ! grep -q "\.local/bin" "$HOME/.bashrc" 2>/dev/null; then
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+        fi
+        export PATH="$local_bin:$PATH"
+        good "PATH 已更新"
+    else
+        info "PATH 已包含 $local_bin"
+    fi
+}
+
 # ========== uv (Python 包管理器) ==========
 check_uv_installed() {
     if check_command uvx || check_command uv; then
@@ -256,6 +271,9 @@ main() {
         install_nodejs
         verify_nodejs
     fi
+
+    # 确保 PATH 包含 ~/.local/bin
+    setup_path
 
     # uv
     section "检测 uv"
