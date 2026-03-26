@@ -449,15 +449,6 @@ EOF
     print_success "已添加环境变量到 ~/.bashrc"
 fi
 
-# -------------------------- 同步 settings.json --------------------------
-echo ""
-echo "📋 同步 settings.json..."
-mkdir -p "$CLAUDE_DIR"
-rm -f "$CLAUDE_DIR/settings.json" 2>/dev/null || true
-ln -sf "$REPO_DIR/config/settings.json" "$CLAUDE_DIR/settings.json"
-print_success "已建立 settings.json 符号链接"
-echo ""
-
 # -------------------------- 完成 --------------------------
 
 # 确保 ~/.local/bin 在 PATH 中
