@@ -171,18 +171,32 @@ install_playwright_browsers() {
     npm init -y > /dev/null 2>&1
     npm install playwright > /dev/null 2>&1
 
-    # 使用临时目录的 playwright 安装 chromium
-    if ./node_modules/.bin/playwright install chromium 2>&1; then
-        good "Chromium 安装成功"
-    else
-        # 降级：尝试直接使用 npx
-        warn "尝试使用 npx 安装..."
-        cd - > /dev/null
-        if npx playwright install chromium 2>&1; then
+    # 使用临时目录的 playwright 安装 chromium，添加超时
+    # 如果下载失败会重试3次，每次超时2分钟
+    local max_attempts=3
+    local attempt=1
+    local success=false
+
+    while [[ $attempt -le $max_attempts ]] && [[ "$success" == "false" ]]; do
+        echo ""
+        info "尝试 $attempt/$max_attempts..."
+
+        # 设置超时 120 秒，如果超时或失败则重试
+        if timeout 180 ./node_modules/.bin/playwright install chromium 2>&1; then
+            success=true
             good "Chromium 安装成功"
         else
-            warn "Chromium 安装可能需要 sudo 权限"
+            if [[ $attempt -lt $max_attempts ]]; then
+                warn "下载失败，10秒后重试..."
+                sleep 10
+            fi
+            attempt=$((attempt + 1))
         fi
+    done
+
+    if [[ "$success" == "false" ]]; then
+        warn "Chromium 下载失败，将跳过安装"
+        warn "可以稍后手动运行: npx playwright install chromium"
     fi
 
     # 清理临时目录
