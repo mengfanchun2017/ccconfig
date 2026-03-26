@@ -2,8 +2,8 @@
 # Claude Code 环境准备脚本
 # 用途：安装运行时环境依赖 + 建立符号链接
 #
-# 使用方法：
-#   bash claude-config/scripts/bash/initenv.sh
+# 使用方法（从仓库上级目录运行）：
+#   bash scripts/bash/init03env.sh
 #
 # 此脚本会：
 #   1. 安装 MCP 服务器所需的运行时环境
@@ -16,8 +16,8 @@
 #      - CLAUDE.md → ~/CLAUDE.md
 #      - MEMORY.md → ~/.claude/projects/.../memory/MEMORY.md
 #
-# 安装完成后，请运行 mcpcheck.sh 安装具体的 MCP 服务器：
-#   bash claude-config/scripts/bash/mcpcheck.sh
+# 安装完成后，请运行 init04mcp.sh 安装具体的 MCP 服务器：
+#   bash scripts/bash/init04mcp.sh
 
 set -e
 
@@ -381,11 +381,11 @@ main() {
     echo "  📋 下一步操作"
     echo "========================================"
     echo ""
-    echo "  1. 运行 mcpcheck.sh 安装具体的 MCP 服务器"
-    echo "     bash claude-config/scripts/bash/mcpcheck.sh"
+    echo "  1. 运行 init04mcp.sh 安装具体的 MCP 服务器"
+    echo "     bash scripts/bash/init04mcp.sh"
     echo ""
     echo "  2. 运行 start.sh 开始工作"
-    echo "     bash claude-config/scripts/bash/start.sh"
+    echo "     bash scripts/bash/start.sh"
     echo ""
 }
 

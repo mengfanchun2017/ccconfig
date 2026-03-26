@@ -3,13 +3,13 @@
 # 功能：对比 mcplist.json 与当前环境，提供专业交互选项
 #
 # ============================================================
-# 使用流程：
+# 使用流程（从仓库上级目录运行）：
 #
 #   第一步：安装 Node.js（如果还没有）
-#     bash scripts/bash/initnodejs.sh
+#     bash scripts/bash/init03env.sh
 #
 #   第二步：安装 MCP
-#     bash scripts/bash/mcpcheck.sh
+#     bash scripts/bash/init04mcp.sh
 #     - 选择要安装的 MCP
 #     - 脚本会调用 claude mcp add 配置到 ~/.claude.json
 #
