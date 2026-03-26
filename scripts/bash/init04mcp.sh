@@ -788,20 +788,25 @@ else
     echo -e "  1) 配置缺少的 API Key${GRAY} [无需配置]${NC}"
 fi
 
-echo -e "  2) 安装缺失的 MCP（需要命令可用）${GREEN} [有 ${#MissingArr[@]} 个]${NC}"
-echo -e "  3) 修复命令不可用的 MCP${GREEN} [有 ${#FailedCmdArr[@]} 个]${NC}"
+if [[ ${#MissingFromListArr[@]} -gt 0 ]]; then
+    echo -e "  2) 安装缺失的 MCP（需要命令可用）${GREEN} [有 ${#MissingFromListArr[@]} 个]${NC}"
+else
+    echo -e "  2) 安装缺失的 MCP（需要命令可用）${GRAY} [无需安装]${NC}"
+fi
 
 if [[ ${#FailedCmdArr[@]} -gt 0 ]]; then
+    echo -e "  3) 修复命令不可用的 MCP${GREEN} [有 ${#FailedCmdArr[@]} 个]${NC}"
     echo -e "  4) 尝试自动修复（使用 install_local）${GREEN} [有 ${#FailedCmdArr[@]} 个可修复]${NC}"
 else
+    echo -e "  3) 修复命令不可用的 MCP${GRAY} [无需修复]${NC}"
     echo -e "  4) 尝试自动修复（使用 install_local）${GRAY} [无需修复]${NC}"
 fi
 
-echo -e "  5) 补充缺失项到 mcplist.json${GREEN} [有 ${#ExtraInEnvArr[@]} 个额外项]${NC}"
-
 if [[ ${#ExtraInEnvArr[@]} -gt 0 ]]; then
+    echo -e "  5) 补充缺失项到 mcplist.json${GREEN} [有 ${#ExtraInEnvArr[@]} 个额外项]${NC}"
     echo -e "  6) 双向同步（安装+补充）${GREEN} [有 ${#ExtraInEnvArr[@]} 个]${NC}"
 else
+    echo -e "  5) 补充缺失项到 mcplist.json${GRAY} [无需补充]${NC}"
     echo -e "  6) 双向同步（安装+补充）${GRAY} [无需同步]${NC}"
 fi
 
@@ -815,7 +820,10 @@ echo ""
 # 验证选项有效性
 case "$choice" in
     1) [[ ${#RuntimeErrorArr[@]} -eq 0 ]] && choice="inv" ;;
+    2) [[ ${#MissingFromListArr[@]} -eq 0 ]] && choice="inv" ;;
+    3) [[ ${#FailedCmdArr[@]} -eq 0 ]] && choice="inv" ;;
     4) [[ ${#FailedCmdArr[@]} -eq 0 ]] && choice="inv" ;;
+    5) [[ ${#ExtraInEnvArr[@]} -eq 0 ]] && choice="inv" ;;
     6) [[ ${#ExtraInEnvArr[@]} -eq 0 ]] && choice="inv" ;;
 esac
 
