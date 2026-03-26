@@ -567,6 +567,9 @@ if [ ! -f "$MCP_LIST_FILE" ]; then
     exit 1
 fi
 
+# 确保 PATH 包含 ~/.local/bin
+export PATH="$HOME/.local/bin:$PATH"
+
 # 检查 claude 命令
 if ! command -v claude &> /dev/null; then
     bad "❌ Claude Code 未安装，请先运行 initgit.sh"
