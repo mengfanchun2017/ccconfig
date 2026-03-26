@@ -468,7 +468,8 @@ check_and_prompt_keys() {
         fi
 
         # Supabase 使用专用配置，跳过通用处理
-        if [[ "${name,,}" == "supabase" ]]; then
+        local name_lower=$(echo "$name" | tr '[:upper:]' '[:lower:]' | xargs)
+        if [[ "$name_lower" == "supabase" ]]; then
             continue
         fi
 
