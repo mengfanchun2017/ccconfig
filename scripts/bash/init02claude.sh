@@ -186,15 +186,7 @@ if [[ "$choice" != "2" ]]; then
     echo ""
     print_info "已取消，保持现有配置"
     echo ""
-    echo "========================================"
-    echo "  📋 下一步操作"
-    echo "========================================"
-    echo ""
-    echo "  1. 运行以下命令加载 PATH："
-    echo "     source ~/.bashrc"
-    echo ""
-    echo "  2. 配置环境 + 建立符号链接："
-    echo "     bash claude-config/scripts/bash/init03env.sh"
+    echo "下一步: bash claude-config/scripts/bash/init03env.sh"
     echo ""
     exit 0
 fi
