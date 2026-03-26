@@ -141,13 +141,19 @@ export PATH="$GH_DIR:$PATH"
 
 # -------------------------- GitHub 登录 --------------------------
 print_info "检查 GitHub 登录状态..."
-if gh auth status &> /dev/null; then
+# 先确保 PATH 包含 gh
+export PATH="$GH_DIR:$PATH"
+
+auth_result=$(gh auth status 2>&1)
+if echo "$auth_result" | grep -q "Logged in to"; then
     print_success "已登录 GitHub: $(gh api user --jq '.login')"
 else
     echo ""
     echo "=========================================="
     echo "  GitHub 登录"
     echo "=========================================="
+    echo ""
+    echo "提示: gh 凭据状态: $(echo "$auth_result" | head -1)"
     echo ""
     echo "操作步骤:"
     echo "  1. 下方会显示一个 8 位代码和网址"
