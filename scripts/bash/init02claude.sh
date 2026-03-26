@@ -453,7 +453,7 @@ echo "  1. 运行以下命令加载 PATH："
 echo "     source ~/.bashrc"
 echo ""
 echo "  2. 配置环境 + 建立符号链接："
-echo "     bash scripts/bash/init03env.sh"
+echo "     bash claude-config/scripts/bash/init03env.sh"
 echo ""
 if [[ "$key_choice" == "1" || ( -n "$API_KEY" && "$API_KEY" != "$EXISTING_KEY" ) ]]; then
     print_warning "API 密钥已更新并写入 ~/.claude.json"
