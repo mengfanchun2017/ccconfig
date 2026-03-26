@@ -51,20 +51,22 @@
 ```
 scripts/
 ├── bash/              # Linux/WSL/macOS 独立实现
-│   ├── start.sh       # 创建符号链接 + git pull
-│   ├── end.sh         # git add/commit/push
-│   ├── mcpcheck.sh    # MCP 环境检查
-│   ├── initgit.sh     # Git + GitHub CLI 安装
-│   ├── initclaude.sh  # Claude API 配置
-│   └── initmcp.sh     # Node.js + uv 安装
+│   ├── start.sh              # 创建符号链接 + git pull
+│   ├── end.sh                # git add/commit/push
+│   ├── init01git.sh          # 01: Git + GitHub CLI 安装 + 仓库克隆/更新
+│   ├── init02claude.sh       # 02: Claude Code 安装 + API 配置
+│   ├── init03env.sh          # 03: Node.js + uv + Playwright + 字体 + 符号链接
+│   ├── init04mcp.sh          # 04: MCP 服务器检查/安装
+│   └── initoptplaywright.sh  # 可选: Playwright 浏览器后端配置
 │
 ├── pwsh/              # Windows PowerShell 独立实现（与 bash 对称）
-│   ├── start.ps1      # 创建符号链接 + git pull
-│   ├── end.ps1        # git add/commit/push
-│   ├── mcpcheck.ps1  # MCP 环境检查
-│   ├── initgit.ps1   # Git + GitHub CLI 安装
-│   ├── initclaude.ps1 # Claude API 配置
-│   └── initmcp.ps1   # Node.js + uv 安装
+│   ├── start.ps1             # 创建符号链接 + git pull
+│   ├── end.ps1               # git add/commit/push
+│   ├── init01git.ps1         # 01: Git + GitHub CLI 安装
+│   ├── init02claude.ps1      # 02: Claude Code 安装 + API 配置
+│   ├── init03env.ps1         # 03: Node.js + uv + Playwright + 字体
+│   ├── init04mcp.ps1         # 04: MCP 服务器检查/安装
+│   └── initoptplaywright.ps1 # 可选: Playwright 浏览器后端配置
 │
 └── shared/            # 真正可跨平台共享的脚本
     └── sync-settings.js # settings.json 智能合并
@@ -152,16 +154,16 @@ cd ~/git/claude-config
 
 ### MCP 服务器同步检查
 
-可以使用 `mcpcheck.sh` / `mcpcheck.ps1` 来检查和同步 MCP 服务器配置：
+可以使用 `init04mcp.sh` / `init04mcp.ps1` 来检查和同步 MCP 服务器配置：
 
 **Windows:**
 ```
-scripts\pwsh\mcpcheck.ps1
+scripts\pwsh\init04mcp.ps1
 ```
 
 **Linux / Mac:**
 ```bash
-./scripts/bash/mcpcheck.sh
+./scripts/bash/init04mcp.sh
 ```
 
 功能：
@@ -730,44 +732,35 @@ claude mcp list
 
 ## 初始化脚本说明
 
-> **注意**：初始化脚本已包含在本仓库中。但因为仓库需要克隆后才能拉取，所以需要**先手动将脚本复制到本地**，然后再执行。
+初始化脚本按顺序执行，每个脚本负责特定功能：
 
-### 使用流程
+### 脚本执行顺序
 
 ```
-1. 从其他渠道获取初始化脚本（initgit.sh / initgit.ps1）
-   ↓
-2. 手动复制到目标目录（如 ~/ 或 C:\）
-   ↓
-3. 执行脚本（自动安装 git + gh + 登录 + 克隆仓库）
-   ↓
-4. 进入克隆后的仓库目录
-   ↓
-5. 执行日常同步脚本 start.sh / start.ps1
+01 - init01git.sh      # Git + GitHub CLI + 仓库克隆/更新
+02 - init02claude.sh   # Claude Code 安装 + API 配置
+03 - init03env.sh      # Node.js + uv + Playwright + 字体 + 符号链接
+04 - init04mcp.sh      # MCP 服务器检查/安装
+05 - initoptplaywright.sh  # 可选: Playwright 浏览器后端配置
 ```
 
-### 脚本文件
+### 脚本功能说明
 
-| 平台 | Git 初始化 | Claude 配置 |
-|------|-----------|-------------|
-| Ubuntu / Linux / WSL | `initgit.sh` | `initclaude.sh` |
-| Windows | `pwsh/initgit.ps1` | `pwsh/initclaude.ps1` |
+| 脚本 | 功能 |
+|------|------|
+| `init01git.sh` | 检查/安装 git + GitHub CLI (gh) + 引导登录 + 克隆/更新仓库 |
+| `init02claude.sh` | 安装/升级 Claude Code + 配置 API (MINIMAX) |
+| `init03env.sh` | 安装 Node.js + uv + Playwright CLI + 中文字体 + 符号链接 |
+| `init04mcp.sh` | 检查/安装 MCP 服务器 (Tavily, GitHub, Supabase 等) |
+| `initoptplaywright.sh` | 可选: 配置 Playwright 浏览器后端 (Steel/Chromium/Edge) |
 
-### initgit.sh 功能
+### init01git.sh 额外功能
 
-1. 检查/安装 git
-2. 自动下载安装 GitHub CLI (gh)
-3. 引导 `gh auth login` 登录 GitHub
-4. 询问仓库地址并克隆（默认：<your-github-username>/claude-config）
-
-### initclaude.sh 功能
-
-1. 选择 LLM 订阅厂商（目前支持 MINIMAX）
-2. 读取 `apillm.json` 配置模板
-3. 逐条询问用户配置（API 地址、API Key、模型名称）
-4. 跳过 Claude 登录引导
-5. 写入 ~/.claude/settings.json 配置
-6. 更新 ~/.bashrc 环境变量
+- 如果仓库目录已存在，自动检测并提供选项：
+  - 更新仓库 (git pull)
+  - 跳过克隆
+  - 删除旧目录重新克隆
+  - 改名克隆到其他目录
 
 ### apillm.json 格式
 
@@ -778,40 +771,71 @@ claude mcp list
 }
 ```
 
-> **注意**：api_key 不保存到此文件，运行 initclaude.sh 时手动输入。
+> **注意**：api_key 不保存到此文件，运行 init02claude.sh 时手动输入。
 
-### 初始化流程
+### 完整初始化流程（全新电脑）
 
 **Ubuntu / Linux / WSL:**
 ```bash
-# 0. 添加执行权限
-chmod +x initgit.sh initclaude.sh
+cd ~/git/claude-config
 
-# 1. 安装 Git + GitHub CLI + 登录 + 克隆仓库
-./initgit.sh
+# 01: 安装 Git + GitHub CLI + 克隆/更新仓库
+bash scripts/bash/init01git.sh
 
-# 2. 配置 Claude Code（选择 MINIMAX，逐条确认配置）
-./initclaude.sh
-
-# 3. 加载环境变量
+# 02: 安装 Claude Code + 配置 API
+bash scripts/bash/init02claude.sh
 source ~/.bashrc
 
-# 4. 拉取配置仓库
-cd claude-config
-./scripts/bash/start.sh
+# 03: 安装 Node.js + uv + Playwright + 字体 + 符号链接
+bash scripts/bash/init03env.sh
+
+# 04: 检查/安装 MCP 服务器
+bash scripts/bash/init04mcp.sh
+
+# 可选: 配置浏览器后端（如果需要）
+bash scripts/bash/initoptplaywright.sh
+
+# 最后: 同步配置
+bash scripts/bash/start.sh
 ```
 
 **Windows:**
 ```powershell
-# 1. 安装 Git + GitHub CLI + 登录 + 克隆仓库
-.\scripts\pwsh\initgit.ps1
+cd C:\git\claude-config
 
-# 2. 配置 Claude Code（选择 MINIMAX，逐条确认配置）
-.\scripts\pwsh\initclaude.ps1
+# 01: 安装 Git + GitHub CLI + 克隆/更新仓库
+.\scripts\pwsh\init01git.ps1
 
-# 3. 拉取配置仓库
-cd claude-config
+# 02: 安装 Claude Code + 配置 API
+.\scripts\pwsh\init02claude.ps1
+
+# 03: 安装 Node.js + uv + Playwright + 字体 + 符号链接
+.\scripts\pwsh\init03env.ps1
+
+# 04: 检查/安装 MCP 服务器
+.\scripts\pwsh\init04mcp.ps1
+
+# 可选: 配置浏览器后端（如果需要）
+.\scripts\pwsh\initoptplaywright.ps1
+
+# 最后: 同步配置
 .\scripts\pwsh\start.ps1
+```
+
+### 按需执行（已初始化过的电脑）
+
+如果某些组件已安装，对应脚本会自动跳过：
+
+```bash
+# 只更新仓库和配置
+bash scripts/bash/init01git.sh
+bash scripts/bash/start.sh
+
+# 只检查/安装 MCP
+bash scripts/bash/init04mcp.sh
+
+# 重新配置浏览器后端
+bash scripts/bash/initoptplaywright.sh
 ```
 
 ---
@@ -843,11 +867,7 @@ cd claude-config
 
 ### 本地手动维护
 
-这些文件需要用户手动创建或从其他来源获取：
-
-| 文件 | 说明 |
-|------|------|
-| `initgit.sh` / `initgit.ps1` | 首次部署时手动复制到本地再执行 |
+所有初始化脚本都包含在仓库中，克隆后直接运行即可。
 
 ---
 
