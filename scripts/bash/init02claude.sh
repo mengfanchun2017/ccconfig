@@ -86,7 +86,8 @@ echo "=========================================="
 echo ""
 
 if command -v claude &> /dev/null; then
-    CURRENT_VERSION=$(claude --version 2>/dev/null | head -1 | sed 's/.* //' || echo "未知版本")
+    # 提取版本号，例如从 "2.1.81 (Claude Code)" 中提取 "2.1.81"
+    CURRENT_VERSION=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "未知版本")
     print_success "Claude Code 已安装: $CURRENT_VERSION"
 
     # 获取最新版本
