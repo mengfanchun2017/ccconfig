@@ -51,8 +51,8 @@
 ```
 scripts/
 ├── bash/              # Linux/WSL/macOS 独立实现
-│   ├── start.sh              # 创建符号链接 + git pull
-│   ├── end.sh                # git add/commit/push
+│   ├── start.sh              # 每日启动：git pull + 符号链接检查
+│   ├── end.sh                # 每日结束：git add/commit/push
 │   ├── init01git.sh          # 01: Git + GitHub CLI 安装 + 仓库克隆/更新
 │   ├── init02claude.sh       # 02: Claude Code 安装 + API 配置
 │   ├── init03env.sh          # 03: Node.js + uv + Playwright + 字体 + 符号链接
@@ -60,8 +60,8 @@ scripts/
 │   └── initoptplaywright.sh  # 可选: Playwright 浏览器后端配置
 │
 ├── pwsh/              # Windows PowerShell 独立实现（与 bash 对称）
-│   ├── start.ps1             # 创建符号链接 + git pull
-│   ├── end.ps1               # git add/commit/push
+│   ├── start.ps1             # 每日启动：git pull + 符号链接检查
+│   ├── end.ps1               # 每日结束：git add/commit/push
 │   ├── init01git.ps1         # 01: Git + GitHub CLI 安装
 │   ├── init02claude.ps1      # 02: Claude Code 安装 + API 配置
 │   ├── init03env.ps1         # 03: Node.js + uv + Playwright + 字体
