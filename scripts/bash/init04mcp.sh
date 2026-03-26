@@ -514,7 +514,7 @@ check_and_prompt_keys() {
             [[ -n "$key_url" ]] && info "  Key 地址: $key_url"
 
             echo -e "  ${RED}[缺失]${NC} - 环境变量 $key_env 为空"
-            echo -e "  ${CYAN}  1) 输入 Key"
+            echo -e "  ${CYAN}1) 输入 Key${NC}"
             echo -e "  2) 跳过，稍后手动配置"
             [[ "$is_existing" == "true" ]] && echo -e "  3) 保持当前状态（不配置）"
             echo ""
