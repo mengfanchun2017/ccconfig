@@ -2,8 +2,8 @@
 # Claude Code Playwright 浏览器配置脚本
 # 功能：选择并配置不同的浏览器后端（Steel / Chrome / Edge）
 #
-# 使用方法：
-#   bash scripts/bash/initplaywright.sh
+# 使用方法（从仓库上级目录运行）：
+#   bash scripts/bash/initoptplaywright.sh
 
 set -e
 
