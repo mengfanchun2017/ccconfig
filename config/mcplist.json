@@ -1,44 +1,29 @@
 {
-  "description": "MCP 服务器列表 - 常用 MCP，仅包含实际在用的服务器",
+  "description": "MCP 服务器列表 - 仅包含元信息，不含任何敏感数据",
   "mcp": [
     {
       "name": "tavily",
       "description": "网络搜索 - 支持中文搜索",
       "type": "stdio",
       "install": "npx tavily-mcp",
-      "install_local": "npm install -g tavily-mcp",
-      "needsKey": true,
-      "keyEnv": "TAVILY_API_KEY",
-      "keyUrl": "https://tavily.com"
+      "install_local": "npm install -g tavily-mcp"
     },
     {
       "name": "playwright",
       "description": "浏览器自动化 - 网页截图/抓取/交互",
       "type": "stdio",
       "install": "npx @playwright/mcp",
-      "install_local": "npm install -g @playwright/mcp && npx playwright install chromium",
-      "note": "官方推荐仅安装 chromium: npx playwright install chromium"
+      "install_local": "npm install -g @playwright/mcp && npx playwright install chromium"
     },
     {
       "name": "minimax",
       "description": "MiniMax AI - 网络搜索和图片理解",
       "type": "stdio",
       "command": "uvx",
-      "args": [
-        "minimax-coding-plan-mcp",
-        "-y"
-      ],
+      "args": ["minimax-coding-plan-mcp", "-y"],
       "install": "uvx minimax-coding-plan-mcp",
-      "needsKey": true,
-      "keyEnv": "MINIMAX_API_KEY",
-      "keyUrl": "https://platform.minimaxi.com",
-      "tools": [
-        "web_search",
-        "understand_image"
-      ],
-      "note": "需要先安装 uv: curl -LsSf https://astral.sh/uv/install.sh | sh",
-      "doc_url": "https://github.com/MiniMax-AI/MiniMax-MCP",
-      "add_url": "在 Claude Code 中执行 /mcp 添加服务器"
+      "install_local": "uvx minimax-coding-plan-mcp",
+      "note": "需要先安装 uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
     },
     {
       "name": "octocode",
@@ -51,21 +36,10 @@
       "name": "supabase",
       "description": "Supabase 数据库 - 查询/管理数据库、Edge Functions、Storage",
       "type": "stdio",
-      "install": "npx -y @supabase/mcp-server-supabase",
-      "install_local": "npm install -g @supabase/mcp-server-supabase",
-      "needsKey": true,
-      "keyEnv": "SUPABASE_PROJECT_ACCESS_TOKEN",
-      "keyEnv2": "SUPABASE_PROJECT_ID",
-      "keyUrl": "https://supabase.com/dashboard/project/<your-supabase-project-id>/settings/api",
-      "projectRef": "<your-supabase-project-id>",
       "command": "npx",
       "args": ["-y", "@supabase/mcp-server-supabase"],
-      "env": {
-        "SUPABASE_PROJECT_ACCESS_TOKEN": "",
-        "SUPABASE_PROJECT_ID": "<your-supabase-project-id>"
-      },
-      "note": "需要项目级 API Key (设置 -> API -> project_access_token)",
-      "doc_url": "https://supabase.com/docs/guides/getting-started/mcp"
+      "install": "npx -y @supabase/mcp-server-supabase",
+      "install_local": "npm install -g @supabase/mcp-server-supabase"
     }
   ]
 }
