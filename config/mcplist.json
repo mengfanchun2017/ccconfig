@@ -17,13 +17,23 @@
     },
     {
       "name": "minimax",
-      "description": "MiniMax AI - 网络搜索和图片理解",
+      "description": "MiniMax AI - 编程模型（代码/Agent）",
       "type": "stdio",
       "command": "uvx",
       "args": ["minimax-coding-plan-mcp", "-y"],
       "install": "uvx minimax-coding-plan-mcp",
       "install_local": "uvx minimax-coding-plan-mcp",
       "note": "需要先安装 uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    },
+    {
+      "name": "minimax-mcp",
+      "description": "MiniMax 多模态 - 语音/视频/图像/音乐生成",
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["minimax-mcp"],
+      "install": "uvx minimax-mcp",
+      "install_local": "uvx minimax-mcp",
+      "env": ["MINIMAX_API_KEY", "MINIMAX_API_HOST"]
     },
     {
       "name": "octocode",
