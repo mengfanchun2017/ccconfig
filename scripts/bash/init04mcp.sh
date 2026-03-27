@@ -118,35 +118,19 @@ check_mcp_command() {
     return 1
 }
 
-# 检测 MCP 运行时状态（检测命令是否存在，以及运行时错误如缺少环境变量）
-# 返回: 0=正常, 1=命令不存在, 2=运行时错误
+# 检测 MCP 运行时状态（只检查命令是否存在，不实际运行避免超时）
+# 返回: 0=正常, 1=命令不存在, 2=运行时错误（暂不使用）
 check_mcp_runtime() {
     local cmd="$1"
     local install_args="$2"
     local key_env="$3"  # 可选：需要的环境变量名
 
-    # 首先检查命令是否存在
-    if ! check_mcp_command "$cmd" "$install_args"; then
+    # 只检查命令是否存在，不实际运行（运行太慢且会因缺少 key 而误报）
+    if check_mcp_command "$cmd" "$install_args"; then
+        return 0
+    else
         return 1
     fi
-
-    # 构建完整命令
-    local full_cmd="$cmd $install_args"
-
-    # 尝试运行 MCP，捕获错误输出（超时 3 秒）
-    # MCP 服务器通常启动时会立即输出错误（如缺少 API key）
-    # 注意：使用 < /dev/null 避免 stdin 被 inherited 导致 MCP 读取到 here-string 内容
-    local error_output
-    error_output=$(timeout 3s $full_cmd < /dev/null 2>&1) || true
-    local exit_code=$?
-
-    # 检查是否包含常见运行时错误（支持多行错误输出）
-    # -z 将 NUL 作为行分隔符，使 . 可以匹配换行符
-    if echo "$error_output" | grep -qzi "API_KEY\|ACCESS_TOKEN\|environment variable\|missing.*required\|key.*is required\|required.*environment"; then
-        return 2
-    fi
-
-    return 0
 }
 
 # ========== Python 辅助函数 ==========
@@ -569,13 +553,22 @@ available_managers=$(detect_package_managers)
 title "Claude Code MCP 检查 v2"
 info "可用的包管理器: ${available_managers:-无}"
 
-# 获取当前已注册的 MCP
+# 获取当前已注册的 MCP（直接从 ~/.claude.json 读取，避免调用慢的 `claude mcp list`）
 declare -A RegisteredMcp
-while IFS= read -r line; do
-    if [[ $line =~ ^[[:space:]]*([^:]+): ]]; then
-        RegisteredMcp["${BASH_REMATCH[1]}"]=1
-    fi
-done < <(timeout 15 claude mcp list 2>&1 | grep -v "^Checking" | grep -v "^$" || true)
+while IFS= read -r mcp_name; do
+    [[ -n "$mcp_name" ]] && RegisteredMcp["$mcp_name"]=1
+done <<< "$(python3 - "$HOME/.claude.json" << 'PYEOF' 2>/dev/null
+import json, sys
+try:
+    with open(sys.argv[1], 'r') as f:
+        data = json.load(f)
+    mcp_servers = data.get('mcpServers', {})
+    for name in mcp_servers.keys():
+        print(name)
+except:
+    pass
+PYEOF
+)"
 
 # 获取 MCP 列表
 McpNames=$(read_mcp_list)
