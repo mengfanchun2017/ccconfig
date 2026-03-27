@@ -16,8 +16,8 @@
 #      - CLAUDE.md → ~/CLAUDE.md
 #      - MEMORY.md → ~/.claude/projects/.../memory/MEMORY.md
 #
-# 安装完成后，请运行 init04mcp.sh 安装具体的 MCP 服务器：
-#   bash claude-config/scripts/bash/init04mcp.sh
+# 安装完成后，请运行 claudeMCP.sh 安装具体的 MCP 服务器：
+#   bash claude-config/scripts/bash/claudeMCP.sh
 
 set -e
 
@@ -204,12 +204,109 @@ install_playwright_browsers() {
     rm -rf "$tmp_dir"
 }
 
+# ========== Playwright 系统依赖 ==========
+install_playwright_deps() {
+    section "安装 Playwright 系统依赖"
+
+    # 检查依赖是否已存在
+    if ldconfig -p 2>/dev/null | grep -q libnspr4.so; then
+        info "libnspr4.so 已存在，跳过"
+        return 0
+    fi
+
+    # 尝试自动安装系统依赖（playwright install-deps）
+    # 如果没有 sudo 权限，尝试使用 sudo -n（如果配置了 NOPASSWD）
+    if command -v apt-get &>/dev/null; then
+        local deps="libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2"
+
+        # 尝试 sudo -n（无交互式输入密码）
+        if echo "$deps" | xargs sudo -n apt-get install -y 2>/dev/null; then
+            good "系统依赖安装成功（sudo -n）"
+            return 0
+        fi
+
+        # 如果 sudo -n 失败，尝试 playwright 自带的 install-deps（可能会提示输入密码）
+        info "尝试使用 playwright install-deps 安装系统依赖..."
+        local tmp_dir="/tmp/pw-install-deps-$$"
+        mkdir -p "$tmp_dir"
+        cd "$tmp_dir"
+        npm init -y > /dev/null 2>&1
+        npm install playwright > /dev/null 2>&1
+
+        # playwright install-deps 可能需要 root 权限来安装系统库
+        # 但我们先尝试，即使失败也不中断流程
+        if timeout 120 ./node_modules/.bin/playwright install-deps chromium 2>&1; then
+            good "系统依赖安装成功（playwright install-deps）"
+        else
+            warn "系统依赖安装失败，浏览器可能无法运行"
+            warn "如果浏览器启动失败，请手动运行: sudo apt-get install -y $deps"
+        fi
+
+        cd - > /dev/null
+        rm -rf "$tmp_dir"
+    fi
+}
+
+# ========== Playwright MCP 配置修复 ==========
+configure_playwright_mcp() {
+    section "配置 Playwright MCP"
+
+    local claude_json="$HOME/.claude.json"
+    if [[ ! -f "$claude_json" ]]; then
+        warn "~$/.claude.json 不存在，跳过 MCP 配置"
+        return 0
+    fi
+
+    # 检查是否已配置 PLAYWRIGHT_BROWSERS_PATH
+    if python3 - "$claude_json" "$HOME/.cache/ms-playwright" << 'PYEOF' 2>/dev/null; then
+import json
+import sys
+
+file = sys.argv[1]
+browser_path = sys.argv[2]
+
+try:
+    with open(file, 'r') as f:
+        data = json.load(f)
+
+    mcp = data.get('mcpServers', {})
+    pw = mcp.get('playwright', {})
+    env = pw.get('env', {})
+
+    if env.get('PLAYWRIGHT_BROWSERS_PATH') == browser_path:
+        print("PLAYWRIGHT_BROWSERS_PATH 已配置，跳过")
+        sys.exit(0)
+
+    # 需要更新配置
+    pw['env'] = env
+    if 'env' not in pw:
+        pw['env'] = {}
+    pw['env']['PLAYWRIGHT_BROWSERS_PATH'] = browser_path
+    mcp['playwright'] = pw
+    data['mcpServers'] = mcp
+
+    with open(file, 'w') as f:
+        json.dump(data, f, indent=4)
+
+    print("PLAYWRIGHT_BROWSERS_PATH 已配置")
+except Exception as e:
+    print(f"配置失败: {e}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+    then
+        good "MCP 配置完成"
+    else
+        warn "MCP 配置失败，但不影响运行"
+    fi
+}
+
 verify_playwright() {
     echo ""
     info "Playwright 验证:"
     if check_command npx; then
         echo "  npx playwright: $(timeout 10 npx playwright --version 2>/dev/null || echo '未安装')"
         echo "  浏览器缓存: $(ls ~/.cache/ms-playwright/ 2>/dev/null | wc -l) 个"
+        echo "  libnspr4.so: $(ldconfig -p 2>/dev/null | grep -q libnspr4.so && echo '已找到' || echo '未找到')"
     fi
     echo ""
 }
@@ -306,7 +403,7 @@ main() {
     echo "     - 中文字体"
     echo "  2. 建立符号链接实现配置双向同步"
     echo ""
-    echo "安装完成后请运行 mcpcheck.sh 安装具体的 MCP 服务器"
+    echo "安装完成后请运行 claudeMCP.sh 安装具体的 MCP 服务器"
     echo ""
 
     # 确保 PATH 包含 ~/.local/bin（必须在检查/安装任何工具之前）
@@ -355,6 +452,13 @@ main() {
     else
         install_playwright_browsers
     fi
+
+    # Playwright 系统依赖
+    install_playwright_deps
+
+    # Playwright MCP 配置
+    configure_playwright_mcp
+
     verify_playwright
 
     # 中文字体
@@ -430,7 +534,7 @@ main() {
     echo "========================================"
     echo ""
     echo "  安装 MCP 服务器："
-    echo "  bash claude-config/scripts/bash/init04mcp.sh"
+    echo "  bash claude-config/scripts/bash/claudeMCP.sh"
     echo ""
 }
 
