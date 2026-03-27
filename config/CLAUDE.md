@@ -105,6 +105,7 @@
 - `vmstat` - 虚拟内存统计
 - `iostat` - IO 统计
 - `lsof` - 打开文件列表
+- `inotifywait` - 文件变化监控（auto-sync 依赖）
 - `dmesg` - 内核消息
 - `lsusb` - USB 设备列表
 - `lspci` - PCI 设备列表
