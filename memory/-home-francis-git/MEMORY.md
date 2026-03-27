@@ -201,7 +201,47 @@ cd /home/francis/git && bash claude-config/scripts/bash/end.sh
 
 ---
 
+## MCP 配置规范
+
+### ~/.claude.json 是权威存储
+- Claude Code 只认 ~/.claude.json 中的 mcpServers 配置
+- mcpidentity.json 只是初始化时的数据源，便于集中管理 Key/Token
+
+### 数据流向
+```
+mcpidentity.json ──→ ~/.claude.json (mcpServers)
+       Key                 MCP 注册信息
+```
+
+### Token/Key 记录规则
+- **Token/Key 只记录在一个地方**：
+  - 如果 MCP 通过命令行参数传递 token（如 `--access-token`），记录在 `args` 中
+  - 如果 MCP 通过环境变量传递 token（如 `TAVILY_API_KEY`），记录在 `env` 中
+- **不要重复记录**：Token 在 args 中就不要在 env 中
+
+### 当前 MCP 配置
+| MCP | 存储位置 | 说明 |
+|-----|---------|------|
+| tavily | env | MINIMAX_API_KEY |
+| supabase | args | --access-token（不在 env 中） |
+| minimax | env | MINIMAX_API_KEY |
+| octocode | 无 | 不需要 Key |
+| playwright | 无 | 不需要 Key |
+
+---
+
 ## Session Logs (会话记录)
+
+### 2026-03-28 [Francis_MiPro] - MCP 配置规范调整
+**问题**：Token/Key 重复记录在 env 和 args 中
+
+**解决方案**：
+1. ~/.claude.json 中 Token 只记录在一个地方
+2. mcpidentity.json 是初始化数据源
+3. claudeMCP.sh 初始化时写入 ~/.claude.json
+
+**已修改**：
+- supabase: 移除 env 中的 token，只保留 args 中的 --access-token
 
 ### 2026-03-27 [Francis_MiPro] - claude-config 重大重构
 **问题**：MCP 鉴权信息分散，用户希望集中管理

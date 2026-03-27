@@ -61,7 +61,7 @@ try:
     mcp_name = sys.argv[2].lower()
     for identity in data.get('mcp_identities', []):
         if identity.get('name', '').lower() == mcp_name:
-            print(f"{identity.get('keyEnv','')}|{identity.get('keyValue','')}|{identity.get('keyEnv2','')}|{identity.get('keyValue2','')}")
+            print(f"{identity.get('keyEnv','')}|{identity.get('keyValue','')}|{identity.get('projectRef','')}")
             sys.exit(0)
     print("|||")
 except:
@@ -128,7 +128,12 @@ try:
     if 'env' not in data['mcpServers'][mcp_name]:
         data['mcpServers'][mcp_name]['env'] = {}
 
-    data['mcpServers'][mcp_name]['env'][key_env] = key_value
+    # 如果 key_env 为空，只确保 env={}（用于 supabase 等使用 args 传递 token 的 MCP）
+    if key_env:
+        data['mcpServers'][mcp_name]['env'][key_env] = key_value
+    else:
+        data['mcpServers'][mcp_name]['env'] = {}
+
     if key_env2 and key_value2:
         data['mcpServers'][mcp_name]['env'][key_env2] = key_value2
 
@@ -198,7 +203,21 @@ case "$choice" in
                 eval "$install_local" &>/dev/null || true
             fi
 
-            if [[ -n "$command" ]]; then
+            # 处理 supabase 等使用 args 模板的 MCP
+            if [[ -n "$command" ]] && [[ "$args" == *"projectRef"* ]] && [[ "$args" == *"token"* ]]; then
+                # supabase: 需要从 identity 读取 projectRef 和 token 替换占位符
+                identity=$(read_mcp_identity "$name")
+                IFS='|' read -r key_env key_value project_ref <<< "$identity"
+                if [[ -n "$project_ref" ]] && [[ -n "$key_value" ]]; then
+                    # 替换占位符
+                    substituted_args=$(echo "$args" | sed "s|<projectRef>|$project_ref|g; s|<token>|$key_value|g")
+                    register_mcp "$name" "$command" "$substituted_args"
+                    # supabase 使用空 env
+                    configure_key "$name" "" "" "" ""
+                else
+                    register_mcp "$name" "$command" "$args"
+                fi
+            elif [[ -n "$command" ]]; then
                 register_mcp "$name" "$command" "$args"
             else
                 register_mcp "$name" "$install" ""
@@ -212,16 +231,21 @@ case "$choice" in
             [[ -z "$name" ]] && continue
             [[ "$(is_registered "$name")" != "true" ]] && continue
 
-            identity=$(read_mcp_identity "$name")
-            IFS='|' read -r key_env key_value key_env2 key_value2 <<< "$identity"
-
-            if [[ -z "$key_value" ]]; then
-                info "$name: 无需配置或 Key 为空"
-                continue
+            # 检测是否使用 args 传递 token（如 supabase）
+            if [[ "$args" == *"projectRef"* ]] && [[ "$args" == *"token"* ]]; then
+                # supabase: 确保 env={} 即可，token 在 args 中
+                echo -n "配置 $name (env) ... "
+                result=$(configure_key "$name" "" "" "" "")
+            else
+                identity=$(read_mcp_identity "$name")
+                IFS='|' read -r key_env key_value project_ref <<< "$identity"
+                if [[ -z "$key_value" ]]; then
+                    info "$name: 无需配置或 Key 为空"
+                    continue
+                fi
+                echo -n "配置 $name ... "
+                result=$(configure_key "$name" "$key_env" "$key_value" "" "")
             fi
-
-            echo -n "配置 $name ... "
-            result=$(configure_key "$name" "$key_env" "$key_value" "$key_env2" "$key_value2")
             if [[ "$result" == "ok" ]]; then
                 good "✅"
             else
@@ -255,7 +279,21 @@ case "$choice" in
 
             echo -e "\n安装 $name..."
             [[ -n "$install_local" ]] && eval "$install_local" &>/dev/null || true
-            register_mcp "$name" "$command" "$args"
+
+            # 处理 supabase 等使用 args 模板的 MCP
+            if [[ -n "$command" ]] && [[ "$args" == *"projectRef"* ]] && [[ "$args" == *"token"* ]]; then
+                identity=$(read_mcp_identity "$name")
+                IFS='|' read -r key_env key_value project_ref <<< "$identity"
+                if [[ -n "$project_ref" ]] && [[ -n "$key_value" ]]; then
+                    substituted_args=$(echo "$args" | sed "s|<projectRef>|$project_ref|g; s|<token>|$key_value|g")
+                    register_mcp "$name" "$command" "$substituted_args"
+                    configure_key "$name" "" "" "" ""
+                else
+                    register_mcp "$name" "$command" "$args"
+                fi
+            else
+                register_mcp "$name" "$command" "$args"
+            fi
         done
         ;;
 

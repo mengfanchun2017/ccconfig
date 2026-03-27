@@ -37,7 +37,7 @@
       "description": "Supabase 数据库 - 查询/管理数据库、Edge Functions、Storage",
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@supabase/mcp-server-supabase"],
+      "args": ["-y", "@supabase/mcp-server-supabase", "--project-ref", "<projectRef>", "--access-token", "<token>"],
       "install": "npx -y @supabase/mcp-server-supabase",
       "install_local": "npm install -g @supabase/mcp-server-supabase"
     }
