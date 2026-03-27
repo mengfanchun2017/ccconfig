@@ -1,0 +1,12 @@
+#!/bin/bash
+# Claude Code - 环境准备入口
+# 功能：安装运行时环境（Node.js、uv、Playwright、中文字体），建立符号链接
+#
+# 使用方法（从 git 目录运行）：
+#   bash claude-config/init03env
+#
+# 或直接运行脚本：
+#   bash claude-config/scripts/bash/init03env.sh
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/scripts/bash/init03env.sh"
