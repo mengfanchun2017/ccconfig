@@ -45,13 +45,13 @@ CYAN='\033[0;36m'
 GRAY='\033[0;90m'
 NC='\033[0m'
 
-title() { echo -e "\n========================================\n  $1\n========================================\n${CYAN}"; }
+title() { echo -e "\n========================================\n$1\n========================================\n${CYAN}"; }
 section() { echo -e "\n【$1】${YELLOW}"; }
-item() { echo -e "  $1${NC}"; }
-good() { echo -e "  $1${GREEN}"; }
-bad() { echo -e "  $1${RED}"; }
-info() { echo -e "  $1${GRAY}"; }
-warn() { echo -e "  $1${YELLOW}"; }
+item() { echo -e "$1${NC}"; }
+good() { echo -e "$1${GREEN}"; }
+bad() { echo -e "$1${RED}"; }
+info() { echo -e "$1${GRAY}"; }
+warn() { echo -e "$1${YELLOW}"; }
 
 # ========== 环境检测函数 ==========
 check_command() {
@@ -275,23 +275,23 @@ PYEOF
 
     echo ""
     section "🔑 Supabase MCP 配置"
-    echo -e "  ${CYAN}当前状态:${NC}"
+    echo -e "${CYAN}当前状态:${NC}"
     if [[ "$token_valid" == "true" ]]; then
-        echo "  Token: ${current_token:0:20}..."
+        echo "Token: ${current_token:0:20}..."
     else
-        echo "  Token: 未配置"
+        echo "Token: 未配置"
     fi
-    echo "  项目ID: $current_project_id"
+    echo "项目ID: $current_project_id"
     echo ""
 
     # token 无效时才提示输入
     if [[ "$token_valid" != "true" ]]; then
-        echo -e "  ${YELLOW}获取项目 API Key:${NC}"
-        echo "  1. 打开 https://supabase.com/dashboard/project/$current_project_id/settings/api"
-        echo "  2. 找到 ${CYAN}project_access_token${NC} (JWT 格式，eyJ 开头)"
-        echo "  3. 复制并粘贴下方"
+        echo -e "${YELLOW}获取项目 API Key:${NC}"
+        echo "1. 打开 https://supabase.com/dashboard/project/$current_project_id/settings/api"
+        echo "2. 找到 ${CYAN}project_access_token${NC} (JWT 格式，eyJ 开头)"
+        echo "3. 复制并粘贴下方"
         echo ""
-        echo -n "  请输入 project_access_token (eyJ...)，直接回车跳过: "
+        echo -n "请输入 project_access_token (eyJ...)，直接回车跳过: "
         read -s new_token
         echo ""
 
@@ -342,8 +342,8 @@ PYEOF
     # RLS 提醒
     echo ""
     section "🔒 Supabase RLS 提醒"
-    echo "  MCP 使用 project_access_token 具有 service_role 权限"
-    echo "  如需限制访问，请在 Supabase 控制台配置 RLS 策略"
+    echo "MCP 使用 project_access_token 具有 service_role 权限"
+    echo "如需限制访问，请在 Supabase 控制台配置 RLS 策略"
     echo ""
 }
 
@@ -492,15 +492,15 @@ check_and_prompt_keys() {
         if [[ -n "$current_key" ]]; then
             echo -e "\n  $name ($desc)"
             info "  当前 Key: ${current_key:0:10}..."
-            echo -e "  ${YELLOW}[已配置]${NC}"
+            echo -e "${YELLOW}[已配置]${NC}"
         else
             echo -e "\n  $name ($desc)"
             [[ -n "$key_url" ]] && info "  Key 地址: $key_url"
 
-            echo -e "  ${RED}[缺失]${NC} - 环境变量 $key_env 为空"
-            echo -e "  ${CYAN}1) 输入 Key${NC}"
-            echo -e "  2) 跳过，稍后手动配置"
-            [[ "$is_existing" == "true" ]] && echo -e "  3) 保持当前状态（不配置）"
+            echo -e "${RED}[缺失]${NC} - 环境变量 $key_env 为空"
+            echo -e "${CYAN}1) 输入 Key${NC}"
+            echo -e "2) 跳过，稍后手动配置"
+            [[ "$is_existing" == "true" ]] && echo -e "3) 保持当前状态（不配置）"
             echo ""
 
             read -p "请选择 [1/2/3]: " key_choice
@@ -763,35 +763,35 @@ title "请选择操作"
 
 # 始终显示所有选项，灰色表示当前不可用
 if [[ ${#RuntimeErrorArr[@]} -gt 0 ]]; then
-    echo -e "  1) 配置缺少的 API Key${GREEN} [有 ${#RuntimeErrorArr[@]} 个需要配置]${NC}"
+    echo -e "1) 配置缺少的 API Key${GREEN} [有 ${#RuntimeErrorArr[@]} 个需要配置]${NC}"
 else
-    echo -e "  1) 配置缺少的 API Key${GRAY} [无需配置]${NC}"
+    echo -e "1) 配置缺少的 API Key${GRAY} [无需配置]${NC}"
 fi
 
 if [[ ${#MissingFromListArr[@]} -gt 0 ]]; then
-    echo -e "  2) 安装缺失的 MCP（需要命令可用）${GREEN} [有 ${#MissingFromListArr[@]} 个]${NC}"
+    echo -e "2) 安装缺失的 MCP（需要命令可用）${GREEN} [有 ${#MissingFromListArr[@]} 个]${NC}"
 else
-    echo -e "  2) 安装缺失的 MCP（需要命令可用）${GRAY} [无需安装]${NC}"
+    echo -e "2) 安装缺失的 MCP（需要命令可用）${GRAY} [无需安装]${NC}"
 fi
 
 if [[ ${#FailedCmdArr[@]} -gt 0 ]]; then
-    echo -e "  3) 修复命令不可用的 MCP${GREEN} [有 ${#FailedCmdArr[@]} 个]${NC}"
-    echo -e "  4) 尝试自动修复（使用 install_local）${GREEN} [有 ${#FailedCmdArr[@]} 个可修复]${NC}"
+    echo -e "3) 修复命令不可用的 MCP${GREEN} [有 ${#FailedCmdArr[@]} 个]${NC}"
+    echo -e "4) 尝试自动修复（使用 install_local）${GREEN} [有 ${#FailedCmdArr[@]} 个可修复]${NC}"
 else
-    echo -e "  3) 修复命令不可用的 MCP${GRAY} [无需修复]${NC}"
-    echo -e "  4) 尝试自动修复（使用 install_local）${GRAY} [无需修复]${NC}"
+    echo -e "3) 修复命令不可用的 MCP${GRAY} [无需修复]${NC}"
+    echo -e "4) 尝试自动修复（使用 install_local）${GRAY} [无需修复]${NC}"
 fi
 
 if [[ ${#ExtraInEnvArr[@]} -gt 0 ]]; then
-    echo -e "  5) 补充缺失项到 mcplist.json${GREEN} [有 ${#ExtraInEnvArr[@]} 个额外项]${NC}"
-    echo -e "  6) 双向同步（安装+补充）${GREEN} [有 ${#ExtraInEnvArr[@]} 个]${NC}"
+    echo -e "5) 补充缺失项到 mcplist.json${GREEN} [有 ${#ExtraInEnvArr[@]} 个额外项]${NC}"
+    echo -e "6) 双向同步（安装+补充）${GREEN} [有 ${#ExtraInEnvArr[@]} 个]${NC}"
 else
-    echo -e "  5) 补充缺失项到 mcplist.json${GRAY} [无需补充]${NC}"
-    echo -e "  6) 双向同步（安装+补充）${GRAY} [无需同步]${NC}"
+    echo -e "5) 补充缺失项到 mcplist.json${GRAY} [无需补充]${NC}"
+    echo -e "6) 双向同步（安装+补充）${GRAY} [无需同步]${NC}"
 fi
 
-echo -e "  7) 单独处理某个 MCP"
-echo -e "  0) 跳过，不做任何修改"
+echo -e "7) 单独处理某个 MCP"
+echo -e "0) 跳过，不做任何修改"
 echo ""
 
 read -p "请输入选项 [0-7]: " choice
@@ -1046,7 +1046,7 @@ case "$choice" in
                 RUNTIME) type_str="[缺Key]" ;;
                 EXTRA)   type_str="[多余]" ;;
             esac
-            echo -e "  $i) $type_str $name - $desc"
+            echo -e "$i) $type_str $name - $desc"
         done
 
         echo ""
