@@ -222,15 +222,40 @@ mcpidentity.json ──→ ~/.claude.json (mcpServers)
 ### 当前 MCP 配置
 | MCP | 存储位置 | 说明 |
 |-----|---------|------|
-| tavily | env | MINIMAX_API_KEY |
+| tavily | env | TAVILY_API_KEY |
 | supabase | args | --access-token（不在 env 中） |
-| minimax | env | MINIMAX_API_KEY |
+| minimax | env | MINIMAX_API_KEY（编程模型） |
+| minimax-mcp | env | MINIMAX_API_KEY（多模态模型） |
 | octocode | 无 | 不需要 Key |
 | playwright | 无 | 不需要 Key |
 
 ---
 
 ## Session Logs (会话记录)
+
+### 2026-03-28 [Francis_MiPro] - 自动同步与 MiniMax 多模态 MCP
+**问题**：用户去睡觉，要求继续完善
+
+**已完成**：
+1. **添加 MiniMax-MCP（多模态）**
+   - minimax: minimax-coding-plan-mcp（编程专用）
+   - minimax-mcp: 官方多模态 MCP（语音/视频/图像/音乐）
+   - Token Plan 支持 Hailuo 2.3, Speech 2.8, Music 1.5/2.5, Image-01
+
+2. **创建 auto-sync.sh 自动同步脚本**
+   - 使用 inotifywait 监控文件变化
+   - 变化后自动 commit + push 到 GitHub
+   - 依赖：inotify-tools (已安装)
+   - 用法：`bash scripts/bash/auto-sync.sh start|stop|status`
+
+3. **MiniMax M2.7 思考级别问题**
+   - 确认：MiniMax M2.7 没有 thinking level 配置
+   - M2.7 使用 Interleaved Thinking（内置能力）
+   - Gemini 才有 LOW/MEDIUM/HIGH 三档思考级别
+
+4. **auto-sync 启动**
+   - 已启动后台监控 (PID: 20108)
+   - 用户不需要手动调用 start/end，变化自动同步
 
 ### 2026-03-28 [Francis_MiPro] - MCP 配置规范调整
 **问题**：Token/Key 重复记录在 env 和 args 中
