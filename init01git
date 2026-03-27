@@ -1,0 +1,12 @@
+#!/bin/bash
+# Claude Code - Git 环境初始化入口
+# 功能：安装 git、gh，配置 GitHub 登录，克隆配置仓库
+#
+# 使用方法（从 git 目录运行）：
+#   bash claude-config/init01git
+#
+# 或直接运行脚本：
+#   bash claude-config/scripts/bash/init01git.sh
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/scripts/bash/init01git.sh"

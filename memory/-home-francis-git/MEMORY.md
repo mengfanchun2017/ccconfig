@@ -56,6 +56,10 @@ Use the following sections in this file:
 - **Session Sync Requirement (会话同步要求)
   - 每次工作收尾时必须同步记忆
   - 更新 MEMORY.md 后要同步到 claude-config 仓库
+- **MCP 操作规则**:
+  - 如果用户有 MCP 初始化、安装、更新等要求，运行 `bash claude-config/scripts/bash/initMCP.sh`
+  - 所有 MCP 的 Key/Token 等鉴权信息存储在 `config/mcpidentity.json` 中，便于直接修改
+  - `mcpidentity.json` 包含敏感信息，不参与 Git 同步
 - Tools:
 - **Bash Command Approval Rule**:
   - 把运行过、需要我批准的命令，除非是高危的，都加到 CLAUDE.md 配置文件里
@@ -194,6 +198,45 @@ cd /home/francis/git && bash claude-config/scripts/bash/end.sh
 - **对话关键词**:
   - `gitinit`: 开始工作 - 从 GitHub 拉取最新配置并同步到本地
   - `gitarc`: 结束工作 - 收集本地配置并推送到 GitHub
+
+---
+
+## Session Logs (会话记录)
+
+### 2026-03-27 [Francis_MiPro] - claude-config 重大重构
+**问题**：MCP 鉴权信息分散，用户希望集中管理
+
+**解决方案**：
+1. 备份现有文件为 `claude-config-backup-2026-03-27.tar.gz`
+2. 创建 `config/mcpidentity.json` 集中存储所有 MCP 鉴权信息
+3. 创建 `scripts/bash/initMCP.sh` 统一管理 MCP 初始化
+4. 在仓库根目录创建入口脚本：`init01git`, `init02claude`, `init03env`
+
+**新目录结构**：
+```
+claude-config/
+├── init01git          # Git 环境初始化入口
+├── init02claude       # Claude Code 安装配置入口
+├── init03env          # 环境准备入口
+├── config/
+│   ├── mcplist.json   # MCP 元信息
+│   ├── mcpidentity.json  # MCP 鉴权信息（不参与 Git 同步）
+│   ├── settings.json
+│   └── CLAUDE.md
+├── scripts/bash/
+│   ├── init01git.sh
+│   ├── init02claude.sh
+│   ├── init03env.sh
+│   ├── initMCP.sh     # MCP 统一管理脚本
+│   ├── start.sh
+│   └── end.sh
+└── memory/
+```
+
+**使用流程**：
+1. 运行 `init01git` → `init02claude` → `init03env`
+2. 在 git 目录下启动 Claude Code
+3. 如果需要 MCP 操作，运行 `initMCP.sh`
 
 ---
 

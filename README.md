@@ -49,6 +49,11 @@
 ### 脚本架构
 
 ```
+claude-config/              # 仓库根目录入口脚本
+├── init01git              # Git + GitHub CLI 安装 + 仓库克隆/更新
+├── init02claude           # Claude Code 安装 + API 配置
+├── init03env              # Node.js + uv + Playwright + 字体 + 符号链接
+│
 scripts/
 ├── bash/              # Linux/WSL/macOS 独立实现
 │   ├── start.sh              # 每日启动：git pull + 符号链接检查
@@ -56,7 +61,7 @@ scripts/
 │   ├── init01git.sh          # 01: Git + GitHub CLI 安装 + 仓库克隆/更新
 │   ├── init02claude.sh       # 02: Claude Code 安装 + API 配置
 │   ├── init03env.sh          # 03: Node.js + uv + Playwright + 字体 + 符号链接
-│   ├── init04mcp.sh          # 04: MCP 服务器检查/安装
+│   ├── initMCP.sh            # MCP 服务器初始化/安装/配置（统一管理）
 │   └── initoptplaywright.sh  # 可选: Playwright 浏览器后端配置
 │
 ├── pwsh/              # Windows PowerShell 独立实现（与 bash 对称）
@@ -65,7 +70,7 @@ scripts/
 │   ├── init01git.ps1         # 01: Git + GitHub CLI 安装
 │   ├── init02claude.ps1      # 02: Claude Code 安装 + API 配置
 │   ├── init03env.ps1         # 03: Node.js + uv + Playwright + 字体
-│   ├── init04mcp.ps1         # 04: MCP 服务器检查/安装
+│   ├── initMCP.ps1           # MCP 服务器初始化/安装/配置（统一管理）
 │   └── initoptplaywright.ps1 # 可选: Playwright 浏览器后端配置
 │
 └── shared/            # 真正可跨平台共享的脚本
@@ -152,25 +157,28 @@ cd ~/git/claude-config
 
 **使用方式**：直接在对话中输入 `gitinit` 或 `gitarc`，Claude Code 会执行相应脚本。
 
-### MCP 服务器同步检查
+### MCP 服务器管理
 
-可以使用 `init04mcp.sh` / `init04mcp.ps1` 来检查和同步 MCP 服务器配置：
+使用 `initMCP.sh` / `initMCP.ps1` 来统一管理 MCP 服务器：
 
 **Windows:**
 ```
-scripts\pwsh\init04mcp.ps1
+scripts\pwsh\initMCP.ps1
 ```
 
 **Linux / Mac:**
 ```bash
-bash claude-config/scripts/bash/init04mcp.sh
+bash claude-config/scripts/bash/initMCP.sh
 ```
 
 功能：
-- 对比 mcplist.json 与当前环境
-- 显示已安装/缺失/多余的 MCP
-- 支持一键安装缺失的 MCP
-- 支持双向同步
+- 读取 mcplist.json 获取 MCP 元信息
+- 读取 mcpidentity.json 获取鉴权信息
+- 安装/注册 MCP 服务器
+- 配置 API Key/Token
+- 支持交互式选择安装
+
+> **提示**：如果用户有 MCP 初始化、安装、更新等要求，运行此脚本。
 
 ---
 
@@ -737,22 +745,45 @@ claude mcp list
 ### 脚本执行顺序
 
 ```
-01 - init01git.sh      # Git + GitHub CLI + 仓库克隆/更新
-02 - init02claude.sh   # Claude Code 安装 + API 配置
-03 - init03env.sh      # Node.js + uv + Playwright + 字体 + 符号链接
-04 - init04mcp.sh      # MCP 服务器检查/安装
-05 - initoptplaywright.sh  # 可选: Playwright 浏览器后端配置
+01 - init01git              # Git + GitHub CLI + 仓库克隆/更新
+02 - init02claude           # Claude Code 安装 + API 配置
+03 - init03env              # Node.js + uv + Playwright + 字体 + 符号链接
+MCP - initMCP.sh            # MCP 服务器初始化/安装/配置（统一管理）
 ```
 
 ### 脚本功能说明
 
 | 脚本 | 功能 |
 |------|------|
-| `init01git.sh` | 检查/安装 git + GitHub CLI (gh) + 引导登录 + 克隆/更新仓库 |
-| `init02claude.sh` | 安装/升级 Claude Code + 配置 API (MINIMAX) |
-| `init03env.sh` | 安装 Node.js + uv + Playwright CLI + 中文字体 + 符号链接 |
-| `init04mcp.sh` | 检查/安装 MCP 服务器 (Tavily, GitHub, Supabase 等) |
-| `initoptplaywright.sh` | 可选: 配置 Playwright 浏览器后端 (Steel/Chromium/Edge) |
+| `init01git` | 检查/安装 git + GitHub CLI (gh) + 引导登录 + 克隆/更新仓库 |
+| `init02claude` | 安装/升级 Claude Code + 配置 API (MINIMAX) |
+| `init03env` | 安装 Node.js + uv + Playwright CLI + 中文字体 + 符号链接 |
+| `initMCP.sh` | MCP 服务器初始化/安装/配置，支持 Key/Token 管理 |
+
+### mcpidentity.json 鉴权信息管理
+
+所有 MCP 的 Key/Token 等敏感信息存储在 `config/mcpidentity.json`：
+
+```json
+{
+  "mcp_identities": [
+    {
+      "name": "tavily",
+      "keyEnv": "TAVILY_API_KEY",
+      "keyValue": "",
+      "keyUrl": "https://tavily.com"
+    },
+    {
+      "name": "supabase",
+      "keyEnv": "SUPABASE_PROJECT_ACCESS_TOKEN",
+      "keyEnv2": "SUPABASE_PROJECT_ID",
+      "keyValue2": "<your-supabase-project-id>"
+    }
+  ]
+}
+```
+
+> **注意**：`mcpidentity.json` 包含敏感信息，不参与 Git 同步。
 
 ### init01git.sh 额外功能
 
@@ -780,20 +811,17 @@ claude mcp list
 cd ~/git/claude-config
 
 # 01: 安装 Git + GitHub CLI + 克隆/更新仓库
-bash claude-config/scripts/bash/init01git.sh
+bash claude-config/init01git
 
 # 02: 安装 Claude Code + 配置 API
-bash claude-config/scripts/bash/init02claude.sh
+bash claude-config/init02claude
 source ~/.bashrc
 
 # 03: 安装 Node.js + uv + Playwright + 字体 + 符号链接
-bash claude-config/scripts/bash/init03env.sh
+bash claude-config/init03env
 
-# 04: 检查/安装 MCP 服务器
-bash claude-config/scripts/bash/init04mcp.sh
-
-# 可选: 配置浏览器后端（如果需要）
-bash claude-config/scripts/bash/initoptplaywright.sh
+# MCP: 初始化 MCP 服务器（安装 + 配置 Key）
+bash claude-config/scripts/bash/initMCP.sh
 
 # 最后: 同步配置
 bash scripts/bash/start.sh
@@ -848,10 +876,14 @@ bash claude-config/scripts/bash/initoptplaywright.sh
 |-----------|------|------|
 | `README.md` | 说明文档 | ✅ |
 | `LICENSE` | MIT 开源许可证 | ✅ |
+| `init01git` | Git 环境初始化入口 | ✅ |
+| `init02claude` | Claude Code 初始化入口 | ✅ |
+| `init03env` | 环境准备入口 | ✅ |
 | `config/CLAUDE.md` | 权限白名单配置 | ✅ 符号链接 |
 | `config/settings.json` | Claude Code 全局设置 | ✅ 符号链接 |
 | `config/apillm.json` | LLM API 配置模板（不含敏感信息） | ✅ |
 | `config/mcplist.json` | MCP 服务器列表 | ✅ |
+| `config/mcpidentity.json` | MCP 鉴权信息（Key/Token） | ❌ 不同步 |
 | `memory/` | 项目记忆目录（按项目名子目录） | ✅ 符号链接 |
 | `scripts/bash/` | Bash 脚本（Linux/WSL/macOS），各脚本独立实现 | ✅ |
 | `scripts/pwsh/` | PowerShell 脚本（Windows），与 bash 对称 | ✅ |
@@ -864,6 +896,7 @@ bash claude-config/scripts/bash/initoptplaywright.sh
 |------|------|
 | `.claude.json` | 本地配置（含 API Key） |
 | `openclaw.json` | GetNote 等外部工具配置 |
+| `config/mcpidentity.json` | MCP 鉴权信息，包含敏感 Key/Token |
 
 ### 本地手动维护
 
