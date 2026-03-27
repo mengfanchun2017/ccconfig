@@ -36,8 +36,8 @@ REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CLAUDE_DIR="$HOME/.claude"
 
 echo "========================================"
-echo "  Claude Code - 开始工作"
-echo "  当前系统: Linux/WSL"
+echo "Claude Code - 开始工作"
+echo "当前系统: Linux/WSL"
 echo "========================================"
 echo ""
 echo "仓库目录: $REPO_DIR"
@@ -87,14 +87,14 @@ setup_symlink() {
     mkdir -p "$(dirname "$link")" 2>/dev/null || true
 
     if [ -L "$link" ] && [ "$(readlink -f "$link")" = "$(readlink -f "$target")" ]; then
-        echo "   ✅ $name: 已链接，跳过"
+        echo "✅ $name: 已链接，跳过"
         return 0
     fi
 
     # 移除旧链接或文件
     rm -f "$link" 2>/dev/null || true
     ln -sf "$target" "$link"
-    echo "   🔗 $name: 重新创建链接"
+    echo "🔗 $name: 重新创建链接"
     return 0
 }
 
@@ -129,18 +129,18 @@ echo "[4/4] Memory 同步..."
 if [ -d "$REPO_DIR/memory/$REPO_MEMORY_NAME" ]; then
     setup_symlink "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "MEMORY.md"
 else
-    echo "   ⚠️  仓库中未找到 Memory，跳过"
+    echo "⚠️ 仓库中未找到 Memory，跳过"
 fi
 echo ""
 
 echo "========================================"
-echo "  ✅ 准备就绪！可以开始工作了"
+echo "✅ 准备就绪！可以开始工作了"
 echo "========================================"
 echo ""
 
 # ========== 符号链接检查 ==========
 echo "========================================"
-echo "  🔍 符号链接状态检查"
+echo "🔍 符号链接状态检查"
 echo "========================================"
 
 check_symlink() {
@@ -148,17 +148,17 @@ check_symlink() {
     local name="$2"
     if [ -L "$link" ]; then
         if [ -e "$link" ]; then
-            echo "   ✅ $name: 正常"
+            echo "✅ $name: 正常"
             return 0
         else
-            echo "   ❌ $name: 链接断开（目标不存在）"
+            echo "❌ $name: 链接断开（目标不存在）"
             return 1
         fi
     elif [ -e "$link" ]; then
-        echo "   ⚠️  $name: 是文件而非链接"
+        echo "⚠️ $name: 是文件而非链接"
         return 2
     else
-        echo "   ❌ $name: 不存在"
+        echo "❌ $name: 不存在"
         return 3
     fi
 }

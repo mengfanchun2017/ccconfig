@@ -19,13 +19,13 @@ CYAN='\033[0;36m'
 GRAY='\033[0;90m'
 NC='\033[0m'
 
-title() { echo -e "\n========================================\n  $1\n========================================\n${CYAN}"; }
+title() { echo -e "\n========================================\n$1\n========================================\n${CYAN}"; }
 section() { echo -e "\n【$1】${YELLOW}"; }
-item() { echo -e "  $1${NC}"; }
-good() { echo -e "  $1${GREEN}"; }
-bad() { echo -e "  $1${RED}"; }
-info() { echo -e "  $1${GRAY}"; }
-warn() { echo -e "  $1${YELLOW}"; }
+item() { echo -e "$1${NC}"; }
+good() { echo -e "$1${GREEN}"; }
+bad() { echo -e "$1${RED}"; }
+info() { echo -e "$1${GRAY}"; }
+warn() { echo -e "$1${YELLOW}"; }
 
 # ========== 检查函数 ==========
 check_docker() {
