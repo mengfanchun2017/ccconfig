@@ -380,8 +380,9 @@ main() {
         ACTUAL_PROJECT_PATH="$CLAUDE_PROJECT_PATH"
     fi
 
-    # Claude Code 使用 basename 作为项目名
-    REPO_MEMORY_NAME="$CURRENT_PROJECT"
+    # Claude Code 项目名计算规则：将 / 替换为 -，前面加 -
+    # /home/francis/git → -home-francis-git
+    REPO_MEMORY_NAME="$(echo "$ACTUAL_PROJECT_PATH" | sed 's/\//-/g')"
     MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
     MEMORY_REPO_PATH="$REPO_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md"
 

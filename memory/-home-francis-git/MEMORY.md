@@ -32,9 +32,9 @@ Use the following sections in this file:
 - **同步时机**: 每次 `gitarc` 时自动更新本终端的会话记录
 - **会话记录格式**: `### 2026-03-19 [设备主机名]`
 - **Memory 目录命名规则**:
-  - Linux/WSL: `/home/francis/git` → `home-francis-git`（仓库中）
-  - Windows: `C:\git` → `C--git`（仓库中）
-  - 脚本使用 `get_memory_dir()` 自动转换，不要手动创建目录
+  - Linux/WSL: `/home/francis/git` → `-home-francis-git`（Claude Code 项目名）
+  - 规则：将路径中 `/` 替换为 `-`，前面加 `-`
+  - 脚本使用 `$(echo "$ACTUAL_PROJECT_PATH" | sed 's/\//-/g')` 自动转换
 
 ---
 
