@@ -111,6 +111,36 @@ setup_path() {
     fi
 }
 
+# ========== Sudo NOPASSWD 配置 ==========
+configure_sudo_nopasswd() {
+    section "配置 sudo 免密 (apt-get)"
+
+    # 检查是否已有 apt-get 的 NOPASSWD 配置
+    if sudo -n apt-get --version >/dev/null 2>&1; then
+        info "sudo apt-get 已可免密使用，跳过"
+        return 0
+    fi
+
+    local sudoers_file="/etc/sudoers.d/wsl-apt"
+    local config="francis ALL=(ALL) NOPASSWD: /usr/bin/apt-get"
+
+    # 检查文件是否已存在且配置正确
+    if [[ -f "$sudoers_file" ]] && grep -q "NOPASSWD.*apt-get" "$sudoers_file" 2>/dev/null; then
+        info "sudoers 配置已存在，跳过"
+        return 0
+    fi
+
+    info "配置 sudoers 免密 (仅 apt-get)..."
+    echo "$config" | sudo tee "$sudoers_file" >/dev/null 2>&1
+    sudo chmod 440 "$sudoers_file" 2>/dev/null
+
+    if sudo -n apt-get --version >/dev/null 2>&1; then
+        good "sudo apt-get 免密配置成功"
+    else
+        warn "sudo 免密配置失败"
+    fi
+}
+
 # ========== uv (Python 包管理器) ==========
 check_uv_installed() {
     if check_command uvx || check_command uv; then
@@ -214,37 +244,60 @@ install_playwright_deps() {
         return 0
     fi
 
-    # 尝试自动安装系统依赖（playwright install-deps）
-    # 如果没有 sudo 权限，尝试使用 sudo -n（如果配置了 NOPASSWD）
-    if command -v apt-get &>/dev/null; then
-        local deps="libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2"
+    if ! command -v apt-get &>/dev/null; then
+        warn "未检测到 apt-get，无法安装系统依赖"
+        return 0
+    fi
 
-        # 尝试 sudo -n（无交互式输入密码）
-        if echo "$deps" | xargs sudo -n apt-get install -y 2>/dev/null; then
-            good "系统依赖安装成功（sudo -n）"
-            return 0
-        fi
+    local deps="libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2"
 
-        # 如果 sudo -n 失败，尝试 playwright 自带的 install-deps（可能会提示输入密码）
-        info "尝试使用 playwright install-deps 安装系统依赖..."
-        local tmp_dir="/tmp/pw-install-deps-$$"
-        mkdir -p "$tmp_dir"
-        cd "$tmp_dir"
-        npm init -y > /dev/null 2>&1
-        npm install playwright > /dev/null 2>&1
+    # 先尝试 sudo -n（无交互式，适合已配置 NOPASSWD 的环境）
+    if echo "$deps" | xargs sudo -n apt-get install -y 2>/dev/null; then
+        good "系统依赖安装成功（sudo -n）"
+        return 0
+    fi
 
-        # playwright install-deps 可能需要 root 权限来安装系统库
-        # 但我们先尝试，即使失败也不中断流程
-        if timeout 120 ./node_modules/.bin/playwright install-deps chromium 2>&1; then
-            good "系统依赖安装成功（playwright install-deps）"
-        else
-            warn "系统依赖安装失败，浏览器可能无法运行"
-            warn "如果浏览器启动失败，请手动运行: sudo apt-get install -y $deps"
-        fi
+    # sudo -n 失败，尝试 playwright install-deps（它会自己处理依赖）
+    info "尝试 playwright install-deps..."
+    local tmp_dir="/tmp/pw-install-deps-$$"
+    mkdir -p "$tmp_dir"
+    cd "$tmp_dir"
+    npm init -y > /dev/null 2>&1
+    npm install playwright > /dev/null 2>&1
 
+    # 先运行命令，捕获退出码
+    set +e
+    timeout 180 ./node_modules/.bin/playwright install-deps chromium > /tmp/pw-deps-install.log 2>&1
+    local pw_exit=$?
+    set -e
+
+    if [[ $pw_exit -eq 0 ]]; then
+        good "系统依赖安装成功（playwright install-deps）"
         cd - > /dev/null
         rm -rf "$tmp_dir"
+        return 0
     fi
+
+    warn "playwright install-deps 失败，日志:"
+    cat /tmp/pw-deps-install.log | sed 's/^/  /'
+    cd - > /dev/null
+    rm -rf "$tmp_dir"
+
+    # playwright install-deps 也失败了，尝试直接 apt-get 安装
+    warn "自动安装失败，将尝试手动 apt-get 安装..."
+    echo ""
+    echo "请输入密码以安装系统依赖:"
+    echo "  sudo apt-get update && sudo apt-get install -y $deps"
+    echo ""
+
+    if sudo apt-get update && sudo apt-get install -y $deps; then
+        good "系统依赖安装成功"
+        return 0
+    fi
+
+    warn "系统依赖安装失败，浏览器可能无法运行"
+    warn "请稍后手动运行: sudo apt-get install -y $deps"
+    return 1
 }
 
 # ========== Playwright MCP 配置修复 ==========
@@ -257,13 +310,16 @@ configure_playwright_mcp() {
         return 0
     fi
 
-    # 检查是否已配置 PLAYWRIGHT_BROWSERS_PATH
-    if python3 - "$claude_json" "$HOME/.cache/ms-playwright" << 'PYEOF' 2>/dev/null; then
+    # 检查当前配置是否正确
+    # 问题：MCP 默认使用 channel='chrome'，在 Linux 上指向 /opt/google/chrome/chrome
+    # 解决：使用 'chromium' channel，让 playwright 使用自己安装的浏览器
+    local result=$(python3 << 'PYEOF'
 import json
+import os
 import sys
 
-file = sys.argv[1]
-browser_path = sys.argv[2]
+file = os.path.expanduser("~/.claude.json")
+browser_path = os.path.expanduser("~/.cache/ms-playwright")
 
 try:
     with open(file, 'r') as f:
@@ -271,32 +327,59 @@ try:
 
     mcp = data.get('mcpServers', {})
     pw = mcp.get('playwright', {})
+
+    # 检查是否需要更新
+    args = pw.get('args', [])
     env = pw.get('env', {})
 
-    if env.get('PLAYWRIGHT_BROWSERS_PATH') == browser_path:
-        print("PLAYWRIGHT_BROWSERS_PATH 已配置，跳过")
+    needs_update = False
+
+    # 1. 确保 env 中有 PLAYWRIGHT_BROWSERS_PATH
+    if env.get('PLAYWRIGHT_BROWSERS_PATH') != browser_path:
+        env['PLAYWRIGHT_BROWSERS_PATH'] = browser_path
+        needs_update = True
+
+    # 2. 检查 args 中是否已经有 --browser chromium 参数
+    if any('@playwright/mcp' in str(a) for a in args):
+        has_browser_arg = any('--browser' in str(a) for a in args)
+        if not has_browser_arg:
+            # 在 @playwright/mcp 后添加 --browser chromium
+            new_args = []
+            for a in args:
+                new_args.append(a)
+                if '@playwright/mcp' in str(a):
+                    new_args.append('--browser')
+                    new_args.append('chromium')
+            args = new_args
+            needs_update = True
+
+    if not needs_update:
+        print("MCP_CONFIG_OK")
         sys.exit(0)
 
-    # 需要更新配置
+    # 更新配置
+    pw['args'] = args
     pw['env'] = env
-    if 'env' not in pw:
-        pw['env'] = {}
-    pw['env']['PLAYWRIGHT_BROWSERS_PATH'] = browser_path
     mcp['playwright'] = pw
     data['mcpServers'] = mcp
 
     with open(file, 'w') as f:
         json.dump(data, f, indent=4)
 
-    print("PLAYWRIGHT_BROWSERS_PATH 已配置")
+    print("MCP_CONFIG_UPDATED")
+    sys.exit(0)
 except Exception as e:
-    print(f"配置失败: {e}", file=sys.stderr)
+    print(f"MCP_CONFIG_ERROR: {e}", file=sys.stderr)
     sys.exit(1)
 PYEOF
-    then
-        good "MCP 配置完成"
+)
+
+    if [[ "$result" == "MCP_CONFIG_OK" ]]; then
+        info "MCP 配置已正确，跳过"
+    elif [[ "$result" == "MCP_CONFIG_UPDATED" ]]; then
+        good "MCP 配置已更新：使用 chromium channel + PLAYWRIGHT_BROWSERS_PATH"
     else
-        warn "MCP 配置失败，但不影响运行"
+        warn "MCP 配置检查失败: $result"
     fi
 }
 
@@ -408,6 +491,9 @@ main() {
 
     # 确保 PATH 包含 ~/.local/bin（必须在检查/安装任何工具之前）
     setup_path
+
+    # 配置 sudo 免密（仅针对 apt-get，避免 playwright install-deps 需要密码）
+    configure_sudo_nopasswd
 
     # Node.js
     section "检测 Node.js"
