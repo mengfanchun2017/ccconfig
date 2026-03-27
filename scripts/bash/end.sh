@@ -29,24 +29,24 @@ check_symlink() {
     local name="$2"
     if [ -L "$link" ]; then
         if [ -e "$link" ]; then
-            echo "   ✅ $name: 正常"
+            echo "✅ $name: 正常"
             return 0
         else
-            echo "   ❌ $name: 链接断开（目标不存在）"
+            echo "❌ $name: 链接断开（目标不存在）"
             return 1
         fi
     elif [ -e "$link" ]; then
-        echo "   ⚠️  $name: 是文件而非链接"
+        echo "⚠️ $name: 是文件而非链接"
         return 2
     else
-        echo "   ❌ $name: 不存在"
+        echo "❌ $name: 不存在"
         return 3
     fi
 }
 
 echo "========================================"
-echo "  Claude Code - 结束工作"
-echo "  当前系统: Linux/WSL"
+echo "Claude Code - 结束工作"
+echo "当前系统: Linux/WSL"
 echo "========================================"
 echo ""
 echo "仓库目录: $REPO_DIR"
@@ -56,7 +56,7 @@ cd "$REPO_DIR"
 
 # ========== 符号链接检查（push 前必须通过）==========
 echo "========================================"
-echo "  🔍 符号链接状态检查"
+echo "🔍 符号链接状态检查"
 echo "========================================"
 
 failed=0
@@ -99,7 +99,7 @@ else
         echo "⚠️  已恢复本地更改，但未推送"
     else
         echo "❌ 有冲突，请手动解决后重试"
-        echo "   冲突文件："
+        echo "冲突文件："
         git diff --name-only --diff-filter=U
     fi
     exit 1
@@ -148,6 +148,6 @@ echo "✅ 成功推送到 GitHub"
 echo ""
 
 echo "========================================"
-echo "  ✅ 同步完成！"
+echo "✅ 同步完成！"
 echo "========================================"
 echo ""
