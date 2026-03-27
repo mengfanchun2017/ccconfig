@@ -17,7 +17,7 @@
     },
     {
       "name": "minimax",
-      "description": "MiniMax AI - 编程模型（代码/Agent）",
+      "description": "MiniMax AI - 网络搜索和图片理解（M2.7 编程模型工具）",
       "type": "stdio",
       "command": "uvx",
       "args": ["minimax-coding-plan-mcp", "-y"],

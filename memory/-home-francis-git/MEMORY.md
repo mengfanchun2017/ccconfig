@@ -224,10 +224,16 @@ mcpidentity.json ──→ ~/.claude.json (mcpServers)
 |-----|---------|------|
 | tavily | env | TAVILY_API_KEY |
 | supabase | args | --access-token（不在 env 中） |
-| minimax | env | MINIMAX_API_KEY（编程模型） |
-| minimax-mcp | env | MINIMAX_API_KEY（多模态模型） |
+| minimax | env | MINIMAX_API_KEY（网络搜索+图片理解） |
+| minimax-mcp | env | MINIMAX_API_KEY + HOST（语音/视频/图像/音乐生成） |
 | octocode | 无 | 不需要 Key |
 | playwright | 无 | 不需要 Key |
+
+### MiniMax 两个 MCP 的区别
+| MCP | 包名 | 功能 |
+|-----|------|------|
+| minimax | minimax-coding-plan-mcp | 网络搜索、图片理解（M2.7 内置工具） |
+| minimax-mcp | minimax-mcp | 语音生成、视频生成、图像生成、音乐生成 |
 
 ---
 
