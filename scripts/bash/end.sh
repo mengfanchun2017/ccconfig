@@ -21,7 +21,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CLAUDE_DIR="$HOME/.claude"
-MEMORY_DIR="$CLAUDE_DIR/projects/home-francis-git/memory"
+MEMORY_DIR="$CLAUDE_DIR/projects/-home-francis-git/memory"
 
 # ========== 符号链接检查函数 ==========
 check_symlink() {

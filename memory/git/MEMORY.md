@@ -69,6 +69,26 @@ Use the following sections in this file:
   - 没有内置的定时自动记录功能
   - 可以手动在会话结束时或关键节点调用 /memory 更新
 
+## 修改 claude-config 自动推送规则
+
+### 触发条件
+当修改 claude-config 仓库中的任何文件时（包括符号链接指向的配置），必须自动执行推送
+
+### 操作步骤
+1. 修改文件后，自动运行 `end.sh` 推送最新配置到 GitHub
+2. 推送完成后继续当前工作
+
+### 为什么需要这条规则
+- claude-config 是跨设备同步的根基
+- 如果只修改本地不推送，其他设备会丢失更新
+- end.sh 会完整同步：settings.json、MEMORY.md 等
+- 避免版本不一致导致的问题
+
+### 实现方式
+```bash
+cd /home/francis/git && bash claude-config/scripts/bash/end.sh
+```
+
 ---
 
 ## Project Context (项目上下文)
