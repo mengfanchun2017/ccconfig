@@ -23,7 +23,7 @@ print_error() { echo -e "${RED}❌ $1${NC}"; }
 # 配置目录和文件
 CLAUDE_DIR="$HOME/.claude"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONFIG_FILE="$REPO_DIR/config/apillm.json"
 
 # -------------------------- 参数解析 --------------------------

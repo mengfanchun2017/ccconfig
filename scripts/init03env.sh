@@ -498,7 +498,7 @@ verify_fonts() {
 # ========== 主流程 ==========
 main() {
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
     CLAUDE_DIR="$HOME/.claude"
 
     echo "========================================"
@@ -713,11 +713,11 @@ main() {
     echo "  📋 下一步操作"
     echo "========================================"
     echo ""
-    echo "  安装 MCP 服务器："
-    echo "  bash claude-config/scripts/claudemcp.sh"
+    echo "  运行主初始化脚本："
+    echo "  bash claude-config/init.sh"
     echo ""
-    echo "  或者直接开始工作："
-    echo "  bash claude-config/scripts/start.sh"
+    echo "  或直接启动 Claude Code："
+    echo "  claude"
     echo ""
 }
 
