@@ -171,7 +171,7 @@ echo ""
 
 # ========== 启动 auto-sync ==========
 if command -v inotifywait &>/dev/null; then
-    AUTO_SYNC_SCRIPT="$REPO_DIR/scripts/bash/auto-sync.sh"
+    AUTO_SYNC_SCRIPT="$REPO_DIR/scripts/auto-sync.sh"
     if [ -f "$AUTO_SYNC_SCRIPT" ]; then
         echo "========================================"
         echo "🔄 启动 auto-sync 自动同步..."

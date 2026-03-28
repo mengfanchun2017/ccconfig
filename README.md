@@ -67,7 +67,7 @@ scripts/                       # 所有脚本（Linux/WSL）
 ├── init01git.sh              # Git 环境
 ├── init02claude.sh           # Claude 安装
 ├── init03env.sh              # 环境准备
-├── initMCP.sh                # MCP 管理
+├── claudemcp.sh                # MCP 管理
 ├── initoptplaywright.sh       # 浏览器后端选择
 └── sync-settings.js           # 设置合并（已废弃）
 ```
@@ -175,7 +175,7 @@ cd ~/git/claude-config
 ### MCP 服务器管理
 
 ```bash
-bash claude-config/scripts/initMCP.sh
+bash claude-config/scripts/claudemcp.sh
 ```
 
 功能：
@@ -462,7 +462,7 @@ claude mcp list
 01 - init01git.sh          # Git + GitHub CLI + 仓库克隆/更新
 02 - init02claude.sh      # Claude Code 安装 + API 配置
 03 - init03env.sh         # Node.js + uv + Playwright + 字体 + 符号链接
-MCP - initMCP.sh          # MCP 服务器初始化/安装/配置
+MCP - claudemcp.sh          # MCP 服务器初始化/安装/配置
 ```
 
 ### 完整初始化流程（全新电脑）
@@ -482,7 +482,7 @@ source ~/.bashrc
 bash scripts/init03env.sh
 
 # MCP: 初始化 MCP 服务器（安装 + 配置 Key）
-bash scripts/initMCP.sh
+bash scripts/claudemcp.sh
 
 # 同步配置
 bash scripts/start.sh
@@ -495,7 +495,7 @@ bash scripts/start.sh
 bash scripts/start.sh
 
 # 检查/安装 MCP
-bash scripts/initMCP.sh
+bash scripts/claudemcp.sh
 
 # 重新配置浏览器后端（可选）
 bash scripts/initoptplaywright.sh
@@ -568,7 +568,7 @@ bash scripts/initoptplaywright.sh
 | `init01git.sh` | Git + GitHub CLI 安装/更新 | 直接运行 |
 | `init02claude.sh` | Claude Code 安装 + API 配置 | 直接运行 |
 | `init03env.sh` | Node.js + uv + Playwright + inotify + 字体 + 符号链接 + auto-sync | 直接运行 |
-| `initMCP.sh` | MCP 服务器安装/配置/管理 | 直接运行 |
+| `claudemcp.sh` | MCP 服务器安装/配置/管理 | 直接运行 |
 | `initoptplaywright.sh` | Playwright 浏览器后端选择（Steel/Chromium/Edge） | 直接运行（可选） |
 | `sync-settings.js` | settings.json 智能合并（现已通过符号链接取代） | 已废弃，仅保留 |
 

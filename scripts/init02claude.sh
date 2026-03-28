@@ -189,7 +189,7 @@ if [[ "$choice" != "2" ]]; then
     echo ""
     print_info "已取消，保持现有配置"
     echo ""
-    echo "下一步: bash claude-config/scripts/bash/init03env.sh"
+    echo "下一步: bash claude-config/scripts/init03env.sh"
     echo ""
     exit 0
 fi
@@ -472,7 +472,7 @@ echo "  📋 下一步操作"
 echo "========================================"
 echo ""
 echo "  配置环境 + 建立符号链接："
-echo "  bash claude-config/scripts/bash/init03env.sh"
+echo "  bash claude-config/scripts/init03env.sh"
 echo ""
 if [[ "$key_choice" == "1" || ( -n "$API_KEY" && "$API_KEY" != "$EXISTING_KEY" ) ]]; then
     print_warning "API 密钥已更新并写入 ~/.claude.json"
