@@ -50,26 +50,29 @@
 
 ```
 claude-config/
-├── init01git              # Git + GitHub CLI 安装 + 仓库克隆/更新
-├── init02claude           # Claude Code 安装 + API 配置
-├── init03env              # Node.js + uv + Playwright + 字体 + 符号链接
+├── config/                    # 配置文件
+│   ├── CLAUDE.md              # 权限白名单
+│   ├── settings.json          # Claude Code 设置
+│   ├── mcplist.json           # MCP 服务器列表
+│   ├── mcpidentity.json       # MCP 鉴权信息（不同步）
+│   └── apillm.json            # API 配置模板
 │
-scripts/                   # 所有脚本（Linux/WSL）
-├── start.sh               # 每日启动：git pull + 符号链接检查 + auto-sync
-├── end.sh                 # 每日结束：git add/commit/push
-├── auto-sync.sh           # 自动同步：监控文件变化，自动 commit + push
-├── enable-autostart.sh    # auto-sync 自启动配置（systemd 用户服务）
-├── init01git.sh           # Git + GitHub CLI 安装 + 仓库克隆/更新
-├── init02claude.sh        # Claude Code 安装 + API 配置
-├── init03env.sh           # Node.js + uv + Playwright + 字体 + 符号链接 + auto-sync
-├── initMCP.sh             # MCP 服务器初始化/安装/配置（统一管理）
-├── initoptplaywright.sh   # 可选: Playwright 浏览器后端配置
-└── sync-settings.js       # settings.json 智能合并
+memory/                        # 项目记忆
+│
+scripts/                       # 所有脚本（Linux/WSL）
+├── start.sh                   # 每日启动
+├── end.sh                     # 每日结束
+├── auto-sync.sh               # 自动同步
+├── enable-autostart.sh         # 自启动配置
+├── init01git.sh              # Git 环境
+├── init02claude.sh           # Claude 安装
+├── init03env.sh              # 环境准备
+├── initMCP.sh                # MCP 管理
+├── initoptplaywright.sh       # 浏览器后端选择
+└── sync-settings.js           # 设置合并（已废弃）
 ```
 
-**设计原则**：
-- 简化为单层目录结构，所有脚本平铺
-- 入口脚本（init01git, init02claude, init03env）在仓库根目录，调用 scripts/ 下的实现
+**使用方式**：所有脚本直接通过 `bash claude-config/scripts/<script>.sh` 运行
 
 ### auto-sync 自动同步机制
 
@@ -566,19 +569,30 @@ bash claude-config/scripts/initoptplaywright.sh
 |-----------|------|------|
 | `README.md` | 说明文档 | ✅ |
 | `LICENSE` | MIT 开源许可证 | ✅ |
-| `init01git` | Git 环境初始化入口 | ✅ |
-| `init02claude` | Claude Code 初始化入口 | ✅ |
-| `init03env` | 环境准备入口 | ✅ |
 | `config/CLAUDE.md` | 权限白名单配置 | ✅ 符号链接 |
 | `config/settings.json` | Claude Code 全局设置 | ✅ 符号链接 |
 | `config/apillm.json` | LLM API 配置模板（不含敏感信息） | ✅ |
 | `config/mcplist.json` | MCP 服务器列表 | ✅ |
 | `config/mcpidentity.json` | MCP 鉴权信息（Key/Token） | ❌ 不同步 |
 | `memory/` | 项目记忆目录（按项目名子目录） | ✅ 符号链接 |
-| `scripts/` | Bash 脚本（Linux/WSL），包含 start/end/auto-sync/init*/claudeMCP 等 | ✅ |
-| `src/README.md` | src 目录说明 | ✅ |
+| `scripts/` | 所有脚本（Linux/WSL） | ✅ |
 | `.auto-sync.log` | auto-sync 运行日志 | ❌ 不同步 |
 | `.auto-sync.pid` | auto-sync 进程 PID | ❌ 不同步 |
+
+### scripts/ 脚本说明
+
+| 脚本 | 功能 | 调用关系 |
+|------|------|----------|
+| `start.sh` | 每日启动：git pull + 符号链接 + 启动 auto-sync | 直接运行 |
+| `end.sh` | 每日结束：git add/commit/push | 直接运行 |
+| `auto-sync.sh` | 文件变化监控，自动 commit + push | start.sh 自动调用 / 直接运行 |
+| `enable-autostart.sh` | 配置 auto-sync 自启动（systemd） | 直接运行 |
+| `init01git.sh` | Git + GitHub CLI 安装/更新 | 直接运行 |
+| `init02claude.sh` | Claude Code 安装 + API 配置 | 直接运行 |
+| `init03env.sh` | Node.js + uv + Playwright + inotify + 字体 + 符号链接 + auto-sync | 直接运行 |
+| `initMCP.sh` | MCP 服务器安装/配置/管理 | 直接运行 |
+| `initoptplaywright.sh` | Playwright 浏览器后端选择（Steel/Chromium/Edge） | 直接运行（可选） |
+| `sync-settings.js` | settings.json 智能合并（现已通过符号链接取代） | 已废弃，仅保留 |
 
 ### 不同步的文件（本地保留）
 
