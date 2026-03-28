@@ -50,29 +50,29 @@
 
 ```
 claude-config/
-├── config/                    # 配置文件
-│   ├── CLAUDE.md              # 权限白名单
-│   ├── settings.json          # Claude Code 设置
-│   ├── mcplist.json           # MCP 服务器列表
-│   ├── mcpidentity.json       # MCP 鉴权信息（不同步）
-│   └── apillm.json            # API 配置模板
+├── init.sh                      # 主入口脚本
+├── status.sh                    # 状态检查（自动运行）
+├── config/                      # 配置文件
+│   ├── CLAUDE.md                # 权限白名单
+│   ├── settings.json             # Claude Code 设置
+│   ├── mcplist.json              # MCP 服务器列表
+│   ├── mcpidentity.json         # MCP 鉴权信息
+│   └── apillm.json               # API 配置模板
 │
-memory/                        # 项目记忆
+memory/                          # 项目记忆
 │
-scripts/                       # 所有脚本（Linux/WSL）
-├── start.sh                   # 每日启动
-├── end.sh                     # 每日结束
-├── auto-sync.sh               # 自动同步
-├── enable-autostart.sh         # 自启动配置
-├── init01git.sh              # Git 环境
-├── init02claude.sh           # Claude 安装
-├── init03env.sh              # 环境准备
-├── claudemcp.sh                # MCP 管理
-├── initoptplaywright.sh       # 浏览器后端选择
-└── sync-settings.js           # 设置合并（已废弃）
+scripts/                         # 所有脚本（Linux/WSL）
+├── auto-sync.sh                 # 自动同步（inotifywait）
+├── enable-autostart.sh          # 自启动配置
+├── init01git.sh                 # Git 环境初始化
+├── init02claude.sh              # Claude 安装
+├── init03env.sh                 # 环境准备 + 符号链接
+├── claudemcp.sh                 # MCP 管理
+├── initoptplaywright.sh         # Playwright 浏览器
+└── sync-settings.js             # 设置同步（保留）
 ```
 
-**使用方式**：所有脚本直接通过 `bash claude-config/scripts/<script>.sh` 运行
+**使用方式**：通过 `init.sh` 或直接运行 `bash scripts/<script>.sh`
 
 ### auto-sync 自动同步机制
 
@@ -99,13 +99,10 @@ bash claude-config/scripts/enable-autostart.sh disable
 bash claude-config/scripts/enable-autostart.sh status
 ```
 
-**auto-sync 与 start/end 脚本的关系**：
-| 脚本 | 触发方式 | 用途 |
-|------|---------|------|
-| start.sh | 每次工作开始 | 拉取更新 + 同步符号链接 + 启动 auto-sync |
-| end.sh | 每次工作结束 | 手动同步（auto-sync 已处理大部分情况） |
-| auto-sync.sh | 后台持续运行 | 任何文件变化自动推送 |
-| init03env.sh | 新环境/更新环境 | 安装依赖 + **可选配置自启动** |
+**auto-sync 特点**：
+- 后台持续运行，监控文件变化
+- 3秒防抖，避免频繁提交
+- 无需 start/end 脚本
 
 ### Memory 同步说明
 
@@ -117,9 +114,7 @@ memory/
     └── MEMORY.md               # 该项目的记忆文件
 ```
 
-当运行 `start.sh` 时，会自动检测当前目录：
-- 如果在 `claude-config` 仓库内，自动使用**父项目**（`/home/francis/git`）的 memory
-- 如果在其他项目目录，使用该项目本身的 memory
+MEMORY.md 通过符号链接与本地 `~/.claude/projects/` 同步。
 
 ### 优点
 
@@ -132,45 +127,20 @@ memory/
 
 ## 快速开始（日常使用）
 
-### 在当前设备开始工作前
+### 自动运行
 
-**WSL Ubuntu / Linux / Mac:**
+**每次启动终端时自动执行**：
+- Git 拉取最新配置
+- 检查符号链接状态
+- 检查 auto-sync 状态
+
+> 通过 `~/.bashrc` 配置 `status.sh` 自动运行
+
+### 手动状态检查
+
 ```bash
-cd ~/git/claude-config
-./scripts/start.sh
+bash claude-config/init.sh status
 ```
-
-这个脚本会自动：
-1. 从 GitHub 拉取最新配置
-2. 通过符号链接同步 settings.json 到本地
-3. 通过符号链接同步 CLAUDE.md 到本地主目录
-4. 通过符号链接同步 MEMORY.md（自动检测项目）
-
-### 在当前设备结束工作后
-
-**WSL Ubuntu / Linux / Mac:**
-```bash
-cd ~/git/claude-config
-./scripts/end.sh
-```
-
-这个脚本会自动：
-1. 显示 git 状态（符号链接已实时同步，无需额外复制）
-2. 提交更改（可自定义提交信息）
-3. 推送到 GitHub
-
-> **注意**：`.claude.json` 包含 LLM API 配置，保留在本地不同步。
-
-### 快捷命令（关键词）
-
-在 Claude Code 对话中使用这些关键词快速触发脚本：
-
-| 关键词 | 功能 | 说明 |
-|--------|------|------|
-| `gitinit` | 开始工作 | 等同于运行 `start.sh`，拉取配置并建立符号链接 |
-| `gitarc` | 结束工作 | 等同于运行 `end.sh`，提交并推送更改到 GitHub |
-
-**使用方式**：直接在对话中输入 `gitinit` 或 `gitarc`，Claude Code 会执行相应脚本。
 
 ### MCP 服务器管理
 
@@ -193,13 +163,17 @@ bash claude-config/scripts/claudemcp.sh
 
 ### 支持的平台
 
-| 平台 | 脚本 | 说明 |
-|------|------|------|
-| Windows 11 | `start.ps1` / `end.ps1` | 双击运行 |
-| WSL Ubuntu | `start.sh` / `end.sh` | Bash 运行 |
-| Linux / Mac | `start.sh` / `end.sh` | Bash 运行 |
+### Linux / Mac 部署
 
-### WSL Ubuntu 特别说明
+同 WSL Ubuntu，直接运行：
+
+```bash
+git clone https://github.com/<your-github-username>/claude-config.git
+cd claude-config
+bash init.sh
+```
+
+### Linux / Mac / WSL 日常使用
 
 WSL 环境下脚本会自动检测并适配：
 
@@ -207,24 +181,12 @@ WSL 环境下脚本会自动检测并适配：
 - **CLAUDE.md**：同步到 Linux 主目录 `~/CLAUDE.md`
 - **配置文件**：存储在 Windows 主目录，确保多端共享
 
-#### WSL 下手动运行
+#### WSL 下启动 Claude Code
 
 ```bash
-# 进入仓库目录
-cd ~/git/claude-config
-
-# 开始工作
-./scripts/start.sh
-
-# 结束工作
-./scripts/end.sh
-
-# 或添加到 PATH（可选）
-# echo 'export PATH="$PATH:~/git/claude-config/scripts"' >> ~/.bashrc
-# source ~/.bashrc
+# 启动 Claude Code（会自动运行 status.sh 检查配置）
+claude
 ```
-
-#### WSL 下 CLAUDE Code 启动
 
 ```bash
 # 在 WSL 中启动 Claude Code
@@ -255,32 +217,17 @@ powershell.exe -Command "claude"
 
 ```
 ┌─────────────────┐
-│  1. 环境准备     │ → Ubuntu 24.04 + Git + Node.js
+│  1. 克隆仓库     │ → git clone claude-config
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  2. 安装 Claude  │ → 原生版本（curl 安装）
+│  2. 运行 init.sh │ → 初始化所有配置
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  3. 克隆配置仓库 │ → git clone claude-config
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  4. 同步配置     │ → 运行 start.sh
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  5. 安装 MCP    │ → 使用 npm 全局安装
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  6. 验证部署     │ → 检查 Claude + MCP + Skill
+│  3. 启动 Claude  │ → 自动拉取 + 检查状态
 └─────────────────┘
 ```
 
@@ -368,16 +315,14 @@ cd claude-config
 
 ---
 
-#### 第四步：同步配置
+#### 第四步：运行 init.sh
 
 ```bash
-# 运行同步脚本
-./scripts/start.sh
+# 运行初始化脚本
+bash init.sh
 ```
 
-**注意**：WSL 环境下：
-- `.claude.json` 存储在 Windows 主目录（`/mnt/c/Users/franc/.claude.json`），与 Windows 端共享
-- `settings.json` 同步到 Windows 主目录
+这会自动完成所有配置同步。
 - `CLAUDE.md` 同步到 Linux 主目录 (`~/CLAUDE.md`)
 
 ---
@@ -439,62 +384,56 @@ cd claude-config
 # 3. 安装 Claude Code
 curl -sL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
 
-# 4. 同步配置
-./scripts/start.sh
+# 4. 运行初始化
+bash init.sh
 
-# 5. 安装 MCP
-npm install -g tavily-mcp @playwright/mcp markitdown-mcp-npx
-
-# 6. 验证
-claude --version
-claude mcp list
+# 5. 启动 Claude Code
+claude
 ```
 
 ---
 
 ## 初始化脚本说明
 
-所有脚本位于 `scripts/` 目录，直接运行即可。
-
-### 脚本执行顺序
-
-```
-init01git.sh    # Git + GitHub CLI + 克隆仓库
-init02claude.sh # Claude Code + API 配置
-init03env.sh   # Node.js + uv + Playwright + 符号链接 + auto-sync
-claudemcp.sh    # MCP 服务器安装/配置（在 Claude 中运行）
-```
-
 ### 全新环境首次设置
 
 ```bash
-# 1. 安装环境
-bash scripts/init01git.sh     # Git + GitHub CLI + 克隆仓库
-bash scripts/init02claude.sh  # Claude Code + API 配置
-bash scripts/init03env.sh      # Node.js + 运行时 + 符号链接 + auto-sync
+# 1. 克隆仓库
+git clone https://github.com/<your-github-username>/claude-config.git
+cd claude-config
 
-# 2. 在 Claude Code 对话中输入
-claudemcp                     # 安装/配置 MCP 服务器
-
-# 3. 只需要一次：拉取远程更新
-bash scripts/start.sh
+# 2. 运行主初始化脚本
+bash init.sh
 ```
+
+`init.sh` 会依次执行：
+1. `init01git.sh` - Git + GitHub CLI + 克隆仓库
+2. `init02claude.sh` - Claude Code + API 配置
+3. `init03env.sh` - Node.js + 符号链接 + auto-sync
+4. `claudemcp.sh` - MCP 服务器安装/配置
 
 ### 日常工作
 
 ```bash
-# 启动 Claude Code，直接使用
-# 变化自动通过 auto-sync 同步到 GitHub
+# 启动 Claude Code
+claude
+
+# 自动完成：Git 拉取 + 配置状态检查
 ```
+
+无需手动运行 start/end 脚本！
 
 ### 按需执行
 
 ```bash
-# 重新同步/拉取远程更新
-bash scripts/start.sh
+# 查看详细状态
+bash init.sh status
 
-# 配置/更新 MCP（在 Claude 中输入）
-claudemcp
+# 仅 Git 拉取
+bash init.sh git
+
+# 配置 auto-sync 自启动
+bash init.sh auto
 
 # 浏览器后端选择（可选）
 bash scripts/initoptplaywright.sh
@@ -550,22 +489,18 @@ bash scripts/initoptplaywright.sh
 | `config/mcplist.json` | MCP 服务器列表 | ✅ |
 | `config/mcpidentity.json` | MCP 鉴权信息（Key/Token） | ❌ 不同步 |
 | `memory/` | 项目记忆目录（按项目名子目录） | ✅ 符号链接 |
-| `scripts/` | 所有脚本（Linux/WSL） | ✅ |
-| `.auto-sync.log` | auto-sync 运行日志 | ❌ 不同步 |
-| `.auto-sync.pid` | auto-sync 进程 PID | ❌ 不同步 |
-
 ### scripts/ 脚本说明
 
 | 脚本 | 功能 | 调用关系 |
 |------|------|----------|
-| `start.sh` | 每日启动：git pull + 符号链接 + 启动 auto-sync | 直接运行 |
-| `end.sh` | 每日结束：git add/commit/push | 直接运行 |
-| `auto-sync.sh` | 文件变化监控，自动 commit + push | start.sh 自动调用 / 直接运行 |
+| `init.sh` | 主入口脚本，调用所有初始化 | 直接运行 |
+| `status.sh` | 状态检查 + Git 拉取 | 自动运行 |
+| `auto-sync.sh` | 文件变化监控，自动 commit + push | 后台自动运行 |
 | `enable-autostart.sh` | 配置 auto-sync 自启动（systemd） | 直接运行 |
-| `init01git.sh` | Git + GitHub CLI 安装/更新 | 直接运行 |
-| `init02claude.sh` | Claude Code 安装 + API 配置 | 直接运行 |
-| `init03env.sh` | Node.js + uv + Playwright + inotify + 字体 + 符号链接 + auto-sync | 直接运行 |
-| `claudemcp.sh` | MCP 服务器安装/配置/管理 | 直接运行 |
+| `init01git.sh` | Git + GitHub CLI 安装/更新 | init.sh 调用 |
+| `init02claude.sh` | Claude Code 安装 + API 配置 | init.sh 调用 |
+| `init03env.sh` | Node.js + uv + Playwright + inotify + 字体 + 符号链接 + auto-sync | init.sh 调用 |
+| `claudemcp.sh` | MCP 服务器安装/配置/管理 | init.sh 调用 |
 | `initoptplaywright.sh` | Playwright 浏览器后端选择（Steel/Chromium/Edge） | 直接运行（可选） |
 | `sync-settings.js` | settings.json 智能合并（现已通过符号链接取代） | 已废弃，仅保留 |
 
@@ -805,21 +740,14 @@ C:\Users\franc\AppData\Local\Microsoft\WinGet\Links\claude.exe
 
 ## 部署检查清单
 
-- [ ] WinGet 已安装
-- [ ] PowerShell 7 已安装
 - [ ] Git 已安装并配置
 - [ ] Node.js LTS 已安装
 - [ ] Claude Code 原生版本已安装
-- [ ] claude-config 仓库已克隆到 `C:\git\claude-config`
-- [ ] 本地 `.claude.json` 已配置（包含 API 密钥）
-- [ ] start.ps1 已运行，配置已同步
-- [ ] Tavily MCP npm 包已安装
-- [ ] Playwright MCP npm 包已安装
-- [ ] MarkItDown MCP npm 包已安装
+- [ ] claude-config 仓库已克隆
+- [ ] `bash init.sh` 已运行
 - [ ] Claude Code 能正常启动
-- [ ] `/mcp` 能看到所有 MCP 服务器
-- [ ] `/plugins` 能看到所有 Skill
-- [ ] Tavily 搜索测试通过
+- [ ] `claude mcp list` 显示所有 MCP 服务器
+- [ ] `bash init.sh status` 显示配置正常
 
 ---
 
@@ -841,16 +769,3 @@ C:\Users\franc\AppData\Local\Microsoft\WinGet\Links\claude.exe
 - Claude Code 官方文档：https://code.claude.com/docs
 - MCP 规范：https://modelcontextprotocol.io
 - claude-config 仓库：https://github.com/<your-github-username>/claude-config
-# test Sat Mar 28 16:44:24 CST 2026
-test line
-test modification
-test modification 2
-test at Sat Mar 28 16:47:11 CST 2026
-test at Sat Mar 28 16:47:23 CST 2026
-direct test Sat Mar 28 16:47:51 CST 2026
-test123
-recursive test
-exclude test
-auto-sync test Sat Mar 28 16:49:49 CST 2026
-Final test Sat Mar 28 16:50:37 CST 2026
-test
