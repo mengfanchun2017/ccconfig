@@ -56,8 +56,10 @@ claude-config/              # 仓库根目录入口脚本
 │
 scripts/
 ├── bash/              # Linux/WSL/macOS 独立实现
-│   ├── start.sh              # 每日启动：git pull + 符号链接检查
+│   ├── start.sh              # 每日启动：git pull + 符号链接检查 + auto-sync
 │   ├── end.sh                # 每日结束：git add/commit/push
+│   ├── auto-sync.sh          # 自动同步：监控文件变化，自动 commit + push
+│   ├── enable-autostart.sh    # auto-sync 自启动配置（systemd 用户服务）
 │   ├── init01git.sh          # 01: Git + GitHub CLI 安装 + 仓库克隆/更新
 │   ├── init02claude.sh       # 02: Claude Code 安装 + API 配置
 │   ├── init03env.sh          # 03: Node.js + uv + Playwright + 字体 + 符号链接
@@ -81,6 +83,39 @@ scripts/
 - Bash 和 PowerShell 是不同语言，**不共享代码**
 - 各平台脚本独立完整实现，功能一一对称
 - 无公共函数库，避免复杂性
+
+### auto-sync 自动同步机制
+
+`auto-sync.sh` 监控仓库文件变化，自动提交并推送到 GitHub。
+
+```
+文件变化 → inotifywait 监控 → 3秒防抖 → git add/commit/push
+```
+
+**特性**：
+- 使用 `inotifywait` 监控所有文件变化（排除 .git/、node_modules/、*.log、.auto-sync.*）
+- 3秒防抖：避免频繁提交
+- 后台运行，不阻塞终端
+
+**自启动配置**（Linux/WSL）：
+```bash
+# 启用自启动（systemd 用户服务）
+bash claude-config/scripts/bash/enable-autostart.sh enable
+
+# 禁用自启动
+bash claude-config/scripts/bash/enable-autostart.sh disable
+
+# 查看状态
+bash claude-config/scripts/bash/enable-autostart.sh status
+```
+
+**auto-sync 与 start/end 脚本的关系**：
+| 脚本 | 触发方式 | 用途 |
+|------|---------|------|
+| start.sh | 每次工作开始 | 拉取更新 + 同步符号链接 + 启动 auto-sync |
+| end.sh | 每次工作结束 | 手动同步（auto-sync 已处理大部分情况） |
+| auto-sync.sh | 后台持续运行 | 任何文件变化自动推送 |
+| init03env.sh | 新环境/更新环境 | 安装依赖 + **可选配置自启动** |
 
 ### Memory 同步说明
 
