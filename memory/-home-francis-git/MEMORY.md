@@ -263,7 +263,7 @@ claude-config/
     └── init01git.sh, init02claude.sh, init03env.sh, initoptplaywright.sh
 ```
 
-**auto-sync 状态**: 运行中 (PID: 206574)
+**auto-sync 状态**: 运行中 (PID: 230803)，监控目录: /home/francis/git/claude-config
 **Git 状态**: 已推送，working tree clean
 
 ### 2026-03-28 [Francis_MiPro] - 自动同步与 MiniMax 多模态 MCP
