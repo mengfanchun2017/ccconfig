@@ -87,13 +87,13 @@ scripts/                   # 所有脚本（Linux/WSL）
 **自启动配置**（Linux/WSL）：
 ```bash
 # 启用自启动（systemd 用户服务）
-bash claude-config/scripts/bash/enable-autostart.sh enable
+bash claude-config/scripts/enable-autostart.sh enable
 
 # 禁用自启动
-bash claude-config/scripts/bash/enable-autostart.sh disable
+bash claude-config/scripts/enable-autostart.sh disable
 
 # 查看状态
-bash claude-config/scripts/bash/enable-autostart.sh status
+bash claude-config/scripts/enable-autostart.sh status
 ```
 
 **auto-sync 与 start/end 脚本的关系**：
@@ -123,7 +123,7 @@ memory/
 1. **修改即时同步** - 无需手动 push/pull 配置文件
 2. **仓库统一管理** - 所有变更在仓库中，方便版本控制
 3. **多设备共享** - 符号链接在本地，但文件在仓库，任何设备 clone 后链接即可
-4. **保持独立** - bash/pwsh 脚本互不依赖，各自维护
+4. **保持独立** - 脚本独立维护，简洁直接
 
 ---
 
@@ -131,15 +131,10 @@ memory/
 
 ### 在当前设备开始工作前
 
-**Windows (双击):**
-```
-scripts\pwsh\start.ps1
-```
-
 **WSL Ubuntu / Linux / Mac:**
 ```bash
 cd ~/git/claude-config
-./scripts/bash/start.sh
+./scripts/start.sh
 ```
 
 这个脚本会自动：
@@ -150,15 +145,10 @@ cd ~/git/claude-config
 
 ### 在当前设备结束工作后
 
-**Windows (双击):**
-```
-scripts\pwsh\end.ps1
-```
-
 **WSL Ubuntu / Linux / Mac:**
 ```bash
 cd ~/git/claude-config
-./scripts/bash/end.sh
+./scripts/end.sh
 ```
 
 这个脚本会自动：
@@ -181,16 +171,8 @@ cd ~/git/claude-config
 
 ### MCP 服务器管理
 
-使用 `initMCP.sh` / `initMCP.ps1` 来统一管理 MCP 服务器：
-
-**Windows:**
-```
-scripts\pwsh\initMCP.ps1
-```
-
-**Linux / Mac:**
 ```bash
-bash claude-config/scripts/bash/initMCP.sh
+bash claude-config/scripts/initMCP.sh
 ```
 
 功能：
@@ -229,10 +211,10 @@ WSL 环境下脚本会自动检测并适配：
 cd ~/git/claude-config
 
 # 开始工作
-./scripts/bash/start.sh
+./scripts/start.sh
 
 # 结束工作
-./scripts/bash/end.sh
+./scripts/end.sh
 
 # 或添加到 PATH（可选）
 # echo 'export PATH="$PATH:~/git/claude-config/scripts"' >> ~/.bashrc
@@ -255,303 +237,10 @@ powershell.exe -Command "claude"
 
 ### 选择你的平台
 
-- [Windows 11](#windows-11-部署)
-- [WSL Ubuntu](#wsl-ubuntu-部署)
+- [WSL Ubuntu](#wsl-ubuntu-部署) ⭐ 推荐
 - [Linux / Mac](#linux--mac-部署)
 
----
-
-### Windows 11 部署
-
-#### 部署流程图
-
-```
-┌─────────────────┐
-│  1. 环境准备     │ → PowerShell 7 + Git + Node.js + WinGet
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  2. 安装 Claude  │ → 原生版本（WinGet 或 PowerShell）
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  3. 克隆配置仓库 │ → git clone claude-config
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  4. 同步配置     │ → 运行 scripts/pwsh/start.ps1
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  5. 安装 MCP    │ → 使用 claude mcp 命令
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  6. 验证部署     │ → 检查 Claude + MCP + Skill
-└─────────────────┘
-```
-
-#### 第一步：环境准备
-
-#### 1.1 检查并安装 WinGet
-
-Windows 11 通常自带 WinGet，验证一下：
-
-```powershell
-winget --version
-```
-
-如果没有：
-1. 打开 Microsoft Store
-2. 搜索「App Installer」
-3. 安装或更新
-
-#### 1.2 安装 PowerShell 7（推荐）
-
-Windows 11 自带 PowerShell 5，但推荐安装 PowerShell 7：
-
-```powershell
-# 检查当前版本
-$PSVersionTable.PSVersion
-
-# 如果版本 < 7，安装
-winget install Microsoft.PowerShell
-```
-
-验证：
-```powershell
-pwsh --version
-```
-
-#### 1.3 安装 Git
-
-```powershell
-winget install Git.Git
-```
-
-验证：
-```powershell
-git --version
-```
-
-**配置 Git（必需）：**
-```powershell
-git config --global user.name "你的名字"
-git config --global user.email "你的邮箱"
-```
-
-#### 1.4 安装 Node.js LTS（用于 MCP 服务器）
-
-```powershell
-winget install OpenJS.NodeJS.LTS
-```
-
-验证：
-```powershell
-node --version
-npm --version
-```
-
-#### 1.5 配置 Git 代理（如果需要）
-
-如果使用代理（Clash Verge）：
-
-```powershell
-git config --global http.proxy http://127.0.0.1:7897
-git config --global https.proxy http://127.0.0.1:7897
-```
-
-> 代理端口默认 7897，请根据实际情况调整。
-
----
-
-### 第二步：安装 Claude Code（原生版本）
-
-#### 方式一：WinGet（最推荐）
-
-```powershell
-winget install Anthropic.ClaudeCode
-```
-
-#### 方式二：PowerShell 脚本
-
-```powershell
-irm https://claude.ai/install.ps1 | iex
-```
-
-#### 验证安装
-
-```powershell
-claude --version
-```
-
-应该输出类似：`2.1.63 (Claude Code)`
-
----
-
-### 第三步：克隆配置仓库
-
-```powershell
-# 创建项目目录
-cd C:\
-mkdir git
-cd git
-
-# 克隆配置仓库
-git clone git@github.com:<your-github-username>/claude-config.git
-```
-
-> **如果 SSH 不行，使用 HTTPS：**
-> ```powershell
-> git clone https://github.com/<your-github-username>/claude-config.git
-> ```
-
----
-
-### 第四步：同步配置
-
-#### 运行同步脚本
-
-**Windows（双击即可）：**
-```
-C:\git\claude-config\scripts\pwsh\start.ps1
-```
-
-**PowerShell：**
-```powershell
-cd C:\git\claude-config
-.\scripts\pwsh\start.ps1
-```
-
-#### 同步脚本做了什么
-
-| 步骤 | 操作 |
-|------|------|
-| 1 | 从 GitHub 拉取最新配置 |
-| 2 | 智能同步 settings.json → `%USERPROFILE%\.claude\settings.json` |
-| 3 | 同步 CLAUDE.md → `C:\git\CLAUDE.md` |
-| 4 | 智能合并 settings.json（保留本地状态） |
-
-> **重要**：
-> - `.claude.json` 包含 LLM API 配置，保留在本地不同步
-> - 不要在项目目录下创建 `.claude/settings.local.json`，这会覆盖全局权限配置
-
-#### 手动同步（如果脚本不可用）
-
-```powershell
-# 复制 settings.json
-Copy-Item C:\git\claude-config\settings.json $env:USERPROFILE\.claude\settings.json -Force
-
-# 复制 CLAUDE.md
-Copy-Item C:\git\claude-config\CLAUDE.md C:\git\CLAUDE.md -Force
-
-# 创建本地 .claude.json（从其他设备复制）
-# 包含 MCP 服务器配置和环境变量
-```
-
----
-
-### 第五步：安装 MCP 服务器
-
-配置同步后，部分 MCP 服务器可能需要手动安装 npm 包。
-
-#### MCP 管理命令
-
-```powershell
-# 列出已配置的 MCP 服务器
-claude mcp list
-
-# 查看帮助
-claude mcp --help
-```
-
-#### 安装常用 MCP 服务器
-
-##### 1. Tavily MCP（网络搜索）
-
-```powershell
-npm install -g tavily-mcp
-```
-
-验证：
-```bash
-tavily-mcp --help
-```
-
-##### 2. Playwright MCP（浏览器自动化，推荐安装）
-
-```bash
-npm install -g @playwright/mcp
-```
-
-验证：
-```bash
-playwright-mcp --help
-```
-
-##### 3. MarkItDown MCP（文档解析，推荐安装）
-
-```bash
-npm install -g markitdown-mcp-npx
-```
-
-验证：
-```bash
-markitdown-mcp-npx --help
-```
-
-##### 4. GitHub MCP
-
-使用 HTTP 方式，不需要安装本地 npm 包，配置在本地 `.claude.json` 中。
-
-##### 5. Supabase MCP
-
-使用 HTTP 方式，不需要安装本地 npm 包，配置在本地 `.claude.json` 中。
-
-> **注意**：本地 `.claude.json` 需要手动配置 MCP 服务器。首次使用前请确保已在本地配置文件中添加以上 MCP。
-
----
-
-### 第六步：验证部署
-
-#### 6.1 验证 Claude Code
-
-```powershell
-claude --version
-claude doctor
-```
-
-#### 6.2 验证 MCP 服务器
-
-启动 Claude Code，然后在对话中输入：
-```
-/mcp
-```
-
-应该看到：tavily、playwright、markitdown、github、supabase
-
-#### 6.3 验证 Skill / Plugin
-
-在对话中输入：
-```
-/plugins
-```
-
-应该看到：simplify、tavily@tavily-ai-skills、claude-api
-
-#### 6.4 测试 Tavily 搜索
-
-在对话中说：
-```
-搜索一下今天的新闻
-```
-
-如果能返回搜索结果，说明部署成功！
+> **Windows 11**：PowerShell 脚本尚未实现，可使用 [WSL Ubuntu](#wsl-ubuntu-部署) 方案
 
 ---
 
@@ -680,7 +369,7 @@ cd claude-config
 
 ```bash
 # 运行同步脚本
-./scripts/bash/start.sh
+./scripts/start.sh
 ```
 
 **注意**：WSL 环境下：
@@ -748,7 +437,7 @@ cd claude-config
 curl -sL https://raw.githubusercontent.com/anthropics/claude-code/main/install.sh | sh
 
 # 4. 同步配置
-./scripts/bash/start.sh
+./scripts/start.sh
 
 # 5. 安装 MCP
 npm install -g tavily-mcp @playwright/mcp markitdown-mcp-npx
@@ -845,10 +534,10 @@ source ~/.bashrc
 bash claude-config/init03env
 
 # MCP: 初始化 MCP 服务器（安装 + 配置 Key）
-bash claude-config/scripts/bash/initMCP.sh
+bash claude-config/scripts/initMCP.sh
 
 # 最后: 同步配置
-bash scripts/bash/start.sh
+bash scripts/start.sh
 ```
 
 **Windows:**
@@ -877,14 +566,14 @@ cd C:\git\claude-config
 
 ```bash
 # 只更新仓库和配置
-bash claude-config/scripts/bash/init01git.sh
-bash scripts/bash/start.sh
+bash claude-config/scripts/init01git.sh
+bash scripts/start.sh
 
 # 只检查/安装 MCP
-bash claude-config/scripts/bash/initMCP.sh
+bash claude-config/scripts/initMCP.sh
 
 # 重新配置浏览器后端
-bash claude-config/scripts/bash/initoptplaywright.sh
+bash claude-config/scripts/initoptplaywright.sh
 ```
 
 ---
@@ -906,9 +595,7 @@ bash claude-config/scripts/bash/initoptplaywright.sh
 | `config/mcplist.json` | MCP 服务器列表 | ✅ |
 | `config/mcpidentity.json` | MCP 鉴权信息（Key/Token） | ❌ 不同步 |
 | `memory/` | 项目记忆目录（按项目名子目录） | ✅ 符号链接 |
-| `scripts/bash/` | Bash 脚本（Linux/WSL/macOS），各脚本独立实现 | ✅ |
-| `scripts/pwsh/` | PowerShell 脚本（Windows），与 bash 对称 | ✅ |
-| `scripts/shared/` | 跨平台共享脚本 | ✅ |
+| `scripts/` | Bash 脚本（Linux/WSL），包含 start/end/auto-sync/init*/claudeMCP 等 | ✅ |
 | `src/README.md` | src 目录说明 | ✅ |
 | `.auto-sync.log` | auto-sync 运行日志 | ❌ 不同步 |
 | `.auto-sync.pid` | auto-sync 进程 PID | ❌ 不同步 |
