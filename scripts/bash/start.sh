@@ -168,3 +168,17 @@ check_symlink "$HOME/CLAUDE.md" "CLAUDE.md"
 check_symlink "$MEMORY_DIR/MEMORY.md" "MEMORY.md"
 
 echo ""
+
+# ========== 启动 auto-sync ==========
+if command -v inotifywait &>/dev/null; then
+    AUTO_SYNC_SCRIPT="$REPO_DIR/scripts/bash/auto-sync.sh"
+    if [ -f "$AUTO_SYNC_SCRIPT" ]; then
+        echo "========================================"
+        echo "🔄 启动 auto-sync 自动同步..."
+        echo "========================================"
+        bash "$AUTO_SYNC_SCRIPT" start
+    fi
+else
+    echo "⚠️ inotify-tools 未安装，auto-sync 将不可用"
+    echo "   运行 init03env.sh 安装依赖"
+fi

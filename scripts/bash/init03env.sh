@@ -300,6 +300,33 @@ install_playwright_deps() {
     return 1
 }
 
+# ========== inotify-tools 安装（auto-sync 依赖）==========
+install_inotify() {
+    section "安装 inotify-tools (auto-sync 依赖)"
+
+    if command -v inotifywait &>/dev/null; then
+        info "inotify-tools 已安装: $(inotifywait --version 2>&1 | head -1)"
+        return 0
+    fi
+
+    info "安装 inotify-tools..."
+    if command -v sudo &>/dev/null; then
+        if sudo apt-get update &>/dev/null && sudo apt-get install -y inotify-tools 2>&1; then
+            good "inotify-tools 安装成功"
+            return 0
+        fi
+    else
+        if apt-get update &>/dev/null && apt-get install -y inotify-tools 2>&1; then
+            good "inotify-tools 安装成功"
+            return 0
+        fi
+    fi
+
+    warn "inotify-tools 安装失败"
+    warn "auto-sync 将不可用"
+    return 1
+}
+
 # ========== Playwright MCP 配置修复 ==========
 configure_playwright_mcp() {
     section "配置 Playwright MCP"
@@ -484,6 +511,7 @@ main() {
     echo "     - uv - Python-based MCP 服务器"
     echo "     - Playwright - 浏览器自动化"
     echo "     - 中文字体"
+    echo "     - inotify-tools - auto-sync 自动同步依赖"
     echo "  2. 建立符号链接实现配置双向同步"
     echo ""
     echo "安装完成后请运行 claudeMCP.sh 安装具体的 MCP 服务器"
@@ -541,6 +569,9 @@ main() {
 
     # Playwright 系统依赖
     install_playwright_deps
+
+    # inotify-tools（auto-sync 依赖）
+    install_inotify
 
     # Playwright MCP 配置
     configure_playwright_mcp
