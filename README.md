@@ -869,19 +869,16 @@ bash scripts/bash/start.sh
 cd C:\git\claude-config
 
 # 01: 安装 Git + GitHub CLI + 克隆/更新仓库
-.\scripts\pwsh\init01git.ps1
+.\scripts\pwsh\initgit.ps1
 
 # 02: 安装 Claude Code + 配置 API
-.\scripts\pwsh\init02claude.ps1
+.\scripts\pwsh\initclaude.ps1
 
 # 03: 安装 Node.js + uv + Playwright + 字体 + 符号链接
-.\scripts\pwsh\init03env.ps1
+# (注: init03env.ps1 尚未创建，可手动运行 start.ps1 完成符号链接)
 
 # 04: 检查/安装 MCP 服务器
-.\scripts\pwsh\initMCP.ps1
-
-# 可选: 配置浏览器后端（如果需要）
-.\scripts\pwsh\initoptplaywright.ps1
+.\scripts\pwsh\claudeMCP.ps1
 
 # 最后: 同步配置
 .\scripts\pwsh\start.ps1
