@@ -642,6 +642,25 @@ main() {
 
     echo ""
 
+    # ========== 启动 auto-sync ==========
+    section "启动 auto-sync"
+    AUTO_SYNC_SCRIPT="$REPO_DIR/scripts/bash/auto-sync.sh"
+    if [ -f "$AUTO_SYNC_SCRIPT" ]; then
+        if command -v inotifywait &>/dev/null; then
+            # 检查是否已在运行
+            if [ -f "$REPO_DIR/.auto-sync.pid" ] && kill -0 "$(cat "$REPO_DIR/.auto-sync.pid")" 2>/dev/null; then
+                info "auto-sync 已在运行 (PID: $(cat "$REPO_DIR/.auto-sync.pid"))"
+            else
+                info "启动 auto-sync 自动同步..."
+                bash "$AUTO_SYNC_SCRIPT" start
+            fi
+        else
+            warn "inotify-tools 未安装，auto-sync 将不可用"
+            warn "运行 init03env.sh 重新安装依赖"
+        fi
+    fi
+    echo ""
+
     section "安装完成"
     echo ""
     info "环境准备就绪，符号链接已建立"
@@ -652,6 +671,9 @@ main() {
     echo ""
     echo "  安装 MCP 服务器："
     echo "  bash claude-config/scripts/bash/claudeMCP.sh"
+    echo ""
+    echo "  或者直接开始工作："
+    echo "  bash claude-config/scripts/bash/start.sh"
     echo ""
 }
 
