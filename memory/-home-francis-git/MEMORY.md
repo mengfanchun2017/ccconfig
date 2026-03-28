@@ -57,9 +57,9 @@ Use the following sections in this file:
   - 每次工作收尾时必须同步记忆
   - 更新 MEMORY.md 后要同步到 claude-config 仓库
 - **MCP 操作规则**:
-  - 如果用户有 MCP 初始化、安装、更新等要求，运行 `bash claude-config/scripts/bash/initMCP.sh`
+  - 如果用户有 MCP 初始化、安装、更新等要求，运行 `bash claude-config/scripts/claudemcp.sh`
   - 所有 MCP 的 Key/Token 等鉴权信息存储在 `config/mcpidentity.json` 中，便于直接修改
-  - `mcpidentity.json` 包含敏感信息，不参与 Git 同步
+  - `mcpidentity.json` 现在参与 Git 同步（私有仓库安全）
 - Tools:
 - **Bash Command Approval Rule**:
   - 把运行过、需要我批准的命令，除非是高危的，都加到 CLAUDE.md 配置文件里
@@ -90,7 +90,7 @@ Use the following sections in this file:
 
 ### 实现方式
 ```bash
-cd /home/francis/git && bash claude-config/scripts/bash/end.sh
+cd /home/francis/git && bash claude-config/scripts/end.sh
 ```
 
 ---
@@ -238,6 +238,32 @@ mcpidentity.json ──→ ~/.claude.json (mcpServers)
 ---
 
 ## Session Logs (会话记录)
+
+### 2026-03-28 [Francis_MiPro] - claude-config 目录结构简化
+**用户去睡觉，继续完善工作**
+
+**已完成**：
+1. **目录结构扁平化** - 删除 pwsh/、shared/、src/ 等子目录
+2. **重命名脚本** - claudeMCP.sh → claudemcp.sh (全小写)
+3. **auto-sync.sh 修复** - 解决 local 变量作用域、.tmp 文件事件循环、防抖计时重置等 bug
+4. **systemd 自启动服务** - 创建 ~/.config/systemd/user/claude-auto-sync.service
+5. **enable-autostart.sh** - 管理自启动的启用/禁用/状态检查
+6. **mcpidentity.json 同步** - 从 .gitignore 移除，现在参与 Git 同步
+7. **README.md 更新** - 新流程：init01git → init02claude → init03env → claudemcp → start.sh(一次)
+
+**最终目录结构**：
+```
+claude-config/
+├── config/        # 配置文件
+├── memory/        # 记忆目录
+└── scripts/       # 扁平化脚本目录（全部小写）
+    ├── auto-sync.sh, claudemcp.sh, enable-autostart.sh
+    ├── end.sh, start.sh
+    └── init01git.sh, init02claude.sh, init03env.sh, initoptplaywright.sh
+```
+
+**auto-sync 状态**: 运行中 (PID: 206574)
+**Git 状态**: 已推送，working tree clean
 
 ### 2026-03-28 [Francis_MiPro] - 自动同步与 MiniMax 多模态 MCP
 **问题**：用户去睡觉，要求继续完善
