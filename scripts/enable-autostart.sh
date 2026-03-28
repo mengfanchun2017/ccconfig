@@ -2,9 +2,9 @@
 # Claude Config - 启用/禁用 auto-sync 自启动
 #
 # 使用方法：
-#   bash scripts/bash/enable-autostart.sh enable   # 启用自启动
-#   bash scripts/bash/enable-autostart.sh disable  # 禁用自启动
-#   bash scripts/bash/enable-autostart.sh status    # 查看状态
+#   bash scripts/enable-autostart.sh enable   # 启用自启动
+#   bash scripts/enable-autostart.sh disable  # 禁用自启动
+#   bash scripts/enable-autostart.sh status    # 查看状态
 #
 
 set -e
@@ -42,7 +42,7 @@ enable_autostart() {
     # 复制服务文件
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-    cp "$REPO_DIR/scripts/bash/auto-sync.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
+    cp "$REPO_DIR/scripts/auto-sync.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
 
     cat > "$SYSTEMD_SERVICE" << EOF
 [Unit]
@@ -52,7 +52,7 @@ After=default.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/francis/git/claude-config/scripts/bash/auto-sync.sh start
+ExecStart=/home/francis/git/claude-config/scripts/auto-sync.sh start
 RemainAfterExit=yes
 
 [Install]
@@ -114,9 +114,9 @@ status_autostart() {
 
     echo ""
     echo "自启动配置方法："
-    echo "  启用: bash claude-config/scripts/bash/enable-autostart.sh enable"
-    echo "  禁用: bash claude-config/scripts/bash/enable-autostart.sh disable"
-    echo "  状态: bash claude-config/scripts/bash/enable-autostart.sh status"
+    echo "  启用: bash claude-config/scripts/enable-autostart.sh enable"
+    echo "  禁用: bash claude-config/scripts/enable-autostart.sh disable"
+    echo "  状态: bash claude-config/scripts/enable-autostart.sh status"
     echo ""
 }
 

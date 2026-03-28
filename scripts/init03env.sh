@@ -3,7 +3,7 @@
 # 用途：安装运行时环境依赖 + 建立符号链接
 #
 # 使用方法（从仓库上级目录运行）：
-#   bash claude-config/scripts/bash/init03env.sh
+#   bash claude-config/scripts/init03env.sh
 #
 # 此脚本会：
 #   1. 安装 MCP 服务器所需的运行时环境
@@ -17,7 +17,7 @@
 #      - MEMORY.md → ~/.claude/projects/.../memory/MEMORY.md
 #
 # 安装完成后，请运行 claudemcp.sh 安装具体的 MCP 服务器：
-#   bash claude-config/scripts/bash/claudemcp.sh
+#   bash claude-config/scripts/claudemcp.sh
 
 set -e
 
@@ -645,7 +645,7 @@ main() {
 
     # ========== 启动 auto-sync ==========
     section "启动 auto-sync"
-    AUTO_SYNC_SCRIPT="$REPO_DIR/scripts/bash/auto-sync.sh"
+    AUTO_SYNC_SCRIPT="$REPO_DIR/scripts/auto-sync.sh"
     if [ -f "$AUTO_SYNC_SCRIPT" ]; then
         if command -v inotifywait &>/dev/null; then
             # 检查是否已在运行
@@ -693,7 +693,7 @@ main() {
     autostart_choice="${autostart_choice:-N}"
 
     if [[ "$autostart_choice" =~ ^[Yy]$ ]]; then
-        ENABLE_AUTOSTART_SCRIPT="$REPO_DIR/scripts/bash/enable-autostart.sh"
+        ENABLE_AUTOSTART_SCRIPT="$REPO_DIR/scripts/enable-autostart.sh"
         if [ -f "$ENABLE_AUTOSTART_SCRIPT" ]; then
             info "配置自启动..."
             bash "$ENABLE_AUTOSTART_SCRIPT" enable
@@ -714,10 +714,10 @@ main() {
     echo "========================================"
     echo ""
     echo "  安装 MCP 服务器："
-    echo "  bash claude-config/scripts/bash/claudemcp.sh"
+    echo "  bash claude-config/scripts/claudemcp.sh"
     echo ""
     echo "  或者直接开始工作："
-    echo "  bash claude-config/scripts/bash/start.sh"
+    echo "  bash claude-config/scripts/start.sh"
     echo ""
 }
 
