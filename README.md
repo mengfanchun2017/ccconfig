@@ -503,7 +503,9 @@ bash scripts/initoptplaywright.sh
 
 ### mcpidentity.json 鉴权信息管理
 
-所有 MCP 的 Key/Token 等敏感信息存储在 `config/mcpidentity.json`：
+所有 MCP 的 Key/Token 等敏感信息存储在 `config/mcpidentity.json`，**现已加入 Git 同步**：
+
+> ⚠️ 如果需要保持 Key 私密，请自行从其他设备复制，仓库为私有库可放心同步。
 
 ```json
 {
