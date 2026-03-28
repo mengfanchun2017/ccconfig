@@ -49,7 +49,7 @@ start_watch() {
 
     # 后台运行 inotifywait
     inotifywait -m -r -q \
-        --exclude '(\.git/|node_modules/|\.log$|\.auto-sync)' \
+        --exclude '(\.git/|node_modules/|\.log$|\.auto-sync|\.tmp$)' \
         -e modify,create,delete,move \
         "$REPO_DIR" \
         >> "$LOG_FILE" 2>&1 &
@@ -62,6 +62,7 @@ start_watch() {
     local debounce=3  # 秒
     local last_change=0
     local pending=false
+    local initial=true
 
     while kill -0 $pid 2>/dev/null; do
         sleep 1
@@ -69,18 +70,32 @@ start_watch() {
         # 检查是否有新事件
         if [ -s "$LOG_FILE" ]; then
             local now=$(date +%s)
+
+            # 初始化：首次检测到事件，只记录时间，不立即提交
+            if [ "$initial" = true ]; then
+                last_change=$now
+                pending=true
+                initial=false
+                # 清空日志（保留最后一行作为状态）
+                tail -1 "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE"
+                continue
+            fi
+
+            # 检查是否需要提交
             if [ $(($now - $last_change)) -ge $debounce ]; then
                 if [ "$pending" = true ]; then
                     # 已经等待够久，提交
                     commit_and_push
                     pending=false
+                    initial=true  # 重置为初始状态
                 fi
             else
                 pending=true
             fi
+
             last_change=$now
-            # 清空日志（保留最后一行作为状态）
-            tail -1 "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE"
+            # 清空日志文件内容（避免下次重复检测）
+            > "$LOG_FILE"
         fi
     done &
 }
