@@ -4,8 +4,6 @@
 # GetNote 等外部工具配置（包含 API Key）
 openclaw.json
 
-# MCP 鉴权信息文件（包含 Key/Token，本地维护）
-config/mcpidentity.json
 
 # auto-sync 运行文件
 .auto-sync.log
