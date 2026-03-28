@@ -540,26 +540,6 @@ bash claude-config/scripts/initMCP.sh
 bash scripts/start.sh
 ```
 
-**Windows:**
-```powershell
-cd C:\git\claude-config
-
-# 01: 安装 Git + GitHub CLI + 克隆/更新仓库
-.\scripts\pwsh\initgit.ps1
-
-# 02: 安装 Claude Code + 配置 API
-.\scripts\pwsh\initclaude.ps1
-
-# 03: 安装 Node.js + uv + Playwright + 字体 + 符号链接
-# (注: init03env.ps1 尚未创建，可手动运行 start.ps1 完成符号链接)
-
-# 04: 检查/安装 MCP 服务器
-.\scripts\pwsh\claudeMCP.ps1
-
-# 最后: 同步配置
-.\scripts\pwsh\start.ps1
-```
-
 ### 按需执行（已初始化过的电脑）
 
 如果某些组件已安装，对应脚本会自动跳过：
