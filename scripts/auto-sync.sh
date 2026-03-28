@@ -11,7 +11,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PID_FILE="$REPO_DIR/.auto-sync.pid"
 LOG_FILE="$REPO_DIR/.auto-sync.log"
 
