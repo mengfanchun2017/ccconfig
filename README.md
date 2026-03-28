@@ -49,40 +49,27 @@
 ### 脚本架构
 
 ```
-claude-config/              # 仓库根目录入口脚本
+claude-config/
 ├── init01git              # Git + GitHub CLI 安装 + 仓库克隆/更新
 ├── init02claude           # Claude Code 安装 + API 配置
 ├── init03env              # Node.js + uv + Playwright + 字体 + 符号链接
 │
-scripts/
-├── bash/              # Linux/WSL/macOS 独立实现
-│   ├── start.sh              # 每日启动：git pull + 符号链接检查 + auto-sync
-│   ├── end.sh                # 每日结束：git add/commit/push
-│   ├── auto-sync.sh          # 自动同步：监控文件变化，自动 commit + push
-│   ├── enable-autostart.sh    # auto-sync 自启动配置（systemd 用户服务）
-│   ├── init01git.sh          # 01: Git + GitHub CLI 安装 + 仓库克隆/更新
-│   ├── init02claude.sh       # 02: Claude Code 安装 + API 配置
-│   ├── init03env.sh          # 03: Node.js + uv + Playwright + 字体 + 符号链接
-│   ├── initMCP.sh            # MCP 服务器初始化/安装/配置（统一管理）
-│   └── initoptplaywright.sh  # 可选: Playwright 浏览器后端配置
-│
-├── pwsh/              # Windows PowerShell 独立实现（与 bash 对称）
-│   ├── start.ps1             # 每日启动：git pull + 符号链接检查
-│   ├── end.ps1               # 每日结束：git add/commit/push
-│   ├── init01git.ps1         # 01: Git + GitHub CLI 安装
-│   ├── init02claude.ps1      # 02: Claude Code 安装 + API 配置
-│   ├── init03env.ps1         # 03: Node.js + uv + Playwright + 字体
-│   ├── initMCP.ps1           # MCP 服务器初始化/安装/配置（统一管理）
-│   └── initoptplaywright.ps1 # 可选: Playwright 浏览器后端配置
-│
-└── shared/            # 真正可跨平台共享的脚本
-    └── sync-settings.js # settings.json 智能合并
+scripts/                   # 所有脚本（Linux/WSL）
+├── start.sh               # 每日启动：git pull + 符号链接检查 + auto-sync
+├── end.sh                 # 每日结束：git add/commit/push
+├── auto-sync.sh           # 自动同步：监控文件变化，自动 commit + push
+├── enable-autostart.sh    # auto-sync 自启动配置（systemd 用户服务）
+├── init01git.sh           # Git + GitHub CLI 安装 + 仓库克隆/更新
+├── init02claude.sh        # Claude Code 安装 + API 配置
+├── init03env.sh           # Node.js + uv + Playwright + 字体 + 符号链接 + auto-sync
+├── initMCP.sh             # MCP 服务器初始化/安装/配置（统一管理）
+├── initoptplaywright.sh   # 可选: Playwright 浏览器后端配置
+└── sync-settings.js       # settings.json 智能合并
 ```
 
 **设计原则**：
-- Bash 和 PowerShell 是不同语言，**不共享代码**
-- 各平台脚本独立完整实现，功能一一对称
-- 无公共函数库，避免复杂性
+- 简化为单层目录结构，所有脚本平铺
+- 入口脚本（init01git, init02claude, init03env）在仓库根目录，调用 scripts/ 下的实现
 
 ### auto-sync 自动同步机制
 
