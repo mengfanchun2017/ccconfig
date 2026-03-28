@@ -662,6 +662,49 @@ main() {
     fi
     echo ""
 
+    # ========== 自启动配置 ==========
+    section "auto-sync 自启动配置"
+
+    # 检查自启动状态
+    SYSTEMD_SERVICE="$HOME/.config/systemd/user/claude-auto-sync.service"
+    AUTOSTART_ENABLED=false
+
+    if [ -f "$SYSTEMD_SERVICE" ]; then
+        if command -v systemctl &>/dev/null && systemctl --user is-enabled claude-auto-sync &>/dev/null; then
+            AUTOSTART_ENABLED=true
+        fi
+    fi
+
+    echo ""
+    echo "当前自启动状态："
+    if [ "$AUTOSTART_ENABLED" = true ]; then
+        echo "  ✅ auto-sync 自启动：已启用"
+    else
+        echo "  ⚠️  auto-sync 自启动：未启用"
+    fi
+    echo "  📋 auto-sync 当前状态：$(bash "$AUTO_SYNC_SCRIPT" status 2>/dev/null | grep -o '运行中\|未运行' || echo '未知')"
+    echo ""
+    echo "说明："
+    echo "  - 自启动：WSL/Linux 开机后自动运行 auto-sync（需要 systemd）"
+    echo "  - 当前会话启动：立即启动 auto-sync（本次会话有效）"
+    echo ""
+
+    read -p "是否配置 auto-sync 自启动？(y/N): " autostart_choice
+    autostart_choice="${autostart_choice:-N}"
+
+    if [[ "$autostart_choice" =~ ^[Yy]$ ]]; then
+        ENABLE_AUTOSTART_SCRIPT="$REPO_DIR/scripts/bash/enable-autostart.sh"
+        if [ -f "$ENABLE_AUTOSTART_SCRIPT" ]; then
+            info "配置自启动..."
+            bash "$ENABLE_AUTOSTART_SCRIPT" enable
+        else
+            warn "enable-autostart.sh 未找到，跳过"
+        fi
+    else
+        info "跳过自启动配置"
+    fi
+    echo ""
+
     section "安装完成"
     echo ""
     info "环境准备就绪，符号链接已建立"
