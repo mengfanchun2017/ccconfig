@@ -7,7 +7,7 @@
 #   - mcpidentity.json: 鉴权信息（Key/Token）
 #
 # 使用：
-#   bash claude-config/scripts/bash/claudeMCP.sh
+#   bash claude-config/scripts/claudeMCP.sh
 
 set -e
 
