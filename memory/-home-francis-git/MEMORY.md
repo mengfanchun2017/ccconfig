@@ -569,3 +569,5 @@ claude-config/
 ---
 
 test line
+event test
+event test 2
