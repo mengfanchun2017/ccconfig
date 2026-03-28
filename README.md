@@ -878,7 +878,7 @@ cd C:\git\claude-config
 .\scripts\pwsh\init03env.ps1
 
 # 04: 检查/安装 MCP 服务器
-.\scripts\pwsh\init04mcp.ps1
+.\scripts\pwsh\initMCP.ps1
 
 # 可选: 配置浏览器后端（如果需要）
 .\scripts\pwsh\initoptplaywright.ps1
@@ -897,7 +897,7 @@ bash claude-config/scripts/bash/init01git.sh
 bash scripts/bash/start.sh
 
 # 只检查/安装 MCP
-bash claude-config/scripts/bash/init04mcp.sh
+bash claude-config/scripts/bash/initMCP.sh
 
 # 重新配置浏览器后端
 bash claude-config/scripts/bash/initoptplaywright.sh
