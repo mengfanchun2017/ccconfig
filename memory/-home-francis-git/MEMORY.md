@@ -246,6 +246,7 @@ mcpidentity.json ──→ ~/.claude.json (mcpServers)
 1. **目录结构扁平化** - 删除 pwsh/、shared/、src/ 等子目录
 2. **重命名脚本** - claudeMCP.sh → claudemcp.sh (全小写)
 3. **auto-sync.sh 修复** - 解决 local 变量作用域、.tmp 文件事件循环、防抖计时重置等 bug
+   - **REPO_DIR 路径 bug** - `$SCRIPT_DIR/../..` 改为 `$SCRIPT_DIR/..`，否则指向 `/home` 而非仓库目录
 4. **systemd 自启动服务** - 创建 ~/.config/systemd/user/claude-auto-sync.service
 5. **enable-autostart.sh** - 管理自启动的启用/禁用/状态检查
 6. **mcpidentity.json 同步** - 从 .gitignore 移除，现在参与 Git 同步
