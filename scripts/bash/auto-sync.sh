@@ -28,76 +28,8 @@ error() { echo -e "${RED}[auto-sync]${NC} $1" | tee -a "$LOG_FILE"; }
 check_deps() {
     if ! command -v inotifywait &>/dev/null; then
         error "缺少 inotifywait，请安装：sudo apt-get install inotify-tools"
-        exit 1
-    fi
-}
-
-# ========== 启动监控 ==========
-start_watch() {
-    check_deps
-
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-        warn "已经在运行中 (PID: $(cat "$PID_FILE"))"
         return 1
     fi
-
-    cd "$REPO_DIR"
-
-    log "启动文件监控..."
-    log "监控目录: $REPO_DIR"
-    log "排除: .git/, node_modules/, *.log, .auto-sync.*"
-
-    # 后台运行 inotifywait
-    inotifywait -m -r -q \
-        --exclude '(\.git/|node_modules/|\.log$|\.auto-sync|\.tmp$)' \
-        -e modify,create,delete,move \
-        "$REPO_DIR" \
-        >> "$LOG_FILE" 2>&1 &
-
-    local pid=$!
-    echo $pid > "$PID_FILE"
-    log "监控已启动 (PID: $pid)"
-
-    # 处理变化
-    local debounce=3  # 秒
-    local last_change=0
-    local pending=false
-    local initial=true
-
-    while kill -0 $pid 2>/dev/null; do
-        sleep 1
-
-        # 检查是否有新事件
-        if [ -s "$LOG_FILE" ]; then
-            local now=$(date +%s)
-
-            # 初始化：首次检测到事件，只记录时间，不立即提交
-            if [ "$initial" = true ]; then
-                last_change=$now
-                pending=true
-                initial=false
-                # 清空日志（保留最后一行作为状态）
-                tail -1 "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE"
-                continue
-            fi
-
-            # 检查是否需要提交
-            if [ $(($now - $last_change)) -ge $debounce ]; then
-                if [ "$pending" = true ]; then
-                    # 已经等待够久，提交
-                    commit_and_push
-                    pending=false
-                    initial=true  # 重置为初始状态
-                fi
-            else
-                pending=true
-            fi
-
-            last_change=$now
-            # 清空日志文件内容（避免下次重复检测）
-            > "$LOG_FILE"
-        fi
-    done &
 }
 
 # ========== 提交并推送 ==========
@@ -105,17 +37,22 @@ commit_and_push() {
     cd "$REPO_DIR"
 
     # 检查是否有变化
-    if git diff --quiet && git diff --cached --quiet; then
-        return 0
+    if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+        :  # 有变化，继续
+    else
+        return 0  # 没有变化
     fi
 
     # 获取变化文件列表
-    local changed=$(git status --short | head -5 | sed 's/^/  /')
+    local changed=$(git status --short 2>/dev/null | head -5 | sed 's/^/  /')
+    if [ -z "$changed" ]; then
+        return 0
+    fi
     log "检测到变化："
     echo "$changed" | tee -a "$LOG_FILE"
 
     # Stage 所有变化
-    git add -A
+    git add -A 2>/dev/null
 
     # 生成提交信息
     local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
@@ -134,6 +71,69 @@ commit_and_push() {
     fi
 }
 
+# ========== 启动监控 ==========
+start_watch() {
+    check_deps || return 1
+
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+        warn "已经在运行中 (PID: $(cat "$PID_FILE"))"
+        return 1
+    fi
+
+    cd "$REPO_DIR"
+
+    log "启动文件监控..."
+    log "监控目录: $REPO_DIR"
+    log "排除: .git/, node_modules/, *.log, .auto-sync.*"
+
+    # 清空日志文件
+    : > "$LOG_FILE"
+
+    # 后台运行 inotifywait
+    inotifywait -m -r -q \
+        --exclude '(\.git/|node_modules/|\.log$|\.auto-sync\.|\.tmp$)' \
+        -e modify,create,delete,move \
+        "$REPO_DIR" \
+        >> "$LOG_FILE" 2>&1 &
+
+    local notify_pid=$!
+    echo $notify_pid > "$PID_FILE"
+    log "监控已启动 (PID: $notify_pid)"
+
+    # 防抖参数
+    local debounce=3
+    local last_change=0
+    local pending=false
+
+    # 主循环：每秒检查一次
+    while kill -0 $notify_pid 2>/dev/null; do
+        sleep 1
+
+        # 检查是否有新事件（LOG_FILE 有内容）
+        if [ -s "$LOG_FILE" ]; then
+            local now=$(date +%s)
+            local time_diff=$((now - last_change))
+
+            if [ "$pending" = true ] && [ $time_diff -ge $debounce ]; then
+                # 等待足够久，执行提交
+                commit_and_push
+                pending=false
+                last_change=$now
+            elif [ "$pending" = false ]; then
+                # 首次检测到事件
+                pending=true
+                last_change=$now
+            else
+                # 还在 debounce 期间
+                : # pending 保持 true
+            fi
+
+            # 清空日志（避免重复检测）
+            : > "$LOG_FILE"
+        fi
+    done &
+}
+
 # ========== 停止监控 ==========
 stop_watch() {
     if [ -f "$PID_FILE" ]; then
@@ -150,7 +150,7 @@ stop_watch() {
 }
 
 # ========== 查看状态 ==========
-status() {
+status_watch() {
     if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
         log "运行中 (PID: $(cat "$PID_FILE"))"
     else
@@ -167,7 +167,7 @@ case "${1:-start}" in
         stop_watch
         ;;
     status)
-        status
+        status_watch
         ;;
     *)
         echo "用法: $0 {start|stop|status}"
