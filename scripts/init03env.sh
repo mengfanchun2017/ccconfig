@@ -16,8 +16,8 @@
 #      - CLAUDE.md → ~/CLAUDE.md
 #      - MEMORY.md → ~/.claude/projects/.../memory/MEMORY.md
 #
-# 安装完成后，请运行 claudeMCP.sh 安装具体的 MCP 服务器：
-#   bash claude-config/scripts/bash/claudeMCP.sh
+# 安装完成后，请运行 claudemcp.sh 安装具体的 MCP 服务器：
+#   bash claude-config/scripts/bash/claudemcp.sh
 
 set -e
 
@@ -515,7 +515,7 @@ main() {
     echo "     - inotify-tools - auto-sync 自动同步依赖"
     echo "  2. 建立符号链接实现配置双向同步"
     echo ""
-    echo "安装完成后请运行 claudeMCP.sh 安装具体的 MCP 服务器"
+    echo "安装完成后请运行 claudemcp.sh 安装具体的 MCP 服务器"
     echo ""
 
     # 确保 PATH 包含 ~/.local/bin（必须在检查/安装任何工具之前）
@@ -714,7 +714,7 @@ main() {
     echo "========================================"
     echo ""
     echo "  安装 MCP 服务器："
-    echo "  bash claude-config/scripts/bash/claudeMCP.sh"
+    echo "  bash claude-config/scripts/bash/claudemcp.sh"
     echo ""
     echo "  或者直接开始工作："
     echo "  bash claude-config/scripts/bash/start.sh"
