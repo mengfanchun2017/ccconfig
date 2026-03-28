@@ -366,17 +366,18 @@ try:
         env['PLAYWRIGHT_BROWSERS_PATH'] = browser_path
         needs_update = True
 
-    # 2. 检查 args 中是否已经有 --browser chromium 参数
+    # 2. 检查 args 中是否已经有 --browser chrome 参数
     if any('@playwright/mcp' in str(a) for a in args):
         has_browser_arg = any('--browser' in str(a) for a in args)
         if not has_browser_arg:
-            # 在 @playwright/mcp 后添加 --browser chromium
+            # 在 @playwright/mcp 后添加 --browser chrome
+            # 注意：@playwright/mcp 只支持 chrome/firefox/webkit/msedge，不支持 chromium
             new_args = []
             for a in args:
                 new_args.append(a)
                 if '@playwright/mcp' in str(a):
                     new_args.append('--browser')
-                    new_args.append('chromium')
+                    new_args.append('chrome')
             args = new_args
             needs_update = True
 
@@ -404,7 +405,7 @@ PYEOF
     if [[ "$result" == "MCP_CONFIG_OK" ]]; then
         info "MCP 配置已正确，跳过"
     elif [[ "$result" == "MCP_CONFIG_UPDATED" ]]; then
-        good "MCP 配置已更新：使用 chromium channel + PLAYWRIGHT_BROWSERS_PATH"
+        good "MCP 配置已更新：使用 chrome channel + PLAYWRIGHT_BROWSERS_PATH"
     else
         warn "MCP 配置检查失败: $result"
     fi
