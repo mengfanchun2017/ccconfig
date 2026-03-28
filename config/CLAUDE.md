@@ -625,8 +625,8 @@
 - WebSearch - 网络搜索
 
 ## 暗号命令
-- `gitinit` - 开始工作：从 GitHub 拉取最新配置并同步到本地（相当于运行 start.sh）
-- `gitarc` - 结束工作：收集本地配置并推送到 GitHub（相当于运行 end.sh）
+- `gitinit` - 开始工作：运行 `bash claude-config/init.sh status` 查看配置状态
+- `gitarc` - 结束工作：auto-sync 会自动推送，无需手动操作
 
 ## Auto Memory 路径
 - **正确路径**: `~/.claude/projects/home-francis-git/memory/MEMORY.md`
