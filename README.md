@@ -459,53 +459,50 @@ claude mcp list
 ### 脚本执行顺序
 
 ```
-01 - init01git.sh          # Git + GitHub CLI + 仓库克隆/更新
-02 - init02claude.sh      # Claude Code 安装 + API 配置
-03 - init03env.sh         # Node.js + uv + Playwright + 字体 + 符号链接
-MCP - claudemcp.sh          # MCP 服务器初始化/安装/配置
+init01git.sh    # Git + GitHub CLI + 克隆仓库
+init02claude.sh # Claude Code + API 配置
+init03env.sh   # Node.js + uv + Playwright + 符号链接 + auto-sync
+claudemcp.sh    # MCP 服务器安装/配置（在 Claude 中运行）
 ```
 
-### 完整初始化流程（全新电脑）
+### 全新环境首次设置
 
-**Ubuntu / Linux / WSL:**
 ```bash
-cd ~/git/claude-config
+# 1. 安装环境
+bash scripts/init01git.sh     # Git + GitHub CLI + 克隆仓库
+bash scripts/init02claude.sh  # Claude Code + API 配置
+bash scripts/init03env.sh      # Node.js + 运行时 + 符号链接 + auto-sync
 
-# 01: 安装 Git + GitHub CLI + 克隆/更新仓库
-bash scripts/init01git.sh
+# 2. 在 Claude Code 对话中输入
+claudemcp                     # 安装/配置 MCP 服务器
 
-# 02: 安装 Claude Code + 配置 API
-bash scripts/init02claude.sh
-source ~/.bashrc
-
-# 03: 安装 Node.js + uv + Playwright + 字体 + 符号链接
-bash scripts/init03env.sh
-
-# MCP: 初始化 MCP 服务器（安装 + 配置 Key）
-bash scripts/claudemcp.sh
-
-# 同步配置
+# 3. 只需要一次：拉取远程更新
 bash scripts/start.sh
 ```
 
-### 按需执行（已初始化过的电脑）
+### 日常工作
 
 ```bash
-# 只更新仓库和配置
+# 启动 Claude Code，直接使用
+# 变化自动通过 auto-sync 同步到 GitHub
+```
+
+### 按需执行
+
+```bash
+# 重新同步/拉取远程更新
 bash scripts/start.sh
 
-# 检查/安装 MCP
-bash scripts/claudemcp.sh
+# 配置/更新 MCP（在 Claude 中输入）
+claudemcp
 
-# 重新配置浏览器后端（可选）
+# 浏览器后端选择（可选）
 bash scripts/initoptplaywright.sh
 ```
 
-### mcpidentity.json 鉴权信息管理
+### mcpidentity.json 鉴权信息
 
-所有 MCP 的 Key/Token 等敏感信息存储在 `config/mcpidentity.json`，**现已加入 Git 同步**：
-
-> ⚠️ 如果需要保持 Key 私密，请自行从其他设备复制，仓库为私有库可放心同步。
+所有 MCP 的 Key/Token 存储在 `config/mcpidentity.json`，**已加入 Git 同步**。
 
 ```json
 {
@@ -525,8 +522,6 @@ bash scripts/initoptplaywright.sh
   ]
 }
 ```
-
-> **注意**：`mcpidentity.json` 包含敏感信息，不参与 Git 同步。
 
 ### config/apillm.json 格式
 
