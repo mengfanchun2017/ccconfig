@@ -2,6 +2,11 @@
   "description": "MCP 配置 - 整合 mcplist 和 mcpidentity",
   "note": "此文件包含敏感信息（Key/Token），参与 Git 同步（私有仓库安全）",
 
+  "settings": {
+    "default_action": "sync",
+    "auto_config_keys": true
+  },
+
   "mcp_servers": [
     {
       "name": "tavily",
