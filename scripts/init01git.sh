@@ -117,8 +117,7 @@ elif [[ -z "$GIT_EMAIL" || -z "$GIT_NAME" ]]; then
 else
     # 两者都有，显示并询问是否修改
     print_success "Git 用户身份: $GIT_EMAIL ($GIT_NAME)"
-    echo -n "是否修改? [y/N]: "
-    read modify
+    modify=$(read_input "是否修改? [y/N]: " "N" "10")
     if [[ "$modify" =~ ^[Yy]$ ]]; then
         echo -n "新邮箱 [留空保持不变]: "
         read new_email
@@ -264,8 +263,7 @@ if [[ -d "$TARGET_DIR" ]]; then
             echo "  2) 跳过克隆 - 保持现有状态"
             echo "  3) 退出"
             echo ""
-            read -p "请输入选项 [1]: " clone_choice
-            clone_choice="${clone_choice:-1}"
+            clone_choice=$(read_input "请输入选项 [1]: " "1" "30")
 
             if [[ "$clone_choice" == "1" ]]; then
                 print_info "正在更新仓库..."
