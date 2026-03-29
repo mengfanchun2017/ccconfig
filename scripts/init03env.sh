@@ -709,14 +709,8 @@ main() {
     fi
     echo "  📋 auto-sync 当前状态：$(bash "$AUTO_SYNC_SCRIPT" status 2>/dev/null | grep -o '运行中\|未运行' || echo '未知')"
     echo ""
-    echo "说明："
-    echo "  - 自启动：WSL/Linux 开机后自动运行 auto-sync（需要 systemd）"
-    echo "  - 当前会话启动：立即启动 auto-sync（本次会话有效）"
-    echo ""
 
-    autostart_choice=$(read_input "是否配置 auto-sync 自启动？(Y/n): " "Y" "30")
-
-    if [[ "$autostart_choice" =~ ^[Yy]$ ]]; then
+    if [[ "$AUTOSTART_ENABLED" != "true" ]]; then
         ENABLE_AUTOSTART_SCRIPT="$REPO_DIR/scripts/enable-autostart.sh"
         if [ -f "$ENABLE_AUTOSTART_SCRIPT" ]; then
             info "配置自启动..."
@@ -725,7 +719,7 @@ main() {
             warn "enable-autostart.sh 未找到，跳过"
         fi
     else
-        info "跳过自启动配置"
+        info "自启动已是启用状态，跳过"
     fi
     echo ""
 
