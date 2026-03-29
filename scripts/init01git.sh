@@ -29,31 +29,17 @@ read_input() {
     local default="$2"
     local timeout="${3:-10}"
     local input=""
-    local timer_pid=""
 
     echo -n "$prompt"
 
-    # 后台启动倒计时
-    (
-        local remaining=$timeout
-        while [[ $remaining -gt 0 ]]; do
-            echo -n -e "\r${prompt}[${remaining}s] "
-            sleep 1
-            remaining=$((remaining - 1))
-        done
-        echo -e "\r${prompt}[超时，使用默认值: ${default}]   "
-    ) &
-    timer_pid=$!
-
-    # 同时等待用户输入
+    # 使用简单的超时读取，不使用后台倒计时（避免终端兼容性问题）
     read -t "$timeout" input 2>/dev/null
 
-    # 停止倒计时
-    kill "$timer_pid" 2>/dev/null
-    wait "$timer_pid" 2>/dev/null
-    echo ""
-
-    [[ -n "$input" ]] && echo "$input" || echo "$default"
+    if [[ -n "$input" ]]; then
+        echo "$input"
+    else
+        echo "$default"
+    fi
 }
 
 GH_VERSION="2.63.2"
