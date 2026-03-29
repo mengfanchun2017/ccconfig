@@ -27,8 +27,8 @@ print_error() { echo -e "${RED}❌ $1${NC}"; }
 read_input() {
     local prompt="$1"
     local default="$2"
-    local input=""
-    read -p "$prompt" input
+    echo -n "$prompt"
+    read input
     echo "${input:-$default}"
 }
 
