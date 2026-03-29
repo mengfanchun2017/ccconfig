@@ -1,0 +1,62 @@
+{
+  "description": "MCP 配置 - 整合 mcplist 和 mcpidentity",
+  "note": "此文件包含敏感信息（Key/Token），参与 Git 同步（私有仓库安全）",
+
+  "mcp_servers": [
+    {
+      "name": "tavily",
+      "description": "网络搜索 - 支持中文搜索",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tavily-mcp"],
+      "env": {}
+    },
+    {
+      "name": "playwright",
+      "description": "浏览器自动化 - 网页截图/抓取/交互",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@playwright/mcp"],
+      "env": {
+        "PLAYWRIGHT_BROWSERS_PATH": "/home/francis/.cache/ms-playwright"
+      }
+    },
+    {
+      "name": "minimax",
+      "description": "MiniMax AI - 网络搜索和图片理解（M2.7 编程模型工具）",
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["minimax-coding-plan-mcp", "-y"],
+      "env": {
+        "MINIMAX_API_KEY": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY"
+      }
+    },
+    {
+      "name": "minimax-mcp",
+      "description": "MiniMax 多模态 - 语音/视频/图像/音乐生成",
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["minimax-mcp"],
+      "env": {
+        "MINIMAX_API_KEY": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY",
+        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      }
+    },
+    {
+      "name": "octocode",
+      "description": "GitHub 代码搜索和仓库分析",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "octocode-mcp@latest"],
+      "env": {}
+    },
+    {
+      "name": "supabase",
+      "description": "Supabase 数据库 - 查询/管理数据库、Edge Functions、Storage",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server-supabase", "--project-ref", "<your-supabase-project-id>", "--access-token", "9e0bfb34-67d9-4b34-bd5a-35ff75d443e9"],
+      "env": {}
+    }
+  ]
+}
