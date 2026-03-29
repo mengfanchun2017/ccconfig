@@ -294,8 +294,7 @@ case "$choice" in
         # 先检查/启动 Steel
         if ! docker ps | grep -q steel-browser; then
             echo -e "${YELLOW}Steel 未运行，是否启动?${NC}"
-            read -p "启动 Steel 容器? [Y/n]: " start_choice
-            start_choice=${start_choice:-Y}
+            start_choice=$(read_input "启动 Steel 容器? [Y/n]: " "Y" "30")
 
             if [[ "$start_choice" =~ ^[Yy]$ ]]; then
                 start_steel
@@ -312,8 +311,7 @@ case "$choice" in
 
         echo ""
         info "将配置 Playwright MCP 连接到: $CDP_ENDPOINT"
-        read -p "确认配置? [Y/n]: " confirm
-        confirm=${confirm:-Y}
+        confirm=$(read_input "确认配置? [Y/n]: " "Y" "30")
 
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
             result=$(update_playwright_mcp "playwright" "npx @playwright/mcp" "$CDP_ENDPOINT" "")
