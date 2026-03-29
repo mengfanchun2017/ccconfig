@@ -185,8 +185,8 @@ echo "3) 交互式安装"
 echo "0) 退出"
 echo ""
 
-read -p "请输入 [0]: " choice
-choice="${choice:-0}"
+read -p "请输入 [1]: " choice
+choice="${choice:-1}"
 
 case "$choice" in
     1)
