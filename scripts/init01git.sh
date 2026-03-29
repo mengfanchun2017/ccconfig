@@ -23,18 +23,13 @@ print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
 
 # 简单的 read 函数，用于需要默认值的场景
-# 用法: read_input "提示" "默认值" "超时秒数"
-# 如果用户超时未输入，使用默认值
+# 用法: read_input "提示" "默认值"
 read_input() {
     local prompt="$1"
     local default="$2"
-    local timeout="${3:-0}"
     local input=""
-    if [ "$timeout" -gt 0 ]; then
-        read -t "$timeout" -p "$prompt" input && echo "$input" || echo "$default"
-    else
-        read -p "$prompt" input && echo "$input" || echo "$default"
-    fi
+    read -p "$prompt" input
+    echo "${input:-$default}"
 }
 
 GH_VERSION="2.63.2"
