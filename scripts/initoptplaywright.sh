@@ -27,6 +27,36 @@ bad() { echo -e "$1${RED}"; }
 info() { echo -e "$1${GRAY}"; }
 warn() { echo -e "$1${YELLOW}"; }
 
+# 超时 read 函数（带倒计时）
+read_input() {
+    local prompt="$1"
+    local default="$2"
+    local timeout="${3:-10}"
+    local input=""
+    local timer_pid=""
+
+    echo -n "$prompt"
+
+    (
+        local remaining=$timeout
+        while [[ $remaining -gt 0 ]]; do
+            echo -n -e "\r${prompt}[${remaining}s] "
+            sleep 1
+            remaining=$((remaining - 1))
+        done
+        echo -e "\r${prompt}[超时，使用默认值: ${default}]   "
+    ) &
+    timer_pid=$!
+
+    read -t "$timeout" input 2>/dev/null
+
+    kill "$timer_pid" 2>/dev/null
+    wait "$timer_pid" 2>/dev/null
+    echo ""
+
+    [[ -n "$input" ]] && echo "$input" || echo "$default"
+}
+
 # ========== 检查函数 ==========
 check_docker() {
     command -v docker &> /dev/null && docker info &> /dev/null
@@ -253,7 +283,7 @@ echo ""
 echo -e "  ${CYAN}0)${NC} 退出"
 echo ""
 
-read -p "请输入选项 [0-4]: " choice
+choice=$(read_input "请输入选项 [0-4]: " "0" "30")
 echo ""
 
 case "$choice" in
