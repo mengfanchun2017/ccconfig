@@ -22,8 +22,7 @@ print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
 
-# 简单的 read 函数，用于需要默认值的场景
-# 用法: read_input "提示" "默认值"
+# read 函数
 read_input() {
     local prompt="$1"
     local default="$2"
