@@ -26,20 +26,32 @@ read_input() {
     local prompt="$1"
     local default="$2"
     local timeout="${3:-10}"
-    local remaining=$timeout
     local input=""
+    local timer_pid=""
 
     echo -n "$prompt"
-    while [[ $remaining -gt 0 ]]; do
-        echo -n -e "\r${prompt}[${remaining}s] "
-        sleep 1
-        remaining=$((remaining - 1))
-    done
-    echo -e "\r${prompt}[超时，使用默认值: ${default}]   "
 
-    # 使用 read -t 1 来非阻塞读取输入
-    input=""
-    read -t 1 input 2>/dev/null
+    # 后台启动倒计时显示
+    (
+        local remaining=$timeout
+        while [[ $remaining -gt 0 ]]; do
+            echo -n -e "\r${prompt}[${remaining}s] "
+            sleep 1
+            remaining=$((remaining - 1))
+        done
+        echo -e "\r${prompt}[超时，使用默认值: ${default}]   "
+    ) &
+    timer_pid=$!
+
+    # 同时等待用户输入（最多 timeout 秒）
+    read -t "$timeout" input 2>/dev/null
+
+    # 停止倒计时
+    kill "$timer_pid" 2>/dev/null
+    wait "$timer_pid" 2>/dev/null
+
+    echo ""  # 换行
+
     if [[ -n "$input" ]]; then
         echo "$input"
     else
@@ -51,16 +63,28 @@ read_input() {
 # 用法: read_timeout "秒数"
 read_timeout() {
     local timeout="${1:-10}"
-    local remaining=$timeout
+    local input=""
 
-    input=""
-    while [[ $remaining -gt 0 ]]; do
-        echo -n -e "\r[${remaining}s] "
-        sleep 1
-        remaining=$((remaining - 1))
-    done
-    echo -e "\r[超时]   "
-    read -t 1 input 2>/dev/null
+    # 后台启动倒计时显示
+    (
+        local remaining=$timeout
+        while [[ $remaining -gt 0 ]]; do
+            echo -n -e "\r[${remaining}s] "
+            sleep 1
+            remaining=$((remaining - 1))
+        done
+        echo -e "\r[超时]   "
+    ) &
+    local timer_pid=$!
+
+    # 等待用户输入
+    read -t "$timeout" input 2>/dev/null
+
+    # 停止倒计时
+    kill "$timer_pid" 2>/dev/null
+    wait "$timer_pid" 2>/dev/null
+
+    echo ""  # 换行
 }
 
 # 旧式 read 调用兼容（不做超时）
