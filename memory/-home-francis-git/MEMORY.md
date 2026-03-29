@@ -570,10 +570,10 @@ claude-config/
 
 ### 2026-03-29 [Francis_MiPro] - auto-sync bug 与 SessionStart Hook
 
-**auto-sync.sh Bug (已知问题)**:
-- `git diff --quiet` 只检测**已跟踪文件**的变化，不检测 **untracked files**
-- 如果只有新文件被创建，auto-sync 不会自动提交
-- **workaround**: 如果新增文件需要同步，先 `git add -A` 再 `git commit`
+**auto-sync.sh Bug (已修复 2026-03-29)**:
+- 原问题: `git diff --quiet` 只检测**已跟踪文件**的变化，不检测 **untracked files**
+- 修复: 改用 `git status --porcelain | grep -q .` 检测所有变化
+- 修复 commit: `ec720b1 fix(auto-sync): 支持检测 untracked files 变化`
 
 **SessionStart Hook 配置**:
 - 位置: `config/settings.json` → `hooks.SessionStart`
