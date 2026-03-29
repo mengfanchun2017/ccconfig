@@ -273,5 +273,17 @@
     "claude-api": true,
     "simplify": true,
     "tavily@tavily-ai-skills": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/francis/git/claude-config/status.sh"
+          }
+        ]
+      }
+    ]
   }
 }
