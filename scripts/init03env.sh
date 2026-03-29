@@ -45,6 +45,36 @@ warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
 section() { echo -e "${CYAN}=== $1 ===${NC}"; }
 
+# 超时 read 函数（带倒计时）
+read_input() {
+    local prompt="$1"
+    local default="$2"
+    local timeout="${3:-10}"
+    local input=""
+    local timer_pid=""
+
+    echo -n "$prompt"
+
+    (
+        local remaining=$timeout
+        while [[ $remaining -gt 0 ]]; do
+            echo -n -e "\r${prompt}[${remaining}s] "
+            sleep 1
+            remaining=$((remaining - 1))
+        done
+        echo -e "\r${prompt}[超时，使用默认值: ${default}]   "
+    ) &
+    timer_pid=$!
+
+    read -t "$timeout" input 2>/dev/null
+
+    kill "$timer_pid" 2>/dev/null
+    wait "$timer_pid" 2>/dev/null
+    echo ""
+
+    [[ -n "$input" ]] && echo "$input" || echo "$default"
+}
+
 # 检查命令是否存在
 check_command() {
     command -v "$1" &> /dev/null
@@ -476,8 +506,7 @@ install_chinese_fonts() {
         echo "  2) 跳过字体安装"
         echo "  3) 手动安装后继续"
         echo ""
-        read -p "请输入选项 [1]: " font_choice
-        font_choice="${font_choice:-1}"
+        font_choice=$(read_input "请输入选项 [1]: " "1" "30")
 
         if [[ "$font_choice" == "1" ]]; then
             if command -v sudo &>/dev/null; then
