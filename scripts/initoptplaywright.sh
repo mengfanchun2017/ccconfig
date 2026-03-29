@@ -33,28 +33,15 @@ read_input() {
     local default="$2"
     local timeout="${3:-10}"
     local input=""
-    local timer_pid=""
 
     echo -n "$prompt"
-
-    (
-        local remaining=$timeout
-        while [[ $remaining -gt 0 ]]; do
-            echo -n -e "\r${prompt}[${remaining}s] "
-            sleep 1
-            remaining=$((remaining - 1))
-        done
-        echo -e "\r${prompt}[超时，使用默认值: ${default}]   "
-    ) &
-    timer_pid=$!
-
     read -t "$timeout" input 2>/dev/null
 
-    kill "$timer_pid" 2>/dev/null
-    wait "$timer_pid" 2>/dev/null
-    echo ""
-
-    [[ -n "$input" ]] && echo "$input" || echo "$default"
+    if [[ -n "$input" ]]; then
+        echo "$input"
+    else
+        echo "$default"
+    fi
 }
 
 # ========== 检查函数 ==========
