@@ -22,12 +22,12 @@ print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
 
-# read 函数
+# read 函数 - 使用 read -p 显示提示
 read_input() {
     local prompt="$1"
     local default="$2"
-    echo -n "$prompt"
-    read input
+    local input=""
+    read -p "$prompt" input
     echo "${input:-$default}"
 }
 
