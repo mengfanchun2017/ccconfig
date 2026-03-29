@@ -60,6 +60,9 @@ Use the following sections in this file:
   - 如果用户有 MCP 初始化、安装、更新等要求，运行 `bash claude-config/scripts/claudemcp.sh`
   - 所有 MCP 的 Key/Token 等鉴权信息存储在 `config/mcpidentity.json` 中，便于直接修改
   - `mcpidentity.json` 现在参与 Git 同步（私有仓库安全）
+- **提交后通知要求**:
+  - 每次提交后，必须用 ✅ 绿色对勾标记，告诉我提交的信息（commit hash + message）
+  - 让用户知道我修改了哪些文件
 - Tools:
 - **Bash Command Approval Rule**:
   - 把运行过、需要我批准的命令，除非是高危的，都加到 CLAUDE.md 配置文件里
