@@ -20,29 +20,47 @@ print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
 
-# 超时 read 函数（默认 10 秒超时）
+# 超时 read 函数（默认 10 秒超时），带倒计时显示
 # 用法: read_input "提示文字" "默认值" "超时秒数"
 read_input() {
     local prompt="$1"
     local default="$2"
     local timeout="${3:-10}"
+    local remaining=$timeout
     local input=""
 
     echo -n "$prompt"
-    if read -t "$timeout" input; then
+    while [[ $remaining -gt 0 ]]; do
+        echo -n -e "\r${prompt}[${remaining}s] "
+        sleep 1
+        remaining=$((remaining - 1))
+    done
+    echo -e "\r${prompt}[超时，使用默认值: ${default}]   "
+
+    # 使用 read -t 1 来非阻塞读取输入
+    input=""
+    read -t 1 input 2>/dev/null
+    if [[ -n "$input" ]]; then
         echo "$input"
     else
-        echo ""  # 超时时输出空行
         echo "$default"
     fi
 }
 
-# 超时读取（无默认值，超时返回空字符串）
+# 超时读取（无默认值，超时返回空字符串），带倒计时
 # 用法: read_timeout "秒数"
 read_timeout() {
     local timeout="${1:-10}"
+    local remaining=$timeout
+
     input=""
-    read -t "$timeout" input
+    while [[ $remaining -gt 0 ]]; do
+        echo -n -e "\r[${remaining}s] "
+        sleep 1
+        remaining=$((remaining - 1))
+    done
+    echo -e "\r[超时]   "
+    read -t 1 input 2>/dev/null
 }
 
 # 旧式 read 调用兼容（不做超时）
