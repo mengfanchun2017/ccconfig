@@ -735,8 +735,7 @@ main() {
     echo "  - 当前会话启动：立即启动 auto-sync（本次会话有效）"
     echo ""
 
-    read -p "是否配置 auto-sync 自启动？(Y/n): " autostart_choice
-    autostart_choice="${autostart_choice:-Y}"
+    autostart_choice=$(read_input "是否配置 auto-sync 自启动？(Y/n): " "Y" "30")
 
     if [[ "$autostart_choice" =~ ^[Yy]$ ]]; then
         ENABLE_AUTOSTART_SCRIPT="$REPO_DIR/scripts/enable-autostart.sh"

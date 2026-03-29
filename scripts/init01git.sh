@@ -209,7 +209,7 @@ else
     echo "  如果上方未显示代码，请在浏览器中手动打开:"
     echo "  https://github.com/login/device"
     echo ""
-    read -p "完成授权后按 Enter 继续..."
+    read_input "完成授权后按 Enter 继续..." "" "120"
 
     # 验证登录状态
     if gh auth status &> /dev/null; then
