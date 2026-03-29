@@ -33,9 +33,7 @@ try:
     with open(sys.argv[1], 'r') as f:
         config = json.load(f)
     api = config.get('api', {})
-    print(api.get('base_url', ''))
-    print(api.get('model', ''))
-    print(api.get('key', ''))
+    print(f"{api.get('base_url', '')}|{api.get('model', '')}|{api.get('key', '')}")
 except:
     print("|||")
 PYEOF
