@@ -213,15 +213,11 @@ echo "=========================================="
 echo ""
 
 # 仓库信息
-echo -n "GitHub 用户名/仓库名 [默认: <your-github-username>/claude-config]: "
-read REPO
-REPO="${REPO:-<your-github-username>/claude-config}"
+REPO=$(read_input "GitHub 用户名/仓库名 [默认: <your-github-username>/claude-config]: " "<your-github-username>/claude-config" "30")
 
 # 目标目录
 DEFAULT_TARGET="$HOME/git/claude-config"
-echo -n "克隆到目录 [默认: $DEFAULT_TARGET]: "
-read TARGET_DIR
-TARGET_DIR="${TARGET_DIR:-$DEFAULT_TARGET}"
+TARGET_DIR=$(read_input "克隆到目录 [默认: $DEFAULT_TARGET]: " "$DEFAULT_TARGET" "30")
 
 # -------------------------- 检查/克隆仓库 --------------------------
 print_info "仓库: $REPO"
