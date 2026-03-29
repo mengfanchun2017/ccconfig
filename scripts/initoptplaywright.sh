@@ -335,7 +335,7 @@ case "$choice" in
             echo -e "${YELLOW}需要先安装 Chromium:${NC}"
             echo -e "  npx playwright install chromium"
             echo ""
-            read -p "是否现在安装? [y/N]: " install_choice
+            install_choice=$(read_input "是否现在安装? [y/N]: " "N" "60")
 
             if [[ "$install_choice" =~ ^[Yy]$ ]]; then
                 info "安装中 (可能需要几分钟)..."
@@ -356,8 +356,7 @@ case "$choice" in
 
         echo ""
         info "将使用本地 Chromium (Playwright 默认行为)"
-        read -p "确认配置? [Y/n]: " confirm
-        confirm=${confirm:-Y}
+        confirm=$(read_input "确认配置? [Y/n]: " "Y" "30")
 
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
             # 使用空 CDP_ENDPOINT 表示本地浏览器
