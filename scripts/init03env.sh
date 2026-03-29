@@ -235,12 +235,27 @@ install_playwright_browsers() {
 }
 
 # ========== Playwright 系统依赖 ==========
+
+# 获取 Playwright 在当前 Ubuntu 版本所需的依赖包列表
+# Ubuntu 24.04 使用 t64 后缀的包名
+get_playwright_deps() {
+    local version=$(lsb_release -rs 2>/dev/null || echo "22.04")
+    if [[ "$version" == "24.04" ]]; then
+        # Ubuntu 24.04 (Noble) 使用 t64 后缀的包
+        echo "libnspr4 libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64"
+    else
+        # Ubuntu 22.04 及更早版本使用旧包名
+        echo "libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2"
+    fi
+}
+
 install_playwright_deps() {
     section "安装 Playwright 系统依赖"
 
-    # 检查依赖是否已存在
-    if ldconfig -p 2>/dev/null | grep -q libnspr4.so; then
-        info "libnspr4.so 已存在，跳过"
+    # 检查依赖是否已存在（检查关键库）
+    if ldconfig -p 2>/dev/null | grep -q libnspr4.so && \
+       ldconfig -p 2>/dev/null | grep -q libasound.so.2; then
+        info "Playwright 系统依赖已存在，跳过"
         return 0
     fi
 
@@ -249,7 +264,9 @@ install_playwright_deps() {
         return 0
     fi
 
-    local deps="libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2"
+    local deps=$(get_playwright_deps)
+    info "检测到 Ubuntu 版本: $(lsb_release -rs 2>/dev/null || echo 'unknown')"
+    info "将安装依赖: $deps"
 
     # 先尝试 sudo -n（无交互式，适合已配置 NOPASSWD 的环境）
     if echo "$deps" | xargs sudo -n apt-get install -y 2>/dev/null; then
