@@ -400,8 +400,7 @@ case "$choice" in
         echo -e "(如果不是，请手动修改脚本)"
         echo ""
 
-        read -p "确认配置 Edge? [Y/n]: " confirm
-        confirm=${confirm:-Y}
+        confirm=$(read_input "确认配置 Edge? [Y/n]: " "Y" "30")
 
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
             result=$(update_playwright_mcp "playwright" "npx @playwright/mcp" "$EDGE_CDP" "")

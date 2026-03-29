@@ -272,7 +272,7 @@
   "enabledPlugins": {
     "claude-api": true,
     "simplify": true,
-    "tavily@tavily-ai-skills": true
+    "tavily": true
   },
   "hooks": {
     "SessionStart": [
