@@ -181,7 +181,7 @@ run_script() {
     local script="$1"
     local name=$(basename "$script" .sh)
     step "$name"
-    if bash -i "$script" 2>/dev/null; then
+    if bash "$script"; then
         echo -e "  ${GREEN}✅ 完成${NC}"
     else
         echo -e "  ${RED}❌ 失败${NC}"
