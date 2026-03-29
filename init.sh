@@ -110,12 +110,34 @@ show_status() {
     # MCP 检查
     step "MCP 服务器"
     if command -v claude &>/dev/null; then
-        # 跳过前两行（Checking... 和空行），计算剩余行数
-        # grep -c 在没有匹配时返回 0，不需要 || echo "0"
-        local mcp_count=$(claude mcp list 2>/dev/null | tail -n +3 | grep -c ":" | tr -d ' \n')
+        # 直接读取 ~/.claude.json 中的 mcpServers 配置
+        local mcp_count=$(python3 - "$HOME/.claude.json" 2>/dev/null << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1], 'r') as f:
+        data = json.load(f)
+    mcp_servers = data.get('mcpServers', {})
+    # 过滤掉空占位符
+    real_servers = {k: v for k, v in mcp_servers.items()
+                    if v.get('command') != 'echo' or v.get('args', ['placeholder'])[0] != 'placeholder'}
+    print(len(real_servers))
+except:
+    print(0)
+PYEOF
+)
         if [ "$mcp_count" -gt 0 ] 2>/dev/null; then
             echo -e "  ${GREEN}✅ 已配置 $mcp_count 个 MCP${NC}"
-            claude mcp list 2>/dev/null | tail -n +3 | grep ":" | sed 's/^/  /'
+            python3 - "$HOME/.claude.json" 2>/dev/null << 'PYEOF' | sed 's/^/  /'
+import json, sys
+try:
+    with open(sys.argv[1], 'r') as f:
+        data = json.load(f)
+    mcp_servers = data.get('mcpServers', {})
+    for name in sorted(mcp_servers.keys()):
+        print(f"  {name}")
+except:
+    pass
+PYEOF
         else
             echo -e "  ${YELLOW}⚠️  无 MCP 配置${NC}"
         fi
