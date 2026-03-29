@@ -111,8 +111,9 @@ show_status() {
     step "MCP 服务器"
     if command -v claude &>/dev/null; then
         # 跳过前两行（Checking... 和空行），计算剩余行数
-        local mcp_count=$(claude mcp list 2>/dev/null | tail -n +3 | grep -c ":" || echo "0")
-        if [ "$mcp_count" -gt 0 ]; then
+        # grep -c 在没有匹配时返回 0，不需要 || echo "0"
+        local mcp_count=$(claude mcp list 2>/dev/null | tail -n +3 | grep -c ":" | tr -d ' \n')
+        if [ "$mcp_count" -gt 0 ] 2>/dev/null; then
             echo -e "  ${GREEN}✅ 已配置 $mcp_count 个 MCP${NC}"
             claude mcp list 2>/dev/null | tail -n +3 | grep ":" | sed 's/^/  /'
         else
