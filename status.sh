@@ -3,11 +3,12 @@
 #
 # 功能：
 # 1. 自动从 GitHub 拉取最新配置
-# 2. 检查符号链接状态
+# 2. 检查符号链接状态（含 MEMORY.md）
 # 3. 检查 auto-sync 状态
-# 4. 检查 MCP 配置
+# 4. 显示最近 5 次推送记录
 #
 # 用途：每次启动终端时自动运行（通过 /etc/profile.d/ 或 ~/.bashrc）
+#       以及通过 SessionStart hook 在 Claude 启动时运行
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$SCRIPT_DIR"
@@ -54,6 +55,12 @@ show_summary() {
         issues=$((issues + 1))
     fi
 
+    # 检查 MEMORY.md 符号链接
+    local memory_link="$HOME/.claude/projects/-home-francis-git/memory/MEMORY.md"
+    if [ ! -L "$memory_link" ] || [ ! -e "$memory_link" ]; then
+        issues=$((issues + 1))
+    fi
+
     # 检查 auto-sync
     if ! pgrep -f "auto-sync.sh start" >/dev/null 2>&1; then
         issues=$((issues + 1))
@@ -67,6 +74,32 @@ show_summary() {
     fi
 }
 
+# ========== 显示最近推送记录 ==========
+show_recent_pushes() {
+    cd "$REPO_DIR"
+
+    # 检查是否是 git 仓库
+    if [ ! -d ".git" ]; then
+        return 0
+    fi
+
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[config]${NC} 📋 最近推送记录："
+
+    # 获取最近5次推送的 note（第一条行是 commit hash，第二行是 message）
+    local count=0
+    while IFS= read -r line; do
+        if [ -n "$line" ]; then
+            echo -e "  ${YELLOW}•${NC} $line"
+            count=$((count + 1))
+        fi
+        if [ $count -ge 5 ]; then
+            break
+        fi
+    done < <(git log --oneline -10 --format="%s" 2>/dev/null | head -5)
+}
+
 # 执行
 git_pull
 show_summary
+show_recent_pushes
