@@ -144,6 +144,10 @@ fi
 
 title "Claude MCP 管理"
 
+# 读取配置
+MCP_SETTINGS=$(read_mcp_settings)
+IFS='|' read -r DEFAULT_ACTION AUTO_CONFIG_KEYS <<< "$MCP_SETTINGS"
+
 # 显示 MCP 列表
 section "MCP 服务器"
 McpNames=$(read_mcp_list)
@@ -157,90 +161,124 @@ while IFS='|' read -r name desc mtype command args_str env_str; do
 done <<< "$McpNames"
 
 echo ""
-section "操作选项"
-echo "1) 安装所有缺失的 MCP"
-echo "2) 配置所有 Key"
-echo "3) 交互式安装"
-echo "0) 退出"
-echo ""
 
-read -p "请输入 [1]: " choice || true
-choice="${choice:-1}"
+# 根据 default_action 执行对应操作
+do_install() {
+    title "安装 MCP"
+    while IFS='|' read -r name desc mtype command args_str env_str; do
+        [[ -z "$name" ]] && continue
+        if [[ "$(is_registered "$name")" == "true" ]]; then
+            info "跳过 $name: 已注册"
+            continue
+        fi
 
-case "$choice" in
-    1)
-        title "安装 MCP"
-        while IFS='|' read -r name desc mtype command args_str env_str; do
-            [[ -z "$name" ]] && continue
-            if [[ "$(is_registered "$name")" == "true" ]]; then
-                info "跳过 $name: 已注册"
-                continue
-            fi
+        echo -e "\n安装 $name ($desc)..."
+        if [[ -n "$command" ]] && [[ -n "$args_str" ]]; then
+            register_mcp "$name" "$command" "$args_str"
+            configure_mcp_env "$name" "$env_str"
+        else
+            warn "跳过 $name: 配置不完整"
+        fi
+    done <<< "$McpNames"
+}
 
-            echo -e "\n安装 $name ($desc)..."
-            if [[ -n "$command" ]] && [[ -n "$args_str" ]]; then
-                register_mcp "$name" "$command" "$args_str"
-                configure_mcp_env "$name" "$env_str"
+do_config_keys() {
+    title "配置 Key"
+    while IFS='|' read -r name desc mtype command args_str env_str; do
+        [[ -z "$name" ]] && continue
+        [[ "$(is_registered "$name")" != "true" ]] && continue
+
+        if [[ -n "$env_str" ]] && [[ "$env_str" != "{}" ]]; then
+            echo -n "配置 $name env ... "
+            result=$(configure_mcp_env "$name" "$env_str")
+            if [[ "$result" == "ok" ]]; then
+                good "✅"
             else
-                warn "跳过 $name: 配置不完整"
+                bad "❌"
             fi
-        done <<< "$McpNames"
-        ;;
+        else
+            info "$name: 无需配置 env"
+        fi
+    done <<< "$McpNames"
+}
 
-    2)
-        title "配置 Key"
-        while IFS='|' read -r name desc mtype command args_str env_str; do
-            [[ -z "$name" ]] && continue
-            [[ "$(is_registered "$name")" != "true" ]] && continue
+do_sync() {
+    title "双向同步"
+    do_install
+    echo ""
+    do_config_keys
+}
 
-            if [[ -n "$env_str" ]] && [[ "$env_str" != "{}" ]]; then
-                echo -n "配置 $name env ... "
-                result=$(configure_mcp_env "$name" "$env_str")
-                if [[ "$result" == "ok" ]]; then
-                    good "✅"
-                else
-                    bad "❌"
-                fi
-            else
-                info "$name: 无需配置 env"
-            fi
-        done <<< "$McpNames"
-        ;;
-
-    3)
-        title "交互式安装"
-        idx=1
-        declare -a McpArr=()
-        while IFS='|' read -r name desc mtype command args_str env_str; do
-            [[ -z "$name" ]] && continue
-            status="[未注册]"
-            [[ "$(is_registered "$name")" == "true" ]] && status="[已注册]"
-            echo "$idx) $name $status - $desc"
-            McpArr+=("$name|$command|$args_str|$env_str")
-            ((idx++))
-        done <<< "$McpNames"
-
+# 执行对应操作
+case "$DEFAULT_ACTION" in
+    sync)
+        info "执行双向同步 (install + config_keys)..."
         echo ""
-        read -p "输入编号安装（空格分隔）: " sel || true
-        [[ -z "$sel" ]] && exit 0
-
-        for i in $sel; do
-            idx=$((i-1))
-            [[ $idx -lt 0 || $idx -ge ${#McpArr[@]} ]] && continue
-            IFS='|' read -r name command args_str env_str <<< "${McpArr[$idx]}"
-            [[ "$(is_registered "$name")" == "true" ]] && continue
-
-            echo -e "\n安装 $name..."
-            if [[ -n "$command" ]] && [[ -n "$args_str" ]]; then
-                register_mcp "$name" "$command" "$args_str"
-                configure_mcp_env "$name" "$env_str"
-            fi
-        done
+        do_sync
         ;;
+    install)
+        info "执行安装所有缺失的 MCP..."
+        echo ""
+        do_install
+        ;;
+    config_keys)
+        info "执行配置所有 Key..."
+        echo ""
+        do_config_keys
+        ;;
+    interactive)
+        section "操作选项"
+        echo "1) 安装所有缺失的 MCP"
+        echo "2) 配置所有 Key"
+        echo "3) 交互式安装"
+        echo "0) 退出"
+        echo ""
 
+        read -p "请输入 [1]: " choice || true
+        choice="${choice:-1}"
+
+        case "$choice" in
+            1) do_install ;;
+            2) do_config_keys ;;
+            3)
+                title "交互式安装"
+                idx=1
+                declare -a McpArr=()
+                while IFS='|' read -r name desc mtype command args_str env_str; do
+                    [[ -z "$name" ]] && continue
+                    status="[未注册]"
+                    [[ "$(is_registered "$name")" == "true" ]] && status="[已注册]"
+                    echo "$idx) $name $status - $desc"
+                    McpArr+=("$name|$command|$args_str|$env_str")
+                    ((idx++))
+                done <<< "$McpNames"
+
+                echo ""
+                read -p "输入编号安装（空格分隔）: " sel || true
+                [[ -z "$sel" ]] && exit 0
+
+                for i in $sel; do
+                    idx=$((i-1))
+                    [[ $idx -lt 0 || $idx -ge ${#McpArr[@]} ]] && continue
+                    IFS='|' read -r name command args_str env_str <<< "${McpArr[$idx]}"
+                    [[ "$(is_registered "$name")" == "true" ]] && continue
+
+                    echo -e "\n安装 $name..."
+                    if [[ -n "$command" ]] && [[ -n "$args_str" ]]; then
+                        register_mcp "$name" "$command" "$args_str"
+                        configure_mcp_env "$name" "$env_str"
+                    fi
+                done
+                ;;
+            *)
+                info "已退出"
+                exit 0
+                ;;
+        esac
+        ;;
     *)
-        info "已退出"
-        exit 0
+        info "未知操作: $DEFAULT_ACTION，执行安装"
+        do_install
         ;;
 esac
 
