@@ -65,13 +65,11 @@ if [[ -z "$GIT_EMAIL" && -z "$GIT_NAME" ]]; then
     echo "=========================================="
     echo "  请输入 GitHub 注册信息"
     echo "=========================================="
-    echo -n "邮箱: "
-    read GIT_EMAIL
+    GIT_EMAIL=$(read_input "邮箱: " "" "60")
     if [[ -n "$GIT_EMAIL" ]]; then
         git config --global user.email "$GIT_EMAIL"
     fi
-    echo -n "GitHub 用户名: "
-    read GIT_NAME
+    GIT_NAME=$(read_input "GitHub 用户名: " "" "60")
     if [[ -n "$GIT_NAME" ]]; then
         git config --global user.name "$GIT_NAME"
     fi
@@ -83,15 +81,13 @@ elif [[ -z "$GIT_EMAIL" || -z "$GIT_NAME" ]]; then
     # 只有一个有值，提示用户补充
     print_warning "Git 用户身份不完整，正在补充..."
     if [[ -z "$GIT_EMAIL" ]]; then
-        echo -n "请输入 GitHub 注册邮箱: "
-        read GIT_EMAIL
+        GIT_EMAIL=$(read_input "请输入 GitHub 注册邮箱: " "" "60")
         if [[ -n "$GIT_EMAIL" ]]; then
             git config --global user.email "$GIT_EMAIL"
         fi
     fi
     if [[ -z "$GIT_NAME" ]]; then
-        echo -n "请输入 GitHub 用户名: "
-        read GIT_NAME
+        GIT_NAME=$(read_input "请输入 GitHub 用户名: " "" "60")
         if [[ -n "$GIT_NAME" ]]; then
             git config --global user.name "$GIT_NAME"
         fi
