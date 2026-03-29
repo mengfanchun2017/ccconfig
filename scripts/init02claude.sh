@@ -20,6 +20,36 @@ print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
 
+# 超时 read 函数（默认 10 秒超时）
+# 用法: read_input "提示文字" "默认值" "超时秒数"
+read_input() {
+    local prompt="$1"
+    local default="$2"
+    local timeout="${3:-10}"
+    local input=""
+
+    echo -n "$prompt"
+    if read -t "$timeout" input; then
+        echo "$input"
+    else
+        echo ""  # 超时时输出空行
+        echo "$default"
+    fi
+}
+
+# 超时读取（无默认值，超时返回空字符串）
+# 用法: read_timeout "秒数"
+read_timeout() {
+    local timeout="${1:-10}"
+    input=""
+    read -t "$timeout" input
+}
+
+# 旧式 read 调用兼容（不做超时）
+read_legacy() {
+    read "$@"
+}
+
 # 配置目录和文件
 CLAUDE_DIR="$HOME/.claude"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -116,17 +146,15 @@ if command -v claude &> /dev/null; then
         echo "  1) 升级到最新版本"
         echo "  2) 保持当前版本"
         echo ""
-        read -p "请输入选项 [2]: " upgrade_choice
-        upgrade_choice="${upgrade_choice:-2}"
+        upgrade_choice=$(read_input "请输入选项 [2]: " "2" "10")
 
         if [[ "$upgrade_choice" == "1" ]]; then
-            print_info "正在升级 Claude Code（使用官方安装脚本）..."
-            if curl -fsSL https://claude.ai/install.sh | bash; then
+            print_info "正在升级 Claude Code（使用官方安装脚本，可能需要几分钟）..."
+            if timeout 120 curl -fsSL https://claude.ai/install.sh | bash; then
                 NEW_VERSION=$(claude --version 2>/dev/null | head -1 | sed 's/.* //')
                 print_success "Claude Code 已升级: $CURRENT_VERSION → $NEW_VERSION"
             else
-                print_error "升级失败，请检查网络"
-                exit 1
+                print_error "升级失败，请检查网络或手动运行: curl -fsSL https://claude.ai/install.sh | bash"
             fi
         fi
     fi
@@ -182,8 +210,7 @@ echo ""
 echo "  1) 保持现有配置"
 echo "  2) 修改配置"
 echo ""
-read -p "请输入选项 [1]: " choice
-choice="${choice:-1}"
+choice=$(read_input "请输入选项 [1]: " "1" "10")
 
 if [[ "$choice" != "2" ]]; then
     echo ""
@@ -203,8 +230,7 @@ echo ""
 echo "请选择 LLM 订阅厂商："
 echo "  1) MINIMAX"
 echo ""
-read -p "请输入选项 [1]: " vendor_choice
-vendor_choice="${vendor_choice:-1}"
+vendor_choice=$(read_input "请输入选项 [1]: " "1" "10")
 
 if [[ "$vendor_choice" == "1" ]]; then
     VENDOR="MINIMAX"
@@ -254,8 +280,7 @@ if [[ -f "$CONFIG_FILE" ]]; then
         echo "  1) 更新 (输入新的 key)"
         echo "  2) 保留现有 key"
         echo ""
-        read -p "请输入选项 [2]: " key_choice
-        key_choice="${key_choice:-2}"
+        key_choice=$(read_input "请输入选项 [2]: " "2" "10")
         KEY_CHOICE_SET=true
     fi
 
@@ -265,15 +290,15 @@ if [[ -f "$CONFIG_FILE" ]]; then
 
     # Base URL
     echo -n "API 地址 [${CURRENT_URL}]: "
-    read input
+    read_timeout "30"  # 30 秒超时
     BASE_URL="${input:-$CURRENT_URL}"
 
     # API Key - 根据选择处理
     if [[ "$KEY_CHOICE_SET" == "true" && "$key_choice" == "1" ]] || [[ "$KEY_CHOICE_SET" == "false" ]]; then
         echo ""
         echo "API Key 示例: sk-cp-xxx..."
-        echo -n "API Key: "
-        read -s input
+        echo -n "API Key (30秒超时): "
+        read_timeout "30"
         echo
         API_KEY="${input}"
     else
@@ -290,7 +315,7 @@ if [[ -f "$CONFIG_FILE" ]]; then
     # Model Name
     echo ""
     echo -n "模型名称 [${CURRENT_MODEL}]: "
-    read input
+    read_timeout "30"
     MODEL_NAME="${input:-$CURRENT_MODEL}"
 
     IMPORTED=true
@@ -311,21 +336,20 @@ if [[ "$IMPORTED" == "false" ]]; then
         echo "  1) 更新 (输入新的 key)"
         echo "  2) 保留现有 key"
         echo ""
-        read -p "请输入选项 [2]: " key_choice
-        key_choice="${key_choice:-2}"
+        key_choice=$(read_input "请输入选项 [2]: " "2" "10")
         KEY_CHOICE_SET=true
     fi
 
     echo -n "API 基础地址 [https://api.minimaxi.com/anthropic]: "
-    read input
+    read_timeout "30"
     BASE_URL="${input:-https://api.minimaxi.com/anthropic}"
 
     # 只有当用户选择更新 或 没有现有key需要输入时，才询问API Key
     if [[ "$KEY_CHOICE_SET" == "true" && "$key_choice" == "1" ]] || [[ "$KEY_CHOICE_SET" == "false" ]]; then
         echo ""
         echo "API Key 示例: sk-cp-xxx..."
-        echo -n "API Key: "
-        read -s input
+        echo -n "API Key (30秒超时): "
+        read_timeout "30"
         echo
         API_KEY="${input}"
     else
@@ -340,7 +364,7 @@ if [[ "$IMPORTED" == "false" ]]; then
     fi
 
     echo -n "模型名称 [MiniMax-M2.7]: "
-    read input
+    read_timeout "30"
     MODEL_NAME="${input:-MiniMax-M2.7}"
 fi
 
@@ -357,7 +381,7 @@ echo "  API Key:  ${API_KEY:0:15}..."
 echo "  模型:     $MODEL_NAME"
 echo ""
 
-read -p "确认? [y/N]: " confirm
+confirm=$(read_input "确认? [y/N]: " "N" "10")
 if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
     echo "已取消"
     exit 0
