@@ -22,22 +22,18 @@ print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
 
-# 超时 read 函数（带倒计时），用于需要默认值的场景
+# 简单的 read 函数，用于需要默认值的场景
 # 用法: read_input "提示" "默认值" "超时秒数"
+# 如果用户超时未输入，使用默认值
 read_input() {
     local prompt="$1"
     local default="$2"
-    local timeout="${3:-10}"
-
-    # 使用简单的超时读取
-    local input
-    input=""
-    if read -t "$timeout" input; then
-        # 用户有输入
-        echo "$input"
+    local timeout="${3:-0}"
+    local input=""
+    if [ "$timeout" -gt 0 ]; then
+        read -t "$timeout" -p "$prompt" input && echo "$input" || echo "$default"
     else
-        # 超时或错误，使用默认值
-        echo "$default"
+        read -p "$prompt" input && echo "$input" || echo "$default"
     fi
 }
 
