@@ -568,6 +568,19 @@ claude-config/
 
 ---
 
-test line
-event test
-event test 2
+### 2026-03-29 [Francis_MiPro] - auto-sync bug 与 SessionStart Hook
+
+**auto-sync.sh Bug (已知问题)**:
+- `git diff --quiet` 只检测**已跟踪文件**的变化，不检测 **untracked files**
+- 如果只有新文件被创建，auto-sync 不会自动提交
+- **workaround**: 如果新增文件需要同步，先 `git add -A` 再 `git commit`
+
+**SessionStart Hook 配置**:
+- 位置: `config/settings.json` → `hooks.SessionStart`
+- 功能: Claude 启动时自动执行 `bash claude-config/status.sh`
+- 效果: 启动 Claude 时自动检查配置状态 + 显示最近 5 次推送记录
+
+**status.sh 更新内容 (2026-03-29)**:
+1. 新增 MEMORY.md 符号链接检查
+2. 新增最近 5 次推送记录显示
+3. 检查项: settings.json, CLAUDE.md, MEMORY.md, auto-sync 进程

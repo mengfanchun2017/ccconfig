@@ -36,8 +36,8 @@ check_deps() {
 commit_and_push() {
     cd "$REPO_DIR"
 
-    # 检查是否有变化
-    if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+    # 检查是否有变化（包括 untracked files）
+    if git status --porcelain 2>/dev/null | grep -q .; then
         :  # 有变化，继续
     else
         return 0  # 没有变化
