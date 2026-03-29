@@ -194,6 +194,8 @@ do_config_keys() {
             result=$(configure_mcp_env "$name" "$env_str")
             if [[ "$result" == "ok" ]]; then
                 good "✅"
+            elif [[ "$result" == "skip" ]]; then
+                info "跳过"
             else
                 bad "❌"
             fi
