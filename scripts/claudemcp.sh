@@ -149,7 +149,7 @@ echo "3) 交互式安装"
 echo "0) 退出"
 echo ""
 
-read -p "请输入 [1]: " choice
+read -p "请输入 [1]: " choice || true
 choice="${choice:-1}"
 
 case "$choice" in
@@ -206,7 +206,7 @@ case "$choice" in
         done <<< "$McpNames"
 
         echo ""
-        read -p "输入编号安装（空格分隔）: " sel
+        read -p "输入编号安装（空格分隔）: " sel || true
         [[ -z "$sel" ]] && exit 0
 
         for i in $sel; do
