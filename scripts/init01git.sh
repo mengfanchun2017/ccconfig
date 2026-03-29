@@ -315,8 +315,7 @@ if [[ -d "$TARGET_DIR" ]]; then
         echo "  2) 改名克隆到其他目录"
         echo "  3) 退出"
         echo ""
-        read -p "请输入选项 [2]: " fix_choice
-        fix_choice="${fix_choice:-2}"
+        fix_choice=$(read_input "请输入选项 [2]: " "2" "30")
 
         if [[ "$fix_choice" == "1" ]]; then
             rm -rf "$TARGET_DIR"
