@@ -290,8 +290,7 @@ if [[ -d "$TARGET_DIR" ]]; then
             echo "  2) 改名克隆到其他目录"
             echo "  3) 退出"
             echo ""
-            read -p "请输入选项 [2]: " fix_choice
-            fix_choice="${fix_choice:-2}"
+            fix_choice=$(read_input "请输入选项 [2]: " "2" "30")
 
             if [[ "$fix_choice" == "1" ]]; then
                 print_info "删除旧目录..."
@@ -355,8 +354,7 @@ if [[ ! -d "$TARGET_DIR" ]]; then
                 echo "  [R] 重试 - 网络弄好了继续"
                 echo "  [Q] 退出"
                 echo ""
-                read -p "请输入 [R]: " choice
-                choice="${choice:-R}"
+                choice=$(read_input "请输入 [R]: " "R" "30")
                 if [[ "$choice" == "q" || "$choice" == "Q" ]]; then
                     print_info "已退出"
                     exit 0
