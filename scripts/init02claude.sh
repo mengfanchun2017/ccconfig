@@ -150,7 +150,7 @@ if command -v claude &> /dev/null; then
 
         if [[ "$upgrade_choice" == "1" ]]; then
             print_info "正在升级 Claude Code（使用官方安装脚本，可能需要几分钟）..."
-            if timeout 120 curl -fsSL https://claude.ai/install.sh | bash; then
+            if timeout 600 curl -fsSL https://claude.ai/install.sh | bash; then
                 NEW_VERSION=$(claude --version 2>/dev/null | head -1 | sed 's/.* //')
                 print_success "Claude Code 已升级: $CURRENT_VERSION → $NEW_VERSION"
             else
