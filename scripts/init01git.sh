@@ -22,13 +22,19 @@ print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
 
-# read 函数 - 使用 read -p 显示提示
+# read 函数 - 显示提示，用户输入或回车用默认值
 read_input() {
     local prompt="$1"
     local default="$2"
     local input=""
     read -p "$prompt" input
     echo "${input:-$default}"
+}
+
+# 无超时的 read（用于必须等待用户输入的场景）
+read_wait() {
+    local prompt="$1"
+    read -p "$prompt"
 }
 
 GH_VERSION="2.63.2"
