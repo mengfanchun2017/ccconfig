@@ -45,21 +45,13 @@ warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
 section() { echo -e "${CYAN}=== $1 ===${NC}"; }
 
-# 超时 read 函数（带倒计时）
+# 简单的 read 函数，用于需要默认值的场景
 read_input() {
     local prompt="$1"
     local default="$2"
-    local timeout="${3:-10}"
     local input=""
-
-    echo -n "$prompt"
-    read -t "$timeout" input 2>/dev/null
-
-    if [[ -n "$input" ]]; then
-        echo "$input"
-    else
-        echo "$default"
-    fi
+    read -p "$prompt" input
+    echo "${input:-$default}"
 }
 
 # 检查命令是否存在
