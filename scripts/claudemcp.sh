@@ -116,7 +116,8 @@ try:
     if 'mcpServers' not in data:
         data['mcpServers'] = {}
     if mcp_name not in data['mcpServers']:
-        return
+        print('skip')
+        sys.exit(0)
 
     env = json.loads(env_json) if env_json and env_json != '{}' else {}
     data['mcpServers'][mcp_name]['env'] = env
