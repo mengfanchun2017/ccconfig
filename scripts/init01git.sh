@@ -28,16 +28,15 @@ read_input() {
     local prompt="$1"
     local default="$2"
     local timeout="${3:-10}"
-    local input=""
 
-    echo -n "$prompt"
-
-    # 使用简单的超时读取，不使用后台倒计时（避免终端兼容性问题）
-    read -t "$timeout" input 2>/dev/null
-
-    if [[ -n "$input" ]]; then
+    # 使用简单的超时读取
+    local input
+    input=""
+    if read -t "$timeout" input; then
+        # 用户有输入
         echo "$input"
     else
+        # 超时或错误，使用默认值
         echo "$default"
     fi
 }
@@ -101,11 +100,9 @@ else
     print_success "Git 用户身份: $GIT_EMAIL ($GIT_NAME)"
     modify=$(read_input "是否修改? [y/N]: " "N" "10")
     if [[ "$modify" =~ ^[Yy]$ ]]; then
-        echo -n "新邮箱 [留空保持不变]: "
-        read new_email
+        new_email=$(read_input "新邮箱 [留空保持不变]: " "" "30")
         [[ -n "$new_email" ]] && git config --global user.email "$new_email"
-        echo -n "新用户名 [留空保持不变]: "
-        read new_name
+        new_name=$(read_input "新用户名 [留空保持不变]: " "" "30")
         [[ -n "$new_name" ]] && git config --global user.name "$new_name"
         GIT_EMAIL=$(git config --global user.email 2>/dev/null)
         GIT_NAME=$(git config --global user.name 2>/dev/null)
