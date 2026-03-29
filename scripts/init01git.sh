@@ -34,10 +34,7 @@ try:
         config = json.load(f)
     # Git 配置
     git = config.get('git', {})
-    print(git.get('repo', ''))
-    print(git.get('target_dir', ''))
-    print(git.get('email', ''))
-    print(git.get('username', ''))
+    print(f"{git.get('repo', '')}|{git.get('target_dir', '')}|{git.get('email', '')}|{git.get('username', '')}")
 except:
     print("|||")
 PYEOF
