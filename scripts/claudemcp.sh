@@ -28,6 +28,21 @@ info() { echo -e "$1${GRAY}"; }
 warn() { echo -e "$1${YELLOW}"; }
 
 # ========== JSON 读取 ==========
+read_mcp_settings() {
+    python3 - "$MCP_CONF_FILE" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    settings = data.get('settings', {})
+    print(settings.get('default_action', 'install'))
+    print('true' if settings.get('auto_config_keys', False) else 'false')
+except:
+    print('install')
+    print('false')
+PYEOF
+}
+
 read_mcp_list() {
     python3 - "$MCP_CONF_FILE" << 'PYEOF'
 import json, sys
