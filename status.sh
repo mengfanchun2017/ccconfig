@@ -6,6 +6,7 @@
 # 2. 检查符号链接状态（含 MEMORY.md）
 # 3. 检查 auto-sync 状态
 # 4. 显示最近 5 次推送记录
+# 5. MCP 服务器真实调用测试
 #
 # 用途：每次启动终端时自动运行（通过 /etc/profile.d/ 或 ~/.bashrc）
 #       以及通过 SessionStart hook 在 Claude 启动时运行
@@ -99,7 +100,129 @@ show_recent_pushes() {
     done < <(git log --oneline -10 --format="%s" 2>/dev/null | head -5)
 }
 
+# ========== MCP 服务器真实测试 ==========
+test_mcp_servers() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[config]${NC} 🔧 MCP 服务器测试："
+
+    local claude_json="$HOME/.claude.json"
+
+    if [ ! -f "$claude_json" ]; then
+        echo -e "  ${YELLOW}⚠️  ~/.claude.json 不存在${NC}"
+        return
+    fi
+
+    # 读取 MCP 配置
+    python3 - "$claude_json" << 'PYEOF' 2>/dev/null
+import json
+import sys
+import subprocess
+import os
+import time
+
+def test_mcp_server(name, config, env_vars):
+    """测试单个 MCP 服务器"""
+    try:
+        cmd = config.get('command')
+        args = config.get('args', [])
+        full_cmd = [cmd] + args
+
+        # 构建环境变量
+        env = os.environ.copy()
+        for k, v in env_vars.items():
+            env[k] = v
+
+        # 发送初始化请求
+        init_request = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {"name": "test", "version": "1.0"}
+            }
+        }
+
+        # 发送 tools/list 请求
+        list_request = {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/list",
+            "params": {}
+        }
+
+        input_data = json.dumps(init_request) + "\n" + json.dumps(list_request) + "\n"
+
+        proc = subprocess.Popen(
+            full_cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            text=True
+        )
+
+        stdout, stderr = proc.communicate(input=input_data, timeout=15)
+
+        # 解析响应
+        lines = stdout.strip().split("\n")
+        for line in lines:
+            if line:
+                try:
+                    resp = json.loads(line)
+                    if resp.get("id") == 1 and "result" in resp:
+                        server_info = resp["result"].get("serverInfo", {})
+                        version = server_info.get("version", "?")
+                        return f"✅ {version}", None
+                except:
+                    pass
+
+        # 如果没有找到有效的初始化响应
+        if stderr and "Error" in stderr:
+            return None, stderr[:100]
+        return "✅ (无版本信息)", None
+
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        return None, "超时"
+    except FileNotFoundError:
+        return None, f"命令未找到: {cmd}"
+    except Exception as e:
+        return None, str(e)[:100]
+
+# 读取配置
+with open(sys.argv[1], 'r') as f:
+    data = json.load(f)
+
+mcp_servers = data.get('mcpServers', {})
+
+# 获取环境变量（用于 minimax 等需要 API key 的服务）
+minimax_key = os.environ.get('MINIMAX_API_KEY', '')
+minimax_host = os.environ.get('MINIMAX_API_HOST', 'https://api.minimax.chat')
+
+for name, config in sorted(mcp_servers.items()):
+    if not config.get('command'):
+        continue
+
+    env_vars = {}
+
+    # 为 minimax 相关服务添加环境变量
+    if 'minimax' in name.lower():
+        env_vars['MINIMAX_API_KEY'] = minimax_key
+        env_vars['MINIMAX_API_HOST'] = minimax_host
+
+    result, error = test_mcp_server(name, config, env_vars)
+
+    if result:
+        print(f"  {name}: {result}")
+    else:
+        print(f"  {name}: ❌ {error}")
+PYEOF
+}
+
 # 执行
 git_pull
 show_summary
 show_recent_pushes
+test_mcp_servers
