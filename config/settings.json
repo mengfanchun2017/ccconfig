@@ -281,5 +281,51 @@
         "command": "bash /home/francis/git/claude-config/status.sh"
       }
     ]
+  },
+  "mcpServers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@playwright/mcp", "--browser", "chrome"],
+      "env": {
+        "PLAYWRIGHT_BROWSERS_PATH": "/home/francis/.cache/ms-playwright"
+      }
+    },
+    "tavily": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tavily-mcp"],
+      "env": {}
+    },
+    "minimax": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["minimax-coding-plan-mcp", "-y"],
+      "env": {
+        "MINIMAX_API_KEY": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY",
+        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      }
+    },
+    "minimax-mcp": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["minimax-mcp"],
+      "env": {
+        "MINIMAX_API_KEY": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY",
+        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      }
+    },
+    "octocode": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "octocode-mcp@latest"],
+      "env": {}
+    },
+    "supabase": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server-supabase", "--project-ref", "<your-supabase-project-id>", "--access-token", "9e0bfb34-67d9-4b34-bd5a-35ff75d443e9"],
+      "env": {}
+    }
   }
 }
