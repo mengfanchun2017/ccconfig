@@ -197,20 +197,12 @@ with open(sys.argv[1], 'r') as f:
 
 mcp_servers = data.get('mcpServers', {})
 
-# 获取环境变量（用于 minimax 等需要 API key 的服务）
-minimax_key = os.environ.get('MINIMAX_API_KEY', '')
-minimax_host = os.environ.get('MINIMAX_API_HOST', 'https://api.minimax.chat')
-
 for name, config in sorted(mcp_servers.items()):
     if not config.get('command'):
         continue
 
-    env_vars = {}
-
-    # 为 minimax 相关服务添加环境变量
-    if 'minimax' in name.lower():
-        env_vars['MINIMAX_API_KEY'] = minimax_key
-        env_vars['MINIMAX_API_HOST'] = minimax_host
+    # 从配置的 env 字段获取环境变量
+    env_vars = config.get('env', {})
 
     result, error = test_mcp_server(name, config, env_vars)
 
