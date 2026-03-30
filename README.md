@@ -8,9 +8,10 @@ Claude Code 配置文件仓库，用于跨设备同步配置。
 claude-config/
 ├── init01git.sh      # Git + GitHub CLI 环境初始化
 ├── init02claude.sh   # Claude Code 安装 + API 配置
-├── init03env.sh      # 环境准备（Node.js/uv/Playwright/字体/符号链接）
+├── init03env.sh      # 环境准备 + auto-sync 启动
 ├── claudemcp.sh      # MCP 服务器安装与配置
-├── end.sh            # 同步配置到 GitHub
+├── auto-sync.sh      # 文件变化自动同步到 GitHub
+├── enable-autostart.sh # auto-sync 自启动配置
 ├── status.sh         # 状态检查（SessionStart hook 自动运行）
 ├── config/           # 配置文件
 │   ├── CLAUDE.md     # 权限白名单
@@ -72,25 +73,28 @@ claude-config/
 
 ## 同步机制
 
-### 自动同步
+### 自动同步（推荐）
 
-修改配置文件后，运行：
-```bash
-bash claude-config/end.sh
-```
-
-这会：
-1. 检查是否有配置更改
-2. 自动 commit
-3. 推送到 GitHub
+init03env.sh 会启动 auto-sync 服务，监控文件变化自动同步：
+- 文件变化 → 自动 commit → 自动 push 到 GitHub
+- 无需手动操作
 
 ### 手动同步
 
+如果 auto-sync 未运行：
 ```bash
 cd claude-config
 git add -A
 git commit -m "描述"
 git push origin main
+```
+
+### auto-sync 管理
+
+```bash
+bash claude-config/auto-sync.sh start   # 启动
+bash claude-config/auto-sync.sh stop    # 停止
+bash claude-config/auto-sync.sh status   # 状态
 ```
 
 ## 新环境初始化流程
