@@ -13,7 +13,8 @@ const CONFIG_KEYS = [
   'permissions',
   'extraKnownMarketplaces',
   'enabledPlugins',
-  'mcpServers'
+  'mcpServers',
+  'hooks'
 ];
 
 // 本地状态部分的键名 - 这些保留本地值
