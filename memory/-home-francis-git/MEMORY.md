@@ -414,10 +414,8 @@ claude-config/
 2. **符号链接替代复制** - 所有配置文件通过符号链接同步，双向实时
 3. **新目录结构**：
    ```
-   scripts/
-   ├── bash/           # Linux/WSL 独立实现
-   ├── pwsh/           # Windows PowerShell 独立实现（与 bash 对称）
-   └── shared/         # 仅放真正的跨平台脚本（如 sync-settings.js）
+   scripts/            # 扁平化（已删除 bash/pwsh 子目录）
+   └── *.sh           # 所有脚本直接在 scripts/ 下
    ```
 
 **同步机制**：
