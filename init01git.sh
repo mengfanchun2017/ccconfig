@@ -59,8 +59,8 @@ fi
 
 # -------------------------- 检查/配置 Git 用户身份 --------------------------
 print_info "检查 Git 用户身份..."
-GIT_EMAIL=$(git config --global user.email 2>/dev/null) || GIT_EMAIL=""
-GIT_NAME=$(git config --global user.name 2>/dev/null) || GIT_NAME=""
+GIT_EMAIL=$(git config --global user.email 2>/dev/null || echo "") || true
+GIT_NAME=$(git config --global user.name 2>/dev/null || echo "") || true
 
 # 读取配置
 CONFIG_DATA=$(read_config) || true
