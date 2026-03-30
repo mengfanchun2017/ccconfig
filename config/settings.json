@@ -277,12 +277,8 @@
   "hooks": {
     "SessionStart": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash /home/francis/git/claude-config/status.sh"
-          }
-        ]
+        "type": "command",
+        "command": "bash /home/francis/git/claude-config/status.sh"
       }
     ]
   }
