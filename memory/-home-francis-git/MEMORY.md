@@ -8,6 +8,47 @@ This file persists across Claude Code conversations. Keep it concise (&lt;200 li
 
 ---
 
+## claude-config 仓库结构（扁平化）
+
+```
+claude-config/                    # GitHub: <your-github-username>/claude-config
+├── init.sh                      # 主入口脚本
+├── status.sh                    # 状态检查（启动时自动运行）
+├── README.md                    # 文档
+├── LICENSE                      # MIT
+├── config/                      # 配置文件
+│   ├── CLAUDE.md               # 权限白名单
+│   ├── settings.json            # Claude Code 设置
+│   ├── initconf.json           # 初始化配置（Git/API）
+│   └── mcpconf.json             # MCP 服务器配置
+├── memory/                      # 项目记忆
+│   └── -home-francis-git/      # 当前项目记忆目录
+│       └── MEMORY.md
+└── scripts/                     # 脚本（扁平结构，无子目录）
+    ├── auto-sync.sh            # 自动同步（inotifywait）
+    ├── enable-autostart.sh     # 自启动配置
+    ├── init01git.sh           # Git 环境初始化
+    ├── init02claude.sh        # Claude 安装 + API 配置
+    ├── init03env.sh           # 环境准备 + 符号链接
+    ├── claudemcp.sh           # MCP 管理
+    ├── initoptplaywright.sh   # Playwright 浏览器选择
+    └── sync-settings.js       # 设置同步
+```
+
+**使用方式**：
+```bash
+# 完整初始化
+bash claude-config/init.sh
+
+# 单独运行某个脚本
+bash claaude-config/scripts/init01git.sh
+
+# MCP 管理
+bash claude-config/scripts/claudemcp.sh
+```
+
+---
+
 ## Recording Flow (记录流程)
 
 ### When to Record (什么时候记录)
@@ -191,12 +232,12 @@ cd /home/francis/git && bash claude-config/scripts/end.sh
   - 三台电脑都使用相同的配置
 - **自动化脚本**:
   - **重要**: 脚本从**主工作目录**运行，不是从 claude-config 仓库内运行
-  - 运行方式: `cd /home/francis/git && bash claude-config/scripts/bash/start.sh`
-  - 脚本会自动检测当前目录作为项目目录
+  - 运行方式: `cd /home/francis/git && bash claude-config/scripts/auto-sync.sh start`
+  - auto-sync 以后台进程运行，文件变化自动同步
 - **日常工作流**:
-  1. 到公司/家: `bash claude-config/scripts/bash/start.sh` 或 `gitinit`
+  1. 到公司/家: `gitinit` 或 `bash claude-config/init.sh`
   2. 正常工作（在 Claude Code 中）
-  3. 结束工作: `bash claude-config/scripts/bash/end.sh` 或 `gitarc`
+  3. 结束工作: `gitarc` 或 `git push`
 - **Git 远程仓库**: https://github.com/<your-github-username>/claude-config
 - **对话关键词**:
   - `gitinit`: 开始工作 - 从 GitHub 拉取最新配置并同步到本地
