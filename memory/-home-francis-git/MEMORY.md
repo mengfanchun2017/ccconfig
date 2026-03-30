@@ -8,14 +8,16 @@ This file persists across Claude Code conversations. Keep it concise (&lt;200 li
 
 ---
 
-## claude-config 仓库结构（2026-03-30 重构）
+## claude-config 仓库结构（2026-03-30）
 
 ```
 claude-config/                    # GitHub: <your-github-username>/claude-config
 ├── init01git.sh                # Git + GitHub CLI 环境初始化
 ├── init02claude.sh             # Claude Code 安装 + API 配置
-├── init03env.sh                # 环境准备（Node.js/uv/Playwright/字体/符号链接）
+├── init03env.sh                # 环境准备 + auto-sync 启动
 ├── claudemcp.sh                # MCP 服务器安装与配置
+├── auto-sync.sh                # 文件变化自动同步到 GitHub
+├── enable-autostart.sh          # auto-sync 自启动配置
 ├── status.sh                   # 状态检查（SessionStart hook 自动运行）
 ├── config/                     # 配置文件
 │   ├── CLAUDE.md              # 权限白名单
@@ -30,18 +32,41 @@ claude-config/                    # GitHub: <your-github-username>/claude-config
 **新环境初始化流程**：
 ```bash
 # 1. 复制 claude-config 到 ~/git/claude-config
-# 2. 确保 initconf.json 配置正确
+# 2. 确保 config/initconf.json 配置正确
 # 3. 依次运行：
 bash claude-config/init01git.sh   # Git + gh + 克隆仓库
 bash claude-config/init02claude.sh  # Claude Code 安装
-bash claude-config/init03env.sh   # 环境准备 + 符号链接
+bash claude-config/init03env.sh   # 环境准备 + 符号链接 + auto-sync 启动
 bash claude-config/claudemcp.sh  # MCP 配置
 ```
 
-**注意**：
-- 已删除 init.sh、scripts/ 目录、README.md、LICENSE
-- 已删除 auto-sync 相关功能（auto-sync.sh、enable-autostart.sh、sync-settings.js）
-- 所有脚本现在直接在 claude-config/ 根目录下
+---
+
+## 配置文件架构
+
+### 符号链接（本地 ↔ GitHub 同步）
+
+| 本地路径 | 指向 | GitHub 路径 | 作用 |
+|---------|------|-------------|------|
+| `~/.claude/settings.json` | → `claude-config/config/settings.json` | `config/settings.json` | Claude Code 设置同步 |
+| `~/CLAUDE.md` | → `claude-config/config/CLAUDE.md` | `config/CLAUDE.md` | 权限白名单同步 |
+| `~/.claude/projects/-home-francis-git/memory/MEMORY.md` | → `claude-config/memory/-home-francis-git/MEMORY.md` | `memory/-home-francis-git/MEMORY.md` | 记忆同步 |
+
+### 主配置文件（Claude Code 运行时读取）
+
+| 文件 | 位置 | 内容 | 同步方式 |
+|------|------|------|---------|
+| `~/.claude.json` | 用户主目录 | mcpServers、hooks、环境变量、session 记录、metrics 等 | 通过 claudemcp.sh 同步到 settings.json |
+
+### 同步策略
+
+```
+Claude Code 运行时 ~/.claude.json
+       ↓ claudemcp.sh 同步
+claude-config/config/settings.json (符号链接)
+       ↓
+GitHub 远程仓库
+```
 
 ---
 
@@ -69,65 +94,43 @@ bash claude-config/claudemcp.sh  # MCP 配置
 
 ---
 
-## Project Context (项目上下文)
-
-- Current working directory: C:\git
-- **当前设备**: Francis_MiPro
-- **设备识别方式**: 使用 `hostname` 命令获取主机名
-
----
-
 ## Key Learnings (关键知识点)
 
-### 2026-03-30 [Francis_MiPro] - claude-config 重构
-- **重大变更**:
-  - 删除 init.sh，脚本移动到根目录
-  - 删除 auto-sync 相关文件
-  - 删除 README.md、LICENSE
-  - 简化目录结构
+### 2026-03-30 [Francis_MiPro] - claude-config 架构稳定
 
-- **MCP 配置规范**:
-  - ~/.claude.json 是权威存储
-  - mcpconf.json 是初始化数据源
-  - minimax MCP 需要 MINIMAX_API_KEY 和 MINIMAX_API_HOST 两个环境变量
-
-- **当前 MCP 状态**:
-  - playwright: ✅
-  - tavily: ✅
-  - minimax: ✅
-  - minimax-mcp: ✅
-  - octocode: ✅
-  - supabase: ✅
-
-### 2026-03-15 [Francis_MiPro] - Windows 11 - Claude Code 升级方法
-- **升级步骤**:
-  1. 关闭所有 Claude Code 窗口和进程 (taskkill /F /IM claude.exe)
-  2. 在 PowerShell 中运行: `winget upgrade Anthropic.ClaudeCode`
-
----
-
-## Session Logs (会话记录)
-
-### 2026-03-30 [Francis_MiPro] - claude-config 目录结构重构
-**完成变更**：
-1. 删除 init.sh、scripts/ 目录
-2. 脚本移动到根目录: init01git.sh, init02claude.sh, init03env.sh, claudemcp.sh
-3. 删除 auto-sync 相关文件
-4. 删除 README.md、LICENSE
-5. init03env.sh 移除 auto-sync 功能
-6. 修复 minimax MCP 配置（添加 MINIMAX_API_HOST）
-7. 更新 status.sh 移除 auto-sync 引用
-
-**新目录结构**：
+**最终目录结构**：
 ```
 claude-config/
 ├── init01git.sh
 ├── init02claude.sh
-├── init03env.sh
-├── claudemcp.sh
+├── init03env.sh        # 会启动 auto-sync
+├── claudemcp.sh        # 同步 mcpServers/hooks 到 settings.json
+├── auto-sync.sh        # 自动同步服务
+├── enable-autostart.sh # systemd 自启动
 ├── status.sh
 ├── config/
 └── memory/
 ```
 
-**Git 状态**: db18c19 已推送
+**auto-sync 工作机制**：
+- inotifywait 监控文件变化
+- 防抖 3 秒后自动 commit + push
+- `.auto-sync.pid` 和 `.auto-sync.log` 在 .gitignore 中
+
+**配置文件优先级**：
+- hooks/mcpServers 必须写在 `~/.claude.json` 顶层
+- `~/.claude/settings.json` 只是符号链接，方便 Git 同步
+
+---
+
+## Session Logs (会话记录)
+
+### 2026-03-30 [Francis_MiPro] - claude-config 架构最终稳定
+
+**完成内容**：
+1. 恢复 auto-sync.sh、enable-autostart.sh
+2. 删除 end.sh（auto-sync 已自动同步）
+3. auto-sync 服务运行中（PID: 44222）
+4. GitHub 同步正常
+
+**Git 状态**: c0260dd 已推送
