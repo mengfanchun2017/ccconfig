@@ -8,74 +8,55 @@ This file persists across Claude Code conversations. Keep it concise (&lt;200 li
 
 ---
 
-## claude-config 仓库结构（扁平化）
+## claude-config 仓库结构（2026-03-30 重构）
 
 ```
 claude-config/                    # GitHub: <your-github-username>/claude-config
-├── init.sh                      # 主入口脚本
-├── status.sh                    # 状态检查（启动时自动运行）
-├── README.md                    # 文档
-├── LICENSE                      # MIT
-├── config/                      # 配置文件
-│   ├── CLAUDE.md               # 权限白名单
-│   ├── settings.json            # Claude Code 设置
-│   ├── initconf.json           # 初始化配置（Git/API）
-│   └── mcpconf.json             # MCP 服务器配置
-├── memory/                      # 项目记忆
-│   └── -home-francis-git/      # 当前项目记忆目录
-│       └── MEMORY.md
-└── scripts/                     # 脚本（扁平结构，无子目录）
-    ├── auto-sync.sh            # 自动同步（inotifywait）
-    ├── enable-autostart.sh     # 自启动配置
-    ├── init01git.sh           # Git 环境初始化
-    ├── init02claude.sh        # Claude 安装 + API 配置
-    ├── init03env.sh           # 环境准备 + 符号链接
-    ├── claudemcp.sh           # MCP 管理
-    ├── initoptplaywright.sh   # Playwright 浏览器选择
-    └── sync-settings.js       # 设置同步
+├── init01git.sh                # Git + GitHub CLI 环境初始化
+├── init02claude.sh             # Claude Code 安装 + API 配置
+├── init03env.sh                # 环境准备（Node.js/uv/Playwright/字体/符号链接）
+├── claudemcp.sh                # MCP 服务器安装与配置
+├── status.sh                   # 状态检查（SessionStart hook 自动运行）
+├── config/                     # 配置文件
+│   ├── CLAUDE.md              # 权限白名单
+│   ├── settings.json           # Claude Code 设置（符号链接到 ~/.claude/settings.json）
+│   ├── initconf.json          # 初始化配置（Git/API）
+│   └── mcpconf.json           # MCP 服务器配置
+└── memory/                     # 项目记忆
+    └── -home-francis-git/
+        └── MEMORY.md
 ```
 
-**使用方式**：
+**新环境初始化流程**：
 ```bash
-# 完整初始化
-bash claude-config/init.sh
-
-# 单独运行某个脚本
-bash claaude-config/scripts/init01git.sh
-
-# MCP 管理
-bash claude-config/scripts/claudemcp.sh
+# 1. 复制 claude-config 到 ~/git/claude-config
+# 2. 确保 initconf.json 配置正确
+# 3. 依次运行：
+bash claude-config/init01git.sh   # Git + gh + 克隆仓库
+bash claude-config/init02claude.sh  # Claude Code 安装
+bash claude-config/init03env.sh   # 环境准备 + 符号链接
+bash claude-config/claudemcp.sh  # MCP 配置
 ```
+
+**注意**：
+- 已删除 init.sh、scripts/ 目录、README.md、LICENSE
+- 已删除 auto-sync 相关功能（auto-sync.sh、enable-autostart.sh、sync-settings.js）
+- 所有脚本现在直接在 claude-config/ 根目录下
 
 ---
 
-## Recording Flow (记录流程)
+## User Preferences (用户偏好)
 
-### When to Record (什么时候记录)
-- At the end of each session (会话结束时)
-- When important decisions are made (做出重要决定时)
-- When learning something new about the codebase (了解到代码库新信息时)
-- When user preferences are clarified (明确用户偏好时)
-
-### How to Record (如何记录)
-Use the following sections in this file:
-
-| Section | Purpose |
-|---------|---------|
-| User Preferences | 工作方式、工具偏好等 |
-| Project Context | 项目架构、关键决策 |
-| Key Learnings | 技术知识点、坑点 |
-| Session Logs | 按时间记录的会话摘要 |
-
-### Multi-Device Memory (多终端记忆)
-- **设备识别**: 使用 `hostname` 命令获取当前主机名
-- **记忆结构**: 会话记录时标记设备，如 `### 2026-03-19 [Francis_MiPro]`
-- **同步时机**: 每次 `gitarc` 时自动更新本终端的会话记录
-- **会话记录格式**: `### 2026-03-19 [设备主机名]`
-- **Memory 目录命名规则**:
-  - Linux/WSL: `/home/francis/git` → `-home-francis-git`（Claude Code 项目名）
-  - 规则：将路径中 `/` 替换为 `-`，前面加 `-`
-  - 脚本使用 `$(echo "$ACTUAL_PROJECT_PATH" | sed 's/\//-/g')` 自动转换
+- Memory mode: Manual recording at checkpoints / end of session
+- Preferred language: Chinese (中文)
+- **Session Sync Requirement (会话同步要求)**
+  - 每次工作收尾时必须同步记忆
+  - 更新 MEMORY.md 后要同步到 claude-config 仓库
+- **MCP 操作规则**:
+  - 运行 `bash claude-config/claudemcp.sh` 管理 MCP
+  - Key/Token 存储在 `config/mcpconf.json` 中
+- **提交后通知要求**:
+  - 每次提交后，必须用 ✅ 标记 commit hash + message
 
 ---
 
@@ -85,57 +66,6 @@ Use the following sections in this file:
 |--------|---------|------|
 | Francis_MiPro | Windows 11 家庭中文版 | 主工作电脑 |
 | (待添加) | | |
-
-> 注意：新增设备后在此表添加记录
-
----
-
-## User Preferences (用户偏好)
-
-- Memory mode: Manual recording at checkpoints / end of session
-- Preferred language: Chinese (中文)
-- **Session Sync Requirement (会话同步要求)
-  - 每次工作收尾时必须同步记忆
-  - 更新 MEMORY.md 后要同步到 claude-config 仓库
-- **MCP 操作规则**:
-  - 如果用户有 MCP 初始化、安装、更新等要求，运行 `bash claude-config/scripts/claudemcp.sh`
-  - 所有 MCP 的 Key/Token 等鉴权信息存储在 `config/mcpidentity.json` 中，便于直接修改
-  - `mcpidentity.json` 现在参与 Git 同步（私有仓库安全）
-- **提交后通知要求**:
-  - 每次提交后，必须用 ✅ 绿色对勾标记，告诉我提交的信息（commit hash + message）
-  - 让用户知道我修改了哪些文件
-- Tools:
-- **Bash Command Approval Rule**:
-  - 把运行过、需要我批准的命令，除非是高危的，都加到 CLAUDE.md 配置文件里
-  - 避免下次再批准太麻烦
-  - 每次更新记忆时记录哪些命令已加入白名单
-
-## Auto Memory (自动记忆)
-
-- **Question**: 记忆可以自动触发么，比如每4小时，或者每天第一次启动的时候把昨天的写上？
-- **Answer**: Claude Code 的 Auto Memory 目前需要手动更新 MEMORY.md 文件
-  - 没有内置的定时自动记录功能
-  - 可以手动在会话结束时或关键节点调用 /memory 更新
-
-## 修改 claude-config 自动推送规则
-
-### 触发条件
-当修改 claude-config 仓库中的任何文件时（包括符号链接指向的配置），必须自动执行推送
-
-### 操作步骤
-1. 修改文件后，自动运行 `end.sh` 推送最新配置到 GitHub
-2. 推送完成后继续当前工作
-
-### 为什么需要这条规则
-- claude-config 是跨设备同步的根基
-- 如果只修改本地不推送，其他设备会丢失更新
-- end.sh 会完整同步：settings.json、MEMORY.md 等
-- 避免版本不一致导致的问题
-
-### 实现方式
-```bash
-cd /home/francis/git && bash claude-config/scripts/end.sh
-```
 
 ---
 
@@ -147,478 +77,57 @@ cd /home/francis/git && bash claude-config/scripts/end.sh
 
 ---
 
-## 设备识别与WSL操作
-
-### 如何识别当前设备
-- 运行 `hostname` 命令获取 Windows 主机名
-- 对照设备列表确定当前是哪台电脑
-
-### WSL 命令执行注意
-- **Git Bash 下直接用 `wsl -e` 会失败**，因为 Git Bash 会错误转换路径
-- **正确方式**: 使用 `powershell.exe -Command "wsl -e ..."`
-- 示例: `powershell.exe -Command "wsl -e /home/franc/.npm-global/bin/openclaw --version"`
-- **如果需要加载 .bashrc 中的环境变量**（如 PATH），使用交互式 shell: `powershell.exe -Command "wsl -d Ubuntu-24.04 -e bash -ic 'openclaw --version'"`
-
----
-
 ## Key Learnings (关键知识点)
 
-### 2026-03-07 [Francis_MiPro] - Windows 11
-- **Claude Code Memory System**:
-  - Auto Memory: Built-in feature, uses `~/.claude/projects/{project}/memory/` directory
-  - MEMORY.md: Auto-loaded into every conversation, needs manual updating
-  - Memory MCP: Just a recommendation in docs, not an actual plugin
-  - claude-md-management: Official plugin for managing CLAUDE.md files
+### 2026-03-30 [Francis_MiPro] - claude-config 重构
+- **重大变更**:
+  - 删除 init.sh，脚本移动到根目录
+  - 删除 auto-sync 相关文件
+  - 删除 README.md、LICENSE
+  - 简化目录结构
 
-### 2026-03-07 [Francis_MiPro] - Windows 11 - MCP 服务器配置
-- **Playwright MCP**:
-  - 正确包名: `@playwright/mcp` (npm 上存在)
-  - 全局安装: `npm install -g @playwright/mcp`
-  - 命令: `playwright-mcp`
+- **MCP 配置规范**:
+  - ~/.claude.json 是权威存储
+  - mcpconf.json 是初始化数据源
+  - minimax MCP 需要 MINIMAX_API_KEY 和 MINIMAX_API_HOST 两个环境变量
 
-- **MarkItDown MCP**:
-  - 正确包名: `markitdown-mcp-npx` (不是 `markitdown-mcp`)
-  - 全局安装: `npm install -g markitdown-mcp-npx`
-  - 命令: `markitdown-mcp-npx`
-
-- **Claude Code MCP 配置方式**:
-  - 项目级配置: `{project}/.mcp.json`
-  - 用户级配置: `~/.claude.json`
-  - 使用 `claude mcp` 命令管理
-  - `claude mcp reset-project-choices` 重置项目选择
-
-- **用户偏好决策 (2026-03-07)**:
-  - 所有 MCP 服务器都配置在全局 `~/.claude.json`
-  - 所有插件/技能也配置在全局 `~/.claude.json`
-  - 不使用项目级 `.mcp.json` 和项目级 `settings.json`/`settings.local.json`
-  - 后续新增 MCP、插件默认都加到全局配置
-  - 除非特别要求，否则所有配置都放在全局
+- **当前 MCP 状态**:
+  - playwright: ✅
+  - tavily: ✅
+  - minimax: ✅
+  - minimax-mcp: ✅
+  - octocode: ✅
+  - supabase: ✅
 
 ### 2026-03-15 [Francis_MiPro] - Windows 11 - Claude Code 升级方法
 - **升级步骤**:
   1. 关闭所有 Claude Code 窗口和进程 (taskkill /F /IM claude.exe)
   2. 在 PowerShell 中运行: `winget upgrade Anthropic.ClaudeCode`
-  3. 重启 Claude Code
-- **注意**: Claude Code 在中国无法正常使用 API，需要代理或使用其他方式
-- **配置文件位置**: `C:\Users\franc\.claude\` - 升级不会丢失配置
-- **Fine-grained tokens vs Classic tokens**:
-  - Fine-grained: 权限精确、可过期、更安全（推荐）
-  - Classic: 配置简单、权限较粗
-- **必需权限**:
-  - `Contents` (Read and write): 代码读写、拉取推送
-  - `Administration` (Read and write): 创建/管理仓库
-- **可选权限**:
-  - `Pages`: 部署 GitHub Pages 网站
-  - `Actions`: CI/CD 自动构建
-  - `Deployments`: 部署记录追踪
-  - `Workflows`: 修改 GitHub Actions 工作流
-  - `Webhooks`: 事件通知回调
-  - `Variables`: 仓库环境变量（非敏感）
-  - `Pull requests`: 代码审核
-  - `Issues`: 任务管理
-
-### 2026-03-09 [Francis_MiPro] - Windows 11 - Supabase MCP 配置方式
-- **Supabase MCP 三种认证方式**:
-  1. **OAuth 动态注册** (当前在用): 浏览器授权，无需配置 key，适合本地开发
-  2. **Personal Access Token (PAT)**: 在 Supabase 账户生成，配置在 headers 中，适合多设备同步
-  3. **手动 OAuth App**: 在组织设置中创建，适合需要固定 client_id/secret 的场景
-- **多设备开发建议**: 使用 PAT 方式更方便，配置文件可直接通过 claude-config 仓库同步
-
-### 2026-03-10 [Francis_MiPro] - Windows 11 - Git 代理与多设备同步配置
-- **Git 代理配置**:
-  - 使用 Clash Verge，代理端口: **7897**
-  - 配置命令: `git config --global http.proxy http://127.0.0.1:7897`
-  - 配置命令: `git config --global https.proxy http://127.0.0.1:7897`
-  - 三台电脑都使用相同的配置
-- **自动化脚本**:
-  - **重要**: 脚本从**主工作目录**运行，不是从 claude-config 仓库内运行
-  - 运行方式: `cd /home/francis/git && bash claude-config/scripts/auto-sync.sh start`
-  - auto-sync 以后台进程运行，文件变化自动同步
-- **日常工作流**:
-  1. 到公司/家: `gitinit` 或 `bash claude-config/init.sh`
-  2. 正常工作（在 Claude Code 中）
-  3. 结束工作: `gitarc` 或 `git push`
-- **Git 远程仓库**: https://github.com/<your-github-username>/claude-config
-- **对话关键词**:
-  - `gitinit`: 开始工作 - 从 GitHub 拉取最新配置并同步到本地
-  - `gitarc`: 结束工作 - 收集本地配置并推送到 GitHub
-
----
-
-## MCP 配置规范
-
-### ~/.claude.json 是权威存储
-- Claude Code 只认 ~/.claude.json 中的 mcpServers 配置
-- mcpidentity.json 只是初始化时的数据源，便于集中管理 Key/Token
-
-### 数据流向
-```
-mcpidentity.json ──→ ~/.claude.json (mcpServers)
-       Key                 MCP 注册信息
-```
-
-### Token/Key 记录规则
-- **Token/Key 只记录在一个地方**：
-  - 如果 MCP 通过命令行参数传递 token（如 `--access-token`），记录在 `args` 中
-  - 如果 MCP 通过环境变量传递 token（如 `TAVILY_API_KEY`），记录在 `env` 中
-- **不要重复记录**：Token 在 args 中就不要在 env 中
-
-### 当前 MCP 配置
-| MCP | 存储位置 | 说明 |
-|-----|---------|------|
-| tavily | env | TAVILY_API_KEY |
-| supabase | args | --access-token（不在 env 中） |
-| minimax | env | MINIMAX_API_KEY（网络搜索+图片理解） |
-| minimax-mcp | env | MINIMAX_API_KEY + HOST（语音/视频/图像/音乐生成） |
-| octocode | 无 | 不需要 Key |
-| playwright | 无 | 不需要 Key |
-
-### MiniMax 两个 MCP 的区别
-| MCP | 包名 | 功能 |
-|-----|------|------|
-| minimax | minimax-coding-plan-mcp | 网络搜索、图片理解（M2.7 内置工具） |
-| minimax-mcp | minimax-mcp | 语音生成、视频生成、图像生成、音乐生成 |
 
 ---
 
 ## Session Logs (会话记录)
 
-### 2026-03-28 [Francis_MiPro] - claude-config 目录结构简化
-**用户去睡觉，继续完善工作**
-
-**已完成**：
-1. **目录结构扁平化** - 删除 pwsh/、shared/、src/ 等子目录
-2. **重命名脚本** - claudeMCP.sh → claudemcp.sh (全小写)
-3. **auto-sync.sh 修复** - 解决 local 变量作用域、.tmp 文件事件循环、防抖计时重置等 bug
-   - **REPO_DIR 路径 bug** - `$SCRIPT_DIR/../..` 改为 `$SCRIPT_DIR/..`，否则指向 `/home` 而非仓库目录
-4. **systemd 自启动服务** - 创建 ~/.config/systemd/user/claude-auto-sync.service
-5. **enable-autostart.sh** - 管理自启动的启用/禁用/状态检查
-6. **mcpidentity.json 同步** - 从 .gitignore 移除，现在参与 Git 同步
-7. **README.md 更新** - 新流程：init01git → init02claude → init03env → claudemcp → start.sh(一次)
-
-**最终目录结构**：
-```
-claude-config/
-├── init.sh, status.sh, README.md, LICENSE
-├── config/        # 配置文件
-├── memory/        # 记忆目录
-└── scripts/       # 扁平化脚本目录
-    ├── auto-sync.sh, claudemcp.sh, enable-autostart.sh
-    └── init01git.sh, init02claude.sh, init03env.sh, initoptplaywright.sh
-```
-
-**auto-sync 状态**: 运行中 (PID: 230803)，监控目录: /home/francis/git/claude-config
-**Git 状态**: 已推送，working tree clean
-
-### 2026-03-28 [Francis_MiPro] - 自动同步与 MiniMax 多模态 MCP
-**问题**：用户去睡觉，要求继续完善
-
-**已完成**：
-1. **添加 MiniMax-MCP（多模态）**
-   - minimax: minimax-coding-plan-mcp（编程专用）
-   - minimax-mcp: 官方多模态 MCP（语音/视频/图像/音乐）
-   - Token Plan 支持 Hailuo 2.3, Speech 2.8, Music 1.5/2.5, Image-01
-
-2. **创建 auto-sync.sh 自动同步脚本**
-   - 使用 inotifywait 监控文件变化
-   - 变化后自动 commit + push 到 GitHub
-   - 依赖：inotify-tools (已安装)
-   - 用法：`bash scripts/bash/auto-sync.sh start|stop|status`
-
-3. **MiniMax M2.7 思考级别问题**
-   - 确认：MiniMax M2.7 没有 thinking level 配置
-   - M2.7 使用 Interleaved Thinking（内置能力）
-   - Gemini 才有 LOW/MEDIUM/HIGH 三档思考级别
-
-4. **auto-sync 启动**
-   - 已启动后台监控 (PID: 20108)
-   - 用户不需要手动调用 start/end，变化自动同步
-
-### 2026-03-28 [Francis_MiPro] - MCP 配置规范调整
-**问题**：Token/Key 重复记录在 env 和 args 中
-
-**解决方案**：
-1. ~/.claude.json 中 Token 只记录在一个地方
-2. mcpidentity.json 是初始化数据源
-3. claudeMCP.sh 初始化时写入 ~/.claude.json
-
-**已修改**：
-- supabase: 移除 env 中的 token，只保留 args 中的 --access-token
-
-### 2026-03-27 [Francis_MiPro] - claude-config 重大重构
-**问题**：MCP 鉴权信息分散，用户希望集中管理
-
-**解决方案**：
-1. 备份现有文件为 `claude-config-backup-2026-03-27.tar.gz`
-2. 创建 `config/mcpidentity.json` 集中存储所有 MCP 鉴权信息
-3. 创建 `scripts/bash/initMCP.sh` 统一管理 MCP 初始化
-4. 在仓库根目录创建入口脚本：`init01git`, `init02claude`, `init03env`
+### 2026-03-30 [Francis_MiPro] - claude-config 目录结构重构
+**完成变更**：
+1. 删除 init.sh、scripts/ 目录
+2. 脚本移动到根目录: init01git.sh, init02claude.sh, init03env.sh, claudemcp.sh
+3. 删除 auto-sync 相关文件
+4. 删除 README.md、LICENSE
+5. init03env.sh 移除 auto-sync 功能
+6. 修复 minimax MCP 配置（添加 MINIMAX_API_HOST）
+7. 更新 status.sh 移除 auto-sync 引用
 
 **新目录结构**：
 ```
 claude-config/
-├── init01git          # Git 环境初始化入口
-├── init02claude       # Claude Code 安装配置入口
-├── init03env          # 环境准备入口
+├── init01git.sh
+├── init02claude.sh
+├── init03env.sh
+├── claudemcp.sh
+├── status.sh
 ├── config/
-│   ├── mcplist.json   # MCP 元信息
-│   ├── mcpidentity.json  # MCP 鉴权信息
-│   ├── settings.json
-│   └── CLAUDE.md
-└── scripts/
-    ├── init01git.sh, init02claude.sh, init03env.sh
-    ├── claudemcp.sh
-    └── auto-sync.sh
+└── memory/
 ```
 
-**使用流程**：
-1. 运行 `init01git` → `init02claude` → `init03env`
-2. 在 git 目录下启动 Claude Code
-3. 如果需要 MCP 操作，运行 `initMCP.sh`
-
----
-
-## OpenClaw 设备列表
-
-| 主机名 | 地址 | Token | 状态 | Dashboard |
-|--------|------|-------|------|------------|
-| Francis_MiPro | ws://127.0.0.1:18789 | franc123 | ✅ 运行中 | http://127.0.0.1:18789/#token=franc123 |
-
----
-
-### 2026-03-15 [Francis_MiPro] - Windows 11 - OpenClaw 安装
-- **安装方式**: WSL Ubuntu 中 npm 全局安装
-- **安装路径**: /home/franc/.npm-global/bin/openclaw
-- **Gateway 端口**: 18789
-- **Token**: franc123
-- **Web UI**: http://127.0.0.1:18789/#token=franc123
-- **PATH 配置**: 在 WSL 的 ~/.bashrc 中添加 `export PATH="$PATH:/home/franc/.npm-global/bin"`
-- **启动命令**: `powershell.exe -Command "wsl -d Ubuntu-24.04 -e bash -ic 'openclaw gateway'"`
-- **状态命令**: `wsl openclaw status`
-
----
-
-## Session Logs (会话记录)
-
-### 2026-03-20 [Francis_MiPro] - Windows 11 - claude-config 重构
-
-**重大架构变更：bash/pwsh 脚本分离 + 符号链接双向同步**
-
-**问题**：
-- 原来的 `src/lib-common.sh` 被 bash 脚本引用但包含 Windows 检测代码（无意义）
-- `start.sh` 和 `end.sh` 依赖 lib-common，但这些函数对 bash 无用
-- bash 和 pwsh 脚本功能对称但共享了不该共享的代码
-
-**解决方案**：
-1. **删除 lib-common.sh** - bash 和 PowerShell 无法共享代码，各自独立实现
-2. **符号链接替代复制** - 所有配置文件通过符号链接同步，双向实时
-3. **新目录结构**：
-   ```
-   scripts/            # 扁平化（已删除 bash/pwsh 子目录）
-   └── *.sh           # 所有脚本直接在 scripts/ 下
-   ```
-
-**同步机制**：
-- `settings.json`: 仓库 `config/settings.json` ↔ 本地 `~/.claude/settings.json`
-- `CLAUDE.md`: 仓库 `config/CLAUDE.md` ↔ 本地 `~/CLAUDE.md`
-- `MEMORY.md`: 仓库 `memory/home-francis-git/MEMORY.md` ↔ 本地 `~/.claude/projects/home-francis-git/memory/MEMORY.md`
-
-**符号链接 = 两个路径指向同一文件，修改任一另一处同步变化**
-
-**测试结果**：
-- ✅ start.sh 正常工作
-- ✅ 符号链接正确创建
-- ✅ README.md 已更新架构说明
-- ✅ start.ps1/end.ps1 已更新符号链接检查
-- ✅ initgit.sh 添加 Git 身份检查
-
-**关键词已添加到 README**：
-- `gitinit` - 开始工作
-- `gitarc` - 结束工作
-
-**Windows 待测**：
-- start.ps1 / end.ps1 的符号链接检查
-
-### 2026-03-21 [Francis_MiPro] - Windows 11 - initgit.sh 添加符号链接检查
-- `initgit.sh` 完成后添加符号链接状态检查
-- 检查 settings.json, CLAUDE.md, MEMORY.md 是否已链接
-- 输出清晰的下一步操作指引
-- 符号链接检查逻辑：✅正常 / ❌断开 / ⚠️文件 / ⭕未配置
-
-### 2026-03-20 [Francis_MiPro] - Windows 11
-- 测试 memory 同步功能
-- 配置了 GitMCP（GitHub 仓库读取）
-- 更新 mcpcheck 脚本（新增单独安装/添加选项）
-- 删除了 mcpupdate（功能已被 mcpcheck 包含）
-- 安装飞书 MCP (lark-mcp) - 待解决: 应用需要添加到知识库成员
-
-### 2026-03-20 [修复] - Memory 同步路径问题
-- **问题**: `start.sh` 和 `end.sh` 中的 memory 路径计算错误
-  - 错误: `CLAUDE_PROJECT_PATH="$HOME/$CURRENT_PROJECT"` (得到 `~/.claude/projects/git/memory`)
-  - 正确: `CLAUDE_PROJECT_PATH="$(pwd)"` 然后传给 `get_memory_dir()` (得到 `~/.claude/projects/home-francis-git/memory`)
-- **修复内容**:
-  1. 重命名 `memory/git/` → `memory/home-francis-git/`
-  2. 修复 `start.sh`: 使用完整路径 `$(pwd)` 和 `get_memory_dir()` 正确计算 memory 目录
-  3. 修复 `end.sh`: 同上
-- **memory 目录命名规范** (由 `get_memory_dir()` 决定):
-  - Linux/WSL: `/home/francis/git` → `home-francis-git`
-  - Windows: `C:\git` → `C--git`
-  - 所以跨设备同步时注意目录名不同
-
-### 2026-03-19 [Francis_MiPro] - Windows 11
-- 删除了 claude-config/memory 目录（重复记忆）
-- 更新记忆结构：添加设备列表，记录主机名和操作系统
-- 会话记录格式改为：`### 日期 [主机名] - 操作系统`
-
-### 2026-03-07 [Francis_MiPro] - Windows 11
-- Set up Auto Memory system
-- Created MEMORY.md with recording flow
-- Confirmed Auto Memory is enabled by default
-- Set preferred language to Chinese (中文)
-- **Fixed MCP servers configuration**:
-  - Identified issue: markitdown-mcp package doesn't exist on npm
-  - Found correct packages: @playwright/mcp and markitdown-mcp-npx
-  - Installed both packages globally
-  - Configured .mcp.json in project root
-  - Reset project choices for approval on next restart
-- **MCP 配置迁移到全局 (2026-03-07)**:
-  - 将 playwright 和 markitdown 从项目级 .mcp.json 迁移到用户级 ~/.claude.json
-  - 删除了 C:\git\.mcp.json
-  - 确认所有 MCP 服务器现在都在全局配置中
-- **更新 CLAUDE.md 白名单 (2026-03-07)**:
-  - 新增: wsl, powershell, powershell.exe, pwsh, reg query, winget
-  - 新增: claude-code, claude mcp
-  - 新增: bun add
-  - 补充文本处理命令: wc, sort, uniq, diff, cmp, md5sum, sha256sum
-- **插件/技能配置迁移到全局 (2026-03-07)**:
-  - 将 enabledPlugins 从项目级移到全局 ~/.claude/settings.json
-  - 将项目级权限配置也移到全局
-  - 删除了 C:\git\.claude/settings.json 和 settings.local.json
-  - 确认所有插件/技能现在都在全局配置中
-- **配置同步仓库创建 (2026-03-07)**:
-  - 创建 claude-config Git 仓库: C:\git\claude-config
-  - 配置 GitHub MCP (使用 Personal Access Token)
-  - 创建 GitHub 私有仓库: https://github.com/<your-github-username>/claude-config
-  - 首次推送成功！包含 .claude.json、settings.json、CLAUDE.md
-- **收尾任务 - 补充白名单 (2026-03-07)**:
-  - 对比 settings.json 中所有批准过的命令
-  - 补充缺失命令到 CLAUDE.md: claude plugin、claude agents、tavily-mcp
-  - 清理项目级残留配置文件
-  - 更新 claude-config 仓库并推送
-
-### 2026-03-09 [Francis_MiPro] - Windows 11
-- **检查 Supabase MCP 配置**:
-  - 当前使用 OAuth 动态注册方式，项目 ref: <your-supabase-project-id>
-  - 测试连接成功，可访问 test_data 和 test_logs 表
-  - 研究了 Supabase MCP 三种认证方式的对比
-- **用户需求确认**: 讨论多台电脑开发时的配置方式，推荐使用 PAT 方式
-- **记忆同步要求**: 用户明确要求每次工作收尾时必须同步记忆并更新到 claude-config 仓库
-
-### 2026-03-10 [Francis_MiPro] - Windows 11
-- **完善多设备同步方案**:
-  - 创建自动化脚本: `start-work.bat` 和 `end-work.bat`
-  - 更新 README.md，添加快速使用指南
-  - 配置 Git 走 Clash 代理 (端口 7897)
-  - 所有三台电脑都使用相同配置: Clash Verge + 端口 7897
-  - 成功推送配置到 GitHub
-- **白名单更新**:
-  - 添加 `git push`、`git push --set-upstream`、`git config --global` 到 CLAUDE.md
-
-### 2026-03-11 [Francis_MiPro] - Windows 11
-- **修复 tavily MCP 工具权限问题**:
-  - 问题根源: 项目级配置 `C:\git\.claude\settings.local.json` 覆盖了全局配置，只允许 3 个特定的 tavily 工具
-  - 解决方案: 删除项目级配置文件，在全局配置中添加 `"mcp__tavily__*"` 通配符
-  - 测试结果: `mcp__tavily__tavily_search`、`mcp__tavily__tavily_extract`、`mcp__tavily__tavily_research` 都可以直接调用，不需要批准
-- **关键知识点**: 项目级配置优先级高于全局配置，之前删除项目级配置后又被重新创建了
-
-### 2026-03-12 [Francis_MiPro] - Windows 11 - Get笔记
-- **配置文件**: ~/.openclaw/openclaw.json (apiKey, clientId)
-- **测试成功**: 创建了 t1, t2, t3 三个测试笔记，都带 claude 标签
-
-### 2026-03-12 [Francis_MiPro] - Windows 11 - Secrets 管理工具分析
-| 服务 | 免费计划 | 国内访问 | 推荐场景 |
-|------|---------|----------|----------|
-| Doppler | ✅ Community 免费（无限用户） | ✅ 可访问 | 企业级 |
-| Infisical | ✅ Free (5身份) + 开源自托管 | ⚠️ 被墙 | 团队/开源 |
-| Bitwarden | ✅ 免费版（无限密码） | ✅ 可访问 | 个人/多设备 |
-| 1Password | ❌ 无免费 | ⚠️ 被墙 | 不推荐 |
-- **结论**: 当前配置文件方案已够用，暂不需要迁移
-- **敏感信息存放规则**:
-  - Key 放配置文件，MEMORY.md 只记录路径索引
-  - 配置文件同步到 claude-config 私有仓库（安全）
-  - 当前: ~/.openclaw/openclaw.json → 同步到 claude-config
-
-### 2026-03-12 [Francis_MiPro] - Windows 11
-- **安装 Get笔记 Claude Skill**:
-  - Skill 来源: https://clawhub.ai/iswalle/getnote
-  - 安装位置: ~/.claude/skills/getnote/
-  - 功能: 记录笔记、查找笔记、知识库管理、链接/图片笔记等
-  - API 测试成功: 读取笔记列表 ✅, 创建笔记 ✅
-  - 环境变量: GETNOTE_API_KEY, GETNOTE_CLIENT_ID (已通过 setx 永久设置)
-  - 白名单更新: 添加 `setx` 命令到 CLAUDE.md
-  - 同步到 claude-config 仓库并推送成功
-
-### 2026-03-11 [Francis_MiPro] - Windows 11 - Native 安装与配置位置
-- **Native 安装方式**:
-  - 使用 WinGet 安装: `winget install Claude.Code`
-  - 安装路径: `C:\Users\franc\AppData\Local\Microsoft\WinGet\Links\claude.exe`
-  - 版本: 2.1.70
-  - 配置文件位置: `C:\Users\franc\.claude.json` (主配置)
-- **清理旧配置文件**:
-  - 删除了 `C:\Users\franc\.claude\.claude.json` (旧版残留配置)
-  - 现在只有一个主配置文件: `~/.claude.json`
-- **项目级 MCP 禁用**:
-  - 可以在项目配置的 `disabledMcpServers` 中禁用特定 MCP
-  - 当前 C:/git 项目禁用了 tavily (用于测试)
-  - 注意: 禁用后 MCP 工具调用需要每次批准
-
-### 2026-03-12 [Francis_MiPro] - Windows 11 - 删除 GitHub MCP
-- **原因**: 分析后发现 GitHub MCP 是 GitHub Copilot CLI 专用的，对 Claude Code 没用
-- **删除内容**: 从全局 mcpServers 中删除 github 条目
-- **影响**: 之后 git 操作只能通过 git 命令，不再能用 MCP 工具操作 GitHub
-- **单位电脑需操作**: 同样从 ~/.claude.json 中删除 github 条目
-
-### 2026-03-22 [Francis_MiPro] - Windows 11 - MCP 检查与 Playwright 测试
-- **MCP 状态**: tavily ✅, playwright ✅, minimax ✅, octocode ✅
-- **octocode 修复**: mcplist.json 缺少 install 字段, mcpcheck.sh 对空值处理不当
-- **Playwright 优化**: 仅装 chromium，删除 firefox/webkit/mcp-chrome
-- **权限白名单**: 添加所有 Playwright 命令 + 中文字体命令
-- **initmcp.sh**: 添加 Playwright 浏览器 + 中文字体安装
-
-### 2026-03-22 [Francis_MiPro] - Windows 11 - Supabase MCP 配置完成
-- **Supabase MCP 测试结果**:
-  - ✅ 协议初始化成功
-  - ✅ 读取操作成功 (SELECT 返回数据)
-  - ⚠️ 写入操作 (INSERT) 执行不报错但数据未真正写入
-- **配置更新**:
-  - ~/.claude.json: 使用 `--access-token` 参数传递 token（不是环境变量）
-  - mcplist.json: 添加 command/args 字段，needsKey 设为 false
-  - mcpcheck.sh: 添加 check_supabase_config 函数处理 Supabase 特殊配置
-- **Token**: sbp_b5eef124cf6f516c94b0924bf79e0f6b67783041 (已配置)
-- **Project Ref**: <your-supabase-project-id> (https://<your-supabase-project-id>.supabase.co)
-- **可用工具**: search_docs, list_tables, execute_sql, get_logs, list_edge_functions 等 23 个
-
-### 2026-03-22 [Francis_MiPro] - Windows 11 - Supabase RLS 测试与修复
-- **RLS 开启后测试**: 读取和写入都成功（使用 RETURNING * 确认）
-- **mcpcheck.sh RLS 提醒**: 添加 Supabase RLS 必要性说明和配置方法
-- **白名单修复**: 添加 claude mcp start/stop/list 命令
-- **CLAUDE.md 路径修复**: 添加 claude-config/scripts/bash/*.sh 白名单
-
----
-
-### 2026-03-29 [Francis_MiPro] - auto-sync bug 与 SessionStart Hook
-
-**auto-sync.sh Bug (已修复 2026-03-29)**:
-- 原问题: `git diff --quiet` 只检测**已跟踪文件**的变化，不检测 **untracked files**
-- 修复: 改用 `git status --porcelain | grep -q .` 检测所有变化
-- 修复 commit: `ec720b1 fix(auto-sync): 支持检测 untracked files 变化`
-
-**SessionStart Hook 配置**:
-- 位置: `config/settings.json` → `hooks.SessionStart`
-- 功能: Claude 启动时自动执行 `bash claude-config/status.sh`
-- 效果: 启动 Claude 时自动检查配置状态 + 显示最近 5 次推送记录
-
-**status.sh 更新内容 (2026-03-29)**:
-1. 新增 MEMORY.md 符号链接检查
-2. 新增最近 5 次推送记录显示
-3. 检查项: settings.json, CLAUDE.md, MEMORY.md, auto-sync 进程
+**Git 状态**: db18c19 已推送
