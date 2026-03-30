@@ -59,14 +59,12 @@ fi
 
 # -------------------------- 检查/配置 Git 用户身份 --------------------------
 print_info "检查 Git 用户身份..."
-GIT_EMAIL=$(git config --global user.email 2>/dev/null)
-GIT_NAME=$(git config --global user.name 2>/dev/null)
-print_info "GIT_EMAIL=$GIT_EMAIL, GIT_NAME=$GIT_NAME"
+GIT_EMAIL=$(git config --global user.email 2>/dev/null) || GIT_EMAIL=""
+GIT_NAME=$(git config --global user.name 2>/dev/null) || GIT_NAME=""
 
 # 读取配置
-print_info "读取配置文件..."
-CONFIG_DATA=$(read_config)
-print_info "CONFIG_DATA=$CONFIG_DATA"
+CONFIG_DATA=$(read_config) || true
+if [[ -z "$CONFIG_DATA" ]]; then CONFIG_DATA="|||"; fi
 IFS='|' read -r REPO TARGET_DIR CONFIG_EMAIL CONFIG_USERNAME <<< "$CONFIG_DATA"
 
 if [[ -z "$GIT_EMAIL" || -z "$GIT_NAME" ]]; then
