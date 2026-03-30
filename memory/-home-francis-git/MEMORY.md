@@ -299,11 +299,11 @@ mcpidentity.json ──→ ~/.claude.json (mcpServers)
 **最终目录结构**：
 ```
 claude-config/
+├── init.sh, status.sh, README.md, LICENSE
 ├── config/        # 配置文件
 ├── memory/        # 记忆目录
-└── scripts/       # 扁平化脚本目录（全部小写）
+└── scripts/       # 扁平化脚本目录
     ├── auto-sync.sh, claudemcp.sh, enable-autostart.sh
-    ├── end.sh, start.sh
     └── init01git.sh, init02claude.sh, init03env.sh, initoptplaywright.sh
 ```
 
@@ -362,17 +362,13 @@ claude-config/
 ├── init03env          # 环境准备入口
 ├── config/
 │   ├── mcplist.json   # MCP 元信息
-│   ├── mcpidentity.json  # MCP 鉴权信息（不参与 Git 同步）
+│   ├── mcpidentity.json  # MCP 鉴权信息
 │   ├── settings.json
 │   └── CLAUDE.md
-├── scripts/bash/
-│   ├── init01git.sh
-│   ├── init02claude.sh
-│   ├── init03env.sh
-│   ├── initMCP.sh     # MCP 统一管理脚本
-│   ├── start.sh
-│   └── end.sh
-└── memory/
+└── scripts/
+    ├── init01git.sh, init02claude.sh, init03env.sh
+    ├── claudemcp.sh
+    └── auto-sync.sh
 ```
 
 **使用流程**：
