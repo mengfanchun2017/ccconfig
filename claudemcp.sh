@@ -129,6 +129,43 @@ except Exception as e:
 PYEOF
 }
 
+# ========== 同步到 settings.json ==========
+sync_to_settings() {
+    local settings_file="$1"
+
+    python3 - "$CLAUDE_JSON" "$settings_file" << 'PYEOF'
+import json, sys
+
+try:
+    claude_json = sys.argv[1]
+    settings_file = sys.argv[2]
+
+    # 读取 ~/.claude.json
+    with open(claude_json, 'r') as f:
+        claude_data = json.load(f)
+
+    # 读取 settings.json
+    with open(settings_file, 'r') as f:
+        settings_data = json.load(f)
+
+    # 同步 mcpServers
+    if 'mcpServers' in claude_data:
+        settings_data['mcpServers'] = claude_data['mcpServers']
+
+    # 同步 hooks
+    if 'hooks' in claude_data:
+        settings_data['hooks'] = claude_data['hooks']
+
+    # 写回 settings.json
+    with open(settings_file, 'w') as f:
+        json.dump(settings_data, f, indent=2)
+
+    print('ok')
+except Exception as e:
+    print(f'error: {e}')
+PYEOF
+}
+
 # ========== 主程序 ==========
 if [ ! -f "$MCP_CONF_FILE" ]; then
     bad "❌ 未找到 mcpconf.json"
@@ -209,6 +246,18 @@ do_sync() {
     do_install
     echo ""
     do_config_keys
+    echo ""
+    # 同步到 settings.json
+    section "同步到 GitHub"
+    info "同步 mcpServers 和 hooks 到 settings.json..."
+    SETTINGS_FILE="$SCRIPT_DIR/config/settings.json"
+    result=$(sync_to_settings "$SETTINGS_FILE")
+    if [[ "$result" == "ok" ]]; then
+        good "✅ 已同步到 settings.json"
+        info "GitHub 同步将在下次 auto-sync 或手动 push 时完成"
+    else
+        bad "❌ 同步失败: $result"
+    fi
 }
 
 # 执行对应操作
