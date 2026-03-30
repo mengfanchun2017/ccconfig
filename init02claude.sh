@@ -9,8 +9,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-CONFIG_FILE="$REPO_DIR/config/initconf.json"
+CONFIG_FILE="$SCRIPT_DIR/config/initconf.json"
 CLAUDE_JSON="$HOME/.claude.json"
 CLAUDE_DIR="$HOME/.claude"
 
