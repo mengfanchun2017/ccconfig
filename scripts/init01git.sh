@@ -10,7 +10,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-CONFIG_FILE="$REPO_DIR/claude-config/config/initconf.json"
+CONFIG_FILE="$REPO_DIR/config/initconf.json"
 
 # 颜色输出
 RED='\033[0;31m'
