@@ -46,33 +46,46 @@
 | CLAUDE.md | `config/CLAUDE.md` | `~/CLAUDE.md` | `%USERPROFILE%\CLAUDE.md` |
 | MEMORY.md | `memory/{项目名}/MEMORY.md` | `~/.claude/projects/{项目名}/memory/MEMORY.md` | `%USERPROFILE%\.claude\projects\{项目名}\memory\MEMORY.md` |
 
-### 脚本架构
+### 脚本架构（扁平结构）
 
 ```
 claude-config/
 ├── init.sh                      # 主入口脚本
-├── status.sh                    # 状态检查（自动运行）
+├── status.sh                    # 状态检查（启动时自动运行）
+├── README.md                    # 本文档
+├── LICENSE                      # MIT 许可证
 ├── config/                      # 配置文件
 │   ├── CLAUDE.md                # 权限白名单
 │   ├── settings.json             # Claude Code 设置
-│   ├── mcplist.json              # MCP 服务器列表
-│   ├── mcpidentity.json         # MCP 鉴权信息
-│   └── apillm.json               # API 配置模板
+│   ├── initconf.json             # 初始化配置（Git/API）
+│   └── mcpconf.json              # MCP 服务器配置
 │
 memory/                          # 项目记忆
+│   └── -home-francis-git/       # 当前项目的记忆目录
+│       └── MEMORY.md
 │
-scripts/                         # 所有脚本（Linux/WSL）
-├── auto-sync.sh                 # 自动同步（inotifywait）
-├── enable-autostart.sh          # 自启动配置
-├── init01git.sh                 # Git 环境初始化
-├── init02claude.sh              # Claude 安装
-├── init03env.sh                 # 环境准备 + 符号链接
-├── claudemcp.sh                 # MCP 管理
-├── initoptplaywright.sh         # Playwright 浏览器
-└── sync-settings.js             # 设置同步（保留）
+scripts/                         # 脚本（扁平结构，无子目录）
+│   ├── auto-sync.sh             # 自动同步（inotifywait）
+│   ├── enable-autostart.sh      # 自启动配置
+│   ├── init01git.sh             # Git 环境初始化
+│   ├── init02claude.sh          # Claude 安装 + API 配置
+│   ├── init03env.sh             # 环境准备 + 符号链接
+│   ├── claudemcp.sh             # MCP 管理
+│   ├── initoptplaywright.sh     # Playwright 浏览器选择
+│   └── sync-settings.js         # 设置同步
 ```
 
-**使用方式**：通过 `init.sh` 或直接运行 `bash scripts/<script>.sh`
+**使用方式**：
+```bash
+# 完整初始化
+bash claude-config/init.sh
+
+# 单独运行某个脚本
+bash claude-config/scripts/init01git.sh
+
+# MCP 管理
+bash claude-config/scripts/claudemcp.sh
+```
 
 ### auto-sync 自动同步机制
 
