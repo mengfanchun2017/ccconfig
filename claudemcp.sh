@@ -4,13 +4,12 @@
 # 配置：从 mcpconf.json 读取（整合 mcplist + mcpidentity）
 #
 # 使用：
-#   bash claude-config/scripts/claudemcp.sh
+#   bash claude-config/claudemcp.sh
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-MCP_CONF_FILE="$REPO_DIR/config/mcpconf.json"
+MCP_CONF_FILE="$SCRIPT_DIR/config/mcpconf.json"
 
 # 颜色
 RED='\033[0;31m'

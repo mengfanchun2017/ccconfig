@@ -4,9 +4,8 @@
 # 功能：
 # 1. 自动从 GitHub 拉取最新配置
 # 2. 检查符号链接状态（含 MEMORY.md）
-# 3. 检查 auto-sync 状态
-# 4. 显示最近 5 次推送记录
-# 5. MCP 服务器真实调用测试
+# 3. 显示最近 5 次推送记录
+# 4. MCP 服务器真实调用测试
 #
 # 用途：每次启动终端时自动运行（通过 /etc/profile.d/ 或 ~/.bashrc）
 #       以及通过 SessionStart hook 在 Claude 启动时运行
@@ -62,16 +61,11 @@ show_summary() {
         issues=$((issues + 1))
     fi
 
-    # 检查 auto-sync
-    if ! pgrep -f "auto-sync.sh start" >/dev/null 2>&1; then
-        issues=$((issues + 1))
-    fi
-
     # 显示简短摘要
     if [ $issues -eq 0 ]; then
         echo -e "${GREEN}[config]${NC} ✅ 配置就绪"
     else
-        echo -e "${YELLOW}[config]${NC} ⚠️  有 $issues 个配置问题，运行 ${CYAN}bash $REPO_DIR/init.sh status${NC} 查看"
+        echo -e "${YELLOW}[config]${NC} ⚠️  有 $issues 个配置问题"
     fi
 }
 
