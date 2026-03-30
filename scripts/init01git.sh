@@ -3,14 +3,14 @@
 # ==============================================
 # Git + GitHub CLI 环境初始化脚本
 # 功能：安装 gh、登录 GitHub、克隆配置仓库
-# 配置：从 initconf.json 读取，无需手动输入
+# 配置：从 claude-config/config/initconf.json 读取
 # ==============================================
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-CONFIG_FILE="$REPO_DIR/config/initconf.json"
+CONFIG_FILE="$REPO_DIR/claude-config/config/initconf.json"
 
 # 颜色输出
 RED='\033[0;31m'
@@ -27,12 +27,21 @@ print_error() { echo -e "${RED}❌ $1${NC}"; }
 
 # -------------------------- 读取配置 --------------------------
 read_config() {
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        print_error "配置文件不存在: $CONFIG_FILE"
+        echo ""
+        echo "请先创建配置文件："
+        echo "  1. 创建目录: mkdir -p claude-config/config"
+        echo "  2. 创建配置文件 initconf.json"
+        echo "  3. 运行 bash claude-config/scripts/init01git.sh"
+        exit 1
+    fi
+
     python3 - "$CONFIG_FILE" << 'PYEOF'
 import json, sys
 try:
     with open(sys.argv[1], 'r') as f:
         config = json.load(f)
-    # Git 配置
     git = config.get('git', {})
     print(f"{git.get('repo', '')}|{git.get('target_dir', '')}|{git.get('email', '')}|{git.get('username', '')}")
 except:
@@ -45,7 +54,7 @@ print_info "检查 git..."
 if command -v git &> /dev/null; then
     print_success "git 已安装: $(git --version)"
 else
-    print_warning "git 未安装，请先安装: sudo apt install git"
+    print_error "git 未安装，请先安装: sudo apt install git"
     exit 1
 fi
 
@@ -54,13 +63,17 @@ print_info "检查 Git 用户身份..."
 GIT_EMAIL=$(git config --global user.email 2>/dev/null)
 GIT_NAME=$(git config --global user.name 2>/dev/null)
 
+# 读取配置
+CONFIG_DATA=$(read_config)
+IFS='|' read -r REPO TARGET_DIR CONFIG_EMAIL CONFIG_USERNAME <<< "$CONFIG_DATA"
+
 if [[ -z "$GIT_EMAIL" || -z "$GIT_NAME" ]]; then
     print_warning "Git 用户身份不完整"
     if [[ -z "$GIT_EMAIL" ]]; then
-        git config --global user.email "mengfanchun1981@163.com"
+        git config --global user.email "$CONFIG_EMAIL"
     fi
     if [[ -z "$GIT_NAME" ]]; then
-        git config --global user.name "<your-github-username>"
+        git config --global user.name "$CONFIG_USERNAME"
     fi
     print_success "Git 用户身份已配置: $(git config --global user.email) ($(git config --global user.name))"
 else
@@ -70,24 +83,52 @@ fi
 # -------------------------- 检查并安装 gh --------------------------
 print_info "检查 GitHub CLI (gh)..."
 
+export PATH="$HOME/.local/bin:$PATH"
+GH_DIR="$HOME/.local/bin"
+GH_VERSION="2.63.2"
+
 if ! command -v gh &> /dev/null; then
-    print_warning "gh 未安装，正在下载..."
-    GH_VERSION="2.63.2"
-    mkdir -p "$HOME/.local/bin"
+    print_warning "gh 未安装，正在下载安装..."
+    mkdir -p "$GH_DIR"
     curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
     tar -xzf /tmp/gh.tar.gz -C /tmp
-    mv /tmp/gh_${GH_VERSION}_linux_amd64/bin/gh "$HOME/.local/bin/gh"
-    chmod +x "$HOME/.local/bin/gh"
+    mv /tmp/gh_${GH_VERSION}_linux_amd64/bin/gh "$GH_DIR/"
+    chmod +x "$GH_DIR/gh"
     rm -rf /tmp/gh.tar.gz /tmp/gh_${GH_VERSION}_linux_amd64
-    print_success "gh 安装成功"
+    print_success "gh 已安装到 $GH_DIR"
 fi
 
-# 检查 gh 登录状态
+# 确保 PATH 生效
+export PATH="$GH_DIR:$PATH"
+
+# -------------------------- 检查/登录 GitHub --------------------------
+print_info "检查 GitHub 登录状态..."
+
 if gh auth status &> /dev/null; then
     GH_USER=$(gh api user --jq '.login' 2>/dev/null)
     print_success "已登录 GitHub: $GH_USER"
 else
-    print_warning "请先运行 'gh auth login' 登录 GitHub"
+    echo ""
+    echo "=========================================="
+    echo "  GitHub 登录 (Device Flow)"
+    echo "=========================================="
+    echo ""
+    echo "步骤："
+    echo "  1. 下方会显示一个 8 位数代码和网址"
+    echo "  2. 在浏览器中打开显示的网址"
+    echo "  3. 输入代码并点击授权"
+    echo "  4. 授权完成后此脚本会自动继续"
+    echo ""
+
+    gh auth login --git-protocol https --skip-ssh-key --hostname github.com
+
+    echo ""
+    if gh auth status &> /dev/null; then
+        print_success "GitHub 登录成功: $(gh api user --jq '.login')"
+    else
+        print_error "GitHub 登录失败"
+        exit 1
+    fi
 fi
 
 # -------------------------- 读取仓库配置 --------------------------
@@ -97,7 +138,7 @@ IFS='|' read -r REPO TARGET_DIR CONFIG_EMAIL CONFIG_USERNAME <<< "$CONFIG_DATA"
 # 修正路径中的 ~
 TARGET_DIR=$(eval echo "$TARGET_DIR" 2>/dev/null || echo "$TARGET_DIR")
 
-print_info "仓库配置: $REPO"
+print_info "仓库: $REPO"
 print_info "目标目录: $TARGET_DIR"
 
 # -------------------------- 检查/克隆仓库 --------------------------
@@ -130,7 +171,7 @@ if [[ -d "$TARGET_DIR" ]]; then
     fi
 else
     print_info "正在克隆仓库..."
-    if git clone "https://github.com/$REPO" "$TARGET_DIR"; then
+    if gh repo clone "$REPO" "$TARGET_DIR"; then
         print_success "仓库克隆完成!"
     else
         print_error "克隆失败"
