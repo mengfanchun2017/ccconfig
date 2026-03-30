@@ -2,8 +2,8 @@
 # Claude Code 环境准备脚本
 # 用途：安装运行时环境依赖 + 建立符号链接
 #
-# 使用方法（从仓库上级目录运行）：
-#   bash claude-config/scripts/init03env.sh
+# 使用方法：
+#   bash claude-config/init03env.sh
 #
 # 此脚本会：
 #   1. 安装 MCP 服务器所需的运行时环境
@@ -17,7 +17,7 @@
 #      - MEMORY.md → ~/.claude/projects/.../memory/MEMORY.md
 #
 # 安装完成后，请运行 claudemcp.sh 安装具体的 MCP 服务器：
-#   bash claude-config/scripts/claudemcp.sh
+#   bash claude-config/claudemcp.sh
 
 set -e
 
@@ -26,7 +26,7 @@ NODE_VERSION="20.11.0"
 UV_VERSION="0.10.12"
 
 # 目录
-LOCAL_DIR="/home/francis/.local"
+LOCAL_DIR="$HOME/.local"
 BIN_DIR="${LOCAL_DIR}/bin"
 NODE_DIR="${LOCAL_DIR}/node-v${NODE_VERSION}-linux-x64"
 UV_DIR="${LOCAL_DIR}/uv-${UV_VERSION}-x86_64-unknown-linux-gnu"
@@ -326,40 +326,13 @@ install_playwright_deps() {
     return 1
 }
 
-# ========== inotify-tools 安装（auto-sync 依赖）==========
-install_inotify() {
-    section "安装 inotify-tools (auto-sync 依赖)"
-
-    if command -v inotifywait &>/dev/null; then
-        info "inotify-tools 已安装: $(inotifywait --version 2>&1 | head -1)"
-        return 0
-    fi
-
-    info "安装 inotify-tools..."
-    if command -v sudo &>/dev/null; then
-        if sudo apt-get update &>/dev/null && sudo apt-get install -y inotify-tools 2>&1; then
-            good "inotify-tools 安装成功"
-            return 0
-        fi
-    else
-        if apt-get update &>/dev/null && apt-get install -y inotify-tools 2>&1; then
-            good "inotify-tools 安装成功"
-            return 0
-        fi
-    fi
-
-    warn "inotify-tools 安装失败"
-    warn "auto-sync 将不可用"
-    return 1
-}
-
 # ========== Playwright MCP 配置修复 ==========
 configure_playwright_mcp() {
     section "配置 Playwright MCP"
 
     local claude_json="$HOME/.claude.json"
     if [[ ! -f "$claude_json" ]]; then
-        warn "~$/.claude.json 不存在，跳过 MCP 配置"
+        warn "~/.claude.json 不存在，跳过 MCP 配置"
         return 0
     fi
 
@@ -473,7 +446,7 @@ install_chinese_fonts() {
         if command -v curl &>/dev/null; then
             info "用户级安装中文字体（无需 sudo）..."
             if curl -fsSL "$FONT_URL" -o "$USER_FONTS_DIR/wqy-microhei.ttc" 2>/dev/null; then
-                fc-cache -f "$USER_FONTS_DIR" 2>/dev/null && success "字体已安装到 $USER_FONTS_DIR" && return 0
+                fc-cache -f "$USER_FONTS_DIR" 2>/dev/null && info "字体已安装到 $USER_FONTS_DIR" && return 0
             fi
         fi
 
@@ -485,7 +458,7 @@ install_chinese_fonts() {
         echo "  2) 跳过字体安装"
         echo "  3) 手动安装后继续"
         echo ""
-        font_choice=$(read_input "请输入选项 [1]: " "1" "30")
+        font_choice=$(read_input "请输入选项 [1]: " "1")
 
         if [[ "$font_choice" == "1" ]]; then
             if command -v sudo &>/dev/null; then
@@ -523,7 +496,6 @@ verify_fonts() {
 # ========== 主流程 ==========
 main() {
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
     CLAUDE_DIR="$HOME/.claude"
 
     echo "========================================"
@@ -537,7 +509,6 @@ main() {
     echo "     - uv - Python-based MCP 服务器"
     echo "     - Playwright - 浏览器自动化"
     echo "     - 中文字体"
-    echo "     - inotify-tools - auto-sync 自动同步依赖"
     echo "  2. 建立符号链接实现配置双向同步"
     echo ""
     echo "安装完成后请运行 claudemcp.sh 安装具体的 MCP 服务器"
@@ -596,9 +567,6 @@ main() {
     # Playwright 系统依赖
     install_playwright_deps
 
-    # inotify-tools（auto-sync 依赖）
-    install_inotify
-
     # Playwright MCP 配置
     configure_playwright_mcp
 
@@ -631,7 +599,7 @@ main() {
     # /home/francis/git → -home-francis-git
     REPO_MEMORY_NAME="$(echo "$ACTUAL_PROJECT_PATH" | sed 's/\//-/g')"
     MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
-    MEMORY_REPO_PATH="$REPO_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md"
+    MEMORY_REPO_PATH="$SCRIPT_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md"
 
     # 符号链接检查函数
     setup_symlink() {
@@ -653,74 +621,19 @@ main() {
     }
 
     # settings.json
-    setup_symlink "$CLAUDE_DIR/settings.json" "$REPO_DIR/config/settings.json" "settings.json"
+    setup_symlink "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/config/settings.json" "settings.json"
 
     # CLAUDE.md
-    setup_symlink "$HOME/CLAUDE.md" "$REPO_DIR/config/CLAUDE.md" "CLAUDE.md"
+    setup_symlink "$HOME/CLAUDE.md" "$SCRIPT_DIR/config/CLAUDE.md" "CLAUDE.md"
 
     # MEMORY.md
-    if [ -d "$REPO_DIR/memory/$REPO_MEMORY_NAME" ]; then
+    if [ -d "$SCRIPT_DIR/memory/$REPO_MEMORY_NAME" ]; then
         mkdir -p "$MEMORY_DIR"
         setup_symlink "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "MEMORY.md"
     else
         info "MEMORY.md: 仓库中未找到对应目录，跳过"
     fi
 
-    echo ""
-
-    # ========== 启动 auto-sync ==========
-    section "启动 auto-sync"
-    AUTO_SYNC_SCRIPT="$REPO_DIR/scripts/auto-sync.sh"
-    if [ -f "$AUTO_SYNC_SCRIPT" ]; then
-        if command -v inotifywait &>/dev/null; then
-            # 检查是否已在运行
-            if [ -f "$REPO_DIR/.auto-sync.pid" ] && kill -0 "$(cat "$REPO_DIR/.auto-sync.pid")" 2>/dev/null; then
-                info "auto-sync 已在运行 (PID: $(cat "$REPO_DIR/.auto-sync.pid"))"
-            else
-                info "启动 auto-sync 自动同步..."
-                bash "$AUTO_SYNC_SCRIPT" start
-            fi
-        else
-            warn "inotify-tools 未安装，auto-sync 将不可用"
-            warn "运行 init03env.sh 重新安装依赖"
-        fi
-    fi
-    echo ""
-
-    # ========== 自启动配置 ==========
-    section "auto-sync 自启动配置"
-
-    # 检查自启动状态
-    SYSTEMD_SERVICE="$HOME/.config/systemd/user/claude-auto-sync.service"
-    AUTOSTART_ENABLED=false
-
-    if [ -f "$SYSTEMD_SERVICE" ]; then
-        if command -v systemctl &>/dev/null && systemctl --user is-enabled claude-auto-sync &>/dev/null; then
-            AUTOSTART_ENABLED=true
-        fi
-    fi
-
-    echo ""
-    echo "当前自启动状态："
-    if [ "$AUTOSTART_ENABLED" = true ]; then
-        echo "  ✅ auto-sync 自启动：已启用"
-    else
-        echo "  ⚠️  auto-sync 自启动：未启用"
-    fi
-    echo "  📋 auto-sync 当前状态：$(bash "$AUTO_SYNC_SCRIPT" status 2>/dev/null | grep -o '运行中\|未运行' || echo '未知')"
-    echo ""
-
-    if [[ "$AUTOSTART_ENABLED" != "true" ]]; then
-        ENABLE_AUTOSTART_SCRIPT="$REPO_DIR/scripts/enable-autostart.sh"
-        if [ -f "$ENABLE_AUTOSTART_SCRIPT" ]; then
-            info "配置自启动..."
-            bash "$ENABLE_AUTOSTART_SCRIPT" enable
-        else
-            warn "enable-autostart.sh 未找到，跳过"
-        fi
-    else
-        info "自启动已是启用状态，跳过"
-    fi
     echo ""
 
     section "安装完成"
@@ -731,8 +644,8 @@ main() {
     echo "  📋 下一步操作"
     echo "========================================"
     echo ""
-    echo "  运行主初始化脚本："
-    echo "  bash claude-config/init.sh"
+    echo "  运行 claudemcp.sh 安装 MCP 服务器："
+    echo "  bash claude-config/claudemcp.sh"
     echo ""
     echo "  或直接启动 Claude Code："
     echo "  claude"
