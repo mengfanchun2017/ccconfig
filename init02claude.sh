@@ -113,5 +113,43 @@ print("ok")
 PYEOF
 
 print_success "Claude Code 配置完成！"
+
+# 复制 hooks 配置到 ~/.claude.json（确保 SessionStart hook 生效）
+python3 << 'PYEOF'
+import json
+import os
+
+config_file = os.path.expanduser("$CLAUDE_JSON")
+hooks_config = {
+    "hooks": {
+        "SessionStart": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "bash /home/francis/git/ccconfig/hook-status.sh"
+                    }
+                ]
+            }
+        ]
+    }
+}
+
+try:
+    with open(config_file, 'r') as f:
+        config = json.load(f)
+except:
+    config = {}
+
+# 合并 hooks（不覆盖已存在的 hooks）
+if 'hooks' not in config:
+    config['hooks'] = hooks_config['hooks']
+
+with open(config_file, 'w') as f:
+    json.dump(config, f, indent=4)
+print("hooks 配置已添加")
+PYEOF
+
 echo ""
 print_info "运行 init03env.sh 完成环境配置"

@@ -649,11 +649,12 @@ main() {
     echo "  📋 下一步操作"
     echo "========================================"
     echo ""
-    echo "  运行 claudeinit.sh 安装 MCP 服务器："
-    echo "  bash ccconfig/claudeinit.sh"
+    echo "  ✅ 请进入 Claude Code："
+    echo "     claude"
     echo ""
-    echo "  或直接启动 Claude Code："
-    echo "  claude"
+    echo "  Claude 启动后将自动："
+    echo "     1. 运行 hook-status.sh (SessionStart hook)"
+    echo "     2. 完成 MCP 服务器安装和配置"
     echo ""
 }
 
