@@ -3,13 +3,13 @@
 # ==============================================
 # Claude Code 安装 + 配置脚本
 # 功能：安装 Claude Code 并配置自定义 LLM API
-# 配置：从 confinit.json 读取
+# 配置：从 conf-init.json 读取
 # ==============================================
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/confinit.json"
+CONFIG_FILE="$SCRIPT_DIR/conf-init.json"
 CLAUDE_JSON="$HOME/.claude.json"
 CLAUDE_DIR="$HOME/.claude"
 

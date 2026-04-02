@@ -1,7 +1,7 @@
 #!/bin/bash
 # Claude MCP 管理脚本
 # 功能：安装并配置 MCP 服务器
-# 配置：从 mcpconf.json 读取（整合 mcplist + mcpidentity）
+# 配置：从 conf-claude.json 读取
 #
 # 使用：
 #   bash claude-config/claudeinit.sh
@@ -9,7 +9,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MCP_CONF_FILE="$SCRIPT_DIR/mcpconf.json"
+MCP_CONF_FILE="$SCRIPT_DIR/conf-claude.json"
 
 # 颜色
 RED='\033[0;31m'
@@ -168,7 +168,7 @@ PYEOF
 
 # ========== 主程序 ==========
 if [ ! -f "$MCP_CONF_FILE" ]; then
-    bad "❌ 未找到 mcpconf.json"
+    bad "❌ 未找到 conf-claude.json"
     exit 1
 fi
 

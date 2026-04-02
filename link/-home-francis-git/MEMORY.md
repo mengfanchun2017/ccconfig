@@ -19,8 +19,8 @@ claude-config/                    # GitHub: <your-github-username>/claude-config
 ├── init-enable-autostart.sh    # auto-sync 自启动配置
 ├── hook-status.sh              # 状态检查（SessionStart hook 自动运行）
 ├── claudeinit.sh               # MCP 服务器安装与配置（进入 Claude 后运行）
-├── confinit.json               # 初始化配置（Git/API），init01-03 使用
-├── mcpconf.json                # MCP 服务器配置
+├── conf-init.json              # 初始化配置（Git/API），init01-03 使用
+├── conf-claude.json            # MCP 服务器配置
 └── link/                       # 符号链接文件目录
     ├── CLAUDE.md              # 权限白名单
     ├── settings.json           # Claude Code 设置
@@ -32,7 +32,7 @@ claude-config/                    # GitHub: <your-github-username>/claude-config
 ```bash
 # 阶段一：Ubuntu 环境初始化
 # 1. 复制 claude-config 到 ~/git/
-# 2. 确保 confinit.json 配置正确
+# 2. 确保 conf-init.json 配置正确
 # 3. 依次运行：
 bash claude-config/init01git.sh   # Git + gh + 克隆仓库
 bash claude-config/init02claude.sh  # Claude Code 安装
@@ -82,7 +82,7 @@ GitHub 远程仓库
   - 更新 MEMORY.md 后要同步到 claude-config 仓库
 - **MCP 操作规则**:
   - 运行 `bash claude-config/claudeinit.sh` 管理 MCP
-  - Key/Token 存储在 `mcpconf.json` 中
+  - Key/Token 存储在 `conf-claude.json` 中
 - **提交后通知要求**:
   - 每次提交后，必须用 ✅ 标记 commit hash + message
 
@@ -106,12 +106,13 @@ GitHub 远程仓库
 - `enable-autostart.sh` → `init-enable-autostart.sh`
 - `status.sh` → `hook-status.sh`
 - `claudemcp.sh` → `claudeinit.sh`
-- `config/initconf.json` → `confinit.json`
+- `confinit.json` → `conf-init.json`
+- `mcpconf.json` → `conf-claude.json`
 - `memory/` → `link/`
 - `config/` 目录已删除
 
 **重构要点**：
-- init01-03 在 Ubuntu 直接执行，配置读取 confinit.json
+- init01-03 在 Ubuntu 直接执行，配置读取 conf-init.json
 - claudeinit 在进入 Claude 后执行，完成 MCP 和链接检查
 - 链接文件统一放在 link/ 目录
 
@@ -126,3 +127,4 @@ GitHub 远程仓库
 2. 移动配置文件到根目录
 3. memory 目录改名为 link
 4. 更新所有文档和引用
+5. 中文字体安装优化（免密失败才让我输入密码）
