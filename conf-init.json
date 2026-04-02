@@ -3,8 +3,8 @@
   "note": "修改此文件后，下次运行 init.sh 会自动读取",
 
   "git": {
-    "repo": "<your-github-username>/claude-config",
-    "target_dir": "/home/francis/git/claude-config",
+    "repo": "<your-github-username>/ccconfig",
+    "target_dir": "/home/francis/git/ccconfig",
     "email": "mengfanchun1981@163.com",
     "username": "<your-github-username>"
   },

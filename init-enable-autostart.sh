@@ -2,9 +2,9 @@
 # Claude Config - 启用/禁用 auto-sync 自启动
 #
 # 使用方法：
-#   bash claude-config/init-enable-autostart.sh enable   # 启用自启动
-#   bash claude-config/init-enable-autostart.sh disable  # 禁用自启动
-#   bash claude-config/init-enable-autostart.sh status    # 查看状态
+#   bash ccconfig/init-enable-autostart.sh enable   # 启用自启动
+#   bash ccconfig/init-enable-autostart.sh disable  # 禁用自启动
+#   bash ccconfig/init-enable-autostart.sh status    # 查看状态
 #
 
 set -e
@@ -47,12 +47,12 @@ enable_autostart() {
     cat > "$SYSTEMD_SERVICE" << EOF
 [Unit]
 Description=Claude Code Auto-Sync Service
-Documentation=https://github.com/<your-github-username>/claude-config
+Documentation=https://github.com/<your-github-username>/ccconfig
 After=default.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/francis/git/claude-config/init-auto-sync.sh start
+ExecStart=/home/francis/git/ccconfig/init-auto-sync.sh start
 RemainAfterExit=yes
 
 [Install]
@@ -105,7 +105,7 @@ status_autostart() {
     fi
 
     # 检查当前 auto-sync 状态
-    AUTO_SYNC_PID_FILE="/home/francis/git/claude-config/.auto-sync.pid"
+    AUTO_SYNC_PID_FILE="/home/francis/git/ccconfig/.auto-sync.pid"
     if [ -f "$AUTO_SYNC_PID_FILE" ] && kill -0 "$(cat "$AUTO_SYNC_PID_FILE")" 2>/dev/null; then
         info "auto-sync 当前状态: 运行中 (PID: $(cat "$AUTO_SYNC_PID_FILE"))"
     else
@@ -114,9 +114,9 @@ status_autostart() {
 
     echo ""
     echo "自启动配置方法："
-    echo "  启用: bash claude-config/init-enable-autostart.sh enable"
-    echo "  禁用: bash claude-config/init-enable-autostart.sh disable"
-    echo "  状态: bash claude-config/init-enable-autostart.sh status"
+    echo "  启用: bash ccconfig/init-enable-autostart.sh enable"
+    echo "  禁用: bash ccconfig/init-enable-autostart.sh disable"
+    echo "  状态: bash ccconfig/init-enable-autostart.sh status"
     echo ""
 }
 
