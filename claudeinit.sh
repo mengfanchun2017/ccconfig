@@ -4,12 +4,12 @@
 # 配置：从 mcpconf.json 读取（整合 mcplist + mcpidentity）
 #
 # 使用：
-#   bash claude-config/claudemcp.sh
+#   bash claude-config/claudeinit.sh
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MCP_CONF_FILE="$SCRIPT_DIR/config/mcpconf.json"
+MCP_CONF_FILE="$SCRIPT_DIR/mcpconf.json"
 
 # 颜色
 RED='\033[0;31m'
@@ -250,7 +250,7 @@ do_sync() {
     # 同步到 settings.json
     section "同步到 GitHub"
     info "同步 mcpServers 和 hooks 到 settings.json..."
-    SETTINGS_FILE="$SCRIPT_DIR/config/settings.json"
+    SETTINGS_FILE="$SCRIPT_DIR/link/settings.json"
     result=$(sync_to_settings "$SETTINGS_FILE")
     if [[ "$result" == "ok" ]]; then
         good "✅ 已同步到 settings.json"

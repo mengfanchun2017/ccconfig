@@ -12,12 +12,12 @@
 #      - Playwright (浏览器自动化)
 #      - 中文字体
 #   2. 建立符号链接实现配置双向同步
-#      - settings.json → ~/.claude/settings.json
-#      - CLAUDE.md → ~/CLAUDE.md
-#      - MEMORY.md → ~/.claude/projects/.../memory/MEMORY.md
+#      - link/settings.json → ~/.claude/settings.json
+#      - link/CLAUDE.md → ~/CLAUDE.md
+#      - link/-home-francis-git/MEMORY.md → ~/.claude/projects/.../memory/MEMORY.md
 #
-# 安装完成后，请运行 claudemcp.sh 安装具体的 MCP 服务器：
-#   bash claude-config/claudemcp.sh
+# 安装完成后，请运行 claudeinit.sh 安装具体的 MCP 服务器：
+#   bash claude-config/claudeinit.sh
 
 set -e
 
@@ -511,7 +511,7 @@ main() {
     echo "     - 中文字体"
     echo "  2. 建立符号链接实现配置双向同步"
     echo ""
-    echo "安装完成后请运行 claudemcp.sh 安装具体的 MCP 服务器"
+    echo "安装完成后请运行 claudeinit.sh 安装具体的 MCP 服务器"
     echo ""
 
     # 确保 PATH 包含 ~/.local/bin（必须在检查/安装任何工具之前）
@@ -599,7 +599,7 @@ main() {
     # /home/francis/git → -home-francis-git
     REPO_MEMORY_NAME="$(echo "$ACTUAL_PROJECT_PATH" | sed 's/\//-/g')"
     MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
-    MEMORY_REPO_PATH="$SCRIPT_DIR/memory/$REPO_MEMORY_NAME/MEMORY.md"
+    MEMORY_REPO_PATH="$SCRIPT_DIR/link/$REPO_MEMORY_NAME/MEMORY.md"
 
     # 符号链接检查函数
     setup_symlink() {
@@ -621,13 +621,13 @@ main() {
     }
 
     # settings.json
-    setup_symlink "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/config/settings.json" "settings.json"
+    setup_symlink "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/link/settings.json" "settings.json"
 
     # CLAUDE.md
-    setup_symlink "$HOME/CLAUDE.md" "$SCRIPT_DIR/config/CLAUDE.md" "CLAUDE.md"
+    setup_symlink "$HOME/CLAUDE.md" "$SCRIPT_DIR/link/CLAUDE.md" "CLAUDE.md"
 
     # MEMORY.md
-    if [ -d "$SCRIPT_DIR/memory/$REPO_MEMORY_NAME" ]; then
+    if [ -d "$SCRIPT_DIR/link/$REPO_MEMORY_NAME" ]; then
         mkdir -p "$MEMORY_DIR"
         setup_symlink "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "MEMORY.md"
     else
@@ -644,8 +644,8 @@ main() {
     echo "  📋 下一步操作"
     echo "========================================"
     echo ""
-    echo "  运行 claudemcp.sh 安装 MCP 服务器："
-    echo "  bash claude-config/claudemcp.sh"
+    echo "  运行 claudeinit.sh 安装 MCP 服务器："
+    echo "  bash claude-config/claudeinit.sh"
     echo ""
     echo "  或直接启动 Claude Code："
     echo "  claude"
