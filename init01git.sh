@@ -3,7 +3,7 @@
 # ==============================================
 # Git + GitHub CLI 环境初始化脚本
 # 功能：安装 gh、登录 GitHub、克隆配置仓库
-# 配置：从 claude-config/conf-init.json 读取
+# 配置：从 ccconfig/conf-init.json 读取
 # ==============================================
 
 set -e
@@ -30,9 +30,9 @@ read_config() {
         print_error "配置文件不存在: $CONFIG_FILE"
         echo ""
         echo "请先创建配置文件："
-        echo "  1. 创建目录: mkdir -p claude-config"
+        echo "  1. 创建目录: mkdir -p ccconfig"
         echo "  2. 创建配置文件 conf-init.json"
-        echo "  3. 运行 bash claude-config/init01git.sh"
+        echo "  3. 运行 bash ccconfig/init01git.sh"
         exit 1
     fi
 

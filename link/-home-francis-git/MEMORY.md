@@ -8,10 +8,10 @@ This file persists across Claude Code conversations. Keep it concise (&lt;200 li
 
 ---
 
-## claude-config 仓库结构（2026-04-02）
+## ccconfig 仓库结构（2026-04-02）
 
 ```
-claude-config/                    # GitHub: <your-github-username>/claude-config
+ccconfig/                    # GitHub: <your-github-username>/ccconfig
 ├── init01git.sh                # Git + GitHub CLI 环境初始化
 ├── init02claude.sh             # Claude Code 安装 + API 配置
 ├── init03env.sh                # 环境准备 + auto-sync 启动
@@ -31,16 +31,16 @@ claude-config/                    # GitHub: <your-github-username>/claude-config
 **新环境初始化流程**：
 ```bash
 # 阶段一：Ubuntu 环境初始化
-# 1. 复制 claude-config 到 ~/git/
+# 1. 复制 ccconfig 到 ~/git/
 # 2. 确保 conf-init.json 配置正确
 # 3. 依次运行：
-bash claude-config/init01git.sh   # Git + gh + 克隆仓库
-bash claude-config/init02claude.sh  # Claude Code 安装
-bash claude-config/init03env.sh   # 环境准备 + 符号链接 + auto-sync 启动
+bash ccconfig/init01git.sh   # Git + gh + 克隆仓库
+bash ccconfig/init02claude.sh  # Claude Code 安装
+bash ccconfig/init03env.sh   # 环境准备 + 符号链接 + auto-sync 启动
 
 # 阶段二：Claude 初始化（进入 Claude 后）
 # Claude 会参考 claudeinit.sh 进行初始化检查
-bash claude-config/claudeinit.sh  # MCP 配置 + 链接检查
+bash ccconfig/claudeinit.sh  # MCP 配置 + 链接检查
 ```
 
 ---
@@ -51,9 +51,9 @@ bash claude-config/claudeinit.sh  # MCP 配置 + 链接检查
 
 | 本地路径 | 指向 | GitHub 路径 | 作用 |
 |---------|------|-------------|------|
-| `~/.claude/settings.json` | → `claude-config/link/settings.json` | `link/settings.json` | Claude Code 设置同步 |
-| `~/CLAUDE.md` | → `claude-config/link/CLAUDE.md` | `link/CLAUDE.md` | 权限白名单同步 |
-| `~/.claude/projects/-home-francis-git/memory/MEMORY.md` | → `claude-config/link/-home-francis-git/MEMORY.md` | `link/-home-francis-git/MEMORY.md` | 记忆同步 |
+| `~/.claude/settings.json` | → `ccconfig/link/settings.json` | `link/settings.json` | Claude Code 设置同步 |
+| `~/CLAUDE.md` | → `ccconfig/link/CLAUDE.md` | `link/CLAUDE.md` | 权限白名单同步 |
+| `~/.claude/projects/-home-francis-git/memory/MEMORY.md` | → `ccconfig/link/-home-francis-git/MEMORY.md` | `link/-home-francis-git/MEMORY.md` | 记忆同步 |
 
 ### 主配置文件（Claude Code 运行时读取）
 
@@ -66,7 +66,7 @@ bash claude-config/claudeinit.sh  # MCP 配置 + 链接检查
 ```
 Claude Code 运行时 ~/.claude.json
        ↓ claudeinit.sh 同步
-claude-config/link/settings.json (符号链接)
+ccconfig/link/settings.json (符号链接)
        ↓
 GitHub 远程仓库
 ```
@@ -79,9 +79,9 @@ GitHub 远程仓库
 - Preferred language: Chinese (中文)
 - **Session Sync Requirement (会话同步要求)**
   - 每次工作收尾时必须同步记忆
-  - 更新 MEMORY.md 后要同步到 claude-config 仓库
+  - 更新 MEMORY.md 后要同步到 ccconfig 仓库
 - **MCP 操作规则**:
-  - 运行 `bash claude-config/claudeinit.sh` 管理 MCP
+  - 运行 `bash ccconfig/claudeinit.sh` 管理 MCP
   - Key/Token 存储在 `conf-claude.json` 中
 - **提交后通知要求**:
   - 每次提交后，必须用 ✅ 标记 commit hash + message
@@ -99,7 +99,7 @@ GitHub 远程仓库
 
 ## Key Learnings (关键知识点)
 
-### 2026-04-02 [Francis_MiPro] - claude-config 重构完成
+### 2026-04-02 [Francis_MiPro] - ccconfig 重构完成
 
 **目录结构变更**：
 - `auto-sync.sh` → `init-auto-sync.sh`
@@ -120,7 +120,7 @@ GitHub 远程仓库
 
 ## Session Logs (会话记录)
 
-### 2026-04-02 [Francis_MiPro] - claude-config 重构
+### 2026-04-02 [Francis_MiPro] - ccconfig 重构
 
 **完成内容**：
 1. 重命名所有脚本文件（添加 init-/hook- 前缀）

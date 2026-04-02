@@ -11,7 +11,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# 如果脚本在 claude-config/ 目录下，REPO_DIR 就是 SCRIPT_DIR
+# 如果脚本在 ccconfig/ 目录下，REPO_DIR 就是 SCRIPT_DIR
 # 如果脚本在上一级（传统方式），REPO_DIR 就是 SCRIPT_DIR/..
 if [ -d "$SCRIPT_DIR/.git" ]; then
     REPO_DIR="$SCRIPT_DIR"

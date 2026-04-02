@@ -3,7 +3,7 @@
 # 用途：安装运行时环境依赖 + 建立符号链接
 #
 # 使用方法：
-#   bash claude-config/init03env.sh
+#   bash ccconfig/init03env.sh
 #
 # 此脚本会：
 #   1. 安装 MCP 服务器所需的运行时环境
@@ -17,7 +17,7 @@
 #      - link/-home-francis-git/MEMORY.md → ~/.claude/projects/.../memory/MEMORY.md
 #
 # 安装完成后，请运行 claudeinit.sh 安装具体的 MCP 服务器：
-#   bash claude-config/claudeinit.sh
+#   bash ccconfig/claudeinit.sh
 
 set -e
 
@@ -593,8 +593,8 @@ main() {
     CLAUDE_PROJECT_PATH="$(pwd)"
     CURRENT_PROJECT=$(basename "$CLAUDE_PROJECT_PATH")
 
-    # 如果是 claude-config 仓库，使用父目录
-    if [ "$CURRENT_PROJECT" = "claude-config" ]; then
+    # 如果是 ccconfig 仓库，使用父目录
+    if [ "$CURRENT_PROJECT" = "ccconfig" ]; then
         ACTUAL_PROJECT_PATH="$(dirname "$CLAUDE_PROJECT_PATH")"
     else
         ACTUAL_PROJECT_PATH="$CLAUDE_PROJECT_PATH"
@@ -650,7 +650,7 @@ main() {
     echo "========================================"
     echo ""
     echo "  运行 claudeinit.sh 安装 MCP 服务器："
-    echo "  bash claude-config/claudeinit.sh"
+    echo "  bash ccconfig/claudeinit.sh"
     echo ""
     echo "  或直接启动 Claude Code："
     echo "  claude"

@@ -4,7 +4,7 @@
 # 配置：从 conf-claude.json 读取
 #
 # 使用：
-#   bash claude-config/claudeinit.sh
+#   bash ccconfig/claudeinit.sh
 
 set -e
 
