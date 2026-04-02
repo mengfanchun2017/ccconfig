@@ -41,6 +41,38 @@ git_pull() {
     fi
 }
 
+# ========== 检查并安装 MCP ==========
+check_and_install_mcp() {
+    local claude_json="$HOME/.claude.json"
+    local claudeinit="$SCRIPT_DIR/claudeinit.sh"
+
+    if [ ! -f "$claude_json" ]; then
+        return 0
+    fi
+
+    # 检查是否有 MCP 服务器配置
+    local mcp_count=$(python3 - "$claude_json" << 'PYEOF' 2>/dev/null
+import json
+import sys
+try:
+    with open(sys.argv[1], 'r') as f:
+        data = json.load(f)
+    mcp = data.get('mcpServers', {})
+    print(len(mcp))
+except:
+    print(0)
+PYEOF
+)
+
+    # 如果 MCP 服务器数量少于预期（假设至少应该有 3 个：tavily, playwright, minimax）
+    if [ "$mcp_count" -lt 3 ] 2>/dev/null; then
+        echo -e "${CYAN}[config]${NC} 发现 MCP 服务器未安装，正在配置..."
+        if [ -f "$claudeinit" ]; then
+            bash "$claudeinit" 2>/dev/null
+        fi
+    fi
+}
+
 # ========== 显示状态摘要 ==========
 show_summary() {
     cd "$REPO_DIR"
@@ -112,27 +144,27 @@ import json
 import sys
 import subprocess
 import os
-import time
 
 def test_mcp_server(name, config, env_vars):
     """测试单个 MCP 服务器"""
     try:
         cmd = config.get('command')
         args = config.get('args', [])
-        full_cmd = [cmd] + args
+        full_cmd = [cmd] + args if args else [cmd]
 
         # 构建环境变量
         env = os.environ.copy()
         for k, v in env_vars.items():
-            env[k] = v
+            if v:
+                env[k] = v
 
-        # 发送初始化请求
+        # 发送初始化请求（使用 2025-03-26 协议版本，兼容旧版）
         init_request = {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "initialize",
             "params": {
-                "protocolVersion": "2024-11-05",
+                "protocolVersion": "2025-03-26",
                 "capabilities": {},
                 "clientInfo": {"name": "test", "version": "1.0"}
             }
@@ -157,7 +189,7 @@ def test_mcp_server(name, config, env_vars):
             text=True
         )
 
-        stdout, stderr = proc.communicate(input=input_data, timeout=15)
+        stdout, stderr = proc.communicate(input=input_data, timeout=20)
 
         # 解析响应
         lines = stdout.strip().split("\n")
@@ -172,9 +204,12 @@ def test_mcp_server(name, config, env_vars):
                 except:
                     pass
 
-        # 如果没有找到有效的初始化响应
-        if stderr and "Error" in stderr:
-            return None, stderr[:100]
+        # 如果没有找到有效的初始化响应，检查错误
+        if stderr and len(stderr.strip()) > 0:
+            # 过滤掉警告，只显示错误
+            error_lines = [l for l in stderr.strip().split("\n") if "Error" in l or "error" in l]
+            if error_lines:
+                return None, error_lines[0][:80]
         return "✅ (无版本信息)", None
 
     except subprocess.TimeoutExpired:
@@ -190,6 +225,10 @@ with open(sys.argv[1], 'r') as f:
     data = json.load(f)
 
 mcp_servers = data.get('mcpServers', {})
+
+if not mcp_servers:
+    print("  (无 MCP 服务器配置)")
+    sys.exit(0)
 
 for name, config in sorted(mcp_servers.items()):
     if not config.get('command'):
@@ -211,4 +250,5 @@ PYEOF
 git_pull
 show_summary
 show_recent_pushes
+check_and_install_mcp
 test_mcp_servers
