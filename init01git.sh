@@ -3,13 +3,13 @@
 # ==============================================
 # Git + GitHub CLI 环境初始化脚本
 # 功能：安装 gh、登录 GitHub、克隆配置仓库
-# 配置：从 claude-config/confinit.json 读取
+# 配置：从 claude-config/conf-init.json 读取
 # ==============================================
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/confinit.json"
+CONFIG_FILE="$SCRIPT_DIR/conf-init.json"
 
 # 颜色输出
 RED='\033[0;31m'
@@ -31,7 +31,7 @@ read_config() {
         echo ""
         echo "请先创建配置文件："
         echo "  1. 创建目录: mkdir -p claude-config"
-        echo "  2. 创建配置文件 confinit.json"
+        echo "  2. 创建配置文件 conf-init.json"
         echo "  3. 运行 bash claude-config/init01git.sh"
         exit 1
     fi
