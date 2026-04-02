@@ -442,7 +442,7 @@ install_chinese_fonts() {
     if command -v apt-get &>/dev/null; then
         local fonts_pkg="fonts-wqy-microhei"
 
-        # 先尝试用户级安装（下载字体到用户目录）
+        # 1. 先尝试用户级安装（下载字体到用户目录）
         if command -v curl &>/dev/null; then
             info "尝试用户级安装中文字体（无需 sudo）..."
             if curl -fsSL "$FONT_URL" -o "$USER_FONTS_DIR/wqy-microhei.ttc" 2>/dev/null; then
@@ -458,7 +458,7 @@ install_chinese_fonts() {
             fi
         fi
 
-        # 用户级失败，尝试 sudo -n（非交互模式）
+        # 2. 尝试 sudo -n（非交互模式，免密）
         info "尝试免密 sudo 安装..."
         if sudo -n apt-get install -y $fonts_pkg fontconfig 2>/dev/null; then
             good "系统字体安装成功"
@@ -466,9 +466,26 @@ install_chinese_fonts() {
             return 0
         fi
 
-        # sudo 需要密码或失败，自动跳过
-        warn "sudo 需要密码或安装失败，自动跳过"
-        info "如需手动安装，请运行: sudo apt-get install fonts-wqy-microhei fontconfig"
+        # 3. 都失败了，提示用户手动输入密码安装
+        warn "自动安装失败，需要 sudo 权限"
+        echo ""
+        echo "请选择："
+        echo "  1) 输入密码安装系统字体（推荐）"
+        echo "  2) 跳过字体安装"
+        echo ""
+        font_choice=$(read_input "请输入选项 [1]: " "1")
+
+        if [[ "$font_choice" == "1" ]]; then
+            if sudo apt-get install -y $fonts_pkg fontconfig 2>&1; then
+                good "系统字体安装成功"
+                fc-cache -f 2>/dev/null
+            else
+                error "字体安装失败，请稍后手动执行:"
+                echo "  sudo apt-get install fonts-wqy-microhei fontconfig"
+            fi
+        else
+            info "跳过字体安装"
+        fi
     else
         warn "未检测到 apt-get，请手动安装中文字体"
     fi
