@@ -6,21 +6,21 @@ Claude Code 配置文件仓库，用于跨设备同步配置。
 
 ```
 claude-config/
-├── init01git.sh      # Git + GitHub CLI 环境初始化
-├── init02claude.sh   # Claude Code 安装 + API 配置
-├── init03env.sh      # 环境准备 + auto-sync 启动
-├── claudemcp.sh      # MCP 服务器安装与配置
-├── auto-sync.sh      # 文件变化自动同步到 GitHub
-├── enable-autostart.sh # auto-sync 自启动配置
-├── status.sh         # 状态检查（SessionStart hook 自动运行）
-├── config/           # 配置文件
-│   ├── CLAUDE.md     # 权限白名单
-│   ├── settings.json  # Claude Code 设置
-│   ├── initconf.json # 初始化配置（Git/API）
-│   └── mcpconf.json  # MCP 服务器配置
-└── memory/           # 项目记忆
-    └── -home-francis-git/
-        └── MEMORY.md
+├── init01git.sh           # Git + GitHub CLI 环境初始化
+├── init02claude.sh        # Claude Code 安装 + API 配置
+├── init03env.sh           # 环境准备 + auto-sync 启动
+├── init-auto-sync.sh      # 文件变化自动同步到 GitHub
+├── init-enable-autostart.sh # auto-sync 自启动配置
+├── hook-status.sh         # 状态检查（SessionStart hook 自动运行）
+├── claudeinit.sh          # MCP 服务器安装与配置（进入 Claude 后运行）
+├── confinit.json          # 初始化配置（Git/API），init01-03 使用
+├── mcpconf.json           # MCP 服务器配置
+├── link/                  # 符号链接文件目录
+│   ├── CLAUDE.md         # 权限白名单
+│   ├── settings.json      # Claude Code 设置
+│   └── -home-francis-git/ # 项目记忆
+│       └── MEMORY.md
+└── .gitignore
 ```
 
 ## 配置文件架构
@@ -29,15 +29,15 @@ claude-config/
 
 | 本地路径 | 指向 | GitHub 路径 | 作用 |
 |---------|------|-------------|------|
-| `~/.claude/settings.json` | → `claude-config/config/settings.json` | `config/settings.json` | Claude Code 设置同步 |
-| `~/CLAUDE.md` | → `claude-config/config/CLAUDE.md` | `config/CLAUDE.md` | 权限白名单同步 |
-| `~/.claude/projects/-home-francis-git/memory/MEMORY.md` | → `claude-config/memory/-home-francis-git/MEMORY.md` | `memory/-home-francis-git/MEMORY.md` | 记忆同步 |
+| `~/.claude/settings.json` | → `claude-config/link/settings.json` | `link/settings.json` | Claude Code 设置同步 |
+| `~/CLAUDE.md` | → `claude-config/link/CLAUDE.md` | `link/CLAUDE.md` | 权限白名单同步 |
+| `~/.claude/projects/-home-francis-git/memory/MEMORY.md` | → `claude-config/link/-home-francis-git/MEMORY.md` | `link/-home-francis-git/MEMORY.md` | 记忆同步 |
 
 ### 主配置文件（Claude Code 运行时读取）
 
 | 文件 | 位置 | 内容 | 同步方式 |
 |------|------|------|---------|
-| `~/.claude.json` | 用户主目录 | mcpServers、hooks、环境变量、session 记录、metrics 等 | 通过 claudemcp.sh 同步关键配置到 settings.json |
+| `~/.claude.json` | 用户主目录 | mcpServers、hooks、环境变量、session 记录、metrics 等 | 通过 claudeinit.sh 同步关键配置到 link/settings.json |
 
 ### 配置同步策略
 
@@ -48,10 +48,10 @@ claude-config/
 │  (mcpServers, hooks, env, metrics, session 等)          │
 └─────────────────────┬───────────────────────────────────────┘
                       │
-                      │ claudemcp.sh 同步
+                      │ claudeinit.sh 同步
                       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│               claude-config/config/settings.json           │
+│               claude-config/link/settings.json               │
 │           (mcpServers, hooks, permissions 等)              │
 └─────────────────────┬───────────────────────────────────────┘
                       │
@@ -92,21 +92,32 @@ git push origin main
 ### auto-sync 管理
 
 ```bash
-bash claude-config/auto-sync.sh start   # 启动
-bash claude-config/auto-sync.sh stop    # 停止
-bash claude-config/auto-sync.sh status   # 状态
+bash claude-config/init-auto-sync.sh start   # 启动
+bash claude-config/init-auto-sync.sh stop    # 停止
+bash claude-config/init-auto-sync.sh status   # 状态
 ```
 
 ## 新环境初始化流程
 
+### 阶段一：Ubuntu 环境初始化（直接执行脚本）
+
 ```bash
 # 1. 复制 claude-config 到 ~/git/
-# 2. 确保 config/initconf.json 配置正确
+# 2. 确保 confinit.json 配置正确
 # 3. 依次运行：
 bash claude-config/init01git.sh   # Git + gh + 克隆仓库
 bash claude-config/init02claude.sh  # Claude Code 安装
-bash claude-config/init03env.sh   # 环境准备 + 符号链接
-bash claude-config/claudemcp.sh  # MCP 配置
+bash claude-config/init03env.sh   # 环境准备 + 符号链接 + auto-sync 启动
+```
+
+### 阶段二：Claude 初始化（进入 Claude Code 后执行）
+
+```bash
+# 启动 Claude Code，它会自动运行 hook-status.sh
+# 然后让 Claude 参考 claudeinit.sh 进行初始化检查
+
+# 或者手动运行：
+bash claude-config/claudeinit.sh  # MCP 配置 + 链接检查
 ```
 
 ## MCP 服务器配置
@@ -126,7 +137,7 @@ bash claude-config/claudemcp.sh  # MCP 配置
 
 ```bash
 # 同步 MCP 配置到 GitHub
-bash claude-config/claudemcp.sh
+bash claude-config/claudeinit.sh
 
 # 查看 MCP 状态
 claude mcp list
@@ -134,7 +145,7 @@ claude mcp list
 
 ## 配置文件说明
 
-### initconf.json
+### confinit.json
 ```json
 {
   "git": {
@@ -158,10 +169,10 @@ claude mcp list
 ## 常见问题
 
 ### Q: 为什么 SessionStart hook 不生效？
-A: 确保 hooks 配置在 `~/.claude.json` 的顶层，而不是在 `settings.json` 中。运行 `bash claude-config/claudemcp.sh` 修复。
+A: 确保 hooks 配置在 `~/.claude.json` 的顶层，而不是在 `link/settings.json` 中。运行 `bash claude-config/claudeinit.sh` 修复。
 
 ### Q: 如何添加新的 MCP 服务器？
-A: 在 `config/mcpconf.json` 中添加配置，然后运行 `bash claude-config/claudemcp.sh`。
+A: 在 `mcpconf.json` 中添加配置，然后运行 `bash claude-config/claudeinit.sh`。
 
 ### Q: 如何更新配置到最新？
 A:
