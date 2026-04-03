@@ -367,6 +367,17 @@ main() {
 
     # ========== 启动 auto-sync ==========
     section "启动 auto-sync"
+
+    # 检查 inotifywait 是否存在
+    if ! command -v inotifywait &>/dev/null; then
+        info "安装 inotify-tools..."
+        if sudo -n apt-get install -y inotify-tools 2>/dev/null; then
+            good "inotify-tools 安装成功"
+        else
+            warn "inotify-tools 安装失败，auto-sync 将无法启动"
+        fi
+    fi
+
     if bash "$SCRIPT_DIR/init-auto-sync.sh" start 2>/dev/null; then
         good "auto-sync 已启动"
     else
