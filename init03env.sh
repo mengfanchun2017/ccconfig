@@ -9,7 +9,6 @@
 #   1. 安装 MCP 服务器所需的运行时环境
 #      - Node.js (用于 npm/npx-based MCP 服务器)
 #      - uv (用于 Python-based MCP 服务器)
-#      - Playwright (浏览器自动化)
 #      - 中文字体
 #   2. 建立符号链接实现配置双向同步
 #      - link/settings.json → ~/.claude/settings.json
@@ -180,247 +179,6 @@ verify_uv() {
     echo ""
 }
 
-# ========== Playwright 浏览器 ==========
-check_playwright_installed() {
-    if check_command npx; then
-        # 使用 timeout 避免 npx 长时间卡住（最多 10 秒）
-        local version=$(timeout 10 npx playwright --version 2>/dev/null || echo "")
-        if [[ -n "$version" ]]; then
-            info "Playwright 已安装: $version"
-            return 0
-        fi
-    fi
-    return 1
-}
-
-install_playwright_browsers() {
-    section "安装 Playwright 浏览器"
-
-    if ! check_command npx; then
-        error "npx 未安装，请先安装 Node.js"
-        return 1
-    fi
-
-    info "安装 Playwright chromium (官方推荐)..."
-
-    # 先在临时目录安装 playwright（避免项目目录未初始化导致的警告）
-    local tmp_dir="/tmp/pw-install-$$"
-    mkdir -p "$tmp_dir"
-    cd "$tmp_dir"
-    npm init -y > /dev/null 2>&1
-    npm install playwright > /dev/null 2>&1
-
-    # 使用临时目录的 playwright 安装 chromium，添加超时
-    # 如果下载失败会重试3次，每次超时2分钟
-    local max_attempts=3
-    local attempt=1
-    local success=false
-
-    while [[ $attempt -le $max_attempts ]] && [[ "$success" == "false" ]]; do
-        echo ""
-        info "尝试 $attempt/$max_attempts..."
-
-        # 设置超时 120 秒，如果超时或失败则重试
-        if timeout 180 ./node_modules/.bin/playwright install chromium 2>&1; then
-            success=true
-            good "Chromium 安装成功"
-        else
-            if [[ $attempt -lt $max_attempts ]]; then
-                warn "下载失败，10秒后重试..."
-                sleep 10
-            fi
-            attempt=$((attempt + 1))
-        fi
-    done
-
-    if [[ "$success" == "false" ]]; then
-        warn "Chromium 下载失败，将跳过安装"
-        warn "可以稍后手动运行: npx playwright install chromium"
-    fi
-
-    # 清理临时目录
-    cd - > /dev/null
-    rm -rf "$tmp_dir"
-}
-
-# ========== Playwright 系统依赖 ==========
-
-# 获取 Playwright 在当前 Ubuntu 版本所需的依赖包列表
-# Ubuntu 24.04 使用 t64 后缀的包名
-get_playwright_deps() {
-    local version=$(lsb_release -rs 2>/dev/null || echo "22.04")
-    if [[ "$version" == "24.04" ]]; then
-        # Ubuntu 24.04 (Noble) 使用 t64 后缀的包
-        echo "libnspr4 libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64"
-    else
-        # Ubuntu 22.04 及更早版本使用旧包名
-        echo "libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2"
-    fi
-}
-
-install_playwright_deps() {
-    section "安装 Playwright 系统依赖"
-
-    # 检查依赖是否已存在（检查关键库）
-    if ldconfig -p 2>/dev/null | grep -q libnspr4.so && \
-       ldconfig -p 2>/dev/null | grep -q libasound.so.2; then
-        info "Playwright 系统依赖已存在，跳过"
-        return 0
-    fi
-
-    if ! command -v apt-get &>/dev/null; then
-        warn "未检测到 apt-get，无法安装系统依赖"
-        return 0
-    fi
-
-    local deps=$(get_playwright_deps)
-    info "检测到 Ubuntu 版本: $(lsb_release -rs 2>/dev/null || echo 'unknown')"
-    info "将安装依赖: $deps"
-
-    # 先尝试 sudo -n（无交互式，适合已配置 NOPASSWD 的环境）
-    if echo "$deps" | xargs sudo -n apt-get install -y 2>/dev/null; then
-        good "系统依赖安装成功（sudo -n）"
-        return 0
-    fi
-
-    # sudo -n 失败，尝试 playwright install-deps（它会自己处理依赖）
-    info "尝试 playwright install-deps..."
-    local tmp_dir="/tmp/pw-install-deps-$$"
-    mkdir -p "$tmp_dir"
-    cd "$tmp_dir"
-    npm init -y > /dev/null 2>&1
-    npm install playwright > /dev/null 2>&1
-
-    # 先运行命令，捕获退出码
-    set +e
-    timeout 180 ./node_modules/.bin/playwright install-deps chromium > /tmp/pw-deps-install.log 2>&1
-    local pw_exit=$?
-    set -e
-
-    if [[ $pw_exit -eq 0 ]]; then
-        good "系统依赖安装成功（playwright install-deps）"
-        cd - > /dev/null
-        rm -rf "$tmp_dir"
-        return 0
-    fi
-
-    warn "playwright install-deps 失败，日志:"
-    cat /tmp/pw-deps-install.log | sed 's/^/  /'
-    cd - > /dev/null
-    rm -rf "$tmp_dir"
-
-    # playwright install-deps 也失败了，尝试直接 apt-get 安装
-    warn "自动安装失败，将尝试手动 apt-get 安装..."
-    echo ""
-    echo "请输入密码以安装系统依赖:"
-    echo "  sudo apt-get update && sudo apt-get install -y $deps"
-    echo ""
-
-    if sudo apt-get update && sudo apt-get install -y $deps; then
-        good "系统依赖安装成功"
-        return 0
-    fi
-
-    warn "系统依赖安装失败，浏览器可能无法运行"
-    warn "请稍后手动运行: sudo apt-get install -y $deps"
-    return 1
-}
-
-# ========== Playwright MCP 配置修复 ==========
-configure_playwright_mcp() {
-    section "配置 Playwright MCP"
-
-    local claude_json="$HOME/.claude/settings.json"
-    if [[ ! -f "$claude_json" ]]; then
-        warn "~/.claude/settings.json 不存在，跳过 MCP 配置"
-        return 0
-    fi
-
-    # 检查当前配置是否正确
-    # 问题：MCP 默认使用 channel='chrome'，在 Linux 上指向 /opt/google/chrome/chrome
-    # 解决：使用 'chromium' channel，让 playwright 使用自己安装的浏览器
-    local result=$(python3 << 'PYEOF'
-import json
-import os
-import sys
-
-file = os.path.expanduser("~/.claude/settings.json")
-browser_path = os.path.expanduser("~/.cache/ms-playwright")
-
-try:
-    with open(file, 'r') as f:
-        data = json.load(f)
-
-    mcp = data.get('mcpServers', {})
-    pw = mcp.get('playwright', {})
-
-    # 检查是否需要更新
-    args = pw.get('args', [])
-    env = pw.get('env', {})
-
-    needs_update = False
-
-    # 1. 确保 env 中有 PLAYWRIGHT_BROWSERS_PATH
-    if env.get('PLAYWRIGHT_BROWSERS_PATH') != browser_path:
-        env['PLAYWRIGHT_BROWSERS_PATH'] = browser_path
-        needs_update = True
-
-    # 2. 检查 args 中是否已经有 --browser chrome 参数
-    if any('@playwright/mcp' in str(a) for a in args):
-        has_browser_arg = any('--browser' in str(a) for a in args)
-        if not has_browser_arg:
-            # 在 @playwright/mcp 后添加 --browser chrome
-            # 注意：@playwright/mcp 只支持 chrome/firefox/webkit/msedge，不支持 chromium
-            new_args = []
-            for a in args:
-                new_args.append(a)
-                if '@playwright/mcp' in str(a):
-                    new_args.append('--browser')
-                    new_args.append('chrome')
-            args = new_args
-            needs_update = True
-
-    if not needs_update:
-        print("MCP_CONFIG_OK")
-        sys.exit(0)
-
-    # 更新配置
-    pw['args'] = args
-    pw['env'] = env
-    mcp['playwright'] = pw
-    data['mcpServers'] = mcp
-
-    with open(file, 'w') as f:
-        json.dump(data, f, indent=4)
-
-    print("MCP_CONFIG_UPDATED")
-    sys.exit(0)
-except Exception as e:
-    print(f"MCP_CONFIG_ERROR: {e}", file=sys.stderr)
-    sys.exit(1)
-PYEOF
-)
-
-    if [[ "$result" == "MCP_CONFIG_OK" ]]; then
-        info "MCP 配置已正确，跳过"
-    elif [[ "$result" == "MCP_CONFIG_UPDATED" ]]; then
-        good "MCP 配置已更新：使用 chrome channel + PLAYWRIGHT_BROWSERS_PATH"
-    else
-        warn "MCP 配置检查失败: $result"
-    fi
-}
-
-verify_playwright() {
-    echo ""
-    info "Playwright 验证:"
-    if check_command npx; then
-        echo "  npx playwright: $(timeout 10 npx playwright --version 2>/dev/null || echo '未安装')"
-        echo "  浏览器缓存: $(ls ~/.cache/ms-playwright/ 2>/dev/null | wc -l) 个"
-        echo "  libnspr4.so: $(ldconfig -p 2>/dev/null | grep -q libnspr4.so && echo '已找到' || echo '未找到')"
-    fi
-    echo ""
-}
-
 # ========== 中文字体 ==========
 check_chinese_fonts() {
     if fc-list :lang=zh 2>/dev/null | grep -q .; then
@@ -512,9 +270,9 @@ main() {
     echo "  1. 安装 MCP 服务器所需的运行时环境"
     echo "     - Node.js - npm/npx-based MCP 服务器"
     echo "     - uv - Python-based MCP 服务器"
-    echo "     - Playwright - 浏览器自动化"
     echo "     - 中文字体"
     echo "  2. 建立符号链接实现配置双向同步"
+    echo "  3. 启动 auto-sync 自动同步服务"
     echo ""
     echo "安装完成后请运行 claudeinit.sh 安装具体的 MCP 服务器"
     echo ""
@@ -522,7 +280,7 @@ main() {
     # 确保 PATH 包含 ~/.local/bin（必须在检查/安装任何工具之前）
     setup_path
 
-    # 配置 sudo 免密（仅针对 apt-get，避免 playwright install-deps 需要密码）
+    # 配置 sudo 免密（仅针对 apt-get，未来可能需要）
     configure_sudo_nopasswd
 
     # Node.js
@@ -544,38 +302,6 @@ main() {
         install_uv
         verify_uv
     fi
-
-    # Playwright
-    section "检测 Playwright"
-    if check_playwright_installed; then
-        warn "跳过 Playwright 安装（已存在）"
-        verify_playwright
-    else
-        info "安装 Playwright CLI..."
-        if npm install -g playwright &>/dev/null; then
-            info "Playwright CLI 安装成功"
-        else
-            warn "Playwright CLI 安装失败，但可通过 npx 使用"
-        fi
-        verify_playwright
-    fi
-
-    # Playwright 浏览器
-    section "检测 Playwright 浏览器"
-    if ls ~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome &>/dev/null || \
-       ls ~/.cache/ms-playwright/chromium_headless_shell-*/chrome-linux64/chrome &>/dev/null; then
-        warn "跳过浏览器安装（已存在）"
-    else
-        install_playwright_browsers
-    fi
-
-    # Playwright 系统依赖
-    install_playwright_deps
-
-    # Playwright MCP 配置
-    configure_playwright_mcp
-
-    verify_playwright
 
     # 中文字体
     section "检测中文字体"
@@ -639,6 +365,14 @@ main() {
         info "MEMORY.md: 仓库中未找到对应目录，跳过"
     fi
 
+    # ========== 启动 auto-sync ==========
+    section "启动 auto-sync"
+    if bash "$SCRIPT_DIR/init-auto-sync.sh" start 2>/dev/null; then
+        good "auto-sync 已启动"
+    else
+        warn "auto-sync 已在运行或启动失败"
+    fi
+
     echo ""
 
     section "安装完成"
@@ -655,6 +389,8 @@ main() {
     echo "  Claude 启动后将自动："
     echo "     1. 运行 hook-status.sh (SessionStart hook)"
     echo "     2. 完成 MCP 服务器安装和配置"
+    echo ""
+    echo "  auto-sync 已后台运行，变更将自动提交到 GitHub"
     echo ""
 }
 

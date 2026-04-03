@@ -64,7 +64,7 @@ except:
 PYEOF
 )
 
-    # 如果 MCP 服务器数量少于预期（假设至少应该有 3 个：tavily, playwright, minimax）
+    # 如果 MCP 服务器数量少于预期（假设至少应该有 3 个：tavily, minimax, 其他）
     if [ "$mcp_count" -lt 3 ] 2>/dev/null; then
         echo -e "${CYAN}[config]${NC} 发现 MCP 服务器未安装，正在配置..."
         if [ -f "$claudeinit" ]; then

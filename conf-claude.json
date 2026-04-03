@@ -17,16 +17,6 @@
       "env": {}
     },
     {
-      "name": "playwright",
-      "description": "浏览器自动化 - 网页截图/抓取/交互",
-      "type": "stdio",
-      "command": "npx",
-      "args": ["@playwright/mcp"],
-      "env": {
-        "PLAYWRIGHT_BROWSERS_PATH": "/home/francis/.cache/ms-playwright"
-      }
-    },
-    {
       "name": "minimax",
       "description": "MiniMax AI - 网络搜索和图片理解（M2.7 编程模型工具）",
       "type": "stdio",
