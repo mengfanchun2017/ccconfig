@@ -65,7 +65,14 @@ if command -v claude &> /dev/null; then
     fi
 else
     print_warning "Claude Code 未安装"
-    print_info "请运行官方安装脚本: curl -fsSL https://claude.ai/install.sh | bash"
+    print_info "正在安装 Claude Code..."
+    curl -fsSL https://claude.ai/install.sh | bash
+    if command -v claude &> /dev/null; then
+        print_success "Claude Code 安装成功!"
+    else
+        print_error "Claude Code 安装失败，请检查错误"
+        exit 1
+    fi
 fi
 
 # -------------------------- 读取 API 配置 --------------------------
