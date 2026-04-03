@@ -43,7 +43,7 @@ git_pull() {
 
 # ========== 检查并安装 MCP ==========
 check_and_install_mcp() {
-    local claude_json="$HOME/.claude.json"
+    local claude_json="$HOME/.claude/settings.json"
     local claudeinit="$SCRIPT_DIR/claudeinit.sh"
 
     if [ ! -f "$claude_json" ]; then
@@ -131,10 +131,10 @@ test_mcp_servers() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[config]${NC} 🔧 MCP 服务器测试："
 
-    local claude_json="$HOME/.claude.json"
+    local claude_json="$HOME/.claude/settings.json"
 
     if [ ! -f "$claude_json" ]; then
-        echo -e "  ${YELLOW}⚠️  ~/.claude.json 不存在${NC}"
+        echo -e "  ${YELLOW}⚠️  ~/.claude/settings.json 不存在${NC}"
         return
     fi
 

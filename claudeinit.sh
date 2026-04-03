@@ -67,7 +67,7 @@ PYEOF
 }
 
 # ========== MCP 检查 ==========
-CLAUDE_JSON="$HOME/.claude/.config.json"
+CLAUDE_JSON="$HOME/.claude/settings.json"
 
 is_registered() {
     python3 - "$CLAUDE_JSON" "$1" << 'PYEOF'

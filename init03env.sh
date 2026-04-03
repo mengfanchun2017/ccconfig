@@ -330,9 +330,9 @@ install_playwright_deps() {
 configure_playwright_mcp() {
     section "配置 Playwright MCP"
 
-    local claude_json="$HOME/.claude.json"
+    local claude_json="$HOME/.claude/settings.json"
     if [[ ! -f "$claude_json" ]]; then
-        warn "~/.claude.json 不存在，跳过 MCP 配置"
+        warn "~/.claude/settings.json 不存在，跳过 MCP 配置"
         return 0
     fi
 
@@ -344,7 +344,7 @@ import json
 import os
 import sys
 
-file = os.path.expanduser("~/.claude.json")
+file = os.path.expanduser("~/.claude/settings.json")
 browser_path = os.path.expanduser("~/.cache/ms-playwright")
 
 try:

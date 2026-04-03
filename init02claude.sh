@@ -10,7 +10,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="$SCRIPT_DIR/conf-init.json"
-CLAUDE_JSON="$HOME/.claude.json"
+CLAUDE_JSON="$HOME/.claude/settings.json"
 CLAUDE_DIR="$HOME/.claude"
 
 # 颜色输出
@@ -87,7 +87,7 @@ mkdir -p "$CLAUDE_DIR"
 
 print_info "写入 Claude Code 配置..."
 
-# 使用 python3 合并 JSON
+# 使用 python3 合并 JSON（写入 settings.json 的 env 结构）
 python3 << PYEOF
 import json
 import os
@@ -99,8 +99,11 @@ try:
 except:
     config = {}
 
-config.update({
-    "hasCompletedOnboarding": True,
+# Claude Code 读取 settings.json 时，LLM 配置应该在 env 对象里
+if 'env' not in config:
+    config['env'] = {}
+
+config['env'].update({
     "ANTHROPIC_BASE_URL": "$BASE_URL",
     "ANTHROPIC_AUTH_TOKEN": "$API_KEY",
     "ANTHROPIC_MODEL": "$MODEL_NAME",
@@ -114,12 +117,13 @@ PYEOF
 
 print_success "Claude Code 配置完成！"
 
-# 复制 hooks 配置到 ~/.claude.json（确保 SessionStart hook 生效）
+# 复制 hooks 配置到 settings.json（确保 SessionStart hook 生效）
 python3 << 'PYEOF'
 import json
 import os
 
 config_file = os.path.expanduser("$CLAUDE_JSON")
+
 hooks_config = {
     "hooks": {
         "SessionStart": [
