@@ -123,7 +123,6 @@ bash ccconfig/claudeinit.sh  # MCP 配置 + 链接检查
 
 | MCP | 命令 | 功能 |
 |-----|------|------|
-| playwright | `npx @playwright/mcp` | 浏览器自动化 |
 | tavily | `npx tavily-mcp` | 网络搜索 |
 | minimax | `uvx minimax-coding-plan-mcp` | MiniMax 编程模型 |
 | minimax-mcp | `uvx minimax-mcp` | MiniMax 多模态 |
