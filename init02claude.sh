@@ -66,7 +66,19 @@ if command -v claude &> /dev/null; then
 else
     print_warning "Claude Code 未安装"
     print_info "正在安装 Claude Code..."
-    curl -fsSL https://claude.ai/install.sh | bash
+
+    # 优先使用官方安装脚本，如果失败则使用 npm 安装
+    if curl -fsSL https://claude.ai/install.sh 2>/dev/null | head -1 | grep -q "^#!/"; then
+        print_info "使用官方安装脚本..."
+        curl -fsSL https://claude.ai/install.sh | bash
+    else
+        print_info "官方脚本不可用，尝试 npm 安装..."
+        npm install -g @anthropic-ai/claude-code 2>/dev/null || {
+            print_error "npm 安装也失败，请检查 Node.js 环境"
+            exit 1
+        }
+    fi
+
     if command -v claude &> /dev/null; then
         print_success "Claude Code 安装成功!"
     else
