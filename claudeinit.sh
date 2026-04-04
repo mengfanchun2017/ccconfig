@@ -253,7 +253,12 @@ do_sync() {
             first_arg=$(echo "$args_str" | awk '{print $1}')
             if [[ -n "$first_arg" ]]; then
                 echo -n "缓存 $name ($first_arg) ... "
-                if timeout 30 npx --yes "$first_arg" --version &>/dev/null; then
+                # 清除旧的 npx 缓存后重新缓存（避免缓存损坏导致静默失败）
+                npx_cache_dir="$HOME/.npm/_npx"
+                if [ -d "$npx_cache_dir" ]; then
+                    rm -rf "$npx_cache_dir" 2>/dev/null || true
+                fi
+                if timeout 60 npx --yes "$first_arg" --version &>/dev/null; then
                     good "✅"
                 else
                     warn "缓存失败（不影响注册）"
