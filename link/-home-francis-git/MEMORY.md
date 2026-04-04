@@ -12,8 +12,9 @@ This file persists across Claude Code conversations. Keep it concise (&lt;200 li
 
 ```
 ccconfig/                    # GitHub: <your-github-username>/ccconfig
+├── ubuntuinit.sh               # 合一初始化脚本（Ubuntu 专用，合并 init01+02+03）
 ├── init01git.sh                # Git + GitHub CLI 环境初始化
-├── init02claude.sh             # Claude Code 安装 + API 配置
+├── init02claude.sh             # Claude Code 安装 + API 配置（官方脚本 fallback npm）
 ├── init03env.sh                # 环境准备 + auto-sync 启动
 ├── init-auto-sync.sh           # 文件变化自动同步到 GitHub
 ├── init-enable-autostart.sh    # auto-sync 自启动配置
@@ -30,16 +31,19 @@ ccconfig/                    # GitHub: <your-github-username>/ccconfig
 
 **新环境初始化流程**：
 ```bash
-# 阶段一：Ubuntu 环境初始化
-# 1. 复制 ccconfig 到 ~/git/
-# 2. 确保 conf-init.json 配置正确
-# 3. 依次运行：
-bash ccconfig/init01git.sh   # Git + gh + 克隆仓库
-bash ccconfig/init02claude.sh  # Claude Code 安装
-bash ccconfig/init03env.sh   # 环境准备 + 符号链接 + auto-sync 启动
+# 方式一：合一脚本（推荐，Ubuntu 专用）
+# 一次性完成所有初始化
+bash ccconfig/ubuntuinit.sh
+
+# 方式二：分步执行（旧方式，保留兼容）
+# 1. Git + gh + 克隆仓库
+bash ccconfig/init01git.sh
+# 2. Claude Code 安装（自动检测 npm fallback）
+bash ccconfig/init02claude.sh
+# 3. Node.js + uv + 符号链接 + auto-sync
+bash ccconfig/init03env.sh
 
 # 阶段二：Claude 初始化（进入 Claude 后）
-# Claude 会参考 claudeinit.sh 进行初始化检查
 bash ccconfig/claudeinit.sh  # MCP 配置 + 链接检查
 ```
 
@@ -149,3 +153,10 @@ GitHub 远程仓库
 1. 记录"初始化claudeinit检查status"触发指令到待办任务
 2. 等待用户在新的 Ubuntu 环境配置完成后说出该指令
 3. 届时将执行：claudeinit.sh → hook-status.sh → 确认四项状态
+
+### 2026-04-04 [Francis_MiPro] - 修复 init02claude + 新增 ubuntuinit.sh
+
+**问题**：官方 `curl https://claude.ai/install.sh | bash` 在某些地区返回 HTML 错误页
+**修复**：Claude Code 改用 npm 安装（`npm install -g @anthropic-ai/claude-code`）
+**新增**：`ubuntuinit.sh` 合一初始化脚本，合并 init01+02+03
+**SessionStart hook**：进入 Claude 后自动触发 `hook-status.sh`，无需手动运行
