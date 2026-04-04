@@ -243,6 +243,26 @@ do_config_keys() {
 
 do_sync() {
     title "双向同步"
+
+    # 预缓存 npx 模块（新环境首次使用 npx 需要先缓存）
+    section "预缓存 npx 模块"
+    while IFS='|' read -r name desc mtype command args_str env_str; do
+        [[ -z "$name" ]] && continue
+        if [[ "$command" == "npx" ]]; then
+            # 提取包名（args 的第一个参数）
+            first_arg=$(echo "$args_str" | awk '{print $1}')
+            if [[ -n "$first_arg" ]]; then
+                echo -n "缓存 $name ($first_arg) ... "
+                if timeout 30 npx --yes "$first_arg" --version &>/dev/null; then
+                    good "✅"
+                else
+                    warn "缓存失败（不影响注册）"
+                fi
+            fi
+        fi
+    done <<< "$McpNames"
+    echo ""
+
     do_install
     echo ""
     do_config_keys
