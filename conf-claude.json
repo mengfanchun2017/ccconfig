@@ -61,6 +61,17 @@
       "command": "node",
       "args": ["/home/francis/git/ccconfig/mcp-status/status-mcp.js"],
       "env": {}
+    },
+    {
+      "name": "feishu",
+      "description": "飞书 - 发送消息、创建文档、管理日程和任务",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@china-mcp/feishu-mcp"],
+      "env": {
+        "FEISHU_APP_ID": "cli_xxxxxxxxxxxx",
+        "FEISHU_APP_SECRET": "xxxxxxxxxxxxxxxxxxxxxxxx"
+      }
     }
   ]
 }
