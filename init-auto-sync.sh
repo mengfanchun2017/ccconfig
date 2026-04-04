@@ -106,8 +106,8 @@ start_watch() {
     echo $notify_pid > "$PID_FILE"
     log "监控已启动 (PID: $notify_pid)"
 
-    # 防抖参数
-    local debounce=3
+    # 防抖参数（秒）
+    local debounce=1
     local last_change=0
     local pending=false
 
