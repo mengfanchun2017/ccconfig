@@ -145,6 +145,7 @@ status MCP 会执行 hook-status.sh 并返回状态输出。
 | octocode | `npx -y octocode-mcp@latest` | GitHub 代码搜索 |
 | supabase | `npx -y @supabase/mcp-server-supabase` | 数据库操作 |
 | status | `node mcp-status/status-mcp.js` | 环境状态（文件链接、auto-sync、MCP） |
+| feishu | `npx -y @china-mcp/feishu-mcp` | 飞书消息、文档、日历、任务 |
 
 ### 管理 MCP
 
@@ -155,6 +156,37 @@ bash ccconfig/claudeinit.sh
 # 查看 MCP 状态
 claude mcp list
 ```
+
+### 飞书 MCP 配置
+
+**Step 1**: 在[飞书开放平台](https://open.feishu.cn)创建企业自建应用，获取 App ID 和 App Secret
+
+**Step 2**: 编辑 `conf-claude.json`，填入真实的 App ID 和 App Secret：
+```json
+{
+  "name": "feishu",
+  "description": "飞书 - 发送消息、创建文档、管理日程和任务",
+  "type": "stdio",
+  "command": "npx",
+  "args": ["-y", "@china-mcp/feishu-mcp"],
+  "env": {
+    "FEISHU_APP_ID": "cli_xxxxxxxxxxxx",
+    "FEISHU_APP_SECRET": "你的真实App Secret"
+  }
+}
+```
+
+**Step 3**: 运行 `bash ccconfig/claudeinit.sh` 安装 MCP
+
+**飞书 MCP 功能**：
+- `feishu_send_message` - 发送文本/富文本/卡片消息
+- `feishu_get_messages` - 获取会话消息历史
+- `feishu_create_doc` - 创建飞书文档
+- `feishu_get_doc` - 读取文档内容
+- `feishu_get_calendar` - 查询日程安排
+- `feishu_create_event` - 创建会议/日程
+- `feishu_create_task` - 创建任务
+- `feishu_list_tasks` - 查看任务列表
 
 ## 同步机制
 
