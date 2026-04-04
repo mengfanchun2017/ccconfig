@@ -5,11 +5,14 @@
 #
 # 合并了：
 #   - init01git.sh (git/gh + 克隆仓库)
+#   - init02claude.sh (Claude Code + API 配置 + Hook)
 #   - init03env.sh (Node.js/uv/字体/符号链接/auto-sync)
-#   - Claude Code 安装（通过 npm）
 #
 # 使用：
 #   bash ccconfig/ubuntuinit.sh
+#
+# 注意：MCP 服务器安装需要在进入 Claude 后手动执行：
+#   bash ccconfig/claudeinit.sh
 # ==============================================
 
 set -e
@@ -21,7 +24,6 @@ LOCAL_BIN="$HOME/.local/bin"
 
 # 版本
 NODE_VERSION="20.11.0"
-UV_VERSION="0.10.12"
 
 # 颜色
 RED='\033[0;31m'
@@ -152,6 +154,7 @@ setup_nodejs() {
         info "下载: $url"
         curl -fsSL "$url" -o /tmp/node.tar.gz
         tar -xzf /tmp/node.tar.gz -C "$HOME/.local/"
+        mkdir -p "$LOCAL_BIN"
         ln -sf "$HOME/.local/node-v${NODE_VERSION}-linux-x64/bin/node" "$LOCAL_BIN/node"
         ln -sf "$HOME/.local/node-v${NODE_VERSION}-linux-x64/bin/npm" "$LOCAL_BIN/npm"
         ln -sf "$HOME/.local/node-v${NODE_VERSION}-linux-x64/bin/npx" "$LOCAL_BIN/npx"
@@ -253,7 +256,81 @@ PYEOF
     success "API 配置完成"
 }
 
-# ========== 6. 符号链接 ==========
+# ========== 6. sudo 免密配置 ==========
+setup_sudo_nopasswd() {
+    section "sudo 免密配置 (apt-get)"
+
+    # 检查是否已有 apt-get 的 NOPASSWD 配置
+    if sudo -n apt-get --version >/dev/null 2>&1; then
+        info "sudo apt-get 已可免密使用，跳过"
+        return 0
+    fi
+
+    local sudoers_file="/etc/sudoers.d/wsl-apt"
+    local config="francis ALL=(ALL) NOPASSWD: /usr/bin/apt-get"
+
+    # 检查文件是否已存在且配置正确
+    if [[ -f "$sudoers_file" ]] && grep -q "NOPASSWD.*apt-get" "$sudoers_file" 2>/dev/null; then
+        info "sudoers 配置已存在，跳过"
+        return 0
+    fi
+
+    info "配置 sudoers 免密 (仅 apt-get)..."
+    echo "$config" | sudo tee "$sudoers_file" >/dev/null 2>&1
+    sudo chmod 440 "$sudoers_file" 2>/dev/null
+
+    if sudo -n apt-get --version >/dev/null 2>&1; then
+        success "sudo apt-get 免密配置成功"
+    else
+        warn "sudo 免密配置失败"
+    fi
+}
+
+# ========== 7. 中文字体 ==========
+setup_fonts() {
+    section "中文字体"
+
+    # 检查是否已有中文字体
+    if fc-list :lang=zh 2>/dev/null | grep -q .; then
+        info "中文字体已安装"
+        return 0
+    fi
+
+    # 优先使用用户级字体安装（无需 sudo）
+    USER_FONTS_DIR="$HOME/.local/share/fonts"
+    FONT_URL="https://github.com/anthtype/wqy/raw/main/fonts/wqy-microhei.ttc"
+
+    mkdir -p "$USER_FONTS_DIR"
+
+    # 1. 先尝试用户级安装（下载字体到用户目录）
+    if command -v curl &>/dev/null; then
+        info "尝试用户级安装中文字体（无需 sudo）..."
+        if curl -fsSL "$FONT_URL" -o "$USER_FONTS_DIR/wqy-microhei.ttc" 2>/dev/null; then
+            if fc-cache -f "$USER_FONTS_DIR" 2>/dev/null; then
+                success "字体已安装到 $USER_FONTS_DIR"
+                return 0
+            else
+                warn "fc-cache 失败，但字体文件已下载"
+                return 0
+            fi
+        else
+            warn "用户级下载失败，尝试 sudo 安装"
+        fi
+    fi
+
+    # 2. 尝试 sudo -n（非交互模式，免密）
+    if sudo -n apt-get install -y fonts-wqy-microhei fontconfig 2>/dev/null; then
+        success "系统字体安装成功"
+        fc-cache -f 2>/dev/null
+        return 0
+    fi
+
+    # 3. 都失败了
+    warn "自动安装失败，需要手动安装:"
+    echo "  sudo apt-get install fonts-wqy-microhei fontconfig"
+}
+
+# ========== 8. 符号链接 ==========
 setup_symlinks() {
     section "符号链接"
 
@@ -294,7 +371,7 @@ setup_symlinks() {
     fi
 }
 
-# ========== 7. auto-sync ==========
+# ========== 9. auto-sync ==========
 setup_autosync() {
     section "auto-sync"
 
@@ -316,7 +393,7 @@ setup_autosync() {
     fi
 }
 
-# ========== 8. SessionStart Hook ==========
+# ========== 10. SessionStart Hook ==========
 setup_hook() {
     section "SessionStart Hook"
 
@@ -368,10 +445,11 @@ main() {
     echo "  3. uv (Python)"
     echo "  4. Claude Code (npm 安装)"
     echo "  5. Claude API 配置"
-    echo "  6. 符号链接"
-    echo "  7. auto-sync"
-    echo "  8. SessionStart hook"
-    echo "  9. MCP 服务器安装"
+    echo "  6. sudo 免密配置"
+    echo "  7. 中文字体安装"
+    echo "  8. 符号链接"
+    echo "  9. auto-sync"
+    echo " 10. SessionStart hook"
     echo ""
 
     # 确保 ~/.local/bin 在 PATH 中
@@ -385,31 +463,28 @@ main() {
     setup_uv
     setup_claude_code
     setup_claude_api
+    setup_sudo_nopasswd
+    setup_fonts
     setup_symlinks
     setup_autosync
     setup_hook
-
-    # ========== 安装 MCP 服务器 ==========
-    section "安装 MCP 服务器"
-
-    info "正在安装 MCP 服务器..."
-    if [ -f "$SCRIPT_DIR/claudeinit.sh" ]; then
-        if bash "$SCRIPT_DIR/claudeinit.sh" 2>&1; then
-            success "MCP 服务器安装完成"
-        else
-            warn "MCP 服务器安装遇到问题，可以稍后运行 bash ccconfig/claudeinit.sh 修复"
-        fi
-    else
-        warn "claudeinit.sh 不存在，跳过 MCP 安装"
-    fi
 
     section "初始化完成"
     echo ""
     success "所有组件安装完成！"
     echo ""
-    echo "下一步："
-    echo "  进入 Claude Code: claude"
-    echo "  查看状态: 在 Claude 中说'运行 status 工具'"
+    echo "========================================"
+    echo "  📋 下一步"
+    echo "========================================"
+    echo ""
+    echo "  1. 进入 Claude Code:"
+    echo "     claude"
+    echo ""
+    echo "  2. 在 Claude 中执行 MCP 安装:"
+    echo "     bash ccconfig/claudeinit.sh"
+    echo ""
+    echo "  3. 查看状态（在 Claude 中）:"
+    echo "     说'运行 status 工具'"
     echo ""
 }
 
