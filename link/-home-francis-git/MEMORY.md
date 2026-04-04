@@ -171,3 +171,9 @@ GitHub 远程仓库
 **解决**：创建 `mcp-status/status-mcp.js` 提供 status 工具
 **用法**：在 Claude 中说"运行 status 工具"即可查看环境状态
 **注意**：SessionStart hook 仍然会在后台运行（执行 git pull 等），但不显示输出
+
+### 2026-04-04 [Francis_MiPro] - status MCP 改为自动显示状态
+
+**改进**：status-mcp.js 在 MCP 初始化完成后（notifications/initialized），自动发送 `notifications/message` 通知来在对话中显示状态
+**目的**：让用户每次进入 Claude 时自动看到环境状态输出
+**注意**：需要重启 Claude Code 加载更新后的 MCP
