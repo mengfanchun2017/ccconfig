@@ -10,7 +10,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="$SCRIPT_DIR/conf-init.json"
-CLAUDE_JSON="$HOME/.claude/settings.json"
+CLAUDE_JSON="$HOME/.claude.json"
 CLAUDE_DIR="$HOME/.claude"
 
 # 颜色输出
@@ -106,7 +106,8 @@ mkdir -p "$CLAUDE_DIR"
 
 print_info "写入 Claude Code 配置..."
 
-# 使用 python3 合并 JSON（写入 settings.json 的 env 结构）
+# Claude Code 读取 ~/.claude.json，不是 settings.json
+# 所以配置必须写入 ~/.claude.json
 python3 << PYEOF
 import json
 import os
@@ -118,7 +119,7 @@ try:
 except:
     config = {}
 
-# Claude Code 读取 settings.json 时，LLM 配置应该在 env 对象里
+# Claude Code 读取 ~/.claude.json，LLM 配置在 env 对象里
 if 'env' not in config:
     config['env'] = {}
 
@@ -129,20 +130,7 @@ config['env'].update({
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
 })
 
-with open(config_file, 'w') as f:
-    json.dump(config, f, indent=4)
-print("ok")
-PYEOF
-
-print_success "Claude Code 配置完成！"
-
-# 复制 hooks 配置到 settings.json（确保 SessionStart hook 生效）
-python3 << 'PYEOF'
-import json
-import os
-
-config_file = os.path.expanduser("$CLAUDE_JSON")
-
+# SessionStart hook
 hooks_config = {
     "hooks": {
         "SessionStart": [
@@ -159,20 +147,14 @@ hooks_config = {
     }
 }
 
-try:
-    with open(config_file, 'r') as f:
-        config = json.load(f)
-except:
-    config = {}
-
-# 合并 hooks（不覆盖已存在的 hooks）
+# 合并 hooks
 if 'hooks' not in config:
     config['hooks'] = hooks_config['hooks']
 
 with open(config_file, 'w') as f:
     json.dump(config, f, indent=4)
-print("hooks 配置已添加")
+print("配置已写入 ~/.claude.json")
 PYEOF
 
+print_success "Claude Code 配置完成！"
 echo ""
-print_info "运行 init03env.sh 完成环境配置"
