@@ -219,12 +219,16 @@ setup_claude_api() {
     info "API: $BASE_URL"
     info "模型: $MODEL_NAME"
 
-    # 写入配置
+    # Claude Code 读取 ~/.claude.json，不是 settings.json
+    # 所以配置必须写入 ~/.claude.json
+    CLAUDE_JSON="$HOME/.claude.json"
+
     python3 << PYEOF
 import json
 import os
 
-config_file = os.path.expanduser("$CLAUDE_DIR/settings.json")
+# Claude Code 实际读取的是 ~/.claude.json
+config_file = os.path.expanduser("$CLAUDE_JSON")
 try:
     with open(config_file, 'r') as f:
         config = json.load(f)
@@ -243,7 +247,7 @@ config['env'].update({
 
 with open(config_file, 'w') as f:
     json.dump(config, f, indent=4)
-print("API 配置已写入")
+print("API 配置已写入 ~/.claude.json")
 PYEOF
 
     success "API 配置完成"
@@ -316,14 +320,17 @@ setup_autosync() {
 setup_hook() {
     section "SessionStart Hook"
 
-    # 将 hook-status.sh 命令写入 settings.json
+    # Claude Code 读取 ~/.claude.json，不是 settings.json
+    # 所以 hooks 必须写入 ~/.claude.json
+    CLAUDE_JSON="$HOME/.claude.json"
     HOOK_CMD="bash $SCRIPT_DIR/hook-status.sh"
 
     python3 << PYEOF
 import json
 import os
 
-config_file = os.path.expanduser("$CLAUDE_DIR/settings.json")
+# Claude Code 实际读取的是 ~/.claude.json
+config_file = os.path.expanduser("$CLAUDE_JSON")
 try:
     with open(config_file, 'r') as f:
         config = json.load(f)
@@ -343,7 +350,7 @@ config['hooks']['SessionStart'] = [{
 
 with open(config_file, 'w') as f:
     json.dump(config, f, indent=4)
-print("Hook 已配置")
+print("Hook 已写入 ~/.claude.json")
 PYEOF
 
     success "SessionStart hook 已配置"
