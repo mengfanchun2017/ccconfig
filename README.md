@@ -75,35 +75,40 @@ ccconfig/
 
 ## 新环境初始化流程
 
-### 阶段一：Ubuntu 环境初始化（直接执行脚本）
+### 合一脚本（推荐）
 
 ```bash
-# 1. 复制 ccconfig 到 ~/git/
-# 2. 确保 conf-init.json 配置正确
-# 3. 依次运行：
-bash ccconfig/init01git.sh   # Git + gh + 克隆仓库
-bash ccconfig/init02claude.sh  # Claude Code 安装
-bash ccconfig/init03env.sh   # 环境准备 + 符号链接 + auto-sync 启动
+# 一键初始化所有组件
+bash ccconfig/ubuntuinit.sh
 ```
 
-### 阶段二：Claude 初始化（进入 Claude Code 后执行）
+ubuntuinit.sh 会依次完成：
+1. Git + GitHub CLI + 克隆仓库
+2. Node.js + npm
+3. uv (Python)
+4. Claude Code (npm 安装)
+5. Claude API 配置
+6. 符号链接
+7. auto-sync
+8. SessionStart hook
+9. **MCP 服务器安装（包括 status MCP）**
+
+### 分步执行（旧方式）
 
 ```bash
-# 启动 Claude Code
-claude
-
-# 运行 MCP 初始化（如需）
-bash ccconfig/claudeinit.sh
+bash ccconfig/init01git.sh   # Git + gh + 克隆仓库
+bash ccconfig/init02claude.sh  # Claude Code 安装
+bash ccconfig/init03env.sh   # 环境准备 + 符号链接 + auto-sync
 ```
 
 ### 查看状态
 
-Claude Code 启动后，SessionStart hook 会自动运行状态检查（静默执行，不显示输出）。
+```bash
+# 进入 Claude 后
+"运行 status 工具"
+```
 
-**查看状态的方法**：在 Claude 中让 Claude 调用 status 工具，例如：
-- "运行 status 工具" 或 "查看环境状态"
-
-status MCP 服务器会执行 hook-status.sh 并返回状态输出。
+status MCP 会执行 hook-status.sh 并返回状态输出。
 
 ## 配置文件说明
 
