@@ -33,20 +33,12 @@ ccconfig/                    # GitHub: <your-github-username>/ccconfig
 
 **新环境初始化流程**：
 ```bash
-# 方式一：合一脚本（推荐，Ubuntu 专用）
-# 一次性完成所有初始化
+# 阶段一：终端执行（不需要 Claude 运行）
+# 一次性完成所有环境初始化
 bash ccconfig/ubuntuinit.sh
 
-# 方式二：分步执行（旧方式，保留兼容）
-# 1. Git + gh + 克隆仓库
-bash ccconfig/init01git.sh
-# 2. Claude Code 安装（自动检测 npm fallback）
-bash ccconfig/init02claude.sh
-# 3. Node.js + uv + 符号链接 + auto-sync
-bash ccconfig/init03env.sh
-
-# 阶段二：Claude 初始化（进入 Claude 后）
-bash ccconfig/claudeinit.sh  # MCP 配置 + 链接检查
+# 阶段二：进入 Claude 后手动执行
+bash ccconfig/claudeinit.sh  # MCP 安装 + 链接检查
 ```
 
 ---
