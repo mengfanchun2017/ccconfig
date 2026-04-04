@@ -18,8 +18,10 @@ ccconfig/                    # GitHub: <your-github-username>/ccconfig
 ├── init03env.sh                # 环境准备 + auto-sync 启动
 ├── init-auto-sync.sh           # 文件变化自动同步到 GitHub
 ├── init-enable-autostart.sh    # auto-sync 自启动配置
-├── hook-status.sh              # 状态检查（SessionStart hook 自动运行）
-├── claudeinit.sh               # MCP 服务器安装与配置（进入 Claude 后运行）
+├── hook-status.sh              # 状态检查（被 MCP 和 SessionStart hook 调用）
+├── claudeinit.sh               # MCP 服务器安装与配置
+├── mcp-status/                 # 状态 MCP 服务器
+│   └── status-mcp.js          # 提供 status 工具
 ├── conf-init.json              # 初始化配置（Git/API），init01-03 使用
 ├── conf-claude.json            # MCP 服务器配置
 └── link/                       # 符号链接文件目录
@@ -159,4 +161,11 @@ GitHub 远程仓库
 **问题**：官方 `curl https://claude.ai/install.sh | bash` 在某些地区返回 HTML 错误页
 **修复**：Claude Code 改用 npm 安装（`npm install -g @anthropic-ai/claude-code`）
 **新增**：`ubuntuinit.sh` 合一初始化脚本，合并 init01+02+03
-**SessionStart hook**：进入 Claude 后自动触发 `hook-status.sh`，无需手动运行
+
+### 2026-04-04 [Francis_MiPro] - 修复 SessionStart hook 输出不可见问题
+
+**问题**：SessionStart hook 执行了但不显示输出给用户（Claude Code 设计如此）
+**原因**：Claude Code 的 command hook 设计为静默运行
+**解决**：创建 `mcp-status/status-mcp.js` 提供 status 工具
+**用法**：在 Claude 中说"运行 status 工具"即可查看环境状态
+**注意**：SessionStart hook 仍然会在后台运行（执行 git pull 等），但不显示输出
