@@ -371,6 +371,7 @@ main() {
     echo "  6. 符号链接"
     echo "  7. auto-sync"
     echo "  8. SessionStart hook"
+    echo "  9. MCP 服务器安装"
     echo ""
 
     # 确保 ~/.local/bin 在 PATH 中
@@ -388,13 +389,27 @@ main() {
     setup_autosync
     setup_hook
 
+    # ========== 安装 MCP 服务器 ==========
+    section "安装 MCP 服务器"
+
+    info "正在安装 MCP 服务器..."
+    if [ -f "$SCRIPT_DIR/claudeinit.sh" ]; then
+        if bash "$SCRIPT_DIR/claudeinit.sh" 2>&1; then
+            success "MCP 服务器安装完成"
+        else
+            warn "MCP 服务器安装遇到问题，可以稍后运行 bash ccconfig/claudeinit.sh 修复"
+        fi
+    else
+        warn "claudeinit.sh 不存在，跳过 MCP 安装"
+    fi
+
     section "初始化完成"
     echo ""
     success "所有组件安装完成！"
     echo ""
     echo "下一步："
     echo "  进入 Claude Code: claude"
-    echo "  进入后将自动执行 SessionStart hook 检查状态"
+    echo "  查看状态: 在 Claude 中说'运行 status 工具'"
     echo ""
 }
 
