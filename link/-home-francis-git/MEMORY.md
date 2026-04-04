@@ -123,7 +123,7 @@ GitHub 远程仓库
 ## 待办任务
 
 ### 初始化触发指令
-**触发关键词**: "初始化claudeinit检查status"
+**触发关键词**: "新环境初始化"
 
 当用户在新 Ubuntu 环境说完这句话后，执行以下操作：
 1. 运行 `bash ccconfig/claudeinit.sh` 配置所有 MCP
