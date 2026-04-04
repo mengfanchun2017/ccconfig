@@ -118,6 +118,20 @@ GitHub 远程仓库
 
 ---
 
+---
+
+## 待办任务
+
+### 初始化触发指令
+**触发关键词**: "初始化claudeinit检查status"
+
+当用户在新 Ubuntu 环境说完这句话后，执行以下操作：
+1. 运行 `bash ccconfig/claudeinit.sh` 配置所有 MCP
+2. 运行 `bash ccconfig/hook-status.sh` 检查状态
+3. 确认结果：文件链接 ✅、sync 自动同步进程 ✅、MCP 配置 ✅、记忆最新 ✅
+
+---
+
 ## Session Logs (会话记录)
 
 ### 2026-04-02 [Francis_MiPro] - ccconfig 重构
@@ -128,3 +142,10 @@ GitHub 远程仓库
 3. memory 目录改名为 link
 4. 更新所有文档和引用
 5. 中文字体安装优化（免密失败才让我输入密码）
+
+### 2026-04-04 [Francis_MiPro] - 添加初始化触发指令
+
+**完成内容**：
+1. 记录"初始化claudeinit检查status"触发指令到待办任务
+2. 等待用户在新的 Ubuntu 环境配置完成后说出该指令
+3. 届时将执行：claudeinit.sh → hook-status.sh → 确认四项状态
