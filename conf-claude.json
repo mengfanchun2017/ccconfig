@@ -53,6 +53,14 @@
       "command": "npx",
       "args": ["-y", "@supabase/mcp-server-supabase", "--project-ref", "<your-supabase-project-id>", "--access-token", "9e0bfb34-67d9-4b34-bd5a-35ff75d443e9"],
       "env": {}
+    },
+    {
+      "name": "status",
+      "description": "环境状态 - 显示文件链接、auto-sync、MCP 服务器状态",
+      "type": "stdio",
+      "command": "node",
+      "args": ["/home/francis/git/ccconfig/mcp-status/status-mcp.js"],
+      "env": {}
     }
   ]
 }

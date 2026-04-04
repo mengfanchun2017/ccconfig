@@ -11,8 +11,10 @@ ccconfig/
 ├── init03env.sh           # 环境准备 + auto-sync 启动
 ├── init-auto-sync.sh      # 文件变化自动同步到 GitHub
 ├── init-enable-autostart.sh # auto-sync 自启动配置
-├── hook-status.sh         # 状态检查（SessionStart hook 自动运行）
-├── claudeinit.sh         # MCP 服务器安装与配置（进入 Claude 后运行）
+├── hook-status.sh         # 状态检查（供 MCP 调用）
+├── claudeinit.sh         # MCP 服务器安装与配置
+├── mcp-status/            # 状态 MCP 服务器
+│   └── status-mcp.js     # 提供 status 工具
 ├── conf-init.json         # 初始化配置（Git/API），init01-03 使用
 ├── conf-claude.json       # MCP 服务器配置
 ├── link/                  # 符号链接文件目录
@@ -87,12 +89,21 @@ bash ccconfig/init03env.sh   # 环境准备 + 符号链接 + auto-sync 启动
 ### 阶段二：Claude 初始化（进入 Claude Code 后执行）
 
 ```bash
-# 启动 Claude Code，它会自动运行 hook-status.sh
-# 然后让 Claude 参考 claudeinit.sh 进行初始化检查
+# 启动 Claude Code
+claude
 
-# 或者手动运行：
-bash ccconfig/claudeinit.sh  # MCP 配置 + 链接检查
+# 运行 MCP 初始化（如需）
+bash ccconfig/claudeinit.sh
 ```
+
+### 查看状态
+
+Claude Code 启动后，SessionStart hook 会自动运行状态检查（静默执行，不显示输出）。
+
+**查看状态的方法**：在 Claude 中让 Claude 调用 status 工具，例如：
+- "运行 status 工具" 或 "查看环境状态"
+
+status MCP 服务器会执行 hook-status.sh 并返回状态输出。
 
 ## 配置文件说明
 
@@ -128,6 +139,7 @@ bash ccconfig/claudeinit.sh  # MCP 配置 + 链接检查
 | minimax-mcp | `uvx minimax-mcp` | MiniMax 多模态 |
 | octocode | `npx -y octocode-mcp@latest` | GitHub 代码搜索 |
 | supabase | `npx -y @supabase/mcp-server-supabase` | 数据库操作 |
+| status | `node mcp-status/status-mcp.js` | 环境状态（文件链接、auto-sync、MCP） |
 
 ### 管理 MCP
 
@@ -167,8 +179,8 @@ bash ccconfig/init-auto-sync.sh status   # 状态
 
 ## 常见问题
 
-### Q: 为什么 SessionStart hook 不生效？
-A: 确保 hooks 配置在 `~/.claude.json` 的顶层，而不是在 `link/settings.json` 中。运行 `bash ccconfig/claudeinit.sh` 修复。
+### Q: SessionStart hook 执行了但没看到输出？
+A: Claude Code 的 SessionStart hook 设计为静默运行，输出不显示给用户。hook 内部仍会执行状态检查和 git pull。如需查看状态，请在 Claude 中说"运行 status 工具"来调用 status MCP。
 
 ### Q: 如何添加新的 MCP 服务器？
 A: 在 `conf-claude.json` 中添加配置，然后运行 `bash ccconfig/claudeinit.sh`。
