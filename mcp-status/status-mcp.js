@@ -126,7 +126,26 @@ function handleMessage(msg) {
     }
 
     if (msg.method === 'notifications/initialized') {
-        return null; // 不需要响应
+        // 初始化完成后，自动发送状态通知
+        const { execSync } = require('child_process');
+        try {
+            const output = execSync('bash /home/francis/git/ccconfig/hook-status.sh', {
+                encoding: 'utf8',
+                timeout: 30000
+            });
+            // 发送 logMessage 通知显示状态
+            process.stdout.write(JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'notifications/message',
+                params: {
+                    level: 'info',
+                    data: output
+                }
+            }) + '\n');
+        } catch (err) {
+            // ignore
+        }
+        return; // notification 不需要响应
     }
 
     return null;

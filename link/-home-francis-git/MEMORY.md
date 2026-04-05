@@ -169,3 +169,29 @@ GitHub 远程仓库
 **改进**：status-mcp.js 在 MCP 初始化完成后（notifications/initialized），自动发送 `notifications/message` 通知来在对话中显示状态
 **目的**：让用户每次进入 Claude 时自动看到环境状态输出
 **注意**：需要重启 Claude Code 加载更新后的 MCP
+
+### 2026-04-05 [Francis_MiPro] - 飞书集成完整配置
+
+**完成内容**：
+1. **feishu-claude-code (Bridge) 配置完成**
+   - WebSocket 长连接飞书机器人
+   - App ID: <your-feishu-app-id>
+   - 可在飞书里和我对话
+
+2. **lark-cli + Skills 配置完成**
+   - lark-cli 用户 OAuth 授权成功（Francis 账号）
+   - 20 个 lark-* Skills 安装完成
+   - Skills 存放位置：~/.agents/skills/
+
+3. **飞书文档架构详解文档创建**
+   - 文档已创建：https://www.feishu.cn/docx/EeFPdQtGkoUNhNx4YQccomj9nkd
+   - 存放在指定目录：IFngftQdzlUhW7db6AOcZvYxnrg
+
+4. **技术架构说明**
+   - MCP：标准协议，Claude 直接调用（Tavily/Supabase/MiniMax等）
+   - Skill：封装 lark-cli 的说明书，让我读取后执行
+   - Bridge：Python WebSocket 程序，实现飞书双向对话
+
+5. **文档目录已配置**
+   - folder-token: IFngftQdzlUhW7db6AOcZvYxnrg
+   - 所有新建文档都会放在这个目录
