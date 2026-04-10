@@ -70,14 +70,31 @@ PYEOF
 CLAUDE_JSON="$HOME/.claude.json"
 
 is_registered() {
-    python3 - "$CLAUDE_JSON" "$1" << 'PYEOF'
+    python3 - "$CLAUDE_JSON" "$MCP_CONF_FILE" "$1" << 'PYEOF'
 import json, sys
 try:
-    with open(sys.argv[1], 'r') as f:
+    claude_json = sys.argv[1]
+    conf_json = sys.argv[2]
+    mcp_name = sys.argv[3].lower()
+
+    # 检查 ~/.claude.json
+    with open(claude_json, 'r') as f:
         data = json.load(f)
-    mcp_name = sys.argv[2].lower()
     mcp_servers = data.get('mcpServers', {})
-    print('true' if mcp_name in mcp_servers else 'false')
+    if mcp_name in mcp_servers:
+        print('true')
+        return
+
+    # 检查 conf-claude.json（配置源）
+    with open(conf_json, 'r') as f:
+        conf_data = json.load(f)
+    mcp_servers_conf = conf_data.get('mcp_servers', [])
+    for server in mcp_servers_conf:
+        if server.get('name', '').lower() == mcp_name:
+            print('true')
+            return
+
+    print('false')
 except:
     print('false')
 PYEOF
@@ -133,24 +150,47 @@ PYEOF
 sync_to_settings() {
     local settings_file="$1"
 
-    python3 - "$CLAUDE_JSON" "$settings_file" << 'PYEOF'
+    python3 - "$CLAUDE_JSON" "$MCP_CONF_FILE" "$settings_file" << 'PYEOF'
 import json, sys
 
 try:
     claude_json = sys.argv[1]
-    settings_file = sys.argv[2]
+    conf_json = sys.argv[2]
+    settings_file = sys.argv[3]
 
     # 读取 ~/.claude.json
     with open(claude_json, 'r') as f:
         claude_data = json.load(f)
 
+    # 读取 conf-claude.json（完整配置源）
+    with open(conf_json, 'r') as f:
+        conf_data = json.load(f)
+
     # 读取 settings.json
     with open(settings_file, 'r') as f:
         settings_data = json.load(f)
 
-    # 同步 mcpServers
-    if 'mcpServers' in claude_data:
-        settings_data['mcpServers'] = claude_data['mcpServers']
+    # 构建完整的 mcpServers 配置（从 conf-claude.json）
+    mcp_servers = {}
+    for server in conf_data.get('mcp_servers', []):
+        name = server.get('name', '')
+        if not name:
+            continue
+        entry = {
+            'command': server.get('command', ''),
+            'args': server.get('args', []),
+            'env': server.get('env', {})
+        }
+        # 如果 ~/.claude.json 中有该 MCP 的额外配置，合并之
+        if name in claude_data.get('mcpServers', {}):
+            existing = claude_data['mcpServers'][name]
+            if existing.get('env'):
+                entry['env'].update(existing['env'])
+            if existing.get('args'):
+                entry['args'] = existing['args']
+        mcp_servers[name] = entry
+
+    settings_data['mcpServers'] = mcp_servers
 
     # 同步 hooks
     if 'hooks' in claude_data:
