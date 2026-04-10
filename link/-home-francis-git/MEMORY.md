@@ -195,3 +195,18 @@ GitHub 远程仓库
 5. **文档目录已配置**
    - folder-token: IFngftQdzlUhW7db6AOcZvYxnrg
    - 所有新建文档都会放在这个目录
+
+### 2026-04-10 [Francis_MiPro] - 修复 claudeinit.sh 同步逻辑
+
+**问题**：
+- `is_registered()` 只检查 `~/.claude.json`，而配置源是 `conf-claude.json`
+- 导致 conf-claude.json 中定义的 MCP 被错误判定为"未注册"
+- `sync_to_settings()` 只同步 `~/.claude.json` 中的 mcpServers，不完整
+
+**修复**：
+1. 修改 `is_registered()` 同时检查 `~/.claude.json` 和 `conf-claude.json`
+2. 修改 `sync_to_settings()` 从 `conf-claude.json` 获取完整 mcpServers 配置
+3. 更新 `link/settings.json` 添加所有 MCP 的完整配置
+4. 添加 feishu、tavily、supabase 等的 mcpTools 配置
+
+**验证**：重启 Claude Code 后所有 MCP 连接正常
