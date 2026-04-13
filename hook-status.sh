@@ -113,17 +113,17 @@ show_recent_pushes() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[config]${NC} 📋 最近推送记录："
 
-    # 获取最近3次推送（减少行数，避免折叠）
+    # 获取最近1次推送
     local count=0
     while IFS= read -r line; do
         if [ -n "$line" ]; then
             echo -e "  ${YELLOW}•${NC} $line"
             count=$((count + 1))
         fi
-        if [ $count -ge 3 ]; then
+        if [ $count -ge 1 ]; then
             break
         fi
-    done < <(git log --oneline -10 --format="%s" 2>/dev/null | head -3)
+    done < <(git log --oneline -10 --format="%s" 2>/dev/null | head -1)
 }
 
 # ========== MCP 服务器真实测试 ==========
