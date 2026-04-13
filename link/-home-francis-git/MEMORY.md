@@ -82,6 +82,17 @@ bash ccconfig/claudeinit.sh  # MCP 安装 + 链接检查
   - 英文搜索：用 `tavily search` MCP
   - 两种语言都搜可以结合结果，信息更全面
   - tavily 需要 `TAVILY_API_KEY`，在 `conf-claude.json` 中配置
+- **飞书文档创建规则**:
+  - feishu-mcp 创建文档：用 `feishu_create_doc`，内容是纯文本 markdown（不渲染）
+  - lark-cli 创建文档：用 `lark-cli docs +create --markdown "$(cat file)" --as user`，支持飞书原生 markdown 渲染
+  - 用户身份文档：用 `lark-cli docs +create --as user --folder-token xxx`，文档在用户个人空间
+  - 应用身份文档：feishu-mCP 创建，文档在应用"cc编程大虾"空间
+- **lark-cli 配置**:
+  - 安装：`npm install -g @larksuite/cli`
+  - PATH 修复：`ln -s ~/.local/node-v20.11.0-linux-x64/bin/lark-cli ~/.local/bin/lark-cli`
+  - 初始化：`echo "secret" | lark-cli config init --app-id cli_xxx --app-secret-stdin --brand feishu`
+  - 用户授权：`lark-cli auth login --recommend`
+  - 用户身份创建文档：`lark-cli docs +create --as user --folder-token xxx --title "标题" --markdown "$(cat file)"`
 
 ---
 
@@ -224,4 +235,22 @@ bash ccconfig/claudeinit.sh  # MCP 安装 + 链接检查
    - `~/.claude/.config.json` → link/.config.json
    - `~/CLAUDE.md` → link/CLAUDE.md
 3. 更新 README.md 和 MEMORY.md 反映新架构
+
+### 2026-04-13 [Francis_MiPro] - lark-cli 用户身份配置完成
+
+**问题**：feishu-mcp 创建的文档归属"cc编程大虾"应用，不是用户个人
+
+**解决方案**：lark-cli 支持 `--as user` 以用户身份创建文档
+
+**完成内容**：
+1. 修复 lark-cli PATH 问题：创建符号链接
+2. 使用已有应用凭证初始化 lark-cli
+3. 完成用户 OAuth 授权（Francis 账号）
+4. 创建"ClaudeCode"文件夹（token: VB6nflC8JlFYhcdXNric6vORndg）
+5. 创建配置指南文档：https://www.feishu.cn/docx/TpzedSvLhortLbx4EXYc5JfUnQx
+
+**飞书文档创建最佳实践**：
+- feishu-mCP：适合聊天、消息收发，内容创建用 lark-cli
+- lark-cli + `--as user`：用户身份创建，文档在个人空间，markdown 会被飞书渲染
+- 飞书 OAuth 授权管理：https://account.feishu.cn/ → 账号与安全 → 应用授权管理
 
