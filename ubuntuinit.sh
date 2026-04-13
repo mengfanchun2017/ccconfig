@@ -358,6 +358,7 @@ setup_symlinks() {
     }
 
     setup_link "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/link/settings.json" "settings.json"
+    setup_link "$CLAUDE_DIR/.config.json" "$SCRIPT_DIR/link/.config.json" ".config.json"
     setup_link "$HOME/CLAUDE.md" "$SCRIPT_DIR/link/CLAUDE.md" "CLAUDE.md"
 
     # MEMORY.md
