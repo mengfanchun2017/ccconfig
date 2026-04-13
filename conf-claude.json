@@ -13,8 +13,10 @@
       "description": "网络搜索 - 支持中文搜索",
       "type": "stdio",
       "command": "npx",
-      "args": ["tavily-mcp"],
-      "env": {}
+      "args": ["-y", "tavily-mcp"],
+      "env": {
+        "TAVILY_API_KEY": "请到 https://tavily.com 注册获取 API Key 并填入此处"
+      }
     },
     {
       "name": "minimax",
