@@ -16,8 +16,9 @@ ccconfig/
 ├── conf-ubuntu.json         # ubuntuinit.sh 配置（Git/API）
 ├── conf-claude.json         # claudeinit.sh 配置（MCP）
 ├── link/                    # 符号链接文件目录
-│   ├── CLAUDE.md            # 权限白名单
-│   ├── settings.json         # Claude Code 设置
+│   ├── CLAUDE.md            # 全局 AI 指令
+│   ├── .config.json         # MCP 配置（用户状态）
+│   ├── settings.json         # Claude Code 设置（权限/环境变量/hooks）
 │   └── -home-francis-git/  # 项目记忆
 │       └── MEMORY.md
 └── .gitignore
