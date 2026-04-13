@@ -314,15 +314,27 @@ do_sync() {
     echo ""
     # 同步到 settings.json
     section "同步到 GitHub"
-    info "同步 mcpServers 和 hooks 到 settings.json..."
+    info "同步 mcpServers 和 hooks..."
     SETTINGS_FILE="$SCRIPT_DIR/link/settings.json"
+    CONFIG_FILE="$SCRIPT_DIR/link/.config.json"
+
+    # 同步到 settings.json
     result=$(sync_to_settings "$SETTINGS_FILE")
     if [[ "$result" == "ok" ]]; then
         good "✅ 已同步到 settings.json"
-        info "GitHub 同步将在下次 auto-sync 或手动 push 时完成"
     else
         bad "❌ 同步失败: $result"
     fi
+
+    # 同步到 .config.json（Claude Code 实际读取这个文件）
+    result=$(sync_to_settings "$CONFIG_FILE")
+    if [[ "$result" == "ok" ]]; then
+        good "✅ 已同步到 .config.json"
+    else
+        bad "❌ 同步失败: $result"
+    fi
+
+    info "GitHub 同步将在下次 auto-sync 或手动 push 时完成"
 }
 
 # 执行对应操作
