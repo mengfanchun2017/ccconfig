@@ -1,14 +1,14 @@
 #!/bin/bash
-# Claude Config - 状态检查与 Git 拉取
+# Claude Config - 状态检查
 #
-# 功能：
-# 1. 自动从 GitHub 拉取最新配置
-# 2. 检查符号链接状态（含 MEMORY.md）
-# 3. 显示最近 5 次推送记录
-# 4. MCP 服务器真实调用测试
+# 检查项：
+# 1. 配置文件符号链接
+# 2. auto-sync 状态
+# 3. GitHub 最后推送
+# 4. MEMORY 最后更新
+# 5. MCP 服务器状态
 #
-# 用途：每次启动终端时自动运行（通过 /etc/profile.d/ 或 ~/.bashrc）
-#       以及通过 SessionStart hook 在 Claude 启动时运行
+# 用途：通过 SessionStart hook 在 Claude 启动时运行
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$SCRIPT_DIR"
@@ -23,222 +23,191 @@ NC='\033[0m'
 # ========== Git 拉取 ==========
 git_pull() {
     cd "$REPO_DIR"
-
-    # 检查是否是 git 仓库
     if [ ! -d ".git" ]; then
         return 0
     fi
-
-    # 尝试拉取
     if git fetch origin main 2>/dev/null; then
         local updates=$(git rev HEAD..origin/main 2>/dev/null | wc -l)
         if [ "$updates" -gt 0 ]; then
-            echo -e "${CYAN}[config]${NC} 发现 $updates 个更新，正在拉取..."
-            if git pull --rebase origin main 2>/dev/null; then
-                echo -e "${GREEN}[config]${NC} ✅ 配置已更新"
-            fi
+            echo -e "${CYAN}[Git]${NC} 发现 $updates 个更新，正在拉取..."
+            git pull --rebase origin main 2>/dev/null
         fi
     fi
 }
 
-# ========== 检查并安装 MCP ==========
-check_and_install_mcp() {
-    local claude_json="$HOME/.claude/settings.json"
-    local claudeinit="$SCRIPT_DIR/claudeinit.sh"
-
-    if [ ! -f "$claude_json" ]; then
-        return 0
-    fi
-
-    # 检查是否有 MCP 服务器配置
-    local mcp_count=$(python3 - "$claude_json" << 'PYEOF' 2>/dev/null
-import json
-import sys
-try:
-    with open(sys.argv[1], 'r') as f:
-        data = json.load(f)
-    mcp = data.get('mcpServers', {})
-    print(len(mcp))
-except:
-    print(0)
-PYEOF
-)
-
-    # 如果 MCP 服务器数量少于预期（假设至少应该有 3 个：tavily, minimax, 其他）
-    if [ "$mcp_count" -lt 3 ] 2>/dev/null; then
-        echo -e "${CYAN}[config]${NC} 发现 MCP 服务器未安装，正在配置..."
-        if [ -f "$claudeinit" ]; then
-            bash "$claudeinit" 2>/dev/null
-        fi
-    fi
-}
-
-# ========== 显示状态摘要 ==========
-show_summary() {
-    cd "$REPO_DIR"
+# ========== 1. 检查符号链接 ==========
+check_symlinks() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[1] 配置文件链接${NC}"
 
     local issues=0
 
-    # 检查符号链接
-    if [ ! -L "$HOME/.claude/settings.json" ] || [ ! -e "$HOME/.claude/settings.json" ]; then
-        issues=$((issues + 1))
-    fi
-    if [ ! -L "$HOME/CLAUDE.md" ] || [ ! -e "$HOME/CLAUDE.md" ]; then
-        issues=$((issues + 1))
-    fi
-
-    # 检查 MEMORY.md 符号链接
-    local memory_link="$HOME/.claude/projects/-home-francis-git/memory/MEMORY.md"
-    if [ ! -L "$memory_link" ] || [ ! -e "$memory_link" ]; then
-        issues=$((issues + 1))
-    fi
-
-    # 显示简短摘要
-    if [ $issues -eq 0 ]; then
-        echo -e "${GREEN}[config]${NC} ✅ 配置就绪"
+    # settings.json
+    if [ -L "$HOME/.claude/settings.json" ] && [ -e "$HOME/.claude/settings.json" ]; then
+        echo -e "  ${GREEN}✅${NC} settings.json"
     else
-        echo -e "${YELLOW}[config]${NC} ⚠️  有 $issues 个配置问题"
+        echo -e "  ${RED}❌${NC} settings.json"
+        issues=$((issues + 1))
+    fi
+
+    # .config.json
+    if [ -L "$HOME/.claude/.config.json" ] && [ -e "$HOME/.claude/.config.json" ]; then
+        echo -e "  ${GREEN}✅${NC} .config.json"
+    else
+        echo -e "  ${RED}❌${NC} .config.json"
+        issues=$((issues + 1))
+    fi
+
+    # CLAUDE.md
+    if [ -L "$HOME/CLAUDE.md" ] && [ -e "$HOME/CLAUDE.md" ]; then
+        echo -e "  ${GREEN}✅${NC} CLAUDE.md"
+    else
+        echo -e "  ${RED}❌${NC} CLAUDE.md"
+        issues=$((issues + 1))
+    fi
+
+    # MEMORY.md
+    local memory_link="$HOME/.claude/projects/-home-francis-git/memory/MEMORY.md"
+    if [ -L "$memory_link" ] && [ -e "$memory_link" ]; then
+        echo -e "  ${GREEN}✅${NC} MEMORY.md"
+    else
+        echo -e "  ${RED}❌${NC} MEMORY.md"
+        issues=$((issues + 1))
+    fi
+
+    if [ $issues -eq 0 ]; then
+        echo -e "  ${GREEN}配置链接就绪${NC}"
     fi
 }
 
-# ========== 显示最近推送记录 ==========
-show_recent_pushes() {
+# ========== 2. 检查 auto-sync ==========
+check_autosync() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[2] auto-sync${NC}"
+
+    local pid_file="$REPO_DIR/.auto-sync.pid"
+    local service_file="$HOME/.config/systemd/user/claude-auto-sync.service"
+
+    # 检查进程
+    if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+        echo -e "  ${GREEN}✅${NC} 进程运行中 (PID: $(cat "$pid_file"))"
+    else
+        echo -e "  ${RED}❌${NC} 进程未运行"
+    fi
+
+    # 检查自启动
+    if [ -f "$service_file" ]; then
+        echo -e "  ${GREEN}✅${NC} systemd 自启动已配置"
+    else
+        echo -e "  ${RED}❌${NC} systemd 自启动未配置"
+    fi
+}
+
+# ========== 3. GitHub 最后推送 ==========
+check_last_push() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[3] 最后推送${NC}"
+
     cd "$REPO_DIR"
-
-    # 检查是否是 git 仓库
     if [ ! -d ".git" ]; then
-        return 0
-    fi
-
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[config]${NC} 📋 最近推送记录："
-
-    # 获取最近1次推送
-    local count=0
-    while IFS= read -r line; do
-        if [ -n "$line" ]; then
-            echo -e "  ${YELLOW}•${NC} $line"
-            count=$((count + 1))
-        fi
-        if [ $count -ge 1 ]; then
-            break
-        fi
-    done < <(git log --oneline -10 --format="%s" 2>/dev/null | head -1)
-}
-
-# ========== MCP 服务器真实测试 ==========
-test_mcp_servers() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[config]${NC} 🔧 MCP 服务器测试："
-
-    local claude_json="$HOME/.claude/settings.json"
-
-    if [ ! -f "$claude_json" ]; then
-        echo -e "  ${YELLOW}⚠️  ~/.claude/settings.json 不存在${NC}"
+        echo -e "  ${YELLOW}⚠️${NC} 非 Git 仓库"
         return
     fi
 
-    # 读取 MCP 配置
+    # 获取最后一次提交的日期和消息
+    local log=$(git log -1 --format="%ci|%s" 2>/dev/null)
+    if [ -n "$log" ]; then
+        local date=$(echo "$log" | cut -d'|' -f1 | cut -d' ' -f1)
+        local msg=$(echo "$log" | cut -d'|' -f2-)
+        echo -e "  📅 $date"
+        echo -e "  📝 $msg"
+    else
+        echo -e "  ${YELLOW}⚠️${NC} 无提交记录"
+    fi
+}
+
+# ========== 4. MEMORY 最后更新 ==========
+check_memory() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[4] MEMORY 更新${NC}"
+
+    # 使用 -L 跟随符号链接，读取目标文件的真实修改时间
+    local memory_file="$HOME/.claude/projects/-home-francis-git/memory/MEMORY.md"
+    if [ -f "$memory_file" ]; then
+        local mtime=$(stat -L -c %y "$memory_file" 2>/dev/null | cut -d' ' -f1)
+        local size=$(stat -L -c %s "$memory_file" 2>/dev/null)
+        echo -e "  📅 $mtime ($size bytes)"
+    else
+        echo -e "  ${RED}❌${NC} MEMORY.md 不存在"
+    fi
+}
+
+# ========== 5. MCP 服务器状态 ==========
+check_mcp() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[5] MCP 服务器${NC}"
+
+    local claude_json="$HOME/.claude/.config.json"
+
+    if [ ! -f "$claude_json" ]; then
+        echo -e "  ${RED}❌${NC} .config.json 不存在"
+        return
+    fi
+
+    # 读取 MCP 配置并测试
     python3 - "$claude_json" << 'PYEOF' 2>/dev/null
 import json
 import sys
 import subprocess
 import os
 
-def test_mcp_server(name, config, env_vars):
-    """测试单个 MCP 服务器"""
+def test_mcp(name, config):
     try:
         cmd = config.get('command')
         args = config.get('args', [])
+        if not cmd:
+            return None, "无命令"
+
         full_cmd = [cmd] + args if args else [cmd]
-
-        # 构建环境变量
         env = os.environ.copy()
-        for k, v in env_vars.items():
-            if v:
-                env[k] = v
+        env.update(config.get('env', {}))
 
-        # 发送初始化请求（使用 2025-03-26 协议版本，兼容旧版）
-        init_request = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-03-26",
-                "capabilities": {},
-                "clientInfo": {"name": "test", "version": "1.0"}
-            }
-        }
+        init_req = json.dumps({
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0"}}
+        })
+        list_req = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
 
-        # 发送 tools/list 请求
-        list_request = {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/list",
-            "params": {}
-        }
+        proc = subprocess.Popen(full_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, text=True)
+        stdout, _ = proc.communicate(input=f"{init_req}\n{list_req}\n", timeout=15)
 
-        input_data = json.dumps(init_request) + "\n" + json.dumps(list_request) + "\n"
-
-        proc = subprocess.Popen(
-            full_cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
-            text=True
-        )
-
-        stdout, stderr = proc.communicate(input=input_data, timeout=20)
-
-        # 解析响应
-        lines = stdout.strip().split("\n")
-        for line in lines:
+        for line in stdout.strip().split("\n"):
             if line:
                 try:
                     resp = json.loads(line)
                     if resp.get("id") == 1 and "result" in resp:
-                        server_info = resp["result"].get("serverInfo", {})
-                        version = server_info.get("version", "?")
-                        return f"✅ {version}", None
+                        ver = resp["result"].get("serverInfo", {}).get("version", "?")
+                        return f"✅ {ver}", None
                 except:
                     pass
-
-        # 如果没有找到有效的初始化响应，检查错误
-        if stderr and len(stderr.strip()) > 0:
-            # 过滤掉警告，只显示错误
-            error_lines = [l for l in stderr.strip().split("\n") if "Error" in l or "error" in l]
-            if error_lines:
-                return None, error_lines[0][:80]
-        return "✅ (无版本信息)", None
-
+        return "✅ (无版本)", None
     except subprocess.TimeoutExpired:
-        proc.kill()
         return None, "超时"
     except FileNotFoundError:
-        return None, f"命令未找到: {cmd}"
+        return None, "命令未找到"
     except Exception as e:
-        return None, str(e)[:100]
+        return None, str(e)[:50]
 
-# 读取配置
 with open(sys.argv[1], 'r') as f:
     data = json.load(f)
 
-mcp_servers = data.get('mcpServers', {})
-
-if not mcp_servers:
-    print("  (无 MCP 服务器配置)")
+mcps = data.get('mcpServers', {})
+if not mcps:
+    print("  (无 MCP 配置)")
     sys.exit(0)
 
-for name, config in sorted(mcp_servers.items()):
-    if not config.get('command'):
-        continue
-
-    # 从配置的 env 字段获取环境变量
-    env_vars = config.get('env', {})
-
-    result, error = test_mcp_server(name, config, env_vars)
-
+for name, config in sorted(mcps.items()):
+    result, error = test_mcp(name, config)
     if result:
         print(f"  {name}: {result}")
     else:
@@ -246,9 +215,16 @@ for name, config in sorted(mcp_servers.items()):
 PYEOF
 }
 
-# 执行
+# ========== 执行所有检查 ==========
+echo ""
+echo -e "${GREEN}=== Claude Config 状态检查 ===${NC}"
+echo ""
+
 git_pull
-show_summary
-show_recent_pushes
-check_and_install_mcp
-test_mcp_servers
+check_symlinks
+check_autosync
+check_last_push
+check_memory
+check_mcp
+
+echo ""
