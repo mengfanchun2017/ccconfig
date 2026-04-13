@@ -41,31 +41,23 @@ bash ccconfig/claudeinit.sh  # MCP 安装 + 链接检查
 
 ---
 
-## 配置文件架构
+## Claude Code 配置文件体系
+
+| 文件 | 作用 | 同步 |
+|------|------|------|
+| `~/.claude/settings.json` | 权限、环境变量、hooks、插件配置等 | ✅ 符号链接到 ccconfig |
+| `~/.claude/.config.json` | MCP 配置、用户状态、项目信息等 | ✅ 符号链接到 ccconfig |
+| `~/CLAUDE.md` | 全局 AI 指令 | ✅ 符号链接到 ccconfig |
+| `~/.claude.json` | Claude Code 自动维护的状态 | ❌ 不同步 |
 
 ### 符号链接（本地 ↔ GitHub 同步）
 
 | 本地路径 | 指向 | GitHub 路径 | 作用 |
 |---------|------|-------------|------|
-| `~/.claude/settings.json` | → `ccconfig/link/settings.json` | `link/settings.json` | Claude Code 设置同步 |
-| `~/CLAUDE.md` | → `ccconfig/link/CLAUDE.md` | `link/CLAUDE.md` | 权限白名单同步 |
+| `~/.claude/settings.json` | → `ccconfig/link/settings.json` | `link/settings.json` | 权限/环境变量/hooks |
+| `~/.claude/.config.json` | → `ccconfig/link/.config.json` | `link/.config.json` | MCP 配置/用户状态 |
+| `~/CLAUDE.md` | → `ccconfig/link/CLAUDE.md` | `link/CLAUDE.md` | 全局 AI 指令 |
 | `~/.claude/projects/-home-francis-git/memory/MEMORY.md` | → `ccconfig/link/-home-francis-git/MEMORY.md` | `link/-home-francis-git/MEMORY.md` | 记忆同步 |
-
-### 主配置文件（Claude Code 运行时读取）
-
-| 文件 | 位置 | 内容 | 同步方式 |
-|------|------|------|---------|
-| `~/.claude.json` | 用户主目录 | mcpServers、hooks、环境变量、session 记录、metrics 等 | 通过 claudeinit.sh 同步到 link/settings.json |
-
-### 同步策略
-
-```
-Claude Code 运行时 ~/.claude.json
-       ↓ claudeinit.sh 同步
-ccconfig/link/settings.json (符号链接)
-       ↓
-GitHub 远程仓库
-```
 
 ---
 
@@ -210,3 +202,21 @@ GitHub 远程仓库
 4. 添加 feishu、tavily、supabase 等的 mcpTools 配置
 
 **验证**：重启 Claude Code 后所有 MCP 连接正常
+
+### 2026-04-13 [Francis_MiPro] - 配置文件体系修正
+
+**问题**：之前混淆了 settings.json 和 .config.json 的作用
+
+**发现**：
+- `~/.claude/settings.json` → 权限/环境变量/hooks（官方推荐手动配置）
+- `~/.claude/.config.json` → MCP 配置/用户状态（Claude Code 实际读取）
+- `~/.claude.json` → Claude Code 自动维护的状态（不同步）
+
+**修复**：
+1. 添加 `.config.json` 到 ccconfig/link/ 并创建符号链接
+2. 确认三个核心文件都正确同步：
+   - `~/.claude/settings.json` → link/settings.json
+   - `~/.claude/.config.json` → link/.config.json
+   - `~/CLAUDE.md` → link/CLAUDE.md
+3. 更新 README.md 和 MEMORY.md 反映新架构
+
