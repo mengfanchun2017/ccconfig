@@ -18,7 +18,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/conf-init.json"
+CONFIG_FILE="$SCRIPT_DIR/conf-ubuntu.json"
 CLAUDE_DIR="$HOME/.claude"
 LOCAL_BIN="$HOME/.local/bin"
 
