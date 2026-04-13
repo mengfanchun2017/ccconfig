@@ -102,7 +102,7 @@ status MCP 会执行 hook-status.sh 并返回状态输出。
 
 ## 配置文件说明
 
-### conf-init.json
+### conf-ubuntu.json
 ```json
 {
   "git": {
