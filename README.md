@@ -26,51 +26,43 @@ ccconfig/
 
 ## 配置文件架构
 
+### Claude Code 配置文件体系
+
+| 文件 | 作用 | 同步 |
+|------|------|------|
+| `~/.claude/settings.json` | 权限、环境变量、hooks、插件配置等 | ✅ 符号链接到 ccconfig |
+| `~/.claude/.config.json` | MCP 配置、用户状态、项目信息等 | ✅ 符号链接到 ccconfig |
+| `~/CLAUDE.md` | 全局 AI 指令 | ✅ 符号链接到 ccconfig |
+| `~/.claude.json` | Claude Code 自动维护的状态（不建议手动编辑） | ❌ 不同步 |
+
 ### 符号链接（本地 ↔ GitHub 同步）
 
 | 本地路径 | 指向 | GitHub 路径 | 作用 |
 |---------|------|-------------|------|
-| `~/.claude/settings.json` | → `ccconfig/link/settings.json` | `link/settings.json` | Claude Code 设置同步 |
-| `~/CLAUDE.md` | → `ccconfig/link/CLAUDE.md` | `link/CLAUDE.md` | 权限白名单同步 |
+| `~/.claude/settings.json` | → `ccconfig/link/settings.json` | `link/settings.json` | 权限/环境变量/hooks |
+| `~/.claude/.config.json` | → `ccconfig/link/.config.json` | `link/.config.json` | MCP 配置/用户状态 |
+| `~/CLAUDE.md` | → `ccconfig/link/CLAUDE.md` | `link/CLAUDE.md` | 全局 AI 指令 |
 | `~/.claude/projects/-home-francis-git/memory/MEMORY.md` | → `ccconfig/link/-home-francis-git/MEMORY.md` | `link/-home-francis-git/MEMORY.md` | 记忆同步 |
-
-### 主配置文件（Claude Code 运行时读取）
-
-| 文件 | 位置 | 内容 | 同步方式 |
-|------|------|------|---------|
-| `~/.claude.json` | 用户主目录 | mcpServers、hooks、环境变量、session 记录、metrics 等 | 通过 claudeinit.sh 同步关键配置到 link/settings.json |
 
 ### 配置同步策略
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Claude Code 运行时                      │
-│                      ~/.claude.json                         │
-│  (mcpServers, hooks, env, metrics, session 等)          │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      │ claudeinit.sh 同步
-                      ▼
+│                   本地 ~/.claude/                           │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────┐  │
+│  │ settings.json ──────► link/settings.json ──► GitHub   │  │
+│  │ (权限/环境变量) │  │                 │  │            │  │
+│  ├─────────────────┤  ├─────────────────┤  ├────────────┤  │
+│  │ .config.json ──────► link/.config.json ──► GitHub   │  │
+│  │ (MCP/用户状态)  │  │                 │  │            │  │
+│  └─────────────────┘  └─────────────────┘  └────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+
 ┌─────────────────────────────────────────────────────────────┐
-│               ccconfig/link/settings.json               │
-│           (mcpServers, hooks, permissions 等)              │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      │ 符号链接
-                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   GitHub 远程仓库                           │
-│        <your-github-username>/ccconfig                       │
+│  ~/CLAUDE.md ──────► link/CLAUDE.md ──────► GitHub        │
+│  (全局 AI 指令)                                        │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-### 为什么 ~/.claude.json 不是符号链接？
-
-| 原因 | 说明 |
-|------|------|
-| Claude Code 自动写入 | 运行时状态、session 记录、metrics 等 |
-| 包含用户数据 | userID、session 历史等私密信息 |
-| 不应全部同步 | 需要选择性同步关键配置（mcpServers、hooks） |
 
 ## 新环境初始化流程
 
