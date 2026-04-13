@@ -6,21 +6,19 @@ Claude Code 配置文件仓库，用于跨设备同步配置。
 
 ```
 ccconfig/
-├── init01git.sh           # Git + GitHub CLI 环境初始化
-├── init02claude.sh        # Claude Code 安装 + API 配置
-├── init03env.sh           # 环境准备 + auto-sync 启动
-├── init-auto-sync.sh      # 文件变化自动同步到 GitHub
-├── init-enable-autostart.sh # auto-sync 自启动配置
-├── hook-status.sh         # 状态检查（供 MCP 调用）
-├── claudeinit.sh         # MCP 服务器安装与配置
-├── mcp-status/            # 状态 MCP 服务器
-│   └── status-mcp.js     # 提供 status 工具
-├── conf-init.json         # 初始化配置（Git/API），init01-03 使用
-├── conf-claude.json       # MCP 服务器配置
-├── link/                  # 符号链接文件目录
-│   ├── CLAUDE.md         # 权限白名单
-│   ├── settings.json      # Claude Code 设置
-│   └── -home-francis-git/ # 项目记忆
+├── ubuntuinit.sh            # Ubuntu 合一初始化脚本（Git + Claude + 环境）
+├── claudeinit.sh            # MCP 服务器安装与配置
+├── hook-status.sh           # 状态检查（供 MCP 调用）
+├── init-auto-sync.sh        # 文件变化自动同步到 GitHub
+├── init-enable-autostart.sh  # auto-sync 自启动配置
+├── mcp-status/              # 状态 MCP 服务器
+│   └── status-mcp.js        # 提供 status 工具
+├── conf-ubuntu.json         # ubuntuinit.sh 配置（Git/API）
+├── conf-claude.json         # claudeinit.sh 配置（MCP）
+├── link/                    # 符号链接文件目录
+│   ├── CLAUDE.md            # 权限白名单
+│   ├── settings.json         # Claude Code 设置
+│   └── -home-francis-git/  # 项目记忆
 │       └── MEMORY.md
 └── .gitignore
 ```
@@ -92,14 +90,6 @@ ubuntuinit.sh 会依次完成：
 7. auto-sync
 8. SessionStart hook
 9. **MCP 服务器安装（包括 status MCP）**
-
-### 分步执行（旧方式）
-
-```bash
-bash ccconfig/init01git.sh   # Git + gh + 克隆仓库
-bash ccconfig/init02claude.sh  # Claude Code 安装
-bash ccconfig/init03env.sh   # 环境准备 + 符号链接 + auto-sync
-```
 
 ### 查看状态
 
