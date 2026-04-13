@@ -392,6 +392,13 @@ setup_autosync() {
     else
         warn "auto-sync 已在运行或启动失败"
     fi
+
+    # 启用 auto-sync 自启动
+    if bash "$SCRIPT_DIR/init-enable-autostart.sh" enable 2>/dev/null; then
+        success "auto-sync 自启动已启用"
+    else
+        warn "auto-sync 自启动启用失败"
+    fi
 }
 
 # ========== 10. SessionStart Hook ==========
