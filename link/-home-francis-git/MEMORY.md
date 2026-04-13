@@ -82,6 +82,8 @@ GitHub 远程仓库
   - 每次提交后，必须用 ✅ 标记 commit hash + message
 - **进入 Claude 后的行为**:
   - 当用户说"hookstatus"或在 Claude 对话开头时，主动运行 `bash ccconfig/hook-status.sh` 检查并显示当前环境状态（文件链接、auto-sync、git push 记录、MCP 服务器状态）
+- **Queue 指令**:
+  - 当用户以 `queue xxx` 开头留言时，先完成当前工作，再处理 `queue` 后面的内容
 
 ---
 
