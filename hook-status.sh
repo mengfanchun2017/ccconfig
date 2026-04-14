@@ -215,6 +215,45 @@ for name, config in sorted(mcps.items()):
 PYEOF
 }
 
+# ========== 6. ccbot 状态 ==========
+check_ccbot() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[6] ccbot (飞书 Bridge)${NC}"
+
+    # 检查安装
+    echo -n "  安装 ... "
+    if command -v ccbot &> /dev/null; then
+        echo -e "${GREEN}✅${NC}"
+    else
+        echo -e "${RED}❌${NC}"
+    fi
+
+    # 检查运行状态
+    echo -n "  运行 ... "
+    if ccbot status 2>&1 | grep -q "online"; then
+        echo -e "${GREEN}✅${NC}"
+    else
+        echo -e "${RED}❌${NC}"
+    fi
+
+    # 检查配置文件
+    echo -n "  配置 ... "
+    local ccbot_conf="$HOME/git/ccbot.json"
+    if [ -f "$ccbot_conf" ]; then
+        echo -e "${GREEN}✅${NC}"
+    else
+        echo -e "${RED}❌${NC}"
+    fi
+
+    # 检查自动启动
+    echo -n "  自动启动 ... "
+    if crontab -l 2>/dev/null | grep -q "@reboot.*ccbot"; then
+        echo -e "${GREEN}✅${NC}"
+    else
+        echo -e "${YELLOW}○${NC} 未配置"
+    fi
+}
+
 # ========== 执行所有检查 ==========
 echo ""
 echo -e "${GREEN}=== Claude Config 状态检查 ===${NC}"
