@@ -267,38 +267,14 @@ setup_fonts() {
         return 0
     fi
 
-    # 优先使用用户级字体安装（无需 sudo）
-    USER_FONTS_DIR="$HOME/.local/share/fonts"
-    FONT_URL="https://github.com/anthtype/wqy/raw/main/fonts/wqy-microhei.ttc"
-
-    mkdir -p "$USER_FONTS_DIR"
-
-    # 1. 先尝试用户级安装（下载字体到用户目录）
-    if command -v curl &>/dev/null; then
-        info "尝试用户级安装中文字体（无需 sudo）..."
-        if curl -fsSL "$FONT_URL" -o "$USER_FONTS_DIR/wqy-microhei.ttc" 2>/dev/null; then
-            if fc-cache -f "$USER_FONTS_DIR" 2>/dev/null; then
-                success "字体已安装到 $USER_FONTS_DIR"
-                return 0
-            else
-                warn "fc-cache 失败，但字体文件已下载"
-                return 0
-            fi
-        else
-            warn "用户级下载失败，尝试 sudo 安装"
-        fi
-    fi
-
-    # 2. sudo 安装
+    # sudo 安装
+    info "安装 fonts-wqy-microhei..."
     if sudo apt-get install -y fonts-wqy-microhei fontconfig; then
-        success "系统字体安装成功"
+        success "字体安装成功"
         fc-cache -f 2>/dev/null
-        return 0
+    else
+        warn "字体安装失败"
     fi
-
-    # 3. 都失败了
-    warn "自动安装失败，需要手动安装:"
-    echo "  sudo apt-get install fonts-wqy-microhei fontconfig"
 }
 
 # ========== 8. 符号链接 ==========
