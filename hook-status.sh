@@ -134,7 +134,7 @@ check_memory() {
     # 使用 -L 跟随符号链接，读取目标文件的真实修改时间
     local memory_file="$HOME/.claude/projects/-home-francis-git/memory/MEMORY.md"
     if [ -f "$memory_file" ]; then
-        local mtime=$(stat -L -c %y "$memory_file" 2>/dev/null | cut -d' ' -f1)
+        local mtime=$(stat -L -c %y "$memory_file" 2>/dev/null | cut -d'.' -f1)
         local size=$(stat -L -c %s "$memory_file" 2>/dev/null)
         echo -e "  📅 $mtime ($size bytes)"
     else
