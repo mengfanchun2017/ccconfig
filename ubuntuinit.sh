@@ -185,8 +185,9 @@ setup_uv() {
 setup_claude_code() {
     section "Claude Code"
 
-    # PATH 必须包含 ~/.local/bin
-    export PATH="$LOCAL_BIN:$PATH"
+    # npm 全局 bin 目录
+    NPM_GLOBAL_BIN="$HOME/.local/node-v${NODE_VERSION}-linux-x64/bin"
+    export PATH="$NPM_GLOBAL_BIN:$LOCAL_BIN:$PATH"
 
     if command -v claude &>/dev/null; then
         success "Claude Code 已安装: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "未知")"
@@ -195,9 +196,11 @@ setup_claude_code() {
 
     warn "Claude Code 未安装"
 
-    # 优先 npm 安装（比官方脚本更可靠，不受地区限制）
+    # npm 安装
     info "使用 npm 安装 Claude Code..."
     if npm install -g @anthropic-ai/claude-code 2>&1; then
+        # 更新 ~/.local/bin/claude 符号链接指向 npm 安装的版本
+        ln -sf "$NPM_GLOBAL_BIN/claude" "$LOCAL_BIN/claude"
         success "Claude Code 安装成功!"
 
         # 验证
