@@ -83,10 +83,12 @@ bash ccconfig/claudeinit.sh  # MCP 安装 + 链接检查
   - 两种语言都搜可以结合结果，信息更全面
   - tavily 需要 `TAVILY_API_KEY`，在 `conf-claude.json` 中配置
 - **飞书文档创建规则**:
-  - feishu-mcp 创建文档：用 `feishu_create_doc`，内容是纯文本 markdown（不渲染）
-  - lark-cli 创建文档：用 `lark-cli docs +create --markdown "$(cat file)" --as user`，支持飞书原生 markdown 渲染
-  - 用户身份文档：用 `lark-cli docs +create --as user --folder-token xxx`，文档在用户个人空间
-  - 应用身份文档：feishu-mCP 创建，文档在应用"cc编程大虾"空间
+  - 默认目录：`--folder-token IFngftQdzlUhW7db6AOcZvYxnrg`（cc编程大虾文件夹）
+  - 创建文档：`lark-cli docs +create --as user --folder-token IFngftQdzlUhW7db6AOcZvYxnrg --title "标题" --markdown "$(cat file)"`
+  - 创建多维表格：`lark-cli base +base-create --as user --folder-token IFngftQdzlUhW7db6AOcZvYxnrg --name "名称"`
+  - 创建电子表格：`lark-cli sheets +create --as user --folder-token IFngftQdzlUhW7db6AOcZvYxnrg --title "标题"`
+  - 身份：都用 `--as user` 以用户身份创建
+  - feishu-mcp 不适合创建文档（不渲染 markdown）
 - **lark-cli 配置**:
   - 安装：`npm install -g @larksuite/cli`
   - PATH 修复：`ln -s ~/.local/node-v20.11.0-linux-x64/bin/lark-cli ~/.local/bin/lark-cli`

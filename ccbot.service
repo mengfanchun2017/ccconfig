@@ -1,0 +1,16 @@
+[Unit]
+Description=CCBot - Control Claude Code via Feishu bot
+After=network.target pm2.service
+Requires=pm2.service
+
+[Service]
+Type=forking
+User=francis
+WorkingDirectory=/home/francis/git
+ExecStart=/home/francis/.local/bin/ccbot start
+ExecReload=/bin/kill -s SIGTERM $MAINPID
+Restart=no
+TimeoutSec=60
+
+[Install]
+WantedBy=multi-user.target
