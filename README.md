@@ -85,6 +85,19 @@ ubuntuinit.sh 会依次完成：
 8. SessionStart hook
 9. **MCP 服务器安装（包括 status MCP）**
 
+### 飞书初始化（可选）
+
+```bash
+# 初始化飞书功能（lark-cli + feishu bridge）
+bash ccconfig/feishuinit.sh
+```
+
+feishuinit.sh 会完成：
+1. lark-cli 安装（npm install -g @larksuite/cli）
+2. lark-cli 配置（App ID / App Secret）
+3. lark-cli 用户 OAuth 授权
+4. feishu bridge 长连接配置指导
+
 ### 查看状态
 
 ```bash
