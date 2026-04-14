@@ -4,7 +4,7 @@
     "appSecret": "<your-feishu-app-secret>"
   },
   "ccbot": {
-    "workDir": "/home/francis",
+    "workDir": "/home/francis/git",
     "timeoutMs": 3600000
   },
   "lark": {
