@@ -88,15 +88,26 @@ ubuntuinit.sh 会依次完成：
 ### 飞书初始化（可选）
 
 ```bash
-# 初始化飞书功能（lark-cli + feishu bridge）
+# 初始化飞书功能（ccbot bridge + lark-cli）
 bash ccconfig/feishuinit.sh
 ```
 
 feishuinit.sh 会完成：
-1. lark-cli 安装（npm install -g @larksuite/cli）
-2. lark-cli 配置（App ID / App Secret）
-3. lark-cli 用户 OAuth 授权
-4. feishu bridge 长连接配置指导
+1. ccbot 安装（npm install -g @ccbot/cli）
+2. ccbot 配置（从 conf-feishu.json 读取 App ID / App Secret）
+3. ccbot 启动（pm2 管理）
+4. lark-cli 安装（npm install -g @larksuite/cli）
+5. lark-cli 配置（从 conf-feishu.json 读取凭证）
+6. lark-cli 用户 OAuth 授权
+7. 飞书开放平台长连接配置指导
+
+**飞书组件架构：**
+
+| 组件 | 配置文件 | 用途 |
+|------|---------|------|
+| ccbot | ~/ccbot.json | Bridge 长连接，飞书里对话 |
+| lark-cli | lark-cli config | 终端操作飞书文档/日历/任务 |
+| feishu MCP | conf-claude.json | Claude Code 内调用飞书 API |
 
 ### 查看状态
 

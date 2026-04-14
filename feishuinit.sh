@@ -410,3 +410,5 @@ main() {
     echo "2. 运行 lark-cli auth login --recommend 完成用户授权"
     echo ""
 }
+
+main "$@"
