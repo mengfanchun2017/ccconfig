@@ -83,7 +83,7 @@ try:
     mcp_servers = data.get('mcpServers', {})
     if mcp_name in mcp_servers:
         print('true')
-        return
+        sys.exit(0)
 
     # 检查 conf-claude.json（配置源）
     with open(conf_json, 'r') as f:
@@ -92,7 +92,7 @@ try:
     for server in mcp_servers_conf:
         if server.get('name', '').lower() == mcp_name:
             print('true')
-            return
+            sys.exit(0)
 
     print('false')
 except:
