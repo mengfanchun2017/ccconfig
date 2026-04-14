@@ -1,0 +1,13 @@
+{
+  "feishu": {
+    "appId": "<your-feishu-app-id>",
+    "appSecret": "<your-feishu-app-secret>"
+  },
+  "ccbot": {
+    "workDir": "/home/francis",
+    "timeoutMs": 3600000
+  },
+  "lark": {
+    "brand": "feishu"
+  }
+}

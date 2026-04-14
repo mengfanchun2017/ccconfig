@@ -1,6 +1,7 @@
 #!/bin/bash
 # 飞书初始化脚本
-# 功能：安装配置 lark-cli 和 feishu-claude-code bridge
+# 功能：安装配置 ccbot (bridge) 和 lark-cli
+# 配置：从 conf-feishu.json 读取
 # 目的：新 Ubuntu/WSL 环境快速打通飞书
 #
 # 使用：
@@ -9,6 +10,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FEISHU_CONF="$SCRIPT_DIR/conf-feishu.json"
 
 # 颜色
 RED='\033[0;31m'
@@ -24,6 +26,79 @@ good() { echo -e "$1${GREEN}"; }
 bad() { echo -e "$1${RED}"; }
 info() { echo -e "$1${GRAY}"; }
 warn() { echo -e "$1${YELLOW}"; }
+
+# ========== JSON 读取 ==========
+read_json() {
+    python3 - "$FEISHU_CONF" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    print(json.dumps(data, ensure_ascii=False))
+except Exception as e:
+    print('{}')
+PYEOF
+}
+
+get_feishu_app_id() {
+    python3 - "$FEISHU_CONF" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    print(data.get('feishu', {}).get('appId', ''))
+except:
+    print('')
+PYEOF
+}
+
+get_feishu_app_secret() {
+    python3 - "$FEISHU_CONF" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    print(data.get('feishu', {}).get('appSecret', ''))
+except:
+    print('')
+PYEOF
+}
+
+get_ccbot_workdir() {
+    python3 - "$FEISHU_CONF" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    print(data.get('ccbot', {}).get('workDir', '/home/francis'))
+except:
+    print('/home/francis')
+PYEOF
+}
+
+get_ccbot_timeout() {
+    python3 - "$FEISHU_CONF" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    print(data.get('ccbot', {}).get('timeoutMs', '3600000'))
+except:
+    print('3600000')
+PYEOF
+}
+
+get_lark_brand() {
+    python3 - "$FEISHU_CONF" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    print(data.get('lark', {}).get('brand', 'feishu'))
+except:
+    print('feishu')
+PYEOF
+}
 
 # ========== 检查前置环境 ==========
 check_prerequisites() {
@@ -45,11 +120,18 @@ check_prerequisites() {
         good "✓ npm $(npm --version)"
     fi
 
-    if ! command -v claude &> /dev/null; then
-        warn "⚠ Claude Code 未安装（lark-cli 可独立使用）"
-    else
-        good "✓ Claude Code 已安装"
+    if [ ! -f "$FEISHU_CONF" ]; then
+        bad "❌ 配置文件不存在: $FEISHU_CONF"
+        exit 1
     fi
+
+    local app_id
+    app_id=$(get_feishu_app_id)
+    if [ -z "$app_id" ]; then
+        bad "❌ conf-feishu.json 中未找到 feishu.appId"
+        exit 1
+    fi
+    good "✓ 配置文件: $FEISHU_CONF"
 
     if [ $missing -eq 1 ]; then
         echo ""
@@ -58,12 +140,102 @@ check_prerequisites() {
     fi
 }
 
+# ========== 安装 ccbot ==========
+install_ccbot() {
+    title "安装 ccbot (Bridge)"
+
+    if command -v ccbot &> /dev/null; then
+        good "✓ ccbot 已安装: $(ccbot -V 2>/dev/null || echo 'unknown')"
+        return 0
+    fi
+
+    section "npm 全局安装"
+    echo -n "安装 @ccbot/cli ... "
+    if npm install -g @ccbot/cli 2>&1; then
+        good "✅ 安装成功"
+    else
+        bad "❌ 安装失败"
+        return 1
+    fi
+
+    # PATH 修复
+    local ccbot_path
+    ccbot_path=$(find "$HOME/.npm/_npx" -name "ccbot" -type f 2>/dev/null | head -1 || true)
+    if [ -z "$ccbot_path" ]; then
+        ccbot_path=$(find "$HOME/.local" -name "ccbot" -type f 2>/dev/null | head -1 || true)
+    fi
+
+    if [ -n "$ccbot_path" ] && [ ! -e "$HOME/.local/bin/ccbot" ]; then
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$ccbot_path" "$HOME/.local/bin/ccbot" 2>/dev/null || true
+    fi
+
+    export PATH="$HOME/.local/bin:$PATH"
+
+    echo -n "验证安装 ... "
+    if command -v ccbot &> /dev/null; then
+        good "✅ ccbot 已可用"
+    else
+        bad "❌ ccbot 不可用"
+        return 1
+    fi
+}
+
+# ========== 配置 ccbot ==========
+configure_ccbot() {
+    title "配置 ccbot"
+
+    export PATH="$HOME/.local/bin:$PATH"
+
+    # 如果已配置，跳过
+    if [ -f "$HOME/ccbot.json" ]; then
+        good "✓ ccbot 已配置: ~/ccbot.json"
+        return 0
+    fi
+
+    local app_id app_secret workdir timeout
+    app_id=$(get_feishu_app_id)
+    app_secret=$(get_feishu_app_secret)
+    workdir=$(get_ccbot_workdir)
+    timeout=$(get_ccbot_timeout)
+
+    section "创建配置文件"
+    cat > "$HOME/ccbot.json" << EOF
+{
+  "feishu": {
+    "appId": "$app_id",
+    "appSecret": "$app_secret"
+  },
+  "claude": {
+    "bin": "claude",
+    "workDir": "$workdir",
+    "timeoutMs": $timeout
+  }
+}
+EOF
+    good "✅ 已创建 ~/ccbot.json"
+
+    section "启动 ccbot"
+    echo -n "启动 ccbot ... "
+    if ccbot start 2>&1; then
+        good "✅ 启动成功"
+        echo ""
+        info "ccbot 由 pm2 管理，可使用以下命令："
+        echo "  ccbot status  - 查看状态"
+        echo "  ccbot logs     - 查看日志"
+        echo "  ccbot restart  - 重启"
+        echo "  ccbot stop     - 停止"
+    else
+        warn "⚠ 启动可能需要手动确认"
+    fi
+}
+
 # ========== 安装 lark-cli ==========
 install_lark_cli() {
     title "安装 lark-cli"
 
     if command -v lark-cli &> /dev/null; then
-        good "✓ lark-cli 已安装: $(lark-cli --version 2>/dev/null || lark-cli version 2>/dev/null || 'unknown')"
+        good "✓ lark-cli 已安装: $(lark-cli --version 2>/dev/null || lark-cli version 2>/dev/null || echo 'unknown')"
         return 0
     fi
 
@@ -77,37 +249,24 @@ install_lark_cli() {
     fi
 
     # PATH 修复
-    section "PATH 修复"
-    local node_path
-    node_path=$(find "$HOME/.local" -name "lark-cli" -type f 2>/dev/null | head -1)
-    if [ -z "$node_path" ]; then
-        node_path=$(find "$HOME" -name "lark-cli" -type f 2>/dev/null | grep "\.npm" | head -1)
+    local lark_path
+    lark_path=$(find "$HOME/.npm/_npx" -name "lark-cli" -type f 2>/dev/null | head -1 || true)
+    if [ -z "$lark_path" ]; then
+        lark_path=$(find "$HOME/.local" -name "lark-cli" -type f 2>/dev/null | head -1 || true)
     fi
 
-    if [ -n "$node_path" ]; then
-        local bin_dir
-        bin_dir=$(dirname "$node_path")
-        echo -n "创建 bin 链接到 ~/.local/bin ... "
-        if [ ! -d "$HOME/.local/bin" ]; then
-            mkdir -p "$HOME/.local/bin"
-        fi
-        if ln -sf "$node_path" "$HOME/.local/bin/lark-cli" 2>/dev/null; then
-            good "✅"
-        else
-            warn "⚠ 链接失败，请手动执行: ln -s $node_path ~/.local/bin/lark-cli"
-        fi
-    else
-        warn "⚠ 未找到 lark-cli 可执行文件"
+    if [ -n "$lark_path" ] && [ ! -e "$HOME/.local/bin/lark-cli" ]; then
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$lark_path" "$HOME/.local/bin/lark-cli" 2>/dev/null || true
     fi
 
     export PATH="$HOME/.local/bin:$PATH"
 
-    echo ""
     echo -n "验证安装 ... "
     if command -v lark-cli &> /dev/null; then
         good "✅ lark-cli 已可用"
     else
-        bad "❌ lark-cli 不可用，请检查 PATH"
+        bad "❌ lark-cli 不可用"
         return 1
     fi
 }
@@ -119,37 +278,20 @@ configure_lark_cli() {
     export PATH="$HOME/.local/bin:$PATH"
 
     # 检查是否已配置
-    section "检查当前配置"
     if lark-cli config list 2>/dev/null | grep -q "app_id"; then
         good "✓ lark-cli 已配置"
         lark-cli config list 2>/dev/null || true
         return 0
     fi
 
+    local app_id app_secret brand
+    app_id=$(get_feishu_app_id)
+    app_secret=$(get_feishu_app_secret)
+    brand=$(get_lark_brand)
+
     section "初始化配置"
-    echo ""
-    warn "需要填写飞书应用凭证"
-    echo ""
-    echo "请到 https://open.feishu.cn/app/<your-feishu-app-id> 获取 App ID 和 App Secret"
-    echo "或者创建新应用后填入"
-    echo ""
-
-    # 交互式初始化
-    echo -n "App ID (cli_xxxxx): "
-    read -r app_id || true
-    app_id="${app_id:-<your-feishu-app-id>}"
-
-    echo -n "App Secret: "
-    read -r app_secret || true
-
-    if [ -z "$app_secret" ]; then
-        warn "跳过配置（未提供 App Secret）"
-        return 0
-    fi
-
-    echo ""
     echo -n "配置 lark-cli ... "
-    if echo "$app_secret" | lark-cli config init --app-id "$app_id" --app-secret-stdin --brand feishu 2>&1; then
+    if echo "$app_secret" | lark-cli config init --app-id "$app_id" --app-secret-stdin --brand "$brand" 2>&1; then
         good "✅ 配置成功"
     else
         bad "❌ 配置失败"
@@ -170,87 +312,75 @@ auth_lark_cli() {
     echo "执行以下命令完成授权："
     echo -e "${CYAN}lark-cli auth login --recommend${NC}"
     echo ""
-    echo "或浏览器打开授权链接："
-    echo "https://open.feishu.cn/open-apis/authen/v1/index?redirect_uri=https%3A%2F%2Flarksuite.com%2Ftool%2Fcli%2Fcallback&app_id=<your-feishu-app-id>&state=cli"
-    echo ""
 
     read -p "是否现在执行授权? [y/N]: " confirm || true
     confirm="${confirm:-n}"
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
         lark-cli auth login --recommend || warn "授权可能需要浏览器完成"
+    else
+        echo ""
+        info "后续手动授权: lark-cli auth login --recommend"
     fi
 }
 
-# ========== feishu-claude-code Bridge 配置 ==========
-configure_feishu_bridge() {
-    title "feishu-claude-code Bridge 配置"
+# ========== 飞书开放平台配置 ==========
+show_bridge_config() {
+    title "飞书开放平台配置（长连接）"
 
-    section "飞书开放平台配置"
+    section "配置步骤"
     echo ""
-    echo "需要在飞书开放平台配置长连接（WebSocket）接收消息"
+    echo "需要在飞书开放平台配置长连接（WebSocket）接收消息："
     echo ""
-    echo "步骤："
     echo "1. 打开 https://open.feishu.cn/app/<your-feishu-app-id>"
     echo "2. 进入 事件与回调"
     echo "3. 订阅方式 选择 长连接（不是 Webhook）"
     echo "4. 添加事件: im.message.receive_v1（接收消息）"
     echo ""
-    echo "配置好后，bridge 会自动连接，你就能在飞书和我对话了"
+    echo "配置好后，ccbot 会自动连接，你就能在飞书里和我对话了"
     echo ""
-
-    # 检查 MCP 是否配置
-    section "检查 MCP 状态"
-    if command -v claude &> /dev/null; then
-        echo -n "feishu MCP ... "
-        if claude mcp list 2>/dev/null | grep -q "feishu"; then
-            good "✓ 已注册"
-        else
-            warn "○ 未注册（需要运行 claudeinit.sh）"
-        fi
-    fi
-
-    section "安装 feishu MCP"
-    if command -v claude &> /dev/null && [ -f "$SCRIPT_DIR/conf-claude.json" ]; then
-        echo "运行以下命令安装 feishu MCP："
-        echo -e "${CYAN}bash ccconfig/claudeinit.sh${NC}"
-        echo ""
-        read -p "是否现在运行? [y/N]: " confirm || true
-        confirm="${confirm:-n}"
-        if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            bash "$SCRIPT_DIR/claudeinit.sh"
-        fi
-    fi
 }
 
-# ========== 飞书功能测试 ==========
-test_feishu() {
-    title "飞书功能测试"
+# ========== 状态检查 ==========
+show_status() {
+    title "状态检查"
 
     export PATH="$HOME/.local/bin:$PATH"
 
-    section "lark-cli 测试"
-    echo -n "lark-cli 版本 ... "
-    if lark-cli --version 2>/dev/null || lark-cli version 2>/dev/null; then
-        good "✅"
+    section "ccbot"
+    echo -n "安装 ... "
+    if command -v ccbot &> /dev/null; then
+        good "✓"
     else
-        warn "⚠ 无法获取版本"
+        bad "❌"
     fi
 
-    echo -n "lark-cli 配置 ... "
+    echo -n "配置 ... "
+    if [ -f "$HOME/ccbot.json" ]; then
+        good "✓"
+    else
+        bad "❌"
+    fi
+
+    echo -n "运行 ... "
+    if ccbot status 2>&1 | grep -q "online\|running"; then
+        good "✓ 运行中"
+    else
+        warn "○ 未运行 (ccbot start 启动)"
+    fi
+
+    section "lark-cli"
+    echo -n "安装 ... "
+    if command -v lark-cli &> /dev/null; then
+        good "✓"
+    else
+        bad "❌"
+    fi
+
+    echo -n "配置 ... "
     if lark-cli config list 2>/dev/null | grep -q "app_id"; then
-        good "✓ 已配置"
+        good "✓"
     else
         warn "○ 未配置"
-    fi
-
-    section "MCP 测试"
-    if command -v claude &> /dev/null; then
-        echo -n "feishu MCP ... "
-        if claude mcp list 2>/dev/null | grep -q "feishu"; then
-            good "✓ 已注册"
-        else
-            warn "○ 未注册"
-        fi
     fi
 }
 
@@ -259,23 +389,24 @@ main() {
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════╗"
     echo "║         飞书初始化 - Feishu Init                 ║"
-    echo "║  安装配置 lark-cli 和 feishu-claude-code bridge  ║"
+    echo "║    安装配置 ccbot (bridge) 和 lark-cli           ║"
     echo "╚══════════════════════════════════════════════════╝"
     echo "$NC"
 
     check_prerequisites
+    install_ccbot
+    configure_ccbot
     install_lark_cli
     configure_lark_cli
     auth_lark_cli
-    configure_feishu_bridge
-    test_feishu
+    show_bridge_config
+    show_status
 
     echo ""
     title "✅ 飞书初始化完成"
     echo ""
     echo "后续步骤："
-    echo "1. 完成飞书开放平台的长连接配置"
-    echo "2. 运行 lark-cli auth login 完成用户授权"
-    echo "3. 重启 Claude Code 加载 feishu MCP"
+    echo "1. 完成飞书开放平台的长连接配置（上面有步骤说明）"
+    echo "2. 运行 lark-cli auth login --recommend 完成用户授权"
     echo ""
 }
