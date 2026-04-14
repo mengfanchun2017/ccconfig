@@ -142,10 +142,10 @@ check_memory() {
     fi
 }
 
-# ========== 5. MCP 服务器状态 ==========
+# ========== 5. MCP 服务器状态 (编号 7) ==========
 check_mcp() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[5] MCP 服务器${NC}"
+    echo -e "${CYAN}[7] MCP 服务器${NC}"
 
     local claude_json="$HOME/.claude/.config.json"
 
@@ -264,6 +264,7 @@ check_symlinks
 check_autosync
 check_last_push
 check_memory
+check_ccbot
 check_mcp
 
 echo ""
