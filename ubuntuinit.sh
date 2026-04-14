@@ -256,35 +256,6 @@ PYEOF
     success "API 配置完成"
 }
 
-# ========== 6. sudo 免密配置 ==========
-setup_sudo_nopasswd() {
-    section "sudo 免密配置 (apt-get)"
-
-    # 检查是否已有 apt-get 的 NOPASSWD 配置
-    if sudo -n apt-get --version >/dev/null 2>&1; then
-        info "sudo apt-get 已可免密使用，跳过"
-        return 0
-    fi
-
-    local sudoers_file="/etc/sudoers.d/wsl-apt"
-    local config="francis ALL=(ALL) NOPASSWD: /usr/bin/apt-get"
-
-    # 检查文件是否已存在且配置正确
-    if [[ -f "$sudoers_file" ]] && grep -q "NOPASSWD.*apt-get" "$sudoers_file" 2>/dev/null; then
-        info "sudoers 配置已存在，跳过"
-        return 0
-    fi
-
-    info "配置 sudoers 免密 (仅 apt-get)..."
-    echo "$config" | sudo tee "$sudoers_file" >/dev/null 2>&1
-    sudo chmod 440 "$sudoers_file" 2>/dev/null
-
-    if sudo -n apt-get --version >/dev/null 2>&1; then
-        success "sudo apt-get 免密配置成功"
-    else
-        warn "sudo 免密配置失败"
-    fi
-}
 
 # ========== 7. 中文字体 ==========
 setup_fonts() {
