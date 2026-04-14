@@ -289,8 +289,8 @@ setup_fonts() {
         fi
     fi
 
-    # 2. 尝试 sudo -n（非交互模式，免密）
-    if sudo -n apt-get install -y fonts-wqy-microhei fontconfig 2>/dev/null; then
+    # 2. sudo 安装
+    if sudo apt-get install -y fonts-wqy-microhei fontconfig; then
         success "系统字体安装成功"
         fc-cache -f 2>/dev/null
         return 0
@@ -350,7 +350,7 @@ setup_autosync() {
     # 安装 inotifywait
     if ! command -v inotifywait &>/dev/null; then
         info "安装 inotify-tools..."
-        if sudo -n apt-get install -y inotify-tools 2>/dev/null; then
+        if sudo apt-get install -y inotify-tools; then
             success "inotify-tools 安装成功"
         else
             warn "inotify-tools 安装失败，auto-sync 可能无法工作"
@@ -414,21 +414,7 @@ PYEOF
 
 # ========== 主流程 ==========
 main() {
-    echo "========================================"
-    echo "  Ubuntu 环境初始化（合一版）"
-    echo "========================================"
-    echo ""
-    echo "将执行："
-    echo "  1. Git + GitHub CLI"
-    echo "  2. Node.js + npm"
-    echo "  3. uv (Python)"
-    echo "  4. Claude Code (npm 安装)"
-    echo "  5. Claude API 配置"
-    echo "  6. sudo 免密配置"
-    echo "  7. 中文字体安装"
-    echo "  8. 符号链接"
-    echo "  9. auto-sync"
-    echo " 10. SessionStart hook"
+    echo "Ubuntu 初始化 - $(date '+%Y-%m-%d')"
     echo ""
 
     # 确保 ~/.local/bin 在 PATH 中
@@ -442,28 +428,16 @@ main() {
     setup_uv
     setup_claude_code
     setup_claude_api
-    setup_sudo_nopasswd
     setup_fonts
     setup_symlinks
     setup_autosync
     setup_hook
 
-    section "初始化完成"
     echo ""
-    success "所有组件安装完成！"
+    success "初始化完成！"
     echo ""
-    echo "========================================"
-    echo "  📋 下一步"
-    echo "========================================"
-    echo ""
-    echo "  1. 进入 Claude Code:"
-    echo "     claude"
-    echo ""
-    echo "  2. 在 Claude 中执行 MCP 安装:"
-    echo "     bash ccconfig/claudeinit.sh"
-    echo ""
-    echo "  3. 查看状态（在 Claude 中）:"
-    echo "     说'运行 status 工具'"
+    echo "下一步（在 Claude 中执行）:"
+    echo "  bash ccconfig/claudeinit.sh"
     echo ""
 }
 
