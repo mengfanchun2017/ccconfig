@@ -230,7 +230,7 @@ check_ccbot() {
 
     # 检查运行状态
     echo -n "  运行 ... "
-    if ccbot status 2>&1 | grep -q "online"; then
+    if pm2 list 2>&1 | grep -q "ccbot-git.*online"; then
         echo -e "${GREEN}✅${NC}"
     else
         echo -e "${RED}❌${NC}"
