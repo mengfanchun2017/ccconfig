@@ -105,7 +105,21 @@ bash ccconfig/claudeinit.sh  # MCP 安装 + 链接检查
 
 ---
 
+## 目录规则
+
+- **Git 仓库根目录**: `/home/francis/git`
+- 所有代码仓库都存放在 `/home/francis/git` 下
+- 项目结构按仓库名组织
+
+---
+
 ## Key Learnings (关键知识点)
+
+### 2026-04-14 [Francis_MiPro] - 添加仓库目录规则
+
+**规则**：git 仓库统一存放在 `/home/francis/git` 目录
+
+---
 
 ### 2026-04-02 [Francis_MiPro] - ccconfig 重构完成
 
