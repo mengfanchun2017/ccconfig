@@ -187,20 +187,19 @@ configure_ccbot() {
 
     export PATH="$HOME/.local/bin:$PATH"
 
-    # 如果已配置，跳过
-    if [ -f "$HOME/ccbot.json" ]; then
-        good "✓ ccbot 已配置: ~/ccbot.json"
-        return 0
-    fi
-
     local app_id app_secret workdir timeout
     app_id=$(get_feishu_app_id)
     app_secret=$(get_feishu_app_secret)
     workdir=$(get_ccbot_workdir)
     timeout=$(get_ccbot_timeout)
 
-    section "创建配置文件"
-    cat > "$HOME/ccbot.json" << EOF
+    # 如果已配置，跳过
+    if [ -f "$workdir/ccbot.json" ]; then
+        good "✓ ccbot 已配置: $workdir/ccbot.json"
+    else
+        section "创建配置文件"
+        mkdir -p "$workdir"
+        cat > "$workdir/ccbot.json" << EOF
 {
   "feishu": {
     "appId": "$app_id",
@@ -213,11 +212,13 @@ configure_ccbot() {
   }
 }
 EOF
-    good "✅ 已创建 ~/ccbot.json"
+        good "✅ 已创建 $workdir/ccbot.json"
+    fi
 
     section "启动 ccbot"
     echo -n "启动 ccbot ... "
-    if ccbot start 2>&1; then
+    # ccbot 会在 workDir 目录查找 ccbot.json
+    if (cd "$workdir" && ccbot start 2>&1); then
         good "✅ 启动成功"
         echo ""
         info "ccbot 由 pm2 管理，可使用以下命令："
@@ -227,6 +228,32 @@ EOF
         echo "  ccbot stop     - 停止"
     else
         warn "⚠ 启动可能需要手动确认"
+    fi
+}
+
+# ========== 配置 ccbot 自动启动 ==========
+setup_ccbot_autostart() {
+    title "配置 ccbot 自动启动"
+
+    local workdir
+    workdir=$(get_ccbot_workdir)
+    local ccbot_bin="$HOME/.local/bin/ccbot"
+
+    # 检查 crontab 是否已有 @reboot ccbot
+    if crontab -l 2>/dev/null | grep -q "@reboot.*ccbot"; then
+        good "✓ ccbot 自动启动已配置"
+        return 0
+    fi
+
+    section "添加 crontab @reboot"
+    # 添加到 crontab
+    (crontab -l 2>/dev/null; echo "@reboot cd $workdir && $ccbot_bin start >> $workdir/ccbot.log 2>&1") | crontab -
+    if [ $? -eq 0 ]; then
+        good "✅ 已添加自动启动"
+        echo ""
+        info "ccbot 会在开机后自动启动"
+    else
+        bad "❌ 添加失败"
     fi
 }
 
@@ -347,6 +374,8 @@ show_status() {
     export PATH="$HOME/.local/bin:$PATH"
 
     section "ccbot"
+    local workdir
+    workdir=$(get_ccbot_workdir)
     echo -n "安装 ... "
     if command -v ccbot &> /dev/null; then
         good "✓"
@@ -355,17 +384,17 @@ show_status() {
     fi
 
     echo -n "配置 ... "
-    if [ -f "$HOME/ccbot.json" ]; then
+    if [ -f "$workdir/ccbot.json" ]; then
         good "✓"
     else
         bad "❌"
     fi
 
-    echo -n "运行 ... "
-    if ccbot status 2>&1 | grep -q "online\|running"; then
-        good "✓ 运行中"
+    echo -n "自动启动 ... "
+    if crontab -l 2>/dev/null | grep -q "@reboot.*ccbot"; then
+        good "✓"
     else
-        warn "○ 未运行 (ccbot start 启动)"
+        warn "○ 未配置"
     fi
 
     section "lark-cli"
@@ -396,6 +425,7 @@ main() {
     check_prerequisites
     install_ccbot
     configure_ccbot
+    setup_ccbot_autostart
     install_lark_cli
     configure_lark_cli
     auth_lark_cli
