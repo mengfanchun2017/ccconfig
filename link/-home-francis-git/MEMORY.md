@@ -91,6 +91,9 @@ bash /home/francis/git/ccconfig/hook-status.sh
 ```
 
 ### ccusage → Claude Code 用量统计
-```bash
-npx ccusage@latest monthly
 ```
+npx ccusage@latest daily                    # 今日
+npx ccusage@latest daily --since YYYYMMDD  # 指定日期范围
+npx ccusage@latest monthly                 # 本月
+```
+输出格式（百万 tokens）：今日 | 本周 | 本月 | 总计
