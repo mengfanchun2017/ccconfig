@@ -42,10 +42,11 @@ check_deps() {
 commit_and_push() {
     cd "$REPO_DIR"
 
+    # 清理可能的陈旧锁文件（git crash 后遗留）
+    rm -f "$REPO_DIR/.git/index.lock" 2>/dev/null
+
     # 检查是否有变化（包括 untracked files）
-    if git status --porcelain 2>/dev/null | grep -q .; then
-        :  # 有变化，继续
-    else
+    if ! git status --porcelain 2>/dev/null | grep -q .; then
         return 0  # 没有变化
     fi
 
@@ -64,15 +65,25 @@ commit_and_push() {
     local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
     local commit_msg="自动同步: $timestamp"
 
-    # 提交
-    if git commit -m "$commit_msg" 2>&1 | tee -a "$LOG_FILE"; then
+    # 提交（检查返回值，因为 pipe 可能掩盖失败）
+    local commit_output
+    if commit_output=$(git commit -m "$commit_msg" 2>&1); then
+        echo "$commit_output" >> "$LOG_FILE"
         log "已提交"
 
         # 推送
-        if git push origin main 2>&1 | tee -a "$LOG_FILE"; then
+        if git push origin main >> "$LOG_FILE" 2>&1; then
             log "已推送到 GitHub"
         else
             warn "推送失败，可能有冲突"
+        fi
+    else
+        # 提交失败（可能是 lock 或无变化）
+        echo "$commit_output" >> "$LOG_FILE"
+        if echo "$commit_output" | grep -q "nothing to commit"; then
+            log "无变化可提交"
+        else
+            warn "提交失败: $(echo "$commit_output" | head -1)"
         fi
     fi
 }
@@ -117,12 +128,13 @@ start_watch() {
     # 清空日志文件
     : > "$LOG_FILE"
 
-    # 后台运行 inotifywait
-    inotifywait -m -r -q \
+    # 使用 setsid 完全脱离终端，避免 Claude Code PTY 中后台进程仍输出到终端
+    # setsid 创建新会话，inotifywait 不再属于当前 session 的前台进程组
+    setsid inotifywait -m -r -q \
         --exclude '(\.git/|node_modules/|\.log$|\.auto-sync\.|\.tmp$|\.swp$|\.tmp)' \
         -e modify,create,delete,move \
         "$REPO_DIR" \
-        >> "$LOG_FILE" 2>&1 &
+        >> "$LOG_FILE" 2>&1 </dev/null &
 
     local notify_pid=$!
     echo $notify_pid > "$PID_FILE"
