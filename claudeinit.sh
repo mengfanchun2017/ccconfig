@@ -328,6 +328,61 @@ do_sync() {
     echo ""
     do_config_keys
     echo ""
+
+    # 同步 LLM API env 到 ~/.claude.json
+    section "同步 LLM API 配置"
+    python3 - "$CLAUDE_JSON" "$MCP_CONF_FILE" << 'PYEOF'
+import json, sys
+try:
+    claude_json = sys.argv[1]
+    conf_json = sys.argv[2]
+    with open(claude_json, 'r') as f:
+        c = json.load(f)
+    with open(conf_json, 'r') as f:
+        conf = json.load(f)
+    if 'env' in conf:
+        if 'env' not in c:
+            c['env'] = {}
+        c['env'].update(conf['env'])
+        with open(claude_json, 'w') as f:
+            json.dump(c, f, indent=2)
+        print('ok')
+    else:
+        print('skip')
+except Exception as e:
+    print(f'error: {e}')
+PYEOF
+    result=$(python3 - "$CLAUDE_JSON" "$MCP_CONF_FILE" << 'PYEOF'
+import json, sys
+try:
+    claude_json = sys.argv[1]
+    conf_json = sys.argv[2]
+    with open(claude_json, 'r') as f:
+        c = json.load(f)
+    with open(conf_json, 'r') as f:
+        conf = json.load(f)
+    if 'env' in conf:
+        if 'env' not in c:
+            c['env'] = {}
+        c['env'].update(conf['env'])
+        with open(claude_json, 'w') as f:
+            json.dump(c, f, indent=2)
+        print('ok')
+    else:
+        print('skip')
+except Exception as e:
+    print(f'error: {e}')
+PYEOF
+)
+    if [[ "$result" == "ok" ]]; then
+        good "✅ LLM API 配置已同步到 ~/.claude.json"
+    elif [[ "$result" == "skip" ]]; then
+        info "跳过：conf-claude.json 无 env"
+    else
+        bad "❌ LLM API 配置同步失败"
+    fi
+    echo ""
+
     # 同步到 settings.json
     section "同步到 GitHub"
     info "同步 mcpServers 和 hooks..."
