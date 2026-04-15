@@ -80,7 +80,7 @@
       "description": "Claude Code 用量统计 - 查看每日/每周/每月 token 用量",
       "type": "stdio",
       "command": "npx",
-      "args": ["@ccusage/mcp@latest"],
+      "args": ["--", "@ccusage/mcp@latest"],
       "env": {}
     }
   ]
