@@ -161,15 +161,13 @@ install_ccbot() {
     # PATH 修复：npm 全局包在 ~/.local/bin/
     mkdir -p "$HOME/.local/bin"
 
-    # 方式1：直接从 npm 全局 bin 目录检查
-    local npm_global_bin
-    npm_global_bin=$(npm bin -g 2>/dev/null || echo "$HOME/.local/bin")
-    local ccbot_src="$npm_global_bin/ccbot"
+    # npm 10.x 移除了 bin -g，直接使用 node_modules
+    local npm_global_root
+    npm_global_root=$(npm root -g 2>/dev/null || echo "$HOME/.local/node-v20.11.0-linux-x64/lib/node_modules")
+    local ccbot_src="$npm_global_root/@ccbot/cli/bin/ccbot.js"
 
-    # 方式2：如果方式1找不到，尝试 node_modules
+    # 如果 bin/ccbot.js 不存在，尝试 dist/server.js
     if [ ! -f "$ccbot_src" ]; then
-        local npm_global_root
-        npm_global_root=$(npm root -g 2>/dev/null || echo "$HOME/.local/node-v20.11.0-linux-x64/lib/node_modules")
         ccbot_src="$npm_global_root/@ccbot/cli/dist/server.js"
     fi
 
