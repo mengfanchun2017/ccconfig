@@ -77,6 +77,25 @@ commit_and_push() {
     fi
 }
 
+# ========== PM2 进程复活 ==========
+resurrect_pm2() {
+    export PATH="$HOME/.local/bin:$PATH"
+
+    # 等待 PM2 daemon 就绪（最多 10 秒）
+    local waited=0
+    while ! pm2 ping &>/dev/null && [ $waited -lt 10 ]; do
+        sleep 1
+        waited=$((waited + 1))
+    done
+
+    if pm2 ping &>/dev/null; then
+        log "复活 PM2 进程..."
+        pm2 resurrect 2>/dev/null || true
+    else
+        warn "PM2 daemon 未就绪，跳过 resurrect"
+    fi
+}
+
 # ========== 启动监控 ==========
 start_watch() {
     check_deps || return 1
@@ -87,6 +106,9 @@ start_watch() {
     fi
 
     cd "$REPO_DIR"
+
+    # 复活 PM2 进程（ccbot 等）
+    resurrect_pm2
 
     log "启动文件监控..."
     log "监控目录: $REPO_DIR"

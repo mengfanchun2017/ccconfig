@@ -70,6 +70,12 @@ EOF
 
     info "自启动已启用"
     info "下次 WSL 启动时 auto-sync 将自动运行"
+
+    # 保存当前 PM2 进程列表（供 resurrect 使用）
+    export PATH="$HOME/.local/bin:$PATH"
+    if pm2 ping &>/dev/null; then
+        pm2 save 2>/dev/null && info "PM2 进程列表已保存" || warn "PM2 save 失败"
+    fi
 }
 
 disable_autostart() {
