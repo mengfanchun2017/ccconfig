@@ -208,6 +208,12 @@ try:
     if 'hooks' in claude_data:
         settings_data['hooks'] = claude_data['hooks']
 
+    # 同步 env（API 凭证配置）
+    if 'env' in conf_data:
+        settings_data['env'] = conf_data['env']
+    elif 'env' in claude_data:
+        settings_data['env'] = claude_data['env']
+
     # 写回 settings.json
     with open(settings_file, 'w') as f:
         json.dump(settings_data, f, indent=2)
