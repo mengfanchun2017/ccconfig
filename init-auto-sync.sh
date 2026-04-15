@@ -201,6 +201,27 @@ status_watch() {
     fi
 }
 
+# ========== 查看日志 ==========
+log_watch() {
+    local lines="${1:-20}"
+    if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
+        echo "=== 最近 auto-sync 活动 (最后 $lines 行) ==="
+        tail -n "$lines" "$LOG_FILE"
+    else
+        echo "无日志记录"
+    fi
+}
+
+# ========== 实时跟踪 ==========
+tail_watch() {
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+        echo "实时跟踪 auto-sync（Ctrl+C 退出）..."
+        tail -f "$LOG_FILE"
+    else
+        echo "auto-sync 未运行"
+    fi
+}
+
 # ========== 主程序 ==========
 case "${1:-start}" in
     start)
@@ -212,8 +233,19 @@ case "${1:-start}" in
     status)
         status_watch
         ;;
+    log)
+        log_watch "${2:-20}"
+        ;;
+    tail)
+        tail_watch
+        ;;
     *)
-        echo "用法: $0 {start|stop|status}"
+        echo "用法: $0 {start|stop|status|log|tail}"
+        echo "  start  - 启动监控"
+        echo "  stop   - 停止监控"
+        echo "  status - 查看运行状态"
+        echo "  log    - 查看最近活动（默认20行）"
+        echo "  tail   - 实时跟踪活动"
         exit 1
         ;;
 esac
