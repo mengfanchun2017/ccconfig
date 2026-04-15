@@ -215,42 +215,47 @@ for name, config in sorted(mcps.items()):
 PYEOF
 }
 
-# ========== 6. ccbot 状态 ==========
-check_ccbot() {
+# ========== 6. 飞书 lark-cli 状态 ==========
+check_feishu() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[6] ccbot (飞书 Bridge)${NC}"
+    echo -e "${CYAN}[6] 飞书 (lark-cli)${NC}"
+
+    export PATH="$HOME/.local/bin:$PATH"
 
     # 检查安装
     echo -n "  安装 ... "
-    if command -v ccbot &> /dev/null; then
+    if command -v lark-cli &> /dev/null; then
         echo -e "${GREEN}✅${NC}"
     else
         echo -e "${RED}❌${NC}"
     fi
 
-    # 检查运行状态
-    echo -n "  运行 ... "
-    if pm2 list 2>&1 | grep -q "ccbot-git.*online"; then
-        echo -e "${GREEN}✅${NC}"
-    else
-        echo -e "${RED}❌${NC}"
-    fi
-
-    # 检查配置文件
+    # 检查配置
     echo -n "  配置 ... "
-    local ccbot_conf="$HOME/git/ccbot.json"
-    if [ -f "$ccbot_conf" ]; then
+    if lark-cli config list 2>/dev/null | grep -q "app_id"; then
         echo -e "${GREEN}✅${NC}"
     else
         echo -e "${RED}❌${NC}"
     fi
 
-    # 检查自动启动
-    echo -n "  自动启动 ... "
-    if crontab -l 2>/dev/null | grep -q "@reboot.*ccbot"; then
+    # 检查授权
+    echo -n "  授权 ... "
+    if lark-cli config list 2>/dev/null | grep -q "user_access_token\|user_token"; then
         echo -e "${GREEN}✅${NC}"
     else
-        echo -e "${YELLOW}○${NC} 未配置"
+        echo -e "${YELLOW}○${NC} 未授权"
+    fi
+
+    # ccbot Bridge 状态（仅提示，不检查）
+    echo -n "  Bridge ... "
+    if command -v ccbot &> /dev/null; then
+        if pm2 list 2>&1 | grep -q "ccbot"; then
+            echo -e "${GREEN}✅${NC} (运行中)"
+        else
+            echo -e "${YELLOW}○${NC} (未运行)"
+        fi
+    else
+        echo -e "${GRAY}－${NC} (未安装，bridgeinit.sh 单独管理)"
     fi
 }
 
@@ -264,7 +269,7 @@ check_symlinks
 check_autosync
 check_last_push
 check_memory
-check_ccbot
+check_feishu
 check_mcp
 
 echo ""
