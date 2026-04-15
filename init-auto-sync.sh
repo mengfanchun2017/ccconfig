@@ -119,7 +119,7 @@ start_watch() {
 
     # 后台运行 inotifywait
     inotifywait -m -r -q \
-        --exclude '(\.git/|node_modules/|\.log$|\.auto-sync\.|\.tmp$|/link/\.config\.json|/link/\.claude\.json)' \
+        --exclude '(\.git/|node_modules/|\.log$|\.auto-sync\.|\.tmp$|\.swp$|\.tmp)' \
         -e modify,create,delete,move \
         "$REPO_DIR" \
         >> "$LOG_FILE" 2>&1 &
@@ -128,8 +128,8 @@ start_watch() {
     echo $notify_pid > "$PID_FILE"
     log "监控已启动 (PID: $notify_pid)"
 
-    # 防抖参数（秒）
-    local debounce=1
+    # 防抖参数（秒）：等待变化稳定后再提交，避免频繁变化时反复提交
+    local debounce=60
     local last_change=0
     local pending=false
 
