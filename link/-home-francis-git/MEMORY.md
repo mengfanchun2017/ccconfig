@@ -166,46 +166,37 @@ lark-cli sheets +create --as user \
 
 ## Session Logs
 
+### 2026-04-15 [Francis_MiPro] - WSL 重启后 ccbot 恢复
+
+**问题**：WSL 重启后 ccbot 未运行，PM2 进程未自动复活
+**解决**：手动 `pm2 start` 启动 ccbot-git
+**ccbot 重启命令**：
+```bash
+pm2 start /home/francis/.local/node-v20.11.0-linux-x64/lib/node_modules/@ccbot/cli/dist/server.js --name ccbot-git -- "/home/francis/git/ccbot.json"
+```
+
 ### 2026-04-14 [Francis_MiPro] - 飞书集成完整配置
 
-**完成内容**：
-1. lark-cli 用户 OAuth 完成（Francis 账号）
-2. ccbot WebSocket 长连接配置完成（飞书双向对话）
-3. 文档创建验证：doc/bitable/spreadsheet
-4. pm2 进程管理配置
-5. feishu-mcp vs lark-cli 分工明确
-
-**分工**：
-- feishu-mcp: 发送消息、读取文档
-- lark-cli: 创建/管理文档（--as user）
-- ccbot: 接收飞书消息并转发给我
+- lark-cli 用户 OAuth 完成、ccbot WebSocket 长连接配置完成
+- feishu-mcp: 发消息/读文档 | lark-cli: 创建文档（--as user）| ccbot: 接收飞书消息
 
 ### 2026-04-13 [Francis_MiPro] - 配置文件体系修正
 
-- settings.json ↔ .config.json 职责明确
-- 三个核心文件同步到 ccconfig/link
+- settings.json ↔ .config.json 职责明确，三个核心文件同步到 ccconfig/link
 
 ### 2026-04-10 [Francis_MiPro] - claudeinit.sh 同步逻辑修复
 
 - is_registered() 改为同时检查 ~/.claude.json 和 conf-claude.json
-- sync_to_settings() 从 conf-claude.json 获取完整配置
 
 ### 2026-04-05 [Francis_MiPro] - 飞书集成初始配置
 
-- WebSocket 长连接飞书机器人
-- App ID: <your-feishu-app-id>
-- lark-cli Skills 安装完成
-
-### 2026-04-04 - SessionStart hook、ubuntuinit.sh 修复、status MCP
-
-### 2026-04-02 [Francis_MiPro] - ccconfig 重构
-
-目录结构变更、init01-03 合并为 ubuntuinit.sh
+- App ID: <your-feishu-app-id>，lark-cli Skills 安装完成
 
 ---
 
 ## Key Learnings
 
-- npm 全局包安装到 ~/.local/node-v20.11.0-linux-x64/bin/，需创建 ~/.local/bin/ 符号链接
+- npm 全局包 → ~/.local/node-v20.11.0-linux-x64/bin/，需创建 ~/.local/bin/ 符号链接
 - WebSocket 长连接 = 飞书推送消息给 Claude 的唯一方式
-- 飞书文档创建必须用 lark-cli + --as user，feishu-mcp 不渲染 markdown
+- 飞书文档创建用 lark-cli + --as user，feishu-mcp 不渲染 markdown
+- PM2 进程在 WSL 重启后不会自动复活，需手动重启
