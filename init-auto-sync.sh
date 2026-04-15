@@ -112,7 +112,7 @@ start_watch() {
 
     log "启动文件监控..."
     log "监控目录: $REPO_DIR"
-    log "排除: .git/, node_modules/, *.log, .auto-sync.*"
+    log "排除: .git/, node_modules/, *.log, .auto-sync.*, *.swp"
 
     # 清空日志文件
     : > "$LOG_FILE"
