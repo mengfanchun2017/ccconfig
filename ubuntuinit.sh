@@ -125,7 +125,14 @@ setup_git_github() {
     if [[ -d "$TARGET_DIR/.git" ]]; then
         cd "$TARGET_DIR"
         info "仓库已存在，更新中..."
-        git pull --ff-only origin main 2>&1 | tail -3 && success "仓库已更新" || warn "更新失败"
+        local old_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        git pull --ff-only origin main 2>&1 | tail -3
+        local new_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        if [[ "$old_commit" != "$new_commit" ]]; then
+            success "仓库已更新: $old_commit → $new_commit"
+        else
+            info "已是最新版本: $new_commit"
+        fi
     elif [[ -d "$TARGET_DIR" ]]; then
         warn "目标目录已存在但不是 git 仓库"
     else

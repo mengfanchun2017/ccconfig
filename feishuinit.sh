@@ -284,16 +284,14 @@ install_lark_cli() {
     # PATH 修复：npm 全局包在 ~/.local/bin/
     mkdir -p "$HOME/.local/bin"
 
-    # 方式1：直接从 npm 全局 bin 目录检查
-    local npm_global_bin
-    npm_global_bin=$(npm bin -g 2>/dev/null || echo "$HOME/.local/bin")
-    local lark_src="$npm_global_bin/lark-cli"
+    # npm 10.x 移除了 bin -g，直接使用 node_modules
+    local npm_global_root
+    npm_global_root=$(npm root -g 2>/dev/null || echo "$HOME/.local/node-v20.11.0-linux-x64/lib/node_modules")
+    local lark_src="$npm_global_root/@larksuite/cli/bin/lark-cli.js"
 
-    # 方式2：如果方式1找不到，尝试 node_modules
+    # 如果 bin/lark-cli.js 不存在，尝试其他路径
     if [ ! -f "$lark_src" ]; then
-        local npm_global_root
-        npm_global_root=$(npm root -g 2>/dev/null || echo "$HOME/.local/node-v20.11.0-linux-x64/lib/node_modules")
-        lark_src="$npm_global_root/@larksuite/cli/bin/lark-cli.js"
+        lark_src="$npm_global_root/@larksuite/cli/bin/cli.js"
     fi
 
     # 创建符号链接
