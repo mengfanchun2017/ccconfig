@@ -1,8 +1,13 @@
 #!/bin/bash
-# Claude Config - 自动同步脚本 (Linux/WSL)
+# Claude Config - 文件监控与自动同步脚本 (Linux/WSL)
 #
-# 功能：监控文件变化，自动提交并推送到 GitHub
-# 使用：./auto-sync.sh [start|stop|status]
+# 功能：监控文件变化，自动提交并推送到 GitHub（带防抖）
+# 使用：
+#   monitor-sync.sh start      后台启动监控
+#   monitor-sync.sh stop       停止监控
+#   monitor-sync.sh status     查看状态
+#   monitor-sync.sh log [N]    查看最近N行日志（默认20）
+#   monitor-sync.sh monitor    前台持续监控（手动查看用）
 #
 # 依赖：inotifywait (Linux/WSL)
 #       安装：sudo apt-get install inotify-tools
@@ -11,24 +16,35 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# 如果脚本在 ccconfig/ 目录下，REPO_DIR 就是 SCRIPT_DIR
-# 如果脚本在上一级（传统方式），REPO_DIR 就是 SCRIPT_DIR/..
 if [ -d "$SCRIPT_DIR/.git" ]; then
     REPO_DIR="$SCRIPT_DIR"
 else
     REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 fi
-PID_FILE="$REPO_DIR/.auto-sync.pid"
-LOG_FILE="$REPO_DIR/.auto-sync.log"
+PID_FILE="$REPO_DIR/.monitor-sync.pid"
+LOG_FILE="$REPO_DIR/.monitor-sync.log"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
-log() { echo -e "${GREEN}[auto-sync]${NC} $1" | tee -a "$LOG_FILE"; }
-warn() { echo -e "${YELLOW}[auto-sync]${NC} $1" | tee -a "$LOG_FILE"; }
-error() { echo -e "${RED}[auto-sync]${NC} $1" | tee -a "$LOG_FILE"; }
+log() {
+    local msg="[$(date '+%H:%M:%S')] $1"
+    echo -e "${GREEN}[monitor]${NC} $1"
+    echo "$msg" >> "$LOG_FILE"
+}
+warn() {
+    local msg="[$(date '+%H:%M:%S')] $1"
+    echo -e "${YELLOW}[monitor]${NC} $1"
+    echo "$msg" >> "$LOG_FILE"
+}
+info() {
+    echo -e "${CYAN}[monitor]${NC} $1"
+    echo "[$(date '+%H:%M:%S')] $1" >> "$LOG_FILE"
+}
+error() { echo -e "${RED}[monitor]${NC} $1" | tee -a "$LOG_FILE"; }
 
 # ========== 检查依赖 ==========
 check_deps() {
@@ -112,7 +128,7 @@ start_watch() {
     check_deps || return 1
 
     if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-        warn "已经在运行中 (PID: $(cat "$PID_FILE"))"
+        warn "已经在运行中 (PID: $(cat "$PID_FILE"))，使用 monitor 查看前台实时输出"
         return 1
     fi
 
@@ -123,7 +139,7 @@ start_watch() {
 
     log "启动文件监控..."
     log "监控目录: $REPO_DIR"
-    log "排除: .git/, node_modules/, *.log, .auto-sync.*, *.swp"
+    log "排除: .git/, node_modules/, *.log, .monitor-sync.*, .auto-sync.*, *.swp"
 
     # 清空日志文件
     : > "$LOG_FILE"
@@ -131,7 +147,7 @@ start_watch() {
     # 使用 setsid 完全脱离终端，避免 Claude Code PTY 中后台进程仍输出到终端
     # setsid 创建新会话，inotifywait 不再属于当前 session 的前台进程组
     setsid inotifywait -m -r -q \
-        --exclude '(\.git/|node_modules/|\.log$|\.auto-sync\.|\.tmp$|\.swp$|\.tmp)' \
+        --exclude '(\.git/|node_modules/|\.log$|\.monitor-sync\.|\.auto-sync\.|\.tmp$|\.swp$|\.tmp)' \
         -e modify,create,delete,move \
         "$REPO_DIR" \
         >> "$LOG_FILE" 2>&1 </dev/null &
@@ -205,7 +221,7 @@ status_watch() {
 log_watch() {
     local lines="${1:-20}"
     if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
-        echo "=== 最近 auto-sync 活动 (最后 $lines 行) ==="
+        echo "=== 最近 monitor-sync 活动 (最后 $lines 行) ==="
         tail -n "$lines" "$LOG_FILE"
     else
         echo "无日志记录"
@@ -215,11 +231,40 @@ log_watch() {
 # ========== 实时跟踪 ==========
 tail_watch() {
     if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-        echo "实时跟踪 auto-sync（Ctrl+C 退出）..."
+        echo "实时跟踪 monitor-sync（Ctrl+C 退出）..."
         tail -f "$LOG_FILE"
     else
-        echo "auto-sync 未运行"
+        echo "monitor-sync 未运行"
     fi
+}
+
+# ========== 前台持续监控模式 ==========
+run_monitor() {
+    check_deps || return 1
+
+    cd "$REPO_DIR"
+
+    echo ""
+    echo "========================================"
+    echo "  monitor-sync 前台模式"
+    echo "  实时显示文件变化和同步活动"
+    echo "  Ctrl+C 退出（后台监控继续运行）"
+    echo "========================================"
+    echo ""
+
+    info "启动前台监控..."
+    info "监控目录: $REPO_DIR"
+
+    : > "$LOG_FILE"
+
+    # 前台运行 inotifywait（不 setsid，不 &，直接在终端显示）
+    inotifywait -m -r -q \
+        --exclude '(\.git/|node_modules/|\.log$|\.monitor-sync\.|\.auto-sync\.|\.tmp$|\.swp$|\.tmp)' \
+        -e modify,create,delete,move \
+        "$REPO_DIR" 2>/dev/null | while read -r path action file; do
+            echo -e "${CYAN}[$(date '+%H:%M:%S')]${NC} ${YELLOW}$action${NC} $path$file"
+            echo "[$(date '+%H:%M:%S')] $action $path$file" >> "$LOG_FILE"
+        done
 }
 
 # ========== 主程序 ==========
@@ -239,13 +284,33 @@ case "${1:-start}" in
     tail)
         tail_watch
         ;;
+    monitor|run)
+        # 前台模式：直接运行 inotifywait，持续输出
+        run_monitor
+        ;;
     *)
-        echo "用法: $0 {start|stop|status|log|tail}"
-        echo "  start  - 启动监控"
-        echo "  stop   - 停止监控"
-        echo "  status - 查看运行状态"
-        echo "  log    - 查看最近活动（默认20行）"
-        echo "  tail   - 实时跟踪活动"
+        echo "用法: $0 {start|stop|status|log|tail|monitor}"
+        echo ""
+        echo "  start   - 后台启动监控（推荐开机后运行一次）"
+        echo "  stop    - 停止后台监控"
+        echo "  status  - 查看运行状态"
+        echo "  log [N] - 查看最近N行日志（默认20）"
+        echo "  tail    - 实时跟踪日志（后台监控的日志）"
+        echo "  monitor - 前台持续监控（手动查看文件变化用）"
+        echo ""
+        echo "首次使用: $0 start   启动后台监控"
+        echo "调试查看: $0 monitor 前台实时查看变化"
+        exit 1
+        ;;
+        echo "  start   - 后台启动监控（推荐开机后运行一次）"
+        echo "  stop    - 停止后台监控"
+        echo "  status  - 查看运行状态"
+        echo "  log [N] - 查看最近N行日志（默认20）"
+        echo "  tail    - 实时跟踪日志（后台监控的日志）"
+        echo "  monitor - 前台持续监控（手动查看文件变化用）"
+        echo ""
+        echo "首次使用: $0 start   启动后台监控"
+        echo "调试查看: $0 monitor 前台实时查看变化"
         exit 1
         ;;
 esac
