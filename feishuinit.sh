@@ -158,16 +158,24 @@ install_ccbot() {
         return 1
     fi
 
-    # PATH 修复
-    local ccbot_path
-    ccbot_path=$(find "$HOME/.npm/_npx" -name "ccbot" -type f 2>/dev/null | head -1 || true)
-    if [ -z "$ccbot_path" ]; then
-        ccbot_path=$(find "$HOME/.local" -name "ccbot" -type f 2>/dev/null | head -1 || true)
+    # PATH 修复：npm 全局包在 ~/.local/bin/
+    mkdir -p "$HOME/.local/bin"
+
+    # 方式1：直接从 npm 全局 bin 目录检查
+    local npm_global_bin
+    npm_global_bin=$(npm bin -g 2>/dev/null || echo "$HOME/.local/bin")
+    local ccbot_src="$npm_global_bin/ccbot"
+
+    # 方式2：如果方式1找不到，尝试 node_modules
+    if [ ! -f "$ccbot_src" ]; then
+        local npm_global_root
+        npm_global_root=$(npm root -g 2>/dev/null || echo "$HOME/.local/node-v20.11.0-linux-x64/lib/node_modules")
+        ccbot_src="$npm_global_root/@ccbot/cli/dist/server.js"
     fi
 
-    if [ -n "$ccbot_path" ] && [ ! -e "$HOME/.local/bin/ccbot" ]; then
-        mkdir -p "$HOME/.local/bin"
-        ln -sf "$ccbot_path" "$HOME/.local/bin/ccbot" 2>/dev/null || true
+    # 创建符号链接
+    if [ -f "$ccbot_src" ] && [ ! -e "$HOME/.local/bin/ccbot" ]; then
+        ln -sf "$ccbot_src" "$HOME/.local/bin/ccbot" 2>/dev/null || true
     fi
 
     export PATH="$HOME/.local/bin:$PATH"
@@ -275,16 +283,24 @@ install_lark_cli() {
         return 1
     fi
 
-    # PATH 修复
-    local lark_path
-    lark_path=$(find "$HOME/.npm/_npx" -name "lark-cli" -type f 2>/dev/null | head -1 || true)
-    if [ -z "$lark_path" ]; then
-        lark_path=$(find "$HOME/.local" -name "lark-cli" -type f 2>/dev/null | head -1 || true)
+    # PATH 修复：npm 全局包在 ~/.local/bin/
+    mkdir -p "$HOME/.local/bin"
+
+    # 方式1：直接从 npm 全局 bin 目录检查
+    local npm_global_bin
+    npm_global_bin=$(npm bin -g 2>/dev/null || echo "$HOME/.local/bin")
+    local lark_src="$npm_global_bin/lark-cli"
+
+    # 方式2：如果方式1找不到，尝试 node_modules
+    if [ ! -f "$lark_src" ]; then
+        local npm_global_root
+        npm_global_root=$(npm root -g 2>/dev/null || echo "$HOME/.local/node-v20.11.0-linux-x64/lib/node_modules")
+        lark_src="$npm_global_root/@larksuite/cli/bin/lark-cli.js"
     fi
 
-    if [ -n "$lark_path" ] && [ ! -e "$HOME/.local/bin/lark-cli" ]; then
-        mkdir -p "$HOME/.local/bin"
-        ln -sf "$lark_path" "$HOME/.local/bin/lark-cli" 2>/dev/null || true
+    # 创建符号链接
+    if [ -f "$lark_src" ] && [ ! -e "$HOME/.local/bin/lark-cli" ]; then
+        ln -sf "$lark_src" "$HOME/.local/bin/lark-cli" 2>/dev/null || true
     fi
 
     export PATH="$HOME/.local/bin:$PATH"
