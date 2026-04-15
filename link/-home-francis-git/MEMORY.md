@@ -166,14 +166,24 @@ lark-cli sheets +create --as user \
 
 ## Session Logs
 
-### 2026-04-15 [Francis_MiPro] - WSL 重启后 ccbot 恢复
+### 2026-04-15 [Francis_MiPro] - ccbot 自启动 + .bashrc PATH 污染修复
 
-**问题**：WSL 重启后 ccbot 未运行，PM2 进程未自动复活
-**解决**：手动 `pm2 start` 启动 ccbot-git
-**ccbot 重启命令**：
+**问题 1**: `.bashrc` 第 126 行有 `export PATH="$(npm bin -g):$PATH"`，但 npm 10.x 已移除 `bin` 命令
+- 导致 PATH 污染 + `set -e` 下脚本提前退出
+- 修复：删除该行，保留 `export PATH="$HOME/.local/bin:$PATH"`
+
+**问题 2**: ccbot 在 WSL 重启后不自动复活
+- 修复方案（三重保障）：
+  1. `~/.bashrc` 添加 `pm2 resurrect 2>/dev/null || true`（每次开终端自动恢复）
+  2. `init-auto-sync.sh` 的 `start_watch()` 调用 `resurrect_pm2()`（auto-sync 启动时恢复）
+  3. `init-enable-autostart.sh` 调用 `pm2 save`（启用自启动时保存进程列表）
+
+**ccbot 重启命令**（备用）：
 ```bash
 pm2 start /home/francis/.local/node-v20.11.0-linux-x64/lib/node_modules/@ccbot/cli/dist/server.js --name ccbot-git -- "/home/francis/git/ccbot.json"
 ```
+
+**注意**：VPN 需保持稳定，否则 git push 会失败
 
 ### 2026-04-14 [Francis_MiPro] - 飞书集成完整配置
 
@@ -199,4 +209,6 @@ pm2 start /home/francis/.local/node-v20.11.0-linux-x64/lib/node_modules/@ccbot/c
 - npm 全局包 → ~/.local/node-v20.11.0-linux-x64/bin/，需创建 ~/.local/bin/ 符号链接
 - WebSocket 长连接 = 飞书推送消息给 Claude 的唯一方式
 - 飞书文档创建用 lark-cli + --as user，feishu-mcp 不渲染 markdown
-- PM2 进程在 WSL 重启后不会自动复活，需手动重启
+- PM2 进程在 WSL 重启后不会自动复活 → 需 `pm2 resurrect` 自动恢复
+- `npm bin -g` 在 npm 10.x 已移除，勿在 .bashrc 中使用
+- WSL 开新终端时 PATH 继承父进程，开新 session 才能验证 PATH 修复
