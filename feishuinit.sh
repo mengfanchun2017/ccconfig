@@ -144,6 +144,9 @@ check_prerequisites() {
 install_ccbot() {
     title "安装 ccbot (Bridge)"
 
+    # 先设置 PATH，避免找不到命令
+    export PATH="$HOME/.local/bin:$PATH"
+
     if command -v ccbot &> /dev/null; then
         good "✓ ccbot 已安装: $(ccbot -V 2>/dev/null || echo 'unknown')"
         return 0
@@ -171,12 +174,11 @@ install_ccbot() {
         ccbot_src="$npm_global_root/@ccbot/cli/dist/server.js"
     fi
 
-    # 创建符号链接
-    if [ -f "$ccbot_src" ] && [ ! -e "$HOME/.local/bin/ccbot" ]; then
-        ln -sf "$ccbot_src" "$HOME/.local/bin/ccbot" 2>/dev/null || true
+    # 创建/更新符号链接
+    if [ -f "$ccbot_src" ]; then
+        rm -f "$HOME/.local/bin/ccbot"  # 强制删除旧链接
+        ln -sf "$ccbot_src" "$HOME/.local/bin/ccbot"
     fi
-
-    export PATH="$HOME/.local/bin:$PATH"
 
     echo -n "验证安装 ... "
     if command -v ccbot &> /dev/null; then
@@ -267,6 +269,9 @@ setup_ccbot_autostart() {
 install_lark_cli() {
     title "安装 lark-cli"
 
+    # 先设置 PATH，避免找不到命令
+    export PATH="$HOME/.local/bin:$PATH"
+
     if command -v lark-cli &> /dev/null; then
         good "✓ lark-cli 已安装: $(lark-cli --version 2>/dev/null || lark-cli version 2>/dev/null || echo 'unknown')"
         return 0
@@ -294,12 +299,11 @@ install_lark_cli() {
         lark_src="$npm_global_root/@larksuite/cli/bin/cli.js"
     fi
 
-    # 创建符号链接
-    if [ -f "$lark_src" ] && [ ! -e "$HOME/.local/bin/lark-cli" ]; then
-        ln -sf "$lark_src" "$HOME/.local/bin/lark-cli" 2>/dev/null || true
+    # 创建/更新符号链接
+    if [ -f "$lark_src" ]; then
+        rm -f "$HOME/.local/bin/lark-cli"  # 强制删除旧链接
+        ln -sf "$lark_src" "$HOME/.local/bin/lark-cli"
     fi
-
-    export PATH="$HOME/.local/bin:$PATH"
 
     echo -n "验证安装 ... "
     if command -v lark-cli &> /dev/null; then
