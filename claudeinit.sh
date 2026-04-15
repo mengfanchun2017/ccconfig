@@ -212,7 +212,17 @@ if [ ! -f "$MCP_CONF_FILE" ]; then
     exit 1
 fi
 
+# 清理可能被污染的 PATH（移除嵌入的换行符和 npm 错误信息）
+CLEAN_PATH="/home/francis/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+if echo "$PATH" | grep -q "Unknown command\|npm\|newline\|换行"; then
+    export PATH="$CLEAN_PATH"
+fi
+
 export PATH="$HOME/.local/bin:$PATH"
+
+# DEBUG: 打印 PATH 和 claude 位置
+echo "DEBUG PATH=$(echo $PATH | head -c 80)" >&2
+echo "DEBUG claude_exists=$(command -v claude || echo 'NOT FOUND')" >&2
 
 if ! command -v claude &> /dev/null; then
     bad "❌ Claude Code 未安装"
