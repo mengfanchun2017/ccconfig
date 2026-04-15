@@ -129,7 +129,7 @@ start_watch() {
     log "监控已启动 (PID: $notify_pid)"
 
     # 防抖参数（秒）：等待变化稳定后再提交，避免频繁变化时反复提交
-    local debounce=60
+    local debounce=120
     local last_change=0
     local pending=false
 
@@ -140,24 +140,27 @@ start_watch() {
         # 检查是否有新事件（LOG_FILE 有内容）
         if [ -s "$LOG_FILE" ]; then
             local now=$(date +%s)
-            local time_diff=$((now - last_change))
 
-            if [ "$pending" = true ] && [ $time_diff -ge $debounce ]; then
-                # 等待足够久，执行提交
-                commit_and_push
-                pending=false
-                last_change=$now
-            elif [ "$pending" = false ]; then
-                # 首次检测到事件
-                pending=true
+            if [ "$pending" = true ]; then
+                # 已在防抖中，更新 last_change（新变化重置计时器）
                 last_change=$now
             else
-                # 还在 debounce 期间
-                : # pending 保持 true
+                # 首次检测到事件，开始防抖
+                pending=true
+                last_change=$now
             fi
 
             # 清空日志（避免重复检测）
             : > "$LOG_FILE"
+        fi
+
+        # 防抖计时器：只有在 pending=true 且超过 debounce 秒后才提交
+        if [ "$pending" = true ]; then
+            local time_diff=$(( $(date +%s) - last_change ))
+            if [ $time_diff -ge $debounce ]; then
+                commit_and_push
+                pending=false
+            fi
         fi
     done &
 }
