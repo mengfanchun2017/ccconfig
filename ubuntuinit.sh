@@ -161,6 +161,17 @@ setup_nodejs() {
         rm -f /tmp/node.tar.gz
         success "Node.js 安装完成: $(node --version)"
     fi
+
+    # npm 全局包安装
+    section "npm 全局包"
+    export PATH="$LOCAL_BIN:$PATH"
+
+    info "安装 ccusage (Claude Code 用量统计)..."
+    if npm install -g ccusage 2>&1 | tail -3; then
+        success "ccusage 安装成功"
+    else
+        warn "ccusage 安装失败（可忽略，不影响功能）"
+    fi
 }
 
 # ========== 3. uv ==========
