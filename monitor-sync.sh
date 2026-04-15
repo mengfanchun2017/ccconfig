@@ -1,7 +1,8 @@
 #!/bin/bash
 # Claude Config - 文件监控与自动同步脚本 (Linux/WSL)
 #
-# 功能：监控文件变化，自动提交并推送到 GitHub（带防抖）
+# 功能：监控文件变化 → 防抖 120s → commit → pull --ff → push
+#       pull --ff 解决多机同时 push 的冲突
 # 使用：
 #   monitor-sync.sh start      后台启动监控
 #   monitor-sync.sh stop       停止监控
