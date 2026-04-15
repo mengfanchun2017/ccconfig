@@ -87,6 +87,19 @@ commit_and_push() {
         echo "$commit_output" >> "$LOG_FILE"
         log "已提交"
 
+        # 先 pull --ff，再 push（解决多机冲突）
+        log "正在 pull --ff ..."
+        local pull_output
+        if pull_output=$(git pull --ff origin main 2>&1); then
+            echo "$pull_output" >> "$LOG_FILE"
+            log "pull 成功"
+        else
+            # pull 失败（可能是两台机器同时有提交）
+            echo "$pull_output" >> "$LOG_FILE"
+            warn "pull 失败（对方有新提交）: $(echo "$pull_output" | grep -v "^Merge" | grep -v "^ " | head -1)"
+            warn "请手动处理: cd $REPO_DIR && git pull --ff origin main"
+        fi
+
         # 推送
         if git push origin main >> "$LOG_FILE" 2>&1; then
             log "已推送到 GitHub"
