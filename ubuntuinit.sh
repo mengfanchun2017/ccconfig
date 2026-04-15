@@ -289,7 +289,7 @@ if 'env' not in config:
 
 config['env'].update({
     "ANTHROPIC_BASE_URL": "$BASE_URL",
-    "ANTHROPIC_API_KEY": "$API_KEY",
+    "ANTHROPIC_AUTH_TOKEN": "$API_KEY",
     "ANTHROPIC_MODEL": "$MODEL_NAME",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
 })
