@@ -260,6 +260,9 @@ setup_claude_code() {
 setup_claude_api() {
     section "Claude API 配置"
 
+    # 清理可能冲突的系统级环境变量（新环境可能自带 ANTHROPIC_API_KEY）
+    unset ANTHROPIC_API_KEY
+
     mkdir -p "$CLAUDE_DIR"
 
     API_CONFIG=$(read_api_config)
