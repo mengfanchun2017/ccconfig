@@ -125,7 +125,7 @@ setup_git_github() {
     if [[ -d "$TARGET_DIR/.git" ]]; then
         cd "$TARGET_DIR"
         info "仓库已存在，更新中..."
-        git pull origin main 2>/dev/null && success "仓库已更新" || warn "更新失败"
+        git pull --ff-only origin main 2>&1 | tail -3 && success "仓库已更新" || warn "更新失败"
     elif [[ -d "$TARGET_DIR" ]]; then
         warn "目标目录已存在但不是 git 仓库"
     else
