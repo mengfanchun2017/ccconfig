@@ -30,10 +30,12 @@ This file persists across Claude Code conversations.
 - PM2 进程在 WSL 重启后不会自动复活 → 需 `pm2 resurrect` 自动恢复
 - WSL 开新终端时 PATH 继承父进程，开新 session 才能验证 PATH 修复
 - Claude Code v2.1+ 推荐原生安装（`curl -fsSL https://claude.ai/install.sh | bash`）
-- auto-sync 防抖时间 60 秒，避免高频变化时反复提交
 - Claude Code 从 npm 切换到原生: `claude install --force`
-- **API 变量统一**: 统一使用 `ANTHROPIC_AUTH_TOKEN`，不再用 `ANTHROPIC_API_KEY`（避免新环境系统级变量冲突）
-- auto-sync 防抖时间改为 120 秒，逻辑修正（连续变化合并为一次提交）
+- **API 变量统一**: 统一使用 `ANTHROPIC_AUTH_TOKEN`，不再用 `ANTHROPIC_API_KEY`
+- **Claude 项目身份**: 由启动 Claude 时的绝对路径决定（找最近的 .git 目录往上）
+- **工作习惯**: 在 `~/git/` 下启动 Claude（总目录），不频繁切换到子仓库
+- **monitor-sync.sh**（新）: `init-auto-sync.sh` 的改名，新增 `monitor` 前台实时查看模式
+- **pull --ff**: auto-sync 先 commit → pull --ff → push，解决多机同时 push 的冲突问题
 
 ---
 
