@@ -302,15 +302,4 @@ case "${1:-start}" in
         echo "调试查看: $0 monitor 前台实时查看变化"
         exit 1
         ;;
-        echo "  start   - 后台启动监控（推荐开机后运行一次）"
-        echo "  stop    - 停止后台监控"
-        echo "  status  - 查看运行状态"
-        echo "  log [N] - 查看最近N行日志（默认20）"
-        echo "  tail    - 实时跟踪日志（后台监控的日志）"
-        echo "  monitor - 前台持续监控（手动查看文件变化用）"
-        echo ""
-        echo "首次使用: $0 start   启动后台监控"
-        echo "调试查看: $0 monitor 前台实时查看变化"
-        exit 1
-        ;;
 esac
