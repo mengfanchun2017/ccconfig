@@ -331,27 +331,6 @@ do_sync() {
 
     # 同步 LLM API env 到 ~/.claude.json
     section "同步 LLM API 配置"
-    python3 - "$CLAUDE_JSON" "$MCP_CONF_FILE" << 'PYEOF'
-import json, sys
-try:
-    claude_json = sys.argv[1]
-    conf_json = sys.argv[2]
-    with open(claude_json, 'r') as f:
-        c = json.load(f)
-    with open(conf_json, 'r') as f:
-        conf = json.load(f)
-    if 'env' in conf:
-        if 'env' not in c:
-            c['env'] = {}
-        c['env'].update(conf['env'])
-        with open(claude_json, 'w') as f:
-            json.dump(c, f, indent=2)
-        print('ok')
-    else:
-        print('skip')
-except Exception as e:
-    print(f'error: {e}')
-PYEOF
     result=$(python3 - "$CLAUDE_JSON" "$MCP_CONF_FILE" << 'PYEOF'
 import json, sys
 try:
