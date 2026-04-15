@@ -126,12 +126,27 @@ setup_git_github() {
         cd "$TARGET_DIR"
         info "仓库已存在，更新中..."
         local old_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        git pull --ff-only origin main 2>&1 | tail -3
-        local new_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        if [[ "$old_commit" != "$new_commit" ]]; then
-            success "仓库已更新: $old_commit → $new_commit"
+
+        # 先 fetch 远程
+        git fetch origin main 2>/dev/null || true
+
+        # 检查是否有分歧
+        local local_commit=$(git rev-parse --short HEAD)
+        local remote_commit=$(git rev-parse --short origin/main)
+
+        if [[ "$local_commit" == "$remote_commit" ]]; then
+            info "已是最新版本: $local_commit"
         else
-            info "已是最新版本: $new_commit"
+            # 有分歧，尝试合并
+            if git pull --ff-only origin main 2>&1 | grep -q "Already up to date\|Fast-forward"; then
+                local new_commit=$(git rev-parse --short HEAD)
+                success "仓库已更新: $old_commit → $new_commit"
+            else
+                warn "本地有提交未推送，尝试推送..."
+                git push origin main 2>&1 | tail -2 || true
+                local new_commit=$(git rev-parse --short HEAD)
+                info "已同步到: $new_commit"
+            fi
         fi
     elif [[ -d "$TARGET_DIR" ]]; then
         warn "目标目录已存在但不是 git 仓库"
