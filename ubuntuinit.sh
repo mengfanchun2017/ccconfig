@@ -188,9 +188,20 @@ setup_claude_code() {
     # 干净的 PATH（避免 WSL 继承污染）
     export PATH="$LOCAL_BIN:$PATH"
 
-    # 检查是否已安装
+    # 检查是否已安装（优先原生安装）
     if command -v claude &>/dev/null; then
-        success "Claude Code 已安装: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "未知")"
+        local current_version=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "未知")
+        # 检查是否是 npm 版本（符号链接到 node_modules）
+        if [[ -L "$(command -v claude)" ]] && [[ "$(readlink -f "$(command -v claude)")" == *"node_modules"* ]]; then
+            warn "检测到 npm 版本，切换到原生安装..."
+            if claude install --force 2>&1 | tail -5; then
+                success "Claude Code 已切换到原生: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+            else
+                warn "切换失败，保留 npm 版本"
+            fi
+        else
+            success "Claude Code 已安装: $current_version（原生）"
+        fi
         return 0
     fi
 
@@ -198,8 +209,7 @@ setup_claude_code() {
 
     # 方式一：官方原生安装脚本（推荐，无需 Node.js）
     info "尝试官方原生安装..."
-    if curl -fsSL "https://claude.ai/install.sh" | bash 2>&1 | tee /tmp/claude-install.log; then
-        # 验证安装
+    if curl -fsSL "https://claude.ai/install.sh" | bash 2>&1 | tail -10; then
         if command -v claude &>/dev/null; then
             success "Claude Code 原生安装成功: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
             return 0
@@ -215,14 +225,12 @@ setup_claude_code() {
     if npm install -g @anthropic-ai/claude-code 2>&1 | tail -5; then
         ln -sf "$NPM_GLOBAL_BIN/claude" "$LOCAL_BIN/claude" 2>/dev/null || true
         success "Claude Code npm 安装成功!"
-
         if command -v claude &>/dev/null; then
             info "版本: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
         fi
     else
         error "Claude Code 安装失败（原生+npm 均失败）"
         info "请手动安装：curl -fsSL https://claude.ai/install.sh | bash"
-        # 不退出，继续（Claude 可能已通过其他方式安装）
     fi
 }
 
