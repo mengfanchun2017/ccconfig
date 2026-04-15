@@ -12,6 +12,15 @@ export PATH="/home/francis/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# DEBUG: 确认 PATH 干净和 claude 可用
+if ! command -v claude &>/dev/null; then
+    echo "DEBUG: claude NOT found in PATH=$PATH" >&2
+    echo "DEBUG: checking specific paths..." >&2
+    for p in /home/francis/.local/bin /usr/local/bin /usr/bin; do
+        echo "  $p/claude: $(ls -la "$p/claude" 2>&1 | head -1)" >&2
+    done
+fi
 MCP_CONF_FILE="$SCRIPT_DIR/conf-claude.json"
 
 # 颜色

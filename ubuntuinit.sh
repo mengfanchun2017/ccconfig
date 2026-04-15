@@ -181,35 +181,48 @@ setup_uv() {
     fi
 }
 
-# ========== 4. Claude Code (npm 方式) ==========
+# ========== 4. Claude Code (原生方式) ==========
 setup_claude_code() {
     section "Claude Code"
 
-    # npm 全局 bin 目录
-    NPM_GLOBAL_BIN="$HOME/.local/node-v${NODE_VERSION}-linux-x64/bin"
-    export PATH="$NPM_GLOBAL_BIN:$LOCAL_BIN:$PATH"
+    # 干净的 PATH（避免 WSL 继承污染）
+    export PATH="$LOCAL_BIN:$PATH"
 
+    # 检查是否已安装
     if command -v claude &>/dev/null; then
         success "Claude Code 已安装: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "未知")"
         return 0
     fi
 
-    warn "Claude Code 未安装"
+    warn "Claude Code 未安装，尝试安装..."
 
-    # npm 安装
-    info "使用 npm 安装 Claude Code..."
-    if npm install -g @anthropic-ai/claude-code 2>&1; then
-        # 更新 ~/.local/bin/claude 符号链接指向 npm 安装的版本
-        ln -sf "$NPM_GLOBAL_BIN/claude" "$LOCAL_BIN/claude"
-        success "Claude Code 安装成功!"
+    # 方式一：官方原生安装脚本（推荐，无需 Node.js）
+    info "尝试官方原生安装..."
+    if curl -fsSL "https://claude.ai/install.sh" | bash 2>&1 | tee /tmp/claude-install.log; then
+        # 验证安装
+        if command -v claude &>/dev/null; then
+            success "Claude Code 原生安装成功: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+            return 0
+        fi
+    fi
 
-        # 验证
+    warn "原生安装失败，尝试 npm 方式..."
+
+    # 方式二：npm 安装（备选）
+    NPM_GLOBAL_BIN="$HOME/.local/node-v${NODE_VERSION}-linux-x64/bin"
+    export PATH="$NPM_GLOBAL_BIN:$LOCAL_BIN:$PATH"
+
+    if npm install -g @anthropic-ai/claude-code 2>&1 | tail -5; then
+        ln -sf "$NPM_GLOBAL_BIN/claude" "$LOCAL_BIN/claude" 2>/dev/null || true
+        success "Claude Code npm 安装成功!"
+
         if command -v claude &>/dev/null; then
             info "版本: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
         fi
     else
-        error "npm 安装失败"
-        exit 1
+        error "Claude Code 安装失败（原生+npm 均失败）"
+        info "请手动安装：curl -fsSL https://claude.ai/install.sh | bash"
+        # 不退出，继续（Claude 可能已通过其他方式安装）
     fi
 }
 
