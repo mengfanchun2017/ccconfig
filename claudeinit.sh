@@ -429,3 +429,6 @@ esac
 echo ""
 title "✅ 完成"
 echo "提示: claude mcp list 查看注册状态"
+
+# 确保脚本正常退出
+exit 0
