@@ -119,7 +119,7 @@ start_watch() {
 
     # 后台运行 inotifywait
     inotifywait -m -r -q \
-        --exclude '(\.git/|node_modules/|\.log$|\.auto-sync\.|\.tmp$)' \
+        --exclude '(\.git/|node_modules/|\.log$|\.auto-sync\.|\.tmp$|/link/\.config\.json|/link/\.claude\.json)' \
         -e modify,create,delete,move \
         "$REPO_DIR" \
         >> "$LOG_FILE" 2>&1 &
