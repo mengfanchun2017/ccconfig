@@ -5,7 +5,7 @@
     "ANTHROPIC_BASE_URL": "https://api.minimaxi.com/anthropic",
     "ANTHROPIC_MODEL": "MiniMax-M2.7",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "ANTHROPIC_API_KEY": "REDACTED_MINIMAX_KEY"
+    "ANTHROPIC_AUTH_TOKEN": "REDACTED_MINIMAX_KEY"
   },
   "settings": {
     "default_action": "sync",
