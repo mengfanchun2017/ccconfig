@@ -14,6 +14,7 @@ This file persists across Claude Code conversations.
 - Preferred language: Chinese (中文)
 - **Session Sync**: 每次收尾时同步记忆到 ccconfig 仓库
 - **MCP 操作**: `bash ccconfig/claudeinit.sh`
+- **飞书操作**: feishuinit.sh（所有环境）| bridgeinit.sh（仅 Bridge 环境）
 - **Key/Token 存储**: conf-claude.json（已同步到 ccconfig/link）
 - **进入 Claude 行为**: 说"hookstatus"→ 运行 `bash ccconfig/hook-status.sh`
 - **搜索策略**: 中文=minimax web_search, 英文=tavily search
@@ -31,14 +32,18 @@ This file persists across Claude Code conversations.
 - Claude Code v2.1+ 推荐原生安装（`curl -fsSL https://claude.ai/install.sh | bash`）
 - auto-sync 防抖时间 60 秒，避免高频变化时反复提交
 - Claude Code 从 npm 切换到原生: `claude install --force`
+- **API 变量统一**: 统一使用 `ANTHROPIC_AUTH_TOKEN`，不再用 `ANTHROPIC_API_KEY`（避免新环境系统级变量冲突）
+- auto-sync 防抖时间改为 120 秒，逻辑修正（连续变化合并为一次提交）
 
 ---
 
 ## 飞书集成配置（详细配置见 ccconfig/conf-feishu.json）
 
 - 飞书 App ID: `<your-feishu-app-id>`
-- 飞书文件夹 Token: ccconfig/conf-feishu.json
-- **分工**: feishu-mcp 发消息/读文档 | lark-cli 创建文档 | ccbot 接收飞书消息
+- **分工**:
+  - `feishu-mcp` → 发消息、读文档
+  - `lark-cli` → 创建文档、日历、任务（所有环境）
+  - `ccbot` → 接收飞书消息 WebSocket 长连接（仅 Bridge 环境）
 - **OAuth 管理**: https://account.feishu.cn/ → 账号与安全 → 应用授权管理
 
 ---
@@ -48,19 +53,29 @@ This file persists across Claude Code conversations.
 ```
 ccconfig/
 ├── ubuntuinit.sh     # Ubuntu 合一初始化
+├── feishuinit.sh     # 飞书 lark-cli 配置（所有环境）
+├── bridgeinit.sh     # ccbot Bridge 专用（仅 Bridge 环境）
 ├── claudeinit.sh     # MCP 安装配置
-├── init-auto-sync.sh  # auto-sync（防抖60秒）
+├── init-auto-sync.sh  # auto-sync（防抖120秒）
 ├── init-enable-autostart.sh  # 自启动（pm2 save）
 ├── hook-status.sh     # 状态检查
 ├── conf-ubuntu.json  # ubuntuinit 配置
 ├── conf-claude.json  # MCP + Key/Token 配置（同步源）
+├── conf-feishu.json  # 飞书配置（App ID/Secret/Bridge workDir）
 └── link/             # 符号链接 → ~/.claude/
 ```
 
 **新环境初始化**:
 ```bash
-bash ccconfig/ubuntuinit.sh    # 终端执行
-bash ccconfig/claudeinit.sh     # Claude 中执行
+# 终端执行（所有环境）
+bash ccconfig/ubuntuinit.sh    # 基础环境 + Claude + auto-sync
+bash ccconfig/feishuinit.sh   # 飞书 lark-cli（所有环境）
+
+# Claude 中执行
+bash ccconfig/claudeinit.sh    # MCP 安装配置
+
+# 仅 Bridge 环境额外运行
+bash ccconfig/bridgeinit.sh   # ccbot Bridge WebSocket
 ```
 
 ---
@@ -68,6 +83,10 @@ bash ccconfig/claudeinit.sh     # Claude 中执行
 ## Session Logs（精简）
 
 ### 2026-04-15
+- 飞书初始化拆分: feishuinit.sh（lark-cli，所有环境） + bridgeinit.sh（ccbot Bridge，仅一台机器）
+- API 变量统一: 全部改用 `ANTHROPIC_AUTH_TOKEN`，移除残留的 `ANTHROPIC_API_KEY`
+- `ubuntuinit.sh` 添加 `unset ANTHROPIC_API_KEY` 防新环境系统级冲突
+- auto-sync 防抖修复: 改为 120 秒，修正连续变化合并逻辑
 - ccbot 自启动三重保障: .bashrc/pm2 resurrect + init-auto-sync/pm2 resurrect + init-enable-autostart/pm2 save
 - .bashrc 删除 `npm bin -g`（npm 10.x 已移除）
 - claudeinit.sh 顶部设置干净 PATH 避免 WSL 继承污染
