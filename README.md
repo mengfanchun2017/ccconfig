@@ -7,7 +7,8 @@ Claude Code 配置文件仓库，用于跨设备同步配置。
 ```
 ccconfig/
 ├── ubuntuinit.sh            # Ubuntu 合一初始化脚本（Git + Claude + 环境）
-├── feishuinit.sh            # 飞书初始化脚本（lark-cli + feishu bridge）
+├── feishuinit.sh            # 飞书基础配置（lark-cli，所有环境都跑）
+├── bridgeinit.sh            # ccbot Bridge 专用（仅 Bridge 环境跑）
 ├── claudeinit.sh            # MCP 服务器安装与配置
 ├── hook-status.sh           # 状态检查（供 MCP 调用）
 ├── init-auto-sync.sh        # 文件变化自动同步到 GitHub
