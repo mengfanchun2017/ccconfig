@@ -212,3 +212,26 @@ pm2 start /home/francis/.local/node-v20.11.0-linux-x64/lib/node_modules/@ccbot/c
 - PM2 进程在 WSL 重启后不会自动复活 → 需 `pm2 resurrect` 自动恢复
 - `npm bin -g` 在 npm 10.x 已移除，勿在 .bashrc 中使用
 - WSL 开新终端时 PATH 继承父进程，开新 session 才能验证 PATH 修复
+
+---
+
+## 暗号
+
+### ccusage - Claude Code 用量统计
+
+**触发词**: `ccusage`
+
+**输出格式**（百万 tokens）：
+| 周期 | 今日 | 本周 | 本月 | 总计 |
+|------|------|------|------|------|
+| Tokens | X.XM | X.XM | X.XM | X.XM |
+
+**实现方式**：
+```bash
+npx ccusage@latest daily --since YYYYMMDD --until YYYYMMDD
+npx ccusage@latest monthly
+```
+
+**ccconfig 同步**：
+- OS 层安装：`ubuntuinit.sh` → `npm install -g ccusage`
+- MCP 配置：`conf-claude.json` → `@ccusage/mcp`
