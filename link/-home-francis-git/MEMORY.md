@@ -121,15 +121,15 @@ link/
 
 **新环境初始化**:
 ```bash
-# 终端执行
-bash ccconfig/ubuntuinit.sh    # 基础环境 + Claude + auto-sync
-bash ccconfig/feishuinit.sh   # 飞书 lark-cli
+# 1. 终端：基础环境（完成后 Claude Code 就可用了）
+bash ccconfig/ubuntuinit.sh
+bash ccconfig/feishuinit.sh
 
-# 进入 Claude Code 后执行
-bash ccconfig/claudeinit.sh    # MCP 安装配置
+# 2. 终端：MCP 安装（claudeinit.sh 需要 Claude Code 已安装）
+bash ccconfig/claudeinit.sh
 
-# 仅 Bridge 环境额外运行
-bash ccconfig/bridgeinit.sh   # ccbot Bridge WebSocket
+# 3. 仅 Bridge 环境额外运行
+bash ccconfig/bridgeinit.sh
 ```
 
 **monitor-sync.sh 用法**:
