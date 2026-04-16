@@ -14,6 +14,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FEISHU_CONF="$SCRIPT_DIR/conf-feishu.json"
 
+# 确保 ~/.local/bin 在 PATH 中（ubuntuinit.sh 装 Node.js 到这里）
+LOCAL_BIN="$HOME/.local/bin"
+if [[ ":$PATH:" != *":$LOCAL_BIN:"* ]]; then
+    export PATH="$LOCAL_BIN:$PATH"
+fi
+
 # 颜色
 RED='\033[0;31m'
 GREEN='\033[0;32m'
