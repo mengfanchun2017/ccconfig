@@ -84,7 +84,7 @@ ubuntuinit.sh 会依次完成：
 6. 符号链接
 7. auto-sync
 8. SessionStart hook
-9. （MCP 服务器需要进入 Claude 后单独运行 claudeinit.sh，见下方）
+9. （MCP 服务器安装需要 Claude Code 已安装，见下方 claudeinit.sh）
 
 ### 飞书初始化（可选）
 
