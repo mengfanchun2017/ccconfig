@@ -8,6 +8,8 @@ openclaw.json
 # auto-sync 运行文件
 .auto-sync.log
 .auto-sync.pid
+.monitor-sync.log
+.monitor-sync.pid
 
 # 可选：本地环境变量文件
 # .env

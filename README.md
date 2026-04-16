@@ -120,7 +120,7 @@ bridgeinit.sh 会完成：
 **双向消息互通**：同时需要 ccbot + feishu-mcp
 **仅 Claude 发消息/创建文档**：只装 feishu-mcp，不装 ccbot 也行
 
-**文档创建**：必须用 lark-cli，`feishu_create_doc` 创建的文档访问不了
+**文档操作**：统一用 lark-cli --as user
 ```bash
 lark-cli docs +create --title "标题" --as user \
   --folder-token VB6nflC8JlFYhcdXNric6vORndg --markdown "# 内容"
