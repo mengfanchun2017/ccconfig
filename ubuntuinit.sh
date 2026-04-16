@@ -362,13 +362,32 @@ setup_symlinks() {
 setup_autosync() {
     section "auto-sync"
 
-    # 安装 inotifywait
+    # 安装 inotifywait（免 sudo：从 deb 提取）
     if ! command -v inotifywait &>/dev/null; then
-        info "安装 inotify-tools（需要 sudo 密码）..."
-        if sudo apt-get install -y inotify-tools 2>&1; then
+        info "安装 inotify-tools（免 sudo）..."
+        local tmp_dir="/tmp/inotify-install-$$"
+        mkdir -p "$tmp_dir" && cd "$tmp_dir"
+
+        # 下载并提取主包
+        curl -sL "http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/inotify-tools_3.22.6.0-4_amd64.deb" -o pkg.deb
+        dpkg-deb -x pkg.deb . 2>/dev/null
+
+        # 下载并提取依赖库
+        curl -sL "http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/libinotifytools0_3.22.6.0-4_amd64.deb" -o lib.deb
+        dpkg-deb -x lib.deb . 2>/dev/null
+
+        # 安装到用户目录
+        mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
+        cp usr/bin/inotify* "$HOME/.local/bin/"
+        chmod +x "$HOME/.local/bin/inotify"*
+        cp usr/lib/x86_64-linux-gnu/libinotifytools.so.0 "$HOME/.local/lib/"
+
+        cd / && rm -rf "$tmp_dir"
+
+        if command -v inotifywait &>/dev/null; then
             success "inotify-tools 安装成功"
         else
-            warn "inotify-tools 安装失败（需要手动: sudo apt-get install inotify-tools）"
+            warn "inotify-tools 安装失败"
             warn "auto-sync 将无法工作"
         fi
     fi
