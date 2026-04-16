@@ -229,34 +229,26 @@ setup_claude_code() {
 
     warn "Claude Code 未安装，尝试安装..."
 
-    # 方式一：官方原生安装脚本（推荐，无需 Node.js）
-    info "尝试官方原生安装..."
-    local install_script=$(curl -fsSL "https://claude.ai/install.sh" 2>&1)
-    # 检查下载内容是否是 HTML（网页报错），如果是则跳过
-    if echo "$install_script" | grep -qE "^<!DOCTYPE|<html|<script"; then
-        warn "原生安装脚本下载失败（收到 HTML 错误页），跳过"
-    elif echo "$install_script" | bash 2>&1 | tail -10; then
-        if command -v claude &>/dev/null; then
-            success "Claude Code 原生安装成功: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
-            return 0
-        fi
-    fi
-
-    warn "原生安装失败，尝试 npm 方式..."
-
-    # 方式二：npm 安装（备选）
+    # 方式一：npm 安装 bootstrap（claude.ai 在国内被屏蔽，先用 npm 安装 CLI 主程序）
     NPM_GLOBAL_BIN="$HOME/.local/node-v${NODE_VERSION}-linux-x64/bin"
     export PATH="$NPM_GLOBAL_BIN:$LOCAL_BIN:$PATH"
+    mkdir -p "$LOCAL_BIN"
 
-    if npm install -g @anthropic-ai/claude-code 2>&1 | tail -5; then
-        ln -sf "$NPM_GLOBAL_BIN/claude" "$LOCAL_BIN/claude" 2>/dev/null || true
-        success "Claude Code npm 安装成功!"
+    info "安装 Claude Code npm 包（国内可访问）..."
+    if ! npm install -g @anthropic-ai/claude-code 2>&1 | tail -3; then
+        error "npm 安装失败"
+        return 1
+    fi
+
+    # 方式二：用 claude install 下载原生二进制（npm 包内置此命令，可在国内下载二进制）
+    info "下载 Claude Code 原生二进制..."
+    if claude install 2>&1 | tail -5; then
         if command -v claude &>/dev/null; then
-            info "版本: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+            success "Claude Code 原生安装成功: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
         fi
     else
-        error "Claude Code 安装失败（原生+npm 均失败）"
-        info "请手动安装：curl -fsSL https://claude.ai/install.sh | bash"
+        warn "原生二进制下载失败（保留 npm 版本）"
+        ln -sf "$NPM_GLOBAL_BIN/claude" "$LOCAL_BIN/claude" 2>/dev/null || true
     fi
 }
 
