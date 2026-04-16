@@ -7,7 +7,8 @@
 #   bash ccconfig/claudeinit.sh
 
 # 清理可能被污染的 PATH（WSL/Windows 继承的 PATH 可能包含非法字符）
-export PATH="/home/francis/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# 使用 $HOME 而非硬编码路径，确保在新环境下也正确
+export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 set -e
 
@@ -17,7 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if ! command -v claude &>/dev/null; then
     echo "DEBUG: claude NOT found in PATH=$PATH" >&2
     echo "DEBUG: checking specific paths..." >&2
-    for p in /home/francis/.local/bin /usr/local/bin /usr/bin; do
+    for p in "$HOME/.local/bin" /usr/local/bin /usr/bin; do
         echo "  $p/claude: $(ls -la "$p/claude" 2>&1 | head -1)" >&2
     done
 fi
