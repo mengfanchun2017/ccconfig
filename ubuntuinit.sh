@@ -231,7 +231,11 @@ setup_claude_code() {
 
     # 方式一：官方原生安装脚本（推荐，无需 Node.js）
     info "尝试官方原生安装..."
-    if curl -fsSL "https://claude.ai/install.sh" | bash 2>&1 | tail -10; then
+    local install_script=$(curl -fsSL "https://claude.ai/install.sh" 2>&1)
+    # 检查下载内容是否是 HTML（网页报错），如果是则跳过
+    if echo "$install_script" | grep -qE "^<!DOCTYPE|<html|<script"; then
+        warn "原生安装脚本下载失败（收到 HTML 错误页），跳过"
+    elif echo "$install_script" | bash 2>&1 | tail -10; then
         if command -v claude &>/dev/null; then
             success "Claude Code 原生安装成功: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
             return 0
