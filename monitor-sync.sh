@@ -199,9 +199,6 @@ start_watch() {
                 pending=true
                 last_change=$now
             fi
-
-            # 清空日志（避免重复检测）
-            : > "$LOG_FILE"
         fi
 
         # 防抖计时器：只有在 pending=true 且超过 debounce 秒后才提交
