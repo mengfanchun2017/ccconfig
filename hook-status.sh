@@ -85,7 +85,7 @@ check_autosync() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[2] auto-sync${NC}"
 
-    local pid_file="$REPO_DIR/.auto-sync.pid"
+    local pid_file="$REPO_DIR/.monitor-sync.pid"
     local service_file="$HOME/.config/systemd/user/claude-auto-sync.service"
 
     # 检查进程
