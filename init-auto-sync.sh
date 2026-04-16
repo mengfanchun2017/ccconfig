@@ -71,11 +71,23 @@ commit_and_push() {
         echo "$commit_output" >> "$LOG_FILE"
         log "已提交"
 
-        # 推送
-        if git push origin main >> "$LOG_FILE" 2>&1; then
-            log "已推送到 GitHub"
+        # 先 pull --ff，再 push（解决多机冲突）
+        log "正在 pull --ff ..."
+        local pull_output
+        if pull_output=$(git pull --ff origin main 2>&1); then
+            echo "$pull_output" >> "$LOG_FILE"
+            log "pull 成功"
+
+            # 推送
+            if git push origin main >> "$LOG_FILE" 2>&1; then
+                log "已推送到 GitHub"
+            else
+                warn "推送失败"
+            fi
         else
-            warn "推送失败，可能有冲突"
+            echo "$pull_output" >> "$LOG_FILE"
+            warn "pull 失败（对方有新提交），跳过推送"
+            warn "请手动处理: cd $REPO_DIR && git pull origin main --ff"
         fi
     else
         # 提交失败（可能是 lock 或无变化）
