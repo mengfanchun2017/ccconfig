@@ -1,166 +1,158 @@
 # Claude Config
 
-Claude Code 配置文件仓库，用于跨设备同步配置。
+Claude Code 配置文件仓库，用于跨设备同步配置。同步到 GitHub: [<your-github-username>/ccconfig](https://github.com/<your-github-username>/ccconfig)
+
+---
 
 ## 目录结构
 
 ```
 ccconfig/
-├── ubuntuinit.sh            # Ubuntu 合一初始化脚本（Git + Claude + 环境）
-├── feishuinit.sh            # 飞书基础配置（lark-cli，所有环境都跑）
-├── bridgeinit.sh            # ccbot Bridge 专用（仅 Bridge 环境跑）
-├── claudeinit.sh            # MCP 服务器安装与配置
-├── hook-status.sh           # 状态检查（供 MCP 调用）
-├── init-auto-sync.sh        # 文件变化自动同步到 GitHub
-├── init-enable-autostart.sh  # auto-sync 自启动配置
-├── mcp-status/              # 状态 MCP 服务器
-│   └── status-mcp.js        # 提供 status 工具
-├── conf-ubuntu.json         # ubuntuinit.sh 配置（Git/API）
-├── conf-claude.json         # claudeinit.sh 配置（MCP）
-├── link/                    # 符号链接文件目录
-│   ├── CLAUDE.md            # 全局 AI 指令
-│   ├── .config.json         # MCP 配置（用户状态）
-│   ├── settings.json         # Claude Code 设置（权限/环境变量/hooks）
-│   └── -home-francis-git/  # 项目记忆
+├── ubuntuinit.sh              # 合一初始化脚本（Git + Claude + 环境 + auto-sync）
+├── feishuinit.sh              # 飞书基础配置（lark-cli，所有环境）
+├── bridgeinit.sh              # ccbot Bridge 专用（仅 Bridge 环境）
+├── claudeinit.sh              # MCP 服务器安装与配置
+├── hook-status.sh             # 状态检查（Claude Code 启动时自动调用）
+├── monitor-sync.sh            # 文件监控与自动同步（主脚本）
+├── init-enable-autostart.sh   # auto-sync systemd 自启动配置
+├── conf-ubuntu.json           # ubuntuinit.sh 配置（Git 用户信息）
+├── conf-claude.json           # claudeinit.sh 配置（MCP 服务器）
+├── conf-feishu.json           # 飞书配置（App ID/Secret）
+├── link/                      # 符号链接目录（同步到 GitHub）
+│   ├── CLAUDE.md              # 全局 AI 指令
+│   ├── .config.json           # MCP 配置、用户状态
+│   ├── settings.json           # Claude Code 全局设置
+│   └── -home-francis-git/     # 项目记忆
 │       └── MEMORY.md
-└── .gitignore
+├── mcp-status/
+│   └── status-mcp.js          # 状态 MCP 服务器
+└── ccbot.service              # ccbot systemd 服务文件
 ```
+
+---
 
 ## 配置文件架构
 
-### Claude Code 配置文件体系
-
-| 文件 | 作用 | 同步 |
-|------|------|------|
-| `~/.claude/settings.json` | 权限、环境变量、hooks、插件配置等 | ✅ 符号链接到 ccconfig |
-| `~/.claude/.config.json` | MCP 配置、用户状态、项目信息等 | ✅ 符号链接到 ccconfig |
-| `~/CLAUDE.md` | 全局 AI 指令 | ✅ 符号链接到 ccconfig |
-| `~/.claude.json` | Claude Code 自动维护的状态（不建议手动编辑） | ❌ 不同步 |
-
 ### 符号链接（本地 ↔ GitHub 同步）
 
-| 本地路径 | 指向 | GitHub 路径 | 作用 |
-|---------|------|-------------|------|
-| `~/.claude/settings.json` | → `ccconfig/link/settings.json` | `link/settings.json` | 权限/环境变量/hooks |
-| `~/.claude/.config.json` | → `ccconfig/link/.config.json` | `link/.config.json` | MCP 配置/用户状态 |
-| `~/CLAUDE.md` | → `ccconfig/link/CLAUDE.md` | `link/CLAUDE.md` | 全局 AI 指令 |
-| `~/.claude/projects/-home-francis-git/memory/MEMORY.md` | → `ccconfig/link/-home-francis-git/MEMORY.md` | `link/-home-francis-git/MEMORY.md` | 记忆同步 |
+| 本地路径 | → | ccconfig/link/ | GitHub |
+|---------|---|----------------|--------|
+| `~/.claude/settings.json` | → | `link/settings.json` | → GitHub |
+| `~/.claude/.config.json` | → | `link/.config.json` | → GitHub |
+| `~/CLAUDE.md` | → | `link/CLAUDE.md` | → GitHub |
+| `~/.claude/projects/-home-francis-git/memory/MEMORY.md` | → | `link/-home-francis-git/MEMORY.md` | → GitHub |
 
-### 配置同步策略
+### 配置同步流程
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                   本地 ~/.claude/                           │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────┐  │
-│  │ settings.json ──────► link/settings.json ──► GitHub   │  │
-│  │ (权限/环境变量) │  │                 │  │            │  │
-│  ├─────────────────┤  ├─────────────────┤  ├────────────┤  │
-│  │ .config.json ──────► link/.config.json ──► GitHub   │  │
-│  │ (MCP/用户状态)  │  │                 │  │            │  │
-│  └─────────────────┘  └─────────────────┘  └────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│  ~/CLAUDE.md ──────► link/CLAUDE.md ──────► GitHub        │
-│  (全局 AI 指令)                                        │
-└─────────────────────────────────────────────────────────────┘
+变化 → monitor-sync 检测 → 防抖 120s → commit → pull --ff → push
 ```
 
-## 新环境初始化流程
+**pull --ff**：解决多机同时 push 的冲突（不能快进时报警"请手动处理"）
 
-### 合一脚本（推荐）
+---
+
+## 快速开始
+
+### 新环境初始化（所有环境）
 
 ```bash
-# 一键初始化所有组件
-bash ccconfig/ubuntuinit.sh
+# 1. 终端基础环境（完成后 Claude Code 可用）
+bash ~/git/ccconfig/ubuntuinit.sh
+
+# 2. 飞书基础配置（lark-cli，所有环境）
+bash ~/git/ccconfig/feishuinit.sh
+
+# 3. MCP 服务器安装（需要 Claude Code 已安装）
+bash ~/git/ccconfig/claudeinit.sh
+
+# 4. 仅 Bridge 环境额外运行
+bash ~/git/ccconfig/bridgeinit.sh
 ```
 
-ubuntuinit.sh 会依次完成：
-1. Git + GitHub CLI + 克隆仓库
-2. Node.js + npm
-3. uv (Python)
-4. Claude Code (npm 安装)
-5. Claude API 配置
-6. 符号链接
-7. auto-sync
-8. SessionStart hook
-9. （MCP 服务器安装需要 Claude Code 已安装，见下方 claudeinit.sh）
-
-### 飞书初始化（可选）
+### 日常使用
 
 ```bash
-# 飞书基础配置（所有环境都跑）：lark-cli 文档/日历/任务
-bash ccconfig/feishuinit.sh
+# 进入 Claude 后查看状态
+bash ~/git/ccconfig/hook-status.sh
+
+# 或在 Claude 中说"运行 status 工具"
 ```
 
-feishuinit.sh 会完成：
-1. lark-cli 安装（npm install -g @larksuite/cli）
-2. lark-cli 配置（从 conf-feishu.json 读取凭证）
-3. lark-cli 用户 OAuth 授权
+---
+
+## monitor-sync.sh 用法
+
+文件监控与自动同步脚本，管理 inotifywait 进程。
 
 ```bash
-# ccbot Bridge 专用（仅长期运行 Bridge 的那台机器跑）
-bash ccconfig/bridgeinit.sh
+cd ~/git/ccconfig
+
+./monitor-sync.sh start     # 后台启动监控
+./monitor-sync.sh stop      # 停止监控
+./monitor-sync.sh status    # 查看状态
+./monitor-sync.sh log 50    # 查看最近50行日志（默认20）
+./monitor-sync.sh tail      # 实时跟踪日志
+./monitor-sync.sh monitor   # 前台持续监控（调试用，Ctrl+C退出）
 ```
 
-bridgeinit.sh 会完成：
-1. ccbot 安装（npm install -g @ccbot/cli）
-2. ccbot 配置（从 conf-feishu.json 读取 App ID / App Secret）
-3. ccbot 启动（pm2 管理）
-4. 飞书开放平台长连接配置指导
+**常用组合**：
+- 首次启动：`./monitor-sync.sh start`
+- 查看状态：`./monitor-sync.sh status`
+- 调试文件变化：`./monitor-sync.sh monitor`（前台实时显示所有变化）
 
-**飞书组件架构：**
+### 日志位置
+- PID 文件：`.monitor-sync.pid`
+- 日志文件：`.monitor-sync.log`
 
-| 组件 | 脚本 | 用途 | 哪些环境 |
-|------|------|------|---------|
-| ccbot | bridgeinit.sh | Bridge 飞书→Claude（WebSocket 长连接，接收飞书消息） | 仅 Bridge 环境 |
-| lark-cli | feishuinit.sh | 终端操作飞书文档/日历/任务 | 所有环境 |
-| feishu MCP | claudeinit.sh | Claude→飞书（发消息、读文档） | 所有环境 |
-
-**双向消息互通**：同时需要 ccbot + feishu-mcp
-**仅 Claude 发消息/创建文档**：只装 feishu-mcp，不装 ccbot 也行
-
-**文档操作**：统一用 lark-cli --as user
-```bash
-lark-cli docs +create --title "标题" --as user \
-  --folder-token VB6nflC8JlFYhcdXNric6vORndg --markdown "# 内容"
-```
-
-### 查看状态
+### systemd 自启动
 
 ```bash
-# 进入 Claude 后
-"运行 status 工具"
+# 启用/禁用/查看状态
+bash ~/git/ccconfig/init-enable-autostart.sh enable
+bash ~/git/ccconfig/init-enable-autostart.sh disable
+bash ~/git/ccconfig/init-enable-autostart.sh status
 ```
 
-status MCP 会执行 hook-status.sh 并返回状态输出。
+---
 
-## 配置文件说明
+## 飞书集成
 
-### conf-ubuntu.json
-```json
-{
-  "git": {
-    "repo": "<your-github-username>/ccconfig",
-    "target_dir": "/home/francis/git/ccconfig",
-    "email": "your@email.com",
-    "username": "your-github-username"
-  },
-  "api": {
-    "vendor": "minimax",
-    "base_url": "https://api.minimaxi.com/anthropic",
-    "model": "MiniMax-M2.7",
-    "key": "your-api-key"
-  }
-}
+### 组件架构
+
+| 组件 | 安装方式 | 用途 |
+|------|---------|------|
+| lark-cli | feishuinit.sh | 终端创建文档/日历/任务（所有环境） |
+| feishu-mcp | claudeinit.sh | Claude 发消息、读文档 |
+| ccbot | bridgeinit.sh | Bridge 接收飞书消息（WebSocket，仅 Bridge 环境） |
+
+**双向消息互通**：需要 ccbot + feishu-mcp 同时运行
+**仅 Claude 发消息**：只装 feishu-mcp 即可
+
+### 飞书文档操作（必须用 lark-cli）
+
+```bash
+lark-cli docs +create \
+  --title "文档标题" \
+  --as user \
+  --folder-token VB6nflC8JlFYhcdXNric6vORndg \
+  --markdown "# 标题\n\n内容"
 ```
 
-### conf-claude.json
-包含所有 MCP 服务器的配置（命令、环境变量、描述等）。
+ClaudeCode 文件夹 token: `VB6nflC8JlFYhcdXNric6vORndg`
 
-## MCP 服务器配置
+### 飞书 MCP 功能
 
-### 当前 MCP 服务器
+- `feishu_send_message` - 发送消息
+- `feishu_get_messages` - 获取消息历史
+- `feishu_get_doc` - 读取文档
+- `feishu_get_calendar` - 查询日程
+- `feishu_create_event` - 创建日程
+- `feishu_create_task` / `feishu_list_tasks` - 任务管理
+
+---
+
+## MCP 服务器
 
 | MCP | 命令 | 功能 |
 |-----|------|------|
@@ -169,74 +161,45 @@ status MCP 会执行 hook-status.sh 并返回状态输出。
 | minimax-mcp | `uvx minimax-mcp` | MiniMax 多模态 |
 | octocode | `npx -y octocode-mcp@latest` | GitHub 代码搜索 |
 | supabase | `npx -y @supabase/mcp-server-supabase` | 数据库操作 |
-| status | `node mcp-status/status-mcp.js` | 环境状态（文件链接、auto-sync、MCP） |
-| feishu | `npx -y @china-mcp/feishu-mcp` | 飞书消息、文档、日历、任务 |
+| status | `node mcp-status/status-mcp.js` | 环境状态 |
+| feishu | `npx -y @china-mcp/feishu-mcp` | 飞书消息/文档 |
 
-### 管理 MCP
+查看 MCP 状态：`claude mcp list`
 
+---
+
+## 常见问题
+
+### Q: auto-sync 显示"进程未运行"但实际在运行？
+A: PID 文件名不匹配导致。运行 `bash ~/git/ccconfig/hook-status.sh` 检查，进程实际运行时状态应显示"进程运行中 (PID: xxx)"。
+
+### Q: `./monitor-sync.sh monitor` 报 command not found？
+A: `monitor` 是 `./monitor-sync.sh` 的参数，不是独立命令。正确用法：`./monitor-sync.sh monitor`
+
+### Q: 如何确认 auto-sync 实际在运行？
+A: `ps aux | grep monitor-sync` 或 `bash ~/git/ccconfig/monitor-sync.sh status`
+
+### Q: 如何手动同步配置？
 ```bash
-# 同步 MCP 配置到 GitHub
-bash ccconfig/claudeinit.sh
-
-# 查看 MCP 状态
-claude mcp list
-```
-
-### 飞书 MCP 配置
-
-**Step 1**: 在[飞书开放平台](https://open.feishu.cn)创建企业自建应用，获取 App ID 和 App Secret
-
-**Step 2**: App ID 和 App Secret 已在 `conf-claude.json` 中配置好
-
-**Step 3**: 运行 `bash ccconfig/claudeinit.sh` 安装 MCP
-
-**飞书 MCP 功能**：
-- `feishu_send_message` - 发送文本/富文本/卡片消息
-- `feishu_get_messages` - 获取会话消息历史
-- `feishu_get_doc` - 读取文档内容
-- `feishu_create_doc` - ⚠️ 创建的文档访问不了，**请用 lark-cli** 创建文档
-- `feishu_get_calendar` - 查询日程安排
-- `feishu_create_event` - 创建会议/日程
-- `feishu_create_task` - 创建任务
-- `feishu_list_tasks` - 查看任务列表
-
-## 同步机制
-
-### 自动同步（推荐）
-
-init03env.sh 会启动 auto-sync 服务，监控文件变化自动同步：
-- 文件变化 → 自动 commit → 自动 push 到 GitHub
-- 无需手动操作
-
-### 手动同步
-
-如果 auto-sync 未运行：
-```bash
-cd ccconfig
+cd ~/git/ccconfig
 git add -A
 git commit -m "描述"
 git push origin main
 ```
 
-### auto-sync 管理
+---
 
+## 内部实现
+
+### hook-status.sh 检测逻辑
+检查 `.monitor-sync.pid` 文件是否存在且进程存活，与 systemd service 文件（`~/.config/systemd/user/claude-auto-sync.service`）的自启动配置独立。
+
+### inotifywait 免 sudo 安装
 ```bash
-bash ccconfig/init-auto-sync.sh start   # 启动
-bash ccconfig/init-auto-sync.sh stop    # 停止
-bash ccconfig/init-auto-sync.sh status   # 状态
-```
-
-## 常见问题
-
-### Q: SessionStart hook 执行了但没看到输出？
-A: Claude Code 的 SessionStart hook 设计为静默运行，输出不显示给用户。hook 内部仍会执行状态检查和 git pull。如需查看状态，请在 Claude 中说"运行 status 工具"来调用 status MCP。
-
-### Q: 如何添加新的 MCP 服务器？
-A: 在 `conf-claude.json` 中添加配置，然后运行 `bash ccconfig/claudeinit.sh`。
-
-### Q: 如何更新配置到最新？
-A:
-```bash
-cd ccconfig
-git pull origin main
+mkdir -p ~/.local/lib
+cd /tmp
+curl -sLO http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/inotify-tools_3.22.6.0-4_amd64.deb
+dpkg-deb -x inotify-tools_*.deb . && cp usr/bin/inotify* ~/.local/bin/
+curl -sLO http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/libinotifytools0_3.22.6.0-4_amd64.deb
+dpkg-deb -x libinotifytools0_*.deb . && cp usr/lib/x86_64-linux-gnu/libinotifytools.so.0 ~/.local/lib/
 ```
