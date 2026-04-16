@@ -121,11 +121,11 @@ link/
 
 **新环境初始化**:
 ```bash
-# 终端执行（所有环境）
+# 终端执行
 bash ccconfig/ubuntuinit.sh    # 基础环境 + Claude + auto-sync
-bash ccconfig/feishuinit.sh   # 飞书 lark-cli（所有环境）
+bash ccconfig/feishuinit.sh   # 飞书 lark-cli
 
-# Claude 中执行
+# 进入 Claude Code 后执行
 bash ccconfig/claudeinit.sh    # MCP 安装配置
 
 # 仅 Bridge 环境额外运行
