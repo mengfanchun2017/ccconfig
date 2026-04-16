@@ -1,6 +1,3 @@
-[07:07:42] 检测到变化：
+[07:11:45] 检测到变化：
    M .monitor-sync.log
    M README.md
-   D init-auto-sync.sh
-   M init-enable-autostart.sh
-   M link/-home-francis-git/MEMORY.md
