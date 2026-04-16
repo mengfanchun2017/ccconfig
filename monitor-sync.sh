@@ -11,7 +11,12 @@
 #   monitor-sync.sh monitor    前台持续监控（手动查看用）
 #
 # 依赖：inotifywait (Linux/WSL)
-#       安装：sudo apt-get install inotify-tools
+#       安装（免sudo）：下载 deb 提取二进制和库
+#         mkdir -p ~/.local/lib && cd /tmp
+#         curl -sLO http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/inotify-tools_3.22.6.0-4_amd64.deb
+#         dpkg-deb -x inotify-tools_*.deb . && cp usr/bin/inotify* ~/.local/bin/
+#         curl -sLO http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/libinotifytools0_3.22.6.0-4_amd64.deb
+#         dpkg-deb -x libinotifytools0_*.deb . && cp usr/lib/x86_64-linux-gnu/libinotifytools.so.0 ~/.local/lib/
 #
 
 set -e
@@ -24,6 +29,9 @@ else
 fi
 PID_FILE="$REPO_DIR/.monitor-sync.pid"
 LOG_FILE="$REPO_DIR/.monitor-sync.log"
+
+# 解决 inotifywait 对 libinotifytools.so.0 的依赖（免 sudo 安装方式）
+export LD_LIBRARY_PATH="$HOME/.local/lib:$LD_LIBRARY_PATH"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -50,7 +58,7 @@ error() { echo -e "${RED}[monitor]${NC} $1" | tee -a "$LOG_FILE"; }
 # ========== 检查依赖 ==========
 check_deps() {
     if ! command -v inotifywait &>/dev/null; then
-        error "缺少 inotifywait，请安装：sudo apt-get install inotify-tools"
+        error "缺少 inotifywait，请用免sudo方式安装（见脚本顶部注释）"
         return 1
     fi
 }
