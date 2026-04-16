@@ -312,18 +312,20 @@ setup_fonts() {
         return 0
     fi
 
-    # sudo 安装（按优先级尝试可用包）
-    info "安装中文字体（fonts-noto-cjk）..."
-    # 先更新 apt 缓存
-    sudo apt-get update -qq 2>/dev/null
-    if sudo apt-get install -y fonts-noto-cjk fontconfig 2>/dev/null; then
-        success "字体安装成功"
-        fc-cache -f 2>/dev/null
-    elif sudo apt-get install -y fonts-wqy-microhei fontconfig 2>/dev/null; then
-        success "字体安装成功"
-        fc-cache -f 2>/dev/null
+    # 检查是否已有中文字体
+    if dpkg -l fonts-noto-cjk 2>/dev/null | grep -q "^ii"; then
+        info "中文字体已安装，跳过"
     else
-        warn "字体安装失败（需要手动: sudo apt-get install fonts-noto-cjk）"
+        info "安装中文字体（fonts-noto-cjk）..."
+        if sudo apt-get install -y fonts-noto-cjk fontconfig 2>&1; then
+            success "字体安装成功"
+            fc-cache -f 2>/dev/null
+        elif sudo apt-get install -y fonts-wqy-microhei fontconfig 2>&1; then
+            success "字体安装成功"
+            fc-cache -f 2>/dev/null
+        else
+            warn "字体安装失败（需手动: sudo apt-get install fonts-noto-cjk）"
+        fi
     fi
 }
 
@@ -377,9 +379,7 @@ setup_autosync() {
     # 安装 inotifywait
     if ! command -v inotifywait &>/dev/null; then
         info "安装 inotify-tools（需要 sudo 密码）..."
-        # 先更新 apt 缓存（避免 "Unable to locate package" 错误）
-        sudo apt-get update -qq 2>/dev/null
-        if sudo apt-get install -y inotify-tools; then
+        if sudo apt-get install -y inotify-tools 2>&1; then
             success "inotify-tools 安装成功"
         else
             warn "inotify-tools 安装失败（需要手动: sudo apt-get install inotify-tools）"
