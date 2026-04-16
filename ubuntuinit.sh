@@ -393,7 +393,7 @@ setup_autosync() {
     fi
 
     # 启动 auto-sync
-    if bash "$SCRIPT_DIR/init-auto-sync.sh" start 2>/dev/null; then
+    if bash "$SCRIPT_DIR/monitor-sync.sh" start 2>/dev/null; then
         success "auto-sync 已启动"
     else
         warn "auto-sync 已在运行或启动失败"

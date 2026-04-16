@@ -42,7 +42,7 @@ enable_autostart() {
     # 复制服务文件
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-    cp "$REPO_DIR/init-auto-sync.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
+    cp "$REPO_DIR/monitor-sync.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
 
     cat > "$SYSTEMD_SERVICE" << EOF
 [Unit]
@@ -52,7 +52,7 @@ After=default.target
 
 [Service]
 Type=oneshot
-ExecStart=${HOME}/git/ccconfig/init-auto-sync.sh start
+ExecStart=${HOME}/git/ccconfig/monitor-sync.sh start
 RemainAfterExit=yes
 
 [Install]
@@ -110,12 +110,12 @@ status_autostart() {
         warn "systemd 服务文件: 未创建"
     fi
 
-    # 检查当前 auto-sync 状态
-    AUTO_SYNC_PID_FILE="${HOME}/git/ccconfig/.auto-sync.pid"
+    # 检查当前 monitor-sync 状态
+    AUTO_SYNC_PID_FILE="${HOME}/git/ccconfig/.monitor-sync.pid"
     if [ -f "$AUTO_SYNC_PID_FILE" ] && kill -0 "$(cat "$AUTO_SYNC_PID_FILE")" 2>/dev/null; then
-        info "auto-sync 当前状态: 运行中 (PID: $(cat "$AUTO_SYNC_PID_FILE"))"
+        info "monitor-sync 当前状态: 运行中 (PID: $(cat "$AUTO_SYNC_PID_FILE"))"
     else
-        warn "auto-sync 当前状态: 未运行"
+        warn "monitor-sync 当前状态: 未运行"
     fi
 
     echo ""
