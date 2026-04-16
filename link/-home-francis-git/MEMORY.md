@@ -42,6 +42,8 @@ This file persists across Claude Code conversations.
 ## 飞书集成配置（详细配置见 ccconfig/conf-feishu.json）
 
 - 飞书 App ID: `<your-feishu-app-id>`
+- **文档创建**: 必须用 `lark-cli docs +create --as user --folder-token <token> --markdown <content>`
+  - ClaudeCode 文件夹 token: `VB6nflC8JlFYhcdXNric6vORndg`（用户飞书云盘下"ClaudeCode"文件夹）
 - **分工**:
   - `feishu-mcp` → 发消息、读文档
   - `lark-cli` → 创建文档、日历、任务（所有环境）
@@ -50,21 +52,48 @@ This file persists across Claude Code conversations.
 
 ---
 
+## 多项目架构（~/git/ 总目录）
+
+```
+~/git/
+├── ccconfig/                 ← 配置仓库，monitor-sync 在跑
+│     └── link/               ← 同步到 GitHub: <your-github-username>/ccconfig
+│           └── -home-francis-git/MEMORY.md
+└── projectu/                 ← 已 clone，但 monitor-sync 未运行
+      └── link/               ← 需要时才建（暂不需要）
+            └── -home-francis-git-projectu/MEMORY.md
+```
+
+**工作方式**: 在 `~/git/` 下启动 Claude，不切换子仓库目录。每个 Git 仓库需要独立运行 `monitor-sync.sh` 才能自动 sync。
+
+---
+
 ## ccconfig 仓库结构
 
 ```
 ccconfig/
-├── ubuntuinit.sh     # Ubuntu 合一初始化
-├── feishuinit.sh     # 飞书 lark-cli 配置（所有环境）
-├── bridgeinit.sh     # ccbot Bridge 专用（仅 Bridge 环境）
-├── claudeinit.sh     # MCP 安装配置
-├── init-auto-sync.sh  # auto-sync（防抖120秒）
+├── ubuntuinit.sh      # Ubuntu 合一初始化
+├── feishuinit.sh      # 飞书 lark-cli 配置（所有环境）
+├── bridgeinit.sh      # ccbot Bridge 专用（仅 Bridge 环境）
+├── claudeinit.sh      # MCP 安装配置
+├── monitor-sync.sh     # 文件监控 sync（start/stop/status/log/monitor）
+├── init-auto-sync.sh   # 旧名，同 monitor-sync.sh
 ├── init-enable-autostart.sh  # 自启动（pm2 save）
-├── hook-status.sh     # 状态检查
-├── conf-ubuntu.json  # ubuntuinit 配置
+├── hook-status.sh      # 状态检查
+├── conf-ubuntu.json   # ubuntuinit 配置
 ├── conf-claude.json  # MCP + Key/Token 配置（同步源）
 ├── conf-feishu.json  # 飞书配置（App ID/Secret/Bridge workDir）
-└── link/             # 符号链接 → ~/.claude/
+└── link/              # 符号链接 → ~/.claude/（所有配置同步到 GitHub）
+```
+
+**link/ 目录结构**:
+```
+link/
+├── .config.json                        ← MCP 配置 + 用户状态（被 Git 追踪）
+├── settings.json                       ← Claude Code 全局设置（被 Git 追踪）
+├── CLAUDE.md                          ← 全局 AI 指令（被 Git 追踪）
+└── -home-francis-git/                 ← 项目记忆目录（被 Git 追踪）
+      └── MEMORY.md                    ← Claude 记忆文件（被 Git 追踪）
 ```
 
 **新环境初始化**:
@@ -80,9 +109,28 @@ bash ccconfig/claudeinit.sh    # MCP 安装配置
 bash ccconfig/bridgeinit.sh   # ccbot Bridge WebSocket
 ```
 
+**monitor-sync.sh 用法**:
+```bash
+bash ccconfig/monitor-sync.sh start     # 后台启动监控
+bash ccconfig/monitor-sync.sh stop      # 停止监控
+bash ccconfig/monitor-sync.sh status     # 查看状态
+bash ccconfig/monitor-sync.sh log       # 查看最近日志
+bash ccconfig/monitor-sync.sh monitor   # 前台实时查看文件变化（调试用）
+```
+
+**sync 流程**: 变化 → 等 120s 防抖 → commit → pull --ff → push
+- pull --ff 解决两台机器同时 push 的冲突（不能 ff 时报错"请手动处理"）
+
 ---
 
 ## Session Logs（精简）
+
+### 2026-04-15（续）
+- monitor-sync.sh 新增 `monitor` 前台模式，可实时查看文件变化
+- pull --ff 解决多机 sync 冲突：先 pull 再 push，不能 ff 则报警"请手动处理"
+- auto-sync 后台仍用 setsid 完全脱离 PTY，不再污染 Claude Code 终端
+- GitHub push 失败后 index.lock 级联失败问题已修复
+- 用户习惯确认：在 `~/git/` 下启动 Claude（总目录），不频繁切换子仓库
 
 ### 2026-04-15
 - 飞书初始化拆分: feishuinit.sh（lark-cli，所有环境） + bridgeinit.sh（ccbot Bridge，仅一台机器）

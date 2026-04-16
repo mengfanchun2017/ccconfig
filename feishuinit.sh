@@ -140,6 +140,11 @@ install_lark_cli() {
         lark_src="$npm_global_root/@larksuite/cli/bin/cli.js"
     fi
 
+    # 尝试 scripts/run.js（lark-cli 实际入口）
+    if [ ! -f "$lark_src" ]; then
+        lark_src="$npm_global_root/@larksuite/cli/scripts/run.js"
+    fi
+
     # 创建/更新符号链接
     if [ -f "$lark_src" ]; then
         rm -f "$HOME/.local/bin/lark-cli"  # 强制删除旧链接
