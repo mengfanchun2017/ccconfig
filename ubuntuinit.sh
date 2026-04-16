@@ -302,30 +302,16 @@ PYEOF
 }
 
 
-# ========== 7. 中文字体 ==========
+# ========== 7. 中文字体（可选）============
+# Claude Code 不依赖中文字体包，桌面 IDE 有需要再手动装:
+#   sudo apt-get install fonts-noto-cjk
 setup_fonts() {
-    section "中文字体"
+    section "中文字体（可选）"
 
-    # 检查是否已有中文字体
     if fc-list :lang=zh 2>/dev/null | grep -q .; then
         info "中文字体已安装"
-        return 0
-    fi
-
-    # 检查是否已有中文字体
-    if dpkg -l fonts-noto-cjk 2>/dev/null | grep -q "^ii"; then
-        info "中文字体已安装，跳过"
     else
-        info "安装中文字体（fonts-noto-cjk）..."
-        if sudo apt-get install -y fonts-noto-cjk fontconfig 2>&1; then
-            success "字体安装成功"
-            fc-cache -f 2>/dev/null
-        elif sudo apt-get install -y fonts-wqy-microhei fontconfig 2>&1; then
-            success "字体安装成功"
-            fc-cache -f 2>/dev/null
-        else
-            warn "字体安装失败（需手动: sudo apt-get install fonts-noto-cjk）"
-        fi
+        info "中文字体未安装（Claude Code 不需要，可选装: sudo apt-get install fonts-noto-cjk）"
     fi
 }
 
@@ -458,7 +444,7 @@ main() {
     setup_uv
     setup_claude_code
     setup_claude_api
-    setup_fonts
+    # 中文字体可选，有需要再手动装: sudo apt-get install fonts-noto-cjk
     setup_symlinks
     setup_autosync
     setup_hook
