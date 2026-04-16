@@ -14,11 +14,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FEISHU_CONF="$SCRIPT_DIR/conf-feishu.json"
 
-# 确保 ~/.local/bin 在 PATH 中（ubuntuinit.sh 装 Node.js 到这里）
-LOCAL_BIN="$HOME/.local/bin"
-if [[ ":$PATH:" != *":$LOCAL_BIN:"* ]]; then
-    export PATH="$LOCAL_BIN:$PATH"
-fi
+# 确保 node/npm 可以找到：
+# ubuntuinit.sh 装 Node.js 到 ~/.local/node-v20.11.0-linux-x64/
+# 符号链接放在 ~/.local/bin/
+# 直接用绝对路径，不依赖 PATH 查找，彻底解决 WSL 环境 PATH 被 Windows 污染的问题
+export PATH="${HOME}/.local/node-v20.11.0-linux-x64/bin:${HOME}/.local/bin:$PATH"
 
 # 颜色
 RED='\033[0;31m'
