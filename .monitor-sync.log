@@ -1,3 +1,4 @@
-[06:46:01] 检测到变化：
+[06:50:15] 检测到变化：
    M .monitor-sync.log
+   M hook-status.sh
    M link/.config.json
