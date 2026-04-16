@@ -354,7 +354,8 @@ setup_symlinks() {
     setup_link "$HOME/CLAUDE.md" "$SCRIPT_DIR/link/CLAUDE.md" "CLAUDE.md"
 
     # MEMORY.md
-    REPO_MEMORY_NAME="$(echo "$SCRIPT_DIR" | sed 's/\//-/g' | sed 's/^-//')"
+    # 项目标识符固定为 -home-francis-git（从 /home/francis/git 计算得出）
+    REPO_MEMORY_NAME="-home-francis-git"
     MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
     MEMORY_REPO_PATH="$SCRIPT_DIR/link/$REPO_MEMORY_NAME/MEMORY.md"
 
@@ -370,11 +371,12 @@ setup_autosync() {
 
     # 安装 inotifywait
     if ! command -v inotifywait &>/dev/null; then
-        info "安装 inotify-tools..."
+        info "安装 inotify-tools（需要 sudo 密码）..."
         if sudo apt-get install -y inotify-tools; then
             success "inotify-tools 安装成功"
         else
-            warn "inotify-tools 安装失败，auto-sync 可能无法工作"
+            warn "inotify-tools 安装失败（需要手动: sudo apt-get install inotify-tools）"
+            warn "auto-sync 将无法工作"
         fi
     fi
 

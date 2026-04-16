@@ -173,9 +173,9 @@ configure_lark_cli() {
     export PATH="$HOME/.local/bin:$PATH"
 
     # 检查是否已配置
-    if lark-cli config list 2>/dev/null | grep -q "app_id"; then
+    if lark-cli config show 2>/dev/null | grep -q "appId"; then
         good "✓ lark-cli 已配置"
-        lark-cli config list 2>/dev/null || true
+        lark-cli config show 2>/dev/null || true
         return 0
     fi
 
@@ -233,14 +233,14 @@ show_status() {
     fi
 
     echo -n "配置 ... "
-    if lark-cli config list 2>/dev/null | grep -q "app_id"; then
+    if lark-cli config show 2>/dev/null | grep -q "appId"; then
         good "✓"
     else
         warn "○ 未配置"
     fi
 
     echo -n "授权 ... "
-    if lark-cli config list 2>/dev/null | grep -q "user_access_token\|user_token"; then
+    if lark-cli config show 2>/dev/null | grep -q "users"; then
         good "✓"
     else
         warn "○ 未授权"
