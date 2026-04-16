@@ -9,6 +9,29 @@ This file persists across Claude Code conversations.
 
 ---
 
+## 飞书文档创建（重要）
+
+**正确方式**：必须用 `lark-cli`，不能用 feishu-mcp（创建的文档访问不了）
+
+```bash
+lark-cli docs +create \
+  --title "文档标题" \
+  --as user \
+  --folder-token VB6nflC8JlFYhcdXNric6vORndg \
+  --markdown "# 标题\n\n内容"
+```
+
+- ClaudeCode 文件夹 token: `VB6nflC8JlFYhcdXNric6vORndg`
+- 链接格式: `https://www.feishu.cn/docx/<doc_id>`
+
+**feishu-mcp 和 ccbot 的关系**：
+- `ccbot`（bridgeinit.sh）= 接收飞书消息（飞书→Claude，WebSocket 长连接）
+- `feishu-mcp` = 发送飞书消息（Claude→飞书）
+- **双向消息互通**：两个都要装
+- 飞书文档操作（创建/读取）= lark-cli --as user，不走 feishu-mcp
+
+---
+
 ## User Preferences
 
 - Preferred language: Chinese (中文)

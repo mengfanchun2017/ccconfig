@@ -111,11 +111,20 @@ bridgeinit.sh 会完成：
 
 **飞书组件架构：**
 
-| 组件 | 脚本 | 配置文件 | 用途 | 哪些环境 |
-|------|------|---------|------|---------|
-| ccbot | bridgeinit.sh | ~/git/ccbot.json | Bridge 长连接，飞书里对话 | 仅 Bridge 环境 |
-| lark-cli | feishuinit.sh | lark-cli config | 终端操作飞书文档/日历/任务 | 所有环境 |
-| feishu MCP | claudeinit.sh | conf-claude.json | Claude Code 内调用飞书 API | 所有环境 |
+| 组件 | 脚本 | 用途 | 哪些环境 |
+|------|------|------|---------|
+| ccbot | bridgeinit.sh | Bridge 飞书→Claude（WebSocket 长连接，接收飞书消息） | 仅 Bridge 环境 |
+| lark-cli | feishuinit.sh | 终端操作飞书文档/日历/任务 | 所有环境 |
+| feishu MCP | claudeinit.sh | Claude→飞书（发消息、读文档） | 所有环境 |
+
+**双向消息互通**：同时需要 ccbot + feishu-mcp
+**仅 Claude 发消息/创建文档**：只装 feishu-mcp，不装 ccbot 也行
+
+**文档创建**：必须用 lark-cli，`feishu_create_doc` 创建的文档访问不了
+```bash
+lark-cli docs +create --title "标题" --as user \
+  --folder-token VB6nflC8JlFYhcdXNric6vORndg --markdown "# 内容"
+```
 
 ### 查看状态
 
@@ -177,28 +186,15 @@ claude mcp list
 
 **Step 1**: 在[飞书开放平台](https://open.feishu.cn)创建企业自建应用，获取 App ID 和 App Secret
 
-**Step 2**: 编辑 `conf-claude.json`，填入真实的 App ID 和 App Secret：
-```json
-{
-  "name": "feishu",
-  "description": "飞书 - 发送消息、创建文档、管理日程和任务",
-  "type": "stdio",
-  "command": "npx",
-  "args": ["-y", "@china-mcp/feishu-mcp"],
-  "env": {
-    "FEISHU_APP_ID": "cli_xxxxxxxxxxxx",
-    "FEISHU_APP_SECRET": "你的真实App Secret"
-  }
-}
-```
+**Step 2**: App ID 和 App Secret 已在 `conf-claude.json` 中配置好
 
 **Step 3**: 运行 `bash ccconfig/claudeinit.sh` 安装 MCP
 
 **飞书 MCP 功能**：
 - `feishu_send_message` - 发送文本/富文本/卡片消息
 - `feishu_get_messages` - 获取会话消息历史
-- `feishu_create_doc` - 创建飞书文档
 - `feishu_get_doc` - 读取文档内容
+- `feishu_create_doc` - ⚠️ 创建的文档访问不了，**请用 lark-cli** 创建文档
 - `feishu_get_calendar` - 查询日程安排
 - `feishu_create_event` - 创建会议/日程
 - `feishu_create_task` - 创建任务
