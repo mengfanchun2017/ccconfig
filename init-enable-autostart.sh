@@ -52,7 +52,7 @@ After=default.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/francis/git/ccconfig/init-auto-sync.sh start
+ExecStart=${HOME}/git/ccconfig/init-auto-sync.sh start
 RemainAfterExit=yes
 
 [Install]
@@ -111,7 +111,7 @@ status_autostart() {
     fi
 
     # 检查当前 auto-sync 状态
-    AUTO_SYNC_PID_FILE="/home/francis/git/ccconfig/.auto-sync.pid"
+    AUTO_SYNC_PID_FILE="${HOME}/git/ccconfig/.auto-sync.pid"
     if [ -f "$AUTO_SYNC_PID_FILE" ] && kill -0 "$(cat "$AUTO_SYNC_PID_FILE")" 2>/dev/null; then
         info "auto-sync 当前状态: 运行中 (PID: $(cat "$AUTO_SYNC_PID_FILE"))"
     else
