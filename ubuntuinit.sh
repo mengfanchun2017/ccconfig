@@ -461,8 +461,8 @@ main() {
     echo ""
     success "初始化完成！"
     echo ""
-    echo "下一步（在 Claude 中执行）:"
-    echo "  bash ccconfig/claudeinit.sh"
+    echo "下一步:"
+    echo "  bash ccconfig/claudeinit.sh   # 安装 MCP 服务器"
     echo ""
 }
 
