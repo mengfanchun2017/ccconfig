@@ -232,7 +232,7 @@ check_feishu() {
 
     # 检查配置
     echo -n "  配置 ... "
-    if lark-cli config list 2>/dev/null | grep -q "app_id"; then
+    if lark-cli config show 2>/dev/null | grep -q "appId"; then
         echo -e "${GREEN}✅${NC}"
     else
         echo -e "${RED}❌${NC}"
@@ -240,7 +240,7 @@ check_feishu() {
 
     # 检查授权
     echo -n "  授权 ... "
-    if lark-cli config list 2>/dev/null | grep -q "user_access_token\|user_token"; then
+    if lark-cli config show 2>/dev/null | grep -q "users"; then
         echo -e "${GREEN}✅${NC}"
     else
         echo -e "${YELLOW}○${NC} 未授权"
