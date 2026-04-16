@@ -94,18 +94,18 @@ commit_and_push() {
         if pull_output=$(git pull --ff origin main 2>&1); then
             echo "$pull_output" >> "$LOG_FILE"
             log "pull 成功"
+
+            # 推送
+            if git push origin main >> "$LOG_FILE" 2>&1; then
+                log "已推送到 GitHub"
+            else
+                warn "推送失败"
+            fi
         else
             # pull 失败（可能是两台机器同时有提交）
             echo "$pull_output" >> "$LOG_FILE"
-            warn "pull 失败（对方有新提交）: $(echo "$pull_output" | grep -v "^Merge" | grep -v "^ " | head -1)"
-            warn "请手动处理: cd $REPO_DIR && git pull --ff origin main"
-        fi
-
-        # 推送
-        if git push origin main >> "$LOG_FILE" 2>&1; then
-            log "已推送到 GitHub"
-        else
-            warn "推送失败，可能有冲突"
+            warn "pull 失败（对方有新提交），跳过推送"
+            warn "请手动处理: cd $REPO_DIR && git pull origin main --ff"
         fi
     else
         # 提交失败（可能是 lock 或无变化）
