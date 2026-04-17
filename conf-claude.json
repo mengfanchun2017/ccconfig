@@ -22,7 +22,7 @@
         "tavily-mcp"
       ],
       "env": {
-        "TAVILY_API_KEY": "\u8bf7\u5230 https://tavily.com \u6ce8\u518c\u83b7\u53d6 API Key \u5e76\u586b\u5165\u6b64\u5904"
+        "TAVILY_API_KEY": "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"
       }
     },
     {
