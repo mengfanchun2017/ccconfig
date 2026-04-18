@@ -37,6 +37,8 @@ lark-cli docs +create \
 - Preferred language: Chinese (中文)
 - **Session Sync**: 每次收尾时同步记忆到 ccconfig 仓库
 - **MCP 操作**: `bash ccconfig/claudeinit.sh`
+- **Skills 操作**: `bash ccconfig/skillinit.sh`（install/sync/lock/list）
+- **Skills 全局**: `~/.claude/skills/` → `ccconfig/.agents/skills/`，所有项目共享
 - **飞书操作**: feishuinit.sh（所有环境）| bridgeinit.sh（仅 Bridge 环境）
 - **Key/Token 存储**: conf-claude.json（已同步到 ccconfig/link）
 - **进入 Claude 行为**: 说"hookstatus"→ 运行 `bash ccconfig/hook-status.sh`
@@ -78,16 +80,28 @@ lark-cli docs +create \
 ## 多项目架构（~/git/ 总目录）
 
 ```
-~/git/
-├── ccconfig/                 ← 配置仓库，monitor-sync 在跑
-│     └── link/               ← 同步到 GitHub: <your-github-username>/ccconfig
-│           └── -home-francis-git/MEMORY.md
-└── projectu/                 ← 已 clone，但 monitor-sync 未运行
-      └── link/               ← 需要时才建（暂不需要）
-            └── -home-francis-git-projectu/MEMORY.md
+~/.claude/                        ← 全局配置（不被 Git 追踪）
+├── skills/ → ccconfig/.agents/skills/    ← 符号链接，全局 skills
+└── projects/
+    ├── -home-francis-git/
+    │   └── memory/MEMORY.md → ccconfig/link/-home-francis-git/MEMORY.md
+    └── -home-francis-git-projectu/
+        └── memory/MEMORY.md → ccconfig/link/-home-francis-git-projectu/MEMORY.md
+
+~/git/                            ← 项目目录（总目录）
+├── ccconfig/                      ← 配置仓库，monitor-sync 在跑
+│     └── link/                    ← 同步到 GitHub: <your-github-username>/ccconfig
+│           ├── -home-francis-git/MEMORY.md
+│           └── -home-francis-git-projectu/MEMORY.md
+└── projectu/                      ← Godot 项目
+      └── .claude/                 ← 符号链接指向 ~/.claude/
 ```
 
-**工作方式**: 在 `~/git/` 下启动 Claude，不切换子仓库目录。每个 Git 仓库需要独立运行 `monitor-sync.sh` 才能自动 sync。
+**工作方式**: 
+- 在 `~/git/` 下启动 Claude（总目录），不切换子仓库目录
+- skills 全局可用：`~/.claude/skills/` → `ccconfig/.agents/skills/`
+- 不同项目有不同的 memory，保存在 ccconfig/link/ 下
+- monitor-sync 在 ccconfig 目录运行，自动同步所有配置
 
 ---
 
@@ -99,6 +113,7 @@ ccconfig/
 ├── feishuinit.sh              # 飞书 lark-cli 配置（所有环境）
 ├── bridgeinit.sh              # ccbot Bridge 专用（仅 Bridge 环境）
 ├── claudeinit.sh              # MCP 安装配置
+├── skillinit.sh               # Skills 安装配置（与 claudeinit.sh 配套）
 ├── monitor-sync.sh            # 文件监控 sync（start/stop/status/log/monitor）
 ├── init-enable-autostart.sh   # 自启动（systemd + pm2 save）
 ├── hook-status.sh             # 状态检查
