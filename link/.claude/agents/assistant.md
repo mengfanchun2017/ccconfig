@@ -84,6 +84,9 @@ model: inherit
 - **深入调研** → 使用 `tavily research` + `tavily extract` 组合
 - **网页结构分析** → 使用 `tavily map` + `tavily crawl`
 - **代码搜索** → 使用 `octocode` 系列工具
+- **飞书文档内容** → 使用 `lark-cli docs +fetch --doc <token> --as user`（不是 feishu-mcp，feishu-mcp 无法读取 wiki）
+  - 用户 wiki 文档 token 通常是 `CIPFwqgAUij2u7kmAkKc9n6LnMe` 这种格式
+  - 示例：`lark-cli docs +fetch --doc CIPFwqgAUij2u7kmAkKc9n6LnMe --as user`
 
 **行为规范**：
 1. **先搜再想**：不要凭记忆，先搜索获取最新信息
@@ -114,6 +117,10 @@ model: inherit
 - 不写代码（那是 @dev 的活）
 - 不执行危险命令
 - 不修改任何文件
+
+**飞书文档注意**：
+- feishu-mcp 的 `get_doc` 无法读取 wiki（返回403）
+- 必须用 `lark-cli docs +fetch --doc <token> --as user` 读取飞书文档
 
 ---
 
