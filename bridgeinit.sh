@@ -169,7 +169,7 @@ install_ccbot() {
 configure_ccbot() {
     title "配置 ccbot"
 
-    export PATH="$HOME/.local/bin:$PATH"
+    export PATH="$HOME/.local/bin:$HOME/.local/node-v20.11.0-linux-x64/bin:$PATH"
 
     local app_id app_secret workdir timeout
     app_id=$(get_feishu_app_id)
@@ -190,7 +190,7 @@ configure_ccbot() {
     "appSecret": "$app_secret"
   },
   "claude": {
-    "bin": "claude",
+    "bin": "/home/francis/.local/bin/claude",
     "workDir": "$workdir",
     "timeoutMs": $timeout
   }
@@ -201,6 +201,10 @@ EOF
 
     section "启动 ccbot"
     echo -n "启动 ccbot ... "
+
+    # 设置完整 PATH，确保 pm2 和 claude 都能找到
+    export PATH="$HOME/.local/bin:$HOME/.local/node-v20.11.0-linux-x64/bin:$PATH"
+
     # ccbot 会在 workDir 目录查找 ccbot.json
     if (cd "$workdir" && ccbot start 2>&1); then
         good "✅ 启动成功"
@@ -230,8 +234,10 @@ setup_ccbot_autostart() {
     fi
 
     section "添加 crontab @reboot"
+    # PATH 修复：确保 pm2 和 claude 都能找到
+    local full_path="PATH=$HOME/.local/bin:$HOME/.local/node-v20.11.0-linux-x64/bin:\$PATH"
     # 添加到 crontab
-    (crontab -l 2>/dev/null; echo "@reboot cd $workdir && $ccbot_bin start >> $workdir/ccbot.log 2>&1") | crontab -
+    (crontab -l 2>/dev/null; echo "@reboot $full_path && cd $workdir && $ccbot_bin start >> $workdir/ccbot.log 2>&1") | crontab -
     if [ $? -eq 0 ]; then
         good "✅ 已添加自动启动"
         echo ""
@@ -262,7 +268,7 @@ show_bridge_config() {
 show_status() {
     title "状态检查"
 
-    export PATH="$HOME/.local/bin:$PATH"
+    export PATH="$HOME/.local/bin:$HOME/.local/node-v20.11.0-linux-x64/bin:$PATH"
 
     section "ccbot"
     local workdir
