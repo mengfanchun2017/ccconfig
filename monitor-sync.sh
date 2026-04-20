@@ -256,6 +256,7 @@ start_watch() {
                 fi
 
                 info "防抖结束，开始提交推送..."
+                last_change=$(date +%s)  # 防止 commit_and_push 写入日志触发误判
                 commit_and_push
                 pending=false
                 last_push_time=$(date +%s)
