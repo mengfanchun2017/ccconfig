@@ -69,11 +69,14 @@ lark-cli docs +create \
 ## 飞书集成配置（详细配置见 ccconfig/conf-feishu.json）
 
 - 飞书 App ID: `<your-feishu-app-id>`
-- **文档创建**: 必须用 `lark-cli docs +create --as user --folder-token <token> --markdown <content>`
-  - ClaudeCode 文件夹 token: `VB6nflC8JlFYhcdXNric6vORndg`（用户飞书云盘下"ClaudeCode"文件夹）
+- **文档操作**:
+  - **创建/读取文档**: 必须用 `lark-cli docs +create --as user` 或 `lark-cli docs +fetch --as user`
+  - feishu-mcp 的 `feishu_get_doc` 无法读取 wiki（返回403），因为是 bot 身份而非用户身份
+  - lark-cli --as user 用用户身份，可以读取私有 wiki 文档
+- **文件夹 Token**: ClaudeCode 文件夹 `VB6nflC8JlFYhcdXNric6vORndg`
 - **分工**:
-  - `feishu-mcp` → 发消息、读文档
-  - `lark-cli` → 创建文档、日历、任务（所有环境）
+  - `feishu-mcp` → 发飞书消息（只能用 SendMessage，不能读写文档）
+  - `lark-cli --as user` → 创建/读取飞书文档、日历、任务
   - `ccbot` → 接收飞书消息 WebSocket 长连接（仅 Bridge 环境）
 - **OAuth 管理**: https://account.feishu.cn/ → 账号与安全 → 应用授权管理
 - **ccbot PATH 问题**: pm2 在 `~/.local/node-v20.11.0-linux-x64/bin/pm2`，需加入 PATH
