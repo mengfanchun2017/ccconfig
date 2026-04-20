@@ -76,6 +76,9 @@ lark-cli docs +create \
   - `lark-cli` → 创建文档、日历、任务（所有环境）
   - `ccbot` → 接收飞书消息 WebSocket 长连接（仅 Bridge 环境）
 - **OAuth 管理**: https://account.feishu.cn/ → 账号与安全 → 应用授权管理
+- **ccbot PATH 问题**: pm2 在 `~/.local/node-v20.11.0-linux-x64/bin/pm2`，需加入 PATH
+  - `bridgeinit.sh` 已修复此问题（设置完整 PATH）
+  - crontab 自动启动时也需完整 PATH
 
 ---
 
