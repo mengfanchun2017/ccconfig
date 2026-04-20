@@ -346,6 +346,11 @@ setup_symlinks() {
     setup_link "$CLAUDE_DIR/.config.json" "$SCRIPT_DIR/link/.config.json" ".config.json"
     setup_link "$HOME/CLAUDE.md" "$SCRIPT_DIR/link/CLAUDE.md" "CLAUDE.md"
 
+    # agents（指令分流 agent）
+    if [[ -d "$SCRIPT_DIR/link/.claude/agents" ]]; then
+        setup_link "$CLAUDE_DIR/agents" "$SCRIPT_DIR/link/.claude/agents" "agents"
+    fi
+
     # MEMORY.md
     # 项目标识符固定为 -home-francis-git（从 /home/francis/git 计算得出）
     REPO_MEMORY_NAME="-home-francis-git"

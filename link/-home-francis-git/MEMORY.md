@@ -43,6 +43,8 @@ lark-cli docs +create \
 - **Key/Token 存储**: conf-claude.json（已同步到 ccconfig/link）
 - **进入 Claude 行为**: 说"hookstatus"→ 运行 `bash ccconfig/hook-status.sh`
 - **搜索策略**: 中文=minimax web_search, 英文=tavily search
+- **Agent**: `~/.claude/agents/assistant.md`（指令分流：@dev/@research/@summary）
+  - 新环境初始化时会自动创建符号链接 `~/.claude/agents/`
 
 ---
 
@@ -82,6 +84,7 @@ lark-cli docs +create \
 ```
 ~/.claude/                        ← 全局配置（不被 Git 追踪）
 ├── skills/ → ccconfig/.agents/skills/    ← 符号链接，全局 skills
+├── agents/ → ccconfig/link/.claude/agents/  ← 符号链接，指令分流 agent
 └── projects/
     ├── -home-francis-git/
     │   └── memory/MEMORY.md → ccconfig/link/-home-francis-git/MEMORY.md
@@ -131,6 +134,9 @@ link/
 ├── .config.json                        ← MCP 配置 + 用户状态（被 Git 追踪）
 ├── settings.json                       ← Claude Code 全局设置（被 Git 追踪）
 ├── CLAUDE.md                          ← 全局 AI 指令（被 Git 追踪）
+├── .claude/                           ← Claude Code 全局目录（被 Git 追踪）
+│     └── agents/
+│           └── assistant.md           ← 指令分流 agent（@dev/@research/@summary）
 └── -home-francis-git/                 ← 项目记忆目录（被 Git 追踪）
       └── MEMORY.md                    ← Claude 记忆文件（被 Git 追踪）
 ```
