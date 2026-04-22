@@ -13,13 +13,30 @@ This file persists across Claude Code conversations.
 
 **正确方式**：必须用 `lark-cli`，不能用 feishu-mcp（创建的文档访问不了）
 
+⚠️ **注意**：`--markdown` 参数**必须**指定 `-`（stdin），不能用 `#` 内联传内容！
+
 ```bash
-lark-cli docs +create \
+cat << 'EOF' | lark-cli docs +create \
   --title "文档标题" \
   --as user \
   --folder-token VB6nflC8JlFYhcdXNric6vORndg \
-  --markdown "# 标题\n\n内容"
+  --markdown -
+
+# 标题
+正文内容...
+EOF
 ```
+
+| 参数 | 说明 |
+|------|------|
+| `--markdown -` | `-` 代表 stdin，内容从管道/heredoc 读取 |
+| `--as user` | 用用户身份，能读写私有 wiki |
+| `--folder-token` | 目标文件夹 token |
+
+**常见错误**：
+- ❌ `lark-cli docs +create ... --markdown "内容"` → 报错 `required flag(s) "markdown" not set`
+- ❌ `lark-cli docs +create ...`（不写 --markdown）→ 同样报错
+- ✅ `lark-cli docs +create ... --markdown -` → 从 stdin 读取，成功
 
 - ClaudeCode 文件夹 token: `VB6nflC8JlFYhcdXNric6vORndg`
 - 链接格式: `https://www.feishu.cn/docx/<doc_id>`
