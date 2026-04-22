@@ -93,6 +93,20 @@ commit_and_push() {
     echo "$changed_files" | tee -a "$LOG_FILE"
     log "=================================="
 
+    # 检查是否有未合并的冲突文件（git stash pop 产生冲突时会留下 unmerged 状态）
+    # 冲突标记若被 commit 会破坏仓库，需要 abort
+    if git ls-files -u 2>/dev/null | grep -q .; then
+        echo "" | tee -a "$LOG_FILE"
+        error "=========================================="
+        error "⚠️  检测到未解决的 Git 合并冲突"
+        error "    stash pop 或 merge 产生了冲突，请先手动解决"
+        error "    不要 git add 或 git commit，直接手动处理"
+        error "=========================================="
+        echo "" | tee -a "$LOG_FILE"
+        warn "手动解决后重新启动 monitor-sync"
+        return 1
+    fi
+
     # Stage 所有变化
     git add -A 2>/dev/null
 
