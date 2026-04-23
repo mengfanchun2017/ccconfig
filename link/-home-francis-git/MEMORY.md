@@ -23,11 +23,12 @@ This file persists across Claude Code conversations.
 
 ### 创建命令
 
+**普通文档（docx）**：
 ```bash
 cat << 'EOF' | lark-cli docs +create \
   --title "文档标题" \
   --as user \
-  --wiki-node BUYNwt6VHituZ0kuHEhck0OcnBg \
+  --wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb \
   --markdown -
 
 # 标题
@@ -35,10 +36,20 @@ cat << 'EOF' | lark-cli docs +create \
 EOF
 ```
 
+**多维表格（bitable/base）**：
+```bash
+lark-cli wiki +node-create \
+  --title "表格标题" \
+  --obj-type bitable \
+  --parent-node-token CyZ6wmItQiso3AkbjZBcP3vtnAb \
+  --space-id my_library \
+  --as user
+```
+
 | 参数 | 说明 |
 |------|------|
-| `--wiki-node <token>` | 父节点 token（默认用 OC图书馆） |
-| `--markdown -` | `-` 代表 stdin，内容从管道读取 |
+| `--wiki-node` / `--parent-node-token` | 父节点 token（默认用 CC编程大虾） |
+| `--markdown -` / `--obj-type` | 文档类型（docx/bitable） |
 | `--as user` | 用用户身份，能读写私有 wiki |
 
 **常见错误**：
