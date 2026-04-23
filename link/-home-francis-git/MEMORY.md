@@ -100,7 +100,10 @@ cd <文件所在目录> && lark-cli base +record-upload-attachment \
   --as user
 ```
 
-**welldone 触发**: 用户说 `welldone` 时，将调研/总结结果写入 worklog
+**触发规则**:
+- `@sum` 后面直接写了任务描述 → 自动写入 worklog
+- 用户说 `welldone` → 将结果写入 worklog
+- 写入时同步更新 MEMORY.md（如有新的飞书配置、工具使用经验等）
 
 ---
 
@@ -126,7 +129,7 @@ cd <文件所在目录> && lark-cli base +record-upload-attachment \
 - **Agent**: `~/.claude/agents/assistant.md`（指令分流：@dev/@res/@sum）
   - 新环境初始化时会自动创建符号链接 `~/.claude/agents/`
 - **暗号**:
-  - `welldone` → @res/@sum 调研/总结结果写入 worklog
+  - `welldone` → @sum 将结果写入 worklog（@sum 后面直接写内容也会触发）
   - `hookstatus` → 运行 `bash ccconfig/hook-status.sh`
 
 ---
