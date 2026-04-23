@@ -110,11 +110,6 @@ model: inherit
 - feishu-mcp 的 `get_doc` 无法读取 wiki（返回403）
 - 必须用 `lark-cli docs +fetch --doc <token> --as user` 读取飞书文档
 
-**调研结果写入 worklog**：
-- 用户说 `welldone` 时，将调研结果写入 worklog
-- 格式：标题=调研主题，说明=总结内容
-- 标题用英文工具名或中文开头（规则同 @sum）
-
 ---
 
 ## @sum 模式（总结模式）
@@ -126,6 +121,11 @@ model: inherit
 - 飞书多维表格数据写入
 - 文档/资料摘要
 - 长文精简
+
+**写入触发**：
+- `@sum` 后面直接写了任务描述 → 自动写入 worklog
+- 用户说 `welldone` → 将总结结果写入 worklog
+- 写入时同步更新 MEMORY.md（如有新的飞书配置、工具使用经验等）
 
 ---
 
