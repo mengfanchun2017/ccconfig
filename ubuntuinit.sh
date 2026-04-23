@@ -351,15 +351,28 @@ setup_symlinks() {
         setup_link "$CLAUDE_DIR/agents" "$SCRIPT_DIR/link/.claude/agents" "agents"
     fi
 
-    # MEMORY.md
-    # 项目标识符固定为 -home-francis-git（从 /home/francis/git 计算得出）
-    REPO_MEMORY_NAME="-home-francis-git"
-    MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
-    MEMORY_REPO_PATH="$SCRIPT_DIR/link/$REPO_MEMORY_NAME/MEMORY.md"
+    # MEMORY.md - 自动检测所有项目
+    # 遍历 ccconfig/link/ 下所有 -home-francis-* 项目
+    for mem_dir in "$SCRIPT_DIR/link"/-home-francis-*/; do
+        if [[ -d "$mem_dir" ]] && [[ -f "${mem_dir}MEMORY.md" ]]; then
+            # 从目录名提取项目标识符（如 -home-francis-git-projectu）
+            REPO_MEMORY_NAME=$(basename "$mem_dir")
+            MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
+            MEMORY_REPO_PATH="${mem_dir}MEMORY.md"
 
-    if [[ -d "$SCRIPT_DIR/link/$REPO_MEMORY_NAME" ]]; then
+            mkdir -p "$MEMORY_DIR"
+            setup_link "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "$REPO_MEMORY_NAME/MEMORY.md"
+        fi
+    done
+
+    # 如果没有任何项目目录，确保至少有总目录链接
+    if [[ ! -d "$SCRIPT_DIR/link/-home-francis-git" ]]; then
+        REPO_MEMORY_NAME="-home-francis-git"
+        MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
+        MEMORY_REPO_PATH="$SCRIPT_DIR/link/$REPO_MEMORY_NAME/MEMORY.md"
+
         mkdir -p "$MEMORY_DIR"
-        setup_link "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "MEMORY.md"
+        setup_link "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "$REPO_MEMORY_NAME/MEMORY.md"
     fi
 }
 

@@ -11,15 +11,23 @@ This file persists across Claude Code conversations.
 
 ## 飞书文档创建（重要）
 
-**正确方式**：必须用 `lark-cli`，不能用 feishu-mcp（创建的文档访问不了）
+### 关键目录（必须熟记）
 
-⚠️ **注意**：`--markdown` 参数**必须**指定 `-`（stdin），不能用 `#` 内联传内容！
+| 名称 | Token | 说明 |
+|------|-------|------|
+| **CC编程大虾** | CyZ6wmItQiso3AkbjZBcP3vtnAb | **默认父节点**，所有新建文档/表格放这里 |
+
+⚠️ **新建文档必须用 `--wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb`**，除非用户明确指定其他位置
+
+**space_id**: `7528223282659737628`（个人云文档库）
+
+### 创建命令
 
 ```bash
 cat << 'EOF' | lark-cli docs +create \
   --title "文档标题" \
   --as user \
-  --folder-token VB6nflC8JlFYhcdXNric6vORndg \
+  --wiki-node BUYNwt6VHituZ0kuHEhck0OcnBg \
   --markdown -
 
 # 标题
@@ -29,17 +37,16 @@ EOF
 
 | 参数 | 说明 |
 |------|------|
-| `--markdown -` | `-` 代表 stdin，内容从管道/heredoc 读取 |
+| `--wiki-node <token>` | 父节点 token（默认用 OC图书馆） |
+| `--markdown -` | `-` 代表 stdin，内容从管道读取 |
 | `--as user` | 用用户身份，能读写私有 wiki |
-| `--folder-token` | 目标文件夹 token |
 
 **常见错误**：
-- ❌ `lark-cli docs +create ... --markdown "内容"` → 报错 `required flag(s) "markdown" not set`
-- ❌ `lark-cli docs +create ...`（不写 --markdown）→ 同样报错
-- ✅ `lark-cli docs +create ... --markdown -` → 从 stdin 读取，成功
+- ❌ 用 `--folder-token`（那是文件夹，不是 wiki 节点）
+- ❌ `--markdown "内容"`（内联方式不行）
+- ✅ `--markdown -` + heredoc 从 stdin 读取
 
-- ClaudeCode 文件夹 token: `VB6nflC8JlFYhcdXNric6vORndg`
-- 链接格式: `https://www.feishu.cn/docx/<doc_id>`
+- 链接格式: `https://my.feishu.cn/wiki/<node_token>`
 
 **feishu-mcp 和 ccbot 的关系**：
 - `ccbot`（bridgeinit.sh）= 接收飞书消息（飞书→Claude，WebSocket 长连接）
