@@ -125,18 +125,83 @@ model: inherit
 
 **适用场景**：
 - 工作记录整理（周报、日报、会议记录）
-- 飞书多维表格数据分析
+- 飞书多维表格数据写入
 - 文档/资料摘要
 - 长文精简
 
-**行为规范**：
-1. **精准提取**：从原始材料中提取关键信息，不添加主观解读
-2. **结构清晰**：用分点、表格、层级标题组织
-3. **长度适中**：在信息完整和简洁之间取得平衡
-4. **保留核心**：保留所有关键数据、结论、行动项
-5. **来源标注**：注明信息来源
+---
 
-**@sum 变体**：
+### 飞书多维表格配置
+
+**工作总目录**（新建文档默认位置）：
+- Token: `Z5aJwTMgViwC8nkfwEBcIvdNnzf`
+- 链接: https://my.feishu.cn/wiki/Z5aJwTMgViwC8nkfwEBcIvdNnzf
+
+**worklog 表格**（每日工作记录）：
+- Token: `J2SmwK3yJifPD8kg8ZwcAUwOnqg`
+- base_token: `Tq1ebqPA7aT0cSsSA8GcADZQnqd`
+- 链接: https://my.feishu.cn/wiki/J2SmwK3yJifPD8kg8ZwcAUwOnqg
+
+**AIpilotrun 表格**（AI学习记录）：
+- Token: `ON2ewdze6im92QkjugqciLOynlc`
+- base_token: `WWOSbHrRta5BbnsVGIOcJHuvneh`
+- 链接: https://my.feishu.cn/base/WWOSbHrRta5BbnsVGIOcJHuvneh
+
+---
+
+### 记录规则（必须遵守）
+
+**只填写以下列**：
+- **说明**：文本输入，填写简要说明
+- **ai链接**：文本输入，可填写链接
+- **附件**：可上传照片、文档等
+
+**其他列由飞书自动生成，不用填写**：
+- 完成日期、ai板块、ai分类、练习内容、父记录
+
+**标题命名规则（自动分类用）**：
+
+| 类型 | 格式 | 示例 | 自动分类 |
+|------|------|------|----------|
+| 成长/学习 | 英文工具名 + 空格 + 描述 | `coze 工作流和LLM对比` | ai分类=成长 |
+| 工作记录 | 中文开头 | `技术组AI开发资源讨论` | ai分类=工作 |
+
+**示例**：
+- ✅ `coze 工作流和LLM对比` → 成长，学习 Coze 平台的工作流和LLM功能
+- ✅ `dify 定时触发工作流配置` → 成长，学习 Dify 的定时触发配置
+- ✅ `技术组AI开发资源讨论` → 工作，用于生成工作周报
+- ✅ `周会记录：AI平台安全策略` → 工作，用于生成工作周报
+
+**内容列要求**：
+- 用请单体进行精确专业的描述
+- 分点列出关键信息
+- 如有限制、注意事项等要明确说明
+
+---
+
+### 常用命令
+
+```bash
+# 添加记录到 worklog
+lark-cli base +record-batch-create \
+  --base-token Tq1ebqPA7aT0cSsSA8GcADZQnqd \
+  --table-id "任务表" \
+  --json '{"fields":["说明"],"rows":[["内容"]]}' \
+  --as user
+
+# 读取记录
+lark-cli base +record-list --base-token Tq1ebqPA7aT0cSsSA8GcADZQnqd --table-id "任务表" --limit 100 --as user
+
+# 创建新文档
+cat << 'EOF' | lark-cli docs +create --title "标题" --wiki-node Z5aJwTMgViwC8nkfwEBcIvdNnzf --markdown - --as user
+正文...
+EOF
+```
+
+---
+
+### @sum 变体
+
 - `@sum-brief` → 极简版本，一段话概括
 - `@sum-detailed` → 详细版本，包含所有细节
 - `@sum-outline` → 只输出大纲/目录结构
