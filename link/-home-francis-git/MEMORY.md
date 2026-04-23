@@ -16,6 +16,8 @@ This file persists across Claude Code conversations.
 | 名称 | Token | 说明 |
 |------|-------|------|
 | **CC编程大虾** | CyZ6wmItQiso3AkbjZBcP3vtnAb | **默认父节点**，所有新建文档/表格放这里 |
+| **工作总目录** | Z5aJwTMgViwC8nkfwEBcIvdNnzf | @res/@sum 操作的主要工作目录 |
+| **worklog** | J2SmwK3yJifPD8kg8ZwcAUwOnqg | 每日工作记录（base_token: Tq1ebqPA7aT0cSsSA8GcADZQnqd） |
 
 ⚠️ **新建文档必须用 `--wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb`**，除非用户明确指定其他位置
 
@@ -59,6 +61,49 @@ lark-cli wiki +node-create \
 
 - 链接格式: `https://my.feishu.cn/wiki/<node_token>`
 
+---
+
+## worklog 记录规则（必须熟记）
+
+**表格**: https://my.feishu.cn/wiki/J2SmwK3yJifPD8kg8ZwcAUwOnqg
+**base_token**: `Tq1ebqPA7aT0cSsSA8GcADZQnqd`
+
+**只填写以下列**:
+- **标题**: 文本，用于自动分类
+- **说明**: 详细说明或总结
+- **附件**: 可选（上传文件）
+
+**其他列由飞书自动生成**: 完成日期、ai板块、ai分类、练习内容、父记录、ai链接
+
+**标题命名规则（自动分类）**:
+
+| 类型 | 格式 | 示例 | 自动分类 |
+|------|------|------|----------|
+| 成长/学习 | 英文工具名 + 空格 + 描述 | `coze 工作流和LLM对比` | ai分类=成长 |
+| 工作记录 | 中文开头 | `技术组AI开发资源讨论` | ai分类=工作 |
+
+**写入命令**:
+```bash
+lark-cli base +record-batch-create \
+  --base-token Tq1ebqPA7aT0cSsSA8GcADZQnqd \
+  --table-id "任务表" \
+  --json '{"fields":["标题","说明"],"rows":[["标题内容","详细说明"]]}' \
+  --as user
+
+# 上传附件（文件路径必须是相对路径）
+cd <文件所在目录> && lark-cli base +record-upload-attachment \
+  --base-token Tq1ebqPA7aT0cSsSA8GcADZQnqd \
+  --table-id "任务表" \
+  --record-id <record_id> \
+  --field-id "附件" \
+  --file ./filename.txt \
+  --as user
+```
+
+**welldone 触发**: 用户说 `welldone` 时，将调研/总结结果写入 worklog
+
+---
+
 **feishu-mcp 和 ccbot 的关系**：
 - `ccbot`（bridgeinit.sh）= 接收飞书消息（飞书→Claude，WebSocket 长连接）
 - `feishu-mcp` = 发送飞书消息（Claude→飞书）
@@ -78,8 +123,11 @@ lark-cli wiki +node-create \
 - **Key/Token 存储**: conf-claude.json（已同步到 ccconfig/link）
 - **进入 Claude 行为**: 说"hookstatus"→ 运行 `bash ccconfig/hook-status.sh`
 - **搜索策略**: 中文=minimax web_search, 英文=tavily search
-- **Agent**: `~/.claude/agents/assistant.md`（指令分流：@dev/@research/@summary）
+- **Agent**: `~/.claude/agents/assistant.md`（指令分流：@dev/@res/@sum）
   - 新环境初始化时会自动创建符号链接 `~/.claude/agents/`
+- **暗号**:
+  - `welldone` → @res/@sum 调研/总结结果写入 worklog
+  - `hookstatus` → 运行 `bash ccconfig/hook-status.sh`
 
 ---
 
