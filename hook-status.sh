@@ -220,7 +220,7 @@ check_feishu() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[6] 飞书 (lark-cli)${NC}"
 
-    export PATH="$HOME/.local/bin:$PATH"
+    export PATH="$HOME/.local/bin:$HOME/.local/node-v20.11.0-linux-x64/bin:$PATH"
 
     # 检查安装
     echo -n "  安装 ... "
@@ -249,7 +249,7 @@ check_feishu() {
     # ccbot Bridge 状态（仅提示，不检查）
     echo -n "  Bridge ... "
     if command -v ccbot &> /dev/null; then
-        if pm2 list 2>&1 | grep -q "ccbot"; then
+        if pm2 list 2>&1 | grep -qE "ccbot[-:]"; then
             echo -e "${GREEN}✅${NC} (运行中)"
         else
             echo -e "${YELLOW}○${NC} (未运行)"
