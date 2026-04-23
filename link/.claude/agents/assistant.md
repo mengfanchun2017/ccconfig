@@ -152,12 +152,12 @@ model: inherit
 ### 记录规则（必须遵守）
 
 **只填写以下列**：
-- **说明**：文本输入，填写简要说明
-- **ai链接**：文本输入，可填写链接
-- **附件**：可上传照片、文档等
+- **标题**：文本输入，用于自动分类（见下方规则）
+- **说明**：文本输入，填写详细说明或总结
+- **附件**：可上传照片、文档等（可选）
 
 **其他列由飞书自动生成，不用填写**：
-- 完成日期、ai板块、ai分类、练习内容、父记录
+- 完成日期、ai板块、ai分类、练习内容、父记录、ai链接
 
 **标题命名规则（自动分类用）**：
 
@@ -172,8 +172,8 @@ model: inherit
 - ✅ `技术组AI开发资源讨论` → 工作，用于生成工作周报
 - ✅ `周会记录：AI平台安全策略` → 工作，用于生成工作周报
 
-**内容列要求**：
-- 用请单体进行精确专业的描述
+**说明列要求**：
+- 用简洁专业语言描述
 - 分点列出关键信息
 - 如有限制、注意事项等要明确说明
 
@@ -182,11 +182,20 @@ model: inherit
 ### 常用命令
 
 ```bash
-# 添加记录到 worklog
+# 添加记录到 worklog（必须填标题和说明）
 lark-cli base +record-batch-create \
   --base-token Tq1ebqPA7aT0cSsSA8GcADZQnqd \
   --table-id "任务表" \
-  --json '{"fields":["说明"],"rows":[["内容"]]}' \
+  --json '{"fields":["标题","说明"],"rows":[["标题内容","详细说明"]]}' \
+  --as user
+
+# 上传附件（先创建记录，再上传附件，文件路径必须是相对路径）
+lark-cli base +record-upload-attachment \
+  --base-token Tq1ebqPA7aT0cSsSA8GcADZQnqd \
+  --table-id "任务表" \
+  --record-id <record_id> \
+  --field-id "附件" \
+  --file ./filename.txt \
   --as user
 
 # 读取记录
