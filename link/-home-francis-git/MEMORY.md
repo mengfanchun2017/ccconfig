@@ -132,6 +132,11 @@ cd <文件所在目录> && lark-cli base +record-upload-attachment \
   - **中文技术/薪资** → 使用 `minimax web_search`
   - **英文招聘/技术** → 使用 `tavily search`
   - **参考**: tavily skill 的 `tavily-search`/`tavily-research`/`tavily-extract` 说明
+- **图片解析**（重要）:
+  - **默认方式**: 使用 `minimax-coding-plan-mcp` 的 `understand_image` 工具
+  - **Windows 文件路径**: `/mnt/c/Users/...`（WSL 下可直接访问 Windows 文件）
+  - **使用方法**: 通过 Agent 调用 minimax 的 understand_image，分析图片内容
+  - **支持格式**: JPEG、PNG、WebP，支持本地文件或 URL
 - **Agent**: `~/.claude/agents/assistant.md`（指令分流：@dev/@res/@sum）
   - 新环境初始化时会自动创建符号链接 `~/.claude/agents/`
 - **暗号**:
