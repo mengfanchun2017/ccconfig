@@ -125,7 +125,13 @@ cd <文件所在目录> && lark-cli base +record-upload-attachment \
 - **飞书操作**: feishuinit.sh（所有环境）| bridgeinit.sh（仅 Bridge 环境）
 - **Key/Token 存储**: conf-claude.json（已同步到 ccconfig/link）
 - **进入 Claude 行为**: 说"hookstatus"→ 运行 `bash ccconfig/hook-status.sh`
-- **搜索策略**: 中文=minimax web_search, 英文=tavily search
+- **搜索策略**:
+  - **中文内容** → 使用 `minimax web_search`
+  - **英文内容** → 使用 `tavily search` 或 `tavily research`
+  - **深入调研** → 使用 `tavily research` + `tavily extract` 组合
+  - **中文技术/薪资** → 使用 `minimax web_search`
+  - **英文招聘/技术** → 使用 `tavily search`
+  - **参考**: tavily skill 的 `tavily-search`/`tavily-research`/`tavily-extract` 说明
 - **Agent**: `~/.claude/agents/assistant.md`（指令分流：@dev/@res/@sum）
   - 新环境初始化时会自动创建符号链接 `~/.claude/agents/`
 - **暗号**:
