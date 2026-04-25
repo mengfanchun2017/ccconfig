@@ -143,6 +143,28 @@ cd <文件所在目录> && lark-cli base +record-upload-attachment \
   - `welldone` → @sum 将结果写入 worklog（@sum 后面直接写内容也会触发）
   - `hookstatus` → 运行 `bash ccconfig/hook-status.sh`
 
+## 论文翻译任务规范（@res 分流）
+
+### 流程
+1. **读取 PDF**：从 Windows 下载目录或指定路径读取 PDF（`/mnt/c/Users/franc/Downloads/`）
+2. **翻译并创建飞书文档**：
+   - 20 页以内：英文+中文**对照分段**放置（一段英文，一段中文）
+   - 有图片：用 `understand_image` 分析并嵌入文档
+   - 创建命令：`lark-cli docs +create --wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb --as user`
+3. **上传 PDF 附件**：作为翻译文档的子文件/附件
+4. **调研影响力和作者**：
+   - 英文：用 `tavily research` 搜索
+   - 中文：用 `minimax web_search` 搜索
+   - 保存到翻译文档的子文档位置
+
+### 飞书文档结构
+```
+主文档（论文翻译）
+├── 子文档1（影响力调研）
+├── 子文档2（作者调研）
+└── 附件（PDF原始文件）
+```
+
 ---
 
 ## Key Learnings（重要，需熟记）
