@@ -19,6 +19,8 @@ FEISHU_CONF="$SCRIPT_DIR/conf-feishu.json"
 # 符号链接放在 ~/.local/bin/
 # 直接用绝对路径，不依赖 PATH 查找，彻底解决 WSL 环境 PATH 被 Windows 污染的问题
 export PATH="${HOME}/.local/node-v20.11.0-linux-x64/bin:${HOME}/.local/bin:$PATH"
+# 避免 lark-cli 警告 "requests will transit through proxy"
+export LARK_CLI_NO_PROXY=1
 
 # 颜色
 RED='\033[0;31m'
