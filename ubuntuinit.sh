@@ -39,7 +39,7 @@ warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 error() { echo -e "${RED}❌ $1${NC}"; }
 section() { echo -e "\n${CYAN}=== $1 ===${NC}"; }
 
-# ========== 读取配置 ==========
+# ========== 读取 git 配置 ==========
 read_git_config() {
     python3 - "$CONFIG_FILE" << 'PYEOF'
 import json, sys
@@ -48,19 +48,6 @@ try:
         config = json.load(f)
     git = config.get('git', {})
     print(f"{git.get('repo', '')}|{git.get('target_dir', '')}|{git.get('email', '')}|{git.get('username', '')}")
-except:
-    print("|||")
-PYEOF
-}
-
-read_api_config() {
-    python3 - "$CONFIG_FILE" << 'PYEOF'
-import json, sys
-try:
-    with open(sys.argv[1], 'r') as f:
-        config = json.load(f)
-    api = config.get('api', {})
-    print(f"{api.get('base_url', '')}|{api.get('model', '')}|{api.get('key', '')}")
 except:
     print("|||")
 PYEOF
@@ -252,53 +239,25 @@ setup_claude_code() {
     fi
 }
 
-# ========== 5. Claude API 配置 ==========
+# ========== 5. LLM 配置（调用 llminit.sh） ==========
 setup_claude_api() {
-    section "Claude API 配置"
+    section "LLM 配置"
 
-    # 清理可能冲突的系统级环境变量（新环境可能自带 ANTHROPIC_API_KEY）
-    unset ANTHROPIC_API_KEY
+    if [[ ! -f "$SCRIPT_DIR/llminit.sh" ]]; then
+        error "llminit.sh 未找到，跳过 LLM 配置"
+        return 1
+    fi
 
-    mkdir -p "$CLAUDE_DIR"
+    # 直接切换到 conf-llm.json 中指定的 current LLM（不交互）
+    local current_llm=$(python3 -c "import json; f=open('$SCRIPT_DIR/conf-llm.json'); print(json.load(f).get('current',''))" 2>/dev/null || echo "")
 
-    API_CONFIG=$(read_api_config)
-    IFS='|' read -r BASE_URL MODEL_NAME API_KEY <<< "$API_CONFIG"
-
-    info "API: $BASE_URL"
-    info "模型: $MODEL_NAME"
-
-    # Claude Code 读取 ~/.claude.json，不是 settings.json
-    # 所以配置必须写入 ~/.claude.json
-    CLAUDE_JSON="$HOME/.claude.json"
-
-    python3 << PYEOF
-import json
-import os
-
-# Claude Code 实际读取的是 ~/.claude.json
-config_file = os.path.expanduser("$CLAUDE_JSON")
-try:
-    with open(config_file, 'r') as f:
-        config = json.load(f)
-except:
-    config = {}
-
-if 'env' not in config:
-    config['env'] = {}
-
-config['env'].update({
-    "ANTHROPIC_BASE_URL": "$BASE_URL",
-    "ANTHROPIC_AUTH_TOKEN": "$API_KEY",
-    "ANTHROPIC_MODEL": "$MODEL_NAME",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
-})
-
-with open(config_file, 'w') as f:
-    json.dump(config, f, indent=4)
-print("API 配置已写入 ~/.claude.json")
-PYEOF
-
-    success "API 配置完成"
+    if [[ -n "$current_llm" ]]; then
+        info "配置 LLM: $current_llm"
+        bash "$SCRIPT_DIR/llminit.sh" "$current_llm"
+    else
+        info "当前无默认 LLM，运行交互式选择..."
+        bash "$SCRIPT_DIR/llminit.sh"
+    fi
 }
 
 
