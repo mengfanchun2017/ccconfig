@@ -103,6 +103,7 @@ cd <文件所在目录> && lark-cli base +record-upload-attachment \
 **触发规则**:
 - `@sum` 后面直接写了任务描述 → 自动写入 worklog
 - **直接说 `welldone`** → 自动触发 @sum 分流，整理整个 session 并写入 worklog（无需手动 @sum）
+  - 整理内容：会话中发现的功能、完成的任务、建立的流程、关键规则更新
 - 写入时同步更新 MEMORY.md（如有新的飞书配置、工具使用经验等）
 
 ---
@@ -145,8 +146,13 @@ cd <文件所在目录> && lark-cli base +record-upload-attachment \
 
 ## 论文翻译任务规范（@res 分流）
 
+### 文件读取方式
+- 用户粘贴文件路径（如 `C:\Users\franc\Downloads\xxx.pdf`）
+- 我将 Windows 路径转为 WSL 路径（如 `/mnt/c/Users/franc/Downloads/xxx.pdf`）进行读取
+- 截图文件同理，用户粘贴路径，我通过 `/mnt/c/` 访问
+
 ### 流程
-1. **读取 PDF**：从 Windows 下载目录或指定路径读取 PDF（`/mnt/c/Users/franc/Downloads/`）
+1. **读取 PDF**：从用户提供的 Windows 路径读取（转为 `/mnt/c/` WSL 路径）
 2. **翻译并创建飞书文档**：
    - 20 页以内：英文+中文**对照分段**放置（一段英文，一段中文）
    - 有图片：用 `understand_image` 分析并嵌入文档
