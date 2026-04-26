@@ -246,16 +246,18 @@ check_feishu() {
         echo -e "${YELLOW}○${NC} 未授权"
     fi
 
-    # ccbot Bridge 状态（仅提示，不检查）
+    # cc-connect Bridge 状态
     echo -n "  Bridge ... "
-    if command -v ccbot &> /dev/null; then
-        if pm2 list 2>&1 | grep -qE "ccbot[-:]"; then
-            echo -e "${GREEN}✅${NC} (运行中)"
+    if command -v cc-connect &> /dev/null; then
+        if systemctl --user is-active cc-connect.service &>/dev/null 2>&1; then
+            echo -e "${GREEN}✅${NC} (systemd 运行中)"
+        elif pgrep -f "cc-connect" > /dev/null 2>&1; then
+            echo -e "${GREEN}✅${NC} (进程运行中)"
         else
             echo -e "${YELLOW}○${NC} (未运行)"
         fi
     else
-        echo -e "${GRAY}－${NC} (未安装，bridgeinit.sh 单独管理)"
+        echo -e "${GRAY}－${NC} (未安装，cconnectinit.sh 单独管理)"
     fi
 }
 
