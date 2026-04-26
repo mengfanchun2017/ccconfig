@@ -1,21 +1,19 @@
 {
-  "description": "LLM 配置管理 - 支持多后端切换",
-  "note": "运行 llminit.sh 切换 LLM 或直接编辑此文件",
-
-  "llms": {
-    "minimax": {
-      "name": "MiniMax",
-      "base_url": "https://api.minimaxi.com/anthropic",
-      "model": "MiniMax-M2.7",
-      "key": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY"
+    "description": "LLM \u914d\u7f6e\u7ba1\u7406 - \u652f\u6301\u591a\u540e\u7aef\u5207\u6362",
+    "note": "\u8fd0\u884c llminit.sh \u5207\u6362 LLM \u6216\u76f4\u63a5\u7f16\u8f91\u6b64\u6587\u4ef6",
+    "llms": {
+        "minimax": {
+            "name": "MiniMax",
+            "base_url": "https://api.minimaxi.com/anthropic",
+            "model": "MiniMax-M2.7",
+            "key": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY"
+        },
+        "deepseek": {
+            "name": "DeepSeek",
+            "base_url": "https://api.deepseek.com/anthropic",
+            "model": "deepseek-v4-pro",
+            "key": "sk-abceaa61812a4932893e61a63a9dcda9"
+        }
     },
-    "deepseek": {
-      "name": "DeepSeek",
-      "base_url": "https://api.deepseek.com/anthropic",
-      "model": "deepseek-v4-pro",
-      "key": "sk-abceaa61812a4932893e61a63a9dcda9"
-    }
-  },
-
-  "current": "minimax"
+    "current": "minimax"
 }

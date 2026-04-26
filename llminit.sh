@@ -54,7 +54,8 @@ PYEOF
 }
 
 get_llm_config() {
-    python3 - "$CONFIG_FILE" << PYEOF
+    local target="$1"
+    python3 - "$CONFIG_FILE" "$target" << 'PYEOF'
 import json, sys
 
 with open(sys.argv[1], 'r') as f:
@@ -84,12 +85,14 @@ switch_llm() {
     info "  API: $BASE_URL"
     info "  模型: $MODEL_NAME"
 
-    # 更新 ~/.claude.json
-    python3 << PYEOF
-import json
-import os
+    # 先 export，让 heredoc 里的 Python 能读到
+    export BASE_URL MODEL_NAME API_KEY
 
-config_file = os.path.expanduser("$CLAUDE_JSON")
+    # 更新 ~/.claude.json
+    python3 << 'PYEOF'
+import json, os
+
+config_file = os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json'))
 try:
     with open(config_file, 'r') as f:
         config = json.load(f)
@@ -100,15 +103,41 @@ if 'env' not in config:
     config['env'] = {}
 
 config['env'].update({
-    "ANTHROPIC_BASE_URL": "$BASE_URL",
-    "ANTHROPIC_AUTH_TOKEN": "$API_KEY",
-    "ANTHROPIC_MODEL": "$MODEL_NAME",
+    "ANTHROPIC_BASE_URL": os.environ.get('BASE_URL', ''),
+    "ANTHROPIC_AUTH_TOKEN": os.environ.get('API_KEY', ''),
+    "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
 })
 
 with open(config_file, 'w') as f:
     json.dump(config, f, indent=4)
 print("~/.claude.json 已更新")
+PYEOF
+
+    # 更新 ~/.claude/settings.json（Claude Code 实际读取）
+    python3 << 'PYEOF'
+import json, os
+
+settings_file = os.path.expanduser("~/.claude/settings.json")
+try:
+    with open(settings_file, 'r') as f:
+        config = json.load(f)
+except:
+    config = {}
+
+if 'env' not in config:
+    config['env'] = {}
+
+config['env'].update({
+    "ANTHROPIC_BASE_URL": os.environ.get('BASE_URL', ''),
+    "ANTHROPIC_AUTH_TOKEN": os.environ.get('API_KEY', ''),
+    "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+})
+
+with open(settings_file, 'w') as f:
+    json.dump(config, f, indent=4)
+print("~/.claude/settings.json 已更新")
 PYEOF
 
     # 更新 conf-llm.json 的 current
