@@ -1,0 +1,21 @@
+{
+  "description": "LLM 配置管理 - 支持多后端切换",
+  "note": "运行 llminit.sh 切换 LLM 或直接编辑此文件",
+
+  "llms": {
+    "minimax": {
+      "name": "MiniMax",
+      "base_url": "https://api.minimaxi.com/anthropic",
+      "model": "MiniMax-M2.7",
+      "key": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY"
+    },
+    "deepseek": {
+      "name": "DeepSeek",
+      "base_url": "https://api.deepseek.com/anthropic",
+      "model": "deepseek-v4-pro",
+      "key": "sk-abceaa61812a4932893e61a63a9dcda9"
+    }
+  },
+
+  "current": "minimax"
+}
