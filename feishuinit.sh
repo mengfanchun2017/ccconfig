@@ -44,7 +44,12 @@ import json, sys
 try:
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
         data = json.load(f)
-    print(data.get('feishu', {}).get('appId', ''))
+    # 优先从 lark 读取，兼容旧的 feishu 字段
+    lark = data.get('lark', {})
+    if lark.get('appId'):
+        print(lark['appId'])
+    else:
+        print(data.get('feishu', {}).get('appId', ''))
 except:
     print('')
 PYEOF
@@ -56,7 +61,11 @@ import json, sys
 try:
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
         data = json.load(f)
-    print(data.get('feishu', {}).get('appSecret', ''))
+    lark = data.get('lark', {})
+    if lark.get('appSecret'):
+        print(lark['appSecret'])
+    else:
+        print(data.get('feishu', {}).get('appSecret', ''))
 except:
     print('')
 PYEOF
@@ -102,7 +111,7 @@ check_prerequisites() {
     local app_id
     app_id=$(get_feishu_app_id)
     if [ -z "$app_id" ]; then
-        bad "❌ conf-feishu.json 中未找到 feishu.appId"
+        bad "❌ conf-feishu.json 中未找到 lark.appId（或旧版 feishu.appId）"
         exit 1
     fi
     good "✓ 配置文件: $FEISHU_CONF"

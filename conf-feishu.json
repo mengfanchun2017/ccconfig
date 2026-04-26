@@ -1,13 +1,61 @@
 {
-  "feishu": {
-    "appId": "<your-feishu-app-id>",
-    "appSecret": "<your-feishu-app-secret>"
-  },
-  "ccbot": {
-    "workDir": "/home/francis/git",
-    "timeoutMs": 3600000
-  },
+  "description": "飞书集成配置 - lark-cli 文档操作 + cc-connect 多用户桥接",
+  "note": "修改此文件后运行 bash ccconfig/cconnectinit.sh 使配置生效",
+
   "lark": {
-    "brand": "feishu"
+    "brand": "feishu",
+    "appId": "<your-feishu-app-id>",
+    "appSecret": "<your-feishu-app-secret>",
+    "_comment": "lark-cli 用于创建飞书文档/日历/任务（所有环境共用一套凭证即可）"
+  },
+
+  "ccconnect": {
+    "configPath": "/home/francis/cc-connect/config.toml",
+    "serviceName": "cc-connect",
+
+    "_architecture": [
+      "多用户架构说明：",
+      "",
+      "推荐方案（共享 ~/.claude/）：",
+      "  所有用户共享同一套 MCP 服务器和 API Key（settings.json 共用）",
+      "  cc-connect 通过 project+chatId 自动隔离不同用户的会话",
+      "  每个用户设置不同的 workDir → MEMORY.md 自动按目录隔离",
+      "  ~/.claude/projects/-home-francis-git/memory/MEMORY.md（francis）",
+      "  ~/.claude/projects/-home-francis-git-friend1/memory/MEMORY.md（friend1）",
+      "",
+      "如需更严格隔离（不同 Claude 账号/API Key）：",
+      "  每个用户配置独立的 claudeConfigDir（如 ~/.claude-friend1）",
+      "  需要为每个目录单独配置 settings.json（MCP 等）",
+      "  可通过符号链接共享 settings.json: ln -s ~/.claude/settings.json ~/.claude-friend1/settings.json"
+    ],
+
+    "users": [
+      {
+        "name": "francis",
+        "feishuAppId": "<your-feishu-app-id>",
+        "feishuAppSecret": "<your-feishu-app-secret>",
+        "workDir": "/home/francis/git",
+        "claudeConfigDir": "/home/francis/.claude",
+        "timeoutMs": 3600000,
+        "description": "主用户",
+        "_comment_claudeConfigDir": "留空则共享默认 ~/.claude/；指定路径则完全隔离（用于不同 Claude 账号等场景）"
+      }
+    ],
+
+    "_guide_add_user": [
+      "添加新用户步骤（推荐共享 ~/.claude/ 方案）：",
+      "1. 飞书开放平台创建新的企业自建应用（机器人+长连接）",
+      "2. 在下方 users 数组中新增一个对象：",
+      "   {",
+      "     \"name\": \"friend1\",",
+      "     \"feishuAppId\": \"cli_新应用的ID\",",
+      "     \"feishuAppSecret\": \"新应用的Secret\",",
+      "     \"workDir\": \"/home/francis/git/friend1\",",
+      "     \"claudeConfigDir\": \"\",",
+      "     \"timeoutMs\": 3600000",
+      "   }",
+      "3. claudeConfigDir 留空 = 共享 ~/.claude/（推荐，共用 MCP/API Key）",
+      "4. 运行 bash ccconfig/cconnectinit.sh 重新生成配置并重启"
+    ]
   }
 }

@@ -27,7 +27,7 @@ flowchart TB
         subgraph 飞书集成[飞书集成]
             larkcli[lark-cli]
             feishuMCP[feishu-mcp]
-            ccbot[ccbot Bridge]
+            ccconnect[cc-connect Bridge]
         end
     end
 
@@ -44,7 +44,7 @@ flowchart TB
     remote --> |git pull| link
     larkcli --> |文档/日历/任务| 飞书集成
     feishuMCP --> |消息/文档| 飞书集成
-    ccbot --> |接收消息| 飞书集成
+    ccconnect --> |接收消息| 飞书集成
 
     classDef local fill:#e1f5fe
     classDef script fill:#fff3e0
@@ -53,7 +53,7 @@ flowchart TB
     class ClaudeCode,ccconfig local
     class init,monitor,hook,mcp script
     class link,sync sync
-    class larkcli,feishuMCP,ccbot feishu
+    class larkcli,feishuMCP,ccconnect feishu
 ```
 
 ---
@@ -62,16 +62,18 @@ flowchart TB
 
 ```text
 ccconfig/
+├── init.sh                    # 统一初始化入口（一键/交互式）
 ├── ubuntuinit.sh              # 合一初始化脚本（Git + Claude + 环境 + auto-sync）
 ├── feishuinit.sh              # 飞书基础配置（lark-cli，所有环境）
-├── bridgeinit.sh              # ccbot Bridge 专用（仅 Bridge 环境）
+├── cconnectinit.sh            # cc-connect Bridge（多用户飞书 WebSocket）
 ├── claudeinit.sh              # MCP 服务器安装与配置
 ├── hook-status.sh             # 状态检查（Claude Code 启动时自动调用）
 ├── monitor-sync.sh            # 文件监控与自动同步（主脚本）
 ├── init-enable-autostart.sh   # auto-sync systemd 自启动配置
 ├── conf-ubuntu.json           # ubuntuinit.sh 配置（Git 用户信息）
 ├── conf-claude.json           # claudeinit.sh 配置（MCP 服务器）
-├── conf-feishu.json           # 飞书配置（App ID/Secret）
+├── conf-feishu.json           # 飞书配置（lark-cli + cc-connect 多用户）
+├── conf-llm.json              # LLM 模型配置（多后端切换）
 ├── link/                      # 符号链接目录（同步到 GitHub）
 │   ├── CLAUDE.md              # 全局 AI 指令
 │   ├── .config.json           # MCP 配置、用户状态
@@ -80,7 +82,7 @@ ccconfig/
 │       └── MEMORY.md
 ├── mcp-status/
 │   └── status-mcp.js          # 状态 MCP 服务器
-└── ccbot.service              # ccbot systemd 服务文件
+└── cc-connect.service         # cc-connect systemd 服务文件
 ```
 
 ---
@@ -126,6 +128,10 @@ sequenceDiagram
 ### 新环境初始化（所有环境）
 
 ```bash
+# 最简单：一键初始化（5步全自动）
+bash ~/git/ccconfig/init.sh all
+
+# 或分步执行：
 # 1. 终端基础环境（完成后 Claude Code 可用）
 bash ~/git/ccconfig/ubuntuinit.sh
 
@@ -135,8 +141,14 @@ bash ~/git/ccconfig/feishuinit.sh
 # 3. MCP 服务器安装（需要 Claude Code 已安装）
 bash ~/git/ccconfig/claudeinit.sh
 
-# 4. 仅 Bridge 环境额外运行
-bash ~/git/ccconfig/bridgeinit.sh
+# 4. Skills 安装
+bash ~/git/ccconfig/skillinit.sh
+
+# 5. 仅 Bridge 环境额外运行（多用户飞书桥接）
+bash ~/git/ccconfig/cconnectinit.sh
+
+# 或使用交互式菜单
+bash ~/git/ccconfig/init.sh
 ```
 
 ### 日常使用
@@ -193,10 +205,71 @@ bash ~/git/ccconfig/init-enable-autostart.sh status
 |------|---------|------|
 | lark-cli | feishuinit.sh | 终端创建文档/日历/任务（所有环境） |
 | feishu-mcp | claudeinit.sh | Claude 发消息、读文档 |
-| ccbot | bridgeinit.sh | Bridge 接收飞书消息（WebSocket，仅 Bridge 环境） |
+| cc-connect | cconnectinit.sh | Bridge 接收飞书消息（WebSocket，多用户） |
 
-**双向消息互通**：需要 ccbot + feishu-mcp 同时运行
-**仅 Claude 发消息**：只装 feishu-mcp 即可
+> **ccbot → cc-connect 迁移**：cc-connect 替代了旧的 ccbot（已删除 bridgeinit.sh、ccbot.service）。原生支持多用户、多飞书 App、多项目。
+
+### 多用户架构
+
+```
+飞书用户A → 飞书App A → cc-connect Project "userA"
+    ├── agent: claudecode
+    ├── workDir: /home/francis/git
+    ├── CLAUDE_CONFIG_DIR: ~/.claude
+    └── sessions: 按 chatId 独立
+
+飞书用户B → 飞书App B → cc-connect Project "userB"
+    ├── agent: claudecode
+    ├── workDir: /home/francis/git/friend1
+    ├── CLAUDE_CONFIG_DIR: ~/.claude-friend1
+    └── sessions: 按 chatId 独立（与用户A 完全隔离）
+```
+
+### 添加新用户
+
+1. 在[飞书开放平台](https://open.feishu.cn)创建新的企业自建应用
+2. 配置：机器人能力 → 长连接事件 im.message.receive_v1 → 权限 im:message:send_as_bot 等
+3. 编辑 `conf-feishu.json`，在 `cconnect.users` 数组中新增用户
+4. 运行 `bash ccconfig/cconnectinit.sh` 重新生成配置并重启
+
+### 配置说明（conf-feishu.json）
+
+```json
+{
+  "lark": {
+    "appId": "...",      // lark-cli 用的飞书应用（文档/日历/任务）
+    "appSecret": "...",
+    "brand": "feishu"
+  },
+  "ccconnect": {
+    "users": [
+      {
+        "name": "francis",
+        "feishuAppId": "cli_xxx",       // 该用户的飞书 App
+        "feishuAppSecret": "xxx",
+        "workDir": "/home/francis/git", // Claude Code 工作目录
+        "claudeConfigDir": "/home/francis/.claude"  // Claude Code 配置隔离目录
+      }
+    ]
+  }
+}
+```
+
+### cc-connect 管理
+
+```bash
+# 查看状态
+systemctl --user status cc-connect
+
+# 重启
+systemctl --user restart cc-connect
+
+# 查看日志
+journalctl --user -u cc-connect -f
+
+# 修改配置后重新生成
+bash ccconfig/cconnectinit.sh
+```
 
 ### 飞书文档操作（必须用 lark-cli）
 
@@ -204,11 +277,13 @@ bash ~/git/ccconfig/init-enable-autostart.sh status
 lark-cli docs +create \
   --title "文档标题" \
   --as user \
-  --folder-token VB6nflC8JlFYhcdXNric6vORndg \
-  --markdown "# 标题\n\n内容"
-```
+  --wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb \
+  --markdown - << 'EOF'
+# 标题
 
-ClaudeCode 文件夹 token: `VB6nflC8JlFYhcdXNric6vORndg`
+内容...
+EOF
+```
 
 ### 飞书 MCP 功能
 
