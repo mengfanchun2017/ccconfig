@@ -102,7 +102,7 @@ cd <文件所在目录> && lark-cli base +record-upload-attachment \
 
 **触发规则**:
 - `@sum` 后面直接写了任务描述 → 自动写入 worklog
-- 用户说 `welldone` → 将结果写入 worklog
+- **直接说 `welldone`** → 自动触发 @sum 分流，整理整个 session 并写入 worklog（无需手动 @sum）
 - 写入时同步更新 MEMORY.md（如有新的飞书配置、工具使用经验等）
 
 ---
