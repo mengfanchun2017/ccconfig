@@ -135,21 +135,29 @@ config['env'].update({
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
 })
 
+# 如果 settings_file 是损坏的符号链接，先删除
+if os.path.islink(settings_file) and not os.path.exists(settings_file):
+    os.unlink(settings_file)
+
 with open(settings_file, 'w') as f:
     json.dump(config, f, indent=4)
 print("~/.claude/settings.json 已更新")
 PYEOF
 
     # 更新 conf-llm.json 的 current
-    python3 << PYEOF
-import json
+    export CONFIG_FILE NAME="$name"
+    python3 << 'PYEOF'
+import json, os
 
-with open("$CONFIG_FILE", 'r') as f:
+config_file = os.environ['CONFIG_FILE']
+name = os.environ['NAME']
+
+with open(config_file, 'r') as f:
     config = json.load(f)
 
-config['current'] = "$name"
+config['current'] = name
 
-with open("$CONFIG_FILE", 'w') as f:
+with open(config_file, 'w') as f:
     json.dump(config, f, indent=4)
 print("conf-llm.json 已更新")
 PYEOF
