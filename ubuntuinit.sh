@@ -261,6 +261,100 @@ setup_claude_api() {
 }
 
 
+# ========== 6. GitHub SSH 密钥（多 WSL 共享） ==========
+# 策略：
+#   - 同机多 WSL：密钥放 Windows 宿主目录 (/mnt/c/Users/Francis/.ssh/)，各 WSL 复制到本地
+#   - 不同机器：各自生成独立密钥，公钥都加到 github.com/settings/keys
+setup_ssh_github() {
+    section "GitHub SSH 密钥"
+
+    local SSH_DIR="$HOME/.ssh"
+    local WIN_SSH_DIR="/mnt/c/Users/Francis/.ssh"
+    local KEY_NAME="id_ed25519"
+    local GITHUB_EMAIL="mengfanchun1981@163.com"
+
+    mkdir -p "$SSH_DIR"
+    chmod 700 "$SSH_DIR"
+
+    # === 1. 获取或生成密钥 ===
+    if [[ -f "$SSH_DIR/$KEY_NAME" ]]; then
+        info "SSH 密钥已存在: $SSH_DIR/$KEY_NAME"
+    elif [[ -f "$WIN_SSH_DIR/$KEY_NAME" ]]; then
+        info "从 Windows 宿主目录复制密钥..."
+        cp "$WIN_SSH_DIR/$KEY_NAME" "$WIN_SSH_DIR/${KEY_NAME}.pub" "$SSH_DIR/"
+        chmod 600 "$SSH_DIR/$KEY_NAME"
+        chmod 644 "$SSH_DIR/${KEY_NAME}.pub"
+        success "SSH 密钥已从 Windows 宿主复制"
+    else
+        info "生成新的 SSH 密钥..."
+        ssh-keygen -t ed25519 -C "$GITHUB_EMAIL" -f "$SSH_DIR/$KEY_NAME" -N ""
+        chmod 600 "$SSH_DIR/$KEY_NAME"
+        chmod 644 "$SSH_DIR/${KEY_NAME}.pub"
+        success "SSH 密钥已生成"
+
+        # 同步到 Windows 宿主目录（供同机其他 WSL 共享）
+        if [[ -d "$WIN_SSH_DIR" || "$(mkdir -p "$WIN_SSH_DIR" 2>&1)" ]]; then
+            mkdir -p "$WIN_SSH_DIR" 2>/dev/null || true
+            cp "$SSH_DIR/$KEY_NAME" "$SSH_DIR/${KEY_NAME}.pub" "$WIN_SSH_DIR/" 2>/dev/null || true
+            info "已同步到 Windows 宿主目录（供其他 WSL 使用）"
+        fi
+
+        # 显示公钥，提示用户添加到 GitHub
+        echo ""
+        warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        warn "⚠ 请将以下公钥添加到 GitHub："
+        warn ""
+        echo "   https://github.com/settings/keys"
+        warn ""
+        cat "$SSH_DIR/${KEY_NAME}.pub"
+        warn ""
+        warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        info "添加完成后，SSH 即可免密推送"
+    fi
+
+    # === 2. 配置 ~/.ssh/config ===
+    if ! grep -q "Host github.com" "$SSH_DIR/config" 2>/dev/null; then
+        cat >> "$SSH_DIR/config" << 'SSHEOF'
+
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+SSHEOF
+        chmod 644 "$SSH_DIR/config"
+        info "SSH config 已配置 GitHub"
+    else
+        info "SSH config GitHub 已存在"
+    fi
+
+    # === 3. 切换已知仓库 remote 为 SSH ===
+    local repos=("$HOME/git/ccconfig" "$HOME/git/projectu")
+    for repo in "${repos[@]}"; do
+        if [[ -d "$repo/.git" ]]; then
+            cd "$repo"
+            local current_url=$(git remote get-url origin 2>/dev/null || echo "")
+            if [[ "$current_url" == https://github.com/* ]]; then
+                local repo_path="${current_url#https://github.com/}"
+                git remote set-url origin "git@github.com:${repo_path}"
+                success "$(basename "$repo"): remote 已切换为 SSH"
+            elif [[ "$current_url" == git@github.com:* ]]; then
+                info "$(basename "$repo"): 已是 SSH，跳过"
+            fi
+        fi
+    done
+    cd "$SCRIPT_DIR"
+
+    # === 4. 测试连接 ===
+    info "测试 GitHub SSH 连接..."
+    if ssh -T -o StrictHostKeyChecking=accept-new git@github.com 2>&1 | grep -q "successfully authenticated"; then
+        success "GitHub SSH 连接成功"
+    else
+        warn "GitHub SSH 连接测试未通过（可能需先添加公钥到 github.com/settings/keys）"
+    fi
+}
+
 # ========== 7. 中文字体（可选）============
 # Claude Code 不依赖中文字体包，桌面 IDE 有需要再手动装:
 #   sudo apt-get install fonts-noto-cjk
@@ -441,6 +535,7 @@ main() {
     setup_claude_code
     setup_symlinks
     setup_claude_api
+    setup_ssh_github
     # 中文字体可选，有需要再手动装: sudo apt-get install fonts-noto-cjk
     setup_autosync
     setup_hook
