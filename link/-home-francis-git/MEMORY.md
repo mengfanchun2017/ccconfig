@@ -42,7 +42,7 @@ bash ccconfig/llminit.sh minimax  # 切换回 minimax
 - **搜索策略**: 中文→minimax web_search | 英文→tavily | 深入调研→tavily research+extract
 - **图片解析**: minimax-coding-plan-mcp 的 understand_image，Windows 路径 `/mnt/c/Users/...`
 - **Agent**: `~/.claude/agents/` → 符号链接 `ccconfig/link/.claude/agents/`，指令分流 @dev/@res/@sum
-- **暗号**: `welldone`→@sum 写入 worklog | `hookstatus`→运行 hook-status.sh
+- **暗号**: `welldone`→@sum 写入 worklog | `hookstatus`→运行 hook-status.sh | `pullff [repo]`→强制拉取远程覆盖本地(默认ccconfig)
 - **Session Sync**: 每次收尾同步记忆到 ccconfig 仓库
 - **MCP 操作**: `bash ccconfig/claudeinit.sh` | **Skills**: `bash ccconfig/skillinit.sh`
 

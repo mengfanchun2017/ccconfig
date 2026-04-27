@@ -14,8 +14,6 @@
 #   4. skillinit.sh    → Claude Code Skills 安装
 #   5. cconnectinit.sh → cc-connect Bridge（多用户飞书 WebSocket）
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 CYAN='\033[0;36m'
@@ -43,13 +41,21 @@ run_step() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
     if [ "$auto_yes" = "true" ]; then
-        bash "$script"
+        if bash "$script"; then
+            echo -e "${GREEN}✅ $step_name 完成${NC}"
+        else
+            echo -e "${RED}❌ $step_name 失败（继续下一步）${NC}"
+        fi
     else
         echo ""
         read -p "是否运行 $step_name？[Y/n]: " confirm || true
         confirm="${confirm:-y}"
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            bash "$script"
+            if bash "$script"; then
+                echo -e "${GREEN}✅ $step_name 完成${NC}"
+            else
+                echo -e "${RED}❌ $step_name 失败${NC}"
+            fi
         else
             echo -e "${YELLOW}跳过 $step_name${NC}"
         fi

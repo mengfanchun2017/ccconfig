@@ -87,6 +87,9 @@ PYEOF
 check_prerequisites() {
     title "检查前置环境"
 
+    # 确保 ~/.local/bin 和 Node.js bin 在 PATH 中
+    export PATH="$HOME/.local/bin:$HOME/.local/node-v20.11.0-linux-x64/bin:$PATH"
+
     local missing=0
 
     if ! command -v node &> /dev/null; then
