@@ -154,49 +154,42 @@ check_mcp() {
         return
     fi
 
-    # 读取 MCP 配置并测试
+    # 读取 MCP 配置并测试（并行，总超时约 5 秒）
     python3 - "$claude_json" << 'PYEOF' 2>/dev/null
-import json
-import sys
-import subprocess
-import os
+import json, sys, subprocess, os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def test_mcp(name, config):
     try:
         cmd = config.get('command')
         args = config.get('args', [])
         if not cmd:
-            return None, "无命令"
-
+            return name, None, "无命令"
         full_cmd = [cmd] + args if args else [cmd]
         env = os.environ.copy()
         env.update(config.get('env', {}))
-
         init_req = json.dumps({
             "jsonrpc": "2.0", "id": 1, "method": "initialize",
             "params": {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0"}}
         })
         list_req = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
-
         proc = subprocess.Popen(full_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, text=True)
-        stdout, _ = proc.communicate(input=f"{init_req}\n{list_req}\n", timeout=15)
-
+        stdout, _ = proc.communicate(input=f"{init_req}\n{list_req}\n", timeout=5)
         for line in stdout.strip().split("\n"):
             if line:
                 try:
                     resp = json.loads(line)
                     if resp.get("id") == 1 and "result" in resp:
                         ver = resp["result"].get("serverInfo", {}).get("version", "?")
-                        return f"✅ {ver}", None
-                except:
-                    pass
-        return "✅ (无版本)", None
+                        return name, f"✅ {ver}", None
+                except: pass
+        return name, "✅ (无版本)", None
     except subprocess.TimeoutExpired:
-        return None, "超时"
+        return name, None, "超时"
     except FileNotFoundError:
-        return None, "命令未找到"
+        return name, None, "命令未找到"
     except Exception as e:
-        return None, str(e)[:50]
+        return name, None, str(e)[:50]
 
 with open(sys.argv[1], 'r') as f:
     data = json.load(f)
@@ -206,8 +199,16 @@ if not mcps:
     print("  (无 MCP 配置)")
     sys.exit(0)
 
-for name, config in sorted(mcps.items()):
-    result, error = test_mcp(name, config)
+# 并行测试所有 MCP 服务器
+results = {}
+with ThreadPoolExecutor(max_workers=len(mcps)) as ex:
+    futures = {ex.submit(test_mcp, name, config): name for name, config in mcps.items()}
+    for future in as_completed(futures):
+        name, result, error = future.result()
+        results[name] = (result, error)
+
+for name in sorted(results):
+    result, error = results[name]
     if result:
         print(f"  {name}: {result}")
     else:
