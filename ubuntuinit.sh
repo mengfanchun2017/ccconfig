@@ -67,7 +67,7 @@ setup_git_github() {
 
     # Git 用户身份
     info "检查 Git 用户身份..."
-    CONFIG_DATA=$(read_git_config || "|||")
+    CONFIG_DATA=$(read_git_config || echo "|||")
     IFS='|' read -r REPO TARGET_DIR CONFIG_EMAIL CONFIG_USERNAME <<< "$CONFIG_DATA"
 
     if [[ -n "$CONFIG_EMAIL" ]]; then
@@ -439,9 +439,9 @@ main() {
     setup_nodejs
     setup_uv
     setup_claude_code
+    setup_symlinks
     setup_claude_api
     # 中文字体可选，有需要再手动装: sudo apt-get install fonts-noto-cjk
-    setup_symlinks
     setup_autosync
     setup_hook
 
