@@ -95,9 +95,11 @@ setup_git_github() {
         success "gh 已安装"
     fi
 
-    # gh 登录
+    # gh 登录（如 SSH 密钥已存在则跳过交互式认证）
     if gh auth status &>/dev/null; then
         success "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
+    elif [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+        info "gh 未登录，但 SSH 密钥已存在，跳过 gh 认证"
     else
         echo ""
         echo "请在浏览器中授权 GitHub:"
@@ -139,7 +141,13 @@ setup_git_github() {
         warn "目标目录已存在但不是 git 仓库"
     else
         info "克隆仓库: $REPO → $TARGET_DIR"
-        if gh repo clone "$REPO" "$TARGET_DIR"; then
+        # 优先用 SSH，其次 gh
+        if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+            git clone "git@github.com:${REPO}.git" "$TARGET_DIR" || {
+                error "SSH 克隆失败，尝试 gh..."
+                gh repo clone "$REPO" "$TARGET_DIR"
+            }
+        elif gh repo clone "$REPO" "$TARGET_DIR"; then
             success "仓库克隆完成"
         else
             error "克隆失败"
