@@ -67,17 +67,18 @@ show_menu() {
     echo ""
     echo "请选择初始化模式："
     echo ""
-    echo "  1) 一键全部初始化（推荐）"
+    echo "  1) 一键全部初始化（推荐，含 Bridge）"
     echo "  2) 仅基础环境（ubuntuinit.sh）"
     echo "  3) 仅飞书文档（feishuinit.sh）"
     echo "  4) 仅 MCP 服务器（claudeinit.sh）"
     echo "  5) 仅 Skills 安装（skillinit.sh）"
     echo "  6) 仅 Bridge 桥接（cconnectinit.sh）"
     echo "  7) 状态检查"
-    echo "  8) 完整交互式（每步确认）"
+    echo "  8) 完整交互式（每步确认，含 Bridge）"
+    echo "  9) 全部初始化（不含 Bridge，多机推荐）"
     echo "  0) 退出"
     echo ""
-    read -p "选择 [1-8,0]: " choice
+    read -p "选择 [1-9,0]: " choice
 
     case "$choice" in
         1)
@@ -112,6 +113,12 @@ show_menu() {
             run_step "4/5 Skills"       "$SCRIPT_DIR/skillinit.sh"    false
             run_step "5/5 Bridge 桥接"  "$SCRIPT_DIR/cconnectinit.sh" false
             ;;
+        9)
+            run_step "1/4 基础环境"     "$SCRIPT_DIR/ubuntuinit.sh"   true
+            run_step "2/4 飞书文档"     "$SCRIPT_DIR/feishuinit.sh"   true
+            run_step "3/4 MCP 服务器"   "$SCRIPT_DIR/claudeinit.sh"   true
+            run_step "4/4 Skills"       "$SCRIPT_DIR/skillinit.sh"    true
+            ;;
         0)
             echo "退出"
             exit 0
@@ -133,6 +140,13 @@ case "${1:-menu}" in
         run_step "4/5 Skills"       "$SCRIPT_DIR/skillinit.sh"    true
         run_step "5/5 Bridge 桥接"  "$SCRIPT_DIR/cconnectinit.sh" true
         ;;
+    nobridge)
+        show_banner
+        run_step "1/4 基础环境"     "$SCRIPT_DIR/ubuntuinit.sh"   true
+        run_step "2/4 飞书文档"     "$SCRIPT_DIR/feishuinit.sh"   true
+        run_step "3/4 MCP 服务器"   "$SCRIPT_DIR/claudeinit.sh"   true
+        run_step "4/4 Skills"       "$SCRIPT_DIR/skillinit.sh"    true
+        ;;
     status)
         bash "$SCRIPT_DIR/hook-status.sh"
         ;;
@@ -140,9 +154,10 @@ case "${1:-menu}" in
         show_menu
         ;;
     *)
-        echo "用法: bash ccconfig/init.sh [all|status|menu]"
-        echo "  all    - 一键初始化全部（5步）"
-        echo "  status - 状态检查"
-        echo "  menu   - 交互式菜单（默认）"
+        echo "用法: bash ccconfig/init.sh [all|nobridge|status|menu]"
+        echo "  all      - 一键初始化全部（5步，含 Bridge）"
+        echo "  nobridge - 全部初始化不含 Bridge（4步，多机推荐）"
+        echo "  status   - 状态检查"
+        echo "  menu     - 交互式菜单（默认）"
         ;;
 esac
