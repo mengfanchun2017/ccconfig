@@ -329,27 +329,40 @@ SSHEOF
         info "SSH config GitHub 已存在"
     fi
 
-    # === 3. 切换已知仓库 remote 为 SSH ===
-    local repos=("$HOME/git/ccconfig" "$HOME/git/projectu")
-    for repo in "${repos[@]}"; do
-        if [[ -d "$repo/.git" ]]; then
-            cd "$repo"
+    # === 2.5. 预添加 GitHub 主机密钥（避免首次连接 yes/no 交互） ===
+    if ! grep -q "github.com" "$SSH_DIR/known_hosts" 2>/dev/null; then
+        ssh-keyscan github.com >> "$SSH_DIR/known_hosts" 2>/dev/null || true
+        chmod 644 "$SSH_DIR/known_hosts"
+        info "GitHub 主机密钥已添加"
+    fi
+
+    # === 3. 扫描 ~/git/ 下所有仓库，HTTPS → SSH ===
+    if [[ -d "$HOME/git" ]]; then
+        while IFS= read -r -d '' gitdir; do
+            local repo_dir=$(dirname "$gitdir")
+            cd "$repo_dir"
             local current_url=$(git remote get-url origin 2>/dev/null || echo "")
             if [[ "$current_url" == https://github.com/* ]]; then
                 local repo_path="${current_url#https://github.com/}"
                 git remote set-url origin "git@github.com:${repo_path}"
-                success "$(basename "$repo"): remote 已切换为 SSH"
+                success "$(basename "$repo_dir"): HTTPS → SSH"
             elif [[ "$current_url" == git@github.com:* ]]; then
-                info "$(basename "$repo"): 已是 SSH，跳过"
+                info "$(basename "$repo_dir"): 已是 SSH"
             fi
-        fi
-    done
+        done < <(find "$HOME/git" -maxdepth 3 -name .git -type d -print0 2>/dev/null)
+    fi
     cd "$SCRIPT_DIR"
 
     # === 4. 测试连接 ===
     info "测试 GitHub SSH 连接..."
     if ssh -T -o StrictHostKeyChecking=accept-new git@github.com 2>&1 | grep -q "successfully authenticated"; then
         success "GitHub SSH 连接成功"
+
+        # SSH 通了，设置全局规则让以后所有 GitHub 仓库自动走 SSH
+        if [[ "$(git config --global url.'git@github.com:'.insteadOf 2>/dev/null)" != "https://github.com/" ]]; then
+            git config --global url."git@github.com:".insteadOf "https://github.com/"
+            success "全局 Git 已配置: HTTPS 自动替换为 SSH"
+        fi
     else
         warn "GitHub SSH 连接测试未通过（可能需先添加公钥到 github.com/settings/keys）"
     fi
