@@ -288,7 +288,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=${CC_CONNECT_BIN} -config ${config_path}
+ExecStart=/bin/bash -c 'export PATH=\$(echo "\$PATH" | tr ":" "\\n" | grep -v "^/mnt/" | tr "\\n" ":" | sed "s/:\$//"); exec ${CC_CONNECT_BIN} -config ${config_path}'
 Restart=on-failure
 RestartSec=10
 Environment=PATH=${HOME}/.local/bin:${HOME}/.local/node-v20.11.0-linux-x64/bin:/usr/local/bin:/usr/bin:/bin

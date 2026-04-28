@@ -4,19 +4,28 @@ This file persists across Claude Code conversations.
 
 ## Quick Links
 - Project root: /home/francis/git
-- CLAUDE.md: /home/francis/git/CLAUDE.md
+- CLAUDE.md: /home/francis/CLAUDE.md (symlink → ccconfig/link/CLAUDE.md)
 - ccconfig: /home/francis/git/ccconfig
 
 ---
 
-## 飞书文档创建（重要）
+## 飞书文档
+
+**ccconfig 仓库说明书**: https://www.feishu.cn/wiki/QH60wwNuai1Zu2k17f8cSsgUnbg
 
 **关键目录**: CC编程大虾 `CyZ6wmItQiso3AkbjZBcP3vtnAb` | worklog `J2SmwK3yJifPD8kg8ZwcAUwOnqg` (base_token: `Tq1ebqPA7aT0cSsSA8GcADZQnqd`)
+
+## 飞书文档创建（重要）
 
 - 新建文档: `cat << 'EOF' | lark-cli docs +create --wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb --as user --markdown -`
 - 常见错误: ❌ `--folder-token` | ❌ `--markdown "内容"` | ✅ `--markdown -` + heredoc
 
-**worklog 标题规则**: 工作=中文开头无空格(如 `算力机采购评分表初版完成`) | 成长=小写英文+空格+内容(如 `coze 工作流和LLM对比`)
+**worklog 标题规则**:
+- **成长（默认）**: `【claudecode xxx】 标题内容` — `xxx` 为小写英文单词（代表学习的技术/工具），无空格；后面空格再接中文标题
+  - 例: `【claudecode image】 通过 sharex 截图让 claude code 读取 windows 图片`
+- **工作（@sum 工作 xxx）**: `【xxxxxx】` — 中文开头标题，括号内无空格，方便数据分析
+  - 例: `【算力机采购评分表初版完成】`
+- **飞书文档创建**: `cat << 'EOF' | lark-cli docs +create --wiki-node J2SmwK3yJifPD8kg8ZwcAUwOnqg --as user --markdown - --title "标题"`
 
 ---
 
@@ -98,24 +107,46 @@ bash ccconfig/llminit.sh minimax  # 切换回 minimax
 
 ```
 ~/.claude/                          ← 全局配置（不被 Git 追踪）
-├── skills/ → ccconfig/.agents/skills/           ← 符号链接，全局 skills
-├── agents/ → ccconfig/link/.claude/agents/     ← 符号链接，指令分流 agent
-└── projects/-home-francis-git/memory/MEMORY.md → ccconfig/link/-home-francis-git/MEMORY.md
+├── settings.json → ccconfig/link/settings.json    ← 符号链接（权限+MCP+hooks）
+├── .config.json → ccconfig/link/.config.json      ← 符号链接（Claude Code 配置）
+├── agents/ → ccconfig/link/.claude/agents/        ← 符号链接，指令分流
+├── skills/                        ← 目录（内含各 skill 独立符号链接）
+│   ├── tavily-search → ccconfig/.agents/skills/tavily-search
+│   ├── research → ccconfig/.claude/skills/research
+│   └── ...
+└── projects/                      ← 目录（各项目 MEMORY.md 独立符号链接）
+    └── -home-francis-git/memory/MEMORY.md → ccconfig/link/-home-francis-git/MEMORY.md
+
+~/CLAUDE.md → ccconfig/link/CLAUDE.md              ← 符号链接（项目指令）
 
 ~/git/ccconfig/                     ← 配置仓库，monitor-sync 在跑
-├── init.sh                         ← 统一初始化入口（5步：ubuntu→feishu→claude→skill→cconnect）
-├── llminit.sh                      ← LLM 切换脚本（conf-llm.json）
-├── ubuntuinit.sh                   ← Ubuntu 合一初始化（含 Git/Claude/Node/LLM/auto-sync）
+├── link/                           ← 链接源（所有符号链接指向这里）
+│   ├── settings.json               ← 权限 allowlist + MCP + hooks
+│   ├── .config.json                ← Claude Code 配置
+│   ├── CLAUDE.md                   ← AI 行为指南 + 命令白名单文档
+│   └── -home-francis-git/MEMORY.md ← 持久化记忆
+├── .agents/skills/                 ← Tavily 等外部 skills 源码
+├── .claude/skills/                 ← 自研 skills 源码（research 系列）
+├── .claude/projects/ → ~/.claude/projects/  ← 反向链接（备份视角）
+├── init.sh                         ← 统一初始化入口（5步）
+├── llminit.sh                      ← LLM 切换脚本
+├── ubuntuinit.sh                   ← Ubuntu 初始化
 ├── feishuinit.sh                   ← 飞书 lark-cli 配置
 ├── claudeinit.sh                  ← MCP 安装
 ├── skillinit.sh                   ← Skills 安装
-├── cconnectinit.sh                 ← cc-connect Bridge（多用户飞书 WebSocket）
-├── monitor-sync.sh                ← 文件监控 sync
-├── conf-llm.json                  ← LLM 配置（多后端）
+├── cconnectinit.sh                 ← cc-connect Bridge
+├── monitor-sync.sh                ← 文件监控 auto-sync
+├── hook-status.sh                 ← 状态检查
+├── conf-llm.json                  ← LLM 多后端配置
 ├── conf-claude.json               ← MCP + Key/Token
-├── conf-feishu.json               ← 飞书配置（lark-cli + cc-connect 多用户）
-└── link/ → GitHub (<your-github-username>/ccconfig)
+├── conf-feishu.json               ← 飞书（lark-cli + cc-connect）
+└── cc-connect.service             ← systemd 服务文件
 ```
+
+**权限双层机制**:
+- **CLAUDE.md** = AI 行为指南（告诉 Claude 哪些命令可用）
+- **settings.json `permissions.allow`** = Claude Code 权限系统（实际控制弹窗）
+- 两者必须同步：在 CLAUDE.md 添加命令时，也要在 settings.json 添加对应的 `Bash(...)` 规则
 
 **初始化流程**:
 1. 一键: `bash ccconfig/init.sh all`（5步全自动）
