@@ -1,0 +1,15 @@
+[Unit]
+Description=CC-Connect - Multi-User Claude Code Bridge via Feishu WebSocket
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=francis
+ExecStart=/home/francis/.local/bin/cc-connect -config /home/francis/cc-connect/config.toml
+Restart=on-failure
+RestartSec=10
+Environment=PATH=/home/francis/.local/bin:/home/francis/.local/node-v20.11.0-linux-x64/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target
