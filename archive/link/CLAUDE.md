@@ -1,0 +1,672 @@
+# Claude Code 项目配置
+
+> **权限双层机制**:
+> - **CLAUDE.md** (本文件) = AI 行为指南，告诉 Claude 哪些命令可以放心使用
+> - **settings.json** `permissions.allow` = Claude Code 权限系统，实际控制弹窗行为
+> - 两者需要保持同步：在本文档添加新命令时，也必须更新 settings.json 的 permissions.allow
+> - 运行 `bash ccconfig/hook-status.sh` 可检查当前配置状态
+
+## 允许的 Bash 命令
+
+### 文件浏览（只读，安全）
+- `ls` - 列出目录内容
+- `ls -la` - 列出详细目录内容
+- `ls -lh` - 列出带人类可读大小的目录
+- `dir` - Windows 目录列表
+- `tree` - 目录树结构
+- `pwd` - 显示当前路径
+- `cd` - 切换目录
+- `pushd` - 保存并切换目录
+- `popd` - 恢复之前的目录
+- `wsl` - Windows Subsystem for Linux
+
+### 文件操作（相对安全）
+- `mkdir` - 创建目录
+- `mkdir -p` - 递归创建目录
+- `cp` - 复制文件
+- `cp -r` - 递归复制目录
+- `mv` - 移动/重命名文件
+- `rm` - 删除文件（不含 -rf）
+- `rmdir` - 删除空目录
+- `touch` - 创建空文件或更新时间戳
+- `ln` - 创建链接
+- `chmod` - 修改权限（不含 -R 777）
+- `chown` - 修改所有者
+
+### 文件查看（只读，安全）
+- `cat` - 查看文件内容
+- `head` - 查看文件开头
+- `tail` - 查看文件结尾
+- `tail -f` - 实时跟踪文件
+- `less` - 分页查看文件
+- `more` - 分页查看文件
+- `file` - 查看文件类型
+- `stat` - 查看文件状态
+- `wc` - 统计行数/字数/字符数
+- `sort` - 排序文件内容
+- `uniq` - 去重
+- `diff` - 比较文件
+- `cmp` - 比较文件
+- `md5sum` - 计算 MD5 哈希
+- `sha256sum` - 计算 SHA256 哈希
+
+### 文件搜索（只读，安全）
+- `find` - 查找文件
+- `grep` - 搜索文件内容
+- `grep -r` - 递归搜索
+- `rg` - Ripgrep 搜索
+- `ack` - Ack 搜索
+- `ag` - The Silver Searcher
+- `which` - 查找命令位置
+- `where` - Windows 查找命令位置
+- `locate` - 定位文件
+- `xargs` - 参数构建器
+
+### 压缩/归档
+- `zip` - 创建 ZIP 压缩
+- `unzip` - 解压 ZIP
+- `tar` - Tar 归档
+- `tar -xzf` - 解压 tar.gz
+- `tar -czf` - 创建 tar.gz
+- `gzip` - Gzip 压缩
+- `gunzip` - Gzip 解压
+- `7z` - 7-Zip 压缩/解压
+
+### 网络工具
+- `curl` - HTTP 客户端
+- `wget` - 文件下载
+- `ping` - Ping 测试
+- `ping -t` - 持续 Ping（Windows）
+- `traceroute` - 路由追踪
+- `tracert` - Windows 路由追踪
+- `nslookup` - DNS 查询
+- `dig` - DNS 查询
+- `ipconfig` - Windows 网络配置
+- `ifconfig` - 网络接口配置
+- `netstat` - 网络连接统计
+- `ss` - Socket 统计
+- `ssh` - SSH 客户端
+- `scp` - SCP 文件传输
+- `sftp` - SFTP 文件传输
+
+### 系统信息（只读，安全）
+- `uname` - 系统信息
+- `uname -a` - 完整系统信息
+- `env` - 环境变量
+- `set` - 显示环境变量
+- `echo` - 输出文本
+- `date` - 显示日期时间
+- `whoami` - 当前用户
+- `id` - 用户 ID 信息
+- `uptime` - 系统运行时间
+- `top` - 系统进程监控
+- `htop` - 增强版进程监控
+- `ps` - 进程列表
+- `ps aux` - 详细进程列表
+- `df` - 磁盘使用情况
+- `df -h` - 人类可读磁盘使用
+- `du` - 目录大小
+- `du -sh` - 目录总大小
+- `free` - 内存使用情况
+- `vmstat` - 虚拟内存统计
+- `iostat` - IO 统计
+- `lsof` - 打开文件列表
+- `inotifywait` - 文件变化监控（auto-sync 依赖）
+- `dmesg` - 内核消息
+- `lsusb` - USB 设备列表
+- `lspci` - PCI 设备列表
+
+### Windows 系统命令
+- `systeminfo` - 系统信息
+- `tasklist` - 任务列表
+- `taskkill` - 结束任务
+- `get-process` - PowerShell 获取进程
+- `wmic` - Windows 管理工具
+- `sc` - Windows 服务控制
+- `net` - Windows 网络命令
+- `netstat -ano` - 网络连接详情
+- `powershell` - PowerShell
+- `powershell.exe` - PowerShell (exe)
+- `pwsh` - PowerShell Core
+- `reg query` - 注册表查询
+- `winget` - Windows 包管理器
+
+### Git 操作（相对安全）
+- `git status` - 查看状态
+- `git log` - 查看提交历史
+- `git log --oneline` - 简洁提交历史
+- `git log --graph` - 图形化提交历史
+- `git branch` - 查看分支
+- `git branch -a` - 查看所有分支
+- `git checkout` - 切换分支/检出
+- `git switch` - 切换分支
+- `git restore` - 恢复文件
+- `git diff` - 查看差异
+- `git diff --cached` - 查看暂存区差异
+- `git show` - 显示提交详情
+- `git add` - 添加文件到暂存区
+- `git add -u` - 添加已修改文件
+- `git add .` - 添加当前目录所有文件
+- `git commit` - 提交
+- `git commit -m` - 带消息提交
+- `git commit --amend` - 修改上次提交
+- `git reset` - 重置（不含 --hard）
+- `git reset --soft` - 软重置
+- `git reset --mixed` - 混合重置
+- `git stash` - 暂存更改
+- `git stash pop` - 恢复暂存
+- `git stash list` - 列出暂存
+- `git stash drop` - 删除暂存
+- `git rebase` - 变基
+- `git rebase -i` - 交互式变基
+- `git merge` - 合并分支
+- `git cherry-pick` - 挑选提交
+- `git tag` - 标签管理
+- `git remote` - 远程仓库管理
+- `git remote -v` - 查看远程仓库
+- `git fetch` - 获取远程更新
+- `git pull` - 拉取远程更新
+- `git push` - 推送到远程仓库
+- `git clone` - 克隆仓库
+- `git config` - Git 配置
+- `git config --list` - 查看配置
+- `git config --global` - 全局 Git 配置
+- `git init` - 初始化仓库
+- `git mv` - 移动/重命名文件
+- `git rm` - 从 Git 移除文件
+- `git clean` - 清理（不含 -f）
+- `git clean -n` - 预览清理
+- `git bisect` - 二分查找
+- `git blame` - 查看文件修改历史
+- `git log --stat` - 提交统计
+- `git shortlog` - 简洁提交日志
+- `git whatchanged` - 变更记录
+- `git reflog` - 引用日志
+
+### Node.js / npm / yarn / pnpm / bun
+- `node` - Node.js 运行时
+- `node --version` - Node.js 版本
+- `node -e` - 执行脚本代码
+- `npm` - npm 包管理器
+- `npm --version` - npm 版本
+- `npm init` - 初始化项目
+- `npm init -y` - 使用默认值初始化
+- `npm install` - 安装依赖
+- `npm install --save` - 安装生产依赖
+- `npm install --save-dev` - 安装开发依赖
+- `npm install -g` - 全局安装
+- `npm uninstall` - 卸载依赖
+- `npm update` - 更新依赖
+- `npm list` - 列出依赖
+- `npm list -g` - 列出全局依赖
+- `npm outdated` - 检查过时依赖
+- `npm audit` - 安全审计
+- `npm audit fix` - 自动修复安全问题
+- `npm run` - 运行脚本
+- `npm start` - 启动项目
+- `npm test` - 运行测试
+- `npm build` - 构建项目
+- `npm version` - 版本管理
+- `npm pack` - 打包
+- `npm link` - 链接本地包
+- `npm unlink` - 取消链接
+- `npm cache` - 缓存管理
+- `npm cache clean` - 清理缓存
+- `npm config` - npm 配置
+- `npx` - 执行本地或远程包
+- `yarn` - Yarn 包管理器
+- `yarn --version` - Yarn 版本
+- `yarn init` - 初始化项目
+- `yarn add` - 添加依赖
+- `yarn add --dev` - 添加开发依赖
+- `yarn remove` - 移除依赖
+- `yarn install` - 安装依赖
+- `yarn update` - 更新依赖
+- `yarn upgrade` - 升级依赖
+- `yarn list` - 列出依赖
+- `yarn outdated` - 检查过时依赖
+- `yarn audit` - 安全审计
+- `yarn run` - 运行脚本
+- `yarn start` - 启动项目
+- `yarn test` - 运行测试
+- `yarn build` - 构建项目
+- `yarn dlx` - 执行临时包
+- `pnpm` - pnpm 包管理器
+- `pnpm --version` - pnpm 版本
+- `pnpm init` - 初始化项目
+- `pnpm add` - 添加依赖
+- `pnpm add -D` - 添加开发依赖
+- `pnpm remove` - 移除依赖
+- `pnpm install` - 安装依赖
+- `pnpm update` - 更新依赖
+- `pnpm list` - 列出依赖
+- `pnpm outdated` - 检查过时依赖
+- `pnpm audit` - 安全审计
+- `pnpm run` - 运行脚本
+- `pnpm start` - 启动项目
+- `pnpm test` - 运行测试
+- `pnpm build` - 构建项目
+- `pnpm dlx` - 执行临时包
+- `bun` - Bun 运行时和包管理器
+- `bun --version` - Bun 版本
+- `bun init` - 初始化项目
+- `bun add` - 添加依赖
+- `bun add -d` - 添加开发依赖
+- `bun remove` - 移除依赖
+- `bun install` - 安装依赖
+- `bun update` - 更新依赖
+- `bun list` - 列出依赖
+- `bun outdated` - 检查过时依赖
+- `bun run` - 运行脚本
+- `bun start` - 启动项目
+- `bun test` - 运行测试
+- `bun build` - 构建项目
+- `bunx` - 执行临时包
+- `bun add` - Bun 添加依赖
+- `tsc` - TypeScript 编译器
+- `tsc --version` - TypeScript 版本
+- `tsc --noEmit` - 类型检查
+- `ts-node` - TypeScript 执行器
+- `eslint` - ESLint 代码检查
+- `prettier` - Prettier 代码格式化
+- `webpack` - Webpack 打包工具
+- `rollup` - Rollup 打包工具
+- `vite` - Vite 构建工具
+- `vitest` - Vitest 测试框架
+- `jest` - Jest 测试框架
+- `mocha` - Mocha 测试框架
+- `cypress` - Cypress E2E 测试
+
+### Python / pip / poetry / conda
+- `python` - Python 解释器
+- `python --version` - Python 版本
+- `python -V` - Python 版本简写
+- `python -c` - 执行单行代码
+- `python -m` - 运行模块
+- `python3` - Python3 解释器
+- `python3 --version` - Python3 版本
+- `pip` - pip 包管理器
+- `pip --version` - pip 版本
+- `pip install` - 安装包
+- `pip install -r` - 从 requirements.txt 安装
+- `pip install -e` - 可编辑模式安装
+- `pip uninstall` - 卸载包
+- `pip list` - 列出已安装包
+- `pip list --outdated` - 检查过时包
+- `pip freeze` - 导出依赖
+- `pip show` - 显示包信息
+- `pip search` - 搜索包
+- `pip check` - 检查依赖完整性
+- `pip cache` - 缓存管理
+- `pip config` - pip 配置
+- `pip3` - pip3 包管理器
+- `pip3 --version` - pip3 版本
+- `pypy` - PyPy 解释器
+- `venv` - 虚拟环境
+- `python -m venv` - 创建虚拟环境
+- `virtualenv` - Virtualenv 虚拟环境
+- `poetry` - Poetry 依赖管理
+- `poetry --version` - Poetry 版本
+- `poetry init` - 初始化项目
+- `poetry install` - 安装依赖
+- `poetry add` - 添加依赖
+- `poetry add --dev` - 添加开发依赖
+- `poetry remove` - 移除依赖
+- `poetry update` - 更新依赖
+- `poetry show` - 显示依赖
+- `poetry outdated` - 检查过时依赖
+- `poetry run` - 运行命令
+- `poetry shell` - 进入虚拟环境
+- `poetry build` - 构建包
+- `poetry publish` - 发布包
+- `conda` - Conda 包管理器
+- `conda --version` - Conda 版本
+- `conda env list` - 列出环境
+- `conda create` - 创建环境
+- `conda activate` - 激活环境
+- `conda deactivate` - 退出环境
+- `conda install` - 安装包
+- `conda uninstall` - 卸载包
+- `conda remove` - 移除包
+- `conda list` - 列出包
+- `conda update` - 更新包
+- `conda clean` - 清理缓存
+- `pytest` - Pytest 测试框架
+- `pytest --version` - Pytest 版本
+- `black` - Black 代码格式化
+- `flake8` - Flake8 代码检查
+- `pylint` - Pylint 代码分析
+- `mypy` - MyPy 类型检查
+- `ipython` - IPython 交互式 shell
+- `jupyter` - Jupyter 工具
+- `jupyter notebook` - Jupyter Notebook
+- `jupyter lab` - Jupyter Lab
+
+### Rust / Cargo
+- `rustc` - Rust 编译器
+- `rustc --version` - Rust 版本
+- `cargo` - Cargo 包管理器
+- `cargo --version` - Cargo 版本
+- `cargo new` - 创建新项目
+- `cargo init` - 初始化项目
+- `cargo build` - 构建项目
+- `cargo build --release` - 发布构建
+- `cargo check` - 检查代码
+- `cargo run` - 运行项目
+- `cargo test` - 运行测试
+- `cargo bench` - 运行基准测试
+- `cargo doc` - 生成文档
+- `cargo clean` - 清理构建产物
+- `cargo update` - 更新依赖
+- `cargo add` - 添加依赖
+- `cargo remove` - 移除依赖
+- `cargo install` - 安装二进制
+- `cargo uninstall` - 卸载二进制
+- `cargo search` - 搜索包
+- `cargo publish` - 发布包
+- `cargo fmt` - 格式化代码
+- `cargo clippy` - 代码检查
+- `cargo fix` - 自动修复
+- `cargo audit` - 安全审计
+- `cargo tree` - 依赖树
+- `cargo outdated` - 检查过时依赖
+- `cargo watch` - 文件监控
+- `rustup` - Rust 工具链管理
+- `rustup --version` - Rustup 版本
+- `rustup update` - 更新工具链
+- `rustup default` - 设置默认工具链
+- `rustup install` - 安装工具链
+- `rustup uninstall` - 卸载工具链
+- `rustup component` - 组件管理
+- `rustup target` - 目标平台管理
+
+### Go 语言
+- `go` - Go 工具链
+- `go version` - Go 版本
+- `go env` - Go 环境
+- `go mod` - 模块管理
+- `go mod init` - 初始化模块
+- `go mod tidy` - 整理依赖
+- `go mod download` - 下载依赖
+- `go mod vendor` - 创建 vendor 目录
+- `go get` - 获取依赖
+- `go install` - 安装包
+- `go build` - 构建
+- `go run` - 运行
+- `go test` - 运行测试
+- `go test -v` - 详细测试输出
+- `go test -cover` - 测试覆盖率
+- `go fmt` - 格式化代码
+- `go vet` - 代码检查
+- `go doc` - 文档查看
+- `go list` - 列出包
+- `go clean` - 清理
+
+### Java / Maven / Gradle
+- `java` - Java 运行时
+- `java -version` - Java 版本
+- `javac` - Java 编译器
+- `javac --version` - javac 版本
+- `javadoc` - Java 文档生成
+- `jar` - JAR 工具
+- `mvn` - Maven 构建工具
+- `mvn --version` - Maven 版本
+- `mvn clean` - 清理
+- `mvn compile` - 编译
+- `mvn test` - 测试
+- `mvn package` - 打包
+- `mvn install` - 安装
+- `mvn deploy` - 部署
+- `mvn dependency:tree` - 依赖树
+- `mvn dependency:list` - 依赖列表
+- `mvn compile` - 编译
+- `mvn spring-boot:run` - Spring Boot 运行
+- `gradle` - Gradle 构建工具
+- `gradle --version` - Gradle 版本
+- `gradle clean` - 清理
+- `gradle build` - 构建
+- `gradle test` - 测试
+- `gradle run` - 运行
+- `gradle tasks` - 列出任务
+- `gradle dependencies` - 依赖列表
+- `gradlew` - Gradle Wrapper
+- `gradlew clean` - Gradle Wrapper 清理
+- `gradlew build` - Gradle Wrapper 构建
+- `ant` - Ant 构建工具
+
+### Docker / Kubernetes
+- `docker` - Docker 命令
+- `docker --version` - Docker 版本
+- `docker info` - Docker 信息
+- `docker ps` - 列出容器
+- `docker ps -a` - 列出所有容器
+- `docker images` - 列出镜像
+- `docker build` - 构建镜像
+- `docker run` - 运行容器
+- `docker start` - 启动容器
+- `docker stop` - 停止容器
+- `docker restart` - 重启容器
+- `docker rm` - 删除容器
+- `docker rmi` - 删除镜像
+- `docker exec` - 在容器中执行
+- `docker logs` - 查看容器日志
+- `docker logs -f` - 实时查看日志
+- `docker inspect` - 查看容器/镜像详情
+- `docker cp` - 复制文件
+- `docker stats` - 容器资源统计
+- `docker top` - 容器进程
+- `docker port` - 端口映射
+- `docker network` - 网络管理
+- `docker volume` - 卷管理
+- `docker pull` - 拉取镜像
+- `docker push` - 推送镜像
+- `docker login` - 登录仓库
+- `docker logout` - 登出仓库
+- `docker system` - 系统管理
+- `docker system df` - 磁盘使用
+- `docker system prune` - 清理未使用资源
+- `docker-compose` - Docker Compose
+- `docker-compose up` - 启动服务
+- `docker-compose down` - 停止服务
+- `docker-compose build` - 构建服务
+- `docker-compose logs` - 查看日志
+- `docker-compose ps` - 列出服务
+- `docker-compose exec` - 执行命令
+- `docker compose` - Docker Compose v2
+- `kubectl` - Kubernetes 命令
+- `kubectl version` - 版本
+- `kubectl get` - 获取资源
+- `kubectl describe` - 描述资源
+- `kubectl create` - 创建资源
+- `kubectl apply` - 应用配置
+- `kubectl delete` - 删除资源
+- `kubectl logs` - 查看日志
+- `kubectl exec` - 执行命令
+- `kubectl port-forward` - 端口转发
+
+### 数据库相关
+- `mysql` - MySQL 客户端
+- `mysql --version` - MySQL 版本
+- `mysqldump` - MySQL 备份
+- `mysqlimport` - MySQL 导入
+- `psql` - PostgreSQL 客户端
+- `psql --version` - PostgreSQL 版本
+- `pg_dump` - PostgreSQL 备份
+- `pg_restore` - PostgreSQL 恢复
+- `sqlite3` - SQLite 客户端
+- `mongod` - MongoDB 服务
+- `mongo` - MongoDB 客户端
+- `mongodump` - MongoDB 备份
+- `mongorestore` - MongoDB 恢复
+- `redis-cli` - Redis 客户端
+- `redis-benchmark` - Redis 性能测试
+- `sqlite` - SQLite 客户端
+
+### 编辑器相关（安全）
+- `zed` - Zed 编辑器
+- `code` - VS Code
+- `code .` - VS Code 打开当前目录
+- `code --list-extensions` - 列出 VS Code 扩展
+- `subl` - Sublime Text
+- `atom` - Atom 编辑器
+- `nano` - Nano 编辑器（仅查看）
+- `vim` - Vim 编辑器
+- `neovim` - Neovim 编辑器
+- `nvim` - Neovim 简写
+- `micro` - Micro 编辑器
+- `emacs` - Emacs 编辑器
+
+### Claude Code 相关
+- `claude-code` - Claude Code CLI
+- `claude install` - Claude Code 安装/更新
+- `claude mcp` - Claude Code MCP 管理
+- `claude mcp list` - 查看已注册的 MCP 服务器
+- `claude mcp start` - 启动 MCP 服务器
+- `claude mcp stop` - 停止 MCP 服务器
+- `claude plugin` - Claude Code 插件管理
+- `claude agents` - Claude Code 代理管理
+- `tavily-mcp` - Tavily MCP 服务器
+- `Edit(scripts/shared/sync-settings.js)` - 允许编辑同步脚本
+- `Edit(CLAUDE.md)` - 允许编辑配置文件
+- `Bash(scripts/*.sh)` - 允许执行 scripts 目录下的 shell 脚本
+- `Bash(scripts/*.ps1)` - 允许执行 scripts 目录下的 PowerShell 脚本
+- `Bash(bash ccconfig/*)` - 允许执行 ccconfig 中所有脚本
+- `Bash(sudo apt-get*)` - 允许执行 apt-get 安装系统包
+
+### 中文字体支持
+- `fc-list` - 列出系统字体
+- `fc-cache` - 刷新字体缓存
+- `apt-get install fonts-noto-cjk` - 安装 Noto 中文字体（需 sudo）
+- `apt-get install fontconfig` - 安装字体配置工具
+
+### 文本处理
+- `awk` - Awk 文本处理
+- `sed` - Sed 流编辑器
+- `cut` - 切分文本
+- `paste` - 合并文本
+- `tr` - 字符转换
+- `fold` - 折叠文本
+- `fmt` - 格式化文本
+- `column` - 列格式化
+- `join` - 连接文件
+- `split` - 分割文件
+- `csplit` - 按上下文分割
+- `wc` - 统计行数/字数/字符数
+- `sort` - 排序文件内容
+- `uniq` - 去重
+- `diff` - 比较文件
+- `cmp` - 比较文件
+- `md5sum` - 计算 MD5 哈希
+- `sha256sum` - 计算 SHA256 哈希
+
+### 其他开发工具
+- `make` - Make 构建工具
+- `cmake` - CMake 构建工具
+- `autoconf` - Autoconf
+- `automake` - Automake
+- `pkg-config` - 包配置工具
+- `patch` - 打补丁
+- `diff3` - 三路比较
+- `sdiff` - 并排比较
+- `meld` - 图形化比较
+- `gitk` - Git 图形界面
+- `tig` - Git 文本界面
+- `tmux` - Terminal Multiplexer
+- `screen` - GNU Screen
+- `clear` - 清屏
+- `reset` - 重置终端
+- `history` - 命令历史
+- `alias` - 命令别名
+- `export` - 设置环境变量
+- `source` - 执行脚本
+- `.` - Source 简写
+- `tee` - 分流输出
+- `time` - 计时命令
+- `timeout` - 超时控制
+- `nohup` - 不挂起执行
+- `nice` - 调整优先级
+- `ionice` - 调整 IO 优先级
+- `watch` - 定期执行命令
+- `seq` - 生成序列
+- `yes` - 重复输出
+- `true` - 真命令
+- `false` - 假命令
+- `sleep` - 休眠
+- `wait` - 等待
+- `exit` - 退出
+- `logout` - 登出
+
+## 禁止的命令（危险操作）
+- `rm -rf` - 强制递归删除
+- `git reset --hard` - 硬重置
+- `git clean -f` - 强制清理
+- `mkfs` - 格式化文件系统
+- `dd` - 直接磁盘操作
+- `chmod -R 777` - 递归修改权限
+- `:` 或 `>` - 重定向覆盖文件
+- `sudo` - 管理员权限
+- `powershell -ExecutionPolicy Bypass` - 绕过执行策略
+
+## 允许的工具
+- Read - 读取文件
+- Write - 写入文件
+- Edit - 编辑文件
+- Grep - 搜索文件
+- Glob - 文件匹配
+- Bash - 命令执行（仅限上述允许的命令）
+- WebSearch - ~~网络搜索~~（已禁用，无订阅）
+- **网络搜索规则**：
+  - 中文搜索：用 `minimax web_search` MCP
+  - 英文搜索：用 `tavily search` MCP（需配置 TAVILY_API_KEY）
+  - 两种语言都搜可以结合结果，信息更全面
+- **图片解析**：使用 `minimax-coding-plan-mcp` 的 `understand_image` 工具
+  - Windows 文件通过 `/mnt/c/` 访问（如 `/mnt/c/Users/franc/...`）
+  - 通过 Agent 调用，支持 JPEG/PNG/WebP 本地文件或 URL
+
+## 暗号
+
+### hookstatus → 状态检查
+```
+bash ccconfig/hook-status.sh
+```
+运行状态检查，查看：配置文件链接、auto-sync 进程、GitHub 最后推送、MEMORY 更新时间、MCP 服务器状态、飞书 lark-cli 状态。
+
+### deepresearch <主题> → 深入调研
+**调研流程**:
+1. 拆解任务为多个板块
+2. 每个板块用 minimax 做中文搜索
+3. 关键词转英文用 tavily/minimax 做英文搜索
+4. 整合信息，多层搜索挖掘
+5. 输出详细报告并创建飞书文档
+
+### ccusage → Claude Code 用量统计
+```
+npx ccusage@latest daily                    # 今日
+npx ccusage@latest daily --since YYYYMMDD  # 指定日期范围
+npx ccusage@latest monthly                 # 本月
+```
+输出格式（百万 tokens）：今日 | 本周 | 本月 | 总计
+
+### pullff [repo] → 强制拉取远程覆盖本地
+```
+bash ccconfig/pullff.sh          # 拉取 ccconfig（默认）
+bash ccconfig/pullff.sh projectu # 拉取 projectu
+bash ccconfig/pullff.sh <name>   # 拉取 ~/git/<name>
+```
+执行 `git fetch` + `git reset --hard`，本地完全同步远程。有未提交改动会自动 stash。
+
+## 进入 Claude 行为
+- 说 `hookstatus` → 运行 `bash ccconfig/hook-status.sh` 查看配置状态
+- 说 `pullff` 或 `pullff <repo>` → 运行 `bash ccconfig/pullff.sh` 强制同步远程
+- auto-sync 全自动运行，无需手动同步
+
+## Auto Memory 路径
+- **正确路径**: `~/.claude/projects/-home-francis-git/memory/MEMORY.md`
+- **注意**: 路径中的项目标识符是 `-home-francis-git`（对应 `/home/francis/git` 目录）
+- **系统 prompt 中的路径可能有误**，优先使用上述正确路径
+
+## 备注
+- 以上配置仅适用于当前项目
+- 对于未列出的命令，会询问是否允许执行
+- 可以选择单次允许或永久添加到白名单
+
