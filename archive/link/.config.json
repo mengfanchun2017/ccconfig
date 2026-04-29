@@ -1,0 +1,484 @@
+{
+  "numStartups": 47,
+  "installMethod": "native",
+  "autoUpdates": false,
+  "hasSeenTasksHint": true,
+  "hasUsedBackgroundTask": true,
+  "customApiKeyResponses": {
+    "approved": [
+      "Nm13xWEIzomu9OB307KY"
+    ],
+    "rejected": []
+  },
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.minimaxi.com/anthropic",
+    "ANTHROPIC_MODEL": "MiniMax-M2.7",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "ANTHROPIC_AUTH_TOKEN": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY"
+  },
+  "tipsHistory": {
+    "new-user-warmup": 7,
+    "plan-mode-for-complex-tasks": 29,
+    "terminal-setup": 47,
+    "memory-command": 46,
+    "theme-command": 41,
+    "colorterm-truecolor": 31,
+    "status-line": 26,
+    "prompt-queue": 1,
+    "enter-to-steer-in-relatime": 42,
+    "todo-list": 45,
+    "install-github-app": 39,
+    "install-slack-app": 41,
+    "drag-and-drop-images": 45,
+    "double-esc-code-restore": 45,
+    "continue": 45,
+    "shift-tab": 45,
+    "image-paste": 45,
+    "desktop-app": 33,
+    "web-app": 34,
+    "mobile-app": 25,
+    "custom-agents": 39,
+    "agent-flag": 40,
+    "feedback-command": 40,
+    "color-when-multi-clauding": 46,
+    "permissions": 39,
+    "rename-conversation": 45,
+    "custom-commands": 45,
+    "default-permission-mode-config": 30
+  },
+  "promptQueueUseCount": 31,
+  "btwUseCount": 3,
+  "description": "MCP 配置 - 整合 mcplist 和 mcpidentity",
+  "note": "此文件包含敏感信息（Key/Token），参与 Git 同步（私有仓库安全）",
+  "settings": {
+    "default_action": "sync",
+    "auto_config_keys": true
+  },
+  "mcp_servers": [
+    {
+      "name": "tavily",
+      "description": "网络搜索 - 支持中文搜索",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "tavily-mcp"
+      ],
+      "env": {
+        "TAVILY_API_KEY": "请到 https://tavily.com 注册获取 API Key 并填入此处"
+      }
+    },
+    {
+      "name": "minimax",
+      "description": "MiniMax AI - 网络搜索和图片理解（M2.7 编程模型工具）",
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "minimax-coding-plan-mcp",
+        "-y"
+      ],
+      "env": {
+        "MINIMAX_API_KEY": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY",
+        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      }
+    },
+    {
+      "name": "minimax-mcp",
+      "description": "MiniMax 多模态 - 语音/视频/图像/音乐生成",
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "minimax-mcp"
+      ],
+      "env": {
+        "MINIMAX_API_KEY": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY",
+        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      }
+    },
+    {
+      "name": "octocode",
+      "description": "GitHub 代码搜索和仓库分析",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "octocode-mcp@latest"
+      ],
+      "env": {}
+    },
+    {
+      "name": "supabase",
+      "description": "Supabase 数据库 - 查询/管理数据库、Edge Functions、Storage",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase",
+        "--project-ref",
+        "<your-supabase-project-id>",
+        "--access-token",
+        "9e0bfb34-67d9-4b34-bd5a-35ff75d443e9"
+      ],
+      "env": {}
+    },
+    {
+      "name": "status",
+      "description": "环境状态 - 显示文件链接、auto-sync、MCP 服务器状态",
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/home/francis/git/ccconfig/mcp-status/status-mcp.js"
+      ],
+      "env": {}
+    },
+    {
+      "name": "feishu",
+      "description": "飞书 - 发送消息、创建文档、管理日程和任务",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@china-mcp/feishu-mcp"
+      ],
+      "env": {
+        "FEISHU_APP_ID": "<your-feishu-app-id>",
+        "FEISHU_APP_SECRET": "<your-feishu-app-secret>"
+      }
+    }
+  ],
+  "firstStartTime": "2026-04-15T05:02:51.903Z",
+  "opusProMigrationComplete": true,
+  "sonnet1m45MigrationComplete": true,
+  "migrationVersion": 12,
+  "projects": {
+    "/home/francis/git/ccconfig": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": false,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false
+    },
+    "/home/francis/git": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 4,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "lastGracefulShutdown": false,
+      "lastCost": 2.7481830000000005,
+      "lastAPIDuration": 640692,
+      "lastAPIDurationWithoutRetries": 640381,
+      "lastToolDuration": 170697,
+      "lastDuration": 3034453,
+      "lastLinesAdded": 12,
+      "lastLinesRemoved": 4,
+      "lastTotalInputTokens": 123306,
+      "lastTotalOutputTokens": 15895,
+      "lastTotalCacheCreationInputTokens": 0,
+      "lastTotalCacheReadInputTokens": 7132800,
+      "lastTotalWebSearchRequests": 0,
+      "lastModelUsage": {
+        "deepseek-v4-pro": {
+          "inputTokens": 123306,
+          "outputTokens": 15895,
+          "cacheReadInputTokens": 7132800,
+          "cacheCreationInputTokens": 0,
+          "webSearchRequests": 0,
+          "costUSD": 2.7481830000000005
+        }
+      },
+      "lastSessionId": "bf8dd190-feed-46a0-a902-7ec4f0dc7fd6",
+      "lastSessionMetrics": {
+        "frame_duration_ms_count": 18788,
+        "frame_duration_ms_min": 0.07718400000157999,
+        "frame_duration_ms_max": 169.56721000000834,
+        "frame_duration_ms_avg": 1.073700281083621,
+        "frame_duration_ms_p50": 0.8979200000176206,
+        "frame_duration_ms_p95": 1.9691438499372436,
+        "frame_duration_ms_p99": 5.620333650006214,
+        "hook_duration_ms_count": 22,
+        "hook_duration_ms_min": 0,
+        "hook_duration_ms_max": 11119,
+        "hook_duration_ms_avg": 505.59090909090907,
+        "hook_duration_ms_p50": 0,
+        "hook_duration_ms_p95": 1,
+        "hook_duration_ms_p99": 8784.21999999999,
+        "pre_tool_hook_duration_ms_count": 69,
+        "pre_tool_hook_duration_ms_min": 0,
+        "pre_tool_hook_duration_ms_max": 2,
+        "pre_tool_hook_duration_ms_avg": 0.2898550724637681,
+        "pre_tool_hook_duration_ms_p50": 0,
+        "pre_tool_hook_duration_ms_p95": 1,
+        "pre_tool_hook_duration_ms_p99": 2
+      }
+    },
+    "/home/francis/git/projectu": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": false,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "enemy.gd",
+        "main.tscn",
+        "project.godot",
+        "ui_manager.gd",
+        "detector.tscn"
+      ],
+      "lastGracefulShutdown": false,
+      "exampleFilesGeneratedAt": 1776519329404,
+      "lastCost": 2.1529602000000003,
+      "lastAPIDuration": 245186,
+      "lastAPIDurationWithoutRetries": 244960,
+      "lastToolDuration": 2639,
+      "lastDuration": 926162,
+      "lastLinesAdded": 20,
+      "lastLinesRemoved": 7,
+      "lastTotalInputTokens": 505064,
+      "lastTotalOutputTokens": 7618,
+      "lastTotalCacheCreationInputTokens": 40312,
+      "lastTotalCacheReadInputTokens": 1241094,
+      "lastTotalWebSearchRequests": 0,
+      "lastModelUsage": {
+        "MiniMax-M2.7": {
+          "inputTokens": 505064,
+          "outputTokens": 7618,
+          "cacheReadInputTokens": 1241094,
+          "cacheCreationInputTokens": 40312,
+          "webSearchRequests": 0,
+          "costUSD": 2.1529602000000003
+        }
+      },
+      "lastSessionId": "e5b1622c-f5d4-4bc3-816a-41d873ee7ea8",
+      "lastSessionMetrics": {
+        "frame_duration_ms_count": 858,
+        "frame_duration_ms_min": 0.08090999998967163,
+        "frame_duration_ms_max": 25.249320000000125,
+        "frame_duration_ms_avg": 0.6183419335671643,
+        "frame_duration_ms_p50": 0.5263395000511082,
+        "frame_duration_ms_p95": 1.0185029999862307,
+        "frame_duration_ms_p99": 3.205160510021628,
+        "hook_duration_ms_count": 2,
+        "hook_duration_ms_min": 1,
+        "hook_duration_ms_max": 21142,
+        "hook_duration_ms_avg": 10571.5,
+        "hook_duration_ms_p50": 10571.5,
+        "hook_duration_ms_p95": 20084.95,
+        "hook_duration_ms_p99": 20930.59,
+        "pre_tool_hook_duration_ms_count": 1,
+        "pre_tool_hook_duration_ms_min": 0,
+        "pre_tool_hook_duration_ms_max": 0,
+        "pre_tool_hook_duration_ms_avg": 0,
+        "pre_tool_hook_duration_ms_p50": 0,
+        "pre_tool_hook_duration_ms_p95": 0,
+        "pre_tool_hook_duration_ms_p99": 0
+      }
+    },
+    "/tmp/cc-connect-claude-usage-2808633919": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false
+    },
+    "/tmp/cc-connect-claude-usage-4196959630": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "lastGracefulShutdown": false
+    },
+    "/tmp/cc-connect-claude-usage-2706221751": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false
+    },
+    "/tmp/cc-connect-claude-usage-3787714627": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "lastGracefulShutdown": false
+    },
+    "/tmp/cc-connect-claude-usage-2425912239": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false
+    },
+    "/tmp/cc-connect-claude-usage-3925423403": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "lastGracefulShutdown": false
+    },
+    "/tmp/cc-connect-claude-usage-1165301307": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": true,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "lastGracefulShutdown": false
+    }
+  },
+  "userID": "6ae6d054803fa352620ee5b236a52e65e3618d25d744d86d84713d69c8772d85",
+  "mcpServers": {
+    "tavily": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "tavily-mcp"
+      ],
+      "env": {
+        "TAVILY_API_KEY": "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"
+      }
+    },
+    "minimax": {
+      "command": "uvx",
+      "args": [
+        "minimax-coding-plan-mcp",
+        "-y"
+      ],
+      "env": {
+        "MINIMAX_API_KEY": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY",
+        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      }
+    },
+    "minimax-mcp": {
+      "command": "uvx",
+      "args": [
+        "minimax-mcp"
+      ],
+      "env": {
+        "MINIMAX_API_KEY": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY",
+        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      }
+    },
+    "octocode": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "octocode-mcp@latest"
+      ],
+      "env": {}
+    },
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase",
+        "--project-ref",
+        "<your-supabase-project-id>",
+        "--access-token",
+        "9e0bfb34-67d9-4b34-bd5a-35ff75d443e9"
+      ],
+      "env": {}
+    },
+    "status": {
+      "command": "node",
+      "args": [
+        "/home/francis/git/ccconfig/mcp-status/status-mcp.js"
+      ],
+      "env": {}
+    },
+    "feishu": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@china-mcp/feishu-mcp"
+      ],
+      "env": {
+        "FEISHU_APP_ID": "<your-feishu-app-id>",
+        "FEISHU_APP_SECRET": "<your-feishu-app-secret>"
+      }
+    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/francis/git/ccconfig/hook-status.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "metricsStatusCache": {
+    "enabled": false,
+    "timestamp": 1776257490020
+  },
+  "hasCompletedOnboarding": true,
+  "lastOnboardingVersion": "2.1.109",
+  "lastReleaseNotesSeen": "2.1.121",
+  "officialMarketplaceAutoInstallAttempted": true,
+  "officialMarketplaceAutoInstalled": true,
+  "lastPlanModeUse": 1777351829568,
+  "autoUpdatesProtectedForNative": true,
+  "opus47LaunchSeenCount": 6,
+  "githubRepoPaths": {
+    "<your-github-username>/projectu": [
+      "/home/francis/git/projectu"
+    ]
+  },
+  "skillUsage": {
+    "insights": {
+      "usageCount": 2,
+      "lastUsedAt": 1776897932868
+    },
+    "customer-research": {
+      "usageCount": 1,
+      "lastUsedAt": 1776909614249
+    }
+  },
+  "showSpinnerTree": false
+}

@@ -1,0 +1,99 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+    "ANTHROPIC_MODEL": "deepseek-v4-pro",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "ANTHROPIC_AUTH_TOKEN": "sk-abceaa61812a4932893e61a63a9dcda9"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(*)"
+    ],
+    "defaultMode": "bypassPermissions"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/francis/git/ccconfig/hook-status.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "mcpServers": {
+    "tavily": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "tavily-mcp"
+      ],
+      "env": {
+        "TAVILY_API_KEY": "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"
+      }
+    },
+    "minimax": {
+      "command": "uvx",
+      "args": [
+        "minimax-coding-plan-mcp",
+        "-y"
+      ],
+      "env": {
+        "MINIMAX_API_KEY": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY",
+        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      }
+    },
+    "minimax-mcp": {
+      "command": "uvx",
+      "args": [
+        "minimax-mcp"
+      ],
+      "env": {
+        "MINIMAX_API_KEY": "sk-cp-OjTA4FfUxmtM5ifaOA56Vtp6qm7YRfM5NzW_ZVslRe-UVvFz1qQjpWfuDZYAQ4Nw6kio2tRPlrAibiZAYQpOgF2AehGv0efiSghNm13xWEIzomu9OB307KY",
+        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      }
+    },
+    "octocode": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "octocode-mcp@latest"
+      ],
+      "env": {}
+    },
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase",
+        "--project-ref",
+        "<your-supabase-project-id>",
+        "--access-token",
+        "9e0bfb34-67d9-4b34-bd5a-35ff75d443e9"
+      ],
+      "env": {}
+    },
+    "status": {
+      "command": "node",
+      "args": [
+        "/home/francis/git/ccconfig/mcp-status/status-mcp.js"
+      ],
+      "env": {}
+    },
+    "feishu": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@china-mcp/feishu-mcp"
+      ],
+      "env": {
+        "FEISHU_APP_ID": "<your-feishu-app-id>",
+        "FEISHU_APP_SECRET": "<your-feishu-app-secret>"
+      }
+    }
+  },
+  "skipDangerousModePermissionPrompt": true
+}

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // Status MCP Server - 提供状态检查功能
-// 运行 check-status.sh 并返回结果
+// 运行 hook-status.sh 并返回结果
 
 const { spawn } = require('child_process');
 
 function runHookStatus() {
     return new Promise((resolve, reject) => {
-        const hookScript = '/home/francis/git/ccconfig/check-status.sh';
+        const hookScript = '/home/francis/git/ccconfig/hook-status.sh';
         const proc = spawn('bash', [hookScript], {
             cwd: '/home/francis/git/ccconfig'
         });
@@ -97,10 +97,10 @@ function handleMessage(msg) {
         const toolName = msg.params?.name;
 
         if (toolName === 'status') {
-            // 同步执行 check-status.sh
+            // 同步执行 hook-status.sh
             const { execSync } = require('child_process');
             try {
-                const output = execSync('bash /home/francis/git/ccconfig/check-status.sh', {
+                const output = execSync('bash /home/francis/git/ccconfig/hook-status.sh', {
                     encoding: 'utf8',
                     timeout: 30000
                 });
@@ -129,7 +129,7 @@ function handleMessage(msg) {
         // 初始化完成后，自动发送状态通知
         const { execSync } = require('child_process');
         try {
-            const output = execSync('bash /home/francis/git/ccconfig/check-status.sh', {
+            const output = execSync('bash /home/francis/git/ccconfig/hook-status.sh', {
                 encoding: 'utf8',
                 timeout: 30000
             });
