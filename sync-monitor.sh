@@ -162,63 +162,93 @@ start_watch() {
     : > "$LOG_FILE"
     QUIET_MODE=true
 
+    # Single-process pipeline: inotify → log → debounce → commit.
+    # Everything runs inside the pipe's while loop so it can't silently die
+    # while inotifywait keeps running (the original bug).
+    #
+    # NOTE: WSL2 inotify is unstable when watching a repo directory directly
+    # with --exclude. Watching the parent ~/git works reliably, so we watch
+    # the parent and filter events to only care about files under REPO_DIR.
+    local watch_dir="$HOME/git"
+    local debounce=120
+    local min_push_gap=60
+
     setsid inotifywait -m -r -q \
-        --exclude '\.git/|node_modules/|\.log$|\.monitor-sync\.|\.auto-sync\.|\.tmp$|\.swp$|\.tmp' \
+        --exclude '\.git/' \
         -e modify,create,delete,move \
-        "$REPO_DIR" 2>/dev/null | while IFS= read -r path action file; do
-            echo "[$(date '+%H:%M:%S')] $path $action $file" >> "$LOG_FILE"
+        "$watch_dir" 2>/dev/null | while IFS= read -r line; do
+            # Skip events not under REPO_DIR
+            case "$line" in
+                "$REPO_DIR"*) ;;
+                *) continue ;;
+            esac
+            # Skip sync-internal files to avoid feedback loop
+            case "$line" in
+                *".monitor-sync.log"*|*".monitor-sync.debounce"*|*".monitor-sync.pid"*) continue ;;
+            esac
+
+            echo "[$(date '+%H:%M:%S')] $line" >> "$LOG_FILE"
+            date +%s > "$REPO_DIR/.monitor-sync.debounce"
         done &
 
-    local notify_pid=$!
-    echo $notify_pid > "$PID_FILE"
-    echo -e "${GREEN}[SYNC]${NC} Started (PID: $notify_pid)"
-    echo -e "${GRAY}Use: status | log | tail${NC}"
+    local event_pid=$!
 
-    local debounce=120
-    local last_change=0
-    local pending=false
-    local last_push_time=0
+    # Debounce loop: checks the timestamp file, triggers commit after quiet period.
+    # Runs in a separate background subshell — must NOT use 'local' inside it.
+    {
+        trap 'kill $event_pid 2>/dev/null; rm -f "$REPO_DIR/.monitor-sync.debounce"; exit' EXIT
 
-    while kill -0 $notify_pid 2>/dev/null; do
-        sleep 1
+        pending=0
+        last_push_time=0
+        debounce_file="$REPO_DIR/.monitor-sync.debounce"
 
-        if [ -s "$LOG_FILE" ]; then
-            local now=$(date +%s)
-            local log_mtime=$(stat -c %Y "$LOG_FILE" 2>/dev/null || echo $now)
-
-            if [ "$log_mtime" -gt "$last_change" ]; then
-                if [ "$pending" = true ]; then
-                    last_change=$now
-                else
-                    pending=true
-                    last_change=$now
-                    do_log "File change detected, waiting 120s debounce..."
-                fi
+        while kill -0 $event_pid 2>/dev/null; do
+            sleep 2
+            if [ ! -f "$debounce_file" ]; then
+                continue
             fi
-        fi
+            evt_ts=$(cat "$debounce_file" 2>/dev/null)
+            if [ -z "$evt_ts" ]; then
+                continue
+            fi
+            now=$(date +%s)
+            elapsed=$((now - evt_ts))
 
-        if [ "$pending" = true ]; then
-            local time_diff=$(( $(date +%s) - last_change ))
-            if [ $time_diff -ge $debounce ]; then
-                local time_since_push=$(( $(date +%s) - last_push_time ))
-                if [ $last_push_time -gt 0 ] && [ $time_since_push -lt 60 ]; then
-                    do_log "Skipped: <60s since last push"
-                    pending=false
+            if [ "$pending" -eq 0 ]; then
+                pending=1
+                do_log "File change detected, waiting ${debounce}s debounce..."
+            fi
+
+            if [ "$pending" -eq 1 ] && [ $elapsed -ge $debounce ]; then
+                gap=$((now - last_push_time))
+                if [ "$last_push_time" -gt 0 ] && [ $gap -lt $min_push_gap ]; then
+                    do_log "Skipped: <${min_push_gap}s since last push"
+                    pending=0
+                    rm -f "$debounce_file"
                     continue
                 fi
 
                 do_log "Debounce done, pushing..."
-                last_change=$(date +%s)
                 commit_and_push
-                pending=false
+                pending=0
                 last_push_time=$(date +%s)
+                rm -f "$debounce_file"
             fi
-        fi
-    done &
+        done
+    } &
+    local monitor_pid=$!
+
+    echo $monitor_pid > "$PID_FILE"
+    echo -e "${GREEN}[SYNC]${NC} Started (monitor: $monitor_pid, events: $event_pid)"
+    echo -e "${GRAY}Use: status | log | tail${NC}"
+    echo -e "${GRAY}Watching: $watch_dir (filtered to $REPO_DIR)${NC}"
 }
 
 # ========== Stop monitoring ==========
 stop_watch() {
+    # Kill any stale inotifywait processes
+    pkill -f "inotifywait.*ccconfig" 2>/dev/null || true
+
     if [ -f "$PID_FILE" ]; then
         local pid=$(cat "$PID_FILE")
         if kill -0 $pid 2>/dev/null; then
@@ -230,6 +260,7 @@ stop_watch() {
     else
         echo -e "${YELLOW}[SYNC]${NC} Not running"
     fi
+    rm -f "$REPO_DIR/.monitor-sync.debounce"
 }
 
 # ========== Status ==========
@@ -239,8 +270,18 @@ status_watch() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
     if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-        echo -e "  ${GREEN}✓${NC} Running (PID: $(cat "$PID_FILE"))"
+        local mon_pid=$(cat "$PID_FILE")
+        echo -e "  ${GREEN}✓${NC} Monitor loop (PID: $mon_pid)"
 
+        # Check inotifywait
+        local evt_pid=$(pgrep -f "inotifywait.*/home/francis/git" 2>/dev/null)
+        if [ -n "$evt_pid" ]; then
+            echo -e "  ${GREEN}✓${NC} inotifywait (PID: $evt_pid)"
+        else
+            echo -e "  ${RED}✗${NC} inotifywait (dead — restart needed)"
+        fi
+
+        # Health: check if log has recent events
         if [ -f "$LOG_FILE" ]; then
             local first_log=$(head -1 "$LOG_FILE" 2>/dev/null | grep -oE '^\[[0-9:]+\]' | tr -d '[]')
             [ -n "$first_log" ] && echo -e "  ${GRAY}Started: $first_log${NC}"

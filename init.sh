@@ -26,12 +26,13 @@ run_step() {
     local label="$1"
     local script="$2"
     local auto="$3"
+    shift 3
 
     echo ""
     echo -e "${CYAN}━━━ ${label} ━━━${NC}"
 
     if [ "$auto" = "true" ]; then
-        if bash "$script"; then
+        if bash "$script" "$@"; then
             echo -e "${GREEN}✅ ${label} 完成${NC}"
         else
             echo -e "${RED}❌ ${label} 失败（继续）${NC}"
@@ -68,7 +69,7 @@ submenu_env() {
         2) run_step "LLM 切换"         "$SCRIPT_DIR/init-llm.sh"       false ;;
         3) run_step "auto-sync 自启动" "$SCRIPT_DIR/init-autostart.sh" false ;;
         4) run_step "Ubuntu" "$SCRIPT_DIR/init-ubuntu.sh" true
-           run_step "LLM"    "$SCRIPT_DIR/init-llm.sh" true
+           run_step "LLM"    "$SCRIPT_DIR/init-llm.sh" true deepseek
            run_step "自启动"  "$SCRIPT_DIR/init-autostart.sh" true ;;
     esac
 }
@@ -213,7 +214,7 @@ main_menu() {
         7)
             show_banner
             run_step "1/6 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
-            run_step "2/6 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true
+            run_step "2/6 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
             run_step "3/6 飞书 lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   true
             run_step "4/6 cc-connect"      "$SCRIPT_DIR/feishu/init-cconnect.sh" true
             run_step "5/6 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
@@ -237,7 +238,7 @@ case "${1:-menu}" in
     all)
         show_banner
         run_step "1/6 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
-        run_step "2/6 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true
+        run_step "2/6 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
         run_step "3/6 飞书 lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   true
         run_step "4/6 cc-connect"      "$SCRIPT_DIR/feishu/init-cconnect.sh" true
         run_step "5/6 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true

@@ -87,9 +87,13 @@ bash ccconfig/init-update.sh          # 升级组件
 ```bash
 bash ccconfig/init-llm.sh              # 交互式选择
 bash ccconfig/init-llm.sh list         # 列出可用后端
-bash ccconfig/init-llm.sh deepseek     # 切换到 DeepSeek
+bash ccconfig/init-llm.sh deepseek     # 切换到 DeepSeek (pro 双路)
 bash ccconfig/init-llm.sh minimax      # 切换到 MiniMax
 ```
+
+**缓存策略**: 系统任务(haiku)与主模型使用同一模型，共享 prefix cache。
+系统任务调用零散、间隔常超 5 分钟缓存 TTL，分模型导致 <50% 命中率、频繁冷启动，
+统一模型可达到 >90% 缓存命中。虽然单价更高但系统任务输出极短，省下的输入成本远超输出差价。
 
 ## auto-sync 同步
 
