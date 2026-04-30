@@ -7,9 +7,16 @@
 #   - 查看当前 LLM
 #
 # 使用：
-#   bash ccconfig/llminit.sh               # 交互式选择
-#   bash ccconfig/llminit.sh list          # 仅列出
-#   bash ccconfig/llminit.sh <name>        # 直接切换
+#   bash ccconfig/init-llm.sh               # 交互式选择
+#   bash ccconfig/init-llm.sh list          # 仅列出
+#   bash ccconfig/init-llm.sh <name>        # 直接切换
+#
+# 缓存策略:
+#   small_model 默认等于 model（同模型方案）
+#   理由: 系统任务(haiku)调用零散、间隔常超 5min 缓存 TTL，
+#   用不同模型导致缓存命中率极低（<50%），冷启动重复加载 ~31k 系统 token。
+#   统一模型使系统任务共享主模型温热缓存（>90% 命中率），
+#   虽然单价更高但因系统任务输出极短，省下的输入成本远超输出差价。
 # ==============================================
 
 set -e
@@ -49,7 +56,11 @@ print(f"CURRENT:{current}")
 for name in names:
     llm = llms[name]
     marker = "◀" if name == current else " "
-    print(f"{marker} {name} | {llm.get('name', name)} | {llm.get('model', '')} | {llm.get('base_url', '')}")
+    small = llm.get('small_model', '')
+    base_url = llm.get('base_url', '')
+    model = llm.get('model', '')
+    display_name = llm.get('name', name)
+    print(f"{marker} {name}|{display_name}|{model}|{base_url}|{small}")
 PYEOF
 }
 
@@ -69,7 +80,8 @@ if target not in llms:
     sys.exit(1)
 
 llm = llms[target]
-print(f"{llm.get('base_url', '')}|{llm.get('model', '')}|{llm.get('key', '')}")
+small = llm.get('small_model', llm.get('model', ''))
+print(f"{llm.get('base_url', '')}|{llm.get('model', '')}|{llm.get('key', '')}|{small}")
 PYEOF
 }
 
@@ -79,14 +91,15 @@ switch_llm() {
 
     # 获取配置
     CONFIG=$(get_llm_config "$name") || { error "无法获取 LLM 配置: $name"; return 1; }
-    IFS='|' read -r BASE_URL MODEL_NAME API_KEY <<< "$CONFIG"
+    IFS='|' read -r BASE_URL MODEL_NAME API_KEY SMALL_MODEL <<< "$CONFIG"
 
     info "切换到: $name"
     info "  API: $BASE_URL"
     info "  模型: $MODEL_NAME"
+    info "  小模型: $SMALL_MODEL"
 
     # 先 export，让 heredoc 里的 Python 能读到
-    export BASE_URL MODEL_NAME API_KEY
+    export BASE_URL MODEL_NAME API_KEY SMALL_MODEL
 
     # 更新 ~/.claude.json
     python3 << 'PYEOF'
@@ -108,6 +121,8 @@ config['env'].update({
     "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
 })
+
+config['env']['ANTHROPIC_DEFAULT_HAIKU_MODEL'] = os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
 
 with open(config_file, 'w') as f:
     json.dump(config, f, indent=4)
@@ -134,6 +149,8 @@ config['env'].update({
     "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
 })
+
+config['env']['ANTHROPIC_DEFAULT_HAIKU_MODEL'] = os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
 
 # 如果 settings_file 是损坏的符号链接，先删除
 if os.path.islink(settings_file) and not os.path.exists(settings_file):
@@ -170,14 +187,18 @@ show_list() {
     echo ""
     echo "可用 LLM："
     echo ""
-    list_llms | tail -n +2 | while IFS='|' read -r marker name model url; do
+    list_llms | tail -n +2 | while IFS='|' read -r marker name model url small; do
         if [[ "$marker" == "TOTAL:"* ]] || [[ "$marker" == "CURRENT:"* ]]; then
             continue
         fi
         if [[ "$url" == "CURRENT:"* ]] || [[ "$marker" == "" && "$name" == "" ]]; then
             continue
         fi
-        printf "  %s %-10s %-10s %s\n" "$marker" "$name" "$model" ""
+        local small_info=""
+        if [[ -n "$small" ]]; then
+            small_info="  (小模型: $small)"
+        fi
+        printf "  %s %-10s %-20s%s\n" "$marker" "$name" "$model" "$small_info"
     done
     echo ""
 
@@ -200,7 +221,7 @@ interactive_select() {
     # 显示选项
     local idx=1
     local names=()
-    while IFS='|' read -r marker name model url; do
+    while IFS='|' read -r marker name model url small; do
         if [[ "$marker" == "TOTAL:"* ]] || [[ "$marker" == "CURRENT:"* ]]; then
             continue
         fi
@@ -208,10 +229,14 @@ interactive_select() {
             continue
         fi
         names+=("$name")
+        local small_str=""
+        if [[ -n "$small" ]]; then
+            small_str=" [小模型: $small]"
+        fi
         if [[ "$marker" == "◀" ]]; then
-            printf "  %d) %s (%s) ◀ 当前\n" "$idx" "$name" "$model"
+            printf "  %d) %s (%s)%s ◀ 当前\n" "$idx" "$name" "$model" "$small_str"
         else
-            printf "  %d) %s (%s)\n" "$idx" "$name" "$model"
+            printf "  %d) %s (%s)%s\n" "$idx" "$name" "$model" "$small_str"
         fi
         ((idx++))
     done < <(echo "$lines")

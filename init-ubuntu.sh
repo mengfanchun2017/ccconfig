@@ -252,7 +252,7 @@ setup_claude_api() {
     section "LLM 配置"
 
     if [[ ! -f "$SCRIPT_DIR/init-llm.sh" ]]; then
-        error "llminit.sh 未找到，跳过 LLM 配置"
+        error "init-llm.sh 未找到，跳过 LLM 配置"
         return 1
     fi
 

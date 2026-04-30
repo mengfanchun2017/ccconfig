@@ -18,6 +18,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
+GRAY='\033[0;90m'
 NC='\033[0m'
 
 # ========== Git 拉取 ==========
@@ -66,9 +67,12 @@ check_symlinks() {
         issues=$((issues + 1))
     fi
 
-    # MEMORY.md
-    local memory_link="$HOME/.claude/projects/-home-francis-git/memory/MEMORY.md"
-    if [ -L "$memory_link" ] && [ -e "$memory_link" ]; then
+    # MEMORY.md (memory/ dir is symlink, MEMORY.md is inside it)
+    local memory_dir="$HOME/.claude/projects/-home-francis-git/memory"
+    local memory_file="$memory_dir/MEMORY.md"
+    if [ -L "$memory_dir" ] && [ -f "$memory_file" ]; then
+        echo -e "  ${GREEN}✅${NC} MEMORY.md"
+    elif [ -L "$memory_file" ] && [ -e "$memory_file" ]; then
         echo -e "  ${GREEN}✅${NC} MEMORY.md"
     else
         echo -e "  ${RED}❌${NC} MEMORY.md"
@@ -276,3 +280,6 @@ check_feishu
 check_mcp
 
 echo ""
+test
+test
+test
