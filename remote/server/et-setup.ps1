@@ -111,7 +111,7 @@ if ($existing) {
 }
 
 # === 启动 ===
-$publicRelay = "tcp://public.easytier.top:11010"
+$publicRelay = "tcp://public.easytier.cn:11010"
 $argList = "-d --network-name $NetworkName --network-secret $NetworkSecret -e $publicRelay --latency-first"
 
 Start-Process -FilePath $exePath -ArgumentList $argList -WindowStyle Hidden
