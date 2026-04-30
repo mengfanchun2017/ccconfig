@@ -41,8 +41,7 @@ enable_autostart() {
 
     # 复制服务文件
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-    cp "$REPO_DIR/sync-monitor.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
+    cp "$SCRIPT_DIR/sync-monitor.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
 
     cat > "$SYSTEMD_SERVICE" << EOF
 [Unit]
