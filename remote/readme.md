@@ -24,7 +24,6 @@ remote/
 │   ├── tmux.conf              tmux 配置（deploy 自动部署）
 │   └── ts-setup.ps1           Tailscale 一键安装（管理员 PS）
 └── client/                    笔记本
-    ├── terminaladd.ps1        Win Terminal 快捷入口（可选）
     └── ts-setup.ps1           Tailscale 一键安装（管理员 PS）
 ```
 
@@ -135,11 +134,13 @@ ssh -p 2222 francis@<服务器 Tailscale IP>
 
 ### 6. 可选：Win Terminal 一键连接
 
+在本机 PowerShell 执行（不需管理员），`<服务器IP>` 替换为服务器的 Tailscale 虚拟 IP：
+
 ```powershell
-powershell -ExecutionPolicy Bypass -File "C:\git\winremote\terminaladd.ps1" -Host <服务器IP>
+New-Item -ItemType Directory -Force -Path "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8weky3b8dbbwe\LocalState\Fragments" | Out-Null; @{profiles=@(@{guid="{(New-Guid)}";name="Claude Code";commandline="ssh -p 2222 francis@<服务器IP>";icon="🐚";tabTitle="Claude";hidden=$false})} | ConvertTo-Json -Depth 3 | Out-File -FilePath "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8weky3b8dbbwe\LocalState\Fragments\claude-code-ssh.json" -Encoding UTF8; Write-Host 'Done' -ForegroundColor Green
 ```
 
-Win Terminal 下拉菜单会多出 "Claude Code" 选项。
+关闭重开 Windows Terminal，下拉菜单会多出 "Claude Code" 选项。
 
 ---
 
