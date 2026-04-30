@@ -17,7 +17,7 @@
 |---|---|---|
 | 安装方式 | winget 自动安装 | 便携 zip 自动下载 |
 | P2P 打洞 | WireGuard + STUN/ICE | WireGuard + 多协议 |
-| 中继节点 | DERP（全在境外） | public.easytier.top（国内） |
+| 中继节点 | DERP（全在境外） | public.easytier.cn（国内） |
 | 加密 | WireGuard 端到端 | WireGuard / AES-GCM |
 | 中继能否看数据 | 不能 | 不能 |
 | 公共中继费用 | 免费 | 免费 |
