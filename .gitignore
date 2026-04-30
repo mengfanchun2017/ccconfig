@@ -10,6 +10,7 @@ openclaw.json
 .auto-sync.pid
 .monitor-sync.log
 .monitor-sync.pid
+.monitor-sync.debounce
 
 # 可选：本地环境变量文件
 # .env
