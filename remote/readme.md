@@ -6,21 +6,11 @@
 
 ```
 笔记本 ──SSH──▶ 台式机 Windows (端口转发 :2222) ──▶ WSL2 (SSH Server + tmux)
-                │
-                ├─ Tailscale（境外 DERP 中继，延迟高）
-                └─ EasyTier（国内 P2P 中继，延迟低）
+        │
+        └─ Tailscale（P2P 优先，境外 DERP 中继兜底）
 ```
 
-**两个连接方案都是 P2P 优先 + 中继兜底**：
-
-| | Tailscale | EasyTier |
-|---|---|---|
-| 安装方式 | winget 自动安装 | 便携 zip 自动下载 |
-| P2P 打洞 | WireGuard + STUN/ICE | WireGuard + 多协议 |
-| 中继节点 | DERP（全在境外） | public.easytier.cn（国内） |
-| 加密 | WireGuard 端到端 | WireGuard / AES-GCM |
-| 中继能否看数据 | 不能 | 不能 |
-| 公共中继费用 | 免费 | 免费 |
+Tailscale 基于 WireGuard，端到端加密。P2P 打洞成功后不经过中继，同城延迟几毫秒；打洞失败时走境外 DERP 中继兜底。
 
 ## 目录
 
@@ -32,12 +22,10 @@ remote/
 │   ├── tmux-sshd.sh           SSH Server + tmux（WSL）
 │   ├── tmux-portforward.ps1   端口转发（管理员 PS）
 │   ├── tmux.conf              tmux 配置（deploy 自动部署）
-│   ├── ts-setup.ps1           Tailscale（管理员 PS）
-│   └── et-setup.ps1           EasyTier（管理员 PS）
+│   └── ts-setup.ps1           Tailscale 一键安装（管理员 PS）
 └── client/                    笔记本
     ├── terminaladd.ps1        Win Terminal 快捷入口（可选）
-    ├── ts-setup.ps1           Tailscale（管理员 PS）
-    └── et-setup.ps1           EasyTier（管理员 PS）
+    └── ts-setup.ps1           Tailscale 一键安装（管理员 PS）
 ```
 
 ## 前提
@@ -89,26 +77,21 @@ powershell -ExecutionPolicy Bypass -File "C:\git\winremote\tmux-portforward.ps1"
 
 创建 0.0.0.0:2222 → WSL2:2222 转发、防火墙放行、计划任务（WSL 重启后自动更新 IP）。
 
-### 5. 连接方案（二选一）
+### 5. 启动 Tailscale
 
 Windows 管理员 PowerShell：
 
 ```powershell
-# EasyTier（推荐）
-powershell -ExecutionPolicy Bypass -File "C:\git\winremote\et-setup.ps1"
-
-# Tailscale
 powershell -ExecutionPolicy Bypass -File "C:\git\winremote\ts-setup.ps1"
 ```
+
+首次运行需登录：`tailscale up` 打开浏览器用 Microsoft/GitHub/Google 账号登录。
 
 ### 6. 查看本机 IP
 
 ```powershell
-# EasyTier
-& "C:\git\winremote\easytier\easytier-cli.exe" peer
-
-# Tailscale
 tailscale ip -4
+# 例如: 100.118.224.45
 ```
 
 记住这个 IP，客户端连接时需要。
@@ -129,29 +112,28 @@ cd ~/git && git clone <repo-url>
 bash ~/git/ccconfig/remote/deploy.sh client
 ```
 
-### 3. 连接方案（和服务器选同一个）
+### 3. 启动 Tailscale
 
 Windows 管理员 PowerShell：
 
 ```powershell
-# EasyTier（推荐）
-powershell -ExecutionPolicy Bypass -File "C:\git\winremote\et-setup.ps1"
-
-# Tailscale
 powershell -ExecutionPolicy Bypass -File "C:\git\winremote\ts-setup.ps1"
 ```
 
-### 4. 连接服务器
+### 4. 验证 P2P 直连
+
+```powershell
+tailscale status        # 确认显示 direct
+tailscale ping <服务器主机名>   # 看延迟
+```
+
+### 5. 连接服务器
 
 ```bash
-# EasyTier（用服务器的虚拟 IP）
-ssh -p 2222 francis@10.126.126.x
-
-# Tailscale
 ssh -p 2222 francis@<服务器 Tailscale IP>
 ```
 
-### 5. 可选：Win Terminal 一键连接
+### 6. 可选：Win Terminal 一键连接
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "C:\git\winremote\terminaladd.ps1" -Host <服务器IP>
@@ -179,6 +161,6 @@ Win Terminal 下拉菜单会多出 "Claude Code" 选项。
 | SSH 超时 | `netsh interface portproxy show v4tov4` |
 | Connection refused | WSL 内 `sudo systemctl status ssh` |
 | WSL 重启后连不上 | 计划任务 "WSL SSH PortForward" 应自动更新 IP |
-| easytier 被拦截 | `Get-ChildItem C:\git\winremote\easytier -File \| Unblock-File` |
-| EasyTier peer 只看到自己 | 两台都运行，确认 network-name/secret 一致 |
 | Tailscale 未登录 | `tailscale up` 打开浏览器登录 |
+| 走 DERP 延迟高 | `tailscale ping <对方>` 看是否 relay，检查两边防火墙/VPN |
+| VPN 干扰 Tailscale | 规则模式加 bypass：端口 41641 UDP、`*.tailscale.com` 直连 |
