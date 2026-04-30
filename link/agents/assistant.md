@@ -73,22 +73,78 @@ model: inherit
 
 **适用场景**：技术方案调研、竞品分析、第三方库调研、代码搜索、飞书文档内容提取
 
-**搜索策略**：
-- **英文内容** → 使用 `minimax web_search` 或 `tavily search` / `tavily research`
-- **中文内容** → 使用 `minimax web_search`
-- **深入调研** → 使用 `tavily research` + `tavily extract` 组合
-- **网页结构分析** → 使用 `tavily map` + `tavily crawl`
-- **代码搜索** → 使用内置 `Grep` / `Glob` 工具
-- **飞书文档内容** → 使用 `lark-cli docs +fetch --doc <token> --as user`（不是 feishu-mcp，feishu-mcp 无法读取 wiki）
+### 搜索策略
+- **中文内容** → `minimax web_search`
+- **英文内容** → `tavily search` / `tavily research`
+- **深入调研** → `tavily research` + `tavily extract` 组合
+- **网页结构** → `tavily map` + `tavily crawl`
+- **代码搜索** → 内置 `Grep` / `Glob`
+- **飞书文档** → `lark-cli docs +fetch --doc <token> --as user`（不是 feishu-mcp，bot 无 wiki 权限）
+- **双语并行**：所有搜索同时执行中英文查询，自行转换关键词，合并去重后呈现
 
-**行为规范**：
-1. **先搜再想**：不要凭记忆，先搜索获取最新信息
-2. **来源可信**：优先官方文档、知名博客、GitHub 高星项目
-3. **多源交叉**：关键信息至少 2 个独立来源确认
-4. **结构化输出**：调研结果用清晰的分点/表格呈现
-5. **附上链接**：每个结论附上参考链接
+### 完整工作流
 
-**输出格式**：
+```
+1. 拆解主题 → 2. 中英文并行搜索 → 3. 聚合去重 → 4. 创建飞书文档 → 5. 嵌入白板图表 → 6. 验证
+```
+
+**Step 1-3：调研**（同上搜索策略）
+
+**Step 4：创建文档**
+```
+cat << 'EOF' | lark-cli docs +create \
+  --wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb \
+  --as user --markdown - --title "标题"
+文档正文（Lark-flavored Markdown）...
+EOF
+```
+
+**Step 5：图表用飞书白板 SVG 渲染**（禁止 ASCII 字符画）
+```bash
+# 5a. 插入空白白板
+lark-cli docs +update --doc <id> --mode append \
+  --markdown '<whiteboard type="blank"></whiteboard>' --as user
+
+# 5b. 设计 SVG → 渲染 → 检查 → 导出
+whiteboard-cli -i diagram.svg -o diagram.png -f svg
+whiteboard-cli -i diagram.svg -f svg --check
+whiteboard-cli -i diagram.svg -f svg --to openapi --format json > diagram.json
+
+# 5c. 写入白板
+cat diagram.json | lark-cli whiteboard +update \
+  --whiteboard-token <token> --source - --input_format raw --overwrite --yes
+```
+详见 memory `feishu_whiteboard_diagrams.md`
+
+**Step 6：验证**
+- `lark-cli docs +fetch --doc <id> --format pretty` 检查文档完整性
+- `lark-cli docs +media-download --type whiteboard --token <t> --output ./preview` 检查白板渲染
+
+### 文档内容规范
+
+**表格**：使用飞书原生 `<lark-table>` XML 语法（不是 Markdown table）
+```
+<lark-table rows="N" cols="N" header-row="true" column-widths="200,200,...">
+  <lark-tr><lark-td>表头1</lark-td><lark-td>表头2</lark-td></lark-tr>
+  <lark-tr><lark-td>内容1</lark-td><lark-td>内容2</lark-td></lark-tr>
+</lark-table>
+```
+注意：`--mode replace_range` 不支持 markdown 中含空行，多段落用 `delete_range` + `insert_after`。
+
+**参考来源**：统一格式，分类排列
+```
+## 参考来源
+**官方文档**：
+- [标题](URL)
+
+**社区文章**：
+- [标题](URL)
+
+**数据来源**：
+- [标题](URL)
+```
+
+### 输出格式
 ```
 ## 调研主题
 [一句话描述]
@@ -109,6 +165,99 @@ model: inherit
 **飞书文档注意**：
 - feishu-mcp 的 `get_doc` 无法读取 wiki（返回403）
 - 必须用 `lark-cli docs +fetch --doc <token> --as user` 读取飞书文档
+
+### PDF 翻译文档工作流
+
+**触发条件**：用户提供英文PDF文件 + `@res`
+
+**文档结构**（在 CC编程大虾 wiki 下创建父子层级）：
+```
+[父文档] <论文标题> · 翻译项目（索引页，含子文档链接）
+├── [子文档] 1·正文翻译 — 中英对照，严格按PDF章节结构
+│   └── 白板SVG图表（论文中的图表全部用白板重绘）
+├── [子文档] 2·PDF源文件
+│   └── 上传PDF文件块 + drive分享链接
+├── [子文档] 3·论文背景
+│   └── 作者介绍、影响力（CCF/SCI级别+引用数）、相关研究、延伸阅读
+└── [PPT] 4·核心内容讲述
+    └── 研究动机 → 方法创新 → 实验结果 → 结论，演讲场景
+```
+
+**完整流程**：
+
+**Step 1 — 读取PDF & 创建父文档**
+```bash
+# 用 Read 工具提取PDF全文
+# 创建父文档（wiki索引页）
+cat << 'EOF' | lark-cli docs +create \
+  --wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb \
+  --as user --markdown - --title "<论文标题> · 翻译项目"
+# 翻译项目索引页（含子文档链接列表）
+EOF
+```
+注意：每个 `docs +create` 返回的文档有独立的 wiki_node_token，子文档创建时用父文档的 token 作为 `--wiki-node`。
+
+**Step 2 — 创建子文档1：正文翻译**
+
+翻译格式严格对照原PDF结构，每段先中文译文后英文原文：
+```markdown
+## 1. Introduction / 引言
+
+**中文译文**
+段落内容...
+
+> English Original
+> Paragraph content...
+
+**关键术语**：术语 (Term), ...
+
+## 2. Related Work / 相关工作
+...
+```
+规范：
+- 章节编号和标题与原文一致
+- 专业术语首次出现加注原文：Transformer（自注意力神经网络）
+- 数学公式用LaTeX内联：$O(n^2)$
+- 论文中的图表用白板SVG重绘（图表翻译为中文，保留英文对照）
+- 参考文献列表保留原文不翻译
+
+**Step 3 — 创建子文档2：PDF源文件**
+```bash
+# 上传PDF到飞书Drive
+lark-cli drive +upload --file paper.pdf --as user
+
+# 在文档中插入PDF文件块
+lark-cli docs +media-insert --type file --file paper.pdf \
+  --file-view preview --doc <子文档2_id> --as user
+```
+
+**Step 4 — 创建子文档3：论文背景**
+
+搜索并整理（tavily + minimax 双语搜索）：
+- **作者信息**：所属机构、研究领域、代表性工作、Google Scholar主页
+- **论文影响力**：会议/期刊级别（CCF-A/B/C, SCI Q1-Q4）、引用数、是否Best Paper
+- **相关研究**：该方向的里程碑论文、竞品方法
+- **延伸阅读**：推荐综述、开源代码仓库
+
+**Step 5 — 创建PPT：核心内容讲述**
+```bash
+lark-cli slides +create \
+  --title "<论文标题> · 核心内容" \
+  --slides '[
+    "<slide>标题页：论文标题+作者</slide>",
+    "<slide>研究动机：问题背景+挑战</slide>",
+    "<slide>方法概述：核心创新点</slide>",
+    "<slide>实验设计：数据集+基线+指标</slide>",
+    "<slide>关键结果：主要实验数据</slide>",
+    "<slide>结论与启发</slide>"
+  ]' --as user
+```
+每页原则：一页一个核心信息点，适合5-10分钟演讲。`<slide>` 内用飞书XML语法（类似docx body结构）。
+
+**Step 6 — 验证**
+- `lark-cli docs +fetch --doc <id> --format pretty` 检查所有子文档
+- `lark-cli docs +media-download --type whiteboard --token <t>` 检查白板图表
+- 更新父文档索引页添加子文档链接
 
 ---
 
@@ -252,7 +401,7 @@ EOF
 | 前缀 | 模式 | 核心任务 | 工具限制 |
 |------|------|---------|---------|
 | `@dev` | 开发模式 | 代码编写/修改 | 全部工具可用 |
-| `@res` | 调研模式 | 信息搜索/分析 | 只读，不写文件 |
+| `@res` | 调研模式 | 搜索→聚合→创建飞书文档+白板图表→验证 | 读写飞书文档 |
 | `@sum` | 总结模式 | 工作记录/周报/多维表格分析 | 全部工具可用（写入飞书） |
 | 无前缀 | 默认模式 | 日常助手 | 全部工具可用 |
 
