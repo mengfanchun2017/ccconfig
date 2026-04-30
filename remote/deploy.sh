@@ -64,9 +64,6 @@ else
     echo ""
     echo "启动 Tailscale 组网（管理员 PowerShell）:"
     echo '  powershell -ExecutionPolicy Bypass -File "C:\git\winremote\ts-setup.ps1"'
-    echo ""
-    echo "可选 - Win Terminal 一键连接:"
-    echo '  powershell -ExecutionPolicy Bypass -File "C:\git\winremote\terminaladd.ps1" -Host <台式机IP>'
 fi
 
 echo ""
