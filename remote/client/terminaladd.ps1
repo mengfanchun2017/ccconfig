@@ -1,11 +1,11 @@
 # ============================================================
 # Windows Terminal 一键连接配置
 # 在笔记本 Windows 终端中执行（无需管理员）:
-#   powershell -ExecutionPolicy Bypass -File "C:\git\win-term-profile.ps1" -Host 100.118.224.45
+#   powershell -ExecutionPolicy Bypass -File "C:\git\winremote\terminaladd.ps1" -RemoteHost 100.118.224.45
 # ============================================================
 param(
     [Parameter(Mandatory=$true)]
-    [string]$Host = "100.118.224.45",
+    [string]$RemoteHost = "100.118.224.45",
 
     [int]$Port = 2222,
     [string]$User = "francis",
@@ -32,7 +32,7 @@ $fragDir = "$wtDir\Fragments"
 New-Item -ItemType Directory -Force -Path $fragDir | Out-Null
 
 $guid = [Guid]::NewGuid().ToString()
-$sshCmd = "ssh -p $Port $User@$Host"
+$sshCmd = "ssh -p $Port $User@$RemoteHost"
 
 $fragment = @{
     profiles = @(
@@ -55,5 +55,8 @@ Write-Host ""
 Write-Host "关闭重开 Windows Terminal，点击顶部下拉菜单选择 'Claude Code' 即可一键连接" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "换 IP 后重新执行此脚本更新: " -ForegroundColor White
-Write-Host "  powershell -ExecutionPolicy Bypass -File C:\git\win-term-profile.ps1 -Host <新IP>" -ForegroundColor White
+Write-Host "  powershell -ExecutionPolicy Bypass -File C:\git\winremote\terminaladd.ps1 -RemoteHost <新IP>" -ForegroundColor White
+Write-Host ""
+Write-Host "例如当前 IP: " -ForegroundColor White -NoNewline
+Write-Host "  .\terminaladd.ps1 -RemoteHost $RemoteHost" -ForegroundColor Cyan
 pause
