@@ -56,15 +56,13 @@ if [ "$TYPE" = "server" ]; then
     echo "台式机还需执行（Windows 管理员 PowerShell）:"
     echo '  powershell -ExecutionPolicy Bypass -File "C:\git\winremote\tmux-portforward.ps1"'
     echo ""
-    echo "然后连接方案二选一（管理员 PowerShell）:"
-    echo '  powershell -ExecutionPolicy Bypass -File "C:\git\winremote\et-setup.ps1"'
+    echo "然后启动 Tailscale 组网（管理员 PowerShell）:"
     echo '  powershell -ExecutionPolicy Bypass -File "C:\git\winremote\ts-setup.ps1"'
 else
     echo ""
     echo "=== 部署完成 ==="
     echo ""
-    echo "连接方案二选一（管理员 PowerShell）:"
-    echo '  powershell -ExecutionPolicy Bypass -File "C:\git\winremote\et-setup.ps1"'
+    echo "启动 Tailscale 组网（管理员 PowerShell）:"
     echo '  powershell -ExecutionPolicy Bypass -File "C:\git\winremote\ts-setup.ps1"'
     echo ""
     echo "可选 - Win Terminal 一键连接:"
