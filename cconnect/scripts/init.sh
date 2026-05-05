@@ -1,17 +1,19 @@
 #!/bin/bash
-# ccconfig/ailabbot/scripts/init.sh
-# 功能：从 bots.json 生成 cc-connect config.toml 并管理 systemd 服务
-# 自动检测环境：有 cc-connect 二进制 → 完整配置；没有 → 仅生成 TOML
+# ccconfig/cconnect/scripts/init.sh
+# 功能：安装 cc-connect 二进制 → 从 bots.json 生成 config.toml → 管理 systemd 服务
+# 自动检测环境：有 cc-connect 二进制 → 完整配置；没有 → 自动下载安装
 # 用法：
-#   bash ccconfig/ailabbot/scripts/init.sh              # 生成配置 + 重启服务
-#   bash ccconfig/ailabbot/scripts/init.sh --dry-run    # 仅生成配置，不操作服务
-#   bash ccconfig/ailabbot/scripts/init.sh --restart    # 仅重启服务，不重新生成
+#   bash ccconfig/cconnect/scripts/init.sh              # 完整安装+配置+启动
+#   bash ccconfig/cconnect/scripts/init.sh --dry-run    # 仅生成配置，不操作服务
+#   bash ccconfig/cconnect/scripts/init.sh --restart    # 仅重启服务，不重新生成
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/../../lib/path-helper.sh"
 BOTS_JSON="$PROJECT_DIR/conf/bots.json"
+CC_CONNECT_VERSION=$(get_cconnect_version)
 CC_CONNECT_BIN="$HOME/.local/bin/cc-connect"
 
 RED='\033[0;31m'
@@ -26,9 +28,62 @@ bad() { echo -e "${RED}$1${NC}"; }
 warn() { echo -e "${YELLOW}$1${NC}"; }
 info() { echo -e "${GRAY}$1${NC}"; }
 
+# ========== 安装 cc-connect 二进制 ==========
+install_cconnect_binary() {
+    echo ""
+    echo -e "${CYAN}── 安装 cc-connect v${CC_CONNECT_VERSION} ──${NC}"
+
+    if [ -x "$CC_CONNECT_BIN" ]; then
+        local current_ver
+        current_ver=$("$CC_CONNECT_BIN" --version 2>/dev/null | head -1 || echo "unknown")
+        good "✓ 已安装: $current_ver"
+        return 0
+    fi
+
+    echo "下载 cc-connect v${CC_CONNECT_VERSION} ..."
+    local download_url="https://github.com/chenhg5/cc-connect/releases/download/v${CC_CONNECT_VERSION}/cc-connect-v${CC_CONNECT_VERSION}-linux-amd64.tar.gz"
+    local tmp_dir="/tmp/cc-connect-install-$$"
+
+    mkdir -p "$tmp_dir" "$HOME/.local/bin"
+
+    if curl -fsSL "$download_url" -o "$tmp_dir/cc-connect.tar.gz"; then
+        tar -xzf "$tmp_dir/cc-connect.tar.gz" -C "$tmp_dir"
+        binary=$(find "$tmp_dir" -name "cc-connect" -type f 2>/dev/null | head -1)
+        if [ -n "$binary" ]; then
+            cp "$binary" "$CC_CONNECT_BIN"
+            chmod +x "$CC_CONNECT_BIN"
+            good "✅ 安装成功: $CC_CONNECT_BIN"
+        fi
+    else
+        bad "❌ 下载失败"
+        warn "手动下载: https://github.com/chenhg5/cc-connect/releases"
+        return 1
+    fi
+    rm -rf "$tmp_dir"
+}
+
 # ========== 环境检测 ==========
 detect_env() {
     echo -e "${CYAN}═══ 环境检测 ═══${NC}"
+
+    # Node.js 检查
+    export PATH="$HOME/.local/bin:$(find_node_bin):$PATH"
+    echo -n "Node.js ... "
+    if command -v node &> /dev/null; then
+        good "✓ $(node --version)"
+    else
+        bad "❌ 未安装，请先运行 bash ccconfig/init-ubuntu.sh"
+        exit 1
+    fi
+
+    # Claude Code 检查
+    echo -n "Claude Code ... "
+    if command -v claude &> /dev/null; then
+        good "✓"
+    else
+        bad "❌ 未安装"
+        exit 1
+    fi
 
     # 检测 cc-connect 二进制
     if [ -x "$CC_CONNECT_BIN" ]; then
@@ -37,7 +92,7 @@ detect_env() {
         good "✓ cc-connect: $ver"
         HAS_CCONNECT=true
     else
-        warn "○ cc-connect 未安装 — 仅生成配置文件，不管理服务"
+        warn "○ cc-connect 未安装"
         HAS_CCONNECT=false
     fi
 
@@ -110,8 +165,8 @@ bots = data.get('bots', [])
 lines = []
 lines.append('# ╔══════════════════════════════════════════════════╗')
 lines.append('# ║  cc-connect 多机器人配置                          ║')
-lines.append('# ║  由 ccconfig/ailabbot/scripts/init.sh 自动生成    ║')
-lines.append('# ║  修改机器人: 编辑 ccconfig/ailabbot/conf/bots.json ║')
+lines.append('# ║  由 ccconfig/cconnect/scripts/init.sh 自动生成    ║')
+lines.append('# ║  修改机器人: 编辑 ccconfig/cconnect/conf/bots.json ║')
 lines.append('# ╚══════════════════════════════════════════════════╝')
 lines.append('')
 lines.append('[log]')
@@ -212,14 +267,14 @@ for bot in bots:
 PYEOF
 }
 
-# ========== systemd 服务管理（仅台式机） ==========
+# ========== systemd 服务管理 ==========
 setup_service() {
     echo ""
     echo -e "${CYAN}═══ systemd 服务 ═══${NC}"
 
     if [ "$HAS_CCONNECT" != "true" ]; then
         warn "○ cc-connect 未安装 — 跳过服务配置"
-        info "  在台式机上运行 bash ccconfig/feishu/init-cconnect.sh 安装 cc-connect"
+        info "  运行 bash ccconfig/cconnect/scripts/init.sh 安装并配置 cc-connect"
         return 0
     fi
 
@@ -230,9 +285,11 @@ setup_service() {
         local service_file="$HOME/.config/systemd/user/${service_name}.service"
         mkdir -p "$HOME/.config/systemd/user"
 
+        local _node_bin
+        _node_bin=$(find_node_bin)
         cat > "$service_file" << SERVICEOF
 [Unit]
-Description=CC-Connect - Multi-Bot AI Bridge (ailabbot)
+Description=CC-Connect - Multi-Bot AI Bridge (cconnect)
 After=network-online.target
 Wants=network-online.target
 
@@ -241,7 +298,7 @@ Type=simple
 ExecStart=/bin/bash -c 'export PATH=\$(echo "\$PATH" | tr ":" "\\n" | grep -v "^/mnt/" | tr "\\n" ":" | sed "s/:\$//"); exec ${CC_CONNECT_BIN} -config ${config_path}'
 Restart=on-failure
 RestartSec=10
-Environment=PATH=${HOME}/.local/bin:${HOME}/.local/node-v20.11.0-linux-x64/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=${HOME}/.local/bin:${_node_bin}:/usr/local/bin:/usr/bin:/bin
 
 [Install]
 WantedBy=default.target
@@ -296,7 +353,7 @@ main() {
             detect_env
             generate_toml
             echo ""
-            info "Dry run 完成。运行 bash ccconfig/ailabbot/scripts/init.sh 以应用配置。"
+            info "Dry run 完成。运行 bash ccconfig/cconnect/scripts/init.sh 以应用配置。"
             ;;
         --restart)
             detect_env
@@ -306,10 +363,16 @@ main() {
         *)
             echo -e "${CYAN}"
             echo "╔══════════════════════════════════════════════════╗"
-            echo "║   ailabbot · cc-connect 多机器人管理             ║"
+            echo "║     cc-connect 多机器人管理 (cconnect)           ║"
             echo "╚══════════════════════════════════════════════════╝"
             echo "$NC"
             detect_env
+
+            # 如果 cc-connect 未安装，尝试安装
+            if [ "$HAS_CCONNECT" != "true" ]; then
+                install_cconnect_binary || exit 1
+            fi
+
             generate_toml
             setup_service
             show_status
@@ -317,9 +380,9 @@ main() {
             good "✅ 完成"
             echo ""
             echo "常用命令:"
-            echo "  bash ccconfig/ailabbot/scripts/status.sh      查看机器人状态"
-            echo "  bash ccconfig/ailabbot/scripts/bot-enable.sh   启用机器人"
-            echo "  bash ccconfig/ailabbot/scripts/bot-disable.sh  禁用机器人"
+            echo "  bash ccconfig/cconnect/scripts/status.sh      查看机器人状态"
+            echo "  bash ccconfig/cconnect/scripts/bot-enable.sh   启用机器人"
+            echo "  bash ccconfig/cconnect/scripts/bot-disable.sh  禁用机器人"
             echo "  systemctl --user status cc-connect            服务状态"
             echo "  journalctl --user -u cc-connect -f            查看日志"
             ;;

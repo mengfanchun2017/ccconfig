@@ -1,6 +1,6 @@
 #!/bin/bash
-# ccconfig/ailabbot/scripts/status.sh
-# 用法：bash ccconfig/ailabbot/scripts/status.sh
+# ccconfig/cconnect/scripts/status.sh
+# 用法：bash ccconfig/cconnect/scripts/status.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -118,7 +118,7 @@ print(f"  共 {len(bots)} 个机器人，{sum(1 for b in bots if b.get('enabled'
 PYEOF
 
 echo ""
-echo -e "${GRAY}提示: bash ccconfig/ailabbot/scripts/bot-enable.sh <名称>   启用机器人${NC}"
-echo -e "${GRAY}      bash ccconfig/ailabbot/scripts/bot-disable.sh <名称>  禁用机器人${NC}"
-echo -e "${GRAY}      bash ccconfig/ailabbot/scripts/init.sh --dry-run      预览配置${NC}"
+echo -e "${GRAY}提示: bash ccconfig/cconnect/scripts/bot-enable.sh <名称>   启用机器人${NC}"
+echo -e "${GRAY}      bash ccconfig/cconnect/scripts/bot-disable.sh <名称>  禁用机器人${NC}"
+echo -e "${GRAY}      bash ccconfig/cconnect/scripts/init.sh --dry-run      预览配置${NC}"
 echo ""
