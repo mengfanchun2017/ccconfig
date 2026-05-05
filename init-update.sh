@@ -5,8 +5,7 @@
 # 每月一键升级所有组件，可靠、幂等、可恢复。
 #
 # 升级组件：
-#   [1] ccconfig 自更新   → git pull
-#   [2] Node.js           → 最新 LTS
+#   [1] Node.js           → 最新 LTS
 #   [3] npm 全局包        → lark-cli + skills 更新
 #   [4] cc-connect        → GitHub Release
 #   [5] GitHub CLI        → GitHub Release
@@ -603,7 +602,7 @@ PYEOF
 update_skills() {
     section "Skills"
 
-    info "Skills 由 ccconfig 自更新管理（步骤 1 git pull 已更新）"
+    info "Skills 由 auto-sync 自动同步，无需额外更新"
     success "Skills 无需额外更新"
 }
 
@@ -757,7 +756,6 @@ update_all() {
         fi
     }
 
-    run_step "cconfig"  "ccconfig 自更新"   self_update "$@"
     run_step "node"     "Node.js"           update_nodejs
     run_step "lark-cli" "npm 全局包"        update_npm_globals
     run_step "cconnect" "cc-connect"        update_cconnect
@@ -820,33 +818,31 @@ show_menu() {
     echo -e "${CYAN}║      ccconfig 组件升级 v2            ║${NC}"
     echo -e "${CYAN}╚════════════════════════════════════════╝${NC}"
     echo ""
-    echo "   1) ccconfig 自更新 (git pull)"
-    echo "   2) Node.js（最新 LTS）"
-    echo "   3) npm 全局包（lark-cli）"
-    echo "   4) cc-connect（Bridge）"
-    echo "   5) GitHub CLI"
-    echo "   6) Claude Code"
-    echo "   7) uv（Python 包管理）"
-    echo "   8) MCP 缓存刷新"
-    echo "   9) Skills 索引更新"
-    echo "  10) systemd 服务重建"
-    echo "  11) ★ 一键全部升级"
+    echo "   1) Node.js（最新 LTS）"
+    echo "   2) npm 全局包（lark-cli）"
+    echo "   3) cc-connect（Bridge）"
+    echo "   4) GitHub CLI"
+    echo "   5) Claude Code"
+    echo "   6) uv（Python 包管理）"
+    echo "   7) MCP 缓存刷新"
+    echo "   8) Skills 索引更新"
+    echo "   9) systemd 服务重建"
+    echo "  10) ★ 一键全部升级"
     echo "   0) 退出"
     echo ""
-    read -p "选择 [1-11,0]: " choice
+    read -p "选择 [1-10,0]: " choice
 
     case "$choice" in
-        1)  self_update; show_menu ;;
-        2)  update_nodejs; show_menu ;;
-        3)  update_npm_globals; show_menu ;;
-        4)  update_cconnect; show_menu ;;
-        5)  update_gh; show_menu ;;
-        6)  update_claude; show_menu ;;
-        7)  update_uv; show_menu ;;
-        8)  update_mcp; show_menu ;;
-        9)  update_skills; show_menu ;;
-        10) fix_systemd_services; show_menu ;;
-        11) update_all; show_menu ;;
+        1)  update_nodejs; show_menu ;;
+        2)  update_npm_globals; show_menu ;;
+        3)  update_cconnect; show_menu ;;
+        4)  update_gh; show_menu ;;
+        5)  update_claude; show_menu ;;
+        6)  update_uv; show_menu ;;
+        7)  update_mcp; show_menu ;;
+        8)  update_skills; show_menu ;;
+        9)  fix_systemd_services; show_menu ;;
+        10) update_all; show_menu ;;
         0)  echo ""; exit 0 ;;
         *)  echo "无效选择"; show_menu ;;
     esac
@@ -862,7 +858,6 @@ case "${1:-menu}" in
         take_snapshot "pre" > /dev/null
         update_all
         ;;
-    self-update)   self_update "${@:2}" ;;
     node)          update_nodejs ;;
     npm)           update_npm_globals ;;
     cconnect)      update_cconnect ;;
@@ -874,7 +869,7 @@ case "${1:-menu}" in
     services)      fix_systemd_services ;;
     menu|"")       show_menu ;;
     *)
-        echo "用法: $0 [all|self-update|node|npm|cconnect|gh|claude|uv|mcp|skills|services|menu]"
+        echo "用法: $0 [all|node|npm|cconnect|gh|claude|uv|mcp|skills|services|menu]"
         exit 1
         ;;
 esac
