@@ -13,8 +13,7 @@ openclaw.json
 .monitor-sync.debounce
 
 # 升级快照（init-update.sh 自动生成，仅用于调试）
-conf/versions.json.pre.*
-conf/versions.json.after.*
+.snapshots/
 
 # 编辑器/工具原子写入残留
 *.tmp.*

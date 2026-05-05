@@ -68,7 +68,8 @@ take_snapshot() {
     local label="$1"
     local ts
     ts=$(date +%Y%m%d-%H%M%S)
-    local snap_file="$SCRIPT_DIR/conf/versions.json.${label}.${ts}"
+    mkdir -p "$SCRIPT_DIR/.snapshots"
+    local snap_file="$SCRIPT_DIR/.snapshots/versions.json.${label}.${ts}"
 
     # 记录 live versions
     python3 - "$snap_file" "$VERSION_FILE" << 'PYEOF'
@@ -117,7 +118,7 @@ PYEOF
 
 # 清理过期快照（保留 3 个月）
 cleanup_old_snapshots() {
-    find "$SCRIPT_DIR/conf" -name "versions.json.*" -mtime +90 -delete 2>/dev/null || true
+    find "$SCRIPT_DIR/.snapshots" -name "versions.json.*" -mtime +90 -delete 2>/dev/null || true
 }
 
 # ========== 1. ccconfig 自更新 ==========
