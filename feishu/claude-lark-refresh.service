@@ -1,0 +1,14 @@
+[Unit]
+Description=Claude Code - lark-cli token refresh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/francis/.local/bin/lark-cli auth status
+Environment=PATH=/home/francis/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=LARK_CLI_NO_PROXY=1
+Restart=no
+
+[Install]
+WantedBy=default.target
