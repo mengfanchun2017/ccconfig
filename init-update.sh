@@ -183,7 +183,7 @@ update_nodejs() {
     local FALLBACK_DOWNLOAD="https://nodejs.org/dist"
 
     # curl 通用参数
-    local CURL_OPTS="-s --connect-timeout 10 --max-time 30"
+    local CURL_OPTS="-s --connect-timeout 5 --max-time 10"
 
     # 读取版本锁定（pin 大版本号，如 "22"）
     local pin
@@ -294,26 +294,30 @@ update_npm_globals() {
 
     # lark-cli
     if command -v lark-cli &>/dev/null; then
-        local before
-        before=$(lark-cli version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+        local before latest
+        before=$(lark-cli --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
         info "lark-cli 当前: $before"
 
-        if npm update -g @larksuite/cli 2>&1 | tail -3; then
-            local after
-            after=$(lark-cli version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
-            if [ "$before" != "$after" ]; then
-                success "lark-cli: $before → $after"
-                ((updated++))
-            else
-                success "lark-cli 已是最新: $after"
-            fi
-        else
-            # 尝试重装
+        # 先用 npm registry 检查最新版本（避免盲目更新）
+        latest=$(npm view @larksuite/cli version 2>/dev/null || echo "")
+        if [ -n "$latest" ] && [ "$before" = "$latest" ]; then
+            success "lark-cli 已是最新: $latest"
+        elif ! npm update -g @larksuite/cli 2>&1 | tail -3; then
+            # update 失败，尝试重装
             if npm install -g @larksuite/cli@latest 2>&1 | tail -3; then
                 success "lark-cli 已重装"
                 ((updated++))
             else
                 warn "lark-cli 更新失败"
+            fi
+        else
+            local after
+            after=$(lark-cli --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+            if [ "$before" != "$after" ]; then
+                success "lark-cli: $before → $after"
+                ((updated++))
+            else
+                success "lark-cli 已是最新: $after"
             fi
         fi
 
@@ -376,11 +380,11 @@ update_cconnect() {
 
     # 获取最新 release
     local latest
-    latest=$(curl -s https://api.github.com/repos/chenhg5/cc-connect/releases/latest | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null || echo "")
+    latest=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/chenhg5/cc-connect/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || echo "")
 
     if [ -z "$latest" ]; then
-        warn "无法获取最新 cc-connect 版本"
-        return 1
+        warn "无法获取最新 cc-connect 版本（可能被限流），跳过"
+        return 0
     fi
 
     if [ "$current" = "$latest" ]; then
@@ -432,11 +436,11 @@ update_gh() {
     info "当前版本: $current"
 
     local latest
-    latest=$(curl -s https://api.github.com/repos/cli/cli/releases/latest | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'].lstrip('v'))" 2>/dev/null || echo "")
+    latest=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/cli/cli/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "")
 
     if [ -z "$latest" ]; then
-        warn "无法获取最新 GitHub CLI 版本"
-        return 1
+        warn "无法获取最新 GitHub CLI 版本（可能被限流），跳过"
+        return 0
     fi
 
     if [ "$current" = "$latest" ]; then
@@ -468,21 +472,30 @@ update_gh() {
 update_claude() {
     section "Claude Code"
 
-    local clean_path
-    clean_path=$(echo "$PATH" | tr ':' '\n' | grep -v '^/mnt/' | tr '\n' ':' | sed 's/:$//')
-    export PATH="$LOCAL_BIN:$clean_path"
-
     if ! command -v claude &>/dev/null; then
         warn "Claude Code 未安装，跳过"
         return 0
     fi
 
+    local clean_path
+    clean_path=$(echo "$PATH" | tr ':' '\n' | grep -v '^/mnt/' | tr '\n' ':' | sed 's/:$//')
+    export PATH="$LOCAL_BIN:$clean_path"
+
     local before
     before=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
     info "当前版本: $before"
 
-    info "正在升级..."
-    if claude install 2>&1 | tail -5; then
+    # 用 npm registry 检查最新版本（比 claude install 快，避免 download.claude.ai 超时）
+    local latest
+    info "检查最新版本..."
+    latest=$(npm view @anthropic-ai/claude-code version 2>/dev/null || echo "")
+    if [ -n "$latest" ] && [ "$before" = "$latest" ]; then
+        success "Claude Code 已是最新: $latest"
+        return 0
+    fi
+
+    info "正在升级到 ${latest:-latest}..."
+    if claude install --force 2>&1 | tail -5; then
         local after
         after=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
         if [ "$before" != "$after" ]; then
@@ -505,6 +518,13 @@ update_uv() {
         local before
         before=$(uv --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
         info "当前版本: $before"
+
+        # 30 天内已检查过则跳过（uv 更新不频繁）
+        local uv_stamp="$HOME/.local/state/uv-update-stamp"
+        if [ -f "$uv_stamp" ] && [ "$(find "$uv_stamp" -mmin -43200 2>/dev/null)" ]; then
+            info "30 天内已检查过 uv 更新，跳过（删除 $uv_stamp 强制刷新）"
+            return 0
+        fi
     else
         info "uv 未安装，正在安装..."
     fi
@@ -513,6 +533,8 @@ update_uv() {
         local after
         after=$(uv --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
         if command -v uv &>/dev/null; then
+            mkdir -p "$HOME/.local/state"
+            touch "$HOME/.local/state/uv-update-stamp"
             success "uv 已更新: $after"
         else
             warn "uv 更新失败"
@@ -528,6 +550,13 @@ update_uv() {
 
 update_mcp() {
     section "MCP 缓存刷新"
+
+    # 如果最近 24 小时内已刷新过，跳过
+    local stamp="$HOME/.npm/.mcp-cache-stamp"
+    if [ -f "$stamp" ] && [ "$(find "$stamp" -mmin -1440 2>/dev/null)" ]; then
+        info "MCP 缓存在 24 小时内已刷新，跳过（删除 $stamp 强制刷新）"
+        return 0
+    fi
 
     info "清除 npx 缓存..."
     rm -rf "$HOME/.npm/_npx" 2>/dev/null || true
@@ -565,6 +594,7 @@ for s in data.get('mcp_servers', []):
 PYEOF
     fi
 
+    touch "$stamp"
     success "MCP 缓存已刷新"
 }
 
@@ -605,7 +635,7 @@ get_live_version() {
     local comp="$1"
     case "$comp" in
         node)       node --version 2>/dev/null | tr -d 'v' || echo "?" ;;
-        lark-cli)   lark-cli version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
+        lark-cli)   lark-cli --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
         cconnect)   "$LOCAL_BIN/cc-connect" --version 2>/dev/null | grep -oP 'v?\d+\.\d+\.\d+' | head -1 || echo "?" ;;
         gh)         gh --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "?" ;;
         claude)     claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
@@ -629,9 +659,9 @@ compatibility_check() {
     local COMPAT_MIRROR="https://cdn.npmmirror.com/binaries/node/index.json"
     local COMPAT_FALLBACK="https://nodejs.org/dist/index.json"
     local compat_index
-    compat_index=$(curl -s --connect-timeout 10 --max-time 30 "$COMPAT_MIRROR" 2>/dev/null)
+    compat_index=$(curl -s --connect-timeout 5 --max-time 10 "$COMPAT_MIRROR" 2>/dev/null)
     if [ -z "$compat_index" ]; then
-        compat_index=$(curl -s --connect-timeout 10 --max-time 30 "$COMPAT_FALLBACK" 2>/dev/null)
+        compat_index=$(curl -s --connect-timeout 5 --max-time 10 "$COMPAT_FALLBACK" 2>/dev/null)
     fi
     if [ -n "$pin" ] && [ "$pin" != "latest" ]; then
         node_target=$(echo "$compat_index" | python3 -c "
@@ -671,10 +701,11 @@ for v in data:
         fi
     fi
 
+    # GitHub API 调用（有速率限制，加短超时）
     # cc-connect: 检查新版本
     local cc_current cc_latest
     cc_current=$(get_live_version "cconnect")
-    cc_latest=$(curl -s https://api.github.com/repos/chenhg5/cc-connect/releases/latest | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'].lstrip('v'))" 2>/dev/null || echo "")
+    cc_latest=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/chenhg5/cc-connect/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "")
     if [ -n "$cc_current" ] && [ -n "$cc_latest" ] && [ "$cc_current" != "$cc_latest" ]; then
         info "cc-connect: $cc_current → $cc_latest"
     fi
@@ -682,7 +713,7 @@ for v in data:
     # gh: 检查新版本
     local gh_current gh_latest
     gh_current=$(get_live_version "gh")
-    gh_latest=$(curl -s https://api.github.com/repos/cli/cli/releases/latest | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'].lstrip('v'))" 2>/dev/null || echo "")
+    gh_latest=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/cli/cli/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "")
     if [ -n "$gh_current" ] && [ -n "$gh_latest" ] && [ "$gh_current" != "$gh_latest" ]; then
         info "GitHub CLI: $gh_current → v$gh_latest"
     fi
@@ -716,11 +747,13 @@ update_all() {
         echo ""
         if "$@"; then
             results+=("${GREEN}✅${NC} $desc")
-            after_ver[$comp_key]=$(get_live_version "$comp_key")
         else
             results+=("${RED}❌${NC} $desc")
-            after_ver[$comp_key]=$(get_live_version "$comp_key")
             overall_status=1
+        fi
+        # 只对有 comp_key 的步骤记录版本（MCP/Skills/systemd 没有版本号）
+        if [ -n "$comp_key" ]; then
+            after_ver[$comp_key]=$(get_live_version "$comp_key")
         fi
     }
 
