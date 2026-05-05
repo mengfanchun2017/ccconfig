@@ -36,12 +36,18 @@ save_version() {
     local component="$1"
     local new_version="$2"
     python3 - "$_VERSION_FILE" "$component" "$new_version" << 'PYEOF'
-import json, sys, os
+import json, sys
 try:
     with open(sys.argv[1]) as f:
         data = json.load(f)
     data.setdefault('components', {})
-    data['components'][sys.argv[2]] = {'version': sys.argv[3]}
+    # 保留已有字段，只更新 version
+    existing = data['components'].get(sys.argv[2], {})
+    if isinstance(existing, dict):
+        existing['version'] = sys.argv[3]
+    else:
+        existing = {'version': sys.argv[3]}
+    data['components'][sys.argv[2]] = existing
     data['last_checked'] = __import__('datetime').datetime.now().astimezone().isoformat()
     with open(sys.argv[1], 'w') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
@@ -54,6 +60,19 @@ PYEOF
 
 get_node_version() {
     get_version "node"
+}
+
+get_node_pin() {
+    python3 - "$_VERSION_FILE" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        data = json.load(f)
+    pin = data.get('components', {}).get('node', {}).get('pin', '')
+    print(pin)
+except:
+    print('')
+PYEOF
 }
 
 get_gh_version() {
