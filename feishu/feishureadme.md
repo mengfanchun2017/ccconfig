@@ -30,6 +30,18 @@ ccconfig/cconnect/conf/bots.json   ← 单一配置源（所有机器人）
   └── 笔记本: → 仅生成 TOML，跳过服务管理
 ```
 
+## lark-cli 授权持久化
+
+lark-cli 使用 OAuth Device Flow 授权，access_token 2小时过期，refresh_token 7天过期。systemd timer 每 5 天自动刷新，避免过期后需浏览器重新授权。
+
+```bash
+systemctl --user status claude-lark-refresh.timer  # 查看定时器
+systemctl --user start claude-lark-refresh.service  # 手动刷新
+journalctl --user -u claude-lark-refresh.service    # 查看刷新日志
+```
+
+定时器文件：`ccconfig/feishu/claude-lark-refresh.{service,timer}`
+
 ## 配置
 
 - `cconnect/conf/bots.json` — 所有机器人配置（名称、App ID/Secret、工作目录、权限、频率限制）
