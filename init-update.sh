@@ -785,6 +785,10 @@ update_all() {
         local name="${names[$i]}"
         local b="${before_ver[$key]:-?}"
         local a="${after_ver[$key]:-?}"
+        # 跳过未安装的组件（前后都是 ?）
+        if [ "$b" = "?" ] && [ "$a" = "?" ]; then
+            continue
+        fi
         local status="─"
         if [ "$b" != "$a" ] && [ "$a" != "?" ] && [ "$b" != "?" ]; then
             status="${GREEN}↑${NC}"
