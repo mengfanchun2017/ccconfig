@@ -174,7 +174,7 @@ start_watch() {
     local min_push_gap=60
 
     setsid inotifywait -m -r -q \
-        --exclude '\.git/' \
+        --exclude '(\.git/|\.snapshots/)' \
         -e modify,create,delete,move \
         "$watch_dir" 2>/dev/null | while IFS= read -r line; do
             # Skip events not under REPO_DIR
@@ -185,6 +185,14 @@ start_watch() {
             # Skip sync-internal files to avoid feedback loop
             case "$line" in
                 *".monitor-sync.log"*|*".monitor-sync.debounce"*|*".monitor-sync.pid"*) continue ;;
+            esac
+            # Skip transient temp files (editor atomic writes: write .tmp → rename)
+            case "$line" in
+                *".tmp."*) continue ;;
+            esac
+            # Skip snapshot files (init-update.sh pre/post versions, gitignored)
+            case "$line" in
+                *".snapshots/"*) continue ;;
             esac
 
             echo "[$(date '+%H:%M:%S')] $line" >> "$LOG_FILE"
@@ -379,7 +387,7 @@ run_monitor() {
     echo ""
 
     inotifywait -m -r -q \
-        --exclude '\.git/|node_modules/|\.log$|\.monitor-sync\.|\.auto-sync\.|\.tmp$|\.swp$|\.tmp' \
+        --exclude '\.git/|\.snapshots/|node_modules/|\.log$|\.monitor-sync\.|\.auto-sync\.|\.tmp$|\.swp$|\.tmp' \
         -e modify,create,delete,move \
         "$REPO_DIR" 2>/dev/null | while read -r path action file; do
             echo -e "${CYAN}[$(date '+%H:%M:%S')]${NC} ${YELLOW}$action${NC} $path$file"

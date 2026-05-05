@@ -775,27 +775,33 @@ update_all() {
     section "升级总结"
     echo ""
 
-    # 版本对比表
-    printf "  %-16s %-16s %-16s %s\n" "组件" "升级前" "升级后" "状态"
-    printf "  %-16s %-16s %-16s %s\n" "────" "──────" "──────" "────"
-
+    # 版本对比：只显示有变化的组件
+    local changed=0
     local labels=( "node" "lark-cli" "cconnect" "gh" "claude" "uv" )
     local names=( "Node.js" "lark-cli" "cc-connect" "GitHub CLI" "Claude Code" "uv" )
     for i in "${!labels[@]}"; do
         local key="${labels[$i]}"
-        local name="${names[$i]}"
         local b="${before_ver[$key]:-?}"
         local a="${after_ver[$key]:-?}"
-        # 跳过未安装的组件（前后都是 ?）
+        # 跳过未安装的
         if [ "$b" = "?" ] && [ "$a" = "?" ]; then
             continue
         fi
-        local status="─"
         if [ "$b" != "$a" ] && [ "$a" != "?" ] && [ "$b" != "?" ]; then
-            status="${GREEN}↑${NC}"
+            if [ $changed -eq 0 ]; then
+                echo ""
+                printf "  %-16s %-16s %-16s %s\n" "组件" "升级前" "升级后" "状态"
+                printf "  %-16s %-16s %-16s %s\n" "────" "──────" "──────" "────"
+            fi
+            local name="${names[$i]}"
+            printf "  %-16s %-16s %-16s %b\n" "$name" "v$b" "v$a" "${GREEN}↑${NC}"
+            ((changed++))
         fi
-        printf "  %-16s %-16s %-16s %b\n" "$name" "v$b" "v$a" "$status"
     done
+    if [ $changed -eq 0 ]; then
+        echo ""
+        success "所有组件已是最新"
+    fi
 
     echo ""
     for r in "${results[@]}"; do
