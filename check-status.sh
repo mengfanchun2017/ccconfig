@@ -261,6 +261,14 @@ check_feishu() {
         else
             echo -e "${YELLOW}○${NC} (未运行)"
         fi
+        # ailabbot 机器人数量
+        local bots_json="$REPO_DIR/ailabbot/conf/bots.json"
+        if [ -f "$bots_json" ]; then
+            local total enabled_count
+            total=$(python3 -c "import json; d=json.load(open('$bots_json')); print(len(d.get('bots',[])))" 2>/dev/null || echo "?")
+            enabled_count=$(python3 -c "import json; d=json.load(open('$bots_json')); print(sum(1 for b in d.get('bots',[]) if b.get('enabled')))" 2>/dev/null || echo "?")
+            echo -e "  机器人: ${enabled_count}/${total} 启用 (ailabbot)"
+        fi
     else
         echo -e "${GRAY}－${NC} (未安装，cconnectinit.sh 单独管理)"
     fi
@@ -280,6 +288,3 @@ check_feishu
 check_mcp
 
 echo ""
-test
-test
-test
