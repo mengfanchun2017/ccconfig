@@ -15,37 +15,47 @@ ccconfig/
 ├── init-update.sh            # ★ 月度升级（9组件一键更新）
 │
 ├── lib/                      # 共享库
-│   └── path-helper.sh        # 动态路径解析（find_node_bin）
+│   └── path-helper.sh        # 动态路径解析（find_node_bin 4级回退）
 │
-├── sync-monitor.sh           # 文件监控 + 自动 Git 同步
+├── sync-monitor.sh           # 文件监控 + 自动 Git 同步（120s 防抖）
 ├── sync-pullff.sh            # 强制拉取远程覆盖本地
 ├── check-status.sh           # 状态检查（SessionStart hook 调用）
 ├── fix-wsl-interop.sh        # WSL interop 修复
 │
-├── conf/                     # 配置文件
+├── conf/                     # 配置文件（唯一来源）
 │   ├── versions.json         # 版本单一真相源（Node/gh/cc-connect）
 │   ├── claude.json           # MCP + API Key
 │   ├── feishu.json           # 飞书 + cc-connect
 │   ├── llm.json              # LLM 多后端配置
 │   └── ubuntu.json           # Git 用户信息
 │
+├── .snapshots/               # 升级前后版本快照（gitignored，保留3个月）
+│
 ├── feishu/                   # 飞书集成
-│   ├── feishureadme.md
+│   ├── feishureadme.md       # 说明 + 架构
 │   ├── init-feishu.sh        # lark-cli 安装配置
-│   ├── init-cconnect.sh      # cc-connect Bridge
-│   └── cc-connect.service    # systemd 服务模板
+│   ├── claude-lark-refresh.service  # lark-cli token 自动刷新
+│   └── claude-lark-refresh.timer    # 每5天触发一次刷新
+│
+├── cconnect/                 # cc-connect Bridge
+│   ├── init-cconnect.sh      # 多机器人飞书桥接配置
+│   ├── status.sh             # 机器人状态
+│   ├── bot-enable.sh         # 启用机器人
+│   ├── bot-disable.sh        # 禁用机器人
+│   ├── conf/bots.json        # 机器人配置（App ID/Secret/权限）
+│   └── README.md
 │
 ├── remote/                   # 远程连接
-│   ├── remotereadme.md       # 总览 + 方案对比 + 初始化步骤
-│   ├── remote-ub-sshd.sh     # Ubuntu: SSH Server
-│   ├── remote-ps-portforward.ps1  # PowerShell: 端口转发
-│   ├── soft-tmux.conf        # 方案A: tmux
-│   ├── soft-tmux-profile.ps1 # 方案A: Win Terminal 一键连接
-│   └── soft-easytier.ps1     # 方案B: EasyTier P2P
+│   ├── readme.md             # 总览 + 方案对比 + 初始化步骤
+│   ├── deploy.sh             # 一键部署
+│   ├── server/               # 台式机端（SSH Server + tmux）
+│   └── client/               # 笔记本端（Tailscale 连接）
+│
+├── archive/                  # 历史文件（不再使用）
 │
 ├── link/                     # 符号链接源 → ~/.claude/
 │   ├── settings.json         # 权限 + MCP + hooks
-│   ├── config.json           # env + 状态
+│   ├── .config.json          # env + 状态
 │   ├── CLAUDE.md             # AI 行为指南
 │   ├── agents/               # Claude Code agents
 │   ├── skills/               # 全部 skills
@@ -84,27 +94,32 @@ bash ccconfig/init-update.sh all      # ★ 一键升级全部组件
 bash ccconfig/init-update.sh node     # 仅升级 Node.js
 ```
 
-升级组件（严格顺序）：
+升级组件（9组件，严格顺序）：
 
-| 步骤 | 组件 | 检查方式 |
-|------|------|---------|
-| 1 | **cconfig** 自身 | `git pull`，自身变更则 re-exec |
-| 2 | **Node.js** | nodejs.org 最新 LTS |
-| 3 | **lark-cli** | `npm update -g @larksuite/cli` |
-| 4 | **cc-connect** | GitHub Release API |
-| 5 | **GitHub CLI** | GitHub Release API |
-| 6 | **Claude Code** | `claude install` |
-| 7 | **uv** | `curl \| sh` |
-| 8 | **MCP 缓存** | 清 npx 缓存 + 预拉取包 |
-| 9 | **Skills 索引** | `npx skills update` |
-| 10 | **systemd 服务** | 用新 Node 路径重建 |
+| 步骤 | 组件 | 检查/升级方式 |
+|------|------|-------------|
+| 1 | **Node.js** | 镜像下载（cdn.npmmirror.com），pin 锁大版本，回退官方源 |
+| 2 | **npm 全局包** | `npm view` 查版本 → 匹配则跳过，不盲目更新 |
+| 3 | **cc-connect** | GitHub Release API（超时 10s） |
+| 4 | **GitHub CLI** | GitHub Release API（超时 10s，限流则跳过） |
+| 5 | **Claude Code** | `npm view` 查版本 → 匹配则跳过，需更新时 `claude install --force` |
+| 6 | **uv** | `curl \| sh` 安装器（30天缓存，不频繁检查） |
+| 7 | **MCP 缓存** | 清除 npx 缓存 + 预拉取包（24h 缓存） |
+| 8 | **Skills** | 由 auto-sync 自动同步，无需额外更新 |
+| 9 | **systemd 服务** | 用新 Node 路径重建 cc-connect.service |
 
-附加功能：升级前自动 `git pull` ccconfig、前后快照对比、锁文件防并发、旧 Node 目录清理、快照保留 3 个月。
+**设计原则**:
+- **幂等**: 每个步骤先检查版本，已是最新则跳过
+- **容错**: Node.js 镜像优先（国内 6s 下完 55MB），不可用自动回退官方源，下载后验证 gzip 合法性
+- **快照**: 升级前后版本记录到 `.snapshots/`，保留 3 个月
+- **缓存**: MCP 24h、uv 30天 内不重复检查，避免无意义网络请求
+- **防并发**: `/tmp/ccconfig-update.lock` 锁文件
 
 ### 版本管理
 
-- `conf/versions.json` — 所有组件版本单一真相源，升级后自动更新
-- `lib/path-helper.sh` — `find_node_bin()` 4级回退发现 Node 路径，所有脚本通过它获取 Node 路径，不再硬编码
+- `conf/versions.json` — 所有组件版本单一真相源（`pin` 字段锁 Node 大版本）
+- `lib/path-helper.sh` — `find_node_bin()` 4级回退发现 Node 路径，所有脚本不再硬编码版本号
+- **注意**: ccconfig 自身的 git 同步由 `sync-monitor.sh` 负责，升级脚本不再做 git pull
 
 ## 日常命令
 
@@ -140,7 +155,12 @@ cd ~/git/ccconfig
 ./sync-monitor.sh tail      # 实时跟踪
 ```
 
+**同步流程**: `watch → 120s debounce → commit → pull --ff (120s 超时) → push (60s 超时)`
+
+**过滤规则**: `.git/`、`.snapshots/`、`*.tmp.*`、sync 自身日志文件均不入库、不触发推送。
+
 ## 子模块 README
 
 - [飞书集成](feishu/feishureadme.md)
-- [远程连接](remote/remotereadme.md)
+- [远程连接](remote/readme.md)
+- [cc-connect Bridge](cconnect/README.md)
