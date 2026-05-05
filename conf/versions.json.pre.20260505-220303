@@ -1,0 +1,46 @@
+{
+  "snapshot_time": "2026-05-05T22:03:03.900166+08:00",
+  "components": {
+    "node": {
+      "version": "v22.22.2"
+    },
+    "npm": {
+      "version": "10.9.7"
+    },
+    "gh": {
+      "version": "gh version 2.92.0 (2026-04-28)"
+    },
+    "claude": {
+      "version": "2.1.128 (Claude Code)"
+    },
+    "uv": {
+      "version": "uv 0.11.9 (x86_64-unknown-linux-gnu)"
+    },
+    "lark_cli": {
+      "version": ""
+    },
+    "cc_connect": {
+      "version": "not_installed"
+    }
+  },
+  "pinned_versions": {
+    "node": {
+      "version": "22.22.2",
+      "pin": "22",
+      "install_dir_template": "node-v{VERSION}-linux-x64",
+      "install_base": "~/.local",
+      "check_url": "https://nodejs.org/dist/index.json",
+      "download_url_template": "https://nodejs.org/dist/v{VERSION}/node-v{VERSION}-linux-x64.tar.gz",
+      "lts_only": true
+    },
+    "gh": {
+      "version": "2.92.0"
+    },
+    "cc_connect": {
+      "version": "1.3.2",
+      "repo": "chenhg5/cc-connect",
+      "download_url_template": "https://github.com/chenhg5/cc-connect/releases/download/v{VERSION}/cc-connect-v{VERSION}-linux-amd64.tar.gz",
+      "binary_name": "cc-connect"
+    }
+  }
+}
