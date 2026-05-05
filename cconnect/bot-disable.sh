@@ -1,13 +1,13 @@
 #!/bin/bash
-# ccconfig/cconnect/scripts/bot-disable.sh
+# ccconfig/cconnect/bot-disable.sh
 # 功能：禁用指定机器人
-# 用法：bash ccconfig/cconnect/scripts/bot-disable.sh <bot_name>
-#       bash ccconfig/cconnect/scripts/bot-disable.sh --list  列出已启用的机器人
+# 用法：bash ccconfig/cconnect/bot-disable.sh <bot_name>
+#       bash ccconfig/cconnect/bot-disable.sh --list  列出已启用的机器人
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="$SCRIPT_DIR"
 BOTS_JSON="$PROJECT_DIR/conf/bots.json"
 
 RED='\033[0;31m'
@@ -36,7 +36,7 @@ else:
         print(f"  ✅ {bot['name']}: {bot.get('description', '')}")
 PYEOF
     echo ""
-    echo "用法: bash ccconfig/cconnect/scripts/bot-disable.sh <bot_name>"
+    echo "用法: bash ccconfig/cconnect/bot-disable.sh <bot_name>"
     exit 0
 fi
 
@@ -84,4 +84,4 @@ esac
 # 重新生成配置并重启
 echo ""
 echo -e "${CYAN}重新生成配置并重启 cc-connect ...${NC}"
-bash "$PROJECT_DIR/scripts/init.sh"
+bash "$PROJECT_DIR/init-cconnect.sh"

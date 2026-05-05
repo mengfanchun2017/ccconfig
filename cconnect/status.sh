@@ -1,9 +1,9 @@
 #!/bin/bash
-# ccconfig/cconnect/scripts/status.sh
-# 用法：bash ccconfig/cconnect/scripts/status.sh
+# ccconfig/cconnect/status.sh
+# 用法：bash ccconfig/cconnect/status.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="$SCRIPT_DIR"
 BOTS_JSON="$PROJECT_DIR/conf/bots.json"
 
 RED='\033[0;31m'
@@ -118,7 +118,7 @@ print(f"  共 {len(bots)} 个机器人，{sum(1 for b in bots if b.get('enabled'
 PYEOF
 
 echo ""
-echo -e "${GRAY}提示: bash ccconfig/cconnect/scripts/bot-enable.sh <名称>   启用机器人${NC}"
-echo -e "${GRAY}      bash ccconfig/cconnect/scripts/bot-disable.sh <名称>  禁用机器人${NC}"
-echo -e "${GRAY}      bash ccconfig/cconnect/scripts/init.sh --dry-run      预览配置${NC}"
+echo -e "${GRAY}提示: bash ccconfig/cconnect/bot-enable.sh <名称>   启用机器人${NC}"
+echo -e "${GRAY}      bash ccconfig/cconnect/bot-disable.sh <名称>  禁用机器人${NC}"
+echo -e "${GRAY}      bash ccconfig/cconnect/init-cconnect.sh --dry-run      预览配置${NC}"
 echo ""

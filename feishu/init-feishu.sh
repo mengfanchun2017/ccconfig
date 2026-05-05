@@ -275,7 +275,7 @@ main() {
     title "✅ 飞书初始化完成"
     echo ""
     echo "提示："
-    echo "- cc-connect (Bridge WebSocket) 配置: bash ccconfig/feishu/init-cconnect.sh"
+    echo "- cc-connect (Bridge WebSocket) 配置: bash ccconfig/cconnect/init-cconnect.sh"
     echo ""
 }
 

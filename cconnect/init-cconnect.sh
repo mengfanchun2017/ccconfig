@@ -1,17 +1,17 @@
 #!/bin/bash
-# ccconfig/cconnect/scripts/init.sh
+# ccconfig/cconnect/init-cconnect.sh
 # 功能：安装 cc-connect 二进制 → 从 bots.json 生成 config.toml → 管理 systemd 服务
 # 自动检测环境：有 cc-connect 二进制 → 完整配置；没有 → 自动下载安装
 # 用法：
-#   bash ccconfig/cconnect/scripts/init.sh              # 完整安装+配置+启动
-#   bash ccconfig/cconnect/scripts/init.sh --dry-run    # 仅生成配置，不操作服务
-#   bash ccconfig/cconnect/scripts/init.sh --restart    # 仅重启服务，不重新生成
+#   bash ccconfig/cconnect/init-cconnect.sh              # 完整安装+配置+启动
+#   bash ccconfig/cconnect/init-cconnect.sh --dry-run    # 仅生成配置，不操作服务
+#   bash ccconfig/cconnect/init-cconnect.sh --restart    # 仅重启服务，不重新生成
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-source "$SCRIPT_DIR/../../lib/path-helper.sh"
+PROJECT_DIR="$SCRIPT_DIR"
+source "$SCRIPT_DIR/../lib/path-helper.sh"
 BOTS_JSON="$PROJECT_DIR/conf/bots.json"
 CC_CONNECT_VERSION=$(get_cconnect_version)
 CC_CONNECT_BIN="$HOME/.local/bin/cc-connect"
@@ -165,7 +165,7 @@ bots = data.get('bots', [])
 lines = []
 lines.append('# ╔══════════════════════════════════════════════════╗')
 lines.append('# ║  cc-connect 多机器人配置                          ║')
-lines.append('# ║  由 ccconfig/cconnect/scripts/init.sh 自动生成    ║')
+lines.append('# ║  由 ccconfig/cconnect/init-cconnect.sh 自动生成   ║')
 lines.append('# ║  修改机器人: 编辑 ccconfig/cconnect/conf/bots.json ║')
 lines.append('# ╚══════════════════════════════════════════════════╝')
 lines.append('')
@@ -274,7 +274,7 @@ setup_service() {
 
     if [ "$HAS_CCONNECT" != "true" ]; then
         warn "○ cc-connect 未安装 — 跳过服务配置"
-        info "  运行 bash ccconfig/cconnect/scripts/init.sh 安装并配置 cc-connect"
+        info "  运行 bash ccconfig/cconnect/init-cconnect.sh 安装并配置 cc-connect"
         return 0
     fi
 
@@ -341,7 +341,7 @@ show_status() {
     fi
 
     echo ""
-    bash "$PROJECT_DIR/scripts/status.sh"
+    bash "$PROJECT_DIR/status.sh"
 }
 
 # ========== 主程序 ==========
@@ -353,7 +353,7 @@ main() {
             detect_env
             generate_toml
             echo ""
-            info "Dry run 完成。运行 bash ccconfig/cconnect/scripts/init.sh 以应用配置。"
+            info "Dry run 完成。运行 bash ccconfig/cconnect/init-cconnect.sh 以应用配置。"
             ;;
         --restart)
             detect_env
@@ -380,11 +380,11 @@ main() {
             good "✅ 完成"
             echo ""
             echo "常用命令:"
-            echo "  bash ccconfig/cconnect/scripts/status.sh      查看机器人状态"
-            echo "  bash ccconfig/cconnect/scripts/bot-enable.sh   启用机器人"
-            echo "  bash ccconfig/cconnect/scripts/bot-disable.sh  禁用机器人"
-            echo "  systemctl --user status cc-connect            服务状态"
-            echo "  journalctl --user -u cc-connect -f            查看日志"
+            echo "  bash ccconfig/cconnect/status.sh               查看机器人状态"
+            echo "  bash ccconfig/cconnect/bot-enable.sh <名称>     启用机器人"
+            echo "  bash ccconfig/cconnect/bot-disable.sh <名称>    禁用机器人"
+            echo "  systemctl --user status cc-connect             服务状态"
+            echo "  journalctl --user -u cc-connect -f             查看日志"
             ;;
     esac
 }

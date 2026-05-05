@@ -7,7 +7,7 @@
 ```
 cconfig/cconnect/conf/bots.json   ← 单一配置源（所有机器人）
   │
-  ↓  scripts/init.sh（自动检测环境 → 安装二进制 → 生成 TOML → systemd）
+  ↓  init-cconnect.sh（自动检测环境 → 安装二进制 → 生成 TOML → systemd）
   │
   ├── 台式机: → ~/cc-connect/config.toml → systemd restart
   └── 笔记本: → 仅生成 TOML，跳过服务管理
@@ -17,20 +17,20 @@ cconfig/cconnect/conf/bots.json   ← 单一配置源（所有机器人）
 
 ```bash
 # 查看所有机器人状态（任何机器）
-bash ccconfig/cconnect/scripts/status.sh
+bash ccconfig/cconnect/status.sh
 
 # 台式机：安装二进制 + 生成配置 + 启动服务
-bash ccconfig/cconnect/scripts/init.sh
+bash ccconfig/cconnect/init-cconnect.sh
 
 # 笔记本/预览：仅生成，不动服务
-bash ccconfig/cconnect/scripts/init.sh --dry-run
+bash ccconfig/cconnect/init-cconnect.sh --dry-run
 ```
 
 ## 管理机器人
 
 ```bash
-bash ccconfig/cconnect/scripts/bot-enable.sh <名称>    # 启用
-bash ccconfig/cconnect/scripts/bot-disable.sh <名称>   # 禁用
+bash ccconfig/cconnect/bot-enable.sh <名称>    # 启用
+bash ccconfig/cconnect/bot-disable.sh <名称>   # 禁用
 ```
 
 修改机器人配置：编辑 `ccconfig/cconnect/conf/bots.json`，提交后 auto-sync 自动同步到所有机器。

@@ -78,16 +78,16 @@ submenu_feishu() {
     echo ""
     echo -e "${CYAN}── 飞书集成 ──${NC}"
     echo "  1) lark-cli 安装配置     (feishu/init-feishu.sh)"
-    echo "  2) cc-connect Bridge     (feishu/init-cconnect.sh)"
+    echo "  2) cc-connect Bridge     (cconnect/init-cconnect.sh)"
     echo "  3) ★ 一键全部"
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-3,0]: " c
     case "$c" in
         1) run_step "lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   false ;;
-        2) run_step "cc-connect" "$SCRIPT_DIR/feishu/init-cconnect.sh" false ;;
+        2) run_step "cc-connect" "$SCRIPT_DIR/cconnect/init-cconnect.sh" false ;;
         3) run_step "lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   true
-           run_step "cc-connect" "$SCRIPT_DIR/feishu/init-cconnect.sh" true ;;
+           run_step "cc-connect" "$SCRIPT_DIR/cconnect/init-cconnect.sh" true ;;
     esac
 }
 
@@ -216,7 +216,7 @@ main_menu() {
             run_step "1/6 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
             run_step "2/6 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
             run_step "3/6 飞书 lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   true
-            run_step "4/6 cc-connect"      "$SCRIPT_DIR/feishu/init-cconnect.sh" true
+            run_step "4/6 cc-connect"      "$SCRIPT_DIR/cconnect/init-cconnect.sh" true
             run_step "5/6 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
             run_step "6/6 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
             echo ""
@@ -240,7 +240,7 @@ case "${1:-menu}" in
         run_step "1/6 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
         run_step "2/6 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
         run_step "3/6 飞书 lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   true
-        run_step "4/6 cc-connect"      "$SCRIPT_DIR/feishu/init-cconnect.sh" true
+        run_step "4/6 cc-connect"      "$SCRIPT_DIR/cconnect/init-cconnect.sh" true
         run_step "5/6 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
         run_step "6/6 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
         echo ""
