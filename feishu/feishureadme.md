@@ -7,7 +7,7 @@
 | 组件 | 脚本 | 用途 |
 |------|------|------|
 | lark-cli | `init-feishu.sh` | 终端创建文档/日历/任务 |
-| cc-connect | `init-cconnect.sh` → `cconfig/cconnect/scripts/init.sh` | Bridge 接收飞书消息（WebSocket，多机器人） |
+| cc-connect | `init-cconnect.sh` | Bridge 接收飞书消息（WebSocket，多机器人） |
 
 ## 快速开始
 
@@ -16,7 +16,7 @@
 bash ccconfig/feishu/init-feishu.sh
 
 # 配置 cc-connect Bridge（多机器人飞书桥接）
-bash ccconfig/cconnect/scripts/init.sh
+bash ccconfig/cconnect/init-cconnect.sh
 ```
 
 ## 多机器人架构
@@ -35,7 +35,7 @@ ccconfig/cconnect/conf/bots.json   ← 单一配置源（所有机器人）
 - `cconnect/conf/bots.json` — 所有机器人配置（名称、App ID/Secret、工作目录、权限、频率限制）
 - `conf/feishu.json` — lark-cli 凭证
 
-修改 bots.json 后运行 `bash ccconfig/cconnect/scripts/init.sh` 使配置生效。
+修改 bots.json 后运行 `bash ccconfig/cconnect/init-cconnect.sh` 使配置生效。
 
 ## cc-connect 常用命令
 
@@ -43,12 +43,12 @@ ccconfig/cconnect/conf/bots.json   ← 单一配置源（所有机器人）
 systemctl --user status cc-connect         # 查看状态
 systemctl --user restart cc-connect        # 重启
 journalctl --user -u cc-connect -f          # 查看日志
-bash ccconfig/cconnect/scripts/init.sh      # 重新配置
-bash ccconfig/cconnect/scripts/status.sh    # 机器人状态
+bash ccconfig/cconnect/init-cconnect.sh      # 重新配置
+bash ccconfig/cconnect/status.sh            # 机器人状态
 ```
 
 ## 添加新机器人
 
 1. 飞书开放平台创建企业自建应用（机器人 + 长连接）
 2. 编辑 `cconnect/conf/bots.json` → `bots[]` 新增
-3. 运行 `bash ccconfig/cconnect/scripts/init.sh`
+3. 运行 `bash ccconfig/cconnect/init-cconnect.sh`
