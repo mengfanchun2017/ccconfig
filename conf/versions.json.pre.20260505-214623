@@ -1,7 +1,29 @@
 {
-  "description": "Single source of truth for all component versions managed by ccconfig. Edit this file to pin versions.",
-  "last_checked": "2026-05-05T21:25:03.284498+08:00",
+  "snapshot_time": "2026-05-05T21:46:23.971782+08:00",
   "components": {
+    "node": {
+      "version": "v22.22.2"
+    },
+    "npm": {
+      "version": "10.9.7"
+    },
+    "gh": {
+      "version": "gh version 2.92.0 (2026-04-28)"
+    },
+    "claude": {
+      "version": "2.1.128 (Claude Code)"
+    },
+    "uv": {
+      "version": ""
+    },
+    "lark_cli": {
+      "version": ""
+    },
+    "cc_connect": {
+      "version": "not_installed"
+    }
+  },
+  "pinned_versions": {
     "node": {
       "version": "22.22.2",
       "pin": "22",
@@ -20,6 +42,5 @@
       "download_url_template": "https://github.com/chenhg5/cc-connect/releases/download/v{VERSION}/cc-connect-v{VERSION}-linux-amd64.tar.gz",
       "binary_name": "cc-connect"
     }
-  },
-  "_note": "init-update.sh reads and writes this file. Other scripts read via path-helper.sh."
+  }
 }

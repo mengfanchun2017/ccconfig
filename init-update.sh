@@ -176,9 +176,45 @@ update_nodejs() {
     current=$(node --version 2>/dev/null | tr -d 'v' || echo "0")
     info "当前版本: v$current"
 
-    # 获取最新 LTS
-    local latest
-    latest=$(curl -s https://nodejs.org/dist/index.json | python3 -c "
+    # 国内镜像（阿里云 CDN，比 nodejs.org 快 10x+）
+    local MIRROR_INDEX="https://cdn.npmmirror.com/binaries/node/index.json"
+    local MIRROR_DOWNLOAD="https://cdn.npmmirror.com/binaries/node"
+    local FALLBACK_INDEX="https://nodejs.org/dist/index.json"
+    local FALLBACK_DOWNLOAD="https://nodejs.org/dist"
+
+    # curl 通用参数
+    local CURL_OPTS="-s --connect-timeout 10 --max-time 30"
+
+    # 读取版本锁定（pin 大版本号，如 "22"）
+    local pin
+    pin=$(get_node_pin)
+
+    # 获取 index.json（优先镜像）
+    local index_json
+    index_json=$(curl $CURL_OPTS "$MIRROR_INDEX" 2>/dev/null)
+    if [ -z "$index_json" ]; then
+        info "镜像不可用，回退到 nodejs.org..."
+        index_json=$(curl $CURL_OPTS "$FALLBACK_INDEX" 2>/dev/null)
+    fi
+
+    # 获取目标 LTS 版本
+    local target
+    if [ -n "$pin" ] && [ "$pin" != "latest" ]; then
+        # 锁定大版本：取该大版本下的最新 LTS
+        info "版本锁定: v${pin}.x（编辑 conf/versions.json node.pin 修改）"
+        target=$(echo "$index_json" | python3 -c "
+import json,sys
+pin='$pin'
+data=json.load(sys.stdin)
+for v in data:
+    vn=v['version'].lstrip('v')
+    if vn.startswith(pin+'.') and v.get('lts'):
+        print(vn)
+        break
+" 2>/dev/null || echo "")
+    else
+        # 默认：最新 LTS
+        target=$(echo "$index_json" | python3 -c "
 import json,sys
 data=json.load(sys.stdin)
 for v in data:
@@ -186,32 +222,45 @@ for v in data:
         print(v['version'].lstrip('v'))
         break
 " 2>/dev/null || echo "")
+    fi
 
-    if [ -z "$latest" ]; then
-        warn "无法获取最新 Node.js 版本"
+    if [ -z "$target" ]; then
+        warn "无法获取目标 Node.js 版本"
         return 1
     fi
 
-    if [ "$current" = "$latest" ]; then
-        success "Node.js 已是最新 LTS: v$latest"
+    if [ "$current" = "$target" ]; then
+        success "Node.js 已是最新: v$target"
         return 0
     fi
 
-    info "最新 LTS: v$latest, 正在升级..."
+    info "目标版本: v$target, 正在下载..."
 
-    local url="https://nodejs.org/dist/v${latest}/node-v${latest}-linux-x64.tar.gz"
-    if ! curl -fsSL "$url" -o /tmp/node-update.tar.gz; then
-        err "下载失败: $url"
+    # 下载（镜像优先，超时降级到官方源）
+    local url="$MIRROR_DOWNLOAD/v${target}/node-v${target}-linux-x64.tar.gz"
+    local fallback_url="$FALLBACK_DOWNLOAD/v${target}/node-v${target}-linux-x64.tar.gz"
+    info "下载: $url"
+    if ! curl -fsSL --connect-timeout 10 --max-time 120 --retry 2 "$url" -o /tmp/node-update.tar.gz 2>&1; then
+        info "镜像下载失败，尝试 nodejs.org..."
+        if ! curl -fsSL --connect-timeout 10 --max-time 300 --retry 2 "$fallback_url" -o /tmp/node-update.tar.gz 2>&1; then
+            err "下载失败（镜像和官方源均不可用）"
+            return 1
+        fi
+    fi
+    # 验证下载的是有效的 tar.gz（防止 CDN 返回 HTML 错误页）
+    if [ ! -s /tmp/node-update.tar.gz ] || ! file /tmp/node-update.tar.gz | grep -q "gzip compressed"; then
+        err "下载的文件不是有效的 tar.gz（可能是 HTML 错误页）"
+        rm -f /tmp/node-update.tar.gz
         return 1
     fi
 
     local old_node_dir
-    old_node_dir=$(dirname "$(dirname "$(find_node_bin)")")
+    old_node_dir=$(dirname "$(find_node_bin)")
 
     tar -xzf /tmp/node-update.tar.gz -C "$HOME/.local/"
     rm -f /tmp/node-update.tar.gz
 
-    local new_node_dir="$HOME/.local/node-v${latest}-linux-x64"
+    local new_node_dir="$HOME/.local/node-v${target}-linux-x64"
     if [ ! -d "$new_node_dir" ]; then
         err "解压失败，未找到 $new_node_dir"
         return 1
@@ -220,8 +269,8 @@ for v in data:
     # 重建符号链接
     recreate_node_symlinks "$new_node_dir/bin"
 
-    # 更新版本文件
-    save_version "node" "$latest"
+    # 更新版本文件（保留 pin 等字段）
+    save_version "node" "$target"
 
     # 清理旧 Node
     if [ -n "$old_node_dir" ] && [ -d "$old_node_dir" ] && [ "$old_node_dir" != "$new_node_dir" ]; then
@@ -229,7 +278,7 @@ for v in data:
         rm -rf "$old_node_dir" 2>/dev/null || warn "无法完全删除旧 Node 目录（可能在使用）"
     fi
 
-    success "Node.js: v$current → v$latest"
+    success "Node.js: v$current → v$target"
 }
 
 # ========== 3. npm 全局包 ==========
@@ -524,16 +573,8 @@ PYEOF
 update_skills() {
     section "Skills"
 
-    info "Skills 由 ccconfig 自更新管理（git pull）"
-
-    if command -v npx &>/dev/null; then
-        info "更新内置 skills 索引..."
-        if npx skills update 2>/dev/null; then
-            success "Skills 索引已更新"
-        else
-            warn "Skills 索引更新失败（不影响使用）"
-        fi
-    fi
+    info "Skills 由 ccconfig 自更新管理（步骤 1 git pull 已更新）"
+    success "Skills 无需额外更新"
 }
 
 # ========== 10. systemd 服务重建 ==========
@@ -558,40 +599,169 @@ fix_systemd_services() {
     fi
 }
 
+# ========== 版本信息收集 ==========
+
+get_live_version() {
+    local comp="$1"
+    case "$comp" in
+        node)       node --version 2>/dev/null | tr -d 'v' || echo "?" ;;
+        lark-cli)   lark-cli version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
+        cconnect)   "$LOCAL_BIN/cc-connect" --version 2>/dev/null | grep -oP 'v?\d+\.\d+\.\d+' | head -1 || echo "?" ;;
+        gh)         gh --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "?" ;;
+        claude)     claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
+        uv)         uv --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
+        *)          echo "?" ;;
+    esac
+}
+
+# ========== 兼容性预检查 ==========
+
+compatibility_check() {
+    section "兼容性预检查"
+    echo ""
+
+    local warnings=0
+
+    # Node.js: 检查大版本跳跃（使用镜像，回退到官方源）
+    local node_current node_target
+    node_current=$(get_live_version "node")
+    local pin=$(get_node_pin)
+    local COMPAT_MIRROR="https://cdn.npmmirror.com/binaries/node/index.json"
+    local COMPAT_FALLBACK="https://nodejs.org/dist/index.json"
+    local compat_index
+    compat_index=$(curl -s --connect-timeout 10 --max-time 30 "$COMPAT_MIRROR" 2>/dev/null)
+    if [ -z "$compat_index" ]; then
+        compat_index=$(curl -s --connect-timeout 10 --max-time 30 "$COMPAT_FALLBACK" 2>/dev/null)
+    fi
+    if [ -n "$pin" ] && [ "$pin" != "latest" ]; then
+        node_target=$(echo "$compat_index" | python3 -c "
+import json,sys
+pin='$pin'
+data=json.load(sys.stdin)
+for v in data:
+    vn=v['version'].lstrip('v')
+    if vn.startswith(pin+'.') and v.get('lts'):
+        print(vn)
+        break
+" 2>/dev/null || echo "")
+    else
+        node_target=$(echo "$compat_index" | python3 -c "
+import json,sys
+data=json.load(sys.stdin)
+for v in data:
+    if v.get('lts'):
+        print(v['version'].lstrip('v'))
+        break
+" 2>/dev/null || echo "")
+    fi
+
+    if [ -n "$node_current" ] && [ -n "$node_target" ] && [ "$node_current" != "$node_target" ]; then
+        local cur_major=$(echo "$node_current" | cut -d. -f1)
+        local tgt_major=$(echo "$node_target" | cut -d. -f1)
+        if [ "$cur_major" != "$tgt_major" ]; then
+            if [ -n "$pin" ] && [ "$pin" != "latest" ]; then
+                info "Node.js: v$node_current → v$node_target（锁定 v${pin}.x）"
+            else
+                warn "Node.js 大版本跳跃: v$node_current → v$node_target"
+                warn "  如需保守升级，编辑 conf/versions.json node.pin 设为 \"$cur_major\" 或 \"$tgt_major\""
+                ((warnings++))
+            fi
+        else
+            info "Node.js: v$node_current → v$node_target（同大版本升级）"
+        fi
+    fi
+
+    # cc-connect: 检查新版本
+    local cc_current cc_latest
+    cc_current=$(get_live_version "cconnect")
+    cc_latest=$(curl -s https://api.github.com/repos/chenhg5/cc-connect/releases/latest | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'].lstrip('v'))" 2>/dev/null || echo "")
+    if [ -n "$cc_current" ] && [ -n "$cc_latest" ] && [ "$cc_current" != "$cc_latest" ]; then
+        info "cc-connect: $cc_current → $cc_latest"
+    fi
+
+    # gh: 检查新版本
+    local gh_current gh_latest
+    gh_current=$(get_live_version "gh")
+    gh_latest=$(curl -s https://api.github.com/repos/cli/cli/releases/latest | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'].lstrip('v'))" 2>/dev/null || echo "")
+    if [ -n "$gh_current" ] && [ -n "$gh_latest" ] && [ "$gh_current" != "$gh_latest" ]; then
+        info "GitHub CLI: $gh_current → v$gh_latest"
+    fi
+
+    if [ $warnings -eq 0 ]; then
+        success "兼容性检查通过"
+    fi
+    echo ""
+}
+
 # ========== 全部升级 ==========
 
 update_all() {
     local overall_status=0
     local results=()
 
+    # 收集升级前版本
+    declare -A before_ver after_ver
+    local components=( "node" "lark-cli" "cconnect" "gh" "claude" "uv" )
+    for c in "${components[@]}"; do
+        before_ver[$c]=$(get_live_version "$c")
+    done
+
+    # 预检查
+    compatibility_check
+
     run_step() {
-        local desc="$1"
-        shift
+        local comp_key="$1"
+        local desc="$2"
+        shift 2
         echo ""
         if "$@"; then
             results+=("${GREEN}✅${NC} $desc")
+            after_ver[$comp_key]=$(get_live_version "$comp_key")
         else
             results+=("${RED}❌${NC} $desc")
+            after_ver[$comp_key]=$(get_live_version "$comp_key")
             overall_status=1
         fi
     }
 
-    run_step "cconfig 自更新"   self_update "$@"
-    run_step "Node.js"          update_nodejs
-    run_step "npm 全局包"       update_npm_globals
-    run_step "cc-connect"       update_cconnect
-    run_step "GitHub CLI"       update_gh
-    run_step "Claude Code"      update_claude
-    run_step "uv"               update_uv
-    run_step "MCP 缓存"         update_mcp
-    run_step "Skills 索引"      update_skills
-    run_step "systemd 服务"     fix_systemd_services
+    run_step "cconfig"  "ccconfig 自更新"   self_update "$@"
+    run_step "node"     "Node.js"           update_nodejs
+    run_step "lark-cli" "npm 全局包"        update_npm_globals
+    run_step "cconnect" "cc-connect"        update_cconnect
+    run_step "gh"       "GitHub CLI"        update_gh
+    run_step "claude"   "Claude Code"       update_claude
+    run_step "uv"       "uv"                update_uv
+    run_step ""         "MCP 缓存"          update_mcp
+    run_step ""         "Skills 索引"       update_skills
+    run_step ""         "systemd 服务"      fix_systemd_services
 
     # 后快照
-    echo ""
-    section "升级总结"
     take_snapshot "after" > /dev/null
 
+    # 打印总结
+    echo ""
+    section "升级总结"
+    echo ""
+
+    # 版本对比表
+    printf "  %-16s %-16s %-16s %s\n" "组件" "升级前" "升级后" "状态"
+    printf "  %-16s %-16s %-16s %s\n" "────" "──────" "──────" "────"
+
+    local labels=( "node" "lark-cli" "cconnect" "gh" "claude" "uv" )
+    local names=( "Node.js" "lark-cli" "cc-connect" "GitHub CLI" "Claude Code" "uv" )
+    for i in "${!labels[@]}"; do
+        local key="${labels[$i]}"
+        local name="${names[$i]}"
+        local b="${before_ver[$key]:-?}"
+        local a="${after_ver[$key]:-?}"
+        local status="─"
+        if [ "$b" != "$a" ] && [ "$a" != "?" ] && [ "$b" != "?" ]; then
+            status="${GREEN}↑${NC}"
+        fi
+        printf "  %-16s %-16s %-16s %b\n" "$name" "v$b" "v$a" "$status"
+    done
+
+    echo ""
     for r in "${results[@]}"; do
         echo -e "  $r"
     done
