@@ -1,0 +1,135 @@
+#!/bin/bash
+# ==============================================
+# path-helper.sh — 动态路径解析库
+#
+# 功能：
+#   - find_node_bin()    多策略发现 Node.js 安装路径
+#   - get_version()      读取 versions.json 中的版本
+#   - save_version()     写入版本到 versions.json
+#   - recreate_node_symlinks()  重建 ~/.local/bin/{node,npm,npx} 符号链接
+#
+# 用法：source "$SCRIPT_DIR/lib/path-helper.sh"
+# ==============================================
+
+# 自动检测自身所在目录（被 source 时 BASH_SOURCE[0] 指向本文件）
+_PATH_HELPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_VERSION_FILE="$_PATH_HELPER_DIR/../conf/versions.json"
+_LOCAL_BIN="$HOME/.local/bin"
+_LOCAL_DIR="$HOME/.local"
+
+# ========== 版本文件读取 ==========
+
+get_version() {
+    local component="$1"
+    python3 - "$_VERSION_FILE" "$component" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        data = json.load(f)
+    print(data.get('components', {}).get(sys.argv[2], {}).get('version', ''))
+except:
+    print('')
+PYEOF
+}
+
+save_version() {
+    local component="$1"
+    local new_version="$2"
+    python3 - "$_VERSION_FILE" "$component" "$new_version" << 'PYEOF'
+import json, sys, os
+try:
+    with open(sys.argv[1]) as f:
+        data = json.load(f)
+    data.setdefault('components', {})
+    data['components'][sys.argv[2]] = {'version': sys.argv[3]}
+    data['last_checked'] = __import__('datetime').datetime.now().astimezone().isoformat()
+    with open(sys.argv[1], 'w') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write('\n')
+    print('ok')
+except Exception as e:
+    print(f'error: {e}')
+PYEOF
+}
+
+get_node_version() {
+    get_version "node"
+}
+
+get_gh_version() {
+    get_version "gh"
+}
+
+get_cconnect_version() {
+    get_version "cc_connect"
+}
+
+# ========== Node.js 路径发现（核心函数）==========
+
+# 多策略发现当前 Node.js 安装的 bin 目录
+# 返回路径如 /home/francis/.local/node-v20.11.0-linux-x64/bin
+find_node_bin() {
+    local found
+
+    # 策略 1: 跟随 ~/.local/bin/node 符号链接
+    if [ -L "$_LOCAL_BIN/node" ]; then
+        found=$(readlink -f "$_LOCAL_BIN/node" 2>/dev/null)
+        if [ -n "$found" ] && [ -x "$found" ]; then
+            dirname "$found"
+            return 0
+        fi
+    fi
+
+    # 策略 2: 扫描 ~/.local/node-v*-linux-x64/，取最高版本
+    found=$(ls -d "$_LOCAL_DIR"/node-v*-linux-x64/bin/node 2>/dev/null | sort -V | tail -1)
+    if [ -n "$found" ] && [ -x "$found" ]; then
+        dirname "$found"
+        return 0
+    fi
+
+    # 策略 3: 回退到 versions.json 中记录的版本
+    local ver
+    ver=$(get_node_version)
+    if [ -n "$ver" ] && [ -x "$_LOCAL_DIR/node-v${ver}-linux-x64/bin/node" ]; then
+        echo "$_LOCAL_DIR/node-v${ver}-linux-x64/bin"
+        return 0
+    fi
+
+    # 策略 4: 最终回退 ~/.local/bin
+    echo "$_LOCAL_BIN"
+    return 1
+}
+
+# 获取 node 可执行文件路径
+find_node_exe() {
+    local bin_dir
+    bin_dir=$(find_node_bin)
+    echo "$bin_dir/node"
+}
+
+# 重建 ~/.local/bin/{node,npm,npx} 符号链接
+recreate_node_symlinks() {
+    local node_bin_dir="$1"
+
+    if [ -z "$node_bin_dir" ]; then
+        node_bin_dir=$(find_node_bin)
+    fi
+
+    mkdir -p "$_LOCAL_BIN"
+
+    ln -sf "$node_bin_dir/node" "$_LOCAL_BIN/node"
+    ln -sf "$node_bin_dir/npm"  "$_LOCAL_BIN/npm"
+    ln -sf "$node_bin_dir/npx"  "$_LOCAL_BIN/npx"
+
+    echo "Node symlinks → $node_bin_dir"
+}
+
+# 确保 PATH 包含正确的 Node 和 local bin
+ensure_path() {
+    local node_bin
+    node_bin=$(find_node_bin)
+    # 清理 PATH 中的 Windows 路径，确保 Node 和 local bin 在最前
+    local clean_path
+    clean_path=$(echo "$PATH" | tr ':' '\n' | grep -v '^/mnt/' | tr '\n' ':' | sed 's/:$//')
+    export PATH="$node_bin:$_LOCAL_BIN:$clean_path"
+}

@@ -11,6 +11,7 @@
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/path-helper.sh"
 REPO_DIR="$SCRIPT_DIR"
 
 # 颜色
@@ -225,7 +226,7 @@ check_feishu() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[6] 飞书 (lark-cli)${NC}"
 
-    export PATH="$HOME/.local/bin:$HOME/.local/node-v20.11.0-linux-x64/bin:$PATH"
+    export PATH="$HOME/.local/bin:$(find_node_bin):$PATH"
 
     # 检查安装
     echo -n "  安装 ... "
@@ -261,16 +262,16 @@ check_feishu() {
         else
             echo -e "${YELLOW}○${NC} (未运行)"
         fi
-        # ailabbot 机器人数量
-        local bots_json="$REPO_DIR/ailabbot/conf/bots.json"
-        if [ -f "$bots_json" ]; then
-            local total enabled_count
-            total=$(python3 -c "import json; d=json.load(open('$bots_json')); print(len(d.get('bots',[])))" 2>/dev/null || echo "?")
-            enabled_count=$(python3 -c "import json; d=json.load(open('$bots_json')); print(sum(1 for b in d.get('bots',[]) if b.get('enabled')))" 2>/dev/null || echo "?")
-            echo -e "  机器人: ${enabled_count}/${total} 启用 (ailabbot)"
-        fi
     else
-        echo -e "${GRAY}－${NC} (未安装，cconnectinit.sh 单独管理)"
+        echo -e "${GRAY}－${NC} (未安装)"
+    fi
+    # cconnect 机器人数量（无论二进制是否安装都检查配置）
+    local bots_json="$REPO_DIR/cconnect/conf/bots.json"
+    if [ -f "$bots_json" ]; then
+        local total enabled_count
+        total=$(python3 -c "import json; d=json.load(open('$bots_json')); print(len(d.get('bots',[])))" 2>/dev/null || echo "?")
+        enabled_count=$(python3 -c "import json; d=json.load(open('$bots_json')); print(sum(1 for b in d.get('bots',[]) if b.get('enabled')))" 2>/dev/null || echo "?")
+        echo -e "  机器人: ${enabled_count}/${total} 启用 (cconnect)"
     fi
 }
 

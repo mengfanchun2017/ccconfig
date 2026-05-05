@@ -1,8 +1,8 @@
 #!/bin/bash
-# ailabbot/scripts/bot-enable.sh
+# ccconfig/cconnect/scripts/bot-enable.sh
 # 功能：启用指定机器人
-# 用法：bash ccconfig/ailabbot/scripts/bot-enable.sh <bot_name>
-#       bash ccconfig/ailabbot/scripts/bot-enable.sh --list  列出所有机器人
+# 用法：bash ccconfig/cconnect/scripts/bot-enable.sh <bot_name>
+#       bash ccconfig/cconnect/scripts/bot-enable.sh --list  列出所有机器人
 
 set -e
 
@@ -33,7 +33,7 @@ for bot in data.get('bots', []):
     print(f"  {marker} {bot['name']}: {bot.get('description', '')}")
 PYEOF
     echo ""
-    echo "用法: bash ccconfig/ailabbot/scripts/bot-enable.sh <bot_name>"
+    echo "用法: bash ccconfig/cconnect/scripts/bot-enable.sh <bot_name>"
     exit 0
 fi
 
@@ -70,7 +70,7 @@ PYEOF
 
 if [ -z "$APP_ID" ]; then
     bad "❌ 机器人 '$BOT_NAME' 的 feishuAppId 未配置"
-    warn "请先编辑 ccconfig/ailabbot/conf/bots.json，填入 App ID 和 App Secret 后再启用"
+    warn "请先编辑 ccconfig/cconnect/conf/bots.json，填入 App ID 和 App Secret 后再启用"
     exit 1
 fi
 

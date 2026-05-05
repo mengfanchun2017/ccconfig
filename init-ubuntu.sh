@@ -22,8 +22,8 @@ CONFIG_FILE="$SCRIPT_DIR/conf/ubuntu.json"
 CLAUDE_DIR="$HOME/.claude"
 LOCAL_BIN="$HOME/.local/bin"
 
-# 版本
-NODE_VERSION="20.11.0"
+# 动态路径解析（替代硬编码版本号）
+source "$SCRIPT_DIR/lib/path-helper.sh"
 
 # 颜色
 RED='\033[0;31m'
@@ -84,12 +84,12 @@ setup_git_github() {
     if ! command -v gh &>/dev/null; then
         warn "gh 未安装，正在下载..."
         mkdir -p "$LOCAL_BIN"
-        GH_VERSION="2.63.2"
-        curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+        local gh_ver=$(get_gh_version)
+        curl -fsSL "https://github.com/cli/cli/releases/download/v${gh_ver}/gh_${gh_ver}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
         tar -xzf /tmp/gh.tar.gz -C /tmp
-        mv /tmp/gh_${GH_VERSION}_linux_amd64/bin/gh "$LOCAL_BIN/gh"
+        mv /tmp/gh_${gh_ver}_linux_amd64/bin/gh "$LOCAL_BIN/gh"
         chmod +x "$LOCAL_BIN/gh"
-        rm -rf /tmp/gh.tar.gz /tmp/gh_${GH_VERSION}_linux_amd64
+        rm -rf /tmp/gh.tar.gz /tmp/gh_${gh_ver}_linux_amd64
         success "gh 已安装"
     else
         success "gh 已安装"
@@ -167,14 +167,13 @@ setup_nodejs() {
         info "npm: $(npm --version)"
     else
         warn "Node.js 未安装，正在安装..."
-        local url="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz"
+        local node_ver=$(get_node_version)
+        local url="https://nodejs.org/dist/v${node_ver}/node-v${node_ver}-linux-x64.tar.gz"
         info "下载: $url"
         curl -fsSL "$url" -o /tmp/node.tar.gz
         tar -xzf /tmp/node.tar.gz -C "$HOME/.local/"
         mkdir -p "$LOCAL_BIN"
-        ln -sf "$HOME/.local/node-v${NODE_VERSION}-linux-x64/bin/node" "$LOCAL_BIN/node"
-        ln -sf "$HOME/.local/node-v${NODE_VERSION}-linux-x64/bin/npm" "$LOCAL_BIN/npm"
-        ln -sf "$HOME/.local/node-v${NODE_VERSION}-linux-x64/bin/npx" "$LOCAL_BIN/npx"
+        recreate_node_symlinks "$HOME/.local/node-v${node_ver}-linux-x64/bin"
         rm -f /tmp/node.tar.gz
         success "Node.js 安装完成: $(node --version)"
     fi
@@ -225,7 +224,8 @@ setup_claude_code() {
     warn "Claude Code 未安装，尝试安装..."
 
     # 方式一：npm 安装 bootstrap（claude.ai 在国内被屏蔽，先用 npm 安装 CLI 主程序）
-    NPM_GLOBAL_BIN="$HOME/.local/node-v${NODE_VERSION}-linux-x64/bin"
+    local _node_ver=$(get_node_version)
+    NPM_GLOBAL_BIN="$HOME/.local/node-v${_node_ver}-linux-x64/bin"
     export PATH="$NPM_GLOBAL_BIN:$LOCAL_BIN:$PATH"
     mkdir -p "$LOCAL_BIN"
 

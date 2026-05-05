@@ -1,8 +1,8 @@
 #!/bin/bash
-# ailabbot/scripts/bot-disable.sh
+# ccconfig/cconnect/scripts/bot-disable.sh
 # 功能：禁用指定机器人
-# 用法：bash ccconfig/ailabbot/scripts/bot-disable.sh <bot_name>
-#       bash ccconfig/ailabbot/scripts/bot-disable.sh --list  列出已启用的机器人
+# 用法：bash ccconfig/cconnect/scripts/bot-disable.sh <bot_name>
+#       bash ccconfig/cconnect/scripts/bot-disable.sh --list  列出已启用的机器人
 
 set -e
 
@@ -36,7 +36,7 @@ else:
         print(f"  ✅ {bot['name']}: {bot.get('description', '')}")
 PYEOF
     echo ""
-    echo "用法: bash ccconfig/ailabbot/scripts/bot-disable.sh <bot_name>"
+    echo "用法: bash ccconfig/cconnect/scripts/bot-disable.sh <bot_name>"
     exit 0
 fi
 

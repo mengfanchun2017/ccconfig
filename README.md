@@ -12,7 +12,10 @@ ccconfig/
 ├── init-mcp.sh               # MCP 服务器管理
 ├── init-skill.sh             # Skills 同步管理
 ├── init-autostart.sh         # auto-sync 自启动
-├── init-update.sh            # 一键升级所有组件
+├── init-update.sh            # ★ 月度升级（9组件一键更新）
+│
+├── lib/                      # 共享库
+│   └── path-helper.sh        # 动态路径解析（find_node_bin）
 │
 ├── sync-monitor.sh           # 文件监控 + 自动 Git 同步
 ├── sync-pullff.sh            # 强制拉取远程覆盖本地
@@ -20,6 +23,7 @@ ccconfig/
 ├── fix-wsl-interop.sh        # WSL interop 修复
 │
 ├── conf/                     # 配置文件
+│   ├── versions.json         # 版本单一真相源（Node/gh/cc-connect）
 │   ├── claude.json           # MCP + API Key
 │   ├── feishu.json           # 飞书 + cc-connect
 │   ├── llm.json              # LLM 多后端配置
@@ -71,6 +75,36 @@ bash ~/git/ccconfig/init.sh all
 # 查看状态
 bash ~/git/ccconfig/init.sh status
 ```
+
+## 月度升级
+
+```bash
+bash ccconfig/init-update.sh          # 交互式菜单（单项升级）
+bash ccconfig/init-update.sh all      # ★ 一键升级全部组件
+bash ccconfig/init-update.sh node     # 仅升级 Node.js
+```
+
+升级组件（严格顺序）：
+
+| 步骤 | 组件 | 检查方式 |
+|------|------|---------|
+| 1 | **cconfig** 自身 | `git pull`，自身变更则 re-exec |
+| 2 | **Node.js** | nodejs.org 最新 LTS |
+| 3 | **lark-cli** | `npm update -g @larksuite/cli` |
+| 4 | **cc-connect** | GitHub Release API |
+| 5 | **GitHub CLI** | GitHub Release API |
+| 6 | **Claude Code** | `claude install` |
+| 7 | **uv** | `curl \| sh` |
+| 8 | **MCP 缓存** | 清 npx 缓存 + 预拉取包 |
+| 9 | **Skills 索引** | `npx skills update` |
+| 10 | **systemd 服务** | 用新 Node 路径重建 |
+
+附加功能：升级前自动 `git pull` ccconfig、前后快照对比、锁文件防并发、旧 Node 目录清理、快照保留 3 个月。
+
+### 版本管理
+
+- `conf/versions.json` — 所有组件版本单一真相源，升级后自动更新
+- `lib/path-helper.sh` — `find_node_bin()` 4级回退发现 Node 路径，所有脚本通过它获取 Node 路径，不再硬编码
 
 ## 日常命令
 

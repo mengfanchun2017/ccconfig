@@ -14,11 +14,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FEISHU_CONF="$SCRIPT_DIR/../conf/feishu.json"
 
-# 确保 node/npm 可以找到：
-# ubuntuinit.sh 装 Node.js 到 ~/.local/node-v20.11.0-linux-x64/
-# 符号链接放在 ~/.local/bin/
-# 直接用绝对路径，不依赖 PATH 查找，彻底解决 WSL 环境 PATH 被 Windows 污染的问题
-export PATH="${HOME}/.local/node-v20.11.0-linux-x64/bin:${HOME}/.local/bin:$PATH"
+# 动态路径解析，替代硬编码 node 路径
+source "$SCRIPT_DIR/../lib/path-helper.sh"
+export PATH="$(find_node_bin):${HOME}/.local/bin:$PATH"
 # 避免 lark-cli 警告 "requests will transit through proxy"
 export LARK_CLI_NO_PROXY=1
 
@@ -149,7 +147,7 @@ install_lark_cli() {
 
     # npm 10.x 移除了 bin -g，直接使用 node_modules
     local npm_global_root
-    npm_global_root=$(npm root -g 2>/dev/null || echo "$HOME/.local/node-v20.11.0-linux-x64/lib/node_modules")
+    npm_global_root=$(npm root -g 2>/dev/null || echo "$(dirname "$(find_node_bin)")/lib/node_modules")
     local lark_src="$npm_global_root/@larksuite/cli/bin/lark-cli.js"
 
     # 如果 bin/lark-cli.js 不存在，尝试其他路径
