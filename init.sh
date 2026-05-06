@@ -65,12 +65,17 @@ submenu_env() {
     echo ""
     read -p "选择 [1-4,0]: " c
     case "$c" in
-        1) run_step "Ubuntu 初始化"    "$SCRIPT_DIR/init-ubuntu.sh"    false ;;
-        2) run_step "LLM 切换"         "$SCRIPT_DIR/init-llm.sh"       false ;;
-        3) run_step "auto-sync 自启动" "$SCRIPT_DIR/init-autostart.sh" false ;;
+        1) run_step "Ubuntu 初始化"    "$SCRIPT_DIR/init-ubuntu.sh"    false
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        2) run_step "LLM 切换"         "$SCRIPT_DIR/init-llm.sh"       false
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        3) run_step "auto-sync 自启动" "$SCRIPT_DIR/init-autostart.sh" false
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         4) run_step "Ubuntu" "$SCRIPT_DIR/init-ubuntu.sh" true
            run_step "LLM"    "$SCRIPT_DIR/init-llm.sh" true deepseek
-           run_step "自启动"  "$SCRIPT_DIR/init-autostart.sh" true ;;
+           run_step "自启动"  "$SCRIPT_DIR/init-autostart.sh" true
+           exit 0 ;;
+        0) return ;;
     esac
 }
 
@@ -84,10 +89,14 @@ submenu_feishu() {
     echo ""
     read -p "选择 [1-3,0]: " c
     case "$c" in
-        1) run_step "lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   false ;;
-        2) run_step "cc-connect" "$SCRIPT_DIR/cconnect/init-cconnect.sh" false ;;
+        1) run_step "lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   false
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        2) run_step "cc-connect" "$SCRIPT_DIR/cconnect/init-cconnect.sh" false
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         3) run_step "lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   true
-           run_step "cc-connect" "$SCRIPT_DIR/cconnect/init-cconnect.sh" true ;;
+           run_step "cc-connect" "$SCRIPT_DIR/cconnect/init-cconnect.sh" true
+           exit 0 ;;
+        0) return ;;
     esac
 }
 
@@ -148,9 +157,13 @@ submenu_mcp() {
     echo ""
     read -p "选择 [1-3,0]: " c
     case "$c" in
-        1) run_step "MCP 同步"   "$SCRIPT_DIR/init-mcp.sh" true ;;
-        2) echo ""; bash "$SCRIPT_DIR/init-mcp.sh" install ;;
-        3) bash "$SCRIPT_DIR/check-status.sh" ;;
+        1) run_step "MCP 同步"   "$SCRIPT_DIR/init-mcp.sh" true
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        2) echo ""; bash "$SCRIPT_DIR/init-mcp.sh" install
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        3) bash "$SCRIPT_DIR/check-status.sh"
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        0) return ;;
     esac
 }
 
@@ -163,8 +176,11 @@ submenu_skills() {
     echo ""
     read -p "选择 [1-2,0]: " c
     case "$c" in
-        1) run_step "Skills 同步" "$SCRIPT_DIR/init-skill.sh" sync ;;
-        2) bash "$SCRIPT_DIR/init-skill.sh" status ;;
+        1) run_step "Skills 同步" "$SCRIPT_DIR/init-skill.sh" sync
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        2) bash "$SCRIPT_DIR/init-skill.sh" status
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        0) return ;;
     esac
 }
 
@@ -179,10 +195,14 @@ submenu_tools() {
     echo ""
     read -p "选择 [1-4,0]: " c
     case "$c" in
-        1) bash "$SCRIPT_DIR/check-status.sh" ;;
-        2) run_step "强制拉取" "$SCRIPT_DIR/sync-pullff.sh" false ;;
+        1) bash "$SCRIPT_DIR/check-status.sh"
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        2) run_step "强制拉取" "$SCRIPT_DIR/sync-pullff.sh" false
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         3) bash "$SCRIPT_DIR/update.sh" ;;
-        4) run_step "WSL修复" "$SCRIPT_DIR/fix-wsl-interop.sh" false ;;
+        4) run_step "WSL修复" "$SCRIPT_DIR/fix-wsl-interop.sh" false
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        0) return ;;
     esac
 }
 
