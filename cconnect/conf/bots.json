@@ -32,17 +32,17 @@
     },
     {
       "name": "ailabbot",
-      "enabled": false,
-      "description": "AI Lab Bot — 待配置",
-      "feishuAppId": "",
-      "feishuAppSecret": "",
+      "enabled": true,
+      "description": "AI Lab Bot",
+      "feishuAppId": "cli_a97077e327b89bd6",
+      "feishuAppSecret": "s6fi2xkyU5akUChGjA3hebJX3HFfA5iv",
       "workDir": "/home/francis/git/ailab",
       "claudeConfigDir": "",
       "timeoutMs": 3600000,
       "permissions": {
         "adminOpenIds": [],
         "allowFrom": "*",
-        "disabledCommands": ["/shell", "/restart", "/upgrade"],
+        "disabledCommands": [],
         "rateLimit": { "maxMessages": 30, "windowSecs": 60 }
       },
       "options": {
