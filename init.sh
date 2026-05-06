@@ -222,6 +222,7 @@ main_menu() {
             echo ""
             echo "🎉 全部初始化完成"
             echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
+            exit 0
             ;;
         0) echo ""; exit 0 ;;
         *) echo "无效选择"; main_menu ;;
@@ -244,7 +245,9 @@ case "${1:-menu}" in
         run_step "5/6 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
         run_step "6/6 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
         echo ""
-        echo "全部初始化完成"
+        echo "🎉 全部初始化完成"
+        echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
+        exit 0
         ;;
     status)
         bash "$SCRIPT_DIR/check-status.sh"
