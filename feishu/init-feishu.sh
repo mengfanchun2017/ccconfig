@@ -4,10 +4,12 @@
 # 配置：从 ../conf/feishu.json 读取
 # 目的：新 Ubuntu/WSL 环境配置飞书基础能力（所有环境都跑）
 #
-# 注意：cc-connect (Bridge) 相关在 init-cconnect.sh 中
+# 多账号支持：
+#   bash ccconfig/feishu/init-feishu.sh                    # 初始化默认账号（向后兼容）
+#   bash ccconfig/feishu/init-feishu.sh --account <name>  # 初始化指定账号
+#   bash ccconfig/feishu/init-feishu.sh --list            # 列出所有账号
 #
-# 使用：
-#   bash ccconfig/feishu/init-feishu.sh
+# 注意：cc-connect (Bridge) 相关在 init-cconnect.sh 中
 
 set -e
 
@@ -36,48 +38,57 @@ info() { echo -e "$1${GRAY}"; }
 warn() { echo -e "$1${YELLOW}"; }
 
 # ========== JSON 读取 ==========
-get_feishu_app_id() {
+get_lark_field() {
     python3 - "$FEISHU_CONF" << 'PYEOF'
 import json, sys
 try:
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
         data = json.load(f)
-    # 优先从 lark 读取，兼容旧的 feishu 字段
+    key = sys.argv[2]
     lark = data.get('lark', {})
-    if lark.get('appId'):
-        print(lark['appId'])
-    else:
-        print(data.get('feishu', {}).get('appId', ''))
+    print(lark.get(key, ''))
 except:
     print('')
 PYEOF
 }
 
-get_feishu_app_secret() {
-    python3 - "$FEISHU_CONF" << 'PYEOF'
+get_account_by_name() {
+    local name="$1"
+    python3 - "$FEISHU_CONF" << PYEOF
 import json, sys
 try:
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
         data = json.load(f)
-    lark = data.get('lark', {})
-    if lark.get('appSecret'):
-        print(lark['appSecret'])
+    name = sys.argv[2]
+    for acc in data.get('accounts', []):
+        if acc.get('name') == name:
+            print(json.dumps(acc))
+            break
     else:
-        print(data.get('feishu', {}).get('appSecret', ''))
+        for acc in data.get('accounts', []):
+            if acc.get('name') == 'default':
+                print(json.dumps(acc))
+                break
 except:
-    print('')
+    pass
 PYEOF
 }
 
-get_lark_brand() {
+get_all_account_names() {
     python3 - "$FEISHU_CONF" << 'PYEOF'
 import json, sys
 try:
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
         data = json.load(f)
-    print(data.get('lark', {}).get('brand', 'feishu'))
+    accounts = data.get('accounts', [])
+    if not accounts:
+        lark = data.get('lark', {})
+        if lark.get('appId'):
+            accounts = [{'name': 'default'}]
+    for acc in accounts:
+        print(acc.get('name', 'unknown'))
 except:
-    print('feishu')
+    pass
 PYEOF
 }
 
@@ -105,13 +116,6 @@ check_prerequisites() {
         bad "❌ 配置文件不存在: $FEISHU_CONF"
         exit 1
     fi
-
-    local app_id
-    app_id=$(get_feishu_app_id)
-    if [ -z "$app_id" ]; then
-        bad "❌ ../conf/feishu.json 中未找到 lark.appId（或旧版 feishu.appId）"
-        exit 1
-    fi
     good "✓ 配置文件: $FEISHU_CONF"
 
     if [ $missing -eq 1 ]; then
@@ -125,7 +129,6 @@ check_prerequisites() {
 install_lark_cli() {
     title "安装 lark-cli"
 
-    # 先设置 PATH，避免找不到命令
     export PATH="$HOME/.local/bin:$PATH"
 
     if command -v lark-cli &> /dev/null; then
@@ -142,27 +145,21 @@ install_lark_cli() {
         return 1
     fi
 
-    # PATH 修复：npm 全局包在 ~/.local/bin/
     mkdir -p "$HOME/.local/bin"
 
-    # npm 10.x 移除了 bin -g，直接使用 node_modules
     local npm_global_root
     npm_global_root=$(npm root -g 2>/dev/null || echo "$(dirname "$(find_node_bin)")/lib/node_modules")
     local lark_src="$npm_global_root/@larksuite/cli/bin/lark-cli.js"
 
-    # 如果 bin/lark-cli.js 不存在，尝试其他路径
     if [ ! -f "$lark_src" ]; then
         lark_src="$npm_global_root/@larksuite/cli/bin/cli.js"
     fi
-
-    # 尝试 scripts/run.js（lark-cli 实际入口）
     if [ ! -f "$lark_src" ]; then
         lark_src="$npm_global_root/@larksuite/cli/scripts/run.js"
     fi
 
-    # 创建/更新符号链接
     if [ -f "$lark_src" ]; then
-        rm -f "$HOME/.local/bin/lark-cli"  # 强制删除旧链接
+        rm -f "$HOME/.local/bin/lark-cli"
         ln -sf "$lark_src" "$HOME/.local/bin/lark-cli"
     fi
 
@@ -175,89 +172,109 @@ install_lark_cli() {
     fi
 }
 
-# ========== 配置 lark-cli ==========
-configure_lark_cli() {
-    title "配置 lark-cli"
+# ========== 配置并授权单个账号 ==========
+setup_account() {
+    local name="$1"
+    local brand="$2"
+    local app_id="$3"
+    local app_secret="$4"
+    local config_dir="$5"
+    local is_interactive="${6:-true}"
 
+    section "账号: ${name}"
+
+    config_dir=$(eval echo "$config_dir")
+    mkdir -p "$config_dir"
+
+    export LARKSUITE_CLI_CONFIG_DIR="$config_dir"
     export PATH="$HOME/.local/bin:$PATH"
 
-    # 检查是否已配置
-    if lark-cli config show 2>/dev/null | grep -q "appId"; then
-        good "✓ lark-cli 已配置"
-        lark-cli config show 2>/dev/null || true
-        return 0
-    fi
+    echo "配置目录: ${config_dir}"
+    echo "appId: ${app_id}"
 
-    local app_id app_secret brand
-    app_id=$(get_feishu_app_id)
-    app_secret=$(get_feishu_app_secret)
-    brand=$(get_lark_brand)
-
-    section "初始化配置"
-    echo -n "配置 lark-cli ... "
-    if echo "$app_secret" | lark-cli config init --app-id "$app_id" --app-secret-stdin --brand "$brand" 2>&1; then
-        good "✅ 配置成功"
+    local config_file="${config_dir}/config.json"
+    if [ -f "$config_file" ]; then
+        good "✓ 已配置 (跳过初始化)"
     else
-        bad "❌ 配置失败"
-        return 1
-    fi
-}
-
-# ========== lark-cli 用户授权 ==========
-auth_lark_cli() {
-    title "lark-cli 用户授权"
-
-    export PATH="$HOME/.local/bin:$PATH"
-
-    section "OAuth 授权"
-    echo ""
-    echo "需要 Francis 账号授权才能创建用户身份文档"
-    echo ""
-    echo "执行以下命令完成授权："
-    echo -e "${CYAN}lark-cli auth login --recommend${NC}"
-    echo ""
-
-    read -p "是否现在执行授权? [y/N]: " confirm || true
-    confirm="${confirm:-n}"
-    if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        lark-cli auth login --recommend || warn "授权可能需要浏览器完成"
-    else
-        echo ""
-        info "后续手动授权: lark-cli auth login --recommend"
-    fi
-}
-
-# ========== 状态检查 ==========
-show_status() {
-    title "状态检查"
-
-    export PATH="$HOME/.local/bin:$PATH"
-
-    section "lark-cli"
-    echo -n "安装 ... "
-    if command -v lark-cli &> /dev/null; then
-        good "✓"
-    else
-        bad "❌"
+        echo -n "初始化配置 ... "
+        if echo "$app_secret" | lark-cli config init --app-id "$app_id" --app-secret-stdin --brand "$brand" 2>&1; then
+            good "✅ 配置成功"
+        else
+            bad "❌ 配置失败"
+            return 1
+        fi
     fi
 
-    echo -n "配置 ... "
-    if lark-cli config show 2>/dev/null | grep -q "appId"; then
-        good "✓"
-    else
-        warn "○ 未配置"
-    fi
-
-    echo -n "授权 ... "
-    if lark-cli config show 2>/dev/null | grep -q "users"; then
-        good "✓"
+    local auth_ok=false
+    if lark-cli auth status 2>/dev/null | grep -q "Authorized"; then
+        good "✓ 已授权"
+        auth_ok=true
     else
         warn "○ 未授权"
     fi
+
+    if [ "$is_interactive" = "true" ] && [ "$auth_ok" = "false" ]; then
+        echo ""
+        echo -e "${YELLOW}需要 OAuth 授权才能使用此账号${NC}"
+        echo ""
+        read -p "是否现在执行授权? [y/N]: " confirm || true
+        confirm="${confirm:-n}"
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            lark-cli auth login --recommend || warn "授权可能需要浏览器完成"
+        else
+            info "后续手动授权: LARKSUITE_CLI_CONFIG_DIR=${config_dir} lark-cli auth login --recommend"
+        fi
+    fi
+}
+
+# ========== 列出所有账号 ==========
+list_accounts() {
+    title "可用账号列表"
+
+    while IFS= read -r name; do
+        [ -z "$name" ] && continue
+        echo -e "  ${CYAN}- ${name}${NC}"
+    done < <(get_all_account_names)
+
+    echo ""
+    info "使用 --account <name> 初始化指定账号"
 }
 
 # ========== 主程序 ==========
 main() {
+    local target_account=""
+    local is_interactive=true
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --account|-a)
+                target_account="$2"
+                shift 2
+                ;;
+            --list|-l)
+                list_accounts
+                exit 0
+                ;;
+            --non-interactive|-y)
+                is_interactive=false
+                shift
+                ;;
+            --help|-h)
+                echo "用法: $0 [--account <name>] [--list] [--non-interactive]"
+                echo ""
+                echo "  --account <name>  初始化指定账号"
+                echo "  --list            列出所有可用账号"
+                echo "  --non-interactive 跳过授权确认"
+                echo "  (无参数)          初始化默认账号（向后兼容）"
+                exit 0
+                ;;
+            *)
+                bad "❌ 未知参数: $1"
+                exit 1
+                ;;
+        esac
+    done
+
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════╗"
     echo "║         飞书初始化 - Feishu Init               ║"
@@ -267,15 +284,47 @@ main() {
 
     check_prerequisites
     install_lark_cli
-    configure_lark_cli
-    auth_lark_cli
-    show_status
+
+    if [ -n "$target_account" ]; then
+        local acc_json
+        acc_json=$(get_account_by_name "$target_account")
+        if [ -z "$acc_json" ]; then
+            bad "❌ 未找到账号: ${target_account}"
+            list_accounts
+            exit 1
+        fi
+
+        local brand app_id app_secret config_dir
+        brand=$(echo "$acc_json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('brand','feishu'))" 2>/dev/null || echo "feishu")
+        app_id=$(echo "$acc_json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('appId',''))" 2>/dev/null || echo "")
+        app_secret=$(echo "$acc_json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('appSecret',''))" 2>/dev/null || echo "")
+        config_dir=$(echo "$acc_json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('configDir','~/.lark-cli'))" 2>/dev/null || echo "~/.lark-cli")
+
+        setup_account "$target_account" "$brand" "$app_id" "$app_secret" "$config_dir" "$is_interactive"
+
+    else
+        title "初始化默认账号（向后兼容）"
+
+        local brand app_id app_secret config_dir
+        brand=$(get_lark_field "brand" || echo "feishu")
+        app_id=$(get_lark_field "appId")
+        app_secret=$(get_lark_field "appSecret")
+        config_dir=$(get_lark_field "configDir" || echo "~/.lark-cli")
+
+        if [ -z "$app_id" ]; then
+            bad "❌ 配置文件中也未找到默认账号"
+            exit 1
+        fi
+
+        setup_account "default" "$brand" "$app_id" "$app_secret" "$config_dir" "$is_interactive"
+    fi
 
     echo ""
     title "✅ 飞书初始化完成"
     echo ""
     echo "提示："
-    echo "- cc-connect (Bridge WebSocket) 配置: bash ccconfig/cconnect/init-cconnect.sh"
+    echo "- 多账号切换: bash ccconfig/feishu/lark-switch.sh <account-name>"
+    echo "- cc-connect (Bridge): bash ccconfig/cconnect/init-cconnect.sh"
     echo ""
 }
 
