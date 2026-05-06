@@ -173,7 +173,7 @@ submenu_tools() {
     echo -e "${CYAN}── 系统工具 ──${NC}"
     echo "  1) 状态检查       (check-status.sh)"
     echo "  2) 强制拉取远程   (sync-pullff.sh)"
-    echo "  3) 升级组件       (init-update.sh)"
+    echo "  3) 升级组件       (update.sh)"
     echo "  4) WSL interop 修复 (fix-wsl-interop.sh)"
     echo "  0) 返回"
     echo ""
@@ -181,7 +181,7 @@ submenu_tools() {
     case "$c" in
         1) bash "$SCRIPT_DIR/check-status.sh" ;;
         2) run_step "强制拉取" "$SCRIPT_DIR/sync-pullff.sh" false ;;
-        3) bash "$SCRIPT_DIR/init-update.sh" ;;
+        3) bash "$SCRIPT_DIR/update.sh" ;;
         4) run_step "WSL修复" "$SCRIPT_DIR/fix-wsl-interop.sh" false ;;
     esac
 }
