@@ -114,14 +114,26 @@ commit_and_push() {
             echo "$pull_output" >> "$LOG_FILE"
             echo "" | tee -a "$LOG_FILE"
             error "=========================================="
-            error "PULL FAILED: remote has new commits"
-            error "=========================================="
-            echo "" | tee -a "$LOG_FILE"
-            warn "Solution A - Keep local (your changes first):"
-            echo "  cd $REPO_DIR && git stash && git pull --ff && git stash pop && git push" | tee -a "$LOG_FILE"
-            echo "" | tee -a "$LOG_FILE"
-            warn "Solution B - Keep remote (their changes first):"
-            echo "  cd $REPO_DIR && git fetch && git reset --hard origin/main" | tee -a "$LOG_FILE"
+            # Classify the error
+            if echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote"; then
+                error "PULL FAILED: Network/SSH error (not remote commits)"
+                error "=========================================="
+                echo "" | tee -a "$LOG_FILE"
+                warn "Network issue detected. Check VPN/proxy and retry."
+                echo "  cd $REPO_DIR && git pull --ff && git push" | tee -a "$LOG_FILE"
+            elif echo "$pull_output" | grep -qi "fatal: refusing to merge unrelated histories\|fatal: have diverged"; then
+                error "PULL FAILED: Diverged branches"
+                error "=========================================="
+                echo "" | tee -a "$LOG_FILE"
+                warn "Solution A - Keep local (your changes first):"
+                echo "  cd $REPO_DIR && git stash && git pull --ff && git stash pop && git push" | tee -a "$LOG_FILE"
+                echo "" | tee -a "$LOG_FILE"
+                warn "Solution B - Keep remote (their changes first):"
+                echo "  cd $REPO_DIR && git fetch && git reset --hard origin/main" | tee -a "$LOG_FILE"
+            else
+                error "PULL FAILED: $(echo "$pull_output" | head -1)"
+                error "=========================================="
+            fi
         fi
     else
         echo "$commit_output" >> "$LOG_FILE"
