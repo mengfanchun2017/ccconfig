@@ -306,7 +306,7 @@ update_npm_globals() {
             # update 失败，尝试重装
             if npm install -g @larksuite/cli@latest 2>&1 | tail -3; then
                 success "lark-cli 已重装"
-                ((updated++))
+                updated=$((updated + 1))
             else
                 warn "lark-cli 更新失败"
             fi
@@ -315,7 +315,7 @@ update_npm_globals() {
             after=$(lark-cli --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
             if [ "$before" != "$after" ]; then
                 success "lark-cli: $before → $after"
-                ((updated++))
+                updated=$((updated + 1))
             else
                 success "lark-cli 已是最新: $after"
             fi
@@ -694,7 +694,7 @@ for v in data:
             else
                 warn "Node.js 大版本跳跃: v$node_current → v$node_target"
                 warn "  如需保守升级，编辑 conf/versions.json node.pin 设为 \"$cur_major\" 或 \"$tgt_major\""
-                ((warnings++))
+                warnings=$((warnings + 1))
             fi
         else
             info "Node.js: v$node_current → v$node_target（同大版本升级）"
@@ -795,7 +795,7 @@ update_all() {
             fi
             local name="${names[$i]}"
             printf "  %-16s %-16s %-16s %b\n" "$name" "v$b" "v$a" "${GREEN}↑${NC}"
-            ((changed++))
+            changed=$((changed + 1))
         fi
     done
     if [ $changed -eq 0 ]; then

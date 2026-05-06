@@ -45,12 +45,17 @@ do_sync() {
 
         if [[ -L "$target" ]] && [[ "$(readlink -f "$target")" == "$(readlink -f "$skill_dir")" ]]; then
             info "  $name: 已链接"
-            ((skipped++))
+            skipped=$((skipped + 1))
         elif [[ -d "$target" ]]; then
             info "  $name: 本地已有，跳过"
-            ((skipped++))
+            skipped=$((skipped + 1))
         else
-            ln -s "$skill_dir" "$target" && { good "  $name: ✓"; ((linked++)); } || warn "  $name: 失败"
+            if ln -s "$skill_dir" "$target"; then
+                good "  $name: ✓"
+                linked=$((linked + 1))
+            else
+                warn "  $name: 失败"
+            fi
         fi
     done
 
@@ -75,7 +80,7 @@ do_status() {
         local marker="✓"
         [[ -L "$d" ]] || marker="○"
         echo -e "  ${GREEN}$marker${NC} $(basename "$d")"
-        ((count++))
+        count=$((count + 1))
     done
     [[ $count -eq 0 ]] && echo "  ${GRAY}(空)${NC}"
 
