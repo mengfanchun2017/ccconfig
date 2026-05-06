@@ -12,7 +12,7 @@ ccconfig/
 ├── init-mcp.sh               # MCP 服务器管理
 ├── init-skill.sh             # Skills 同步管理
 ├── init-autostart.sh         # auto-sync 自启动
-├── init-update.sh            # ★ 月度升级（9组件一键更新）
+├── update.sh                 # ★ 月度升级（9组件一键更新）
 │
 ├── lib/                      # 共享库
 │   └── path-helper.sh        # 动态路径解析（find_node_bin 4级回退）
@@ -89,9 +89,9 @@ bash ~/git/ccconfig/init.sh status
 ## 月度升级
 
 ```bash
-bash ccconfig/init-update.sh          # 交互式菜单（单项升级）
-bash ccconfig/init-update.sh all      # ★ 一键升级全部组件
-bash ccconfig/init-update.sh node     # 仅升级 Node.js
+bash ccconfig/update.sh               # 交互式菜单（单项升级）
+bash ccconfig/update.sh all           # ★ 一键升级全部组件
+bash ccconfig/update.sh node          # 仅升级 Node.js
 ```
 
 升级组件（9组件，严格顺序）：
@@ -128,7 +128,7 @@ bash ccconfig/check-status.sh         # 状态检查 (Claude内: hookstatus)
 bash ccconfig/sync-pullff.sh          # 强制同步远程覆盖本地
 bash ccconfig/sync-pullff.sh projectu # 同步其他仓库
 bash ccconfig/init-llm.sh             # 切换 LLM
-bash ccconfig/init-update.sh          # 升级组件
+bash ccconfig/update.sh               # 升级组件
 ```
 
 ## LLM 切换

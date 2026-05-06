@@ -190,7 +190,7 @@ start_watch() {
             case "$line" in
                 *".tmp."*) continue ;;
             esac
-            # Skip snapshot files (init-update.sh pre/post versions, gitignored)
+            # Skip snapshot files (update.sh pre/post versions, gitignored)
             case "$line" in
                 *".snapshots/"*) continue ;;
             esac

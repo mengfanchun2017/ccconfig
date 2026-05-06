@@ -16,9 +16,9 @@
 #   [10] systemd 服务     → 重建 + 重启
 #
 # 使用：
-#   bash ccconfig/init-update.sh              # 交互式菜单
-#   bash ccconfig/init-update.sh all          # 一键升级全部
-#   bash ccconfig/init-update.sh <component>  # 升级单个组件
+#   bash ccconfig/update.sh               # 交互式菜单
+#   bash ccconfig/update.sh all          # 一键升级全部
+#   bash ccconfig/update.sh <component>  # 升级单个组件
 # ==============================================
 
 set -e
@@ -147,7 +147,7 @@ self_update() {
         return 0
     fi
 
-    # 检查 init-update.sh 是否会被更新
+    # 检查 update.sh 是否会被更新
     local update_files
     update_files=$(git diff --name-only "HEAD..origin/main" 2>/dev/null || echo "")
 
@@ -155,10 +155,10 @@ self_update() {
         local after=$(git rev-parse --short HEAD)
         success "ccconfig: $before → $after"
 
-        # 如果 init-update.sh 或 path-helper.sh 被更新，重新加载自身
-        if echo "$update_files" | grep -qE "init-update.sh|lib/path-helper.sh|conf/versions.json"; then
+        # 如果 update.sh 或 path-helper.sh 被更新，重新加载自身
+        if echo "$update_files" | grep -qE "update.sh|lib/path-helper.sh|conf/versions.json"; then
             warn "关键文件已更新，重新加载..."
-            exec bash "$SCRIPT_DIR/init-update.sh" "${1:-menu}"
+            exec bash "$SCRIPT_DIR/update.sh" "${1:-menu}"
             # exec 不返回
         fi
     else
@@ -360,6 +360,29 @@ rebuild_larkcli_symlink() {
     fi
 }
 
+# ========== 版本比较 ==========
+# 比较两个语义版本，返回 0 如果 v1 >= v2
+version_ge() {
+    local v1="$1"
+    local v2="$2"
+    # 去除 v 前缀
+    v1="${v1#v}"
+    v2="${v2#v}"
+    # 提取主版本号（忽略预发布后缀如 -beta.1）
+    local v1_major v1_minor v1_patch v2_major v2_minor v2_patch
+    IFS='.' read -r v1_major v1_minor v1_patch <<< "$v1"
+    IFS='.' read -r v2_major v2_minor v2_patch <<< "$v2"
+    # 去除 v1_patch 中的预发布后缀
+    v1_patch="${v1_patch%%-*}"
+
+    if [ "$v1_major" -gt "$v2_major" ]; then return 0; fi
+    if [ "$v1_major" -lt "$v2_major" ]; then return 1; fi
+    if [ "$v1_minor" -gt "$v2_minor" ]; then return 0; fi
+    if [ "$v1_minor" -lt "$v2_minor" ]; then return 1; fi
+    if [ "$v1_patch" -ge "$v2_patch" ]; then return 0; fi
+    return 1
+}
+
 # ========== 4. cc-connect ==========
 
 update_cconnect() {
@@ -374,26 +397,36 @@ update_cconnect() {
         return 0
     fi
 
+    # 获取当前版本（完整输出，用于显示）
+    local current_full
+    current_full=$("$bin" --version 2>/dev/null | head -1 || echo "?")
+    # 提取主版本号（用于比较）
     local current
-    current=$("$bin" --version 2>/dev/null | grep -oP 'v?\d+\.\d+\.\d+' | head -1 || echo "?")
-    info "当前版本: $current"
+    current=$(echo "$current_full" | grep -oP 'v?\d+\.\d+\.\d+' | head -1 || echo "?")
+    info "当前版本: $current_full"
 
-    # 获取最新 release
+    # 获取最新稳定版 release（过滤预发布版本）
     local latest
-    latest=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/chenhg5/cc-connect/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || echo "")
+    latest=$(curl -s --connect-timeout 5 --max-time 10 \
+        'https://api.github.com/repos/chenhg5/cc-connect/releases?per_page=10' 2>/dev/null | \
+        python3 -c "import json,sys; releases=json.load(sys.stdin); stable=[r for r in releases if not r.get('prerelease',True)]; print(stable[0]['tag_name'] if stable else '')" 2>/dev/null || echo "")
 
     if [ -z "$latest" ]; then
-        warn "无法获取最新 cc-connect 版本（可能被限流），跳过"
+        warn "无法获取最新 cc-connect 稳定版（可能被限流），跳过"
         return 0
     fi
 
-    if [ "$current" = "$latest" ]; then
-        success "cc-connect 已是最新: $latest"
+    # 去除 latest 的 v 前缀
+    latest="${latest#v}"
+
+    # 如果本地版本 >= 最新稳定版，则无需更新
+    if version_ge "$current" "$latest"; then
+        success "cc-connect 已是最新稳定版: $current"
         return 0
     fi
 
-    info "下载 $latest..."
-    local url="https://github.com/chenhg5/cc-connect/releases/download/${latest}/cc-connect-${latest}-linux-amd64.tar.gz"
+    info "下载 v$latest..."
+    local url="https://github.com/chenhg5/cc-connect/releases/download/v${latest}/cc-connect-v${latest}-linux-amd64.tar.gz"
     local tmp="/tmp/cc-connect-update.$$"
     mkdir -p "$tmp"
 
