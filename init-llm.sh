@@ -60,7 +60,9 @@ for name in names:
     base_url = llm.get('base_url', '')
     model = llm.get('model', '')
     display_name = llm.get('name', name)
-    print(f"{marker} {name}|{display_name}|{model}|{base_url}|{small}")
+    # Format: marker|name|display_name|model|base_url|small
+    # Parser uses IFS='|' so name (config key) is in field 2, display_name in field 3
+    print(f"{marker}|{name}|{display_name}|{model}|{base_url}|{small}")
 PYEOF
 }
 
@@ -187,18 +189,19 @@ show_list() {
     echo ""
     echo "可用 LLM："
     echo ""
-    list_llms | tail -n +2 | while IFS='|' read -r marker name model url small; do
+    # 格式: marker|name|display_name|model|base_url|small
+    list_llms | tail -n +2 | while IFS='|' read -r marker name display_name model base_url small; do
         if [[ "$marker" == "TOTAL:"* ]] || [[ "$marker" == "CURRENT:"* ]]; then
             continue
         fi
-        if [[ "$url" == "CURRENT:"* ]] || [[ "$marker" == "" && "$name" == "" ]]; then
+        if [[ "$base_url" == "CURRENT:"* ]] || [[ "$marker" == "" && "$name" == "" ]]; then
             continue
         fi
         local small_info=""
         if [[ -n "$small" ]]; then
             small_info="  (小模型: $small)"
         fi
-        printf "  %s %-10s %-20s%s\n" "$marker" "$name" "$model" "$small_info"
+        printf "  %s %-10s %-20s%s\n" "$marker" "$display_name" "$model" "$small_info"
     done
     echo ""
 
@@ -219,24 +222,25 @@ interactive_select() {
     local current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
 
     # 显示选项
+    # 格式: marker|name|display_name|model|base_url|small
     local idx=1
     local names=()
-    while IFS='|' read -r marker name model url small; do
+    while IFS='|' read -r marker name display_name model base_url small; do
         if [[ "$marker" == "TOTAL:"* ]] || [[ "$marker" == "CURRENT:"* ]]; then
             continue
         fi
         if [[ -z "$name" ]]; then
             continue
         fi
-        names+=("$name")
+        names+=("$name")  # name 是配置键，用于 switch_llm
         local small_str=""
         if [[ -n "$small" ]]; then
             small_str=" [小模型: $small]"
         fi
         if [[ "$marker" == "◀" ]]; then
-            printf "  %d) %s (%s)%s ◀ 当前\n" "$idx" "$name" "$model" "$small_str"
+            printf "  %d) %s (%s)%s ◀ 当前\n" "$idx" "$display_name" "$model" "$small_str"
         else
-            printf "  %d) %s (%s)%s\n" "$idx" "$name" "$model" "$small_str"
+            printf "  %d) %s (%s)%s\n" "$idx" "$display_name" "$model" "$small_str"
         fi
         ((idx++))
     done < <(echo "$lines")
