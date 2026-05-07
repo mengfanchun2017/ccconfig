@@ -44,10 +44,10 @@ cd "$REPO_DIR"
 BRANCH=$(git branch --show-current)
 echo "   当前分支: $BRANCH"
 
-# 先暂存本地改动（以防万一）
+# 丢弃所有本地改动 + 清理未跟踪文件
 if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
-    echo "   ⚠️  本地有未提交改动，已 stash"
-    git stash 2>/dev/null || true
+    echo "   ⚠️  本地有未提交改动，已丢弃"
+    git checkout -- . 2>/dev/null || true
 fi
 
 # 拉取远程 + 强制对齐
@@ -55,4 +55,7 @@ echo "   fetching origin/$BRANCH..."
 git fetch origin "$BRANCH" --prune
 git reset --hard "origin/$BRANCH"
 
-echo "✅ $REPO_NAME → origin/$BRANCH (强制同步完成)"
+# 清理未跟踪文件和目录
+git clean -fd 2>/dev/null || true
+
+echo "✅ $REPO_NAME → origin/$BRANCH (强制同步完成，本地与远程一致)"
