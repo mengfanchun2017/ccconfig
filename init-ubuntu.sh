@@ -425,6 +425,16 @@ setup_symlinks() {
         setup_link "$CLAUDE_DIR/agents" "$SCRIPT_DIR/link/agents" "agents"
     fi
 
+    # rules（条件规则，按路径加载）
+    if [[ -d "$SCRIPT_DIR/link/rules" ]]; then
+        setup_link "$CLAUDE_DIR/rules" "$SCRIPT_DIR/link/rules" "rules"
+    fi
+
+    # commands（自定义斜杠命令）
+    if [[ -d "$SCRIPT_DIR/link/commands" ]]; then
+        setup_link "$CLAUDE_DIR/commands" "$SCRIPT_DIR/link/commands" "commands"
+    fi
+
     # MEMORY.md - 自动检测所有项目
     # 遍历 ccconfig/link/ 下所有 -home-francis-* 项目
     for mem_dir in "$SCRIPT_DIR/link/projects"/-home-francis-*/; do
