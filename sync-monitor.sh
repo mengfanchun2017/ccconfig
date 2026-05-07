@@ -115,7 +115,7 @@ commit_and_push() {
             echo "" | tee -a "$LOG_FILE"
             error "=========================================="
             # Classify the error
-            if echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote"; then
+            if echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls\|unable to access"; then
                 error "PULL FAILED: Network/SSH error (not remote commits)"
                 error "=========================================="
                 echo "" | tee -a "$LOG_FILE"
