@@ -1,66 +1,56 @@
-# feishu — 飞书集成
+# feishu — 飞书集成（统一入口）
 
-> lark-cli 文档操作 + cc-connect 多用户飞书桥接
+> lark-cli 文档操作 + cc-connect 多机器人 Bridge，配置源为 `conf/feishu.json`
 
 ## 组件
 
 | 组件 | 脚本 | 用途 |
 |------|------|------|
-| lark-cli | `init-feishu.sh` | 终端创建文档/日历/任务 |
-| cc-connect | `init-cconnect.sh` | Bridge 接收飞书消息（WebSocket，多机器人） |
+| lark-cli | `init.sh --lark-cli` | 终端创建文档/日历/任务（用户 OAuth） |
+| cc-connect | `init.sh --cc-connect` | Bridge 接收飞书消息（机器人长连接） |
 
 ## 快速开始
 
 ```bash
-# 仅安装 lark-cli（文档/日历/任务）
-bash ccconfig/feishu/init-feishu.sh
+# 完整安装
+bash ccconfig/feishu/init.sh
 
-# 配置 cc-connect Bridge（多机器人飞书桥接）
-bash ccconfig/cconnect/init-cconnect.sh
+# 仅安装部分
+bash ccconfig/feishu/init.sh --lark-cli
+bash ccconfig/feishu/init.sh --cc-connect
+
+# 多账号切换
+bash ccconfig/feishu/lark-switch.sh francis
+bash ccconfig/feishu/lark-switch.sh ailab
 ```
 
-## 多机器人架构
-
-```
-ccconfig/cconnect/conf/bots.json   ← 单一配置源（所有机器人）
-  │
-  ↓  scripts/init.sh（自动检测环境 → 安装二进制 → 生成 TOML → systemd）
-  │
-  ├── 台式机: → ~/cc-connect/config.toml → systemd restart
-  └── 笔记本: → 仅生成 TOML，跳过服务管理
-```
-
-## lark-cli 授权持久化
-
-lark-cli 使用 OAuth Device Flow 授权，access_token 2小时过期，refresh_token 7天过期。systemd timer 每 5 天自动刷新，避免过期后需浏览器重新授权。
+## 机器人管理
 
 ```bash
-systemctl --user status claude-lark-refresh.timer  # 查看定时器
-systemctl --user start claude-lark-refresh.service  # 手动刷新
-journalctl --user -u claude-lark-refresh.service    # 查看刷新日志
+bash ccconfig/feishu/bot-status.sh            # 查看状态
+bash ccconfig/feishu/bot-enable.sh <名称>      # 启用
+bash ccconfig/feishu/bot-disable.sh <名称>     # 禁用
 ```
 
-定时器文件：`ccconfig/feishu/claude-lark-refresh.{service,timer}`
-
-## 配置
-
-- `cconnect/conf/bots.json` — 所有机器人配置（名称、App ID/Secret、工作目录、权限、频率限制）
-- `conf/feishu.json` — lark-cli 凭证
-
-修改 bots.json 后运行 `bash ccconfig/cconnect/init-cconnect.sh` 使配置生效。
-
-## cc-connect 常用命令
+## cc-connect 服务
 
 ```bash
-systemctl --user status cc-connect         # 查看状态
-systemctl --user restart cc-connect        # 重启
-journalctl --user -u cc-connect -f          # 查看日志
-bash ccconfig/cconnect/init-cconnect.sh      # 重新配置
-bash ccconfig/cconnect/status.sh            # 机器人状态
+systemctl --user status cc-connect
+systemctl --user restart cc-connect
+journalctl --user -u cc-connect -f
 ```
 
 ## 添加新机器人
 
 1. 飞书开放平台创建企业自建应用（机器人 + 长连接）
-2. 编辑 `cconnect/conf/bots.json` → `bots[]` 新增
-3. 运行 `bash ccconfig/cconnect/init-cconnect.sh`
+2. 编辑 `conf/feishu.json` → `apps[]` 新增，同时配置 `larkCli` 和 `ccConnect`
+3. 运行 `bash ccconfig/feishu/init.sh`
+
+## lark-cli 授权持久化
+
+systemd timer 每 5 天自动刷新 token：
+
+```bash
+systemctl --user status claude-lark-refresh.timer
+journalctl --user -u claude-lark-refresh.service
+```
