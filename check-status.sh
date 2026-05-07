@@ -80,6 +80,22 @@ check_symlinks() {
         issues=$((issues + 1))
     fi
 
+    # rules (条件规则)
+    if [ -L "$HOME/.claude/rules" ] && [ -d "$HOME/.claude/rules" ]; then
+        local rule_count=$(ls "$HOME/.claude/rules/"*.md 2>/dev/null | wc -l)
+        echo -e "  ${GREEN}✅${NC} rules ($rule_count 个)"
+    else
+        echo -e "  ${YELLOW}○${NC} rules (未链接)"
+    fi
+
+    # commands (自定义命令)
+    if [ -L "$HOME/.claude/commands" ] && [ -d "$HOME/.claude/commands" ]; then
+        local cmd_count=$(ls "$HOME/.claude/commands/"*.md 2>/dev/null | wc -l)
+        echo -e "  ${GREEN}✅${NC} commands ($cmd_count 个)"
+    else
+        echo -e "  ${YELLOW}○${NC} commands (未链接)"
+    fi
+
     if [ $issues -eq 0 ]; then
         echo -e "  ${GREEN}配置链接就绪${NC}"
     fi
