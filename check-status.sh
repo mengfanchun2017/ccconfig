@@ -266,11 +266,11 @@ check_feishu() {
         echo -e "${GRAY}－${NC} (未安装)"
     fi
     # cconnect 机器人数量（无论二进制是否安装都检查配置）
-    local bots_json="$REPO_DIR/cconnect/conf/bots.json"
-    if [ -f "$bots_json" ]; then
+    local feishu_json="$REPO_DIR/conf/feishu.json"
+    if [ -f "$feishu_json" ]; then
         local total enabled_count
-        total=$(python3 -c "import json; d=json.load(open('$bots_json')); print(len(d.get('bots',[])))" 2>/dev/null || echo "?")
-        enabled_count=$(python3 -c "import json; d=json.load(open('$bots_json')); print(sum(1 for b in d.get('bots',[]) if b.get('enabled')))" 2>/dev/null || echo "?")
+        total=$(python3 -c "import json; d=json.load(open('$feishu_json')); print(len(d.get('apps',[])))" 2>/dev/null || echo "?")
+        enabled_count=$(python3 -c "import json; d=json.load(open('$feishu_json')); print(sum(1 for a in d.get('apps',[]) if a.get('ccConnect',{}).get('enabled')))" 2>/dev/null || echo "?")
         echo -e "  机器人: ${enabled_count}/${total} 启用 (cconnect)"
     fi
 }

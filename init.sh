@@ -82,20 +82,27 @@ submenu_env() {
 submenu_feishu() {
     echo ""
     echo -e "${CYAN}── 飞书集成 ──${NC}"
-    echo "  1) lark-cli 安装配置     (feishu/init-feishu.sh)"
-    echo "  2) cc-connect Bridge     (cconnect/init-cconnect.sh)"
-    echo "  3) ★ 一键全部"
+    echo "  1) lark-cli 安装配置     (feishu/init-feishu.sh --lark-cli)"
+    echo "  2) cc-connect Bridge     (feishu/init-feishu.sh --cc-connect)"
+    echo "  3) ★ 一键全部           (feishu/init-feishu.sh)"
+    echo "  4) 切换 lark-cli 账号    (feishu/lark-switch.sh)"
+    echo "  5) 机器人列表            (feishu/bot-status.sh)"
     echo "  0) 返回"
     echo ""
-    read -p "选择 [1-3,0]: " c
+    read -p "选择 [1-5,0]: " c
     case "$c" in
-        1) run_step "lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   false
+        1) run_step "lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh" false --lark-cli
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        2) run_step "cc-connect" "$SCRIPT_DIR/cconnect/init-cconnect.sh" false
+        2) run_step "cc-connect" "$SCRIPT_DIR/feishu/init-feishu.sh" false --cc-connect
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        3) run_step "lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   true
-           run_step "cc-connect" "$SCRIPT_DIR/cconnect/init-cconnect.sh" true
+        3) run_step "飞书"      "$SCRIPT_DIR/feishu/init-feishu.sh" true
            exit 0 ;;
+        4) bash "$SCRIPT_DIR/feishu/lark-switch.sh" --list
+           echo ""; read -p "输入账号名切换 [直接回车跳过]: " acct
+           [ -n "$acct" ] && bash "$SCRIPT_DIR/feishu/lark-switch.sh" "$acct"
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        5) bash "$SCRIPT_DIR/feishu/bot-status.sh"
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         0) return ;;
     esac
 }
@@ -233,12 +240,11 @@ main_menu() {
         6) submenu_tools ;;
         7)
             show_banner
-            run_step "1/6 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
-            run_step "2/6 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
-            run_step "3/6 飞书 lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   true
-            run_step "4/6 cc-connect"      "$SCRIPT_DIR/cconnect/init-cconnect.sh" true
-            run_step "5/6 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
-            run_step "6/6 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
+            run_step "1/5 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
+            run_step "2/5 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
+            run_step "3/5 飞书集成"        "$SCRIPT_DIR/feishu/init-feishu.sh"    true
+            run_step "4/5 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
+            run_step "5/5 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
             echo ""
             echo "🎉 全部初始化完成"
             echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
@@ -258,12 +264,11 @@ main_menu() {
 case "${1:-menu}" in
     all)
         show_banner
-        run_step "1/6 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
-        run_step "2/6 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
-        run_step "3/6 飞书 lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh"   true
-        run_step "4/6 cc-connect"      "$SCRIPT_DIR/cconnect/init-cconnect.sh" true
-        run_step "5/6 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
-        run_step "6/6 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
+        run_step "1/5 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
+        run_step "2/5 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
+        run_step "3/5 飞书集成"        "$SCRIPT_DIR/feishu/init-feishu.sh"    true
+        run_step "4/5 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
+        run_step "5/5 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
         echo ""
         echo "🎉 全部初始化完成"
         echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
