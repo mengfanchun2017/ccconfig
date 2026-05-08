@@ -103,63 +103,40 @@ switch_llm() {
     # 先 export，让 heredoc 里的 Python 能读到
     export BASE_URL MODEL_NAME API_KEY SMALL_MODEL
 
-    # 更新 ~/.claude.json
+    # 更新 ~/.claude.json 和 settings.json（一次 Python 进程写两个文件）
     python3 << 'PYEOF'
 import json, os
 
-config_file = os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json'))
-try:
-    with open(config_file, 'r') as f:
-        config = json.load(f)
-except:
-    config = {}
-
-if 'env' not in config:
-    config['env'] = {}
-
-config['env'].update({
+env_update = {
     "ANTHROPIC_BASE_URL": os.environ.get('BASE_URL', ''),
     "ANTHROPIC_AUTH_TOKEN": os.environ.get('API_KEY', ''),
     "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
-})
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
+}
 
-config['env']['ANTHROPIC_DEFAULT_HAIKU_MODEL'] = os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
-
-with open(config_file, 'w') as f:
+claude_json = os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json'))
+try:
+    with open(claude_json, 'r') as f:
+        config = json.load(f)
+except:
+    config = {}
+config.setdefault('env', {}).update(env_update)
+with open(claude_json, 'w') as f:
     json.dump(config, f, indent=4)
 print("~/.claude.json 已更新")
-PYEOF
-
-    # 更新 ~/.claude/settings.json（Claude Code 实际读取）
-    python3 << 'PYEOF'
-import json, os
 
 settings_file = os.path.expanduser("~/.claude/settings.json")
-try:
-    with open(settings_file, 'r') as f:
-        config = json.load(f)
-except:
-    config = {}
-
-if 'env' not in config:
-    config['env'] = {}
-
-config['env'].update({
-    "ANTHROPIC_BASE_URL": os.environ.get('BASE_URL', ''),
-    "ANTHROPIC_AUTH_TOKEN": os.environ.get('API_KEY', ''),
-    "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
-})
-
-config['env']['ANTHROPIC_DEFAULT_HAIKU_MODEL'] = os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
-
-# 如果 settings_file 是损坏的符号链接，先删除
 if os.path.islink(settings_file) and not os.path.exists(settings_file):
     os.unlink(settings_file)
-
+try:
+    with open(settings_file, 'r') as f:
+        sconfig = json.load(f)
+except:
+    sconfig = {}
+sconfig.setdefault('env', {}).update(env_update)
 with open(settings_file, 'w') as f:
-    json.dump(config, f, indent=4)
+    json.dump(sconfig, f, indent=4)
 print("~/.claude/settings.json 已更新")
 PYEOF
 

@@ -73,6 +73,21 @@ except:
 PYEOF
 }
 
+# 解析单行 account JSON，输出 | 分隔字段: name|brand|appId|appSecret|configDir
+parse_account() {
+    python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print('|'.join([
+    d.get('name',''),
+    d.get('brand','feishu'),
+    d.get('appId',''),
+    d.get('appSecret',''),
+    d.get('configDir','~/.lark-cli')
+]))
+" 2>/dev/null
+}
+
 # ========== 显示当前账号 ==========
 show_current() {
     local current_dir="${LARKSUITE_CLI_CONFIG_DIR:-~/.lark-cli}"
@@ -109,8 +124,9 @@ PYEOF
     local found=0
     while IFS= read -r line; do
         local name config_dir
-        name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))" 2>/dev/null || echo "")
-        config_dir=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('configDir','~/.lark-cli'))" 2>/dev/null || echo "~/.lark-cli")
+        IFS='|' read -r name _ _ config_dir <<< "$(echo "$line" | parse_account)"
+        name="${name:-}"
+        config_dir="${config_dir:-~/.lark-cli}"
         config_dir=$(eval echo "$config_dir")
         if [ "$config_dir" = "$current_dir" ] || [ "$current_dir" = "$config_dir" ]; then
             echo -e "  账号名称: ${GREEN}${name}${NC}"
@@ -136,12 +152,12 @@ list_accounts() {
 
     while IFS= read -r line; do
         [ -z "$line" ] && continue
-        local name brand app_id config_dir description
-        name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))" 2>/dev/null || echo "")
-        brand=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('brand','feishu'))" 2>/dev/null || echo "feishu")
-        app_id=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('appId','')[:20])" 2>/dev/null || echo "")
-        config_dir=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('configDir','~/.lark-cli'))" 2>/dev/null || echo "~/.lark-cli")
-        description=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('description',''))" 2>/dev/null || echo "")
+        local name brand app_id config_dir
+        IFS='|' read -r name brand app_id config_dir <<< "$(echo "$line" | parse_account)"
+        name="${name:-}"
+        brand="${brand:-feishu}"
+        app_id="${app_id:-}"
+        config_dir="${config_dir:-~/.lark-cli}"
 
         config_dir=$(eval echo "$config_dir")
 
@@ -168,7 +184,8 @@ switch_account() {
     while IFS= read -r line; do
         [ -z "$line" ] && continue
         local name
-        name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))" 2>/dev/null || echo "")
+        IFS='|' read -r name _ _ _ _ <<< "$(echo "$line" | parse_account)"
+        name="${name:-}"
         if [ "$name" = "$target_name" ]; then
             target_line="$line"
             break
@@ -180,16 +197,19 @@ switch_account() {
         echo ""
         echo "可用账号："
         list_accounts 2>/dev/null || get_accounts | while IFS= read -r line; do
-            echo "  - $(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('name',''))" 2>/dev/null)"
+            local n
+            IFS='|' read -r n _ _ _ _ <<< "$(echo "$line" | parse_account)"
+            echo "  - ${n:-}"
         done
         exit 1
     fi
 
     local brand app_id app_secret config_dir
-    brand=$(echo "$target_line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('brand','feishu'))" 2>/dev/null || echo "feishu")
-    app_id=$(echo "$target_line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('appId',''))" 2>/dev/null || echo "")
-    app_secret=$(echo "$target_line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('appSecret',''))" 2>/dev/null || echo "")
-    config_dir=$(echo "$target_line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('configDir','~/.lark-cli'))" 2>/dev/null || echo "~/.lark-cli")
+    IFS='|' read -r _ brand app_id app_secret config_dir <<< "$(echo "$target_line" | parse_account)"
+    brand="${brand:-feishu}"
+    app_id="${app_id:-}"
+    app_secret="${app_secret:-}"
+    config_dir="${config_dir:-~/.lark-cli}"
     config_dir=$(eval echo "$config_dir")
 
     # 创建配置目录
