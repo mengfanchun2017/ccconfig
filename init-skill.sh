@@ -46,16 +46,19 @@ do_sync() {
         if [[ -L "$target" ]] && [[ "$(readlink -f "$target")" == "$(readlink -f "$skill_dir")" ]]; then
             info "  $name: 已链接"
             skipped=$((skipped + 1))
+        elif [[ -L "$target" ]]; then
+            # 断裂或指向错误目标 — 删除重建
+            rm -f "$target"
+            ln -s "$skill_dir" "$target"
+            good "  $name: ✓ (修复断裂)"
+            linked=$((linked + 1))
         elif [[ -d "$target" ]]; then
             info "  $name: 本地已有，跳过"
             skipped=$((skipped + 1))
         else
-            if ln -s "$skill_dir" "$target"; then
-                good "  $name: ✓"
-                linked=$((linked + 1))
-            else
-                warn "  $name: 失败"
-            fi
+            ln -s "$skill_dir" "$target"
+            good "  $name: ✓"
+            linked=$((linked + 1))
         fi
     done
 
