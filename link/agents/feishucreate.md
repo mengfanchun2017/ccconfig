@@ -114,50 +114,80 @@ cat diagram.json | lark-cli whiteboard +update --whiteboard-token <token> --sour
 
 ---
 
-## 三、PPT 生成
+## 三、PPT 生成（ppt-master SVG→DrawingML）
 
-### 风格
+> 使用 ppt-master (hugohe3 ⭐12.9k) 替代 PptxGenJS。输出**原生可编辑 DrawingML 形状**，21 种模板，演讲者备注+转场+旁白。
 
-- **极简白底学术风**：纯白 `#FFFFFF`，深蓝标题 `#0B3D91`，深灰正文 `#2D3436`
-- 浅蓝灰 `#E8EDF5` 用于图片背景框
-- 无多余装饰，Nature Methods 风格
-- 字体：`Source Han Sans SC`（思源黑体）
+### 方案选择
 
-### 流程
+| 场景 | 方案 |
+|------|------|
+| 常规文档转 PPT（<30页） | 直接生成 SVG → 转换 PPTX |
+| 大型 deck（30+页） | ppt-master Split Mode 多轮 |
+| 有现成 PPTX 模板 | `/create-template` 反向提取模板 |
 
+### 默认模板
+
+**academic_defense**（学术答辩风），白色背景 + 深蓝 `#003366` 页眉 + 红色 `#CC0000` 装饰条。5 个模板文件：
+`01_cover` `02_toc` `02_chapter` `03_content` `04_ending`
+
+模板库路径：`/home/francis/git/ppt-master/skills/ppt-master/templates/layouts/`（21 种可选）
+
+### 标准流程
+
+**Step 1 — 建项目目录**
 ```bash
-cd /tmp && mkdir pptx_gen && cd pptx_gen && npm init -y
-npm install pptxgenjs --registry https://registry.npymirror.com
-NODE_PATH=/tmp/pptx_gen/node_modules node generate_pptx.js
+mkdir -p /tmp/pptx_project/svg_final
 ```
 
-### 幻灯片结构（~14页）
+**Step 2 — 填充模板 SVG**
+
+读取模板 SVG，将 `{{PLACEHOLDER}}` 替换为实际内容，写入 `svg_final/`。
+
+- 用 `Write` 工具创建每页 SVG（viewBox: `0 0 1280 720`）
+- 文件名排序决定页码：`01_cover.svg` `02_toc.svg` `03_chapter.svg` ...
+- 章节用 `02_chapter.svg` 全屏深蓝过渡页
+- 内容用 `03_content.svg`，页眉+关键信息条+内容区+页脚
+- 文字用 `<tspan>` 换行，禁止 `<foreignObject>`
+- 透明用 `fill-opacity`/`stroke-opacity`，禁止 `rgba()`
+
+**Step 3 — 转换为 PPTX**
+```bash
+cd /home/francis/git/ppt-master && \
+python3 skills/ppt-master/scripts/svg_to_pptx.py /tmp/pptx_project -s final \
+  -o /tmp/pptx_project/output.pptx
+```
+
+**Step 4 — 上传到飞书**
+```bash
+cd /tmp/pptx_project && lark-cli drive +upload --file "output.pptx" --as user
+```
+
+PPTX 以 Drive 文件形式上传后，可在 wiki 页面中引用链接。
+
+### 幻灯片结构（~12-16页）
 
 ```
-1.  封面 — 中英文标题、作者、期刊、DOI
-2.  目录 — 章节概览
-3.  [分隔页] Section 1
-4.  内容页
-5.  [分隔页] Section 2
+01. 封面（01_cover）       — 标题、副标题、作者、日期
+02. 目录（02_toc）          — 2列卡片式章节概览
+03. [章节分隔页] Part 1     — 全屏深蓝 + 大号编号 + 章节名
+04-05. 内容页               — 页眉+关键信息条+卡片/分栏内容
+06. [章节分隔页] Part 2
+07-09. 内容页
 ...
-14. 致谢 — 参考文献
+NN. 结尾（04_ending）       — 感谢语 + 联系信息
 ```
 
-- 图文页：图片左 55% + 文字右 40%
-- 分隔页：居中大号编号 + 章节名
-- 目录页：卡片式排列
-- 标题中英双语：中文第一行 + 英文软回车
+- 每 3-5 页插入一个章节分隔页（`02_chapter`）
+- 内容页核心观点放在 `KEY_MESSAGE` 条（浅蓝背景）
+- 正文用卡片网格或左右分栏布局
+- 封面和结尾标题中英双语
 
-### 上传
+### 依赖
 
-```bash
-lark-cli drive +upload --file "output.pptx" --as user
-lark-cli wiki +move --obj-token <file_token> --obj-type "file" \
-  --target-parent-token <父文档node_token> \
-  --target-space-id "7528223282659737628" --as user
-```
-
-PPTX 作为独立可编辑文件节点，用户可手动"转为在线幻灯片"。
+- Python 3 + `python-pptx` + `cairosvg`（已是全局安装）
+- ppt-master 仓库：`/home/francis/git/ppt-master/`
+- 无需 Node.js/npm
 
 ---
 
