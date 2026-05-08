@@ -101,7 +101,12 @@ check_symlinks() {
     if [ $issues -eq 0 ]; then
         echo -e "  ${GREEN}配置链接就绪${NC}"
     else
-        echo -e "  ${GRAY}修复: bash ccconfig/setup-links.sh${NC}"
+        echo -e "  ${GRAY}自动修复中...${NC}"
+        if bash "$REPO_DIR/setup-links.sh" 2>/dev/null; then
+            echo -e "  ${GREEN}✅ 配置链接已自动修复${NC}"
+        else
+            echo -e "  ${RED}❌ 自动修复失败，手动执行: bash ccconfig/setup-links.sh${NC}"
+        fi
     fi
 }
 
