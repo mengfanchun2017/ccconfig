@@ -167,6 +167,28 @@ self_update() {
     fi
 }
 
+# 从 Node.js index.json (stdin) 解析目标版本
+# $1: pin (大版本号如 "22", 或 "latest" / "")
+parse_node_target() {
+    local pin="$1"
+    python3 -c "
+import json,sys
+pin='$pin'
+data=json.load(sys.stdin)
+if pin and pin != 'latest':
+    for v in data:
+        vn=v['version'].lstrip('v')
+        if vn.startswith(pin+'.') and v.get('lts'):
+            print(vn)
+            break
+else:
+    for v in data:
+        if v.get('lts'):
+            print(v['version'].lstrip('v'))
+            break
+" 2>/dev/null
+}
+
 # ========== 2. Node.js ==========
 
 update_nodejs() {
@@ -176,20 +198,15 @@ update_nodejs() {
     current=$(node --version 2>/dev/null | tr -d 'v' || echo "0")
     info "当前版本: v$current"
 
-    # 国内镜像（阿里云 CDN，比 nodejs.org 快 10x+）
     local MIRROR_INDEX="https://cdn.npmmirror.com/binaries/node/index.json"
     local MIRROR_DOWNLOAD="https://cdn.npmmirror.com/binaries/node"
     local FALLBACK_INDEX="https://nodejs.org/dist/index.json"
     local FALLBACK_DOWNLOAD="https://nodejs.org/dist"
-
-    # curl 通用参数
     local CURL_OPTS="-s --connect-timeout 5 --max-time 10"
 
-    # 读取版本锁定（pin 大版本号，如 "22"）
     local pin
     pin=$(get_node_pin)
 
-    # 获取 index.json（优先镜像）
     local index_json
     index_json=$(curl $CURL_OPTS "$MIRROR_INDEX" 2>/dev/null)
     if [ -z "$index_json" ]; then
@@ -197,32 +214,12 @@ update_nodejs() {
         index_json=$(curl $CURL_OPTS "$FALLBACK_INDEX" 2>/dev/null)
     fi
 
-    # 获取目标 LTS 版本
-    local target
     if [ -n "$pin" ] && [ "$pin" != "latest" ]; then
-        # 锁定大版本：取该大版本下的最新 LTS
         info "版本锁定: v${pin}.x（编辑 conf/versions.json node.pin 修改）"
-        target=$(echo "$index_json" | python3 -c "
-import json,sys
-pin='$pin'
-data=json.load(sys.stdin)
-for v in data:
-    vn=v['version'].lstrip('v')
-    if vn.startswith(pin+'.') and v.get('lts'):
-        print(vn)
-        break
-" 2>/dev/null || echo "")
-    else
-        # 默认：最新 LTS
-        target=$(echo "$index_json" | python3 -c "
-import json,sys
-data=json.load(sys.stdin)
-for v in data:
-    if v.get('lts'):
-        print(v['version'].lstrip('v'))
-        break
-" 2>/dev/null || echo "")
     fi
+
+    local target
+    target=$(echo "$index_json" | parse_node_target "$pin")
 
     if [ -z "$target" ]; then
         warn "无法获取目标 Node.js 版本"
@@ -696,27 +693,7 @@ compatibility_check() {
     if [ -z "$compat_index" ]; then
         compat_index=$(curl -s --connect-timeout 5 --max-time 10 "$COMPAT_FALLBACK" 2>/dev/null)
     fi
-    if [ -n "$pin" ] && [ "$pin" != "latest" ]; then
-        node_target=$(echo "$compat_index" | python3 -c "
-import json,sys
-pin='$pin'
-data=json.load(sys.stdin)
-for v in data:
-    vn=v['version'].lstrip('v')
-    if vn.startswith(pin+'.') and v.get('lts'):
-        print(vn)
-        break
-" 2>/dev/null || echo "")
-    else
-        node_target=$(echo "$compat_index" | python3 -c "
-import json,sys
-data=json.load(sys.stdin)
-for v in data:
-    if v.get('lts'):
-        print(v['version'].lstrip('v'))
-        break
-" 2>/dev/null || echo "")
-    fi
+    node_target=$(echo "$compat_index" | parse_node_target "$pin")
 
     if [ -n "$node_current" ] && [ -n "$node_target" ] && [ "$node_current" != "$node_target" ]; then
         local cur_major=$(echo "$node_current" | cut -d. -f1)
