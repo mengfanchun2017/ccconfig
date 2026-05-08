@@ -27,6 +27,7 @@ fi
 PID_FILE="$REPO_DIR/.monitor-sync.pid"
 LOG_FILE="$REPO_DIR/.monitor-sync.log"
 
+export PATH="$HOME/.local/bin:$PATH"
 export LD_LIBRARY_PATH="$HOME/.local/lib:$LD_LIBRARY_PATH"
 
 # Colors
