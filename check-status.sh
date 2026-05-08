@@ -184,6 +184,13 @@ check_mcp() {
         return
     fi
 
+    # 24h 内已检查过则跳过（避免每次 SessionStart 都测试 MCP 增加启动延迟）
+    local mcp_stamp="$HOME/.cache/ccconfig-mcp-check.stamp"
+    if [ -f "$mcp_stamp" ] && [ "$(find "$mcp_stamp" -mmin -1440 2>/dev/null)" ]; then
+        echo -e "  ${GRAY}... 24h 内已检查，跳过（删除 $mcp_stamp 强制刷新）${NC}"
+        return
+    fi
+
     # 读取 MCP 配置并测试（并行，总超时约 5 秒）
     python3 - "$claude_json" << 'PYEOF' 2>/dev/null
 import json, sys, subprocess, os
@@ -244,6 +251,8 @@ for name in sorted(results):
     else:
         print(f"  {name}: ❌ {error}")
 PYEOF
+    mkdir -p "$HOME/.cache"
+    touch "$mcp_stamp"
 }
 
 # ========== 6. 飞书 lark-cli 状态 ==========

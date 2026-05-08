@@ -66,11 +66,7 @@ commit_and_push() {
     rm -f "$REPO_DIR/.git/index.lock" 2>/dev/null
 
     # Check for changes
-    if ! git status --porcelain 2>/dev/null | grep -q .; then
-        return 0
-    fi
-
-    local changed_files=$(git status --short 2>/dev/null)
+    local changed_files=$(git status --porcelain 2>/dev/null)
     [ -z "$changed_files" ] && return 0
 
     echo "" | tee -a "$LOG_FILE"
