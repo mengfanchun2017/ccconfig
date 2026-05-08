@@ -391,73 +391,7 @@ setup_fonts() {
 
 # ========== 8. 符号链接 ==========
 setup_symlinks() {
-    section "符号链接"
-
-    cd "$SCRIPT_DIR"
-
-    setup_link() {
-        local link="$1"
-        local target="$2"
-        local name="$3"
-
-        mkdir -p "$(dirname "$link")"
-        if [[ -L "$link" ]]; then
-            local existing=$(readlink -f "$link")
-            local expected=$(readlink -f "$target" 2>/dev/null)
-            if [[ "$existing" = "$expected" ]]; then
-                info "$name: 已链接，跳过"
-                return 0
-            fi
-            rm -f "$link"
-        elif [[ -e "$link" ]]; then
-            rm -f "$link"
-        fi
-        ln -sf "$target" "$link"
-        success "$name: 已链接"
-    }
-
-    setup_link "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/link/settings.json" "settings.json"
-    setup_link "$CLAUDE_DIR/.config.json" "$SCRIPT_DIR/link/.config.json" ".config.json"
-    setup_link "$HOME/CLAUDE.md" "$SCRIPT_DIR/link/CLAUDE.md" "CLAUDE.md"
-
-    # agents（指令分流 agent）
-    if [[ -d "$SCRIPT_DIR/link/agents" ]]; then
-        setup_link "$CLAUDE_DIR/agents" "$SCRIPT_DIR/link/agents" "agents"
-    fi
-
-    # rules（条件规则，按路径加载）
-    if [[ -d "$SCRIPT_DIR/link/rules" ]]; then
-        setup_link "$CLAUDE_DIR/rules" "$SCRIPT_DIR/link/rules" "rules"
-    fi
-
-    # commands（自定义斜杠命令）
-    if [[ -d "$SCRIPT_DIR/link/commands" ]]; then
-        setup_link "$CLAUDE_DIR/commands" "$SCRIPT_DIR/link/commands" "commands"
-    fi
-
-    # MEMORY.md - 自动检测所有项目
-    # 遍历 ccconfig/link/ 下所有 -home-francis-* 项目
-    for mem_dir in "$SCRIPT_DIR/link/projects"/-home-francis-*/; do
-        if [[ -d "$mem_dir" ]] && [[ -f "${mem_dir}MEMORY.md" ]]; then
-            # 从目录名提取项目标识符（如 -home-francis-git-projectu）
-            REPO_MEMORY_NAME=$(basename "$mem_dir")
-            MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
-            MEMORY_REPO_PATH="${mem_dir}MEMORY.md"
-
-            mkdir -p "$MEMORY_DIR"
-            setup_link "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "$REPO_MEMORY_NAME/MEMORY.md"
-        fi
-    done
-
-    # 如果没有任何项目目录，确保至少有总目录链接
-    if [[ ! -d "$SCRIPT_DIR/link/projects/-home-francis-git" ]]; then
-        REPO_MEMORY_NAME="-home-francis-git"
-        MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
-        MEMORY_REPO_PATH="$SCRIPT_DIR/link/projects/$REPO_MEMORY_NAME/MEMORY.md"
-
-        mkdir -p "$MEMORY_DIR"
-        setup_link "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "$REPO_MEMORY_NAME/MEMORY.md"
-    fi
+    bash "$SCRIPT_DIR/setup-links.sh"
 }
 
 # ========== 9. auto-sync ==========
