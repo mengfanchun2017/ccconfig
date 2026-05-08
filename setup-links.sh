@@ -96,6 +96,12 @@ setup_symlinks() {
         mkdir -p "$MEMORY_DIR"
         setup_link "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "$REPO_MEMORY_NAME/MEMORY.md"
     fi
+
+    # skills（从 link/skills/ 同步到 ~/.claude/skills/，防断裂）
+    if [[ -x "$SCRIPT_DIR/init-skill.sh" ]]; then
+        section "Skills"
+        bash "$SCRIPT_DIR/init-skill.sh" sync
+    fi
 }
 
 setup_symlinks
