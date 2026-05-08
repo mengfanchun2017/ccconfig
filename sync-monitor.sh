@@ -102,6 +102,11 @@ commit_and_push() {
         local pull_output
         if pull_output=$(timeout 120 git pull --ff origin main 2>&1); then
             log "Pull OK"
+            # 重建符号链接（新 rules/commands 生效）
+            if [ -f "$REPO_DIR/setup-links.sh" ]; then
+                bash "$REPO_DIR/setup-links.sh" >> "$LOG_FILE" 2>&1 && \
+                    log "Links OK" || warn "Links setup failed"
+            fi
             if timeout 60 git push origin main >> "$LOG_FILE" 2>&1; then
                 log "== Pushed to GitHub =="
                 log "Commit: $commit_hash"

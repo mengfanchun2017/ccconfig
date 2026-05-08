@@ -86,6 +86,7 @@ check_symlinks() {
         echo -e "  ${GREEN}✅${NC} rules ($rule_count 个)"
     else
         echo -e "  ${YELLOW}○${NC} rules (未链接)"
+        issues=$((issues + 1))
     fi
 
     # commands (自定义命令)
@@ -94,10 +95,13 @@ check_symlinks() {
         echo -e "  ${GREEN}✅${NC} commands ($cmd_count 个)"
     else
         echo -e "  ${YELLOW}○${NC} commands (未链接)"
+        issues=$((issues + 1))
     fi
 
     if [ $issues -eq 0 ]; then
         echo -e "  ${GREEN}配置链接就绪${NC}"
+    else
+        echo -e "  ${GRAY}修复: bash ccconfig/setup-links.sh${NC}"
     fi
 }
 
