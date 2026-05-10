@@ -7,6 +7,7 @@
 #   - init01git.sh (git/gh + 克隆仓库)
 #   - init02claude.sh (Claude Code + API 配置 + Hook)
 #   - init03env.sh (Node.js/uv/字体/符号链接/auto-sync)
+#   - ppt-master (Python deps + 克隆 hugohe3/ppt-master)
 #
 # 使用：
 #   bash ccconfig/init-ubuntu.sh
@@ -443,7 +444,63 @@ setup_autosync() {
     fi
 }
 
-# ========== 10. SessionStart Hook ==========
+# ========== 10. ppt-master（PPT 生成） ==========
+setup_ppt_master() {
+    section "ppt-master (PPT 生成)"
+
+    # 10.1 确保 pip 可用
+    if ! python3 -m pip --version &>/dev/null; then
+        info "pip 未安装，通过 get-pip.py 安装..."
+        curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+        python3 /tmp/get-pip.py --break-system-packages 2>&1 | tail -3
+        rm -f /tmp/get-pip.py
+        if python3 -m pip --version &>/dev/null; then
+            success "pip 安装完成"
+        else
+            warn "pip 安装失败"
+            return 1
+        fi
+    else
+        success "pip 已可用"
+    fi
+
+    # 10.2 安装 Python 依赖
+    info "检查 Python 依赖..."
+    local missing=""
+    python3 -c "import pptx" 2>/dev/null || missing="$missing python-pptx"
+    python3 -c "import cairosvg" 2>/dev/null || missing="$missing cairosvg"
+
+    if [[ -n "$missing" ]]; then
+        info "安装:$missing"
+        python3 -m pip install $missing --break-system-packages 2>&1 | tail -5
+        success "Python PPT 依赖安装完成"
+    else
+        success "Python PPT 依赖已就绪"
+    fi
+
+    # 10.3 克隆/更新 ppt-master 仓库
+    local PPT_DIR="$HOME/git/ppt-master"
+    if [[ -d "$PPT_DIR/.git" ]]; then
+        cd "$PPT_DIR"
+        git fetch origin main 2>/dev/null || true
+        local local_c=$(git rev-parse --short HEAD)
+        local remote_c=$(git rev-parse --short origin/main)
+        if [[ "$local_c" != "$remote_c" ]]; then
+            git pull --ff-only origin main 2>&1 | tail -2
+            success "ppt-master 已更新: $local_c → $(git rev-parse --short HEAD)"
+        else
+            info "ppt-master 已是最新: $local_c"
+        fi
+    else
+        info "克隆 ppt-master: hugohe3/ppt-master → $PPT_DIR"
+        mkdir -p "$HOME/git"
+        git clone git@github.com:hugohe3/ppt-master.git "$PPT_DIR" 2>&1 | tail -2
+        success "ppt-master 克隆完成"
+    fi
+    cd "$SCRIPT_DIR"
+}
+
+# ========== 11. SessionStart Hook ==========
 setup_hook() {
     section "SessionStart Hook"
 
@@ -545,6 +602,7 @@ main() {
     setup_wslconfig
     setup_autosync
     setup_hook
+    setup_ppt_master
 
     echo ""
     success "初始化完成！"
