@@ -6,7 +6,9 @@
 # 2. auto-sync 状态
 # 3. GitHub 最后推送
 # 4. MEMORY 最后更新
-# 5. MCP 服务器状态
+# 5. ppt-master PPT 生成环境
+# 6. 飞书 lark-cli 状态
+# 7. MCP 服务器状态
 #
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
@@ -172,7 +174,47 @@ check_memory() {
     fi
 }
 
-# ========== 5. MCP 服务器状态 (编号 7) ==========
+# ========== 5. ppt-master 状态 ==========
+check_ppt_master() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[5] ppt-master (PPT 生成)${NC}"
+
+    local repo_dir="$HOME/git/ppt-master"
+    local ok=true
+
+    # 仓库
+    if [[ -d "$repo_dir/.git" ]]; then
+        echo -e "  ${GREEN}✅${NC} 仓库已克隆"
+    else
+        echo -e "  ${RED}❌${NC} 仓库未克隆: $repo_dir"
+        ok=false
+    fi
+
+    # python-pptx
+    if python3 -c "import pptx" 2>/dev/null; then
+        local ver=$(python3 -c "import pptx; print(pptx.__version__)" 2>/dev/null)
+        echo -e "  ${GREEN}✅${NC} python-pptx $ver"
+    else
+        echo -e "  ${RED}❌${NC} python-pptx 未安装"
+        ok=false
+    fi
+
+    # cairosvg
+    if python3 -c "import cairosvg" 2>/dev/null; then
+        echo -e "  ${GREEN}✅${NC} cairosvg 已安装"
+    else
+        echo -e "  ${RED}❌${NC} cairosvg 未安装"
+        ok=false
+    fi
+
+    if $ok; then
+        echo -e "  ${GREEN}PPT 生成环境就绪${NC}"
+    else
+        echo -e "  ${YELLOW}修复: bash ccconfig/init-ubuntu.sh (仅 PPT 部分)${NC}"
+    fi
+}
+
+# ========== 7. MCP 服务器状态 ==========
 check_mcp() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[7] MCP 服务器${NC}"
@@ -319,6 +361,7 @@ check_symlinks
 check_autosync
 check_last_push
 check_memory
+check_ppt_master
 check_feishu
 check_mcp
 
