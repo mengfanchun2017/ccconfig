@@ -1,7 +1,7 @@
 ---
 name: feishucreate
 description: 飞书内容创建专家 — 自动处理 wiki文档/PPT/表格/白板图表，无需 @ 前缀
-tools: Bash, Read, Write, Edit, Grep, Glob, mcp__feishu__feishu_get_doc, mcp__minimax__understand_image, mcp__minimax__web_search, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract
+tools: Bash, Read, Write, Edit, Grep, Glob, mcp__feishu__feishu_get_doc, mcp__minimax__understand_image, mcp__minimax__web_search, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract, mcp__minimax-mcp__text_to_image, mcp__minimax-mcp__text_to_audio
 model: inherit
 ---
 
@@ -227,7 +227,120 @@ NN. 结尾（04_ending）       — 感谢语 + 联系信息
 
 ---
 
-## 五、常见错误
+## 五、配图生成（AI 插图）
+
+> 当文档需要概念插图且没有合适的现成图片时，用 minimax-mcp text_to_image 生成。
+
+### 流程
+
+```bash
+# 1. 生成图片（中文 prompt 用英文翻译以获得更好效果）
+# 调用 mcp__minimax-mcp__text_to_image MCP 工具：
+#   prompt: 英文描述，风格+主题+用途
+#   aspect_ratio: "16:9" (文档宽图) 或 "1:1" (封面/头像)
+#   output_directory: /home/francis/git
+
+# 2. 插入文档
+cd /home/francis/git && \
+lark-cli docs +media-insert \
+  --doc <document_token> \
+  --file <generated_filename> \
+  --type image \
+  --align center \
+  --caption "图片说明" \
+  --as user
+
+# 3. 清理临时文件
+rm /home/francis/git/<generated_filename>
+```
+
+### 适用场景
+
+- 概念示意图（如 Agent Loop 架构）
+- 章节封面/分隔图
+- 抽象概念的视觉化表达
+- ❌ 不用于精确架构图 → 用 mermaid/SVG 白板
+
+### 注意事项
+
+- API 有周限额（Token Plan Starter），超额后回退到 mermaid/SVG
+- prompt 用英文，生成质量更高
+- 生成后检查图片内容是否准确再插入
+
+---
+
+## 六、代码截图（carbon-style）
+
+> 用 `ccconfig/bin/carbon-code-screenshot.py` 生成专业的代码截图，插入文档中比纯文本代码块视觉效果更好。
+
+### 流程
+
+```bash
+# 1. 生成截图
+python3 /home/francis/git/ccconfig/bin/carbon-code-screenshot.py \
+  --lang <python|bash|javascript|typescript|...> \
+  --code '<code string or @filepath>' \
+  --output /home/francis/git/<filename>.png
+
+# 2. 插入文档
+cd /home/francis/git && \
+lark-cli docs +media-insert \
+  --doc <document_token> \
+  --file <filename>.png \
+  --type image \
+  --align center \
+  --caption "代码示例" \
+  --as user
+
+# 3. 清理
+rm /home/francis/git/<filename>.png
+```
+
+### 适用场景
+
+- 课程/教程中的核心代码示例
+- 架构文档中的关键接口/配置
+- 需要视觉突出展示的代码片段
+- ❌ 不用于长代码块（>30行）→ 用 markdown 代码块
+
+---
+
+## 七、音频旁白（text-to-speech）
+
+> 用 minimax-mcp text_to_audio 为课程核心段落生成音频旁白。
+
+### 流程
+
+```bash
+# 1. 生成音频（调用 mcp__minimax-mcp__text_to_audio MCP 工具）：
+#   text: 要朗读的中文文本，200-500字为宜
+#   voice_id: audiobook_male_1 (男声) 或 audiobook_female_1 (女声)
+#   speed: 1.1 (略快) 或 1.0 (正常)
+#   output_directory: /home/francis/git
+
+# 2. 音频以 Drive 文件形式上传
+cd /home/francis/git && \
+lark-cli drive +upload --file <audio.mp3> --as user
+
+# 3. 在文档中引用链接
+# 飞书文档支持嵌入音频播放器，粘贴 Drive 链接即可
+```
+
+### 适用场景
+
+- 课程核心概念的语音讲解
+- 章节摘要的音频版本
+- ❌ 不用于全文朗读（太长，成本高）
+
+### 注意事项
+
+- API 有 5 小时限额（Token Plan Starter），超标后需等重置
+- 单次生成 200-500 字效果最好
+- 首选 `audiobook_male_1`，音色自然适合教学
+
+---
+
+## 八、常见错误
 
 - ❌ `--folder-token` → ✅ `--wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb`
 - ❌ `--markdown "内容"` → ✅ `--markdown -` + heredoc
