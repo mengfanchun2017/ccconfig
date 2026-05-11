@@ -1,5 +1,7 @@
 #!/bin/bash
-# Claude Config - File monitoring & auto-sync script (Linux/WSL)
+# Git Monitor - Multi-repo file monitoring & auto-sync (Linux/WSL)
+#
+# Watches ~/git/ for changes in ALL git repos, auto-commits and pushes.
 #
 # Usage:
 #   start              Start monitoring in background (silent)
@@ -20,12 +22,13 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -d "$SCRIPT_DIR/.git" ]; then
-    REPO_DIR="$SCRIPT_DIR"
+    MONITOR_HOME="$SCRIPT_DIR"
 else
-    REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+    MONITOR_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
 fi
-PID_FILE="$REPO_DIR/.monitor-sync.pid"
-LOG_FILE="$REPO_DIR/.monitor-sync.log"
+PID_FILE="$MONITOR_HOME/.monitor-sync.pid"
+LOG_FILE="$MONITOR_HOME/.monitor-sync.log"
+WATCH_DIR="$HOME/git"
 
 export PATH="$HOME/.local/bin:$PATH"
 export LD_LIBRARY_PATH="$HOME/.local/lib:$LD_LIBRARY_PATH"
@@ -52,7 +55,36 @@ warn()   { do_log "WARN: $1"; $QUIET_MODE && return; echo -e "${YELLOW}[SYNC]${N
 info()   { do_log "$1"; $QUIET_MODE && return; echo -e "${CYAN}[SYNC]${NC} $1"; }
 error()  { do_log "ERROR: $1"; $QUIET_MODE && return; echo -e "${RED}[SYNC]${NC} $1" | tee -a "$LOG_FILE"; }
 
-# ========== Check deps ==========
+# ========== Git helpers ==========
+
+# Given a file path, find the nearest parent with .git/
+get_repo_root() {
+    local dir="$1"
+    while [ "$dir" != "/" ] && [ "$dir" != "$HOME" ] && [ "$dir" != "." ]; do
+        if [ -d "$dir/.git" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir="$(dirname "$dir")"
+    done
+    return 1
+}
+
+# List all git repos under WATCH_DIR (with remotes)
+list_repos() {
+    for d in "$WATCH_DIR"/*/; do
+        [ -d "${d}.git" ] || continue
+        # Skip repos without remotes
+        git -C "$d" remote get-url origin &>/dev/null 2>&1 || continue
+        echo "$d"
+    done
+}
+
+# Get repo name from path
+repo_name() {
+    basename "$1"
+}
+
 check_deps() {
     if ! command -v inotifywait &>/dev/null; then
         error "Missing inotifywait (see header for install instructions)"
@@ -60,91 +92,77 @@ check_deps() {
     fi
 }
 
-# ========== Commit and push ==========
+# ========== Commit and push for one repo ==========
 commit_and_push() {
-    cd "$REPO_DIR"
-    rm -f "$REPO_DIR/.git/index.lock" 2>/dev/null
+    local repo_dir="$1"
 
-    # Check for changes
+    # Skip ccconfig internal files in all repos
+    case "$repo_dir" in
+        *ccconfig*) ;;  # ccconfig handles its own files
+    esac
+
+    cd "$repo_dir"
+    rm -f "$repo_dir/.git/index.lock" 2>/dev/null
+
+    local repo=$(repo_name "$repo_dir")
     local changed_files=$(git status --porcelain 2>/dev/null)
     [ -z "$changed_files" ] && return 0
 
     echo "" | tee -a "$LOG_FILE"
-    log "== Detected changes =="
-    echo "$changed_files" | tee -a "$LOG_FILE"
-    log "======================"
+    info "[$repo] changes detected"
+    echo "$changed_files" | while read line; do do_log "[$repo]   $line"; done
 
-    # Check for unmerged conflicts
     if git ls-files -u 2>/dev/null | grep -q .; then
-        echo "" | tee -a "$LOG_FILE"
-        error "=========================================="
-        error "UNRESOLVED GIT CONFLICTS detected"
-        error "Do NOT git add/commit - resolve manually first"
-        error "Then restart monitor-sync"
-        error "=========================================="
-        echo "" | tee -a "$LOG_FILE"
+        error "[$repo] UNRESOLVED CONFLICTS — manual resolution needed"
         return 1
     fi
 
     git add -A 2>/dev/null
-    local commit_msg="Auto-sync: $(date '+%Y-%m-%d %H:%M:%S')"
     local commit_output
 
-    if commit_output=$(git commit -m "$commit_msg" 2>&1); then
+    if commit_output=$(git commit -m "Auto-sync: $(date '+%Y-%m-%d %H:%M:%S')" 2>&1); then
         local commit_hash=$(echo "$commit_output" | grep -o '[a-f0-9]\{7\}' | tail -1)
-        log "Committed: $commit_hash"
+        log "[$repo] committed $commit_hash"
 
-        log "Pulling --ff..."
+        local branch=$(git branch --show-current)
         local pull_output
-        if pull_output=$(timeout 120 git pull --ff origin main 2>&1); then
-            log "Pull OK"
-            # 重建符号链接（新 rules/commands 生效）
-            if [ -f "$REPO_DIR/setup-links.sh" ]; then
-                bash "$REPO_DIR/setup-links.sh" >> "$LOG_FILE" 2>&1 && \
-                    log "Links OK" || warn "Links setup failed"
+        if pull_output=$(timeout 120 git pull --ff origin "$branch" 2>&1); then
+            log "[$repo] pull OK"
+            # ccconfig special: rebuild symlinks
+            if [ -f "$repo_dir/setup-links.sh" ]; then
+                bash "$repo_dir/setup-links.sh" >> "$LOG_FILE" 2>&1 && \
+                    log "[$repo] links OK" || warn "[$repo] links failed"
             fi
-            if timeout 60 git push origin main >> "$LOG_FILE" 2>&1; then
-                log "== Pushed to GitHub =="
-                log "Commit: $commit_hash"
-                echo "$changed_files" | while read line; do
-                    log "  $line"
-                done
+            if timeout 60 git push origin "$branch" >> "$LOG_FILE" 2>&1; then
+                log "[$repo] pushed → GitHub ($commit_hash)"
             else
-                warn "Push failed - check network"
+                warn "[$repo] push failed — check network"
             fi
         else
             echo "$pull_output" >> "$LOG_FILE"
-            echo "" | tee -a "$LOG_FILE"
-            error "=========================================="
-            # Classify the error
-            if echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls\|unable to access"; then
-                error "PULL FAILED: Network/SSH error (not remote commits)"
-                error "=========================================="
-                echo "" | tee -a "$LOG_FILE"
-                warn "Network issue detected. Check VPN/proxy and retry."
-                echo "  cd $REPO_DIR && git pull --ff && git push" | tee -a "$LOG_FILE"
+            if echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls"; then
+                warn "[$repo] pull failed: network issue"
             elif echo "$pull_output" | grep -qi "fatal: refusing to merge unrelated histories\|fatal: have diverged"; then
-                error "PULL FAILED: Diverged branches"
-                error "=========================================="
-                echo "" | tee -a "$LOG_FILE"
-                warn "Solution A - Keep local (your changes first):"
-                echo "  cd $REPO_DIR && git stash && git pull --ff && git stash pop && git push" | tee -a "$LOG_FILE"
-                echo "" | tee -a "$LOG_FILE"
-                warn "Solution B - Keep remote (their changes first):"
-                echo "  cd $REPO_DIR && git fetch && git reset --hard origin/main" | tee -a "$LOG_FILE"
+                error "[$repo] pull failed: diverged — run: cd $repo_dir && git pull --ff"
             else
-                error "PULL FAILED: $(echo "$pull_output" | head -1)"
-                error "=========================================="
+                error "[$repo] pull failed: $(echo "$pull_output" | head -1)"
             fi
         fi
     else
-        echo "$commit_output" >> "$LOG_FILE"
         if echo "$commit_output" | grep -q "nothing to commit"; then
-            log "Nothing to commit"
+            :  # not an error
         else
-            warn "Commit failed: $(echo "$commit_output" | head -1)"
+            warn "[$repo] commit failed: $(echo "$commit_output" | head -1)"
         fi
     fi
+}
+
+# Scan all repos and sync any with changes
+sync_all_repos() {
+    local repos=$(list_repos)
+    for repo_dir in $repos; do
+        commit_and_push "$repo_dir"
+    done
 }
 
 # ========== PM2 resurrect ==========
@@ -170,59 +188,47 @@ start_watch() {
         return 1
     fi
 
-    cd "$REPO_DIR"
+    cd "$MONITOR_HOME"
     resurrect_pm2
 
     : > "$LOG_FILE"
     QUIET_MODE=true
 
-    # Single-process pipeline: inotify → log → debounce → commit.
-    # Everything runs inside the pipe's while loop so it can't silently die
-    # while inotifywait keeps running (the original bug).
-    #
-    # NOTE: WSL2 inotify is unstable when watching a repo directory directly
-    # with --exclude. Watching the parent ~/git works reliably, so we watch
-    # the parent and filter events to only care about files under REPO_DIR.
-    local watch_dir="$HOME/git"
+    # Single inotify watching ~/git/, accepting events from any tracked repo.
+    # Debounce triggers a scan of ALL repos (sync_all_repos).
     local debounce=120
     local min_push_gap=60
 
     setsid inotifywait -m -r -q \
-        --exclude '(\.git/|\.snapshots/)' \
+        --exclude '(\.git/|\.snapshots/|node_modules/)' \
         -e modify,create,delete,move \
-        "$watch_dir" 2>/dev/null | while IFS= read -r line; do
-            # Skip events not under REPO_DIR
+        "$WATCH_DIR" 2>/dev/null | while IFS= read -r line; do
+            # Skip sync-internal files
             case "$line" in
-                "$REPO_DIR"*) ;;
-                *) continue ;;
-            esac
-            # Skip sync-internal files to avoid feedback loop
-            case "$line" in
-                *".monitor-sync.log"*|*".monitor-sync.debounce"*|*".monitor-sync.pid"*) continue ;;
-            esac
-            # Skip transient temp files (editor atomic writes: write .tmp → rename)
-            case "$line" in
+                *".monitor-sync"*) continue ;;
                 *".tmp."*) continue ;;
-            esac
-            # Skip snapshot files (update.sh pre/post versions, gitignored)
-            case "$line" in
                 *".snapshots/"*) continue ;;
             esac
+            # Check if file is under a tracked git repo
+            local filepath=$(echo "$line" | awk '{print $1}')
+            local repo_root
+            repo_root=$(get_repo_root "$filepath" 2>/dev/null) || continue
+            # Skip repos without remote
+            git -C "$repo_root" remote get-url origin &>/dev/null 2>&1 || continue
 
-            echo "[$(date '+%H:%M:%S')] $line" >> "$LOG_FILE"
-            date +%s > "$REPO_DIR/.monitor-sync.debounce"
+            echo "[$(date '+%H:%M:%S')] $(repo_name "$repo_root"): $line" >> "$LOG_FILE"
+            date +%s > "$MONITOR_HOME/.monitor-sync.debounce"
         done &
 
     local event_pid=$!
 
-    # Debounce loop: checks the timestamp file, triggers commit after quiet period.
-    # Runs in a separate background subshell — must NOT use 'local' inside it.
+    # Debounce loop → scan all repos
     {
-        trap 'kill $event_pid 2>/dev/null; rm -f "$REPO_DIR/.monitor-sync.debounce"; exit' EXIT
+        trap 'kill $event_pid 2>/dev/null; rm -f "$MONITOR_HOME/.monitor-sync.debounce"; exit' EXIT
 
         pending=0
         last_push_time=0
-        debounce_file="$REPO_DIR/.monitor-sync.debounce"
+        debounce_file="$MONITOR_HOME/.monitor-sync.debounce"
 
         while kill -0 $event_pid 2>/dev/null; do
             sleep 2
@@ -238,7 +244,7 @@ start_watch() {
 
             if [ "$pending" -eq 0 ]; then
                 pending=1
-                do_log "File change detected, waiting ${debounce}s debounce..."
+                do_log "Change detected, waiting ${debounce}s debounce..."
             fi
 
             if [ "$pending" -eq 1 ] && [ $elapsed -ge $debounce ]; then
@@ -250,8 +256,8 @@ start_watch() {
                     continue
                 fi
 
-                do_log "Debounce done, pushing..."
-                commit_and_push
+                do_log "Debounce done, syncing all repos..."
+                sync_all_repos
                 pending=0
                 last_push_time=$(date +%s)
                 rm -f "$debounce_file"
@@ -263,13 +269,13 @@ start_watch() {
     echo $monitor_pid > "$PID_FILE"
     echo -e "${GREEN}[SYNC]${NC} Started (monitor: $monitor_pid, events: $event_pid)"
     echo -e "${GRAY}Use: status | log | tail${NC}"
-    echo -e "${GRAY}Watching: $watch_dir (filtered to $REPO_DIR)${NC}"
+    echo -e "${GRAY}Watching: $WATCH_DIR → all git repos${NC}"
+    echo -e "${GRAY}Repos: $(list_repos | xargs -I{} basename {} | tr '\n' ' ')${NC}"
 }
 
 # ========== Stop monitoring ==========
 stop_watch() {
-    # Kill any stale inotifywait processes
-    pkill -f "inotifywait.*ccconfig" 2>/dev/null || true
+    pkill -f "inotifywait.*$WATCH_DIR" 2>/dev/null || true
 
     if [ -f "$PID_FILE" ]; then
         local pid=$(cat "$PID_FILE")
@@ -282,7 +288,7 @@ stop_watch() {
     else
         echo -e "${YELLOW}[SYNC]${NC} Not running"
     fi
-    rm -f "$REPO_DIR/.monitor-sync.debounce"
+    rm -f "$MONITOR_HOME/.monitor-sync.debounce"
 }
 
 # ========== Status ==========
@@ -295,23 +301,29 @@ status_watch() {
         local mon_pid=$(cat "$PID_FILE")
         echo -e "  ${GREEN}✓${NC} Monitor loop (PID: $mon_pid)"
 
-        # Check inotifywait
-        local evt_pid=$(pgrep -f "inotifywait.*/home/francis/git" 2>/dev/null)
+        local evt_pid=$(pgrep -f "inotifywait.*$WATCH_DIR" 2>/dev/null)
         if [ -n "$evt_pid" ]; then
             echo -e "  ${GREEN}✓${NC} inotifywait (PID: $evt_pid)"
         else
             echo -e "  ${RED}✗${NC} inotifywait (dead — restart needed)"
         fi
 
-        # Health: check if log has recent events
-        if [ -f "$LOG_FILE" ]; then
-            local first_log=$(head -1 "$LOG_FILE" 2>/dev/null | grep -oE '^\[[0-9:]+\]' | tr -d '[]')
-            [ -n "$first_log" ] && echo -e "  ${GRAY}Started: $first_log${NC}"
-
-            if [ -s "$LOG_FILE" ]; then
-                local last_line=$(tail -1 "$LOG_FILE" 2>/dev/null | sed 's/^\[[0-9:]\+\] //')
-                [ -n "$last_line" ] && echo -e "  ${GRAY}Last: $last_line${NC}"
+        echo ""
+        echo -e "  ${GRAY}Tracked repos:${NC}"
+        for repo_dir in $(list_repos); do
+            local name=$(repo_name "$repo_dir")
+            local branch=$(git -C "$repo_dir" branch --show-current 2>/dev/null)
+            local status=$(git -C "$repo_dir" status --porcelain 2>/dev/null | wc -l)
+            if [ "$status" -gt 0 ]; then
+                echo -e "    ${YELLOW}$name${NC} ($branch) — $status file(s) pending"
+            else
+                echo -e "    ${GREEN}$name${NC} ($branch) — clean"
             fi
+        done
+
+        if [ -f "$LOG_FILE" ]; then
+            local last_line=$(tail -1 "$LOG_FILE" 2>/dev/null | sed 's/^\[[0-9:]\+\] //')
+            [ -n "$last_line" ] && echo -e "\n  ${GRAY}Last: $last_line${NC}"
         fi
     else
         echo -e "  ${RED}✗${NC} Not running"
@@ -389,7 +401,7 @@ tail_watch() {
 run_monitor() {
     check_deps || return 1
 
-    cd "$REPO_DIR"
+    cd "$MONITOR_HOME"
 
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -401,28 +413,31 @@ run_monitor() {
     echo ""
 
     inotifywait -m -r -q \
-        --exclude '\.git/|\.snapshots/|node_modules/|\.log$|\.monitor-sync\.|\.auto-sync\.|\.tmp$|\.swp$|\.tmp' \
+        --exclude '\.git/|\.snapshots/|node_modules/|\.log$|\.monitor-sync\.|\.tmp$|\.swp$' \
         -e modify,create,delete,move \
-        "$REPO_DIR" 2>/dev/null | while read -r path action file; do
-            echo -e "${CYAN}[$(date '+%H:%M:%S')]${NC} ${YELLOW}$action${NC} $path$file"
+        "$WATCH_DIR" 2>/dev/null | while read -r path action file; do
+            local full_path="${path}${file}"
+            local repo_root
+            repo_root=$(get_repo_root "$full_path" 2>/dev/null) || continue
+            echo -e "${CYAN}[$(date '+%H:%M:%S')]${NC} ${YELLOW}$action${NC} [$(repo_name "$repo_root")] $path$file"
         done
 }
 
 # ========== Help ==========
 show_help() {
     echo ""
-    echo -e "${CYAN}monitor-sync.sh${NC} - File monitoring & auto-sync"
+    echo -e "${CYAN}monitor-sync.sh${NC} — Multi-repo file monitoring & auto-sync"
     echo ""
     echo -e "${GREEN}Commands:${NC}"
     echo "  start              Start in background (silent)"
     echo "  stop               Stop monitoring"
-    echo "  status             Show status"
+    echo "  status             Show status + tracked repos"
     echo "  log [N]            Show last N log lines"
     echo "  monitor            Frontend: file changes"
     echo "  tail               Frontend: push results"
     echo ""
     echo -e "${GREEN}Flow:${NC}"
-    echo "  Watch → 120s debounce → commit → pull --ff → push"
+    echo "  Watch ~/git/ → 120s debounce → sync ALL repos"
     echo ""
 }
 
