@@ -17,9 +17,9 @@ def generate_screenshot(code: str, output: str, language: str = None, bg: str = 
         style="monokai",
         line_numbers=False,
         font_name="DejaVu Sans Mono",
-        font_size=26,
-        line_pad=10,
-        image_pad=56,
+        font_size=38,
+        line_pad=14,
+        image_pad=64,
         background_color=bg,
         hl_lines=[],
     )
