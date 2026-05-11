@@ -515,27 +515,22 @@ update_claude() {
     before=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
     info "当前版本: $before"
 
-    # 用 npm registry 检查最新版本（比 claude install 快，避免 download.claude.ai 超时）
-    local latest
-    info "检查最新版本..."
-    latest=$(npm view @anthropic-ai/claude-code version 2>/dev/null || echo "")
-    if [ -n "$latest" ] && [ "$before" = "$latest" ]; then
-        success "Claude Code 已是最新: $latest"
-        return 0
-    fi
-
-    info "正在升级到 ${latest:-latest}..."
-    if claude install --force 2>&1 | tail -5; then
-        local after
-        after=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
-        if [ "$before" != "$after" ]; then
-            success "Claude Code: $before → $after"
-        else
-            success "Claude Code 已是最新: $after"
-        fi
-    else
+    info "正在升级..."
+    if ! claude install --force 2>&1 | tail -5; then
         warn "Claude Code 升级失败，保留当前版本"
         return 1
+    fi
+
+    local after
+    after=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+    if [ "$before" != "$after" ]; then
+        if version_ge "$after" "$before"; then
+            success "Claude Code: $before → $after"
+        else
+            warn "Claude Code 版本倒退: $before → $after（可能是 download.claude.ai 暂未同步），保留当前版本"
+        fi
+    else
+        success "Claude Code 已是最新: $after"
     fi
 }
 
