@@ -75,23 +75,35 @@ setup_symlinks() {
         setup_link "$CLAUDE_DIR/commands" "$SCRIPT_DIR/link/commands" "commands"
     fi
 
-    # MEMORY.md - 自动检测所有项目
-    for mem_dir in "$SCRIPT_DIR/link/projects"/-home-francis-*/; do
-        if [[ -d "$mem_dir" ]] && [[ -f "${mem_dir}MEMORY.md" ]]; then
-            REPO_MEMORY_NAME=$(basename "$mem_dir")
-            MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
-            MEMORY_REPO_PATH="${mem_dir}MEMORY.md"
+    # MEMORY.md + CLAUDE.md - 自动检测所有项目
+    for proj_dir in "$SCRIPT_DIR/link/projects"/-home-francis-*/; do
+        if [[ ! -d "$proj_dir" ]]; then
+            continue
+        fi
+        local PROJ_NAME=$(basename "$proj_dir")
 
-            mkdir -p "$MEMORY_DIR"
-            setup_link "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "$REPO_MEMORY_NAME/MEMORY.md"
+        # MEMORY.md → ~/.claude/projects/<name>/memory/MEMORY.md
+        if [[ -f "${proj_dir}MEMORY.md" ]]; then
+            local MEM_DIR="$CLAUDE_DIR/projects/$PROJ_NAME/memory"
+            mkdir -p "$MEM_DIR"
+            setup_link "$MEM_DIR/MEMORY.md" "${proj_dir}MEMORY.md" "$PROJ_NAME/MEMORY.md"
+        fi
+
+        # CLAUDE.md → 对应项目目录/CLAUDE.md
+        if [[ -f "${proj_dir}CLAUDE.md" ]]; then
+            # -home-francis-git-projectu → /home/francis/git/projectu
+            local PROJ_PATH="/$(echo "$PROJ_NAME" | sed 's/^-//' | sed 's/-/\//g')"
+            if [[ -d "$PROJ_PATH" ]]; then
+                setup_link "$PROJ_PATH/CLAUDE.md" "${proj_dir}CLAUDE.md" "$PROJ_NAME/CLAUDE.md"
+            fi
         fi
     done
 
     # 如果没有任何项目目录，确保至少有总目录链接
     if [[ ! -d "$SCRIPT_DIR/link/projects/-home-francis-git" ]]; then
-        REPO_MEMORY_NAME="-home-francis-git"
-        MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
-        MEMORY_REPO_PATH="$SCRIPT_DIR/link/projects/$REPO_MEMORY_NAME/MEMORY.md"
+        local REPO_MEMORY_NAME="-home-francis-git"
+        local MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
+        local MEMORY_REPO_PATH="$SCRIPT_DIR/link/projects/$REPO_MEMORY_NAME/MEMORY.md"
 
         mkdir -p "$MEMORY_DIR"
         setup_link "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "$REPO_MEMORY_NAME/MEMORY.md"
