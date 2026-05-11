@@ -148,20 +148,20 @@ cat diagram.json | lark-cli whiteboard +update --whiteboard-token <token> --sour
 
 ### Step 2 — 模板匹配
 
-根据文档主题自动推荐模板，无需用户选择。匹配规则：
+**默认模板**：全部使用 **mckinsey**（白底 + 深蓝页眉 `#005587` + 琥珀强调 `#F5A623`，专业严谨）。
 
-| 文档类型 | 推荐模板 | 风格特征 |
-|---------|---------|---------|
-| 技术/编程/AI | **anthropic** | 深色标题栏 + 白底 + 橙色强调，现代科技风 |
-| 商业分析/咨询 | **mckinsey** | 白底 + 深蓝页眉 + 数据驱动，专业严谨 |
-| 学术/教育 | **academic_defense** | 白底 + 深蓝 `#003366` + 红色 `#CC0000` 装饰 |
-| 企业/政府 | **government_blue** | 蓝白配色，稳重正式 |
-| 通用简约 | **google_style** | 极简白底 + 四色强调，干净利落 |
+**深色/科技风**：用户明确说"深色""科技风""暗色"时，切换为 **anthropic**（深色渐变 + 橙色 `#D97757` 强调）。
 
 模板库路径：`/home/francis/git/ppt-master/skills/ppt-master/templates/layouts/`（21 种可选）
 
 确认模板后，读取模板的 `design_spec.md` 获取颜色/字体/间距规范，以及 5 个模板 SVG：
 `01_cover.svg` `02_toc.svg` `02_chapter.svg` `03_content.svg` `04_ending.svg`
+
+### 自定义模板
+
+用户提供 PPTX 模板文件 → `python3 skills/ppt-master/scripts/pptx_template_import.py <file>.pptx` → 自动提取生成 `design_spec.md` + 5 个模板 SVG，存入 `templates/layouts/<name>/`。
+
+模板最少需要 5 个 SVG：`01_cover.svg` 封面、`02_toc.svg` 目录、`02_chapter.svg` 章节分隔、`03_content.svg` 内容页、`04_ending.svg` 结尾。每个含 `{{PLACEHOLDER}}` 占位符。
 
 ### Step 3 — 逐页生成 SVG
 
@@ -202,11 +202,11 @@ python3 skills/ppt-master/scripts/svg_quality_checker.py /tmp/pptx_project
 python3 skills/ppt-master/scripts/svg_to_pptx.py /tmp/pptx_project -s final \
   --only native -t fade -o /tmp/pptx_project/output.pptx
 
-# 上传飞书
-cd /tmp/pptx_project && lark-cli drive +upload --file "output.pptx" --as user
+# 上传飞书（作为 wiki 子文件，可直接预览编辑）
+cd /tmp/pptx_project && lark-cli drive +upload --file "./output.pptx" --wiki-token <源wiki文档token> --as user
 ```
 
-PPTX 以 Drive 文件形式上传后，可在 wiki 页面中引用链接。
+PPTX 直接作为 wiki 子文件上传（`--wiki-token`），可在飞书 wiki 页面侧边栏「文件」中直接预览和编辑，**不需要嵌入** wiki 正文。
 
 ### 导出选项速查
 
