@@ -177,6 +177,18 @@ cat diagram.json | lark-cli whiteboard +update --whiteboard-token <token> --sour
 - 正文用卡片网格或左右分栏布局
 - 封面标题中英双语
 
+**代码块渲染（wiki 中的 markdown 代码块直接转为 PPT 文本）**：
+
+wiki 中用标准 markdown 代码块（```），PPT 生成时直接渲染为 SVG `<text>` 元素，不使用截图。
+
+- 等宽字体：`font-family="DejaVu Sans Mono, Courier New, monospace"`
+- 暗色背景卡片：`#1E1E1E` 或模板深色，带 `rx="8"` 圆角
+- 代码区 padding 至少 24px，行间距（`dy`）18-22px
+- 字号 13-15px（内容页正文 16px，代码略小确保单行不超宽）
+- 语法高亮：关键字用模板强调色、字符串用 `#10B981`、注释用 `#64748B`
+- 长代码（>25 行）可拆分为连续内容页，保持代码完整不截断
+- 代码块上方标注语言标签（如 `Python` / `Bash`），用模板标签色
+
 **模板 SVG 读取策略**：先读取所有 5 个模板 SVG 理解结构 → 从 Step 1 的结构方案取每页内容 → 替换 `{{PLACEHOLDER}}` → 写入 `svg_final/`。
 
 ### Step 4 — 质检 + 导出 + 上传
@@ -250,43 +262,7 @@ PPTX 以 Drive 文件形式上传后，可在 wiki 页面中引用链接。
 
 ---
 
-## 五、代码截图（carbon-style）
-
-> 用 `ccconfig/bin/carbon-code-screenshot.py` 生成专业的代码截图，插入文档中比纯文本代码块视觉效果更好。
-
-### 流程
-
-```bash
-# 1. 生成截图
-python3 /home/francis/git/ccconfig/bin/carbon-code-screenshot.py \
-  --lang <python|bash|javascript|typescript|...> \
-  --code '<code string or @filepath>' \
-  --output /home/francis/git/<filename>.png
-
-# 2. 插入文档
-cd /home/francis/git && \
-lark-cli docs +media-insert \
-  --doc <document_token> \
-  --file <filename>.png \
-  --type image \
-  --align center \
-  --caption "代码示例" \
-  --as user
-
-# 3. 清理
-rm /home/francis/git/<filename>.png
-```
-
-### 适用场景
-
-- 课程/教程中的核心代码示例
-- 架构文档中的关键接口/配置
-- 需要视觉突出展示的代码片段
-- ❌ 不用于长代码块（>30行）→ 用 markdown 代码块
-
----
-
-## 六、常见错误
+## 五、常见错误
 
 - ❌ `--folder-token` → ✅ `--wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb`
 - ❌ `--markdown "内容"` → ✅ `--markdown -` + heredoc
