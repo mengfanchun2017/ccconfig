@@ -1,0 +1,16 @@
+# User-installed Python packages (pip3 install --user)
+# Managed via PIP_BREAK_SYSTEM_PACKAGES=1 on Ubuntu 24
+# Regenerate: pip3 freeze --user > ccconfig/conf/python-requirements.txt
+cairocffi==1.7.1
+CairoSVG==2.9.0
+cffi==2.0.0
+cssselect2==0.9.0
+defusedxml==0.7.1
+lxml==6.1.0
+pillow==12.2.0
+pycparser==3.0
+python-docx==1.2.0
+python-pptx==1.0.2
+tinycss2==1.5.1
+webencodings==0.5.1
+xlsxwriter==3.2.9
