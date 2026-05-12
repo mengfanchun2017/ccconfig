@@ -7,13 +7,14 @@
 # 升级组件：
 #   [1] Node.js           → 最新 LTS
 #   [3] npm 全局包        → lark-cli + skills 更新
-#   [4] cc-connect        → GitHub Release
-#   [5] GitHub CLI        → GitHub Release
-#   [6] Claude Code       → claude install
-#   [7] uv                → curl | sh
-#   [8] MCP 缓存          → 刷新 npx/uvx 缓存
-#   [9] Skills 索引       → npx skills update
-#   [10] systemd 服务     → 重建 + 重启
+#   [4] Python pip 包     → 升级 requirements.txt 中所有包
+#   [5] cc-connect        → GitHub Release
+#   [6] GitHub CLI        → GitHub Release
+#   [7] Claude Code       → claude install
+#   [8] uv                → curl | sh
+#   [9] MCP 缓存          → 刷新 npx/uvx 缓存
+#   [10] Skills 索引      → npx skills update
+#   [11] systemd 服务     → 重建 + 重启
 #
 # 使用：
 #   bash ccconfig/update.sh               # 交互式菜单
@@ -329,6 +330,43 @@ update_npm_globals() {
         success "npm 全局包更新完成"
     else
         info "npm 全局包无需更新"
+    fi
+}
+
+# ========== 4. Python pip 包 ==========
+
+update_python_packages() {
+    section "Python pip 包"
+
+    local req_file="$SCRIPT_DIR/conf/python-requirements.txt"
+
+    if [ ! -f "$req_file" ]; then
+        info "未找到 $req_file，跳过"
+        return 0
+    fi
+
+    # 刷新当前安装清单（为对比做准备）
+    local before
+    before=$(pip3 freeze --user 2>/dev/null | sort)
+
+    info "升级 pip 包..."
+    local out
+    out=$(pip3 install --upgrade -r "$req_file" 2>&1)
+
+    # 更新 requirements.txt（锁定最新版本）
+    pip3 freeze --user > "$req_file" 2>/dev/null
+
+    # 统计变更
+    local after
+    after=$(pip3 freeze --user 2>/dev/null | sort)
+
+    if [ "$before" = "$after" ]; then
+        success "Python pip 包已是最新"
+    else
+        local upgraded
+        upgraded=$(comm -13 <(echo "$before") <(echo "$after") | wc -l)
+        success "Python pip 包已升级 ($upgraded 个变动)"
+        echo "$out" | grep -E "Successfully|Requirement" | sed 's/^/  /' || true
     fi
 }
 
@@ -764,6 +802,7 @@ update_all() {
 
     run_step "node"     "Node.js"           update_nodejs
     run_step "lark-cli" "npm 全局包"        update_npm_globals
+    run_step ""         "Python pip 包"     update_python_packages
     run_step "cconnect" "cc-connect"        update_cconnect
     run_step "gh"       "GitHub CLI"        update_gh
     run_step "claude"   "Claude Code"       update_claude
@@ -836,14 +875,15 @@ show_menu() {
     echo ""
     echo "   1) Node.js（最新 LTS）"
     echo "   2) npm 全局包（lark-cli）"
-    echo "   3) cc-connect（Bridge）"
-    echo "   4) GitHub CLI"
-    echo "   5) Claude Code"
-    echo "   6) uv（Python 包管理）"
-    echo "   7) MCP 缓存刷新"
-    echo "   8) Skills 索引更新"
-    echo "   9) systemd 服务重建"
-    echo "  10) ★ 一键全部升级"
+    echo "   3) Python pip 包"
+    echo "   4) cc-connect（Bridge）"
+    echo "   5) GitHub CLI"
+    echo "   6) Claude Code"
+    echo "   7) uv（Python 包管理）"
+    echo "   8) MCP 缓存刷新"
+    echo "   9) Skills 索引更新"
+    echo "  10) systemd 服务重建"
+    echo "  11) ★ 一键全部升级"
     echo "   0) 退出"
     echo ""
     read -p "选择 [1-10,0]: " choice
@@ -851,14 +891,15 @@ show_menu() {
     case "$choice" in
         1)  update_nodejs; show_menu ;;
         2)  update_npm_globals; show_menu ;;
-        3)  update_cconnect; show_menu ;;
-        4)  update_gh; show_menu ;;
-        5)  update_claude; show_menu ;;
-        6)  update_uv; show_menu ;;
-        7)  update_mcp; show_menu ;;
-        8)  update_skills; show_menu ;;
-        9)  fix_systemd_services; show_menu ;;
-        10) update_all; show_menu ;;
+        3)  update_python_packages; show_menu ;;
+        4)  update_cconnect; show_menu ;;
+        5)  update_gh; show_menu ;;
+        6)  update_claude; show_menu ;;
+        7)  update_uv; show_menu ;;
+        8)  update_mcp; show_menu ;;
+        9)  update_skills; show_menu ;;
+        10) fix_systemd_services; show_menu ;;
+        11) update_all; show_menu ;;
         0)  echo ""; exit 0 ;;
         *)  echo "无效选择"; show_menu ;;
     esac
@@ -876,6 +917,7 @@ case "${1:-menu}" in
         ;;
     node)          update_nodejs ;;
     npm)           update_npm_globals ;;
+    python)        update_python_packages ;;
     cconnect)      update_cconnect ;;
     gh)            update_gh ;;
     claude)        update_claude ;;
@@ -885,7 +927,7 @@ case "${1:-menu}" in
     services)      fix_systemd_services ;;
     menu|"")       show_menu ;;
     *)
-        echo "用法: $0 [all|node|npm|cconnect|gh|claude|uv|mcp|skills|services|menu]"
+        echo "用法: $0 [all|node|npm|python|cconnect|gh|claude|uv|mcp|skills|services|menu]"
         exit 1
         ;;
 esac
