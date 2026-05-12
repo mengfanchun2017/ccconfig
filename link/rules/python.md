@@ -24,6 +24,16 @@
 | lxml | pip3 | XML 解析 |
 | pillow | pip3 | 图片处理 |
 
+## 安装/更新权限
+- Claude 可以在任务需要时自主 `pip3 install` 新包，不询问用户
+- 安装后自动更新 `ccconfig/conf/python-requirements.txt` 并标注新增
+- 用户执行 `pip3 install` 同理，Claude 应该同步更新清单
+
+## 升级
+- 月度升级（`bash ccconfig/update.sh all`）自动执行 `pip3 install --upgrade -r ccconfig/conf/python-requirements.txt`
+- 手动升级: `pip3 install --upgrade -r ccconfig/conf/python-requirements.txt`
+- 生成最新清单: `pip3 freeze --user > ccconfig/conf/python-requirements.txt`
+
 ## 禁止
 - 禁止用 `sudo pip3 install`（sudo 会装到系统 site-packages，与 apt 冲突）
-- 禁止创建 venv 来做临时任务（太复杂，直接 pip3 install --user）
+- 禁止创建 venv 来做临时任务（太复杂，直接 pip3 install）
