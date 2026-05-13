@@ -1,8 +1,18 @@
 ---
 name: market-research-reports
-description: "Generate comprehensive market research reports (50+ pages) in the style of top consulting firms (McKinsey, BCG, Gartner). Features professional LaTeX formatting, extensive visual generation with scientific-schematics and generate-image, deep integration with research-lookup for data gathering, and multi-framework strategic analysis including Porter's Five Forces, PESTLE, SWOT, TAM/SAM/SOM, and BCG Matrix."
+description: "DEPRECATED — Do not use. This skill depends on tools not available in this environment (research-lookup, scientific-schematics, generate-image, LaTeX). Use /research → /research-deep → /research-report pipeline instead, with output to 飞书 wiki via feishucreate agent."
 allowed-tools: [Read, Write, Edit, Bash]
 ---
+
+# DEPRECATED — Market Research Reports
+
+> **This skill is disabled.** It depends on `research-lookup`, `scientific-schematics`, `generate-image`, and a LaTeX toolchain that are not installed in this environment.
+>
+> **Use instead:** `/research <topic>` → `/research-deep` → `/research-report` pipeline. For 飞书 output, route through feishucreate agent (`@res <topic>`).
+>
+> If a full consulting-grade report is needed, the research pipeline results can be formatted into 飞书 wiki with mermaid charts and lark-table tables — ask for this explicitly.
+
+## Original Documentation (archived)
 
 # Market Research Reports
 

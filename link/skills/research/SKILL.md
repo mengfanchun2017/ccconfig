@@ -1,7 +1,7 @@
 ---
 name: research
 user-invocable: true
-allowed-tools: Read, Write, Glob, WebSearch, Task, AskUserQuestion
+allowed-tools: Read, Write, Glob, WebSearch, Task, AskUserQuestion, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract, mcp__minimax__web_search
 description: Conduct preliminary research on a topic and generate research outline. For academic research, benchmark research, technology selection, etc.
 ---
 
@@ -21,91 +21,53 @@ Output {step1_output}, use AskUserQuestion to confirm:
 - Need to add/remove items?
 - Does field framework meet requirements?
 
-### Step 2: Web Search Supplement
+### Step 2: Three-Source Web Search Supplement (MANDATORY)
+
+**CRITICAL**: Do NOT use a single web search. Launch all three searches in parallel, then aggregate results.
+
 Use AskUserQuestion to ask for time range (e.g., last 6 months, since 2024, unlimited).
 
 **Parameter Retrieval**:
 - `{topic}`: User input research topic
+- `{topic_cn}`: Chinese translation of topic
 - `{YYYY-MM-DD}`: Current date
 - `{step1_output}`: Complete output from Step 1
 - `{time_range}`: User specified time range
 
-**Hard Constraint**: The following prompt must be strictly reproduced, only replacing variables in {xxx}, do not modify structure or wording.
+**Hard Constraint**: The following three searches must run in PARALLEL, not sequentially.
 
-Launch 1 web-search-agent (background), **Prompt Template**:
-```python
-prompt = f"""## Task
-Research topic: {topic}
-Current date: {YYYY-MM-DD}
+#### Search 1: Tavily English Search
+```
+mcp__tavily__tavily_search
+  query: "{topic} latest developments {time_range}"
+  search_depth: "advanced"
+  max_results: 10
+```
+Follow up with `mcp__tavily__tavily_extract` on the top 3-5 most relevant results for full text.
 
-Based on the following initial framework, supplement latest items and recommended research fields.
-
-## Existing Framework
-{step1_output}
-
-## Goals
-1. Verify if existing items are missing important objects
-2. Supplement items based on missing objects
-3. Continue searching for {topic} related items within {time_range} and supplement
-4. Supplement new fields
-
-## Output Requirements
-Return structured results directly (do not write files):
-
-### Supplementary Items
-- item_name: Brief explanation (why it should be added)
-...
-
-### Recommended Supplementary Fields
-- field_name: Field description (why this dimension is needed)
-...
-
-### Sources
-- [Source1](url1)
-- [Source2](url2)
-"""
+#### Search 2: Minimax Chinese Search
+```
+mcp__minimax__web_search
+  query: "{topic_cn} 最新动态 2025"
 ```
 
-**One-shot Example** (assuming researching AI Coding History):
+#### Search 3: Tavily Deep Research (for synthesis)
 ```
-## Task
-Research topic: AI Coding History
-Current date: 2025-12-30
-
-Based on the following initial framework, supplement latest items and recommended research fields.
-
-## Existing Framework
-### Items List
-1. GitHub Copilot: Developed by Microsoft/GitHub, first mainstream AI coding assistant
-2. Cursor: AI-first IDE, based on VSCode
-...
-
-### Field Framework
-- Basic Info: name, release_date, company
-- Technical Features: underlying_model, context_window
-...
-
-## Goals
-1. Verify if existing items are missing important objects
-2. Supplement items based on missing objects
-3. Continue searching for AI Coding History related items within since 2024 and supplement
-4. Supplement new fields
-
-## Output Requirements
-Return structured results directly (do not write files):
-
-### Supplementary Items
-- item_name: Brief explanation (why it should be added)
-...
-
-### Recommended Supplementary Fields
-- field_name: Field description (why this dimension is needed)
-...
-
-### Sources
-- [Source1](url1)
-- [Source2](url2)
+mcp__tavily__tavily_research
+  input: "Comprehensive overview of {topic}. Based on this existing framework: {step1_output}. Identify missing items and suggest additional research fields. Focus on {time_range}."
+  model: "auto"
 ```
+
+#### Fallback: Built-in WebSearch
+If any of the above returns insufficient results, supplement with built-in `WebSearch` using equivalent queries.
+
+#### Aggregation
+After all three sources return, merge results:
+1. Extract unique items from all sources
+2. Deduplicate: same item found in multiple sources → keep the one with most detail
+3. Mark source origin for each item: [tavily] / [minimax] / [tavily-research]
+4. Flag items found in only one source for user review
+5. Aggregate all source URLs into a unified source list
 
 ### Step 3: Ask User for Existing Fields
 Use AskUserQuestion to ask if user has existing field definition file, if so read and merge.

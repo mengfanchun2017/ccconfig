@@ -75,7 +75,7 @@ CATEGORY_MAPPING = {
 
 **4. Extra Fields Collection**
 Collect fields that exist in JSON but not defined in fields.yaml, put in "Other Info" category. Note to filter:
-- Internal fields: `_source_file`, `uncertain`
+- Internal fields: `_source_file`, `_sources`, `uncertain`
 - Nested structure top-level keys: `basic_info`, `technical_features` etc.
 - `uncertain` array: Display each field name on separate line, don't compress into one line
 
@@ -91,3 +91,63 @@ Run `python {topic}/generate_report.py`
 ## Output
 - `{topic}/generate_report.py` - Conversion script
 - `{topic}/report.md` - Summary report
+
+---
+
+## Report Quality Standards
+
+The generated `report.md` MUST follow these standards:
+
+### Structure Template
+
+```markdown
+# {Topic} Research Report
+> Generated: {YYYY-MM-DD} | Sources: {N} | Items: {M}
+
+## Table of Contents
+(anchor links + summary fields per item)
+
+## 1. Executive Summary
+- 3-5 sentence overview of key findings
+- Cross-cutting patterns across all items
+
+## 2. Item Details
+(one section per item, organized by field category)
+
+## 3. Comparative Analysis
+- Comparison table across items on key metrics
+- Notable outliers and patterns
+
+## 4. Sources
+- Full list of sources consulted, grouped by item
+- Each source: title, URL, access date
+
+## 5. Uncertainty Register
+- List all fields marked [uncertain] across all items
+- Group by item, note reason if known
+```
+
+### Citation Format
+
+Every data point that comes from a specific source MUST be cited:
+- Inline: `[Source: Title](URL)` after the fact
+- Multiple sources: `[Sources: Title1, Title2](URL1, URL2)`
+- No bare URLs — always include descriptive title text
+- Model knowledge (not from web search) does not need citation
+
+### Data Confidence Levels
+
+Mark data reliability using these tags:
+- `[verified]` — Confirmed by 2+ independent sources
+- `[single-source]` — From one source only, cross-reference needed
+- `[uncertain]` — Source conflict or low-confidence estimate
+- `[model-knowledge]` — From training data, not verified by web search
+
+### Content Quality Rules
+
+1. **Lead with insight, support with data** — Don't just list facts; explain what they mean
+2. **No placeholder text** — Every section must have substantive content
+3. **Numbers over adjectives** — "grew 34% YoY" not "grew significantly"
+4. **Compare across items** — Don't treat each item in isolation
+5. **Acknowledge gaps** — If a field is empty for most items, note it in the uncertainty register
+6. **Chinese-friendly** — If topic involves China/Chinese market, include Chinese-sourced data explicitly
