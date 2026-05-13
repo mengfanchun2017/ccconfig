@@ -1,8 +1,8 @@
 ---
 name: research-deep
 user-invocable: true
-description: Read research outline, launch independent agent for each item for deep research. Disable task output.
-allowed-tools: Bash, Read, Write, Glob, WebSearch, Task
+description: Read research outline, launch independent agent for each item for deep research. Uses tavily MCP research() for AI-synthesized deep research, tavily extract() for full-text, minimax web_search for Chinese sources. Disable task output.
+allowed-tools: Bash, Read, Write, Glob, WebSearch, Task, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract, mcp__minimax__web_search
 ---
 
 # Research Deep - Deep Research
@@ -22,7 +22,7 @@ Find `*/outline.yaml` file in current working directory, read items list, execut
 ### Step 3: Batch Execution
 - Batch by batch_size (need user approval before next batch)
 - Each agent handles items_per_agent items
-- Launch web-search-agent (background parallel, disable task output)
+- Launch research-agent (background parallel, disable task output)
 
 **Parameter Retrieval**:
 - `{topic}`: topic field from outline.yaml
@@ -42,11 +42,43 @@ Research {item_related_info}, output structured JSON to {output_path}
 ## Field Definitions
 Read {fields_path} to get all field definitions
 
+## Research Method (Three-Source Coverage — Execute in Parallel)
+
+You MUST use all three sources in parallel to ensure comprehensive coverage:
+
+### Source 1: Tavily Deep Research (Primary — for synthesis)
+Use `mcp__tavily__tavily_research` with input:
+"A comprehensive analysis of {item_name} in the context of {topic}. Include all aspects covered by the field definitions."
+- Model: "pro" for complex/multi-faceted items, "auto" for straightforward items
+- This returns an AI-synthesized report with citations
+
+### Source 2: English Web Search (Supplementary — for gaps)
+Use `mcp__tavily__tavily_search` with query:
+"{item_name} {topic} overview features performance"
+- search_depth: "advanced"
+- Extract key pages with `mcp__tavily__tavily_extract` for full text
+
+### Source 3: Chinese Web Search (Supplementary — for Chinese market/context)
+Use `mcp__minimax__web_search` with query translated to Chinese:
+"{item_name} {topic} 中文 分析 评测"
+- Aggregate Chinese-specific information and perspectives
+
+### Fallback
+If any source returns no useful results, supplement with built-in `WebSearch` using the same queries.
+
+## Result Aggregation
+After all three sources return:
+1. Cross-reference and deduplicate findings
+2. Mark conflicting information from different sources
+3. Prefer information with explicit source citations
+4. Combine English + Chinese perspectives into unified field values
+
 ## Output Requirements
 1. Output JSON according to fields defined in fields.yaml
 2. Mark uncertain field values with [uncertain]
 3. Add uncertain array at the end of JSON, listing all uncertain field names
 4. All field values must be in English
+5. Add `_sources` array at JSON root: list of source URLs consulted
 
 ## Output Path
 {output_path}
@@ -68,11 +100,27 @@ description: Developed by Microsoft/GitHub, first mainstream AI coding assistant
 ## Field Definitions
 Read {project_dir}/fields.yaml to get all field definitions
 
+## Research Method (Three-Source Coverage — Execute in Parallel)
+
+You MUST use all three sources in parallel to ensure comprehensive coverage:
+
+### Source 1: Tavily Deep Research (Primary)
+mcp__tavily__tavily_research with input:
+"A comprehensive analysis of GitHub Copilot in the context of AI Coding. Include basic info, technical features, market positioning, pricing, and competitive landscape."
+
+### Source 2: English Web Search (Supplementary)
+mcp__tavily__tavily_search with query: "GitHub Copilot AI coding assistant features pricing market share 2025"
+Extract key pages for full text.
+
+### Source 3: Chinese Web Search (Supplementary)
+mcp__minimax__web_search with query: "GitHub Copilot AI编程助手 评测 价格 功能 2025"
+
 ## Output Requirements
 1. Output JSON according to fields defined in fields.yaml
 2. Mark uncertain field values with [uncertain]
 3. Add uncertain array at the end of JSON, listing all uncertain field names
 4. All field values must be in English
+5. Add `_sources` array at JSON root
 
 ## Output Path
 {project_dir}/results/GitHub_Copilot.json
