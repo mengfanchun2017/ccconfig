@@ -13,8 +13,7 @@
 #   [7] Claude Code       → claude install
 #   [8] uv                → curl | sh
 #   [9] MCP 缓存          → 刷新 npx/uvx 缓存
-#   [10] Skills 索引      → npx skills update
-#   [11] systemd 服务     → 重建 + 重启
+#   [10] systemd 服务     → 重建 + 重启
 #
 # 使用：
 #   bash ccconfig/update.sh               # 交互式菜单
@@ -661,16 +660,7 @@ PYEOF
     success "MCP 缓存已刷新"
 }
 
-# ========== 9. Skills 索引 ==========
-
-update_skills() {
-    section "Skills"
-
-    info "Skills 由 auto-sync 自动同步，无需额外更新"
-    success "Skills 无需额外更新"
-}
-
-# ========== 10. systemd 服务重建 ==========
+# ========== 9. systemd 服务重建 ==========
 
 fix_systemd_services() {
     section "systemd 服务"
@@ -794,7 +784,7 @@ update_all() {
             results+=("${RED}❌${NC} $desc")
             overall_status=1
         fi
-        # 只对有 comp_key 的步骤记录版本（MCP/Skills/systemd 没有版本号）
+        # 只对有 comp_key 的步骤记录版本（MCP/systemd 没有版本号）
         if [ -n "$comp_key" ]; then
             after_ver[$comp_key]=$(get_live_version "$comp_key")
         fi
@@ -808,7 +798,6 @@ update_all() {
     run_step "claude"   "Claude Code"       update_claude
     run_step "uv"       "uv"                update_uv
     run_step ""         "MCP 缓存"          update_mcp
-    run_step ""         "Skills 索引"       update_skills
     run_step ""         "systemd 服务"      fix_systemd_services
 
     # 后快照
@@ -881,9 +870,8 @@ show_menu() {
     echo "   6) Claude Code"
     echo "   7) uv（Python 包管理）"
     echo "   8) MCP 缓存刷新"
-    echo "   9) Skills 索引更新"
-    echo "  10) systemd 服务重建"
-    echo "  11) ★ 一键全部升级"
+    echo "   9) systemd 服务重建"
+    echo "  10) ★ 一键全部升级"
     echo "   0) 退出"
     echo ""
     read -p "选择 [1-10,0]: " choice
@@ -897,9 +885,8 @@ show_menu() {
         6)  update_claude; show_menu ;;
         7)  update_uv; show_menu ;;
         8)  update_mcp; show_menu ;;
-        9)  update_skills; show_menu ;;
-        10) fix_systemd_services; show_menu ;;
-        11) update_all; show_menu ;;
+        9)  fix_systemd_services; show_menu ;;
+        10) update_all; show_menu ;;
         0)  echo ""; exit 0 ;;
         *)  echo "无效选择"; show_menu ;;
     esac
@@ -923,11 +910,10 @@ case "${1:-menu}" in
     claude)        update_claude ;;
     uv)            update_uv ;;
     mcp)           update_mcp ;;
-    skills)        update_skills ;;
     services)      fix_systemd_services ;;
     menu|"")       show_menu ;;
     *)
-        echo "用法: $0 [all|node|npm|python|cconnect|gh|claude|uv|mcp|skills|services|menu]"
+        echo "用法: $0 [all|node|npm|python|cconnect|gh|claude|uv|mcp|services|menu]"
         exit 1
         ;;
 esac
