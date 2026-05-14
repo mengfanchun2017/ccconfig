@@ -357,26 +357,45 @@ check_remote() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[8] 远程连接 (SSH + Tailscale)${NC}"
 
-    local ok=true
+    local ssh_ok=false
+    local ssh_fix=""
 
-    # SSH 服务
-    echo -n "  SSH 服务 ... "
-    if systemctl is-active ssh &>/dev/null 2>&1; then
-        echo -e "${GREEN}✅${NC} 运行中"
-    elif systemctl is-enabled ssh &>/dev/null 2>&1; then
-        echo -e "${YELLOW}○${NC} 已安装但未运行"
-        ok=false
+    # SSH 配置
+    local ssh_port
+    ssh_port=$(grep -oP '^Port \K[0-9]+' /etc/ssh/sshd_config 2>/dev/null || echo "22")
+
+    # SSH socket 状态
+    local socket_active=$(systemctl is-active ssh.socket 2>/dev/null)
+    local socket_failed=false
+    if [ "$socket_active" = "active" ]; then
+        echo -e "  SSH (端口 $ssh_port) ... ${GREEN}✅${NC} 运行中"
+        ssh_ok=true
+    elif systemctl is-enabled ssh.socket &>/dev/null 2>&1; then
+        # socket 已配置但未 active
+        if [ "$socket_active" = "failed" ]; then
+            socket_failed=true
+            echo -e "  SSH (端口 $ssh_port) ... ${YELLOW}○${NC} 启动失败（瞬态端口冲突）"
+            ssh_fix="sudo systemctl reset-failed ssh.socket && sudo systemctl start ssh.socket"
+        else
+            echo -e "  SSH (端口 $ssh_port) ... ${YELLOW}○${NC} 已配置但未启动"
+            ssh_fix="sudo systemctl start ssh.socket"
+        fi
     else
-        echo -e "${GRAY}－${NC} 未安装"
-        ok=false
+        echo -e "  SSH ... ${GRAY}－${NC} 未安装"
+        ssh_fix="bash ccconfig/remote/server/tmux-sshd.sh"
     fi
 
-    # 端口 2222
-    echo -n "  端口 2222 ... "
-    if ss -tlnp 2>/dev/null | grep -q ":2222 "; then
+    # 端口检查（仅在 socket 失败时提示修复命令）
+    echo -n "  端口 $ssh_port ... "
+    if ss -tlnp 2>/dev/null | grep -q ":$ssh_port "; then
         echo -e "${GREEN}✅${NC} 已监听"
+    elif [ "$socket_failed" = true ]; then
+        echo -e "${YELLOW}○${NC} 需重置 socket"
+        echo -e "    ${GRAY}修复: $ssh_fix${NC}"
+    elif [ -n "$ssh_fix" ]; then
+        echo -e "${YELLOW}○${NC} 未监听"
     else
-        echo -e "${YELLOW}○${NC} 未监听（需 Windows 端口转发）"
+        echo -e "${YELLOW}○${NC} 未监听"
     fi
 
     # WSL 网络模式
@@ -384,12 +403,8 @@ check_remote() {
     echo -n "  网络模式 ... "
     if [ -f "$wslconfig" ] && grep -q "networkingMode=mirrored" "$wslconfig" 2>/dev/null; then
         echo -e "${GREEN}✅${NC} mirrored"
-    elif [ -f "$wslconfig" ]; then
-        echo -e "${YELLOW}○${NC} 非 mirrored 模式"
-        ok=false
     else
-        echo -e "${YELLOW}○${NC} .wslconfig 不存在"
-        ok=false
+        echo -e "${YELLOW}○${NC} 非 mirrored（mirrored 模式下无需端口转发）"
     fi
 
     # Tailscale (Windows 侧)
@@ -407,8 +422,13 @@ check_remote() {
         echo -e "${GRAY}－${NC} 未安装"
     fi
 
-    if $ok; then
-        echo -e "  ${GREEN}远程连接环境就绪${NC}"
+    echo -n "  远程可用 ... "
+    if [ "$ssh_ok" = true ] && ss -tlnp 2>/dev/null | grep -q ":$ssh_port "; then
+        echo -e "${GREEN}✅${NC} ssh francis@<Tailscale IP> -p $ssh_port"
+    elif [ -n "$ssh_fix" ]; then
+        echo -e "${YELLOW}○${NC} $ssh_fix"
+    else
+        echo -e "${GRAY}－${NC}"
     fi
 }
 
