@@ -77,7 +77,34 @@ fi
 echo ""
 echo "=== 完成 ==="
 echo "SSH Server 运行在 WSL2 端口 $SSH_PORT"
-echo "WSL2 IP: $(hostname -I | awk '{print $1}')"
-echo ""
-echo "下一步 — Windows 管理员 PowerShell:"
-echo "  powershell -ExecutionPolicy Bypass -File \"C:\\git\\winremote\\tmux-portforward.ps1\""
+
+# 检测 mirrored 网络模式下的 portproxy 冲突
+local wslconfig="/mnt/c/Users/Francis/.wslconfig"
+if [ -f "$wslconfig" ] && grep -q "networkingMode=mirrored" "$wslconfig" 2>/dev/null; then
+    echo ""
+    echo "=== Mirrored 网络模式检测 ==="
+    echo "当前为 mirrored 网络模式，WSL2 与 Windows 共享网络栈。"
+    echo "此模式下无需端口转发，但旧 portproxy 规则会造成端口冲突。"
+    echo ""
+
+    # 检查是否有冲突的端口转发规则
+    local proxy_rules
+    proxy_rules=$(/mnt/c/Windows/System32/netsh.exe interface portproxy show all 2>/dev/null | grep ":$SSH_PORT" || echo "")
+    if [ -n "$proxy_rules" ]; then
+        echo "⚠  检测到残留的端口转发规则："
+        echo "    $proxy_rules"
+        echo ""
+        echo "请以管理员身份在 Windows PowerShell 中执行："
+        echo "  1. netsh interface portproxy delete v4tov4 listenport=$SSH_PORT listenaddress=0.0.0.0"
+        echo "  2. Unregister-ScheduledTask -TaskName 'WSL SSH PortForward' -Confirm:`$false"
+        echo ""
+    fi
+
+    echo "远程连接（mirrored 模式，无需端口转发）："
+    echo "  ssh francis@<Windows IP 或 Tailscale IP> -p $SSH_PORT"
+else
+    echo "WSL2 IP: $(hostname -I | awk '{print $1}')"
+    echo ""
+    echo "下一步 — Windows 管理员 PowerShell:"
+    echo "  powershell -ExecutionPolicy Bypass -File \"C:\\git\\winremote\\tmux-portforward.ps1\""
+fi
