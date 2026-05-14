@@ -289,24 +289,26 @@ update_npm_globals() {
 
     local updated=0
 
-    # lark-cli
+    # lark-cli：检测是否已安装（含 Node 升级后符号链接失效的情况）
+    local lark_was_installed=false
     if command -v lark-cli &>/dev/null; then
+        lark_was_installed=true
+    elif [ -L "$LOCAL_BIN/lark-cli" ] || [ -d "$HOME/.local/share/lark-cli" ]; then
+        lark_was_installed=true
+        info "lark-cli 需要重装（Node 升级后符号链接失效）"
+    fi
+
+    if $lark_was_installed; then
         local before latest
         before=$(lark-cli --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
         info "lark-cli 当前: $before"
 
         # 先用 npm registry 检查最新版本（避免盲目更新）
         latest=$(npm view @larksuite/cli version 2>/dev/null || echo "")
-        if [ -n "$latest" ] && [ "$before" = "$latest" ]; then
+        if [ -n "$latest" ] && [ "$before" = "$latest" ] && [ "$before" != "?" ]; then
             success "lark-cli 已是最新: $latest"
-        elif ! npm update -g @larksuite/cli 2>&1 | tail -3; then
-            # update 失败，尝试重装
-            if npm install -g @larksuite/cli@latest 2>&1 | tail -3; then
-                success "lark-cli 已重装"
-                updated=$((updated + 1))
-            else
-                warn "lark-cli 更新失败"
-            fi
+        elif ! npm install -g @larksuite/cli@latest 2>&1 | tail -3; then
+            warn "lark-cli 更新失败"
         else
             local after
             after=$(lark-cli --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")

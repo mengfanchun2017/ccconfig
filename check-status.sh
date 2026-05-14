@@ -9,6 +9,7 @@
 # 5. ppt-master PPT 生成环境
 # 6. 飞书 lark-cli 状态
 # 7. MCP 服务器状态
+# 8. 远程连接状态 (Tailscale + SSH)
 #
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
@@ -351,6 +352,66 @@ check_feishu() {
     fi
 }
 
+# ========== 8. 远程连接状态 ==========
+check_remote() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[8] 远程连接 (SSH + Tailscale)${NC}"
+
+    local ok=true
+
+    # SSH 服务
+    echo -n "  SSH 服务 ... "
+    if systemctl is-active ssh &>/dev/null 2>&1; then
+        echo -e "${GREEN}✅${NC} 运行中"
+    elif systemctl is-enabled ssh &>/dev/null 2>&1; then
+        echo -e "${YELLOW}○${NC} 已安装但未运行"
+        ok=false
+    else
+        echo -e "${GRAY}－${NC} 未安装"
+        ok=false
+    fi
+
+    # 端口 2222
+    echo -n "  端口 2222 ... "
+    if ss -tlnp 2>/dev/null | grep -q ":2222 "; then
+        echo -e "${GREEN}✅${NC} 已监听"
+    else
+        echo -e "${YELLOW}○${NC} 未监听（需 Windows 端口转发）"
+    fi
+
+    # WSL 网络模式
+    local wslconfig="/mnt/c/Users/Francis/.wslconfig"
+    echo -n "  网络模式 ... "
+    if [ -f "$wslconfig" ] && grep -q "networkingMode=mirrored" "$wslconfig" 2>/dev/null; then
+        echo -e "${GREEN}✅${NC} mirrored"
+    elif [ -f "$wslconfig" ]; then
+        echo -e "${YELLOW}○${NC} 非 mirrored 模式"
+        ok=false
+    else
+        echo -e "${YELLOW}○${NC} .wslconfig 不存在"
+        ok=false
+    fi
+
+    # Tailscale (Windows 侧)
+    local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
+    echo -n "  Tailscale ... "
+    if [ -f "$ts_exe" ]; then
+        local ts_ip
+        ts_ip=$("$ts_exe" ip -4 2>/dev/null || echo "")
+        if [ -n "$ts_ip" ]; then
+            echo -e "${GREEN}✅${NC} $ts_ip"
+        else
+            echo -e "${YELLOW}○${NC} 未登录或无网络"
+        fi
+    else
+        echo -e "${GRAY}－${NC} 未安装"
+    fi
+
+    if $ok; then
+        echo -e "  ${GREEN}远程连接环境就绪${NC}"
+    fi
+}
+
 # ========== 执行所有检查 ==========
 echo ""
 echo -e "${GREEN}=== Claude Config 状态检查 ===${NC}"
@@ -364,5 +425,6 @@ check_memory
 check_ppt_master
 check_feishu
 check_mcp
+check_remote
 
 echo ""
