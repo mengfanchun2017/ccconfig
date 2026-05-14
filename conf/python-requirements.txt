@@ -1,6 +1,3 @@
-# User-installed Python packages (pip3 install --user)
-# Managed via PIP_BREAK_SYSTEM_PACKAGES=1 on Ubuntu 24
-# Regenerate: pip3 freeze --user > ccconfig/conf/python-requirements.txt
 cairocffi==1.7.1
 CairoSVG==2.9.0
 cffi==2.0.0
