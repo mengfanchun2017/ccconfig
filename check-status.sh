@@ -367,33 +367,66 @@ check_remote() {
     # SSH socket 状态
     local socket_active=$(systemctl is-active ssh.socket 2>/dev/null)
     local socket_failed=false
+    local portproxy_conflict=false
     if [ "$socket_active" = "active" ]; then
         echo -e "  SSH (端口 $ssh_port) ... ${GREEN}✅${NC} 运行中"
         ssh_ok=true
     elif systemctl is-enabled ssh.socket &>/dev/null 2>&1; then
-        # socket 已配置但未 active
         if [ "$socket_active" = "failed" ]; then
             socket_failed=true
-            echo -e "  SSH (端口 $ssh_port) ... ${YELLOW}○${NC} 启动失败（瞬态端口冲突）"
-            ssh_fix="sudo systemctl reset-failed ssh.socket && sudo systemctl start ssh.socket"
+            # 诊断：检查是否被 Windows 进程占用
+            local netstat_out
+            netstat_out=$(/mnt/c/Windows/System32/netstat.exe -ano 2>/dev/null | grep ":$ssh_port ")
+            if [ -n "$netstat_out" ]; then
+                local win_pid
+                win_pid=$(echo "$netstat_out" | awk '{print $NF}' | tr -d '\r')
+                local proc_name
+                proc_name=$(/mnt/c/Windows/System32/tasklist.exe 2>/dev/null | grep -E "^[^ ]+[ ]+$win_pid " | head -1 | awk '{print $1}')
+                portproxy_conflict=true
+                if [ "$proc_name" = "svchost.exe" ]; then
+                    echo -e "  SSH (端口 $ssh_port) ... ${RED}❌${NC} 端口被 Windows iphlpsvc 占用"
+                elif [ -n "$proc_name" ]; then
+                    echo -e "  SSH (端口 $ssh_port) ... ${RED}❌${NC} 端口被 Windows $proc_name 占用"
+                else
+                    echo -e "  SSH (端口 $ssh_port) ... ${RED}❌${NC} 端口被 Windows PID $win_pid 占用"
+                fi
+            else
+                echo -e "  SSH (端口 $ssh_port) ... ${YELLOW}○${NC} 启动失败（瞬态端口冲突）"
+            fi
         else
             echo -e "  SSH (端口 $ssh_port) ... ${YELLOW}○${NC} 已配置但未启动"
-            ssh_fix="sudo systemctl start ssh.socket"
         fi
     else
         echo -e "  SSH ... ${GRAY}－${NC} 未安装"
-        ssh_fix="bash ccconfig/remote/server/tmux-sshd.sh"
     fi
 
-    # 端口检查（仅在 socket 失败时提示修复命令）
+    # 端口冲突诊断
+    if [ "$portproxy_conflict" = true ]; then
+        local proxy_rule
+        proxy_rule=$(/mnt/c/Windows/System32/netsh.exe interface portproxy show all 2>/dev/null | grep ":$ssh_port" || echo "")
+        echo -e "    ${GRAY}原因: mirrored 模式下残留 portproxy 规则${NC}"
+        if [ -n "$proxy_rule" ]; then
+            echo -e "    ${GRAY}$proxy_rule${NC}"
+        fi
+        echo -e "    ${GRAY}修复 (Win 管理员 PS): netsh interface portproxy delete v4tov4 listenport=$ssh_port listenaddress=0.0.0.0${NC}"
+        echo -e "    ${GRAY}修复 (WSL):           sudo systemctl reset-failed ssh.socket && sudo systemctl start ssh.socket${NC}"
+        ssh_fix="先删除 Windows portproxy 规则，再 sudo systemctl reset-failed ssh.socket && sudo systemctl start ssh.socket"
+    elif [ "$socket_failed" = true ]; then
+        ssh_fix="sudo systemctl reset-failed ssh.socket && sudo systemctl start ssh.socket"
+    elif [ -z "$ssh_fix" ]; then
+        ssh_fix="sudo systemctl start ssh.socket"
+    fi
+
+    # 端口检查
     echo -n "  端口 $ssh_port ... "
     if ss -tlnp 2>/dev/null | grep -q ":$ssh_port "; then
         echo -e "${GREEN}✅${NC} 已监听"
+    elif [ "$portproxy_conflict" = true ]; then
+        echo -e "${RED}❌${NC} 被 Windows 占用"
     elif [ "$socket_failed" = true ]; then
         echo -e "${YELLOW}○${NC} 需重置 socket"
-        echo -e "    ${GRAY}修复: $ssh_fix${NC}"
-    elif [ -n "$ssh_fix" ]; then
-        echo -e "${YELLOW}○${NC} 未监听"
+    elif [ -n "$ssh_fix" ] && [ "$ssh_fix" != "bash ccconfig/remote/server/tmux-sshd.sh" ]; then
+        echo -e "${YELLOW}○${NC} $ssh_fix"
     else
         echo -e "${YELLOW}○${NC} 未监听"
     fi
