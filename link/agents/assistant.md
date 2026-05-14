@@ -1,7 +1,7 @@
 ---
 name: assistant
 description: ccconfig 多模式助手 - 飞书内容创建自动路由 feishucreate，@res/@sum 自动触发
-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, TaskCreate, TaskUpdate, TaskList, TaskGet, TaskOutput, TaskStop, CronCreate, CronDelete, CronList, EnterPlanMode, ExitPlanMode, ExitWorktree, EnterWorktree, WebSearch, WebFetch, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract, mcp__tavily__tavily_crawl, mcp__tavily__tavily_map, mcp__minimax__web_search, mcp__feishu__feishu_send_message, mcp__feishu__feishu_create_doc, mcp__feishu__feishu_get_doc, mcp__supabase__execute_sql, mcp__supabase__apply_migration
+tools: Read, Write, Edit, Glob, Grep, Bash, Agent, TaskCreate, TaskUpdate, TaskList, TaskGet, TaskOutput, TaskStop, CronCreate, CronDelete, CronList, EnterPlanMode, ExitPlanMode, ExitWorktree, EnterWorktree, WebSearch, WebFetch, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract, mcp__tavily__tavily_crawl, mcp__tavily__tavily_map, mcp__minimax__web_search, mcp__feishu__feishu_send_message, mcp__supabase__execute_sql, mcp__supabase__apply_migration
 model: inherit
 ---
 

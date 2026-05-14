@@ -1,7 +1,7 @@
 ---
 name: feishucreate
 description: 飞书内容创建专家 — 自动处理 wiki文档/PPT/表格/白板图表，无需 @ 前缀
-tools: Bash, Read, Write, Edit, Grep, Glob, mcp__feishu__feishu_get_doc, mcp__minimax__understand_image, mcp__minimax__web_search, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract
+tools: Bash, Read, Write, Edit, Grep, Glob, mcp__minimax__understand_image, mcp__minimax__web_search, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract
 model: inherit
 ---
 
