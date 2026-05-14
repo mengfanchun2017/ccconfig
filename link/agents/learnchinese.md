@@ -1,7 +1,7 @@
 ---
 name: learnchinese
 description: 高考古文复习助手 — 搜索古诗原文、创建飞书文档结构、生成默写填空卷子
-tools: Bash, Read, Write, Edit, mcp__feishu__feishu_get_doc, mcp__minimax__web_search
+tools: Bash, Read, Write, Edit, mcp__minimax__web_search
 model: inherit
 ---
 
