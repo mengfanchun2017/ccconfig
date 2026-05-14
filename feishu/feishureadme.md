@@ -8,6 +8,7 @@
 |------|------|------|
 | lark-cli | `init.sh --lark-cli` | 终端创建文档/日历/任务（用户 OAuth） |
 | cc-connect | `init.sh --cc-connect` | Bridge 接收飞书消息（机器人长连接） |
+| mcp-bridge | `mcp-bridge/install.sh` | 可选：安装 feishu MCP（配合 cc-connect bot 消息） |
 
 ## 快速开始
 
@@ -53,4 +54,13 @@ systemd timer 每 5 天自动刷新 token：
 ```bash
 systemctl --user status claude-lark-refresh.timer
 journalctl --user -u claude-lark-refresh.service
+```
+
+## mcp-bridge（可选）
+
+仅在需要 bot 收发消息时安装，配合 cc-connect 使用。如果只用 lark-cli 操作文档/日历/任务，不需要安装。
+
+```bash
+bash ccconfig/feishu/mcp-bridge/install.sh          # 安装
+bash ccconfig/feishu/mcp-bridge/install.sh --remove # 移除
 ```
