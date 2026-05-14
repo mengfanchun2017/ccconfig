@@ -7,6 +7,7 @@
 # 设计原则：
 #   - lark-cli: 每台电脑都需要（用于创建飞书文档/日历/任务）
 #   - cc-connect: 仅接收飞书消息的机器需要（台式机常驻）
+#   - mcp-bridge: 可选，feishu MCP 安装脚本（bot 消息），与 cc-connect 配对使用
 #
 # 用法：
 #   bash ccconfig/feishu/init-feishu.sh              # 交互式（推荐）
@@ -330,6 +331,9 @@ interactive_mode() {
     echo "  切换 lark-cli 账号:  bash ccconfig/feishu/lark-switch.sh <name>"
     echo "  查看机器人状态:     bash ccconfig/feishu/bot-status.sh"
     echo "  服务管理:           systemctl --user status cc-connect"
+    echo ""
+    echo -e "  ${YELLOW}💡 可选: feishu MCP Bridge（bot 消息）${NC}"
+    echo -e "     ${CYAN}bash ccconfig/feishu/mcp-bridge/install.sh${NC}"
 }
 
 # ========== 主程序 ==========

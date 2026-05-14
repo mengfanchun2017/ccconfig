@@ -421,6 +421,10 @@ esac
 echo ""
 title "✅ 完成"
 echo "提示: claude mcp list 查看注册状态"
+echo ""
+echo -e "${YELLOW}💡 飞书 MCP Bridge（bot 消息）已独立为可选组件${NC}"
+echo -e "   如需要: ${CYAN}bash ccconfig/feishu/mcp-bridge/install.sh${NC}"
+echo -e "   不需要可忽略（lark-cli 已覆盖文档/日历/任务）"
 
 # 确保脚本正常退出
 exit 0
