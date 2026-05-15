@@ -60,8 +60,10 @@ git clean -fd 2>/dev/null || true
 
 echo "✅ $REPO_NAME → origin/$BRANCH (强制同步完成，本地与远程一致)"
 
-# 如果是 ccconfig，重建符号链接
+# 如果是 ccconfig，重建符号链接 + 同步 skills
 if [ "$REPO_NAME" = "ccconfig" ] && [ -f "$REPO_DIR/setup-links.sh" ]; then
     echo "   🔗 重建符号链接..."
     bash "$REPO_DIR/setup-links.sh"
+    echo "   🔄 同步 skills..."
+    bash "$REPO_DIR/init-skill.sh sync"
 fi
