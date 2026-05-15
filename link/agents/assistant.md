@@ -1,6 +1,6 @@
 ---
 name: assistant
-description: ccconfig 多模式助手 - 飞书内容创建自动路由 feishucreate，@res/@sum 自动触发
+description: ccconfig 多模式助手 - 飞书内容创建自动路由 feishucreate，自动意图识别路由到对应 skill
 tools: Read, Write, Edit, Glob, Grep, Bash, Agent, TaskCreate, TaskUpdate, TaskList, TaskGet, TaskOutput, TaskStop, CronCreate, CronDelete, CronList, EnterPlanMode, ExitPlanMode, ExitWorktree, EnterWorktree, WebSearch, WebFetch, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract, mcp__tavily__tavily_crawl, mcp__tavily__tavily_map, mcp__minimax__web_search, mcp__feishu__feishu_send_message, mcp__supabase__execute_sql, mcp__supabase__apply_migration
 model: inherit
 ---
@@ -35,7 +35,6 @@ model: inherit
 **触发**：调研、技术研究、竞品分析、第三方库评估、搜索并创建文档
 
 **行为**：自动调用 unified-research skill
-- 调用 `/unified-research <topic>` 自动执行
 - 自动判断领域（generic/customer/market/technical）
 - 三源并行搜索（来自 memory/search_bilingual.md）
 - Python过滤优化：原始数据存 /tmp/，过滤后内容进 context
@@ -67,25 +66,18 @@ for r in data['results']:
 
 ### 3. 总结/worklog（自动意图识别）
 
-**触发**：写 worklog、记录工作、周报、任务总结、`welldone`
+**触发**：记录工作、总结任务、写日志、周报（任何包含"记录"/"总结"/"日志"/"worklog"的说法）
 
-**行为**：在 worklog Base（`Tq1ebqPA7aT0cSsSA8GcADZQnqd`）的"任务表"（`tblpkMMzVHTTomp1`）中新增一行
+**行为**：自动调用 worklog skill 写入飞书 Base
 
-**命令**：
-```bash
-lark-cli base +record-batch-create --base-token Tq1ebqPA7aT0cSsSA8GcADZQnqd --table-id tblpkMMzVHTTomp1 --as user --json '{"fields":[...],"rows":[[...]]}'
-```
+worklog skill 定义了字段格式、选项值、命令实现。
 
 **分类规则**：
 - 默认「成长」；用户明确说"工作"或"work"时归为「工作」
 - 成长: `claudecode 描述` → ai分类=成长
 - 工作: `描述`（无 claudecode 前缀）→ ai分类=工作
-- 飞书根据标题中的 `claudecode` 前缀自动分类
 
-**变体**：
-- `@sum-brief` → 极简版 | `@sum-detailed` → 详细版 | `@sum-outline` → 大纲版
-
-详细格式规范 → MEMORY.md（worklog_title_format.md）
+详细 → `skills/worklog/SKILL.md`
 
 ---
 
