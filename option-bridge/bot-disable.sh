@@ -1,5 +1,5 @@
 #!/bin/bash
-# ccconfig/feishu/bot-disable.sh — 禁用 cc-connect 机器人
+# ccconfig/option-bridge/bot-disable.sh — 禁用 cc-connect 机器人
 # 配置源: ../conf/feishu.json
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,7 +32,7 @@ else:
         print(f"  ✅ {a['name']}: {a.get('description', '')}")
 PYEOF
     echo ""
-    echo "用法: bash ccconfig/feishu/bot-disable.sh <name>"
+    echo "用法: bash ccconfig/option-bridge/bot-disable.sh <name>"
     exit 0
 fi
 

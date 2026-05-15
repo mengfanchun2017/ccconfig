@@ -4,9 +4,9 @@
 # 配置：从 ../conf/feishu.json 读取 accounts 数组
 #
 # 使用：
-#   bash ccconfig/feishu/lark-switch.sh <account-name>   # 切换到指定账号
-#   bash ccconfig/feishu/lark-switch.sh                   # 显示当前账号
-#   bash ccconfig/feishu/lark-switch.sh --list             # 列出所有账号
+#   bash ccconfig/option-bridge/lark-switch.sh <account-name>   # 切换到指定账号
+#   bash ccconfig/option-bridge/lark-switch.sh                   # 显示当前账号
+#   bash ccconfig/option-bridge/lark-switch.sh --list             # 列出所有账号
 
 set -e
 
@@ -247,7 +247,7 @@ switch_account() {
     echo -e "${CYAN}授权状态:${NC} ${auth_status}"
     echo ""
     echo -e "${YELLOW}当前 session 已激活此账号${NC}"
-    echo -e "${GRAY}下次打开新窗口需重新运行: bash ccconfig/feishu/lark-switch.sh ${target_name}${NC}"
+    echo -e "${GRAY}下次打开新窗口需重新运行: bash ccconfig/option-bridge/lark-switch.sh ${target_name}${NC}"
     echo ""
 
     # 提示授权

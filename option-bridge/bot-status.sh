@@ -1,5 +1,5 @@
 #!/bin/bash
-# ccconfig/feishu/bot-status.sh — 查看 cc-connect 机器人状态
+# ccconfig/option-bridge/bot-status.sh — 查看 cc-connect 机器人状态
 # 配置源: ../conf/feishu.json
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -91,6 +91,6 @@ print(f"  共 {len(apps)} 个应用，{total_cc} 个 cc-connect 启用")
 PYEOF
 
 echo ""
-echo -e "${GRAY}提示: bash ccconfig/feishu/bot-enable.sh <名称>   启用机器人${NC}"
-echo -e "${GRAY}      bash ccconfig/feishu/bot-disable.sh <名称>  禁用机器人${NC}"
+echo -e "${GRAY}提示: bash ccconfig/option-bridge/bot-enable.sh <名称>   启用机器人${NC}"
+echo -e "${GRAY}      bash ccconfig/option-bridge/bot-disable.sh <名称>  禁用机器人${NC}"
 echo ""

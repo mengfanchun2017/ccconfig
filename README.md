@@ -1,6 +1,6 @@
 # ccconfig — Claude Code 配置中枢
 
-> 统一管理 Claude Code 配置、脚本、飞书集成，通过 GitHub 跨设备同步。
+> 统一管理 Claude Code 配置、脚本，通过 GitHub 跨设备同步。
 
 ## 目录结构
 
@@ -26,15 +26,15 @@ ccconfig/
 │   ├── llm.json              # LLM 多后端配置
 │   └── ubuntu.json           # Git 用户信息
 │
-├── feishu/                   # 飞书集成（统一入口）
-│   ├── init.sh               # 统一初始化（lark-cli + cc-connect）
+├── option-bridge/            # 可选：飞书消息 Bridge
+│   ├── init.sh               # lark-cli + cc-connect 初始化
 │   ├── lark-switch.sh        # 多账号切换
 │   ├── bot-status.sh         # 机器人状态
 │   ├── bot-enable.sh         # 启用机器人
 │   ├── bot-disable.sh        # 禁用机器人
-│   └── claude-lark-refresh.* # lark-cli token 自动刷新
+│   ├── claude-lark-refresh.* # lark-cli token 自动刷新
+│   └── mcp-bridge/           # 可选 MCP（bot 消息）
 │
-├── cconnect/                 # 向后兼容包装器 → feishu/init.sh
 ├── remote/                   # 远程连接（Tailscale + SSH + tmux）
 │
 ├── lib/                      # 共享库
@@ -66,51 +66,49 @@ ccconfig/
 # 交互式菜单
 bash ~/git/ccconfig/init.sh
 
-# 一键全部初始化
+# 一键全部初始化（不含可选组件）
 bash ~/git/ccconfig/init.sh all
 
 # 查看状态
 bash ~/git/ccconfig/init.sh status
 ```
 
-## 飞书集成
+## 可选组件
 
-飞书功能统一在 `feishu/` 目录下管理，配置源为 `conf/feishu.json`。
+### 飞书 Bridge（option-bridge/）
+
+> 默认不包含在 `init.sh all` 中。需要时手动安装。
 
 ```bash
 # 完整安装（lark-cli + cc-connect）
-bash ccconfig/feishu/init.sh
+bash ccconfig/option-bridge/init.sh
 
 # 仅安装部分能力
-bash ccconfig/feishu/init.sh --lark-cli     # 仅文档/日历/任务
-bash ccconfig/feishu/init.sh --cc-connect   # 仅消息 Bridge
+bash ccconfig/option-bridge/init.sh --lark-cli     # 仅文档/日历/任务
+bash ccconfig/option-bridge/init.sh --cc-connect  # 仅消息 Bridge
 
 # 多账号管理
-bash ccconfig/feishu/lark-switch.sh francis  # Session A
-bash ccconfig/feishu/lark-switch.sh ailab    # Session B
+bash ccconfig/option-bridge/lark-switch.sh francis  # Session A
+bash ccconfig/option-bridge/lark-switch.sh ailab    # Session B
 
 # 机器人管理
-bash ccconfig/feishu/bot-status.sh           # 查看状态
-bash ccconfig/feishu/bot-enable.sh <名称>     # 启用
-bash ccconfig/feishu/bot-disable.sh <名称>    # 禁用
+bash ccconfig/option-bridge/bot-status.sh           # 查看状态
+bash ccconfig/option-bridge/bot-enable.sh <名称>     # 启用
+bash ccconfig/option-bridge/bot-disable.sh <名称>    # 禁用
 ```
 
-### 架构
+**包含组件**：
+- `lark-cli` — 终端创建飞书文档/日历/任务（用户 OAuth）
+- `cc-connect` — 接收飞书消息 Bridge（机器人长连接）
+- `mcp-bridge` — 可选 MCP（bot 消息，配合 cc-connect 使用）
 
-每个飞书应用包含两种能力，统一在 `conf/feishu.json` 中配置：
-
-```
-conf/feishu.json  (单一配置源)
-    │
-    ├── larkCli  → lark-cli (用户 OAuth) → 飞书文档/日历/任务
-    └── ccConnect → cc-connect (机器人长连接) → 飞书消息 Bridge
-```
+**状态检查**：`check-status.sh` 会标记为 `[option]`
 
 ### 添加新机器人
 
 1. 飞书开放平台创建企业自建应用（机器人 + 长连接）
 2. 编辑 `conf/feishu.json` → `apps[]` 新增
-3. 运行 `bash ccconfig/feishu/init.sh`
+3. 运行 `bash ccconfig/option-bridge/init.sh`
 
 ## LLM 切换
 
@@ -138,4 +136,7 @@ bash ccconfig/update.sh               # 交互式菜单
 bash ccconfig/update.sh all           # 一键升级全部（9组件）
 ```
 
-升级组件：Node.js → npm → cc-connect → GitHub CLI → Claude Code → uv → MCP → Skills → systemd
+升级组件：Node.js → npm → GitHub CLI → Claude Code → uv → MCP → Skills → systemd
+
+> 注：cc-connect 在 `update.sh all` 中也**不包含**，需单独升级：
+> `bash ccconfig/option-bridge/init.sh --cc-connect`

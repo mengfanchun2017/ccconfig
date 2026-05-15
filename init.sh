@@ -81,30 +81,20 @@ submenu_env() {
 
 submenu_feishu() {
     echo ""
-    echo -e "${CYAN}── 飞书集成 ──${NC}"
-    echo "  1) lark-cli 安装配置     (feishu/init-feishu.sh --lark-cli)"
-    echo "  2) cc-connect Bridge     (feishu/init-feishu.sh --cc-connect)"
-    echo "  3) ★ 一键全部           (feishu/init-feishu.sh)"
-    echo "  4) 切换 lark-cli 账号    (feishu/lark-switch.sh)"
-    echo "  5) 机器人列表            (feishu/bot-status.sh)"
-    echo "  0) 返回"
+    echo -e "${CYAN}── 飞书 Bridge（可选） ──${NC}"
+    echo "  需要安装 lark-cli 和 cc-connect 吗？"
     echo ""
-    read -p "选择 [1-5,0]: " c
-    case "$c" in
-        1) run_step "lark-cli"   "$SCRIPT_DIR/feishu/init-feishu.sh" false --lark-cli
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        2) run_step "cc-connect" "$SCRIPT_DIR/feishu/init-feishu.sh" false --cc-connect
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        3) run_step "飞书"      "$SCRIPT_DIR/feishu/init-feishu.sh" true
-           exit 0 ;;
-        4) bash "$SCRIPT_DIR/feishu/lark-switch.sh" --list
-           echo ""; read -p "输入账号名切换 [直接回车跳过]: " acct
-           [ -n "$acct" ] && bash "$SCRIPT_DIR/feishu/lark-switch.sh" "$acct"
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        5) bash "$SCRIPT_DIR/feishu/bot-status.sh"
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        0) return ;;
-    esac
+    echo "  手动安装:  bash ccconfig/option-bridge/init.sh"
+    echo ""
+    echo "  包含:"
+    echo "    - lark-cli     (终端创建飞书文档/日历/任务)"
+    echo "    - cc-connect   (接收飞书消息 Bridge)"
+    echo "    - mcp-bridge   (可选 MCP，bot 消息)"
+    echo ""
+    echo "  查看状态:  bash ccconfig/option-bridge/bot-status.sh"
+    echo "  切换账号:  bash ccconfig/option-bridge/lark-switch.sh <name>"
+    echo ""
+    read -p "按回车返回..." dummy
 }
 
 submenu_remote() {
@@ -219,7 +209,7 @@ main_menu() {
     echo ""
     echo "  ┌─ 环境初始化 ──────────────────────────┐"
     echo "  │ 1) Ubuntu 环境  │ LLM切换 │ 自启动   │"
-    echo "  │ 2) 飞书集成    │ lark-cli │ Bridge  │"
+    echo "  │ 2) [可选] 飞书 Bridge               │"
     echo "  │ 3) 远程连接    │ SSH │ tmux │ EasyTier │"
     echo "  │ 4) MCP 管理    │ 安装 │ 同步 │ 状态   │"
     echo "  │ 5) Skills      │ 同步 │ 状态          │"
@@ -240,14 +230,14 @@ main_menu() {
         6) submenu_tools ;;
         7)
             show_banner
-            run_step "1/5 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
-            run_step "2/5 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
-            run_step "3/5 飞书集成"        "$SCRIPT_DIR/feishu/init-feishu.sh"    true
-            run_step "4/5 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
-            run_step "5/5 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
+            run_step "1/4 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
+            run_step "2/4 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
+            run_step "3/4 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
+            run_step "4/4 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
             echo ""
-            echo "🎉 全部初始化完成"
+            echo "🎉 全部初始化完成（飞书 Bridge 为可选组件）"
             echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
+            echo "可选: bash ccconfig/option-bridge/init.sh  # 安装飞书 Bridge"
             exit 0
             ;;
         0) echo ""; exit 0 ;;
@@ -264,14 +254,14 @@ main_menu() {
 case "${1:-menu}" in
     all)
         show_banner
-        run_step "1/5 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
-        run_step "2/5 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
-        run_step "3/5 飞书集成"        "$SCRIPT_DIR/feishu/init-feishu.sh"    true
-        run_step "4/5 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
-        run_step "5/5 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
+        run_step "1/4 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
+        run_step "2/4 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
+        run_step "3/4 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
+        run_step "4/4 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
         echo ""
-        echo "🎉 全部初始化完成"
+        echo "🎉 全部初始化完成（飞书 Bridge 为可选组件）"
         echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
+        echo "可选: bash ccconfig/option-bridge/init.sh  # 安装飞书 Bridge"
         exit 0
         ;;
     status)
