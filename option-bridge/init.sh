@@ -1,5 +1,5 @@
 #!/bin/bash
-# ccconfig/feishu/init-feishu.sh — 飞书统一初始化
+# ccconfig/option-bridge/init.sh — 飞书 Bridge 初始化（可选组件）
 #
 # 管理 lark-cli（创建飞书文档）和 cc-connect（接收飞书消息）
 # 配置源: ../conf/feishu.json（单一真相源）
@@ -10,11 +10,11 @@
 #   - mcp-bridge: 可选，feishu MCP 安装脚本（bot 消息），与 cc-connect 配对使用
 #
 # 用法：
-#   bash ccconfig/feishu/init-feishu.sh              # 交互式（推荐）
-#   bash ccconfig/feishu/init-feishu.sh --lark-cli   # 仅 lark-cli（非交互）
-#   bash ccconfig/feishu/init-feishu.sh --cc-connect # 仅 cc-connect（非交互）
-#   bash ccconfig/feishu/init-feishu.sh --all        # 全部（非交互）
-#   bash ccconfig/feishu/init-feishu.sh --list       # 列出所有账号
+#   bash ccconfig/option-bridge/init.sh              # 交互式（推荐）
+#   bash ccconfig/option-bridge/init.sh --lark-cli   # 仅 lark-cli（非交互）
+#   bash ccconfig/option-bridge/init.sh --cc-connect # 仅 cc-connect（非交互）
+#   bash ccconfig/option-bridge/init.sh --all        # 全部（非交互）
+#   bash ccconfig/option-bridge/init.sh --list       # 列出所有账号
 
 set -e
 
@@ -40,7 +40,7 @@ info() { echo -e "${GRAY}$1${NC}"; }
 banner() {
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════╗"
-    echo "║       飞书统一配置                                ║"
+    echo "║       飞书 Bridge 初始化（可选组件）               ║"
     echo "║       lark-cli (文档) + cc-connect (消息)         ║"
     echo "╚══════════════════════════════════════════════════╝"
     echo "$NC"
@@ -170,7 +170,7 @@ config_path = sys.argv[2]
 apps = data.get('apps', [])
 
 lines = ['# ╔══════════════════════════════════════════════════╗',
-         '# ║  cc-connect 配置 — 由 ccconfig/feishu/init-feishu.sh 生成 ║',
+         '# ║  cc-connect 配置 — 由 ccconfig/option-bridge/init.sh 生成 ║',
          '# ║  修改: 编辑 ccconfig/conf/feishu.json              ║',
          '# ╚══════════════════════════════════════════════════╝', '',
          '[log]', 'level = "info"', '']
@@ -328,12 +328,12 @@ interactive_mode() {
     good "✅ 完成"
     echo ""
     echo "后续操作:"
-    echo "  切换 lark-cli 账号:  bash ccconfig/feishu/lark-switch.sh <name>"
-    echo "  查看机器人状态:     bash ccconfig/feishu/bot-status.sh"
+    echo "  切换 lark-cli 账号:  bash ccconfig/option-bridge/lark-switch.sh <name>"
+    echo "  查看机器人状态:     bash ccconfig/option-bridge/bot-status.sh"
     echo "  服务管理:           systemctl --user status cc-connect"
     echo ""
     echo -e "  ${YELLOW}💡 可选: feishu MCP Bridge（bot 消息）${NC}"
-    echo -e "     ${CYAN}bash ccconfig/feishu/mcp-bridge/install.sh${NC}"
+    echo -e "     ${CYAN}bash ccconfig/option-bridge/mcp-bridge/install.sh${NC}"
 }
 
 # ========== 主程序 ==========

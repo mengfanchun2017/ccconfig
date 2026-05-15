@@ -1,11 +1,11 @@
 #!/bin/bash
 # 飞书 MCP Bridge 安装脚本（可选组件）
 # 用途: 给 Claude Code 安装 feishu MCP，用于 bot 消息收发
-# 位置: ccconfig/feishu/mcp-bridge/
+# 位置: ccconfig/option-bridge/mcp-bridge/
 #
 # 使用:
-#   bash ccconfig/feishu/mcp-bridge/install.sh          # 安装
-#   bash ccconfig/feishu/mcp-bridge/install.sh --remove # 移除
+#   bash ccconfig/option-bridge/mcp-bridge/install.sh          # 安装
+#   bash ccconfig/option-bridge/mcp-bridge/install.sh --remove # 移除
 #
 # 注意: 如果只需要文档/日历/任务操作，用 lark-cli 即可，不需要安装此组件
 
@@ -59,7 +59,7 @@ PYEOF
     echo -e "${GREEN}✅ 飞书 MCP Bridge 安装完成${NC}"
     echo ""
     echo "验证: claude mcp list | grep feishu"
-    echo "移除: bash ccconfig/feishu/mcp-bridge/install.sh --remove"
+    echo "移除: bash ccconfig/option-bridge/mcp-bridge/install.sh --remove"
 }
 
 do_remove() {
