@@ -37,19 +37,31 @@ model: inherit
 **行为**：自动调用 unified-research skill
 - 调用 `/unified-research <topic>` 自动执行
 - 自动判断领域（generic/customer/market/technical）
-- 三源并行搜索（Python过滤优化）
+- 三源并行搜索（来自 memory/search_bilingual.md）
+- Python过滤优化：原始数据存 /tmp/，过滤后内容进 context
 - 默认输出到飞书wiki（可通过 RESEARCH_OUTPUT 配置切换）
 
-**搜索策略**（由 unified-research 统一处理）：
-- 三源并行：WebSearch + minimax（中文）+ tavily（英文+深度）
-- Python脚本过滤：原始数据存 /tmp/，只过滤后内容进 context
-- 聚合去重：按 URL 去重，标注来源 [tavily]/[minimax]/[research]
+**三源搜索规则**：
+- 内置 WebSearch — 通用主力
+- mcp__minimax__web_search — 中文搜索
+- mcp__tavily__tavily_search + mcp__tavily__tavily_research — 英文+深度
+
+**Python过滤模式**：
+```python
+tvly search "..." --json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for r in data['results']:
+    print(f'[{r[\"score\"]:.2f}] {r[\"title\"]}')
+"
+# 原始数据存 /tmp/
+```
 
 **后续流程**：
 - `/unified-research-deep` → 深度研究（批量 JSON 输出）
 - `/unified-research-report` → 报告生成（Markdown 汇总）
 
-详细 → `unified-research/SKILL.md`
+详细 → `unified-research/SKILL.md` + `memory/search_bilingual.md`
 
 ---
 
