@@ -331,7 +331,7 @@ check_feishu() {
         fi
     fi
 
-    # cc-connect Bridge（已弃用，2026-05-15 起不再使用）
+    # cc-connect Bridge 状态
     echo -n "  Bridge ... "
     if command -v cc-connect &> /dev/null; then
         if systemctl --user is-active cc-connect.service &>/dev/null 2>&1; then
@@ -339,14 +339,20 @@ check_feishu() {
         elif pgrep -f "cc-connect" > /dev/null 2>&1; then
             echo -e "${GREEN}✅${NC} (进程运行中)"
         else
-            echo -e "${GRAY}－${NC} (已安装但未运行，如需启用: bash ccconfig/feishu/init-feishu.sh --cc-connect)"
+            echo -e "${YELLOW}○${NC} (未运行)"
         fi
     else
-        echo -e "${GRAY}－${NC} (未安装，不再使用)"
+        echo -e "${GRAY}－${NC} (未安装)"
     fi
-    # ⚠️ cc-connect 已弃用：cc-connect 是飞书消息 Bridge，用于接收群消息并转发给 Claude Code
-    # ⚠️ 自 2026-05-15 起不再使用，如需启用: bash ccconfig/feishu/init-feishu.sh --cc-connect
-    echo -e "  ${GRAY}⚠️ cc-connect 已弃用，无需自启动${NC}"
+    # cconnect 机器人数量（无论二进制是否安装都检查配置）
+    local feishu_json="$REPO_DIR/conf/feishu.json"
+    if [ -f "$feishu_json" ]; then
+        local total enabled_count
+        total=$(python3 -c "import json; d=json.load(open('$feishu_json')); print(len(d.get('apps',[])))" 2>/dev/null || echo "?")
+        enabled_count=$(python3 -c "import json; d=json.load(open('$feishu_json')); print(sum(1 for a in d.get('apps',[]) if a.get('ccConnect',{}).get('enabled')))" 2>/dev/null || echo "?")
+        echo -e "  机器人: ${enabled_count}/${total} 启用 (cconnect)"
+    fi
+    echo -e "  ${GRAY}安装/启动: bash ccconfig/feishu/init-feishu.sh --cc-connect${NC}"
 }
 
 # ========== 8. 远程连接状态 ==========
