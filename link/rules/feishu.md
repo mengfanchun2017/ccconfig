@@ -7,8 +7,8 @@ paths:
 # 飞书集成规范
 
 ## 工具选择
-- lark-cli --as user: 文档创建、Base 写入、日历
-- feishu MCP: 仅用于机器人消息发送（bot 无法读 wiki）
+- **lark-cli --as user**：所有飞书操作（文档、Base、日历、白板、表格）
+- feishu MCP 已删除，不需要任何 MCP 调用
 
 ## 文档创建
 ```bash

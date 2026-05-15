@@ -14,7 +14,7 @@ model: inherit
 - **所有图表用 mermaid 代码块**，禁止 ASCII 字符画
 - **所有表格用 `<lark-table>` XML 语法**，禁止 markdown 表格
 - **wiki 根节点**: `CyZ6wmItQiso3AkbjZBcP3vtnAb`（CC编程大虾）
-- **飞书 MCP 不能读写 wiki**（bot 限制），统一用 `lark-cli --as user`
+- **飞书操作用 lark-cli --as user**（feishu MCP 已删除）
 - 图表必须出现在对应内容位置，不在末尾
 
 ---
