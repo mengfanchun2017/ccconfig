@@ -30,26 +30,26 @@ model: inherit
 
 ---
 
-### 2. 调研（自动意图识别）
+### 2. 调研（自动意图识别 → unified-research）
 
 **触发**：调研、技术研究、竞品分析、第三方库评估、搜索并创建文档
 
-**行为**：
-1. 中英文并行搜索（中文→minimax web_search | 英文→tavily search/research）
-2. 聚合去重
-3. 调用 feishucreate 创建飞书文档+白板图表
-4. 验证
+**行为**：自动调用 unified-research skill
+- 调用 `/unified-research <topic>` 自动执行
+- 自动判断领域（generic/customer/market/technical）
+- 三源并行搜索（Python过滤优化）
+- 默认输出到飞书wiki（可通过 RESEARCH_OUTPUT 配置切换）
 
-**文档位置**：CC编程大虾 wiki (`CyZ6wmItQiso3AkbjZBcP3vtnAb`)
+**搜索策略**（由 unified-research 统一处理）：
+- 三源并行：WebSearch + minimax（中文）+ tavily（英文+深度）
+- Python脚本过滤：原始数据存 /tmp/，只过滤后内容进 context
+- 聚合去重：按 URL 去重，标注来源 [tavily]/[minimax]/[research]
 
-**搜索策略**：
-- 中文 → `minimax web_search` | 英文 → `tavily search/research`
-- 深入调研 → `tavily research` + `tavily extract` | 网页结构 → `tavily map` + `tavily crawl`
-- 飞书文档 → `lark-cli docs +fetch --doc <token> --as user`
-- **必须双语并行搜索**，自行转换关键词，合并去重
+**后续流程**：
+- `/unified-research-deep` → 深度研究（批量 JSON 输出）
+- `/unified-research-report` → 报告生成（Markdown 汇总）
 
-详细流程 → `feishucreate` agent (`feishucreate.md`)
-搜索策略细节 → `search_bilingual.md`、`feishu_tool_selection.md`
+详细 → `unified-research/SKILL.md`
 
 ---
 
