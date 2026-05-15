@@ -128,10 +128,14 @@ commit_and_push() {
         local pull_output
         if pull_output=$(timeout 120 git pull --ff origin "$branch" 2>&1); then
             log "[$repo] pull OK"
-            # ccconfig special: rebuild symlinks
+            # ccconfig special: rebuild symlinks + sync skills
             if [ -f "$repo_dir/setup-links.sh" ]; then
                 bash "$repo_dir/setup-links.sh" >> "$LOG_FILE" 2>&1 && \
                     log "[$repo] links OK" || warn "[$repo] links failed"
+            fi
+            if [ -f "$repo_dir/init-skill.sh" ]; then
+                bash "$repo_dir/init-skill.sh sync" >> "$LOG_FILE" 2>&1 && \
+                    log "[$repo] skills sync OK" || warn "[$repo] skills sync failed"
             fi
             if timeout 60 git push origin "$branch" >> "$LOG_FILE" 2>&1; then
                 log "[$repo] pushed → GitHub ($commit_hash)"
