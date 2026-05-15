@@ -1,5 +1,5 @@
 #!/bin/bash
-# ccconfig/feishu/bot-enable.sh — 启用 cc-connect 机器人
+# ccconfig/option-bridge/bot-enable.sh — 启用 cc-connect 机器人
 # 配置源: ../conf/feishu.json
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,7 +30,7 @@ for app in data.get('apps', []):
     print(f"  {marker} {app['name']}: {app.get('description', '')}")
 PYEOF
     echo ""
-    echo "用法: bash ccconfig/feishu/bot-enable.sh <name>"
+    echo "用法: bash ccconfig/option-bridge/bot-enable.sh <name>"
     exit 0
 fi
 

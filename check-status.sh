@@ -298,10 +298,10 @@ PYEOF
     touch "$mcp_stamp"
 }
 
-# ========== 6. 飞书 lark-cli 状态 ==========
+# ========== 6. 飞书 lark-cli 状态（可选） ==========
 check_feishu() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[6] 飞书 (lark-cli)${NC}"
+    echo -e "${CYAN}[6] 飞书 (lark-cli) [option]${NC}"
 
     export PATH="$HOME/.local/bin:$(find_node_bin):$PATH"
 
@@ -310,23 +310,25 @@ check_feishu() {
     if command -v lark-cli &> /dev/null; then
         echo -e "${GREEN}✅${NC}"
     else
-        echo -e "${RED}❌${NC}"
+        echo -e "${GRAY}－${NC} (未安装)"
     fi
 
     # 检查配置
-    echo -n "  配置 ... "
-    if lark-cli config show 2>/dev/null | grep -q "appId"; then
-        echo -e "${GREEN}✅${NC}"
-    else
-        echo -e "${RED}❌${NC}"
-    fi
+    if command -v lark-cli &> /dev/null; then
+        echo -n "  配置 ... "
+        if lark-cli config show 2>/dev/null | grep -q "appId"; then
+            echo -e "${GREEN}✅${NC}"
+        else
+            echo -e "${YELLOW}○${NC} 未配置"
+        fi
 
-    # 检查授权
-    echo -n "  授权 ... "
-    if lark-cli config show 2>/dev/null | grep -q "users"; then
-        echo -e "${GREEN}✅${NC}"
-    else
-        echo -e "${YELLOW}○${NC} 未授权"
+        # 检查授权
+        echo -n "  授权 ... "
+        if lark-cli config show 2>/dev/null | grep -q "users"; then
+            echo -e "${GREEN}✅${NC}"
+        else
+            echo -e "${YELLOW}○${NC} 未授权"
+        fi
     fi
 
     # cc-connect Bridge 状态

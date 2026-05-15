@@ -429,7 +429,7 @@ update_cconnect() {
     # 检查是否安装
     if [ ! -x "$bin" ]; then
         info "cc-connect 未安装，跳过"
-        info "如需安装: bash ccconfig/cconnect/init-cconnect.sh"
+        info "如需安装: bash ccconfig/option-bridge/init.sh --cc-connect"
         return 0
     fi
 
@@ -867,7 +867,7 @@ show_menu() {
     echo "   1) Node.js（最新 LTS）"
     echo "   2) npm 全局包（lark-cli）"
     echo "   3) Python pip 包"
-    echo "   4) cc-connect（Bridge）"
+    echo "   4) cc-connect（Bridge）[option]"
     echo "   5) GitHub CLI"
     echo "   6) Claude Code"
     echo "   7) uv（Python 包管理）"
