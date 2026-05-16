@@ -110,6 +110,26 @@ bash ccconfig/option-bridge/bot-disable.sh <名称>    # 禁用
 2. 编辑 `conf/feishu.json` → `apps[]` 新增
 3. 运行 `bash ccconfig/option-bridge/init.sh`
 
+### 远程连接（remote/）
+
+> 从笔记本 SSH 连接到台式机 WSL2 中的 Claude Code tmux 会话。
+
+**mirrored 网络模式**（推荐，`.wslconfig` 已配置）只需两步：
+
+```bash
+# 1. WSL/Ubuntu — 安装 SSH Server + tmux（一次性）
+bash ~/git/ccconfig/remote/server/tmux-sshd.sh
+
+# 2. Windows 管理员 PowerShell — 安装 Tailscale
+powershell -ExecutionPolicy Bypass -File "C:\git\winremote\ts-setup.ps1"
+```
+
+完成后即可连接：`ssh francis@<Tailscale IP> -p 2222`
+
+> 连上自动进入 tmux `claude` 会话，`Ctrl+B D` 断开（进程保持），`tmux attach -t claude` 重连。
+>
+> 非 mirrored 模式还需端口转发，详见 `remote/readme.md`。
+
 ## LLM 切换
 
 ```bash
