@@ -8,6 +8,16 @@ description: "Use when first setting up lark-cli, running auth login, switching 
 
 本技能指导你如何通过lark-cli操作飞书资源, 以及有哪些注意事项。
 
+## 工具选型
+
+所有飞书操作统一使用 **lark-cli**，feishu MCP 已删除，不需要任何 MCP 调用。
+
+| ❌ 错误 | ✅ 正确 |
+|---------|---------|
+| `lark-cli docs +get` | `lark-cli docs +fetch` |
+| `--markdown "内容"` | `--markdown -` + stdin/heredoc |
+| `--folder-token` | `--wiki-node` (v2 已废弃) |
+
 ## 配置初始化
 
 首次使用需运行 `lark-cli config init` 完成应用配置。
