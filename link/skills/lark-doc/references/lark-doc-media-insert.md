@@ -93,6 +93,11 @@ lark-cli docs +media-insert --doc doxcnXXX --from-clipboard --align center --cap
 
 命令不支持读取 TIFF 等非 PNG/JPEG/GIF/WebP/BMP 的冷门格式；遇到这类剪切板会返回 "contains no image data"，此时才考虑先用系统工具转成文件再 `--file`。
 
+## 坑点
+
+- **文件路径必须相对当前工作目录**：`--file` 只接受相对路径（如 `./image.png`），绝对路径（如 `/tmp/image.png`）会被拒绝报 `unsafe file path`。需要时先 `cp` 到当前目录再操作，完成后清理临时文件。
+- **lark-cli 工作目录是 git 根目录**（`/home/francis/git`），不是调用者所在子目录。
+
 ## 输出
 
 命令成功后会输出 JSON，包含：`document_id`、`block_id`、`file_token`、`file_name`（剪切板路径下为 `clipboard.png`）、`type`。
