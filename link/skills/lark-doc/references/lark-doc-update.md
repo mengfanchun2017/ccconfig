@@ -241,6 +241,14 @@ lark-cli docs +update --api-version v2 --doc "<doc_id>" --command str_replace \
   3. 这样可以保留文档中其他不相关的内容（图片、评论等）
 - **视觉丰富度**：插入或替换内容时，同样遵循 [`lark-doc-style.md`](style/lark-doc-style.md) 中的样式指南，主动使用结构化 block
 
+## 坑点
+
+- ⚠️ **`str_replace` 参数用 `--pattern` + `--content`**，不是 `--json`。`--command str_replace --json '{"old_str":...}'` 会报 `unknown flag: --json`。
+- ⚠️ **`block_replace` 后 block ID 会变**。替换后的 block 会获得新的 block ID，后续操作同一 block 必须先重新 `docs +fetch` 拿到新 ID。
+- ⚠️ **并行 `str_replace` 匹配不同文本可并行，block 级操作必须串行**。多个 `block_replace`/`block_insert_after` 并行执行可能因 revision 冲突导致部分失败。
+- ⚠️ **str_replace XML 模式只能行内匹配**，不能跨 block / 跨段落。跨 block 内容替换用 `block_replace --block-id`。
+- ⚠️ **`block_replace` 替换同一 block 仅限一次**：多次修改合并为一次。
+
 ## 参考
 
 - [`lark-doc-update-workflow.md`](style/lark-doc-update-workflow.md) — 改写增强工作流（Code-Act Loop、并行执行策略）

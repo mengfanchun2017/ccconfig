@@ -47,10 +47,12 @@ lark-cli base +record-batch-create --base-token <base_token> --table-id <table_i
 
 ## 坑点
 
+- ⚠️ **`fields` 必须用字段 ID（`fldXXXXX`），不能使用字段名。** 传入字段名时 API 返回 `ok: true` 但记录所有字段为空（静默失败）。先用 `base +table-get` 获取字段 ID 列表，再组装 `fields` 数组。
 - `fields` 与每行 `rows` 的列顺序必须一一对应。
 - 空单元格必须显式用 `null` 填充。
 - 单次最多 200 行，超出需分批写入。
 - select 写入未知选项时平台可能自动新增选项；如果不是要新增选项，先确认真实选项名。
+- `--json @file.json` 的文件路径必须是当前目录的相对路径，不能用 `/tmp/` 绝对路径。
 
 ## 参考
 
