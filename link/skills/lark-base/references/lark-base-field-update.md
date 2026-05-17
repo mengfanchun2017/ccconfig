@@ -153,7 +153,7 @@ PUT /open-apis/base/v3/bases/:base_token/tables/:table_id/fields/:field_id
 
 ## 坑点
 
-- ⚠️ 这是全量字段属性更新语义，不是 patch。
+- ⚠️ 这是全量字段属性更新语义（PUT），不是 patch。**必须同时传 `name` 和 `type`**，即使只改名也要带 `type`。只传 `{"name":"新名"}` 会报 `Invalid discriminator value` 错误。
 - ⚠️ 这是写入操作，执行前必须确认。
 - ⚠️ 当 `type` 是 `formula` 或 `lookup` 时，先阅读对应指南再执行。
 

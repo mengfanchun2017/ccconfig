@@ -132,6 +132,11 @@ lark-cli docs +fetch --api-version v2 --doc Z1Fj...tnAc \
 
 返回中可能含 `<sheet>`、`<bitable>`、`<cite file-type="sheets|bitable">`。内部数据无法通过 `docs +fetch --api-version v2` 获取，提取 `token` 等属性后切到 [`lark-sheets`](../../lark-sheets/SKILL.md) / [`lark-base`](../../lark-base/SKILL.md) 下钻，详见 [SKILL.md 快速决策](../SKILL.md) 路由表。
 
+## 坑点
+
+- ⚠️ **`--scope keyword` 不可用于结构验证**。keyword 模式的 `<excerpt>` 输出会省略 `<colgroup>`、block 属性等结构信息。验证表格列宽、block 结构必须用 `--scope range` 或 `--scope full`。
+- ⚠️ **`block_replace` 后 block ID 会变化**。操作前获取的 block ID 在 `block_replace` 后失效，后续操作需重新 fetch。
+
 ## 参考
 
 - [lark-doc-create](lark-doc-create.md) — 创建文档
