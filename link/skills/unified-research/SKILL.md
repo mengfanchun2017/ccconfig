@@ -13,82 +13,13 @@ allowed-tools: Read, Write, Glob, Bash, WebSearch, Task, AskUserQuestion,
 
 统一研究框架，自动判断领域类型，三源并行搜索，Python过滤优化，输出到飞书wiki。
 
-## 三源搜索 + Python过滤（核心）
+## 搜索策略
 
-### 三源并行（必须同时执行）
-
-1. **WebSearch** — 通用主力
-2. **mcp__minimax__web_search** — 中文搜索
-3. **mcp__tavily__tavily_search** — 英文搜索
-4. **mcp__tavily__tavily_research** — 深度综合
-
-### 结果过滤（避免原始数据污染 context）
-
-**原则**：MCP 搜索结果先经 Python 过滤，只有关键字段进 context。
-
-```python
-# 通用过滤函数 — 提取搜索结果中的关键信息
-def filter_search_results(results, max_len=200):
-    for r in results:
-        title = r.get('title', '')
-        url = r.get('url', '')
-        content = r.get('content', '')[:max_len]
-        score = r.get('score', 0)
-        print(f'[{score:.2f}] {title}')
-        print(f'  {url}')
-        print(f'  {content}')
-```
-
-**多结果聚合时**先按 URL 去重再输出。原始数据保存到 `/tmp/search_{timestamp}.json`。
-
-### Tavily 工作流
-
-```
-search → extract → map → crawl → research
-```
-
-| 阶段 | 用途 | MCP 调用 |
-|------|------|----------|
-| search | 查找信息 | `mcp__tavily__tavily_search(query, search_depth, max_results)` |
-| extract | 提取URL内容 | `mcp__tavily__tavily_extract(urls, extract_depth)` |
-| map | 发现URL结构 | `mcp__tavily__tavily_map(url, max_depth)` |
-| crawl | 批量爬取 | `mcp__tavily__tavily_crawl(url, max_depth)` |
-| research | 深度综合 | `mcp__tavily__tavily_research(input, model)` |
-
-### Tavily Search 参数速查
-
-| 参数 | 可选值 | 说明 |
-|------|--------|------|
-| `search_depth` | `basic` / `advanced` / `fast` / `ultra-fast` | fast=低延迟高相关; ultra-fast=极低延迟 |
-| `topic` | `general` / `news` / `finance` | 新闻/金融场景用对应 topic |
-| `time_range` | `day` / `week` / `month` / `year` | 时间范围过滤 |
-| `start_date` / `end_date` | `YYYY-MM-DD` | 自定义日期范围 |
-| `include_images` | `true` / `false` | 返回源链接图片（图表、截图） |
-| `include_image_descriptions` | `true` / `false` | AI 生成的图片描述 |
-| `include_raw_content` | `false` / `markdown` / `text` | 原始页面内容 |
-| `country` | ISO 国家代码 | 地域约束搜索 |
-| `max_results` | `5`-`20` | 结果数量 |
-| `include_domains` / `exclude_domains` | 域名列表 | 限定/排除特定来源 |
-
-**默认推荐**：普通搜索 `search_depth=basic`；需要速度用 `fast`；新闻类用 `topic=news` + `time_range=week`。
-
-### 聚合去重
-
-```python
-def deduplicate_by_url(results):
-    seen = set()
-    unique = []
-    for r in results:
-        url = r.get('url', '')
-        if url and url not in seen:
-            seen.add(url)
-            unique.append(r)
-    return unique
-```
-
-来源标注：[tavily] / [minimax] / [websearch]
-
----
+遵循 `rules/search.md`（单一真相源）：
+- 三源并行：WebSearch + minimax（中文）+ tavily（英文）+ tavily research（深度）
+- Python 过滤：原始数据保存 `/tmp/search_{timestamp}.json`，只保留 print() 输出
+- 按 URL 去重，标注来源 `[tavily]` / `[minimax]` / `[websearch]`
+- Tavily 参数速查 → `rules/search.md#tavily-search-参数速查`
 
 ## 自动领域判断
 
@@ -170,7 +101,7 @@ def deduplicate_by_url(results):
 根据关键词判断领域
 
 ### Step 2: 三源并行搜索
-同时执行 WebSearch + minimax + tavily，使用 Python 过滤
+遵循 `rules/search.md`，同时执行 WebSearch + minimax + tavily
 
 ### Step 3: 聚合去重
 按 URL 去重，标注来源，检测领域偏差自动修正
