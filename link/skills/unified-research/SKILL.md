@@ -22,25 +22,24 @@ allowed-tools: Read, Write, Glob, Bash, WebSearch, Task, AskUserQuestion,
 3. **mcp__tavily__tavily_search** — 英文搜索
 4. **mcp__tavily__tavily_research** — 深度综合
 
-### Python过滤模式（避免300K数据污染context）
+### 结果过滤（避免原始数据污染 context）
 
-**原则**：原始结果不进入 context，只通过 Python 过滤后的 print() 输出
+**原则**：MCP 搜索结果先经 Python 过滤，只有关键字段进 context。
 
-```bash
-# WRONG — 300K 原始数据污染 context
-tvly search "query" --json
-
-# RIGHT — 只有 print() 输出进 context
-tvly search "query" --json 2>/dev/null | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for r in data['results']:
-    print(f'[{r[\"score\"]:.2f}] {r[\"title\"]}')
-    print(f'  {r[\"url\"]}')
-    print(f'  {r[\"content\"][:200]}')
-"
-# 原始数据保存到 /tmp/tavily_search_{timestamp}.json
+```python
+# 通用过滤函数 — 提取搜索结果中的关键信息
+def filter_search_results(results, max_len=200):
+    for r in results:
+        title = r.get('title', '')
+        url = r.get('url', '')
+        content = r.get('content', '')[:max_len]
+        score = r.get('score', 0)
+        print(f'[{score:.2f}] {title}')
+        print(f'  {url}')
+        print(f'  {content}')
 ```
+
+**多结果聚合时**先按 URL 去重再输出。原始数据保存到 `/tmp/search_{timestamp}.json`。
 
 ### Tavily 工作流
 
@@ -48,13 +47,30 @@ for r in data['results']:
 search → extract → map → crawl → research
 ```
 
-| 阶段 | 用途 | 命令 |
-|------|------|------|
-| search | 查找信息 | `tvly search "query" --max-results 10 --json` |
-| extract | 提取URL内容 | `tvly extract "url" --query "focus" --json` |
-| map | 发现URL | `tvly map "site" --instructions "find docs" --json` |
-| crawl | 批量爬取 | `tvly crawl "site" --max-depth 2 --output-dir ./docs/ --json` |
-| research | 深度综合 | `tvly research "topic" --model auto --json` |
+| 阶段 | 用途 | MCP 调用 |
+|------|------|----------|
+| search | 查找信息 | `mcp__tavily__tavily_search(query, search_depth, max_results)` |
+| extract | 提取URL内容 | `mcp__tavily__tavily_extract(urls, extract_depth)` |
+| map | 发现URL结构 | `mcp__tavily__tavily_map(url, max_depth)` |
+| crawl | 批量爬取 | `mcp__tavily__tavily_crawl(url, max_depth)` |
+| research | 深度综合 | `mcp__tavily__tavily_research(input, model)` |
+
+### Tavily Search 参数速查
+
+| 参数 | 可选值 | 说明 |
+|------|--------|------|
+| `search_depth` | `basic` / `advanced` / `fast` / `ultra-fast` | fast=低延迟高相关; ultra-fast=极低延迟 |
+| `topic` | `general` / `news` / `finance` | 新闻/金融场景用对应 topic |
+| `time_range` | `day` / `week` / `month` / `year` | 时间范围过滤 |
+| `start_date` / `end_date` | `YYYY-MM-DD` | 自定义日期范围 |
+| `include_images` | `true` / `false` | 返回源链接图片（图表、截图） |
+| `include_image_descriptions` | `true` / `false` | AI 生成的图片描述 |
+| `include_raw_content` | `false` / `markdown` / `text` | 原始页面内容 |
+| `country` | ISO 国家代码 | 地域约束搜索 |
+| `max_results` | `5`-`20` | 结果数量 |
+| `include_domains` / `exclude_domains` | 域名列表 | 限定/排除特定来源 |
+
+**默认推荐**：普通搜索 `search_depth=basic`；需要速度用 `fast`；新闻类用 `topic=news` + `time_range=week`。
 
 ### 聚合去重
 
