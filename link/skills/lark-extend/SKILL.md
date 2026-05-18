@@ -22,7 +22,10 @@ description: lark-cli 定制扩展 — 覆盖/补充官方 lark-base/lark-doc/la
 - **链接格式**: 使用 `www.feishu.cn` 域名，非 `open.feishu.cn`
 - **禁止表格裸 URL**: 表格内链接必须用 Markdown 链接格式
 - **画板插入**: 需要图表时优先插入画板而非图片
-- **输出优先飞书文档**: 学习研究总结默认生成飞书文档而非终端文本
+- **输出优先飞书文档**: 学习研究总结默认生成/更新飞书文档而非终端文本
+  - 无文档 URL → 创建新文档，发链接给用户
+  - 有文档 URL + 要求扩展/补充 → 直接更新文档，不在终端输出大段解释
+  - 背景：`memory/feishu_first_output.md`
 
 ## Base 约定
 
@@ -66,14 +69,14 @@ lark-cli ... 2>&1 | grep -v '^\[lark-cli\]' | python3 -c "..."
 
 | 约定 | 位置 | 说明 |
 |------|------|------|
-| 搜索策略 | `rules/search.md` | 单一真相源：三源并行、Python过滤、Tavily工作流、去重 |
-| 飞书优先输出 | `memory/feishu_first_output.md` | 学习研究长内容写入飞书文档，不堆终端 |
+| 搜索策略（方向） | `rules/search.md` | 分流规则 + 三源并行原则 + 来源标注（始终加载，精简） |
+| 搜索策略（执行） | `skills/unified-research/` | Tavily 参数速查 + Python 过滤 + 去重代码 + 工作流（按需加载） |
+| 飞书优先输出 | 本文件「文档约定」 | 学习研究写入飞书，有 URL 直接更新文档 |
 | PDF 翻译规范 | `memory/res_pdf_translation.md` | 文档结构/PPT风格/图片验证 |
-| 统一研究框架 | `skills/unified-research/` | 自动领域判断 + 方法论 + 输出 |
 | 深度研究 | `skills/unified-research-deep/` | 批量 JSON 输出 |
 | 报告生成 | `skills/unified-research-report/` | JSON → Markdown 报告 |
 
-**原则**：搜索策略在 `rules/`（始终加载，全局适用），Skills 引用 rules 不重复定义。
+**原则**：`rules/search.md` 给方向（始终加载，不占 context），`unified-research` skill 给方法（按需加载，可执行）。
 
 ## 工作日志约定
 

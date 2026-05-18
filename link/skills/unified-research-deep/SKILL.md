@@ -15,7 +15,7 @@ allowed-tools: Read, Write, Glob, Bash, WebSearch, Task,
 
 ## 搜索策略
 
-遵循 `rules/search.md`（单一真相源）：三源并行 + Python 过滤 + URL 去重。
+方向遵循 `rules/search.md`，详细方法（Tavily 参数、Python 过滤、去重代码）→ `skills/unified-research/SKILL.md`。
 
 ## 工作流程
 
