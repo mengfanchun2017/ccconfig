@@ -5,19 +5,17 @@
 # 每月一键升级所有组件，可靠、幂等、可恢复。
 #
 # 升级组件：
-#   [1] Node.js           → 最新 LTS
-#   [3] npm 全局包        → lark-cli + skills 更新
-#   [4] Python pip 包     → 升级 requirements.txt 中所有包
-#   [5] cc-connect        → GitHub Release
-#   [6] GitHub CLI        → GitHub Release
-#   [7] Claude Code       → claude install
-#   [8] uv                → curl | sh
-#   [9] MCP 缓存          → 刷新 npx/uvx 缓存
-#   [10] systemd 服务     → 重建 + 重启
+#   [1] 基础组件        → Node.js 最新 LTS + pip 包
+#   [2] GitHub CLI      → GitHub Release
+#   [3] Claude Code     → claude install
+#   [4] uv             → curl | sh
+#   [5] MCP 缓存        → 刷新 npx/uvx 缓存
+#   [6] cc-connect     → GitHub Release [option]
+#   [7] systemd 服务    → 重建 + 重启 [option]
 #
 # 使用：
-#   bash ccconfig/update.sh               # 交互式菜单
-#   bash ccconfig/update.sh all          # 一键升级全部
+#   bash ccconfig/update.sh               # 交互式菜单（支持多选，如 "1 3 4"）
+#   bash ccconfig/update.sh all          # 升级基础+升级（不含 option）
 #   bash ccconfig/update.sh <component>  # 升级单个组件
 # ==============================================
 
@@ -762,6 +760,7 @@ compatibility_check() {
 # ========== 全部升级 ==========
 
 update_all() {
+    local include_option="${1:-true}"
     local overall_status=0
     local results=()
 
@@ -795,12 +794,16 @@ update_all() {
     run_step "node"     "Node.js"           update_nodejs
     run_step "lark-cli" "npm 全局包"        update_npm_globals
     run_step ""         "Python pip 包"     update_python_packages
-    run_step "cconnect" "cc-connect"        update_cconnect
+    if [ "$include_option" = "true" ]; then
+        run_step "cconnect" "cc-connect"        update_cconnect
+    fi
     run_step "gh"       "GitHub CLI"        update_gh
     run_step "claude"   "Claude Code"       update_claude
     run_step "uv"       "uv"                update_uv
     run_step ""         "MCP 缓存"          update_mcp
-    run_step ""         "systemd 服务"      fix_systemd_services
+    if [ "$include_option" = "true" ]; then
+        run_step ""         "systemd 服务"      fix_systemd_services
+    fi
 
     # 后快照
     take_snapshot "after" > /dev/null
@@ -864,34 +867,55 @@ show_menu() {
     echo -e "${CYAN}║      ccconfig 组件升级 v2            ║${NC}"
     echo -e "${CYAN}╚════════════════════════════════════════╝${NC}"
     echo ""
-    echo "   1) Node.js（最新 LTS）"
-    echo "   2) npm 全局包（lark-cli）"
-    echo "   3) Python pip 包"
-    echo "   4) cc-connect（Bridge）[option]"
-    echo "   5) GitHub CLI"
-    echo "   6) Claude Code"
-    echo "   7) uv（Python 包管理）"
-    echo "   8) MCP 缓存刷新"
-    echo "   9) systemd 服务重建"
-    echo "  10) ★ 一键全部升级"
+    echo "   基础组件"
+    echo "   1) Node.js + pip 包"
+    echo ""
+    echo "   升级"
+    echo "   2) GitHub CLI"
+    echo "   3) Claude Code"
+    echo "   4) uv"
+    echo "   5) MCP 缓存刷新"
+    echo ""
+    echo "   [option]"
+    echo "   6) cc-connect（Bridge）"
+    echo "   7) systemd 服务重建"
+    echo ""
     echo "   0) 退出"
     echo ""
-    read -p "选择 [1-10,0]: " choice
+    echo -e "   ${YELLOW}all${NC} = 升级基础+升级（不含 option）"
+    echo ""
+    read -p "选择 [1-7, all, 0]: " choice
 
-    case "$choice" in
-        1)  update_nodejs; show_menu ;;
-        2)  update_npm_globals; show_menu ;;
-        3)  update_python_packages; show_menu ;;
-        4)  update_cconnect; show_menu ;;
-        5)  update_gh; show_menu ;;
-        6)  update_claude; show_menu ;;
-        7)  update_uv; show_menu ;;
-        8)  update_mcp; show_menu ;;
-        9)  fix_systemd_services; show_menu ;;
-        10) update_all; show_menu ;;
-        0)  echo ""; exit 0 ;;
-        *)  echo "无效选择"; show_menu ;;
-    esac
+    # 多选支持：空格/逗号分隔如 "1 3 4" 或 "1,3,4"
+    local selections
+    selections=$(echo "$choice" | tr ',' ' ' | tr '[:space:]' '\n' | grep -E '^[1-7]$|^all$' | sort -u | tr '\n' ' ')
+
+    local did_something=0
+    for sel in $selections; do
+        case "$sel" in
+            1)  update_nodejs; update_python_packages; did_something=1 ;;
+            2)  update_gh; did_something=1 ;;
+            3)  update_claude; did_something=1 ;;
+            4)  update_uv; did_something=1 ;;
+            5)  update_mcp; did_something=1 ;;
+            6)  update_cconnect; did_something=1 ;;
+            7)  fix_systemd_services; did_something=1 ;;
+            all)
+                take_snapshot "pre" > /dev/null
+                update_all false
+                did_something=1
+                break
+                ;;
+        esac
+    done
+
+    if [ $did_something -eq 0 ] && [ "$choice" != "0" ]; then
+        echo "无效选择: $choice"
+    fi
+
+    if [ "$choice" != "0" ]; then
+        show_menu
+    fi
 }
 
 # ========== 主程序 ==========
@@ -902,7 +926,12 @@ case "${1:-menu}" in
     all)
         echo -e "${CYAN}ccconfig 组件升级 v2 - $(date '+%Y-%m-%d')${NC}"
         take_snapshot "pre" > /dev/null
-        update_all
+        update_all true
+        ;;
+    --no-option)
+        echo -e "${CYAN}ccconfig 组件升级（不含 option） - $(date '+%Y-%m-%d')${NC}"
+        take_snapshot "pre" > /dev/null
+        update_all false
         ;;
     node)          update_nodejs ;;
     npm)           update_npm_globals ;;
