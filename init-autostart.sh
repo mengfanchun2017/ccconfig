@@ -41,17 +41,16 @@ enable_autostart() {
 
     # 复制服务文件
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    cp "$SCRIPT_DIR/sync-monitor.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
+    cp "$SCRIPT_DIR/monitor.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
 
     cat > "$SYSTEMD_SERVICE" << EOF
 [Unit]
-Description=Claude Code Auto-Sync Service
-Documentation=https://github.com/<your-github-username>/ccconfig
+Description=Claude Code Auto-Sync
 After=default.target
 
 [Service]
 Type=oneshot
-ExecStart=${HOME}/git/ccconfig/sync-monitor.sh start
+ExecStart=${HOME}/git/ccconfig/monitor.sh start
 RemainAfterExit=yes
 
 [Install]

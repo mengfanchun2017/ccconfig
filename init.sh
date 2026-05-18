@@ -130,7 +130,7 @@ submenu_mcp() {
     echo -e "${CYAN}── MCP 管理 ──${NC}"
     echo "  1) 安装并同步 MCP  (init-mcp.sh sync)"
     echo "  2) 仅安装缺失 MCP  (init-mcp.sh install)"
-    echo "  3) 状态检查         (check-status.sh)"
+    echo "  3) 状态检查         (status.sh)"
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-3,0]: " c
@@ -139,7 +139,7 @@ submenu_mcp() {
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         2) echo ""; bash "$SCRIPT_DIR/init-mcp.sh" install
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        3) bash "$SCRIPT_DIR/check-status.sh"
+        3) bash "$SCRIPT_DIR/status.sh"
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         0) return ;;
     esac
@@ -165,17 +165,17 @@ submenu_skills() {
 submenu_tools() {
     echo ""
     echo -e "${CYAN}── 系统工具 ──${NC}"
-    echo "  1) 状态检查       (check-status.sh)"
-    echo "  2) 强制拉取远程   (sync-pullff.sh)"
+    echo "  1) 状态检查       (status.sh)"
+    echo "  2) 强制拉取远程   (gitforce.sh)"
     echo "  3) 升级组件       (update.sh)"
     echo "  4) WSL 网络/interop 修复 (windows/)"
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-4,0]: " c
     case "$c" in
-        1) bash "$SCRIPT_DIR/check-status.sh"
+        1) bash "$SCRIPT_DIR/status.sh"
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        2) run_step "强制拉取" "$SCRIPT_DIR/sync-pullff.sh" false
+        2) run_step "强制拉取" "$SCRIPT_DIR/gitforce.sh" false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         3) bash "$SCRIPT_DIR/update.sh" ;;
         4) run_step "WSL修复" "$SCRIPT_DIR/windows/wsl-interop.sh" false
@@ -246,7 +246,7 @@ case "${1:-menu}" in
         exit 0
         ;;
     status)
-        bash "$SCRIPT_DIR/check-status.sh"
+        bash "$SCRIPT_DIR/status.sh"
         ;;
     menu|"")
         main_menu

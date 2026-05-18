@@ -14,9 +14,9 @@ ccconfig/
 ├── init-autostart.sh         # auto-sync 自启动
 ├── update.sh                 # 月度升级（9组件一键更新）
 │
-├── check-status.sh           # 状态检查（SessionStart hook）
-├── sync-monitor.sh           # 文件监控 + 自动 Git 同步（120s 防抖）
-├── sync-pullff.sh            # 强制拉取远程覆盖本地
+├── status.sh           # 状态检查（SessionStart hook）
+├── monitor.sh           # 文件监控 + 自动 Git 同步（120s 防抖）
+├── gitforce.sh               # 强制单向同步（云↔本地，高危）
 │
 ├── conf/                     # 配置文件（单一来源）
 │   ├── feishu.json           # 飞书统一配置（lark-cli + cc-connect）
@@ -61,7 +61,7 @@ ccconfig/
 | AI 行为指南 | `link/CLAUDE.md` | 告诉 Claude AI 哪些命令可用 |
 | 权限系统 | `link/settings.json` → `permissions.allow` | 控制是否弹窗询问 |
 
-两者**必须同步**。运行 `bash ccconfig/check-status.sh` 检查状态。
+两者**必须同步**。运行 `bash ccconfig/status.sh` 检查状态。
 
 ## 快速开始
 
@@ -105,7 +105,7 @@ bash ccconfig/option-bridge/bot-disable.sh <名称>    # 禁用
 - `cc-connect` — 接收飞书消息 Bridge（机器人长连接）
 - `mcp-bridge` — 可选 MCP（bot 消息，配合 cc-connect 使用）
 
-**状态检查**：`check-status.sh` 会标记为 `[option]`
+**状态检查**：`status.sh` 会标记为 `[option]`
 
 ### 添加新机器人
 
@@ -146,11 +146,27 @@ bash ccconfig/init-llm.sh minimax      # 切换到 MiniMax
 
 ```bash
 cd ~/git/ccconfig
-./sync-monitor.sh start     # 后台启动（120s 防抖）
-./sync-monitor.sh stop      # 停止
-./sync-monitor.sh status    # 查看状态
-./sync-monitor.sh log       # 最近日志
+./monitor.sh start     # 后台启动（120s 防抖）
+./monitor.sh stop      # 停止
+./monitor.sh status    # 查看状态
+./monitor.sh log       # 最近日志
 ```
+
+## gitforce 强制同步（高危）
+
+```bash
+# 云 → 本地（丢弃本地所有改动）
+bash ccconfig/gitforce.sh              # 默认 ccconfig
+bash ccconfig/gitforce.sh projectu     # 指定仓库
+
+# 本地 → 云（强制推送覆盖远程）
+bash ccconfig/gitforce.sh --push ccconfig
+
+# 查看帮助
+bash ccconfig/gitforce.sh --help
+```
+
+⚠️ 高危操作，执行时需输入仓库名二次确认。默认只支持单向（云覆盖本地）。
 
 ## 月度升级
 

@@ -11,8 +11,8 @@
 #
 # 调用方：
 #   init-ubuntu.sh    — 首次初始化时
-#   sync-pullff.sh    — 手动 pullff 后
-#   sync-monitor.sh   — auto-sync pull 成功后
+#   gitforce.sh    — 手动 pullff 后
+#   monitor.sh   — auto-sync pull 成功后
 # ==============================================
 
 set -e

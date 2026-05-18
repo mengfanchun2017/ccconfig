@@ -1,0 +1,18 @@
+{
+  "description": "Claude Config 初始化配置",
+  "_note": "复制此文件为 ubuntu.json 并填入你的信息。修改后运行 init.sh 自动读取",
+
+  "git": {
+    "repo": "你的GitHub用户名/ccconfig",
+    "target_dir": "$HOME/git/ccconfig",
+    "email": "you@example.com",
+    "username": "你的GitHub用户名"
+  },
+
+  "api": {
+    "vendor": "minimax",
+    "base_url": "https://api.minimaxi.com/anthropic",
+    "model": "MiniMax-M2.7",
+    "key": "请填入你的 API Key"
+  }
+}

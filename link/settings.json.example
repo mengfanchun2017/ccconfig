@@ -1,0 +1,44 @@
+{
+    "env": {
+        "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+        "ANTHROPIC_MODEL": "deepseek-v4-pro",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+        "ANTHROPIC_AUTH_TOKEN": "请填入你的 API Key",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-pro"
+    },
+    "permissions": {
+        "allow": [
+            "Bash(*)",
+            "Edit(**/*.md)",
+            "Edit(**/*.json)",
+            "Edit(**/*.sh)",
+            "Edit(**/*.py)",
+            "Edit(**/*.ts)",
+            "Edit(**/*.js)",
+            "Write(**/*)",
+            "Read(**/*)",
+            "Glob(**/*)",
+            "Grep(**/*)"
+        ],
+        "defaultMode": "bypassPermissions"
+    },
+    "hooks": {
+        "SessionStart": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "bash $HOME/git/ccconfig/status.sh"
+                    }
+                ]
+            }
+        ]
+    },
+    "statusLine": {
+        "type": "command",
+        "command": "true"
+    },
+    "skipDangerousModePermissionPrompt": true,
+    "autoUpdatesChannel": "stable"
+}

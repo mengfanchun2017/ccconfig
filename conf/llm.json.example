@@ -1,0 +1,21 @@
+{
+    "description": "LLM 配置管理 - 支持多后端切换",
+    "_note": "复制此文件为 llm.json 并填入你的 API Key。运行 bash ccconfig/init-llm.sh 切换 LLM",
+    "llms": {
+        "minimax": {
+            "name": "MiniMax",
+            "base_url": "https://api.minimaxi.com/anthropic",
+            "model": "MiniMax-M2.7",
+            "key": "请填入你的 MiniMax API Key",
+            "small_model": "MiniMax-M2.7"
+        },
+        "deepseek": {
+            "name": "DeepSeek",
+            "base_url": "https://api.deepseek.com/anthropic",
+            "model": "deepseek-v4-pro",
+            "key": "请填入你的 DeepSeek API Key",
+            "small_model": "deepseek-v4-pro"
+        }
+    },
+    "current": "deepseek"
+}

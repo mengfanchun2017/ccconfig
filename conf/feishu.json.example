@@ -1,0 +1,54 @@
+{
+  "description": "飞书统一配置 - lark-cli + cc-connect 单一配置源",
+  "_note": "复制此文件为 feishu.json 并填入你的飞书应用信息。修改后运行 bash ccconfig/option-bridge/init.sh 使配置生效",
+  "_guide": [
+    "多账号使用说明：",
+    "",
+    "1. 初始化所有能力（lark-cli + cc-connect）：",
+    "   bash ccconfig/option-bridge/init.sh",
+    "",
+    "2. 仅初始化部分能力：",
+    "   bash ccconfig/option-bridge/init.sh --lark-cli    # 仅文档/日历/任务",
+    "   bash ccconfig/option-bridge/init.sh --cc-connect  # 仅消息 Bridge",
+    "",
+    "3. 切换 lark-cli 账号（当前 session）：",
+    "   bash ccconfig/option-bridge/lark-switch.sh <name>",
+    "",
+    "4. cc-connect 机器人管理：",
+    "   bash ccconfig/option-bridge/bot-status.sh",
+    "   bash ccconfig/option-bridge/bot-enable.sh <名称>",
+    "   bash ccconfig/option-bridge/bot-disable.sh <名称>"
+  ],
+  "apps": [
+    {
+      "name": "your-app-name",
+      "appId": "请填入飞书开放平台的 App ID",
+      "appSecret": "请填入飞书开放平台的 App Secret",
+      "description": "你的应用描述",
+      "brand": "feishu",
+      "workDir": "$HOME/git",
+      "claudeConfigDir": "$HOME/.claude",
+      "larkCli": {
+        "enabled": true,
+        "configDir": "~/.lark-cli",
+        "description": "你的账号"
+      },
+      "ccConnect": {
+        "enabled": false,
+        "timeoutMs": 3600000,
+        "permissions": {
+          "adminOpenIds": [],
+          "allowFrom": "*",
+          "disabledCommands": [],
+          "rateLimit": { "maxMessages": 100, "windowSecs": 60 }
+        },
+        "options": {
+          "mode": "default",
+          "threadIsolation": true,
+          "groupOnly": false,
+          "groupReplyAll": false
+        }
+      }
+    }
+  ]
+}

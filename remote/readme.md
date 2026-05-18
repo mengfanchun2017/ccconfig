@@ -129,7 +129,7 @@ tailscale ping <服务器主机名>   # 看延迟
 ### 5. 连接服务器
 
 ```bash
-ssh -p 2222 francis@<服务器 Tailscale IP>
+ssh -p 2222 $USER@<服务器 Tailscale IP>
 ```
 
 ### 6. 可选：Win Terminal 一键连接
@@ -137,7 +137,7 @@ ssh -p 2222 francis@<服务器 Tailscale IP>
 在本机 PowerShell 执行（不需管理员），`<服务器IP>` 替换为服务器的 Tailscale 虚拟 IP：
 
 ```powershell
-New-Item -ItemType Directory -Force -Path "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8weky3b8dbbwe\LocalState\Fragments" | Out-Null; @{profiles=@(@{guid="{(New-Guid)}";name="Claude Code";commandline="ssh -p 2222 francis@<服务器IP>";icon="🐚";tabTitle="Claude";hidden=$false})} | ConvertTo-Json -Depth 3 | Out-File -FilePath "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8weky3b8dbbwe\LocalState\Fragments\claude-code-ssh.json" -Encoding UTF8; Write-Host 'Done' -ForegroundColor Green
+New-Item -ItemType Directory -Force -Path "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8weky3b8dbbwe\LocalState\Fragments" | Out-Null; @{profiles=@(@{guid="{(New-Guid)}";name="Claude Code";commandline="ssh -p 2222 $USER@<服务器IP>";icon="🐚";tabTitle="Claude";hidden=$false})} | ConvertTo-Json -Depth 3 | Out-File -FilePath "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8weky3b8dbbwe\LocalState\Fragments\claude-code-ssh.json" -Encoding UTF8; Write-Host 'Done' -ForegroundColor Green
 ```
 
 关闭重开 Windows Terminal，下拉菜单会多出 "Claude Code" 选项。

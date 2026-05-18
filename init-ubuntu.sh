@@ -26,6 +26,10 @@ LOCAL_BIN="$HOME/.local/bin"
 # 动态路径解析（替代硬编码版本号）
 source "$SCRIPT_DIR/lib/path-helper.sh"
 
+# 检查配置文件（首次使用时从 .example 复制）
+ensure_config "$CONFIG_FILE" "conf/ubuntu.json" || exit 1
+ensure_config "$SCRIPT_DIR/conf/llm.json" "conf/llm.json" || exit 1
+
 # 颜色
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -280,7 +284,7 @@ setup_ssh_github() {
     local SSH_DIR="$HOME/.ssh"
     local WIN_SSH_DIR="/mnt/c/Users/Francis/.ssh"
     local KEY_NAME="id_ed25519"
-    local GITHUB_EMAIL="mengfanchun1981@163.com"
+    local GITHUB_EMAIL="${CONFIG_EMAIL:-you@example.com}"
 
     mkdir -p "$SSH_DIR"
     chmod 700 "$SSH_DIR"
@@ -429,7 +433,7 @@ setup_autosync() {
     fi
 
     # 启动 auto-sync
-    if bash "$SCRIPT_DIR/sync-monitor.sh" start 2>/dev/null; then
+    if bash "$SCRIPT_DIR/monitor.sh" start 2>/dev/null; then
         success "auto-sync 已启动"
     else
         warn "auto-sync 已在运行或启动失败"
@@ -506,7 +510,7 @@ setup_hook() {
     # Claude Code 读取 ~/.claude.json，不是 settings.json
     # 所以 hooks 必须写入 ~/.claude.json
     CLAUDE_JSON="$HOME/.claude.json"
-    HOOK_CMD="bash $SCRIPT_DIR/check-status.sh"
+    HOOK_CMD="bash $SCRIPT_DIR/status.sh"
 
     python3 << PYEOF
 import json

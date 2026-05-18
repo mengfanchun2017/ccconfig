@@ -143,6 +143,38 @@ recreate_node_symlinks() {
     echo "Node symlinks → $node_bin_dir"
 }
 
+# ========== 配置文件检查与模板复制 ==========
+
+# 检查配置文件是否存在，不存在则从 .example 模板复制并提示用户
+# 用法: ensure_config <config_file> [friendly_name]
+# 返回: 0=配置已就绪, 1=模板已复制(需用户编辑后重试)
+ensure_config() {
+    local config_file="$1"
+    local friendly_name="${2:-$(basename "$config_file")}"
+
+    if [ -f "$config_file" ]; then
+        return 0
+    fi
+
+    local example_file="${config_file}.example"
+    if [ -f "$example_file" ]; then
+        echo ""
+        echo -e "\033[1;33m⚠️  配置文件不存在: ${friendly_name}\033[0m"
+        echo "   从模板复制: ${example_file}"
+        cp "$example_file" "$config_file"
+        echo ""
+        echo -e "\033[0;36m📝 请编辑配置文件填入你的信息:\033[0m"
+        echo "   vim ${config_file}"
+        echo ""
+        echo "   编辑完成后重新运行此脚本"
+        return 1
+    else
+        echo ""
+        echo -e "\033[0;31m❌ 配置文件 ${config_file} 和模板 ${example_file} 都不存在\033[0m"
+        return 1
+    fi
+}
+
 # 确保 PATH 包含正确的 Node 和 local bin
 ensure_path() {
     local node_bin

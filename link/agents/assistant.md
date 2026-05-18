@@ -89,7 +89,7 @@ worklog skill 定义了字段格式、选项值、命令实现。
 
 **学习材料**：
 - 飞书笔记 token: `CLxuwcZBViqjLWkgy0GcXbcCnob`
-- 本地缓存: `/home/francis/git/learn/study-notes.md`
+- 本地缓存: `$HOME/git/learn/study-notes.md`
 - 教材：《系统分析师教程 第2版（2024年10月）》
 
 详细 → `learnchinese.md` agent
@@ -98,9 +98,8 @@ worklog skill 定义了字段格式、选项值、命令实现。
 
 ## 关键路径
 
-- 项目根目录：`/home/francis/git`
-- ccconfig 项目：`/home/francis/git/projectu`
-- ccconfig 配置：`/home/francis/git/ccconfig`
+- 项目根目录：`$HOME/git`
+- ccconfig 配置：`$HOME/git/ccconfig`
 - 当前语言：中文
 
 ---
