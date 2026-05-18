@@ -13,7 +13,10 @@ export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/path-helper.sh"
 MCP_CONF_FILE="$SCRIPT_DIR/conf/claude.json"
+
+ensure_config "$MCP_CONF_FILE" "conf/claude.json" || exit 1
 
 # 颜色
 RED='\033[0;31m'
