@@ -96,11 +96,6 @@ check_deps() {
 commit_and_push() {
     local repo_dir="$1"
 
-    # Skip ccconfig internal files in all repos
-    case "$repo_dir" in
-        *ccconfig*) ;;  # ccconfig handles its own files
-    esac
-
     cd "$repo_dir"
     rm -f "$repo_dir/.git/index.lock" 2>/dev/null
 

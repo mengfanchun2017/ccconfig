@@ -17,7 +17,6 @@ ccconfig/
 ├── check-status.sh           # 状态检查（SessionStart hook）
 ├── sync-monitor.sh           # 文件监控 + 自动 Git 同步（120s 防抖）
 ├── sync-pullff.sh            # 强制拉取远程覆盖本地
-├── fix-wsl-interop.sh        # WSL interop 修复
 │
 ├── conf/                     # 配置文件（单一来源）
 │   ├── feishu.json           # 飞书统一配置（lark-cli + cc-connect）
@@ -25,6 +24,10 @@ ccconfig/
 │   ├── claude.json           # MCP + API Key
 │   ├── llm.json              # LLM 多后端配置
 │   └── ubuntu.json           # Git 用户信息
+│
+├── windows/                  # Windows/WSL 互操作工具
+│   ├── wslconfig.ps1         # 配置 .wslconfig（mirrored 网络）
+│   └── wsl-interop.sh        # 修复 WSL interop（PATH 隔离）
 │
 ├── option-bridge/            # 可选：飞书消息 Bridge
 │   ├── init.sh               # lark-cli + cc-connect 初始化

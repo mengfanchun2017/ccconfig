@@ -100,48 +100,29 @@ submenu_feishu() {
 submenu_remote() {
     echo ""
     echo -e "${CYAN}── 远程连接 ──${NC}"
-    echo "  基础（所有方案共用）："
-    echo "    1) SSH Server 安装       (remote/remote-ub-sshd.sh)"
-    echo "    2) 端口转发              (remote/remote-ps-portforward.ps1)"
-    echo ""
-    echo "  远程方案（选一个）："
-    echo "    3) tmux 方案             (remote/soft-tmux.conf)"
-    echo "    4) EasyTier P2P 方案     (remote/soft-easytier.ps1)"
-    echo ""
+    echo "  1) SSH Server + tmux 安装  (remote/server/tmux-sshd.sh)"
+    echo "  2) 部署配置到 Windows       (remote/deploy.sh server)"
+    echo "  3) 查看完整说明             (remote/readme.md)"
     echo "  0) 返回"
     echo ""
-    read -p "选择 [1-4,0]: " c
+    read -p "选择 [1-3,0]: " c
     case "$c" in
-        1) run_step "SSH Server" "$SCRIPT_DIR/remote/remote-ub-sshd.sh" false ;;
-        2) echo ""
-           echo "此脚本需在 Windows 管理员 PowerShell 中执行："
-           echo -e "  ${CYAN}powershell -ExecutionPolicy Bypass -File \"\\\\wsl\$\\Ubuntu\\home\\francis\\git\\ccconfig\\remote\\remote-ps-portforward.ps1\"${NC}"
-           echo "" ;;
-        3) echo ""
-           info_tmux ;;
-        4) echo ""
-           echo "此脚本需在 Windows 管理员 PowerShell 中执行："
-           echo -e "  ${CYAN}powershell -ExecutionPolicy Bypass -File \"C:\\git\\easytier-setup.ps1\"${NC}"
-           echo ""
-           echo "或从 WSL 路径执行："
-           echo -e "  ${CYAN}powershell -ExecutionPolicy Bypass -File \"\\\\wsl\$\\Ubuntu\\home\\francis\\git\\ccconfig\\remote\\soft-easytier.ps1\"${NC}"
-           echo "" ;;
+        1) run_step "SSH Server" "$SCRIPT_DIR/remote/server/tmux-sshd.sh" false ;;
+        2) bash "$SCRIPT_DIR/remote/deploy.sh" server ;;
+        3) echo ""; info_tmux ;;
     esac
 }
 
 info_tmux() {
-    echo -e "${CYAN}tmux 远程方案：${NC}"
+    echo -e "${CYAN}远程连接方案：${NC}"
     echo ""
     echo "  配置步骤："
-    echo "  1. 台式机 WSL: bash ccconfig/remote/remote-ub-sshd.sh"
-    echo "  2. 台式机 Win: 管理员 PowerShell 执行 remote-ps-portforward.ps1"
-    echo "  3. 两端安装 Tailscale 或 EasyTier 组网"
+    echo "  1. 台式机 WSL: bash ccconfig/remote/server/tmux-sshd.sh"
+    echo "  2. 台式机 Win 管理员 PowerShell: 执行 windows/ 下的 ps1 脚本"
+    echo "  3. 两端安装 Tailscale 组网"
     echo "  4. 笔记本: ssh -p 2222 francis@<台式机IP>"
     echo ""
-    echo "  tmux 配置: remote/soft-tmux.conf → ~/.tmux.conf"
-    echo "  Win Terminal 一键连接: remote/soft-tmux-profile.ps1"
-    echo ""
-    echo "  详见: ccconfig/remote/remotereadme.md"
+    echo "  详见: ccconfig/remote/readme.md"
 }
 
 submenu_mcp() {
@@ -187,7 +168,7 @@ submenu_tools() {
     echo "  1) 状态检查       (check-status.sh)"
     echo "  2) 强制拉取远程   (sync-pullff.sh)"
     echo "  3) 升级组件       (update.sh)"
-    echo "  4) WSL interop 修复 (fix-wsl-interop.sh)"
+    echo "  4) WSL 网络/interop 修复 (windows/)"
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-4,0]: " c
@@ -197,7 +178,7 @@ submenu_tools() {
         2) run_step "强制拉取" "$SCRIPT_DIR/sync-pullff.sh" false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         3) bash "$SCRIPT_DIR/update.sh" ;;
-        4) run_step "WSL修复" "$SCRIPT_DIR/fix-wsl-interop.sh" false
+        4) run_step "WSL修复" "$SCRIPT_DIR/windows/wsl-interop.sh" false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         0) return ;;
     esac
