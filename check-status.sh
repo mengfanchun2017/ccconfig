@@ -352,7 +352,7 @@ check_feishu() {
         enabled_count=$(python3 -c "import json; d=json.load(open('$feishu_json')); print(sum(1 for a in d.get('apps',[]) if a.get('ccConnect',{}).get('enabled')))" 2>/dev/null || echo "?")
         echo -e "  机器人: ${enabled_count}/${total} 启用 (cconnect)"
     fi
-    echo -e "  ${GRAY}安装/启动: bash ccconfig/feishu/init-feishu.sh --cc-connect${NC}"
+    echo -e "  ${GRAY}安装/启动: bash ccconfig/option-bridge/init.sh --cc-connect${NC}"
 }
 
 # ========== 8. 远程连接状态 ==========
