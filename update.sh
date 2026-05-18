@@ -862,27 +862,30 @@ update_all() {
 # ========== 交互式菜单 ==========
 
 show_menu() {
+    local today
+    today=$(date +%Y-%m)
     echo ""
     echo -e "${CYAN}╔════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║      ccconfig 组件升级 v2            ║${NC}"
+    echo -e "${CYAN}║   ccconfig 组件升级 $today            ║${NC}"
     echo -e "${CYAN}╚════════════════════════════════════════╝${NC}"
     echo ""
     echo "   基础组件"
     echo "   1) Node.js + pip 包"
     echo ""
-    echo "   升级"
+    echo "   扩展组件"
     echo "   2) GitHub CLI"
     echo "   3) Claude Code"
     echo "   4) uv"
     echo "   5) MCP 缓存刷新"
     echo ""
-    echo "   [option]"
+    echo "   可选组件"
     echo "   6) cc-connect（Bridge）"
     echo "   7) systemd 服务重建"
     echo ""
     echo "   0) 退出"
     echo ""
-    echo -e "   ${YELLOW}all${NC} = 升级基础+升级（不含 option）"
+    echo -e "   ${YELLOW}all${NC} = 升级基础+扩展（不含可选）"
+    echo -e "   ${YELLOW}1 3 5${NC} = 多选（如升级 1、3、5 项）"
     echo ""
     read -p "选择 [1-7, all, 0]: " choice
 
@@ -893,7 +896,7 @@ show_menu() {
     local did_something=0
     for sel in $selections; do
         case "$sel" in
-            1)  update_nodejs; update_python_packages; did_something=1 ;;
+            1)  update_nodejs; update_python_packages; fix_systemd_services; did_something=1 ;;
             2)  update_gh; did_something=1 ;;
             3)  update_claude; did_something=1 ;;
             4)  update_uv; did_something=1 ;;
@@ -924,12 +927,16 @@ trap release_lock EXIT
 
 case "${1:-menu}" in
     all)
-        echo -e "${CYAN}ccconfig 组件升级 v2 - $(date '+%Y-%m-%d')${NC}"
+        local today
+        today=$(date +%Y-%m-%d)
+        echo -e "${CYAN}ccconfig 组件升级 $today（基础+扩展）${NC}"
         take_snapshot "pre" > /dev/null
-        update_all true
+        update_all false
         ;;
     --no-option)
-        echo -e "${CYAN}ccconfig 组件升级（不含 option） - $(date '+%Y-%m-%d')${NC}"
+        local today
+        today=$(date +%Y-%m-%d)
+        echo -e "${CYAN}ccconfig 组件升级 $today（不含可选）${NC}"
         take_snapshot "pre" > /dev/null
         update_all false
         ;;
