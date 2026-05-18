@@ -13,14 +13,9 @@ allowed-tools: Read, Write, Glob, Bash, WebSearch, Task,
 
 深度研究模块，执行批量 item 研究。
 
-## 三源搜索（来自 memory/search_bilingual.md）
+## 搜索策略
 
-搜索规则：
-1. `mcp__tavily__tavily_search` — 英文搜索
-2. `mcp__minimax__web_search` — 中文搜索
-3. `mcp__tavily__tavily_research` — 深度综合
-
-使用 Python 过滤原始数据，只有关键内容进 context。
+遵循 `rules/search.md`（单一真相源）：三源并行 + Python 过滤 + URL 去重。
 
 ## 工作流程
 
@@ -35,10 +30,7 @@ allowed-tools: Read, Write, Glob, Bash, WebSearch, Task,
 默认 batch_size=3。
 
 ### Step 4: 三源覆盖（强制并行）
-每个 item 同时执行：
-- Tavily Deep Research (Primary)
-- Tavily English Search (Supplementary)
-- Minimax Chinese Search (Supplementary)
+每个 item 同时执行 WebSearch + Tavily + Minimax（遵循 `rules/search.md`）。
 
 ### Step 5: 输出 JSON
 输出到 `{output_dir}/{item_name_slug}.json`

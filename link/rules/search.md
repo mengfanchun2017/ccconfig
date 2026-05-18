@@ -1,5 +1,7 @@
 # 搜索策略
 
+> 本文件是搜索策略的**单一真相源**。Skills（如 unified-research）通过引用本规则获取搜索方法，不应重复定义。
+
 ## 分流规则
 - 中文搜索: minimax web_search MCP
 - 英文搜索: tavily search MCP
@@ -40,13 +42,30 @@ for r in data['results']:
 search → extract → map → crawl → research
 ```
 
-| 阶段 | 用途 |
-|------|------|
-| search | 查找信息 |
-| extract | 提取 URL 内容 |
-| map | 发现网站 URL 结构 |
-| crawl | 批量爬取 |
-| research | 深度综合 |
+| 阶段 | 用途 | MCP 调用 |
+|------|------|----------|
+| search | 查找信息 | `mcp__tavily__tavily_search(query, search_depth, max_results)` |
+| extract | 提取 URL 内容 | `mcp__tavily__tavily_extract(urls, extract_depth)` |
+| map | 发现网站 URL 结构 | `mcp__tavily__tavily_map(url, max_depth)` |
+| crawl | 批量爬取 | `mcp__tavily__tavily_crawl(url, max_depth)` |
+| research | 深度综合 | `mcp__tavily__tavily_research(input, model)` |
+
+### Tavily Search 参数速查
+
+| 参数 | 可选值 | 说明 |
+|------|--------|------|
+| `search_depth` | `basic` / `advanced` / `fast` / `ultra-fast` | fast=低延迟高相关; ultra-fast=极低延迟 |
+| `topic` | `general` / `news` / `finance` | 新闻/金融场景用对应 topic |
+| `time_range` | `day` / `week` / `month` / `year` | 时间范围过滤 |
+| `start_date` / `end_date` | `YYYY-MM-DD` | 自定义日期范围 |
+| `include_images` | `true` / `false` | 返回源链接图片 |
+| `include_image_descriptions` | `true` / `false` | AI 生成的图片描述 |
+| `include_raw_content` | `false` / `markdown` / `text` | 原始页面内容 |
+| `country` | ISO 国家代码 | 地域约束搜索 |
+| `max_results` | `5`-`20` | 结果数量 |
+| `include_domains` / `exclude_domains` | 域名列表 | 限定/排除特定来源 |
+
+默认推荐：普通搜索 `search_depth=basic`；需要速度用 `fast`；新闻类用 `topic=news` + `time_range=week`。
 
 ## 聚合去重
 

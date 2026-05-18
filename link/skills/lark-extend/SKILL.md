@@ -62,6 +62,19 @@ lark-cli ... 2>&1 | grep -v '^\[lark-cli\]' | python3 -c "..."
 
 **规则：lark-cli 输出 pipe 给 JSON 解析器之前，必须先 `tail -n +2` 或 `sed '/^\[lark-cli\]/d'`。**
 
+## 搜索与研究约定
+
+| 约定 | 位置 | 说明 |
+|------|------|------|
+| 搜索策略 | `rules/search.md` | 单一真相源：三源并行、Python过滤、Tavily工作流、去重 |
+| 飞书优先输出 | `memory/feishu_first_output.md` | 学习研究长内容写入飞书文档，不堆终端 |
+| PDF 翻译规范 | `memory/res_pdf_translation.md` | 文档结构/PPT风格/图片验证 |
+| 统一研究框架 | `skills/unified-research/` | 自动领域判断 + 方法论 + 输出 |
+| 深度研究 | `skills/unified-research-deep/` | 批量 JSON 输出 |
+| 报告生成 | `skills/unified-research-report/` | JSON → Markdown 报告 |
+
+**原则**：搜索策略在 `rules/`（始终加载，全局适用），Skills 引用 rules 不重复定义。
+
 ## 工作日志约定
 
 - worklog 写入 Base: 自动识别 成长/工作 分类
