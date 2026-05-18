@@ -26,6 +26,10 @@ description: lark-cli 定制扩展 — 覆盖/补充官方 lark-base/lark-doc/la
   - 无文档 URL → 创建新文档，发链接给用户
   - 有文档 URL + 要求扩展/补充 → 直接更新文档，不在终端输出大段解释
   - 背景：`memory/feishu_first_output.md`
+- **用户展示的格式要对等回写**: 用户展示表格 → 用 `<table>` 回写，不要缩成 `<callout>`；用户展示列表 → 用 `<ul>/<ol>` 回写
+- **用户给的完整内容默认全部插入**，不要自作主张截断。不确定范围时用 AskUserQuestion 确认
+- **插入或替换表格后必须验证 colgroup 总和 = 820**，`block_replace` 返回 ok 不代表宽度正确
+  - 2026-05-18 事故：1NF 表 200+300+300=800，4NF 表 80+100+100=280，均不符合 820px 约定
 
 ## Base 约定
 
