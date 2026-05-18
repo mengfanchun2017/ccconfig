@@ -96,7 +96,7 @@ lark-cli docs +media-insert --doc doxcnXXX --from-clipboard --align center --cap
 ## 坑点
 
 - **文件路径必须相对当前工作目录**：`--file` 只接受相对路径（如 `./image.png`），绝对路径（如 `/tmp/image.png`）会被拒绝报 `unsafe file path`。需要时先 `cp` 到当前目录再操作，完成后清理临时文件。
-- **lark-cli 工作目录是 git 根目录**（`/home/francis/git`），不是调用者所在子目录。
+- **lark-cli 工作目录是 git 根目录**（`~/git`），不是调用者所在子目录。
 
 ## 输出
 

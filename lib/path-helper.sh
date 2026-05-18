@@ -86,7 +86,7 @@ get_cconnect_version() {
 # ========== Node.js 路径发现（核心函数）==========
 
 # 多策略发现当前 Node.js 安装的 bin 目录
-# 返回路径如 /home/francis/.local/node-v20.11.0-linux-x64/bin
+# 返回路径如 $HOME/.local/node-v20.11.0-linux-x64/bin
 find_node_bin() {
     local found
 

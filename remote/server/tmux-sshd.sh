@@ -79,7 +79,8 @@ echo "=== 完成 ==="
 echo "SSH Server 运行在 WSL2 端口 $SSH_PORT"
 
 # 检测 mirrored 网络模式下的 portproxy 冲突
-local wslconfig="/mnt/c/Users/Francis/.wslconfig"
+WIN_USER=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' || echo "$USER")
+wslconfig="/mnt/c/Users/${WIN_USER}/.wslconfig"
 if [ -f "$wslconfig" ] && grep -q "networkingMode=mirrored" "$wslconfig" 2>/dev/null; then
     echo ""
     echo "=== Mirrored 网络模式检测 ==="

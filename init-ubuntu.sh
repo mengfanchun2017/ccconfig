@@ -276,13 +276,15 @@ setup_claude_api() {
 
 # ========== 6. GitHub SSH 密钥（多 WSL 共享） ==========
 # 策略：
-#   - 同机多 WSL：密钥放 Windows 宿主目录 (/mnt/c/Users/Francis/.ssh/)，各 WSL 复制到本地
+#   - 同机多 WSL：密钥放 Windows 宿主目录 (/mnt/c/Users/<用户名>/.ssh/)，各 WSL 复制到本地
 #   - 不同机器：各自生成独立密钥，公钥都加到 github.com/settings/keys
 setup_ssh_github() {
     section "GitHub SSH 密钥"
 
     local SSH_DIR="$HOME/.ssh"
-    local WIN_SSH_DIR="/mnt/c/Users/Francis/.ssh"
+    local WIN_USER
+    WIN_USER=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' || echo "")
+    local WIN_SSH_DIR="/mnt/c/Users/${WIN_USER}/.ssh"
     local KEY_NAME="id_ed25519"
     local GITHUB_EMAIL="${CONFIG_EMAIL:-you@example.com}"
 
@@ -547,7 +549,9 @@ PYEOF
 setup_wslconfig() {
     section "WSL 网络配置"
 
-    local wslconfig="/mnt/c/Users/Francis/.wslconfig"
+    local WIN_USER
+    WIN_USER=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' || echo "")
+    local wslconfig="/mnt/c/Users/${WIN_USER}/.wslconfig"
 
     echo "为确保 WSL2 与 Windows 网络互通（远程 SSH 连接需要），"
     echo "请在 Windows 侧 %USERPROFILE%\\.wslconfig 中配置："
@@ -570,7 +574,7 @@ setup_wslconfig() {
         info ".wslconfig 不存在，请创建并添加上述配置"
         echo ""
         echo "创建命令（在 WSL 内执行）："
-        echo -e "  ${CYAN}cat > /mnt/c/Users/Francis/.wslconfig << 'EOF'${NC}"
+        echo -e "  ${CYAN}cat > /mnt/c/Users/${WIN_USER}/.wslconfig << 'EOF'${NC}"
         echo -e "  ${CYAN}[wsl2]${NC}"
         echo -e "  ${CYAN}networkingMode=mirrored${NC}"
         echo -e "  ${CYAN}dnsTunneling=true${NC}"
