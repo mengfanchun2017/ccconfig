@@ -54,6 +54,36 @@
       "sourceType": "github",
       "skillPath": "skills/write-a-skill/SKILL.md",
       "computedHash": "79d71deff20572f0b1a66cf85ec00b1874bde41a43cc554b355c6f989afaae26"
+    },
+    "lark-wiki": {
+      "source": "larksuite/cli",
+      "sourceType": "github",
+      "skillPath": "skills/lark-wiki/SKILL.md",
+      "computedHash": "0e9f2151ff7614be9f983a4f0dfe95a434fa33d1c5b8c9202cf168baef4962ea"
+    },
+    "lark-calendar": {
+      "source": "larksuite/cli",
+      "sourceType": "github",
+      "skillPath": "skills/lark-calendar/SKILL.md",
+      "computedHash": "1b45eab3d08454321d507e8e45b5c040afab7fb74fbd6ad5ce2fb1ef12736317"
+    },
+    "lark-sheets": {
+      "source": "larksuite/cli",
+      "sourceType": "github",
+      "skillPath": "skills/lark-sheets/SKILL.md",
+      "computedHash": "3738abcef808cd1f63020d58cdba035994dbde12cfac9268880776770d7adc82"
+    },
+    "lark-drive": {
+      "source": "larksuite/cli",
+      "sourceType": "github",
+      "skillPath": "skills/lark-drive/SKILL.md",
+      "computedHash": "2c20542abad18d138ba02c9e0d16d09942e95d2f5c6cd6d3d318d38c28497b82"
+    },
+    "lark-whiteboard": {
+      "source": "larksuite/cli",
+      "sourceType": "github",
+      "skillPath": "skills/lark-whiteboard/SKILL.md",
+      "computedHash": "d7e6a5f487954c1d2f76232bc34647e9c218aeb5a7985bc171ee371c9e902adf"
     }
   }
 }
