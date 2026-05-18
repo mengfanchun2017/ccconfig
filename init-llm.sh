@@ -22,8 +22,11 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/path-helper.sh"
 CONFIG_FILE="$SCRIPT_DIR/conf/llm.json"
 CLAUDE_JSON="$HOME/.claude.json"
+
+ensure_config "$CONFIG_FILE" "conf/llm.json" || exit 1
 
 # 颜色
 RED='\033[0;31m'

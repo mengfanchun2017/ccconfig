@@ -435,7 +435,9 @@ check_remote() {
     fi
 
     # WSL 网络模式
-    local wslconfig="/mnt/c/Users/Francis/.wslconfig"
+    local win_user
+    win_user=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' || echo "$USER")
+    local wslconfig="/mnt/c/Users/${win_user}/.wslconfig"
     echo -n "  网络模式 ... "
     if [ -f "$wslconfig" ] && grep -q "networkingMode=mirrored" "$wslconfig" 2>/dev/null; then
         echo -e "${GREEN}✅${NC} mirrored"
@@ -460,7 +462,7 @@ check_remote() {
 
     echo -n "  远程可用 ... "
     if [ "$ssh_ok" = true ] && ss -tlnp 2>/dev/null | grep -q ":$ssh_port "; then
-        echo -e "${GREEN}✅${NC} ssh francis@<Tailscale IP> -p $ssh_port"
+        echo -e "${GREEN}✅${NC} ssh $USER@<Tailscale IP> -p $ssh_port"
     elif [ -n "$ssh_fix" ]; then
         echo -e "${YELLOW}○${NC} $ssh_fix"
     else

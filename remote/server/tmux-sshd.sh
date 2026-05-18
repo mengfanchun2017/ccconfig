@@ -101,7 +101,7 @@ if [ -f "$wslconfig" ] && grep -q "networkingMode=mirrored" "$wslconfig" 2>/dev/
     fi
 
     echo "远程连接（mirrored 模式，无需端口转发）："
-    echo "  ssh francis@<Windows IP 或 Tailscale IP> -p $SSH_PORT"
+    echo "  ssh $USER@<Windows IP 或 Tailscale IP> -p $SSH_PORT"
 else
     echo "WSL2 IP: $(hostname -I | awk '{print $1}')"
     echo ""

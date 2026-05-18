@@ -1,0 +1,61 @@
+{
+  "description": "MCP 配置 — 整合 MCP 服务器列表和 env 配置",
+  "_note": "复制此文件为 claude.json 并填入你的 API Key",
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.minimaxi.com/anthropic",
+    "ANTHROPIC_MODEL": "MiniMax-M2.7",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "ANTHROPIC_AUTH_TOKEN": "请填入你的 API Key"
+  },
+  "settings": {
+    "default_action": "sync",
+    "auto_config_keys": true
+  },
+  "mcp_servers": [
+    {
+      "name": "tavily",
+      "description": "网络搜索",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "tavily-mcp"],
+      "env": {
+        "TAVILY_API_KEY": "请到 https://tavily.com 注册获取 API Key"
+      }
+    },
+    {
+      "name": "minimax",
+      "description": "MiniMax AI - 网络搜索和图片理解",
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["minimax-coding-plan-mcp", "-y"],
+      "env": {
+        "MINIMAX_API_KEY": "请填入你的 MiniMax API Key",
+        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      }
+    },
+    {
+      "name": "minimax-mcp",
+      "description": "MiniMax 多模态 - 语音/视频/图像/音乐生成",
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["minimax-mcp"],
+      "env": {
+        "MINIMAX_API_KEY": "请填入你的 MiniMax API Key",
+        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      }
+    },
+    {
+      "name": "supabase",
+      "description": "Supabase 数据库",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase",
+        "--project-ref", "请填入你的 Supabase project ref",
+        "--access-token", "请填入你的 Supabase access token"
+      ],
+      "env": {}
+    }
+  ]
+}
