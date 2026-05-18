@@ -302,8 +302,7 @@ setup_ssh_github() {
         success "SSH 密钥已生成"
 
         # 同步到 Windows 宿主目录（供同机其他 WSL 共享）
-        if [[ -d "$WIN_SSH_DIR" || "$(mkdir -p "$WIN_SSH_DIR" 2>&1)" ]]; then
-            mkdir -p "$WIN_SSH_DIR" 2>/dev/null || true
+        if mkdir -p "$WIN_SSH_DIR" 2>/dev/null; then
             cp "$SSH_DIR/$KEY_NAME" "$SSH_DIR/${KEY_NAME}.pub" "$WIN_SSH_DIR/" 2>/dev/null || true
             info "已同步到 Windows 宿主目录（供其他 WSL 使用）"
         fi
