@@ -33,6 +33,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 BLUE='\033[0;34m'
+DIM='\033[2m'
 NC='\033[0m'
 
 info()  { echo -e "${CYAN}ℹ   $1${NC}"; }
@@ -865,12 +866,11 @@ show_menu() {
     local today
     today=$(date +%Y-%m)
     echo ""
-    echo -e "${CYAN}╔════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║   ccconfig 组件升级 $today            ║${NC}"
-    echo -e "${CYAN}╚════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}━━━ ccconfig 组件升级 $today ━━━${NC}"
     echo ""
     echo "   基础组件"
     echo "   1) Node.js + pip 包"
+    echo -e "      ${DIM}(自动触发 systemd 服务重建)${NC}"
     echo ""
     echo "   扩展组件"
     echo "   2) GitHub CLI"
