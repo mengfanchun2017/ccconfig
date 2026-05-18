@@ -66,6 +66,79 @@ do_sync() {
     good "同步完成: $linked 新建, $skipped 跳过"
 }
 
+do_update() {
+    title "检查外部 Skill 更新"
+
+    local lock_file="$SKILLS_SRC/skills-lock.json"
+    if [[ ! -f "$lock_file" ]]; then
+        info "无 skills-lock.json，跳过更新检查"
+        return 0
+    fi
+
+    local updated=0 current=0 failed=0
+    local names
+    names=$(python3 -c "import json; print(' '.join(json.load(open('$lock_file'))['skills'].keys()))" 2>/dev/null)
+
+    for name in $names; do
+        local source source_type skill_path local_hash
+        source=$(python3 -c "import json; print(json.load(open('$lock_file'))['skills']['$name']['source'])")
+        source_type=$(python3 -c "import json; print(json.load(open('$lock_file'))['skills']['$name']['sourceType'])")
+        skill_path=$(python3 -c "import json; print(json.load(open('$lock_file'))['skills']['$name']['skillPath'])")
+        local_hash=$(python3 -c "import json; print(json.load(open('$lock_file'))['skills']['$name']['computedHash'])")
+
+        if [[ "$source_type" != "github" ]]; then
+            info "  $name: 非 GitHub 来源，跳过"
+            continue
+        fi
+
+        local remote_url="https://raw.githubusercontent.com/$source/refs/heads/main/$skill_path"
+        local remote_content
+        remote_content=$(curl -fsSL --max-time 10 "$remote_url" 2>/dev/null)
+        if [[ -z "$remote_content" ]]; then
+            # 尝试 master 分支
+            remote_url="https://raw.githubusercontent.com/$source/refs/heads/master/$skill_path"
+            remote_content=$(curl -fsSL --max-time 10 "$remote_url" 2>/dev/null)
+        fi
+
+        if [[ -z "$remote_content" ]]; then
+            warn "  $name: 获取远程失败 ($source)"
+            failed=$((failed + 1))
+            continue
+        fi
+
+        local remote_hash
+        remote_hash=$(echo -n "$remote_content" | sha256sum | cut -d' ' -f1)
+
+        if [[ "$local_hash" != "$remote_hash" ]]; then
+            warn "  $name: 有更新! ($source)"
+            warn "      远程 hash: ${remote_hash:0:16}..."
+            warn "      本地 hash: ${local_hash:0:16}..."
+            updated=$((updated + 1))
+        else
+            good "  $name: 已是最新"
+            current=$((current + 1))
+        fi
+    done
+
+    echo ""
+    echo -e "${CYAN}检查完成: ${GREEN}$current 最新${NC}, ${YELLOW}$updated 有更新${NC}"
+    [[ $failed -gt 0 ]] && echo -e "${RED}  $failed 检查失败${NC}"
+    echo ""
+
+    # 列出非外部 skill（不在 lock 中，跳过检查）
+    local self_count=0
+    for d in "$SKILLS_SRC"/*; do
+        [[ -d "$d" ]] || continue
+        local n=$(basename "$d")
+        if ! echo "$names" | grep -qF "$n" 2>/dev/null; then
+            self_count=$((self_count + 1))
+        fi
+    done
+    [[ $self_count -gt 0 ]] && info "  自建 skill ($self_count 个) 跳过 — 你是源，无需检查"
+
+    return 0
+}
+
 do_status() {
     title "Skills 状态"
 
@@ -95,7 +168,8 @@ case "$action" in
     sync)   do_sync ;;
     list)   echo "=== Skills (link/skills/) ==="; ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done ;;
     status) do_status ;;
-    *)      echo "用法: $0 {sync|list|status}"; exit 1 ;;
+    update) do_update ;;
+    *)      echo "用法: $0 {sync|list|status|update}"; exit 1 ;;
 esac
 
 echo ""
