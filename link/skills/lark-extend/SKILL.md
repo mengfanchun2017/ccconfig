@@ -15,7 +15,11 @@ description: lark-cli 定制扩展 — 覆盖/补充官方 lark-base/lark-doc/la
 
 ## 文档约定
 
-- **默认父目录**: 创建文档时默认 `--wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb`
+- **父目录选择**:
+  - **子文档**（用户指定了父文档URL）：提取父文档URL中的 wiki token，用作 `--parent-token`。**禁止**套用默认值
+  - **独立文档**（用户未指定位置）：默认 `--parent-token CyZ6wmItQiso3AkbjZBcP3vtnAb`
+  - 如何提取：`https://my.feishu.cn/wiki/{token}` → token 就是 `--parent-token` 的值
+  - 2026-05-19 事故：用户给父文档 MVzUw8qpyiP05rksttrcIlqQntb，但我用默认节点创建子文档，导致挂到错误位置
 - **标题层级**: ≤ H3，禁止 H1/H2 编号（如 "1."、"一、"）
 - **缩写定义**: 首次出现用 DFN 格式（`定义`）
 - **表格宽度**: 飞书文档表格 820px 全宽
