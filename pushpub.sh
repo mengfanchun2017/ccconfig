@@ -80,47 +80,132 @@ EOF
 last_sync=$(date +"%Y-%m-%d %H:%M:%S")
 
 cat > "$PUBLIC_README" <<'EOF'
-# ccconfig - Claude Code Configuration (Public)
+# ccconfig — Claude Code 配置中枢（公开版）
 
-> Public version with templates and scripts only. No personal data or credentials.
+> **公开版仅包含配置模板和脚本，不含个人数据和凭证。**
+>
+> 这是 ccconfig 的公开镜像版本，提取了可复用的脚本、配置模板和规范。
 
-This is a public mirror of ccconfig, extracting reusable scripts, config templates, and conventions.
+## 目录结构
 
-## Directory Structure
+```
+ccconfig-public/
+├── init.sh                   # 总入口
+├── init-ubuntu.sh            # Ubuntu/WSL 初始化
+├── init-llm.sh               # LLM 后端切换
+├── init-mcp.sh               # MCP 服务器管理
+├── init-skill.sh             # Skills 同步
+├── init-autostart.sh         # auto-sync 自启动
+├── update.sh                 # 月度升级
+├── status.sh                 # 状态检查
+├── monitor.sh                # 文件监控 + Git 同步
+├── setup-links.sh            # 重建符号链接
+│
+├── conf/                     # 配置模板
+│   ├── claude.json           # MCP + API Key 模板
+│   ├── llm.json              # LLM 多后端配置模板
+│   ├── ubuntu.json           # Git 用户信息模板
+│   ├── feishu.json           # 飞书配置模板
+│   └── versions.json         # 版本单一真相源
+│
+├── lib/                      # 共享库
+│   └── path-helper.sh        # 动态路径解析
+│
+└── link/                     # 符号链接源
+    ├── CLAUDE.md             # AI 行为指南
+    ├── settings.json         # 权限 + MCP + hooks（模板）
+    ├── rules/                # 条件规则
+    ├── commands/             # 命令定义
+    ├── agents/               # 自定义 agents
+    └── skills/               # 全部 skills
+```
 
-- init.sh - Main entry point
-- init-ubuntu.sh - Ubuntu/WSL init
-- init-llm.sh - LLM backend switch
-- init-mcp.sh - MCP server management
-- init-skill.sh - Skills sync
-- init-autostart.sh - auto-sync autostart
-- update.sh - Monthly update
-- status.sh - Status check
-- monitor.sh - File monitor + Git sync
-- setup-links.sh - Rebuild symlinks
-- conf/ - Config templates
-- lib/ - Shared library
-- link/ - Symlink source (~/.claude/)
-  - CLAUDE.md - AI behavior guide
-  - settings.json - Permissions + MCP + hooks (template)
-  - rules/ - Conditional rules
-  - commands/ - Command definitions
-  - agents/ - Custom agents
-  - skills/ - All skills
+## 与私有版的区别
 
-## Usage
+| 内容 | 私有库 | 公开库 |
+|------|--------|--------|
+| 脚本 | ✅ | ✅ |
+| rules/skills/agents | ✅ | ✅ |
+| conf/*.json | ✅（含凭证） | ✅（模板） |
+| settings.json | ✅（个人权限） | ✅（模板） |
+| MEMORY.md | ✅ | ❌ |
+| option-bridge/ | ✅ | ❌ |
+| remote/ | ✅ | ❌ |
 
-1. Clone repo
-2. Fill in credentials in conf/*.json and link/settings.json
-3. Run bash setup-links.sh
-4. Run bash init.sh all
+## 使用方式
 
-## Last Sync
+### 1. 克隆公开库
 
-Source: Private ccconfig auto-export
+```bash
+git clone https://github.com/yourusername/ccconfig-public.git ~/git/ccconfig-public
+cd ~/git/ccconfig-public
+```
+
+### 2. 配置凭证
+
+复制模板文件并填入实际值：
+
+```bash
+vim conf/claude.json      # Claude MCP / API Key
+vim conf/llm.json         # LLM 后端
+vim conf/feishu.json      # 飞书（可选）
+vim conf/ubuntu.json      # Git 用户信息
+vim link/settings.json    # 权限和 MCP
+```
+
+### 3. 建立符号链接
+
+```bash
+bash setup-links.sh
+```
+
+### 4. 初始化
+
+```bash
+bash init.sh all          # 一键初始化
+bash init.sh status       # 检查状态
+```
+
+## 权限双层机制
+
+| 层级 | 文件 | 作用 |
+|------|------|------|
+| AI 行为指南 | link/CLAUDE.md | 告诉 Claude 哪些命令可用 |
+| 权限系统 | link/settings.json | 控制是否弹窗询问 |
+
+运行 bash status.sh 检查状态。
+
+## LLM 切换
+
+```bash
+bash init-llm.sh              # 交互式选择
+bash init-llm.sh deepseek     # 切换到 DeepSeek
+bash init-llm.sh minimax      # 切换到 MiniMax
+```
+
+## auto-sync 同步
+
+```bash
+./monitor.sh start     # 后台启动（120s 防抖）
+./monitor.sh stop      # 停止
+./monitor.sh status    # 查看状态
+./monitor.sh log       # 最近日志
+```
+
+## 月度升级
+
+```bash
+bash update.sh all           # 一键升级全部
+```
+
+升级组件：Node.js → npm → GitHub CLI → Claude Code → uv → MCP → Skills → systemd
+
+## 最后同步
+
+来源：私有库 ccconfig 自动导出
 EOF
 
-sed -i "s/Source: Private ccconfig auto-export/Source: Private ccconfig auto-export\nTime: $last_sync/" "$PUBLIC_README"
+sed -i "s/来源：私有库 ccconfig 自动导出/来源：私有库 ccconfig 自动导出\n时间：$last_sync/" "$PUBLIC_README"
 
 # Commit
 cd "$PUBLIC_REPO"
