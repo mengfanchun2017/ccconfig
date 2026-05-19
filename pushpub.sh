@@ -86,38 +86,47 @@ cat > "$PUBLIC_README" <<'EOF'
 >
 > 这是 ccconfig 的公开镜像版本，提取了可复用的脚本、配置模板和规范。
 
+## 使用场景
+
+- **环境初始化**：一键初始化 Claude Code、Skills、MCP、飞书工具
+- **权限管理**：细粒度权限控制，避免频繁弹窗确认
+- **LLM 切换**：多后端支持（DeepSeek、MiniMax、Claude 官方），成本优化
+- **自动同步**：文件监控 + 120s 防抖，自动提交推送
+- **飞书集成**：lark-cli 终端操作文档/日历/任务
+
 ## 目录结构
 
 ```
 ccconfig-public/
-├── init.sh                   # 总入口
-├── init-ubuntu.sh            # Ubuntu/WSL 初始化
-├── init-llm.sh               # LLM 后端切换
+├── init.sh                   # 总入口（交互式两级菜单）
+├── init-ubuntu.sh            # Ubuntu/WSL 全环境初始化（Node.js、npm、gh、Claude）
+├── init-llm.sh               # LLM 后端切换（deepseek/minimax/claude）
 ├── init-mcp.sh               # MCP 服务器管理
-├── init-skill.sh             # Skills 同步
-├── init-autostart.sh         # auto-sync 自启动
-├── update.sh                 # 月度升级
-├── status.sh                 # 状态检查
-├── monitor.sh                # 文件监控 + Git 同步
-├── setup-links.sh            # 重建符号链接
+├── init-skill.sh             # Skills 同步管理
+├── init-autostart.sh         # auto-sync systemd 自启动配置
+├── update.sh                 # 月度升级（Node.js、npm、gh、Claude、MCP、Skills）
 │
-├── conf/                     # 配置模板
-│   ├── claude.json           # MCP + API Key 模板
-│   ├── llm.json              # LLM 多后端配置模板
-│   ├── ubuntu.json           # Git 用户信息模板
-│   ├── feishu.json           # 飞书配置模板
-│   └── versions.json         # 版本单一真相源
+├── status.sh                 # 状态检查（配置链接、auto-sync、PPT 环境、飞书、MCP）
+├── monitor.sh                # 文件监控 + 自动 Git 同步（120s 防抖）
+├── setup-links.sh            # 重建 ~/.claude/ 符号链接
+│
+├── conf/                     # 配置文件（单一来源）
+│   ├── claude.json           # MCP 服务器配置、API Key（模板）
+│   ├── llm.json              # LLM 多后端配置（deepseek、minimax、claude）（模板）
+│   ├── ubuntu.json           # Git 用户信息（name、email）（模板）
+│   ├── feishu.json           # 飞书统一配置（lark-cli）（模板）
+│   └── versions.json         # 版本单一真相源（skill、repo、包版本）
 │
 ├── lib/                      # 共享库
-│   └── path-helper.sh        # 动态路径解析
+│   └── path-helper.sh        # 动态路径解析（4级回退：可执行包、npx、npm、curl）
 │
-└── link/                     # 符号链接源
-    ├── CLAUDE.md             # AI 行为指南
+└── link/                     # 符号链接源 → ~/.claude/
+    ├── CLAUDE.md             # AI 行为指南（命令、暗号、自然语言触发）
     ├── settings.json         # 权限 + MCP + hooks（模板）
-    ├── rules/                # 条件规则
-    ├── commands/             # 命令定义
-    ├── agents/               # 自定义 agents
-    └── skills/               # 全部 skills
+    ├── rules/                # 条件规则（编码、Git、Python、搜索、飞书、Godot）
+    ├── commands/             # 命令定义（pullff）
+    ├── agents/               # 自定义 agents（assistant、feishucreate、learnchinese）
+    └── skills/               # 全部 skills（飞书、研究、诊断、worklog 等）
 ```
 
 ## 与私有版的区别
@@ -137,7 +146,7 @@ ccconfig-public/
 ### 1. 克隆公开库
 
 ```bash
-git clone https://github.com/yourusername/ccconfig-public.git ~/git/ccconfig-public
+git clone https://github.com/<your-github-username>/ccconfig-public.git ~/git/ccconfig-public
 cd ~/git/ccconfig-public
 ```
 
@@ -146,11 +155,20 @@ cd ~/git/ccconfig-public
 复制模板文件并填入实际值：
 
 ```bash
-vim conf/claude.json      # Claude MCP / API Key
-vim conf/llm.json         # LLM 后端
-vim conf/feishu.json      # 飞书（可选）
-vim conf/ubuntu.json      # Git 用户信息
-vim link/settings.json    # 权限和 MCP
+# Claude MCP / API Key
+vim conf/claude.json
+
+# LLM 后端（DeepSeek、MiniMax、Claude）
+vim conf/llm.json
+
+# 飞书（可选）
+vim conf/feishu.json
+
+# Git 用户信息
+vim conf/ubuntu.json
+
+# settings.json 权限和 MCP
+vim link/settings.json
 ```
 
 ### 3. 建立符号链接
@@ -162,8 +180,14 @@ bash setup-links.sh
 ### 4. 初始化
 
 ```bash
-bash init.sh all          # 一键初始化
-bash init.sh status       # 检查状态
+# 交互式菜单
+bash init.sh
+
+# 一键全部初始化
+bash init.sh all
+
+# 查看状态
+bash status.sh
 ```
 
 ## 权限双层机制
@@ -173,12 +197,13 @@ bash init.sh status       # 检查状态
 | AI 行为指南 | link/CLAUDE.md | 告诉 Claude 哪些命令可用 |
 | 权限系统 | link/settings.json | 控制是否弹窗询问 |
 
-运行 bash status.sh 检查状态。
+两者必须同步。运行 bash status.sh 检查状态。
 
 ## LLM 切换
 
 ```bash
 bash init-llm.sh              # 交互式选择
+bash init-llm.sh list         # 列出可用后端
 bash init-llm.sh deepseek     # 切换到 DeepSeek
 bash init-llm.sh minimax      # 切换到 MiniMax
 ```
@@ -190,15 +215,25 @@ bash init-llm.sh minimax      # 切换到 MiniMax
 ./monitor.sh stop      # 停止
 ./monitor.sh status    # 查看状态
 ./monitor.sh log       # 最近日志
+./monitor.sh monitor   # 前端：文件变更监控
+./monitor.sh tail      # 前端：推送结果
 ```
 
 ## 月度升级
 
 ```bash
+bash update.sh               # 交互式菜单
 bash update.sh all           # 一键升级全部
 ```
 
 升级组件：Node.js → npm → GitHub CLI → Claude Code → uv → MCP → Skills → systemd
+
+## 导出公开库
+
+```bash
+./monitor.sh pub             # 导出 ccconfig-public（中文 README）
+bash pushpub.sh              # 直接调用导出脚本
+```
 
 ## 最后同步
 
