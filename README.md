@@ -2,54 +2,68 @@
 
 > 统一管理 Claude Code 配置、脚本，通过 GitHub 跨设备同步。
 
+## 使用场景
+
+- **跨设备同步**：GitHub 自动同步配置，桌面和笔记本保持一致
+- **环境初始化**：一键初始化 Claude Code、Skills、MCP、飞书工具
+- **权限管理**：细粒度权限控制，避免频繁弹窗确认
+- **LLM 切换**：多后端支持（DeepSeek、MiniMax、Claude 官方），成本优化
+- **自动同步**：文件监控 + 120s 防抖，自动提交推送
+- **飞书集成**：lark-cli 终端操作文档/日历/任务，cc-connect 消息 Bridge
+- **远程访问**：Tailscale 组网 + SSH + tmux，笔记本连接台式机
+
 ## 目录结构
 
 ```
 ccconfig/
 ├── init.sh                   # 总入口（交互式两级菜单）
-├── init-ubuntu.sh            # Ubuntu/WSL 全环境初始化
-├── init-llm.sh               # LLM 后端切换（deepseek/minimax）
+├── init-ubuntu.sh            # Ubuntu/WSL 全环境初始化（Node.js、npm、gh、Claude）
+├── init-llm.sh               # LLM 后端切换（deepseek/minimax/claude）
 ├── init-mcp.sh               # MCP 服务器管理
 ├── init-skill.sh             # Skills 同步管理
-├── init-autostart.sh         # auto-sync 自启动
-├── update.sh                 # 月度升级（9组件一键更新）
+├── init-autostart.sh         # auto-sync systemd 自启动配置
+├── update.sh                 # 月度升级（Node.js、npm、gh、Claude、MCP、Skills）
 │
-├── status.sh           # 状态检查（SessionStart hook）
-├── monitor.sh           # 文件监控 + 自动 Git 同步（120s 防抖）
+├── status.sh                 # 状态检查（配置链接、auto-sync、PPT 环境、飞书、MCP）
+├── monitor.sh                # 文件监控 + 自动 Git 同步（120s 防抖）
 ├── gitforce.sh               # 强制单向同步（云↔本地，高危）
+├── setup-links.sh            # 重建 ~/.claude/ 符号链接
 │
 ├── conf/                     # 配置文件（单一来源）
 │   ├── feishu.json           # 飞书统一配置（lark-cli + cc-connect）
-│   ├── versions.json         # 版本单一真相源
-│   ├── claude.json           # MCP + API Key
-│   ├── llm.json              # LLM 多后端配置
-│   └── ubuntu.json           # Git 用户信息
+│   ├── versions.json         # 版本单一真相源（skill、repo、包版本）
+│   ├── claude.json           # MCP 服务器配置、API Key
+│   ├── llm.json              # LLM 多后端配置（deepseek、minimax、claude）
+│   └── ubuntu.json           # Git 用户信息（name、email）
 │
 ├── windows/                  # Windows/WSL 互操作工具
-│   ├── wslconfig.ps1         # 配置 .wslconfig（mirrored 网络）
+│   ├── wslconfig.ps1         # 配置 .wslconfig（mirrored 网络模式）
 │   └── wsl-interop.sh        # 修复 WSL interop（PATH 隔离）
 │
 ├── option-bridge/            # 可选：飞书消息 Bridge
 │   ├── init.sh               # lark-cli + cc-connect 初始化
-│   ├── lark-switch.sh        # 多账号切换
-│   ├── bot-status.sh         # 机器人状态
+│   ├── lark-switch.sh        # 多账号切换（Session A/B）
+│   ├── bot-status.sh         # 机器人状态查看
 │   ├── bot-enable.sh         # 启用机器人
 │   ├── bot-disable.sh        # 禁用机器人
-│   ├── claude-lark-refresh.* # lark-cli token 自动刷新
-│   └── mcp-bridge/           # 可选 MCP（bot 消息）
+│   └── mcp-bridge/           # 可选 MCP（接收 bot 消息）
 │
 ├── remote/                   # 远程连接（Tailscale + SSH + tmux）
+│   ├── readme.md             # 远程连接文档
+│   ├── server/tmux-sshd.sh   # SSH Server + tmux 初始化
+│   └── client/               # Windows 端 Tailscale 安装脚本
 │
 ├── lib/                      # 共享库
-│   └── path-helper.sh        # 动态路径解析（4级回退）
+│   └── path-helper.sh        # 动态路径解析（4级回退：可执行包、npx、npm、curl）
 │
 ├── link/                     # 符号链接源 → ~/.claude/
 │   ├── settings.json         # 权限 + MCP + hooks
 │   ├── .config.json          # env + 状态
-│   ├── CLAUDE.md             # AI 行为指南
-│   ├── agents/               # 自定义 agents
-│   ├── skills/               # 全部 skills
-│   └── projects/             # MEMORY.md 记忆
+│   ├── CLAUDE.md             # AI 行为指南（命令、暗号、自然语言触发）
+│   ├── agents/               # 自定义 agents（assistant、feishucreate、learnchinese）
+│   ├── commands/             # 命令定义（pullff）
+│   ├── skills/               # 全部 skills（飞书、研究、诊断等）
+│   └── projects/             # MEMORY.md 记忆（用户、项目、反馈）
 │
 └── .snapshots/               # 升级版本快照（gitignored）
 ```
