@@ -180,10 +180,10 @@ def init_client():
 
 def cmd_overview(client, conf):
     bucket, emoji = time_bucket()
-    print(f"\n  {emoji}  feedme · 麦当劳智能订餐 | {bucket}")
-    print(f"  {'─'*46}")
 
-    # Address
+    # Build compact status line
+    parts = [f"{emoji} feedme · {bucket}"]
+
     addrs = conf.get('addresses', [])
     if not addrs:
         try:
@@ -192,41 +192,39 @@ def cmd_overview(client, conf):
         except: pass
     if addrs:
         a = addrs[0]
-        print(f"  📍 {a.get('contactName','?')} {a.get('phone','')} | {a.get('fullAddress','')[:40]}")
+        addr_short = a.get('fullAddress','')[:30]
+        parts.append(f"📍{a.get('contactName','?')} {addr_short}")
     else:
-        print(f"  📍 未设置 | 说「地址」拉取 | 「加地址 城市 姓名 电话 地址 门牌」添加")
+        parts.append(f"📍未设置")
 
-    # Coupons
+    # Coupons, points, history in one line
+    stats = []
     try:
         text = client.text("query-my-coupons")
         coupons = parse_coupons(text)
-        print(f"  🎫 {len(coupons)} 张优惠券 | 说「券」查看 | 「领券」一键领取")
-    except:
-        print(f"  🎫 查询失败")
-
-    # Points
+        stats.append(f"🎫{len(coupons)}券")
+    except: pass
     try:
         text = client.text("query-my-account")
         pts = parse_account(text)
-        print(f"  ⭐ {pts.get('available','?')} 可用积分 | 说「积分」查看")
-    except:
-        print(f"  ⭐ 查询失败")
-
-    # Recent order
+        stats.append(f"⭐{pts.get('available','?')}分")
+    except: pass
     orders = [h for h in conf.get('history', []) if h.get('action') == 'order']
     if orders:
-        last = orders[0]
-        items = ', '.join(i.get('name','?') for i in last.get('items', []))
-        print(f"  🔄 最近: {items} ¥{last.get('total','?')} | 说「复购」再来一单")
+        items = ','.join(i.get('name','')[:6] for i in orders[0].get('items', [])[:2])
+        stats.append(f"🔄{items} ¥{orders[0].get('total','?')}")
 
-    # Cart
     cart = load_cart()
     if cart:
-        total = sum(c['price'] * c['quantity'] for c in cart)
-        print(f"  🛒 购物车: {len(cart)} 件 ¥{total:.1f} | 说「购物车」查看 | 「结算」下单")
+        ctotal = sum(c['price'] * c['quantity'] for c in cart)
+        stats.append(f"🛒{len(cart)}件¥{ctotal:.0f}")
 
-    print(f"  {'─'*46}")
-    print("  说「推荐」「菜单」「券」「下单」「复购」「地址」「积分」「活动」")
+    parts.append(' | '.join(stats))
+
+    print()
+    print('  ' + ' | '.join(parts))
+    print(f"  {'─'*50}")
+    print("  推荐  菜单  券  领券  下单  复购  地址  积分  活动")
     print()
 
 def cmd_menu(client, conf):
@@ -442,14 +440,21 @@ def cmd_cart_add(client, conf, args):
     if not items:
         return
     cart = load_cart()
+    burger_remark = conf.get('preferences', {}).get('burger_remark', '')
     for item in items:
         existing = next((c for c in cart if c['code'] == item['code']), None)
         if existing:
             existing['quantity'] += 1
         else:
-            cart.append({'name': item['name'], 'code': item['code'],
-                         'price': item['price'], 'quantity': 1})
-        print(f"  ✅ {item['name']} ¥{item['price']:.1f}")
+            entry = {'name': item['name'], 'code': item['code'],
+                     'price': item['price'], 'quantity': 1}
+            if burger_remark and '堡' in item['name']:
+                entry['remark'] = burger_remark
+            cart.append(entry)
+        label = item['name']
+        if '堡' in item['name'] and burger_remark:
+            label += f"  [{burger_remark}]"
+        print(f"  ✅ {label} ¥{item['price']:.1f}")
     save_cart(cart)
     total = sum(c['price'] * c['quantity'] for c in cart)
     print(f"  🛒 购物车 {len(cart)} 件 ¥{total:.1f} | 说「购物车」查看「结算」下单「清空」重置")
@@ -465,7 +470,10 @@ def cmd_cart_show(client, conf):
     print("─" * 50)
     for i, c in enumerate(cart):
         qty = f"x{c['quantity']}" if c['quantity'] > 1 else ""
-        print(f"  {i+1}. {c['name']:<24s} {qty:>3s}  ¥{c['price'] * c['quantity']:.1f}")
+        name = c['name']
+        if c.get('remark'):
+            name += f"  [{c['remark']}]"
+        print(f"  {i+1}. {name:<24s} {qty:>3s}  ¥{c['price'] * c['quantity']:.1f}")
     print("─" * 50)
     print(f"  💰 合计: ¥{total:.1f}")
     print()
@@ -526,7 +534,10 @@ def cmd_checkout(client, conf):
     print("═" * 52)
     for c in cart:
         qty = f"x{c['quantity']}" if c['quantity'] > 1 else ""
-        print(f"  {qty:>3s} {c['name']:<24s} ¥{c['price'] * c['quantity']:.1f}")
+        name = c['name']
+        if c.get('remark'):
+            name += f"  [{c['remark']}]"
+        print(f"  {qty:>3s} {name:<24s} ¥{c['price'] * c['quantity']:.1f}")
     print("─" * 52)
 
     # Calculate actual price via MCP
@@ -617,7 +628,11 @@ def cmd_confirm(client, conf):
         print("─" * 52)
         print(f"  🍔 商品:")
         for p in d.get('orderDetail', d).get('orderProductList', d.get('productList', [])):
-            print(f"     {p.get('productName','?')} x{p.get('quantity','?')}  ¥{int(p.get('price',0))/100:.2f}")
+            name = p.get('productName','?')
+            remark = next((c.get('remark','') for c in cart if c.get('code') == p.get('productCode','')), '')
+            if remark:
+                name += f"  [{remark}]"
+            print(f"     {name} x{p.get('quantity','?')}  ¥{int(p.get('price',0))/100:.2f}")
         print("─" * 52)
         price_detail = d.get('orderDetail', d)
         print(f"  商品小计: ¥{int(price_detail.get('productPrice',0))/100:.2f}")
