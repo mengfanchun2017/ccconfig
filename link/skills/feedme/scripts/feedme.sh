@@ -1,10 +1,8 @@
 #!/bin/bash
-# feedme.sh — Launch the feedme interactive script.
-# Claude runs this when user says "feedme".
+# feedme.sh — Launch feedme overview. Claude runs this when user says "feedme".
 set -euo pipefail
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-# Quick MCP check
 if ! bash "$SKILL_DIR/scripts/setup.sh" --check 2>/dev/null; then
     echo "❌ 麦当劳 MCP 未配置。"
     echo ""
@@ -15,4 +13,4 @@ if ! bash "$SKILL_DIR/scripts/setup.sh" --check 2>/dev/null; then
     exit 1
 fi
 
-exec python3 "$SKILL_DIR/scripts/feedme.py"
+exec python3 "$SKILL_DIR/scripts/feedme.py" overview
