@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-"""Extract all PPT data and populate Base using file-based JSON."""
+"""Create slides in Base with proper links to presentations."""
 import json
 import re
 import subprocess
-import sys
-import time
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 BASE_TOKEN = "JnXYbjiR9aZOFrsuOGUc09mXnZd"
 PRES_TABLE = "tblgJhdGJlTxf5S7"
 SLIDES_TABLE = "tblORDssdq53f3Mz"
 
-PRES_FIELDS = ["fldi7gcjEL", "fldsz67jw4", "fldrz0qop2", "fld13OW6Yb", "fld9goMg18", "fldyT5Httg"]
 SLIDES_FIELDS = ["fldfqbGtJd", "fldekQXlvT", "fldCeSY0uy", "fldN8uV84x", "fldLTJeyaH", "fldPVJTfNH", "fldlCpyWVz"]
 
 ALL_SLIDES = [
@@ -57,6 +55,70 @@ ALL_SLIDES = [
 WORK_DIR = "/home/francis/git/ccconfig/tmp"
 
 
+def run_cmd(cmd_args, timeout=120):
+    result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=timeout, cwd=WORK_DIR)
+    lines = [l for l in result.stdout.split('\n') if not l.startswith('[lark-cli]')]
+    stdout = '\n'.join(lines).strip()
+    if not stdout:
+        return None, f"Empty stdout, stderr: {result.stderr[:200]}"
+    try:
+        return json.loads(stdout), None
+    except json.JSONDecodeError as e:
+        return None, f"JSON error: {e}"
+
+
+def api_get(path, timeout=60):
+    """Call lark-cli API and return parsed JSON."""
+    result = subprocess.run(
+        ["lark-cli", "api", "GET", path, "--format", "json"],
+        capture_output=True, text=True, timeout=timeout
+    )
+    stdout = result.stdout
+    start = stdout.find('{')
+    end = stdout.rfind('}') + 1
+    if start >= 0 and end > start:
+        return json.loads(stdout[start:end])
+    return None
+
+
+def get_all_presentation_records():
+    """Fetch all presentation records using pagination."""
+    all_data = []
+    all_rids = []
+    page_token = ""
+    while True:
+        path = f"/open-apis/base/v3/bases/{BASE_TOKEN}/tables/{PRES_TABLE}/records?page_size=50"
+        if page_token:
+            path += f"&page_token={page_token}"
+        resp = api_get(path)
+        if not resp or resp.get('code') != 0:
+            print(f"  API error: {resp}")
+            break
+        inner = resp['data']
+        rids = inner.get('record_id_list', [])
+        rows = inner.get('data', [])
+        fid_list = inner.get('field_id_list', [])
+        all_rids.extend(rids)
+        all_data.extend(zip(rids, rows, [fid_list] * len(rows)))
+        has_more = inner.get('has_more', False)
+        page_token = inner.get('page_token', '')
+        print(f"  Fetched {len(rids)} records (total: {len(all_rids)}, has_more={has_more})")
+        if not has_more:
+            break
+
+    # Build PID -> record_id map
+    pid_to_record = {}
+    for rid, row, fid_list in all_data:
+        try:
+            pid_idx = fid_list.index('fldrz0qop2')  # Presentation ID field
+            pid = row[pid_idx]
+            if pid:
+                pid_to_record[pid] = rid
+        except (ValueError, IndexError):
+            pass
+    return pid_to_record
+
+
 def get_slides(pid):
     cmd = [
         "lark-cli", "slides", "xml_presentations", "get",
@@ -72,8 +134,7 @@ def get_slides(pid):
         data = json.loads(stdout)
         if data.get('code') == 0:
             xml = data['data']['xml_presentation']['content']
-            rev = data['data']['xml_presentation'].get('revision_id', '?')
-            return xml, rev
+            return xml, None
         return None, data.get('msg', 'Unknown')
     except Exception as e:
         return None, str(e)
@@ -103,116 +164,71 @@ def extract_slides_data(xml):
     return slides
 
 
-def process_one(item):
-    label, pid, cat = item
-    xml, info = get_slides(pid)
-    if xml is None:
-        return None, label, pid, cat, info
-    slides = extract_slides_data(xml)
-    wiki_url = f"https://www.feishu.cn/wiki/{pid}"
-    total_imgs = sum(s['img_count'] for s in slides)
-    return {
-        'label': label.split(' > ')[-1],
-        'pid': pid,
-        'cat': cat,
-        'wiki_url': wiki_url,
-        'slide_count': len(slides),
-        'img_count': total_imgs,
-        'slides': slides
-    }, None, None, None, None
-
-
-def run_cmd(cmd_args, timeout=120):
-    """Run command from WORK_DIR and return parsed JSON."""
-    result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=timeout, cwd=WORK_DIR)
-    lines = [l for l in result.stdout.split('\n') if not l.startswith('[lark-cli]')]
-    stdout = '\n'.join(lines).strip()
-    if not stdout:
-        return None, f"Empty stdout, stderr: {result.stderr[:200]}"
-    try:
-        return json.loads(stdout), None
-    except json.JSONDecodeError as e:
-        return None, f"JSON error: {e}, stdout: {stdout[:300]}"
+def extract_all_ppts():
+    """Extract all PPT data in parallel."""
+    results = {}
+    failed = []
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = {pool.submit(get_slides, item[1]): item for item in ALL_SLIDES}
+        for i, future in enumerate(as_completed(futures), 1):
+            item = futures[future]
+            label, pid, cat = item
+            xml, err = future.result()
+            if err:
+                failed.append((label, pid, err))
+                print(f"  [{i}/{len(ALL_SLIDES)}] FAIL {label}: {err}")
+            else:
+                slides = extract_slides_data(xml)
+                total_imgs = sum(s['img_count'] for s in slides)
+                results[pid] = {
+                    'label': label.split(' > ')[-1],
+                    'pid': pid,
+                    'cat': cat,
+                    'slide_count': len(slides),
+                    'img_count': total_imgs,
+                    'slides': slides
+                }
+                print(f"  [{i}/{len(ALL_SLIDES)}] OK {results[pid]['label']} ({len(slides)} s, {total_imgs} imgs)")
+    return results, failed
 
 
 def main():
     os.chdir(WORK_DIR)
 
-    # Check for cached extraction
+    # Step 1: Get presentation record IDs
+    print("=== Step 1: Fetching presentation records ===")
+    pid_to_record = get_all_presentation_records()
+    print(f"Found {len(pid_to_record)} presentation records")
+
+    if not pid_to_record:
+        print("ERROR: No presentation records found!")
+        sys.exit(1)
+
+    # Step 2: Extract all PPT data
+    print("\n=== Step 2: Extracting PPT data ===")
     cache_file = "./ppt_extract_cache.json"
     if os.path.exists(cache_file):
-        print(f"Loading cached extraction from {cache_file}")
         with open(cache_file) as f:
             cache = json.load(f)
-        results = cache.get('results', {})
+        results = cache['results']
         failed = cache.get('failed', [])
+        print(f"Loaded {len(results)} PPTs from cache")
     else:
-        print("Fetching all PPTs in parallel...")
-        results = {}
-        failed = []
-        with ThreadPoolExecutor(max_workers=6) as pool:
-            futures = {pool.submit(process_one, item): item for item in ALL_SLIDES}
-            for i, future in enumerate(as_completed(futures), 1):
-                data, label, pid, cat, err = future.result()
-                if err:
-                    failed.append((label, pid, err))
-                    print(f"[{i}/{len(ALL_SLIDES)}] FAIL {label}: {err}")
-                else:
-                    results[data['pid']] = data
-                    print(f"[{i}/{len(ALL_SLIDES)}] OK {data['label']} ({data['slide_count']} s, {data['img_count']} imgs)")
-        # Cache results
+        results, failed = extract_all_ppts()
         with open(cache_file, "w") as f:
             json.dump({'results': results, 'failed': failed}, f, ensure_ascii=False)
+        print(f"\nFetched: {len(results)}/{len(ALL_SLIDES)}, Failed: {len(failed)}")
 
-    print(f"\nFetched: {len(results)}/{len(ALL_SLIDES)}, Failed: {len(failed)}")
-
-    # Step 1: Create Presentations
-    print("\n=== Step 1: Creating Presentations ===")
-    pres_rows = []
-    for label, pid, cat in ALL_SLIDES:
-        if pid not in results:
-            continue
-        d = results[pid]
-        pres_rows.append([
-            d['label'],
-            d['wiki_url'],
-            d['pid'],
-            d['slide_count'],
-            d['img_count'],
-            d['cat'],
-        ])
-
-    pres_json = {"fields": PRES_FIELDS, "rows": pres_rows}
-    with open("./pres_batch.json", "w") as f:
-        json.dump(pres_json, f, ensure_ascii=False)
-
-    data, err = run_cmd(["lark-cli", "base", "+record-batch-create",
-                         "--base-token", BASE_TOKEN,
-                         "--table-id", PRES_TABLE,
-                         "--json", "@pres_batch.json"])
-    if err:
-        print(f"ERROR creating presentations: {err}")
-        return
-    print(f"Presentations: {data}")
-
-    pres_record_ids = data.get('data', {}).get('record_id_list', [])
-    print(f"Created {len(pres_record_ids)} presentation records")
-
-    # Build pid -> record_id map
-    pid_to_record = {}
-    idx = 0
-    for label, pid, cat in ALL_SLIDES:
-        if pid in results and idx < len(pres_record_ids):
-            pid_to_record[pid] = pres_record_ids[idx]
-            idx += 1
-
-    # Step 2: Create Slides in batches
-    print("\n=== Step 2: Creating Slides ===")
+    # Step 3: Build slide rows with links
+    print("\n=== Step 3: Building slide rows ===")
     all_slide_rows = []
-    for label, pid, cat in ALL_SLIDES:
-        if pid not in results:
+    skipped = 0
+    for pid, d in results.items():
+        pres_record_id = pid_to_record.get(pid)
+        if not pres_record_id:
+            print(f"  SKIP: no record for PID {pid} ({d.get('label', '?')})")
+            skipped += 1
             continue
-        d = results[pid]
         for page_num, slide in enumerate(d['slides'], 1):
             title = slide['texts'][0] if slide['texts'] else ""
             full = "\n".join(slide['texts'])
@@ -224,43 +240,40 @@ def main():
                 full,
                 img_tokens_str,
                 slide['img_count'],
-                None,  # 所属PPT - will link later
+                pres_record_id,
             ]
-            all_slide_rows.append((pid, row))
+            all_slide_rows.append(row)
 
     total_slides = len(all_slide_rows)
-    print(f"Total slides: {total_slides}")
+    print(f"Total slides to create: {total_slides} (skipped {skipped} PPTs without records)")
 
+    # Step 4: Create slides in batches of 200
+    print("\n=== Step 4: Creating slides ===")
     batch_size = 200
     for batch_start in range(0, total_slides, batch_size):
-        batch = all_slide_rows[batch_start:batch_start + batch_size]
-        batch_rows = [row for _, row in batch]
-        slides_json = {"fields": SLIDES_FIELDS, "rows": batch_rows}
+        batch_num = batch_start // batch_size
+        batch_rows = all_slide_rows[batch_start:batch_start + batch_size]
 
-        fname = f"./slides_batch_{batch_start//batch_size}.json"
+        slides_json = {"fields": SLIDES_FIELDS, "rows": batch_rows}
+        fname = f"./slides_batch_{batch_num}.json"
         with open(fname, "w") as f:
             json.dump(slides_json, f, ensure_ascii=False)
+        print(f"  Batch {batch_num}: {len(batch_rows)} rows, {os.path.getsize(fname)} bytes")
 
         data, err = run_cmd(["lark-cli", "base", "+record-batch-create",
                              "--base-token", BASE_TOKEN,
                              "--table-id", SLIDES_TABLE,
                              "--json", f"@{fname}"], timeout=120)
         if err:
-            print(f"ERROR batch {batch_start//batch_size}: {err}")
+            print(f"  ERROR: {err}")
         else:
+            ok = data.get('ok')
             n = len(data.get('data', {}).get('record_id_list', []))
-            print(f"Batch {batch_start//batch_size + 1}: {n} slides created")
+            print(f"  Batch {batch_num}: {n} created, ok={ok}")
 
-    # Step 3: Link slides to presentations
-    print("\n=== Step 3: Linking slides to presentations ===")
-    # We need to read back all slide record_ids and link them
-    # This requires listing slides and updating links
-    # For now, skip linking - can be done later via UI or script
-
-    total_imgs = sum(results[pid]['img_count'] for pid in results)
-    print(f"\nSummary: {len(results)} PPTs, {total_slides} slides, {total_imgs} images")
+    print(f"\nDone! {total_slides} slides created.")
     if failed:
-        print(f"Failed ({len(failed)}):")
+        print(f"Failed PPTs ({len(failed)}):")
         for label, pid, err in failed:
             print(f"  - {label}: {err}")
 

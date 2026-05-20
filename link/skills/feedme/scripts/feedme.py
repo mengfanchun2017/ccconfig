@@ -19,6 +19,9 @@ MENU_CACHE = "/tmp/feedme_menu_cache.json"
 
 def _extract_json(text):
     m = re.search(r'##\s*Original\s*Response\s*(\{.+?\})\s*$', text, flags=re.DOTALL)
+    if not m:
+        # retry with greedy match (prefer outermost JSON object)
+        m = re.search(r'##\s*Original\s*Response\s*(\{.+\})\s*$', text, flags=re.DOTALL)
     if m:
         try: return json.loads(m.group(1))
         except: pass
@@ -535,7 +538,7 @@ def cmd_checkout(client, conf):
     order_items = [{"productCode": c['code'], "quantity": c['quantity']} for c in cart]
     try:
         r = client.calc_price(a['storeCode'], a['beCode'], 2, order_items)
-        print(r.get('text', '')[:800])
+        print(r.get('text', '')[:2000])
     except Exception as e:
         print(f"⚠️ 价格计算异常: {e}")
 
@@ -562,9 +565,8 @@ def cmd_confirm(client, conf):
     try:
         r = client.create_order(a['storeCode'], a['beCode'], a.get('addressId', ''), 2, order_items)
         text = r.get('text', '')
-        print(text[:1500])
 
-        # Check order success
+        # Parse JSON from response
         data = _extract_json(text)
         if data and data.get('success') == False:
             err_code = data.get('code', '?')
@@ -572,19 +574,39 @@ def cmd_confirm(client, conf):
             print(f"❌ 下单失败 [{err_code}]: {err_msg}")
             return
 
-        # Extract payment URL from markdown
-        pay_url = None
-        m = re.search(r'\[💳\s*\*立即支付\*\]\((\S+)\)', text)
-        if not m:
-            m = re.search(r'payH5Url[：:]\s*(https?://\S+)', text)
-        if m:
-            pay_url = m.group(1)
+        if not data or not data.get('data'):
+            print("❌ 下单响应解析失败，请检查订单状态")
+            print(text[:500])
+            return
 
-        if not pay_url:
-            # Try Original Response JSON
-            if data:
-                pay_url = data.get('data', {}).get('payH5Url', '')
+        d = data['data']
+        delivery = d.get('deliveryInfo', {})
 
+        print(f"\n📋 下单成功！")
+        print("═" * 52)
+        print(f"  订单号: {d.get('orderId', '?')}")
+        print(f"  支付单号: {d.get('payId', '?')}")
+        print(f"  状态: {d.get('orderDetail', d).get('orderStatus', '?')}")
+        print(f"  门店: {d.get('orderDetail', d).get('storeName', a.get('storeName', '?'))}")
+        print("─" * 52)
+        print(f"  🍔 商品:")
+        for p in d.get('orderDetail', d).get('orderProductList', d.get('productList', [])):
+            print(f"     {p.get('productName','?')} x{p.get('quantity','?')}  ¥{int(p.get('price',0))/100:.2f}")
+        print("─" * 52)
+        price_detail = d.get('orderDetail', d)
+        print(f"  商品小计: ¥{int(price_detail.get('productPrice',0))/100:.2f}")
+        print(f"  配送费:   ¥{int(price_detail.get('realDeliveryPrice',0))/100:.2f}")
+        print(f"  打包费:   ¥{int(price_detail.get('realPackingFeeTotalPrice',0))/100:.2f}")
+        print(f"  优惠减免: ¥{int(price_detail.get('totalDiscountAmount',0))/100:.2f}")
+        print(f"  实付:     ¥{int(price_detail.get('realTotalAmount',0))/100:.2f}")
+        print("─" * 52)
+        print(f"  📍 {delivery.get('customerNickname','?')} {delivery.get('mobilePhone','?')}")
+        print(f"     {delivery.get('deliveryAddress','')} {delivery.get('addressDetail','')}")
+        if delivery.get('expectDeliveryTime'):
+            print(f"  🚀 预计送达: {delivery['expectDeliveryTime']}")
+        print("═" * 52)
+
+        pay_url = d.get('payH5Url', '')
         if pay_url:
             print(f"\n📱 支付链接: {pay_url}")
             try:
@@ -600,7 +622,9 @@ def cmd_confirm(client, conf):
         # Save to history, clear cart
         conf.setdefault('history', []).insert(0, {
             'action': 'order', 'items': cart,
-            'store': a.get('storeName', ''), 'total': total,
+            'orderId': d.get('orderId', ''),
+            'store': d.get('orderDetail', d).get('storeName', a.get('storeName', '')),
+            'total': float(price_detail.get('realTotalAmount', total*100))/100,
             'time': datetime.now().isoformat()
         })
         save_conf(conf)
