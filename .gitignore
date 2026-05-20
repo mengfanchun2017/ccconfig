@@ -18,5 +18,8 @@ openclaw.json
 # 编辑器/工具原子写入残留
 *.tmp.*
 
+# cccshare 独立 repo（不含 submodule，避免 git add -A 失败）
+cccshare/
+
 # 可选：本地环境变量文件
 # .env

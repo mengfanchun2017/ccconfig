@@ -484,7 +484,7 @@ setup_ppt_master() {
     fi
 
     # 10.3 克隆/更新 ppt-master 仓库
-    local PPT_DIR="$HOME/git/ppt-master"
+    local PPT_DIR="$HOME/git/_ext/ppt-master"
     if [[ -d "$PPT_DIR/.git" ]]; then
         cd "$PPT_DIR"
         git fetch origin main 2>/dev/null || true
@@ -498,7 +498,7 @@ setup_ppt_master() {
         fi
     else
         info "克隆 ppt-master: hugohe3/ppt-master → $PPT_DIR"
-        mkdir -p "$HOME/git"
+        mkdir -p "$HOME/git/_ext"
         git clone git@github.com:hugohe3/ppt-master.git "$PPT_DIR" 2>&1 | tail -2
         success "ppt-master 克隆完成"
     fi

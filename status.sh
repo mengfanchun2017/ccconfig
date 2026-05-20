@@ -180,7 +180,7 @@ check_ppt_master() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[5] ppt-master (PPT 生成)${NC}"
 
-    local repo_dir="$HOME/git/ppt-master"
+    local repo_dir="$HOME/git/_ext/ppt-master"
     local ok=true
 
     # 仓库
