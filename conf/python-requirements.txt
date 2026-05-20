@@ -8,6 +8,7 @@ pillow==12.2.0
 pycparser==3.0
 python-docx==1.2.0
 python-pptx==1.0.2
+qrcode==8.2
 tinycss2==1.5.1
 webencodings==0.5.1
 xlsxwriter==3.2.9
