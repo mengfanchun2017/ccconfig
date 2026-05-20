@@ -60,3 +60,15 @@ bash ~/.claude/skills/feedme/scripts/setup.sh
 ```
 
 获取 Token: https://open.mcd.cn/mcp
+
+## API 限制
+
+MCP API 与麦当劳 App 功能不完全对等，以下功能 **不可用**：
+
+| 限制 | 详情 |
+|------|------|
+| 备注 | `create-order` items 只有 productCode/quantity/couponCode/couponId，无 remark 字段 |
+| 特制/定制 | 手机 App 的「特制」(去酱、加菜、换配料) MCP 未暴露。`query-meal-detail` 对独立汉堡返回 `rounds: []` |
+| 套餐选配 | 套餐有 rounds (选小食/饮料)，但 `create-order` 不接受 rounds 参数，选配结果无法传递 |
+
+如果用户要求定制（备注/去酱/加菜），告知需在麦当劳 App 手动操作，不要试图在 feedme 中实现。
