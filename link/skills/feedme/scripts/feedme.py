@@ -47,6 +47,30 @@ def _extract_json(text):
 # Parsers (reused from MCP responses)
 # ═══════════════════════════════════════════════════════════
 
+def parse_store_coupons(text):
+    """Parse query-store-coupons JSON response into structured list."""
+    data = _extract_json(text)
+    if not data:
+        return []
+    items = data.get('data', [])
+    if isinstance(items, dict):
+        items = items.get('list', items.get('coupons', []))
+    if not isinstance(items, list):
+        return []
+    result = []
+    for c in items:
+        products = c.get('products', [])
+        for p in products:
+            result.append({
+                'title': c.get('title', ''),
+                'couponId': c.get('couponId', ''),
+                'couponCode': c.get('couponCode', ''),
+                'productCode': p.get('productCode', ''),
+                'productName': p.get('productName', ''),
+                'tradeDateTime': c.get('tradeDateTime', ''),
+            })
+    return result
+
 def parse_addresses(text, conf):
     data = _extract_json(text)
     if data and data.get('data', {}).get('addresses'):
@@ -279,27 +303,50 @@ def cmd_recommend(client, conf):
     save_menu_cache(menu_items)
 
     try:
-        coupon_text = client.text("query-my-coupons")
-        coupons = parse_coupons(coupon_text)
+        coupon_text = client.text("query-store-coupons", {"storeCode": sc, "beCode": bc, "orderType": 2})
+        store_coupons = parse_store_coupons(coupon_text)
     except:
-        coupons = []
+        store_coupons = []
 
     from recommend import score_item
     prefs = conf.get('preferences', {})
     history = conf.get('history', [])
     bucket, _ = time_bucket()
 
-    scored = [(m, *score_item(m, prefs, coupons, history, bucket)) for m in menu_items]
+    # Build price map from matched coupons (productCode → coupon info)
+    coupon_price_map = {}
+    for scp in store_coupons:
+        pc = scp.get('productCode', '')
+        if pc not in coupon_price_map:
+            coupon_price_map[pc] = scp
+
+    # Convert to old-style coupon dicts for score_item
+    coupons_for_scoring = [{'name': c['title'], 'productCode': c['productCode']} for c in store_coupons]
+
+    scored = [(m, *score_item(m, prefs, coupons_for_scoring, history, bucket)) for m in menu_items]
     scored.sort(key=lambda x: x[1], reverse=True)
 
     # Save scored items as menu cache so "选 N" maps correctly
     save_menu_cache([s[0] for s in scored])
 
+    # Save coupon map for cart-add to use
+    import json, os
+    os.makedirs('/tmp', exist_ok=True)
+    with open('/tmp/feedme_coupon_map.json', 'w') as f:
+        json.dump(coupon_price_map, f, ensure_ascii=False)
+
     print(f"\n⭐ 智能推荐 ({bucket})")
     print("─" * 60)
     for i, (item, score, reasons) in enumerate(scored[:8]):
         stars = '⭐' * min(int(score/2) + 1, 5)
-        print(f"  {i+1}. {stars} {item['name']:<24s} ¥{item['price']:>7.1f}")
+        info = coupon_price_map.get(item.get('code', ''))
+        if info:
+            price_str = f"¥{item['price']:.1f} → 用券"
+            reasons = [r for r in reasons if '有券可用' not in r]
+            reasons.insert(0, f"券:{info['title']}")
+        else:
+            price_str = f"¥{item['price']:.1f}"
+        print(f"  {i+1}. {stars} {item['name']:<24s} {price_str:>16s}")
         if reasons:
             print(f"     {', '.join(reasons)}")
     print("─" * 60)
@@ -439,18 +486,37 @@ def cmd_cart_add(client, conf, args):
     items = _find_items(parts)
     if not items:
         return
+    # Load coupon map (written by recommend)
+    coupon_map = {}
+    try:
+        with open('/tmp/feedme_coupon_map.json') as f:
+            coupon_map = json.load(f)
+    except: pass
+
     cart = load_cart()
     for item in items:
         existing = next((c for c in cart if c['code'] == item['code']), None)
         if existing:
             existing['quantity'] += 1
         else:
-            cart.append({'name': item['name'], 'code': item['code'],
-                         'price': item['price'], 'quantity': 1})
-        print(f"  ✅ {item['name']} ¥{item['price']:.1f}")
+            entry = {'name': item['name'], 'code': item['code'],
+                     'price': item['price'], 'quantity': 1}
+            # Auto-match coupon
+            cinfo = coupon_map.get(item.get('code', ''))
+            if cinfo:
+                entry['couponId'] = cinfo.get('couponId', '')
+                entry['couponCode'] = cinfo.get('couponCode', '')
+                entry['couponTitle'] = cinfo.get('title', '')
+            cart.append(entry)
+        label = item['name']
+        if cart[-1].get('couponCode'):
+            label += f"  🎫{cart[-1].get('couponTitle','券')}"
+        print(f"  ✅ {label} ¥{item['price']:.1f}")
     save_cart(cart)
     total = sum(c['price'] * c['quantity'] for c in cart)
-    print(f"  🛒 购物车 {len(cart)} 件 ¥{total:.1f} | 说「购物车」查看「结算」下单「清空」重置")
+    coupon_count = sum(1 for c in cart if c.get('couponCode'))
+    extra = f'  🎫{coupon_count}张券可用' if coupon_count else ''
+    print(f"  🛒 购物车 {len(cart)} 件 ¥{total:.1f}{extra} | 说「购物车」查看「结算」下单「清空」重置")
     print()
 
 def cmd_cart_show(client, conf):
@@ -529,7 +595,14 @@ def cmd_checkout(client, conf):
 
     # Calculate actual price via MCP
     print("⏳ 计算实际价格...")
-    order_items = [{"productCode": c['code'], "quantity": c['quantity']} for c in cart]
+    order_items = []
+    for c in cart:
+        oi = {"productCode": c['code'], "quantity": c['quantity']}
+        if c.get('couponCode'):
+            oi['couponCode'] = c['couponCode']
+        if c.get('couponId'):
+            oi['couponId'] = c['couponId']
+        order_items.append(oi)
     try:
         r = client.calc_price(a['storeCode'], a['beCode'], 2, order_items)
         text = r.get('text', '')
@@ -583,7 +656,14 @@ def cmd_confirm(client, conf):
         return
 
     total = sum(c['price'] * c['quantity'] for c in cart)
-    order_items = [{"productCode": c['code'], "quantity": c['quantity']} for c in cart]
+    order_items = []
+    for c in cart:
+        oi = {"productCode": c['code'], "quantity": c['quantity']}
+        if c.get('couponCode'):
+            oi['couponCode'] = c['couponCode']
+        if c.get('couponId'):
+            oi['couponId'] = c['couponId']
+        order_items.append(oi)
 
     print("⏳ 下单中...")
     try:
