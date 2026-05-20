@@ -869,7 +869,7 @@ show_menu() {
     echo -e "${CYAN}━━━ ccconfig 组件升级 $today ━━━${NC}"
     echo ""
     echo "   基础组件"
-    echo "   1) Node.js + pip 包"
+    echo "   1) Node.js + lark-cli + pip 包"
     echo -e "      ${DIM}(自动触发 systemd 服务重建)${NC}"
     echo ""
     echo "   扩展组件"
@@ -896,7 +896,7 @@ show_menu() {
     local did_something=0
     for sel in $selections; do
         case "$sel" in
-            1)  update_nodejs; update_python_packages; fix_systemd_services; did_something=1 ;;
+            1)  update_nodejs; update_npm_globals; update_python_packages; fix_systemd_services; did_something=1 ;;
             2)  update_gh; did_something=1 ;;
             3)  update_claude; did_something=1 ;;
             4)  update_uv; did_something=1 ;;
