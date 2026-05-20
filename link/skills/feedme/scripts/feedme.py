@@ -248,7 +248,7 @@ def cmd_overview(client, conf):
     print()
     print('  ' + ' | '.join(parts))
     print(f"  {'─'*50}")
-    print("  推荐  菜单  券  领券  下单  复购  地址  积分  活动")
+    print("  [推荐] [菜单] [券] [领券] [下单] [复购] [地址] [积分] [活动]")
     print()
 
 def cmd_menu(client, conf):
@@ -344,22 +344,20 @@ def cmd_recommend(client, conf):
         json.dump(coupon_by_item, f, ensure_ascii=False)
 
     print(f"\n⭐ 智能推荐 ({bucket})")
-    print("─" * 60)
+    print("─" * 50)
     for i, (item, score, reasons) in enumerate(scored[:8]):
         stars = '⭐' * min(int(score/2) + 1, 5)
         info = coupon_by_item.get(item.get('code', ''))
         if info:
-            price_str = f"¥{item['price']:.1f} → 🎫"
-            reasons = [r for r in reasons if '有券可用' not in r]
-            reasons.insert(0, f"券:{info['title']}")
+            price_str = f"¥{item['price']:.1f} 🎫{info['title']}"
         else:
             price_str = f"¥{item['price']:.1f}"
-        print(f"  {i+1}. {stars} {item['name']:<20s}  {price_str}")
-        if reasons:
-            print(f"     {', '.join(reasons)}")
-    print("─" * 60)
+        print(f"  {i+1}. {item['name']}  {price_str}")
+        other = [r for r in reasons if '有券可用' not in r]
+        if other:
+            print(f"      {', '.join(other)}")
+    print("─" * 50)
     print("说「选 N」加购物车 | 「下单」进入点餐")
-    print()
 
 def cmd_coupons(client, conf):
     print("⏳ 查询优惠券...")
@@ -506,28 +504,25 @@ def cmd_cart_add(client, conf, args):
         existing = next((c for c in cart if c['code'] == item['code']), None)
         if existing:
             existing['quantity'] += 1
+            entry = existing
         else:
             entry = {'name': item['name'], 'code': item['code'],
                      'price': item['price'], 'quantity': 1}
-            # Auto-match coupon
             cinfo = coupon_map.get(item.get('code', ''))
             if cinfo:
                 entry['couponId'] = cinfo.get('couponId', '')
                 entry['couponCode'] = cinfo.get('couponCode', '')
                 entry['couponTitle'] = cinfo.get('title', '')
             cart.append(entry)
-        label = item['name']
-        if cart[-1].get('couponCode'):
-            label += f"  🎫{cart[-1].get('couponTitle','券')}"
-        print(f"  ✅ {label} ¥{item['price']:.1f}")
+        ctag = f"  🎫{entry.get('couponTitle','')}" if entry.get('couponTitle') else ''
+        print(f"  ✅ {item['name']} x{entry['quantity']}  ¥{item['price']:.1f}{ctag}")
     save_cart(cart)
     total_qty = sum(c['quantity'] for c in cart)
     total = sum(c['price'] * c['quantity'] for c in cart)
     coupon_count = sum(1 for c in cart if c.get('couponCode'))
-    extra = f'  🎫{coupon_count}张券可用' if coupon_count else ''
-    print(f"  🛒 购物车 {total_qty} 件 ¥{total:.1f}{extra}")
-    print(f"  说「购物车」查看 | 「结算」下单 | 「清空」重置")
-    print()
+    cextra = f'  🎫{coupon_count}张券' if coupon_count else ''
+    print(f"  🛒 {total_qty}件 ¥{total:.1f}{cextra}")
+    print(f"  购物车 | 结算 | 清空")
 
 def cmd_cart_show(client, conf):
     cart = load_cart()
@@ -535,15 +530,16 @@ def cmd_cart_show(client, conf):
         print("🛒 购物车为空。说「菜单」或「推荐」开始选餐。")
         return
     total = sum(c['price'] * c['quantity'] for c in cart)
-    print(f"\n🛒 购物车（{len(cart)} 件）")
-    print("─" * 50)
+    print(f"\n🛒 购物车（{len(cart)} 种）")
+    print("─" * 44)
     for i, c in enumerate(cart):
         qty = f"x{c['quantity']}" if c['quantity'] > 1 else ""
-        print(f"  {i+1}. {c['name']:<24s} {qty:>3s}  ¥{c['price'] * c['quantity']:.1f}")
-    print("─" * 50)
-    print(f"  💰 合计: ¥{total:.1f}")
+        ctag = f"  🎫{c['couponTitle']}" if c.get('couponTitle') else ""
+        print(f"  {i+1}. {c['name']} {qty}  ¥{c['price'] * c['quantity']:.1f}{ctag}")
+    print("─" * 44)
+    print(f"  💰 ¥{total:.1f}")
     print()
-    print("说「选 N」继续加 | 「删 N」移除 | 「清空」重置 | 「结算」下单")
+    print("选 N 加餐 | 删 N | 清空 | 结算")
     print()
 
 def cmd_cart_remove(client, conf, args):
@@ -596,15 +592,21 @@ def cmd_checkout(client, conf):
         return
 
     cart_total = sum(c['price'] * c['quantity'] for c in cart)
+    coupon_tags = []
+    for c in cart:
+        if c.get('couponTitle'):
+            coupon_tags.append(c['couponTitle'])
+
     print(f"\n📦 订单确认")
-    print("═" * 52)
+    print("═" * 44)
     for c in cart:
         qty = f"x{c['quantity']}" if c['quantity'] > 1 else ""
-        print(f"  {qty:>3s} {c['name']:<24s} ¥{c['price'] * c['quantity']:.1f}")
-    print("─" * 52)
+        tag = f"  🎫{c['couponTitle']}" if c.get('couponTitle') else ""
+        print(f"  {c['name']} {qty}  ¥{c['price'] * c['quantity']:.1f}{tag}")
+    print("─" * 44)
 
     # Calculate actual price via MCP
-    print("⏳ 计算实际价格...")
+    print("  ⏳ 询价...")
     order_items = []
     for c in cart:
         oi = {"productCode": c['code'], "quantity": c['quantity']}
@@ -622,36 +624,24 @@ def cmd_checkout(client, conf):
             d = data['data']
             def _y(v): return int(v) / 100 if v else 0
 
-            p_orig = _y(d.get('productOriginalPrice', 0))
             p_actual = _y(d.get('productPrice', 0))
-            d_orig = _y(d.get('deliveryOriginalPrice', 0))
             d_actual = _y(d.get('deliveryPrice', 0))
-            pk_orig = _y(d.get('packingOriginalPrice', 0))
             pk_actual = _y(d.get('packingPrice', 0))
             discount = _y(d.get('discount', 0))
             final_total = _y(d.get('price', 0))
 
-            print(f"  {'项目':<12s} {'原价':>8s} {'优惠':>8s} {'小计':>8s}")
-            print(f"  {'─'*36}")
-            print(f"  {'商品':<12s} ¥{p_orig:>7.2f} ¥{p_orig-p_actual:>7.2f} ¥{p_actual:>7.2f}")
-            if d_orig > 0:
-                print(f"  {'外送费':<12s} ¥{d_orig:>7.2f} ¥{d_orig-d_actual:>7.2f} ¥{d_actual:>7.2f}")
-            if pk_orig > 0:
-                print(f"  {'打包费':<12s} ¥{pk_orig:>7.2f} ¥{pk_orig-pk_actual:>7.2f} ¥{pk_actual:>7.2f}")
-            print(f"  {'─'*36}")
-            print(f"  {'合计':<12s} {'':>8s} ¥{discount:>7.2f} ¥{final_total:>7.2f}")
+            print(f"  商品 ¥{p_actual:.2f}  |  配送 ¥{d_actual:.2f}  |  优惠 ¥{discount:.2f}  |  实付 ¥{final_total:.2f}")
         else:
-            print(text[:5000])
+            print(text[:2000])
     except Exception as e:
-        print(f"⚠️ 价格计算异常: {e}")
+        print(f"  ⚠️ 价格计算异常: {e}")
 
-    print(f"  {'─'*52}")
+    print("─" * 44)
     print(f"  📍 {a.get('contactName','?')} {a.get('phone','?')}")
     print(f"     {a.get('fullAddress','')[:60]}")
-    print("═" * 52)
+    print("═" * 44)
     print()
     print("说「确认」完成下单 | 「取消」放弃 | 「选 N」继续加餐")
-    print()
 
 def cmd_confirm(client, conf):
     """Place order."""
@@ -694,40 +684,29 @@ def cmd_confirm(client, conf):
             return
 
         d = data['data']
-        delivery = d.get('deliveryInfo', {})
+        detail = d.get('orderDetail', d)
+        delivery = d.get('deliveryInfo', detail.get('deliveryInfo', {}))
 
-        print(f"\n📋 下单成功！")
-        print("═" * 52)
-        print(f"  订单号: {d.get('orderId', '?')}")
-        print(f"  支付单号: {d.get('payId', '?')}")
-        print(f"  状态: {d.get('orderDetail', d).get('orderStatus', '?')}")
-        print(f"  门店: {d.get('orderDetail', d).get('storeName', a.get('storeName', '?'))}")
-        print("─" * 52)
-        print(f"  🍔 商品:")
-        for p in d.get('orderDetail', d).get('orderProductList', d.get('productList', [])):
-            print(f"     {p.get('productName','?')} x{p.get('quantity','?')}  ¥{float(p.get('price',0)):.2f}")
-        print("─" * 52)
-        price_detail = d.get('orderDetail', d)
-        print(f"  商品小计: ¥{float(price_detail.get('productPrice',0)):.2f}")
-        print(f"  配送费:   ¥{float(price_detail.get('realDeliveryPrice',0)):.2f}")
-        print(f"  打包费:   ¥{float(price_detail.get('realPackingFeeTotalPrice',0)):.2f}")
-        print(f"  优惠减免: ¥{float(price_detail.get('totalDiscountAmount',0)):.2f}")
-        print(f"  实付:     ¥{float(price_detail.get('realTotalAmount',0)):.2f}")
-        print("─" * 52)
-        print(f"  📍 {delivery.get('customerNickname','?')} {delivery.get('mobilePhone','?')}")
-        print(f"     {delivery.get('deliveryAddress','')} {delivery.get('addressDetail','')}")
-        if delivery.get('expectDeliveryTime'):
-            print(f"  🚀 预计送达: {delivery['expectDeliveryTime']}")
-        print("═" * 52)
-
+        print(f"\n📋 下单成功")
+        print("═" * 50)
+        print(f"  订单号: {d.get('orderId','?')}")
+        print(f"  门店:   {detail.get('storeName', a.get('storeName','?'))}")
+        print(f"  状态:   {detail.get('orderStatus','?')}")
+        print(f"  商品:   {detail.get('orderProductList', d.get('productList', [{}]))[0].get('productName','?')} x{detail.get('orderProductList', d.get('productList', [{}]))[0].get('quantity','?')}")
+        print(f"  实付:   ¥{float(detail.get('realTotalAmount', detail.get('totalAmount', 0))):.2f}")
+        print(f"  地址:   {delivery.get('customerNickname', a.get('contactName','?'))} {delivery.get('mobilePhone', a.get('phone','?'))}")
+        addr_line = delivery.get('deliveryAddress', a.get('fullAddress',''))
+        addr_detail = delivery.get('addressDetail', '')
+        print(f"          {addr_line} {addr_detail}")
+        print("═" * 50)
         print(f"\n📱 请打开麦当劳 App → 我的 → 待支付订单 → 完成支付")
 
         # Save to history, clear cart
         conf.setdefault('history', []).insert(0, {
             'action': 'order', 'items': cart,
             'orderId': d.get('orderId', ''),
-            'store': d.get('orderDetail', d).get('storeName', a.get('storeName', '')),
-            'total': float(price_detail.get('realTotalAmount', total*100))/100,
+            'store': detail.get('storeName', a.get('storeName', '')),
+            'total': float(detail.get('realTotalAmount', total)),
             'time': datetime.now().isoformat()
         })
         save_conf(conf)
