@@ -521,10 +521,11 @@ def cmd_cart_add(client, conf, args):
             label += f"  🎫{cart[-1].get('couponTitle','券')}"
         print(f"  ✅ {label} ¥{item['price']:.1f}")
     save_cart(cart)
+    total_qty = sum(c['quantity'] for c in cart)
     total = sum(c['price'] * c['quantity'] for c in cart)
     coupon_count = sum(1 for c in cart if c.get('couponCode'))
     extra = f'  🎫{coupon_count}张券可用' if coupon_count else ''
-    print(f"  🛒 购物车 {len(cart)} 件 ¥{total:.1f}{extra}")
+    print(f"  🛒 购物车 {total_qty} 件 ¥{total:.1f}{extra}")
     print(f"  说「购物车」查看 | 「结算」下单 | 「清空」重置")
     print()
 
