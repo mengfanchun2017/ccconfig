@@ -112,7 +112,7 @@ commit_and_push() {
         return 1
     fi
 
-    git add -A 2>/dev/null
+    git add -A 2>/dev/null || warn "[$repo] git add failed (nested .git?)"
     local commit_output
 
     if commit_output=$(git commit -m "Auto-sync: $(date '+%Y-%m-%d %H:%M:%S')" 2>&1); then
@@ -199,7 +199,7 @@ start_watch() {
     local min_push_gap=60
 
     setsid inotifywait -m -r -q \
-        --exclude '(\.git/|\.snapshots/|node_modules/)' \
+        --exclude '(\.git/|_ext/|\.snapshots/|node_modules/)' \
         -e modify,create,delete,move \
         "$WATCH_DIR" 2>/dev/null | while IFS= read -r line; do
             # Skip sync-internal files
@@ -207,6 +207,7 @@ start_watch() {
                 *".monitor-sync"*) continue ;;
                 *".tmp."*) continue ;;
                 *".snapshots/"*) continue ;;
+                *"_ext/"*) continue ;;
             esac
             # Check if file is under a tracked git repo
             local filepath=$(echo "$line" | awk '{print $1}')
@@ -412,7 +413,7 @@ run_monitor() {
     echo ""
 
     inotifywait -m -r -q \
-        --exclude '\.git/|\.snapshots/|node_modules/|\.log$|\.monitor-sync\.|\.tmp$|\.swp$' \
+        --exclude '\.git/|_ext/|\.snapshots/|node_modules/|\.log$|\.monitor-sync\.|\.tmp$|\.swp$' \
         -e modify,create,delete,move \
         "$WATCH_DIR" 2>/dev/null | while read -r path action file; do
             local full_path="${path}${file}"
