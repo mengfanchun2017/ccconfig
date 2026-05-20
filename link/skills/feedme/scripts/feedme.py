@@ -524,7 +524,8 @@ def cmd_cart_add(client, conf, args):
     total = sum(c['price'] * c['quantity'] for c in cart)
     coupon_count = sum(1 for c in cart if c.get('couponCode'))
     extra = f'  🎫{coupon_count}张券可用' if coupon_count else ''
-    print(f"  🛒 购物车 {len(cart)} 件 ¥{total:.1f}{extra} | 说「购物车」查看「结算」下单「清空」重置")
+    print(f"  🛒 购物车 {len(cart)} 件 ¥{total:.1f}{extra}")
+    print(f"  说「购物车」查看 | 「结算」下单 | 「清空」重置")
     print()
 
 def cmd_cart_show(client, conf):
