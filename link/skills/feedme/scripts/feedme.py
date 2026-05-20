@@ -720,18 +720,7 @@ def cmd_confirm(client, conf):
             print(f"  🚀 预计送达: {delivery['expectDeliveryTime']}")
         print("═" * 52)
 
-        pay_url = d.get('payH5Url', '')
-        if pay_url:
-            print(f"\n📱 支付链接: {pay_url}")
-            try:
-                import qrcode
-                qr = qrcode.QRCode(version=2, error_correction=qrcode.constants.ERROR_CORRECT_M,
-                                   box_size=2, border=2)
-                qr.add_data(pay_url)
-                qr.make(fit=True)
-                try: qr.print_ascii(tty=True)
-                except OSError: qr.print_ascii(tty=False)
-            except: pass
+        print(f"\n📱 请打开麦当劳 App → 我的 → 待支付订单 → 完成支付")
 
         # Save to history, clear cart
         conf.setdefault('history', []).insert(0, {
