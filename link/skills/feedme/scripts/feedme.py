@@ -313,12 +313,20 @@ def cmd_recommend(client, conf):
     history = conf.get('history', [])
     bucket, _ = time_bucket()
 
-    # Build price map from matched coupons (productCode → coupon info)
-    coupon_price_map = {}
+    # Build coupon lookup: item code → coupon info (hybrid: code + name match)
+    coupon_by_item = {}
     for scp in store_coupons:
         pc = scp.get('productCode', '')
-        if pc not in coupon_price_map:
-            coupon_price_map[pc] = scp
+        pn = scp.get('productName', '')
+        for m in menu_items:
+            mc = m.get('code', '')
+            mn = m.get('name', '')
+            if mc in coupon_by_item:
+                continue
+            if pc and mc and pc == mc:
+                coupon_by_item[mc] = scp
+            elif pn and mn and (pn in mn or mn in pn):
+                coupon_by_item[mc] = scp
 
     # Convert to old-style coupon dicts for score_item
     coupons_for_scoring = [{'name': c['title'], 'productCode': c['productCode']} for c in store_coupons]
@@ -329,19 +337,19 @@ def cmd_recommend(client, conf):
     # Save scored items as menu cache so "选 N" maps correctly
     save_menu_cache([s[0] for s in scored])
 
-    # Save coupon map for cart-add to use
+    # Save coupon map for cart-add to use (keyed by item code)
     import json, os
     os.makedirs('/tmp', exist_ok=True)
     with open('/tmp/feedme_coupon_map.json', 'w') as f:
-        json.dump(coupon_price_map, f, ensure_ascii=False)
+        json.dump(coupon_by_item, f, ensure_ascii=False)
 
     print(f"\n⭐ 智能推荐 ({bucket})")
     print("─" * 60)
     for i, (item, score, reasons) in enumerate(scored[:8]):
         stars = '⭐' * min(int(score/2) + 1, 5)
-        info = coupon_price_map.get(item.get('code', ''))
+        info = coupon_by_item.get(item.get('code', ''))
         if info:
-            price_str = f"¥{item['price']:.1f} → 用券"
+            price_str = f"¥{item['price']:.1f} → 🎫"
             reasons = [r for r in reasons if '有券可用' not in r]
             reasons.insert(0, f"券:{info['title']}")
         else:
