@@ -14,13 +14,32 @@ CONF_FILE = os.path.expanduser("~/.claude/projects/-home-francis-git/conf/feedme
 # ── MCP response parsers ──────────────────────────────────
 
 def _extract_json(text):
-    """Extract embedded JSON from MCP markdown response: ## Original Response{...}"""
-    m = re.search(r'## Original Response\s*(\{.+\})\s*$', text, flags=re.DOTALL)
+    """Extract embedded JSON from MCP markdown response. Tries multiple patterns."""
+    # Try the "Original Response" marker first
+    m = re.search(r'##\s*Original\s*Response\s*(\{.+?\})\s*$', text, flags=re.DOTALL)
     if m:
-        try:
-            return json.loads(m.group(1))
-        except:
-            pass
+        try: return json.loads(m.group(1))
+        except: pass
+    # Fallback: find {"success" and use brace counter to extract complete JSON
+    idx = text.find('{"success"')
+    if idx >= 0:
+        depth = 0; end = idx
+        in_str = False; esc = False
+        for i in range(idx, len(text)):
+            c = text[i]
+            if esc: esc = False; continue
+            if c == '\\': esc = True; continue
+            if c == '"': in_str = not in_str; continue
+            if in_str: continue
+            if c == '{': depth += 1
+            elif c == '}':
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    break
+        if end > idx:
+            try: return json.loads(text[idx:end])
+            except: pass
     return None
 
 def parse_addresses(text, conf):
@@ -60,17 +79,33 @@ def parse_account(text):
     return pts
 
 def parse_menu(text):
-    """Parse MCP menu response. Returns list of {name, code, price, category, desc}."""
+    """Parse MCP menu response. Returns list of {name, code, price, category, desc}.
+    MCP response structure: data.categories[].meals[].code + data.meals[code].{name,currentPrice}"""
     data = _extract_json(text)
     if data:
-        meals = data.get('data', {}).get('meals', data.get('data', {}).get('products', []))
-        return [{
-            'name': m.get('name', m.get('productName', '?')),
-            'code': m.get('code', m.get('productCode', '')),
-            'price': float(m.get('price', m.get('sellPrice', 0))),
-            'category': m.get('category', m.get('categoryName', '')),
-            'desc': m.get('desc', m.get('description', '')),
-        } for m in meals]
+        d = data.get('data', {})
+        meals_lookup = d.get('meals', d.get('products', {}))
+        categories = d.get('categories', [])
+        seen = set()
+        result = []
+        for cat in categories:
+            cat_name = cat.get('name', '其他')
+            for m in cat.get('meals', []):
+                code = m.get('code', '')
+                if code in seen:
+                    continue
+                seen.add(code)
+                detail = meals_lookup.get(code, {})
+                name = detail.get('name', m.get('name', code))
+                price = float(detail.get('currentPrice', detail.get('price', 0)))
+                tags = m.get('tags', [])
+                result.append({
+                    'name': name, 'code': code,
+                    'price': price, 'category': cat_name,
+                    'tags': tags,
+                    'desc': detail.get('description', ''),
+                })
+        return result
 
     # Fallback: parse markdown
     items = []
@@ -100,16 +135,19 @@ def parse_coupons(text):
     current = {}
     for line in text.split('\n'):
         line = line.strip()
-        if re.match(r'^##\s+', line) and not 'Response' in line and not '字段' in line and not '输出' in line and not '您的' in line and not '共' in line and not '|' in line:
+        if re.match(r'^##\s+', line) and not 'Response' in line and not '字段' in line and not '输出' in line and not '您的' in line and not '共' in line and not '|' in line and not '<img' in line:
             if current:
                 coupons.append(current)
             current = {'name': line.lstrip('#').strip()}
         elif line.startswith('- **优惠**'):
-            current['discount'] = line.split('**:**')[-1].strip() if '**:**' in line else line.split(':')[-1].strip()
+            v = line.split('**:', 1)[-1].strip() if '**:' in line else line.split(':', 1)[-1].strip()
+            current['discount'] = v
         elif line.startswith('- **有效期**'):
-            current['valid'] = line.split('**:**')[-1].strip() if '**:**' in line else line.split(':')[-1].strip()
+            v = line.split('**:', 1)[-1].strip() if '**:' in line else line.split(':', 1)[-1].strip()
+            current['valid'] = v
         elif line.startswith('- **标签**'):
-            current['tags'] = line.split('**:**')[-1].strip() if '**:**' in line else line.split(':')[-1].strip()
+            v = line.split('**:', 1)[-1].strip() if '**:' in line else line.split(':', 1)[-1].strip()
+            current['tags'] = v
     if current:
         coupons.append(current)
     return coupons
