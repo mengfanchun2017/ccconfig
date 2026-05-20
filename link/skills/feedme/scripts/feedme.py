@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """feedme — 麦当劳智能订餐交互脚本。
-直接调用 MCD MCP API，Claude 只负责启动。"""
+直连 MCD MCP API，Claude 只负责启动。"""
 
-import json, os, sys, re, textwrap
+import json, os, sys, re
 from datetime import datetime
 
 SKILL_DIR = os.path.dirname(os.path.abspath(__file__)) + "/.."
@@ -11,7 +11,110 @@ from mcd_client import MCDClient
 
 CONF_FILE = os.path.expanduser("~/.claude/projects/-home-francis-git/conf/feedme/feedme.json")
 
-# ── helpers ──────────────────────────────────────────────
+# ── MCP response parsers ──────────────────────────────────
+
+def _extract_json(text):
+    """Extract embedded JSON from MCP markdown response: ## Original Response{...}"""
+    m = re.search(r'## Original Response\s*(\{.+\})\s*$', text, flags=re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group(1))
+        except:
+            pass
+    return None
+
+def parse_addresses(text, conf):
+    """Parse MCP address response. Update conf with real address data. Returns list."""
+    data = _extract_json(text)
+    if data and data.get('data', {}).get('addresses'):
+        addrs = data['data']['addresses']
+        conf['addresses'] = [{
+            'addressId': a.get('addressId', ''),
+            'contactName': a.get('contactName', ''),
+            'phone': a.get('phone', ''),
+            'fullAddress': a.get('fullAddress', ''),
+            'storeCode': a.get('storeCode', ''),
+            'storeName': a.get('storeName', ''),
+            'beCode': a.get('beCode', ''),
+        } for a in addrs]
+        save_conf(conf)
+        return conf['addresses']
+    return conf.get('addresses', [])
+
+def parse_account(text):
+    """Extract points values from MCP account response."""
+    data = _extract_json(text)
+    if data and data.get('data'):
+        d = data['data']
+        return {
+            'available': d.get('availablePoint', '?'),
+            'accumulated': d.get('accumulativePoint', '?'),
+            'used': d.get('usedPoint', '?'),
+        }
+    # Fallback: regex from markdown
+    pts = {}
+    for k in ('availablePoint', 'accumulativePoint', 'usedPoint'):
+        m = re.search(rf'{k}[^\d]*(\d+)', text)
+        if m:
+            pts[k] = m.group(1)
+    return pts
+
+def parse_menu(text):
+    """Parse MCP menu response. Returns list of {name, code, price, category, desc}."""
+    data = _extract_json(text)
+    if data:
+        meals = data.get('data', {}).get('meals', data.get('data', {}).get('products', []))
+        return [{
+            'name': m.get('name', m.get('productName', '?')),
+            'code': m.get('code', m.get('productCode', '')),
+            'price': float(m.get('price', m.get('sellPrice', 0))),
+            'category': m.get('category', m.get('categoryName', '')),
+            'desc': m.get('desc', m.get('description', '')),
+        } for m in meals]
+
+    # Fallback: parse markdown
+    items = []
+    current_cat = '其他'
+    for line in text.split('\n'):
+        line = line.strip()
+        if re.match(r'^#{2,3}\s', line):
+            current_cat = line.lstrip('#').strip()
+            if '结构' in current_cat or 'Response' in current_cat or '输出' in current_cat:
+                current_cat = '其他'
+        elif line.startswith('- **') and '**' in line[4:]:
+            m = re.match(r'-\s*\*\*(.+?)\*\*\s*[-:]?\s*(.*)', line)
+            if m:
+                name = m.group(1).strip()
+                rest = m.group(2).strip()
+                price = re.search(r'(?:¥|￥|价格[：:]\s*)([\d.]+)', rest)
+                items.append({
+                    'name': name, 'category': current_cat,
+                    'price': float(price.group(1)) if price else 0,
+                    'code': name, 'desc': rest
+                })
+    return items
+
+def parse_coupons(text):
+    """Parse MCP coupon response. Returns list of {name, discount, valid, tags}."""
+    coupons = []
+    current = {}
+    for line in text.split('\n'):
+        line = line.strip()
+        if re.match(r'^##\s+', line) and not 'Response' in line and not '字段' in line and not '输出' in line and not '您的' in line and not '共' in line and not '|' in line:
+            if current:
+                coupons.append(current)
+            current = {'name': line.lstrip('#').strip()}
+        elif line.startswith('- **优惠**'):
+            current['discount'] = line.split('**:**')[-1].strip() if '**:**' in line else line.split(':')[-1].strip()
+        elif line.startswith('- **有效期**'):
+            current['valid'] = line.split('**:**')[-1].strip() if '**:**' in line else line.split(':')[-1].strip()
+        elif line.startswith('- **标签**'):
+            current['tags'] = line.split('**:**')[-1].strip() if '**:**' in line else line.split(':')[-1].strip()
+    if current:
+        coupons.append(current)
+    return coupons
+
+# ── conf helpers ──────────────────────────────────────────
 
 def load_conf():
     if os.path.exists(CONF_FILE):
@@ -38,183 +141,165 @@ def sep(title=None):
     else:
         print(f"{'─'*50}")
 
-def parse_menu_text(text):
-    """Parse MCP menu markdown response into structured items."""
-    items = []
-    current_cat = "其他"
-    for line in text.split('\n'):
-        line = line.strip()
-        if line.startswith('## ') or line.startswith('### '):
-            current_cat = line.lstrip('#').strip()
-        elif line.startswith('- **') and '**' in line[4:]:
-            m = re.match(r'-\s*\*\*(.+?)\*\*\s*[-:]?\s*(.*)', line)
-            if m:
-                name = m.group(1).strip()
-                rest = m.group(2).strip()
-                price = re.search(r'(?:¥|￥|价格[：:]\s*)([\d.]+)', rest)
-                items.append({
-                    'name': name, 'category': current_cat,
-                    'price': float(price.group(1)) if price else 0,
-                    'desc': rest
-                })
-    return items
+def bar():
+    print(f"  {'─'*46}")
 
-def parse_coupons_text(text):
-    """Parse MCP coupon response."""
-    coupons = []
-    current = {}
-    for line in text.split('\n'):
-        line = line.strip()
-        if line.startswith('## ') and '元' in line:
-            if current:
-                coupons.append(current)
-            current = {'name': line.lstrip('#').strip()}
-        elif line.startswith('- **优惠**'):
-            current['discount'] = line.split('**:**')[-1].strip()
-        elif line.startswith('- **有效期**'):
-            current['valid'] = line.split('**:**')[-1].strip()
-        elif line.startswith('- **标签**'):
-            current['tags'] = line.split('**:**')[-1].strip()
-    if current:
-        coupons.append(current)
-    return coupons
-
-# ── display helpers ──────────────────────────────────────
+# ── display functions ─────────────────────────────────────
 
 def show_overview(client, conf):
     bucket, emoji = time_bucket()
     print(f"\n  {emoji}  feedme · 麦当劳智能订餐 | {bucket}")
-    print(f"  {'─'*40}")
+    bar()
 
-    # Address
+    # Address — auto-fetch from MCP if not in conf
     addrs = conf.get('addresses', [])
+    if not addrs:
+        try:
+            text = client.text("delivery-query-addresses", {"beType": 2})
+            addrs = parse_addresses(text, conf)
+        except:
+            pass
+
     if addrs:
         a = addrs[0]
-        print(f"  📍 {a.get('contactName','?')} {a.get('phone','?')} | {a.get('address','')}{a.get('addressDetail','')}")
+        phone = a.get('phone', '')
+        print(f"  📍 {a.get('contactName','?')} {phone} | {a.get('fullAddress', a.get('address','?')+'')[:40]}")
     else:
-        print(f"  📍 未设置地址 — 输入 `地址` 从 MCP 拉取或添加")
+        print(f"  📍 未设置地址 | 输入 `地址` 从 MCP 拉取 | `加地址` 添加")
 
-    # Coupons (from MCP)
+    # Coupons
     try:
-        ctext = client.text("query-my-coupons")
-        count = ctext.count('## ') if ctext else 0
-        print(f"  🎫 {count} 张优惠券 | 输入 `券` 查看 | `领券` 一键领取")
+        text = client.text("query-my-coupons")
+        coupons = parse_coupons(text)
+        print(f"  🎫 {len(coupons)} 张优惠券 | `券` 查看 | `领券` 一键领取")
     except:
         pass
 
     # Points
     try:
-        ptext = client.text("query-my-account")
-        p = re.search(r'(?:availablePoints|可用积分)[^\d]*(\d+)', ptext)
-        if p:
-            print(f"  ⭐ {p.group(1)} 积分")
+        text = client.text("query-my-account")
+        pts = parse_account(text)
+        av = pts.get('availablePoint', pts.get('available', '?'))
+        print(f"  ⭐ {av} 可用积分")
     except:
         pass
 
-    # History
-    hist = [h for h in conf.get('history', []) if h.get('action') == 'order']
-    if hist:
-        last = hist[0]
-        items = ', '.join(i.get('name','?') for i in last.get('items', []))
-        print(f"  🔄 最近: {items} ¥{last.get('total','?')} | 输入 `复购` 再来一单")
+    # Recent order
+    orders = [h for h in conf.get('history', []) if h.get('action') == 'order']
+    if orders:
+        last = orders[0]
+        items = ', '.join(i.get('name','?') for i in last.get('items',[]))
+        print(f"  🔄 最近: {items} ¥{last.get('total','?')} | `复购` 再来一单")
 
-    sep()
-    print("  [推荐] [菜单] [券] [领券] [复购] [地址] [积分] [活动] [q退出]")
-    sep()
+    bar()
+    print("  [r推荐] [m菜单] [c券] [领券] [复购] [地址] [积分] [活动] [下单] [q退出]")
+    bar()
 
-def show_menu_text(text):
-    """Display MCP menu response in readable format."""
-    items = parse_menu_text(text)
-    if not items:
-        print(text[:500])
-        return items
-
-    cats = {}
-    for m in items:
-        cats.setdefault(m['category'], []).append(m)
-
-    sep("📋 菜单")
-    for cat, lst in sorted(cats.items()):
-        print(f"\n  ▸ {cat}")
-        for i, m in enumerate(lst):
-            print(f"  {len([x for v in cats.values() for x in v if cats[list(cats.keys()).index(list(cats.keys())[list(cats.values()).index(v)])]  is lst][:i])} {i+1:>2}. {m['name']:<18s} ¥{m['price']:>5.1f}")
-
-    print(f"\n  共 {len(items)} 种 | 输入 `选 编号` 或 `选 名称`")
-    return items
-
-def show_recommend(client, conf, menu_items=None):
-    """Query menu + coupons, score, display top picks."""
-    # Get store info from address
+def show_menu(client, conf):
     addrs = conf.get('addresses', [])
     if not addrs:
-        print("  ❌ 需要先设置地址才能推荐。输入 `地址` 拉取或添加。")
-        return
-
-    addr = addrs[0]
-    store_code = addr.get('storeCode', '')
-    be_code = addr.get('beCode', '')
-
-    if not store_code:
+        print("  ❌ 需先设置地址。输入 `地址` 拉取。")
+        return []
+    a = addrs[0]
+    sc = a.get('storeCode', '')
+    bc = a.get('beCode', '')
+    if not sc:
         print("  ❌ 地址缺少门店信息。输入 `地址` 重新拉取。")
+        return []
+
+    print("  ⏳ 查询菜单...")
+    try:
+        text = client.text("query-meals", {"storeCode": sc, "beCode": bc, "orderType": 2})
+    except Exception as e:
+        print(f"  ❌ {e}")
+        return []
+
+    items = parse_menu(text)
+    if not items:
+        # Raw display as fallback
+        print(text[:2000])
+        return []
+
+    # Group by category
+    cats = {}
+    for m in items:
+        c = m.get('category', '其他')
+        cats.setdefault(c, []).append(m)
+
+    sep("📋 菜单")
+    idx = 0
+    for cat, lst in sorted(cats.items()):
+        print(f"\n  ▸ {cat}")
+        for m in lst:
+            idx += 1
+            price_str = str(m['price']) if m['price'] else '?'
+            print(f"  {idx:>3}. {m['name']:<20s} ¥{price_str:>6s}")
+    print(f"\n  共 {idx} 种 | `选 编号` 加购物车 | `推荐` 智能推荐")
+    return items
+
+def show_recommend(client, conf):
+    addrs = conf.get('addresses', [])
+    if not addrs:
+        print("  ❌ 需先设置地址。输入 `地址` 拉取。")
+        return
+    a = addrs[0]
+    sc = a.get('storeCode', '')
+    bc = a.get('beCode', '')
+    if not sc:
+        print("  ❌ 地址缺少门店。输入 `地址` 重新拉取。")
         return
 
     print("  ⏳ 查询菜单和优惠券...")
     try:
-        menu_text = client.text("query-meals", {"storeCode": store_code, "beCode": be_code, "orderType": 2})
-        menu_items = parse_menu_text(menu_text)
+        menu_text = client.text("query-meals", {"storeCode": sc, "beCode": bc, "orderType": 2})
+        menu_items = parse_menu(menu_text)
     except Exception as e:
         print(f"  ❌ 菜单查询失败: {e}")
+        return
+    if not menu_items:
+        print("  ❌ 未能解析菜单。输入 `m` 查看原始数据。")
         return
 
     try:
         coupon_text = client.text("query-my-coupons")
-        coupons = parse_coupons_text(coupon_text)
+        coupons = parse_coupons(coupon_text)
     except:
         coupons = []
 
     prefs = conf.get('preferences', {})
     history = conf.get('history', [])
 
-    # Call recommend engine
-    sys.path.insert(0, os.path.join(SKILL_DIR, "scripts"))
     from recommend import score_item
-
     bucket, _ = time_bucket()
-    scored = []
-    for item in menu_items:
-        s, reasons = score_item(item, prefs, coupons, history, bucket)
-        scored.append({'item': item, 'score': s, 'reasons': reasons})
-    scored.sort(key=lambda x: x['score'], reverse=True)
+    scored = [(m, *score_item(m, prefs, coupons, history, bucket)) for m in menu_items]
+    scored.sort(key=lambda x: x[1], reverse=True)
 
     sep(f"⭐ 智能推荐 ({bucket})")
-    for i, r in enumerate(scored[:8]):
-        item = r['item']
-        stars = '⭐' * min(int(r['score']/2) + 1, 5)
-        print(f"  {i+1}. {stars} {item['name']:<18s} ¥{item['price']:>5.1f}")
-        if r['reasons']:
-            print(f"     {', '.join(r['reasons'])}")
-
-    sep()
-    print(f"  输入 `选 编号` 加入点餐 | `详情 编号` 查看套餐组成")
-
+    for i, (item, score, reasons) in enumerate(scored[:8]):
+        stars = '⭐' * min(int(score/2) + 1, 5)
+        price_str = str(item['price']) if item['price'] else '?'
+        print(f"  {i+1}. {stars} {item['name']:<20s} ¥{price_str:>6s}")
+        if reasons:
+            print(f"     {', '.join(reasons)}")
+    bar()
+    print(f"  `选 编号` 加购物车 | `下单` 结算")
+    return [s[0] for s in scored]  # Return scored items for selection
 
 def show_coupons(client):
     sep("🎫 我的优惠券")
     try:
         text = client.text("query-my-coupons")
-        coupons = parse_coupons_text(text)
+        coupons = parse_coupons(text)
         if not coupons:
-            # Try direct display
-            print(text[:1000])
+            print(text[:1500])
         else:
             for i, c in enumerate(coupons):
                 print(f"  {i+1}. {c.get('name','?')}")
-                if c.get('discount'):
-                    print(f"     优惠: {c['discount']}")
-                if c.get('valid'):
-                    print(f"     有效期: {c['valid']}")
+                if c.get('discount'): print(f"     优惠: {c['discount']}")
+                if c.get('valid'):   print(f"     有效期: {c['valid']}")
+                if c.get('tags'):    print(f"     标签: {c['tags']}")
                 print()
-            print(f"  共 {len(coupons)} 张 | 输入 `领券` 一键领取")
+            print(f"  共 {len(coupons)} 张 | `领券` 一键领取")
     except Exception as e:
         print(f"  ❌ 查询失败: {e}")
 
@@ -222,28 +307,26 @@ def show_addresses(client, conf):
     sep("📍 配送地址")
     try:
         text = client.text("delivery-query-addresses", {"beType": 2})
-        print(text[:2000])
-        print("\n  输入 `加地址` 添加新地址")
+        addrs = parse_addresses(text, conf)
+        if not addrs:
+            # Try raw display
+            print(text[:2000])
+            return
+        for i, a in enumerate(addrs):
+            mark = '👉' if i == 0 else '  '
+            print(f"  {mark} {a['contactName']} | {a['phone']}")
+            print(f"     {a['fullAddress']}")
+            print(f"     门店: {a['storeName']} ({a['storeCode']})")
+            print()
+        print(f"  共 {len(addrs)} 个地址 | `加地址` 添加 | 第一个为默认地址")
     except Exception as e:
         print(f"  ❌ 查询失败: {e}")
-        print("  输入 `加地址` 添加新地址")
-
-def show_history(conf):
-    sep("🔄 历史订单")
-    orders = [h for h in conf.get('history', []) if h.get('action') == 'order']
-    if not orders:
-        print("  暂无历史订单")
-        return
-    for i, o in enumerate(orders[:10]):
-        items = ', '.join(it.get('name','?') for it in o.get('items',[]))
-        print(f"  {i+1}. {items}  ¥{o.get('total',0)}  {o.get('time','')[:16]}")
-    print(f"\n  输入 `复购 N` 快速下单")
 
 def show_activity(client):
     sep("📅 营销活动")
     try:
         text = client.text("campaign-calendar")
-        print(text[:1500])
+        print(text[:2000])
     except Exception as e:
         print(f"  ❌ 查询失败: {e}")
 
@@ -251,114 +334,145 @@ def show_points(client):
     sep("⭐ 我的积分")
     try:
         text = client.text("query-my-account")
-        print(text[:1000])
+        pts = parse_account(text)
+        if pts:
+            for k, v in pts.items():
+                print(f"  {k}: {v}")
+        else:
+            print(text[:1000])
     except Exception as e:
         print(f"  ❌ 查询失败: {e}")
 
-
 # ── order flow ───────────────────────────────────────────
 
-def start_order(client, conf):
+def start_order(client, conf, pre_selected=None):
     """Interactive order placement."""
     addrs = conf.get('addresses', [])
     if not addrs:
         print("  ❌ 请先设置地址。输入 `地址` 拉取。")
         return
 
-    addr = addrs[0]
-    store_code = addr.get('storeCode', '')
-    be_code = addr.get('beCode', '')
-
-    if not store_code:
-        # Try to get store from MCP addresses
-        r = client.call("delivery-query-addresses", {"beType": 2})
-        text = r.get('text', '')
-        # Parse addressId and storeCode from response
-        print("  ⚠️ 需要先选择地址。输入 `地址` 更新。")
+    a = addrs[0]
+    sc = a.get('storeCode', '')
+    bc = a.get('beCode', '')
+    if not sc:
+        print("  ❌ 地址缺少门店。输入 `地址` 重新拉取。")
         return
 
-    print("  📋 加载菜单...")
+    print("  ⏳ 加载菜单...")
     try:
-        menu_text = client.text("query-meals", {"storeCode": store_code, "beCode": be_code, "orderType": 2})
-        menu_items = parse_menu_text(menu_text)
+        text = client.text("query-meals", {"storeCode": sc, "beCode": bc, "orderType": 2})
+        menu_items = parse_menu(text)
     except Exception as e:
         print(f"  ❌ {e}")
         return
 
-    print(f"  ✅ 加载 {len(menu_items)} 种餐品。输入餐品名称或编号加入购物车，输入 `done` 结算。")
+    if not menu_items:
+        print("  ❌ 菜单为空")
+        return
 
-    # Quick cart
+    print(f"  ✅ {len(menu_items)} 种餐品已加载。")
+    print(f"  输入餐品编号或名称添加 | `done` 结算 | `cancel` 取消")
+
     cart = []
+    if pre_selected:
+        for item in pre_selected:
+            if isinstance(item, dict) and 'name' in item:
+                cart.append({'name': item['name'], 'code': item.get('code', ''), 'price': item.get('price', 0), 'quantity': 1})
+                total = sum(c['price'] * c['quantity'] for c in cart)
+                print(f"  ✅ {item['name']} ¥{item.get('price',0)} | {len(cart)}件 ¥{total}")
+
     while True:
         try:
             cmd = input("  选餐> ").strip()
         except (EOFError, KeyboardInterrupt):
             break
-
         if not cmd:
             continue
-        if cmd.lower() in ('done', '下单', '结算', 'ok'):
+        if cmd.lower() in ('done', '下单', '结算', 'ok', ''):
             break
-        if cmd.lower() in ('q', 'quit', '取消'):
+        if cmd.lower() in ('cancel', 'q', '取消'):
             print("  已取消。")
             return
 
-        # Try match by number
+        # Match by number
         matched = None
         try:
             n = int(cmd) - 1
             if 0 <= n < len(menu_items):
                 matched = menu_items[n]
-        except:
+        except ValueError:
             # Match by name keyword
             for m in menu_items:
-                if cmd in m['name']:
+                if cmd in m.get('name', ''):
                     matched = m
                     break
 
         if matched:
-            cart.append({'name': matched['name'], 'price': matched['price'], 'quantity': 1})
-            total = sum(c['price'] for c in cart)
-            print(f"  ✅ +{matched['name']} ¥{matched['price']} | 购物车 {len(cart)}件 ¥{total}")
+            # Check if already in cart
+            existing = next((c for c in cart if c['name'] == matched['name']), None)
+            if existing:
+                existing['quantity'] += 1
+            else:
+                cart.append({'name': matched['name'], 'code': matched.get('code', matched['name']),
+                             'price': matched.get('price', 0), 'quantity': 1})
+            total = sum(c['price'] * c['quantity'] for c in cart)
+            print(f"  ✅ {'+' if not existing else '🔁'} {matched['name']} ¥{matched.get('price',0):.1f} | 购物车 {len(cart)}件 ¥{total:.1f}")
         else:
-            print(f"  ❓ 未找到「{cmd}」，请重试或输入 `done` 结算 `cancel` 取消")
+            print(f"  ❓ 未找到「{cmd}」。重试或 `done` 结算 `cancel` 取消")
 
     if not cart:
-        print("  购物车为空，已取消。")
+        print("  购物车为空。")
         return
 
-    # Confirm
-    total = sum(c['price'] for c in cart)
-    print(f"\n  📦 订单确认:")
-    for c in cart:
-        print(f"     {c['name']:<20s} ¥{c['price']:.1f}")
-    print(f"  {'─'*30}")
-    print(f"  💰 小计: ¥{total:.1f}")
-    print(f"  📍 {addr.get('contactName')} {addr.get('phone')} | {addr.get('address')}{addr.get('addressDetail')}")
+    # Show order summary
+    total = sum(c['price'] * c['quantity'] for c in cart)
     print()
+    sep("📦 订单确认")
+    for c in cart:
+        qty = f"x{c['quantity']}" if c['quantity'] > 1 else ""
+        print(f"  {qty:>3s} {c['name']:<20s} ¥{c['price']:.1f}")
+    bar()
+    print(f"  💰 合计: ¥{total:.1f}")
+    print(f"  📍 {a['contactName']} {a['phone']} | {a.get('fullAddress', a.get('address',''))[:50]}")
+    bar()
+
     confirm = input("  确认下单? [Y/n] ").strip().lower()
-    if confirm and confirm not in ('y', 'yes', '是', ''):
+    if confirm and confirm not in ('y', 'yes', '是', '', 'ok'):
         print("  已取消。")
         return
 
-    # Place order via MCP
-    items = [{"productCode": c.get('code', c['name']), "quantity": c.get('quantity', 1)} for c in cart]
+    # Calculate price first
+    print("  ⏳ 计算价格...")
+    order_items = [{"productCode": c['code'], "quantity": c['quantity']} for c in cart]
+    try:
+        price_r = client.calc_price(sc, bc, 2, order_items)
+        price_text = price_r.get('text', '')
+        print(price_text[:500])
+    except Exception as e:
+        print(f"  ⚠️ 价格计算异常: {e}")
+
+    # Place order
     print("  ⏳ 下单中...")
     try:
-        r = client.create_order(store_code, be_code, addr.get('addressId', ''), 2, items)
-        text = r.get('text', str(r))
+        r = client.create_order(sc, bc, a.get('addressId', ''), 2, order_items)
+        text = r.get('text', '')
         print(text[:1500])
 
-        # Try to find pay URL
-        pay_url = re.search(r'(https?://[^\s"\']+pay[^\s"\']+)', text)
+        # Extract payment URL
+        pay_url = re.search(r'(https?://[^\s"\'>]+(?:pay|order|payment)[^\s"\'>]*)', text)
+        if not pay_url:
+            pay_url = re.search(r'payH5Url[：:]\s*(https?://[^\s"\'>]+)', text)
+        if not pay_url:
+            pay_url = re.search(r'(https?://[^\s"\']+)', text)
+
         if pay_url:
-            print(f"\n  🔗 支付链接: {pay_url.group(1)}")
-            # Show QR
+            url = pay_url.group(1) if pay_url.lastindex else pay_url.group(0) if hasattr(pay_url, 'group') else pay_url
+            print(f"\n  🔗 支付链接: {url}")
             try:
                 import qrcode
-                qr = qrcode.QRCode(version=2, error_correction=qrcode.constants.ERROR_CORRECT_M,
-                                   box_size=1, border=2)
-                qr.add_data(pay_url.group(1))
+                qr = qrcode.QRCode(version=2, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=1, border=2)
+                qr.add_data(url)
                 qr.make(fit=True)
                 try:
                     qr.print_ascii(tty=True)
@@ -367,44 +481,45 @@ def start_order(client, conf):
             except:
                 pass
 
-        # Save to history
+        # Save history
         conf.setdefault('history', []).insert(0, {
             'action': 'order', 'items': cart,
-            'store': addr.get('storeName', ''), 'total': total,
+            'store': a.get('storeName', ''), 'total': total,
             'time': datetime.now().isoformat()
         })
         save_conf(conf)
-        print("\n  ✅ 订单已保存到历史。")
+        print("  ✅ 订单已保存。")
     except Exception as e:
         print(f"  ❌ 下单失败: {e}")
 
-
-# ── main ──────────────────────────────────────────────────
+# ── main loop ─────────────────────────────────────────────
 
 def main():
-    # Check MCP config
     if not os.path.exists(CONF_FILE):
-        print("❌ 未配置。请先运行: bash scripts/setup.sh")
+        print("❌ 未配置。运行: bash ~/.claude/skills/feedme/scripts/setup.sh")
+        print("   获取 Token: https://open.mcd.cn/mcp")
         sys.exit(1)
 
     conf = load_conf()
     token = conf.get('mcd', {}).get('token', '')
     if not token:
-        print("❌ Token 未设置。请先运行: bash scripts/setup.sh --update")
+        print("❌ Token 未设置。运行: bash ~/.claude/skills/feedme/scripts/setup.sh --update")
         sys.exit(1)
 
     print("  ⏳ 连接麦当劳 MCP...")
     try:
         client = MCDClient(token)
-        client.call("now-time-info")  # warm up
+        client.call("now-time-info")
     except Exception as e:
         print(f"  ❌ 连接失败: {e}")
-        print("  Token 可能已过期。运行: bash scripts/setup.sh --update")
+        print("  运行: bash ~/.claude/skills/feedme/scripts/setup.sh --update")
         sys.exit(1)
 
     show_overview(client, conf)
 
-    # Main loop
+    last_menu = []
+    last_recommend = []
+
     while True:
         try:
             cmd = input("\nfeedme> ").strip()
@@ -417,51 +532,53 @@ def main():
 
         cl = cmd.lower()
 
-        # ── shortcuts ──
         if cl in ('q', 'quit', 'exit', '退出'):
             print("  👋 再见！")
             break
 
-        elif cl in ('r', 'recommend', '推荐', '推荐一下', '有什么好吃的'):
-            show_recommend(client, conf)
+        elif cl in ('r', 'recommend', '推荐', '推荐一下'):
+            last_recommend = show_recommend(client, conf) or []
 
-        elif cl in ('m', 'menu', '菜单', '看看', '有啥'):
-            addrs = conf.get('addresses', [])
-            if not addrs:
-                print("  ❌ 需先设置地址。输入 `地址` 拉取。")
-                continue
-            addr = addrs[0]
-            store_code = addr.get('storeCode', '')
-            be_code = addr.get('beCode', '')
-            if not store_code:
-                print("  ❌ 地址缺少门店。输入 `地址` 重新拉取。")
-                continue
-            print("  ⏳ 查询菜单...")
-            text = client.text("query-meals", {"storeCode": store_code, "beCode": be_code, "orderType": 2})
-            show_menu_text(text)
+        elif cl in ('m', 'menu', '菜单'):
+            last_menu = show_menu(client, conf)
 
-        elif cl in ('c', 'coupon', '券', '优惠券', '我的券'):
+        elif cl in ('c', 'coupon', '券', '优惠券'):
             show_coupons(client)
 
-        elif cl in ('领券', '领优惠券', 'bing'):
+        elif cl in ('领券', 'bind'):
             print("  ⏳ 一键领券...")
-            r = client.bind_coupons()
-            print(r.get('text', r.get('error', str(r)))[:2000])
+            try:
+                r = client.bind_coupons()
+                print(r.get('text', str(r))[:2000])
+            except Exception as e:
+                print(f"  ❌ {e}")
 
-        elif cl in ('re', 'reorder', '复购', '历史', '再来一单'):
-            show_history(conf)
+        elif cl in ('re', 'reorder', '复购', '历史'):
+            orders = [h for h in conf.get('history', []) if h.get('action') == 'order']
+            if not orders:
+                print("  暂无历史订单。")
+                continue
+            sep("🔄 历史订单")
+            for i, o in enumerate(orders[:10]):
+                items = ', '.join(it.get('name','?') for it in o.get('items',[]))
+                print(f"  {i+1}. {items}  ¥{o.get('total',0)}  {o.get('time','')[:16]}")
+            bar()
+            print("  `复购 N` 快速下单")
 
         elif cl.startswith('复购 ') or cl.startswith('re '):
-            n = int(cl.split()[-1]) - 1
-            orders = [h for h in conf.get('history', []) if h.get('action') == 'order']
-            if 0 <= n < len(orders):
-                o = orders[n]
-                print(f"  复购: {', '.join(i.get('name','?') for i in o['items'])}")
-                print(f"  ⚠️ 下单功能: 输入 `下单` 进入交互点餐流程")
-            else:
-                print(f"  ❌ 无效编号")
+            try:
+                n = int(cl.split()[-1]) - 1
+                orders = [h for h in conf.get('history', []) if h.get('action') == 'order']
+                if 0 <= n < len(orders):
+                    o = orders[n]
+                    print(f"  🔄 复购: {', '.join(i.get('name','?') for i in o['items'])}")
+                    start_order(client, conf, pre_selected=o['items'])
+                else:
+                    print(f"  ❌ 无效编号")
+            except ValueError:
+                print("  ❌ 用法: `复购 1`")
 
-        elif cl in ('a', 'addr', '地址', '地址管理'):
+        elif cl in ('a', 'addr', '地址'):
             show_addresses(client, conf)
 
         elif cl.startswith('加地址') or cl in ('+addr',):
@@ -470,44 +587,67 @@ def main():
             name = input("  联系人: ").strip()
             phone = input("  电话: ").strip()
             addr = input("  地址 (如 朝阳区): ").strip()
-            detail = input("  门牌号 (如 望京SOHO T1 1501): ").strip()
+            detail = input("  门牌号 (如 望京SOHO T1): ").strip()
             if all([city, name, phone, addr, detail]):
-                r = client.add_address(city, name, phone, addr, detail)
-                print(r.get('text', str(r))[:2000])
-                # Refresh addresses
-                r2 = client.call("delivery-query-addresses", {"beType": 2})
-                text = r2.get('text', '')
-                # Update conf with basic info
-                conf.setdefault('addresses', []).insert(0, {
-                    'contactName': name, 'phone': phone,
-                    'address': addr, 'addressDetail': detail,
-                })
-                save_conf(conf)
-                print("  ✅ 地址已添加")
+                try:
+                    r = client.add_address(city, name, phone, addr, detail)
+                    print(r.get('text', str(r))[:2000])
+                    # Re-fetch addresses to get the new one with store info
+                    print("  ⏳ 刷新地址列表...")
+                    text = client.text("delivery-query-addresses", {"beType": 2})
+                    parse_addresses(text, conf)
+                    print("  ✅ 地址已添加。")
+                except Exception as e:
+                    print(f"  ❌ {e}")
             else:
                 print("  ❌ 所有字段必填")
 
-        elif cl in ('活动', '活动日历', 'calendar', 'cal'):
+        elif cl in ('活动', '日历', 'cal'):
             show_activity(client)
 
-        elif cl in ('积分', 'points', '我的积分', 'pt'):
+        elif cl in ('积分', '点', 'points', 'pt'):
             show_points(client)
 
-        elif cl in ('下单', 'order', '点餐'):
+        elif cl in ('下单', 'order', 'buy'):
             start_order(client, conf)
+
+        elif cl.startswith('选 ') or cl.startswith('s '):
+            # Quick add from last menu/recommend
+            sel = cl.split(' ', 1)[1]
+            all_items = last_recommend or last_menu
+            if all_items:
+                matched = None
+                try:
+                    n = int(sel) - 1
+                    if 0 <= n < len(all_items):
+                        matched = all_items[n]
+                except ValueError:
+                    for m in all_items:
+                        if sel in m.get('name', ''):
+                            matched = m
+                            break
+                if matched:
+                    print(f"  ⚠️ 请使用 `下单` 进入点餐流程，目前不支持快捷加购。")
+                    print(f"  💡 已记录: {matched['name']}")
+                else:
+                    print(f"  ❓ 未找到「{sel}」。先 `推荐` 或 `菜单` 查看。")
+            else:
+                print("  ⚠️ 先运行 `推荐` 或 `菜单`。")
 
         elif cl in ('help', '?', '帮助', 'h'):
             print("""
   快捷指令:
-    r/推荐     — 智能推荐           券/优惠券   — 查看优惠券
-    m/菜单     — 浏览菜单           领券        — 一键领取所有券
-    复购/历史   — 历史订单           地址        — 查看/添加地址
-    下单       — 交互点餐           积分        — 积分查询
-    活动       — 活动日历           q/退出      — 退出
+    r 推荐    智能推荐          券    查看优惠券
+    m 菜单    浏览菜单          领券  一键领取
+    复购      历史订单          地址  查看/添加
+    下单      交互点餐          积分  积分查询
+    活动      活动日历          q    退出
+
+  交互中: 输入编号或名称选择 | done 结算 | cancel 取消
 """)
 
         else:
-            print(f"  ❓ 未知指令「{cmd}」。输入 `help` 查看帮助。")
+            print(f"  ❓ 未知「{cmd}」。`help` 查看帮助。")
 
 
 if __name__ == '__main__':
