@@ -1,7 +1,7 @@
 ---
 name: feedme
 user-invocable: true
-description: 智能订餐助手 — 麦当劳MCP订餐、优惠券管理、偏好推荐、地址管理
+description: 智能订餐助手 — 麦当劳订餐、优惠券管理、偏好推荐、地址管理
 allowed-tools: Bash
 ---
 
@@ -11,63 +11,71 @@ allowed-tools: Bash
 
 ## 启动
 
-```
-bash scripts/feedme.sh
-```
+用户首次说 feedme 时，运行：
 
-Claude 只负责运行这个命令。之后所有交互在 Python 脚本内完成（直连 MCD MCP API），不经过 LLM。
-
-## 交互模式
-
-脚本启动后进入命令循环，显示实时 MCP 数据：
-
-```
-🍔  feedme · 麦当劳智能订餐 | lunch
-
-📍 张三 13800138000 | 朝阳区望京SOHO
-🎫 6 张优惠券 | ⭐ 1,234 积分
-🔄 最近: 巨无霸套餐 ¥32
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  [推荐] [菜单] [券] [领券] [复购] [地址] [积分] [活动] [q退出]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-feedme>
+```bash
+bash ~/.claude/skills/feedme/scripts/feedme.sh
 ```
 
-## 快捷指令
+这会显示 overview（地址、优惠券、积分、历史订单、购物车）。
 
-| 指令 | 功能 |
-|------|------|
-| `r` / `推荐` | 基于偏好+优惠券+时段智能推荐 |
-| `m` / `菜单` | 浏览当前门店菜单 |
-| `券` / `优惠券` | 查看已持优惠券 |
-| `领券` | 一键领取所有可用券 |
-| `复购` / `历史` | 查看历史订单 |
-| `下单` | 交互式选餐→确认→下单→显示支付二维码 |
-| `地址` | 从 MCP 拉取配送地址 |
-| `加地址` | 交互式添加新地址 |
-| `积分` | 查询积分余额 |
-| `活动` | 查询当月营销活动 |
-| `q` / `退出` | 退出 |
+之后所有交互由 Claude 根据用户输入路由到对应命令。
+
+## 命令路由表
+
+每次用户输入一个指令后，执行对应命令即可。脚本每次只做一个操作，立即返回。
+
+| 用户说 | 执行 |
+|--------|------|
+| `feedme` | `python3 scripts/feedme.py overview` |
+| `推荐` / `推荐一下` | `python3 scripts/feedme.py recommend` |
+| `菜单` | `python3 scripts/feedme.py menu` |
+| `券` / `优惠券` | `python3 scripts/feedme.py coupons` |
+| `领券` | `python3 scripts/feedme.py bind-coupons` |
+| `地址` | `python3 scripts/feedme.py addresses` |
+| `加地址 <城市> <姓名> <电话> <地址> <门牌>` | `python3 scripts/feedme.py add-address <...>` |
+| `积分` | `python3 scripts/feedme.py points` |
+| `活动` / `日历` | `python3 scripts/feedme.py activity` |
+| `历史` / `复购` | `python3 scripts/feedme.py history` |
+| `复购 N` / `再来第N单` | `python3 scripts/feedme.py reorder N` |
+| `选 N` / `要 N` / `加 N` | `python3 scripts/feedme.py cart-add N` |
+| `选 1,3,5` 多个 | `python3 scripts/feedme.py cart-add 1 3 5` |
+| `选 巨无霸` 按名称 | `python3 scripts/feedme.py cart-add 巨无霸` |
+| `购物车` | `python3 scripts/feedme.py cart-show` |
+| `删 N` / `移除 N` | `python3 scripts/feedme.py cart-remove N` |
+| `清空` | `python3 scripts/feedme.py cart-clear` |
+| `结算` / `下单` | `python3 scripts/feedme.py checkout` |
+| `确认` / `确认下单` | `python3 scripts/feedme.py confirm` |
+| `取消` | `python3 scripts/feedme.py cancel` |
+| `q` / `退出` / `不吃了` | 结束，不需执行命令 |
+
+## 执行路径
+
+所有命令在 skill 目录执行：
+
+```bash
+cd ~/.claude/skills/feedme && python3 scripts/feedme.py <command> [args...]
+```
 
 ## 首次使用
 
-如果没有配置 MCP Token，脚本会提示运行：
+如果脚本输出 "Token 未配置"，告诉用户：
 
-```bash
+```
 bash ~/.claude/skills/feedme/scripts/setup.sh
 ```
+
+获取 Token: https://open.mcd.cn/mcp
 
 ## 脚本组件
 
 | 文件 | 职责 |
 |------|------|
-| `scripts/feedme.py` | 主交互脚本，命令循环 |
+| `scripts/feedme.py` | CLI 调度器，每个命令一次调用 |
+| `scripts/feedme.sh` | 入口，MCP 检查 + overview |
 | `scripts/mcd_client.py` | MCD MCP HTTP 客户端 |
 | `scripts/recommend.py` | 推荐引擎（规则打分） |
-| `scripts/prefs.py` | 偏好/历史 本地存储 |
+| `scripts/display.py` | 独立格式化工具（可选） |
 | `scripts/qrpay.py` | 支付二维码显示 |
-| `scripts/display.py` | 独立格式化工具 |
-| `scripts/setup.sh` | MCP 安装向导 |
+| `scripts/setup.sh` | MCP Token 安装向导 |
 | `references/mcd-mcp.md` | MCP 工具速查 |
