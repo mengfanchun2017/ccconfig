@@ -242,7 +242,7 @@ def cmd_menu(client, conf):
     text = client.text("query-meals", {"storeCode": sc, "beCode": bc, "orderType": 2})
     items = parse_menu(text)
     if not items:
-        print(text[:2000])
+        print(text[:5000])
         return
     save_menu_cache(items)
 
@@ -313,7 +313,7 @@ def cmd_coupons(client, conf):
     text = client.text("query-my-coupons")
     coupons = parse_coupons(text)
     if not coupons:
-        print(text[:1500])
+        print(text[:5000])
         return
     print(f"\n🎫 我的优惠券（{len(coupons)} 张）")
     print("─" * 60)
@@ -330,14 +330,14 @@ def cmd_coupons(client, conf):
 def cmd_bind_coupons(client, conf):
     print("⏳ 一键领券...")
     r = client.bind_coupons()
-    print(r.get('text', str(r))[:2000])
+    print(r.get('text', str(r))[:5000])
 
 def cmd_addresses(client, conf):
     print("⏳ 查询地址...")
     text = client.text("delivery-query-addresses", {"beType": 2})
     addrs = parse_addresses(text, conf)
     if not addrs:
-        print(text[:2000])
+        print(text[:5000])
         return
     print(f"\n📍 配送地址（{len(addrs)} 个）")
     print("─" * 60)
@@ -357,7 +357,7 @@ def cmd_add_address(client, conf, args):
     city, name, phone, addr, detail = args[0], args[1], args[2], args[3], ' '.join(args[4:])
     print(f"⏳ 添加地址: {name} {phone} {city}{addr}{detail}...")
     r = client.add_address(city, name, phone, addr, detail)
-    print(r.get('text', str(r))[:2000])
+    print(r.get('text', str(r))[:5000])
     print("⏳ 刷新地址列表...")
     text = client.text("delivery-query-addresses", {"beType": 2})
     parse_addresses(text, conf)
@@ -389,12 +389,12 @@ def cmd_points(client, conf):
             print(f"  {k}: {v}")
         print()
     else:
-        print(text[:1000])
+        print(text[:5000])
 
 def cmd_activity(client, conf):
     print("⏳ 查询活动...")
     text = client.text("campaign-calendar")
-    print(text[:2000])
+    print(text[:5000])
 
 # ═══════════════════════════════════════════════════════════
 # Cart commands
@@ -521,27 +521,53 @@ def cmd_checkout(client, conf):
         print("❌ 缺少地址。说「地址」拉取。")
         return
 
-    total = sum(c['price'] * c['quantity'] for c in cart)
+    cart_total = sum(c['price'] * c['quantity'] for c in cart)
     print(f"\n📦 订单确认")
     print("═" * 52)
     for c in cart:
         qty = f"x{c['quantity']}" if c['quantity'] > 1 else ""
         print(f"  {qty:>3s} {c['name']:<24s} ¥{c['price'] * c['quantity']:.1f}")
     print("─" * 52)
-    print(f"  💰 合计: ¥{total:.1f}")
-    print(f"  📍 {a.get('contactName','?')} {a.get('phone','?')}")
-    print(f"     {a.get('fullAddress','')[:50]}")
-    print("═" * 52)
 
     # Calculate actual price via MCP
     print("⏳ 计算实际价格...")
     order_items = [{"productCode": c['code'], "quantity": c['quantity']} for c in cart]
     try:
         r = client.calc_price(a['storeCode'], a['beCode'], 2, order_items)
-        print(r.get('text', '')[:2000])
+        text = r.get('text', '')
+        data = _extract_json(text)
+
+        if data and data.get('data'):
+            d = data['data']
+            def _y(v): return int(v) / 100 if v else 0
+
+            p_orig = _y(d.get('productOriginalPrice', 0))
+            p_actual = _y(d.get('productPrice', 0))
+            d_orig = _y(d.get('deliveryOriginalPrice', 0))
+            d_actual = _y(d.get('deliveryPrice', 0))
+            pk_orig = _y(d.get('packingOriginalPrice', 0))
+            pk_actual = _y(d.get('packingPrice', 0))
+            discount = _y(d.get('discount', 0))
+            final_total = _y(d.get('price', 0))
+
+            print(f"  {'项目':<12s} {'原价':>8s} {'优惠':>8s} {'小计':>8s}")
+            print(f"  {'─'*36}")
+            print(f"  {'商品':<12s} ¥{p_orig:>7.2f} ¥{p_orig-p_actual:>7.2f} ¥{p_actual:>7.2f}")
+            if d_orig > 0:
+                print(f"  {'外送费':<12s} ¥{d_orig:>7.2f} ¥{d_orig-d_actual:>7.2f} ¥{d_actual:>7.2f}")
+            if pk_orig > 0:
+                print(f"  {'打包费':<12s} ¥{pk_orig:>7.2f} ¥{pk_orig-pk_actual:>7.2f} ¥{pk_actual:>7.2f}")
+            print(f"  {'─'*36}")
+            print(f"  {'合计':<12s} {'':>8s} ¥{discount:>7.2f} ¥{final_total:>7.2f}")
+        else:
+            print(text[:5000])
     except Exception as e:
         print(f"⚠️ 价格计算异常: {e}")
 
+    print(f"  {'─'*52}")
+    print(f"  📍 {a.get('contactName','?')} {a.get('phone','?')}")
+    print(f"     {a.get('fullAddress','')[:60]}")
+    print("═" * 52)
     print()
     print("说「确认」完成下单 | 「取消」放弃 | 「选 N」继续加餐")
     print()
@@ -576,7 +602,7 @@ def cmd_confirm(client, conf):
 
         if not data or not data.get('data'):
             print("❌ 下单响应解析失败，请检查订单状态")
-            print(text[:500])
+            print(text[:5000])
             return
 
         d = data['data']
