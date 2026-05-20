@@ -726,7 +726,7 @@ def cmd_confirm(client, conf):
             try:
                 import qrcode
                 qr = qrcode.QRCode(version=2, error_correction=qrcode.constants.ERROR_CORRECT_M,
-                                   box_size=1, border=2)
+                                   box_size=2, border=2)
                 qr.add_data(pay_url)
                 qr.make(fit=True)
                 try: qr.print_ascii(tty=True)
