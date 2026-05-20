@@ -1,21 +1,18 @@
 #!/bin/bash
-# feedme.sh — Entry point: check MCP + show context overview.
-# Claude handles the conversation; this just primes the pump.
+# feedme.sh — Launch the feedme interactive script.
+# Claude runs this when user says "feedme".
 set -euo pipefail
-
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-# Check MCP
-echo "🔍 检查 MCP 配置..."
+# Quick MCP check
 if ! bash "$SKILL_DIR/scripts/setup.sh" --check 2>/dev/null; then
+    echo "❌ 麦当劳 MCP 未配置。"
     echo ""
-    echo "❌ 麦当劳 MCP 未配置"
-    echo "   运行: bash scripts/setup.sh"
-    echo "   获取Token: https://open.mcd.cn/mcp"
+    echo "   快速安装："
+    echo "   1. 获取 Token: https://open.mcd.cn/mcp"
+    echo "   2. 运行安装: bash ~/.claude/skills/feedme/scripts/setup.sh"
+    echo "   3. 回到此处输入 feedme"
     exit 1
 fi
-echo "✅ MCP 已配置"
-echo ""
 
-# Show context
-python3 "$SKILL_DIR/scripts/display.py" overview
+exec python3 "$SKILL_DIR/scripts/feedme.py"
