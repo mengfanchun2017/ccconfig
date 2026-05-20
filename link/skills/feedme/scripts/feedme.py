@@ -354,7 +354,7 @@ def cmd_recommend(client, conf):
             reasons.insert(0, f"券:{info['title']}")
         else:
             price_str = f"¥{item['price']:.1f}"
-        print(f"  {i+1}. {stars} {item['name']:<24s} {price_str:>16s}")
+        print(f"  {i+1}. {stars} {item['name']:<20s}  {price_str}")
         if reasons:
             print(f"     {', '.join(reasons)}")
     print("─" * 60)
