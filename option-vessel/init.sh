@@ -211,17 +211,11 @@ register_mcp() {
 
     echo -e "${CYAN}── 注册 Vessel MCP ──${NC}"
 
-    # 先删除旧配置
-    claude mcp remove vessel 2>/dev/null || true
+    # claude mcp add CLI 不支持 streamableHttp 类型，直接写 settings.json
+    local settings_path="$HOME/.claude/settings.json"
 
-    # 注册 MCP (使用 claude mcp add 的 streamableHttp 格式)
-    echo -n "  注册到 Claude Code ... "
-    if claude mcp add -s user vessel --type streamableHttp --url "http://localhost:${MCP_PORT}/mcp" --header "Authorization: Bearer ${token}" 2>&1; then
-        good "✅ MCP 已注册"
-    else
-        # 回退：直接写 settings.json
-        warn "  claude mcp add 失败，直接写配置文件..."
-        python3 - "$token" "$MCP_PORT" << 'PYEOF'
+    echo -n "  写入 MCP 配置 ... "
+    python3 - "$token" "$MCP_PORT" << 'PYEOF'
 import json, sys, os
 
 token = sys.argv[1]
@@ -235,8 +229,8 @@ if 'mcpServers' not in data:
     data['mcpServers'] = {}
 
 data['mcpServers']['vessel'] = {
-    'type': 'streamableHttp',
-    'url': f'http://localhost:{port}/mcp',
+    'type': 'streamablehttp',
+    'url': f'http://127.0.0.1:{port}/mcp',
     'headers': {
         'Authorization': f'Bearer {token}'
     }
@@ -244,10 +238,9 @@ data['mcpServers']['vessel'] = {
 
 with open(settings_path, 'w') as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
-print('✅ MCP 配置已写入 settings.json')
+print('done')
 PYEOF
-    fi
-    echo -e "  ${GREEN}✅ Vessel MCP 配置完成${NC}"
+    good "✅ MCP 配置已写入 settings.json"
     echo -e "  ${GRAY}下次启动 Claude Code 时生效${NC}"
 }
 
