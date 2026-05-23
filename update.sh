@@ -125,45 +125,83 @@ cleanup_old_snapshots() {
 self_update() {
     section "ccconfig 自更新"
 
-    cd "$SCRIPT_DIR"
+    info "fetching origin/main..."
+    git -C "$SCRIPT_DIR" fetch origin main 2>/dev/null || { warn "无法连接远程，跳过自更新"; return 0; }
 
-    # 检查是否有未提交的本地改动
-    if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
-        warn "本地有未提交改动，跳过自更新"
-        return 0
-    fi
-
-    local before=$(git rev-parse --short HEAD 2>/dev/null || echo "?")
-
-    info "git pull..."
-    git fetch origin main 2>/dev/null || { warn "无法连接远程，跳过自更新"; return 0; }
-
-    local remote=$(git rev-parse --short origin/main 2>/dev/null)
-    local local_commit=$(git rev-parse --short HEAD 2>/dev/null)
+    local remote=$(git -C "$SCRIPT_DIR" rev-parse --short origin/main 2>/dev/null)
+    local local_commit=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null)
 
     if [ "$local_commit" = "$remote" ]; then
         success "ccconfig 已是最新: $local_commit"
         return 0
     fi
 
-    # 检查 update.sh 是否会被更新
-    local update_files
-    update_files=$(git diff --name-only "HEAD..origin/main" 2>/dev/null || echo "")
+    # 尝试 fast-forward
+    local pull_output pull_ok=true
+    set +e
+    pull_output=$(git -C "$SCRIPT_DIR" pull --ff-only origin main 2>&1)
+    local pull_status=$?
+    set -e
 
-    if git pull --ff-only origin main 2>&1 | tail -2; then
-        local after=$(git rev-parse --short HEAD)
-        success "ccconfig: $before → $after"
+    if [ $pull_status -eq 0 ]; then
+        echo "$pull_output" | tail -2
+        local after=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)
+        success "ccconfig: $local_commit → $after"
 
-        # 如果 update.sh 或 path-helper.sh 被更新，重新加载自身
+        local update_files
+        update_files=$(git -C "$SCRIPT_DIR" diff --name-only "$local_commit..$after" 2>/dev/null || echo "")
         if echo "$update_files" | grep -qE "update.sh|lib/path-helper.sh|conf/versions.json"; then
             warn "关键文件已更新，重新加载..."
             exec bash "$SCRIPT_DIR/update.sh" "${1:-menu}"
-            # exec 不返回
         fi
-    else
-        warn "git pull 失败（可能有冲突），保留当前版本"
-        return 1
+        return 0
     fi
+
+    # 拉取失败 — 显示冲突处理菜单
+    local has_uncommitted=false
+    if ! git -C "$SCRIPT_DIR" diff --quiet 2>/dev/null || ! git -C "$SCRIPT_DIR" diff --cached --quiet 2>/dev/null; then
+        has_uncommitted=true
+    fi
+
+    echo ""
+    warn "自动拉取失败"
+    if $has_uncommitted; then
+        echo "  原因: 本地有未提交的改动"
+        git -C "$SCRIPT_DIR" status --short 2>/dev/null | head -10
+    else
+        echo "  原因: 本地与远程已分叉"
+    fi
+    echo ""
+    echo "  本地: $local_commit"
+    echo "  远程: $remote"
+    echo ""
+    echo "  a) 远程覆盖本地（丢弃本地所有改动）"
+    echo "  b) 本地覆盖远程（强制推送本地到远程）"
+    echo "  c) 取消，在 Claude 中手动处理"
+    echo ""
+    read -p "选择 [a/b/c]: " conflict_choice
+
+    case "$conflict_choice" in
+        a|A)
+            echo ""
+            info "远程覆盖本地..."
+            git -C "$SCRIPT_DIR" reset --hard "origin/main"
+            git -C "$SCRIPT_DIR" clean -fd 2>/dev/null || true
+            local after=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)
+            success "本地已与远程一致: $after"
+            ;;
+        b|B)
+            echo ""
+            info "本地覆盖远程..."
+            git -C "$SCRIPT_DIR" push --force origin main
+            success "远程已强制覆盖"
+            ;;
+        *)
+            echo ""
+            info "已取消，请在 Claude 中手动处理"
+            return 1
+            ;;
+    esac
 }
 
 # 从 Node.js index.json (stdin) 解析目标版本
@@ -925,16 +963,17 @@ show_menu() {
 acquire_lock
 trap release_lock EXIT
 
+# 先更新 ccconfig 自身（含冲突处理菜单）
+self_update
+
 case "${1:-menu}" in
     all)
-        local today
         today=$(date +%Y-%m-%d)
         echo -e "${CYAN}ccconfig 组件升级 $today（基础+扩展）${NC}"
         take_snapshot "pre" > /dev/null
         update_all false
         ;;
     --no-option)
-        local today
         today=$(date +%Y-%m-%d)
         echo -e "${CYAN}ccconfig 组件升级 $today（不含可选）${NC}"
         take_snapshot "pre" > /dev/null
