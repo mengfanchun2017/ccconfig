@@ -127,7 +127,7 @@ commit_and_push() {
                     log "[$repo] links OK" || warn "[$repo] links failed"
             fi
             if [ -f "$repo_dir/init-skill.sh" ]; then
-                bash "$repo_dir/init-skill.sh sync" >> "$LOG_FILE" 2>&1 && \
+                bash "$repo_dir/init-skill.sh" sync >> "$LOG_FILE" 2>&1 && \
                     log "[$repo] skills sync OK" || warn "[$repo] skills sync failed"
             fi
             if timeout 60 git -C "$repo_dir" push origin "$branch" >> "$LOG_FILE" 2>&1; then
