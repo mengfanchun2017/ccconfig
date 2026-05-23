@@ -175,22 +175,31 @@ configure_mcp() {
         start_vessel || return 1
     fi
 
+    # 从标准路径自动读取 token（~/.config/vessel/mcp-auth.json）
+    local auth_file="$HOME/.config/vessel/mcp-auth.json"
+    if [ -f "$auth_file" ]; then
+        local token=$(python3 -c "import json; print(json.load(open('$auth_file'))['token'])" 2>/dev/null)
+        if [ -n "$token" ]; then
+            echo -n "  Token (自动读取 $auth_file) ... "
+            good "✅ ${token:0:16}..."
+            register_mcp "$token"
+            return 0
+        fi
+    fi
+
     # 检查 MCP 端点
     echo -n "  MCP 端点 (localhost:${MCP_PORT}) ... "
     local resp=$(curl -s --max-time 3 "http://localhost:${MCP_PORT}/mcp" 2>/dev/null || echo "")
     if echo "$resp" | grep -q "Unauthorized\|bearer"; then
-        good "✅ 已响应（待配置 token）"
+        good "✅ 已响应"
     else
         warn "○ 未响应"
         return 1
     fi
 
     echo ""
-    echo -e "  ${YELLOW}下一步: 在 Vessel 界面按 Ctrl+, 打开 Settings${NC}"
-    echo -e "  ${YELLOW}找到 MCP 配置区域，复制 Bearer Token${NC}"
-    echo ""
-    echo -e "  ${GRAY}拿到 token 后运行:${NC}"
-    echo -e "  ${BOLD}bash ccconfig/option-vessel/init.sh --mcp-token <你的token>${NC}"
+    echo -e "  ${RED}Token 文件不存在: $auth_file${NC}"
+    echo -e "  ${GRAY}手动注册: bash ccconfig/option-vessel/init.sh --mcp-token <token>${NC}"
 }
 
 register_mcp() {
