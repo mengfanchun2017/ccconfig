@@ -238,6 +238,19 @@ check_vessel() {
         echo -e "${YELLOW}○${NC} 未运行"
     fi
 
+    echo -n "  Token ... "
+    local auth_file="$HOME/.config/vessel/mcp-auth.json"
+    if [ -f "$auth_file" ]; then
+        local token=$(python3 -c "import json; print(json.load(open('$auth_file'))['token'])" 2>/dev/null)
+        if [ -n "$token" ]; then
+            echo -e "${GREEN}✅${NC} ${token:0:16}..."
+        else
+            echo -e "${YELLOW}○${NC} 解析失败"
+        fi
+    else
+        echo -e "${YELLOW}○${NC} 未生成"
+    fi
+
     echo -n "  MCP (端口 3100) ... "
     if curl -s --max-time 2 "http://localhost:3100/mcp" 2>/dev/null | grep -q "Unauthorized\|bearer"; then
         echo -e "${GREEN}✅${NC} 已监听"
