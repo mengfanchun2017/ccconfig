@@ -227,7 +227,7 @@ if 'mcpServers' not in data:
     data['mcpServers'] = {}
 
 data['mcpServers']['vessel'] = {
-    'type': 'streamablehttp',
+    'type': 'streamable-http',
     'url': f'http://127.0.0.1:{port}/mcp',
     'headers': {
         'Authorization': f'Bearer {token}'
