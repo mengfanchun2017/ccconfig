@@ -259,7 +259,7 @@ check_vessel() {
     fi
 
     echo -n "  MCP 注册 ... "
-    if grep -q '"vessel"' "$HOME/.claude/settings.json" 2>/dev/null; then
+    if grep -q '"vessel"' "$HOME/.claude/.config.json" 2>/dev/null; then
         echo -e "${GREEN}✅${NC} 已注册"
     else
         echo -e "${YELLOW}○${NC} 未注册"

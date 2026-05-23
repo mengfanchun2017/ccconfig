@@ -211,18 +211,16 @@ register_mcp() {
 
     echo -e "${CYAN}── 注册 Vessel MCP ──${NC}"
 
-    # claude mcp add CLI 不支持 streamableHttp 类型，直接写 settings.json
-    local settings_path="$HOME/.claude/settings.json"
-
+    # claude mcp add CLI 不支持 streamableHttp，直接写 .config.json（/mcp 对话框读取的文件）
     echo -n "  写入 MCP 配置 ... "
     python3 - "$token" "$MCP_PORT" << 'PYEOF'
 import json, sys, os
 
 token = sys.argv[1]
 port = sys.argv[2]
-settings_path = os.path.expanduser('~/.claude/settings.json')
+config_path = os.path.expanduser('~/.claude/.config.json')
 
-with open(settings_path, 'r') as f:
+with open(config_path, 'r') as f:
     data = json.load(f)
 
 if 'mcpServers' not in data:
@@ -236,11 +234,11 @@ data['mcpServers']['vessel'] = {
     }
 }
 
-with open(settings_path, 'w') as f:
+with open(config_path, 'w') as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
 print('done')
 PYEOF
-    good "✅ MCP 配置已写入 settings.json"
+    good "✅ MCP 配置已写入 .config.json"
     echo -e "  ${GRAY}下次启动 Claude Code 时生效${NC}"
 }
 
@@ -270,9 +268,9 @@ show_status() {
         warn "○ 未监听"
     fi
 
-    # 检查 MCP 注册
+    # 检查 MCP 注册（.config.json 是 /mcp 对话框读取的文件）
     echo -n "  MCP 注册 ... "
-    if grep -q '"vessel"' "$HOME/.claude/settings.json" 2>/dev/null; then
+    if grep -q '"vessel"' "$HOME/.claude/.config.json" 2>/dev/null; then
         good "✅ 已注册"
     else
         warn "○ 未注册"
