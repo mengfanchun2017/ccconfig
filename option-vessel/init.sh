@@ -211,35 +211,17 @@ register_mcp() {
 
     echo -e "${CYAN}── 注册 Vessel MCP ──${NC}"
 
-    # claude mcp add CLI 不支持 streamableHttp，直接写 .config.json（/mcp 对话框读取的文件）
-    echo -n "  写入 MCP 配置 ... "
-    python3 - "$token" "$MCP_PORT" << 'PYEOF'
-import json, sys, os
+    # 先删除旧配置
+    claude mcp remove vessel 2>/dev/null || true
 
-token = sys.argv[1]
-port = sys.argv[2]
-config_path = os.path.expanduser('~/.claude/.config.json')
-
-with open(config_path, 'r') as f:
-    data = json.load(f)
-
-if 'mcpServers' not in data:
-    data['mcpServers'] = {}
-
-data['mcpServers']['vessel'] = {
-    'type': 'streamable-http',
-    'url': f'http://127.0.0.1:{port}/mcp',
-    'headers': {
-        'Authorization': f'Bearer {token}'
-    }
-}
-
-with open(config_path, 'w') as f:
-    json.dump(data, f, indent=2, ensure_ascii=False)
-print('done')
-PYEOF
-    good "✅ MCP 配置已写入 .config.json"
-    echo -e "  ${GRAY}下次启动 Claude Code 时生效${NC}"
+    echo -n "  注册到 Claude Code ... "
+    if claude mcp add --transport http --scope user vessel "http://127.0.0.1:${MCP_PORT}/mcp" \
+        --header "Authorization: Bearer ${token}" 2>&1; then
+        good "✅ MCP 已注册"
+    else
+        bad "❌ 注册失败"
+        return 1
+    fi
 }
 
 # ========== 状态检查 ==========
