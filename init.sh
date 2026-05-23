@@ -15,11 +15,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 show_banner() {
-    echo -e "${CYAN}"
-    echo "╔══════════════════════════════════════════════════╗"
-    echo "║          Claude Code 配置中枢 · ccconfig        ║"
-    echo "╚══════════════════════════════════════════════════╝"
-    echo "$NC"
+    echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
 }
 
 run_step() {
@@ -93,6 +89,24 @@ submenu_feishu() {
     echo ""
     echo "  查看状态:  bash ccconfig/option-bridge/bot-status.sh"
     echo "  切换账号:  bash ccconfig/option-bridge/lark-switch.sh <name>"
+    echo ""
+    read -p "按回车返回..." dummy
+}
+
+submenu_vessel() {
+    echo ""
+    echo -e "${CYAN}── Vessel AI 浏览器（可选） ──${NC}"
+    echo ""
+    echo "  手动安装:  bash ccconfig/option-vessel/init.sh"
+    echo ""
+    echo "  Vessel 是开源 AI Agent 浏览器"
+    echo "  Claude Code 通过 MCP 操控浏览器，人类监督审批"
+    echo "  打开网页、点击、填表、提取内容、截图"
+    echo ""
+    echo "  启动:        vessel &"
+    echo "  MCP token:  在 Settings (Ctrl+,) 查看"
+    echo "  注册 MCP:    bash ccconfig/option-vessel/init.sh --mcp-token <token>"
+    echo "  状态检查:    bash ccconfig/option-vessel/init.sh --status"
     echo ""
     read -p "按回车返回..." dummy
 }
@@ -188,39 +202,41 @@ submenu_tools() {
 main_menu() {
     show_banner
     echo ""
-    echo "  ┌─ 环境初始化 ──────────────────────────┐"
-    echo "  │ 1) Ubuntu 环境  │ LLM切换 │ 自启动   │"
-    echo "  │ 2) [可选] 飞书 Bridge               │"
-    echo "  │ 3) 远程连接    │ SSH │ tmux │ EasyTier │"
-    echo "  │ 4) MCP 管理    │ 安装 │ 同步 │ 状态   │"
-    echo "  │ 5) Skills      │ 同步 │ 状态          │"
-    echo "  │ 6) 系统工具    │ 检查 │ 拉取 │ 升级   │"
-    echo "  ├────────────────────────────────────────┤"
-    echo "  │ 7) ★ 一键全部初始化                   │"
-    echo "  │ 0) 退出                               │"
-    echo "  └────────────────────────────────────────┘"
+    echo "  ── 环境初始化 ──"
+    echo "  1) Ubuntu 环境  │ LLM切换 │ 自启动"
+    echo "  2) 远程连接    │ SSH │ tmux │ EasyTier"
+    echo "  3) MCP 管理    │ 安装 │ 同步 │ 状态"
+    echo "  4) Skills      │ 同步 │ 状态"
+    echo "  5) 系统工具    │ 检查 │ 拉取 │ 升级"
+    echo "  6) ★ 一键全部初始化"
+    echo "  ── 可选组件 ──"
+    echo "  7) 飞书 Bridge"
+    echo "  8) Vessel AI 浏览器"
+    echo "  0) 退出"
     echo ""
-    read -p "选择 [0-7]: " choice
+    read -p "选择 [0-8]: " choice
 
     case "$choice" in
         1) submenu_env ;;
-        2) submenu_feishu ;;
-        3) submenu_remote ;;
-        4) submenu_mcp ;;
-        5) submenu_skills ;;
-        6) submenu_tools ;;
-        7)
+        2) submenu_remote ;;
+        3) submenu_mcp ;;
+        4) submenu_skills ;;
+        5) submenu_tools ;;
+        6)
             show_banner
             run_step "1/4 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
             run_step "2/4 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
             run_step "3/4 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
             run_step "4/4 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
             echo ""
-            echo "🎉 全部初始化完成（飞书 Bridge 为可选组件）"
+            echo "🎉 全部初始化完成（飞书 Bridge / Vessel 为可选组件）"
             echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
-            echo "可选: bash ccconfig/option-bridge/init.sh  # 安装飞书 Bridge"
+            echo "可选: bash ccconfig/option-bridge/init.sh   # 安装飞书 Bridge"
+            echo "可选: bash ccconfig/option-vessel/init.sh   # 安装 Vessel AI 浏览器"
             exit 0
             ;;
+        7) submenu_feishu ;;
+        8) submenu_vessel ;;
         0) echo ""; exit 0 ;;
         *) echo "无效选择"; main_menu ;;
     esac
@@ -240,9 +256,10 @@ case "${1:-menu}" in
         run_step "3/4 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
         run_step "4/4 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
         echo ""
-        echo "🎉 全部初始化完成（飞书 Bridge 为可选组件）"
+        echo "🎉 全部初始化完成（飞书 Bridge / Vessel 为可选组件）"
         echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
-        echo "可选: bash ccconfig/option-bridge/init.sh  # 安装飞书 Bridge"
+        echo "可选: bash ccconfig/option-bridge/init.sh   # 安装飞书 Bridge"
+        echo "可选: bash ccconfig/option-vessel/init.sh   # 安装 Vessel AI 浏览器"
         exit 0
         ;;
     status)
