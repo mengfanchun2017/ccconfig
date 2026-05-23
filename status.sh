@@ -215,6 +215,46 @@ check_ppt_master() {
     fi
 }
 
+# ========== Vessel AI 浏览器（可选） ==========
+check_vessel() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[6b] Vessel AI 浏览器 [option]${NC}"
+
+    local vessel_bin="$HOME/.local/bin/vessel"
+    local vessel_dir="$HOME/.local/lib/vessel/squashfs-root/vessel"
+
+    echo -n "  安装 ... "
+    if [ -x "$vessel_bin" ] || [ -f "$vessel_dir" ]; then
+        echo -e "${GREEN}✅${NC}"
+    else
+        echo -e "${GRAY}－${NC} (未安装)"
+    fi
+
+    echo -n "  进程 ... "
+    if pgrep -f "squashfs-root/vessel|vessel.*AppImage" > /dev/null 2>&1; then
+        local pid=$(pgrep -f "squashfs-root/vessel" | head -1)
+        echo -e "${GREEN}✅${NC} 运行中 (PID: $pid)"
+    else
+        echo -e "${YELLOW}○${NC} 未运行"
+    fi
+
+    echo -n "  MCP (端口 3100) ... "
+    if curl -s --max-time 2 "http://localhost:3100/mcp" 2>/dev/null | grep -q "Unauthorized\|bearer"; then
+        echo -e "${GREEN}✅${NC} 已监听"
+    else
+        echo -e "${GRAY}－${NC} 未监听"
+    fi
+
+    echo -n "  MCP 注册 ... "
+    if grep -q '"vessel"' "$HOME/.claude/settings.json" 2>/dev/null; then
+        echo -e "${GREEN}✅${NC} 已注册"
+    else
+        echo -e "${YELLOW}○${NC} 未注册"
+    fi
+
+    echo -e "  ${GRAY}安装: bash ccconfig/option-vessel/init.sh${NC}"
+}
+
 # ========== 7. MCP 服务器状态 ==========
 check_mcp() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -482,6 +522,7 @@ check_last_push
 check_memory
 check_ppt_master
 check_feishu
+check_vessel
 check_mcp
 check_remote
 

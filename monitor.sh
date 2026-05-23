@@ -96,34 +96,32 @@ check_deps() {
 commit_and_push() {
     local repo_dir="$1"
 
-    cd "$repo_dir"
     rm -f "$repo_dir/.git/index.lock" 2>/dev/null
 
     local repo=$(repo_name "$repo_dir")
-    local changed_files=$(git status --porcelain 2>/dev/null)
+    local changed_files=$(git -C "$repo_dir" status --porcelain 2>/dev/null)
     [ -z "$changed_files" ] && return 0
 
     echo "" | tee -a "$LOG_FILE"
     info "[$repo] changes detected"
     echo "$changed_files" | while read line; do do_log "[$repo]   $line"; done
 
-    if git ls-files -u 2>/dev/null | grep -q .; then
+    if git -C "$repo_dir" ls-files -u 2>/dev/null | grep -q .; then
         error "[$repo] UNRESOLVED CONFLICTS — manual resolution needed"
         return 1
     fi
 
-    git add -A 2>/dev/null || warn "[$repo] git add failed (nested .git?)"
+    git -C "$repo_dir" add -A 2>/dev/null || warn "[$repo] git add failed (nested .git?)"
     local commit_output
 
-    if commit_output=$(git commit -m "Auto-sync: $(date '+%Y-%m-%d %H:%M:%S')" 2>&1); then
+    if commit_output=$(git -C "$repo_dir" commit -m "Auto-sync: $(date '+%Y-%m-%d %H:%M:%S')" 2>&1); then
         local commit_hash=$(echo "$commit_output" | grep -o '[a-f0-9]\{7\}' | tail -1)
         log "[$repo] committed $commit_hash"
 
-        local branch=$(git branch --show-current)
+        local branch=$(git -C "$repo_dir" branch --show-current)
         local pull_output
-        if pull_output=$(timeout 120 git pull --ff origin "$branch" 2>&1); then
+        if pull_output=$(timeout 120 git -C "$repo_dir" pull --ff-only origin "$branch" 2>&1); then
             log "[$repo] pull OK"
-            # ccconfig special: rebuild symlinks + sync skills
             if [ -f "$repo_dir/setup-links.sh" ]; then
                 bash "$repo_dir/setup-links.sh" >> "$LOG_FILE" 2>&1 && \
                     log "[$repo] links OK" || warn "[$repo] links failed"
@@ -132,7 +130,7 @@ commit_and_push() {
                 bash "$repo_dir/init-skill.sh sync" >> "$LOG_FILE" 2>&1 && \
                     log "[$repo] skills sync OK" || warn "[$repo] skills sync failed"
             fi
-            if timeout 60 git push origin "$branch" >> "$LOG_FILE" 2>&1; then
+            if timeout 60 git -C "$repo_dir" push origin "$branch" >> "$LOG_FILE" 2>&1; then
                 log "[$repo] pushed → GitHub ($commit_hash)"
             else
                 warn "[$repo] push failed — check network"
@@ -141,7 +139,7 @@ commit_and_push() {
             echo "$pull_output" >> "$LOG_FILE"
             if echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls"; then
                 warn "[$repo] pull failed: network issue"
-            elif echo "$pull_output" | grep -qi "fatal: refusing to merge unrelated histories\|fatal: have diverged"; then
+            elif echo "$pull_output" | grep -qi "fatal: refusing to merge unrelated histories\|fatal: have diverged\|Not possible to fast-forward"; then
                 error "[$repo] pull failed: diverged — run: cd $repo_dir && git pull --ff"
             else
                 error "[$repo] pull failed: $(echo "$pull_output" | head -1)"
@@ -188,7 +186,7 @@ start_watch() {
     fi
 
     cd "$MONITOR_HOME"
-    resurrect_pm2
+    resurrect_pm2 &
 
     : > "$LOG_FILE"
     QUIET_MODE=true
