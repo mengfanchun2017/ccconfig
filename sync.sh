@@ -377,7 +377,6 @@ menu_mode() {
         idx=$((idx + 1))
     done <<< "$repos_data"
 
-    echo ""
     local all_id=$idx
     echo -e "  ${BOLD}$all_id)${NC} ★ 全部同步（ff-only）"
 
