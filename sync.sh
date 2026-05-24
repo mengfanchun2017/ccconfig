@@ -9,7 +9,7 @@
 #   bash ccconfig/sync.sh --check         # 仅检查 ccconfig
 #
 # ccconfig 额外执行: 重建链接 + skills + 依赖检查 + 新配置模板 + 摘要
-# _ext/ 仓库仅 pull，不支持 push
+# 第三方依赖（_ext/）更新 → update.sh
 
 set -e
 
@@ -31,12 +31,6 @@ list_repos() {
             [ "$name" = "ccconfig" ] && continue
             [ "$name" = "_ext" ] && continue
             repos+=("$name|${d%/}|rw")
-        done
-    fi
-    # _ext/ 第三方仓库（pull-only）
-    if [ -d "$HOME/git/_ext" ]; then
-        for d in "$HOME/git/_ext"/*/; do
-            [ -d "${d}.git" ] && repos+=("$(basename "$d") (_ext)|${d%/}|ro")
         done
     fi
     printf '%s\n' "${repos[@]}"
@@ -190,13 +184,6 @@ sync_one_repo() {
         echo -e "  ${GREEN}✅ $repo_name: $before → $after${NC}"
         show_changed "$before" "$after" "$repo_dir"
         return 0
-    fi
-
-    # 拉取失败
-    if [ "$writable" = "ro" ]; then
-        echo -e "  ${YELLOW}⚠️  ff-only 失败（第三方仓库，无法强制同步）${NC}"
-        echo -e "  ${GRAY}手动: cd $repo_dir && git status${NC}"
-        return 1
     fi
 
     # 冲突菜单
@@ -383,9 +370,7 @@ menu_mode() {
         dirs+=("$dir")
         modes+=("$mode")
         repo_count=$((repo_count + 1))
-        local tag=""
-        [ "$mode" = "ro" ] && tag=" ${GRAY}(pull only)${NC}"
-        echo -e "  ${BOLD}$idx)${NC} ${name}$tag"
+        echo -e "  ${BOLD}$idx)${NC} ${name}"
         repo_status "$dir"
         idx=$((idx + 1))
     done <<< "$repos_data"
@@ -441,13 +426,8 @@ menu_mode() {
                 echo -e "${CYAN}── sync: ${BOLD}$name${NC} ──${NC}"
                 echo ""
                 echo "  1) 智能同步（推荐）"
-                if [ "$mode" = "rw" ]; then
-                    echo "  2) 强制拉取远程（丢弃本地改动）"
-                    echo "  3) 本地覆盖远程"
-                else
-                    echo -e "  ${GRAY}2) 强制拉取（不可用：第三方仓库）${NC}"
-                    echo -e "  ${GRAY}3) 本地覆盖（不可用：第三方仓库）${NC}"
-                fi
+                echo "  2) 强制拉取远程（丢弃本地改动）"
+                echo "  3) 本地覆盖远程"
                 echo "  0) 返回"
                 echo ""
                 read -p "  选择: " sub
@@ -455,25 +435,14 @@ menu_mode() {
                 case "$sub" in
                     1)
                         sync_one_repo "$dir" "$name" "$mode"
-                        if [ "$name" = "cconfig" ]; then
-                            do_cconfig_post
-                            echo -e "${GREEN}✅ 同步完成${NC}"
-                        fi
+                        [ "$name" = "cconfig" ] && { do_cconfig_post; echo -e "${GREEN}✅ 同步完成${NC}"; }
                         ;;
                     2)
-                        if [ "$mode" != "rw" ]; then
-                            echo -e "  ${RED}❌ 第三方仓库不支持强制拉取${NC}"
-                        else
-                            force_pull "$dir" "$name"
-                            [ "$name" = "cconfig" ] && do_cconfig_post
-                        fi
+                        force_pull "$dir" "$name"
+                        [ "$name" = "cconfig" ] && do_cconfig_post
                         ;;
                     3)
-                        if [ "$mode" != "rw" ]; then
-                            echo -e "  ${RED}❌ 第三方仓库不支持推送${NC}"
-                        else
-                            force_push "$dir" "$name"
-                        fi
+                        force_push "$dir" "$name"
                         ;;
                     0|"") ;;
                     *) echo -e "  ${RED}无效选择${NC}" ;;
