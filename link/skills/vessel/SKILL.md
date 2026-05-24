@@ -24,6 +24,19 @@ Vessel is an open-source browser (Linux) that Claude Code controls via MCP (port
 | Bookmark | `bookmark` | Save/read bookmarks |
 | Session | `save_session`, `restore_session` | Persist cookies + localStorage |
 
+## 在研究流程中的定位
+
+Vessel 不是搜索工具，是**浏览器操控工具**。在研究框架中的角色：
+
+```
+Tavily extract → 拿到内容 → 直接用
+               → 失败（空壳/登录墙/SPA/反爬） → Vessel 打开页面提取
+```
+
+- **搜索始终用 Tavily**（速度快、成本低、可并行）
+- **Vessel 只用于 Tavily 提取失败的页面**，或需要交互/登录的场景
+- 日常调研中 Vessel 是最后 fallback，不是主力
+
 ## Workflow Pattern
 
 When asked to perform a web task:
