@@ -347,7 +347,80 @@ officecli query deck.pptx 'picture:no-alt'         # 缺 alt 文本的图片
 9. **形状 ID**：自定义形状从 `@id=10000` 起，模板占位符用 `@id=2,3,...`
 10. **MCP 模式**：`officecli mcp claude` 注册为 MCP server，但在当前 session 中不需要（直接 CLI 调用更高效）
 11. **不支持属性**：`borderRadius`（圆角）不被 shape 支持；图表的 `series1.color`/`series2.color`/`legendPos` 不被支持，用默认图表颜色即可
-12. **大 deck 构建**：50 页以上用 Shell 脚本分 Part 执行（每 Part ~10 页），`open` 一次 + 逐 Part `bash` + `close`，避免单个脚本过长难以调试
+12. **close 失败保护**：`officecli close` 失败会导致文件截断（如 137KB→8KB），此时文件不可恢复。构建完成后必须 `close && validate && ls -lh` 三连确认
+13. **常驻进程冲突**：如果上一次 `close` 失败，残留的 officecli 进程仍锁住文件。新 `create` 会成功但实际写入旧文件。重建前必须 `pkill -9 officecli` 清理
+
+### 大 deck 构建策略
+
+50+ 页 PPT 的生成分两个阶段：
+
+| 阶段 | 耗时占比 | 可并行 | 方法 |
+|------|---------|--------|------|
+| 内容分析 + 脚本编写 | ~90% | **可以** | 按章节拆分，多个 subagent 各自写 section 的 shell 脚本 |
+| 脚本执行 | ~10% | 不能 | 单文件单进程，5 个 Part 脚本顺序执行，共约 30 秒 |
+
+**并行化工作流**（以 50 页为例）：
+
+```
+1. 读取源文档 → 按章节拆分为 5 个 section
+2. 并行启动 5 个 subagent，每个负责 1 个 section 的脚本编写
+3. 收集所有脚本 → 顺序执行 Part 1-5
+4. officecli close → validate → 确认文件 > 100KB
+5. python3 post-process（autofit 等）
+```
+
+注意事项：
+- 并行前先 `create` + `open` 好文件，所有 subagent 共用同一个文件路径
+- subagent 输出 shell 脚本即可，不直接调 officecli（避免进程冲突）
+- 每个 Part 脚本 ≤ 10 页，方便调试
+
+### 文本溢出与 autofit
+
+**核心问题**：OfficeCLI 创建 shape 时指定的 `size` 是固定字号，文本多了会溢出 shape 边界。
+
+**OfficeCLI 的 `autoFit` 属性**（`officecli help pptx shape`）：
+
+```
+autoFit=normal  →  Shrink text on overflow（对应 OpenXML normAutofit）
+autoFit=shape   →  Resize shape to fit text（对应 spAutoFit）
+autoFit=none    →  Do not autofit（对应 noAutofit）
+```
+
+**关键坑**：`autoFit=normal` 写入的 `<a:normAutofit/>` **不带 `fontScale` 属性时默认值为 100000（100%）**，等于不缩小。PowerPoint 首次打开时不会自动计算缩放比例——文本仍按原大小显示，只有用户点击编辑该形状后才触发重新计算。
+
+**正确做法**：用 python-pptx 后处理，写入带 `fontScale` 的 `normAutofit`：
+
+```python
+from pptx import Presentation
+from pptx.oxml.ns import qn
+from lxml import etree
+
+prs = Presentation("output.pptx")
+for slide in prs.slides:
+    for shape in slide.shapes:
+        if not shape.has_text_frame:
+            continue
+        bodyPr = shape.text_frame._txBody.find(qn('a:bodyPr'))
+        # 清除已有 autofit
+        for tag in [qn('a:normAutofit'), qn('a:spAutoFit'), qn('a:noAutofit')]:
+            for el in bodyPr.findall(tag):
+                bodyPr.remove(el)
+        # fontScale=55000 = 允许缩到 55%，只在溢出时触发
+        norm = etree.SubElement(bodyPr, qn('a:normAutofit'))
+        norm.set('fontScale', '55000')
+prs.save("output.pptx")
+```
+
+**为什么不用 `fit_text()`**：python-pptx 的 `TextFrame.fit_text()` 会预计算并写入固定缩小字号，导致文本即使能撑满也被缩小、留大量空白。
+
+**fontScale 取值指南**：
+
+| fontScale | 最小字号比例 | 适用场景 |
+|-----------|------------|---------|
+| `80000` | 80% | 标题/大字，略微溢出 |
+| `65000` | 65% | 卡片正文，中等密度 |
+| `55000` | 55% | 列表/表格/高密度内容 |
+| `40000` | 40% | 极端密集（此值以下可读性差） |
 
 ### 示例文件（`C:\unified-ppt\`）
 
