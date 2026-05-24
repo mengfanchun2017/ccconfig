@@ -7,6 +7,7 @@
 # 3. GitHub 最后推送
 # 4. MEMORY 最后更新
 # 5. ppt-master PPT 生成环境
+# 5b. OfficeCLI 状态
 # 6. 飞书 lark-cli 状态
 # 7. MCP 服务器状态
 # 8. 远程连接状态 (Tailscale + SSH)
@@ -213,6 +214,31 @@ check_ppt_master() {
     else
         echo -e "  ${YELLOW}修复: bash ccconfig/init-ubuntu.sh (仅 PPT 部分)${NC}"
     fi
+}
+
+# ========== OfficeCLI（可选） ==========
+check_officecli() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[5b] OfficeCLI [option]${NC}"
+
+    local officecli_bin="$HOME/.local/bin/officecli"
+
+    echo -n "  安装 ... "
+    if [ -x "$officecli_bin" ]; then
+        local ver=$("$officecli_bin" --version 2>/dev/null)
+        echo -e "${GREEN}✅${NC} $ver"
+    else
+        echo -e "${GRAY}－${NC} (未安装)"
+    fi
+
+    echo -n "  MCP 注册 ... "
+    if grep -q '"officecli"' "$HOME/.claude/.config.json" 2>/dev/null; then
+        echo -e "${GREEN}✅${NC} 已注册"
+    else
+        echo -e "${GRAY}－${NC} 未注册"
+    fi
+
+    echo -e "  ${GRAY}安装: bash ccconfig/option-officecli/init.sh${NC}"
 }
 
 # ========== Vessel AI 浏览器（可选） ==========
@@ -534,6 +560,7 @@ check_autosync
 check_last_push
 check_memory
 check_ppt_master
+check_officecli
 check_feishu
 check_vessel
 check_mcp

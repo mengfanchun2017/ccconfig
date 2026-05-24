@@ -452,57 +452,13 @@ setup_autosync() {
 # ========== 10. ppt-master（PPT 生成） ==========
 setup_ppt_master() {
     section "ppt-master (PPT 生成)"
+    bash "$SCRIPT_DIR/option-ppt-master/init.sh" --install
+}
 
-    # 10.1 确保 pip 可用
-    if ! python3 -m pip --version &>/dev/null; then
-        info "pip 未安装，通过 get-pip.py 安装..."
-        curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
-        python3 /tmp/get-pip.py --break-system-packages 2>&1 | tail -3
-        rm -f /tmp/get-pip.py
-        if python3 -m pip --version &>/dev/null; then
-            success "pip 安装完成"
-        else
-            warn "pip 安装失败"
-            return 1
-        fi
-    else
-        success "pip 已可用"
-    fi
-
-    # 10.2 安装 Python 依赖
-    info "检查 Python 依赖..."
-    local missing=""
-    python3 -c "import pptx" 2>/dev/null || missing="$missing python-pptx"
-    python3 -c "import cairosvg" 2>/dev/null || missing="$missing cairosvg"
-
-    if [[ -n "$missing" ]]; then
-        info "安装:$missing"
-        python3 -m pip install $missing --break-system-packages 2>&1 | tail -5
-        success "Python PPT 依赖安装完成"
-    else
-        success "Python PPT 依赖已就绪"
-    fi
-
-    # 10.3 克隆/更新 ppt-master 仓库
-    local PPT_DIR="$HOME/git/_ext/ppt-master"
-    if [[ -d "$PPT_DIR/.git" ]]; then
-        cd "$PPT_DIR"
-        git fetch origin main 2>/dev/null || true
-        local local_c=$(git rev-parse --short HEAD)
-        local remote_c=$(git rev-parse --short origin/main)
-        if [[ "$local_c" != "$remote_c" ]]; then
-            git pull --ff-only origin main 2>&1 | tail -2
-            success "ppt-master 已更新: $local_c → $(git rev-parse --short HEAD)"
-        else
-            info "ppt-master 已是最新: $local_c"
-        fi
-    else
-        info "克隆 ppt-master: hugohe3/ppt-master → $PPT_DIR"
-        mkdir -p "$HOME/git/_ext"
-        git clone git@github.com:hugohe3/ppt-master.git "$PPT_DIR" 2>&1 | tail -2
-        success "ppt-master 克隆完成"
-    fi
-    cd "$SCRIPT_DIR"
+# ========== 10b. OfficeCLI（可选） ==========
+setup_officecli() {
+    section "OfficeCLI"
+    bash "$SCRIPT_DIR/option-officecli/init.sh" --install
 }
 
 # ========== 11. SessionStart Hook ==========
@@ -613,6 +569,11 @@ main() {
 
     echo ""
     success "初始化完成！"
+    echo ""
+    echo "可选组件（按需安装）："
+    echo "  bash ccconfig/option-officecli/init.sh   # OfficeCLI（AI-native Office 工具）"
+    echo "  bash ccconfig/option-vessel/init.sh      # Vessel AI 浏览器"
+    echo "  bash ccconfig/option-bridge/init.sh      # cc-connect（飞书 Bridge）"
     echo ""
     echo "下一步:"
     echo "  bash ccconfig/init-mcp.sh   # 安装 MCP 服务器"
