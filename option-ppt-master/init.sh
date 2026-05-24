@@ -150,8 +150,7 @@ show_status() {
 
     echo -n "  仓库 ... "
     if [[ -d "$PPT_DIR/.git" ]]; then
-        cd "$PPT_DIR"
-        local commit=$(git rev-parse --short HEAD 2>/dev/null)
+        local commit=$(git -C "$PPT_DIR" rev-parse --short HEAD 2>/dev/null)
         good "✅ $commit"
     else
         bad "❌ 未克隆 ($PPT_DIR)"
