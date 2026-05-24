@@ -103,11 +103,11 @@ commit_and_push() {
     [ -z "$changed_files" ] && return 0
 
     echo "" | tee -a "$LOG_FILE"
-    info "[$repo] changes detected"
+    info "[$repo] * changes detected"
     echo "$changed_files" | while read line; do do_log "[$repo]   $line"; done
 
     if git -C "$repo_dir" ls-files -u 2>/dev/null | grep -q .; then
-        error "[$repo] UNRESOLVED CONFLICTS — manual resolution needed"
+        error "[$repo] !! UNRESOLVED CONFLICTS — manual resolution needed"
         return 1
     fi
 
@@ -116,33 +116,33 @@ commit_and_push() {
 
     if commit_output=$(git -C "$repo_dir" commit -m "Auto-sync: $(date '+%Y-%m-%d %H:%M:%S')" 2>&1); then
         local commit_hash=$(echo "$commit_output" | grep -o '[a-f0-9]\{7\}' | tail -1)
-        log "[$repo] committed $commit_hash"
+        log "[$repo] OK committed $commit_hash"
 
         local branch=$(git -C "$repo_dir" branch --show-current)
         local pull_output
         if pull_output=$(timeout 120 git -C "$repo_dir" pull --ff-only origin "$branch" 2>&1); then
-            log "[$repo] pull OK"
+            log "[$repo] OK pull"
             if [ -f "$repo_dir/setup-links.sh" ]; then
                 bash "$repo_dir/setup-links.sh" >> "$LOG_FILE" 2>&1 && \
-                    log "[$repo] links OK" || warn "[$repo] links failed"
+                    log "[$repo] OK links" || warn "[$repo] links failed"
             fi
             if [ -f "$repo_dir/init-skill.sh" ]; then
                 bash "$repo_dir/init-skill.sh" sync >> "$LOG_FILE" 2>&1 && \
-                    log "[$repo] skills sync OK" || warn "[$repo] skills sync failed"
+                    log "[$repo] OK skills sync" || warn "[$repo] skills sync failed"
             fi
             if timeout 60 git -C "$repo_dir" push origin "$branch" >> "$LOG_FILE" 2>&1; then
-                log "[$repo] pushed → GitHub ($commit_hash)"
+                log "[$repo] OK pushed → GitHub ($commit_hash)"
             else
-                warn "[$repo] push failed — check network"
+                warn "[$repo] !! push failed — check network"
             fi
         else
             echo "$pull_output" >> "$LOG_FILE"
             if echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls"; then
-                warn "[$repo] pull failed: network issue"
+                warn "[$repo] !! pull failed: network issue"
             elif echo "$pull_output" | grep -qi "fatal: refusing to merge unrelated histories\|fatal: have diverged\|Not possible to fast-forward"; then
-                error "[$repo] pull failed: diverged — run: cd $repo_dir && git pull --ff"
+                error "[$repo] !! pull failed: diverged — run: cd $repo_dir && git pull --ff"
             else
-                error "[$repo] pull failed: $(echo "$pull_output" | head -1)"
+                error "[$repo] !! pull failed: $(echo "$pull_output" | head -1)"
             fi
         fi
     else
@@ -341,6 +341,38 @@ status_watch() {
     echo ""
 }
 
+# ========== Log line colorizer ==========
+colorize_line() {
+    local ts="$1" content="$2"
+
+    # ERROR (red) — "!!" prefix, failures that need attention
+    if echo "$content" | grep -qE '(\!\!|ERROR|UNRESOLVED|aborting)'; then
+        echo -e "  ${RED}${ts}${NC}  $content"
+        return
+    fi
+
+    # WARNING (yellow) — skipped, nothing to commit, warn prefix
+    if echo "$content" | grep -qE '(WARN|Skipped|nothing to commit)'; then
+        echo -e "  ${YELLOW}${ts}${NC}  $content"
+        return
+    fi
+
+    # SUCCESS (green) — "OK" prefix, key milestones
+    if echo "$content" | grep -qE '(OK pushed|OK committed|OK pull|OK links|OK skills|Started|Stopped|Resurrecting)'; then
+        echo -e "  ${GREEN}${ts}${NC}  $content"
+        return
+    fi
+
+    # ACTIVITY (cyan) — changes, debounce, sync progress
+    if echo "$content" | grep -qE '(\* changes detected|Change detected|Debounce done|syncing all repos|MOVED_TO|DELETED|CREATED|MODIFY)'; then
+        echo -e "  ${CYAN}${ts}${NC}  $content"
+        return
+    fi
+
+    # DEFAULT (gray) — file listings, misc
+    echo -e "  ${GRAY}${ts}${NC}  $content"
+}
+
 # ========== Log viewer (formatted) ==========
 log_watch() {
     local lines="${1:-30}"
@@ -357,18 +389,7 @@ log_watch() {
     tail -n "$lines" "$LOG_FILE" 2>/dev/null | while IFS= read -r line; do
         local ts=$(echo "$line" | grep -oE '^\[[0-9:]+\]' | tr -d '[]')
         local content=$(echo "$line" | sed 's/^\[[0-9:]\+\] //')
-
-        if echo "$content" | grep -qE '^(Committed|Pulled|Push|Pushed|==)'; then
-            echo -e "  ${GREEN}${ts:-??:??:??}${NC}  $content"
-        elif echo "$content" | grep -qE '(detected|change|debounce)'; then
-            echo -e "  ${CYAN}${ts:-??:??:??}${NC}  $content"
-        elif echo "$content" | grep -qE '(FAILED|ERROR|UNRESOLVED)'; then
-            echo -e "  ${RED}${ts:-??:??:??}${NC}  $content"
-        elif echo "$content" | grep -qE '(WARN|Skipped|Nothing)'; then
-            echo -e "  ${YELLOW}${ts:-??:??:??}${NC}  $content"
-        else
-            echo -e "  ${GRAY}${ts:-??:??:??}${NC}  $content"
-        fi
+        colorize_line "${ts:-??:??:??}" "$content"
     done
 
     echo ""
@@ -389,18 +410,7 @@ tail_watch() {
     tail -f "$LOG_FILE" 2>/dev/null | while IFS= read -r line; do
         local ts=$(echo "$line" | grep -oE '^\[[0-9:]+\]' | tr -d '[]')
         local content=$(echo "$line" | sed 's/^\[[0-9:]\+\] //')
-
-        if echo "$content" | grep -qE '^(Committed|Pulled|Push|Pushed|==)'; then
-            echo -e "  ${GREEN}${ts:-??:??:??}${NC}  $content"
-        elif echo "$content" | grep -qE '(detected|change|debounce)'; then
-            echo -e "  ${CYAN}${ts:-??:??:??}${NC}  $content"
-        elif echo "$content" | grep -qE '(FAILED|ERROR|UNRESOLVED)'; then
-            echo -e "  ${RED}${ts:-??:??:??}${NC}  $content"
-        elif echo "$content" | grep -qE '(WARN|Skipped|Nothing)'; then
-            echo -e "  ${YELLOW}${ts:-??:??:??}${NC}  $content"
-        else
-            echo -e "  ${GRAY}${ts:-??:??:??}${NC}  $content"
-        fi
+        colorize_line "${ts:-??:??:??}" "$content"
     done
 }
 
