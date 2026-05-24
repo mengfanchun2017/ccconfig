@@ -75,40 +75,75 @@ submenu_env() {
     esac
 }
 
-submenu_feishu() {
-    echo ""
-    echo -e "${CYAN}── 飞书 Bridge（可选） ──${NC}"
-    echo "  需要安装 lark-cli 和 cc-connect 吗？"
-    echo ""
-    echo "  手动安装:  bash ccconfig/option-bridge/init.sh"
-    echo ""
-    echo "  包含:"
-    echo "    - lark-cli     (终端创建飞书文档/日历/任务)"
-    echo "    - cc-connect   (接收飞书消息 Bridge)"
-    echo "    - mcp-bridge   (可选 MCP，bot 消息)"
-    echo ""
-    echo "  查看状态:  bash ccconfig/option-bridge/bot-status.sh"
-    echo "  切换账号:  bash ccconfig/option-bridge/lark-switch.sh <name>"
-    echo ""
-    read -p "按回车返回..." dummy
+# ========== 可选组件（自动发现 option-*/ ） ==========
+discover_options() {
+    local opts=()
+    for d in "$SCRIPT_DIR"/option-*/; do
+        [ -d "$d" ] || continue
+        local name=$(basename "$d")
+        opts+=("$name|$d")
+    done
+    printf '%s\n' "${opts[@]}"
 }
 
-submenu_vessel() {
+option_has_init() {
+    [ -x "$1/init.sh" ] || [ -f "$1/init.sh" ]
+}
+
+submenu_options() {
     echo ""
-    echo -e "${CYAN}── Vessel AI 浏览器（可选） ──${NC}"
+    echo -e "${CYAN}── 可选组件 ──${NC}"
     echo ""
-    echo "  手动安装:  bash ccconfig/option-vessel/init.sh"
+
+    local idx=1
+    local -a opt_names opt_dirs
+
+    while IFS='|' read -r name dir; do
+        [ -z "$name" ] && continue
+        opt_names+=("$name")
+        opt_dirs+=("$dir")
+        local status=""
+        if option_has_init "$dir"; then
+            status="  ← init.sh"
+        fi
+        echo -e "  ${BOLD}$idx)${NC} $name ${GRAY}$status${NC}"
+        idx=$((idx + 1))
+    done <<< "$(discover_options)"
+
+    echo "  0) 返回"
     echo ""
-    echo "  Vessel 是开源 AI Agent 浏览器"
-    echo "  Claude Code 通过 MCP 操控浏览器，人类监督审批"
-    echo "  打开网页、点击、填表、提取内容、截图"
-    echo ""
-    echo "  启动:        vessel &"
-    echo "  MCP token:  在 Settings (Ctrl+,) 查看"
-    echo "  注册 MCP:    bash ccconfig/option-vessel/init.sh --mcp-token <token>"
-    echo "  状态检查:    bash ccconfig/option-vessel/init.sh --status"
-    echo ""
-    read -p "按回车返回..." dummy
+    read -p "选择: " c
+
+    case "$c" in
+        0|"") return ;;
+        *)
+            if [[ "$c" =~ ^[0-9]+$ ]] && [ "$c" -ge 1 ] && [ "$c" -le ${#opt_dirs[@]} ]; then
+                local i=$((c - 1))
+                local name="${opt_names[$i]}" dir="${opt_dirs[$i]}"
+                echo ""
+                echo -e "${CYAN}── $name ──${NC}"
+                echo ""
+                echo "  1) 安装/初始化"
+                echo "  2) 状态检查"
+                echo "  0) 返回"
+                echo ""
+                read -p "选择: " sub
+
+                case "$sub" in
+                    1) run_step "$name 安装" "$dir/init.sh" false
+                       echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+                    2)
+                       if [ -x "$dir/init.sh" ]; then
+                           bash "$dir/init.sh" --status 2>/dev/null || echo -e "  ${YELLOW}○ 状态检查不支持${NC}"
+                       else
+                           echo -e "  ${YELLOW}○ 无 init.sh${NC}"
+                       fi
+                       echo ""; read -p "按回车返回..." dummy
+                       ;;
+                esac
+            fi
+            ;;
+    esac
 }
 
 submenu_remote() {
@@ -210,11 +245,10 @@ main_menu() {
     echo "  5) 系统工具    │ 检查 │ 拉取 │ 升级"
     echo "  6) ★ 一键全部初始化"
     echo "  ── 可选组件 ──"
-    echo "  7) 飞书 Bridge"
-    echo "  8) Vessel AI 浏览器"
+    echo "  7) 可选组件（option-*）"
     echo "  0) 退出"
     echo ""
-    read -p "选择 [0-8]: " choice
+    read -p "选择 [0-7]: " choice
 
     case "$choice" in
         1) submenu_env ;;
@@ -229,14 +263,11 @@ main_menu() {
             run_step "3/4 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
             run_step "4/4 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
             echo ""
-            echo "🎉 全部初始化完成（飞书 Bridge / Vessel 为可选组件）"
+            echo "🎉 全部初始化完成（可选组件见菜单 7）"
             echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
-            echo "可选: bash ccconfig/option-bridge/init.sh   # 安装飞书 Bridge"
-            echo "可选: bash ccconfig/option-vessel/init.sh   # 安装 Vessel AI 浏览器"
             exit 0
             ;;
-        7) submenu_feishu ;;
-        8) submenu_vessel ;;
+        7) submenu_options ;;
         0) echo ""; exit 0 ;;
         *) echo "无效选择"; main_menu ;;
     esac
