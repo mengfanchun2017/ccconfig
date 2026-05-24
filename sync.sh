@@ -206,9 +206,10 @@ sync_one_repo() {
     echo ""
     echo -e "  ${BOLD}a)${NC} 远程覆盖本地（丢弃本地所有改动）"
     echo -e "  ${BOLD}b)${NC} 本地覆盖远程（强制推送本地到远程）"
+    echo -e "  ${BOLD}r)${NC} Rebase — 以远程为底，本地提交重放其上（推荐）"
     echo -e "  ${BOLD}c)${NC} 取消，手动处理"
     echo ""
-    read -p "  选择 [a/b/c]: " choice
+    read -p "  选择 [a/b/r/c]: " choice
 
     case "$choice" in
         a|A)
@@ -227,6 +228,35 @@ sync_one_repo() {
             echo -e "${CYAN}  🔃 本地 → 远程${NC}"
             git -C "$repo_dir" push --force origin "$branch"
             echo -e "  ${GREEN}✅ 远程已强制覆盖${NC}"
+            ;;
+        r|R)
+            echo ""
+            echo -e "${CYAN}  🔃 Rebase: 本地提交重放到远程之上${NC}"
+            local rebase_output rebase_ok
+            rebase_ok=true
+            if ! git -C "$repo_dir" diff --quiet 2>/dev/null || ! git -C "$repo_dir" diff --cached --quiet 2>/dev/null; then
+                echo "     暂存未提交改动..."
+                git -C "$repo_dir" stash push -m "sync-rebase-auto-stash" 2>/dev/null || true
+            fi
+            if ! git -C "$repo_dir" pull --rebase origin "$branch" 2>&1; then
+                rebase_ok=false
+                echo -e "  ${RED}❌ Rebase 冲突，需要手动解决${NC}"
+                echo -e "  ${GRAY}已中止 rebase，恢复到 rebase 前状态${NC}"
+                git -C "$repo_dir" rebase --abort 2>/dev/null || true
+                git -C "$repo_dir" stash pop 2>/dev/null || true
+                return 1
+            fi
+            if $rebase_ok; then
+                git -C "$repo_dir" stash pop 2>/dev/null || true
+                show_changed "$before" "$(git -C "$repo_dir" rev-parse --short HEAD)" "$repo_dir"
+                echo -e "  ${GREEN}✅ Rebase 成功，本地已整合远程${NC}"
+                # 推送 rebase 后的结果
+                if timeout 60 git -C "$repo_dir" push origin "$branch" 2>&1; then
+                    echo -e "  ${GREEN}✅ 已推送至 GitHub${NC}"
+                else
+                    echo -e "  ${YELLOW}⚠️ 推送失败，请手动推送${NC}"
+                fi
+            fi
             ;;
         *)
             echo ""
@@ -338,6 +368,55 @@ force_push() {
     echo "     force pushing to origin/$branch..."
     git -C "$repo_dir" push --force origin "$branch"
     echo -e "  ${GREEN}✅ $repo_name → origin/$branch（远程已强制覆盖）${NC}"
+}
+
+# ========== 提交并推送 ==========
+commitpush() {
+    local repo_dir="$1" repo_name="$2"
+    local message="${3:-Auto-save: $(date '+%Y-%m-%d %H:%M:%S')}"
+    local branch=$(git -C "$repo_dir" branch --show-current)
+
+    echo ""
+    echo -e "${CYAN}── commitpush: ${BOLD}$repo_name${NC} ──${NC}"
+    echo ""
+
+    # 检查未提交改动
+    if git -C "$repo_dir" diff --quiet 2>/dev/null && git -C "$repo_dir" diff --cached --quiet 2>/dev/null; then
+        echo -e "  ${GREEN}✅ 工作区干净，无需提交${NC}"
+        # 检查是否有未推送的提交
+        local ahead
+        ahead=$(git -C "$repo_dir" rev-list --count "origin/$branch..HEAD" 2>/dev/null || echo "0")
+        if [ "$ahead" -gt 0 ]; then
+            echo -e "  ${CYAN}本地领先远程 $ahead 个提交，直接推送...${NC}"
+        else
+            echo -e "  ${GREEN}✅ 已是最新${NC}"
+            return 0
+        fi
+    else
+        # 有改动 → 提交
+        echo -e "  ${YELLOW}本地有改动：${NC}"
+        git -C "$repo_dir" status --short 2>/dev/null | head -20
+        echo ""
+
+        git -C "$repo_dir" add -A
+        local commit_output
+        if commit_output=$(git -C "$repo_dir" commit -m "$message" 2>&1); then
+            local commit_hash=$(echo "$commit_output" | grep -o '[a-f0-9]\{7\}' | tail -1)
+            echo -e "  ${GREEN}✅ 已提交: $commit_hash${NC}"
+        else
+            echo -e "  ${RED}❌ 提交失败: $(echo "$commit_output" | head -1)${NC}"
+            return 1
+        fi
+    fi
+
+    echo ""
+    echo -e "  ${CYAN}推送中...${NC}"
+    if timeout 60 git -C "$repo_dir" push origin "$branch" 2>&1; then
+        echo -e "  ${GREEN}✅ 已推送至 GitHub${NC}"
+    else
+        echo -e "  ${RED}❌ 推送失败${NC}"
+        return 1
+    fi
 }
 
 # ========== 检查模式 ==========
@@ -465,6 +544,7 @@ show_help() {
     echo "  bash ccconfig/sync.sh <repo>          指定仓库智能同步"
     echo "  bash ccconfig/sync.sh --pull <repo>   强制远程覆盖本地"
     echo "  bash ccconfig/sync.sh --push <repo>   强制本地推远程"
+    echo "  bash ccconfig/sync.sh --commitpush [repo] 提交并推送（不拉取）"
     echo "  bash ccconfig/sync.sh --check         仅检查 ccconfig"
     echo "  bash ccconfig/sync.sh --all           全部仓库 ff-only"
     echo ""
@@ -497,6 +577,24 @@ case "${1:-}" in
         fi
         [ -d "$REPO_DIR/.git" ] || { echo -e "${RED}❌ 未找到仓库: $REPO_NAME${NC}"; exit 1; }
         force_push "$REPO_DIR" "$REPO_NAME"
+        ;;
+    --commitpush)
+        REPO_DIR="$SCRIPT_DIR"
+        REPO_NAME="ccconfig"
+        COMMIT_MSG="${3:-}"
+        if [ -n "${2:-}" ]; then
+            case "$2" in
+                projectu) REPO_DIR="$HOME/git/projectu"; REPO_NAME="projectu" ;;
+                *) REPO_DIR="$HOME/git/$2"; REPO_NAME="$2" ;;
+            esac
+        fi
+        [ -d "$REPO_DIR/.git" ] || { echo -e "${RED}❌ 未找到仓库: $REPO_NAME${NC}"; exit 1; }
+        if [ -n "$COMMIT_MSG" ]; then
+            commitpush "$REPO_DIR" "$REPO_NAME" "$COMMIT_MSG"
+        else
+            commitpush "$REPO_DIR" "$REPO_NAME"
+        fi
+        [ "$REPO_NAME" = "cconfig" ] && do_cconfig_post
         ;;
     --check)
         check_mode

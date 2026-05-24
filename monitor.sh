@@ -120,8 +120,12 @@ commit_and_push() {
 
         local branch=$(git -C "$repo_dir" branch --show-current)
         local pull_output
-        if pull_output=$(timeout 120 git -C "$repo_dir" pull --ff-only origin "$branch" 2>&1); then
-            log "[$repo] OK pull"
+        if pull_output=$(timeout 120 git -C "$repo_dir" pull --rebase origin "$branch" 2>&1); then
+            if echo "$pull_output" | grep -q "is up to date\|up-to-date\|Already up to date"; then
+                :  # no remote changes, rebase had nothing to do
+            else
+                log "[$repo] OK rebase — auto-commit重放到远程之上"
+            fi
             if [ -f "$repo_dir/setup-links.sh" ]; then
                 bash "$repo_dir/setup-links.sh" >> "$LOG_FILE" 2>&1 && \
                     log "[$repo] OK links" || warn "[$repo] links failed"
@@ -139,8 +143,11 @@ commit_and_push() {
             echo "$pull_output" >> "$LOG_FILE"
             if echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls"; then
                 warn "[$repo] !! pull failed: network issue"
-            elif echo "$pull_output" | grep -qi "fatal: refusing to merge unrelated histories\|fatal: have diverged\|Not possible to fast-forward"; then
-                error "[$repo] !! pull failed: diverged — run: cd $repo_dir && git pull --ff"
+            elif echo "$pull_output" | grep -qi "CONFLICT\|conflict\|could not be applied"; then
+                git -C "$repo_dir" rebase --abort 2>/dev/null || true
+                error "[$repo] !! rebase冲突 — 自动提交已保留在本地，需手动: cd $repo_dir && git pull --rebase"
+            elif echo "$pull_output" | grep -qi "unrelated histories"; then
+                error "[$repo] !! pull failed: unrelated histories — 需手动处理"
             else
                 error "[$repo] !! pull failed: $(echo "$pull_output" | head -1)"
             fi
