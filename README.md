@@ -1,195 +1,272 @@
-# ccconfig — Claude Code 配置中枢
+# ccconfig — Claude Code Configuration Hub
 
-> 统一管理 Claude Code 配置、脚本，通过 GitHub 跨设备同步。
+> Unified Claude Code configuration management. Git-synced across devices. One-command restore on new terminals.
 
-## 使用场景
+## Overview
 
-- **跨设备同步**：GitHub 自动同步配置，桌面和笔记本保持一致
-- **环境初始化**：一键初始化 Claude Code、Skills、MCP、飞书工具
-- **权限管理**：细粒度权限控制，避免频繁弹窗确认
-- **LLM 切换**：多后端支持（DeepSeek、MiniMax、Claude 官方），成本优化
-- **自动同步**：文件监控 + 120s 防抖，自动提交推送
-- **飞书集成**：lark-cli 终端操作文档/日历/任务，cc-connect 消息 Bridge
-- **远程访问**：Tailscale 组网 + SSH + tmux，笔记本连接台式机
+ccconfig manages the full lifecycle of Claude Code configuration:
 
-## 目录结构
+- **Environment**: one-command Ubuntu/WSL initialization
+- **Config**: single source of truth for LLM backends, MCP servers, API keys
+- **Sync**: file watcher + auto git commit/push across all repos under `~/git/`
+- **Skills**: 22 curated skills (Feishu docs, research, PPT generation, diagnostics)
+- **Rules**: conditional rules loaded by path (code style, git, python, search, feishu, godot)
+- **Agents**: intent-routing agents (assistant, feishucreate, learnchinese)
+- **Optional**: Feishu Bridge, OfficeCLI, PPT generation, Vessel browser, remote SSH
+
+## Architecture
+
+```
+~/.claude/  (symlinks)  ←──  ccconfig/link/  (source, git-tracked)
+    ├── settings.json        ├── settings.json
+    ├── .config.json         ├── .config.json
+    ├── rules/               ├── rules/         (8 rules)
+    ├── skills/              ├── skills/        (22 skills)
+    ├── agents/              ├── agents/        (4 agents)
+    └── projects/memory/     └── projects/memory/  (cross-session memory)
+
+~/CLAUDE.md  ←──  ccconfig/link/CLAUDE.md
+```
 
 ```
 ccconfig/
-├── init.sh                   # 总入口（交互式两级菜单）
-├── init-ubuntu.sh            # Ubuntu/WSL 全环境初始化（Node.js、npm、gh、Claude）
-├── init-llm.sh               # LLM 后端切换（deepseek/minimax/claude）
-├── init-mcp.sh               # MCP 服务器管理
-├── init-skill.sh             # Skills 同步管理
-├── init-autostart.sh         # auto-sync systemd 自启动配置
-├── update.sh                 # 月度升级（Node.js、npm、gh、Claude、MCP、Skills）
+├── init.sh                   # Entry point (interactive 2-level menu)
+├── init-ubuntu.sh            # Ubuntu/WSL full environment init
+├── init-llm.sh               # LLM backend switcher
+├── init-mcp.sh               # MCP server manager
+├── init-skill.sh             # Skills sync manager
+├── init-autostart.sh         # auto-sync systemd service
+├── update.sh                 # Monthly component upgrade (9 components)
 │
-├── status.sh                 # 状态检查（配置链接、auto-sync、PPT 环境、飞书、MCP）
-├── monitor.sh                # 文件监控 + 自动 Git 同步（120s 防抖）
-├── gitforce.sh               # 强制单向同步（云↔本地，高危）
-├── setup-links.sh            # 重建 ~/.claude/ 符号链接
+├── status.sh                 # Status check (11 checks)
+├── monitor.sh                # Multi-repo file watcher + auto git sync
+├── gitforce.sh               # Force sync (cloud↔local)
+├── setup-links.sh            # Rebuild ~/.claude/ symlinks
+├── deps-check.sh             # Dependency integrity check (CLI + JSON)
+├── pushpub.sh                # Export to public cccshare
 │
-├── conf/                     # 配置文件（单一来源）
-│   ├── feishu.json           # 飞书统一配置（lark-cli + cc-connect）
-│   ├── versions.json         # 版本单一真相源（skill、repo、包版本）
-│   ├── claude.json           # MCP 服务器配置、API Key
-│   ├── llm.json              # LLM 多后端配置（deepseek、minimax、claude）
-│   └── ubuntu.json           # Git 用户信息（name、email）
+├── conf/                     # Configuration (single source of truth)
+│   ├── claude.json           # MCP servers, API keys
+│   ├── feishu.json           # Feishu unified config (lark-cli + cc-connect)
+│   ├── llm.json              # LLM multi-backend config
+│   ├── ubuntu.json           # Git user info
+│   ├── versions.json         # Component versions + pins
+│   └── python-requirements.txt  # Python package manifest
 │
-├── windows/                  # Windows/WSL 互操作工具
-│   ├── wslconfig.ps1         # 配置 .wslconfig（mirrored 网络模式）
-│   └── wsl-interop.sh        # 修复 WSL interop（PATH 隔离）
+├── lib/                      # Shared library
+│   └── path-helper.sh        # Dynamic path resolution (4-tier fallback)
 │
-├── option-bridge/            # 可选：飞书消息 Bridge
-│   ├── init.sh               # lark-cli + cc-connect 初始化
-│   ├── lark-switch.sh        # 多账号切换（Session A/B）
-│   ├── bot-status.sh         # 机器人状态查看
-│   ├── bot-enable.sh         # 启用机器人
-│   ├── bot-disable.sh        # 禁用机器人
-│   └── mcp-bridge/           # 可选 MCP（接收 bot 消息）
+├── link/                     # → ~/.claude/ symlink sources
+│   ├── CLAUDE.md             # AI behavior guide
+│   ├── settings.json         # Permissions + MCP + hooks
+│   ├── .config.json          # Environment + state
+│   ├── rules/                # Conditional rules (loaded by path)
+│   ├── agents/               # Intent-routing agents
+│   ├── skills/               # All skills (22)
+│   └── projects/             # MEMORY.md per project
 │
-├── remote/                   # 远程连接（Tailscale + SSH + tmux）
-│   ├── readme.md             # 远程连接文档
-│   ├── server/tmux-sshd.sh   # SSH Server + tmux 初始化
-│   └── client/               # Windows 端 Tailscale 安装脚本
+├── share/                    # Public share module
+│   └── setup.sh              # Guided onboarding wizard
 │
-├── lib/                      # 共享库
-│   └── path-helper.sh        # 动态路径解析（4级回退：可执行包、npx、npm、curl）
+├── option-bridge/            # Optional: Feishu message Bridge
+│   ├── init.sh               # lark-cli + cc-connect installer
+│   ├── lark-switch.sh        # Multi-account switcher
+│   ├── bot-status.sh         # Bot status viewer
+│   └── mcp-bridge/           # Optional MCP for bot messages
 │
-├── link/                     # 符号链接源 → ~/.claude/
-│   ├── settings.json         # 权限 + MCP + hooks
-│   ├── .config.json          # env + 状态
-│   ├── CLAUDE.md             # AI 行为指南（命令、暗号、自然语言触发）
-│   ├── agents/               # 自定义 agents（assistant、feishucreate、learnchinese）
-│   ├── commands/             # 命令定义（pullff）
-│   ├── skills/               # 全部 skills（飞书、研究、诊断等）
-│   └── projects/             # MEMORY.md 记忆（用户、项目、反馈）
+├── option-officecli/         # Optional: OfficeCLI (AI-native Office tools)
+│   └── init.sh               # Installer + status + update
 │
-└── .snapshots/               # 升级版本快照（gitignored）
+├── option-ppt-master/        # Optional: PPT generation (python-pptx)
+│   └── init.sh               # Clone repo + install deps
+│
+├── option-vessel/            # Optional: Vessel AI browser
+│   └── init.sh               # Installer + MCP registration
+│
+├── remote/                   # Remote access (Tailscale + SSH + tmux)
+│   ├── server/               # SSH Server + tmux setup
+│   └── client/               # Windows Tailscale setup
+│
+├── windows/                  # Windows/WSL interop
+│
+├── LICENSE                   # MIT
+├── CHANGELOG.md              # Change history
+├── CONTRIBUTING.md           # Contribution guide
+└── .editorconfig             # Editor settings
 ```
 
-## 权限双层机制
-
-| 层级 | 文件 | 作用 |
-|------|------|------|
-| AI 行为指南 | `link/CLAUDE.md` | 告诉 Claude AI 哪些命令可用 |
-| 权限系统 | `link/settings.json` → `permissions.allow` | 控制是否弹窗询问 |
-
-两者**必须同步**。运行 `bash ccconfig/status.sh` 检查状态。
-
-## 快速开始
+## Quick Start
 
 ```bash
-# 交互式菜单
-bash ~/git/ccconfig/init.sh
-
-# 一键全部初始化（不含可选组件）
-bash ~/git/ccconfig/init.sh all
-
-# 查看状态
-bash ~/git/ccconfig/init.sh status
-```
-
-## 可选组件
-
-### 飞书 Bridge（option-bridge/）
-
-> 默认不包含在 `init.sh all` 中。需要时手动安装。
-
-```bash
-# 完整安装（lark-cli + cc-connect）
-bash ccconfig/option-bridge/init.sh
-
-# 仅安装部分能力
-bash ccconfig/option-bridge/init.sh --lark-cli     # 仅文档/日历/任务
-bash ccconfig/option-bridge/init.sh --cc-connect  # 仅消息 Bridge
-
-# 多账号管理
-bash ccconfig/option-bridge/lark-switch.sh francis  # Session A
-bash ccconfig/option-bridge/lark-switch.sh ailab    # Session B
-
-# 机器人管理
-bash ccconfig/option-bridge/bot-status.sh           # 查看状态
-bash ccconfig/option-bridge/bot-enable.sh <名称>     # 启用
-bash ccconfig/option-bridge/bot-disable.sh <名称>    # 禁用
-```
-
-**包含组件**：
-- `lark-cli` — 终端创建飞书文档/日历/任务（用户 OAuth）
-- `cc-connect` — 接收飞书消息 Bridge（机器人长连接）
-- `mcp-bridge` — 可选 MCP（bot 消息，配合 cc-connect 使用）
-
-**状态检查**：`status.sh` 会标记为 `[option]`
-
-### 添加新机器人
-
-1. 飞书开放平台创建企业自建应用（机器人 + 长连接）
-2. 编辑 `conf/feishu.json` → `apps[]` 新增
-3. 运行 `bash ccconfig/option-bridge/init.sh`
-
-### 远程连接（remote/）
-
-> 从笔记本 SSH 连接到台式机 WSL2 中的 Claude Code tmux 会话。
-
-**mirrored 网络模式**（推荐，`.wslconfig` 已配置）只需两步：
-
-```bash
-# 1. WSL/Ubuntu — 安装 SSH Server + tmux（一次性）
-bash ~/git/ccconfig/remote/server/tmux-sshd.sh
-
-# 2. Windows 管理员 PowerShell — 安装 Tailscale
-powershell -ExecutionPolicy Bypass -File "C:\git\winremote\ts-setup.ps1"
-```
-
-完成后即可连接：`ssh francis@<Tailscale IP> -p 2222`
-
-> 连上自动进入 tmux `claude` 会话，`Ctrl+B D` 断开（进程保持），`tmux attach -t claude` 重连。
->
-> 非 mirrored 模式还需端口转发，详见 `remote/readme.md`。
-
-## LLM 切换
-
-```bash
-bash ccconfig/init-llm.sh              # 交互式选择
-bash ccconfig/init-llm.sh list         # 列出可用后端
-bash ccconfig/init-llm.sh deepseek     # 切换到 DeepSeek
-bash ccconfig/init-llm.sh minimax      # 切换到 MiniMax
-```
-
-## auto-sync 同步
-
-```bash
+# Clone
+git clone git@github.com:<your-github-username>/ccconfig.git ~/git/ccconfig
 cd ~/git/ccconfig
-./monitor.sh start     # 后台启动（120s 防抖）
-./monitor.sh stop      # 停止
-./monitor.sh status    # 查看状态
-./monitor.sh log       # 最近日志
+
+# Interactive menu
+bash init.sh
+
+# Or one-shot full init (Ubuntu + LLM + MCP + Skills)
+bash init.sh all
+
+# Check everything
+bash status.sh
 ```
 
-## gitforce 强制同步（高危）
+## Core Commands
+
+| Command | Purpose |
+|---------|---------|
+| `bash init.sh` | Interactive menu (env, remote, MCP, skills, tools) |
+| `bash init.sh all` | One-shot full initialization |
+| `bash status.sh` | Full status check (11 items) |
+| `bash deps-check.sh` | Dependency integrity check |
+| `bash update.sh all` | Monthly component upgrade |
+| `bash monitor.sh start` | Start auto-sync daemon |
+| `bash monitor.sh status` | Sync daemon status |
+| `bash monitor.sh log` | Recent sync log |
+| `bash setup-links.sh` | Rebuild ~/.claude/ symlinks |
+
+## Status Check Coverage
+
+`status.sh` performs 11 checks on every Claude Code session start:
+
+1. Config symlinks (settings.json, .config.json, CLAUDE.md, MEMORY.md, rules, commands)
+2. Core dependencies (git, bash, curl)
+3. auto-sync daemon + systemd service
+4. GitHub last push date
+5. MEMORY.md last update
+6. ppt-master environment (repo, python-pptx, cairosvg)
+7. Feishu (lark-cli: install, config, auth, bridge, bots)
+8. Vessel AI browser (install, process, token, MCP)
+9. OfficeCLI (install, MCP registration)
+10. MCP servers (parallel health check, 24h cache)
+11. Remote access (SSH, port, WSL network mode, Tailscale)
+12. Option components auto-discovery
+
+## Dependency Check
+
+`deps-check.sh` verifies all tool and package dependencies:
 
 ```bash
-# 云 → 本地（丢弃本地所有改动）
-bash ccconfig/gitforce.sh              # 默认 ccconfig
-bash ccconfig/gitforce.sh projectu     # 指定仓库
-
-# 本地 → 云（强制推送覆盖远程）
-bash ccconfig/gitforce.sh --push ccconfig
-
-# 查看帮助
-bash ccconfig/gitforce.sh --help
+bash deps-check.sh              # Full check
+bash deps-check.sh --required   # Essential deps only
+bash deps-check.sh --json       # JSON output for scripting
 ```
 
-⚠️ 高危操作，执行时需输入仓库名二次确认。默认只支持单向（云覆盖本地）。
+Checks: git, bash, curl, node, python3, pip3, npm, gh, claude, inotify-tools, systemd, tmux, ssh, uv, lark-cli, cc-connect, officecli, python-pptx, cairosvg, lxml, pillow, plus network connectivity (GitHub, npm, PyPI).
 
-## 月度升级
+## Auto-Sync
+
+`monitor.sh` watches all git repos under `~/git/` for changes, auto-commits and pushes:
 
 ```bash
-bash ccconfig/update.sh               # 交互式菜单
-bash ccconfig/update.sh all           # 一键升级全部（9组件）
+./monitor.sh start     # Start daemon (120s debounce, 60s min push gap)
+./monitor.sh stop      # Stop daemon
+./monitor.sh status    # Show status + tracked repos + pending changes
+./monitor.sh log 50    # Last 50 log lines
+./monitor.sh tail      # Follow push results live
+./monitor.sh monitor   # Follow file changes live
 ```
 
-升级组件：Node.js → npm → GitHub CLI → Claude Code → uv → MCP → Skills → systemd
+Flow: `inotifywait` watches `~/git/` → detects changes → 120s debounce → `git add -A` → `git commit` → `git pull --ff-only` → `git push` → rebuild symlinks → sync skills.
 
-> 注：cc-connect 在 `update.sh all` 中也**不包含**，需单独升级：
-> `bash ccconfig/option-bridge/init.sh --cc-connect`
+## Optional Components
+
+All optional components follow the `option-<name>/` convention:
+
+```bash
+# Feishu Bridge (lark-cli + cc-connect)
+bash option-bridge/init.sh
+
+# OfficeCLI (AI-native .pptx/.docx/.xlsx)
+bash option-officecli/init.sh
+
+# PPT generation (python-pptx + cairosvg + ppt-master)
+bash option-ppt-master/init.sh
+
+# Vessel AI browser
+bash option-vessel/init.sh
+```
+
+Each option component supports at minimum `init.sh --status` for health checks.
+
+## LLM Backends
+
+```bash
+bash init-llm.sh              # Interactive selection
+bash init-llm.sh list         # List available backends
+bash init-llm.sh deepseek     # Switch to DeepSeek
+bash init-llm.sh minimax      # Switch to MiniMax
+bash init-llm.sh claude       # Switch to Claude (Anthropic)
+```
+
+## Remote Access
+
+Connect to desktop Claude Code tmux session from laptop via Tailscale + SSH:
+
+```bash
+# Desktop WSL (one-time setup)
+bash remote/server/tmux-sshd.sh
+
+# Desktop Windows (admin PowerShell)
+powershell -ExecutionPolicy Bypass -File "remote/client/ts-setup.ps1"
+
+# Laptop
+ssh francis@<Tailscale IP> -p 2222  # Auto-attaches to tmux 'claude' session
+```
+
+## Public Share (cccshare)
+
+Export a public version without private data:
+
+```bash
+bash pushpub.sh        # Export to cccshare/ (local)
+bash pushpub.sh git    # Export and push to GitHub
+```
+
+The public version includes `share/setup.sh` — a guided onboarding wizard for new users. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+## Development
+
+```bash
+# Syntax check all scripts
+for f in *.sh lib/*.sh option-*/*.sh share/*.sh; do bash -n "$f" && echo "$f OK"; done
+
+# Run dependency check
+bash deps-check.sh
+
+# Test status
+bash status.sh
+
+# Validate JSON configs
+python3 -c "import json; [json.load(open(f'conf/{f}.json')) for f in ['claude','llm','ubuntu','versions','feishu']]"
+```
+
+### Adding an Option Component
+
+1. Create `option-<name>/` with `init.sh` and `README.md`
+2. Support `--status` flag in init.sh
+3. Add deps to `deps-check.sh` OPTIONAL_DEPS array
+4. It auto-appears in `status.sh` option components section
+
+### Adding a Skill
+
+1. Create skill in `link/skills/<name>/`
+2. Run `bash init-skill.sh sync`
+
+## Files Not Tracked
+
+- `conf/claude.json` — API keys
+- `conf/feishu.json` — App secrets
+- `conf/llm.json` — LLM API keys
+- `conf/ubuntu.json` — Git user info
+- `link/settings.json` — Personal permissions
+- `link/.config.json` — Environment state
+- `.monitor-sync.*` — Runtime state
+- `.snapshots/` — Upgrade snapshots
+- `tmp/` — One-off task artifacts
+- `cccshare/` — Public export (generated)
+
+## License
+
+MIT — see [LICENSE](LICENSE)

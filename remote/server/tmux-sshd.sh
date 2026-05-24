@@ -97,7 +97,7 @@ if [ -f "$wslconfig" ] && grep -q "networkingMode=mirrored" "$wslconfig" 2>/dev/
         echo ""
         echo "请以管理员身份在 Windows PowerShell 中执行："
         echo "  1. netsh interface portproxy delete v4tov4 listenport=$SSH_PORT listenaddress=0.0.0.0"
-        echo "  2. Unregister-ScheduledTask -TaskName 'WSL SSH PortForward' -Confirm:`$false"
+        echo "  2. Unregister-ScheduledTask -TaskName 'WSL SSH PortForward' -Confirm:\$false"
         echo ""
     fi
 

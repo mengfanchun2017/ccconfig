@@ -25,7 +25,17 @@ fi
 find "$SHARE_DIR" -mindepth 1 -not -path "$SHARE_DIR/.git" -not -path "$SHARE_DIR/.git/*" -delete 2>/dev/null || true
 
 # Copy shell scripts
-for f in init.sh init-ubuntu.sh init-llm.sh init-mcp.sh init-skill.sh init-autostart.sh update.sh status.sh monitor.sh setup-links.sh; do
+for f in init.sh init-ubuntu.sh init-llm.sh init-mcp.sh init-skill.sh init-autostart.sh update.sh status.sh monitor.sh setup-links.sh deps-check.sh; do
+    [ -f "$PRIVATE_REPO/$f" ] && cp "$PRIVATE_REPO/$f" "$SHARE_DIR/"
+done
+
+# Copy share/ (setup wizard)
+if [ -d "$PRIVATE_REPO/share" ]; then
+    cp -r "$PRIVATE_REPO/share" "$SHARE_DIR/"
+fi
+
+# Copy standard project files
+for f in LICENSE CHANGELOG.md CONTRIBUTING.md .editorconfig; do
     [ -f "$PRIVATE_REPO/$f" ] && cp "$PRIVATE_REPO/$f" "$SHARE_DIR/"
 done
 
@@ -78,155 +88,154 @@ conf/claude.json
 conf/feishu.json
 conf/llm.json
 conf/ubuntu.json
+.monitor-sync.log
+.monitor-sync.pid
+.monitor-sync.debounce
+.snapshots/
 EOF
 
 # Generate README
 last_sync=$(date +"%Y-%m-%d %H:%M:%S")
 
-cat > "$PUBLIC_README" <<'EOF'
-# ccconfig — Claude Code 配置中枢（公开版）
+cat > "$PUBLIC_README" <<'PUBEOF'
+# ccconfig — Claude Code Configuration Hub
 
-> **公开版仅包含配置模板和脚本，不含个人数据和凭证。**
+> **Public edition**: scripts, templates, and rules. No personal data or credentials.
 >
-> 这是 ccconfig 的公开镜像版本，提取了可复用的脚本、配置模板和规范。
+> Auto-generated from private ccconfig repo.
 
-## 使用场景
-
-- **环境初始化**：一键初始化 Claude Code、Skills、MCP、飞书工具
-- **权限管理**：细粒度权限控制，避免频繁弹窗确认
-- **LLM 切换**：多后端支持（DeepSeek、MiniMax、Claude 官方），成本优化
-- **自动同步**：文件监控 + 120s 防抖，自动提交推送
-- **飞书集成**：lark-cli 终端操作文档/日历/任务
-
-## 目录结构
-
-```
-cccshare/
-├── init.sh                   # 总入口（交互式两级菜单）
-├── init-ubuntu.sh            # Ubuntu/WSL 全环境初始化
-├── init-llm.sh               # LLM 后端切换
-├── init-mcp.sh               # MCP 服务器管理
-├── init-skill.sh             # Skills 同步管理
-├── init-autostart.sh         # auto-sync systemd 自启动配置
-├── update.sh                 # 月度升级
-│
-├── status.sh                 # 状态检查
-├── monitor.sh                # 文件监控 + 自动 Git 同步（120s 防抖）
-├── setup-links.sh            # 重建 ~/.claude/ 符号链接
-│
-├── conf/                     # 配置文件（单一来源）
-│   ├── claude.json           # MCP 服务器配置、API Key（模板）
-│   ├── llm.json              # LLM 多后端配置（模板）
-│   ├── ubuntu.json           # Git 用户信息（模板）
-│   ├── feishu.json           # 飞书统一配置（模板）
-│   └── versions.json         # 版本单一真相源
-│
-├── lib/                      # 共享库
-│   └── path-helper.sh        # 动态路径解析（4级回退）
-│
-└── link/                     # 符号链接源 → ~/.claude/
-    ├── CLAUDE.md             # AI 行为指南
-    ├── settings.json         # 权限 + MCP + hooks（模板）
-    ├── rules/                # 条件规则（编码、Git、Python、搜索、飞书、Godot）
-    ├── commands/             # 命令定义
-    ├── agents/               # 自定义 agents
-    └── skills/               # 全部 skills
-```
-
-## 与私有版的区别
-
-| 内容 | 私有库 | 公开库 |
-|------|--------|--------|
-| 脚本 | ✅ | ✅ |
-| rules/skills/agents | ✅ | ✅ |
-| conf/*.json | ✅（含凭证） | ✅（模板） |
-| settings.json | ✅（个人权限） | ✅（模板） |
-| MEMORY.md | ✅ | ❌ |
-| option-bridge/ | ✅ | ❌ |
-| remote/ | ✅ | ❌ |
-
-## 使用方式
-
-### 1. 克隆公开库
+## Quick Start
 
 ```bash
 git clone https://github.com/<your-github-username>/cccshare.git ~/git/cccshare
 cd ~/git/cccshare
+
+# Guided setup wizard (recommended for new users)
+bash share/setup.sh
+
+# Or one-shot full init
+bash init.sh all
+
+# Check status
+bash status.sh
 ```
 
-### 2. 配置凭证
+## Directory
+
+```
+cccshare/
+├── init.sh                   # Entry point (interactive menu)
+├── init-ubuntu.sh            # Ubuntu/WSL full env init
+├── init-llm.sh               # LLM backend switcher
+├── init-mcp.sh               # MCP server manager
+├── init-skill.sh             # Skills sync
+├── init-autostart.sh         # auto-sync systemd service
+├── update.sh                 # Monthly upgrade (9 components)
+│
+├── status.sh                 # Status check (11 checks)
+├── monitor.sh                # File watcher + auto git sync
+├── setup-links.sh            # Rebuild ~/.claude/ symlinks
+├── deps-check.sh             # Dependency integrity check
+│
+├── share/                    # Share module
+│   └── setup.sh              # Guided onboarding wizard
+│
+├── conf/                     # Config templates
+│   ├── claude.json           # MCP servers, API keys
+│   ├── llm.json              # LLM backends
+│   ├── ubuntu.json           # Git user info
+│   ├── feishu.json           # Feishu integration
+│   └── versions.json         # Version single source of truth
+│
+├── lib/                      # Shared library
+│   └── path-helper.sh        # Dynamic path resolution (4-tier fallback)
+│
+├── link/                     # → ~/.claude/ symlink sources
+│   ├── CLAUDE.md             # AI behavior guide
+│   ├── settings.json         # Permissions + MCP + hooks (template)
+│   ├── rules/                # Conditional rules (code, git, python, search, feishu, godot)
+│   ├── agents/               # Custom agents (assistant, feishucreate, learnchinese)
+│   └── skills/               # All skills (22)
+│
+├── LICENSE                   # MIT
+├── CHANGELOG.md              # Change log
+├── CONTRIBUTING.md           # Contribution guide
+└── .editorconfig             # Editor config
+```
+
+## Private vs Public
+
+| Content | Private | Public |
+|---------|---------|--------|
+| Scripts | ✅ | ✅ |
+| rules/skills/agents | ✅ | ✅ |
+| share/setup.sh | ✅ | ✅ |
+| conf/*.json | ✅ (with credentials) | ✅ (templates only) |
+| settings.json | ✅ (personal permissions) | ✅ (template) |
+| MEMORY.md | ✅ | ❌ |
+| option-bridge/ | ✅ | ❌ |
+| option-officecli/ | ✅ (for reference) | ❌ |
+| option-ppt-master/ | ✅ (for reference) | ❌ |
+| remote/ | ✅ | ❌ |
+
+## Guided Setup
+
+The `share/setup.sh` wizard walks new users through:
+
+1. Dependency check (git, node, python3, curl, gh, claude)
+2. Git user info (name, email)
+3. LLM API key configuration
+4. Private config repo setup (optional)
+5. Symlink creation
 
 ```bash
-# Claude MCP / API Key
-vim conf/claude.json
-
-# LLM 后端
-vim conf/llm.json
-
-# 飞书（可选）
-vim conf/feishu.json
-
-# Git 用户信息
-vim conf/ubuntu.json
-
-# settings.json 权限和 MCP
-vim link/settings.json
+bash share/setup.sh                        # Full interactive
+bash share/setup.sh --quick                # Quick mode (essentials only)
+bash share/setup.sh --config-repo <url>    # Import from private repo
 ```
 
-### 3. 建立符号链接
+## Using a Private Config Repo
+
+Keep your API keys and tokens in a separate private repo:
 
 ```bash
-bash setup-links.sh
+# Create private config repo
+mkdir ~/git/ccconfig-private
+cd ~/git/ccconfig-private && git init -b main
+
+# Add your config files
+mkdir conf
+cp ~/git/cccshare/conf/*.json.example conf/
+# Edit conf/*.json with your credentials
+# ...
+
+git add -A && git commit -m "Initial config"
+git remote add origin git@github.com:you/ccconfig-private.git
+git push -u origin main
+
+# Then import during setup
+bash share/setup.sh --config-repo git@github.com:you/ccconfig-private.git
 ```
 
-### 4. 初始化
+## Updates
 
 ```bash
-bash init.sh all          # 一键初始化
-bash status.sh            # 检查状态
+bash update.sh all     # Upgrade all core components
+bash update.sh         # Interactive menu
+
+# Update cccshare itself
+git pull origin main
+bash setup-links.sh    # Rebuild symlinks if configs changed
 ```
 
-## 权限双层机制
+## License
 
-| 层级 | 文件 | 作用 |
-|------|------|------|
-| AI 行为指南 | link/CLAUDE.md | 告诉 Claude 哪些命令可用 |
-| 权限系统 | link/settings.json | 控制是否弹窗询问 |
+MIT — see [LICENSE](LICENSE)
 
-## LLM 切换
+---
 
-```bash
-bash init-llm.sh              # 交互式选择
-bash init-llm.sh deepseek     # 切换到 DeepSeek
-bash init-llm.sh minimax      # 切换到 MiniMax
-```
-
-## auto-sync 同步
-
-```bash
-./monitor.sh start     # 后台启动（120s 防抖）
-./monitor.sh stop      # 停止
-./monitor.sh status    # 查看状态
-./monitor.sh log       # 最近日志
-```
-
-## 月度升级
-
-```bash
-bash update.sh all     # 一键升级全部
-```
-
-## 导出公开库
-
-```bash
-bash pushpub.sh        # 导出到 cccshare/（不推送）
-bash pushpub.sh git    # 导出并推送到 GitHub
-```
-
-## 最后同步
-
-来源：私有库 ccconfig 自动导出
-EOF
+Last sync from private ccconfig repo
+PUBEOF
 
 sed -i "s/来源：私有库 ccconfig 自动导出/来源：私有库 ccconfig 自动导出\n时间：$last_sync/" "$PUBLIC_README"
 

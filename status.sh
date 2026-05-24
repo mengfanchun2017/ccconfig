@@ -549,21 +549,93 @@ check_remote() {
     fi
 }
 
+# ========== 依赖检查 ==========
+check_deps_quick() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[1b] 核心依赖${NC}"
+
+    local deps_script="$REPO_DIR/deps-check.sh"
+    if [ -x "$deps_script" ]; then
+        bash "$deps_script" --required 2>/dev/null
+    else
+        echo -e "  ${YELLOW}○${NC} deps-check.sh 不存在"
+    fi
+}
+
+# ========== option-* 组件自动发现 ==========
+check_option_components() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[9] option-* 可选组件${NC}"
+
+    local found=0
+    for opt_dir in "$REPO_DIR"/option-*/; do
+        [ -d "$opt_dir" ] || continue
+        local name=$(basename "$opt_dir")
+        local init_script="$opt_dir/init.sh"
+
+        found=$((found + 1))
+        echo -n "  $name ... "
+        if [ -x "$init_script" ]; then
+            if bash "$init_script" --status 2>/dev/null | head -1; then
+                :
+            else
+                echo -e "${GRAY}－${NC} (无 --status 支持)"
+            fi
+        else
+            echo -e "${YELLOW}○${NC} (无 init.sh)"
+        fi
+    done
+
+    if [ $found -eq 0 ]; then
+        echo -e "  ${GRAY}(无可选组件)${NC}"
+    fi
+}
+
+# ========== 9. OfficeCLI 状态 ==========
+check_officecli() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[6c] OfficeCLI [option]${NC}"
+
+    local officecli_bin="$HOME/.local/bin/officecli"
+
+    echo -n "  安装 ... "
+    if [ -x "$officecli_bin" ]; then
+        local ver=$("$officecli_bin" --version 2>/dev/null)
+        echo -e "${GREEN}✅${NC} $ver"
+    else
+        echo -e "${GRAY}－${NC} (未安装)"
+    fi
+
+    echo -n "  MCP 注册 ... "
+    if [ -x "$officecli_bin" ] && "$officecli_bin" mcp list 2>/dev/null | grep -q "Claude"; then
+        echo -e "${GREEN}✅${NC}"
+    elif [ -x "$officecli_bin" ]; then
+        echo -e "${YELLOW}○${NC} 未注册"
+    else
+        echo -e "${GRAY}－${NC}"
+    fi
+
+    echo -e "  ${GRAY}安装: bash ccconfig/option-officecli/init.sh${NC}"
+}
+
 # ========== 执行所有检查 ==========
+
 echo ""
 echo -e "${GREEN}=== Claude Config 状态检查 ===${NC}"
 echo ""
 
 git_pull
 check_symlinks
+check_deps_quick
 check_autosync
 check_last_push
 check_memory
 check_ppt_master
-check_officecli
 check_feishu
 check_vessel
+check_officecli
 check_mcp
 check_remote
+check_option_components
 
 echo ""
