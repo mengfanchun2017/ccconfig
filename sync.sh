@@ -60,10 +60,6 @@ do_cconfig_post() {
     bash "$SCRIPT_DIR/setup-links.sh"
 
     echo ""
-    echo -e "${CYAN}── 同步 Skills ──${NC}"
-    [ -x "$SCRIPT_DIR/init-skill.sh" ] && bash "$SCRIPT_DIR/init-skill.sh" sync
-
-    echo ""
     echo -e "${CYAN}── 新配置模板检测 ──${NC}"
     local found=0
     for example in "$SCRIPT_DIR"/conf/*.json.example; do
