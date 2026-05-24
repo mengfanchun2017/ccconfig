@@ -346,3 +346,21 @@ officecli query deck.pptx 'picture:no-alt'         # 缺 alt 文本的图片
 8. **幻灯片尺寸**：默认 16:9 = 33.87 × 19.05cm
 9. **形状 ID**：自定义形状从 `@id=10000` 起，模板占位符用 `@id=2,3,...`
 10. **MCP 模式**：`officecli mcp claude` 注册为 MCP server，但在当前 session 中不需要（直接 CLI 调用更高效）
+11. **不支持属性**：`borderRadius`（圆角）不被 shape 支持；图表的 `series1.color`/`series2.color`/`legendPos` 不被支持，用默认图表颜色即可
+12. **大 deck 构建**：50 页以上用 Shell 脚本分 Part 执行（每 Part ~10 页），`open` 一次 + 逐 Part `bash` + `close`，避免单个脚本过长难以调试
+
+### 示例文件（`C:\unified-ppt\`）
+
+| 文件 | 页数 | 主题 | 亮点 |
+|------|------|------|------|
+| `demo1_executive_report.pptx` | 5 | Midnight Executive | 柱状图 + 两栏布局 |
+| `demo2_product_launch.pptx` | 5 | Coral Energy | KPI 大数字 + 时间线 |
+| `demo3_data_dashboard.pptx` | 6 | Ocean Gradient | 折线图 + 环形图 |
+| `系统分析师备考完全指南.pptx` | 50 | Academic Navy | 14 章全覆盖，488 形状 |
+
+### 自定义主题：Academic Navy
+
+用于学术/备考类 deck：
+- 主色 `1E3A5F`（深海军蓝）、辅色 `E8EDF2`（浅灰）、强调色 `C4A35A`（金）、正文 `2D2D2D`、弱化 `7A8A94`
+- 变体 `2A6291`（中蓝）用于二级卡片
+- 警告卡片用 `990011`（深红）+ `FFFFFF` 文字
