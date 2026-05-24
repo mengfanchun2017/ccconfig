@@ -699,7 +699,21 @@ PYEOF
     success "MCP 缓存已刷新"
 }
 
-# ========== 9. systemd 服务重建 ==========
+# ========== 9. OfficeCLI ==========
+
+update_officecli() {
+    section "OfficeCLI"
+    bash "$SCRIPT_DIR/option-officecli/init.sh" --update
+}
+
+# ========== 10. ppt-master ==========
+
+update_ppt_master() {
+    section "ppt-master"
+    bash "$SCRIPT_DIR/option-ppt-master/init.sh" --update
+}
+
+# ========== 11. systemd 服务重建 ==========
 
 fix_systemd_services() {
     section "systemd 服务"
@@ -835,6 +849,8 @@ update_all() {
     run_step ""         "Python pip 包"     update_python_packages
     if [ "$include_option" = "true" ]; then
         run_step "cconnect" "cc-connect"        update_cconnect
+        run_step ""         "OfficeCLI"          update_officecli
+        run_step ""         "ppt-master"         update_ppt_master
     fi
     run_step "gh"       "GitHub CLI"        update_gh
     run_step "claude"   "Claude Code"       update_claude
@@ -919,17 +935,19 @@ show_menu() {
     echo "   可选组件"
     echo "   6) cc-connect（Bridge）"
     echo "   7) systemd 服务重建"
+    echo "   8) OfficeCLI"
+    echo "   9) ppt-master"
     echo ""
     echo "   0) 退出"
     echo ""
     echo -e "   ${YELLOW}all${NC} = 升级基础+扩展（不含可选）"
     echo -e "   ${YELLOW}1 3 5${NC} = 多选（如升级 1、3、5 项）"
     echo ""
-    read -p "选择 [1-7, all, 0]: " choice
+    read -p "选择 [1-9, all, 0]: " choice
 
     # 多选支持：空格/逗号分隔如 "1 3 4" 或 "1,3,4"
     local selections
-    selections=$(echo "$choice" | tr ',' ' ' | tr '[:space:]' '\n' | grep -E '^[1-7]$|^all$' | sort -u | tr '\n' ' ')
+    selections=$(echo "$choice" | tr ',' ' ' | tr '[:space:]' '\n' | grep -E '^[1-9]$|^all$' | sort -u | tr '\n' ' ')
 
     local did_something=0
     for sel in $selections; do
@@ -941,6 +959,8 @@ show_menu() {
             5)  update_mcp; did_something=1 ;;
             6)  update_cconnect; did_something=1 ;;
             7)  fix_systemd_services; did_something=1 ;;
+            8)  update_officecli; did_something=1 ;;
+            9)  update_ppt_master; did_something=1 ;;
             all)
                 take_snapshot "pre" > /dev/null
                 update_all false
@@ -988,6 +1008,8 @@ case "${1:-menu}" in
     uv)            update_uv ;;
     mcp)           update_mcp ;;
     services)      fix_systemd_services ;;
+    officecli)     update_officecli ;;
+    ppt-master)    update_ppt_master ;;
     menu|"")       show_menu ;;
     *)
         echo "用法: $0 [all|node|npm|python|cconnect|gh|claude|uv|mcp|services|menu]"
