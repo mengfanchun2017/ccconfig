@@ -21,9 +21,18 @@ RED='\033[0;31m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
 # ========== 仓库列表 ==========
 list_repos() {
     local repos=()
-    # 主仓库
+    # ccconfig 始终第一位
     repos+=("ccconfig|$SCRIPT_DIR|rw")
-    [ -d "$HOME/git/projectu/.git" ] && repos+=("projectu|$HOME/git/projectu|rw")
+    # ~/git/ 下其他自有仓库
+    if [ -d "$HOME/git" ]; then
+        for d in "$HOME/git"/*/; do
+            [ -d "${d}.git" ] || continue
+            local name=$(basename "$d")
+            [ "$name" = "ccconfig" ] && continue
+            [ "$name" = "_ext" ] && continue
+            repos+=("$name|${d%/}|rw")
+        done
+    fi
     # _ext/ 第三方仓库（pull-only）
     if [ -d "$HOME/git/_ext" ]; then
         for d in "$HOME/git/_ext"/*/; do
@@ -348,28 +357,41 @@ check_mode() {
 # ========== 菜单模式 ==========
 menu_mode() {
     echo ""
-    echo -e "${CYAN}🔄 sync — 多仓库 Git 同步${NC}"
+    echo -e "${CYAN}━━━ ccconfig 多仓库同步 ━━━${NC}"
     echo ""
 
+    # ---- 仓库列表 ----
+    echo "  仓库同步"
     local repos_data
     repos_data=$(list_repos)
     local idx=1
     local -a dirs names modes
+    local repo_count=0
 
     while IFS='|' read -r name dir mode; do
         [ -z "$name" ] && continue
         names+=("$name")
         dirs+=("$dir")
         modes+=("$mode")
-        echo -e "  ${BOLD}$idx)${NC} $name"
+        repo_count=$((repo_count + 1))
+        local tag=""
+        [ "$mode" = "ro" ] && tag=" ${GRAY}(pull only)${NC}"
+        echo -e "  ${BOLD}$idx)${NC} ${name}$tag"
         repo_status "$dir"
         idx=$((idx + 1))
     done <<< "$repos_data"
 
     echo ""
-    echo -e "  ${BOLD}a)${NC} 全部同步（ff-only）"
-    echo -e "  ${BOLD}c)${NC} ccconfig 状态检查"
-    echo -e "  ${BOLD}0)${NC} 退出"
+    local all_id=$idx
+    echo -e "  ${BOLD}$all_id)${NC} ★ 全部同步（ff-only）"
+
+    echo ""
+    echo "  检查维护"
+    local check_id=$((idx + 1))
+    echo -e "  ${BOLD}$check_id)${NC} ccconfig 完整检查（deps + 摘要）"
+
+    echo ""
+    echo "  0) 退出"
     echo ""
     read -p "  选择: " choice
 
@@ -377,22 +399,21 @@ menu_mode() {
         0|"")
             return 0
             ;;
-        c|C)
+        $check_id)
             check_mode
             return 0
             ;;
-        a|A)
+        $all_id)
             echo ""
-            echo -e "${CYAN}🔃 全部同步...${NC}"
+            echo -e "${CYAN}── 全部仓库同步 ──${NC}"
             local all_ok=true
             for ((i=0; i<${#dirs[@]}; i++)); do
                 echo ""
-                echo -e "${BOLD}── ${names[$i]} ──${NC}"
+                echo -e "${BOLD}[$((i+1))/${#dirs[@]}] ${names[$i]}${NC}"
                 if ! sync_one_repo "${dirs[$i]}" "${names[$i]}" "${modes[$i]}"; then
                     all_ok=false
                 fi
             done
-            # ccconfig 全部同步后执行额外检查
             echo ""
             echo -e "${CYAN}── ccconfig 额外检查 ──${NC}"
             do_cconfig_post
@@ -408,19 +429,19 @@ menu_mode() {
                 local i=$((choice - 1))
                 local name="${names[$i]}" dir="${dirs[$i]}" mode="${modes[$i]}"
 
-                # 子菜单
+                # 子菜单（具体仓库）
                 echo ""
-                echo -e "${CYAN}🔃 sync: ${BOLD}$name${NC}"
+                echo -e "${CYAN}── sync: ${BOLD}$name${NC} ──${NC}"
                 echo ""
-                echo -e "  ${BOLD}1)${NC} 智能同步（推荐）— ff-only，冲突时菜单选择"
+                echo "  1) 智能同步（推荐）"
                 if [ "$mode" = "rw" ]; then
-                    echo -e "  ${BOLD}2)${NC} 强制拉取远程（丢弃本地改动）"
-                    echo -e "  ${BOLD}3)${NC} 本地覆盖远程（--push）"
+                    echo "  2) 强制拉取远程（丢弃本地改动）"
+                    echo "  3) 本地覆盖远程"
                 else
-                    echo -e "  ${GRAY}2) 强制拉取远程（不可用：第三方仓库）${NC}"
-                    echo -e "  ${GRAY}3) 本地覆盖远程（不可用：第三方仓库）${NC}"
+                    echo -e "  ${GRAY}2) 强制拉取（不可用：第三方仓库）${NC}"
+                    echo -e "  ${GRAY}3) 本地覆盖（不可用：第三方仓库）${NC}"
                 fi
-                echo -e "  ${BOLD}0)${NC} 返回"
+                echo "  0) 返回"
                 echo ""
                 read -p "  选择: " sub
 
@@ -437,9 +458,7 @@ menu_mode() {
                             echo -e "  ${RED}❌ 第三方仓库不支持强制拉取${NC}"
                         else
                             force_pull "$dir" "$name"
-                            if [ "$name" = "cconfig" ]; then
-                                do_cconfig_post
-                            fi
+                            [ "$name" = "cconfig" ] && do_cconfig_post
                         fi
                         ;;
                     3)
@@ -449,6 +468,8 @@ menu_mode() {
                             force_push "$dir" "$name"
                         fi
                         ;;
+                    0|"") ;;
+                    *) echo -e "  ${RED}无效选择${NC}" ;;
                 esac
             else
                 echo -e "  ${RED}无效选择${NC}"
