@@ -358,6 +358,22 @@ main() {
         --list|-ls)
             list_apps
             ;;
+        --status|-s)
+            echo -e "${CYAN}── 飞书 Bridge 状态 ──${NC}"
+            echo -n "  lark-cli ... "
+            if command -v lark-cli &>/dev/null; then
+                echo -e "${GREEN}✅${NC} $(lark-cli --version 2>/dev/null | head -1)"
+            else
+                echo -e "${RED}❌${NC} 未安装"
+            fi
+            echo -n "  cc-connect ... "
+            if command -v cc-connect &>/dev/null; then
+                echo -e "${GREEN}✅${NC} $(cc-connect --version 2>/dev/null | head -1 || echo '已安装')"
+            else
+                echo -e "${YELLOW}○${NC} 未安装"
+            fi
+            bash "$SCRIPT_DIR/bot-status.sh" 2>/dev/null || true
+            ;;
         --help|-h)
             echo "用法: $0 [--lark-cli|--cc-connect|--all|--list]"
             echo ""
@@ -366,6 +382,7 @@ main() {
             echo "  --cc-connect 仅 cc-connect（消息 Bridge）— 仅接收消息的机器"
             echo "  --all       全部（非交互）"
             echo "  --list      列出所有账号"
+            echo "  --status    状态检查"
             ;;
         "")
             interactive_mode
