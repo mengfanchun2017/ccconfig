@@ -128,7 +128,7 @@ check_dep() {
     if $JSON_OUT; then
         echo "{\"name\":\"$label\",\"bin\":\"$bin\",\"status\":\"$status\",\"version\":\"$version\",\"desc\":\"$desc\"},"
     else
-        printf "  %b %-18s %-16s %s%b\n" "$symbol" "$label" "$version" "$GRAY" "$desc" "$NC"
+        printf "  %b %-18s %-16s %b%s%b\n" "$symbol" "$label" "$version" "$GRAY" "$desc" "$NC"
     fi
 }
 
