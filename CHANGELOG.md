@@ -28,7 +28,7 @@ All notable changes to ccconfig will be documented in this file.
 - `update.sh` — 月度组件升级（9 组件）
 - `status.sh` — 8 项状态检查
 - `monitor.sh` — 多仓库文件监控 + 自动 Git 同步
-- `gitforce.sh` — 强制单向同步
+- `sync.sh` — 多仓库智能同步（合并原 gitforce.sh）
 - `setup-links.sh` — 符号链接重建
 - `pushpub.sh` — 导出公开分享版
 - `option-bridge/` — 飞书消息 Bridge
