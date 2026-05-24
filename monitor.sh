@@ -327,6 +327,15 @@ status_watch() {
         echo -e "  ${RED}✗${NC} Not running"
     fi
 
+    # systemd 自启动
+    local service_file="$HOME/.config/systemd/user/claude-auto-sync.service"
+    echo -n "  systemd 自启动 ... "
+    if [ -f "$service_file" ]; then
+        echo -e "${GREEN}✅${NC}"
+    else
+        echo -e "${RED}❌${NC} 未配置"
+    fi
+
     echo ""
     echo -e "${GRAY}Commands: start | stop | log | monitor | tail${NC}"
     echo ""

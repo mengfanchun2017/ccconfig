@@ -119,21 +119,10 @@ check_autosync() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[2] auto-sync${NC}"
 
-    local pid_file="$REPO_DIR/.monitor-sync.pid"
-    local service_file="$HOME/.config/systemd/user/claude-auto-sync.service"
-
-    # 检查进程
-    if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
-        echo -e "  ${GREEN}✅${NC} 进程运行中 (PID: $(cat "$pid_file"))"
+    if [ -x "$REPO_DIR/monitor.sh" ]; then
+        bash "$REPO_DIR/monitor.sh" status 2>/dev/null
     else
-        echo -e "  ${RED}❌${NC} 进程未运行"
-    fi
-
-    # 检查自启动
-    if [ -f "$service_file" ]; then
-        echo -e "  ${GREEN}✅${NC} systemd 自启动已配置"
-    else
-        echo -e "  ${RED}❌${NC} systemd 自启动未配置"
+        echo -e "  ${RED}❌${NC} monitor.sh 不存在"
     fi
 }
 
