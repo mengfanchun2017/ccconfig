@@ -131,10 +131,10 @@ sync_one_repo() {
     local branch=$(git -C "$repo_dir" branch --show-current)
 
     echo ""
-    echo -e "  ${GRAY}fetching origin/$branch...${NC}"
+    echo -e "  ${GRAY}fetching origin...${NC}"
 
     set +e
-    git -C "$repo_dir" fetch origin "$branch" --prune 2>/dev/null
+    git -C "$repo_dir" fetch origin --prune 2>/dev/null
     local fetch_ok=$?
     set -e
 
@@ -143,9 +143,21 @@ sync_one_repo() {
         return 1
     fi
 
+    # 远程跟踪分支：优先用 origin/HEAD（远程默认分支），其次 origin/<当前分支>
+    local remote_ref
+    remote_ref=$(git -C "$repo_dir" rev-parse --short origin/HEAD 2>/dev/null || \
+                 git -C "$repo_dir" rev-parse --short "origin/$branch" 2>/dev/null || \
+                 echo "")
+
+    if [ -z "$remote_ref" ]; then
+        echo -e "  ${YELLOW}⚠️  无法确定远程分支（本地: $branch）${NC}"
+        echo -e "  ${GRAY}可能需要重克隆或手动修复远程跟踪${NC}"
+        return 1
+    fi
+
     local before after
     before=$(git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null)
-    after=$(git -C "$repo_dir" rev-parse --short "origin/$branch" 2>/dev/null)
+    after="$remote_ref"
 
     if [ "$before" = "$after" ]; then
         local dirty=false
