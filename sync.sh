@@ -364,6 +364,7 @@ check_mode() {
 
 # ========== 菜单模式 ==========
 menu_mode() {
+    while true; do
     echo ""
     echo -e "${CYAN}━━━ ccconfig 多仓库同步 ━━━${NC}"
     echo ""
@@ -404,11 +405,10 @@ menu_mode() {
 
     case "$choice" in
         0|"")
-            return 0
+            break
             ;;
         $check_id)
             check_mode
-            return 0
             ;;
         $all_id)
             echo ""
@@ -483,6 +483,7 @@ menu_mode() {
             fi
             ;;
     esac
+    done  # while true — loop back to main menu
 }
 
 # ========== 帮助 ==========
