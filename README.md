@@ -40,7 +40,7 @@ ccconfig/
 │
 ├── status.sh                 # Status check (11 checks)
 ├── monitor.sh                # Multi-repo file watcher + auto git sync
-├── gitforce.sh               # Force sync (cloud↔local)
+├── sync.sh                    # Multi-repo smart sync (cloud↔local)
 ├── setup-links.sh            # Rebuild ~/.claude/ symlinks
 ├── deps-check.sh             # Dependency integrity check (CLI + JSON)
 ├── pushpub.sh                # Export to public cccshare

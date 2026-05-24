@@ -180,7 +180,7 @@ submenu_tools() {
     echo ""
     echo -e "${CYAN}── 系统工具 ──${NC}"
     echo "  1) 状态检查       (status.sh)"
-    echo "  2) 强制拉取远程   (gitforce.sh)"
+    echo "  2) 强制拉取远程   (sync.sh --pull)"
     echo "  3) 升级组件       (update.sh)"
     echo "  4) WSL 网络/interop 修复 (windows/)"
     echo "  0) 返回"
@@ -189,7 +189,7 @@ submenu_tools() {
     case "$c" in
         1) bash "$SCRIPT_DIR/status.sh"
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        2) run_step "强制拉取" "$SCRIPT_DIR/gitforce.sh" false
+        2) run_step "强制拉取" "$SCRIPT_DIR/sync.sh --pull" false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         3) bash "$SCRIPT_DIR/update.sh" ;;
         4) run_step "WSL修复" "$SCRIPT_DIR/windows/wsl-interop.sh" false
