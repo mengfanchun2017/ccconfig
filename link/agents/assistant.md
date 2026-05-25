@@ -81,7 +81,20 @@ worklog skill 定义了字段格式、选项值、命令实现。
 
 ---
 
-### 4. 学习（自动意图识别）
+### 4. 文档生命周期管理（自动意图识别 → doc-master）
+
+**触发**：更新文档/报告、整合/合并文档、拆分文档、飞书↔Office转换、对比文档
+
+**行为**：自动调用 doc-master skill
+
+- doc-master 是编排层，委托飞书操作给 lark-doc/lark-drive/lark-wiki，Office 操作给 OfficeCLI
+- 5大工作流：增量更新、多文档整合、大文档拆分、飞书↔Office双向转换、文档对比
+
+详细 → `skills/doc-master/SKILL.md`
+
+---
+
+### 5. 学习（自动意图识别）
 
 **触发**：系统分析师备考学习、问答、讲解、测验、复习
 
