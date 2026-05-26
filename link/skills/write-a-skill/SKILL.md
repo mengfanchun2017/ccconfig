@@ -1,5 +1,5 @@
 ---
-name: f-skill
+name: write-a-skill
 description: 创建结构正确、支持 progressive disclosure 并带 bundled resources 的新 agent skills。Use when user wants to create, write, or build a new skill.
 ---
 

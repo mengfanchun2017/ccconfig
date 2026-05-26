@@ -1,5 +1,5 @@
 ---
-name: f-grill
+name: grill-me
 description: 围绕 plan 或 design 持续 interview user，直到达成 shared understanding，并逐一解决 decision tree 的每个分支。Use when user wants to stress-test a plan, get grilled on their design, or mentions "grill me".
 ---
 
