@@ -130,7 +130,7 @@ show_current() {
             echo -e "  appId:  ${GRAY}${app_id}${NC}"
 
             local has_user
-            has_user=$(python3 -c "import json; d=json.load(open('$config_file')); print('yes' if d.get('users') else 'no')" 2>/dev/null || echo "?")
+            has_user=$(python3 -c "import json; d=json.load(open('$config_file')); print('yes' if d.get('apps',[{}])[0].get('users') else 'no')" 2>/dev/null || echo "?")
             if [ "$has_user" = "yes" ]; then
                 echo -e "  授权:   ${GREEN}已授权${NC}"
             else
@@ -256,7 +256,7 @@ switch_account() {
     # 检查授权状态
     local auth_status="unknown"
     if [ -f "$config_file" ]; then
-        if python3 -c "import json; d=json.load(open('$config_file')); exit(0 if d.get('users') else 1)" 2>/dev/null; then
+        if python3 -c "import json; d=json.load(open('$config_file')); exit(0 if d.get('apps',[{}])[0].get('users') else 1)" 2>/dev/null; then
             auth_status="authorized"
         else
             auth_status="not_authorized"
