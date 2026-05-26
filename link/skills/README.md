@@ -12,28 +12,28 @@
 | `f-research-deep/` | 深度研究 — 批量 JSON 输出 |
 | `f-research-report/` | 报告生成 — JSON → Markdown |
 | `f-worklog/` | 工作日志写入飞书 Base |
-| `f-skill/` | 创建新 skill |
-| `f-caveman/` | 超压缩输出模式 |
-| `f-diagnose/` | 纪律化 debug 循环 |
 | `f-feedme/` | 智能订餐助手 |
-| `f-grill/` | 设计审查 interview |
-| `f-arch/` | 架构深化优化 |
 | `f-vessel/` | AI 浏览器操控 |
-| `f-zoom/` | 代码全景视角 |
 
-## 二级：lark-* 原语层（第三方）
+## 二级：第三方 skill
 
-| Skill | 用途 |
-|-------|------|
-| `lark-shared/` | 飞书基础：认证、多账号 |
-| `lark-doc/` | 飞书云文档 CRUD |
-| `lark-base/` | 飞书多维表格 |
-| `lark-sheets/` | 飞书电子表格 |
-| `lark-wiki/` | 飞书知识库管理 |
-| `lark-whiteboard/` | 飞书画板 |
-| `lark-drive/` | 飞书云空间 |
-| `lark-extend/` | 飞书本地覆盖约定 |
-| `lark-calendar/` | 飞书日历 |
+| Skill | 来源 | 用途 |
+|-------|------|------|
+| `lark-shared/` | larksuite/cli | 飞书基础：认证、多账号 |
+| `lark-doc/` | larksuite/cli | 飞书云文档 CRUD |
+| `lark-base/` | larksuite/cli | 飞书多维表格 |
+| `lark-sheets/` | larksuite/cli | 飞书电子表格 |
+| `lark-wiki/` | larksuite/cli | 飞书知识库管理 |
+| `lark-whiteboard/` | larksuite/cli | 飞书画板 |
+| `lark-drive/` | larksuite/cli | 飞书云空间 |
+| `lark-extend/` | larksuite/cli | 飞书本地覆盖约定 |
+| `lark-calendar/` | larksuite/cli | 飞书日历 |
+| `caveman/` | vinvcn/mattpocock-skills-zh-CN | 超压缩输出模式 |
+| `diagnose/` | vinvcn/mattpocock-skills-zh-CN | 纪律化 debug 循环 |
+| `grill-me/` | vinvcn/mattpocock-skills-zh-CN | 设计审查 interview |
+| `improve-codebase-architecture/` | vinvcn/mattpocock-skills-zh-CN | 架构深化优化 |
+| `write-a-skill/` | vinvcn/mattpocock-skills-zh-CN | 创建新 skill |
+| `zoom-out/` | vinvcn/mattpocock-skills-zh-CN | 代码全景视角 |
 
 ## 同步
 

@@ -94,13 +94,13 @@ f-doc 是文档生命周期统一编排层：
 | 研究 | `f-research-deep` | 深度研究 |
 | 研究 | `f-research-report` | 报告生成 |
 | 工作 | `f-worklog` | 工作日志 |
-| 调试 | `f-diagnose` | Bug 诊断 |
-| 架构 | `f-arch` | 架构优化 |
-| 工具 | `f-skill` | 创建 skill |
-| 工具 | `f-caveman` | 压缩输出 |
-| 工具 | `f-grill` | 设计审查 |
+| 调试 | `diagnose` | Bug 诊断 |
+| 架构 | `improve-codebase-architecture` | 架构优化 |
+| 工具 | `write-a-skill` | 创建 skill |
+| 工具 | `caveman` | 压缩输出 |
+| 工具 | `grill-me` | 设计审查 |
 | 工具 | `f-vessel` | 浏览器操控 |
-| 工具 | `f-zoom` | 代码全景 |
+| 工具 | `zoom-out` | 代码全景 |
 | 订餐 | `f-feedme` | 智能订餐 |
 
 ## 注意事项

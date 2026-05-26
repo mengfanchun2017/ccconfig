@@ -1,5 +1,5 @@
 ---
-name: f-diagnose
+name: diagnose
 description: 面向棘手 bug 和性能回退的纪律化 diagnosis loop。Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says "diagnose this" / "debug this", reports a bug, says something is broken/throwing/failing, or describes a performance regression.
 ---
 
@@ -112,4 +112,4 @@ description: 面向棘手 bug 和性能回退的纪律化 diagnosis loop。Repro
 - [ ] Throwaway prototypes 已删除，或移到明确标记的 debug 位置
 - [ ] 在 commit / PR message 中说明最终正确的 hypothesis，方便下一个调试者学习
 
-**然后问：什么本可以防止这个 bug？** 如果答案涉及 architecture change（没有好的 test seam、callers 缠绕、隐藏 coupling），带着具体信息交给 `f-arch` skill。建议应在 fix 落地后提出，而不是之前；现在你掌握的信息比开始时更多。
+**然后问：什么本可以防止这个 bug？** 如果答案涉及 architecture change（没有好的 test seam、callers 缠绕、隐藏 coupling），带着具体信息交给 `improve-codebase-architecture` skill。建议应在 fix 落地后提出，而不是之前；现在你掌握的信息比开始时更多。
