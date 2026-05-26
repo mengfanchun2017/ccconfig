@@ -1,6 +1,6 @@
 # 搜索策略
 
-> 方向性规则。详细搜索方法（Tavily 参数、Python 过滤代码、去重逻辑）→ `skills/unified-research/SKILL.md`
+> 方向性规则。详细搜索方法（Tavily 参数、Python 过滤代码、去重逻辑）→ `skills/f-research/SKILL.md`
 
 ## 分流规则
 - 中文搜索: minimax web_search MCP

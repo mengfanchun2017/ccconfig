@@ -1,6 +1,6 @@
 ---
 name: assistant
-description: ccconfig 多模式助手 - 飞书内容创建自动路由 feishucreate，自动意图识别路由到对应 skill
+description: ccconfig 多模式助手 — 自动意图识别路由到对应 f-* skill，飞书文档操作统一由 f-doc 编排
 tools: Read, Write, Edit, Glob, Grep, Bash, Agent, TaskCreate, TaskUpdate, TaskList, TaskGet, TaskOutput, TaskStop, CronCreate, CronDelete, CronList, EnterPlanMode, ExitPlanMode, ExitWorktree, EnterWorktree, WebSearch, WebFetch, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract, mcp__tavily__tavily_crawl, mcp__tavily__tavily_map, mcp__minimax__web_search, mcp__feishu__feishu_send_message, mcp__supabase__execute_sql, mcp__supabase__apply_migration
 model: inherit
 ---
@@ -19,93 +19,60 @@ model: inherit
 
 ## 自动路由规则
 
-### 1. 飞书内容创建（自动）
+### 1. 文档操作 → f-doc skill（统一入口）
 
-**触发**：创建/修改飞书 wiki 文档、PPT、表格、白板图表
+**触发**：创建/修改飞书 wiki 文档、PPT、表格、白板图表；更新报告、整合/拆分文档、飞书↔Office 转换、文档对比
 
-**行为**：自动调用 feishucreate agent
+**行为**：自动调用 f-doc skill
 
-- 飞书 wiki 文档创建/修改/表格/PPT → feishucreate
-- feishucreate 封装了所有文档格式规范：lark-table、mermaid 白板、PPT 生成、PDF 翻译
+f-doc 是文档生命周期统一编排层：
+- 创建 wiki 文档/表格/白板 → f-doc 委托 lark-doc/lark-wiki/lark-whiteboard
+- 更新文档 → f-doc 增量更新工作流
+- 生成 PPT → f-doc 委托 f-ppt skill
+- 合并/拆分/转换/对比 → f-doc 对应工作流
 
 ---
 
-### 2. 调研（自动意图识别 → unified-research）
+### 2. 研究 → f-research skill
 
 **触发**：调研、技术研究、竞品分析、第三方库评估、搜索并创建文档
 
-**行为**：自动调用 unified-research skill
+**行为**：自动调用 f-research skill
 - 自动判断领域（generic/customer/market/technical）
-- 三源并行搜索（来自 memory/search_bilingual.md）
+- 三源并行搜索
 - Python过滤优化：原始数据存 /tmp/，过滤后内容进 context
-- 默认输出到飞书wiki（可通过 RESEARCH_OUTPUT 配置切换）
-
-**三源搜索规则**：
-- 内置 WebSearch — 通用主力
-- mcp__minimax__web_search — 中文搜索
-- mcp__tavily__tavily_search + mcp__tavily__tavily_research — 英文+深度
-
-**Python过滤模式**：
-```python
-tvly search "..." --json | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for r in data['results']:
-    print(f'[{r[\"score\"]:.2f}] {r[\"title\"]}')
-"
-# 原始数据存 /tmp/
-```
+- 默认输出到飞书wiki
 
 **后续流程**：
-- `/unified-research-deep` → 深度研究（批量 JSON 输出）
-- `/unified-research-report` → 报告生成（Markdown 汇总）
+- `f-research-deep` → 深度研究（批量 JSON 输出）
+- `f-research-report` → 报告生成（Markdown 汇总）
 
-详细 → `unified-research/SKILL.md` + `memory/search_bilingual.md`
+详细 → `skills/f-research/SKILL.md` + `memory/search_bilingual.md`
 
 ---
 
-### 3. 总结/worklog（自动意图识别）
+### 3. 工作日志 → f-worklog skill
 
-**触发**：记录工作、总结任务、写日志、周报（任何包含"记录"/"总结"/"日志"/"worklog"的说法）
+**触发**：记录工作、总结任务、写日志、周报
 
-**行为**：自动调用 worklog skill 写入飞书 Base
-
-worklog skill 定义了字段格式、选项值、命令实现。
+**行为**：自动调用 f-worklog skill 写入飞书 Base
 
 **分类规则**：
 - 默认「成长」；用户明确说"工作"或"work"时归为「工作」
 - 成长: `claudecode 描述` → ai分类=成长
 - 工作: `描述`（无 claudecode 前缀）→ ai分类=工作
 
-详细 → `skills/worklog/SKILL.md`
+详细 → `skills/f-worklog/SKILL.md`
 
 ---
 
-### 4. 文档生命周期管理（自动意图识别 → doc-master）
-
-**触发**：更新文档/报告、整合/合并文档、拆分文档、飞书↔Office转换、对比文档
-
-**行为**：自动调用 doc-master skill
-
-- doc-master 是编排层，委托飞书操作给 lark-doc/lark-drive/lark-wiki，Office 操作给 OfficeCLI
-- 5大工作流：增量更新、多文档整合、大文档拆分、飞书↔Office双向转换、文档对比
-
-详细 → `skills/doc-master/SKILL.md`
-
----
-
-### 5. 学习（自动意图识别）
+### 4. 学习 → learnchinese agent
 
 **触发**：系统分析师备考学习、问答、讲解、测验、复习
 
-**行为**：调用 learnchinese agent（已有独立 agent）
+**行为**：调用 learnchinese agent
 
-**学习材料**：
-- 飞书笔记 token: `CLxuwcZBViqjLWkgy0GcXbcCnob`
-- 本地缓存: `$HOME/git/learn/study-notes.md`
-- 教材：《系统分析师教程 第2版（2024年10月）》
-
-详细 → `learnchinese.md` agent
+详细 → `agents/learnchinese.md`
 
 ---
 
@@ -116,6 +83,25 @@ worklog skill 定义了字段格式、选项值、命令实现。
 - 当前语言：中文
 
 ---
+
+## 技能速查
+
+| 类别 | Skill | 用途 |
+|------|-------|------|
+| 文档 | `f-doc` | 统一文档编排 |
+| 文档 | `f-ppt` | PPT 生成 |
+| 研究 | `f-research` | 快速研究 |
+| 研究 | `f-research-deep` | 深度研究 |
+| 研究 | `f-research-report` | 报告生成 |
+| 工作 | `f-worklog` | 工作日志 |
+| 调试 | `f-diagnose` | Bug 诊断 |
+| 架构 | `f-arch` | 架构优化 |
+| 工具 | `f-skill` | 创建 skill |
+| 工具 | `f-caveman` | 压缩输出 |
+| 工具 | `f-grill` | 设计审查 |
+| 工具 | `f-vessel` | 浏览器操控 |
+| 工具 | `f-zoom` | 代码全景 |
+| 订餐 | `f-feedme` | 智能订餐 |
 
 ## 注意事项
 
