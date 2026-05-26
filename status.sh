@@ -373,12 +373,30 @@ check_feishu() {
 
     export PATH="$HOME/.local/bin:$(find_node_bin):$PATH"
 
+    # 当前账号
+    local current_name=""
+    local current_dir
+    local marker_file="$HOME/.lark-cli-account"
+    if [ -f "$marker_file" ]; then
+        current_name=$(grep '^name=' "$marker_file" 2>/dev/null | cut -d'=' -f2)
+        current_dir=$(grep '^configDir=' "$marker_file" 2>/dev/null | cut -d'=' -f2)
+    fi
+    current_dir="${current_dir:-${LARKSUITE_CLI_CONFIG_DIR:-$HOME/.lark-cli}}"
+    current_dir="$(eval echo "$current_dir")"
+
     # 检查安装
     echo -n "  安装 ... "
     if command -v lark-cli &> /dev/null; then
         echo -e "${GREEN}✅${NC}"
     else
         echo -e "${GRAY}－${NC} (未安装)"
+    fi
+
+    # 当前账号别名
+    if [ -n "$current_name" ]; then
+        echo -e "  当前账号: ${GREEN}${current_name}${NC} ${GRAY}(${current_dir})${NC}"
+    else
+        echo -e "  当前账号: ${YELLOW}未匹配${NC} ${GRAY}(${current_dir})${NC}"
     fi
 
     # 检查配置
@@ -399,6 +417,33 @@ check_feishu() {
         fi
     fi
 
+    # 列出所有已配置账号
+    local feishu_json="$REPO_DIR/conf/feishu.json"
+    if [ -f "$feishu_json" ]; then
+        local accounts_info
+        accounts_info=$(python3 - "$feishu_json" "$current_name" << 'PYEOF' 2>/dev/null
+import json, sys
+with open(sys.argv[1], 'r') as f:
+    data = json.load(f)
+current = sys.argv[2]
+apps = data.get('apps', [])
+if not apps:
+    sys.exit(0)
+for app in apps:
+    lark = app.get('larkCli', {})
+    if lark.get('enabled'):
+        name = app.get('name', '?')
+        marker = '▶' if name == current else ' '
+        cfg = lark.get('configDir', '~/.lark-cli')
+        print(f"    {marker} {name}  {cfg}")
+PYEOF
+        )
+        if [ -n "$accounts_info" ]; then
+            echo -e "  账号列表:"
+            echo "$accounts_info"
+        fi
+    fi
+
     # cc-connect Bridge 状态
     echo -n "  Bridge ... "
     if command -v cc-connect &> /dev/null; then
@@ -413,13 +458,13 @@ check_feishu() {
         echo -e "${GRAY}－${NC} (未安装)"
     fi
     # cconnect 机器人数量（无论二进制是否安装都检查配置）
-    local feishu_json="$REPO_DIR/conf/feishu.json"
     if [ -f "$feishu_json" ]; then
         local total enabled_count
         total=$(python3 -c "import json; d=json.load(open('$feishu_json')); print(len(d.get('apps',[])))" 2>/dev/null || echo "?")
         enabled_count=$(python3 -c "import json; d=json.load(open('$feishu_json')); print(sum(1 for a in d.get('apps',[]) if a.get('ccConnect',{}).get('enabled')))" 2>/dev/null || echo "?")
         echo -e "  机器人: ${enabled_count}/${total} 启用 (cconnect)"
     fi
+    echo -e "  ${GRAY}切换账号: bash ccconfig/option-bridge/lark-switch.sh <name>${NC}"
     echo -e "  ${GRAY}安装/启动: bash ccconfig/option-bridge/init.sh --cc-connect${NC}"
 }
 

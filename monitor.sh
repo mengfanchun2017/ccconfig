@@ -334,6 +334,20 @@ status_watch() {
         echo -e "  ${RED}✗${NC} Not running"
     fi
 
+    # 飞书账号
+    echo -n "  飞书账号 ... "
+    local lark_name="" lark_dir=""
+    if [ -f "$HOME/.lark-cli-account" ]; then
+        lark_name=$(grep '^name=' "$HOME/.lark-cli-account" 2>/dev/null | cut -d'=' -f2)
+        lark_dir=$(grep '^configDir=' "$HOME/.lark-cli-account" 2>/dev/null | cut -d'=' -f2)
+    fi
+    lark_dir="${lark_dir:-${LARKSUITE_CLI_CONFIG_DIR:-$HOME/.lark-cli}}"
+    if [ -n "$lark_name" ]; then
+        echo -e "${GREEN}${lark_name}${NC} ${GRAY}(${lark_dir})${NC}"
+    else
+        echo -e "${YELLOW}未配置${NC}"
+    fi
+
     # systemd 自启动
     local service_file="$HOME/.config/systemd/user/claude-auto-sync.service"
     echo -n "  systemd 自启动 ... "
