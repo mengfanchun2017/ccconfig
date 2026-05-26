@@ -21,6 +21,7 @@ f-doc 委托底层：
 - 文件搜索/上传 → lark-drive
 - 白板图表 → lark-whiteboard
 - PPT 生成 → f-ppt
+- PDF 内容提取 → f-pdf
 - Office 文件 → OfficeCLI
 
 ## 文档创建
