@@ -134,7 +134,7 @@ show_current() {
             if [ "$has_user" = "yes" ]; then
                 echo -e "  授权:   ${GREEN}已授权${NC}"
             else
-                echo -e "  授权:   ${YELLOW}未授权${NC}"
+                echo -e "  授权:   ${YELLOW}未授权 — lark-cli auth login --recommend${NC}"
             fi
         else
             echo -e "  状态:   ${YELLOW}未初始化${NC}"
@@ -297,7 +297,13 @@ EOF
     if [ "$auth_status" = "authorized" ]; then
         echo -e "  授权:     ${GREEN}已授权${NC}"
     else
-        echo -e "  授权:     ${YELLOW}未授权 — 运行 lark-cli auth login --recommend${NC}"
+        echo -e "  授权:     ${YELLOW}未授权${NC}"
+        echo ""
+        echo -e "  ${YELLOW}⚠ 需要 OAuth 授权才能以用户身份操作飞书：${NC}"
+        echo -e "  ${CYAN}lark-cli auth login --recommend${NC}"
+        echo ""
+        echo -e "  ${GRAY}config init = 配置 app 凭证（已完成）${NC}"
+        echo -e "  ${GRAY}auth login  = OAuth 用户授权（待完成）← 编辑文档必须${NC}"
     fi
 
     if $do_persist; then
