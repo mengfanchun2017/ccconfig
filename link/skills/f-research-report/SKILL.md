@@ -1,5 +1,5 @@
 ---
-name: unified-research-report
+name: f-research-report
 user-invocable: true
 description: |
   基于 unified-research 框架的报告生成。读取 results/ 目录中的 JSON 文件，
@@ -44,5 +44,5 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 根据 `RESEARCH_OUTPUT` 配置：feishu（默认）/ file / both
 
 ## 关联 Skills
-- `/unified-research` - 初步研究
-- `/unified-research-deep` - 深度研究
+- `f-research` - 初步研究
+- `f-research-deep` - 深度研究

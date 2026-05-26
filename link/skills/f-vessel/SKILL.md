@@ -1,5 +1,5 @@
 ---
-name: vessel
+name: f-vessel
 description: Vessel AI Agent 浏览器 — MCP 操控真实浏览器，人类监督审批。Use when you need to browse the web, log into sites, fill forms, extract page content, take screenshots, or perform multi-step web tasks on behalf of the user.
 ---
 

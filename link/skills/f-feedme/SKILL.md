@@ -1,5 +1,5 @@
 ---
-name: feedme
+name: f-feedme
 user-invocable: true
 description: 智能订餐助手 — 麦当劳订餐、优惠券管理、偏好推荐、地址管理
 allowed-tools: Bash

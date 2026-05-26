@@ -22,37 +22,37 @@
     "diagnose": {
       "source": "vinvcn/mattpocock-skills-zh-CN",
       "sourceType": "github",
-      "skillPath": "skills/diagnose/SKILL.md",
+      "skillPath": "skills/f-diagnose/SKILL.md",
       "computedHash": "1bb9be6942cb08e128a38f234c266fb6428aac3bc85b257940931f85a0aac3f1"
     },
     "improve-codebase-architecture": {
       "source": "vinvcn/mattpocock-skills-zh-CN",
       "sourceType": "github",
-      "skillPath": "skills/improve-codebase-architecture/SKILL.md",
+      "skillPath": "skills/f-arch/SKILL.md",
       "computedHash": "90936453f72671dd834b60fa20c482bbd03a839f226b365aca65faa260b971bf"
     },
     "zoom-out": {
       "source": "vinvcn/mattpocock-skills-zh-CN",
       "sourceType": "github",
-      "skillPath": "skills/zoom-out/SKILL.md",
+      "skillPath": "skills/f-zoom/SKILL.md",
       "computedHash": "17ca04b45edbd80a85ee8602b233811d355ed8f87df6e0d2ea399dd2f3a1fa6f"
     },
     "caveman": {
       "source": "vinvcn/mattpocock-skills-zh-CN",
       "sourceType": "github",
-      "skillPath": "skills/caveman/SKILL.md",
+      "skillPath": "skills/f-caveman/SKILL.md",
       "computedHash": "62a843621680b6c56c57184a9e49feef351e03712eb04365d117e20a2b9c1934"
     },
     "grill-me": {
       "source": "vinvcn/mattpocock-skills-zh-CN",
       "sourceType": "github",
-      "skillPath": "skills/grill-me/SKILL.md",
+      "skillPath": "skills/f-grill/SKILL.md",
       "computedHash": "6eafc26722e3f892ff450811f32661ba11e9bdd3e5d789ec768e9128232e389a"
     },
     "write-a-skill": {
       "source": "vinvcn/mattpocock-skills-zh-CN",
       "sourceType": "github",
-      "skillPath": "skills/write-a-skill/SKILL.md",
+      "skillPath": "skills/f-skill/SKILL.md",
       "computedHash": "79d71deff20572f0b1a66cf85ec00b1874bde41a43cc554b355c6f989afaae26"
     },
     "lark-wiki": {

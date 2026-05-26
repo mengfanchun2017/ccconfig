@@ -1,5 +1,5 @@
 ---
-name: improve-codebase-architecture
+name: f-arch
 description: 根据 CONTEXT.md 中的 domain language 和 docs/adr/ 中的 decisions，寻找 codebase 的 deepening opportunities。Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more testable and AI-navigable.
 ---
 
