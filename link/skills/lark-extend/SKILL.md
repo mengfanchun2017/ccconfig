@@ -78,15 +78,15 @@ lark-cli ... 2>&1 | grep -v '^\[lark-cli\]' | python3 -c "..."
 | 约定 | 位置 | 说明 |
 |------|------|------|
 | 搜索策略（方向） | `rules/search.md` | 分流规则 + 三源并行原则 + 来源标注（始终加载，精简） |
-| 搜索策略（执行） | `skills/unified-research/` | Tavily 参数速查 + Python 过滤 + 去重代码 + 工作流（按需加载） |
+| 搜索策略（执行） | `skills/f-research/` | Tavily 参数速查 + Python 过滤 + 去重代码 + 工作流（按需加载） |
 | 飞书优先输出 | 本文件「文档约定」 | 学习研究写入飞书，有 URL 直接更新文档 |
 | PDF 翻译规范 | `memory/res_pdf_translation.md` | 文档结构/PPT风格/图片验证 |
-| 深度研究 | `skills/unified-research-deep/` | 批量 JSON 输出 |
-| 报告生成 | `skills/unified-research-report/` | JSON → Markdown 报告 |
+| 深度研究 | `skills/f-research-deep/` | 批量 JSON 输出 |
+| 报告生成 | `skills/f-research-report/` | JSON → Markdown 报告 |
 
-**原则**：`rules/search.md` 给方向（始终加载，不占 context），`unified-research` skill 给方法（按需加载，可执行）。
+**原则**：`rules/search.md` 给方向（始终加载，不占 context），`f-research` skill 给方法（按需加载，可执行）。
 
 ## 工作日志约定
 
 - worklog 写入 Base: 自动识别 成长/工作 分类
-- 字段选项速查见 worklog skill
+- 字段选项速查见 f-worklog skill

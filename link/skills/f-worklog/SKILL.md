@@ -1,5 +1,5 @@
 ---
-name: worklog
+name: f-worklog
 user-invocable: true
 description: 写入 worklog 到飞书 Base（表格），自动识别成长/工作分类，字段选项速查
 allowed-tools: Bash

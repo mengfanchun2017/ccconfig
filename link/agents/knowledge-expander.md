@@ -21,16 +21,16 @@ model: inherit
 
 ## 执行步骤
 
-### 1. 搜索（委托 unified-research 三源并行）
+### 1. 搜索（委托 f-research 三源并行）
 
-搜索策略由 `skills/unified-research/SKILL.md` 定义，本 agent 直接复用：
+搜索策略由 `skills/f-research/SKILL.md` 定义，本 agent 直接复用：
 
 - **三源并行**（必须同时执行）：WebSearch + `mcp__minimax__web_search` + `mcp__tavily__tavily_search`
 - **标注来源**：`[web]` / `[mm]` / `[tv]`
 - **Python 过滤**：原始数据不直接进 context，用 Python 过滤后只保留 print() 输出，原始数据保存到 `/tmp/tavily_search_{timestamp}.json`
 - **按 URL 去重**，每个源保留前 5 条
 
-详见 `unified-research` skill 的「搜索策略」和「聚合去重」section。
+详见 `f-research` skill 的「搜索策略」和「聚合去重」section。
 
 ### 2. 去重整理
 
@@ -47,7 +47,7 @@ model: inherit
 | output_type | 路由 | 说明 |
 |-------------|------|------|
 | `doc` | lark-cli docs +create | 飞书 wiki 文档 |
-| `ppt` | feishucreate agent（ppt-master） | 调用 feishucreate 生成 SVG→PPTX |
+| `ppt` | f-ppt skill | 调用 f-ppt 生成 PPTX |
 | `table` | lark-cli docs +create（含 lark-table） | 飞书文档内嵌表格 |
 | `bitable` | lark-cli base +table-create | 独立多维表格 |
 
@@ -66,7 +66,7 @@ EOF
 内容组织为 `<lark-table>` XML 格式，嵌入文档中。
 
 **ppt 类型**：
-输出结构化内容方案，交由 feishucreate agent 执行 ppt-master 流水线。
+输出结构化内容方案，交由 f-ppt skill 执行 PPT 生成。
 
 **bitable 类型**：
 ```bash

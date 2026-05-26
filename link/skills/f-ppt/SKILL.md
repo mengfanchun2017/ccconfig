@@ -1,5 +1,5 @@
 ---
-name: unified-ppt
+name: f-ppt
 user-invocable: true
 description: |
   统一 PPT 生成 — 从 md/wiki 到飞书 PPTX。

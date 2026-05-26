@@ -1,5 +1,5 @@
 ---
-name: unified-research
+name: f-research
 user-invocable: true
 description: |
   统一研究框架 - 自动判断领域，三源并行搜索，Python过滤优化，输出到飞书wiki。
@@ -222,5 +222,5 @@ def deduplicate_by_url(results):
 
 ## 关联 Skills
 
-- `/unified-research-deep` — 深度研究
-- `/unified-research-report` — 报告生成
+- `f-research-deep` — 深度研究
+- `f-research-report` — 报告生成

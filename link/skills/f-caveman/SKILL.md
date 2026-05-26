@@ -1,5 +1,5 @@
 ---
-name: caveman
+name: f-caveman
 description: >
   超压缩 communication mode。Cuts token usage ~75% by dropping
   filler, articles, and pleasantries while keeping full technical accuracy.
