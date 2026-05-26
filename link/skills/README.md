@@ -11,6 +11,7 @@
 | `f-research/` | 统一研究框架 — 三源搜索、自动领域判断 |
 | `f-research-deep/` | 深度研究 — 批量 JSON 输出 |
 | `f-research-report/` | 报告生成 — JSON → Markdown |
+| `f-pdf/` | PDF 内容提取原语 — 文字/图片/元数据 |
 | `f-worklog/` | 工作日志写入飞书 Base |
 | `f-feedme/` | 智能订餐助手 |
 | `f-vessel/` | AI 浏览器操控 |
