@@ -71,6 +71,19 @@ PYEOF
 
 _detect_lark_account
 
+# 探测工作目录（CC小能手）
+_detect_lark_workspace() {
+    local ws_file="$HOME/.claude/lark-workspace.json"
+    if [ -f "$ws_file" ]; then
+        LARK_WORKSPACE_NAME=$(python3 -c "import json;d=json.load(open('$ws_file'));print(d['workspace']['name'])" 2>/dev/null)
+        LARK_WORKSPACE_NODE=$(python3 -c "import json;d=json.load(open('$ws_file'));print(d['workspace']['nodeToken'])" 2>/dev/null)
+        LARK_WORKSPACE_SPACE_ID=$(python3 -c "import json;d=json.load(open('$ws_file'));print(d['workspace']['spaceId'])" 2>/dev/null)
+        LARK_WORKSPACE_URL=$(python3 -c "import json;d=json.load(open('$ws_file'));print(d['workspace']['url'])" 2>/dev/null)
+    fi
+}
+
+_detect_lark_workspace
+
 # 直接执行时输出
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
     if [ "${1:-}" = "-v" ] || [ "${1:-}" = "--verbose" ]; then
@@ -82,6 +95,10 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
                 switched_at=$(grep '^switchedAt=' "$marker_file" 2>/dev/null | cut -d'=' -f2-)
                 [ -n "$switched_at" ] && echo -e "切换时间: ${GRAY}${switched_at}${NC}"
             fi
+        fi
+        if [ -n "${LARK_WORKSPACE_NAME:-}" ]; then
+            echo -e "工作目录: ${GREEN}${LARK_WORKSPACE_NAME}${NC}"
+            echo -e "  wiki:   ${GRAY}${LARK_WORKSPACE_URL:-}${NC}"
         fi
     else
         if [ -n "$LARK_ACCOUNT_NAME" ]; then
