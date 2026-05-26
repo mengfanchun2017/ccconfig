@@ -22,7 +22,10 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 | `drive +create-folder` | `--folder-token` | `--name` | 不是 `--title` |
 | `drive +upload` | `--folder-token` | `--file "./rel"` | 必须相对路径，先 cd |
 
+| `slides +create` | - | `--title` `--slides '<json-array>'` | JSON 数组每元素是 XML `<slide>` 字符串 |
+| `slides 导出` | - | `api POST export_tasks` | `drive +export` 不支持 slides，用 `lark-cli api` 调原始API |
+| `drive +export-download` | `--file-token` | `--file-name` | 必须相对路径，先 cd |
+
 ## 新增踩坑（追加在此）
 
-<!-- 格式: 日期 | 命令 | 错误 → 正确 | 备注 -->
-<!-- 2026-05-26 | docs +update | --token → --doc | token参数名不统一 -->
+<!-- 2026-05-26 | slides export | drive +export --doc-type slides → 不支持 → lark-cli api POST export_tasks | 用通用API替代 -->
