@@ -13,7 +13,8 @@
 | `f-research-report/` | 报告生成 — JSON → Markdown |
 | `f-pdf/` | PDF 内容提取原语 — 文字/图片/元数据 |
 | `f-worklog/` | 工作日志写入飞书 Base |
-| `f-feedme/` | 智能订餐助手 |
+| `f-feedme/` | 智能订餐助手（麦当劳） |
+| `f-feedmeng/` | 二次元虚拟点餐 |
 | `f-vessel/` | AI 浏览器操控 |
 
 ## 二级：第三方 skill
