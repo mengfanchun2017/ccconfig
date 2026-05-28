@@ -64,7 +64,30 @@ PYEOF
         fi
     fi
 
-    # 3. 未匹配
+    # 3. 按 appId 回退匹配（configDir 不匹配时，从 config.json 读取 appId 来匹配）
+    if [ -f "$feishu_conf" ] && [ -f "$current_dir/config.json" ]; then
+        local app_id_matched
+        app_id_matched=$(python3 - "$feishu_conf" "$current_dir" << 'PYEOF' 2>/dev/null
+import json, sys, os
+with open(sys.argv[1], 'r') as f:
+    data = json.load(f)
+cfg = json.load(open(os.path.join(sys.argv[2], 'config.json')))
+cfg_app_id = cfg.get('apps', [{}])[0].get('appId', '')
+if cfg_app_id:
+    for app in data.get('apps', []):
+        if app.get('larkCli', {}).get('enabled') and app.get('appId') == cfg_app_id:
+            print(json.dumps({'name': app['name'], 'configDir': os.path.expanduser(app.get('larkCli', {}).get('configDir', '~/.lark-cli'))}))
+            break
+PYEOF
+        )
+        if [ -n "$app_id_matched" ]; then
+            LARK_ACCOUNT_NAME=$(echo "$app_id_matched" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])")
+            LARK_CONFIG_DIR=$(echo "$app_id_matched" | python3 -c "import json,sys; print(json.load(sys.stdin)['configDir'])")
+            return
+        fi
+    fi
+
+    # 4. 未匹配
     LARK_ACCOUNT_NAME=""
     LARK_CONFIG_DIR="$current_dir"
 }

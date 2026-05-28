@@ -91,6 +91,24 @@ detect_current() {
         fi
     done < <(get_apps)
 
+    # 回退：按 appId 匹配（configDir 不匹配时，从 config.json 读 appId）
+    local cfg="${current_dir}/config.json"
+    if [ -f "$cfg" ]; then
+        local cfg_app_id
+        cfg_app_id=$(python3 -c "import json; d=json.load(open('$cfg')); print(d.get('apps',[{}])[0].get('appId',''))" 2>/dev/null)
+        if [ -n "$cfg_app_id" ]; then
+            while IFS= read -r line; do
+                [ -z "$line" ] && continue
+                local name app_id
+                IFS='|' read -r name _ app_id _ _ _ <<< "$(echo "$line" | parse_app)"
+                if [ "$app_id" = "$cfg_app_id" ]; then
+                    echo "$name"
+                    return
+                fi
+            done < <(get_apps)
+        fi
+    fi
+
     echo ""
 }
 
