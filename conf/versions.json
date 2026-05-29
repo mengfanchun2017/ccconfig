@@ -1,6 +1,6 @@
 {
   "description": "Single source of truth for all component versions managed by ccconfig. Edit this file to pin versions.",
-  "last_checked": "2026-05-15T23:01:48.405100+08:00",
+  "last_checked": "2026-05-28T22:55:17.236138+08:00",
   "components": {
     "node": {
       "version": "22.22.3",
@@ -12,7 +12,7 @@
       "lts_only": true
     },
     "gh": {
-      "version": "2.92.0"
+      "version": "2.93.0"
     },
     "cc_connect": {
       "version": "1.3.2",
