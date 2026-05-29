@@ -43,10 +43,12 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 
 ---
 
-## 飞书 Base
+## 飞书资源
 
 **Base token**: `L8wjb4CYRa1HeOsGx4BcIOFknyg`
-**URL**: https://<your-tenant>.feishu.cn/base/L8wjb4CYRa1HeOsGx4BcIOFknyg
+**Base URL**: https://<your-tenant>.feishu.cn/base/L8wjb4CYRa1HeOsGx4BcIOFknyg
+**SUM 文档父目录**: `<your-feishu-wiki-token>`（Claude 工作 wiki）
+**Space ID**: `7626581506382728129`
 
 | 表 | Table ID | 用途 |
 |----|----------|------|
@@ -180,24 +182,24 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 ```markdown
 ## {周期} {分类}总结（{时间范围}）
 
-### 一、OKR 达成
+### OKR 达成
 | O | KR | 进度 | 评分 |
 |----|-----|------|------|
 {从 OKR 表拉取}
 
-### 二、核心成果
+### 核心成果
 {从 Worklog 按成果类型分组，STAR 格式重写 top 5}
 - 成果类型分布：项目交付 X 项 / 技术调研 Y 项 / 学习输入 Z 项
 
-### 三、量化总览
+### 量化总览
 - 总记录数：X
 - 涉及 KR：Y 个
 - 完成率：Z%
 
-### 四、反思
+### 反思
 {从 Reflect 提取关键洞察}
 
-### 五、下阶段计划
+### 下阶段计划
 {从 Reflect 的下阶段聚焦 + OKR 的下一周期目标}
 ```
 
@@ -206,16 +208,16 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 ```markdown
 ## {年度} {领域} 专项总结
 
-### 一、概述
+### 概述
 {领域标签下的 worklog 总量、时间分布、KR 覆盖}
 
-### 二、关键里程碑
+### 关键里程碑
 {按时间线列出该领域最重要的 3-5 个成果}
 
-### 三、能力积累
+### 能力积累
 {从 Reflect 和 Worklog 的成果类型提取}
 
-### 四、明年规划
+### 明年规划
 {关联到该领域的下一年 OKR}
 ```
 
@@ -276,26 +278,44 @@ cd /tmp && lark-cli base +record-batch-create --base-token $T --table-id tblwupt
 ### SUM 生成命令
 
 ```bash
-# 周期总结
+# 周期总结 → 飞书文档（自动放到 Claude 工作 wiki 下）
 python3 ~/.claude/skills/f-logme/scripts/sum_generate.py \
-  --period Q2 --category work --output-format feishu
+  --period Q2 --category work --output-format feishu \
+  --parent-token <your-feishu-wiki-token>
 
 # 领域总结
 python3 ~/.claude/skills/f-logme/scripts/sum_generate.py \
-  --domain AI --year 2026 --output-format feishu
+  --domain AI --year 2026 --output-format feishu \
+  --parent-token <your-feishu-wiki-token>
 ```
 
----
+**创建命令示例**：
+```bash
+lark-cli docs +create --api-version v2 --as user \
+  --parent-token <your-feishu-wiki-token> \
+  --doc-format markdown --content '...'
+```
 
 ## 集成点
 
 | 系统 | 关系 |
 |------|------|
 | f-worklog | 简化版，f-logme 是其升级替代 |
-| f-doc | SUM 输出目标：飞书文档 |
+| f-doc | SUM 输出目标：飞书文档，创建前必须加载 lark-doc-style.md 格式化规则 |
 | f-ppt | 年度总结可选输出 PPT |
 | f-research | 领域总结前可联动做行业调研 |
 | lark-cli | 所有 Base 读写通过 lark-cli |
+
+## 文档格式化规则
+
+SUM 生成飞书文档时，**必须**遵循 `lark-doc-style.md`（路径：`skills/lark-doc/references/style/lark-doc-style.md`）：
+
+- 标题不加编号（不用 "一、"/"1.1" 前缀）
+- 禁止 `<hr/>` 分割线
+- 表格 `<colgroup>` 列宽之和 = 820px
+- 层级 ≤ H3
+- 缩写首次 DFN 格式
+- 文档开头 `<callout>` front-load 结论
 
 ## 参考
 
