@@ -45,10 +45,13 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 
 ## 飞书资源
 
-**Base token**: `L8wjb4CYRa1HeOsGx4BcIOFknyg`
-**Base URL**: https://<your-tenant>.feishu.cn/base/L8wjb4CYRa1HeOsGx4BcIOFknyg
-**SUM 文档父目录**: `<your-feishu-wiki-token>`（Claude 工作 wiki）
 **Space ID**: `7626581506382728129`
+**SUM 文档父目录**: `<your-feishu-wiki-token>`（Claude 工作 wiki）
+
+### OKR Base（主：目标管理 + 反思 + SUM）
+
+**Base token**: `L8wjb4CYRa1HeOsGx4BcIOFknyg`
+**URL**: https://<your-tenant>.feishu.cn/base/L8wjb4CYRa1HeOsGx4BcIOFknyg
 
 | 表 | Table ID | 用途 |
 |----|----------|------|
@@ -56,6 +59,29 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 | OKR_KR | `tblGODTVWxc3fwcI` | 关键结果（关联 O） |
 | Worklog | `tblwuptJB1ZUNZOY` | 日常记录（关联 KR） |
 | Reflect | `tblFaF3kT7PgGCty` | 定期反思（可选关联 O） |
+
+### Worklog Base（历史数据 + 简易记录）
+
+**Base token**: `DLk8bb838ahfr3sF1UnchSHlnTf`
+**Wiki URL**: https://<your-tenant>.feishu.cn/wiki/UQeFwqU5CibOCtkam4UceLgBn8g
+**数据范围**: 2024-12 ~ 2026-01
+
+| 表 | Table ID | 用途 |
+|----|----------|------|
+| 任务表 | `tblWNiZP1xWj1hdd` | 历史 worklog 记录 |
+| 周报生成表 | `tbloq6yxz0cNI06p` | AI 辅助周报生成 |
+
+**字段映射（任务表 → f-logme Worklog）**：
+
+| 任务表字段 | → | f-logme 字段 | 说明 |
+|-----------|----|-------------|------|
+| 标题 | → | 标题 | 直接映射 |
+| ai分类 | → | 分类 | 工作→work, 成长→learn |
+| ai板块 | → | 领域标签 | agent/aiagent/workflow/architecture/... |
+| 说明 | → | 说明 | 直接映射 |
+| 完成日期 | → | 完成日期 | 直接映射 |
+| ai链接 | → | — | 额外字段，f-logme 无对应 |
+| 父记录 | → | — | 自关联，f-logme 无对应 |
 
 ## 数据模型
 
@@ -286,6 +312,11 @@ lark-cli base +table-create --base-token $T --as user --name "OKR_KR" --fields '
 ```bash
 export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>"
 export PATH="$HOME/.local/bin:$PATH"
+```
+
+#### OKR Base（目标管理 + 反思）
+
+```bash
 T="L8wjb4CYRa1HeOsGx4BcIOFknyg"
 
 # 拉取 OKR_O
@@ -306,6 +337,22 @@ cat > /tmp/wl.json << 'EOF'
  "rows":[["claudecode xxx",[{"id":"recXXXX"}],"项目交付","","说明","2026-05-29"]]}
 EOF
 cd /tmp && lark-cli base +record-batch-create --base-token $T --table-id tblwuptJB1ZUNZOY --as user --json @wl.json
+```
+
+#### Worklog Base（历史数据）
+
+```bash
+W="DLk8bb838ahfr3sF1UnchSHlnTf"
+
+# 拉取全部历史 worklog
+lark-cli base +record-list --base-token $W --table-id tblWNiZP1xWj1hdd --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > /tmp/worklog_history.json
+
+# 写入新记录（字段: 标题, ai分类, ai板块, 说明, 完成日期）
+cat > /tmp/wl2.json << 'EOF'
+{"fields":["标题","ai分类","ai板块","说明","完成日期"],
+ "rows":[["claudecode xxx",["成长"],["agent"],"说明","2026-05-29"]]}
+EOF
+cd /tmp && lark-cli base +record-batch-create --base-token $W --table-id tblWNiZP1xWj1hdd --as user --json @wl2.json
 ```
 
 ### SUM 生成流程
