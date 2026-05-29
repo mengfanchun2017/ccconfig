@@ -246,6 +246,39 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 
 ---
 
+## Base 初始化
+
+新建 Bitable 后有一张默认空表 "数据表"。**推荐直接复用默认表**，不要创建新表再删默认表。
+
+### 推荐方案：Rename + 加字段
+
+```bash
+# 1. 重命名默认表
+lark-cli base +table-update --base-token $T --table-id "数据表" --name "OKR_O" --as user
+
+# 2. 给第一张表加字段
+lark-cli base +field-create --base-token $T --table-id tblXXX \
+  --json '{"field_name":"分类","type":"select","options":[{"name":"work","color":0},{"name":"learn","color":1}]}'
+
+# 3. 创建其余表（第2张起）
+lark-cli base +table-create --base-token $T --as user --name "OKR_KR" --fields '[...]'
+```
+
+**为什么不用 "新建+删默认" 方案**：
+- 默认表 "数据表" 是最后一张表时无法删除（"A base must keep at least one table"）
+- 新建→删默认需要 2 步 2 次 API；rename 只需 1 步，字段直接加到重命名后的表上
+- 新 Base 默认没有 workflow / dashboard，无需处理
+
+### 踩坑记录
+
+| 默认项 | 是否存在 | 能否删除 |
+|--------|---------|---------|
+| 默认空表 "数据表" | ✅ 有 | ✅ 可删（但至少保留1张表） |
+| 默认 workflow | ❌ 无 | ❌ lark-cli 无 `+workflow-delete`，API 无 DELETE endpoint |
+| 默认 dashboard | ❌ 无 | ✅ `+dashboard-delete --yes` |
+
+---
+
 ## 命令速查
 
 ### Base 操作（lark-cli）
