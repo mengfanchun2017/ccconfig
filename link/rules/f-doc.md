@@ -1,16 +1,6 @@
----
-paths:
-  - "ccconfig/link/skills/f-doc/**"
-  - "ccconfig/link/skills/f-ppt/**"
-  - "ccconfig/link/skills/f-research/**"
-  - "ccconfig/link/skills/f-research-deep/**"
-  - "ccconfig/link/skills/f-research-report/**"
-  - "ccconfig/feishu/**"
----
-
 # 文档操作规范
 
-> 飞书文档创建/更新的一站式规则。详细操作流程在 `skills/f-doc/SKILL.md`。
+> 飞书文档创建/更新的一站式规则。始终全局加载。操作流程细节在 `skills/f-doc/SKILL.md`。
 
 ## f-doc 统一入口
 
@@ -35,10 +25,16 @@ f-doc 委托底层：
 - 标题：`# ## ###` 三级，不加手动编号，禁止 H4+
 - 表格：`<lark-table>` XML，禁止 Markdown 表格。colgroup 列宽之和 = 820px
 - 禁止 `<hr/>` 分割线，主题间用标题层级和留白自然过渡
-- 图表：mermaid 代码块，禁止 ASCII 字符画
+- 图表：需要图表时优先插入画板（whiteboard）而非图片
 - 缩写：首次 DFN 格式 `中文全称（English Full Name, ABBR）`
 - 链接：用 `www.feishu.cn` 域名，非 `open.feishu.cn`
+- 禁止表格裸 URL：表格内链接必须用 Markdown 链接格式
 - 非正文（说明/清单）用 `>` 引用包裹，不污染目录
+
+### 交互约定
+- **用户展示的格式要对等回写**：用户展示表格 → 用 `<table>` 回写；用户展示列表 → 用 `<ul>/<ol>` 回写
+- **用户给的完整内容默认全部插入**，不截断。不确定范围时确认
+- **插入或替换表格后必须验证** colgroup 总和 = 820，`block_replace` 返回 ok 不代表宽度正确
 
 ### 命令
 ```bash
@@ -75,6 +71,10 @@ lark-cli drive +search --query "关键词" --doc-types "wiki,doc,docx" --page-si
 ## 研究管道
 - 快速研究 → f-research → 飞书 wiki 文档
 - 深度研究 → f-research-deep → JSON → f-research-report → Markdown
+
+## Base 约定
+- 字段设计优先考虑公式字段、查找引用
+- 涉及跨表计算时优先用关联字段而非硬编码 ID
 
 ## 关键陷阱
 - 飞书编辑后 fetch 验证，用 `--scope range`，不用 `keyword`

@@ -1,0 +1,12 @@
+{
+  "jobs": [
+    {
+      "name": "my-sync",
+      "local_dir": "/mnt/c/Users/franc/Documents/sync-to-feishu",
+      "folder_token": "NHjlfz0hflyQ2hdWi4RcRrQsnPd",
+      "on_conflict": "local-wins",
+      "interval_seconds": 30
+    }
+  ],
+  "lark_config_dir": "~/.lark-cli-<account>"
+}
