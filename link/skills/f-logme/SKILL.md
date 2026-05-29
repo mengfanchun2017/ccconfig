@@ -161,7 +161,7 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
   → 拉取 Worklog（本周期 + 关联到上述 KR）
   → 拉取 Reflect（本周期 + 本分类）
   → 按模板生成 Markdown
-  → 通过 f-doc 创建飞书文档
+  → **委托 f-doc skill 创建飞书文档**（格式化规则通过 f-doc→lark-doc 链加载）
 ```
 
 **支持四种总结**：
@@ -275,26 +275,18 @@ EOF
 cd /tmp && lark-cli base +record-batch-create --base-token $T --table-id tblwuptJB1ZUNZOY --as user --json @wl.json
 ```
 
-### SUM 生成命令
+### SUM 生成流程
 
-```bash
-# 周期总结 → 飞书文档（自动放到 Claude 工作 wiki 下）
-python3 ~/.claude/skills/f-logme/scripts/sum_generate.py \
-  --period Q2 --category work --output-format feishu \
-  --parent-token <your-feishu-wiki-token>
-
-# 领域总结
-python3 ~/.claude/skills/f-logme/scripts/sum_generate.py \
-  --domain AI --year 2026 --output-format feishu \
-  --parent-token <your-feishu-wiki-token>
+```
+f-logme（数据聚合）
+  ├─ 拉取 Base 数据（lark-cli）
+  ├─ 时间/领域过滤
+  ├─ 按模板填 Markdown
+  └─ 委托 f-doc skill 创建飞书文档
+       └─ f-doc → lark-doc（lark-doc-style.md 加载，格式化规则生效）
 ```
 
-**创建命令示例**：
-```bash
-lark-cli docs +create --api-version v2 --as user \
-  --parent-token <your-feishu-wiki-token> \
-  --doc-format markdown --content '...'
-```
+f-logme 不自己调 `lark-cli docs +create`，文档创建统一走 f-doc。
 
 ## 集成点
 
@@ -306,16 +298,14 @@ lark-cli docs +create --api-version v2 --as user \
 | f-research | 领域总结前可联动做行业调研 |
 | lark-cli | 所有 Base 读写通过 lark-cli |
 
-## 文档格式化规则
+## 文档创建规则
 
-SUM 生成飞书文档时，**必须**遵循 `lark-doc-style.md`（路径：`skills/lark-doc/references/style/lark-doc-style.md`）：
+SUM 生成飞书文档时，**必须通过 f-doc skill 创建**（不裸调 lark-cli），原因：
+- f-doc → lark-doc → lark-doc-style.md 加载链保证格式化规则完整进 context
+- `rules/f-doc.md` 始终加载，提供父目录/标题/表格等基础规则
+- 直接裸调会丢失格式化约束，导致编号标题、分割线、窄表格等问题
 
-- 标题不加编号（不用 "一、"/"1.1" 前缀）
-- 禁止 `<hr/>` 分割线
-- 表格 `<colgroup>` 列宽之和 = 820px
-- 层级 ≤ H3
-- 缩写首次 DFN 格式
-- 文档开头 `<callout>` front-load 结论
+f-logme 职责：从 Base 聚合数据 → 按模板填 Markdown → 交给 f-doc 创建文档。
 
 ## 参考
 
