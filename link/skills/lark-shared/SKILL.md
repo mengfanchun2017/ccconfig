@@ -102,6 +102,43 @@ lark-cli 命令执行后，如果检测到新版本，JSON 输出中会包含 `_
 
 **规则**：不要静默忽略更新提示。即使当前任务与更新无关，也应在完成用户请求后补充告知。
 
+## 参考资源
+
+| 资源 | URL |
+|------|-----|
+| 更新日志 | https://open.feishu.cn/changelog?lang=zh-CN |
+| CLI 文档 | https://open.feishu.cn/document/cli/overview |
+| GitHub | https://github.com/larksuite/cli |
+| npm | `@larksuite/cli` (`npm install -g @larksuite/cli`) |
+
+**定期检查**：每隔 1-2 周或遇到 lark-cli 异常行为时，应主动查看更新日志确认是否有 breaking change 或新功能影响当前使用。
+
+## 云盘同步（drive +sync / +push / +pull）
+
+lark-cli v1.0.0+ 支持本地目录 ↔ 飞书云盘双向同步：
+
+```bash
+# 双向同步
+lark-cli drive +sync --local-dir ./mydir --folder-token <token>
+
+# 单向：本地 → 云盘
+lark-cli drive +push --local-dir ./mydir --folder-token <token>
+
+# 单向：云盘 → 本地
+lark-cli drive +pull --local-dir ./mydir --folder-token <token>
+
+# 比较差异（不实际同步）
+lark-cli drive +status --local-dir ./mydir --folder-token <token>
+```
+
+关键参数：
+- `--on-conflict`：冲突策略 `remote-wins`（默认）/ `local-wins` / `keep-both` / `ask`
+- `--quick`：用 modified_time 快速比对代替 SHA-256 哈希（跳过远程下载）
+- `--dry-run`：预览操作不执行
+- `--as user`：必须用 user 身份（bot 无用户云盘访问权限）
+
+**Windows 配置**：Windows 下安装 `@larksuite/cli` 后，同样用 `lark-cli drive +sync` 将本地目录同步到云盘，实现跨设备文件同步。
+
 ## 安全规则
 
 - **禁止输出密钥**（appSecret、accessToken）到终端明文。
