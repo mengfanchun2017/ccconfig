@@ -51,18 +51,23 @@ f-doc 是文档生命周期统一编排层：
 
 ---
 
-### 3. 工作日志 → f-worklog skill
+### 3. 个人管理 → f-logme skill
 
-**触发**：记录工作、总结任务、写日志、周报
+**触发**：记录工作、写日志、OKR 管理、目标设定、反思、生成周期/领域总结
 
-**行为**：自动调用 f-worklog skill 写入飞书 Base
+**行为**：自动调用 f-logme skill
 
-**分类规则**：
-- 默认「成长」；用户明确说"工作"或"work"时归为「工作」
-- 成长: `claudecode 描述` → ai分类=成长
-- 工作: `描述`（无 claudecode 前缀）→ ai分类=工作
+f-logme 是个人管理系统统一入口，五层架构：
+- OKR（O + KR）：长期目标 + 可量化关键结果
+- Worklog：日常记录，必须关联 KR
+- Reflect：周期反思（周/月/季度）
+- SUM：读取以上三层 → 按模板生成总结 → 飞书文档
 
-详细 → `skills/f-worklog/SKILL.md`
+**分类**：所有层级共用 work / learn / project 三类。
+
+f-logme 是 f-worklog 的升级替代，旧的 f-worklog 仍可用但不推荐。
+
+详细 → `skills/f-logme/SKILL.md`
 
 ---
 
@@ -93,7 +98,8 @@ f-doc 是文档生命周期统一编排层：
 | 研究 | `f-research` | 快速研究 |
 | 研究 | `f-research-deep` | 深度研究 |
 | 研究 | `f-research-report` | 报告生成 |
-| 工作 | `f-worklog` | 工作日志 |
+| 管理 | `f-logme` | 个人管理系统（OKR+Worklog+Reflect+SUM） |
+| 管理 | `f-worklog` | 工作日志（旧版，已被 f-logme 替代） |
 | 调试 | `diagnose` | Bug 诊断 |
 | 架构 | `improve-codebase-architecture` | 架构优化 |
 | 工具 | `write-a-skill` | 创建 skill |
