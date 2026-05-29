@@ -26,6 +26,29 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 | `slides 导出` | - | `api POST export_tasks` | `drive +export` 不支持 slides，用 `lark-cli api` 调原始API |
 | `drive +export-download` | `--file-token` | `--file-name` | 必须相对路径，先 cd |
 
+## base +field-create 坑点
+
+| 操作 | 错误写法 | 正确写法 |
+|------|---------|---------|
+| 字段类型 | `"type":3` (数字) | `"type":"select"` (字符串) |
+| 选项/链接 | `"property":{"options":[...]}` | `"options":[...]` 在顶层 |
+| 关联字段 | `"link_table_id":"tblXXX"` | `"link_table":"tblXXX"` 在顶层 |
+| JSON文件路径 | `--json @/tmp/file.json` | `cd /tmp && --json @file.json` (必须相对) |
+| 删除确认 | 不加 flag 报错 | `--yes` |
+
+### field-create 正确格式示例
+
+```bash
+# 单选字段
+lark-cli base +field-create --base-token $T --table-id tblXXX \
+  --json '{"field_name":"分类","type":"select","options":[{"name":"work","color":0},{"name":"learn","color":1}]}'
+
+# 关联字段（跨表链接）
+lark-cli base +field-create --base-token $T --table-id tblXXX \
+  --json '{"field_name":"关联O","type":"link","link_table":"tblC4ykRAWqBFGjt"}'
+```
+
 ## 新增踩坑（追加在此）
 
+<!-- 2026-05-29 | base field-create | 7次试错：type数字格式、property嵌套、link_table_id → 全部改用扁平字符串key → 记录到上方速查表 -->
 <!-- 2026-05-26 | slides export | drive +export --doc-type slides → 不支持 → lark-cli api POST export_tasks | 用通用API替代 -->
