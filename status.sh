@@ -201,7 +201,7 @@ check_ppt_master() {
     if $ok; then
         echo -e "  ${GREEN}PPT 生成环境就绪${NC}"
     else
-        echo -e "  ${YELLOW}修复: bash ccconfig/init-ubuntu.sh (仅 PPT 部分)${NC}"
+        echo -e "  ${YELLOW}修复: bash ccconfig/option-ppt-master/init.sh --install${NC}"
     fi
 }
 
