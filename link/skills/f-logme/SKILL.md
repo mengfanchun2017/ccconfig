@@ -43,18 +43,19 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 
 ---
 
+## 飞书 Base
+
+**Base token**: `L8wjb4CYRa1HeOsGx4BcIOFknyg`
+**URL**: https://<your-tenant>.feishu.cn/base/L8wjb4CYRa1HeOsGx4BcIOFknyg
+
+| 表 | Table ID | 用途 |
+|----|----------|------|
+| OKR_O | `tblC4ykRAWqBFGjt` | 长期目标（季度/年度） |
+| OKR_KR | `tblGODTVWxc3fwcI` | 关键结果（关联 O） |
+| Worklog | `tblwuptJB1ZUNZOY` | 日常记录（关联 KR） |
+| Reflect | `tblFaF3kT7PgGCty` | 定期反思（可选关联 O） |
+
 ## 数据模型
-
-### 飞书 Base 结构
-
-四张表，同一 Base：
-
-| 表 | 用途 | 生命周期 |
-|----|------|---------|
-| OKR_O | 长期目标 | 季度/年度，少量 |
-| OKR_KR | 关键结果 | 季度为主，可中期调整 |
-| Worklog | 日常记录 | 日更，大量 |
-| Reflect | 定期反思 | 周/月/季度 |
 
 ### OKR_O 表字段
 
@@ -100,10 +101,10 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 | 标题 | 文本 | `2026Q2 Week 3 Reflect` |
 | 周期类型 | 单选 | Weekly / Monthly / Quarterly |
 | 关联O | 关联列 → OKR_O | 可选 |
-| 做得好的 | 多行文本 | |
-| 待改进的 | 多行文本 | |
-| 学到的 | 多行文本 | |
-| 下阶段聚焦 | 多行文本 | |
+| 做得好 | 文本 | 这周/月/季度做得好的 |
+| 待改进 | 文本 | 需要改进的地方 |
+| 学到 | 文本 | 学到了什么 |
+| 下阶段 | 文本 | 下阶段聚焦什么 |
 | 日期 | 日期 | |
 
 ---
@@ -250,15 +251,26 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 ```bash
 export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>"
 export PATH="$HOME/.local/bin:$PATH"
+T="L8wjb4CYRa1HeOsGx4BcIOFknyg"
 
 # 拉取 OKR_O
-lark-cli base +record-list --base-token <token> --table-id <table> --as user
+lark-cli base +record-list --base-token $T --table-id tblC4ykRAWqBFGjt --as user
 
-# 拉取 Worklog（按周期过滤需 Python 处理）
-lark-cli base +record-list --base-token <token> --table-id <table> --as user --limit 200
+# 拉取 OKR_KR（含关联 O）
+lark-cli base +record-list --base-token $T --table-id tblGODTVWxc3fwcI --as user
 
-# 创建记录
-lark-cli base +record-batch-create --base-token <token> --table-id <table> --as user --json @tmp.json
+# 拉取 Worklog
+lark-cli base +record-list --base-token $T --table-id tblwuptJB1ZUNZOY --as user --limit 200
+
+# 拉取 Reflect
+lark-cli base +record-list --base-token $T --table-id tblFaF3kT7PgGCty --as user
+
+# 写入 Worklog（需关联 KR record ID）
+cat > /tmp/wl.json << 'EOF'
+{"fields":["标题","关联KR","成果类型","量化结果","说明","完成日期"],
+ "rows":[["claudecode xxx",[{"id":"recXXXX"}],"项目交付","","说明","2026-05-29"]]}
+EOF
+cd /tmp && lark-cli base +record-batch-create --base-token $T --table-id tblwuptJB1ZUNZOY --as user --json @wl.json
 ```
 
 ### SUM 生成命令
