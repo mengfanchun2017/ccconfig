@@ -23,6 +23,8 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 | `drive +create-folder` | `--folder-token` | `--name` | 不是 `--title` |
 | `drive +upload` | `--folder-token` | `--file "./rel"` | 必须相对路径，先 cd |
 
+| `base +table-create` | `--base-token` | `--name` `--fields '<json-array>'` | 不是 `--json`，字段用 `--fields` |
+| `base +table-update` | `--base-token` | `--name` `--table-id` | 支持按名称匹配，default表叫"数据表" |
 | `slides +create` | - | `--title` `--slides '<json-array>'` | JSON 数组每元素是 XML `<slide>` 字符串 |
 | `slides 导出` | - | `api POST export_tasks` | `drive +export` 不支持 slides，用 `lark-cli api` 调原始API |
 | `drive +export-download` | `--file-token` | `--file-name` | 必须相对路径，先 cd |
@@ -51,5 +53,6 @@ lark-cli base +field-create --base-token $T --table-id tblXXX \
 
 ## 新增踩坑（追加在此）
 
+<!-- 2026-05-29 | base init | 新建Bitable默认空表"数据表" — 直接rename复用，不新建再删。workflow无delete API。dashboard默认无。→ 结论写入f-logme SKILL.md -->
 <!-- 2026-05-29 | base field-create | 7次试错：type数字格式、property嵌套、link_table_id → 全部改用扁平字符串key → 记录到上方速查表 -->
 <!-- 2026-05-26 | slides export | drive +export --doc-type slides → 不支持 → lark-cli api POST export_tasks | 用通用API替代 -->
