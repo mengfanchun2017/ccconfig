@@ -277,16 +277,55 @@ cd /tmp && lark-cli base +record-batch-create --base-token $T --table-id tblwupt
 
 ### SUM 生成流程
 
-```
-f-logme（数据聚合）
-  ├─ 拉取 Base 数据（lark-cli）
-  ├─ 时间/领域过滤
-  ├─ 按模板填 Markdown
-  └─ 委托 f-doc skill 创建飞书文档
-       └─ f-doc → lark-doc（lark-doc-style.md 加载，格式化规则生效）
+**Step 1: 拉取 Base 数据**
+
+```bash
+export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>"
+export PATH="$HOME/.local/bin:$PATH"
+T="L8wjb4CYRa1HeOsGx4BcIOFknyg"
+D=/tmp/sum_$(date +%s) && mkdir -p $D
+
+lark-cli base +record-list --base-token $T --table-id tblC4ykRAWqBFGjt --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/okr_o.json
+lark-cli base +record-list --base-token $T --table-id tblGODTVWxc3fwcI --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/okr_kr.json
+lark-cli base +record-list --base-token $T --table-id tblwuptJB1ZUNZOY --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/worklog.json
+lark-cli base +record-list --base-token $T --table-id tblFaF3kT7PgGCty --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/reflect.json
 ```
 
-f-logme 不自己调 `lark-cli docs +create`，文档创建统一走 f-doc。
+**Step 2: 生成 Markdown**
+
+```bash
+# 周期总结（Q2 工作）
+python3 ccconfig/link/skills/f-logme/sum_generate.py \
+  --okr-o $D/okr_o.json --okr-kr $D/okr_kr.json \
+  --worklog $D/worklog.json --reflect $D/reflect.json \
+  --period 2026Q2 --category work --type period \
+  --output $D/summary.md
+
+# 领域总结（AI 领域）
+python3 ccconfig/link/skills/f-logme/sum_generate.py \
+  --okr-o $D/okr_o.json --okr-kr $D/okr_kr.json \
+  --worklog $D/worklog.json --reflect $D/reflect.json \
+  --type domain --domain learn --year 2026 \
+  --output $D/summary.md
+
+# OKR 复盘
+python3 ccconfig/link/skills/f-logme/sum_generate.py \
+  --okr-o $D/okr_o.json --okr-kr $D/okr_kr.json \
+  --worklog $D/worklog.json --reflect $D/reflect.json \
+  --period 2026Q2 --type okr-review \
+  --output $D/summary.md
+
+# 年度综合报告
+python3 ccconfig/link/skills/f-logme/sum_generate.py \
+  --okr-o $D/okr_o.json --okr-kr $D/okr_kr.json \
+  --worklog $D/worklog.json --reflect $D/reflect.json \
+  --type annual --year 2026 \
+  --output $D/summary.md
+```
+
+**Step 3: 委托 f-doc 创建飞书文档**
+
+f-logme 不自己调 `lark-cli docs +create`。将生成的 Markdown 交给 f-doc skill，由其通过 f-doc → lark-doc 链创建文档。f-doc 会自动处理表格宽度（820px）、标题层级（≤H3）、文档父目录等格式化规则。
 
 ## 集成点
 
