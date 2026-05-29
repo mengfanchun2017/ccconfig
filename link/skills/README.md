@@ -28,7 +28,6 @@
 | `lark-wiki/` | larksuite/cli | 飞书知识库管理 |
 | `lark-whiteboard/` | larksuite/cli | 飞书画板 |
 | `lark-drive/` | larksuite/cli | 飞书云空间 |
-| `lark-extend/` | larksuite/cli | 飞书本地覆盖约定 |
 | `lark-calendar/` | larksuite/cli | 飞书日历 |
 | `caveman/` | vinvcn/mattpocock-skills-zh-CN | 超压缩输出模式 |
 | `diagnose/` | vinvcn/mattpocock-skills-zh-CN | 纪律化 debug 循环 |
