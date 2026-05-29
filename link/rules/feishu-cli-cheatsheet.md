@@ -16,6 +16,7 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 | `wiki +node-get` | `--token` | - | 支持URL |
 | `wiki +node-create` | - | `--title` `--obj-type` | 不支持 board 类型 |
 | `whiteboard +update` | `--whiteboard-token` | `--source` + `--input_format` | mermaid/plantuml/raw |
+| `docs +create` | `--doc-format markdown` | `--content "markdown内容"` | help 显示 `--markdown` 但实际必须用 `--content` |
 | `base +*` | `--base-token` | `--json`(单对象) | 不是 `--app-token`/`--fields` |
 | `base +record-batch-create` | `--base-token` | `--json '{"fields":[],"rows":[[]]}'` | 数组格式 |
 | `sheets +*` | `--spreadsheet-token` | `--values '[[...]]'` | 写数据需 `--range` |
