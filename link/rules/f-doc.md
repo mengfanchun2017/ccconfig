@@ -28,12 +28,13 @@ f-doc 委托底层：
 
 ### 父目录
 - **子文档**（用户给父文档URL）：提取 wiki token → `--parent-token {token}`。禁止套用默认
-- **独立文档**（无父文档）：`--wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb`
-- 提取：`https://my.feishu.cn/wiki/{token}` → token
+- **独立文档**（无父文档）：`--parent-token <your-feishu-wiki-token>`（Claude 工作 wiki）
+- 提取：`https://<your-tenant>.feishu.cn/wiki/{token}` → token
 
 ### 格式
 - 标题：`# ## ###` 三级，不加手动编号，禁止 H4+
-- 表格：`<lark-table>` XML，禁止 Markdown 表格。列宽 `round(822/N)` 均分
+- 表格：`<lark-table>` XML，禁止 Markdown 表格。colgroup 列宽之和 = 820px
+- 禁止 `<hr/>` 分割线，主题间用标题层级和留白自然过渡
 - 图表：mermaid 代码块，禁止 ASCII 字符画
 - 缩写：首次 DFN 格式 `中文全称（English Full Name, ABBR）`
 - 链接：用 `www.feishu.cn` 域名，非 `open.feishu.cn`
@@ -41,11 +42,11 @@ f-doc 委托底层：
 
 ### 命令
 ```bash
-cat << 'EOF' | lark-cli docs +create --api-version v2 --wiki-node CyZ6wmItQiso3AkbjZBcP3vtnAb --as user --markdown - --title "标题"
+cat << 'EOF' | lark-cli docs +create --api-version v2 --parent-token <your-feishu-wiki-token> --as user --doc-format markdown --content -
 内容
 EOF
 ```
-常见错误：❌ `--folder-token` | ❌ `--markdown "内容"` | ✅ `--markdown -` + heredoc
+常见错误：❌ `--folder-token` | ❌ `--wiki-node`（已废弃） | ✅ `--parent-token` + `--doc-format markdown --content -`
 
 ## 文档更新
 
@@ -82,5 +83,5 @@ lark-cli drive +search --query "关键词" --doc-types "wiki,doc,docx" --page-si
 - `str_replace` 用 `--pattern`+`--content`，不用 `--json`
 - `block_replace` 后 block_id 会变化
 - json 文件路径必须相对
-- `<lark-table>` colgroup 总和必须 = 822
+- `<lark-table>` colgroup 总和必须 = 820
 - `replace_range` 不支持含空行内容，用 `delete_range` + `insert_after`
