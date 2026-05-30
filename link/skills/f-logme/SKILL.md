@@ -490,7 +490,7 @@ O/KR 结构覆盖了旧 worklog 的所有主题聚类：
 | Base | OKR Base v2 `LX5lb6VfdaJHWrsRbTgc8Y50nmj` | 2026-05-30 |
 | OKR_O 记录 | 14（work×4, learn×6, project×4） | 2026-05-30 |
 | OKR_KR 记录 | 21 | 2026-05-30 |
-| Worklog 记录 | 0（待迁移旧数据） | 2026-05-30 |
+| Worklog 记录 | 1 | 2026-05-31 |
 | Reflect 记录 | 0 | 2026-05-30 |
 | 活跃周期 | 2026Q2 | — |
 | 旧 Worklog Base | `DLk8bb838ahfr3sF1UnchSHlnTf`（200条, 2024-12 ~ 2026-01） | 保留参考 |
