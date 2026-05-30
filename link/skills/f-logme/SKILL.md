@@ -48,17 +48,32 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 **Space ID**: `7626581506382728129`
 **SUM 文档父目录**: `<your-feishu-wiki-token>`（Claude 工作 wiki）
 
-### OKR Base（主：目标管理 + 反思 + SUM）
+### OKR Base v2（主：目标管理 + 反思 + SUM）🆕 2026-05-30
+
+**Base token**: `LX5lb6VfdaJHWrsRbTgc8Y50nmj`
+**URL**: https://<your-tenant>.feishu.cn/wiki/VPsDw42KsixH77kugfcc8FyInCh
+
+| 表 | Table ID | 用途 |
+|----|----------|------|
+| OKR_O | `tbli0erWbDwrfiEj` | 长期目标（14个O：work×4, learn×6, project×4） |
+| OKR_KR | `tblZhpELO31mAkg6` | 关键结果（21个KR，关联 O） |
+| Worklog | `tblVsC0L7QFzMeYM` | 日常记录（关联 KR） |
+| Reflect | `tblNLcyrOHD3OU87` | 定期反思（可选关联 O） |
+
+**分类体系**：`work`（公司汇报）/ `learn`（个人学习）/ `project`（个人项目）
+**变更追踪**：O 和 KR 表含 `创建日期` + `更新日期`，状态含 `Abandoned`（不删除，只废弃）
+
+### OKR Base v1（旧版，保留参考）
 
 **Base token**: `L8wjb4CYRa1HeOsGx4BcIOFknyg`
 **URL**: https://<your-tenant>.feishu.cn/base/L8wjb4CYRa1HeOsGx4BcIOFknyg
 
 | 表 | Table ID | 用途 |
 |----|----------|------|
-| OKR_O | `tblC4ykRAWqBFGjt` | 长期目标（季度/年度） |
-| OKR_KR | `tblGODTVWxc3fwcI` | 关键结果（关联 O） |
-| Worklog | `tblwuptJB1ZUNZOY` | 日常记录（关联 KR） |
-| Reflect | `tblFaF3kT7PgGCty` | 定期反思（可选关联 O） |
+| OKR_O | `tblC4ykRAWqBFGjt` | （旧）长期目标 |
+| OKR_KR | `tblGODTVWxc3fwcI` | （旧）关键结果 |
+| Worklog | `tblwuptJB1ZUNZOY` | （旧）日常记录 |
+| Reflect | `tblFaF3kT7PgGCty` | （旧）定期反思 |
 
 ### Worklog Base（历史数据 + 简易记录）
 
@@ -322,26 +337,26 @@ export PATH="$HOME/.local/bin:$PATH"
 #### OKR Base（目标管理 + 反思）
 
 ```bash
-T="L8wjb4CYRa1HeOsGx4BcIOFknyg"
+T="LX5lb6VfdaJHWrsRbTgc8Y50nmj"
 
 # 拉取 OKR_O
-lark-cli base +record-list --base-token $T --table-id tblC4ykRAWqBFGjt --as user
+lark-cli base +record-list --base-token $T --table-id tbli0erWbDwrfiEj --as user
 
 # 拉取 OKR_KR（含关联 O）
-lark-cli base +record-list --base-token $T --table-id tblGODTVWxc3fwcI --as user
+lark-cli base +record-list --base-token $T --table-id tblZhpELO31mAkg6 --as user
 
 # 拉取 Worklog
-lark-cli base +record-list --base-token $T --table-id tblwuptJB1ZUNZOY --as user --limit 200
+lark-cli base +record-list --base-token $T --table-id tblVsC0L7QFzMeYM --as user --limit 200
 
 # 拉取 Reflect
-lark-cli base +record-list --base-token $T --table-id tblFaF3kT7PgGCty --as user
+lark-cli base +record-list --base-token $T --table-id tblNLcyrOHD3OU87 --as user
 
 # 写入 Worklog（需关联 KR record ID）
 cat > /tmp/wl.json << 'EOF'
 {"fields":["标题","关联KR","成果类型","量化结果","说明","完成日期"],
- "rows":[["claudecode xxx",[{"id":"recXXXX"}],"项目交付","","说明","2026-05-29"]]}
+ "rows":[["claudecode xxx",[{"id":"recXXXX"}],"项目交付","","说明","2026-05-30"]]}
 EOF
-cd /tmp && lark-cli base +record-batch-create --base-token $T --table-id tblwuptJB1ZUNZOY --as user --json @wl.json
+cd /tmp && lark-cli base +record-batch-create --base-token $T --table-id tblVsC0L7QFzMeYM --as user --json @wl.json
 ```
 
 #### Worklog Base（历史数据）
@@ -370,10 +385,10 @@ export PATH="$HOME/.local/bin:$PATH"
 T="L8wjb4CYRa1HeOsGx4BcIOFknyg"
 D=/tmp/sum_$(date +%s) && mkdir -p $D
 
-lark-cli base +record-list --base-token $T --table-id tblC4ykRAWqBFGjt --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/okr_o.json
-lark-cli base +record-list --base-token $T --table-id tblGODTVWxc3fwcI --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/okr_kr.json
-lark-cli base +record-list --base-token $T --table-id tblwuptJB1ZUNZOY --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/worklog.json
-lark-cli base +record-list --base-token $T --table-id tblFaF3kT7PgGCty --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/reflect.json
+lark-cli base +record-list --base-token $T --table-id tbli0erWbDwrfiEj --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/okr_o.json
+lark-cli base +record-list --base-token $T --table-id tblZhpELO31mAkg6 --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/okr_kr.json
+lark-cli base +record-list --base-token $T --table-id tblVsC0L7QFzMeYM --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/worklog.json
+lark-cli base +record-list --base-token $T --table-id tblNLcyrOHD3OU87 --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/reflect.json
 ```
 
 **Step 2: 生成 Markdown**
@@ -446,38 +461,40 @@ f-logme 职责：从 Base 聚合数据 → 按模板填 Markdown → 交给 f-do
 
 ---
 
-## 历史数据迁移（2026-05-30）
+## 历史数据迁移（2026-05-30 v2 重建）
 
-从 Worklog Base（`DLk8bb838ahfr3sF1UnchSHlnTf`）的 200 条记录（2024-12 ~ 2026-01）反推 OKR 结构，写入 OKR Base：
+旧 Worklog Base（`DLk8bb838ahfr3sF1UnchSHlnTf`）的 200 条记录（2024-12 ~ 2026-01）已分析并反推为 14 个 O + 21 个 KR，写入新 Base v2。
 
-| O | record_id | 分类 | 状态 | 关联 KR 数 |
-|---|-----------|------|------|------------|
-| O1: AI平台建设与运营 | `recvl3zliTlXdj` | work | Active | 3 |
-| O2: Coze智能体平台技术深潜 | `recvl3zliT2PaA` | learn | Completed | 3 |
-| O3: AI工具链评估与选型 | `recvl3zliThr1A` | learn | Completed | 2 |
-| O4: CC小能手工具生态 | `recvl1fSqpnCbh` | project | Active | 1 |
+O/KR 结构覆盖了旧 worklog 的所有主题聚类：
+- 工作 → O1 AI平台建设, O2 日常需求交付
+- 成长 → O5 AI工具链, O6 Coze深潜, O7 系统分析师
+- 其余 learn/project O 从当前工作延伸
 
-**迁移后总计**：15 个 O、20 个 KR，覆盖 work/learn/project 三分类。
+代表性 worklog 条目待迁移到新 Worklog 表并关联 KR。
 
-### 已知限制
+### 变更追踪机制
 
-- 飞书 Base View 是单表级别，不支持跨表 O→KR→Worklog 层级视图。用 Dashboard 拼三表视图替代
-- Worklog Base 的 `任务表` 使用自关联「父记录」字段，f-logme 模型无对应，历史数据不保留此关系
+- O 和 KR 表含 `创建日期` + `更新日期` 字段
+- 状态含 `Abandoned` 选项：**不删除，只废弃**，保留完整历史轨迹
+- `周期` 字段按时间分组（2025H1/H2, 2026Q1-4, 2026 Full Year, 2027）
+- 按周期筛选可纵向对比各阶段的目标演进
 
 ---
 
 ## 当前状态
 
-> 每次操作后更新此节。数据量、关联关系、活跃周期等。
+> 每次操作后更新此节。
 
 | 指标 | 值 | 最后更新 |
 |------|-----|---------|
-| OKR Base 总 O 数 | 15 | 2026-05-30 |
-| OKR Base 总 KR 数 | 20 | 2026-05-30 |
-| OKR Base Worklog 数 | 10 | 2026-05-29 |
-| OKR Base Reflect 数 | 10 | 2026-05-29 |
-| Worklog Base 历史记录 | 200 | 2024-12 ~ 2026-01 |
+| Base | OKR Base v2 `LX5lb6VfdaJHWrsRbTgc8Y50nmj` | 2026-05-30 |
+| OKR_O 记录 | 14（work×4, learn×6, project×4） | 2026-05-30 |
+| OKR_KR 记录 | 21 | 2026-05-30 |
+| Worklog 记录 | 0（待迁移旧数据） | 2026-05-30 |
+| Reflect 记录 | 0 | 2026-05-30 |
 | 活跃周期 | 2026Q2 | — |
+| 旧 Worklog Base | `DLk8bb838ahfr3sF1UnchSHlnTf`（200条, 2024-12 ~ 2026-01） | 保留参考 |
+| 旧 OKR Base v1 | `L8wjb4CYRa1HeOsGx4BcIOFknyg` | 保留参考 |
 
 ## 参考
 
