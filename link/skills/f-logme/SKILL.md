@@ -426,6 +426,54 @@ SUM 生成飞书文档时，**必须通过 f-doc skill 创建**（不裸调 lark
 
 f-logme 职责：从 Base 聚合数据 → 按模板填 Markdown → 交给 f-doc 创建文档。
 
+---
+
+## 线上文档索引
+
+> 每生成一份 SUM 文档，追加到下表。格式：`[标题](url) | 日期`
+
+| 标题 | 链接 | 日期 |
+|------|------|------|
+| 2026Q2 项目总结（SUM 测试） | https://<your-tenant>.feishu.cn/docx/XFvtd6UzToMNHexryw5cOuolnsk | 2026-05-29 |
+| 历史数据迁移计划（200条→4O+9KR） | https://<your-tenant>.feishu.cn/docx/JFBedI4aCoIbKgxYzzbc9P2Fn3q | 2026-05-30 |
+
+> 数据源：OKR Base / Worklog Base 见「飞书资源」章节。
+
+---
+
+## 历史数据迁移（2026-05-30）
+
+从 Worklog Base（`DLk8bb838ahfr3sF1UnchSHlnTf`）的 200 条记录（2024-12 ~ 2026-01）反推 OKR 结构，写入 OKR Base：
+
+| O | record_id | 分类 | 状态 | 关联 KR 数 |
+|---|-----------|------|------|------------|
+| O1: AI平台建设与运营 | `recvl3zliTlXdj` | work | Active | 3 |
+| O2: Coze智能体平台技术深潜 | `recvl3zliT2PaA` | learn | Completed | 3 |
+| O3: AI工具链评估与选型 | `recvl3zliThr1A` | learn | Completed | 2 |
+| O4: CC小能手工具生态 | `recvl1fSqpnCbh` | project | Active | 1 |
+
+**迁移后总计**：15 个 O、20 个 KR，覆盖 work/learn/project 三分类。
+
+### 已知限制
+
+- 飞书 Base View 是单表级别，不支持跨表 O→KR→Worklog 层级视图。用 Dashboard 拼三表视图替代
+- Worklog Base 的 `任务表` 使用自关联「父记录」字段，f-logme 模型无对应，历史数据不保留此关系
+
+---
+
+## 当前状态
+
+> 每次操作后更新此节。数据量、关联关系、活跃周期等。
+
+| 指标 | 值 | 最后更新 |
+|------|-----|---------|
+| OKR Base 总 O 数 | 15 | 2026-05-30 |
+| OKR Base 总 KR 数 | 20 | 2026-05-30 |
+| OKR Base Worklog 数 | 10 | 2026-05-29 |
+| OKR Base Reflect 数 | 10 | 2026-05-29 |
+| Worklog Base 历史记录 | 200 | 2024-12 ~ 2026-01 |
+| 活跃周期 | 2026Q2 | — |
+
 ## 参考
 
 - John Doerr, *Measure What Matters* (2018)
