@@ -62,6 +62,8 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 
 **分类体系**：`work`（公司汇报）/ `learn`（个人学习）/ `project`（个人项目）
 **变更追踪**：O 和 KR 表含 `创建日期` + `更新日期`，状态含 `Abandoned`（不删除，只废弃）
+**视图**：OKR_O 含 4 个视图 — 表格（全部）/ 进行中（状态=Active）/ 公司汇报(work)（分类=work）/ 个人(private)（分类=learn+project）
+**编号字段**：OKR_O 已删除；OKR_KR/Worklog/Reflect 因飞书 API 不支持修改主字段，已从所有视图隐藏
 
 ### OKR Base v1（旧版，保留参考）
 
@@ -135,10 +137,10 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 |------|------|------|
 | 标题 | 文本 | `claudecode 完成sum skill框架搭建` |
 | 关联KR | 关联列 → OKR_KR | 必须关联一个 KR |
-| 成果类型 | 单选 | 项目交付 / 技术调研 / 学习输入 / 故障应急 / 团队建设 / 其他 |
+| 成果类型 | 单选 | 项目交付 / 技术方案 / 学习笔记 / 问题排查 / 会议沟通 / 文档输出 / 工具开发 |
 | 量化结果 | 文本 | 可选。数字、百分比、前后对比 |
 | 说明 | 多行文本 | 一句话说明做了什么 |
-| 完成日期 | 日期 | |
+| 日期 | 日期 | 完成日期，唯一日期字段（无单独创建日期） |
 
 > 分类（work/learn/project）和领域标签通过关联 KR→O 自动继承，不需要在 Worklog 里重复维护。
 
@@ -353,7 +355,7 @@ lark-cli base +record-list --base-token $T --table-id tblNLcyrOHD3OU87 --as user
 
 # 写入 Worklog（需关联 KR record ID）
 cat > /tmp/wl.json << 'EOF'
-{"fields":["标题","关联KR","成果类型","量化结果","说明","完成日期"],
+{"fields":["标题","关联KR","成果类型","量化结果","说明","日期"],
  "rows":[["claudecode xxx",[{"id":"recXXXX"}],"项目交付","","说明","2026-05-30"]]}
 EOF
 cd /tmp && lark-cli base +record-batch-create --base-token $T --table-id tblVsC0L7QFzMeYM --as user --json @wl.json
@@ -470,7 +472,7 @@ O/KR 结构覆盖了旧 worklog 的所有主题聚类：
 - 成长 → O5 AI工具链, O6 Coze深潜, O7 系统分析师
 - 其余 learn/project O 从当前工作延伸
 
-代表性 worklog 条目待迁移到新 Worklog 表并关联 KR。
+代表性 worklog 条目已迁移 39 条到新 Worklog 表并关联 KR。
 
 ### 变更追踪机制
 
@@ -490,7 +492,7 @@ O/KR 结构覆盖了旧 worklog 的所有主题聚类：
 | Base | OKR Base v2 `LX5lb6VfdaJHWrsRbTgc8Y50nmj` | 2026-05-30 |
 | OKR_O 记录 | 14（work×4, learn×6, project×4） | 2026-05-30 |
 | OKR_KR 记录 | 21 | 2026-05-30 |
-| Worklog 记录 | 1 | 2026-05-31 |
+| Worklog 记录 | 39（从旧表迁移，已关联 KR） | 2026-05-31 |
 | Reflect 记录 | 0 | 2026-05-30 |
 | 活跃周期 | 2026Q2 | — |
 | 旧 Worklog Base | `DLk8bb838ahfr3sF1UnchSHlnTf`（200条, 2024-12 ~ 2026-01） | 保留参考 |
