@@ -214,6 +214,16 @@ try:
     if disabled_names:
         settings_data['disabledMcpServers'] = disabled_names
 
+    # 同步到项目级别 disabledMcpServers（/mcp 对话框 Disable 操作实际写入的位置）
+    # 顶层 disabledMcpServers 有 bug #11370 不生效，项目级别才真正禁用到 session
+    if 'projects' not in settings_data:
+        settings_data['projects'] = {}
+    for proj_path in list(settings_data['projects'].keys()):
+        if disabled_names:
+            settings_data['projects'][proj_path]['disabledMcpServers'] = disabled_names
+        elif 'disabledMcpServers' in settings_data['projects'][proj_path]:
+            del settings_data['projects'][proj_path]['disabledMcpServers']
+
     # 同步 hooks
     if 'hooks' in claude_data:
         settings_data['hooks'] = claude_data['hooks']
