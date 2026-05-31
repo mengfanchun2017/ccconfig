@@ -13,5 +13,7 @@ lark-cli 在 stdout 输出日志行（非 JSON），pipe 给 `python3 -c "json.l
 **规则：先 `tail -n +2` 或 `sed '/^\[lark-cli\]/d'` 跳过日志行。**
 
 ```bash
-lark-cli ... 2>&1 | tail -n +2 | python3 -c "import json,sys; ..."
+# ❌ tail -n +2 不稳定，日志行数不固定时出错
+# ✅ sed 过滤日志行，始终有效
+lark-cli ... 2>&1 | sed '/^\[lark-cli\]/d' | python3 -c "import json,sys; ..."
 ```
