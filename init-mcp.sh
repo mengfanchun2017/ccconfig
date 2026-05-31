@@ -183,18 +183,30 @@ try:
         name = server.get('name', '')
         if not name:
             continue
-        entry = {
-            'command': server.get('command', ''),
-            'args': server.get('args', []),
-            'env': server.get('env', {})
-        }
+        mtype = server.get('type', 'stdio')
+        if mtype == 'stdio':
+            entry = {
+                'command': server.get('command', ''),
+                'args': server.get('args', []),
+                'env': server.get('env', {})
+            }
+        else:
+            entry = {
+                'type': mtype,
+                'url': server.get('url', ''),
+                'headers': server.get('headers', {})
+            }
+        if server.get('disabled'):
+            entry['disabled'] = True
         # 如果 ~/.claude.json 中有该 MCP 的额外配置，合并之
         if name in claude_data.get('mcpServers', {}):
             existing = claude_data['mcpServers'][name]
             if existing.get('env'):
-                entry['env'].update(existing['env'])
+                entry['env'] = {**entry.get('env', {}), **existing['env']}
             if existing.get('args'):
                 entry['args'] = existing['args']
+            if existing.get('headers'):
+                entry['headers'].update(existing['headers'])
         mcp_servers[name] = entry
 
     settings_data['mcpServers'] = mcp_servers
