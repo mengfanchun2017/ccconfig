@@ -178,8 +178,9 @@ try:
         settings_data = json.load(f)
 
     # 构建完整的 mcpServers 配置（从 conf/claude.json）
+    # disabled=true 的服务器不写入 mcpServers（避免 Claude Code 加载其工具定义）
     mcp_servers = {}
-    disabled_names = []
+    disabled_servers = {}
     for server in conf_data.get('mcp_servers', []):
         name = server.get('name', '')
         if not name:
@@ -197,8 +198,6 @@ try:
                 'url': server.get('url', ''),
                 'headers': server.get('headers', {})
             }
-        if server.get('disabled'):
-            disabled_names.append(name)
         # 如果 ~/.claude.json 中有该 MCP 的额外配置，合并之
         if name in claude_data.get('mcpServers', {}):
             existing = claude_data['mcpServers'][name]
@@ -208,11 +207,14 @@ try:
                 entry['args'] = existing['args']
             if existing.get('headers'):
                 entry['headers'].update(existing['headers'])
-        mcp_servers[name] = entry
+        if server.get('disabled'):
+            disabled_servers[name] = entry
+        else:
+            mcp_servers[name] = entry
 
     settings_data['mcpServers'] = mcp_servers
-    if disabled_names:
-        settings_data['disabledMcpServers'] = disabled_names
+    if disabled_servers:
+        settings_data['_disabledMcpServers'] = disabled_servers
 
     # 同步 hooks
     if 'hooks' in claude_data:
