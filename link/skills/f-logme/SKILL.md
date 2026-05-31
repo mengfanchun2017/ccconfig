@@ -55,8 +55,8 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 
 | 表 | Table ID | 用途 |
 |----|----------|------|
-| OKR_O | `tbli0erWbDwrfiEj` | 长期目标（14个O：work×4, learn×6, project×4） |
-| OKR_KR | `tblZhpELO31mAkg6` | 关键结果（21个KR，关联 O） |
+| OKR_O | `tbli0erWbDwrfiEj` | 长期目标（15个O：work×4, learn×6, project×5） |
+| OKR_KR | `tblZhpELO31mAkg6` | 关键结果（23个KR，关联 O） |
 | Worklog | `tblVsC0L7QFzMeYM` | 日常记录（关联 KR） |
 | Reflect | `tblNLcyrOHD3OU87` | 定期反思（可选关联 O） |
 
@@ -472,7 +472,7 @@ O/KR 结构覆盖了旧 worklog 的所有主题聚类：
 - 成长 → O5 AI工具链, O6 Coze深潜, O7 系统分析师
 - 其余 learn/project O 从当前工作延伸
 
-代表性 worklog 条目已迁移 39 条到新 Worklog 表并关联 KR。
+**迁移完成**（2026-05-31）：200 条旧记录按 KR+标题相似度聚类合并为 74 条，覆盖 16 个 KR。合并策略：同 KR 内相似主题归并，说明含日期标记 `【YYYY-MM-DD】`，不丢信息。
 
 ### 变更追踪机制
 
@@ -489,11 +489,11 @@ O/KR 结构覆盖了旧 worklog 的所有主题聚类：
 
 | 指标 | 值 | 最后更新 |
 |------|-----|---------|
-| Base | OKR Base v2 `LX5lb6VfdaJHWrsRbTgc8Y50nmj` | 2026-05-30 |
-| OKR_O 记录 | 14（work×4, learn×6, project×4） | 2026-05-30 |
-| OKR_KR 记录 | 21 | 2026-05-30 |
-| Worklog 记录 | 39（从旧表迁移，已关联 KR） | 2026-05-31 |
-| Reflect 记录 | 0 | 2026-05-30 |
+| Base | OKR Base v2 `LX5lb6VfdaJHWrsRbTgc8Y50nmj` | 2026-05-31 |
+| OKR_O 记录 | 15（work×4, learn×6, project×5） | 2026-05-31 |
+| OKR_KR 记录 | 23 | 2026-05-31 |
+| Worklog 记录 | 74（200条旧记录合并迁移，关联16个KR） | 2026-05-31 |
+| Reflect 记录 | 0 | 2026-05-31 |
 | 活跃周期 | 2026Q2 | — |
 | 旧 Worklog Base | `DLk8bb838ahfr3sF1UnchSHlnTf`（200条, 2024-12 ~ 2026-01） | 保留参考 |
 | 旧 OKR Base v1 | `L8wjb4CYRa1HeOsGx4BcIOFknyg` | 保留参考 |
