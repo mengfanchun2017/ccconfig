@@ -46,7 +46,7 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 ## 飞书资源
 
 **Space ID**: `7626581506382728129`
-**SUM 文档父目录**: `<your-feishu-wiki-token>`（Claude 工作 wiki）
+**SUM 文档父目录**: `VPsDw42KsixH77kugfcc8FyInCh`（OKR Base v2 wiki 节点，所有 OKR/SUM 文档统一放此节点下）
 
 ### OKR Base v2（主：目标管理 + 反思 + SUM）🆕 2026-05-30
 
