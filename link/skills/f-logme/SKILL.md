@@ -203,7 +203,7 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
   → 可选填写量化结果
 ```
 
-**与 f-worklog 的关系**：f-logme 是 f-worklog 的升级版。旧的 f-worklog（简单写日志到 Base）仍可用，但推荐用 f-logme，因为它强制关联 KR。
+**与 f-worklog 的关系**：f-logme 是 f-worklog 的升级版。f-worklog 已废弃，所有 worklog 操作统一用 f-logme。
 
 ### 3. Reflect 写入
 

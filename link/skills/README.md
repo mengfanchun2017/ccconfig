@@ -12,7 +12,7 @@
 | `f-research-deep/` | 深度研究 — 批量 JSON 输出 |
 | `f-research-report/` | 报告生成 — JSON → Markdown |
 | `f-pdf/` | PDF 内容提取原语 — 文字/图片/元数据 |
-| `f-worklog/` | 工作日志写入飞书 Base |
+| `f-worklog/` | [已废弃] 工作日志 — 请用 f-logme |
 | `f-feedme/` | 智能订餐助手（麦当劳） |
 | `f-feedmeng/` | 二次元虚拟点餐 |
 | `f-vessel/` | AI 浏览器操控 |
