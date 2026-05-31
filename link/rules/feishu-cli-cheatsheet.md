@@ -51,6 +51,13 @@ lark-cli base +field-create --base-token $T --table-id tblXXX \
   --json '{"field_name":"关联O","type":"link","link_table":"tblC4ykRAWqBFGjt"}'
 ```
 
+## 跨租户访问限制
+
+- **lark-cli 无法读取其他租户分享的文档/Base**，即使有链接和密码
+- 表现：`docs +fetch` 报 `10071 unclassified backend reason`；`base +table-list` 报 `800004006 baseToken invalid`
+- 不同租户 = 不同域名（`<your-tenant>.feishu.cn` vs `acimdomc.feishu.cn` vs `www.feishu.cn`）
+- 解决方案：文档所有者导出文件（docx/csv），本地处理后再上传
+
 ## 新增踩坑（追加在此）
 
 <!-- 2026-05-29 | base init | 新建Bitable默认空表"数据表" — 直接rename复用，不新建再删。workflow无delete API。dashboard默认无。→ 结论写入f-logme SKILL.md -->
