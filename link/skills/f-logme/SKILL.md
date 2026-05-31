@@ -472,7 +472,7 @@ f-logme 职责：从 Base 聚合数据 → 按模板填 Markdown → 交给 f-do
 | 标题 | 链接 | 日期 |
 |------|------|------|
 | 2026Q2 项目总结（SUM 测试） | https://<your-tenant>.feishu.cn/docx/XFvtd6UzToMNHexryw5cOuolnsk | 2026-05-29 |
-| 历史数据迁移计划（200条→4O+9KR） | https://<your-tenant>.feishu.cn/docx/JFBedI4aCoIbKgxYzzbc9P2Fn3q | 2026-05-30 |
+| OKR+Worklog 管理系统说明（原迁移计划） | https://<your-tenant>.feishu.cn/docx/JFBedI4aCoIbKgxYzzbc9P2Fn3q | 2026-05-30 → 05-31 更新 |
 
 > 数据源：OKR Base / Worklog Base 见「飞书资源」章节。
 
