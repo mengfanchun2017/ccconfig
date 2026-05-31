@@ -32,11 +32,11 @@ git_pull() {
     if [ ! -d ".git" ]; then
         return 0
     fi
-    if git fetch origin main 2>/dev/null; then
+    if timeout 30 git fetch origin main 2>/dev/null; then
         local updates=$(git rev HEAD..origin/main 2>/dev/null | wc -l)
         if [ "$updates" -gt 0 ]; then
             echo -e "${CYAN}[Git]${NC} 发现 $updates 个更新，正在拉取..."
-            git pull --rebase origin main 2>/dev/null
+            timeout 30 git pull --rebase origin main 2>/dev/null
         fi
     fi
 }
