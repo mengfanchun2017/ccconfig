@@ -58,6 +58,15 @@ lark-cli base +field-create --base-token $T --table-id tblXXX \
 - 不同租户 = 不同域名（`<your-tenant>.feishu.cn` vs `acimdomc.feishu.cn` vs `www.feishu.cn`）
 - 解决方案：文档所有者导出文件（docx/csv），本地处理后再上传
 
+## base 命令输出格式差异
+
+| 命令 | 输出格式 | 备注 |
+|------|---------|------|
+| `base +record-batch-create` | JSON | 可 pipe `python3 -c "json.load()"` |
+| `base +record-get` | 文本（key: value） | ❌ 非JSON，不能 pipe json.load |
+| `base +table-list` | JSON | |
+| `base +base-get` | JSON | 含 `data.base.url` |
+
 ## 新增踩坑（追加在此）
 
 <!-- 2026-05-29 | base init | 新建Bitable默认空表"数据表" — 直接rename复用，不新建再删。workflow无delete API。dashboard默认无。→ 结论写入f-logme SKILL.md -->
