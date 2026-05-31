@@ -65,6 +65,21 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 **视图**：OKR_O 含 4 个视图 — 表格（全部）/ 进行中（状态=Active）/ 公司汇报(work)（分类=work）/ 个人(private)（分类=learn+project）
 **编号字段**：OKR_O 已删除；OKR_KR/Worklog/Reflect 因飞书 API 不支持修改主字段，已从所有视图隐藏
 
+### AI 技能画像 Base（技能+职责匹配）🆕 2026-05-31
+
+**Base token**: `QN7Ab0l68a0AqesmSAMcUgbynEh`
+**URL**: https://<your-tenant>.feishu.cn/base/QN7Ab0l68a0AqesmSAMcUgbynEh
+**用途**: AI 简历数据基础 — 记录工作内容与技能实践的匹配，可与 OKR Base v2 Worklog/Reflect 联动
+
+| 表 | Table ID | 用途 |
+|----|----------|------|
+| SFIA技能库 | `tblVyKe0AvTMXZUQ` | SFIA 9 技能定义+当前/目标等级（22条） |
+| 岗位职责 | `tblS49hdjYlAB2Gz` | 2024-2026 工作职责时间线（12条） |
+| 技能匹配 | `tblN5Gv98uuC7Ui5` | 技能←→职责映射+熟练程度 |
+| 技能证据 | `tbl5Jtdzrtwj8lXr` | 具体证据关联 OKR Base Worklog |
+
+**四层架构**: SFIA技能库 → 技能匹配 ← 岗位职责 → 技能证据 ← OKR Base Worklog
+
 ### OKR Base v1（旧版，保留参考）
 
 **Base token**: `L8wjb4CYRa1HeOsGx4BcIOFknyg`
