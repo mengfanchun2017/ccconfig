@@ -28,11 +28,48 @@ description: 创建结构正确、支持 progressive disclosure 并带 bundled r
 ```
 skill-name/
 ├── SKILL.md           # Main instructions (required)
-├── REFERENCE.md       # Detailed docs (if needed)
-├── EXAMPLES.md        # Usage examples (if needed)
+├── config.yaml        # User-configurable settings
+├── init.sh            # Install: symlink rules.d/ → ~/.claude/rules/
+├── rules.d/           # Global constraints (always loaded into every session)
+│   └── skill-name.md  #   Extracted subset of SKILL.md formatting rules
+├── references/        # Detailed workflows (loaded on demand)
+│   └── workflow-*.md
 └── scripts/           # Utility scripts (if needed)
-    └── helper.js
+    └── helper.py
 ```
+
+Canonical template: `skills/skill-template/` — copy and fill in `{{PLACEHOLDERS}}`.
+
+### rules.d/ — 全局约束注入
+
+Skill 的格式硬约束需要全局可见（不调 skill 也生效），但真相源在 SKILL.md。解决方案：
+
+- `rules.d/<name>.md` — 从 SKILL.md 提取的 **硬约束子集**（~25行），始终加载
+- `init.sh` — 将 `rules.d/*.md` 符号链接到 `~/.claude/rules/`
+- SKILL.md 保留完整参考，rules.d/ 只放精简版 + 指针
+
+规则：**rules.d/ 和 SKILL.md 不能有重复内容**。rules.d/ 是 SKILL.md 的子集提取 + 指针，不是独立副本。
+
+### config.yaml — 用户可配置项
+
+```yaml
+settings:
+  setting_name:
+    value: <default>
+    description: "<说明>"
+    type: string | number | boolean | enum
+    options: [a, b]  # 仅 enum 需要
+```
+
+Skill 读取 config.yaml 获取用户偏好。用户直接编辑文件或通过 `init.sh --config`。
+
+### init.sh — 安装脚本
+
+两个职责：
+1. 符号链接 `rules.d/*` → `~/.claude/rules/`
+2. 可选交互配置（`--config` flag）
+
+幂等，可重复运行。仅在 ccconfig 体系外需要链接 skill 自身。
 
 ## SKILL.md Template
 
@@ -40,6 +77,7 @@ skill-name/
 ---
 name: skill-name
 description: Brief description of capability. Use when [specific triggers].
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, WebSearch
 ---
 
 # Skill Name
@@ -48,13 +86,25 @@ description: Brief description of capability. Use when [specific triggers].
 
 [Minimal working example]
 
+## 前置条件
+
+[依赖的 skill、工具、配置]
+
 ## Workflows
 
 [Step-by-step processes with checklists for complex tasks]
 
-## Advanced features
+## 格式规范
 
-[Link to separate files: See [REFERENCE.md](REFERENCE.md)]
+[Hard formatting rules — also extracted to rules.d/]
+
+## 关键陷阱
+
+[Common pitfalls]
+
+## 线上文档索引
+
+[Documents created/edited by this skill]
 ```
 
 ## Description Requirements
@@ -110,7 +160,10 @@ Helps with documents.
 draft 完成后验证：
 
 - [ ] Description 包含 triggers（"Use when..."）
-- [ ] SKILL.md 低于 100 行
+- [ ] SKILL.md 低于 200 行（复杂 skill 可用 references/ 拆分）
+- [ ] 格式硬约束已提取到 `rules.d/<name>.md`（~25行，不重复 SKILL.md 内容）
+- [ ] `config.yaml` 列出用户可改的配置项
+- [ ] `init.sh` 幂等，可重复运行
 - [ ] 没有 time-sensitive info
 - [ ] Terminology 一致
 - [ ] 包含 concrete examples

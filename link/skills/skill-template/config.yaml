@@ -1,0 +1,8 @@
+# {{SKILL_NAME}} 用户配置
+# 修改后保存即生效，无需重启 Claude Code
+
+settings:
+  {{SETTING_NAME}}:
+    value: {{DEFAULT_VALUE}}
+    description: "{{SETTING_DESCRIPTION}}"
+    type: {{TYPE}}  # string | number | boolean | enum
