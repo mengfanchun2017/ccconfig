@@ -67,6 +67,38 @@ lark-cli base +field-create --base-token $T --table-id tblXXX \
 | `base +table-list` | JSON | |
 | `base +base-get` | JSON | 含 `data.base.url` |
 
+## docs +update overwrite 破坏性
+
+- `--command overwrite` 重建全部 block，白板 token 重新生成→图表内容丢失。含嵌入资源文档禁止 overwrite
+- colgroup width 属性在 overwrite 后丢失，需逐个 `str_replace` 修复
+
+## docs +fetch 格式差异
+
+| `--detail` | colgroup width | block ID | 用途 |
+|------------|---------------|----------|------|
+| 默认（simple/clean） | ❌ 不显示 | ❌ 不显示 | 读内容 |
+| `with-ids` | ✓ 显示 | ✓ 显示 | 定位 block |
+| `full` | ✓ 显示 | ✓ 显示 | 验证宽度/属性 |
+
+## wiki 命令正确 flag
+
+| 命令 | 正确写法 | 错误写法 |
+|------|---------|---------|
+| `wiki +node-get` | `--token "URL"` 或用 `--node-token` + `--obj-type docx` | `--token "raw_token"` 缺 `--obj-type` |
+| `wiki +node-list` | `--parent-node-token X --space-id X` | `--node-token`（不存在） |
+| `docs +create --parent-token` | wiki node token（`TWQb...`） | doc token（`DOw...`）— 报 3380002 |
+
+## docs +update 命令选择决策树
+
+```
+编辑文档
+  ├─ 含白板/嵌入资源？ → block_insert_after / block_delete / str_replace（禁止 overwrite）
+  ├─ 全量重写（无嵌入资源） → overwrite
+  ├─ 插入到特定 block 后 → block_insert_after --block-id "xxx"
+  ├─ 删除特定 block → block_delete --block-id "xxx"
+  └─ 替换文本 → str_replace（pattern 需文档内唯一）
+```
+
 ## 新增踩坑（追加在此）
 
 <!-- 2026-05-29 | base init | 新建Bitable默认空表"数据表" — 直接rename复用，不新建再删。workflow无delete API。dashboard默认无。→ 结论写入f-logme SKILL.md -->
