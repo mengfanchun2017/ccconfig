@@ -68,8 +68,8 @@ submenu_env() {
         3) run_step "auto-sync 自启动" "$SCRIPT_DIR/init-autostart.sh" false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         4) run_step "Ubuntu" "$SCRIPT_DIR/init-ubuntu.sh" true
-           run_step "LLM"    "$SCRIPT_DIR/init-llm.sh" true deepseek
            run_step "自启动"  "$SCRIPT_DIR/init-autostart.sh" true
+           # LLM 由 init-ubuntu.sh 内部 setup_claude_api 从 conf/llm.json 读取，无需重复调用
            exit 0 ;;
         0) return ;;
     esac
@@ -259,9 +259,9 @@ main_menu() {
         6)
             show_banner
             run_step "1/4 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
-            run_step "2/4 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
-            run_step "3/4 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
-            run_step "4/4 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
+            # LLM 由 init-ubuntu.sh 内部 setup_claude_api 从 conf/llm.json 读取
+            run_step "2/3 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
+            run_step "3/3 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
             echo ""
             echo "🎉 全部初始化完成（可选组件见菜单 7）"
             echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
@@ -282,10 +282,10 @@ main_menu() {
 case "${1:-menu}" in
     all)
         show_banner
-        run_step "1/4 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
-        run_step "2/4 LLM 配置"       "$SCRIPT_DIR/init-llm.sh"       true deepseek
-        run_step "3/4 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
-        run_step "4/4 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
+        run_step "1/3 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
+        # LLM 由 init-ubuntu.sh 内部 setup_claude_api 从 conf/llm.json 读取
+        run_step "2/3 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
+        run_step "3/3 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
         echo ""
         echo "🎉 全部初始化完成（飞书 Bridge / Vessel 为可选组件）"
         echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
