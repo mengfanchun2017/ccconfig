@@ -1,0 +1,67 @@
+---
+name: {{SKILL_NAME}}
+description: |
+  {{ONE_LINE_DESCRIPTION}}.
+  Use when {{TRIGGER_CONDITIONS}}.
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, WebSearch
+---
+
+# {{SKILL_TITLE}}
+
+{{SHORT_INTRO}}
+
+## 前置条件
+
+操作前 MUST 读取：
+1. `references/{{MAIN_REFERENCE}}.md` — {{REFERENCE_DESC}}
+
+## 快速决策
+
+```
+用户意图
+  ├─ "{{TRIGGER_A}}"              → 工作流 A: {{WORKFLOW_A}}
+  ├─ "{{TRIGGER_B}}"              → 工作流 B: {{WORKFLOW_B}}
+  └─ "{{TRIGGER_C}}"              → 工作流 C: {{WORKFLOW_C}}
+```
+
+---
+
+## 文档格式规范（所有创建/编辑遵循）
+
+### 格式规则
+- {{FORMATTING_RULES}}
+
+### 关键约束
+- {{KEY_CONSTRAINTS}}
+
+---
+
+## 工作流 A: {{WORKFLOW_A}}
+
+```
+{{WORKFLOW_A_STEPS}}
+```
+
+---
+
+## 工具委托速查
+
+| 操作 | 工具 | 命令 |
+|------|------|------|
+| {{DELEGATION_TABLE}} |
+
+---
+
+## 关键陷阱
+
+- {{TRAP_1}}
+- {{TRAP_2}}
+
+---
+
+## 线上文档索引
+
+> 本 skill 创建/编辑的文档。每次操作后追加。格式：`[标题](url) | 日期 | 说明`
+
+| 标题 | 链接 | 日期 | 说明 |
+|------|------|------|------|
