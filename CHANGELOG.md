@@ -8,12 +8,26 @@ All notable changes to ccconfig will be documented in this file.
 - `deps-check.sh` — 依赖完整性检查脚本
 - `option-officecli/` — OfficeCLI 可选组件
 - `LICENSE`、`CHANGELOG.md`、`CONTRIBUTING.md`、`.editorconfig`
+- `BOOTSTRAP.md` — 新机器 0→1 拉起指南（gh auth → clone → init.sh all）
 
 ### Fixed
 - `remote/server/tmux-sshd.sh:100` — 反引号语法错误
+- `init-ubuntu.sh` 补 `gh auth setup-git` — 之前 SSH key 未注册到 GitHub 时 monitor push 静默失败
+- LLM 切换：M2.7 已停服，统一切到 M3（`conf/llm.json`）
 
 ### Changed
 - `.gitignore` — 新增 `tmp/` 忽略规则
+- `init-llm.sh` 默认 deepseek → 从 `conf/llm.json` 的 `current` 字段读取，配置即真相
+
+### Removed
+- `init-llm.zip` — init-llm.sh 的旧 zip 副本，全仓 0 引用
+- `cccshare/` — 空目录，无作用
+- `link/rules/f-research-report.md` 绝对 symlink → 相对 symlink（多机器不再断）
+- `init-ubuntu.sh:setup_fonts()` / `setup_officecli()` / `setup_ppt_master()` — main() 不调的死函数
+- `option-bridge/lark-current.sh` / `claude-lark-refresh.{service,timer}` — 0 consumer
+- `init.sh all` 流程中去重 `init-llm.sh` 调用（由 init-ubuntu.sh 内部 setup_claude_api 负责）
+- `setup_ppt_master` 从 init-ubuntu.sh 强制流水线移到 option-* 可选（与 option-ppt-master 重复）
+- `link/projects/-home-francis-git-papermaster/` — 仓库已废弃，目录和记忆全删
 
 ## [1.0] — 2026-05-21
 

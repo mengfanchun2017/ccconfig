@@ -90,6 +90,7 @@ ccconfig/
 ├── windows/                  # Windows/WSL interop
 │
 ├── LICENSE                   # MIT
+├── BOOTSTRAP.md              # 新机器 0→1 拉起指南（gh auth + clone + init.sh all）
 ├── CHANGELOG.md              # Change history
 ├── CONTRIBUTING.md           # Contribution guide
 └── .editorconfig             # Editor settings
