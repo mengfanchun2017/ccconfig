@@ -1,4 +1,4 @@
-# Git 规范
+q Git 规范
 
 ## 提交
 - 不跳过 hooks（--no-verify）
