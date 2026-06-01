@@ -1,0 +1,1 @@
+/home/francis/git/ccconfig/link/skills/f-research-report/rules.d/f-research-report.md
