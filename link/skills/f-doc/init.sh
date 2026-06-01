@@ -18,6 +18,17 @@ done
 
 echo "=== f-doc 安装 ==="
 
+# ── skill 自身符号链接（独立安装用户）──
+SKILL_NAME="$(basename "$SKILL_DIR")"
+SKILLS_TARGET="${HOME}/.claude/skills/${SKILL_NAME}"
+if [[ ! -e "$SKILLS_TARGET" ]]; then
+  mkdir -p "${HOME}/.claude/skills"
+  ln -s "$(readlink -f "$SKILL_DIR")" "$SKILLS_TARGET"
+  echo "  → skills/${SKILL_NAME} 已链接"
+elif [[ -L "$SKILLS_TARGET" ]]; then
+  echo "  ✓ skills/${SKILL_NAME} 已链接"
+fi
+
 # ── rules.d → ~/.claude/rules/ ──
 if [[ -d "${SKILL_DIR}/rules.d" ]]; then
   mkdir -p "$RULES_TARGET"
