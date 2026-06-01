@@ -554,6 +554,11 @@ main() {
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
     fi
 
+    # shell 别名同步（cconfig/setup-links.sh 维护符号链接）
+    if ! grep -q "shell_aliases.sh" "$HOME/.bashrc" 2>/dev/null; then
+        echo '[ -f ~/.claude/shell_aliases.sh ] && source ~/.claude/shell_aliases.sh' >> "$HOME/.bashrc"
+    fi
+
     setup_git_github
     setup_nodejs
     setup_uv
