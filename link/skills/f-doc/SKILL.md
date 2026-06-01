@@ -35,8 +35,9 @@ fi
 操作前 MUST 读取：
 1. `../lark-shared/SKILL.md` — 认证、权限
 2. `../lark-doc/SKILL.md` — 文档读写（fetch/create/update 参数）
-3. `references/write-checklist.md` — **写前检查清单（每次写操作必读）**，整合全部格式约束+更新安全规则+验证步骤
-4. `references/feishu-office-bridge.md` — 跨格式转换（涉及 Office 时）
+3. `references/feishu-office-bridge.md` — 跨格式转换（涉及 Office 时）
+
+> 完整格式约束+安全规则参考 → `references/write-checklist.md`
 
 ## 快速决策
 
@@ -100,10 +101,12 @@ lark-cli drive +search --query "关键词" --space-ids "space_id_1,space_id_2"
 
 ## 工作流 0: 创建新文档
 
-1. 读取 `references/write-checklist.md`，逐项核对格式自检
-2. 构造内容（表格用 `<lark-table>`，图表用 mermaid）
+### Step 0: 内容构造
+1. 标题：`# ## ###` 三级，检查无 `数字[.、]` 前缀
+2. 表格：`<lark-table>` XML，`column-widths` 之和 = 822
+3. 图表：mermaid 代码块，禁止 ASCII 字符画
 
-### 基本命令
+### Step 1: 创建
 
 ```bash
 cat << 'EOF' | lark-cli docs +create --api-version v2 --wiki-node <your-feishu-wiki-token> --as user --markdown - --title "标题"
@@ -113,30 +116,73 @@ EOF
 
 常见错误: ❌ `--folder-token` | ❌ `--markdown "内容"` | ✅ `--markdown -` + heredoc
 
-### 含表格/白板的创建
+### Step 2: 验证（必做）
 
-表格用 `<lark-table>`，图表用 mermaid 代码块，PPT 路由到 f-ppt skill。
+```bash
+lark-cli docs +fetch --api-version v2 --doc "{token}" --detail full
+```
+检查：
+- `grep '<colgroup'` → 列宽之和 = 822
+- `grep '^#'` → 无 `一、` `1.1` `(1)` 等手动编号前缀
+- 白板/嵌入资源数量与预期一致
 
-### 验证
-
-创建后 MUST fetch 验证：`lark-cli docs +fetch --api-version v2 --doc "{token}"`
+创建后追加到「线上文档索引」表格。
 
 ---
 
 ## 工作流 A: 增量更新
 
-1. 读取 `references/write-checklist.md`，逐项核对策略决策+格式自检
-2. `lark-cli docs +fetch --api-version v2 --doc "{token或URL}" --detail with-ids` 读取
-3. 展示结构概览（H1/H2 标题层级），标注嵌入资源（白板/图片/表格）
-4. 用户描述变更
-5. 用 `str_replace` 或 `block_replace` 做最小化编辑
-6. 重新 fetch 验证（`--detail full`，**必做**，ok:true 不代表生效）
+### Step 1: fetch（必带 `--detail with-ids`）
 
 ```bash
-# 追加
+lark-cli docs +fetch --api-version v2 --doc "{token或URL}" --detail with-ids
+```
+
+### Step 2: 策略判断（fetch 后立即执行）
+
+```bash
+# 检查嵌入资源
+grep -c '<whiteboard\|<sheet\|<bitable\|<img\|<file'
+```
+- **含嵌入资源 → 禁止 overwrite**。只能用 `str_replace` / `block_insert_after` / `block_delete`
+- 不含 → 全量重写可用 overwrite
+
+### Step 3: 展示结构
+标注 H1/H2 层级 + 嵌入资源位置，用户确认变更范围。
+
+### Step 4: 编辑
+
+命令选择：
+```
+替换文本（单行内）     → str_replace --pattern "..." --content "..."
+替换整个 block          → block_replace --block-id "xxx" --content "..."（注意：block_id 会变）
+插入到 block 后         → block_insert_after --block-id "xxx" --content "..."
+删除 block              → block_delete --block-id "xxx"
+追加到末尾              → append
+```
+
+安全规则：
+- 多步 block 操作**必须串行**（并行触发版本冲突，静默失败）
+- 同一 block 的 `block_replace` 只能执行一次
+- `str_replace` 不能跨 block；pattern 须文档内唯一
+- 白板只能 `block_insert_after` 插入，不能 `str_replace` 插 `<whiteboard>` 标签
+
+### Step 5: 验证（必做，ok:true 不代表生效）
+
+```bash
+lark-cli docs +fetch --api-version v2 --doc "{token}" --detail full
+```
+逐项检查：
+1. `grep '<colgroup'` → 列宽之和 = 822
+2. `grep '^#'` → 无手动编号
+3. `grep '<whiteboard token=' | wc -l` → 数量与编辑前一致
+4. 内容变更已生效
+
+```bash
+# 追加（示例）
 cat << 'EOF' | lark-cli docs +update --api-version v2 --doc <doc_id> --as user --mode append --markdown -
 
-# 替换章节
+# 替换章节（示例）
 cat << 'EOF' | lark-cli docs +update --api-version v2 --doc <doc_id> --as user --mode replace_range --selection-by-title "章节标题" --markdown -
 ```
 
@@ -246,15 +292,9 @@ cat "$SKILL_DIR/config.yaml"
 
 ---
 
-## 关键陷阱
+## 参考手册
 
-> **全部陷阱+解决方案** → `references/write-checklist.md`。以下为最常犯的高危项：
-
-- **overwrite 破坏嵌入资源**：白板 token 重新生成→图表丢失，colgroup 宽度归零。含嵌入资源文档禁止 overwrite
-- **`ok: true` 不代表生效**：编辑后 MUST fetch 验证（`--detail full`），默认 detail 隐藏 colgroup/block ID
-- **colgroup 总和 ≠ 822**：表格全宽约束最易遗漏，写后 grep `<colgroup>` 验证
-- **block_replace 后 block_id 变化**：后续操作需重新 fetch
-- lark-cli pipe 前 `sed '/^\[lark-cli\]/d'` 过滤日志行；JSON 文件路径必须相对
+> 完整格式约束、命令速查、所有陷阱 → `references/write-checklist.md`
 
 ---
 
