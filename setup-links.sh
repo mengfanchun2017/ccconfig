@@ -75,6 +75,11 @@ setup_symlinks() {
         setup_link "$CLAUDE_DIR/commands" "$SCRIPT_DIR/link/commands" "commands"
     fi
 
+    # shell_aliases.sh（跨终端 shell 别名同步）
+    if [[ -f "$SCRIPT_DIR/link/shell_aliases.sh" ]]; then
+        setup_link "$CLAUDE_DIR/shell_aliases.sh" "$SCRIPT_DIR/link/shell_aliases.sh" "shell_aliases.sh"
+    fi
+
     # MEMORY.md + CLAUDE.md - 自动检测所有项目
     for proj_dir in "$SCRIPT_DIR/link/projects"/-home-francis-*/; do
         if [[ ! -d "$proj_dir" ]]; then
