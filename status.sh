@@ -93,15 +93,6 @@ check_symlinks() {
         issues=$((issues + 1))
     fi
 
-    # commands (自定义命令)
-    if [ -L "$HOME/.claude/commands" ] && [ -d "$HOME/.claude/commands" ]; then
-        local cmd_count=$(ls "$HOME/.claude/commands/"*.md 2>/dev/null | wc -l)
-        echo -e "  ${GREEN}✅${NC} commands ($cmd_count 个)"
-    else
-        echo -e "  ${YELLOW}○${NC} commands (未链接)"
-        issues=$((issues + 1))
-    fi
-
     if [ $issues -eq 0 ]; then
         echo -e "  ${GREEN}配置链接就绪${NC}"
     else
