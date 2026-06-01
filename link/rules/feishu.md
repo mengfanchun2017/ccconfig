@@ -6,7 +6,7 @@
 
 ## 文档操作 → f-doc skill
 所有飞书文档的创建/更新/合并/拆分/转换/对比，统一由 `f-doc` skill 编排。
-格式化规则见 `rules/f-doc.md`（始终加载）。
+格式硬约束 → `rules/f-doc.md`（全局加载）。写操作检查清单 → `skills/f-doc/references/write-checklist.md`（含命令选择+格式自检+写后验证）。
 
 ## lark-cli 输出解析
 lark-cli 在 stdout 输出日志行（非 JSON），pipe 给 `python3 -c "json.load(sys.stdin)"` 会解析失败。

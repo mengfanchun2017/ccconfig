@@ -1,6 +1,6 @@
 # 文档操作规范（全局约束）
 
-> 飞书文档格式硬约束，始终加载。完整工作流、命令示例 → 调用 `f-doc` skill。
+> 飞书文档格式硬约束，始终加载。完整写前检查清单（含执行步骤+验证）→ `skills/f-doc/references/write-checklist.md`
 
 ## 格式
 - 标题：`# ## ###` 三级，**不加手动编号**（飞书自动生成目录），禁止 H4+
@@ -14,12 +14,11 @@
 - 子文档（用户给父URL）→ 提取 token 作 `--parent-token`，禁止套用默认
 - 独立文档 → `--parent-token <your-feishu-wiki-token>`（Claude 工作 wiki）
 
-## 关键陷阱
-- 编辑后 MUST fetch 验证（`--scope range`），`ok: true` 不代表生效
-- `<lark-table>` colgroup 总和必须 = 822
-- `replace_range` 不支持含空行内容，用 `delete_range` + `insert_after`
-- `drive +search` 参数是 `--query` 不是 `--keyword`
-- json 文件路径必须相对；lark-cli pipe 前先 `sed '/^\[lark-cli\]/d'`
-
 ## 入口
-所有文档操作统一由 `f-doc` skill 编排。详细工作流 → `skills/f-doc/SKILL.md`。
+所有文档操作统一由 `f-doc` skill 编排。操作时必读 `references/write-checklist.md`（检查清单）。
+
+## 常用 wiki 节点
+| 用途 | Token |
+|------|-------|
+| Claude 工作 wiki（默认父目录） | `<your-feishu-wiki-token>` |
+| OKR/SUM 文档父目录 | `VPsDw42KsixH77kugfcc8FyInCh` |
