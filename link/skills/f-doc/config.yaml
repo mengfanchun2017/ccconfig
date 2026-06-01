@@ -1,0 +1,18 @@
+# f-doc 用户配置
+# 修改后保存即生效，无需重启 Claude Code
+
+settings:
+  default_parent_token:
+    value: "<your-feishu-wiki-token>"
+    description: "独立文档默认父节点（飞书 wiki token）"
+    type: string
+
+  default_domain:
+    value: "<your-tenant>.feishu.cn"
+    description: "飞书域名（不含 https://）"
+    type: string
+
+  lark_account:
+    value: "ailab"
+    description: "默认飞书账号（对应 ~/.lark-cli-<account>）"
+    type: string
