@@ -101,6 +101,11 @@ lark-cli base +field-create --base-token $T --table-id tblXXX \
 
 ## 新增踩坑（追加在此）
 
+### colgroup 宽度修复必须用 block_replace
+- `str_replace` 不能处理 `<colgroup>` — 报 `Orphan tag was unwrapped`，因为 colgroup 脱离 `<table>` 上下文即孤标签
+- ✅ 正确：`block_replace --block-id "<table_id>" --content "$(cat table.xml)"` 替换整个 table
+- ✅ colgroup 宽度之和必须 = 822px 才是飞书全宽
+
 <!-- 2026-05-29 | base init | 新建Bitable默认空表"数据表" — 直接rename复用，不新建再删。workflow无delete API。dashboard默认无。→ 结论写入f-logme SKILL.md -->
 <!-- 2026-05-29 | base field-create | 7次试错：type数字格式、property嵌套、link_table_id → 全部改用扁平字符串key → 记录到上方速查表 -->
 <!-- 2026-05-26 | slides export | drive +export --doc-type slides → 不支持 → lark-cli api POST export_tasks | 用通用API替代 -->
