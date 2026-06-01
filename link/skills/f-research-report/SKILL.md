@@ -11,6 +11,8 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 
 报告生成模块，将 JSON 研究结果转换为可读报告。
 
+> **格式硬约束** → `rules.d/f-research-report.md`（全局加载，研究报告格式/结构/内容规范）
+
 ## 工作流程
 
 ### Step 1: 定位研究目录
