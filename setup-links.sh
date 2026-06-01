@@ -87,8 +87,20 @@ setup_symlinks() {
         fi
         local PROJ_NAME=$(basename "$proj_dir")
 
-        # MEMORY.md → ~/.claude/projects/<name>/memory/MEMORY.md
-        if [[ -f "${proj_dir}MEMORY.md" ]]; then
+        # MEMORY 链接 — 兼容两种仓库内结构
+        #   形式 A: 项目根/MEMORY.md           → 链单文件
+        #   形式 B: 项目根/memory/MEMORY.md + N 个独立记忆 → 整个 memory/ 目录链过去
+        if [[ -d "${proj_dir}memory" ]]; then
+            # 形式 B: 整个 memory/ 目录作为符号链接（保留所有独立 memory 文件）
+            local MEM_PARENT="$CLAUDE_DIR/projects/$PROJ_NAME"
+            mkdir -p "$MEM_PARENT"
+            # 若目标已是空真目录，先删除再链接
+            if [[ -d "$MEM_PARENT/memory" && ! -L "$MEM_PARENT/memory" ]]; then
+                rmdir "$MEM_PARENT/memory" 2>/dev/null || true
+            fi
+            setup_link "$MEM_PARENT/memory" "${proj_dir}memory" "$PROJ_NAME/memory"
+        elif [[ -f "${proj_dir}MEMORY.md" ]]; then
+            # 形式 A: 单文件 MEMORY.md
             local MEM_DIR="$CLAUDE_DIR/projects/$PROJ_NAME/memory"
             mkdir -p "$MEM_DIR"
             setup_link "$MEM_DIR/MEMORY.md" "${proj_dir}MEMORY.md" "$PROJ_NAME/MEMORY.md"
