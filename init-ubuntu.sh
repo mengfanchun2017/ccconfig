@@ -388,19 +388,6 @@ SSHEOF
     fi
 }
 
-# ========== 7. 中文字体（可选）============
-# Claude Code 不依赖中文字体包，桌面 IDE 有需要再手动装:
-#   sudo apt-get install fonts-noto-cjk
-setup_fonts() {
-    section "中文字体（可选）"
-
-    if fc-list :lang=zh 2>/dev/null | grep -q .; then
-        info "中文字体已安装"
-    else
-        info "中文字体未安装（Claude Code 不需要，可选装: sudo apt-get install fonts-noto-cjk）"
-    fi
-}
-
 # ========== 8. 符号链接 ==========
 setup_symlinks() {
     bash "$SCRIPT_DIR/setup-links.sh"
@@ -453,18 +440,6 @@ setup_autosync() {
     else
         warn "auto-sync 自启动启用失败"
     fi
-}
-
-# ========== 10. ppt-master（PPT 生成） ==========
-setup_ppt_master() {
-    section "ppt-master (PPT 生成)"
-    bash "$SCRIPT_DIR/option-ppt-master/init.sh" --install
-}
-
-# ========== 10b. OfficeCLI（可选） ==========
-setup_officecli() {
-    section "OfficeCLI"
-    bash "$SCRIPT_DIR/option-officecli/init.sh" --install
 }
 
 # ========== 11. SessionStart Hook ==========
@@ -576,12 +551,12 @@ main() {
     setup_wslconfig
     setup_autosync
     setup_hook
-    setup_ppt_master
 
     echo ""
     success "初始化完成！"
     echo ""
     echo "可选组件（按需安装）："
+    echo "  bash ccconfig/option-ppt-master/init.sh   # ppt-master (PPT 生成)"
     echo "  bash ccconfig/option-officecli/init.sh   # OfficeCLI（AI-native Office 工具）"
     echo "  bash ccconfig/option-vessel/init.sh      # Vessel AI 浏览器"
     echo "  bash ccconfig/option-bridge/init.sh      # cc-connect（飞书 Bridge）"
