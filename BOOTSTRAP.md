@@ -1,0 +1,232 @@
+# 新机器 Bootstrap 指南
+
+> **从零起步，把一台新机器拉到 monitor 跑起来。**
+> 不假设机器上有 claude、git、gh 任何东西。
+> 全程 5-10 分钟，全手动。
+> 走完一遍后，所有 ccconfig 配置会自动同步、monitor 自动 commit+push。
+
+**适用**：
+- 新装的 WSL2 / Ubuntu 22.04+ / Debian 12+
+- 重装系统后恢复
+- 公司新发的工作机
+
+**不适用**：
+- macOS（部分命令不同，看文末备注）
+- 真机/裸金属（无 sudo 的情况，看文末备注）
+
+---
+
+## 阶段 0 — OS 基础（首次装的机器）
+
+```bash
+# 1. 更新包索引
+sudo apt update
+
+# 2. 装 git / curl / wget / sudo（通常已有，但保险起见）
+sudo apt install -y git curl wget sudo
+
+# 3. 验证
+git --version   # git version 2.34+ 即可
+curl --version  # curl 7.81+ 即可
+```
+
+**WSL 专属**：如果是从 Windows Store 装的 Ubuntu，默认就有 sudo。如果 `sudo` 报
+"unable to resolve host"，先 `sudo nano /etc/hosts` 把 hostname 加到 127.0.1.1。
+
+---
+
+## 阶段 1 — 装 gh CLI
+
+**Ubuntu 22.04+ / Debian 12+（apt 源有）**：
+
+```bash
+# GitHub 官方 apt 源（一次性）
+sudo apt install -y gh
+```
+
+**Ubuntu 20.04 / 其他（apt 源没有，直接下 binary）**：
+
+```bash
+# 看 https://github.com/cli/cli/releases/latest 的版本号，替换下面 v2.x.x
+GH_VERSION="2.62.0"
+curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+tar -xzf /tmp/gh.tar.gz -C /tmp
+sudo mv /tmp/gh_${GH_VERSION}_linux_amd64/bin/gh /usr/local/bin/gh
+rm -rf /tmp/gh.tar.gz /tmp/gh_${GH_VERSION}_linux_amd64
+
+# 验证
+gh --version  # gh version 2.62.0
+```
+
+**装完会做这几件事**：
+- `gh` 命令可用
+- `gh auth login` 准备就绪
+- `gh auth setup-git` 可配置 git credential helper
+
+---
+
+## 阶段 2 — 登录 GitHub
+
+```bash
+# 浏览器走 OAuth 协议
+gh auth login --web --hostname github.com
+```
+
+**操作流程**：
+1. 命令行会问 "What account do you want to log into?" → 选 **GitHub.com**
+2. 问 "What is your preferred protocol?" → 选 **HTTPS**
+3. 问 "How would you like to authenticate?" → 选 **Login with a web browser**
+4. 终端打印一行 `! First copy your one-time code: ****-****`
+5. 按回车打开浏览器（或手动访问 https://github.com/login/device）
+6. 粘贴 code → 授权 `<your-github-username>` 账号
+7. 回到终端，命令完成
+
+**验证**：
+
+```bash
+gh auth status
+# 应该看到: ✓ Logged in to github.com as <你的账号>
+```
+
+**保存到哪里**：
+- `~/.config/gh/hosts.yml` — 包含 `oauth_token: gho_xxx`（**不要外传**）
+- 这就是 GitHub 发给"这台机器"的 device-scoped token
+- 跨机器**不能直接复制**这文件（OAuth 带 device fingerprint），要在每台机器独立登录
+
+---
+
+## 阶段 3 — 克隆 ccconfig
+
+**用 gh 克隆，不要用 git**（gh 知道用你的 token）：
+
+```bash
+# 创建工作目录
+mkdir -p ~/git
+cd ~/git
+
+# 克隆
+gh repo clone <your-github-username>/ccconfig
+
+# 验证
+cd ccconfig
+ls
+# 应该看到: init.sh init-ubuntu.sh monitor.sh README.md ...
+git remote -v
+# origin  https://github.com/<your-github-username>/ccconfig.git (fetch)
+# origin  https://github.com/<your-github-username>/ccconfig.git (push)
+```
+
+> **坑点**：如果用 `git clone git@github.com:<your-github-username>/ccconfig.git`（SSH URL），
+> 会因为没注册 SSH key 报 `Permission denied (publickey)`。
+> 用 `gh repo clone` 走 HTTPS，全程无感。
+
+---
+
+## 阶段 4 — 一键初始化
+
+```bash
+cd ~/git/ccconfig
+bash init.sh all
+```
+
+**这一步会自动做**（按顺序）：
+
+| 步骤 | 脚本 | 做了什么 |
+|------|------|----------|
+| 1/4 | `init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配置 SessionStart hook / **装 gh auth setup-git（git credential helper）** / 配 auto-sync monitor |
+| 2/4 | `init-llm.sh deepseek` | 选 LLM 后端（默认 deepseek） |
+| 3/4 | `init-mcp.sh` | 装并同步 MCP 服务器 |
+| 4/4 | `init-skill.sh sync` | 链接 skills 到 `~/.claude/skills/` |
+
+**全程无输入**：因为 gh 已经登录，第 1 步的 `gh auth setup-git` 幂等跑过；
+LLM 默认值是 deepseek；MCP 和 skills 都是已配置的服务器列表。
+
+**会触发 sudo**（安装系统包时），提前准备好 sudo 免密或看着密码。
+
+---
+
+## 阶段 5 — 验证
+
+```bash
+# 11 项状态检查
+bash status.sh
+```
+
+**应该看到（精简版）**：
+```
+[1] 配置文件链接      ✅ settings.json, .config.json, CLAUDE.md, rules ...
+[2] 核心依赖         ✅ git / bash / curl / node / python3 / pip3 / npm
+[3] auto-sync        ✓ Monitor loop running
+[4] 最后推送          (刚才 init 的某个时间)
+[5] MEMORY 更新       ✅
+[7] 飞书              (未配置，可选)
+[7b] Vessel           (未安装，可选)
+[7c] OfficeCLI        (未安装，可选)
+```
+
+**如果 auto-sync 没起来**：
+
+```bash
+# 手动启
+bash init-autostart.sh
+
+# 或临时跑前台（看日志）
+./monitor.sh start
+```
+
+**端到端测试**（确认 monitor 推得动）：
+
+```bash
+# 在 ccconfig 目录随便改个文件
+echo "# smoke test $(date)" >> /tmp/cc-smoke.md
+cp /tmp/cc-smoke.md ~/git/ccconfig/tmp/smoke.md
+
+# 等 2-3 分钟（monitor debounce 120s + push）
+tail -f ~/git/ccconfig/logs/monitor.log
+# 应该看到: OK committed → OK pushed → GitHub
+```
+
+去 https://github.com/<your-github-username>/ccconfig/commits/main 也能看到刚才的 commit。
+
+---
+
+## 完成 — 接下来干嘛
+
+机器已经全功能：
+
+| 操作 | 命令 |
+|------|------|
+| 改文件自动推 | 默认行为，monitor 在跑 |
+| 看状态 | `bash status.sh` |
+| 装可选组件 | `bash init.sh` → 7) 可选组件 |
+| 强制拉远程 | `bash sync.sh --pull`（暗号 `pullff`） |
+| 切 LLM 后端 | `bash init.sh` → 1) → 2) |
+| 月度升级 | `bash update.sh all` |
+| 启动 Claude | 直接输 `claude` |
+
+---
+
+## 常见坑
+
+| 现象 | 原因 | 解决 |
+|------|------|------|
+| `gh: command not found` | 阶段 1 binary 没装到 PATH | `which gh`，没结果就 `source ~/.bashrc` 或手动加 `/usr/local/bin` |
+| `gh auth login` 浏览器没自动开 | WSL 没装 `wslview` | 手动复制终端的 one-time code，访问 https://github.com/login/device |
+| `gh repo clone` 报 404 | 没登录成功 / 账号不是 `<your-github-username>` 的协作者 | `gh auth status` 确认账号；如果不是协作者，联系 owner 加 |
+| `init.sh all` 卡在 sudo | 密码没缓存 | 输密码，或配 sudo 免密（`echo "francis ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/francis`） |
+| monitor 不推 | SSH key 没注册到 GitHub（这台机器以前的残留）| `gh auth setup-git`（init.sh 阶段 1 已自动做）；如还有问题 `git remote set-url origin https://<your-github-username>@github.com/<your-github-username>/ccconfig.git` |
+| WSL 报 `Could not resolve hostname` | `/etc/hosts` 没本机 hostname | `echo "127.0.1.1 $(hostname)" \| sudo tee -a /etc/hosts` |
+
+---
+
+## macOS 备注
+
+- 阶段 0：`brew install git curl`
+- 阶段 1：`brew install gh`
+- 阶段 2-5：都一样
+
+## 无 sudo 备注
+
+- 阶段 0-2 改成用户级安装：gh binary 装到 `~/bin/`
+- 阶段 4 `init.sh all` 会失败（要装系统包），需要 sudo
+- 替代：只跑 `bash init-skill.sh sync`（不需 sudo），手动配置 `~/.claude/` 符号链接

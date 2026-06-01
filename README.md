@@ -97,18 +97,20 @@ ccconfig/
 
 ## Quick Start
 
-```bash
-# Clone
-git clone git@github.com:<your-github-username>/ccconfig.git ~/git/ccconfig
-cd ~/git/ccconfig
+> **新机器？** 从零开始（包括装 gh、登录、克隆）→ 看 [BOOTSTRAP.md](BOOTSTRAP.md)。
+> **已初始化过的机器** → 直接：
 
-# Interactive menu
+```bash
+# 拉最新
+cd ~/git/ccconfig && git pull
+
+# 交互式菜单
 bash init.sh
 
-# Or one-shot full init (Ubuntu + LLM + MCP + Skills)
+# 或一键全初始化（Ubuntu + LLM + MCP + Skills）
 bash init.sh all
 
-# Check everything
+# 状态检查
 bash status.sh
 ```
 
