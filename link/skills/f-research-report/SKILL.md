@@ -45,6 +45,8 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 ### Step 5: 输出
 根据 `RESEARCH_OUTPUT` 配置：feishu（默认）/ file / both
 
+**输出到飞书时**，委托 f-doc skill（工作流 0 创建新文档），操作前 MUST 读取 `../f-doc/references/write-checklist.md` 逐项核对。
+
 ## 关联 Skills
 - `f-research` - 初步研究
 - `f-research-deep` - 深度研究
