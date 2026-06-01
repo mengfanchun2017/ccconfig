@@ -18,7 +18,7 @@ lark-cli drive +search --query "核心词2" --doc-types "wiki,doc,docx" --page-s
 
 ```bash
 for token in token1 token2 token3; do
-  lark-cli docs +fetch --api-version v2 --doc "$token" --format json | \
+  lark-cli docs +fetch --api-version v2 --doc "$token" --format json 2>&1 | sed '/^\[lark-cli\]/d' | \
     python3 -c "import json,sys;d=json.load(sys.stdin);..." > /tmp/doc_${token}.json
 done
 ```

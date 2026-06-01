@@ -6,7 +6,7 @@
 
 ```bash
 # 获取文档结构（非全文，减少 token）
-lark-cli docs +fetch --api-version v2 --doc "{token}" --format json | \
+lark-cli docs +fetch --api-version v2 --doc "{token}" --format json 2>&1 | sed '/^\[lark-cli\]/d' | \
   python3 -c "
 import json,sys
 d=json.load(sys.stdin)
@@ -59,7 +59,7 @@ lark-cli docs +update --api-version v2 --doc "{token}" \
 
 ```bash
 # 重新 fetch，确认变更生效
-lark-cli docs +fetch --api-version v2 --doc "{token}" --format json | \
+lark-cli docs +fetch --api-version v2 --doc "{token}" --format json 2>&1 | sed '/^\[lark-cli\]/d' | \
   python3 -c "..." # 检查修改的部分
 ```
 

@@ -11,7 +11,7 @@
 ## Step 1: 获取文档结构
 
 ```bash
-lark-cli docs +fetch --api-version v2 --doc "{token}" --format json | \
+lark-cli docs +fetch --api-version v2 --doc "{token}" --format json 2>&1 | sed '/^\[lark-cli\]/d' | \
   python3 -c "
 import json,sys
 d=json.load(sys.stdin)
