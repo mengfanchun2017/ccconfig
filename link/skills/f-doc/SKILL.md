@@ -35,7 +35,8 @@ fi
 操作前 MUST 读取：
 1. `../lark-shared/SKILL.md` — 认证、权限
 2. `../lark-doc/SKILL.md` — 文档读写（fetch/create/update 参数）
-3. `references/feishu-office-bridge.md` — 跨格式转换（涉及 Office 时）
+3. `references/write-checklist.md` — **写前检查清单（每次写操作必读）**，整合全部格式约束+更新安全规则+验证步骤
+4. `references/feishu-office-bridge.md` — 跨格式转换（涉及 Office 时）
 
 ## 快速决策
 
@@ -59,21 +60,21 @@ fi
 
 ## 文档格式规范（所有创建/编辑遵循）
 
+> 完整检查清单（含执行步骤+验证）→ `references/write-checklist.md`。此处为摘要，写操作前 MUST 通读清单。
+
 ### 标题
 - 纯 `# ## ###` 层级，**不加手动编号**（飞书自动生成目录）
 - H1/H2/H3 三级，**禁止 H4+**
-- 非正文内容（使用说明、参考数据、搜索清单）用 `>` 引用包裹，不出现在目录
-- 章节间**不加 `---` 横线**
+- 非正文内容用 `>` 引用包裹，不出现在目录；禁止 `<hr/>` 分割线
 
 ### 表格 → `<lark-table>` XML
 - **禁止 Markdown 表格**，全部用 `<lark-table>` XML
+- **colgroup 列宽之和 = 822**（`round(822/N)` 均分），写后 fetch `--detail full` 验证
 - 必设属性：`rows="N" cols="N" header-row="true" header-column="true" column-widths="W,W,W"`
-- 列宽：`round(822 / N)` 均分。2列→411,411 | 3列→274×3 | 4列→205×4 | 5列→164×5
-- 单元格内用纯文本，不用 `#` 标题符号
+- 单元格内纯文本，不用 `#` 标题符号
 
 ### 图表 → Mermaid 代码块
-- **禁止 ASCII 字符画**
-- 支持：`graph TD/LR` `flowchart` `sequenceDiagram` `classDiagram` `stateDiagram-v2` `erDiagram` `gantt` `pie`
+- **禁止 ASCII 字符画**，白板只能 `block_insert_after` 插入
 - 图表在对应内容位置嵌入，不在末尾
 
 ### 缩写
@@ -82,7 +83,6 @@ fi
 ### 父目录
 - **子文档**（用户指定父文档URL）：提取 token 作为 `--parent-token`。**禁止**套用默认值
 - **独立文档**（用户未指定位置）：默认 `--wiki-node <your-feishu-wiki-token>`（Claude 工作 wiki）
-- 提取方法：`https://my.feishu.cn/wiki/{token}` → token = parent-token
 
 ---
 
@@ -99,6 +99,9 @@ lark-cli drive +search --query "关键词" --space-ids "space_id_1,space_id_2"
 ---
 
 ## 工作流 0: 创建新文档
+
+1. 读取 `references/write-checklist.md`，逐项核对格式自检
+2. 构造内容（表格用 `<lark-table>`，图表用 mermaid）
 
 ### 基本命令
 
@@ -122,15 +125,12 @@ EOF
 
 ## 工作流 A: 增量更新
 
-```
-fetch 文档结构 → 用户确认变更 → 最小编辑 → apply → 验证
-```
-
-1. `lark-cli docs +fetch --api-version v2 --doc "{token或URL}"` 读取
-2. 展示结构概览（H1/H2 标题层级）
-3. 用户描述变更
-4. 用 `str_replace` 或 `block_replace` 做最小化编辑
-5. 重新 fetch 验证（**必做**，ok:true 不代表生效）
+1. 读取 `references/write-checklist.md`，逐项核对策略决策+格式自检
+2. `lark-cli docs +fetch --api-version v2 --doc "{token或URL}" --detail with-ids` 读取
+3. 展示结构概览（H1/H2 标题层级），标注嵌入资源（白板/图片/表格）
+4. 用户描述变更
+5. 用 `str_replace` 或 `block_replace` 做最小化编辑
+6. 重新 fetch 验证（`--detail full`，**必做**，ok:true 不代表生效）
 
 ```bash
 # 追加
@@ -248,17 +248,13 @@ cat "$SKILL_DIR/config.yaml"
 
 ## 关键陷阱
 
-- 飞书编辑后 MUST 重新 fetch 验证（`--scope range`，不用 `keyword`）
-- `drive +search` 参数是 `--query` 不是 `--keyword`
-- `drive +search` 返回 obj_token，可用于 `docs +fetch`，但不能直接用于 `wiki +node-get`（需加 `--obj-type`）
-- `docs +update str_replace` 用 `--pattern`+`--content`，不用 `--json`
-- `block_replace` 后 block_id 会变化
-- lark-cli 输出 pipe 给 JSON 解析器前，先 `tail -n +2` 跳过日志行
-- OfficeCLI 写 .docx 前先 `officecli open` 驻留进程加速
-- 更新已有文档优先用 `str_replace`/`block_replace`，不用 `append`
-- `replace_range` 不支持含空行的内容，改用 `delete_range` + `insert_after`
-- `<lark-table>` colgroup 总和必须 = 822
-- json 文件路径必须用相对路径
+> **全部陷阱+解决方案** → `references/write-checklist.md`。以下为最常犯的高危项：
+
+- **overwrite 破坏嵌入资源**：白板 token 重新生成→图表丢失，colgroup 宽度归零。含嵌入资源文档禁止 overwrite
+- **`ok: true` 不代表生效**：编辑后 MUST fetch 验证（`--detail full`），默认 detail 隐藏 colgroup/block ID
+- **colgroup 总和 ≠ 822**：表格全宽约束最易遗漏，写后 grep `<colgroup>` 验证
+- **block_replace 后 block_id 变化**：后续操作需重新 fetch
+- lark-cli pipe 前 `sed '/^\[lark-cli\]/d'` 过滤日志行；JSON 文件路径必须相对
 
 ---
 
