@@ -111,6 +111,12 @@ setup_git_github() {
         gh auth login --git-protocol https --skip-ssh-key --hostname github.com
     fi
 
+    # 配置 git credential helper（幂等 — 已配则 no-op，gh 未登录则跳过）
+    if gh auth status &>/dev/null; then
+        gh auth setup-git >/dev/null 2>&1 || true
+        success "git credential helper → gh auth git-credential"
+    fi
+
     # 克隆/更新仓库
     TARGET_DIR=$(eval echo "$TARGET_DIR" 2>/dev/null || echo "$TARGET_DIR")
     PARENT_DIR=$(dirname "$TARGET_DIR")
