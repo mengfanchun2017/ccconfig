@@ -238,6 +238,7 @@ fetch 源文档 → 分析H1/H2边界 → 拆分方案 → 用户审批 → 创�
 
 | 标题 | 链接 | 日期 | 说明 |
 |------|------|------|------|
+| [<company-cn>大模型双轨架构深度研究](https://<your-tenant>.feishu.cn/docx/DOwxdvTVMoSMYRx28XGcliH0nte) | 2026-06-01 | <company-cn>AI架构专题研究，对标全球航空业AI最佳实践 |
 | [知识图谱与专业能力提升 — 2026年上半年总结及下半年工作思路](https://<your-tenant>.feishu.cn/docx/XMrHd3bNeowq4KxLyNXccsTpnJf) | 2026-05-31 | 知识图谱半年总结报告，父文档 workreview |
 
 ### 常用 Wiki 节点
