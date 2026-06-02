@@ -280,6 +280,48 @@ setup_claude_api() {
 }
 
 
+# ========== 5.5 MiniMax CLI（mmx，全模态官方 CLI） ==========
+# Token Plan 用户的官方 CLI，覆盖 text/image/video/speech/music/vision/search
+# 自动安装 + symlink 到 ~/.local/bin/mmx；认证由用户主动跑 mmx auth login
+setup_mmx_cli() {
+    section "MiniMax CLI (mmx)"
+
+    local npm_global_bin
+    npm_global_bin="$(npm prefix -g 2>/dev/null)/bin"
+
+    if [[ ! -d "$npm_global_bin" ]]; then
+        warn "npm 全局目录未找到，跳过 mmx 安装"
+        return 0
+    fi
+
+    if command -v mmx &>/dev/null; then
+        success "mmx CLI 已安装: $(mmx --version 2>/dev/null | head -1)"
+    else
+        info "安装 mmx CLI..."
+        if ! npm install -g mmx-cli 2>&1 | tail -3; then
+            warn "mmx CLI 安装失败（可手动重试: npm install -g mmx-cli）"
+            return 0
+        fi
+    fi
+
+    # symlink 到 ~/.local/bin（跟 node/npm/npx/lark-cli 一致，PATH 首位）
+    mkdir -p "$LOCAL_BIN"
+    if [[ -x "$npm_global_bin/mmx" ]]; then
+        ln -sf "$npm_global_bin/mmx" "$LOCAL_BIN/mmx"
+    fi
+
+    if command -v mmx &>/dev/null; then
+        success "mmx CLI 可用: $(mmx --version 2>/dev/null | head -1)"
+        local mmx_ver
+        mmx_ver=$(mmx --version 2>/dev/null | awk '{print $2}')
+        [[ -n "$mmx_ver" ]] && save_version "mmx_cli" "$mmx_ver"
+        info "认证步骤（首次使用必跑）: mmx auth login"
+    else
+        warn "mmx CLI 装好但 PATH 未生效（请运行: hash -r 或新开终端）"
+    fi
+}
+
+
 # ========== 6. GitHub SSH 密钥（多 WSL 共享） ==========
 # 策略：
 #   - 同机多 WSL：密钥放 Windows 宿主目录 (/mnt/c/Users/<用户名>/.ssh/)，各 WSL 复制到本地
@@ -546,6 +588,7 @@ main() {
     setup_claude_code
     setup_symlinks
     setup_claude_api
+    setup_mmx_cli
     setup_ssh_github
     # 中文字体可选，有需要再手动装: sudo apt-get install fonts-noto-cjk
     setup_wslconfig
