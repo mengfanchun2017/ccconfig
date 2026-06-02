@@ -132,7 +132,7 @@ cccshare/
 ├── init-autostart.sh         # auto-sync systemd service
 ├── update.sh                 # Monthly upgrade (9 components)
 │
-├── status.sh                 # Status check (11 checks)
+├── status.sh                 # Status check (12 checks)
 ├── monitor.sh                # File watcher + auto git sync
 ├── setup-links.sh            # Rebuild ~/.claude/ symlinks
 ├── deps-check.sh             # Dependency integrity check
@@ -155,7 +155,7 @@ cccshare/
 │   ├── settings.json         # Permissions + MCP + hooks (template)
 │   ├── rules/                # Conditional rules (code, git, python, search, feishu, godot)
 │   ├── agents/               # Custom agents (assistant, feishucreate, learnchinese)
-│   └── skills/               # All skills (22)
+│   └── skills/               # All skills (26)
 │
 ├── LICENSE                   # MIT
 ├── CHANGELOG.md              # Change log
