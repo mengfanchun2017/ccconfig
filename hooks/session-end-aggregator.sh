@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# SessionEnd hook: 从 transcript 聚合 token 用量 + session 事件
-# 输出到 /tmp/claude_session_<sid>.json 和 /tmp/claude_last_session.json
-# 不直接写飞书 — 留给用户确认
+# SessionEnd hook: 从 transcript 聚合 token + 自动写 worklog Base
+# 失败兜底：写 /tmp/claude_session_<sid>.json 等手动补记
 
 set -uo pipefail
 
@@ -23,7 +22,7 @@ fi
 OUT="/tmp/claude_session_${SID}.json"
 
 python3 - "$TPATH" "$SID" "$CWD" "$REASON" "$OUT" <<'PY'
-import json, sys, os, datetime
+import json, sys, os, datetime, subprocess
 
 transcript, sid, cwd, reason, out_path = sys.argv[1:6]
 
@@ -81,23 +80,74 @@ result = {
     "tokens": agg,
     "model": model,
     "models_used": sorted(models),
-    "stats": {
-        "assistant_message_count": asst_msgs,
-        "user_message_count": user_msgs,
-    },
-    "events": {
-        "git_commits": commits,
-        "file_edits": edits,
-    },
+    "stats": {"assistant_message_count": asst_msgs, "user_message_count": user_msgs},
+    "events": {"git_commits": commits, "file_edits": edits},
 }
 
 tmp = out_path + ".tmp"
 with open(tmp, "w") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
 os.replace(tmp, out_path)
-
 with open("/tmp/claude_last_session.json", "w") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
 
-print(f"session-end-aggregator: wrote {out_path}", file=sys.stderr)
+# 自动写 worklog Base
+T = "LX5lb6VfdaJHWrsRbTgc8Y50nmj"
+TBL = "tblVsC0L7QFzMeYM"
+date_str = datetime.date.today().isoformat()
+sid_short = sid[:8]
+title = f"[auto] {date_str} session {sid_short} ({reason or 'end'})"
+desc = (
+    f"{asst_msgs} asst / {user_msgs} user msgs, "
+    f"{len(edits)} edits, {len(commits)} commits. "
+    f"cwd={cwd}"
+)
+wl_payload = {
+    "fields": [
+        "标题", "成果类型", "量化结果", "说明", "日期",
+        "input_tokens", "output_tokens",
+        "cache_creation_input_tokens", "cache_read_input_tokens", "model",
+    ],
+    "rows": [[
+        title, "", desc,
+        f"auto-aggregated by SessionEnd hook",
+        date_str,
+        agg["input_tokens"], agg["output_tokens"],
+        agg["cache_creation_input_tokens"], agg["cache_read_input_tokens"],
+        model or "",
+    ]],
+}
+
+wl_tmp = f"/tmp/wl_{sid}.json"
+with open(wl_tmp, "w") as f:
+    json.dump(wl_payload, f, ensure_ascii=False)
+
+env = os.environ.copy()
+env["LARKSUITE_CLI_CONFIG_DIR"] = os.path.expanduser("~/.lark-cli-<account>")
+env["PATH"] = os.path.expanduser("~/.local/bin:") + env.get("PATH", "")
+
+try:
+    proc = subprocess.run(
+        ["lark-cli", "base", "+record-batch-create",
+         "--base-token", T, "--table-id", TBL,
+         "--as", "user", "--json", f"@{os.path.basename(wl_tmp)}"],
+        capture_output=True, text=True, cwd="/tmp", env=env, timeout=20,
+    )
+    stdout_clean = "\n".join(
+        l for l in proc.stdout.splitlines() if not l.startswith("[lark-cli]")
+    )
+    if proc.returncode == 0 and '"ok": true' in stdout_clean:
+        print(f"session-end-aggregator: worklog written → {title}", file=sys.stderr)
+        try:
+            os.remove(wl_tmp)
+        except OSError:
+            pass
+    else:
+        print(
+            f"session-end-aggregator: lark-cli failed, kept in {out_path}. "
+            f"rc={proc.returncode} stderr={proc.stderr[:200]}",
+            file=sys.stderr,
+        )
+except Exception as e:
+    print(f"session-end-aggregator: lark-cli exception {e}, kept in {out_path}", file=sys.stderr)
 PY
