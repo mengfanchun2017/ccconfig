@@ -258,7 +258,7 @@ main_menu() {
         5) submenu_tools ;;
         6)
             show_banner
-            run_step "1/4 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
+            run_step "1/3 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
             # LLM 由 init-ubuntu.sh 内部 setup_claude_api 从 conf/llm.json 读取
             run_step "2/3 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
             run_step "3/3 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
