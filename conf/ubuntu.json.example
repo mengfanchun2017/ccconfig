@@ -7,12 +7,5 @@
     "target_dir": "$HOME/git/ccconfig",
     "email": "you@example.com",
     "username": "你的GitHub用户名"
-  },
-
-  "api": {
-    "vendor": "minimax",
-    "base_url": "https://api.minimaxi.com/anthropic",
-    "model": "MiniMax-M3",
-    "key": "请填入你的 API Key"
   }
 }
