@@ -94,27 +94,26 @@ with open("/tmp/claude_last_session.json", "w") as f:
 # 自动写 worklog Base
 T = "LX5lb6VfdaJHWrsRbTgc8Y50nmj"
 TBL = "tblVsC0L7QFzMeYM"
+KR_AUTO = "recvl7jffWBL34"  # KR17 f-logme自动日志
 date_str = datetime.date.today().isoformat()
 sid_short = sid[:8]
 title = f"[auto] {date_str} session {sid_short} ({reason or 'end'})"
-desc = (
-    f"{asst_msgs} asst / {user_msgs} user msgs, "
-    f"{len(edits)} edits, {len(commits)} commits. "
-    f"cwd={cwd}"
-)
+quant = f"{len(edits)} edits, {len(commits)} commits. cwd={cwd}"
 wl_payload = {
     "fields": [
-        "标题", "成果类型", "量化结果", "说明", "日期",
+        "标题", "关联KR", "成果类型", "量化结果", "说明", "日期",
         "input_tokens", "output_tokens",
         "cache_creation_input_tokens", "cache_read_input_tokens", "model",
+        "asst_msgs", "user_msgs",
     ],
     "rows": [[
-        title, "", desc,
+        title, [{"id": KR_AUTO}], "工具开发", quant,
         f"auto-aggregated by SessionEnd hook",
         date_str,
         agg["input_tokens"], agg["output_tokens"],
         agg["cache_creation_input_tokens"], agg["cache_read_input_tokens"],
         model or "",
+        asst_msgs, user_msgs,
     ]],
 }
 
