@@ -172,15 +172,8 @@ sync_all_repos() {
 # ========== PM2 resurrect ==========
 resurrect_pm2() {
     export PATH="$HOME/.local/bin:$PATH"
-    local waited=0
-    while ! pm2 ping &>/dev/null && [ $waited -lt 10 ]; do
-        sleep 1
-        waited=$((waited + 1))
-    done
-    if pm2 ping &>/dev/null; then
-        log "Resurrecting PM2..."
-        pm2 resurrect 2>/dev/null || true
-    fi
+    command -v pm2 &>/dev/null || return 0
+    pm2 ping &>/dev/null && { log "Resurrecting PM2..."; pm2 resurrect 2>/dev/null || true; }
 }
 
 # ========== Start monitoring ==========

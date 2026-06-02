@@ -3,14 +3,17 @@
 #
 # 检查项：
 # 1. 配置文件符号链接
-# 2. auto-sync 状态
-# 3. GitHub 最后推送
-# 4. MEMORY 最后更新
-# 5. ppt-master PPT 生成环境
-# 5b. OfficeCLI 状态
-# 6. 飞书 lark-cli 状态
-# 7. MCP 服务器状态
-# 8. 远程连接状态 (Tailscale + SSH)
+# 2. 核心依赖
+# 3. auto-sync 状态
+# 4. GitHub 最后推送
+# 5. MEMORY 最后更新
+# 6. ppt-master PPT 生成环境
+# 7. 飞书 lark-cli 状态
+# 8. Vessel AI 浏览器
+# 9. OfficeCLI 状态
+# 10. MCP 服务器状态
+# 11. 远程连接状态 (Tailscale + SSH)
+# 12. option-* 可选组件
 #
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
@@ -105,10 +108,10 @@ check_symlinks() {
     fi
 }
 
-# ========== 2. 检查 auto-sync ==========
+# ========== 3. 检查 auto-sync ==========
 check_autosync() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[2] auto-sync${NC}"
+    echo -e "${CYAN}[3] auto-sync${NC}"
 
     if [ -x "$REPO_DIR/monitor.sh" ]; then
         bash "$REPO_DIR/monitor.sh" status 2>/dev/null
@@ -117,10 +120,10 @@ check_autosync() {
     fi
 }
 
-# ========== 3. GitHub 最后推送 ==========
+# ========== 4. GitHub 最后推送 ==========
 check_last_push() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[3] 最后推送${NC}"
+    echo -e "${CYAN}[4] 最后推送${NC}"
 
     cd "$REPO_DIR"
     if [ ! -d ".git" ]; then
@@ -140,10 +143,10 @@ check_last_push() {
     fi
 }
 
-# ========== 4. MEMORY 最后更新 ==========
+# ========== 5. MEMORY 最后更新 ==========
 check_memory() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[4] MEMORY 更新${NC}"
+    echo -e "${CYAN}[5] MEMORY 更新${NC}"
 
     # 使用 -L 跟随符号链接，读取目标文件的真实修改时间
     local memory_file="$HOME/.claude/projects/-home-francis-git/memory/MEMORY.md"
@@ -156,10 +159,10 @@ check_memory() {
     fi
 }
 
-# ========== 5. ppt-master 状态 ==========
+# ========== 6. ppt-master 状态 ==========
 check_ppt_master() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[5] ppt-master (PPT 生成)${NC}"
+    echo -e "${CYAN}[6] ppt-master (PPT 生成)${NC}"
 
     local repo_dir="$HOME/git/_ext/ppt-master"
     local ok=true
@@ -196,10 +199,10 @@ check_ppt_master() {
     fi
 }
 
-# ========== Vessel AI 浏览器（可选） ==========
+# ========== 8. Vessel AI 浏览器（可选） ==========
 check_vessel() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[6b] Vessel AI 浏览器 [option]${NC}"
+    echo -e "${CYAN}[8] Vessel AI 浏览器 [option]${NC}"
 
     local vessel_bin="$HOME/.local/bin/vessel"
     local vessel_dir="$HOME/.local/lib/vessel/squashfs-root/vessel"
@@ -249,10 +252,10 @@ check_vessel() {
     echo -e "  ${GRAY}安装: bash ccconfig/option-vessel/init.sh${NC}"
 }
 
-# ========== 7. MCP 服务器状态 ==========
+# ========== 10. MCP 服务器状态 ==========
 check_mcp() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[7] MCP 服务器${NC}"
+    echo -e "${CYAN}[10] MCP 服务器${NC}"
 
     local claude_json="$HOME/.claude/.config.json"
 
@@ -332,10 +335,10 @@ PYEOF
     touch "$mcp_stamp"
 }
 
-# ========== 6. 飞书 lark-cli 状态（可选） ==========
+# ========== 7. 飞书 lark-cli 状态（可选） ==========
 check_feishu() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[6] 飞书 (lark-cli) [option]${NC}"
+    echo -e "${CYAN}[7] 飞书 (lark-cli) [option]${NC}"
 
     export PATH="$HOME/.local/bin:$(find_node_bin):$PATH"
 
@@ -434,10 +437,10 @@ PYEOF
     echo -e "  ${GRAY}安装/启动: bash ccconfig/option-bridge/init.sh --cc-connect${NC}"
 }
 
-# ========== 8. 远程连接状态 ==========
+# ========== 11. 远程连接状态 ==========
 check_remote() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[8] 远程连接 (SSH + Tailscale)${NC}"
+    echo -e "${CYAN}[11] 远程连接 (SSH + Tailscale)${NC}"
 
     local ssh_ok=false
     local ssh_fix=""
@@ -549,10 +552,10 @@ check_remote() {
     fi
 }
 
-# ========== 依赖检查 ==========
+# ========== 2. 依赖检查 ==========
 check_deps_quick() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[1b] 核心依赖${NC}"
+    echo -e "${CYAN}[2] 核心依赖${NC}"
 
     local deps_script="$REPO_DIR/deps-check.sh"
     if [ -x "$deps_script" ]; then
@@ -562,10 +565,10 @@ check_deps_quick() {
     fi
 }
 
-# ========== option-* 组件自动发现 ==========
+# ========== 12. option-* 组件自动发现 ==========
 check_option_components() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[9] option-* 可选组件${NC}"
+    echo -e "${CYAN}[12] option-* 可选组件${NC}"
 
     local found=0
     for opt_dir in "$REPO_DIR"/option-*/; do
@@ -594,7 +597,7 @@ check_option_components() {
 # ========== 9. OfficeCLI 状态 ==========
 check_officecli() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[6c] OfficeCLI [option]${NC}"
+    echo -e "${CYAN}[9] OfficeCLI [option]${NC}"
 
     local officecli_bin="$HOME/.local/bin/officecli"
 
