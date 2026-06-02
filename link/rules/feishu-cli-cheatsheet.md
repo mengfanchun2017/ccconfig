@@ -64,6 +64,7 @@ lark-cli base +field-create --base-token $T --table-id tblXXX \
 |------|---------|------|
 | `base +record-batch-create` | JSON | 可 pipe `python3 -c "json.load()"` |
 | `base +record-get` | 文本（key: value） | ❌ 非JSON，不能 pipe json.load |
+| `base +record-list` | 默认 markdown 表格，JSON 需 `--format json` | ❌ 默认不能 pipe json.load，必须加 `--format json` |
 | `base +table-list` | JSON | |
 | `base +base-get` | JSON | 含 `data.base.url` |
 
