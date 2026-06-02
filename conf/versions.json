@@ -14,6 +14,13 @@
     "gh": {
       "version": "2.93.0"
     },
+    "mmx_cli": {
+      "version": "1.0.16",
+      "package": "mmx-cli",
+      "install": "npm install -g mmx-cli",
+      "check_url": "https://registry.npmjs.org/mmx-cli",
+      "_note": "Token Plan 官方 CLI，全模态 (text/image/video/speech/music/vision/search)。认证：mmx auth login"
+    },
     "cc_connect": {
       "version": "1.3.2",
       "repo": "chenhg5/cc-connect",
