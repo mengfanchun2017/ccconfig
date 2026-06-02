@@ -101,8 +101,8 @@ step_git_config() {
     local git_name git_email
 
     if [ -f "$CONF_DIR/ubuntu.json" ]; then
-        git_name=$(python3 -c "import json; print(json.load(open('$CONF_DIR/ubuntu.json')).get('git_name',''))" 2>/dev/null || echo "")
-        git_email=$(python3 -c "import json; print(json.load(open('$CONF_DIR/ubuntu.json')).get('git_email',''))" 2>/dev/null || echo "")
+        git_name=$(python3 -c "import json; print(json.load(open('$CONF_DIR/ubuntu.json')).get('git',{}).get('username',''))" 2>/dev/null || echo "")
+        git_email=$(python3 -c "import json; print(json.load(open('$CONF_DIR/ubuntu.json')).get('git',{}).get('email',''))" 2>/dev/null || echo "")
     fi
 
     if [ -n "$git_name" ] && [ -n "$git_email" ]; then
@@ -133,8 +133,8 @@ step_git_config() {
 import json
 with open('$CONF_DIR/ubuntu.json') as f:
     d = json.load(f)
-d['git_name'] = '$git_name'
-d['git_email'] = '$git_email'
+d.setdefault('git', {})['username'] = '$git_name'
+d['git']['email'] = '$git_email'
 with open('$CONF_DIR/ubuntu.json', 'w') as f:
     json.dump(d, f, indent=2, ensure_ascii=False)
     f.write('\n')
@@ -143,7 +143,7 @@ with open('$CONF_DIR/ubuntu.json', 'w') as f:
         python3 -c "
 import json
 with open('$CONF_DIR/ubuntu.json', 'w') as f:
-    json.dump({'git_name':'$git_name','git_email':'$git_email'}, f, indent=2, ensure_ascii=False)
+    json.dump({'git':{'username':'$git_name','email':'$git_email'}}, f, indent=2, ensure_ascii=False)
     f.write('\n')
 "
     fi
@@ -180,10 +180,9 @@ step_llm_config() {
                 read -p "  Anthropic API Key: " api_key
                 python3 -c "
 import json
-d = {'current': 'claude', 'backends': {}}
-d['backends']['claude'] = {'api_key': '$api_key', 'base_url': 'https://api.anthropic.com'}
+d = {'llms': {'claude': {'name': 'Claude', 'base_url': 'https://api.anthropic.com', 'model': 'claude-sonnet-4-6', 'key': '$api_key', 'small_model': 'claude-haiku-4-5'}}, 'current': 'claude'}
 with open('$CONF_DIR/llm.json', 'w') as f:
-    json.dump(d, f, indent=2, ensure_ascii=False)
+    json.dump(d, f, indent=4, ensure_ascii=False)
     f.write('\n')
 " 2>/dev/null || echo -e "  ${YELLOW}配置保存失败${NC}"
                 ;;
@@ -191,20 +190,19 @@ with open('$CONF_DIR/llm.json', 'w') as f:
                 read -p "  DeepSeek API Key: " api_key
                 python3 -c "
 import json
-d = {'current': 'deepseek', 'backends': {'deepseek': {'api_key': '$api_key', 'base_url': 'https://api.deepseek.com'}}}
+d = {'llms': {'deepseek': {'name': 'DeepSeek', 'base_url': 'https://api.deepseek.com/anthropic', 'model': 'deepseek-v4-pro', 'key': '$api_key', 'small_model': 'deepseek-v4-pro'}}, 'current': 'deepseek'}
 with open('$CONF_DIR/llm.json', 'w') as f:
-    json.dump(d, f, indent=2, ensure_ascii=False)
+    json.dump(d, f, indent=4, ensure_ascii=False)
     f.write('\n')
 " 2>/dev/null || echo -e "  ${YELLOW}配置保存失败${NC}"
                 ;;
             3)
                 read -p "  MiniMax API Key: " api_key
-                read -p "  MiniMax Group ID: " group_id
                 python3 -c "
 import json
-d = {'current': 'minimax', 'backends': {'minimax': {'api_key': '$api_key', 'group_id': '$group_id', 'base_url': 'https://api.minimax.chat'}}}
+d = {'llms': {'minimax': {'name': 'MiniMax', 'base_url': 'https://api.minimaxi.com/anthropic', 'model': 'MiniMax-M3', 'key': '$api_key', 'small_model': 'MiniMax-M3'}}, 'current': 'minimax'}
 with open('$CONF_DIR/llm.json', 'w') as f:
-    json.dump(d, f, indent=2, ensure_ascii=False)
+    json.dump(d, f, indent=4, ensure_ascii=False)
     f.write('\n')
 " 2>/dev/null || echo -e "  ${YELLOW}配置保存失败${NC}"
                 ;;

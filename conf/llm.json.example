@@ -5,9 +5,9 @@
         "minimax": {
             "name": "MiniMax",
             "base_url": "https://api.minimaxi.com/anthropic",
-            "model": "MiniMax-M2.7",
+            "model": "MiniMax-M3",
             "key": "请填入你的 MiniMax API Key",
-            "small_model": "MiniMax-M2.7"
+            "small_model": "MiniMax-M3"
         },
         "deepseek": {
             "name": "DeepSeek",

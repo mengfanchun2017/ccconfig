@@ -133,10 +133,9 @@ bash init.sh all
 
 | 步骤 | 脚本 | 做了什么 |
 |------|------|----------|
-| 1/4 | `init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配置 SessionStart hook / **装 gh auth setup-git（git credential helper）** / 配 auto-sync monitor |
-| 2/4 | `init-llm.sh deepseek` | 选 LLM 后端（默认 deepseek） |
-| 3/4 | `init-mcp.sh` | 装并同步 MCP 服务器 |
-| 4/4 | `init-skill.sh sync` | 链接 skills 到 `~/.claude/skills/` |
+| 1/3 | `init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配置 LLM（从 conf/llm.json 读取当前后端）/ 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
+| 2/3 | `init-mcp.sh` | 装并同步 MCP 服务器 |
+| 3/3 | `init-skill.sh sync` | 链接 skills 到 `~/.claude/skills/` |
 
 **全程无输入**：因为 gh 已经登录，第 1 步的 `gh auth setup-git` 幂等跑过；
 LLM 默认值是 deepseek；MCP 和 skills 都是已配置的服务器列表。

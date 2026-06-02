@@ -196,31 +196,6 @@ check_ppt_master() {
     fi
 }
 
-# ========== OfficeCLI（可选） ==========
-check_officecli() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[5b] OfficeCLI [option]${NC}"
-
-    local officecli_bin="$HOME/.local/bin/officecli"
-
-    echo -n "  安装 ... "
-    if [ -x "$officecli_bin" ]; then
-        local ver=$("$officecli_bin" --version 2>/dev/null)
-        echo -e "${GREEN}✅${NC} $ver"
-    else
-        echo -e "${GRAY}－${NC} (未安装)"
-    fi
-
-    echo -n "  MCP 注册 ... "
-    if grep -q '"officecli"' "$HOME/.claude/.config.json" 2>/dev/null; then
-        echo -e "${GREEN}✅${NC} 已注册"
-    else
-        echo -e "${GRAY}－${NC} 未注册"
-    fi
-
-    echo -e "  ${GRAY}安装: bash ccconfig/option-officecli/init.sh${NC}"
-}
-
 # ========== Vessel AI 浏览器（可选） ==========
 check_vessel() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
