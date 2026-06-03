@@ -108,6 +108,8 @@ for e in edits:
     d = os.path.dirname(e["file"])
     edits_by_dir.setdefault(d, []).append(os.path.basename(e["file"]))
 
+sid_short = sid[:8]
+
 # === 总结 ===（开头第一段，2-3 句，txt 格式，不渲染 markdown）
 summary_lines = []
 if commits:
@@ -204,7 +206,6 @@ TBL = "tblVsC0L7QFzMeYM"
 KR_AUTO = "recvl7jffWBL34"
 
 date_str = datetime.date.today().isoformat()
-sid_short = sid[:8]
 
 wl_payload = {
     "fields": ["标题", "关联KR", "成果类型", "量化结果", "说明", "日期",
