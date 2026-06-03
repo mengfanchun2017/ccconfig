@@ -110,3 +110,28 @@ lark-cli base +field-create --base-token $T --table-id tblXXX \
 <!-- 2026-05-29 | base init | 新建Bitable默认空表"数据表" — 直接rename复用，不新建再删。workflow无delete API。dashboard默认无。→ 结论写入f-logme SKILL.md -->
 <!-- 2026-05-29 | base field-create | 7次试错：type数字格式、property嵌套、link_table_id → 全部改用扁平字符串key → 记录到上方速查表 -->
 <!-- 2026-05-26 | slides export | drive +export --doc-type slides → 不支持 → lark-cli api POST export_tasks | 用通用API替代 -->
+
+### base +record-list 不返回 record_id
+- `+record-list` 只返回 `[fields_array]`，不返回 record_id — 不能直接拿到 id 删/更新
+- ✅ 拿 id 用 `+record-search`：返回 `data.record_id_list`（按 search 结果顺序）+ `data.data`（fields 数组）
+- ✅ 删：`+record-delete --record-id ID1 --record-id ID2 ... --yes`（高危，必须 `--yes`）
+- ✅ 批量大（>50）：分页用 `--offset` + `--limit`
+
+```bash
+# 拿 v1 噪音 record_id
+lark-cli base +record-search --base-token $T --table-id $TBL \
+  --keyword "auto-aggregated" --search-field 说明 --limit 50
+
+# 批量删（高危，必须 --yes）
+lark-cli base +record-delete --base-token $T --table-id $TBL \
+  --record-id recXXX --record-id recYYY --yes
+```
+
+### base +data-query --dsl 不支持 @file
+- `lark-cli api POST ...` 支持 `--data @file`，但 `+data-query --dsl` 不接受 `@` 前缀
+- 只能 inline JSON 或换 `+record-search` 拿数据
+
+### base 字段 raw API 拿 record_id 失败
+- `lark-cli api POST /open-apis/bitable/v1/.../records/search` 需要 scope `base:record:retrieve`
+- ailab 账号无此 scope（authorization missing_scope）
+- ✅ 用 `+record-search` 走 lark-cli 自己的 search 端点，已包含 record_id_list
