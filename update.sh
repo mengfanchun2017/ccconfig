@@ -583,25 +583,30 @@ update_claude() {
         return 0
     fi
 
-    local clean_path
-    clean_path=$(echo "$PATH" | tr ':' '\n' | grep -v '^/mnt/' | tr '\n' ':' | sed 's/:$//')
-    export PATH="$LOCAL_BIN:$clean_path"
-
     # 清残留 0 字节半成品（之前 claude install 下载失败留下的）
     find "$HOME/.local/share/claude/versions/" -maxdepth 1 -type f -size 0 -delete 2>/dev/null || true
 
-    local before after
+    local before after attempt max_attempts=2
     before=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
     info "当前版本: $before"
 
-    info "正在升级..."
-    # pipe 退出码 = tail 退出码，claude install 真失败时 ! 失效
-    # 改用 before/after 对比判断
-    claude install --force 2>&1 | tail -5
+    for ((attempt=1; attempt<=max_attempts; attempt++)); do
+        info "正在升级... (尝试 $attempt/$max_attempts)"
+        # 全量输出，不截断；before/after 对比判断成败
+        claude install --force 2>&1
 
-    after=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+        after=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+        if [ "$before" != "$after" ]; then
+            break
+        fi
+        if [ $attempt -lt $max_attempts ]; then
+            warn "版本未变，5s 后重试..."
+            sleep 5
+        fi
+    done
+
     if [ "$before" = "$after" ]; then
-        warn "Claude Code 升级未生效（仍 $after），检查 $HOME/.local/share/claude/versions/ 或 claude install 错误"
+        warn "Claude Code 升级未生效（仍 $after），可能网络不通或 download.claude.ai 暂未同步"
         return 1
     fi
     if version_ge "$after" "$before"; then
