@@ -212,7 +212,7 @@ for p in user_prompts[1:]:
     if not p_clean:
         continue
     # 跳过纯 status 输出（✅❌⚠━ℹ 等占多 / 升级状态行）
-    if re.search(r'[✅❌⚠━ℹ]{2,}', p_clean):
+    if re.search(r'[✅❌⚠━ℹ▌▎]', p_clean):
         continue
     if "Claude Code" in p_clean and ("版本" in p_clean or "升级" in p_clean):
         continue
