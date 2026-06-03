@@ -211,7 +211,10 @@ for p in user_prompts[1:]:
         continue
     unanswered.append(p_clean[:100])
 if unanswered:
-    parts.append("其余用户问题：" + "；".join(unanswered[:5]) + "。")
+    brief = "；".join(unanswered[:5])
+    if len(brief) > 200:
+        brief = brief[:200] + "…"
+    parts.append("其余用户问题：" + brief + "。")
 
 if agent_notes:
     parts.append(f"\n备注：\n{agent_notes}")
