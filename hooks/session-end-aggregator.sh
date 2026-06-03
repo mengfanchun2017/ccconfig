@@ -108,25 +108,38 @@ for e in edits:
     d = os.path.dirname(e["file"])
     edits_by_dir.setdefault(d, []).append(os.path.basename(e["file"]))
 
-# 构建说明（结构化、可读）
-parts = []
+# === 总结 ===（开头第一段，2-3 句，txt 格式，不渲染 markdown）
+summary_lines = []
 if commits:
-    parts.append(f"## 提交 ({len(commits)})")
+    summary_lines.append(f"提交 {len(commits)} 次：{commits[0][:80]}")
+if edits:
+    top_dirs = sorted(edits_by_dir.keys())[:2]
+    summary_lines.append(f"改动 {len(edits)} 文件，主目录：{' / '.join(top_dirs)}")
+if user_prompts:
+    summary_lines.append(f"用户主要诉求：{user_prompts[0][:100]}")
+if not summary_lines:
+    summary_lines.append(f"session {sid_short}，{asst_msgs} 轮对话")
+summary = "；".join(summary_lines)
+
+# === 说明（txt 格式，=== 分隔替 ## 标题，表格不渲染 markdown） ===
+parts = [f"=== 总结 ===\n{summary}"]
+if commits:
+    parts.append(f"\n=== 提交 ({len(commits)}) ===")
     for c in commits:
         parts.append(f"- {c}")
 if edits_by_dir:
-    parts.append(f"\n## 改动 ({len(edits)} 文件)")
+    parts.append(f"\n=== 改动 ({len(edits)} 文件) ===")
     for d, files in sorted(edits_by_dir.items()):
         names = ", ".join(files[:5]) + ("..." if len(files) > 5 else "")
         parts.append(f"- {d}: {names}")
 if user_prompts:
-    parts.append(f"\n## 用户主要需求 ({total_user_msgs})")
+    parts.append(f"\n=== 用户主要需求 ({total_user_msgs}) ===")
     for p in user_prompts:
         parts.append(f"- {p}")
 if agent_notes:
-    parts.append(f"\n## 备注（agent 写入）\n{agent_notes}")
+    parts.append(f"\n=== 备注（agent 写入） ===\n{agent_notes}")
 parts.append(
-    f"\n## Token\n"
+    f"\n=== Token ===\n"
     f"in: {agg['input_tokens']:,} | out: {agg['output_tokens']:,} | "
     f"cache_read: {agg['cache_read_input_tokens']:,} | "
     f"cache_creation: {agg['cache_creation_input_tokens']:,}"
@@ -135,6 +148,30 @@ description = "\n".join(parts)
 
 quant = (f"{asst_msgs} asst / {total_user_msgs} user msgs, model={model}, "
          f"in={agg['input_tokens']:,} out={agg['output_tokens']:,}")
+
+# === 标题推断 ===（仿手写规则：成果主题，去掉旧 [auto] 前缀）
+def clean_commit_msg(msg):
+    m = re.sub(r"\s*Co-Authored-By:.*$", "", msg, flags=re.DOTALL).strip()
+    return m[:60]
+
+if commits:
+    title = clean_commit_msg(commits[0])
+elif user_prompts:
+    title = f"session 工作: {user_prompts[0][:50]}"
+else:
+    title = f"session 工作: {sid_short} ({total_user_msgs} user msgs)"
+
+# === 来源映射 ===（reason → select option）
+REASON_MAP = {
+    "clear": "auto-clear",
+    "new": "auto-new",
+    "exit": "auto-exit",
+    "prompt_input_exit": "auto-exit",
+    "interrupt": "auto-ctrl_c",
+    "ctrl_c": "auto-ctrl_c",
+    "resume": "auto-resume",
+}
+source_val = REASON_MAP.get(reason, "auto-other" if reason else "auto-other")
 
 # 写 /tmp
 result = {
@@ -168,19 +205,19 @@ KR_AUTO = "recvl7jffWBL34"
 
 date_str = datetime.date.today().isoformat()
 sid_short = sid[:8]
-title = f"[auto] {date_str} session {sid_short} ({reason or 'end'})"
 
 wl_payload = {
     "fields": ["标题", "关联KR", "成果类型", "量化结果", "说明", "日期",
                "input_tokens", "output_tokens",
                "cache_creation_input_tokens", "cache_read_input_tokens", "model",
-               "asst_msgs", "user_msgs"],
+               "asst_msgs", "user_msgs", "来源"],
     "rows": [[
         title, [{"id": KR_AUTO}], "工具开发", quant, description, date_str,
         agg["input_tokens"], agg["output_tokens"],
         agg["cache_creation_input_tokens"], agg["cache_read_input_tokens"],
         model or "",
         asst_msgs, total_user_msgs,
+        source_val,
     ]],
 }
 
