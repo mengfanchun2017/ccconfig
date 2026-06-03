@@ -134,9 +134,16 @@ def llm_summarize():
             "model": "MiniMax-M2.7",
             "max_tokens": 600,
             "system": ("你是 worklog 总结助手。给定用户诉求+commit+改动文件，"
-                       "输出严格 JSON（无思考过程、无 markdown 包裹）："
-                       "{\"title\": \"<≤20 字工作主题>\", "
-                       "\"summary\": \"<2-3 句自然语言概述，做了什么、结果如何>\"}"),
+                       "输出严格 JSON（无思考过程、无 markdown 包裹）。\n"
+                       "字段：\n"
+                       "  title: ≤20 字工作主题\n"
+                       "  summary: 2-3 句自然语言概述\n"
+                       "标题规则（f-logme 规范）：\n"
+                       "  - 成长类（学习/探索/知识）：英文领域前缀 + 空格 + 中文描述\n"
+                       "    例：claudecode 模型分流配置和逻辑\n"
+                       "  - 工作类（具体项目交付/工具开发）：项目英文前缀 + 中文描述\n"
+                       "    例：ccconfig update_claude 重试与截断修复\n"
+                       "  - 禁 【】 括号前缀"),
             "messages": [{"role": "user", "content": "\n".join(prompt_parts)}],
         }
         req = urllib.request.Request(
@@ -219,13 +226,6 @@ if unanswered:
 if agent_notes:
     parts.append(f"\n备注：\n{agent_notes}")
 
-# 元数据简化放最下面（破折号分隔，参考手写工作日志风格）
-parts.append(
-    f"\n— token in {agg['input_tokens']:,} / out {agg['output_tokens']:,} / "
-    f"cache_read {agg['cache_read_input_tokens']:,} / "
-    f"cache_creation {agg['cache_creation_input_tokens']:,} / "
-    f"{model or ''} / {asst_msgs} asst / {total_user_msgs} user"
-)
 description = "\n".join(parts)
 
 quant = (f"{asst_msgs} asst / {total_user_msgs} user msgs, model={model}, "
