@@ -587,26 +587,27 @@ update_claude() {
     clean_path=$(echo "$PATH" | tr ':' '\n' | grep -v '^/mnt/' | tr '\n' ':' | sed 's/:$//')
     export PATH="$LOCAL_BIN:$clean_path"
 
-    local before
+    # 清残留 0 字节半成品（之前 claude install 下载失败留下的）
+    find "$HOME/.local/share/claude/versions/" -maxdepth 1 -type f -size 0 -delete 2>/dev/null || true
+
+    local before after
     before=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
     info "当前版本: $before"
 
     info "正在升级..."
-    if ! claude install --force 2>&1 | tail -5; then
-        warn "Claude Code 升级失败，保留当前版本"
+    # pipe 退出码 = tail 退出码，claude install 真失败时 ! 失效
+    # 改用 before/after 对比判断
+    claude install --force 2>&1 | tail -5
+
+    after=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+    if [ "$before" = "$after" ]; then
+        warn "Claude Code 升级未生效（仍 $after），检查 $HOME/.local/share/claude/versions/ 或 claude install 错误"
         return 1
     fi
-
-    local after
-    after=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
-    if [ "$before" != "$after" ]; then
-        if version_ge "$after" "$before"; then
-            success "Claude Code: $before → $after"
-        else
-            warn "Claude Code 版本倒退: $before → $after（可能是 download.claude.ai 暂未同步），保留当前版本"
-        fi
+    if version_ge "$after" "$before"; then
+        success "Claude Code: $before → $after"
     else
-        success "Claude Code 已是最新: $after"
+        warn "Claude Code 版本倒退: $before → $after（可能是 download.claude.ai 暂未同步），保留当前版本"
     fi
 }
 
