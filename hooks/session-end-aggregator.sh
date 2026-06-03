@@ -110,58 +110,123 @@ for e in edits:
 
 sid_short = sid[:8]
 
-# === 总结 ===（开头第一段，2-3 句，txt 格式，不渲染 markdown）
-summary_lines = []
-if commits:
-    summary_lines.append(f"提交 {len(commits)} 次：{commits[0][:80]}")
-if edits:
-    top_dirs = sorted(edits_by_dir.keys())[:2]
-    summary_lines.append(f"改动 {len(edits)} 文件，主目录：{' / '.join(top_dirs)}")
-if user_prompts:
-    summary_lines.append(f"用户主要诉求：{user_prompts[0][:100]}")
-if not summary_lines:
-    summary_lines.append(f"session {sid_short}，{asst_msgs} 轮对话")
-summary = "；".join(summary_lines)
 
-# === 说明（txt 格式，=== 分隔替 ## 标题，表格不渲染 markdown） ===
-parts = [f"=== 总结 ===\n{summary}"]
-if commits:
-    parts.append(f"\n=== 提交 ({len(commits)}) ===")
-    for c in commits:
-        parts.append(f"- {c}")
-if edits_by_dir:
-    parts.append(f"\n=== 改动 ({len(edits)} 文件) ===")
-    for d, files in sorted(edits_by_dir.items()):
-        names = ", ".join(files[:5]) + ("..." if len(files) > 5 else "")
-        parts.append(f"- {d}: {names}")
-if user_prompts:
-    parts.append(f"\n=== 用户主要需求 ({total_user_msgs}) ===")
+def clean_commit_msg(msg):
+    m = re.sub(r"\s*Co-Authored-By:.*$", "", msg, flags=re.DOTALL).strip()
+    return m[:60]
+
+
+# === LLM 总结 ===（调 minimax M2.7 走 anthropic 协议，结构化 JSON 输出）
+def llm_summarize():
+    try:
+        import urllib.request
+        prompt_parts = []
+        if commits:
+            prompt_parts.append("commits:\n" + "\n".join(f"- {c[:100]}" for c in commits[:5]))
+        if user_prompts:
+            prompt_parts.append("\nuser_prompts:\n" + "\n".join(f"- {p[:200]}" for p in user_prompts[:5]))
+        if edits:
+            files = sorted({e['file'] for e in edits})[:10]
+            prompt_parts.append("\nedited_files:\n" + "\n".join(f"- {f[:100]}" for f in files))
+        if not prompt_parts:
+            return None
+        data = {
+            "model": "MiniMax-M2.7",
+            "max_tokens": 600,
+            "system": ("你是 worklog 总结助手。给定用户诉求+commit+改动文件，"
+                       "输出严格 JSON（无思考过程、无 markdown 包裹）："
+                       "{\"title\": \"<≤20 字工作主题>\", "
+                       "\"summary\": \"<2-3 句自然语言概述，做了什么、结果如何>\"}"),
+            "messages": [{"role": "user", "content": "\n".join(prompt_parts)}],
+        }
+        req = urllib.request.Request(
+            "https://api.minimaxi.com/anthropic/v1/messages",
+            data=json.dumps(data).encode(),
+            headers={
+                "x-api-key": os.environ.get("ANTHROPIC_AUTH_TOKEN", ""),
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            result = json.loads(resp.read())
+        text = ""
+        for c in result.get("content", []):
+            if c.get("type") == "text":
+                text += c.get("text", "")
+        m = re.search(r'\{[^{}]*"title"[^{}]*"summary"[^{}]*\}', text, re.DOTALL)
+        if m:
+            return json.loads(m.group(0))
+    except Exception as e:
+        print(f"llm_summarize failed: {e}", file=sys.stderr)
+    return None
+
+
+llm = llm_summarize()
+
+# === 标题 ===（LLM 优先，fallback 到结构化推断）
+if llm and llm.get("title"):
+    title = llm["title"].replace("\n", " ").strip()[:60]
+elif commits:
+    title = clean_commit_msg(commits[0])[:60]
+elif user_prompts:
+    # 跳过 status-like 行（✅❌⚠ 占多）找第一条"问题/需求"行
     for p in user_prompts:
-        parts.append(f"- {p}")
+        if not re.search(r'[✅❌⚠]', p) and len(p.strip()) > 8:
+            title = p.replace("\n", " ")[:40]
+            break
+    else:
+        title = f"session 工作: {user_prompts[0].replace(chr(10), ' ')[:40]}"
+else:
+    title = f"session 工作: {sid_short} ({total_user_msgs} user msgs)"
+
+# === 说明（自然语言段落，LLM 总结开头 + 元数据简化放最下面） ===
+if llm and llm.get("summary"):
+    body = llm["summary"].strip()
+else:
+    body = f"本次 session（{sid_short}）进行了 {asst_msgs} 轮对话。"
+
+parts = [body]
+
+if commits:
+    commits_brief = "；".join(commits[:3])
+    if len(commits) > 3:
+        commits_brief += f"（+{len(commits)-3} more）"
+    parts.append(f"主要动作：{commits_brief}。")
+
+if edits_by_dir:
+    top_dirs = sorted(edits_by_dir.keys())[:3]
+    parts.append(f"改动 {len(edits)} 个文件，主要在：{' / '.join(top_dirs)}。")
+
+# 剩余用户问题（agent 未通过 commits 回答的），跳过 status 输出
+unanswered = []
+for p in user_prompts[1:]:
+    p_clean = p.replace("\n", " ").strip()
+    if not p_clean:
+        continue
+    # 跳过纯 status 输出（✅❌⚠━ℹ 等占多 / 升级状态行）
+    if re.search(r'[✅❌⚠━ℹ]{2,}', p_clean):
+        continue
+    if "Claude Code" in p_clean and ("版本" in p_clean or "升级" in p_clean):
+        continue
+    unanswered.append(p_clean[:100])
+if unanswered:
+    parts.append("其余用户问题：" + "；".join(unanswered[:5]) + "。")
+
 if agent_notes:
-    parts.append(f"\n=== 备注（agent 写入） ===\n{agent_notes}")
+    parts.append(f"\n备注：\n{agent_notes}")
+
+# 元数据简化放最下面（破折号分隔，参考手写工作日志风格）
 parts.append(
-    f"\n=== Token ===\n"
-    f"in: {agg['input_tokens']:,} | out: {agg['output_tokens']:,} | "
-    f"cache_read: {agg['cache_read_input_tokens']:,} | "
-    f"cache_creation: {agg['cache_creation_input_tokens']:,}"
+    f"\n— token in {agg['input_tokens']:,} / out {agg['output_tokens']:,} / "
+    f"cache_read {agg['cache_read_input_tokens']:,} / "
+    f"cache_creation {agg['cache_creation_input_tokens']:,} / "
+    f"{model or ''} / {asst_msgs} asst / {total_user_msgs} user"
 )
 description = "\n".join(parts)
 
 quant = (f"{asst_msgs} asst / {total_user_msgs} user msgs, model={model}, "
          f"in={agg['input_tokens']:,} out={agg['output_tokens']:,}")
-
-# === 标题推断 ===（仿手写规则：成果主题，去掉旧 [auto] 前缀）
-def clean_commit_msg(msg):
-    m = re.sub(r"\s*Co-Authored-By:.*$", "", msg, flags=re.DOTALL).strip()
-    return m[:60]
-
-if commits:
-    title = clean_commit_msg(commits[0])
-elif user_prompts:
-    title = f"session 工作: {user_prompts[0][:50]}"
-else:
-    title = f"session 工作: {sid_short} ({total_user_msgs} user msgs)"
 
 # === 来源映射 ===（reason → select option）
 REASON_MAP = {
