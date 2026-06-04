@@ -23,6 +23,16 @@
 | cairosvg | pip3 | SVG → PNG/PDF 转换 |
 | lxml | pip3 | XML 解析 |
 | pillow | pip3 | 图片处理 |
+| matplotlib | pip3 | 数据可视化（报告绘图主力） |
+| seaborn | pip3 | 统计可视化（基于 matplotlib） |
+| plotly | pip3 | 交互可视化（HTML 输出） |
+
+## 报告绘图约定
+- **选型**：常规图（折线/柱状/散点）→ matplotlib + seaborn；交互/网页嵌入 → plotly
+- **保存位置**：图先存 `/tmp/figs/<图名>.png`，由子文档读取后嵌入飞书
+- **嵌入方式**：子文档 = 详细档案（图 + 解读 + 代码）；父文档 = `block_insert_after` 嵌入图块
+- **字体**：中文字体需 matplotlib 显式设置（`plt.rcParams['font.sans-serif']=['Noto Sans CJK SC']`），否则中文乱码
+- **尺寸**：默认 `figsize=(10, 6)`，`dpi=150` 适合飞书全宽展示
 
 ## 安装/更新权限
 - Claude 可以在任务需要时自主 `pip3 install` 新包，不询问用户

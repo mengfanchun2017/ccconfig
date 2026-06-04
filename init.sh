@@ -282,10 +282,11 @@ main_menu() {
 case "${1:-menu}" in
     all)
         show_banner
-        run_step "1/3 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
+        run_step "1/4 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
         # LLM 由 init-ubuntu.sh 内部 setup_claude_api 从 conf/llm.json 读取
-        run_step "2/3 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
-        run_step "3/3 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
+        run_step "2/4 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
+        run_step "3/4 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
+        run_step "4/4 Python 包"       bash -c "source '$SCRIPT_DIR/lib/path-helper.sh' 2>/dev/null; '$SCRIPT_DIR/update.sh' python" true
         echo ""
         echo "🎉 全部初始化完成（飞书 Bridge / Vessel 为可选组件）"
         echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
