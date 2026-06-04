@@ -18,6 +18,27 @@ show_banner() {
     echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
 }
 
+# 一键全部初始化的标准 3 步（+ 可选 Python 包）。
+# 三个入口都走这里，确保行为一致：
+#   - submenu_env 4: ★ 一键全部
+#   - main_menu 6:   ★ 一键全部初始化
+#   - case "all":    bash init.sh all（带 Python 包，对应 BOOTSTRAP 阶段 4）
+init_all_steps() {
+    local with_python="${1:-false}"
+    show_banner
+    run_step "1/3 Ubuntu 环境" "$SCRIPT_DIR/init-ubuntu.sh" true
+    # LLM 由 init-ubuntu.sh 内部 setup_claude_api 从 conf/llm.json 读取
+    run_step "2/3 MCP 服务器"  "$SCRIPT_DIR/init-mcp.sh"   true
+    run_step "3/3 Skills"      "$SCRIPT_DIR/init-skill.sh" sync
+    if [ "$with_python" = "true" ]; then
+        run_step "4/4 Python 包" \
+            bash -c "source '$SCRIPT_DIR/lib/path-helper.sh' 2>/dev/null; '$SCRIPT_DIR/update.sh' python" true
+    fi
+    echo ""
+    echo "🎉 全部初始化完成（飞书 Bridge / Vessel 为可选组件）"
+    echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
+}
+
 run_step() {
     local label="$1"
     local script="$2"
@@ -56,7 +77,7 @@ submenu_env() {
     echo "  1) Ubuntu 全环境初始化 (init-ubuntu.sh)"
     echo "  2) LLM 后端切换       (init-llm.sh)"
     echo "  3) auto-sync 自启动    (init-autostart.sh)"
-    echo "  4) ★ 一键全部（ubuntu + LLM + autostart）"
+    echo "  4) ★ 一键全部（ubuntu + MCP + skills）"
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-4,0]: " c
@@ -67,9 +88,7 @@ submenu_env() {
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         3) run_step "auto-sync 自启动" "$SCRIPT_DIR/init-autostart.sh" false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        4) run_step "Ubuntu" "$SCRIPT_DIR/init-ubuntu.sh" true
-           run_step "自启动"  "$SCRIPT_DIR/init-autostart.sh" true
-           # LLM 由 init-ubuntu.sh 内部 setup_claude_api 从 conf/llm.json 读取，无需重复调用
+        4) init_all_steps
            exit 0 ;;
         0) return ;;
     esac
@@ -257,14 +276,7 @@ main_menu() {
         4) submenu_skills ;;
         5) submenu_tools ;;
         6)
-            show_banner
-            run_step "1/3 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
-            # LLM 由 init-ubuntu.sh 内部 setup_claude_api 从 conf/llm.json 读取
-            run_step "2/3 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
-            run_step "3/3 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
-            echo ""
-            echo "🎉 全部初始化完成（可选组件见菜单 7）"
-            echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
+            init_all_steps
             exit 0
             ;;
         7) submenu_options ;;
@@ -281,15 +293,9 @@ main_menu() {
 # ========== 入口 ==========
 case "${1:-menu}" in
     all)
-        show_banner
-        run_step "1/4 Ubuntu 环境"    "$SCRIPT_DIR/init-ubuntu.sh"    true
-        # LLM 由 init-ubuntu.sh 内部 setup_claude_api 从 conf/llm.json 读取
-        run_step "2/4 MCP 服务器"      "$SCRIPT_DIR/init-mcp.sh"      true
-        run_step "3/4 Skills"          "$SCRIPT_DIR/init-skill.sh"    sync
-        run_step "4/4 Python 包"       bash -c "source '$SCRIPT_DIR/lib/path-helper.sh' 2>/dev/null; '$SCRIPT_DIR/update.sh' python" true
+        # BOOTSTRAP 阶段 4 入口：Ubuntu + MCP + Skills + Python 包
+        init_all_steps true
         echo ""
-        echo "🎉 全部初始化完成（飞书 Bridge / Vessel 为可选组件）"
-        echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
         echo "可选: bash ccconfig/option-bridge/init.sh   # 安装飞书 Bridge"
         echo "可选: bash ccconfig/option-vessel/init.sh   # 安装 Vessel AI 浏览器"
         exit 0

@@ -28,6 +28,8 @@ else
 fi
 PID_FILE="$MONITOR_HOME/.monitor-sync.pid"
 LOG_FILE="$MONITOR_HOME/.monitor-sync.log"
+DEBOUNCE_FILE="$MONITOR_HOME/.monitor-sync.debounce"
+CHANGED_REPOS_FILE="$MONITOR_HOME/.monitor-sync.changed-repos"
 WATCH_DIR="$HOME/git"
 
 export PATH="$HOME/.local/bin:$PATH"
@@ -147,11 +149,17 @@ commit_and_push() {
             echo "$pull_output" >> "$LOG_FILE"
             if echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls"; then
                 warn "[$repo] !! pull failed: network issue"
-            elif echo "$pull_output" | grep -qi "CONFLICT\|conflict\|could not be applied"; then
-                git -C "$repo_dir" rebase --abort 2>/dev/null || true
-                error "[$repo] !! rebase冲突 — 自动提交已保留在本地，需手动: cd $repo_dir && git pull --rebase"
             elif echo "$pull_output" | grep -qi "unrelated histories"; then
                 error "[$repo] !! pull failed: unrelated histories — 需手动处理"
+            elif echo "$pull_output" | grep -qi "CONFLICT\|conflict\|could not be applied"; then
+                # 雪球防御：rebase 冲突 = 本地有 commit + 远程有 commit 分叉。
+                # 自动 reset --hard origin/<branch> 终止雪球（自动 sync 场景下可接受）。
+                git -C "$repo_dir" rebase --abort 2>/dev/null || true
+                warn "[$repo] !! rebase 冲突 — 自动 reset --hard 到 origin/$branch（丢弃本地未推送 commit）"
+                git -C "$repo_dir" reset --hard "origin/$branch" 2>&1 | head -1 >> "$LOG_FILE" || true
+                # 如果 working tree 有未 commit 改动，恢复回来
+                git -C "$repo_dir" stash pop 2>/dev/null || true
+                log "[$repo] 已同步到远程（本地未推送 commit 已丢弃）"
             else
                 error "[$repo] !! pull failed: $(echo "$pull_output" | head -1)"
             fi
@@ -165,10 +173,18 @@ commit_and_push() {
     fi
 }
 
-# Scan all repos and sync any with changes
-sync_all_repos() {
-    local repos=$(list_repos)
+# Sync a list of repos (one per line). Empty arg = sync all.
+# 默认全量（旧终端 / pub 路径），debounce 路径传改动列表
+sync_repos() {
+    local repos_arg="$1"
+    local repos
+    if [ -n "$repos_arg" ]; then
+        repos="$repos_arg"
+    else
+        repos=$(list_repos)
+    fi
     for repo_dir in $repos; do
+        [ -d "$repo_dir" ] || continue
         commit_and_push "$repo_dir"
     done
 }
@@ -196,7 +212,7 @@ start_watch() {
     QUIET_MODE=true
 
     # Single inotify watching ~/git/, accepting events from any tracked repo.
-    # Debounce triggers a scan of ALL repos (sync_all_repos).
+    # Debounce triggers sync_repos with only the changed repo list (L2 优化).
     local debounce=120
     local min_push_gap=60
 
@@ -219,25 +235,26 @@ start_watch() {
             git -C "$repo_root" remote get-url origin &>/dev/null 2>&1 || continue
 
             echo "[$(date '+%H:%M:%S')] $(repo_name "$repo_root"): $line" >> "$LOG_FILE"
-            date +%s > "$MONITOR_HOME/.monitor-sync.debounce"
+            date +%s > "$DEBOUNCE_FILE"
+            # 记录改动的 repo，debounce 后只 sync 这些（避免无关仓库 add+commit 噪音）
+            echo "$repo_root" >> "$CHANGED_REPOS_FILE"
         done &
 
     local event_pid=$!
 
-    # Debounce loop → scan all repos
+    # Debounce loop → sync only repos that had changes
     {
-        trap 'kill $event_pid 2>/dev/null; rm -f "$MONITOR_HOME/.monitor-sync.debounce"; exit' EXIT
+        trap 'kill $event_pid 2>/dev/null; rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"; exit' EXIT
 
         pending=0
         last_push_time=0
-        debounce_file="$MONITOR_HOME/.monitor-sync.debounce"
 
         while kill -0 $event_pid 2>/dev/null; do
             sleep 2
-            if [ ! -f "$debounce_file" ]; then
+            if [ ! -f "$DEBOUNCE_FILE" ]; then
                 continue
             fi
-            evt_ts=$(cat "$debounce_file" 2>/dev/null)
+            evt_ts=$(cat "$DEBOUNCE_FILE" 2>/dev/null)
             if [ -z "$evt_ts" ]; then
                 continue
             fi
@@ -251,18 +268,25 @@ start_watch() {
 
             if [ "$pending" -eq 1 ] && [ $elapsed -ge $debounce ]; then
                 gap=$((now - last_push_time))
-                if [ "$last_push_time" -gt 0 ] && [ $gap -lt $min_push_gap ]; then
+                if [ "$last_push_time" -gt 0 ] && [ "$gap" -lt "$min_push_gap" ]; then
                     do_log "Skipped: <${min_push_gap}s since last push"
                     pending=0
-                    rm -f "$debounce_file"
+                    rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
                     continue
                 fi
 
-                do_log "Debounce done, syncing all repos..."
-                sync_all_repos
+                # 去重改动 repo 列表，sync_repos 不传 = 全量（fallback 行为）
+                local changed=$(sort -u "$CHANGED_REPOS_FILE" 2>/dev/null | grep -v '^$' || true)
+                if [ -z "$changed" ]; then
+                    do_log "Debounce done, no changed repos recorded — syncing all (fallback)"
+                    sync_repos
+                else
+                    do_log "Debounce done, syncing $(echo "$changed" | wc -l) changed repo(s)..."
+                    sync_repos "$changed"
+                fi
                 pending=0
                 last_push_time=$(date +%s)
-                rm -f "$debounce_file"
+                rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
             fi
         done
     } &
@@ -290,7 +314,7 @@ stop_watch() {
     else
         echo -e "${YELLOW}[SYNC]${NC} Not running"
     fi
-    rm -f "$MONITOR_HOME/.monitor-sync.debounce"
+    rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
 }
 
 # ========== Status ==========
@@ -382,7 +406,7 @@ colorize_line() {
     fi
 
     # ACTIVITY (cyan) — changes, debounce, sync progress
-    if echo "$content" | grep -qE '(\* changes detected|Change detected|Debounce done|syncing all repos|MOVED_TO|DELETED|CREATED|MODIFY)'; then
+    if echo "$content" | grep -qE '(\* changes detected|Change detected|Debounce done|syncing |MOVED_TO|DELETED|CREATED|MODIFY)'; then
         echo -e "  ${CYAN}${ts}${NC}  $content"
         return
     fi
@@ -472,7 +496,7 @@ show_help() {
     echo "  tail               Frontend: push results"
     echo ""
     echo -e "${GREEN}Flow:${NC}"
-    echo "  Watch ~/git/ → 120s debounce → sync ALL repos"
+    echo "  Watch ~/git/ → 120s debounce → sync only repos with changes"
     echo ""
 }
 

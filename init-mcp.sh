@@ -234,9 +234,15 @@ try:
     elif 'env' in claude_data:
         settings_data['env'] = claude_data['env']
 
-    # 写回 settings.json
-    with open(settings_file, 'w') as f:
+    # 写回 settings.json（先写 .tmp + atomic rename，再备份原文件）
+    import os, shutil
+    bak = settings_file + '.bak'
+    if os.path.exists(settings_file):
+        shutil.copy2(settings_file, bak)
+    tmp = settings_file + '.tmp'
+    with open(tmp, 'w') as f:
         json.dump(settings_data, f, indent=2)
+    os.replace(tmp, settings_file)
 
     print('ok')
 except Exception as e:
