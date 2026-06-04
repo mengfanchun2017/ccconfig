@@ -205,6 +205,63 @@ tail -f ~/git/ccconfig/logs/monitor.log
 
 ---
 
+## 旧终端快速恢复（已初始化过的机器）
+
+> 适用场景：机器已经按上面走完一遍、ccconfig clone 在 `~/git/ccconfig`、gh 已登录、
+> 但长时间没用 / 终端重启 / 切换到新会话后想恢复使用。
+
+**不需要重跑 init.sh all**（会重装系统包）。只需要 5 步：
+
+```bash
+# 1. 拉最新
+cd ~/git/ccconfig && git pull
+
+# 2. 重建符号链接（CLAUDE.md / settings.json / rules / projects/）
+bash setup-links.sh
+
+# 3. 同步新 skill（pull 可能拉了新 skill 进 link/skills/）
+bash init-skill.sh sync
+
+# 4. 状态检查（11 项）
+bash status.sh
+
+# 5. 启动 monitor（如果没在跑）
+bash init-autostart.sh
+# 或前台跑：./monitor.sh start
+# 查看状态：./monitor.sh status
+```
+
+**`pullff` 暗号 = 上面 1+2 一步到位**：
+
+```bash
+bash sync.sh --pull    # = 强拉远程 + setup-links + skill sync
+```
+
+### 常见"看着有问题"但实际正常
+
+| 现象 | 原因 | 处理 |
+|------|------|------|
+| `/skills` 菜单看不到新加的 skill | Claude Code 启动时缓存 skill 列表，**不重扫** | **新开一个 session**（`claude` 新窗口或 `claude -c`） |
+| `bash init-skill.sh sync` 显示"本地已有，跳过" | `~/.claude/skills/<name>` 是真目录不是 symlink | `rm -rf ~/.claude/skills/<name>` 再跑 sync |
+| `./monitor.sh status` 显示 stopped | systemd user service 没起来 | `systemctl --user status ccconfig-monitor.service` 看原因；`bash init-autostart.sh` 重装 |
+| LLM 切了但 Claude 还是用旧的 | `conf/llm.json` 改了但 settings.json 没更新 | `bash init-llm.sh <backend>` 重写 settings.json |
+| 飞书操作报 token 过期 | 跨账号 / 长效 token 过期 | 重新跑 `bash option-bridge/init.sh` |
+
+### 状态检查发现问题的应对
+
+`bash status.sh` 11 项检查，**任何一项 ✗ 都先看该项的命令**：
+
+| 失败项 | 修命令 |
+|--------|--------|
+| 配置文件链接 | `bash setup-links.sh` |
+| 核心依赖 | `apt install` 对应包 |
+| auto-sync | `bash init-autostart.sh` |
+| 最后推送 >24h | `systemctl --user start ccconfig-monitor` 或 `./monitor.sh start` |
+| ppt-master 环境 | `bash option-ppt-master/init.sh` |
+| 飞书 / Vessel / OfficeCLI | 对应 `option-*/init.sh` 重装 |
+
+---
+
 ## 常见坑
 
 | 现象 | 原因 | 解决 |
