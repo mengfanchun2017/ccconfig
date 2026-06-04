@@ -118,33 +118,33 @@ setup_git_github() {
     fi
 
     # 克隆/更新仓库
-    TARGET_DIR=$(eval echo "$TARGET_DIR" 2>/dev/null || echo "$TARGET_DIR")
+    # 处理 ~ 展开（bash 内置参数展开，不使用 eval 避免命令注入）
+    TARGET_DIR="${TARGET_DIR/\~/$HOME}"
     PARENT_DIR=$(dirname "$TARGET_DIR")
     mkdir -p "$PARENT_DIR"
 
     if [[ -d "$TARGET_DIR/.git" ]]; then
-        cd "$TARGET_DIR"
         info "仓库已存在，更新中..."
-        local old_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        local old_commit=$(git -C "$TARGET_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
         # 先 fetch 远程
-        git fetch origin main 2>/dev/null || true
+        git -C "$TARGET_DIR" fetch origin main 2>/dev/null || true
 
         # 检查是否有分歧
-        local local_commit=$(git rev-parse --short HEAD)
-        local remote_commit=$(git rev-parse --short origin/main)
+        local local_commit=$(git -C "$TARGET_DIR" rev-parse --short HEAD)
+        local remote_commit=$(git -C "$TARGET_DIR" rev-parse --short origin/main)
 
         if [[ "$local_commit" == "$remote_commit" ]]; then
             info "已是最新版本: $local_commit"
         else
             # 有分歧，尝试合并
-            if git pull --ff-only origin main 2>&1 | grep -q "Already up to date\|Fast-forward"; then
-                local new_commit=$(git rev-parse --short HEAD)
+            if git -C "$TARGET_DIR" pull --ff-only origin main 2>&1 | grep -q "Already up to date\|Fast-forward"; then
+                local new_commit=$(git -C "$TARGET_DIR" rev-parse --short HEAD)
                 success "仓库已更新: $old_commit → $new_commit"
             else
                 warn "本地有提交未推送，尝试推送..."
-                git push origin main 2>&1 | tail -2 || true
-                local new_commit=$(git rev-parse --short HEAD)
+                git -C "$TARGET_DIR" push origin main 2>&1 | tail -2 || true
+                local new_commit=$(git -C "$TARGET_DIR" rev-parse --short HEAD)
                 info "已同步到: $new_commit"
             fi
         fi
@@ -241,7 +241,10 @@ setup_claude_code() {
     mkdir -p "$LOCAL_BIN"
 
     info "安装 Claude Code npm 包（国内可访问）..."
-    if ! npm install -g @anthropic-ai/claude-code 2>&1 | tail -3; then
+    local _claude_ver=$(get_version "claude_code")
+    local _claude_pkg="@anthropic-ai/claude-code"
+    [[ -n "$_claude_ver" ]] && _claude_pkg="${_claude_pkg}@${_claude_ver}"
+    if ! npm install -g "$_claude_pkg" 2>&1 | tail -3; then
         error "npm 安装失败"
         return 1
     fi
@@ -298,7 +301,10 @@ setup_mmx_cli() {
         success "mmx CLI 已安装: $(mmx --version 2>/dev/null | head -1)"
     else
         info "安装 mmx CLI..."
-        if ! npm install -g mmx-cli 2>&1 | tail -3; then
+        local _mmx_ver=$(get_version "mmx_cli")
+        local _mmx_pkg="mmx-cli"
+        [[ -n "$_mmx_ver" ]] && _mmx_pkg="${_mmx_pkg}@${_mmx_ver}"
+        if ! npm install -g "$_mmx_pkg" 2>&1 | tail -3; then
             warn "mmx CLI 安装失败（可手动重试: npm install -g mmx-cli）"
             return 0
         fi
@@ -402,18 +408,16 @@ SSHEOF
     if [[ -d "$HOME/git" ]]; then
         while IFS= read -r -d '' gitdir; do
             local repo_dir=$(dirname "$gitdir")
-            cd "$repo_dir"
-            local current_url=$(git remote get-url origin 2>/dev/null || echo "")
+            local current_url=$(git -C "$repo_dir" remote get-url origin 2>/dev/null || echo "")
             if [[ "$current_url" == https://github.com/* ]]; then
                 local repo_path="${current_url#https://github.com/}"
-                git remote set-url origin "git@github.com:${repo_path}"
+                git -C "$repo_dir" remote set-url origin "git@github.com:${repo_path}"
                 success "$(basename "$repo_dir"): HTTPS → SSH"
             elif [[ "$current_url" == git@github.com:* ]]; then
                 info "$(basename "$repo_dir"): 已是 SSH"
             fi
         done < <(find "$HOME/git" -maxdepth 3 -name .git -type d -print0 2>/dev/null)
     fi
-    cd "$SCRIPT_DIR"
 
     # === 4. 测试连接 ===
     info "测试 GitHub SSH 连接..."
@@ -443,23 +447,27 @@ setup_autosync() {
     if ! command -v inotifywait &>/dev/null; then
         info "安装 inotify-tools（免 sudo）..."
         local tmp_dir="/tmp/inotify-install-$$"
-        mkdir -p "$tmp_dir" && cd "$tmp_dir"
+        mkdir -p "$tmp_dir"
 
-        # 下载并提取主包
-        curl -sL "http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/inotify-tools_3.22.6.0-4_amd64.deb" -o pkg.deb
-        dpkg-deb -x pkg.deb . 2>/dev/null
+        # 用 subshell 隔离 cd，避免影响外部 cwd
+        (
+            cd "$tmp_dir" || exit 1
+            # 下载并提取主包
+            curl -sL "http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/inotify-tools_3.22.6.0-4_amd64.deb" -o pkg.deb
+            dpkg-deb -x pkg.deb . 2>/dev/null
 
-        # 下载并提取依赖库
-        curl -sL "http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/libinotifytools0_3.22.6.0-4_amd64.deb" -o lib.deb
-        dpkg-deb -x lib.deb . 2>/dev/null
+            # 下载并提取依赖库
+            curl -sL "http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/libinotifytools0_3.22.6.0-4_amd64.deb" -o lib.deb
+            dpkg-deb -x lib.deb . 2>/dev/null
 
-        # 安装到用户目录
-        mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
-        cp usr/bin/inotify* "$HOME/.local/bin/"
-        chmod +x "$HOME/.local/bin/inotify"*
-        cp usr/lib/x86_64-linux-gnu/libinotifytools.so.0 "$HOME/.local/lib/"
+            # 安装到用户目录
+            mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
+            cp usr/bin/inotify* "$HOME/.local/bin/"
+            chmod +x "$HOME/.local/bin/inotify"*
+            cp usr/lib/x86_64-linux-gnu/libinotifytools.so.0 "$HOME/.local/lib/"
+        ) || warn "inotify-tools 解包失败"
 
-        cd / && rm -rf "$tmp_dir"
+        rm -rf "$tmp_dir"
 
         if command -v inotifywait &>/dev/null; then
             success "inotify-tools 安装成功"

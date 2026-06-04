@@ -31,15 +31,14 @@ NC='\033[0m'
 
 # ========== Git 拉取 ==========
 git_pull() {
-    cd "$REPO_DIR"
-    if [ ! -d ".git" ]; then
+    if [ ! -d "$REPO_DIR/.git" ]; then
         return 0
     fi
-    if timeout 30 git fetch origin main 2>/dev/null; then
-        local updates=$(git rev HEAD..origin/main 2>/dev/null | wc -l)
+    if timeout 30 git -C "$REPO_DIR" fetch origin main 2>/dev/null; then
+        local updates=$(git -C "$REPO_DIR" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
         if [ "$updates" -gt 0 ]; then
             echo -e "${CYAN}[Git]${NC} 发现 $updates 个更新，正在拉取..."
-            timeout 30 git pull --rebase origin main 2>/dev/null
+            timeout 30 git -C "$REPO_DIR" pull --rebase origin main 2>/dev/null
         fi
     fi
 }
@@ -272,7 +271,8 @@ check_mcp() {
     fi
 
     # 读取 MCP 配置并测试（并行，总超时约 5 秒）
-    python3 - "$claude_json" << 'PYEOF' 2>/dev/null
+    local mcp_output
+    mcp_output=$(python3 - "$claude_json" << 'PYEOF' 2>/dev/null
 import json, sys, subprocess, os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -314,6 +314,7 @@ with open(sys.argv[1], 'r') as f:
 mcps = data.get('mcpServers', {})
 if not mcps:
     print("  (无 MCP 配置)")
+    print("STATUS=ok")
     sys.exit(0)
 
 # 并行测试所有 MCP 服务器
@@ -330,9 +331,23 @@ for name in sorted(results):
         print(f"  {name}: {result}")
     else:
         print(f"  {name}: ❌ {error}")
+
+# bash 端根据 STATUS= 决定是否写 24h 缓存 stamp
+if any(error for _, error in results.values()):
+    print("STATUS=fail")
+else:
+    print("STATUS=ok")
 PYEOF
+)
+    echo "$mcp_output" | grep -v "^STATUS="
+
     mkdir -p "$HOME/.cache"
-    touch "$mcp_stamp"
+    if echo "$mcp_output" | grep -q "^STATUS=fail"; then
+        rm -f "$mcp_stamp"
+        warn "MCP 检查有失败，24h 缓存禁用，下次 SessionStart 重试"
+    else
+        touch "$mcp_stamp"
+    fi
 }
 
 # ========== 7. 飞书 lark-cli 状态（可选） ==========
@@ -578,14 +593,23 @@ check_option_components() {
 
         found=$((found + 1))
         echo -n "  $name ... "
-        if [ -x "$init_script" ]; then
-            if bash "$init_script" --status 2>/dev/null | head -1; then
-                :
-            else
-                echo -e "${GRAY}－${NC} (无 --status 支持)"
-            fi
-        else
+        if [ ! -f "$init_script" ]; then
             echo -e "${YELLOW}○${NC} (无 init.sh)"
+            continue
+        fi
+        local out
+        out=$(bash "$init_script" --status 2>&1)
+        local status_exit=$?
+        local first_line=$(echo "$out" | head -1 | sed 's/[[:space:]]*$//')
+        if [ $status_exit -ne 0 ] || [ -z "$first_line" ]; then
+            echo -e "${GRAY}－${NC} (无 --status 支持)"
+        elif echo "$first_line" | grep -qi "^OK\|^✅\|^ready"; then
+            echo -e "${GREEN}✅${NC} $first_line"
+        elif echo "$first_line" | grep -qi "^FAIL\|^❌\|^error"; then
+            echo -e "${RED}❌${NC} $first_line"
+        else
+            # 单行 OK/FAIL 规约未遵循，原样显示
+            echo -e "${GRAY}－${NC} $first_line"
         fi
     done
 

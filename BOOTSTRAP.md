@@ -147,7 +147,7 @@ LLM 默认值是 deepseek；MCP 和 skills 都是已配置的服务器列表。
 ## 阶段 5 — 验证
 
 ```bash
-# 11 项状态检查
+# 12 项状态检查
 bash status.sh
 ```
 
@@ -222,7 +222,7 @@ bash setup-links.sh
 # 3. 同步新 skill（pull 可能拉了新 skill 进 link/skills/）
 bash init-skill.sh sync
 
-# 4. 状态检查（11 项）
+# 4. 状态检查（12 项）
 bash status.sh
 
 # 5. 启动 monitor（如果没在跑）
@@ -230,6 +230,9 @@ bash init-autostart.sh
 # 或前台跑：./monitor.sh start
 # 查看状态：./monitor.sh status
 ```
+
+> **monitor push 行为**：监听 `~/git/` 下所有 git 仓库，触发条件是 inotify 检测到文件变化 → 120s debounce → **只 sync 真正改动的仓库**（不是全量扫）。所以同一个 repo 改两个文件不会重复 push，不同 repo 之间互不打扰。
+> 跑 `./monitor.sh status` 看每个仓库的 `pending file(s)` 数；如果哪个仓库一直显示 "clean" 但你想强制推，临时改成 `conf/versions.json` 之类即可触发。
 
 **`pullff` 暗号 = 上面 1+2 一步到位**：
 
@@ -249,7 +252,7 @@ bash sync.sh --pull    # = 强拉远程 + setup-links + skill sync
 
 ### 状态检查发现问题的应对
 
-`bash status.sh` 11 项检查，**任何一项 ✗ 都先看该项的命令**：
+`bash status.sh` 12 项检查，**任何一项 ✗ 都先看该项的命令**：
 
 | 失败项 | 修命令 |
 |--------|--------|

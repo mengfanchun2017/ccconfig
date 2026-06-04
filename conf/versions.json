@@ -17,9 +17,16 @@
     "mmx_cli": {
       "version": "1.0.16",
       "package": "mmx-cli",
-      "install": "npm install -g mmx-cli",
+      "install": "npm install -g mmx-cli@1.0.16",
       "check_url": "https://registry.npmjs.org/mmx-cli",
       "_note": "Token Plan 官方 CLI，全模态 (text/image/video/speech/music/vision/search)。认证：mmx auth login"
+    },
+    "claude_code": {
+      "version": "2.0.21",
+      "package": "@anthropic-ai/claude-code",
+      "install": "npm install -g @anthropic-ai/claude-code@2.0.21",
+      "check_url": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "_note": "Claude Code CLI，pin 版本防止上游 breaking change"
     },
     "cc_connect": {
       "version": "1.3.2",
