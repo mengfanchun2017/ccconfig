@@ -2,7 +2,7 @@
 
 > **目的**：把 f-* skill 整理后开源到 GitHub + 配套门户网站。本文档记录：审计、调研、决策、计划，便于后续开发追溯。
 
-**最后更新**：2026-06-04
+**最后更新**：2026-06-04（第二轮决策）
 **状态**：Phase 0（审计+决策）完成，Phase 1+ 待执行
 
 ---
@@ -85,7 +85,9 @@ examples, repository, changelog, compatibility, security_contact
 
 ---
 
-## 4. 用户决策（2026-06-04 确认）
+## 4. 用户决策
+
+### 2026-06-04 第一轮
 
 | 决策项 | 决定 | 备注 |
 |--------|------|------|
@@ -93,7 +95,17 @@ examples, repository, changelog, compatibility, security_contact
 | 记录过程到 readme | ✅ 本文档 | 持续更新 |
 | 开源范围 | ✅ 按建议（6 个通用）| 用户先自行完善 |
 | 门户站形态 | ✅ 静态站 | — |
-| 托管服务 | 🟡 腾讯云 Webify 首选，火山 Pages 备选 | 待用户注册开通 |
+| 托管服务 | 🟡 腾讯云 Webify 首选，火山 Pages 备选 | 待确认 |
+
+### 2026-06-04 第二轮
+
+| 决策项 | 决定 | 备注 |
+|--------|------|------|
+| 托管服务最终选择 | ✅ **腾讯云 Webify** | 火山 Pages 白名单作备选不申请 |
+| 发布模式 | ✅ **单聚合仓库（marketplace）** | 详见 §10 |
+| 静态站定位 | ✅ **catalog 入口，不分发代码** | 复制安装命令走 marketplace |
+| GitHub 组织 | 🟡 倾向建组织 | 待确认组织名 |
+| 域名 | 🟡 MVP 阶段用默认域名 | 备案同步进行 |
 
 **未决项**（待用户后续确认）：
 - [ ] GitHub 组织名（个人账号 vs 建组织）
@@ -238,4 +250,121 @@ examples, repository, changelog, compatibility, security_contact
 | 2026-06-04 | 创建本文档，初始审计 + 决策 | Claude + 用户 |
 | 2026-06-04 | 删 f-worklog（已废弃）| Claude 执行 |
 | 2026-06-04 | 调研确定首选腾讯云 Webify | Claude |
+| 2026-06-04 | 最终选定 Webify（火山 Pages 备选不申请）| 用户 |
+| 2026-06-04 | 决定发布模式：单聚合仓库（marketplace）| 用户 + Claude |
+| 2026-06-04 | 静态站定位：catalog 入口（不打包分发）| 用户 + Claude |
 | TBD | Phase 1-5 推进 | — |
+
+---
+
+## 10. 发布模式详解
+
+### 10.1 模式选择对比
+
+| 模式 | 仓库结构 | 适用阶段 | 代表案例 |
+|------|---------|---------|---------|
+| **A. 单聚合仓库** ⭐ 推荐 | 1 个 `<org>/claude-skills` 仓库，根 `.claude-plugin/marketplace.json` 指向各 skill 子目录 | 起步期（< 20 skill）| alirezarezvani/claude-skills（5200+ stars）|
+| B. 多仓库 + 元仓库 | 每个 skill 独立 repo + 1 个 meta marketplace | 大量 skill，需独立版本 | jeffallan/claude-skills（8705 stars）|
+| ❌ C. 静态站打包分发 | 静态站只做下载入口 | — | 违背官方机制，**不推荐** |
+
+### 10.2 为什么不是"打包放到静态里"
+
+- Claude Code 官方安装机制是 `/plugin marketplace add <repo>` + `/plugin install <name>`
+- 走 git 仓库 + manifest 才能版本管理、自动更新、声明依赖
+- "下载 zip 解压" 跳过更新检查，违背 skill 生态标准
+- 静态站做 catalog（发现入口）即可，分发交给 git
+
+### 10.3 完整目录结构（模式 A）
+
+```
+<org>/claude-skills/                        # 单仓库
+├── .claude-plugin/
+│   ├── marketplace.json                    # 市场清单（用户首安装的入口）
+│   └── plugin.json                         # （可选）插件自身元数据
+├── plugins/
+│   ├── f-pdf/
+│   │   ├── .claude-plugin/plugin.json      # 单个 skill 的 manifest
+│   │   ├── SKILL.md                        # skill 描述（frontmatter）
+│   │   ├── README.md
+│   │   ├── CHANGELOG.md
+│   │   ├── examples/
+│   │   └── tests/
+│   ├── f-ppt/
+│   ├── f-research/
+│   ├── f-research-deep/
+│   ├── f-research-report/
+│   └── f-doc/                              # （剥离飞书部分后）
+├── .github/
+│   └── workflows/ci.yml                    # frontmatter 校验 + 测试
+├── README.md                               # 仓库主页（中英双语）
+├── LICENSE                                 # MIT
+├── CONTRIBUTING.md
+└── CODE_OF_CONDUCT.md
+```
+
+### 10.4 安装命令（官方格式）
+
+```bash
+# 1. 添加市场（一行命令，用户在 Claude Code 内执行）
+/plugin marketplace add <org>/claude-skills
+
+# 2. 安装具体 skill
+/plugin install f-pdf@<org>-claude-skills
+/plugin install f-ppt@<org>-claude-skills
+# ...
+
+# 3. 后续更新
+/plugin marketplace update <org>-claude-skills
+```
+
+**用户完整流程**：
+1. 访问静态门户站 → 看到想用的 skill
+2. 复制 `/plugin marketplace add <org>/claude-skills` 命令
+3. 粘贴到 Claude Code → 自动安装
+4. 之后用 `/plugin install <name>` 选择性启用
+
+### 10.5 静态站与 git 的关系
+
+| 静态站角色 | 不做的事 |
+|-----------|---------|
+| ✅ 展示 skill 列表（名称、描述、截图）| ❌ 分发代码 |
+| ✅ 一键复制 `/plugin marketplace add` 命令 | ❌ 提供 zip 下载 |
+| ✅ 搜索、分类、star 数 | ❌ 替代 GitHub |
+| ✅ 引导用户到 GitHub 仓库 | — |
+
+**数据流**：
+```
+GitHub 仓库 (单仓库) ← 真相源
+  ↓ GitHub Action 扫描 SKILL.md frontmatter
+  ↓ 生成 skills.json
+静态站 (Webify 部署) ← 读取 skills.json 渲染
+```
+
+### 10.6 marketplace.json 模板（参考 anthropics/claude-plugins-official）
+
+```json
+{
+  "name": "ailab-claude-skills",
+  "owner": {
+    "name": "ailab",
+    "email": "your@email.com"
+  },
+  "plugins": [
+    {
+      "name": "f-pdf",
+      "description": "PDF content extraction (PyMuPDF)",
+      "source": "./plugins/f-pdf",
+      "version": "0.1.0",
+      "keywords": ["pdf", "extraction", "document"]
+    },
+    {
+      "name": "f-ppt",
+      "description": "PPT generation (dual engine)",
+      "source": "./plugins/f-ppt",
+      "version": "0.1.0",
+      "keywords": ["ppt", "presentation"]
+    }
+  ]
+}
+```
+
