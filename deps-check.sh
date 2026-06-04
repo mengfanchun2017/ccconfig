@@ -72,6 +72,9 @@ PYTHON_PACKAGES=(
     "cairosvg|cairosvg|SVG 转换 (option-ppt-master)"
     "lxml|lxml|XML 解析"
     "PIL|pillow|图片处理"
+    "matplotlib|matplotlib|数据可视化 (报告绘图)"
+    "seaborn|seaborn|统计可视化 (报告绘图)"
+    "plotly|plotly|交互可视化 (报告绘图)"
 )
 
 # npm 全局包
