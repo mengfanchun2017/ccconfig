@@ -81,7 +81,8 @@ setup_symlinks() {
     fi
 
     # MEMORY.md + CLAUDE.md - 自动检测所有项目
-    for proj_dir in "$SCRIPT_DIR/link/projects"/-home-francis-*/; do
+    # 通用化：扫描所有 -home-<user>-* 项目目录（不再硬编码 francis）
+    for proj_dir in "$SCRIPT_DIR/link/projects"/-home-*-*/; do
         if [[ ! -d "$proj_dir" ]]; then
             continue
         fi
@@ -116,9 +117,10 @@ setup_symlinks() {
         fi
     done
 
-    # 如果没有任何项目目录，确保至少有总目录链接
-    if [[ ! -d "$SCRIPT_DIR/link/projects/-home-francis-git" ]]; then
-        local REPO_MEMORY_NAME="-home-francis-git"
+    # 如果没有任何项目目录，确保至少有主项目目录链接
+    # 通用化：从 $USER 推断主项目名（兼容任意用户）
+    if [[ ! -d "$SCRIPT_DIR/link/projects"/-home-*-* ]]; then
+        local REPO_MEMORY_NAME="-home-${USER}-git"
         local MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
         local MEMORY_REPO_PATH="$SCRIPT_DIR/link/projects/$REPO_MEMORY_NAME/MEMORY.md"
 

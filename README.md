@@ -38,7 +38,7 @@ ccconfig/
 ├── init-autostart.sh         # auto-sync systemd 服务
 ├── update.sh                 # 月度组件升级（9 个组件）
 │
-├── status.sh                 # 状态检查（11 项）
+├── status.sh                 # 状态检查（12 项）
 ├── monitor.sh                # 多仓库文件监听 + 自动 git 同步
 ├── sync.sh                   # 多仓库智能同步（云端↔本地）
 ├── setup-links.sh            # 重建 ~/.claude/ 符号链接
@@ -108,7 +108,7 @@ cd ~/git/ccconfig && git pull
 # 交互式菜单
 bash init.sh
 
-# 或一键全初始化（Ubuntu + LLM + MCP + Skills）
+# 或一键全初始化（Ubuntu + LLM + MCP + Skills + Python 包）
 bash init.sh all
 
 # 状态检查
@@ -121,7 +121,7 @@ bash status.sh
 |---------|---------|
 | `bash init.sh` | 交互式菜单（环境、远程、MCP、skill、工具） |
 | `bash init.sh all` | 一键全初始化 |
-| `bash status.sh` | 完整状态检查（11 项） |
+| `bash status.sh` | 完整状态检查（12 项） |
 | `bash deps-check.sh` | 依赖完整性检查 |
 | `bash update.sh all` | 月度组件升级 |
 | `bash monitor.sh start` | 启动 auto-sync 守护进程 |
@@ -132,7 +132,7 @@ bash status.sh
 
 ## 状态检查覆盖
 
-`status.sh` 每次 Claude Code session 启动时做 11 项检查：
+`status.sh` 每次 Claude Code session 启动时做 12 项检查：
 
 1. 配置文件链接（settings.json、.config.json、CLAUDE.md、MEMORY.md、rules、commands）
 2. 核心依赖（git、bash、curl）
@@ -145,7 +145,7 @@ bash status.sh
 9. OfficeCLI（安装、MCP 注册）
 10. MCP 服务器（并行健康检查，24h 缓存）
 11. 远程访问（SSH、端口、WSL 网络模式、Tailscale）
-12. Option 组件自动发现
+12. Option 组件自动发现（含 4 个 option-*）
 
 ## 依赖检查
 
@@ -265,11 +265,12 @@ python3 -c "import json; [json.load(open(f'conf/{f}.json')) for f in ['claude','
 - `conf/llm.json` — LLM API key
 - `conf/ubuntu.json` — Git 用户信息
 - `link/settings.json` — 个人权限
-- `link/.config.json` — 环境状态
 - `.monitor-sync.*` — 运行时状态
 - `.snapshots/` — 升级快照
 - `tmp/` — 一次性任务产物
 - `cccshare/` — 公开导出（生成）
+
+> `link/.config.json` 虽然包含 env 凭证（API key），但**实际在 git 跟踪中**（私有仓库）。生成由 `init-mcp.sh sync` 合并 `conf/*.json` + `~/.claude.json` 写入。
 
 ## 许可证
 
