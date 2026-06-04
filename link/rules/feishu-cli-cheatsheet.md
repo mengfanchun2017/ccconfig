@@ -25,6 +25,11 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 
 | `base +table-create` | `--base-token` | `--name` `--fields '<json-array>'` | 不是 `--json`，字段用 `--fields` |
 | `base +table-update` | `--base-token` | `--name` `--table-id` | 支持按名称匹配，default表叫"数据表" |
+| `base +record-get` | `--base-token` `--table-id` `--record-id` | -- | 返回 `data.data` (二维数组) + `data.fields` (字段名), 按 field_id_list 对齐 |
+| `base +record-batch-create` | `--base-token` `--table-id` | `--json` | 返回 `data.record_id_list` (不是 `data.records[].record_id`); link 字段 `[{"id":"recXXX"}]`, select `["opt"]` |
+| `base +record-update` | **不存在** | - | 用 raw API: `lark-cli api PUT /open-apis/bitable/v1/apps/{app}/tables/{tbl}/records/{id} --data '{"fields":{...}}'` |
+| `base +record-search` | `--base-token` `--table-id` | `--keyword` (必填) `--search-field` | `--keyword` 必填, 除非 `--json`; 返回 `record_id_list` (按 search 顺序) |
+| `base +field-create` | `--base-token` `--table-id` | `--json '{...}'` | 一次一个字段; 字段名带特殊字符可能需转义 |
 | `slides +create` | - | `--title` `--slides '<json-array>'` | JSON 数组每元素是 XML `<slide>` 字符串 |
 | `slides 导出` | - | `api POST export_tasks` | `drive +export` 不支持 slides，用 `lark-cli api` 调原始API |
 | `drive +export-download` | `--file-token` | `--file-name` | 必须相对路径，先 cd |
@@ -38,6 +43,10 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 | 关联字段 | `"link_table_id":"tblXXX"` | `"link_table":"tblXXX"` 在顶层 |
 | JSON文件路径 | `--json @/tmp/file.json` | `cd /tmp && --json @file.json` (必须相对) |
 | 删除确认 | 不加 flag 报错 | `--yes` |
+| table-create 加字段带 `formatter` | `--fields '[{...,"formatter":"0%"}]'` | table-create **不支持** formatter, 用 table-create 建空表后逐个 +field-create, formatter 通过 UI 设置 |
+| 写 select 字段 | `"v":"NewOption"` | 选项目前必须已存在, 否则 not_found; API 改选项: 用 field-update 或先 field-create 选项 |
+| +record-update | `lark-cli base +record-update ...` | **无此命令**, 改用 raw API (见速查表) |
+| 拿 record_id | `+record-list` 只返回 fields 数组 | 用 `+record-search` 的 `data.record_id_list` |
 
 ### field-create 正确格式示例
 
