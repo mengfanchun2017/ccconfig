@@ -107,6 +107,14 @@ examples, repository, changelog, compatibility, security_contact
 | GitHub 组织 | 🟡 倾向建组织 | 待确认组织名 |
 | 域名 | 🟡 MVP 阶段用默认域名 | 备案同步进行 |
 
+### 2026-06-04 第三轮
+
+| 决策项 | 决定 | 备注 |
+|--------|------|------|
+| GitHub 账号策略 | ✅ **先用个人账号 `francis/claude-skills`** | 详细解释见会话 |
+| 仓库建仓时机 | ⏸ **先不做** | 等用户启动 Phase 1 时再建 |
+| 升级路径 | 📌 star 涨/招协作者时再 transfer 到组织 | git history 保留，URL 自动重定向 |
+
 **未决项**（待用户后续确认）：
 - [ ] GitHub 组织名（个人账号 vs 建组织）
 - [ ] 品牌名（ailab / francis / 其他）
@@ -202,7 +210,7 @@ examples, repository, changelog, compatibility, security_contact
 
 ### 立即可做
 - [ ] 用户注册腾讯云账号 + 实名认证
-- [ ] 选 GitHub 组织名 + 创建仓库
+- [ ] ⏸ 选 GitHub 组织名 + 创建仓库（**先不做**，等 Phase 1 启动）
 - [ ] 选品牌名 + Logo
 - [ ] 决定备案方式（个人 / 企业）
 
@@ -253,6 +261,7 @@ examples, repository, changelog, compatibility, security_contact
 | 2026-06-04 | 最终选定 Webify（火山 Pages 备选不申请）| 用户 |
 | 2026-06-04 | 决定发布模式：单聚合仓库（marketplace）| 用户 + Claude |
 | 2026-06-04 | 静态站定位：catalog 入口（不打包分发）| 用户 + Claude |
+| 2026-06-04 | GitHub 账号策略：先用个人账号 francis/claude-skills，建仓暂缓 | 用户 + Claude |
 | TBD | Phase 1-5 推进 | — |
 
 ---
