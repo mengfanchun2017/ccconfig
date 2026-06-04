@@ -112,6 +112,14 @@ commit_and_push() {
     fi
 
     git -C "$repo_dir" add -A 2>/dev/null || warn "[$repo] git add failed (nested .git?)"
+
+    # Skill sync: independent of pull/push, builds local symlinks for new skills in link/skills/.
+    # Runs before commit so even "nothing to commit" still rebuilds links.
+    if [ -f "$repo_dir/init-skill.sh" ]; then
+        bash "$repo_dir/init-skill.sh" sync >> "$LOG_FILE" 2>&1 && \
+            log "[$repo] OK skills sync" || warn "[$repo] skills sync failed"
+    fi
+
     local commit_output
 
     if commit_output=$(git -C "$repo_dir" commit -m "Auto-sync: $(date '+%Y-%m-%d %H:%M:%S')" 2>&1); then
@@ -129,10 +137,6 @@ commit_and_push() {
             if [ -f "$repo_dir/setup-links.sh" ]; then
                 bash "$repo_dir/setup-links.sh" >> "$LOG_FILE" 2>&1 && \
                     log "[$repo] OK links" || warn "[$repo] links failed"
-            fi
-            if [ -f "$repo_dir/init-skill.sh" ]; then
-                bash "$repo_dir/init-skill.sh" sync >> "$LOG_FILE" 2>&1 && \
-                    log "[$repo] OK skills sync" || warn "[$repo] skills sync failed"
             fi
             if timeout 60 git -C "$repo_dir" push origin "$branch" >> "$LOG_FILE" 2>&1; then
                 log "[$repo] OK pushed → GitHub ($commit_hash)"
