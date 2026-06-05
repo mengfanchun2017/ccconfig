@@ -63,6 +63,10 @@ do_sync() {
         return 1
     fi
 
+    # 防御：github URL 走 HTTPS（不靠 init-ubuntu.sh, 让 sync 自带）
+    # 不加这行，claude plugin install external 会用 git@github.com clone 失败
+    git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
+
     local linked=0 skipped=0 cleaned=0
     for skill_dir in "$SKILLS_SRC"/*; do
         [[ -d "$skill_dir" ]] || continue
