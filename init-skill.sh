@@ -5,14 +5,14 @@
 # 三个 skill 来源（聚合到 ~/.claude/skills/ 和 claude plugin list）：
 #   自建 f-*      → symlink 到 ~/.claude/skills/（本仓 link/skills/）
 #   私有 f-logme  → symlink（只本机，不发布）
-#   外部 14 个     → claude plugin install 从 claude-skills marketplace
+#   外部 2 monorepo → claude plugin install 从 claude-skills marketplace（mattpocock-skills + lark-suite）
 #   skill-template→ symlink（dev only，不在 marketplace）
 #
-# 4 个 skill 源独立：
-#   lark-cli (npm)     → 系统层 CLI 工具，update.sh 独立管理
-#   lark-* (8 skill)   → marketplace 装（在 lark-doc SKILL 里 requires lark-cli binary）
-#   vinvcn 6 skill     → marketplace 装（自动跟 vinvcn/mattpocock-skills-zh-CN 仓更新）
-#   f-* (8 self-built) → symlink（ccconfig 私有工作副本，claude-skills marketplace 同步发布）
+# 4 层 skill 源独立：
+#   lark-cli (npm)        → 系统层 CLI 工具，update.sh 独立管理
+#   lark-suite (plugin)   → larksuite/cli 24+ lark-* skill 一次装（在 SKILL.md 里 requires lark-cli binary）
+#   mattpocock-skills     → vinvcn/mattpocock-skills-zh-CN 18 skill 一次装（自动跟上游更新）
+#   f-* (8 self-built)    → symlink（ccconfig 私有工作副本，claude-skills marketplace 同步发布）
 #
 # 使用：
 #   bash ccconfig/init-skill.sh                  # 同步 + 装外部（默认 = sync）
@@ -31,12 +31,13 @@ MARKETPLACE_REPO="<your-github-username>/claude-skills"
 MARKETPLACE_NAME="<your-github-username>-skills"
 
 # 外部 plugin 列表（从 claude-skills marketplace 装）
-# 14 = vinvcn 6 (mattpocock-skills-zh-CN) + lark-* 8 (larksuite/cli)
+# 2 个 monorepo 入口，每个装一次暴露全部 sub-skill
+# - mattpocock-skills: vinvcn/mattpocock-skills-zh-CN 的 18 skill（caveman/diagnose/grill-me/...）
+# - lark-suite: larksuite/cli 的 24+ lark-* skill（lark-base/lark-doc/lark-wiki/...）
+# 上游都是 monorepo，按 subdir 拆会触发 6×/8× 重复 clone，marketplace.json 已重塑为 root path
 EXTERNAL_PLUGINS=(
-    "caveman" "diagnose" "grill-me"
-    "improve-codebase-architecture" "write-a-skill" "zoom-out"
-    "lark-shared" "lark-doc" "lark-base" "lark-sheets"
-    "lark-wiki" "lark-whiteboard" "lark-drive" "lark-calendar"
+    "mattpocock-skills"
+    "lark-suite"
 )
 
 RED='\033[0;31m'
@@ -52,7 +53,7 @@ bad() { echo -e "$1${RED}"; }
 info() { echo -e "$1${GRAY}"; }
 warn() { echo -e "$1${YELLOW}"; }
 
-# 同步自建 skill（symlink）+ 装 14 个 external plugin（idempotent）
+# 同步自建 skill（symlink）+ 装 external plugin（idempotent）
 do_sync() {
     title "阶段 1/3: symlink 自建 skill → ~/.claude/skills/"
 
@@ -98,7 +99,7 @@ do_sync() {
     good "  symlink: $linked 新建, $skipped 跳过, $cleaned 删断链"
 
     # 阶段 2: 检 marketplace 并 add
-    title "阶段 2/3: marketplace 装 14 个 external plugin"
+    title "阶段 2/3: marketplace 装 external plugin"
 
     info "检 marketplace: $MARKETPLACE_REPO"
     if claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE_NAME"; then
@@ -112,8 +113,8 @@ do_sync() {
     fi
     echo ""
 
-    # 阶段 3: 14 个 external plugin install（idempotent）
-    info "装 14 个 external plugin（已装就 skip）:"
+    # 阶段 3: external plugin install（idempotent）
+    info "装 ${#EXTERNAL_PLUGINS[@]} 个 external plugin（已装就 skip）:"
     local installed=0 already=0 failed=0
     for plugin in "${EXTERNAL_PLUGINS[@]}"; do
         if claude plugin list 2>/dev/null | grep -q "$plugin@$MARKETPLACE_NAME"; then
@@ -206,5 +207,5 @@ case "$action" in
 esac
 
 echo ""
-good "提示: 新环境先跑 sync (symlink + 装 14 external plugin 一条命令)"
+good "提示: 新环境先跑 sync (symlink + 装 2 external plugin 一条命令)"
 exit 0
