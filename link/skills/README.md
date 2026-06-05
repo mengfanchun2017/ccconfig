@@ -21,40 +21,27 @@
 
 ## 二级：第三方 skill
 
-| Skill | 来源 | 用途 |
-|-------|------|------|
-| `lark-shared/` | larksuite/cli | 飞书基础：认证、多账号 |
-| `lark-doc/` | larksuite/cli | 飞书云文档 CRUD |
-| `lark-base/` | larksuite/cli | 飞书多维表格 |
-| `lark-sheets/` | larksuite/cli | 飞书电子表格 |
-| `lark-wiki/` | larksuite/cli | 飞书知识库管理 |
-| `lark-whiteboard/` | larksuite/cli | 飞书画板 |
-| `lark-drive/` | larksuite/cli | 飞书云空间 |
-| `lark-calendar/` | larksuite/cli | 飞书日历 |
-| `caveman/` | vinvcn/mattpocock-skills-zh-CN | 超压缩输出模式 |
-| `diagnose/` | vinvcn/mattpocock-skills-zh-CN | 纪律化 debug 循环 |
-| `grill-me/` | vinvcn/mattpocock-skills-zh-CN | 设计审查 interview |
-| `improve-codebase-architecture/` | vinvcn/mattpocock-skills-zh-CN | 架构深化优化 |
-| `write-a-skill/` | vinvcn/mattpocock-skills-zh-CN | 创建新 skill |
-| `zoom-out/` | vinvcn/mattpocock-skills-zh-CN | 代码全景视角 |
+**已从本目录移走，2026-06-05 改 marketplace 装**（避免 symlink + marketplace 冲突）。详见下方"Marketplace 集成"。
+
+| Skill | 官方源 | 装法 |
+|-------|-------|------|
+| `lark-shared` / `lark-doc` / `lark-base` / `lark-sheets` / `lark-wiki` / `lark-whiteboard` / `lark-drive` / `lark-calendar` | [larksuite/cli](https://github.com/larksuite/cli) | `npm install -g @larksuite/cli`（拿完整 CLI + skill）|
+| `caveman` / `diagnose` / `grill-me` / `improve-codebase-architecture` / `write-a-skill` / `zoom-out` | [vinvcn/mattpocock-skills-zh-CN](https://github.com/vinvcn/mattpocock-skills-zh-CN) | 走 [<your-github-username>/claude-skills](https://github.com/<your-github-username>/claude-skills) marketplace |
 
 ## 同步
 
 ```bash
-bash ccconfig/init-skill.sh sync          # symlink → ~/.claude/skills/
-bash ccconfig/init-skill.sh marketplace   # 外部 skill 的 marketplace 安装命令
+bash ccconfig/init-skill.sh sync            # symlink 自建 skill → ~/.claude/skills/
+bash ccconfig/init-skill.sh install         # 一键装 marketplace 外部 skill（执行 claude plugin install）
 ```
 
 ## Marketplace 集成（2026-06-05 新增）
 
-ccconfig 是**工作副本**（git 同步，符号链接加载）。claude-skills 是**发布渠道**（marketplace 自动跟上游同步）。
+ccconfig/link/skills/ **只保留自建 skill**（7 个 f-* + f-logme 私有）。外部 skill（lark-*/vinvcn 6 个）**已从本目录移除**，统一从 marketplace 装，避免 symlink 重复。
 
-| 类别 | 安装方式 | 更新方式 |
-|------|---------|---------|
-| 自建 + 公开 (f-doc/f-ppt/...) | 符号链接（ccconfig 默认） | git pull ccconfig |
-| 自建 + 公开 (同上) | 也可 marketplace 装 | `claude plugin marketplace update` |
-| 自建 + 私有 (f-logme) | 仅符号链接（ccconfig 私有） | git pull ccconfig |
-| 外部 (lark-*/caveman/...) | 符号链接（ccconfig 兼容）| git pull ccconfig（已记录 skills-lock.json）|
-| 外部 (同上) | **推荐 marketplace 装** | `claude plugin marketplace update <your-github-username>-skills` |
-
-外部 skill 在 ccconfig 和 marketplace 装哪个都行，**不重复装**（Claude Code 会冲突）。`init-skill.sh marketplace` 列出去重后的安装命令。
+| 类别 | 位置 | 装法 |
+|------|------|------|
+| 自建 + 公开 (f-doc/f-ppt/...) | ccconfig/link/skills/ | `init-skill.sh sync`（默认 symlink）|
+| 自建 + 私有 (f-logme) | ccconfig/link/skills/ | `init-skill.sh sync`（只在本机）|
+| 外部 (lark-*) | [larksuite/cli](https://github.com/larksuite/cli) | `npm install -g @larksuite/cli` |
+| 外部 (vinvcn 6 个) | [claude-skills marketplace](https://github.com/<your-github-username>/claude-skills) | `init-skill.sh install`（一键装）|

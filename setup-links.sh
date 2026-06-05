@@ -99,7 +99,16 @@ setup_symlinks() {
             if [[ -d "$MEM_PARENT/memory" && ! -L "$MEM_PARENT/memory" ]]; then
                 rmdir "$MEM_PARENT/memory" 2>/dev/null || true
             fi
+            # 防御：源 memory/ 里若 MEMORY.md 是断链（含循环），删掉避免重链接失败
+            if [[ -L "${proj_dir}memory/MEMORY.md" ]] && [[ ! -e "${proj_dir}memory/MEMORY.md" ]]; then
+                rm -f "${proj_dir}memory/MEMORY.md"
+                warn "$PROJ_NAME/memory/MEMORY.md 是断链，已删（请重建）"
+            fi
             setup_link "$MEM_PARENT/memory" "${proj_dir}memory" "$PROJ_NAME/memory"
+            # 验证：源 memory/ 目录里应有 MEMORY.md 索引
+            if [[ ! -f "${proj_dir}memory/MEMORY.md" ]]; then
+                warn "$PROJ_NAME/memory 缺 MEMORY.md 索引（harness 无法显示目录结构）"
+            fi
         elif [[ -f "${proj_dir}MEMORY.md" ]]; then
             # 形式 A: 单文件 MEMORY.md
             local MEM_DIR="$CLAUDE_DIR/projects/$PROJ_NAME/memory"
@@ -117,9 +126,12 @@ setup_symlinks() {
         fi
     done
 
-    # 如果没有任何项目目录，确保至少有主项目目录链接
+    # 如果没有 -home-* 项目目录，确保至少有主项目目录链接
     # 通用化：从 $USER 推断主项目名（兼容任意用户）
-    if [[ ! -d "$SCRIPT_DIR/link/projects"/-home-*-* ]]; then
+    # 注意：[[ -d glob ]] 在 bash 里 glob 不会展开，要先用 compgen 计数
+    local project_count
+    project_count=$(compgen -G "$SCRIPT_DIR/link/projects/-home-*-*" | wc -l)
+    if [[ $project_count -eq 0 ]]; then
         local REPO_MEMORY_NAME="-home-${USER}-git"
         local MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
         local MEMORY_REPO_PATH="$SCRIPT_DIR/link/projects/$REPO_MEMORY_NAME/MEMORY.md"
