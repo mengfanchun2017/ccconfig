@@ -117,6 +117,10 @@ setup_git_github() {
         success "git credential helper → gh auth git-credential"
     fi
 
+    # 强制 github URL 走 HTTPS（避免 Claude Code plugin install 走 SSH 失败）
+    # 不加这行，`claude plugin install <external>` 会用 git@github.com clone，没 SSH key 就报 Permission denied
+    git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
+
     # 克隆/更新仓库
     # 处理 ~ 展开（bash 内置参数展开，不使用 eval 避免命令注入）
     TARGET_DIR="${TARGET_DIR/\~/$HOME}"
