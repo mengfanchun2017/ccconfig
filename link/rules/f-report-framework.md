@@ -1,1 +1,0 @@
-/home/francis/git/ccconfig/link/skills/f-report-framework/rules.d/f-report-framework.md
