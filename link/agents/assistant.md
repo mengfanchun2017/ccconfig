@@ -106,8 +106,6 @@ f-logme 是 f-worklog 的升级替代，f-worklog 已废弃。
 | 工具 | `grill-me` | 设计审查 |
 | 工具 | `f-vessel` | 浏览器操控 |
 | 工具 | `zoom-out` | 代码全景 |
-| 订餐 | `f-feedme` | 麦当劳订餐 |
-| 订餐 | `f-feedmeng` | 二次元虚拟点餐 |
 
 ## 注意事项
 

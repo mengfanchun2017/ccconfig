@@ -44,7 +44,6 @@ All notable changes to ccconfig will be documented in this file.
 - `monitor.sh` — 多仓库文件监控 + 自动 Git 同步
 - `sync.sh` — 多仓库智能同步（合并原 gitforce.sh）
 - `setup-links.sh` — 符号链接重建
-- `pushpub.sh` — 导出公开分享版
 - `option-bridge/` — 飞书消息 Bridge
 - `option-ppt-master/` — PPT 生成环境
 - `option-vessel/` — Vessel AI 浏览器
