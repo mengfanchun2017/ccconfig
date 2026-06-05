@@ -13,8 +13,8 @@
 | `f-research-report/` | 报告生成 — JSON → Markdown |
 | `f-pdf/` | PDF 内容提取原语 — 文字/图片/元数据 |
 | `f-worklog/` | [已废弃] 工作日志 — 请用 f-logme |
-| `f-feedme/` | 智能订餐助手（麦当劳） |
-| `f-feedmeng/` | 二次元虚拟点餐 |
+| ~~`f-feedme/`~~ | ~~智能订餐助手（麦当劳）~~ [2026-06-05 已删，niche 价值低] |
+| ~~`f-feedmeng/`~~ | ~~二次元虚拟点餐~~ [2026-06-05 已删，未实现] |
 | `f-vessel/` | AI 浏览器操控 |
 
 ## 二级：第三方 skill

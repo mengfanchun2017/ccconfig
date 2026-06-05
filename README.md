@@ -21,7 +21,7 @@ ccconfig 管理 Claude Code 配置的完整生命周期：
     ├── settings.json        ├── settings.json
     ├── .config.json         ├── .config.json
     ├── rules/               ├── rules/         (8 个规则)
-    ├── skills/              ├── skills/        (22 个 skill)
+    ├── skills/              ├── skills/        (19 个 skill)
     ├── agents/              ├── agents/        (4 个 agent)
     └── projects/memory/     └── projects/memory/  (跨 session memory)
 
@@ -43,7 +43,6 @@ ccconfig/
 ├── sync.sh                   # 多仓库智能同步（云端↔本地）
 ├── setup-links.sh            # 重建 ~/.claude/ 符号链接
 ├── deps-check.sh             # 依赖完整性检查（CLI + JSON）
-├── pushpub.sh                # 导出到公开 cccshare
 │
 ├── conf/                     # 配置（单一真相源）
 │   ├── claude.json           # MCP 服务器、API key
@@ -62,7 +61,7 @@ ccconfig/
 │   ├── .config.json          # 环境 + 状态
 │   ├── rules/                # 条件规则（按路径加载）
 │   ├── agents/               # 意图路由 agent
-│   ├── skills/               # 所有 skill（22）
+│   ├── skills/               # 所有 skill（19）
 │   └── projects/             # 每个项目的 MEMORY.md
 │
 ├── share/                    # 公开分享模块
@@ -218,17 +217,6 @@ powershell -ExecutionPolicy Bypass -File "remote/client/ts-setup.ps1"
 # 笔记本
 ssh francis@<Tailscale IP> -p 2222  # 自动 attach 到 tmux 'claude' session
 ```
-
-## 公开分享（cccshare）
-
-导出不含私密数据的公开版本：
-
-```bash
-bash pushpub.sh        # 导出到 cccshare/（本地）
-bash pushpub.sh git    # 导出并推送到 GitHub
-```
-
-公开版本包含 `share/setup.sh` —— 给新用户用的引导式 onboarding 向导。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 开发
 

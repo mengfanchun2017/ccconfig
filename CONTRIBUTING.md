@@ -19,8 +19,7 @@ ccconfig/
 ├── link/             # → ~/.claude/ 符号链接源
 ├── option-*/         # 可选组件（option- 前缀）
 ├── remote/           # 远程连接
-├── windows/          # Windows/WSL 互操作
-└── cccshare/         # 公开分享版输出（由 pushpub.sh 生成）
+└── windows/          # Windows/WSL 互操作
 ```
 
 ## 提交规范

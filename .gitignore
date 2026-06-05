@@ -23,3 +23,6 @@ openclaw.json
 
 # 临时文件/脚本（一次性任务产物）
 tmp/
+
+# PowerShell 二进制（6.8M，单独从 release 下载；脚本 commit 即可）
+powershell/**/ncmdump.exe
