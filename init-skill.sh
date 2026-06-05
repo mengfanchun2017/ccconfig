@@ -1,12 +1,16 @@
 #!/bin/bash
 # Claude Skills 管理脚本
-# 功能：同步 skills 符号链接、查看状态
+# 功能：同步 skills 符号链接、查看状态、查询 marketplace
 # Skills 文件统一存放在 link/skills/，通过 Git 同步
+# 外部 skill（larksuite/cli + mattpocock-skills-zh-CN）推荐用 marketplace 装
 #
 # 使用：
-#   bash ccconfig/init-skill.sh          # 同步 skills 到 ~/.claude/skills/
-#   bash ccconfig/init-skill.sh list     # 查看已安装 skills
-#   bash ccconfig/init-skill.sh status   # 查看状态
+#   bash ccconfig/init-skill.sh                  # 同步 skills 到 ~/.claude/skills/
+#   bash ccconfig/init-skill.sh list             # 查看已安装 skills
+#   bash ccconfig/init-skill.sh status           # 查看状态
+#   bash ccconfig/init-skill.sh update           # 检查外部 skill 更新
+#   bash ccconfig/init-skill.sh marketplace      # 查看外部 skill 的 marketplace 安装命令
+#   bash ccconfig/init-skill.sh marketplace --install  # 实际安装（用 claude plugin）
 
 export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 set -e
@@ -14,6 +18,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_SRC="$SCRIPT_DIR/link/skills"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
+MARKETPLACE_REPO="<your-github-username>/claude-skills"
+MARKETPLACE_NAME="<your-github-username>-skills"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -163,13 +169,53 @@ do_status() {
     echo ""
 }
 
+do_marketplace() {
+    title "Marketplace 安装（外部 skill）"
+
+    local lock_file="$SKILLS_SRC/skills-lock.json"
+    if [[ ! -f "$lock_file" ]]; then
+        bad "无 skills-lock.json: $lock_file"
+        return 1
+    fi
+
+    info "外部 skill 维护在 marketplace: ${CYAN}$MARKETPLACE_REPO${NC}"
+    info "用 claude plugin 安装 → 自动跟上游同步，不占 link/skills/ 空间"
+    echo ""
+
+    info "  # 1. 添加 marketplace（首次执行）"
+    info "  ${GREEN}claude plugin marketplace add $MARKETPLACE_REPO --scope user${NC}"
+    echo ""
+
+    info "  # 2. 安装具体 skill（plugin@marketplace 格式）"
+    local names
+    names=$(python3 -c "import json; print(' '.join(json.load(open('$lock_file'))['skills'].keys()))" 2>/dev/null)
+    for name in $names; do
+        local source
+        source=$(python3 -c "import json; print(json.load(open('$lock_file'))['skills']['$name']['source'])")
+        info "  ${GREEN}claude plugin install $name@$MARKETPLACE_NAME${NC}    # $source"
+    done
+    echo ""
+
+    info "  # 3. 更新所有已装的 skill"
+    info "  ${GREEN}claude plugin marketplace update $MARKETPLACE_NAME${NC}"
+    echo ""
+
+    if [[ "${1:-}" == "--install" ]]; then
+        warn "实际安装需要用户确认。手动复制上面的命令执行。"
+        return 0
+    fi
+
+    info "提示: bash ccconfig/init-skill.sh marketplace --install  显示此 banner"
+}
+
 action="${1:-sync}"
 case "$action" in
-    sync)   do_sync ;;
-    list)   echo "=== Skills (link/skills/) ==="; ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done ;;
-    status) do_status ;;
-    update) do_update ;;
-    *)      echo "用法: $0 {sync|list|status|update}"; exit 1 ;;
+    sync)        do_sync ;;
+    list)        echo "=== Skills (link/skills/) ==="; ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done ;;
+    status)      do_status ;;
+    update)      do_update ;;
+    marketplace) do_marketplace "${2:-}" ;;
+    *)           echo "用法: $0 {sync|list|status|update|marketplace}"; exit 1 ;;
 esac
 
 echo ""
