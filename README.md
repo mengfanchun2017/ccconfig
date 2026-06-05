@@ -9,7 +9,7 @@ ccconfig 管理 Claude Code 配置的完整生命周期：
 - **环境**：Ubuntu/WSL 一键初始化
 - **配置**：LLM 后端、MCP 服务器、API key 单一真相源
 - **同步**：文件监听 + 自动 git commit/push，覆盖 `~/git/` 下所有仓库
-- **Skills**：22 个精选 skill（飞书文档、调研、PPT 生成、调试等）
+- **Skills**：8 自建（symlink）+ 14 外部聚合（marketplace auto install）
 - **Rules**：按路径条件加载（编码、git、python、搜索、飞书、godot）
 - **Agents**：意图路由 agent（assistant、feishucreate、learnchinese）
 - **可选**：飞书 Bridge、OfficeCLI、PPT 生成、Vessel 浏览器、远程 SSH
@@ -21,7 +21,7 @@ ccconfig 管理 Claude Code 配置的完整生命周期：
     ├── settings.json        ├── settings.json
     ├── .config.json         ├── .config.json
     ├── rules/               ├── rules/         (8 个规则)
-    ├── skills/              ├── skills/        (19 个 skill)
+    ├── skills/              ├── skills/        (8 自建 + README)
     ├── agents/              ├── agents/        (4 个 agent)
     └── projects/memory/     └── projects/memory/  (跨 session memory)
 
@@ -61,7 +61,7 @@ ccconfig/
 │   ├── .config.json          # 环境 + 状态
 │   ├── rules/                # 条件规则（按路径加载）
 │   ├── agents/               # 意图路由 agent
-│   ├── skills/               # 所有 skill（19）
+│   ├── skills/               # 8 自建（f-* + f-logme 私有 + skill-template）
 │   └── projects/             # 每个项目的 MEMORY.md
 │
 ├── share/                    # 公开分享模块

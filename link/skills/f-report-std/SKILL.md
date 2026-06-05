@@ -1,5 +1,5 @@
 ---
-name: f-report-framework
+name: f-report-std
 description: |
   报告写作横向规范 — 内容结构、数据呈现、论证逻辑、图表约定。
   4 套模板（研究/分析/对比/方案）+ 通用规则。
@@ -8,7 +8,7 @@ description: |
 allowed-tools: Read, Write, Glob, Grep, Bash
 ---
 
-# f-report-framework — 报告写作规范
+# f-report-std — 报告写作规范
 
 横向能力，定义"什么是好的报告"。**不绑定任何输出平台**（飞书/Word/Notion 都适用），具体飞书格式委派 `f-doc`。
 
@@ -78,7 +78,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash
 
 ```
 用户："写一份 X 报告"
-  └─→ f-report-framework（选模板 + 规范）
+  └─→ f-report-std（选模板 + 规范）
        ├─→ f-research（搜索调研）         [可选]
        ├─→ f-research-report（出报告）     [执行]
        │     └─→ f-doc（飞书格式 + 图子文档）
@@ -103,4 +103,4 @@ cat "$SKILL_DIR/config.yaml"
 
 ## 线上文档索引
 
-> f-report-framework 直接创建的文档。通常通过 f-research-report/f-logme 创建，不直接索引。
+> f-report-std 直接创建的文档。通常通过 f-research-report/f-logme 创建，不直接索引。

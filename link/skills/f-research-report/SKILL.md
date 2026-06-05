@@ -3,7 +3,7 @@ name: f-research-report
 user-invocable: true
 description: |
   报告生成 — 读 JSON / 大纲 / 自由素材 → 结构化 markdown 报告。
-  3 种输入模式，按用户场景自动选择。内容规范委派 f-report-framework。
+  3 种输入模式，按用户场景自动选择。内容规范委派 f-report-std。
   飞书输出委派 f-doc（图子文档工作流 G）。
 allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 ---
@@ -12,7 +12,7 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 
 报告生成模块，将研究结果/大纲/自由素材转换为可读报告。
 
-> **格式硬约束** → `../f-report-framework/rules.d/f-report-framework.md`（全局加载）
+> **格式硬约束** → `../f-report-std/rules.d/f-report-std.md`（全局加载）
 > **飞书格式** → `../f-doc/SKILL.md`（工作流 G 处理图子文档）
 
 ## 3 种输入模式
@@ -29,18 +29,18 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 用户："写一份 X 报告"
   ├─ 检查当前目录：有 outline.yaml + results/*.json → JSON 模式
   ├─ 检查用户输入：含章节大纲（如"分析现状/根因/建议"） → 大纲模式
-  └─ 其他 → 自由模式（调 f-report-framework 选模板 + f-research 搜索）
+  └─ 其他 → 自由模式（调 f-report-std 选模板 + f-research 搜索）
 ```
 
 ## 模板委派
 
-任何模式都委派 `f-report-framework` 选模板：
+任何模式都委派 `f-report-std` 选模板：
 - `research` — 调研/研究
 - `analysis` — 分析/复盘
 - `comparison` — 对比/选型
 - `proposal` — 方案/规划
 
-模板在 `../f-report-framework/templates/`。
+模板在 `../f-report-std/templates/`。
 
 ## 工作流（按模式）
 
@@ -83,7 +83,7 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 - "技术调研：背景/现状/趋势/建议"
 
 #### Step 大纲.2: 选模板
-按大纲结构匹配 `f-report-framework/templates/`：
+按大纲结构匹配 `f-report-std/templates/`：
 - 现状+原因+建议 → `analysis.md`
 - 候选对比 → `comparison.md`
 - 背景+现状+趋势 → `research.md`
@@ -157,7 +157,7 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 见 `../f-doc/SKILL.md` 工作流 G（含 lark-cli 完整命令）。
 
 ## 关联 Skills
-- `f-report-framework` — 内容规范、模板（必读）
+- `f-report-std` — 内容规范、模板（必读）
 - `f-research` — 搜索调研
 - `f-research-deep` — 批量研究
 - `f-doc` — 飞书格式 + 图子文档 lark-cli 命令
