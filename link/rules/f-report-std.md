@@ -1,0 +1,1 @@
+/home/francis/git/ccconfig/link/skills/f-report-std/rules.d/f-report-std.md

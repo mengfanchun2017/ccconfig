@@ -1,17 +1,25 @@
 #!/bin/bash
 # Claude Skills 管理脚本
-# 功能：同步自建 skill 符号链接、一键装 marketplace skill
+# 功能：同步自建 skill 符号链接 + 装 marketplace 外部 plugin（一站式）
 #
-# 三种 skill 来源：
+# 三个 skill 来源（聚合到 ~/.claude/skills/ 和 claude plugin list）：
 #   自建 f-*      → symlink 到 ~/.claude/skills/（本仓 link/skills/）
 #   私有 f-logme  → symlink（只本机，不发布）
-#   外部 skill    → claude plugin install 从 marketplace 装
+#   外部 14 个     → claude plugin install 从 claude-skills marketplace
+#   skill-template→ symlink（dev only，不在 marketplace）
+#
+# 4 个 skill 源独立：
+#   lark-cli (npm)     → 系统层 CLI 工具，update.sh 独立管理
+#   lark-* (8 skill)   → marketplace 装（在 lark-doc SKILL 里 requires lark-cli binary）
+#   vinvcn 6 skill     → marketplace 装（自动跟 vinvcn/mattpocock-skills-zh-CN 仓更新）
+#   f-* (8 self-built) → symlink（ccconfig 私有工作副本，claude-skills marketplace 同步发布）
 #
 # 使用：
-#   bash ccconfig/init-skill.sh                  # 同步自建 skill
-#   bash ccconfig/init-skill.sh install          # 一键装外部 skill（先 add marketplace 再 install）
-#   bash ccconfig/init-skill.sh list             # 查看已安装 skills
-#   bash ccconfig/init-skill.sh status           # 查看状态
+#   bash ccconfig/init-skill.sh                  # 同步 + 装外部（默认 = sync）
+#   bash ccconfig/init-skill.sh sync             # 同上（明确子命令）
+#   bash ccconfig/init-skill.sh cleanup          # 单独清 ~/.claude/skills/ 断链
+#   bash ccconfig/init-skill.sh list             # 查看已安装 skills（symlink + plugin）
+#   bash ccconfig/init-skill.sh status           # 状态总览
 
 export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 set -e
@@ -22,24 +30,13 @@ CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 MARKETPLACE_REPO="<your-github-username>/claude-skills"
 MARKETPLACE_NAME="<your-github-username>-skills"
 
-# 外部 skill 列表（marketplace + lark 官方 npm）
-MARKETPLACE_PLUGINS=(
-    "caveman@<your-github-username>-skills:vinvcn/mattpocock-skills-zh-CN"
-    "diagnose@<your-github-username>-skills:vinvcn/mattpocock-skills-zh-CN"
-    "grill-me@<your-github-username>-skills:vinvcn/mattpocock-skills-zh-CN"
-    "improve-codebase-architecture@<your-github-username>-skills:vinvcn/mattpocock-skills-zh-CN"
-    "write-a-skill@<your-github-username>-skills:vinvcn/mattpocock-skills-zh-CN"
-    "zoom-out@<your-github-username>-skills:vinvcn/mattpocock-skills-zh-CN"
-)
-LARK_PLUGINS=(
-    "lark-shared"
-    "lark-doc"
-    "lark-base"
-    "lark-sheets"
-    "lark-wiki"
-    "lark-whiteboard"
-    "lark-drive"
-    "lark-calendar"
+# 外部 plugin 列表（从 claude-skills marketplace 装）
+# 14 = vinvcn 6 (mattpocock-skills-zh-CN) + lark-* 8 (larksuite/cli)
+EXTERNAL_PLUGINS=(
+    "caveman" "diagnose" "grill-me"
+    "improve-codebase-architecture" "write-a-skill" "zoom-out"
+    "lark-shared" "lark-doc" "lark-base" "lark-sheets"
+    "lark-wiki" "lark-whiteboard" "lark-drive" "lark-calendar"
 )
 
 RED='\033[0;31m'
@@ -55,9 +52,10 @@ bad() { echo -e "$1${RED}"; }
 info() { echo -e "$1${GRAY}"; }
 warn() { echo -e "$1${YELLOW}"; }
 
-# 同步自建 skill（symlink）
+# 同步自建 skill（symlink）+ 装 14 个 external plugin（idempotent）
 do_sync() {
-    title "同步自建 skill → ~/.claude/skills/"
+    title "阶段 1/3: symlink 自建 skill → ~/.claude/skills/"
+
     mkdir -p "$CLAUDE_SKILLS_DIR"
 
     if [[ ! -d "$SKILLS_SRC" ]]; then
@@ -75,12 +73,10 @@ do_sync() {
             info "  $name: 已链接"
             skipped=$((skipped + 1))
         elif [[ -L "$target" ]] && [[ ! -e "$target" ]]; then
-            # 源已被删（如 external skill 移到 marketplace）— 清掉断链
             rm -f "$target"
             good "  $name: ✓ 删断链（源已移走）"
             cleaned=$((cleaned + 1))
         elif [[ -L "$target" ]]; then
-            # 指向错误目标 — 重建
             rm -f "$target"
             ln -s "$skill_dir" "$target"
             good "  $name: ✓ (修复链接)"
@@ -94,9 +90,46 @@ do_sync() {
             linked=$((linked + 1))
         fi
     done
+    echo ""
+    good "  symlink: $linked 新建, $skipped 跳过, $cleaned 删断链"
+
+    # 阶段 2: 检 marketplace 并 add
+    title "阶段 2/3: marketplace 装 14 个 external plugin"
+
+    info "检 marketplace: $MARKETPLACE_REPO"
+    if claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE_NAME"; then
+        good "  ✓ marketplace 已添加"
+    else
+        if claude plugin marketplace add "$MARKETPLACE_REPO" --scope user 2>&1 | tail -3; then
+            good "  ✓ marketplace 已添加"
+        else
+            warn "  ! marketplace 添加失败（无网络？继续）"
+        fi
+    fi
+    echo ""
+
+    # 阶段 3: 14 个 external plugin install（idempotent）
+    info "装 14 个 external plugin（已装就 skip）:"
+    local installed=0 already=0 failed=0
+    for plugin in "${EXTERNAL_PLUGINS[@]}"; do
+        if claude plugin list 2>/dev/null | grep -q "$plugin@$MARKETPLACE_NAME"; then
+            info "  $plugin: 已装"
+            already=$((already + 1))
+        else
+            if claude plugin install "$plugin@$MARKETPLACE_NAME" --scope user 2>&1 | tail -1 | grep -qiE "installed|success|✓"; then
+                good "  $plugin: ✓"
+                installed=$((installed + 1))
+            else
+                warn "  $plugin: 失败（重试或检网络）"
+                failed=$((failed + 1))
+            fi
+        fi
+    done
+    echo ""
+    good "  external plugin: $installed 新装, $already 已装, $failed 失败"
 
     echo ""
-    good "同步完成: $linked 新建, $skipped 跳过, $cleaned 删断链"
+    good "完成。验证: claude plugin list"
 }
 
 # 清理所有 ~/.claude/skills/ 里源已不存在的断链
@@ -117,51 +150,20 @@ do_cleanup() {
     good "清理完成: $count 个"
 }
 
-# 一键装外部 skill（marketplace + lark npm）
-do_install() {
-    title "一键装外部 skill"
-
-    info "1. 添加 marketplace: $MARKETPLACE_REPO"
-    if claude plugin marketplace add "$MARKETPLACE_REPO" --scope user 2>&1; then
-        good "   ✓ marketplace 已添加"
-    else
-        warn "   ! marketplace 添加失败（可能已存在）"
-    fi
-    echo ""
-
-    info "2. 从 marketplace 装 6 个三方 skill"
-    for entry in "${MARKETPLACE_PLUGINS[@]}"; do
-        local plugin="${entry%%:*}"
-        local source="${entry##*:}"
-        info "   → $plugin  ($source)"
-        if claude plugin install "$plugin" 2>&1 | tail -1; then
-            good "     ✓"
-        else
-            warn "     ! 失败（可能已装）"
-        fi
-    done
-    echo ""
-
-    info "3. lark-* 8 个：官方 npm 装 lark-cli 拿全功能"
-    info "   ${YELLOW}npm install -g @larksuite/cli && lark-cli auth login${NC}"
-    warn "   跳过自动执行 — 涉及全局 npm 安装和飞书认证，需你确认"
-    info "   若只想要 skill（不开 CLI），改成: claude plugin install lark-base@<your-github-username>-skills"
-    echo ""
-
-    info "4. 更新已装的 marketplace skill"
-    if claude plugin marketplace update "$MARKETPLACE_NAME" 2>&1 | tail -3; then
-        good "   ✓"
-    fi
-    echo ""
-    good "完成。验证: claude plugin list"
-}
-
 do_list() {
-    echo "=== 自建 skill (link/skills/) ==="
+    echo "=== 自建 skill (link/skills/ 实体) ==="
     ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
     echo ""
-    echo "=== Marketplace 已装（claude plugin list）==="
-    claude plugin list 2>&1 | head -20
+    echo "=== ~/.claude/skills/ (symlink) ==="
+    for d in "$CLAUDE_SKILLS_DIR"/*; do
+        [[ -e "$d" ]] || continue
+        local marker="✓"
+        [[ -L "$d" ]] || marker="○"
+        echo "  $marker $(basename "$d")"
+    done
+    echo ""
+    echo "=== claude plugin list (marketplace 已装) ==="
+    claude plugin list 2>&1 | head -30
 }
 
 do_status() {
@@ -182,24 +184,23 @@ do_status() {
         echo -e "  ${GREEN}$marker${NC} $(basename "$d")"
         count=$((count + 1))
     done
-    [[ $count -eq 0 ]] && echo "  ${GRAY}(空)${NC}"
+    [[ $count -eq 0 ]] && echo -e "  ${GRAY}(空)${NC}"
 
     echo ""
-    echo -e "${CYAN}Marketplace 已装（claude plugin list）${NC}"
-    claude plugin list 2>&1 | head -15
+    echo -e "${CYAN}claude plugin list (marketplace 已装)${NC}"
+    claude plugin list 2>&1 | head -30
     echo ""
 }
 
 action="${1:-sync}"
 case "$action" in
     sync)    do_sync ;;
-    install) do_install ;;
     cleanup) do_cleanup ;;
     list)    do_list ;;
     status)  do_status ;;
-    *)       echo "用法: $0 {sync|install|cleanup|list|status}"; exit 1 ;;
+    *)       echo "用法: $0 {sync|cleanup|list|status}"; exit 1 ;;
 esac
 
 echo ""
-good "提示: 新环境先跑 sync + install"
+good "提示: 新环境先跑 sync (symlink + 装 14 external plugin 一条命令)"
 exit 0

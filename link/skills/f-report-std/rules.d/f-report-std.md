@@ -1,6 +1,6 @@
 # 报告写作规范（全局约束）
 
-> 完整模板+工作流 → `f-report-framework` skill。4 套模板 → `templates/`。
+> 完整模板+工作流 → `f-report-std` skill。4 套模板 → `templates/`。
 > 飞书格式硬约束（lark-table 822/无手动编号）→ `f-doc` skill。
 
 ## 结构
