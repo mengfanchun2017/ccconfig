@@ -5,14 +5,13 @@
 # 三个 skill 来源（聚合到 ~/.claude/skills/ 和 claude plugin list）：
 #   自建 f-*      → symlink 到 ~/.claude/skills/（本仓 link/skills/）
 #   私有 f-logme  → symlink（只本机，不发布）
-#   外部 2 monorepo → claude plugin install 从 claude-skills marketplace（mattpocock-skills + lark-suite）
+#   外部 1 monorepo → claude plugin install 从 claude-skills marketplace（mattpocock-skills）
 #   skill-template→ symlink（dev only，不在 marketplace）
 #
-# 4 层 skill 源独立：
-#   lark-cli (npm)        → 系统层 CLI 工具，update.sh 独立管理
-#   lark-suite (plugin)   → larksuite/cli 24+ lark-* skill 一次装（在 SKILL.md 里 requires lark-cli binary）
-#   mattpocock-skills     → vinvcn/mattpocock-skills-zh-CN 18 skill 一次装（自动跟上游更新）
-#   f-* (8 self-built)    → symlink（ccconfig 私有工作副本，claude-skills marketplace 同步发布）
+# 3 层 skill 源独立：
+#   lark-cli (npm)         → 系统层 CLI 工具，update.sh 独立管理（f-doc 调用 lark-cli 命令执行飞书操作）
+#   mattpocock-skills      → vinvcn/mattpocock-skills-zh-CN 18 skill 一次装（自动跟上游更新）
+#   f-* (8 self-built)     → symlink（ccconfig 私有工作副本，claude-skills marketplace 同步发布）
 #
 # 使用：
 #   bash ccconfig/init-skill.sh                  # 同步 + 装外部（默认 = sync）
@@ -31,13 +30,11 @@ MARKETPLACE_REPO="<your-github-username>/claude-skills"
 MARKETPLACE_NAME="<your-github-username>-skills"
 
 # 外部 plugin 列表（从 claude-skills marketplace 装）
-# 2 个 monorepo 入口，每个装一次暴露全部 sub-skill
-# - mattpocock-skills: vinvcn/mattpocock-skills-zh-CN 的 18 skill（caveman/diagnose/grill-me/...）
-# - lark-suite: larksuite/cli 的 24+ lark-* skill（lark-base/lark-doc/lark-wiki/...）
-# 上游都是 monorepo，按 subdir 拆会触发 6×/8× 重复 clone，marketplace.json 已重塑为 root path
+# 1 个 monorepo 入口（mattpocock-skills），装一次暴露 18 个 sub-skill
+# lark-* 不在 marketplace — 改用 npm 全局装 lark-cli（@larksuite/cli），由 f-doc 编排
+# 原因：larksuite/cli monorepo 一次装暴露 26+ lark-* skill，dialog 太噪音
 EXTERNAL_PLUGINS=(
     "mattpocock-skills"
-    "lark-suite"
 )
 
 RED='\033[0;31m'
@@ -207,5 +204,5 @@ case "$action" in
 esac
 
 echo ""
-good "提示: 新环境先跑 sync (symlink + 装 2 external plugin 一条命令)"
+good "提示: 新环境先跑 sync (symlink + 装 1 external plugin + 装 lark-cli 一条命令)"
 exit 0

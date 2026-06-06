@@ -32,10 +32,10 @@ fi
 
 ## 前置条件
 
-操作前 MUST 读取：
-1. `../lark-shared/SKILL.md` — 认证、权限
-2. `../lark-doc/SKILL.md` — 文档读写（fetch/create/update 参数）
-3. `references/feishu-office-bridge.md` — 跨格式转换（涉及 Office 时）
+操作前 MUST 确认：
+1. `lark-cli` binary 已装（`which lark-cli`）— 全部飞书操作走这个，**不依赖 lark-* skill**
+2. `references/feishu-office-bridge.md` — 跨格式转换（涉及 Office 时）
+3. 不确定的参数：`lark-cli <command> --help`（lark-cli 自带 help，比查 skill 快）
 
 > 完整格式约束+安全规则参考 → `references/write-checklist.md`
 
