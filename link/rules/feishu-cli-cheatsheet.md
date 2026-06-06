@@ -109,6 +109,35 @@ lark-cli base +field-create --base-token $T --table-id tblXXX \
   └─ 替换文本 → str_replace（pattern 需文档内唯一）
 ```
 
+## docx title 修改（Untitle 修复）— 已知问题
+
+**lark-cli 当前无直接 rename docx title 的命令**，所有 OpenAPI 试错结果：
+
+| 试错 | 结果 |
+|------|------|
+| `lark-cli docs +update --api-version v1 --new-title "X"` | **wipes 全部内容**（含白板），仅改 title |
+| `lark-cli api PATCH /open-apis/docx/v1/documents/{id} --data '{"title":"X"}'` | 报 `1770001 invalid param`（该端点无 title 字段）|
+| `lark-cli api PATCH /open-apis/drive/v1/files/{id} --data '{"name":"X"}'` | 报 `99992402 field validation failed`（drive 不支持 docx type）|
+| `lark-cli api PATCH /open-apis/drive/v1/files/{id} --data '{"title":"X","type":"docx"}'` | 报 `99992402 field validation failed` |
+| `lark-cli api PUT /open-apis/docx/v1/documents/{id}` | 报 404（端点不存在）|
+| `lark-cli api PATCH /open-apis/wiki/v2/spaces/{sid}/nodes/{nid}` | 仅 wiki 节点 docx 适用，且需要正确 space_id |
+
+**✅ 唯一安全做法**：`str_replace` 直接改 `<title>...</title>` 块的内容：
+
+```bash
+# 修复 Untitled 标题（保留全部 block + 嵌入资源）
+cat << 'EOF' | lark-cli docs +update --api-version v2 --doc $DOC --as user \
+  --command str_replace --pattern "Untitled" --content -
+算力服务模式区别与数据安全管理方案汇报
+EOF
+```
+
+**原理**：str_replace 在 title block 内部改文本，不动其他 block，白板/图片/电子表格保留。
+**前置**：必须先 `docs +fetch` 确认 title 当前是 "Untitled"（fetch 默认 detail 也显示）。
+**预防**：`docs +create` 时**必须**显式 `--title "..."`，否则新文档默认 "Untitled"，事后改很痛。
+
+<!-- 2026-06-06 | docs title 修复 | 4次试错 OpenAPI → 唯一办法 str_replace 改 title 块内容。已验证 2 个 docx 修复成功 -->
+
 ## 新增踩坑（追加在此）
 
 ### colgroup 宽度修复必须用 block_replace
