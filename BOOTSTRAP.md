@@ -135,7 +135,7 @@ bash init.sh all
 |------|------|----------|
 | 1/3 | `init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配置 LLM（从 conf/llm.json 读取当前后端）/ 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
 | 2/3 | `init-mcp.sh` | 装并同步 MCP 服务器 |
-| 3/3 | `init-skill.sh sync` | 链接自建 skill + 装 2 个外部 monorepo marketplace plugin（幂等，`claude plugin list` 一次到位）|
+| 3/3 | `init-skill.sh sync` | 链接自建 skill + 装 1 个外部 monorepo marketplace plugin（mattpocock-skills，幂等）|
 
 **全程无输入**：因为 gh 已经登录，第 1 步的 `gh auth setup-git` 幂等跑过；
 LLM 默认值是 deepseek；MCP 和 skills 都是已配置的服务器列表。
@@ -219,7 +219,7 @@ cd ~/git/ccconfig && git pull
 # 2. 重建符号链接（CLAUDE.md / settings.json / rules / projects/）
 bash setup-links.sh
 
-# 3. 同步新 skill（symlink + 装 2 个 monorepo marketplace plugin，幂等）
+# 3. 同步新 skill（symlink + 装 1 个 monorepo marketplace plugin，幂等）
 bash init-skill.sh sync
 
 # 4. 状态检查（12 项）
