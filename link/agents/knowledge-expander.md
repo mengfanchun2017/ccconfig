@@ -21,16 +21,16 @@ model: inherit
 
 ## 执行步骤
 
-### 1. 搜索（委托 f-research 三源并行）
+### 1. 搜索（委托 f-research-domain 三源并行）
 
-搜索策略由 `skills/f-research/SKILL.md` 定义，本 agent 直接复用：
+搜索策略由 `skills/f-research-domain/SKILL.md` 定义，本 agent 直接复用：
 
 - **三源并行**（必须同时执行）：WebSearch + `mcp__minimax__web_search` + `mcp__tavily__tavily_search`
 - **标注来源**：`[web]` / `[mm]` / `[tv]`
 - **Python 过滤**：原始数据不直接进 context，用 Python 过滤后只保留 print() 输出，原始数据保存到 `/tmp/tavily_search_{timestamp}.json`
 - **按 URL 去重**，每个源保留前 5 条
 
-详见 `f-research` skill 的「搜索策略」和「聚合去重」section。
+详见 `f-research-domain` skill 的「搜索策略」和「聚合去重」section。
 
 ### 2. 去重整理
 

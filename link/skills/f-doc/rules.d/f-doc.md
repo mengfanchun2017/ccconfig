@@ -20,7 +20,7 @@
   3. **代码**（完整 python 脚本，可重跑）
 - **父文档嵌入**：用 `block_insert_after` 把图块嵌入到指定位置，**绝不复制图**
 - **关系**：子文档 = 详细档案（唯一源），父文档 = 摘要嵌入
-- **python 选型**：常规图 matplotlib + seaborn；交互图 plotly。详见 `../f-research-report/SKILL.md` 工作流 G
+- **python 选型**：常规图 matplotlib + seaborn；交互图 plotly。详见 `../f-report-gen/SKILL.md` 工作流 G
 - **保存位置**：`/tmp/figs/<图名>.{py,png}`（脚本可追溯）
 
 ## 常用 wiki 节点

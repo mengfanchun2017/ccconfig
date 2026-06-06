@@ -17,9 +17,9 @@ allowed-tools: Read, Write, Glob, Grep, Bash
 | 本 skill 负责 | 不负责（委派其他 skill） |
 |--------------|---------------------|
 | 内容结构（H1/章节顺序/概括） | 飞书格式（lark-table 822 等）→ f-doc |
-| 论证规范（数据+因果+不确定） | 搜索/数据收集 → f-research |
+| 论证规范（数据+因果+不确定） | 搜索/数据收集 → f-research-domain |
 | 数据呈现原则（对比用表/数值量级） | 图表生成（python/mermaid）→ f-doc 工作流 G |
-| 模板（4 套） | 报告工作流执行 → f-research-report |
+| 模板（4 套） | 报告工作流执行 → f-report-gen |
 | 引用规范（国标/通用性） | 文档索引维护 → f-doc |
 
 ## 4 套模板
@@ -63,8 +63,8 @@ allowed-tools: Read, Write, Glob, Grep, Bash
 
 | 步骤 | 责任方 | 工具 |
 |------|--------|------|
-| 1. 写 python 脚本（图） | f-research-report | matplotlib/seaborn/plotly |
-| 2. 跑脚本 → /tmp/figs/*.png | f-research-report | python3 |
+| 1. 写 python 脚本（图） | f-report-gen | matplotlib/seaborn/plotly |
+| 2. 跑脚本 → /tmp/figs/*.png | f-report-gen | python3 |
 | 3. 建子文档（图 + 解读 + 代码 3 段） | f-doc | lark-cli docs +create |
 | 4. 父文档 block_insert_after 嵌入 | f-doc | lark-cli docs +update |
 | 5. 父文档加"详见《<子文档名>》" | f-doc | lark-cli |
@@ -79,8 +79,8 @@ allowed-tools: Read, Write, Glob, Grep, Bash
 ```
 用户："写一份 X 报告"
   └─→ f-report-std（选模板 + 规范）
-       ├─→ f-research（搜索调研）         [可选]
-       ├─→ f-research-report（出报告）     [执行]
+       ├─→ f-research-domain（搜索调研）         [可选]
+       ├─→ f-report-gen（出报告）     [执行]
        │     └─→ f-doc（飞书格式 + 图子文档）
        └─→ 完成
 ```
@@ -97,10 +97,10 @@ cat "$SKILL_DIR/config.yaml"
 
 ## 关联 Skills
 - `f-doc` — 飞书格式 + 图子文档工作流 G
-- `f-research` — 搜索调研
-- `f-research-report` — 报告生成执行
+- `f-research-domain` — 搜索调研
+- `f-report-gen` — 报告生成执行
 - `f-logme` — OKR/SUM 总结可参考本框架
 
 ## 线上文档索引
 
-> f-report-std 直接创建的文档。通常通过 f-research-report/f-logme 创建，不直接索引。
+> f-report-std 直接创建的文档。通常通过 f-report-gen/f-logme 创建，不直接索引。
