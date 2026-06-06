@@ -144,3 +144,29 @@ lark-cli base +record-delete --base-token $T --table-id $TBL \
 - `lark-cli api POST /open-apis/bitable/v1/.../records/search` 需要 scope `base:record:retrieve`
 - ailab 账号无此 scope（authorization missing_scope）
 - ✅ 用 `+record-search` 走 lark-cli 自己的 search 端点，已包含 record_id_list
+
+### docs v2 命令 flag 命名（--command 不是 --mode）
+- 速查表老条目写 v2 用 `--mode`，实际 v2 update 用 `--command`：`str_replace | block_delete | block_insert_after | block_copy_insert_after | block_replace | block_move_after | overwrite | append`
+- ✅ v2 +create：`--api-version v2 --content "..."`（不用 `--markdown`）
+- ✅ v2 +fetch：`--api-version v2 --doc X --detail full`（含 colgroup 验证）
+- ✅ v2 +update overwrite：`--command overwrite --doc-format markdown --content -`（stdin 支持 `-`）
+- ✅ v2 +update 插入：`--command block_insert_after --block-id "X" --content -`
+- ❌ v2 +update --mode overwrite → 报 `--command is required`
+
+### docs v2 +create 长 markdown 静默丢 heading
+- v2 +create 走 `PUT /open-apis/docs_ai/v1/documents/{id}`（AI 文档 API）
+- 长 markdown（含嵌套 H3 + 多 H2 + 表格）解析时**静默丢部分 heading**（fetch 后只看到部分 H2/H3）
+- 表现：创建 `ok: true` + 表格都成功 + 部分 heading 消失，无明确错误
+- ✅ 修复：fetch with-ids 拿 block_id 序列，用 `--command block_insert_after --block-id "<table_id>" --content "## 缺失H2\n\n文字"` 逐段补全
+- ✅ 预防：内容短用 v2 +create 一次性 ok；内容长分多次 block_insert_after
+
+### docs v1 lark-table 强制 lark-tr 标签
+- v1 `+create` 用 `<tr><td>` → 报 `LARK_TABLE_INVALID_CHILD: lark-table only accepts <lark-tr> as direct children`
+- ✅ v1：必须用 `<lark-tr><lark-td>` 标签
+- ⚠️ v1 已被 deprecated（warning 提示）；v2 接受 `<tr><td>` 但 degrade table attribute（cols/rows/header-* 5 个属性）
+- v2 推荐写法：lark-table 内用 `<tr><td>`（HTML 标签），colgroup 保留 `<col width>` — degrade 不影响渲染
+
+### docs @file 路径必须相对当前目录
+- 速查表 base 章节已记：`--json @/tmp/file` 报"must be relative"，`cd /tmp && --json @file` 才对
+- 同样适用于 docs v2：`--markdown @/tmp/x` → 报错；`cd /tmp && --markdown @x` 才行
+- ✅ 最稳：heredoc + `--content -`（stdin）避开路径问题
