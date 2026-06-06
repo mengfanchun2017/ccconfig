@@ -1,21 +1,20 @@
 #!/bin/bash
 # Claude Skills 管理脚本
-# 功能：同步自建 skill 符号链接 + 装 marketplace 外部 plugin（一站式）
+# 功能：同步自建 skill 符号链接 + 装第三方 skill（npx skills 幂等）
 #
 # 三个 skill 来源（聚合到 ~/.claude/skills/ 和 claude plugin list）：
-#   自建 f-*      → symlink 到 ~/.claude/skills/（本仓 link/skills/）
-#   私有 f-logme  → symlink（只本机，不发布）
-#   外部 1 monorepo → claude plugin install 从 claude-skills marketplace（mattpocock-skills）
-#   skill-template→ symlink（dev only，不在 marketplace）
+#   自建 f-*         → symlink 到 ~/.claude/skills/（本仓 link/skills/）
+#   私有 f-logme     → symlink（只本机，不发布）
+#   第三方 (npx)     → npx skills add 装到 ~/.agents/skills/，自动 symlink 到 ~/.claude/skills/
+#   skill-template   → symlink（dev only，不在 marketplace）
 #
 # 3 层 skill 源独立：
-#   lark-cli (npm)         → 系统层 CLI 工具，update.sh 独立管理（f-doc 调用 lark-cli 命令执行飞书操作）
-#   mattpocock-skills      → vinvcn/mattpocock-skills-zh-CN 18 skill 一次装（自动跟上游更新）
-#   f-* (8 self-built)     → symlink（ccconfig 私有工作副本，claude-skills marketplace 同步发布）
+#   lark-cli (npm)              → 系统层 CLI 工具，update.sh 独立管理（f-doc 编排）
+#   第三方 (mattpocock)         → npx skills 装 6 个，conf/third-party-skills.txt 列表管理
+#   f-* (8 self-built)          → symlink（ccconfig 私有工作副本，claude-skills marketplace 同步发布）
 #
 # 使用：
-#   bash ccconfig/init-skill.sh                  # 同步 + 装外部（默认 = sync）
-#   bash ccconfig/init-skill.sh sync             # 同上（明确子命令）
+#   bash ccconfig/init-skill.sh sync             # 同步自建 + 装第三方
 #   bash ccconfig/init-skill.sh cleanup          # 单独清 ~/.claude/skills/ 断链
 #   bash ccconfig/init-skill.sh list             # 查看已安装 skills（symlink + plugin）
 #   bash ccconfig/init-skill.sh status           # 状态总览
@@ -26,16 +25,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_SRC="$SCRIPT_DIR/link/skills"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
+THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
 MARKETPLACE_REPO="<your-github-username>/claude-skills"
 MARKETPLACE_NAME="<your-github-username>-skills"
 
-# 外部 plugin 列表（从 claude-skills marketplace 装）
-# 1 个 monorepo 入口（mattpocock-skills），装一次暴露 18 个 sub-skill
-# lark-* 不在 marketplace — 改用 npm 全局装 lark-cli（@larksuite/cli），由 f-doc 编排
-# 原因：larksuite/cli monorepo 一次装暴露 26+ lark-* skill，dialog 太噪音
-EXTERNAL_PLUGINS=(
-    "mattpocock-skills"
-)
+# EXTERNAL_PLUGINS 留空（2026-06-06 改设计）：第三方 skill 走 npx skills（user-managed 干净显示）
+# 保留数组兼容旧 sync 流程；marketplace.json 仍发布 mattpocock-skills 给其他人装
+EXTERNAL_PLUGINS=()
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -50,8 +46,9 @@ bad() { echo -e "$1${RED}"; }
 info() { echo -e "$1${GRAY}"; }
 warn() { echo -e "$1${YELLOW}"; }
 
-# 同步自建 skill（symlink）+ 装 external plugin（idempotent）
-do_sync() {
+# 阶段 1：symlink 自建 skill 到 ~/.claude/skills/
+# 保护 npx skills 装的 symlink：目标不在 $SKILLS_SRC/ 下就跳过（user-managed）
+do_link_self_built() {
     title "阶段 1/3: symlink 自建 skill → ~/.claude/skills/"
 
     mkdir -p "$CLAUDE_SKILLS_DIR"
@@ -61,11 +58,7 @@ do_sync() {
         return 1
     fi
 
-    # 防御：github URL 走 HTTPS（不靠 init-ubuntu.sh, 让 sync 自带）
-    # 不加这行，claude plugin install external 会用 git@github.com clone 失败
-    git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
-
-    local linked=0 skipped=0 cleaned=0
+    local linked=0 skipped=0 cleaned=0 user_managed=0
     for skill_dir in "$SKILLS_SRC"/*; do
         [[ -d "$skill_dir" ]] || continue
         local name=$(basename "$skill_dir")
@@ -79,10 +72,16 @@ do_sync() {
             good "  $name: ✓ 删断链（源已移走）"
             cleaned=$((cleaned + 1))
         elif [[ -L "$target" ]]; then
-            rm -f "$target"
-            ln -s "$skill_dir" "$target"
-            good "  $name: ✓ (修复链接)"
-            linked=$((linked + 1))
+            # symlink 目标存在但不在 $SKILLS_SRC/ → user-managed（npx skills 装的）
+            if [[ "$(readlink -f "$target")" != "$(readlink -f "$skill_dir")" ]]; then
+                info "  $name: user-managed (npx 等)，保留"
+                user_managed=$((user_managed + 1))
+            else
+                rm -f "$target"
+                ln -s "$skill_dir" "$target"
+                good "  $name: ✓ (修复链接)"
+                linked=$((linked + 1))
+            fi
         elif [[ -d "$target" ]]; then
             info "  $name: 本地已有（非链接），跳过"
             skipped=$((skipped + 1))
@@ -93,10 +92,12 @@ do_sync() {
         fi
     done
     echo ""
-    good "  symlink: $linked 新建, $skipped 跳过, $cleaned 删断链"
+    good "  symlink: $linked 新建, $skipped 跳过, $cleaned 删断链, $user_managed user-managed"
+}
 
-    # 阶段 2: 检 marketplace 并 add
-    title "阶段 2/3: marketplace 装 external plugin"
+# 阶段 2：检 marketplace（保留 <your-github-username>-skills 给 f-* 自动跟）
+do_ensure_marketplace() {
+    title "阶段 2/3: marketplace 检（<your-github-username>-skills）"
 
     info "检 marketplace: $MARKETPLACE_REPO"
     if claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE_NAME"; then
@@ -109,32 +110,62 @@ do_sync() {
         fi
     fi
     echo ""
-
-    # 阶段 3: external plugin install（idempotent）
-    info "装 ${#EXTERNAL_PLUGINS[@]} 个 external plugin（已装就 skip）:"
-    local installed=0 already=0 failed=0
-    for plugin in "${EXTERNAL_PLUGINS[@]}"; do
-        if claude plugin list 2>/dev/null | grep -q "$plugin@$MARKETPLACE_NAME"; then
-            info "  $plugin: 已装"
-            already=$((already + 1))
-        else
-            if claude plugin install "$plugin@$MARKETPLACE_NAME" --scope user 2>&1 | tail -1 | grep -qiE "installed|success|✓"; then
-                good "  $plugin: ✓"
-                installed=$((installed + 1))
-            else
-                warn "  $plugin: 失败（重试或检网络）"
-                failed=$((failed + 1))
-            fi
-        fi
-    done
-    echo ""
-    good "  external plugin: $installed 新装, $already 已装, $failed 失败"
-
-    echo ""
-    good "完成。验证: claude plugin list"
+    info "  marketplace 保留 <your-github-username>-skills（自建 f-* plugin 在里面；第三方用户走 npx skills 装）"
 }
 
-# 清理所有 ~/.claude/skills/ 里源已不存在的断链
+# 阶段 3：npx skills 装第三方 skill（幂等，从 conf/third-party-skills.txt 读列表）
+# 已装就 skip（npx skills add 本身幂等）；不重写 ~/.claude/skills/（npx 自己建 symlink）
+do_install_third_party() {
+    title "阶段 3/3: npx skills 装第三方 skill（conf/third-party-skills.txt）"
+
+    if [[ ! -f "$THIRD_PARTY_CONF" ]]; then
+        warn "  conf 清单不存在: $THIRD_PARTY_CONF — 跳过"
+        return 0
+    fi
+
+    # 防御：github URL 走 HTTPS（init-ubuntu.sh 应已配，这里双保险）
+    git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
+
+    local installed=0 already=0 failed=0
+    while IFS= read -r line; do
+        # 跳过空行/注释
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+        # 解析 `<source>  <skill-name>`（两个空格或 tab 分隔）
+        local source=$(echo "$line" | awk '{print $1}')
+        local skill=$(echo "$line" | awk '{print $2}')
+
+        # 检查 ~/.claude/skills/<skill> 是否已存在（npx 装过会有 symlink）
+        if [[ -e "$CLAUDE_SKILLS_DIR/$skill" ]]; then
+            info "  $skill ($source): 已装"
+            already=$((already + 1))
+            continue
+        fi
+
+        # 调 npx skills add
+        if npx --yes skills@latest add "$source" --skill "$skill" -g -y 2>&1 | grep -qE "Installed 1 skill|✓.*$skill"; then
+            good "  $skill ($source): ✓"
+            installed=$((installed + 1))
+        else
+            warn "  $skill ($source): 失败（重试或检网络）"
+            failed=$((failed + 1))
+        fi
+    done < "$THIRD_PARTY_CONF"
+
+    echo ""
+    good "  第三方 skill: $installed 新装, $already 已装, $failed 失败"
+}
+
+do_sync() {
+    do_link_self_built
+    do_ensure_marketplace
+    do_install_third_party
+
+    echo ""
+    good "完成。验证: bash init-skill.sh status"
+}
+
+# 清理所有 ~/.claude/skills/ 里源已不存在的断链（不删 npx-managed）
 do_cleanup() {
     title "清理断链"
     local count=0
@@ -156,16 +187,29 @@ do_list() {
     echo "=== 自建 skill (link/skills/ 实体) ==="
     ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
     echo ""
-    echo "=== ~/.claude/skills/ (symlink) ==="
+    echo "=== ~/.claude/skills/ (symlink + npx-installed) ==="
     for d in "$CLAUDE_SKILLS_DIR"/*; do
         [[ -e "$d" ]] || continue
         local marker="✓"
         [[ -L "$d" ]] || marker="○"
-        echo "  $marker $(basename "$d")"
+        local src
+        if [[ -L "$d" ]]; then
+            src=$(readlink "$d" | sed 's|.*/\.agents/skills/|npx: |; s|.*/link/skills/|ccconfig: |')
+        else
+            src="(本地)"
+        fi
+        echo "  $marker $(basename "$d") — $src"
     done
     echo ""
+    echo "=== 第三方 (npx skills 装) ==="
+    if [[ -d "$HOME/.agents/skills" ]]; then
+        ls "$HOME/.agents/skills" 2>/dev/null | while read n; do echo "  $n"; done
+    else
+        echo "  (无)"
+    fi
+    echo ""
     echo "=== claude plugin list (marketplace 已装) ==="
-    claude plugin list 2>&1 | head -30
+    claude plugin list 2>&1 | head -10
 }
 
 do_status() {
@@ -177,20 +221,30 @@ do_status() {
     done
 
     echo ""
-    echo -e "${CYAN}~/.claude/skills/ (symlink 加载)${NC}"
-    local count=0
+    echo -e "${CYAN}~/.claude/skills/ ($(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l) 项)${NC}"
     for d in "$CLAUDE_SKILLS_DIR"/*; do
         [[ -e "$d" ]] || continue
         local marker="✓"
         [[ -L "$d" ]] || marker="○"
-        echo -e "  ${GREEN}$marker${NC} $(basename "$d")"
-        count=$((count + 1))
+        local src
+        if [[ -L "$d" ]]; then
+            local target=$(readlink -f "$d")
+            if [[ "$target" == *"$SKILLS_SRC"* ]]; then
+                src="ccconfig"
+            elif [[ "$target" == *".agents/skills"* ]]; then
+                src="npx skills"
+            else
+                src="user"
+            fi
+        else
+            src="(本地)"
+        fi
+        echo -e "  ${GREEN}$marker${NC} $(basename "$d") — $src"
     done
-    [[ $count -eq 0 ]] && echo -e "  ${GRAY}(空)${NC}"
 
     echo ""
     echo -e "${CYAN}claude plugin list (marketplace 已装)${NC}"
-    claude plugin list 2>&1 | head -30
+    claude plugin list 2>&1 | head -10
     echo ""
 }
 
@@ -204,5 +258,5 @@ case "$action" in
 esac
 
 echo ""
-good "提示: 新环境先跑 sync (symlink + 装 1 external plugin + 装 lark-cli 一条命令)"
+good "提示: 新环境先跑 sync (symlink 自建 + 装 npx 第三方)；更新 npx 装跑 scripts/update-third-party-skills.sh"
 exit 0
