@@ -551,17 +551,17 @@ python3 ccconfig/link/skills/f-logme/sum_generate.py \
 
 **Step 3: 委托 f-doc 创建飞书文档**
 
-f-logme 不自己调 `lark-cli docs +create`。将生成的 Markdown 交给 f-doc skill，由其通过 f-doc → lark-doc 链创建文档。f-doc 会自动处理表格宽度（820px）、标题层级（≤H3）、文档父目录等格式化规则。
+f-logme 不自己调 `lark-cli docs +create`。将生成的 Markdown 交给 f-doc skill，由 f-doc 统一编排 lark-cli 创建飞书文档。f-doc 自动处理表格宽度（822px）、标题层级（≤H3）、文档父目录等格式化规则（详见 `~/.claude/rules/f-doc.md`）。
 
 ## 集成点
 
 | 系统 | 关系 |
 |------|------|
 | f-worklog | 简化版，f-logme 是其升级替代 |
-| f-doc | SUM 输出目标：飞书文档，创建前必须加载 lark-doc-style.md 格式化规则 |
+| f-doc | SUM 输出目标：飞书文档，统一编排 lark-cli（不直接依赖 lark-* skill） |
 | f-ppt | 年度总结可选输出 PPT |
 | f-research | 领域总结前可联动做行业调研 |
-| lark-cli | 所有 Base 读写通过 lark-cli |
+| lark-cli | 所有飞书操作（文档/Base/表格/日历）通过 lark-cli（npm 全局） |
 
 ## 文档创建规则
 
