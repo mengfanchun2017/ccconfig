@@ -1,0 +1,18 @@
+# 第三方 skill 清单（user-managed via npx skills add）
+#
+# 格式：每行 `<source>  <skill-name>`，注释以 # 开头
+# 装法：bash init-skill.sh sync（自动 do_install_third_party，幂等）
+# 更新：npx skills update -g -y 或 bash scripts/update-third-party-skills.sh
+#
+# WHY 用 npx skills 不用 marketplace install（2026-06-06 重构）：
+#   - marketplace install 暴露 plugin 前缀（mattpocock-skills:caveman）和 🔒 锁
+#   - dialog 太噪音，用户无法单独 toggle 每个 skill
+#   - npx skills 装到 ~/.agents/skills/，自动 symlink 到 ~/.claude/skills/（干净显示）
+#   - 缺点：版本不自动跟（需手动 update），但用户可接受（周期性 update）
+
+vinvcn/mattpocock-skills-zh-CN  caveman
+vinvcn/mattpocock-skills-zh-CN  diagnose
+vinvcn/mattpocock-skills-zh-CN  grill-me
+vinvcn/mattpocock-skills-zh-CN  improve-codebase-architecture
+vinvcn/mattpocock-skills-zh-CN  write-a-skill
+vinvcn/mattpocock-skills-zh-CN  zoom-out
