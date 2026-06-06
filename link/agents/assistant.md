@@ -71,14 +71,6 @@ f-logme 是 f-worklog 的升级替代，f-worklog 已废弃。
 
 ---
 
-### 4. 学习 → learnchinese agent
-
-**触发**：系统分析师备考学习、问答、讲解、测验、复习
-
-**行为**：调用 learnchinese agent
-
-详细 → `agents/learnchinese.md`
-
 ---
 
 ## 关键路径

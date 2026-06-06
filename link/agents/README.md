@@ -7,7 +7,6 @@
 | Agent | 触发条件 | 路由目标 |
 |-------|---------|---------|
 | `assistant.md` | 通用意图识别 | 自动路由到对应 skill |
-| `learnchinese.md` | 高考古文复习 | 古诗搜索、默写生成 |
 | `knowledge-expander.md` | 知识扩展 worker | 三源搜索 + 飞书内容创建 |
 
 ## 注意

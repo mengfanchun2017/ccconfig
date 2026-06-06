@@ -11,7 +11,7 @@ ccconfig 管理 Claude Code 配置的完整生命周期：
 - **同步**：文件监听 + 自动 git commit/push，覆盖 `~/git/` 下所有仓库
 - **Skills**：8 自建（symlink）+ 第三方 npx skills 自管（conf 清单）+ 系统层 lark-cli（npm 全局）
 - **Rules**：按路径条件加载（编码、git、python、搜索、飞书、godot）
-- **Agents**：意图路由 agent（assistant、feishucreate、learnchinese）
+- **Agents**：意图路由 agent（assistant、feishucreate）
 - **可选**：飞书 Bridge、OfficeCLI、PPT 生成、Vessel 浏览器、远程 SSH
 
 ## 架构
