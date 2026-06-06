@@ -25,7 +25,7 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 | 模板 | 选 f-report-std 4 套之一 | research / analysis / comparison / proposal |
 | 字数 | 预期长度（影响深度） | < 2K 简版 / 2-5K 标准 / > 5K 详版 |
 | 章节大纲 | 4-7 个 H1 | 背景 → 现状 → 调研 → 洞察 → 建议 |
-| 数据源 | 已知/待搜（按 f-research 三源） | minimax 中 / tavily 英 / 内部文档 |
+| 数据源 | 已知/待搜（按 f-search 三源） | minimax 中 / tavily 英 / 内部文档 |
 | 不确定项 | 已知的盲点 | 数据时效 / 客户名脱敏 / 国标完整度 |
 
 **不阻塞原则**：用户口头同意即可（"OK" / "开始" / "按这个走"），不必走完整确认流程。
@@ -36,7 +36,7 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 |------|----------|----------|--------|
 | **JSON 模式** | 有 `outline.yaml` + `results/*.json` | 已有调研结果 | Step 1-5 原有流程 |
 | **大纲模式** | 用户给章节大纲/题目 | 无 JSON | 大纲模式（见下） |
-| **自由模式** | 用户说"写 X 报告"无素材 | 无 | 委托 f-research 搜索 + 调模板 |
+| **自由模式** | 用户说"写 X 报告"无素材 | 无 | 委托 f-search 搜索 + 调模板 |
 
 ### 模式选择
 
@@ -45,7 +45,7 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
   ├─ 先出报告卡片 → 用户确认
   ├─ 检查当前目录：有 outline.yaml + results/*.json → JSON 模式
   ├─ 检查用户输入：含章节大纲（如"分析现状/根因/建议"） → 大纲模式
-  └─ 其他 → 自由模式（调 f-report-std 选模板 + f-research 搜索）
+  └─ 其他 → 自由模式（调 f-report-std 选模板 + f-search 搜索）
 ```
 
 ## 模板委派
@@ -104,11 +104,11 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 - 候选对比 → `comparison.md`
 - 背景+现状+趋势 → `research.md`
 
-#### Step 大纲.3: 调 f-research 补素材
-对每个章节调 f-research 做轻量搜索（2-3 源），产出每章 200-500 字。
+#### Step 大纲.3: 调 f-research-domain 补素材
+对每个章节调 f-research-domain 做轻量搜索（2-3 源），产出每章 200-500 字。
 
 #### Step 大纲.4: 填充模板
-按模板骨架 + f-research 素材生成报告。
+按模板骨架 + f-research-domain 素材生成报告。
 
 #### Step 大纲.5: 输出
 委派 f-doc 创建飞书文档。
@@ -126,8 +126,8 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 
 不确定时用 AskUserQuestion 让用户选。
 
-#### Step 自由.2: 调 f-research 深度搜索
-全流程走 f-research 框架：
+#### Step 自由.2: 调 f-research-domain 深度搜索
+全流程走 f-research-domain 框架：
 - 领域判断
 - 三源并行搜索
 - 聚合去重
@@ -210,6 +210,6 @@ v2（Claude 改）
 
 ## 关联 Skills
 - `f-report-std` — 内容规范、模板（必读）
-- `f-research` — 搜索调研
+- `f-research-domain` — 领域方法论 (4 领域)
 - `f-research-deep` — 批量研究
 - `f-doc` — 飞书格式 + 图子文档 lark-cli 命令

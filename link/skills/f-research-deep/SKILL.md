@@ -15,7 +15,7 @@ allowed-tools: Read, Write, Glob, Bash, WebSearch, Task,
 
 ## 搜索策略
 
-方向遵循 `rules/search.md`，详细方法（Tavily 参数、Python 过滤、去重代码）→ `skills/f-research/SKILL.md`。
+方向遵循 `rules/search.md`，详细方法（Tavily 参数、Python 过滤、去重代码）→ `skills/f-search/SKILL.md`。
 
 ## 工作流程
 
@@ -44,5 +44,5 @@ JSON 结构包含：
 执行 validate_json.py 验证字段覆盖。
 
 ## 关联 Skills
-- `f-research` - 初步研究
-- `f-research-report` - 报告生成
+- `f-research-domain` - 初步研究（4 领域方法论）
+- `f-report-gen` - 报告生成

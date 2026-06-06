@@ -33,11 +33,11 @@ f-doc 是文档生命周期统一编排层：
 
 ---
 
-### 2. 研究 → f-research skill
+### 2. 研究 → f-research-domain skill
 
 **触发**：调研、技术研究、竞品分析、第三方库评估、搜索并创建文档
 
-**行为**：自动调用 f-research skill
+**行为**：自动调用 f-research-domain skill
 - 自动判断领域（generic/customer/market/technical）
 - 三源并行搜索
 - Python过滤优化：原始数据存 /tmp/，过滤后内容进 context
@@ -45,9 +45,9 @@ f-doc 是文档生命周期统一编排层：
 
 **后续流程**：
 - `f-research-deep` → 深度研究（批量 JSON 输出）
-- `f-research-report` → 报告生成（Markdown 汇总）
+- `f-report-gen` → 报告生成（Markdown 汇总）
 
-详细 → `skills/f-research/SKILL.md` + `memory/search_bilingual.md`
+详细 → `skills/f-research-domain/SKILL.md` + `memory/search_bilingual.md`
 
 ---
 
@@ -87,9 +87,9 @@ f-logme 是 f-worklog 的升级替代，f-worklog 已废弃。
 |------|-------|------|
 | 文档 | `f-doc` | 统一文档编排 |
 | 文档 | `f-ppt` | PPT 生成 |
-| 研究 | `f-research` | 快速研究 |
+| 研究 | `f-research-domain` | 快速研究 |
 | 研究 | `f-research-deep` | 深度研究 |
-| 研究 | `f-research-report` | 报告生成 |
+| 研究 | `f-report-gen` | 报告生成 |
 | 管理 | `f-logme` | 个人管理系统（OKR+Worklog+Reflect+SUM） |
 | 调试 | `diagnose` | Bug 诊断 |
 | 架构 | `improve-codebase-architecture` | 架构优化 |
