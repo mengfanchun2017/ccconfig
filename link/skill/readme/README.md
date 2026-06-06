@@ -27,9 +27,9 @@
 | f-doc | 飞书文档统一入口 | 依赖 lark-cli + 飞书账户 | ⚠️ 剥离飞书特定部分 | 候选 |
 | f-pdf | PDF 内容提取（PyMuPDF） | 纯工具，无外部依赖 | ✅ | 候选 |
 | f-ppt | PPT 生成（双引擎） | 纯工具，可能含模板 | ✅ | 候选 |
-| f-research | 快速研究（三源搜索） | 需 Tavily/minimax/websearch key | ✅ | 候选 |
+| f-research-domain | 快速研究（三源搜索） | 需 Tavily/minimax/websearch key | ✅ | 候选 |
 | f-research-deep | 深度研究（批量 JSON） | 同上 | ✅ | 候选 |
-| f-research-report | 报告生成（JSON→MD） | 纯本地处理 | ✅ | 候选 |
+| f-report-gen | 报告生成（JSON→MD） | 纯本地处理 | ✅ | 候选 |
 | f-feedme | 麦当劳订餐 | 绑死 MCD API/账户/收货地址 | ❌ | 内部 |
 | f-vessel | AI 浏览器操控 | 涉及账户/cookie/隐私 | ❌ | 内部 |
 | f-logme | 个人管理（OKR/Worklog） | 绑死飞书 Base + 用户数据 | ❌ | 内部 |
@@ -299,9 +299,9 @@ examples, repository, changelog, compatibility, security_contact
 │   │   ├── examples/
 │   │   └── tests/
 │   ├── f-ppt/
-│   ├── f-research/
+│   ├── f-research-domain/
 │   ├── f-research-deep/
-│   ├── f-research-report/
+│   ├── f-report-gen/
 │   └── f-doc/                              # （剥离飞书部分后）
 ├── .github/
 │   └── workflows/ci.yml                    # frontmatter 校验 + 测试

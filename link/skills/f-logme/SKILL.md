@@ -560,7 +560,7 @@ f-logme 不自己调 `lark-cli docs +create`。将生成的 Markdown 交给 f-do
 | f-worklog | 简化版，f-logme 是其升级替代 |
 | f-doc | SUM 输出目标：飞书文档，统一编排 lark-cli（不直接依赖 lark-* skill） |
 | f-ppt | 年度总结可选输出 PPT |
-| f-research | 领域总结前可联动做行业调研 |
+| f-research-domain | 领域总结前可联动做行业调研 |
 | lark-cli | 所有飞书操作（文档/Base/表格/日历）通过 lark-cli（npm 全局） |
 
 ## 文档创建规则

@@ -90,6 +90,6 @@
 
 ---
 
-> **研究类报告额外约束** → `skills/f-research-report/rules.d/f-research-report.md`（全局加载）
+> **研究类报告额外约束** → `skills/f-report-gen/rules.d/f-report-gen.md`（全局加载）
 > **lark-cli 命令完整速查** → `rules/feishu-cli-cheatsheet.md`
 > **增量更新详细工作流** → `references/update-workflow.md`

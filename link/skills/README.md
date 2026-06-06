@@ -12,9 +12,9 @@
 | `f-doc/` | 统一文档入口 — 创建/更新/合并/拆分/转换/对比 | ✅ marketplace 公开 |
 | `f-ppt/` | PPT 生成 — 双引擎（ppt-master + OfficeCLI）| ✅ marketplace 公开 |
 | `f-pdf/` | PDF 内容提取原语 — 文字/图片/元数据 | ✅ marketplace 公开 |
-| `f-research/` | 统一研究框架 — 三源搜索、自动领域判断 | ✅ marketplace 公开 |
+| `f-research-domain/` | 统一研究框架 — 三源搜索、自动领域判断 | ✅ marketplace 公开 |
 | `f-research-deep/` | 深度研究 — 批量 JSON 输出 | ✅ marketplace 公开 |
-| `f-research-report/` | 报告生成 — JSON → Markdown | ✅ marketplace 公开 |
+| `f-report-gen/` | 报告生成 — JSON → Markdown | ✅ marketplace 公开 |
 | `f-report-std/` | 报告写作横向规范（4 套模板）| ✅ marketplace 公开 |
 | `f-vessel/` | AI 浏览器操控 | ✅ marketplace 公开 |
 | `f-logme/` | 个人管理系统 — OKR/Worklog/Reflect/SUM | 🔒 **私有**（含飞书 tenant + Base ID）|
