@@ -145,6 +145,31 @@ EOF
 - ✅ 正确：`block_replace --block-id "<table_id>" --content "$(cat table.xml)"` 替换整个 table
 - ✅ colgroup 宽度之和必须 = 822px 才是飞书全宽
 
+### docs @file 路径必须相对当前目录
+- 速查表 base 章节已记：`--json @/tmp/file` 报"must be relative"，`cd /tmp && --json @file` 才对
+- 同样适用于 docs v2：`--markdown @/tmp/x` → 报错；`cd /tmp && --markdown @x` 才行
+- ✅ 最稳：heredoc + `--content -`（stdin）避开路径问题
+
+### whiteboard mermaid 不支持 subgraph 分组
+- 飞书 whiteboard `+update --input_format mermaid` 渲染器**忽略 subgraph 嵌套**——subgraph 节点和子节点平铺渲染
+- ❌ `subgraph L1["应用层"]; A[...] end` → 只显示 A 节点，L1 作为独立小方块
+- ✅ 改用**单节点 + `<br/>` 换行** 把层级名+内容塞进同一个 label
+- ✅ 多层架构图：`L["<b>应用层</b><br/>━━━━━━━━<br/>12 个业务场景"]` + `style L fill:...,stroke:...` 区分颜色
+- ✅ 箭头：`L1 --> L2 --> L3 --> L4`（层间流向）
+
+### whiteboard 节点内容更新有缓存
+- `+update --overwrite` 实际写入了（`+query --output_as raw` 验证节点 text 已变）
+- 但 `+query --output_as image` 导出可能仍是旧图，size_bytes 一致
+- ✅ 解决：sleep 2-3s 后再 export，或输出到不同文件名强制刷新
+- ✅ 二次验证：raw output 中节点的 `text.rich_text.paragraphs` 应包含新文案
+
+### docx 描述与白板名称不统一时，以白板为准
+- 用户偏好：架构图（白板）是真相源，文字描述对齐到白板命名
+- 常见不一致：白板用"应用层/模型服务层"，描述用"业务应用层/统一 AI 网关"
+- ✅ 改文字：block_replace 改 li（block_id 不变）；str_replace 改标题里的"X层"
+- ✅ 删多余 li：block_delete
+- ✅ 改白板：whiteboard +update --input_format mermaid --source @file.mmd --overwrite
+
 <!-- 2026-05-29 | base init | 新建Bitable默认空表"数据表" — 直接rename复用，不新建再删。workflow无delete API。dashboard默认无。→ 结论写入f-logme SKILL.md -->
 <!-- 2026-05-29 | base field-create | 7次试错：type数字格式、property嵌套、link_table_id → 全部改用扁平字符串key → 记录到上方速查表 -->
 <!-- 2026-05-26 | slides export | drive +export --doc-type slides → 不支持 → lark-cli api POST export_tasks | 用通用API替代 -->
