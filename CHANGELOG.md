@@ -4,11 +4,17 @@ All notable changes to ccconfig will be documented in this file.
 
 ## [Unreleased]
 
-### Added
-- `deps-check.sh` — 依赖完整性检查脚本
-- `option-officecli/` — OfficeCLI 可选组件
-- `LICENSE`、`CHANGELOG.md`、`CONTRIBUTING.md`、`.editorconfig`
-- `BOOTSTRAP.md` — 新机器 0→1 拉起指南（gh auth → clone → init.sh all）
+### Changed
+- **f-* skill 三层架构重组**（Layer 1 输出平台 / Layer 2 知识生产 / Layer 3 个人工作流）
+  - 新建 `f-search` — 搜索活动统一原语（query 规划 + 调工具 + Python 过滤 + 聚合 + 来源标注 + 搜索清单），从 f-research 抽
+  - `f-research` → `f-research-domain` — 瘦身到 4 领域方法论（customer JTBD / generic / market / technical），搜索委派 f-search
+  - `f-research-report` → `f-report-gen` — 与 `f-report-std` (std=standard 规范) 配对（xxx-std + xxx-gen 对称）
+  - 11 引用方 + 3 memory 文件全部更新（CLAUDE.md / f-doc / f-logme / f-report-std / f-research-deep / agents / README / memory）
+- `scripts/publish.sh` — 一键把 ccconfig/link/skills/ 的指定 f-* 同步到 claude-skills/plugins/（默认只 commit，--push 才推）
+
+### Removed
+- `~/.claude/skills/f-research` + `f-research-report` symlink（指向旧路径）
+- `~/.claude/rules/f-research-report.md` symlink
 
 ### Fixed
 - `remote/server/tmux-sshd.sh:100` — 反引号语法错误

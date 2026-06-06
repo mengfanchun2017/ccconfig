@@ -1,1 +1,0 @@
-../skills/f-research-report/rules.d/f-research-report.md
