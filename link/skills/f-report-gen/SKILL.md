@@ -1,10 +1,10 @@
 ---
-name: f-research-report
+name: f-report-gen
 user-invocable: true
 description: |
   报告生成 — 读 JSON / 大纲 / 自由素材 → 结构化 markdown 报告。
   3 种输入模式，按用户场景自动选择。内容规范委派 f-report-std。
-  飞书输出委派 f-doc（图子文档工作流 G）。
+  飞书输出委派 f-doc（图子文档工作流 G）。与 f-report-std (规范) 配对。
 allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 ---
 
