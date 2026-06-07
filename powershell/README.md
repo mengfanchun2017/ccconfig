@@ -7,3 +7,4 @@ Windows 平台 PowerShell 脚本集中存放和版本管理。
 | 目录 | 用途 |
 |------|------|
 | `music-convert/` | 网易云 NCM 解密 + FLAC/MP3 格式转换 |
+| `psupdate/` | PowerShell 7 升级工具（绕过 winget 1714/1612 错误） |
