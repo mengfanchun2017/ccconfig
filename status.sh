@@ -279,6 +279,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def test_mcp(name, config):
     try:
+        # HTTP 类型 MCP（vessel 等）无 command 字段，单独标记不视为错误
+        if config.get('type') == 'http':
+            url = config.get('url', '?')
+            return name, f"✅ http ({url})", None
         cmd = config.get('command')
         args = config.get('args', [])
         if not cmd:
