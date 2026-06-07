@@ -2,7 +2,7 @@
 # 用途：在 Windows 侧创建 %USERPROFILE%\.wslconfig，配置 mirrored 网络模式
 #
 # 使用（Windows 管理员 PowerShell）：
-#   powershell -ExecutionPolicy Bypass -File "C:\git\ccconfig\windows\wslconfig.ps1"
+#   powershell -ExecutionPolicy Bypass -File "C:\git\ccconfig\windows-tools\wslconfig.ps1"
 #
 # autoProxy=false：关闭 WSL 自动监听 Windows 代理变更，避免 VPN 切换时弹窗骚扰
 
@@ -19,7 +19,10 @@ firewall=true
 "@
 
 Write-Host "写入 $wslconfigPath ..."
-Set-Content -Path $wslconfigPath -Value $content -Encoding UTF8
+# PowerShell 5.x 的 -Encoding UTF8 会写 BOM，status.sh 比对失败
+# 显式用 UTF8Encoding($false) 写无 BOM 的 UTF-8
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($wslconfigPath, $content, $utf8NoBom)
 
 Write-Host ""
 Write-Host "✅ .wslconfig 已配置（mirrored 网络模式，autoProxy=false）"
