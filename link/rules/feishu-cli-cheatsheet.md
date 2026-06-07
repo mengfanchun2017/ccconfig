@@ -224,3 +224,13 @@ lark-cli base +record-delete --base-token $T --table-id $TBL \
 - 速查表 base 章节已记：`--json @/tmp/file` 报"must be relative"，`cd /tmp && --json @file` 才对
 - 同样适用于 docs v2：`--markdown @/tmp/x` → 报错；`cd /tmp && --markdown @x` 才行
 - ✅ 最稳：heredoc + `--content -`（stdin）避开路径问题
+
+### WSL 注入 cwd 通知到 lark-cli stdout
+- WSL Bash 工具在 subprocess.run 结束后往 stdout 末尾追加 `Shell cwd was reset to <path>` 通知行
+- python 调 lark-cli 后 `json.loads(stdout)` 失败 `Expecting value: line 1 column 1`
+- ✅ 过滤：`[l for l in stdout.splitlines() if not l.startswith("Shell cwd was reset")]`
+
+### base select 字段值必须用字段实际选项
+- 跨表 select 字段不能想当然传字符串：KR.信心 (5 选项含 Committed) → KR_Progress.信心 (4 选项不含)
+- 传不在目标字段选项里的值 → API `800030005 not_found`（"Provide an existing option value"）
+- ✅ 拿目标字段 options 列表确认，写映射表
