@@ -345,7 +345,7 @@ PYEOF
     mkdir -p "$HOME/.cache"
     if echo "$mcp_output" | grep -q "^STATUS=fail"; then
         rm -f "$mcp_stamp"
-        warn "MCP 检查有失败，24h 缓存禁用，下次 SessionStart 重试"
+        echo "⚠ MCP 检查有失败，24h 缓存禁用，下次 SessionStart 重试" >&2
     else
         touch "$mcp_stamp"
     fi
@@ -651,7 +651,7 @@ check_wslconfig() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[13] .wslconfig 同步${NC}"
 
-    local ps1="$REPO_DIR/windows/wslconfig.ps1"
+    local ps1="$REPO_DIR/windows-tools/wslconfig.ps1"
     if [ ! -f "$ps1" ]; then
         echo -e "  ${GRAY}－${NC} ccconfig 无 wslconfig.ps1 源"
         return
@@ -671,7 +671,7 @@ check_wslconfig() {
 
     if [ ! -f "$wslconfig" ]; then
         echo -e "  ${RED}❌${NC} $wslconfig 不存在"
-        echo -e "  ${GRAY}修复: bash ccconfig/windows/wslconfig-sync.sh${NC}"
+        echo -e "  ${GRAY}修复: powershell.exe -ExecutionPolicy Bypass -File \"\$(wslpath -w ccconfig/windows-tools/wslconfig.ps1)\" && wsl.exe --shutdown${NC}"
         return
     fi
 
@@ -690,7 +690,7 @@ check_wslconfig() {
         echo -e "  ${RED}❌${NC} 落后于 ccconfig 源"
         echo -e "  ${GRAY}差异 (期望 < / 实际 >):${NC}"
         diff <(echo "$expected_norm") <(echo "$actual_norm") | sed 's/^/    /' | head -10
-        echo -e "  ${YELLOW}修复: bash ccconfig/windows/wslconfig-sync.sh && wsl.exe --shutdown${NC}"
+        echo -e "  ${YELLOW}修复: powershell.exe -ExecutionPolicy Bypass -File \"\$(wslpath -w ccconfig/windows-tools/wslconfig.ps1)\" && wsl.exe --shutdown${NC}"
         echo -e "  ${GRAY}(wsl --shutdown 后重开 WSL 终端生效；已运行 session 不会热更新)${NC}"
     fi
 }
