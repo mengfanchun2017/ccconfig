@@ -246,7 +246,7 @@ submenu_tools() {
         2) run_step "强制拉取" "$SCRIPT_DIR/sync.sh --pull" false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         3) bash "$SCRIPT_DIR/update.sh" ;;
-        4) run_step "WSL修复" "$SCRIPT_DIR/windows/wsl-interop.sh" false
+        4) run_step "WSL修复" "$SCRIPT_DIR/windows-tools/wsl-interop.sh" false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         0) return ;;
     esac
