@@ -40,7 +40,8 @@ ENV = {
 def lark(*args, cwd=None):
     """调 lark-cli, 过滤日志行, 返回解析后 JSON。cwd 默认 /tmp (lark-cli --json @file 需相对路径)"""
     r = subprocess.run(["lark-cli", *args], capture_output=True, text=True, env=ENV, cwd=cwd or "/tmp")
-    lines = [l for l in r.stdout.splitlines() if not l.startswith("[lark-cli]")]
+    # 过滤 lark-cli 日志行 + WSL 注入的 cwd 通知行
+    lines = [l for l in r.stdout.splitlines() if not l.startswith("[lark-cli]") and not l.startswith("Shell cwd was reset")]
     return json.loads("\n".join(lines))
 
 
