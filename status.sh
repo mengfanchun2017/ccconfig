@@ -689,7 +689,11 @@ check_wslconfig() {
         # 显示关键字段提示
         local auto_proxy
         auto_proxy=$(grep -oP '^autoProxy=\K\w+' "$wslconfig" 2>/dev/null)
-        echo -e "  ${GRAY}autoProxy=${auto_proxy:-?}, 切代理不弹窗${NC}"
+        if [ "$auto_proxy" = "true" ]; then
+            echo -e "  ${GRAY}autoProxy=true, WSL 自动同步 Win 代理 env${NC}"
+        else
+            echo -e "  ${GRAY}autoProxy=${auto_proxy:-?}, WSL 不自动同步 Win 代理 env${NC}"
+        fi
     else
         echo -e "  ${RED}❌${NC} 落后于 ccconfig 源"
         echo -e "  ${GRAY}差异 (期望 < / 实际 >):${NC}"
