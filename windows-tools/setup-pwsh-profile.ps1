@@ -2,7 +2,7 @@
 # 用途：POWERSHELL_UPDATECHECK=Off 写入 CurrentUserAllHosts profile
 #
 # 运行（普通用户权限即可，无需管理员）：
-#   powershell -ExecutionPolicy Bypass -File "C:\git\ccconfig\windows\setup-pwsh-profile.ps1"
+#   powershell -ExecutionPolicy Bypass -File "C:\git\ccconfig\windows-tools\setup-pwsh-profile.ps1"
 #
 # 幂等：检测到 ccconfig marker 跳过
 # 适用：Windows PowerShell 5.1+ / PowerShell 7+ (pwsh)，所有 host 共用
