@@ -14,6 +14,7 @@
 # 10. MCP 服务器状态
 # 11. 远程连接状态 (Tailscale + SSH)
 # 12. option-* 可选组件
+# 13. .wslconfig 同步状态
 #
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
@@ -645,6 +646,55 @@ check_officecli() {
     echo -e "  ${GRAY}安装: bash ccconfig/option-officecli/init.sh${NC}"
 }
 
+# ========== 13. .wslconfig 同步检查 ==========
+check_wslconfig() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[13] .wslconfig 同步${NC}"
+
+    local ps1="$REPO_DIR/windows/wslconfig.ps1"
+    if [ ! -f "$ps1" ]; then
+        echo -e "  ${GRAY}－${NC} ccconfig 无 wslconfig.ps1 源"
+        return
+    fi
+
+    # 从 ps1 提取 here-string 期望内容（@" ... "@ 之间）
+    local expected
+    expected=$(awk '/^\$content = @"/{flag=1;next} /^"@/{flag=0} flag' "$ps1")
+    if [ -z "$expected" ]; then
+        echo -e "  ${YELLOW}○${NC} 解析 wslconfig.ps1 失败"
+        return
+    fi
+
+    local win_user
+    win_user=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' || echo "$USER")
+    local wslconfig="/mnt/c/Users/${win_user}/.wslconfig"
+
+    if [ ! -f "$wslconfig" ]; then
+        echo -e "  ${RED}❌${NC} $wslconfig 不存在"
+        echo -e "  ${GRAY}修复: bash ccconfig/windows/wslconfig-sync.sh${NC}"
+        return
+    fi
+
+    # 标准化对比（去除 CRLF + 尾空白）
+    local actual_norm expected_norm
+    actual_norm=$(tr -d '\r' < "$wslconfig" | sed 's/[[:space:]]*$//')
+    expected_norm=$(printf '%s\n' "$expected" | sed 's/[[:space:]]*$//')
+
+    if [ "$actual_norm" = "$expected_norm" ]; then
+        echo -e "  ${GREEN}✅${NC} 与 ccconfig 源一致"
+        # 显示关键字段提示
+        local auto_proxy
+        auto_proxy=$(grep -oP '^autoProxy=\K\w+' "$wslconfig" 2>/dev/null)
+        echo -e "  ${GRAY}autoProxy=${auto_proxy:-?}, 切代理不弹窗${NC}"
+    else
+        echo -e "  ${RED}❌${NC} 落后于 ccconfig 源"
+        echo -e "  ${GRAY}差异 (期望 < / 实际 >):${NC}"
+        diff <(echo "$expected_norm") <(echo "$actual_norm") | sed 's/^/    /' | head -10
+        echo -e "  ${YELLOW}修复: bash ccconfig/windows/wslconfig-sync.sh && wsl.exe --shutdown${NC}"
+        echo -e "  ${GRAY}(wsl --shutdown 后重开 WSL 终端生效；已运行 session 不会热更新)${NC}"
+    fi
+}
+
 # ========== 执行所有检查 ==========
 
 echo ""
@@ -664,5 +714,6 @@ check_officecli
 check_mcp
 check_remote
 check_option_components
+check_wslconfig
 
 echo ""
