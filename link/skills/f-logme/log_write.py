@@ -73,6 +73,20 @@ def update_kr_field(kr_id, fields_dict):
 def write_kr_progress(kr_id, value, confidence, source, date_str, note,
                       worklog_id=None, reflect_id=None):
     """写一条 KR_Progress 记录"""
+    # KR.信心 (5 选项: On Track/At Risk/Done/Blocked/Committed) → KR_Progress.信心 (4 选项)
+    # Committed/Aspirational 是 KR 类型分类，不是进度信心
+    KR_TO_KP_CONFIDENCE = {
+        "Committed": "On Track",
+        "Aspirational": "On Track",
+        "On Track": "On Track",
+        "At Risk": "At Risk",
+        "Blocked": "Blocked",
+        "Done": "Done",
+    }
+    if isinstance(confidence, list):
+        confidence = confidence[0] if confidence else "On Track"
+    confidence = KR_TO_KP_CONFIDENCE.get(confidence, "On Track")
+
     fields = ["关联KR", "进度值", "信心", "来源"]
     if worklog_id:
         fields.append("关联Worklog")
