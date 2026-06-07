@@ -38,8 +38,29 @@ bash ccconfig/windows/wsl-interop.sh
 [wsl2]
 networkingMode=mirrored   # 网络镜像模式（推荐）
 dnsTunneling=true         # DNS 隧道
-autoProxy=true            # 自动代理
+autoProxy=false           # 关闭代理监听，VPN/Clash 切换不弹窗
 firewall=true             # 防火墙集成
 ```
 
 mirrored 模式下 WSL 和 Windows 共享 localhost，远程连接不再需要端口转发。
+
+## 更新 / 同步 .wslconfig
+
+在 Win 端切换了代理（Clash/V2Ray 等）发现 WSL 终端弹通知，或者 `.wslconfig` 落后 ccconfig 源时：
+
+```powershell
+# Win 端 PowerShell
+powershell -ExecutionPolicy Bypass -File "C:\git\ccconfig\windows\wslconfig.ps1"
+wsl --shutdown
+```
+
+`wsl --shutdown` 后重开 WSL 终端，新配置生效。
+**已运行的 WSL session 不会热更新**——`.wslconfig` 仅在 WSL 子系统冷启时读取一次。
+
+### 验证
+
+```bash
+diff <(printf '[wsl2]\nnetworkingMode=mirrored\ndnsTunneling=true\nautoProxy=false\nfirewall=true\n') /mnt/c/Users/$USER/.wslconfig
+```
+
+无输出 = 已同步。
