@@ -31,7 +31,9 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 | `base +record-search` | `--base-token` `--table-id` | `--keyword` (必填) `--search-field` | `--keyword` 必填, 除非 `--json`; 返回 `record_id_list` (按 search 顺序) |
 | `base +field-create` | `--base-token` `--table-id` | `--json '{...}'` | 一次一个字段; 字段名带特殊字符可能需转义 |
 | `slides +create` | - | `--title` `--slides '<json-array>'` | JSON 数组每元素是 XML `<slide>` 字符串 |
-| `slides 导出` | - | `api POST export_tasks` | `drive +export` 不支持 slides，用 `lark-cli api` 调原始API |
+| `slides 导出` | - | `api POST export_tasks --data '{"type":"slides","token":"X","file_extension":"pptx"}'` | `drive +export` 不支持 slides；正确格式 `type:slides` + `token`（不是 `type:file` + `file_token`，后者 99992402）|
+| `slides 读内容(online)` | - | `api GET /open-apis/slides_ai/v1/xml_presentations/{id}` | **只对模板新建的"在线"slides 有效**；导入/上传的 PPTX 报 3350001 |
+| `slides 任务查询` | - | `api GET /open-apis/drive/v1/export_tasks/{ticket} --params '{"token":"X"}'` | ticket=create 返回的；query 参数用 `--params` 传；token 必填且 max 27 字符 |
 | `drive +export-download` | `--file-token` | `--file-name` | 必须相对路径，先 cd |
 
 ## base +field-create 坑点
@@ -234,3 +236,11 @@ lark-cli base +record-delete --base-token $T --table-id $TBL \
 - 跨表 select 字段不能想当然传字符串：KR.信心 (5 选项含 Committed) → KR_Progress.信心 (4 选项不含)
 - 传不在目标字段选项里的值 → API `800030005 not_found`（"Provide an existing option value"）
 - ✅ 拿目标字段 options 列表确认，写映射表
+
+### slides 两种类型：在线 vs 导入，API 能力差很多
+- **在线（模板新建）**：飞书原生 XML 存后端 → `slides_ai/v1/xml_presentations/{id}` 直接读 + 编辑（`xml_presentation.slide create/replace`）
+- **导入/上传的 PPTX**：二进制存对象存储 → slides_ai API 报 3350001 invalid param；只能 `drive export_tasks` → 导出 pptx → 本地解析/改 → `drive +upload` 覆盖
+- ❌ 误判：看到 `obj_type: slides` 就以为能直接调 API，要分清"模板新建"vs"上传"
+- ✅ 验证方法：试调 `lark-cli api GET /open-apis/slides_ai/v1/xml_presentations/{obj_token}`；返回 `data.xml_presentation.content` = 在线；返回 3350001 = 导入的
+- ✅ 编辑能力差：在线版可用 `slides xml_presentation.slide replace` 元素级替换；导入版只能在本地 python-pptx 改完上传
+- 用户反馈触发：第一次拿到 slides 链接全走"导出 → 解析"路径，第二次发现模板新建的能直接读，质疑前次为何不在线——**类型判断要在第一次调 API 时就做**
