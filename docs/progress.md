@@ -9,6 +9,10 @@
 - **进行中**: Phase 0 / 任务 #1（建追踪系统本身 + 改 `.gitignore`）
 - **下次入口**: 见下方
 - **阻塞**: 无
+- **3 决策已落地** (2026-06-08):
+  - L2 tasks 表放飞书 Base
+  - findings/adr 保持 2 文件
+  - f-ship skill v0.1 在 Phase 0 末尾抽（任务 #10）
 
 ## 4 层定位
 
@@ -31,6 +35,12 @@ L4 自动日志:   飞书 f-logme Base (SessionEnd hook 自动)
 - 决定命名: **f-ship**（"想法 → shipped 端到端循环"）
 - 落盘 6 文件（ROADMAP / docs/README / 旧 STATE / 旧 phase-0 / ADR-README / ADR-0001）
 - 重构为新结构（task_plan / findings / progress / plans/README）
+- **3 关键决策**：
+  - L2 tasks 表放飞书 Base（f-logme 扩展 1 张 Tasks 表）
+  - findings/adr 保持 2 文件（不合并）
+  - f-ship skill v0.1 抽取时间：Phase 0 末尾（任务 #10）
+- 更新 ROADMAP.md（Phase 0 末尾加 v0.1 抽取行；Phase 2 改为完善 v0.2）
+- 更新 task_plan.md（加任务 #10，10 个任务）
 
 ## 进行中
 
