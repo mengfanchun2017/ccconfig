@@ -6,7 +6,8 @@
 
 ## TL;DR
 
-- **进行中**: Phase 0 / 任务 #1（建追踪系统本身 + 改 `.gitignore`）
+- **进行中**: Phase 0 / 任务 #2（改 `init.sh` 加 key 缺失检测 + 引导）
+- **已完成**: 任务 #1 ✅（改 `.gitignore` + `git rm --cached` 5 conf）
 - **下次入口**: 见下方
 - **阻塞**: 无
 - **4 决策已落地** (2026-06-08):
@@ -59,7 +60,9 @@ L4 自动日志:   飞书 f-logme Base Worklog 表 + 关联Action link (SessionE
 - [x] 建 4 层追踪系统框架
 - [x] 调研 f-ship skill 候选方案
 - [x] 重构为 3 文件 + MADR + Hill Chart
-- [ ] **Phase 0 / 任务 #1**：在 `.gitignore` 加 conf/llm.json 等 5 个真实配置文件
+- [x] **Phase 0 / 任务 #1**：在 `.gitignore` 加 conf/llm.json 等 5 个真实配置文件 ✅
+  - commit: (待 commit)
+  - 飞书 Status (Hill): done (recvlWXwML5OL2)
 - [ ] **Phase 0 / 任务 #2**：改 `init.sh` 加 key 缺失检测 + 引导分支
 
 ## 阻塞
