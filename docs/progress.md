@@ -10,7 +10,7 @@
 - **下次入口**: 见下方
 - **阻塞**: 无
 - **3 决策已落地** (2026-06-08):
-  - L2 tasks 表放飞书 Base
+  - L2 tasks 表放飞书 Base ✅ **已建表 + 录 10 任务**
   - findings/adr 保持 2 文件
   - f-ship skill v0.1 在 Phase 0 末尾抽（任务 #10）
 
@@ -18,11 +18,11 @@
 
 ```
 L1 季度:       ROADMAP.md
-L2 阶段计划:   docs/task_plan.md (← 当前 Phase 0)
+L2 阶段计划:   飞书 Base Tasks 表 tblnSeKT2LiPUndd (主) + docs/task_plan.md (设计说明)
 L2.5 研究:     docs/findings.md
-L3 状态（本）: docs/progress.md
+L3 状态（本）: docs/progress.md (手写快查) + 飞书 Dashboard view (权威实时)
 L0 决策:       docs/adr/
-L4 自动日志:   飞书 f-logme Base (SessionEnd hook 自动)
+L4 自动日志:   飞书 f-logme Base Worklog 表 (SessionEnd hook 自动)
 ```
 
 ## 上次 session 总结
@@ -41,6 +41,10 @@ L4 自动日志:   飞书 f-logme Base (SessionEnd hook 自动)
   - f-ship skill v0.1 抽取时间：Phase 0 末尾（任务 #10）
 - 更新 ROADMAP.md（Phase 0 末尾加 v0.1 抽取行；Phase 2 改为完善 v0.2）
 - 更新 task_plan.md（加任务 #10，10 个任务）
+- **建飞书 O.ccconfig-正式化**（`recvlUWkTmBWsu`，OKR_O 编号待定）
+- **建飞书 KR1/2/3**（编号 24/25/26，关联 O）
+- **建飞书 Tasks 表**（`tblnSeKT2LiPUndd`，8 字段含 Hill Chart）
+- **录入 10 个 Phase 0 任务**到飞书 Tasks 表（每条 linked KR1 + ADR-0001）
 
 ## 进行中
 

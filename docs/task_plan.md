@@ -1,6 +1,8 @@
 # task_plan — 当前 Phase 详细计划
 
-> **L2 追踪层**。当前 active phase 的全部任务、DoD、风险、验证。
+> **L2 追踪层（飞书主，仓库镜像）**。当前 active phase 的全部任务、DoD、风险、验证。
+> **主权威**: 飞书 Base Tasks 表（`tblnSeKT2LiPUndd`，含 Hill Chart 3 态 + Linked KR）
+> **本文件**: 设计说明 + 验证清单 + 退出标准；具体每条任务看飞书
 > 多 phase 时：每 phase 一个独立文件（如 `phase-1-cicd.md`），本文件始终指向 active。
 > 模板参考: [planning-with-files](https://github.com/OthmanAdi/planning-with-files)（147k★，Manus 风格 3 文件规划）
 > 进度模型: **Hill Chart**（unknown → known → done，3 态替代 0-100%）
@@ -18,14 +20,32 @@
 
 ## Hill Chart（3 态进度）
 
+> **权威**: 飞书 Tasks 表的 `Status (Hill)` 字段。Dashboard view 实时显示。
+> 本节是手写快照，下次 session 开始时对照飞书刷新。
+
 | 状态 | 任务 | 说明 |
 |---|---|---|
-| 🔴 unknown | 任务 #2-#9, #10 | 还没动手研究 |
+| 🔴 unknown | 任务 #2-#10 | 还没动手研究 |
 | 🟡 known | 任务 #1 | 改 `.gitignore` 5 行，明日 commit，**已知道怎么干** |
 | 🟢 done | (空) | — |
 
 > **进度计算**: 1 known + 0 done = 1/10 ≈ 10% (按 3 态分桶)
 > 不用 0-100% 是因为「做了 30%」是 fake precision；3 态更诚实。
+
+## 飞书 Tasks 表
+
+- **Base URL**: https://<your-tenant>.feishu.cn/base/LX5lb6VfdaJHWrsRbTgc8Y50nmj
+- **Table ID**: `tblnSeKT2LiPUndd`
+- **关联 O**: O.ccconfig-正式化（`recvlUWkTmBWsu`）
+- **关联 KR**: KR1 Phase 0-3 全部完成（`recvlUWBa8fptM`）
+
+**字段**: 任务名 / Phase / Priority / Status (Hill) / Estimated (min) / 关联KR / 关联ADR / Notes
+
+**10 条 Phase 0 任务**已录入，每条 `关联KR` 字段填 `KR1 record_id`。
+
+**Dashboard 视图建议**（待用户在飞书 UI 手动建）：
+- 过滤：`Status (Hill) != done`
+- 排序：Phase ASC, Priority DESC, ID ASC
 
 ## 任务清单
 
