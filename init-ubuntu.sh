@@ -578,6 +578,22 @@ setup_wslconfig() {
     info "配置后需在 PowerShell 执行 'wsl --shutdown' 重启 WSL 生效"
 }
 
+# ========== 12. CLI 工具 ==========
+setup_cli_tools() {
+    section "CLI 工具 (glow)"
+
+    if command -v glow &>/dev/null; then
+        success "glow 已安装: $(glow --version)"
+    else
+        warn "glow 未安装，正在安装..."
+        if sudo apt-get install -y glow; then
+            success "glow 安装完成: $(glow --version)"
+        else
+            warn "glow 安装失败（需 sudo 权限或 Ubuntu 24+ 仓库）"
+        fi
+    fi
+}
+
 # ========== 主流程 ==========
 main() {
     echo "Ubuntu 初始化 - $(date '+%Y-%m-%d')"
@@ -606,6 +622,7 @@ main() {
     setup_wslconfig
     setup_autosync
     setup_hook
+    setup_cli_tools
 
     echo ""
     success "初始化完成！"
