@@ -7,6 +7,31 @@
 
 ---
 
+## 2026-06-09 — 飞书 Base 6 表 → 4 表（废弃 Tasks + KR_Progress）
+
+**主题**: 飞书 OKR Base v2 视图简化
+
+**决策**：
+- Tasks 表 (`tblnSeKT2LiPUndd`) 废弃 — 10 条数据已迁 OKR_KR（[ADR-0002](adr/0002-merge-kr-and-task.md) 合并后），用户在飞书 UI 自行删除
+- KR_Progress 表 (`tbljvET4DFtRomGi`) 废弃 — 0 记录，新进度模型用 OKR_KR.类别 + Status (Hill) 3 态覆盖「当前进度」概念，「历史轨迹」需求未验证
+
+**飞书 Base 现状**（2026-06-09）：
+- OKR_O (15) — 长期目标
+- **OKR_KR (36)** — fractal OKR 唯一交付实体（outcome+action）
+- Worklog (74+) — 自动日志
+- Reflect (0) — 周期反思
+- ~~KR_Progress (0)~~ — deprecated
+- ~~Tasks (0)~~ — deprecated
+
+**5 个 L1/L0 文档**（4 个 docs/ + ROADMAP）：
+- [ADR-0003: 废弃 Tasks + KR_Progress](adr/0003-deprecate-tasks-and-kr-progress.md)
+- ADR-0001: 密钥策略
+- ADR-0002: 合并 KR+Task
+
+**进度模型统一**：所有交付实体用 `Status (Hill)` 3 态（unknown/known/done）。OKR_KR.进度（0-100% 数字字段）保留为 legacy（23 旧 KRs 已有值不破坏），新 action 不必填。
+
+---
+
 ## 2026-06-08 — KR + Task 合并（fractal OKR）
 
 **主题**: 个人 OKR 实践中 KR 与 Task 的区分度低，合并为单一交付实体
