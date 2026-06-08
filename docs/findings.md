@@ -7,6 +7,82 @@
 
 ---
 
+## 2026-06-08 — f-ship skill 三大决策（hybrid 模式最终版）
+
+**主题**: f-ship skill 的 3 个核心架构决策
+
+**3 个决策**（用户拍板）:
+
+1. **L2 tasks 表放飞书 Base**（不在仓库内）
+   - 理由：联动 OKR、复用 f-logme 现有 5 表、自动 dashboard view
+2. **findings / adr 保持 2 文件**（不合并）
+   - 理由：findings 临时自由、ADR 永久 MADR 4 字段，生命周期不同
+3. **f-ship skill v0.1 在 Phase 0 末尾抽取**（不在 Phase 2）
+   - 理由：趁架构记忆热乎，本仓库是天然 seed 案例
+
+**最终 4 层 source of truth**（无冗余）:
+
+| 层 | 文件 / 表 | 位置 | 备注 |
+|---|---|---|---|
+| L1 愿景 | `ROADMAP.md` | repo (git) | 公开、git-tracked |
+| L0 决策 | `docs/adr/NNNN-*.md` | repo (git) | MADR 4 字段，公开 |
+| L2 任务 | **Tasks 表** | 飞书 Base（f-logme 扩展）| 联动 OKR，含 Hill Chart 字段 |
+| L4 日志 | Worklog 表 | 飞书 Base（现有）| hook 自动 |
+| L3 视图 | Dashboard view | 飞书 Base | L2 过滤 + L4 join，**实时** |
+| L2.5 研究 | `docs/findings.md` | repo (git) | 自由研究笔记 |
+| L3 镜像 | `docs/progress.md` | repo (git) | 5 行手写快查 + 飞书 view 链接 |
+
+**关键洞察**: L3（progress）**不是 source of truth，是 view**。可以完全从 L2 + L4 派生。仓库里的 `progress.md` 是手写快查，飞书里 Dashboard 是权威实时视图。
+
+**飞书 Tasks 表 schema**:
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| ID | AutoNumber | ✓ | #1, #2, ... |
+| Title | Text | ✓ | 任务名（一句话）|
+| Phase | Select | ✓ | Phase 0/1/2/3 |
+| Priority | Select | ✓ | P0/P1/P2 |
+| Status (Hill) | Select | ✓ | 🔴 unknown / 🟡 known / 🟢 done |
+| Estimated (min) | Number |  |  |
+| Actual Start | Date |  |  |
+| Actual Done | Date |  |  |
+| Linked KR | Link → OKR_KR | ✓ | 关联到 O.ccconfig-正式化/KR1 |
+| Notes | Text |  |  |
+| Linked ADR | Text |  | 如 "ADR-0001" |
+
+**L3 实时视图（飞书 Base Dashboard）**:
+- 过滤：`Status != done`
+- 排序：Phase ASC, Priority DESC, ID ASC
+- 显示：Title / Status (Hill) / Linked KR / 最近 5 条 Worklog
+
+**f-ship skill 雏形 v0.1**（任务 #10，Phase 0 末尾执行）:
+
+```
+link/skills/f-ship/
+├── SKILL.md
+├── rules.d/
+├── references/
+│   ├── 4-layer-model.md
+│   ├── hybrid-default.md
+│   └── feishu-setup.md
+├── templates/
+│   ├── ROADMAP.md.tmpl
+│   ├── progress.md.tmpl
+│   ├── findings.md.tmpl
+│   └── ADR.md.tmpl
+└── init.sh
+```
+
+**依赖**: f-logme (OKR 联动) + f-doc (飞书文档) + lark-cli (Base 操作) — 都已存在。
+
+**反模式（避开）**:
+- ❌ L2/L3 全部放仓库（不联动 OKR，浪费 f-logme）
+- ❌ L2/L3 全部放飞书（不 git-tracked，失去代码仓库可见性）
+- ❌ f-ship skill 现在就抽（设计还在迭代，skill 会频繁重写）
+- ❌ task_plan / progress 合并（方向相反、未来/过去时态不同）
+
+---
+
 ## 2026-06-08 — f-ship skill 调研
 
 **主题**: 把 4 层追踪系统抽成可复用 skill 调研

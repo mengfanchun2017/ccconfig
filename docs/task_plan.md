@@ -20,11 +20,11 @@
 
 | 状态 | 任务 | 说明 |
 |---|---|---|
-| 🔴 unknown | 任务 #2-#9 | 还没动手研究 |
+| 🔴 unknown | 任务 #2-#9, #10 | 还没动手研究 |
 | 🟡 known | 任务 #1 | 改 `.gitignore` 5 行，明日 commit，**已知道怎么干** |
 | 🟢 done | (空) | — |
 
-> **进度计算**: 1 known + 0 done = 1/9 ≈ 11% (按 3 态分桶)
+> **进度计算**: 1 known + 0 done = 1/10 ≈ 10% (按 3 态分桶)
 > 不用 0-100% 是因为「做了 30%」是 fake precision；3 态更诚实。
 
 ## 任务清单
@@ -40,8 +40,9 @@
 | 7 | `git filter-repo` 改写历史 | P1 | 1h | 🔴 unknown |  |  | defense in depth |
 | 8 | 验证所有脚本在 conf 缺失时 fallback | P0 | 30min | 🔴 unknown |  |  | status.sh 等 |
 | 9 | CHANGELOG 加 Unreleased 段落 | P0 | 10min | 🔴 unknown |  |  |  |
+| 10 | 抽 f-ship skill 雏形 v0.1（`link/skills/f-ship/`）| P1 | 4h | 🔴 unknown |  |  | Phase 0 末尾执行；含 SKILL.md + 4 模板 + init.sh |
 
-**总工时**: ~4.5h
+**总工时**: ~8.5h（任务 #1-9: 4.5h + 任务 #10: 4h）
 
 ## 退出标准（Definition of Done）
 
@@ -99,3 +100,42 @@ bash status.sh
 - [progress.md](progress.md) — L3 当前状态
 - [findings.md](findings.md) — L2.5 研究笔记
 - [adr/0001-secret-strategy.md](adr/0001-secret-strategy.md) — 决策依据
+
+## 任务 #10 详情：f-ship skill 雏形 v0.1
+
+**触发**: Phase 0 任务 #1-#9 全部 done 后立即执行
+**目的**: 把 4 层结构抽成可复用 skill，让其他项目能 1 条命令起手
+
+**最小交付物** (`link/skills/f-ship/`):
+```
+link/skills/f-ship/
+├── SKILL.md                # 上面 spec 的实现
+├── rules.d/                # 全局规则（输出风格）
+├── references/
+│   ├── 4-layer-model.md
+│   ├── hybrid-default.md   # 为什么推荐 hybrid
+│   └── feishu-setup.md     # 飞书 Tasks 表建表指南
+├── templates/
+│   ├── ROADMAP.md.tmpl
+│   ├── progress.md.tmpl
+│   ├── findings.md.tmpl
+│   └── ADR.md.tmpl
+└── init.sh                 # scaffold 4 文件 + 引导飞书建 Tasks 表
+```
+
+**依赖**:
+- `f-logme` (OKR 联动) — 已存在
+- `f-doc` (飞书操作) — 已存在
+- `lark-cli` (Base 操作) — 已存在
+
+**DoD**:
+- [ ] SKILL.md 含 4 Q 决策点 + 5 步工作流
+- [ ] 4 模板可直接 `cp` 使用
+- [ ] init.sh 跑通（创建 4 markdown + 输出飞书建表命令）
+- [ ] 在 ccconfig 本身上跑 1 次 init.sh 验证 idempotent
+
+**未做**（Phase 2 v0.2）:
+- references/ 详细文档
+- 多场景适配（无飞书 fallback / 多项目）
+- 自动 session 恢复 hook
+- marketplace 发布
