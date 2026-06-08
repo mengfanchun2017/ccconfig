@@ -24,7 +24,7 @@ docs/
 | 层 | 粒度 | 文件 | 模板来源 | 何时更新 | 谁维护 |
 |---|---|---|---|---|---|
 | L1 Roadmap | 季度 / 多月 | `ROADMAP.md`（根）| Shape Up pitch | 阶段切换 | 人 |
-| L2 Phase 计划 | 1-2 周 | `docs/task_plan.md` | planning-with-files | 阶段开始/结束 | 人 + TaskCreate |
+| L2 Phase 计划 | 1-2 周 | `docs/task_plan.md` | planning-with-files | 阶段开始/结束 | 人 + 飞书 OKR_KR |
 | L2.5 研究 | 滚动 | `docs/findings.md` | planning-with-files | 调研后即写 | 人 |
 | L3 当前任务 | 当 session | `docs/progress.md` | planning-with-files | **每次 session 末**（必改）| 人 |
 | L0 决策 | 不定期 | `docs/adr/NNNN-*.md` | MADR 4.0 | 决策时 | 人 |
@@ -36,6 +36,7 @@ docs/
 - `task_plan.md` 用 **Hill Chart 3 态进度**（unknown / known / done）替代 0-100%
 - `findings.md` 记录**不进入 ADR**的临时发现（避免 ADR 膨胀）
 - `adr/` 强制 **MADR 4 字段**（status / context / decision / consequences），其他可选
+- L2 在飞书 OKR_KR（fractal OKR），用 `类别` 字段区分 outcome/process/action
 
 ## 工作流（每次 session 5 步）
 
