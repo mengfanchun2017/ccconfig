@@ -1,14 +1,34 @@
-# docs/adr/ — Architecture Decision Records
+# adr/ — Architecture Decision Records
 
 > 记录 ccconfig 正式化过程中的所有非可逆决策。
-> 每条 ADR 含背景 / 方案 / 后果 / 替代。
-> 模板: [MADR 3.0](https://adr.github.io/madr/) 简化版。
+> 模板: **MADR 4.0**（[madr/](https://adr.github.io/madr/)）极简版。
+> 强制字段: 4 个（status / context / decision / consequences），其他可选。
+> 机器可解析: 每条 ADR 必含可被 `lark-cli docs +search` 搜的关键词。
 
 ## 索引
 
 | 编号 | 标题 | 日期 | 状态 | 关联 Phase |
 |---|---|---|---|---|
 | [0001](0001-secret-strategy.md) | 真实配置文件不入 git 仓 | 2026-06-08 | ✅ Accepted | Phase 0 |
+
+## 强制 4 字段（每条 ADR 必含）
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| **Status** | 枚举 | ✅ | `Proposed` / `Accepted` / `Rejected` / `Superseded by NNNN` |
+| **Context and Problem Statement** | 段落 | ✅ | 面对什么情况、什么痛点 |
+| **Decision** | 段落 | ✅ | 决定怎么做（一句话能讲清）|
+| **Consequences** | 列表 | ✅ | 正面 / 负面 / 风险 / 缓解 |
+
+## 可选字段（推荐含）
+
+| 字段 | 用途 |
+|---|---|
+| Decision Drivers | 决策时考虑的关键因素 |
+| Considered Options | 替代方案 + pros/cons |
+| Implementation | 链接到 phase plan 的具体任务 |
+| Related Decisions | 链接到其它 ADR |
+| Notes | 后续观察、补充 |
 
 ## 何时写 ADR
 
@@ -24,14 +44,6 @@
 - 单文件重构（commit message 够）
 - 琐碎样式调整
 
-## 模板
-
-复制 `0001-secret-strategy.md` 当模板，改：
-
-- 编号：下一个 4 位数
-- 标题：kebab-case 主题
-- 状态：Proposed → Accepted / Rejected / Superseded by NNNN
-
 ## 状态机
 
 ```
@@ -46,8 +58,12 @@ Proposed ──> Accepted ──> Superseded by NNNN
 - 编号：4 位数，从 0001 起，**永不重用**
 - 即使状态变 Rejected/Superseded，文件保留（不删）
 
+## 模板
+
+复制 `0001-secret-strategy.md` 当模板。这是 MADR canonical form 的精简版（5 字段 + 2 可选）。
+
 ## 链接
 
-- [Phase 0 计划](../plans/phase-0-security.md)
+- [Phase 0 计划](../task_plan.md)
 - [ROADMAP](../../ROADMAP.md)
-- [STATE](../STATE.md)
+- [progress](../progress.md)
