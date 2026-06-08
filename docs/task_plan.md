@@ -27,10 +27,10 @@
 | 状态 | 任务 | 说明 |
 |---|---|---|
 | 🔴 unknown | 任务 #2-#10 | 还没动手研究 |
-| 🟡 known | 任务 #1 | 改 `.gitignore` 5 行，明日 commit，**已知道怎么干** |
-| 🟢 done | (空) | — |
+| 🟡 known | (空) | — |
+| 🟢 done | 任务 #1 | 改 `.gitignore` 5 行 + `git rm --cached` 5 conf，commit，**已完成** |
 
-> **进度计算**: 1 known + 0 done = 1/10 ≈ 10% (按 3 态分桶)
+> **进度计算**: 0 known + 1 done = 1/10 ≈ 10% (按 3 态分桶)
 > 不用 0-100% 是因为「做了 30%」是 fake precision；3 态更诚实。
 
 ## 飞书 OKR_KR 表（合并后）
