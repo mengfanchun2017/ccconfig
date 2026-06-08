@@ -2,7 +2,7 @@
 # 用途：在 Windows 侧创建 %USERPROFILE%\.wslconfig，配置 mirrored 网络模式
 #
 # 使用（Windows 管理员 PowerShell）：
-#   powershell -ExecutionPolicy Bypass -File "C:\git\ccconfig\windows-tools\wslconfig.ps1"
+#   powershell -ExecutionPolicy Bypass -File "C:\git\ccconfig\windows-tools\wslconf\wslconfig.ps1"
 #
 # autoProxy=true：WSL 启动时和 Win 端代理变更时，自动把 Windows 端代理 IP
 # 注入 WSL 进程 env (HTTP_PROXY/HTTPS_PROXY/NO_PROXY)，让 WSL 端 git/curl 等
