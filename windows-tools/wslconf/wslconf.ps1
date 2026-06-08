@@ -1,8 +1,8 @@
-# wsl-interop.ps1 — 配置 WSL interop（关闭 Windows PATH 注入）
+# wslconf.ps1 — 写 /etc/wsl.conf（关闭 Windows PATH 注入）
 # 用途：让 Claude Code / Bun 在 WSL 中不再尝试执行 Windows 程序
 #
 # 运行（普通用户权限即可）：
-#   powershell -ExecutionPolicy Bypass -File "C:\git\ccconfig\windows-tools\wsl-interop.ps1"
+#   powershell -ExecutionPolicy Bypass -File "C:\git\ccconfig\windows-tools\wslconf\wslconf.ps1"
 #
 # 内部用 wsl.exe -u root 写 /etc/wsl.conf（WSL 启动配置）
 # 幂等：每次覆盖写入同样内容
