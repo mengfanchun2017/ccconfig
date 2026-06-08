@@ -7,6 +7,37 @@
 
 ---
 
+## 2026-06-08 — KR + Task 合并（fractal OKR）
+
+**主题**: 个人 OKR 实践中 KR 与 Task 的区分度低，合并为单一交付实体
+
+**3 个独立来源验证用户论据**：
+
+1. **MoonCamp** [glossary/outcome-based-goals](https://mooncamp.com/glossary/outcome-based-goals) — "Skill-building/training 必走 activity-based"，显式承认学习类 KR 是 output
+2. **Todoist** [OKR 方法](https://www.todoist.com/productivity-methods/okrs-objective-key-results) — "1000 words/day" 等高频小步 KR **当 task** 更合理
+3. **Linear Docs** [Cycles](https://linear.app/docs/use-cycles) — 无独立 Goals 实体，Project=OKR, Issue=Task，单表设计
+
+**相关理论**：
+- [Atomic Habits (James Clear)](https://jamesclear.com/atomic-habits) — "You fall to the level of your systems, not your goals"
+- GTD — Project (outcome) + Next Action (物理动作) 同 workflow
+- Notion Goals / Asana Goals — 同表 + parent_id 自引用 + type 字段
+
+**OPC 是什么**：**非公开框架**。Tavily/minimax 三源搜索无结果。最接近的官方命名是 WorkBoard "Outcome Mindset" 和 Todoist "process goals vs outcome goals"。建议改用「**fractal OKR**」或「**单一交付实体**」。
+
+**最终方案**（Model B，OKR_KR 同表 + 类别字段）：
+- 类别 = outcome (原 26 条 KR) / process (新增预位) / action (10 条 Phase 0 任务)
+- OKR_KR 加 4 字段：类别 / Status (Hill) / 关联ADR / Estimated (min)
+- 10 条 Tasks 数据迁移到 OKR_KR
+- Worklog 加 关联Action 字段（→ OKR_KR，过滤 类别=action）
+- Tasks 表清空（飞书 Base 不能删表，保留 placeholder）
+- 详见 [ADR-0002](adr/0002-merge-kr-and-task.md)
+
+**借鉴来源**：
+- [Shape Up Ch.13 Hill Chart](https://basecamp.com/shapeup/3.4-chapter-13) — 进度模型
+- [MADR 4.0](https://adr.github.io/madr/) — ADR 模板
+
+---
+
 ## 2026-06-08 — f-ship skill 三大决策（hybrid 模式最终版）
 
 **主题**: f-ship skill 的 3 个核心架构决策
