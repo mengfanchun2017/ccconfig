@@ -140,6 +140,35 @@ EOF
 
 <!-- 2026-06-06 | docs title 修复 | 4次试错 OpenAPI → 唯一办法 str_replace 改 title 块内容。已验证 2 个 docx 修复成功 -->
 
+## docx 删除 — 唯一正确格式（2026-06-09 实测）
+
+`lark-cli docs` **无 `+delete` 子命令**。所有 OpenAPI 试错：
+
+| 试错 | 结果 |
+|---|---|
+| `lark-cli docs +delete --doc X` | `unknown_subcommand "+delete"` |
+| `lark-cli api DELETE /open-apis/docx/v1/documents/{id}` | 404 not_found |
+| `lark-cli api DELETE /open-apis/drive/v1/files/{id}` | 99992402 field validation failed |
+| `lark-cli api DELETE /open-apis/drive/v1/files/{id} --data '{"type":"docx"}'` | 99992402 (body 不是 query param) |
+| `lark-cli api DELETE /open-apis/drive/v1/files/{id}?type=docx` | 99992402 (--params not --url query) |
+
+**✅ 唯一正确格式**（2026-06-09 验证 PHOpdE0ido9RAoxEF7Fc9riwn6f 删除成功）：
+
+```bash
+lark-cli api DELETE /open-apis/drive/v1/files/{file_token} \
+  --params '{"type":"docx"}' --as user
+# type 必须是 docx（不是 doc / document）
+# --params 是 query parameter，不是 --data body
+```
+
+**原理**：docs 在飞书底层是 drive 资源（type=docx），通过 drive API 删。`--params` 把 JSON 转为 URL query string。
+
+**重要前置**：
+- 删前用 `lark-cli docs +fetch` 确认 file_token 正确
+- 删前确认 doc 内无嵌入资源（白板/图片）会一并删除
+- 删前确认 doc 不被其他 wiki/doc 引用（引用会失效）
+- 删后飞书回收站保留 30 天可恢复
+
 ## 新增踩坑（追加在此）
 
 ### colgroup 宽度修复必须用 block_replace
