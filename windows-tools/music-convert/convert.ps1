@@ -49,6 +49,152 @@ $hasFlac = (Get-ChildItem -Path $FlacDir -Filter "*.flac" -File -ErrorAction Sil
 
 $ffmpegOk = $null -ne (Get-Command ffmpeg -ErrorAction SilentlyContinue)
 
+# ---- Workflows (defined before dispatch: -File mode does not hoist) ----
+function Workflow-NcmToFlac {
+    if (-not $hasNcm) { Write-Host "未找到 NCM 文件" -ForegroundColor Yellow; return }
+    if (-not (Test-Path $ncmdump)) { Write-Host "未找到 ncmdump.exe" -ForegroundColor Red; return }
+
+    Write-Host "`n>>> NCM → FLAC <<<`n" -ForegroundColor Cyan
+
+    Write-Host "[1/3] 解密 NCM..."
+    $ncmFiles = Get-ChildItem $SourceDir -Filter "*.ncm"
+    foreach ($f in $ncmFiles) {
+        & $ncmdump $f.FullName | Out-Null
+        Write-Host "  + $($f.Name)"
+    }
+
+    Write-Host "`n[2/3] 转码 FLAC → $FlacDir ..."
+    if (-not (Test-Path $FlacDir)) { New-Item -ItemType Directory $FlacDir -Force | Out-Null }
+    $intermediates = Get-ChildItem $SourceDir -File | Where-Object { $_.Extension -in '.flac', '.aac', '.mp3' }
+    $ok = 0
+    foreach ($f in $intermediates) {
+        $out = Join-Path $FlacDir "$($f.BaseName).flac"
+        if (Convert-ToFlac $f.FullName $out) {
+            Write-Host "  OK  $($f.BaseName).flac" -ForegroundColor Green
+            $ok++
+        } else {
+            Write-Host "  FAIL  $($f.Name)" -ForegroundColor Red
+        }
+    }
+
+    Write-Host "`n[3/3] 清理中间文件..."
+    foreach ($f in $intermediates) {
+        if (Remove-FileWithRetry $f.FullName) {
+            Write-Host "  - $($f.Name)"
+        }
+    }
+
+    Write-Host "`n===== 完成: $ok 个 FLAC → $FlacDir =====" -ForegroundColor Cyan
+}
+
+function Workflow-NcmToMp3 {
+    if (-not $hasNcm) { Write-Host "未找到 NCM 文件" -ForegroundColor Yellow; return }
+    if (-not (Test-Path $ncmdump)) { Write-Host "未找到 ncmdump.exe" -ForegroundColor Red; return }
+
+    Write-Host "`n>>> NCM → MP3 <<<`n" -ForegroundColor Cyan
+
+    Write-Host "[1/3] 解密 NCM..."
+    $ncmFiles = Get-ChildItem $SourceDir -Filter "*.ncm"
+    foreach ($f in $ncmFiles) {
+        & $ncmdump $f.FullName | Out-Null
+        Write-Host "  + $($f.Name)"
+    }
+
+    Write-Host "`n[2/3] 转码 MP3 → $Mp3Dir ..."
+    if (-not (Test-Path $Mp3Dir)) { New-Item -ItemType Directory $Mp3Dir -Force | Out-Null }
+    $intermediates = Get-ChildItem $SourceDir -File | Where-Object { $_.Extension -in '.flac', '.aac', '.mp3' }
+    $ok = 0
+    foreach ($f in $intermediates) {
+        $out = Join-Path $Mp3Dir "$($f.BaseName).mp3"
+        if (Convert-FlacToMp3 $f.FullName $out) {
+            Write-Host "  OK  $($f.BaseName).mp3" -ForegroundColor Green
+            $ok++
+        } else {
+            Write-Host "  FAIL  $($f.Name)" -ForegroundColor Red
+        }
+    }
+
+    Write-Host "`n[3/3] 清理中间文件..."
+    foreach ($f in $intermediates) {
+        if (Remove-FileWithRetry $f.FullName) {
+            Write-Host "  - $($f.Name)"
+        }
+    }
+
+    Write-Host "`n===== 完成: $ok 个 MP3 → $Mp3Dir =====" -ForegroundColor Cyan
+}
+
+function Workflow-NcmToBoth {
+    if (-not $hasNcm) { Write-Host "未找到 NCM 文件" -ForegroundColor Yellow; return }
+    if (-not (Test-Path $ncmdump)) { Write-Host "未找到 ncmdump.exe" -ForegroundColor Red; return }
+
+    Write-Host "`n>>> NCM → FLAC + MP3 <<<`n" -ForegroundColor Cyan
+
+    Write-Host "[1/4] 解密 NCM..."
+    $ncmFiles = Get-ChildItem $SourceDir -Filter "*.ncm"
+    foreach ($f in $ncmFiles) {
+        & $ncmdump $f.FullName | Out-Null
+        Write-Host "  + $($f.Name)"
+    }
+
+    Write-Host "`n[2/4] 转码 FLAC → $FlacDir ..."
+    if (-not (Test-Path $FlacDir)) { New-Item -ItemType Directory $FlacDir -Force | Out-Null }
+    if (-not (Test-Path $Mp3Dir)) { New-Item -ItemType Directory $Mp3Dir -Force | Out-Null }
+    $intermediates = Get-ChildItem $SourceDir -File | Where-Object { $_.Extension -in '.flac', '.aac', '.mp3' }
+    $flacOk = 0
+    foreach ($f in $intermediates) {
+        $out = Join-Path $FlacDir "$($f.BaseName).flac"
+        if (Convert-ToFlac $f.FullName $out) {
+            Write-Host "  OK  $($f.BaseName).flac" -ForegroundColor Green
+            $flacOk++
+        } else {
+            Write-Host "  FAIL  $($f.Name)" -ForegroundColor Red
+        }
+    }
+
+    Write-Host "`n[3/4] 转码 MP3 → $Mp3Dir ..."
+    $mp3Ok = 0
+    foreach ($f in $intermediates) {
+        $out = Join-Path $Mp3Dir "$($f.BaseName).mp3"
+        if (Convert-FlacToMp3 $f.FullName $out) {
+            Write-Host "  OK  $($f.BaseName).mp3" -ForegroundColor Green
+            $mp3Ok++
+        } else {
+            Write-Host "  FAIL  $($f.Name)" -ForegroundColor Red
+        }
+    }
+
+    Write-Host "`n[4/4] 清理中间文件..."
+    foreach ($f in $intermediates) {
+        if (Remove-FileWithRetry $f.FullName) {
+            Write-Host "  - $($f.Name)"
+        }
+    }
+
+    Write-Host "`n===== 完成: $flacOk FLAC + $mp3Ok MP3 =====" -ForegroundColor Cyan
+}
+
+function Workflow-FlacToMp3 {
+    if (-not $hasFlac) { Write-Host "未在 $FlacDir 找到 FLAC 文件" -ForegroundColor Yellow; return }
+
+    Write-Host "`n>>> FLAC → MP3 <<<`n" -ForegroundColor Cyan
+
+    if (-not (Test-Path $Mp3Dir)) { New-Item -ItemType Directory $Mp3Dir -Force | Out-Null }
+    $flacFiles = Get-ChildItem $FlacDir -Filter "*.flac"
+    $ok = 0
+    foreach ($f in $flacFiles) {
+        $out = Join-Path $Mp3Dir "$($f.BaseName).mp3"
+        if (Convert-FlacToMp3 $f.FullName $out) {
+            Write-Host "  OK  $($f.BaseName).mp3" -ForegroundColor Green
+            $ok++
+        } else {
+            Write-Host "  FAIL  $($f.Name)" -ForegroundColor Red
+        }
+    }
+
+    Write-Host "`n===== 完成: $ok 个 MP3 → $Mp3Dir =====" -ForegroundColor Cyan
+}
+
 # ---- Menu ----
 if (-not $Mode) {
     Write-Host @"
@@ -99,160 +245,3 @@ switch ($choice) {
 }
 
 Pop-Location
-
-# ==================== Workflows ====================
-
-function Workflow-NcmToFlac {
-    if (-not $hasNcm) { Write-Host "未找到 NCM 文件" -ForegroundColor Yellow; return }
-    if (-not (Test-Path $ncmdump)) { Write-Host "未找到 ncmdump.exe" -ForegroundColor Red; return }
-
-    Write-Host "`n>>> NCM → FLAC <<<`n" -ForegroundColor Cyan
-
-    # Step 1: Decrypt
-    Write-Host "[1/3] 解密 NCM..."
-    $ncmFiles = Get-ChildItem $SourceDir -Filter "*.ncm"
-    foreach ($f in $ncmFiles) {
-        & $ncmdump $f.FullName | Out-Null
-        Write-Host "  + $($f.Name)"
-    }
-
-    # Step 2: Convert to FLAC
-    Write-Host "`n[2/3] 转码 FLAC → $FlacDir ..."
-    if (-not (Test-Path $FlacDir)) { New-Item -ItemType Directory $FlacDir -Force | Out-Null }
-    $intermediates = Get-ChildItem $SourceDir -File | Where-Object { $_.Extension -in '.flac', '.aac' }
-    $ok = 0
-    foreach ($f in $intermediates) {
-        $out = Join-Path $FlacDir "$($f.BaseName).flac"
-        if (Convert-ToFlac $f.FullName $out) {
-            Write-Host "  OK  $($f.BaseName).flac" -ForegroundColor Green
-            $ok++
-        } else {
-            Write-Host "  FAIL  $($f.Name)" -ForegroundColor Red
-        }
-    }
-
-    # Step 3: Clean up
-    Write-Host "`n[3/3] 清理中间文件..."
-    foreach ($f in $intermediates) {
-        if (Remove-FileWithRetry $f.FullName) {
-            Write-Host "  - $($f.Name)"
-        }
-    }
-
-    Write-Host "`n===== 完成: $ok 个 FLAC → $FlacDir =====" -ForegroundColor Cyan
-}
-
-function Workflow-NcmToMp3 {
-    if (-not $hasNcm) { Write-Host "未找到 NCM 文件" -ForegroundColor Yellow; return }
-    if (-not (Test-Path $ncmdump)) { Write-Host "未找到 ncmdump.exe" -ForegroundColor Red; return }
-
-    Write-Host "`n>>> NCM → MP3 <<<`n" -ForegroundColor Cyan
-
-    # Step 1: Decrypt
-    Write-Host "[1/3] 解密 NCM..."
-    $ncmFiles = Get-ChildItem $SourceDir -Filter "*.ncm"
-    foreach ($f in $ncmFiles) {
-        & $ncmdump $f.FullName | Out-Null
-        Write-Host "  + $($f.Name)"
-    }
-
-    # Step 2: Convert to MP3
-    Write-Host "`n[2/3] 转码 MP3 → $Mp3Dir ..."
-    if (-not (Test-Path $Mp3Dir)) { New-Item -ItemType Directory $Mp3Dir -Force | Out-Null }
-    $intermediates = Get-ChildItem $SourceDir -File | Where-Object { $_.Extension -in '.flac', '.aac' }
-    $ok = 0
-    foreach ($f in $intermediates) {
-        $out = Join-Path $Mp3Dir "$($f.BaseName).mp3"
-        if (Convert-FlacToMp3 $f.FullName $out) {
-            Write-Host "  OK  $($f.BaseName).mp3" -ForegroundColor Green
-            $ok++
-        } else {
-            Write-Host "  FAIL  $($f.Name)" -ForegroundColor Red
-        }
-    }
-
-    # Step 3: Clean up
-    Write-Host "`n[3/3] 清理中间文件..."
-    foreach ($f in $intermediates) {
-        if (Remove-FileWithRetry $f.FullName) {
-            Write-Host "  - $($f.Name)"
-        }
-    }
-
-    Write-Host "`n===== 完成: $ok 个 MP3 → $Mp3Dir =====" -ForegroundColor Cyan
-}
-
-function Workflow-NcmToBoth {
-    if (-not $hasNcm) { Write-Host "未找到 NCM 文件" -ForegroundColor Yellow; return }
-    if (-not (Test-Path $ncmdump)) { Write-Host "未找到 ncmdump.exe" -ForegroundColor Red; return }
-
-    Write-Host "`n>>> NCM → FLAC + MP3 <<<`n" -ForegroundColor Cyan
-
-    # Step 1: Decrypt
-    Write-Host "[1/4] 解密 NCM..."
-    $ncmFiles = Get-ChildItem $SourceDir -Filter "*.ncm"
-    foreach ($f in $ncmFiles) {
-        & $ncmdump $f.FullName | Out-Null
-        Write-Host "  + $($f.Name)"
-    }
-
-    # Step 2: Convert intermediate → FLAC
-    Write-Host "`n[2/4] 转码 FLAC → $FlacDir ..."
-    if (-not (Test-Path $FlacDir)) { New-Item -ItemType Directory $FlacDir -Force | Out-Null }
-    if (-not (Test-Path $Mp3Dir)) { New-Item -ItemType Directory $Mp3Dir -Force | Out-Null }
-    $intermediates = Get-ChildItem $SourceDir -File | Where-Object { $_.Extension -in '.flac', '.aac' }
-    $flacOk = 0
-    foreach ($f in $intermediates) {
-        $out = Join-Path $FlacDir "$($f.BaseName).flac"
-        if (Convert-ToFlac $f.FullName $out) {
-            Write-Host "  OK  $($f.BaseName).flac" -ForegroundColor Green
-            $flacOk++
-        } else {
-            Write-Host "  FAIL  $($f.Name)" -ForegroundColor Red
-        }
-    }
-
-    # Step 3: Intermediate → MP3
-    Write-Host "`n[3/4] 转码 MP3 → $Mp3Dir ..."
-    $mp3Ok = 0
-    foreach ($f in $intermediates) {
-        $out = Join-Path $Mp3Dir "$($f.BaseName).mp3"
-        if (Convert-FlacToMp3 $f.FullName $out) {
-            Write-Host "  OK  $($f.BaseName).mp3" -ForegroundColor Green
-            $mp3Ok++
-        } else {
-            Write-Host "  FAIL  $($f.Name)" -ForegroundColor Red
-        }
-    }
-
-    # Step 4: Clean up
-    Write-Host "`n[4/4] 清理中间文件..."
-    foreach ($f in $intermediates) {
-        if (Remove-FileWithRetry $f.FullName) {
-            Write-Host "  - $($f.Name)"
-        }
-    }
-
-    Write-Host "`n===== 完成: $flacOk FLAC + $mp3Ok MP3 =====" -ForegroundColor Cyan
-}
-
-function Workflow-FlacToMp3 {
-    if (-not $hasFlac) { Write-Host "未在 $FlacDir 找到 FLAC 文件" -ForegroundColor Yellow; return }
-
-    Write-Host "`n>>> FLAC → MP3 <<<`n" -ForegroundColor Cyan
-
-    if (-not (Test-Path $Mp3Dir)) { New-Item -ItemType Directory $Mp3Dir -Force | Out-Null }
-    $flacFiles = Get-ChildItem $FlacDir -Filter "*.flac"
-    $ok = 0
-    foreach ($f in $flacFiles) {
-        $out = Join-Path $Mp3Dir "$($f.BaseName).mp3"
-        if (Convert-FlacToMp3 $f.FullName $out) {
-            Write-Host "  OK  $($f.BaseName).mp3" -ForegroundColor Green
-            $ok++
-        } else {
-            Write-Host "  FAIL  $($f.Name)" -ForegroundColor Red
-        }
-    }
-
-    Write-Host "`n===== 完成: $ok 个 MP3 → $Mp3Dir =====" -ForegroundColor Cyan
-}
