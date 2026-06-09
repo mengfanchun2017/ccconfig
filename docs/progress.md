@@ -25,6 +25,8 @@ L2.5 研究:     docs/findings.md
 L3 状态（本）: docs/progress.md (手写快查) + 飞书 Dashboard view (权威实时)
 L0 决策:       docs/adr/ (新增 ADR-0002 合并决策)
 L4 自动日志:   飞书 f-logme Base Worklog 表 + 关联Action link (SessionEnd hook 自动)
+
+附加:  飞书 Inbox doc (想法速记入口，不入 4 层循环) — PHOpdE0ido9RAoxEF7Fc9riwn6f
 ```
 
 ## 上次 session 总结
