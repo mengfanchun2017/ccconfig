@@ -16,6 +16,7 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 | `wiki +node-get` | `--token` | - | 支持URL |
 | `wiki +node-create` | - | `--title` `--obj-type` | 不支持 board 类型 |
 | `whiteboard +update` | `--whiteboard-token` | `--source` + `--input_format` | mermaid/plantuml/raw |
+| `whiteboard +query` | `--whiteboard-token` | `--output_as image\|code\|raw` + `--output <dir>` | flag 是 `--output_as`（下划线）非 `--output-as`；`--output` 必须是相对路径（先 cd） |
 | `docs +create` | `--doc-format markdown` | `--content "markdown内容"` | help 显示 `--markdown` 但实际必须用 `--content` |
 | `base +*` | `--base-token` | `--json`(单对象) | 不是 `--app-token`/`--fields` |
 | `base +record-batch-create` | `--base-token` | `--json '{"fields":[],"rows":[[]]}'` | 数组格式 |
@@ -204,6 +205,7 @@ lark-cli api DELETE /open-apis/drive/v1/files/{file_token} \
 <!-- 2026-05-29 | base init | 新建Bitable默认空表"数据表" — 直接rename复用，不新建再删。workflow无delete API。dashboard默认无。→ 结论写入f-logme SKILL.md -->
 <!-- 2026-05-29 | base field-create | 7次试错：type数字格式、property嵌套、link_table_id → 全部改用扁平字符串key → 记录到上方速查表 -->
 <!-- 2026-05-26 | slides export | drive +export --doc-type slides → 不支持 → lark-cli api POST export_tasks | 用通用API替代 -->
+<!-- 2026-06-09 | whiteboard +query | flag `--output-as` → 报 unknown_flag → 改 `--output_as`；`--output /tmp/figs/` → 报 must be relative → cd /tmp/figs && --output ./ 才对 | 同步更新顶部对照表 -->
 
 ### base +record-list 不返回 record_id
 - `+record-list` 只返回 `[fields_array]`，不返回 record_id — 不能直接拿到 id 删/更新
