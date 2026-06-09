@@ -12,6 +12,8 @@ if ($ScriptDir -eq "") { $ScriptDir = "." }
 # Resolve relative paths from script directory
 Push-Location $ScriptDir
 
+try {
+
 function Remove-FileWithRetry {
     param([string]$Path, [int]$MaxRetries = 10, [int]$DelayMs = 300)
     for ($i = 1; $i -le $MaxRetries; $i++) {
@@ -53,6 +55,7 @@ $ffmpegOk = $null -ne (Get-Command ffmpeg -ErrorAction SilentlyContinue)
 function Workflow-NcmToFlac {
     if (-not $hasNcm) { Write-Host "未找到 NCM 文件" -ForegroundColor Yellow; return }
     if (-not (Test-Path $ncmdump)) { Write-Host "未找到 ncmdump.exe" -ForegroundColor Red; return }
+    if (-not $ffmpegOk) { Write-Host "未检测到 ffmpeg，请先安装并加入 PATH (https://ffmpeg.org)" -ForegroundColor Red; return }
 
     Write-Host "`n>>> NCM → FLAC <<<`n" -ForegroundColor Cyan
 
@@ -90,6 +93,7 @@ function Workflow-NcmToFlac {
 function Workflow-NcmToMp3 {
     if (-not $hasNcm) { Write-Host "未找到 NCM 文件" -ForegroundColor Yellow; return }
     if (-not (Test-Path $ncmdump)) { Write-Host "未找到 ncmdump.exe" -ForegroundColor Red; return }
+    if (-not $ffmpegOk) { Write-Host "未检测到 ffmpeg，请先安装并加入 PATH (https://ffmpeg.org)" -ForegroundColor Red; return }
 
     Write-Host "`n>>> NCM → MP3 <<<`n" -ForegroundColor Cyan
 
@@ -127,6 +131,7 @@ function Workflow-NcmToMp3 {
 function Workflow-NcmToBoth {
     if (-not $hasNcm) { Write-Host "未找到 NCM 文件" -ForegroundColor Yellow; return }
     if (-not (Test-Path $ncmdump)) { Write-Host "未找到 ncmdump.exe" -ForegroundColor Red; return }
+    if (-not $ffmpegOk) { Write-Host "未检测到 ffmpeg，请先安装并加入 PATH (https://ffmpeg.org)" -ForegroundColor Red; return }
 
     Write-Host "`n>>> NCM → FLAC + MP3 <<<`n" -ForegroundColor Cyan
 
@@ -176,6 +181,7 @@ function Workflow-NcmToBoth {
 
 function Workflow-FlacToMp3 {
     if (-not $hasFlac) { Write-Host "未在 $FlacDir 找到 FLAC 文件" -ForegroundColor Yellow; return }
+    if (-not $ffmpegOk) { Write-Host "未检测到 ffmpeg，请先安装并加入 PATH (https://ffmpeg.org)" -ForegroundColor Red; return }
 
     Write-Host "`n>>> FLAC → MP3 <<<`n" -ForegroundColor Cyan
 
@@ -240,8 +246,9 @@ switch ($choice) {
     "2" { &Workflow-NcmToMp3 }
     "3" { &Workflow-NcmToBoth }
     "4" { &Workflow-FlacToMp3 }
-    "0" { Write-Host "退出" ; Pop-Location; exit 0 }
-    default { Write-Host "无效选择" -ForegroundColor Red ; Pop-Location; exit 1 }
+    "0" { Write-Host "退出" ; exit 0 }
+    default { Write-Host "无效选择" -ForegroundColor Red ; exit 1 }
 }
-
-Pop-Location
+} finally {
+    Pop-Location
+}
