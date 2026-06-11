@@ -77,6 +77,8 @@ fi
 ### 图表 → Mermaid 代码块
 - **禁止 ASCII 字符画**，白板只能 `block_insert_after` 插入
 - 图表在对应内容位置嵌入，不在末尾
+- **mermaid 各类型飞书白板渲染能力 + 复杂图替代方案** → `references/chart-rendering.md`（2026-06-10 实测）
+- 不用 `+media-insert --type image` 嵌入 PNG/SVG 到 doc（飞书 file URL 跨会话 404）
 
 ### 缩写
 - 首次出现用 DFN 格式：`中文全称（English Full Name, ABBR）`
@@ -127,6 +129,19 @@ lark-cli docs +fetch --api-version v2 --doc "{token}" --detail full
 - 白板/嵌入资源数量与预期一致
 
 创建后追加到「线上文档索引」表格。
+
+### Step 3: 输出完整链接（强约束，不可省略）
+
+```markdown
+[标题](https://<tenant>.feishu.cn/wiki/<token>)
+```
+
+**Why**：飞书 doc 是最终交付物，链接是访问入口。漏给链接 = 用户无法访问。
+**How to apply**：
+- 任何 `+create` / `+update` / `drive +upload` / `whiteboard +create/update` / `+delete` 后必输出
+- 完整 URL：`https://<tenant>.feishu.cn/wiki/<token>` 或 `/docx/<token>` 或 `/file/<token>`
+- 链接独占一行，多 doc 用表格
+- 不允许只给 `doc_id` / `file_token`（用户拿到还要自己拼 URL）
 
 ---
 
