@@ -1,0 +1,81 @@
+# {{NAME}}
+
+> 类型:static-web-personal · 由 f-ship skill 创建于 {{DATE}}
+> 参考案例:[[<project-name>-project]]
+
+## 目标
+
+<!-- 一句话目标:这个站给谁看,核心价值是什么 -->
+
+## 用户场景
+
+- **访问入口**:朋友/家人/访客 拿到 URL + 密码
+- **核心动作**:输入密码 → 浏览内容(列表/详情/地图)
+- **成功标准**:访客首次访问即可理解内容,有情感共鸣
+
+## 技术栈
+
+| 组件 | 选型 | 备注 |
+|------|------|------|
+| 标记 | HTML5 | 零构建 |
+| 样式 | CSS3(原生变量 + Grid) | 无需 Tailwind |
+| 脚本 | JavaScript ES Modules | 浏览器原生 |
+| 密码门 | Web Crypto SHA-256 | 见 `assets/js/lock.js` |
+| 地图 | Leaflet + CartoDB Dark | 仅当需要地图时 |
+| 字体 | Noto Sans CJK SC | 中英文混排 |
+| 数据 | `assets/data/<name>.json` | 单文件,5-100 项 |
+
+## 目录结构
+
+```
+{{NAME}}/
+├── index.html              # 首页
+├── pages/                  # 子页面
+├── assets/
+│   ├── css/main.css
+│   ├── js/                 # main.js / lock.js / i18n.js
+│   ├── img/                # WebP 优先
+│   └── data/               # JSON 数据
+├── tools/                  # 工具脚本(hash 计算等)
+├── tests/                  # 零依赖测试方案
+├── DEPLOY.md               # 部署指南
+└── ...
+```
+
+## 开发
+
+```bash
+# 本地预览(无构建)
+python3 -m http.server 8000
+# 访问 http://localhost:8000
+```
+
+## 部署
+
+见 `DEPLOY.md`。推荐:腾讯云 webify / Netlify / Cloudflare Pages / GitHub Pages。
+
+## 内容数据更新
+
+1. 编辑 `assets/data/<name>.json`
+2. git commit + push
+3. 平台自动部署
+
+## 密码修改
+
+```bash
+node tools/calc-hash.mjs "<新密码>"
+# 输出新 hash,更新 lock.js 的 expectedHash
+```
+
+## 风险点(参考)
+
+1. 零构建选型局限 — 复杂交互考虑 Vite/Astro
+2. Web Crypto 密码门是单向验证 — 强密码 + 定期换
+3. 静态部署平台免费层政策变动 — DEPLOY.md 多平台备份
+4. 图片体积影响加载 — Squoosh 压缩 + srcset
+5. i18n 字典维护 — 缺失语言降级 + 提示
+
+## 关联资源
+
+- 真实案例 `~/git/<project-name>/`(完整参考实现)
+- f-ship 类型模板:`~/.claude/skills/f-ship/references/static-web-personal.md`
