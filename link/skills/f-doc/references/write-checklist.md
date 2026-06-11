@@ -55,6 +55,8 @@
 - [ ] 图表在对应内容位置嵌入，不在末尾堆砌
 - [ ] 白板只能通过 `block_insert_after` 插入，不能通过 `str_replace` 插入 `<whiteboard>` 标签
 - [ ] 已有白板不能通过 `docs +update` 编辑，需用 `lark-whiteboard` skill
+- [ ] **图渲染路径决策**：简单图 → mermaid；复杂图（雷达/桑基/象限/块/架构）→ 复杂图走 `references/chart-rendering.md` 的替代方案
+- [ ] **不**用 `+media-insert --type image` 嵌入 PNG/SVG 到 doc（飞书 file URL 跨会话 404）— 详细见 `references/chart-rendering.md`
 
 ### 文本
 - [ ] 缩写首次出现用 DFN 格式：`中文全称（English Full Name, ABBR）`

@@ -18,6 +18,7 @@ link/.config.json
 .monitor-sync.log
 .monitor-sync.pid
 .monitor-sync.debounce
+.monitor-sync.changed-repos
 
 # 升级快照（init-update.sh 自动生成，仅用于调试）
 .snapshots/
