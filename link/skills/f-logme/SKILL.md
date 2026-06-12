@@ -60,7 +60,6 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 | OKR_KR | `tblZhpELO31mAkg6` | 关键结果（23个KR，关联 O） |
 | Worklog | `tblVsC0L7QFzMeYM` | 日常记录（关联 KR） |
 | Reflect | `tblNLcyrOHD3OU87` | 定期反思（可选关联 O） |
-| KR_Progress | `tbljvET4DFtRomGi` | KR 进度历史快照（每次 worklog/reflect/手动更新留记录） |
 
 **分类体系**：`work`（公司汇报）/ `learn`（个人学习）/ `project`（个人项目）
 **变更追踪**：O 和 KR 表含 `创建日期` + `更新日期`，状态含 `Abandoned`（不删除，只废弃）
@@ -143,10 +142,13 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 | 关联O | 关联列 → OKR_O | 必须关联一个 O |
 | 周期 | 单选 | 与关联 O 对齐 |
 | 类型 | 单选 | Committed (100% 必达) / Aspirational (70% 即成功) / Learning (探索性) |
-| 进度 | 进度条 | 0-100%，手动或公式 |
-| 信心 | 单选 | On Track / At Risk / Blocked / Done |
+| KR.PARA | 单选 | projects（交付）/ areas（持续）/ research（探索）/ archive（归档） |
+| KR.状态 | 单选 | Active（进行中）/ Done（已完成）/ Cancelled（取消） |
+| 关联ADR | 文本 | 引用 ADR 文档 token（多 ADR 用空格分隔） |
 | 最终评分 | 数字 | 0.0-1.0，周期结束时填入 |
 | 说明 | 多行文本 | KR 的上下文 |
+
+**状态语义**：KR.状态是 KR 进展的唯一状态字段。完成 KR 时主动跑 `log_write.py kr-status --kr recXXX --status Done`，不靠 worklog/reflect 自动触发。
 
 ### Worklog 表字段
 
@@ -174,30 +176,9 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 | 下阶段 | 文本 | 下阶段聚焦什么 |
 | 日期 | 日期 | |
 
-### KR_Progress 表字段 🆕 2026-06-04
+### KR_Progress 表字段 🆕 2026-06-04 → 已废弃 2026-06-09
 
-KR 进度历史快照。KR.进度 是"当前值"，KR_Progress 是"轨迹"。
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| 关联KR | 关联列 → OKR_KR | 必填 |
-| 进度值 | 数字 (0-100) | 当时 KR 进度 |
-| 信心 | 单选 | On Track / At Risk / Blocked / Done |
-| 来源 | 单选 | 手动 / worklog / reflect / 对话 |
-| 关联Worklog | 关联列 → Worklog | 可选，worklog 触发的反向链 |
-| 关联Reflect | 关联列 → Reflect | 可选，reflect 触发的反向链 |
-| 备注 | 多行文本 | 一句话说明这次进度变化 |
-| 日期 | 日期 | snapshot 时间 |
-
-**写入规则**：
-- 写 worklog 时自动：进度 +5%（封顶 100），信心继承 KR.信心
-- 写 reflect 时自动：本周 worklog 涉及的每个 KR 进度 +10%（封顶 100）
-- 直接更新："更新进度"触发词 → 手动设值
-
-**视图**：
-- 按 KR 排序：每个 KR 的进度时间线
-- 近 30 天：识别增量停滞的 KR
-- 信心变化：识别 KR 风险走势
+KR 进度历史快照表已于 2026-06-09 废弃（[ADR-0003](file:///home/francis/git/ccconfig/docs/adr/0003-deprecate-tasks-and-kr-progress.md)）。设计反思：每 worklog +5% 的伪指标无法反映 KR 真实进展，与"3 状态"语义冲突。OKR_KR.进度 / 信心 字段同步删除。状态推进改为手动管理，详见 `log_write.py kr-status` 命令。
 
 ---
 
@@ -226,8 +207,6 @@ KR 进度历史快照。KR.进度 是"当前值"，KR_Progress 是"轨迹"。
   → 判断分类（work/learn/project）
   → 列出活跃 KR 让用户选择关联
   → 调 log_write.py worklog 写入 Worklog 表
-  → 自动: 写 KR_Progress 快照(进度+5%, 信心继承, 关联 worklog)
-  → 自动: 更新 KR.进度 = 最新值
   → 可选填写量化结果
 ```
 
@@ -238,12 +217,11 @@ KR 进度历史快照。KR.进度 是"当前值"，KR_Progress 是"轨迹"。
 ```
 用户: "做周反思" / "weekly reflect"
   → 拉取本周 Worklog 记录
-  → 拉取关联 KR 的进度
+  → 拉取关联 KR（用于 Reflect 关联 KR 字段，非自动改 KR 状态）
   → 引导填写四个象限：做得好 / 待改进 / 学到 / 下阶段
   → 可选关联 O
   → 调 log_write.py reflect 写入 Reflect 表
-  → 自动: 本周涉及的每个 KR 写 KR_Progress 快照(进度+10%, 信心继承, 关联 reflect)
-  → 自动: 更新每个 KR.进度 = 最新值
+  → 注: 不自动改 KR 状态，KR 完成时主动跑 kr-status
 ```
 
 ### 4. SUM 总结生成
@@ -428,30 +406,27 @@ lark-cli base +table-create --base-token $T --as user --name "OKR_KR" --fields '
 
 ## 数据写入脚本
 
-`log_write.py` — 统一封装 worklog / reflect / progress 三个写入动作，自动联动 KR_Progress 历史快照。
+`log_write.py` — 统一封装 worklog / reflect / kr-status 三个写入动作。**不自动改 KR 字段**（KR 状态手动管理）。
 
 ```bash
 SCRIPT="python3 $HOME/git/ccconfig/link/skills/f-logme/log_write.py"
 
-# 写 worklog（自动 +5% 进度 + KR_Progress 快照）
-$SCRIPT worklog --title "完成 X" --kr recXXXX --type "项目交付" --note "..." --date 2026-06-04
+# 写 worklog
+$SCRIPT worklog --title "完成 X" --kr recXXXX --type "项目交付" --note "..." --date 2026-06-12
 
-# 写 reflect（自动给本周涉及的每个 KR +10% 进度 + KR_Progress 快照）
+# 写 reflect（含批量关联 KR，仅写入关联字段，不改 KR.状态）
 $SCRIPT reflect --title "Q2 W3" --period "周" \
   --good "..." --improve "..." --learned "..." --next "..." \
-  --batch-kr recXXX recYYY --date 2026-06-04
+  --batch-kr recXXX recYYY --date 2026-06-12
 
-# 直接更新 KR 进度（留 history）
-$SCRIPT progress --kr recXXXX --value 60 --confidence "On Track" --note "..." --date 2026-06-04
+# 改 KR.状态（Active → Done / Cancelled 时手动跑）
+$SCRIPT kr-status --kr recXXXX --status Done
 ```
 
-**进度规则**（可在脚本顶部调）：
-
-| 触发 | 进度增量 | 信心 | 来源 |
-|------|---------|------|------|
-| worklog | +5% (cap 100) | 继承 KR.信心 | worklog |
-| reflect | +10% (cap 100) | 继承 KR.信心 | reflect |
-| progress 命令 | 自定 | 自定 | 手动 / 对话 |
+**设计原则**：
+- worklog/reflect 只写入对应表，不联动其他表 / 字段
+- KR 状态推进靠用户主动判断，不靠累积量自动涨
+- 量化指标（最终评分）改在季度末手填 KR.最终评分 字段
 
 ## 命令速查
 
@@ -478,9 +453,6 @@ lark-cli base +record-list --base-token $T --table-id tblVsC0L7QFzMeYM --as user
 
 # 拉取 Reflect
 lark-cli base +record-list --base-token $T --table-id tblNLcyrOHD3OU87 --as user
-
-# 拉取 KR_Progress（按 KR 排序看趋势）
-lark-cli base +record-list --base-token $T --table-id tbljvET4DFtRomGi --as user --limit 200
 
 # 写数据：统一用 log_write.py（见上面「数据写入脚本」）
 ```
@@ -613,13 +585,12 @@ O/KR 结构覆盖了旧 worklog 的所有主题聚类：
 
 | 指标 | 值 | 最后更新 |
 |------|-----|---------|
-| Base | OKR Base v2 `LX5lb6VfdaJHWrsRbTgc8Y50nmj` | 2026-06-04 |
+| Base | OKR Base v2 `LX5lb6VfdaJHWrsRbTgc8Y50nmj` | 2026-06-12 |
 | OKR_O 记录 | 15（work×4, learn×6, project×5） | 2026-05-31 |
 | OKR_KR 记录 | 23 | 2026-05-31 |
 | Worklog 记录 | 74（200条旧记录合并迁移，关联16个KR） | 2026-05-31 |
 | Reflect 记录 | 0 | 2026-05-31 |
-| **KR_Progress 表** | `tbljvET4DFtRomGi`（8字段，0 记录，2026-06-04 新建） | 2026-06-04 |
-| 写入脚本 | `log_write.py`（worklog/reflect/progress 三命令） | 2026-06-04 |
+| 写入脚本 | `log_write.py`（worklog/reflect/kr-status 三命令，2026-06-12 去伪指标改造） | 2026-06-12 |
 | 活跃周期 | 2026Q2 | — |
 | 旧 Worklog Base | `DLk8bb838ahfr3sF1UnchSHlnTf`（200条, 2024-12 ~ 2026-01） | 保留参考 |
 | 旧 OKR Base v1 | `L8wjb4CYRa1HeOsGx4BcIOFknyg` | 保留参考 |
