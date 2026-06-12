@@ -4,14 +4,15 @@
 
 ## 文件
 
-| 文件 | 用途 | 读取方 |
-|------|------|--------|
-| `versions.json` | 组件版本、Node.js pin | `update.sh`, `path-helper.sh` |
-| `ubuntu.json` | Git 用户信息、仓库地址 | `init-ubuntu.sh` |
-| `llm.json` | LLM 多后端配置、当前选择 | `init-llm.sh`, `init-ubuntu.sh` |
-| `claude.json` | MCP 服务器列表、env 配置 | `init-mcp.sh`, `update.sh` |
-| `feishu.json` | 飞书 lark-cli + cc-connect 配置 | `option-bridge/` |
-| `python-requirements.txt` | Python pip 包清单 | `update.sh` |
+| 文件 | 用途 | 读取方 | 入 git |
+|------|------|--------|--------|
+| `versions.json` | 组件版本、Node.js pin | `update.sh`, `path-helper.sh` | ✓ |
+| `ubuntu.json` | Git 用户信息、仓库地址 | `init-ubuntu.sh` | ✗ (敏感) |
+| `llm.json` | LLM 多后端配置、当前选择 | `init-llm.sh`, `init-ubuntu.sh` | ✗ (敏感) |
+| `claude.json` | MCP 服务器列表、env 配置 | `init-mcp.sh`, `update.sh` | ✗ (敏感) |
+| `feishu.json` | 飞书 lark-cli + cc-connect 配置 | `option-bridge/` | ✗ (敏感) |
+| `cloudflare.json` | Cloudflare API tokens（多项目共用） | 各项目部署脚本（jq 读 → env） | ✗ (敏感) |
+| `python-requirements.txt` | Python pip 包清单 | `update.sh` | ✓ |
 
 ## 注意
 
