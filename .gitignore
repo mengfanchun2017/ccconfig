@@ -10,6 +10,8 @@ conf/claude.json
 conf/feishu.json
 conf/ubuntu.json
 link/.config.json
+# link/settings.json 含 ANTHROPIC_AUTH_TOKEN + TAVILY_API_KEY + MINIMAX_API_KEY + supabase access-token，2026-06-12 起 ignore（之前漏 ignore，参考 ADR-0001）
+link/settings.json
 
 
 # auto-sync 运行文件
