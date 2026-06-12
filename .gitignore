@@ -7,6 +7,7 @@ openclaw.json
 # 真实配置文件（含 API key / token）— ADR-0001，仓库公开后不可 commit 真实 key
 conf/llm.json
 conf/claude.json
+conf/cloudflare.json
 conf/feishu.json
 conf/ubuntu.json
 link/.config.json
