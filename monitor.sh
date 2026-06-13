@@ -102,7 +102,10 @@ commit_and_push() {
 
     local repo=$(repo_name "$repo_dir")
     local changed_files=$(git -C "$repo_dir" status --porcelain 2>/dev/null)
-    [ -z "$changed_files" ] && return 0
+    if [ -z "$changed_files" ]; then
+        log "[$repo] already up to date"
+        return 0
+    fi
 
     echo "" | tee -a "$LOG_FILE"
     info "[$repo] * changes detected"
