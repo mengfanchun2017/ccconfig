@@ -580,8 +580,23 @@ setup_wslconfig() {
 
 # ========== 12. CLI 工具 ==========
 setup_cli_tools() {
-    section "CLI 工具 (glow)"
+    section "CLI 工具 (bat/glow/nano)"
 
+    # bat (Ubuntu 包名为 bat，命令为 batcat — 避免与 bacula-console-qt 冲突)
+    if command -v batcat &>/dev/null; then
+        success "bat (batcat) 已安装: $(batcat --version | head -1)"
+    elif command -v bat &>/dev/null; then
+        success "bat 已安装: $(bat --version | head -1)"
+    else
+        warn "bat 未安装，正在安装..."
+        if sudo apt-get install -y bat; then
+            success "bat 安装完成（命令: batcat）"
+        else
+            warn "bat 安装失败（sudo apt install bat）"
+        fi
+    fi
+
+    # glow — Markdown 渲染阅读器
     if command -v glow &>/dev/null; then
         success "glow 已安装: $(glow --version)"
     else
@@ -589,7 +604,19 @@ setup_cli_tools() {
         if sudo apt-get install -y glow; then
             success "glow 安装完成: $(glow --version)"
         else
-            warn "glow 安装失败（需 sudo 权限或 Ubuntu 24+ 仓库）"
+            warn "glow 安装失败（sudo apt install glow）"
+        fi
+    fi
+
+    # nano — 编辑器（Ubuntu 预装，确认存在）
+    if command -v nano &>/dev/null; then
+        success "nano 已安装: $(nano --version | head -1)"
+    else
+        warn "nano 未安装，正在安装..."
+        if sudo apt-get install -y nano; then
+            success "nano 安装完成"
+        else
+            warn "nano 安装失败（sudo apt install nano）"
         fi
     fi
 }
@@ -626,6 +653,11 @@ main() {
 
     echo ""
     success "初始化完成！"
+    echo ""
+    echo "CLI 工具（已自动安装）："
+    echo "  bat (batcat) — 代码语法高亮   sudo apt install bat"
+    echo "  glow         — Markdown 渲染   sudo apt install glow"
+    echo "  nano         — 终端编辑器     sudo apt install nano（通常预装）"
     echo ""
     echo "可选组件（按需安装）："
     echo "  bash ccconfig/option-ppt-master/init.sh   # ppt-master (PPT 生成)"
