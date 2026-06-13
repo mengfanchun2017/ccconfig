@@ -1,5 +1,5 @@
 ---
-name: f-ship
+name: f-launch
 user-invocable: true
 description: |
   项目启动 skill — 从意图到可运行项目的全流程(类型判断 → 脚手架 → OKR → 风险)。
@@ -10,7 +10,7 @@ description: |
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ---
 
-# f-ship — 项目启动 skill
+# f-launch — 项目启动 skill
 
 将"想做一个 X"转成"~/git/<name>/ + CLAUDE.md + OKR + 风险清单"的标准产物。
 
@@ -59,11 +59,13 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ~/git/<代号>/
 ├── CLAUDE.md          # AI 行为指南(必填)
 ├── README.md          # 项目说明
+├── ROADMAP.md         # 开发路线图(Now/Next/Phase 2/3/Later)
 ├── LICENSE            # MIT/Apache
 ├── .gitignore         # 按类型定制
 ├── .editorconfig      # 统一编辑器风格
 ├── docs/
-│   └── plan.md        # 8 周计划(适用大项目)
+│   ├── plan.md        # 8 周计划(适用大项目)
+│   └── adr/           # 架构决策记录(按需)
 └── <类型专属目录>     # src/ / app/ / data/ 等
 ```
 
@@ -85,7 +87,7 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 
 | 代号 | 场景 | 默认栈 | 真实案例 |
 |------|------|--------|----------|
-| `static-web-personal` | 个人静态 web(礼物/纪念/展示) | HTML+CSS+JS ESM + Web Crypto + Leaflet | [[<project-name>]] |
+| `static-web-personal` | 个人静态 web(礼物/纪念/展示) | HTML+CSS+JS ESM + Leaflet + Supabase(可选) + R2(可选) | [[<project-name>]] |
 | `web-api-backend` | Web 后端 API(CRUD/REST) | Node 22 + Hono + Drizzle + Zod + Vitest | [[<project-name>]] |
 | `cli-tool` | CLI 工具 | Node (TypeScript) / Go / Rust | (待补) |
 | `ai-agent-tool` | AI Agent / 工具调用 | Python + Claude API / LangChain | (待补) |
@@ -138,7 +140,7 @@ done
 
 ## 线上文档索引(占位)
 
-> f-ship 生成的飞书文档每次追加
+> f-launch 生成的飞书文档每次追加
 
 | 标题 | 链接 | 日期 | 说明 |
 |------|------|------|------|

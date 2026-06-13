@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# f-ship — 项目启动 skill 初始化 / 脚手架生成脚本
+# f-launch — 项目启动 skill 初始化 / 脚手架生成脚本
 # 用法:
 #   bash init.sh                       # 首次安装(符号链接 rules + skill)
 #   bash init.sh scaffold <name> <type> # 生成项目脚手架
@@ -30,7 +30,7 @@ error()   { echo -e "${RED}❌ $1${NC}"; }
 # ── 列出 8 类项目 ──
 list_types() {
   cat << 'EOF'
-f-ship 项目类型 (8 类):
+f-launch 项目类型 (8 类):
 
   1. static-web-personal   个人静态 web (礼物/纪念/展示) ★
   2. web-api-backend       Web 后端 API (CRUD/REST)      ★★★
@@ -108,7 +108,7 @@ scaffold() {
   cat > README.md << EOF
 # ${name}
 
-> 类型:${type} · 创建日期:$(date +%Y-%m-%d) · 由 f-ship skill 生成
+> 类型:${type} · 创建日期:$(date +%Y-%m-%d) · 由 f-launch skill 生成
 
 ## 一句话目标
 
@@ -202,7 +202,7 @@ EOF
     cat > CLAUDE.md << EOF
 # ${name}
 
-> 类型:${type} · 由 f-ship skill 创建于 $(date +%Y-%m-%d)
+> 类型:${type} · 由 f-launch skill 创建于 $(date +%Y-%m-%d)
 
 ## 目标
 
@@ -285,7 +285,7 @@ EOF
   if [[ "${GIT_INIT:-true}" == "true" ]]; then
     git init -q
     git add -A
-    git -c user.email=f-ship@noreply.local -c user.name="f-ship" commit -q -m "chore: initial scaffold via f-ship skill"
+    git -c user.email=f-launch@noreply.local -c user.name="f-launch" commit -q -m "chore: initial scaffold via f-launch skill"
     success "git init + 首次 commit"
   fi
 
@@ -302,7 +302,7 @@ case "$CMD" in
   list)       list_types ;;
   -h|--help)
     cat << 'EOF'
-f-ship 项目启动 skill
+f-launch 项目启动 skill
 
 用法:
   bash init.sh                     首次安装(符号链接)

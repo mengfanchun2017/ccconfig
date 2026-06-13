@@ -1,0 +1,109 @@
+# {{NAME}}
+
+> 类型:static-web-personal · 由 f-launch skill 创建于 {{DATE}}
+> 参考案例:[[<project-name>-project]]
+
+## 目标
+
+<!-- 一句话目标:这个站给谁看,核心价值是什么 -->
+
+## 用户场景
+
+- **访问入口**:朋友/家人/访客 拿到 URL（可能含 `?id=xxx` 直达特定内容）
+- **核心动作**:浏览内容（列表/详情/地图），无需密码
+- **成功标准**:访客首次访问即可理解内容，有情感共鸣
+
+## 技术栈
+
+| 组件 | 选型 | 备注 |
+|------|------|------|
+| 标记 | HTML5 | 零构建 |
+| 样式 | CSS3（原生变量 + Grid） | 无需 Tailwind |
+| 脚本 | JavaScript ES Modules | 浏览器原生 |
+| 认证 | URL 即凭据（默认）/ Supabase Auth（可选） | 无密码门 |
+| 地图 | Leaflet + CartoDB Dark | 仅当需要地图时 |
+| 字体 | Noto Sans CJK SC | 中英文混排 |
+| 数据 | JSON 文件 / Supabase REST API | 5-100 项用 JSON；需协作/动态写用 Supabase |
+| 后端 | Supabase PostgreSQL + Auth（可选） | 需管理后台/录入时启用 |
+| 存储 | Cloudflare R2（可选） | 照片/文件上传 |
+| 部署 | Cloudflare Pages | 零成本，全球 CDN |
+
+## 目录结构
+
+```
+{{NAME}}/
+├── index.html              # 入口（?id=xxx 路由）
+├── 404.html                # 独立 404 页
+├── assets/
+│   ├── css/                # reset / theme / components / pages
+│   ├── js/                 # ESM 模块（main / data / i18n / map / detail）
+│   └── img/                # SVG 装饰 / WebP 图片
+├── data/
+│   └── samples.json        # 静态数据（测试 fallback）
+├── tools/                  # 工具 SPA（可选）
+│   ├── admin/              # 后台管理（Supabase Auth + CRUD）
+│   └── contribute/         # 录入向导（Supabase Auth + 表单）
+├── functions/              # CF Pages Functions（可选）
+│   ├── api/upload.js       # 照片上传代理
+│   └── r2/[key].js         # 公开读取
+├── tests/
+│   ├── unit/               # 单元测试
+│   ├── data/               # schema 校验
+│   └── e2e/                # smoke 测试
+├── docs/
+│   ├── architecture.md
+│   ├── data-model.md
+│   └── adr/                # 架构决策记录
+├── CLAUDE.md
+├── ROADMAP.md
+├── README.md
+└── .gitignore
+```
+
+## 开发
+
+```bash
+# 本地预览（零构建）
+python3 -m http.server 8080
+
+# 测试（node:test 零依赖）
+npm test
+```
+
+## 部署
+
+推荐 Cloudflare Pages（GitHub 关联 + 自动部署 + Functions + R2）。备选 Netlify / GitHub Pages。
+
+## 数据管理
+
+**静态模式**（无后端，5-20 项）：编辑 `data/*.json` → git commit → push → 自动部署。
+
+**Supabase 模式**（需管理后台/录入/照片）：通过 `/tools/admin/` 网页端管理，或 `/tools/contribute/` 录入向导。数据存 Supabase PostgreSQL，照片存 R2。
+
+## 认证方案
+
+**默认：URL 即凭据** — `/?id=xxx` 直达内容，无密码。数据 JSON 公开可遍历，物理分享物（水样瓶）等同于访问令牌。
+
+**可选：Supabase Auth** — 仅 admin/contribute 工具需登录，公开浏览不受影响。
+
+## 测试纪律
+
+三层零依赖测试（`node:test`）：
+- `tests/unit/` — JS 模块逻辑
+- `tests/data/` — JSON schema 校验
+- `tests/e2e/` — HTTP smoke 端点
+
+每个新功能前跑 `npm test`，全绿再进下一步。
+
+## 风险点
+
+1. 零构建选型局限 — 复杂交互考虑 Vite/Astro
+2. 静态部署平台免费层政策变动 — 多平台备份方案
+3. 图片/文件体积影响加载 — 压缩 + CDN 缓存
+4. i18n 字典维护 — 缺失语言降级 + 提示
+5. Supabase 免费层限制（如需后端）— 监控用量，准备升级
+
+## 关联资源
+
+- 真实案例 `~/git/<project-name>/`（完整参考实现：Supabase + R2 + Admin SPA + CF Functions）
+- f-launch 类型模板:`~/.claude/skills/f-launch/references/static-web-personal.md`
