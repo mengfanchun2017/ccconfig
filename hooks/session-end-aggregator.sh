@@ -116,7 +116,7 @@ def clean_commit_msg(msg):
     return m[:60]
 
 
-# === LLM 总结 ===（调 minimax M2.7 走 anthropic 协议，结构化 JSON 输出）
+# === LLM 总结 ===（走 Anthropic API，结构化 JSON 输出）
 def llm_summarize():
     try:
         import urllib.request
@@ -131,7 +131,6 @@ def llm_summarize():
         if not prompt_parts:
             return None
         data = {
-            "model": "MiniMax-M2.7",
             "max_tokens": 600,
             "system": ("你是 worklog 总结助手。给定用户诉求+commit+改动文件，"
                        "输出严格 JSON（无思考过程、无 markdown 包裹）。\n"
@@ -147,7 +146,7 @@ def llm_summarize():
             "messages": [{"role": "user", "content": "\n".join(prompt_parts)}],
         }
         req = urllib.request.Request(
-            "https://api.minimaxi.com/anthropic/v1/messages",
+            "https://api.anthropic.com/v1/messages",
             data=json.dumps(data).encode(),
             headers={
                 "x-api-key": os.environ.get("ANTHROPIC_AUTH_TOKEN", ""),
@@ -268,6 +267,20 @@ os.replace(tmp, out_path)
 with open("/tmp/claude_last_session.json", "w") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
 
+# KR 路由：根据 cwd 映射到对应 KR
+HOME = os.path.expanduser("~")
+KR_ROUTE = {
+    os.path.join(HOME, "git/<project-name>"): "recvmpiqCN8SQk",
+    os.path.join(HOME, "git/ccconfig"): "recvmpil28etYG",
+}
+kr_id = None
+for prefix, kid in KR_ROUTE.items():
+    if cwd and cwd.startswith(prefix) and kid:
+        kr_id = kid
+        break
+if not kr_id:
+    kr_id = "recvl7jffWBL34"
+
 # 写飞书 worklog
 T = "LX5lb6VfdaJHWrsRbTgc8Y50nmj"
 TBL = "tblVsC0L7QFzMeYM"
@@ -278,13 +291,14 @@ wl_payload = {
     "fields": ["标题", "成果类型", "量化结果", "说明", "日期",
                "input_tokens", "output_tokens",
                "cache_creation_input_tokens", "cache_read_input_tokens", "model",
-               "asst_msgs", "user_msgs", "来源"],
+               "asst_msgs", "user_msgs", "关联KR", "来源"],
     "rows": [[
         title, "工具开发", quant, description, date_str,
         agg["input_tokens"], agg["output_tokens"],
         agg["cache_creation_input_tokens"], agg["cache_read_input_tokens"],
         model or "",
         asst_msgs, total_user_msgs,
+        [{"id": kr_id}],
         source_val,
     ]],
 }
