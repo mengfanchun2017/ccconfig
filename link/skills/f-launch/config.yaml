@@ -1,4 +1,4 @@
-# f-ship 用户配置
+# f-launch 用户配置
 # 修改后保存即生效，无需重启 Claude Code
 
 settings:
@@ -37,8 +37,8 @@ settings:
 types:
   static-web-personal:
     complexity: 1
-    default_stack: [HTML, CSS, JS-ESM, Web-Crypto, Leaflet]
-    deploy_targets: [webify, netlify, cloudflare-pages, github-pages]
+    default_stack: [HTML, CSS, JS-ESM, Leaflet, Supabase(optional), R2(optional)]
+    deploy_targets: [cloudflare-pages, netlify, github-pages]
     reference: "~/git/<project-name>"
 
   web-api-backend:

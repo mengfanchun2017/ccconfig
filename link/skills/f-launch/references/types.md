@@ -1,4 +1,4 @@
-# f-ship 项目类型索引
+# f-launch 项目类型索引
 
 > 8 类项目的特征描述。判断用户意图时对照本表。
 
@@ -6,7 +6,7 @@
 
 | 代号 | 触发关键词 | 复杂度 | 典型场景 |
 |------|-----------|--------|----------|
-| `static-web-personal` | 礼物/纪念/展示/主页/纪念站/密码门 | ★ | 朋友拿到密码访问,5-10 个内容项 |
+| `static-web-personal` | 礼物/纪念/展示/主页/纪念站/个人站 | ★ | URL 直达内容，5-100 个内容项 |
 | `web-api-backend` | API/CRUD/REST/后端/服务端 | ★★★ | 业务后端,长期演进 |
 | `cli-tool` | CLI/命令行/工具/脚本/scaffold 工具 | ★★ | 个人/团队工具,npm/brew/cargo 发布 |
 | `ai-agent-tool` | AI/Agent/LLM/Claude/工具调用/RAG | ★★★ | 智能助手、Agent、自动化工作流 |
