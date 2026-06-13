@@ -57,6 +57,9 @@ FEATURE_DEPS=(
     "tmux|tmux -V|tmux|终端复用 (remote/)"
     "ssh|ssh -V 2>&1|openssh-client|SSH 远程连接"
     "uv|uv --version|uv|Python 包管理器"
+    "batcat|batcat --version|bat|代码语法高亮 (setup_cli_tools)"
+    "glow|glow --version|glow|Markdown 渲染 (setup_cli_tools)"
+    "nano|nano --version|nano|终端编辑器 (setup_cli_tools)"
 )
 
 # 可选依赖：option-* 组件使用

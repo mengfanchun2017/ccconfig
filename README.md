@@ -156,7 +156,7 @@ bash deps-check.sh --required   # 仅必要依赖
 bash deps-check.sh --json       # JSON 输出（脚本调用）
 ```
 
-检查项：git、bash、curl、node、python3、pip3、npm、gh、claude、inotify-tools、systemd、tmux、ssh、uv、lark-cli、cc-connect、officecli、python-pptx、cairosvg、lxml、pillow，外加网络连通性（GitHub、npm、PyPI）。
+检查项：git、bash、curl、node、python3、pip3、npm、gh、claude、inotify-tools、systemd、tmux、ssh、uv、bat (batcat)、glow、nano、lark-cli、cc-connect、officecli、python-pptx、cairosvg、lxml、pillow，外加网络连通性（GitHub、npm、PyPI）。
 
 ## Auto-Sync
 
@@ -172,6 +172,16 @@ bash deps-check.sh --json       # JSON 输出（脚本调用）
 ```
 
 流程：`inotifywait` 监听 `~/git/` → 检测变化 → 120s debounce → `git add -A` → `git commit` → `git pull --ff-only` → `git push` → 重建符号链接 → 同步 skills。
+
+## CLI 工具
+
+`init-ubuntu.sh` 自动安装常用 CLI 工具（`sudo apt install`）：
+
+| 工具 | 命令 | 用途 |
+|------|------|------|
+| bat | `batcat` | 代码语法高亮（Ubuntu 包名 `bat`，命令 `batcat`） |
+| glow | `glow` | Markdown 渲染阅读器 |
+| nano | `nano` | 终端编辑器（通常预装） |
 
 ## 可选组件
 
