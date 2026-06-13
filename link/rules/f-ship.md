@@ -1,1 +1,0 @@
-/home/francis/git/ccconfig/link/skills/f-ship/rules.d/f-ship.md
