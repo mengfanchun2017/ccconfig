@@ -1,3 +1,10 @@
+---
+paths:
+  - "**/*.gd"
+  - "**/*.tscn"
+  - "**/project.godot"
+---
+
 # Godot / GDScript 规范
 
 ## 项目特征识别
