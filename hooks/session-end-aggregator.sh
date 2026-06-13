@@ -271,17 +271,16 @@ with open("/tmp/claude_last_session.json", "w") as f:
 # 写飞书 worklog
 T = "LX5lb6VfdaJHWrsRbTgc8Y50nmj"
 TBL = "tblVsC0L7QFzMeYM"
-KR_AUTO = "recvl7jffWBL34"
 
 date_str = datetime.date.today().isoformat()
 
 wl_payload = {
-    "fields": ["标题", "关联KR", "成果类型", "量化结果", "说明", "日期",
+    "fields": ["标题", "成果类型", "量化结果", "说明", "日期",
                "input_tokens", "output_tokens",
                "cache_creation_input_tokens", "cache_read_input_tokens", "model",
                "asst_msgs", "user_msgs", "来源"],
     "rows": [[
-        title, [{"id": KR_AUTO}], "工具开发", quant, description, date_str,
+        title, "工具开发", quant, description, date_str,
         agg["input_tokens"], agg["output_tokens"],
         agg["cache_creation_input_tokens"], agg["cache_read_input_tokens"],
         model or "",
