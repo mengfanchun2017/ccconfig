@@ -296,6 +296,7 @@ case "${1:-menu}" in
         # BOOTSTRAP 阶段 4 入口：Ubuntu + MCP + Skills + Python 包
         init_all_steps true
         echo ""
+        echo "CLI 工具: bat (batcat) / glow / nano — 已由 init-ubuntu.sh 自动安装"
         echo "可选: bash ccconfig/option-bridge/init.sh   # 安装飞书 Bridge"
         echo "可选: bash ccconfig/option-vessel/init.sh   # 安装 Vessel AI 浏览器"
         exit 0
