@@ -281,58 +281,146 @@ for prefix, kid in KR_ROUTE.items():
 if not kr_id:
     kr_id = "recvl7jffWBL34"
 
-# 写飞书 worklog
+# 写飞书 worklog（同 session 自动合并）
 T = "LX5lb6VfdaJHWrsRbTgc8Y50nmj"
 TBL = "tblVsC0L7QFzMeYM"
+WL_CACHE = f"/tmp/claude_session_{sid}_wl.json"
 
 date_str = datetime.date.today().isoformat()
-
-wl_payload = {
-    "fields": ["标题", "成果类型", "量化结果", "说明", "日期",
-               "input_tokens", "output_tokens",
-               "cache_creation_input_tokens", "cache_read_input_tokens", "model",
-               "asst_msgs", "user_msgs", "关联KR", "来源"],
-    "rows": [[
-        title, "工具开发", quant, description, date_str,
-        agg["input_tokens"], agg["output_tokens"],
-        agg["cache_creation_input_tokens"], agg["cache_read_input_tokens"],
-        model or "",
-        asst_msgs, total_user_msgs,
-        [{"id": kr_id}],
-        source_val,
-    ]],
-}
-
-wl_tmp = f"/tmp/wl_{sid}.json"
-with open(wl_tmp, "w") as f:
-    json.dump(wl_payload, f, ensure_ascii=False)
 
 env = os.environ.copy()
 env["LARKSUITE_CLI_CONFIG_DIR"] = os.path.expanduser("~/.lark-cli-<account>")
 env["PATH"] = os.path.expanduser("~/.local/bin:") + env.get("PATH", "")
 
-try:
-    proc = subprocess.run(
-        ["lark-cli", "base", "+record-batch-create",
-         "--base-token", T, "--table-id", TBL,
-         "--as", "user", "--json", f"@{os.path.basename(wl_tmp)}"],
-        capture_output=True, text=True, cwd="/tmp", env=env, timeout=20,
-    )
-    stdout_clean = "\n".join(
-        l for l in proc.stdout.splitlines() if not l.startswith("[lark-cli]")
-    )
-    if proc.returncode == 0 and '"ok": true' in stdout_clean:
-        print(f"session-end-aggregator: worklog written → {title}", file=sys.stderr)
+prev_exists = os.path.exists(WL_CACHE)
+if prev_exists:
+    # 同 session 已有记录 → 合并更新
+    with open(WL_CACHE) as f:
+        prev = json.load(f)
+
+    # 标题：取较长的（通常更新后的标题更具体）
+    merged_title = title if len(title) > len(prev.get("title", "")) else prev["title"]
+
+    # 说明：追加新内容
+    merged_desc = prev.get("description", "") + f"\n\n---\n{source_val} 更新 ({date_str}):\n{description}"
+
+    # 量化：累加 round 数和 token
+    prev_rounds = prev.get("asst_msgs", 0)
+    prev_users = prev.get("user_msgs", 0)
+    merged_quant = (f"{asst_msgs + prev_rounds} asst / {total_user_msgs + prev_users} user msgs, "
+                    f"model={model}, "
+                    f"in={agg['input_tokens'] + prev.get('input_tokens',0):,} "
+                    f"out={agg['output_tokens'] + prev.get('output_tokens',0):,}")
+
+    # 更新 Feishu 记录
+    update_payload = {
+        "record_id_list": [prev["record_id"]],
+        "patch": {
+            "标题": merged_title,
+            "说明": merged_desc,
+            "量化结果": merged_quant,
+            "input_tokens": agg["input_tokens"] + prev.get("input_tokens", 0),
+            "output_tokens": agg["output_tokens"] + prev.get("output_tokens", 0),
+            "asst_msgs": asst_msgs + prev_rounds,
+            "user_msgs": total_user_msgs + prev_users,
+            "来源": source_val,
+        },
+    }
+    update_tmp = f"/tmp/wl_update_{sid}.json"
+    with open(update_tmp, "w") as f:
+        json.dump(update_payload, f, ensure_ascii=False)
+
+    try:
+        proc = subprocess.run(
+            ["lark-cli", "base", "+record-batch-update",
+             "--base-token", T, "--table-id", TBL,
+             "--as", "user", "--json", f"@{os.path.basename(update_tmp)}"],
+            capture_output=True, text=True, cwd="/tmp", env=env, timeout=20,
+        )
+        stdout_clean = "\n".join(
+            l for l in proc.stdout.splitlines() if not l.startswith("[lark-cli]")
+        )
+        if proc.returncode == 0 and '"ok": true' in stdout_clean:
+            print(f"session-end-aggregator: worklog merged → {merged_title}", file=sys.stderr)
+            # 更新缓存（后续 merge 需要累加后的最新值）
+            prev["title"] = merged_title
+            prev["description"] = merged_desc
+            prev["asst_msgs"] = asst_msgs + prev_rounds
+            prev["user_msgs"] = total_user_msgs + prev_users
+            prev["input_tokens"] = agg["input_tokens"] + prev.get("input_tokens", 0)
+            prev["output_tokens"] = agg["output_tokens"] + prev.get("output_tokens", 0)
+            with open(WL_CACHE, "w") as f:
+                json.dump(prev, f, ensure_ascii=False)
+        else:
+            print(f"session-end-aggregator: merge failed rc={proc.returncode}", file=sys.stderr)
+    except Exception as e:
+        print(f"session-end-aggregator: merge exception {e}", file=sys.stderr)
+    finally:
+        try:
+            os.remove(update_tmp)
+        except OSError:
+            pass
+
+else:
+    # 首次记录 → 新建
+    wl_payload = {
+        "fields": ["标题", "成果类型", "量化结果", "说明", "日期",
+                   "input_tokens", "output_tokens",
+                   "cache_creation_input_tokens", "cache_read_input_tokens", "model",
+                   "asst_msgs", "user_msgs", "关联KR", "来源"],
+        "rows": [[
+            title, "工具开发", quant, description, date_str,
+            agg["input_tokens"], agg["output_tokens"],
+            agg["cache_creation_input_tokens"], agg["cache_read_input_tokens"],
+            model or "",
+            asst_msgs, total_user_msgs,
+            [{"id": kr_id}],
+            source_val,
+        ]],
+    }
+    wl_tmp = f"/tmp/wl_{sid}.json"
+    with open(wl_tmp, "w") as f:
+        json.dump(wl_payload, f, ensure_ascii=False)
+
+    try:
+        proc = subprocess.run(
+            ["lark-cli", "base", "+record-batch-create",
+             "--base-token", T, "--table-id", TBL,
+             "--as", "user", "--json", f"@{os.path.basename(wl_tmp)}"],
+            capture_output=True, text=True, cwd="/tmp", env=env, timeout=20,
+        )
+        stdout_clean = "\n".join(
+            l for l in proc.stdout.splitlines() if not l.startswith("[lark-cli]")
+        )
+        if proc.returncode == 0 and '"ok": true' in stdout_clean:
+            # 解析 record_id 并缓存
+            try:
+                rdata = json.loads(stdout_clean)
+                wl_id = rdata["data"]["record_id_list"][0]
+                cache = {
+                    "record_id": wl_id,
+                    "title": title,
+                    "description": description,
+                    "asst_msgs": asst_msgs,
+                    "user_msgs": total_user_msgs,
+                    "input_tokens": agg["input_tokens"],
+                    "output_tokens": agg["output_tokens"],
+                }
+                with open(WL_CACHE, "w") as f:
+                    json.dump(cache, f, ensure_ascii=False)
+                print(f"session-end-aggregator: worklog created → {title} ({wl_id})", file=sys.stderr)
+            except Exception as e:
+                print(f"session-end-aggregator: created but cache failed {e}", file=sys.stderr)
+        else:
+            print(
+                f"session-end-aggregator: lark-cli failed rc={proc.returncode}",
+                file=sys.stderr,
+            )
+    except Exception as e:
+        print(f"session-end-aggregator: lark-cli exception {e}", file=sys.stderr)
+    finally:
         try:
             os.remove(wl_tmp)
         except OSError:
             pass
-    else:
-        print(
-            f"session-end-aggregator: lark-cli failed, kept in {out_path}. "
-            f"rc={proc.returncode} stderr={proc.stderr[:200]}",
-            file=sys.stderr,
-        )
-except Exception as e:
-    print(f"session-end-aggregator: lark-cli exception {e}, kept in {out_path}", file=sys.stderr)
 PY
