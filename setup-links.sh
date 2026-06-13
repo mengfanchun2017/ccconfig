@@ -97,7 +97,7 @@ setup_symlinks() {
             mkdir -p "$MEM_PARENT"
             # 若目标已是空真目录，先删除再链接
             if [[ -d "$MEM_PARENT/memory" && ! -L "$MEM_PARENT/memory" ]]; then
-                rmdir "$MEM_PARENT/memory" 2>/dev/null || true
+                rm -rf "$MEM_PARENT/memory"
             fi
             # 防御：源 memory/ 里若 MEMORY.md 是断链（含循环），删掉避免重链接失败
             if [[ -L "${proj_dir}memory/MEMORY.md" ]] && [[ ! -e "${proj_dir}memory/MEMORY.md" ]]; then
