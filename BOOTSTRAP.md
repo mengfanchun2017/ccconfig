@@ -144,7 +144,24 @@ LLM 默认值是 deepseek；MCP 和 skills 都是已配置的服务器列表。
 
 ---
 
-## 阶段 5 — 验证
+## 阶段 5 — 克隆所有项目
+
+ccconfig 已就绪，接下来把其他项目也拉下来。用 `gh repo list` 自动发现：
+
+```bash
+gh repo list <your-github-username> --limit 50 --json name --jq '.[].name' | while read repo; do
+    [ "$repo" = "ccconfig" ] && continue           # 已克隆
+    [ -d "$HOME/git/$repo" ] && continue            # 已存在
+    echo "克隆 $repo ..."
+    gh repo clone "<your-github-username>/$repo" "$HOME/git/$repo"
+done
+```
+
+**这一步自动跳过已存在的项目**，可以安全重跑。
+
+---
+
+## 阶段 6 — 验证
 
 ```bash
 # 12 项状态检查
@@ -282,7 +299,7 @@ bash sync.sh --pull    # = 强拉远程 + setup-links + skill sync
 
 - 阶段 0：`brew install git curl`
 - 阶段 1：`brew install gh`
-- 阶段 2-5：都一样
+- 阶段 2-6：都一样
 
 ## 无 sudo 备注
 
