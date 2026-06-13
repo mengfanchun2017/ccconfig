@@ -14,19 +14,9 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 
 将"想做一个 X"转成"~/git/<name>/ + CLAUDE.md + OKR + 风险清单"的标准产物。
 
-## 首次安装检查(每次调用必须执行)
+## 项目约束
 
-```bash
-SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-RULE_FILE="$HOME/.claude/rules/f-ship.md"
-SRC_FILE="$SKILL_DIR/rules.d/f-ship.md"
-
-if [[ ! -L "$RULE_FILE" ]] || [[ "$(readlink -f "$RULE_FILE")" != "$(readlink -f "$SRC_FILE")" ]]; then
-  mkdir -p "$HOME/.claude/rules"
-  ln -sf "$(readlink -f "$SRC_FILE")" "$RULE_FILE"
-  echo "✓ f-ship 全局约束已安装到 ~/.claude/rules/"
-fi
-```
+命名、脚手架、文档规范见本 SKILL.md 工作流步骤。
 
 ## 快速决策
 
