@@ -148,14 +148,35 @@ check_memory() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[5] MEMORY 更新${NC}"
 
-    # 使用 -L 跟随符号链接，读取目标文件的真实修改时间
-    local memory_file="$HOME/.claude/projects/-home-francis-git/memory/MEMORY.md"
-    if [ -f "$memory_file" ]; then
-        local mtime=$(stat -L -c %y "$memory_file" 2>/dev/null | cut -d'.' -f1)
-        local size=$(stat -L -c %s "$memory_file" 2>/dev/null)
-        echo -e "  📅 $mtime ($size bytes)"
-    else
-        echo -e "  ${RED}❌${NC} MEMORY.md 不存在"
+    local projects_src="$SCRIPT_DIR/link/projects"
+
+    for proj_dir in "$projects_src"/-home-*-*/; do
+        [[ -d "$proj_dir" ]] || continue
+        local proj_name=$(basename "$proj_dir")
+        local display_name=$(echo "$proj_name" | sed 's/^-home-[^-]*-//' | tr '-' '/')
+        local mem_target="$HOME/.claude/projects/$proj_name/memory"
+
+        if [[ -d "${proj_dir}memory" ]]; then
+            # 形式 B: memory/ 子目录
+            if [[ -L "$mem_target" ]] && [[ -e "$mem_target" ]]; then
+                local mtime=$(stat -L -c %y "$mem_target/MEMORY.md" 2>/dev/null | cut -d'.' -f1)
+                [[ -n "$mtime" ]] && echo -e "  ${GREEN}✅${NC} $display_name — $mtime" || echo -e "  ${YELLOW}⚠️${NC} $display_name — 缺 MEMORY.md 索引"
+            else
+                echo -e "  ${RED}❌${NC} $display_name — 链接断（run setup-links.sh）"
+            fi
+        elif [[ -f "${proj_dir}MEMORY.md" ]]; then
+            # 形式 A: 单文件 MEMORY.md
+            if [[ -L "$mem_target/MEMORY.md" ]] && [[ -e "$mem_target/MEMORY.md" ]]; then
+                local mtime=$(stat -L -c %y "$mem_target/MEMORY.md" 2>/dev/null | cut -d'.' -f1)
+                echo -e "  ${GREEN}✅${NC} $display_name — $mtime"
+            else
+                echo -e "  ${RED}❌${NC} $display_name — 链接断（run setup-links.sh）"
+            fi
+        fi
+    done
+
+    if ! compgen -G "$projects_src/-home-*-*" > /dev/null 2>&1; then
+        echo -e "  ${YELLOW}⚠️${NC} link/projects/ 下无项目记忆目录"
     fi
 }
 
