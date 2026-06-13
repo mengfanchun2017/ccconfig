@@ -12,21 +12,9 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, WebSearch, mcp__minimax__und
 
 编排层，不重新实现底层工具。委托飞书操作给 lark-doc/lark-drive/lark-wiki/lark-whiteboard，Office 给 OfficeCLI，PPT 给 f-ppt。
 
-## 首次安装检查（每次调用必须执行）
+## 格式约束
 
-调用本 skill 时，先检查 rules.d/ 全局约束是否已链接：
-
-```bash
-SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"  # 需替换为实际 skill 路径
-RULE_FILE="$HOME/.claude/rules/f-doc.md"
-SRC_FILE="$SKILL_DIR/rules.d/f-doc.md"
-
-if [[ ! -L "$RULE_FILE" ]] || [[ "$(readlink -f "$RULE_FILE" 2>/dev/null)" != "$(readlink -f "$SRC_FILE")" ]]; then
-  mkdir -p "$HOME/.claude/rules"
-  ln -sf "$(readlink -f "$SRC_FILE")" "$RULE_FILE"
-  echo "✓ f-doc 全局约束已安装到 ~/.claude/rules/"
-fi
-```
+飞书文档硬约束由本 SKILL.md 内联（工作流步骤中已包含检查点），详细参考 → `references/write-checklist.md`、`references/lark-cli-cheatsheet.md`。
 
 执行后输出结果。符号链接存在且正确则跳过。这条确保格式硬约束始终全局加载，不依赖用户手动运行 init.sh。
 

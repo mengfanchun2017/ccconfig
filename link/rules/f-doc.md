@@ -1,1 +1,0 @@
-../skills/f-doc/rules.d/f-doc.md
