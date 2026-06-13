@@ -37,6 +37,46 @@ Tavily extract → 拿到内容 → 直接用
 - **Vessel 只用于 Tavily 提取失败的页面**，或需要交互/登录的场景
 - 日常调研中 Vessel 是最后 fallback，不是主力
 
+## 防卡死规则（硬约束 — 最高优先级）
+
+Vessel 的 40+ 工具平铺注册 + 截图驱动容易导致 agent 陷入死循环。以下规则不可违反：
+
+### 截图限制
+- 同一页面截图不超过 **3 次**
+- 第 4 次截图前 → 必须改用 `extract_content` mode="text_only" 或 `read_page` mode="text_only"
+- 违反此规则 = 陷入截图循环，必须立即停止
+
+### 点击重试限制
+- 同一目标元素点击失败不超过 **2 次**
+- 第 2 次失败后 → 换 CSS selector（不用 index），或用 `vessel_devtools_query_dom` 重新获取元素
+- 还是失败 → 报告失败，停止重试
+
+### 超时熔断
+- 单次 `wait_for` 不超过 **10 秒**
+- `wait_for_navigation` 不超过 **15 秒**
+- 超时后不重试，报告页面不可达
+- 单次 Vessel 会话不超过 **15 个工具调用**，超过说明陷入循环
+
+### 提取优先级链
+```
+1st: extract_content mode="text_only" （≤800 tokens）
+2nd: read_page mode="text_only"
+3rd: extract_content mode="visible_only"
+last: screenshot （5000-10000+ tokens，仅视觉验证时用）
+```
+
+### 卡住自检（每 5 个 Vessel 调用后必执行）
+- 我在重复同样的操作吗？→ 停止，换方法
+- 我截图超过 3 次了吗？→ 停止，用 text 提取
+- 目标能用更简单的工具替代吗？→ 停止，切工具
+- index-based click 连续失败了吗？→ 停止，换 CSS selector
+
+### 恢复流程（检测到卡住时）
+1. 立即停止当前 Vessel 操作
+2. 用 `extract_content` mode="text_only" 获取页面状态
+3. 根据页面状态决定：继续（换方法）还是放弃（报告失败）
+4. 不要重试同样的操作期望不同结果
+
 ## Workflow Pattern
 
 When asked to perform a web task:
@@ -64,8 +104,10 @@ When asked to perform a web task:
 ## Best Practices
 
 - Use `wait` after navigation, don't assume instant load
-- Prefer `extract` over `screenshot` for text data (lower token cost)
-- Use `screenshot` when visual layout matters
+- **Prefer `extract_content` mode="text_only" over `screenshot`** — 10x token savings
+- Screenshot only for visual layout verification, max 3 per page
 - Save session after login to avoid re-authentication
 - Close unused tabs to conserve memory
-- Use `evaluate` for complex DOM queries, not repeated extract calls
+- Use `vessel_devtools_execute_js` for complex DOM queries, not repeated extract calls
+- **If stuck (same action repeated, index clicks failing) → stop, switch to text extraction, report status**
+- Keep Vessel sessions short: under 15 tool calls total
