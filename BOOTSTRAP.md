@@ -176,7 +176,6 @@ bash status.sh
 [4] 最后推送          (刚才 init 的某个时间)
 [5] MEMORY 更新       ✅
 [7] 飞书              (未配置，可选)
-[7b] Vessel           (未安装，可选)
 [7c] OfficeCLI        (未安装，可选)
 ```
 
@@ -278,7 +277,7 @@ bash sync.sh --pull    # = 强拉远程 + setup-links + skill sync
 | auto-sync | `bash init-autostart.sh` |
 | 最后推送 >24h | `systemctl --user start ccconfig-monitor` 或 `./monitor.sh start` |
 | ppt-master 环境 | `bash option-ppt-master/init.sh` |
-| 飞书 / Vessel / OfficeCLI | 对应 `option-*/init.sh` 重装 |
+| 飞书 / OfficeCLI | 对应 `option-*/init.sh` 重装 |
 
 ---
 
