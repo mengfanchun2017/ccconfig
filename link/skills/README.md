@@ -16,7 +16,6 @@
 | `f-research-deep/` | 深度研究 — 批量 JSON 输出 | ✅ marketplace 公开 |
 | `f-report-gen/` | 报告生成 — JSON → Markdown | ✅ marketplace 公开 |
 | `f-report-std/` | 报告写作横向规范（4 套模板）| ✅ marketplace 公开 |
-| `f-vessel/` | AI 浏览器操控 | ✅ marketplace 公开 |
 | `f-logme/` | 个人管理系统 — OKR/Worklog/Reflect/SUM | 🔒 **私有**（含飞书 tenant + Base ID）|
 | `skill-template/` | 脚手架（开发用）| — 不发布 |
 
@@ -59,7 +58,6 @@ bash ccconfig/init-skill.sh status    # 状态总览
    
 claude plugin list                      ← marketplace install (来源 2)
    f-pdf@<your-github-username>-skills
-   f-vessel@<your-github-username>-skills
    caveman@<your-github-username>-skills
    ...
    lark-doc@<your-github-username>-skills      (lark-* skill)

@@ -9,7 +9,7 @@
 # 5. MEMORY 最后更新
 # 6. ppt-master PPT 生成环境
 # 7. 飞书 lark-cli 状态
-# 8. Vessel AI 浏览器
+# 8. Playwright 浏览器测试
 # 9. OfficeCLI 状态
 # 10. MCP 服务器状态
 # 11. 远程连接状态 (Tailscale + SSH)
@@ -220,57 +220,33 @@ check_ppt_master() {
     fi
 }
 
-# ========== 8. Vessel AI 浏览器（可选） ==========
-check_vessel() {
+# ========== 8. Playwright 浏览器测试 ==========
+check_playwright() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[8] Vessel AI 浏览器 [option]${NC}"
+    echo -e "${CYAN}[8] Playwright 浏览器测试${NC}"
 
-    local vessel_bin="$HOME/.local/bin/vessel"
-    local vessel_dir="$HOME/.local/lib/vessel/squashfs-root/vessel"
-
-    echo -n "  安装 ... "
-    if [ -x "$vessel_bin" ] || [ -f "$vessel_dir" ]; then
-        echo -e "${GREEN}✅${NC}"
+    echo -n "  npx playwright ... "
+    if npx playwright --version &>/dev/null; then
+        echo -e "${GREEN}✅${NC} $(npx playwright --version 2>/dev/null)"
     else
-        echo -e "${GRAY}－${NC} (未安装)"
+        echo -e "${GRAY}－${NC} 未安装"
     fi
 
-    echo -n "  进程 ... "
-    if pgrep -f "squashfs-root/vessel|vessel.*AppImage" > /dev/null 2>&1; then
-        local pid=$(pgrep -f "squashfs-root/vessel" | head -1)
-        echo -e "${GREEN}✅${NC} 运行中 (PID: $pid)"
+    echo -n "  浏览器 ... "
+    if [ -d "$HOME/.cache/ms-playwright/chromium"* ] 2>/dev/null; then
+        echo -e "${GREEN}✅${NC} Chromium"
+    elif [ -d "$HOME/.cache/ms-playwright" ]; then
+        echo -e "${GREEN}✅${NC} 已安装"
     else
-        echo -e "${YELLOW}○${NC} 未运行"
+        echo -e "${YELLOW}○${NC} 未安装浏览器"
     fi
 
-    echo -n "  Token ... "
-    local auth_file="$HOME/.config/vessel/mcp-auth.json"
-    if [ -f "$auth_file" ]; then
-        local token=$(python3 -c "import json; print(json.load(open('$auth_file'))['token'])" 2>/dev/null)
-        if [ -n "$token" ]; then
-            echo -e "${GREEN}✅${NC} ${token:0:16}..."
-        else
-            echo -e "${YELLOW}○${NC} 解析失败"
-        fi
+    echo -n "  MCP ... "
+    if npx @playwright/mcp@latest --version 2>/dev/null | grep -q .; then
+        echo -e "${GREEN}✅${NC} 可用"
     else
-        echo -e "${YELLOW}○${NC} 未生成"
+        echo -e "${YELLOW}○${NC} 未配置"
     fi
-
-    echo -n "  MCP (端口 3100) ... "
-    if curl -s --max-time 2 "http://localhost:3100/mcp" 2>/dev/null | grep -q "Unauthorized\|bearer"; then
-        echo -e "${GREEN}✅${NC} 已监听"
-    else
-        echo -e "${GRAY}－${NC} 未监听"
-    fi
-
-    echo -n "  MCP 注册 ... "
-    if grep -q '"vessel"' "$HOME/.claude/.config.json" 2>/dev/null; then
-        echo -e "${GREEN}✅${NC} 已注册"
-    else
-        echo -e "${YELLOW}○${NC} 未注册"
-    fi
-
-    echo -e "  ${GRAY}安装: bash ccconfig/option-vessel/init.sh${NC}"
 }
 
 # ========== 10. MCP 服务器状态 ==========
@@ -300,7 +276,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def test_mcp(name, config):
     try:
-        # HTTP 类型 MCP（vessel 等）无 command 字段，单独标记不视为错误
+        # HTTP 类型 MCP 无 command 字段，单独标记不视为错误
         if config.get('type') == 'http':
             url = config.get('url', '?')
             return name, f"✅ http ({url})", None
@@ -738,7 +714,7 @@ check_last_push
 check_memory
 check_ppt_master
 check_feishu
-check_vessel
+check_playwright
 check_officecli
 check_mcp
 check_remote

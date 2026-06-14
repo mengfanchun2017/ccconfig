@@ -12,7 +12,7 @@ ccconfig 管理 Claude Code 配置的完整生命周期：
 - **Skills**：8 自建（symlink）+ 第三方 npx skills 自管（conf 清单）+ 系统层 lark-cli（npm 全局）
 - **Rules**：按路径条件加载（编码、git、python、搜索、飞书、godot）
 - **Agents**：意图路由 agent（assistant、feishucreate）
-- **可选**：飞书 Bridge、OfficeCLI、PPT 生成、Vessel 浏览器、远程 SSH
+- **可选**：飞书 Bridge、OfficeCLI、PPT 生成、远程 SSH
 
 ## 架构
 
@@ -79,9 +79,6 @@ ccconfig/
 ├── option-ppt-master/        # 可选：PPT 生成（python-pptx）
 │   └── init.sh               # 克隆仓库 + 装依赖
 │
-├── option-vessel/            # 可选：Vessel AI 浏览器
-│   └── init.sh               # 安装器 + MCP 注册
-│
 ├── remote/                   # 远程访问（Tailscale + SSH + tmux）
 │   ├── server/               # SSH Server + tmux 配置
 │   └── client/               # Windows Tailscale 配置
@@ -140,7 +137,7 @@ bash status.sh
 5. MEMORY.md 最后更新
 6. ppt-master 环境（仓库、python-pptx、cairosvg）
 7. 飞书（lark-cli：安装、配置、auth、bridge、bot）
-8. Vessel AI 浏览器（安装、进程、token、MCP）
+8. Playwright 浏览器测试
 9. OfficeCLI（安装、MCP 注册）
 10. MCP 服务器（并行健康检查，24h 缓存）
 11. 远程访问（SSH、端口、WSL 网络模式、Tailscale）
@@ -197,8 +194,8 @@ bash option-officecli/init.sh
 # PPT 生成（python-pptx + cairosvg + ppt-master）
 bash option-ppt-master/init.sh
 
-# Vessel AI 浏览器
-bash option-vessel/init.sh
+# Playwright 浏览器测试
+npx playwright install chromium
 ```
 
 每个 option 组件至少支持 `init.sh --status` 健康检查。

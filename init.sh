@@ -35,8 +35,9 @@ init_all_steps() {
             bash -c "source '$SCRIPT_DIR/lib/path-helper.sh' 2>/dev/null; '$SCRIPT_DIR/update.sh' python" true
     fi
     echo ""
-    echo "🎉 全部初始化完成（飞书 Bridge / Vessel 为可选组件）"
+    echo "🎉 全部初始化完成（飞书 Bridge 为可选组件）"
     echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
+    echo "提示: Playwright Chromium 浏览器通过 npx @playwright/mcp 自动可用"
 }
 
 run_step() {
@@ -298,7 +299,6 @@ case "${1:-menu}" in
         echo ""
         echo "CLI 工具: bat (batcat) / glow / nano — 已由 init-ubuntu.sh 自动安装"
         echo "可选: bash ccconfig/option-bridge/init.sh   # 安装飞书 Bridge"
-        echo "可选: bash ccconfig/option-vessel/init.sh   # 安装 Vessel AI 浏览器"
         exit 0
         ;;
     status)

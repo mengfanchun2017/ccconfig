@@ -13,6 +13,14 @@ All notable changes to ccconfig will be documented in this file.
 - `scripts/publish.sh` — 一键把 ccconfig/link/skills/ 的指定 f-* 同步到 claude-skills/plugins/（默认只 commit，--push 才推）
 
 ### Removed
+- **Vessel 全线移除** — 浏览器测试统一迁移至 Playwright
+  - 删 `option-vessel/`、`bin/vessel-mcp-proxy.cjs`、`bin/vessel-healthcheck.sh`、`link/skills/f-vessel/`
+  - 删 `~/.local/bin/vessel*`、`~/.local/lib/vessel/`、systemd `vessel.service`、`~/.config/vessel/`
+  - 清 `status.sh` check_vessel → check_playwright、`init.sh`/`init-ubuntu.sh` vessel 引用
+  - 清 `.config.json` vessel disabledMcpServers/mcpServers/skillUsageStats
+  - 清 `conf/claude.json`、`settings.json` vessel MCP 条目
+  - 清 `search.md` Vessel → Playwright 替换
+  - <project-name>: `settings.json` vessel → playwright MCP、`f-test-<project-name>` SKILL.md 全 Playwright、ADR 0016 更新
 - `~/.claude/skills/f-research` + `f-research-report` symlink（指向旧路径）
 - `~/.claude/rules/f-research-report.md` symlink
 
@@ -52,7 +60,7 @@ All notable changes to ccconfig will be documented in this file.
 - `setup-links.sh` — 符号链接重建
 - `option-bridge/` — 飞书消息 Bridge
 - `option-ppt-master/` — PPT 生成环境
-- `option-vessel/` — Vessel AI 浏览器
+- `option-vessel/` — Vessel AI 浏览器（已于 2026-06-14 移除，全线迁移至 Playwright）
 - `remote/` — 远程连接（Tailscale + SSH + tmux）
 - `windows/` — Windows/WSL 互操作
 - `conf/` — 配置文件单一来源

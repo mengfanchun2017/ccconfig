@@ -15,12 +15,12 @@
 
 ```
 Tavily extract（主力）→ 拿到内容 → 直接用
-                      → 空壳/被拦截/需要登录/JS渲染 → Vessel 浏览器提取
+                      → 空壳/被拦截/需要登录/JS渲染 → Playwright 浏览器提取
 ```
 
 - **Tavily extract** 速度快、成本低、可并行，适合所有公开静态页面
-- **Vessel** 是最后 fallback，仅用于 Tavily 无法提取的页面：登录墙、SPA（Vue/React 渲染）、需要交互才能展示内容、反爬页面
-- Vessel 不是搜索工具，是浏览器操控工具。搜索本身始终用 Tavily
+- **Playwright** 是最后 fallback，仅用于 Tavily 无法提取的页面：登录墙、SPA（Vue/React 渲染）、需要交互才能展示内容、反爬页面
+- Playwright 不是搜索工具，是浏览器操控工具。搜索本身始终用 Tavily
 
 ## 双语搜索
 同时执行中英文查询，自行转换关键词并聚合结果。
