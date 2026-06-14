@@ -100,10 +100,19 @@ check_symlinks() {
         echo -e "  ${GREEN}配置链接就绪${NC}"
     else
         echo -e "  ${GRAY}自动修复中...${NC}"
-        if bash "$REPO_DIR/setup-links.sh" 2>/dev/null; then
-            echo -e "  ${GREEN}✅ 配置链接已自动修复${NC}"
-        else
-            echo -e "  ${RED}❌ 自动修复失败，手动执行: bash ccconfig/setup-links.sh${NC}"
+        local fixed=false
+        if [ -x "$HOME/git/ccprivate/setup.sh" ]; then
+            if bash "$HOME/git/ccprivate/setup.sh" 2>/dev/null; then
+                echo -e "  ${GREEN}✅ 配置链接已自动修复 (ccprivate/setup.sh)${NC}"
+                fixed=true
+            fi
+        fi
+        if ! $fixed && bash "$REPO_DIR/setup-links.sh" 2>/dev/null; then
+            echo -e "  ${GREEN}✅ 公开链接已自动修复 (cconfig/setup-links.sh)${NC}"
+            echo -e "  ${YELLOW}⚠️  私有链接需 ccprivate${NC}"
+        elif ! $fixed; then
+            echo -e "  ${RED}❌ 自动修复失败${NC}"
+            echo -e "  ${GRAY}手动: bash ~/git/ccprivate/setup.sh（全量）${NC}"
         fi
     fi
 }
@@ -177,6 +186,77 @@ check_memory() {
 
     if ! compgen -G "$projects_src/-home-*-*" > /dev/null 2>&1; then
         echo -e "  ${YELLOW}⚠️${NC} link/projects/ 下无项目记忆目录"
+    fi
+}
+
+# ========== 5b. Git 项目扫描 ==========
+check_git_projects() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[5b] Git 项目状态${NC}"
+
+    local found=0
+    for git_dir in "$HOME/git"/*/; do
+        [ -d "${git_dir}.git" ] || continue
+        local name=$(basename "$git_dir")
+        found=$((found + 1))
+
+        # CLAUDE.md 状态
+        local claude_status=""
+        if [ -L "${git_dir}CLAUDE.md" ]; then
+            local target=$(readlink "${git_dir}CLAUDE.md" 2>/dev/null)
+            if [ -e "${git_dir}CLAUDE.md" ]; then
+                if echo "$target" | grep -q "ccprivate"; then
+                    claude_status="${GREEN}✅ ccprivate${NC}"
+                else
+                    claude_status="${YELLOW}⚠️  ${target}${NC}"
+                fi
+            else
+                claude_status="${RED}❌ 断链${NC}"
+            fi
+        elif [ -f "${git_dir}CLAUDE.md" ]; then
+            claude_status="${YELLOW}📄 本地文件${NC}"
+        else
+            claude_status="${GRAY}－${NC}"
+        fi
+
+        # Memory 状态
+        # /home/user/git/<project-name> → -home-user-git-<project-name>
+        local rel_path="${git_dir#/}"
+        rel_path="${rel_path%/}"
+        local proj_id="-${rel_path//\//-}"
+        local mem_status=""
+        local mem_path="$HOME/.claude/projects/$proj_id/memory"
+        if [ -L "$mem_path" ] && [ -d "$mem_path" ]; then
+            local mem_target=$(readlink "$mem_path" 2>/dev/null)
+            if [ -d "$mem_target" ]; then
+                mem_status="${GREEN}✅${NC}"
+            else
+                mem_status="${RED}❌ 断链${NC}"
+            fi
+        elif [ -d "$mem_path" ]; then
+            mem_status="${YELLOW}📁 本地${NC}"
+        else
+            mem_status="${GRAY}－${NC}"
+        fi
+
+        # Git 状态
+        local git_status=""
+        local dirty=$(git -C "$git_dir" status --porcelain 2>/dev/null | wc -l)
+        local branch=$(git -C "$git_dir" branch --show-current 2>/dev/null)
+        local remote=$(git -C "$git_dir" remote get-url origin 2>/dev/null || echo "")
+        if [ -z "$remote" ]; then
+            git_status="${YELLOW}无 remote${NC}"
+        elif [ "$dirty" -gt 0 ]; then
+            git_status="${YELLOW}${branch} (${dirty} 改动)${NC}"
+        else
+            git_status="${GREEN}${branch} 干净${NC}"
+        fi
+
+        printf "  %-20s CLAUDE: %b  Mem: %b  Git: %b\n" "$name" "$claude_status" "$mem_status" "$git_status"
+    done
+
+    if [ $found -eq 0 ]; then
+        echo -e "  ${GRAY}(~/git/ 下无项目)${NC}"
     fi
 }
 
@@ -712,6 +792,7 @@ check_deps_quick
 check_autosync
 check_last_push
 check_memory
+check_git_projects
 check_ppt_master
 check_feishu
 check_playwright
