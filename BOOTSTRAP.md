@@ -203,6 +203,27 @@ tail -f ~/git/ccconfig/logs/monitor.log
 
 ---
 
+## 日常使用约定
+
+### Claude 启动位置
+
+| 任务 | 命令 |
+|------|------|
+| 配置/环境维护 | `cd ~/git/ccconfig && claude` |
+| 项目开发 | `cd ~/git/<project> && claude` |
+
+> **不要从 `~/git/` 启动 Claude**：`~/git/` 不是 git repo，没有项目 CLAUDE.md，上下文不完整。
+> ccconfig 是配置管理的「控制中心」— 改 rules、conf、CLAUDE.md、skills 都在这里。
+
+### CLAUDE.md 分层（写什么去哪层）
+
+| 层级 | 文件 | 写什么 |
+|------|------|--------|
+| 用户级 | `~/CLAUDE.md` | 编码规范、行为偏好、权限说明、自然语言触发、允许命令 |
+| 项目级 | `<project>/CLAUDE.md` | 项目架构、暗号、常用命令、版本管理、项目特有约束 |
+
+> ccconfig 不记录项目级 memory。架构决策在用户级 memory。
+
 ## 完成 — 接下来干嘛
 
 机器已经全功能：
@@ -215,7 +236,7 @@ tail -f ~/git/ccconfig/logs/monitor.log
 | 强制拉远程 | `bash sync.sh --pull`（暗号 `pullff`） |
 | 切 LLM 后端 | `bash init.sh` → 1) → 2) |
 | 月度升级 | `bash update.sh all` |
-| 启动 Claude | 直接输 `claude` |
+| 启动 Claude | `cd ~/git/ccconfig && claude`（配置）或 `cd ~/git/<project> && claude`（开发） |
 
 ---
 
