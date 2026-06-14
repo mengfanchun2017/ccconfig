@@ -95,36 +95,32 @@ gh auth status
 
 ---
 
-## 阶段 3 — 克隆 ccconfig
+## 阶段 3 — 克隆仓库
 
 **用 gh 克隆，不要用 git**（gh 知道用你的 token）：
 
 ```bash
-# 创建工作目录
-mkdir -p ~/git
-cd ~/git
+mkdir -p ~/git && cd ~/git
 
-# 克隆
+# 公开基础设施
 gh repo clone <your-github-username>/ccconfig
 
-# 验证
-cd ccconfig
-ls
-# 应该看到: init.sh init-ubuntu.sh monitor.sh README.md ...
-git remote -v
-# origin  https://github.com/<your-github-username>/ccconfig.git (fetch)
-# origin  https://github.com/<your-github-username>/ccconfig.git (push)
+# 私有数据层（如果还没有 remote，先手动创建 GitHub 私有仓库再克隆）
+gh repo clone <your-github-username>/ccprivate
 ```
 
-> **坑点**：如果用 `git clone git@github.com:<your-github-username>/ccconfig.git`（SSH URL），
-> 会因为没注册 SSH key 报 `Permission denied (publickey)`。
-> 用 `gh repo clone` 走 HTTPS，全程无感。
+> **ccprivate 是私有仓库**，含 API key + 个人配置 + memory。如果 GitHub 上还没创建，
+> 先在 GitHub 新建 private repo `ccprivate`，然后 `cd ~/git/ccprivate && git remote add origin <url>`。
 
 ---
 
-## 阶段 4 — 一键初始化
+## 阶段 4 — 初始化
 
 ```bash
+# 1. 私有链接 + 公开链接一步到位
+bash ~/git/ccprivate/setup.sh
+
+# 2. 系统初始化（装依赖、Claude Code、monitor）
 cd ~/git/ccconfig
 bash init.sh all
 ```
@@ -133,6 +129,8 @@ bash init.sh all
 
 | 步骤 | 脚本 | 做了什么 |
 |------|------|----------|
+| 私有链接 | `ccprivate/setup.sh` | ~/CLAUDE.md + ~/.claude/* + memory + 项目 CLAUDE.md + conf 覆盖 |
+| 公开链接 | `ccconfig/setup-links.sh` | rules/agents/commands/skills → ~/.claude/ |
 | 1/3 | `init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配置 LLM（从 conf/llm.json 读取当前后端）/ 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
 | 2/3 | `init-mcp.sh` | 装并同步 MCP 服务器 |
 | 3/3 | `init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
@@ -223,25 +221,23 @@ tail -f ~/git/ccconfig/logs/monitor.log
 
 ## 旧终端快速恢复（已初始化过的机器）
 
-> 适用场景：机器已经按上面走完一遍、ccconfig clone 在 `~/git/ccconfig`、gh 已登录、
+> 适用场景：机器已经按上面走完一遍、ccconfig + ccprivate 都在 `~/git/`、gh 已登录、
 > 但长时间没用 / 终端重启 / 切换到新会话后想恢复使用。
 
-**不需要重跑 init.sh all**（会重装系统包）。只需要 5 步：
+**不需要重跑 init.sh all**（会重装系统包）。只需要 4 步：
 
 ```bash
 # 1. 拉最新
-cd ~/git/ccconfig && git pull
+cd ~/git/cconfig && git pull
+cd ~/git/ccprivate && git pull
 
-# 2. 重建符号链接（CLAUDE.md / settings.json / rules / projects/）
-bash setup-links.sh
+# 2. 重建所有符号链接（私有 + 公开一步到位）
+bash ~/git/ccprivate/setup.sh
 
-# 3. 同步新 skill（symlink 自建 + npx skills 装第三方，幂等）
-bash init-skill.sh sync
+# 3. 状态检查
+cd ~/git/ccconfig && bash status.sh
 
-# 4. 状态检查（12 项）
-bash status.sh
-
-# 5. 启动 monitor（如果没在跑）
+# 4. 启动 monitor（如果没在跑）
 bash init-autostart.sh
 # 或前台跑：./monitor.sh start
 # 查看状态：./monitor.sh status
@@ -253,7 +249,7 @@ bash init-autostart.sh
 **`pullff` 暗号 = 上面 1+2 一步到位**：
 
 ```bash
-bash sync.sh --pull    # = 强拉远程 + setup-links + skill sync
+cd ~/git/cconfig && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccprivate/setup.sh
 ```
 
 ### 常见"看着有问题"但实际正常
@@ -272,7 +268,7 @@ bash sync.sh --pull    # = 强拉远程 + setup-links + skill sync
 
 | 失败项 | 修命令 |
 |--------|--------|
-| 配置文件链接 | `bash setup-links.sh` |
+| 配置文件链接 | `bash ~/git/ccprivate/setup.sh` |
 | 核心依赖 | `apt install` 对应包 |
 | auto-sync | `bash init-autostart.sh` |
 | 最后推送 >24h | `systemctl --user start ccconfig-monitor` 或 `./monitor.sh start` |
