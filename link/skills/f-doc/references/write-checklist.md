@@ -11,7 +11,7 @@
 - [ ] **目标文档 block 结构已知？**
   - 否 → 先 `docs +fetch --api-version v2 --doc "{token}" --detail with-ids`，再决定策略
   - 是 → 确认 block_id 未变化（文档可能被他人修改）
-- [ ] **跨租户？** 不同域名（`<your-tenant>.feishu.cn` vs `acimdomc.feishu.cn`）→ lark-cli 无法访问，需导出本地处理
+- [ ] **跨租户？** 不同域名（`<tenant-a>.feishu.cn` vs `<tenant-b>.feishu.cn`）→ lark-cli 无法访问，需导出本地处理
 
 ## 1. 命令选择（按场景）
 

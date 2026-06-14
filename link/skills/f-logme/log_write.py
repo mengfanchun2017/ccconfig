@@ -25,18 +25,26 @@ import subprocess
 import sys
 import tempfile
 from datetime import date
+from pathlib import Path
 
-BASE = "LX5lb6VfdaJHWrsRbTgc8Y50nmj"
-T = {
-    "O": "tbli0erWbDwrfiEj",
-    "KR": "tblZhpELO31mAkg6",
-    "Worklog": "tblVsC0L7QFzMeYM",
-    "Reflect": "tblNLcyrOHD3OU87",
-}
+
+def _find_conf():
+    """Locate conf/f-logme.json alongside ccconfig root."""
+    for anchor in [Path(__file__).resolve().parent.parent.parent.parent.parent,
+                   Path.home() / "git" / "ccconfig"]:
+        candidate = anchor / "conf" / "f-logme.json"
+        if candidate.exists():
+            return candidate
+    sys.exit("conf/f-logme.json not found")
+
+
+CONF = json.loads(_find_conf().read_text())
+BASE = CONF["bases"]["okr_v2"]["token"]
+T = CONF["bases"]["okr_v2"]["tables"]
 
 ENV = {
     **os.environ,
-    "LARKSUITE_CLI_CONFIG_DIR": os.environ.get("LARKSUITE_CLI_CONFIG_DIR", os.path.expanduser("~/.lark-cli-<account>")),
+    "LARKSUITE_CLI_CONFIG_DIR": os.path.expanduser(CONF["lark_cli"]["config_dir"]),
     "PATH": os.path.expanduser("~/.local/bin") + ":" + os.environ.get("PATH", ""),
     "HOME": os.environ.get("HOME", os.path.expanduser("~")),
 }

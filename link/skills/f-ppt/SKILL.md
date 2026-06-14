@@ -93,7 +93,7 @@ bash ccconfig/option-officecli/init.sh --status
 
 **深色/科技风**：用户说"深色""科技风""暗色"时切换 `anthropic`（深色渐变 + 橙色 `#D97757` 强调）。
 
-模板库：`~/git/_ext/ppt-master/skills/ppt-master/templates/layouts/`（22 种）。
+模板库：路径见 `conf/f-ppt.json` → `engines.ppt-master.path`，layouts 子目录下 22 种模板。
 
 确认模板后，读取 `design_spec.md` 获取颜色/字体/间距规范，以及 5 个模板 SVG：
 `01_cover.svg` `02_toc.svg` `02_chapter.svg` `03_content.svg` `04_ending.svg`
@@ -133,7 +133,7 @@ wiki markdown 代码块（```）直接渲染为 SVG `<text>`，不用截图。
 
 ```bash
 # 质检（校验 viewBox、占位符一致性）
-cd /home/francis/git/_ext/ppt-master && \
+cd $(python3 -c "import json; print(json.load(open('conf/f-ppt.json'))['engines']['ppt-master']['path'])") && \
 python3 skills/ppt-master/scripts/svg_quality_checker.py /tmp/pptx_project
 
 # 导出 PPTX（--only native = 纯 DrawingML 可编辑形状）
@@ -159,7 +159,7 @@ PPTX 作为 wiki 子文件上传，侧边栏「文件」中可预览编辑，不
 ### 依赖
 
 - Python 3 + `python-pptx` + `cairosvg`（通过 `option-ppt-master/init.sh` 安装）
-- ppt-master 仓库：`~/git/_ext/ppt-master/`
+- ppt-master 仓库路径见 `conf/f-ppt.json`
 - 无需 Node.js/npm
 
 ### 上传要点

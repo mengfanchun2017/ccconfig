@@ -1,0 +1,10 @@
+{
+  "description": "f-ppt 工具路径配置（示例）",
+  "_usage": "复制为 conf/f-ppt.json 并填入工具路径",
+  "engines": {
+    "ppt-master": {
+      "path": "/path/to/ppt-master",
+      "description": "SVG 模板 → DrawingML 引擎（可选）"
+    }
+  }
+}

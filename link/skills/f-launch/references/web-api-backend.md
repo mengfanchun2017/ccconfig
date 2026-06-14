@@ -94,7 +94,7 @@ KR3: 部署到 Render/Railway,持续可访问 + 错误率 < 1%
 
 ## 真实案例:<project-name>
 
-- 飞书技术选型报告:[Web 后端 CRUD/REST API 技术栈选型报告](https://<your-tenant>.feishu.cn/docx/JH7rdzgGooit8cxUJwVc6KC2nlc)
+- 飞书技术选型报告:[Web 后端 CRUD/REST API 技术栈选型报告](<飞书文档 URL>)
 - 平衡组合:Node + Hono + Drizzle + PostgreSQL + Zod + Vitest + better-auth + Render → Railway
 
 ## 学习路径(8 周)

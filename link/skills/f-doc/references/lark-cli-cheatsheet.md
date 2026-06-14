@@ -60,14 +60,14 @@ lark-cli base +field-create --base-token $T --table-id tblXXX \
 
 # 关联字段（跨表链接）
 lark-cli base +field-create --base-token $T --table-id tblXXX \
-  --json '{"field_name":"关联O","type":"link","link_table":"tblC4ykRAWqBFGjt"}'
+  --json '{"field_name":"关联O","type":"link","link_table":"tblXXXXXXXX"}'
 ```
 
 ## 跨租户访问限制
 
 - **lark-cli 无法读取其他租户分享的文档/Base**，即使有链接和密码
 - 表现：`docs +fetch` 报 `10071 unclassified backend reason`；`base +table-list` 报 `800004006 baseToken invalid`
-- 不同租户 = 不同域名（`<your-tenant>.feishu.cn` vs `acimdomc.feishu.cn` vs `www.feishu.cn`）
+- 不同租户 = 不同域名（`<tenant-a>.feishu.cn` vs `<tenant-b>.feishu.cn` vs `www.feishu.cn`）
 - 解决方案：文档所有者导出文件（docx/csv），本地处理后再上传
 
 ## base 命令输出格式差异

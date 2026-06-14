@@ -144,4 +144,4 @@ done
 
 | 标题 | 链接 | 日期 | 说明 |
 |------|------|------|------|
-| Web 后端 CRUD/REST API 技术栈选型报告 (<project-name>) | https://<your-tenant>.feishu.cn/docx/JH7rdzgGooit8cxUJwVc6KC2nlc | 2026-06-11 | web-api-backend 类型的技术选型示例 |
+| Web 后端 CRUD/REST API 技术栈选型报告 (<project-name>) | <飞书文档 URL> | 2026-06-11 | web-api-backend 类型的技术选型示例 |

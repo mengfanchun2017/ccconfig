@@ -73,7 +73,7 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, WebSearch, mcp__minimax__und
 
 ### 父目录
 - **子文档**（用户指定父文档URL）：提取 token 作为 `--parent-token`。**禁止**套用默认值
-- **独立文档**（用户未指定位置）：默认 `--wiki-node <your-feishu-wiki-token>`（Claude 工作 wiki）
+- **独立文档**（用户未指定位置）：默认 wiki 节点见 `conf/f-doc.json` → `wiki_nodes.default.token`
 
 ---
 
@@ -99,7 +99,8 @@ lark-cli drive +search --query "关键词" --space-ids "space_id_1,space_id_2"
 ### Step 1: 创建
 
 ```bash
-cat << 'EOF' | lark-cli docs +create --api-version v2 --wiki-node <your-feishu-wiki-token> --as user --markdown - --title "标题"
+WIKI_NODE=$(python3 -c "import json; print(json.load(open('conf/f-doc.json'))['wiki_nodes']['default']['token'])")
+cat << 'EOF' | lark-cli docs +create --api-version v2 --wiki-node $WIKI_NODE --as user --markdown - --title "标题"
 内容
 EOF
 ```
@@ -439,18 +440,15 @@ cat "$SKILL_DIR/config.yaml"
 
 ## 线上文档索引
 
-> f-doc 创建/编辑的文档。每次操作后追加。格式：`[标题](url) | 日期 | 说明`
-
-| 标题 | 链接 | 日期 | 说明 |
-|------|------|------|------|
-| [国航大模型双轨架构深度研究](https://<your-tenant>.feishu.cn/docx/DOwxdvTVMoSMYRx28XGcliH0nte) | 2026-06-01 | 国航AI架构专题研究，对标全球航空业AI最佳实践 |
-| [知识图谱与专业能力提升 — 2026年上半年总结及下半年工作思路](https://<your-tenant>.feishu.cn/docx/XMrHd3bNeowq4KxLyNXccsTpnJf) | 2026-05-31 | 知识图谱半年总结报告，父文档 workreview |
+> f-doc 创建/编辑的文档。每次操作后追加到 `conf/f-doc.json` → `doc_index`。
 
 ### 常用 Wiki 节点
 
-| 用途 | Token | URL |
-|------|-------|-----|
-| Claude 工作 wiki（默认父目录） | `<your-feishu-wiki-token>` | https://<your-tenant>.feishu.cn/wiki/<your-feishu-wiki-token> |
-| OKR/SUM 文档父目录 | `VPsDw42KsixH77kugfcc8FyInCh` | https://<your-tenant>.feishu.cn/wiki/VPsDw42KsixH77kugfcc8FyInCh |
+Wiki 节点 token 配置在 `conf/f-doc.json` → `wiki_nodes`。
 
-> **注意**: f-logme 管辖的文档（OKR/SUM/Worklog）索引在 `skills/f-logme/SKILL.md` 的「线上文档索引」节。f-doc 索引只记录 f-doc 直接创建的文档（研究/翻译/合并等）。
+| 用途 | 配置键 |
+|------|--------|
+| 默认父目录 | `wiki_nodes.default` |
+| OKR/SUM 文档父目录 | `wiki_nodes.okr`（如有） |
+
+> f-logme 管辖的文档索引在 `skills/f-logme/SKILL.md`。
