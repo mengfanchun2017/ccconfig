@@ -198,6 +198,10 @@ check_git_projects() {
     for git_dir in "$HOME/git"/*/; do
         [ -d "${git_dir}.git" ] || continue
         local name=$(basename "$git_dir")
+        # ccprivate 是私有数据层，不作为开发项目展示
+        if [ "$name" = "ccprivate" ]; then
+            continue
+        fi
         found=$((found + 1))
 
         # CLAUDE.md 状态
