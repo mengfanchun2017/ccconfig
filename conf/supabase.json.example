@@ -1,0 +1,10 @@
+{
+  "tokens": {
+    "<project-name>": {
+      "access_token": "<sbp_...>",
+      "project_ref": "<ref>",
+      "url": "https://<ref>.supabase.co"
+    }
+  },
+  "note": "Supabase access tokens"
+}
