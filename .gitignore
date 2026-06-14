@@ -4,14 +4,26 @@
 # GetNote 等外部工具配置（包含 API Key）
 openclaw.json
 
-# 真实配置文件（含 API key / token）— ADR-0001，仓库公开后不可 commit 真实 key
+# 真实配置文件（含 API key / token / 个人标识符）— 公开仓库不可 commit
+# 对应 .example 模板文件留在仓库中
 conf/llm.json
 conf/claude.json
 conf/feishu.json
 conf/ubuntu.json
+conf/f-logme.json
+conf/f-doc.json
+conf/f-ppt.json
+conf/cloudflare.json
+conf/supabase.json
+
+# 私有数据（已迁移到 ccprivate，残留/符号链接不跟踪）
 link/.config.json
-# link/settings.json 含 ANTHROPIC_AUTH_TOKEN + TAVILY_API_KEY + MINIMAX_API_KEY + supabase access-token，2026-06-12 起 ignore（之前漏 ignore，参考 ADR-0001）
 link/settings.json
+link/CLAUDE.md
+link/projects
+
+# 项目级 CLAUDE.md（符号链接到 ccprivate）
+CLAUDE.md
 
 
 # auto-sync 运行文件

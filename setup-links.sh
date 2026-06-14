@@ -1,18 +1,14 @@
 #!/bin/bash
 # ==============================================
-# setup-links.sh — 创建 ~/.claude/ 的符号链接
+# setup-links.sh — ccconfig 公开部分符号链接
 #
-# 将 ccconfig/link/ 下的配置文件链接到 ~/.claude/：
-#   settings.json, .config.json, agents, rules, commands
-#   以及 ~/CLAUDE.md, memory 目录
+# 仅处理公开内容：agents, rules, commands, skills → ~/.claude/
+# 私有部分（CLAUDE.md, settings.json, .config.json, memory, projects）
+# 由 ccprivate/setup.sh 管理。
 #
 # 使用：
 #   bash ccconfig/setup-links.sh
-#
-# 调用方：
-#   init-ubuntu.sh    — 首次初始化时
-#   sync.sh        — 手动同步后
-#   monitor.sh   — auto-sync pull 成功后
+#   （通常由 ccprivate/setup.sh 调用）
 # ==============================================
 
 set -e
@@ -56,10 +52,6 @@ setup_symlinks() {
 
     cd "$SCRIPT_DIR"
 
-    setup_link "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/link/settings.json" "settings.json"
-    setup_link "$CLAUDE_DIR/.config.json" "$SCRIPT_DIR/link/.config.json" ".config.json"
-    setup_link "$HOME/CLAUDE.md" "$SCRIPT_DIR/link/CLAUDE.md" "CLAUDE.md"
-
     # agents（指令分流 agent）
     if [[ -d "$SCRIPT_DIR/link/agents" ]]; then
         setup_link "$CLAUDE_DIR/agents" "$SCRIPT_DIR/link/agents" "agents"
@@ -78,66 +70,6 @@ setup_symlinks() {
     # shell_aliases.sh（跨终端 shell 别名同步）
     if [[ -f "$SCRIPT_DIR/link/shell_aliases.sh" ]]; then
         setup_link "$CLAUDE_DIR/shell_aliases.sh" "$SCRIPT_DIR/link/shell_aliases.sh" "shell_aliases.sh"
-    fi
-
-    # MEMORY.md + CLAUDE.md - 自动检测所有项目
-    # 通用化：扫描所有 -home-<user>-* 项目目录（不再硬编码 francis）
-    for proj_dir in "$SCRIPT_DIR/link/projects"/-home-*-*/; do
-        if [[ ! -d "$proj_dir" ]]; then
-            continue
-        fi
-        local PROJ_NAME=$(basename "$proj_dir")
-
-        # MEMORY 链接 — 兼容两种仓库内结构
-        #   形式 A: 项目根/MEMORY.md           → 链单文件
-        #   形式 B: 项目根/memory/MEMORY.md + N 个独立记忆 → 整个 memory/ 目录链过去
-        if [[ -d "${proj_dir}memory" ]]; then
-            # 形式 B: 整个 memory/ 目录作为符号链接（保留所有独立 memory 文件）
-            local MEM_PARENT="$CLAUDE_DIR/projects/$PROJ_NAME"
-            mkdir -p "$MEM_PARENT"
-            # 若目标已是空真目录，先删除再链接
-            if [[ -d "$MEM_PARENT/memory" && ! -L "$MEM_PARENT/memory" ]]; then
-                rm -rf "$MEM_PARENT/memory"
-            fi
-            # 防御：源 memory/ 里若 MEMORY.md 是断链（含循环），删掉避免重链接失败
-            if [[ -L "${proj_dir}memory/MEMORY.md" ]] && [[ ! -e "${proj_dir}memory/MEMORY.md" ]]; then
-                rm -f "${proj_dir}memory/MEMORY.md"
-                warn "$PROJ_NAME/memory/MEMORY.md 是断链，已删（请重建）"
-            fi
-            setup_link "$MEM_PARENT/memory" "${proj_dir}memory" "$PROJ_NAME/memory"
-            # 验证：源 memory/ 目录里应有 MEMORY.md 索引
-            if [[ ! -f "${proj_dir}memory/MEMORY.md" ]]; then
-                warn "$PROJ_NAME/memory 缺 MEMORY.md 索引（harness 无法显示目录结构）"
-            fi
-        elif [[ -f "${proj_dir}MEMORY.md" ]]; then
-            # 形式 A: 单文件 MEMORY.md
-            local MEM_DIR="$CLAUDE_DIR/projects/$PROJ_NAME/memory"
-            mkdir -p "$MEM_DIR"
-            setup_link "$MEM_DIR/MEMORY.md" "${proj_dir}MEMORY.md" "$PROJ_NAME/MEMORY.md"
-        fi
-
-        # CLAUDE.md → 对应项目目录/CLAUDE.md
-        if [[ -f "${proj_dir}CLAUDE.md" ]]; then
-            # -home-francis-git-projectu → /home/francis/git/projectu
-            local PROJ_PATH="/$(echo "$PROJ_NAME" | sed 's/^-//' | sed 's/-/\//g')"
-            if [[ -d "$PROJ_PATH" ]]; then
-                setup_link "$PROJ_PATH/CLAUDE.md" "${proj_dir}CLAUDE.md" "$PROJ_NAME/CLAUDE.md"
-            fi
-        fi
-    done
-
-    # 如果没有 -home-* 项目目录，确保至少有主项目目录链接
-    # 通用化：从 $USER 推断主项目名（兼容任意用户）
-    # 注意：[[ -d glob ]] 在 bash 里 glob 不会展开，要先用 compgen 计数
-    local project_count
-    project_count=$(compgen -G "$SCRIPT_DIR/link/projects/-home-*-*" | wc -l)
-    if [[ $project_count -eq 0 ]]; then
-        local REPO_MEMORY_NAME="-home-${USER}-git"
-        local MEMORY_DIR="$CLAUDE_DIR/projects/$REPO_MEMORY_NAME/memory"
-        local MEMORY_REPO_PATH="$SCRIPT_DIR/link/projects/$REPO_MEMORY_NAME/MEMORY.md"
-
-        mkdir -p "$MEMORY_DIR"
-        setup_link "$MEMORY_DIR/MEMORY.md" "$MEMORY_REPO_PATH" "$REPO_MEMORY_NAME/MEMORY.md"
     fi
 
     # skills（从 link/skills/ 同步到 ~/.claude/skills/，防断裂）
