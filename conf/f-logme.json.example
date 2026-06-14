@@ -1,0 +1,22 @@
+{
+  "description": "f-logme 飞书资源配置（示例）",
+  "_usage": "复制为 conf/f-logme.json 并填入你的 Base token/表 ID",
+  "lark_cli": {
+    "config_dir": "~/.lark-cli-<account>"
+  },
+  "space_id": "<your-space-id>",
+  "tenant_domain": "<your-tenant>.feishu.cn",
+  "okr_wiki_node": "<your-wiki-node-token>",
+  "bases": {
+    "okr_v2": {
+      "token": "<base-token>",
+      "description": "OKR Base v2（主：目标管理 + 反思 + SUM）",
+      "tables": {
+        "O": "<table-id>",
+        "KR": "<table-id>",
+        "Worklog": "<table-id>",
+        "Reflect": "<table-id>"
+      }
+    }
+  }
+}

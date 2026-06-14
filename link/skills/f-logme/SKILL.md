@@ -44,82 +44,29 @@ OKR → KR → Worklog → Reflect → SUM 五层架构，全部数据存飞书 
 
 ---
 
-## 飞书资源
+## 配置
 
-**Space ID**: `7626581506382728129`
-**SUM 文档父目录**: `VPsDw42KsixH77kugfcc8FyInCh`（OKR Base v2 wiki 节点，所有 OKR/SUM 文档统一放此节点下）
+飞书 Base token / 表 ID / Space ID / wiki 节点 → `conf/f-logme.json`。
 
-### OKR Base v2（主：目标管理 + 反思 + SUM）🆕 2026-05-30
+```bash
+CONF="conf/f-logme.json"
+T=$(python3 -c "import json; print(json.load(open('$CONF'))['bases']['okr_v2']['token'])")
+```
 
-**Base token**: `LX5lb6VfdaJHWrsRbTgc8Y50nmj`
-**URL**: https://<your-tenant>.feishu.cn/wiki/VPsDw42KsixH77kugfcc8FyInCh
+配置结构见 `conf/f-logme.json.example`。新用户复制为 `conf/f-logme.json`，填入自己的 Base 信息即可使用全部功能。
 
-| 表 | Table ID | 用途 |
-|----|----------|------|
-| OKR_O | `tbli0erWbDwrfiEj` | 长期目标（15个O：work×4, learn×6, project×5） |
-| OKR_KR | `tblZhpELO31mAkg6` | 关键结果（23个KR，关联 O） |
-| Worklog | `tblVsC0L7QFzMeYM` | 日常记录（关联 KR） |
-| Reflect | `tblNLcyrOHD3OU87` | 定期反思（可选关联 O） |
+### Base 结构
 
-**分类体系**：`work`（公司汇报）/ `learn`（个人学习）/ `project`（个人项目）
-**变更追踪**：O 和 KR 表含 `创建日期` + `更新日期`，状态含 `Abandoned`（不删除，只废弃）
-**视图**：OKR_O 含 4 个视图 — 表格（全部）/ 进行中（状态=Active）/ 公司汇报(work)（分类=work）/ 个人(private)（分类=learn+project）
-**编号字段**：OKR_O 已删除；OKR_KR/Worklog/Reflect 因飞书 API 不支持修改主字段，已从所有视图隐藏
+所有 Base 表定义在 `conf/f-logme.json` → `bases`。主 Base 为 `okr_v2`：
 
-### AI 技能画像 Base（技能+职责匹配）🆕 2026-05-31
+| 表 | 用途 |
+|----|------|
+| OKR_O | 长期目标（work/learn/project 三类） |
+| OKR_KR | 关键结果（关联 O） |
+| Worklog | 日常记录（关联 KR） |
+| Reflect | 定期反思（可选关联 O） |
 
-**Base token**: `QN7Ab0l68a0AqesmSAMcUgbynEh`
-**URL**: https://<your-tenant>.feishu.cn/base/QN7Ab0l68a0AqesmSAMcUgbynEh
-**用途**: AI 简历数据基础 — 记录工作内容与技能实践的匹配，可与 OKR Base v2 Worklog/Reflect 联动
-
-| 表 | Table ID | 用途 |
-|----|----------|------|
-| SFIA技能库 | `tblVyKe0AvTMXZUQ` | SFIA 9 技能定义+当前/目标等级（22条） |
-| 岗位职责 | `tblS49hdjYlAB2Gz` | 2024-2026 工作职责时间线（12条） |
-| 技能匹配 | `tblN5Gv98uuC7Ui5` | 技能←→职责映射+熟练程度 |
-| 技能证据 | `tbl5Jtdzrtwj8lXr` | 具体证据关联 OKR Base Worklog |
-
-**四层架构**: SFIA技能库 → 技能匹配 ← 岗位职责 → 技能证据 ← OKR Base Worklog
-
-### OKR Base v1（旧版，保留参考）
-
-**Base token**: `L8wjb4CYRa1HeOsGx4BcIOFknyg`
-**URL**: https://<your-tenant>.feishu.cn/base/L8wjb4CYRa1HeOsGx4BcIOFknyg
-
-| 表 | Table ID | 用途 |
-|----|----------|------|
-| OKR_O | `tblC4ykRAWqBFGjt` | （旧）长期目标 |
-| OKR_KR | `tblGODTVWxc3fwcI` | （旧）关键结果 |
-| Worklog | `tblwuptJB1ZUNZOY` | （旧）日常记录 |
-| Reflect | `tblFaF3kT7PgGCty` | （旧）定期反思 |
-
-### Worklog Base（历史数据 + 简易记录）
-
-**Base token**: `DLk8bb838ahfr3sF1UnchSHlnTf`
-**Wiki URL**: https://<your-tenant>.feishu.cn/wiki/UQeFwqU5CibOCtkam4UceLgBn8g
-**数据范围**: 2024-12 ~ 2026-01
-
-| 表 | Table ID | 用途 |
-|----|----------|------|
-| 任务表 | `tblWNiZP1xWj1hdd` | 历史 worklog 记录 |
-| 周报生成表 | `tbloq6yxz0cNI06p` | AI 辅助周报生成 |
-
-**标题格式**（用于 ai分类 字段自动区分）：
-- 成长类：`英文标识 中文描述`（如 `claudecode 模型分流配置和逻辑`），英文前缀触发飞书自动分类
-- 工作类：纯中文描述（如 `云资源接入成本评估与方案对比`）
-- ❌ 禁止 `【】` 括号前缀
-
-**字段映射（任务表 → f-logme Worklog）**：
-
-| 任务表字段 | → | f-logme 字段 | 说明 |
-|-----------|----|-------------|------|
-| 标题 | → | 标题 | 直接映射 |
-| ai分类 | → | 分类 | 工作→work, 成长→learn |
-| ai板块 | → | 领域标签 | agent/aiagent/workflow/architecture/... |
-| 说明 | → | 说明 | 直接映射 |
-| 完成日期 | → | 完成日期 | 直接映射 |
-| ai链接 | → | — | 额外字段，f-logme 无对应 |
-| 父记录 | → | — | 自关联，f-logme 无对应 |
+可选：AI 技能画像 Base（`skills_profile`）、历史 Base（`okr_v1`、`worklog_history`）。
 
 ## 数据模型
 
@@ -450,63 +397,42 @@ $SCRIPT kr-status --kr recXXXX --status Done
 
 ## 命令速查
 
-### Base 操作（lark-cli）
+lark-cli 环境变量和 Base token/表 ID 从 `conf/f-logme.json` 读取。
 
 ```bash
-export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>"
+CONF="conf/f-logme.json"
+T=$(python3 -c "import json; c=json.load(open('$CONF')); print(c['bases']['okr_v2']['token'])")
+T_O=$(python3 -c "import json; c=json.load(open('$CONF')); print(c['bases']['okr_v2']['tables']['O'])")
+T_KR=$(python3 -c "import json; c=json.load(open('$CONF')); print(c['bases']['okr_v2']['tables']['KR'])")
+T_WL=$(python3 -c "import json; c=json.load(open('$CONF')); print(c['bases']['okr_v2']['tables']['Worklog'])")
+T_RF=$(python3 -c "import json; c=json.load(open('$CONF')); print(c['bases']['okr_v2']['tables']['Reflect'])")
+LARKDIR=$(python3 -c "import json; c=json.load(open('$CONF')); print(c['lark_cli']['config_dir'])")
+
+export LARKSUITE_CLI_CONFIG_DIR="$HOME/$LARKDIR"
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-#### OKR Base（目标管理 + 反思 + 状态管理）
+### 拉取 Base 数据
 
 ```bash
-T="LX5lb6VfdaJHWrsRbTgc8Y50nmj"
-
-# 拉取 OKR_O
-lark-cli base +record-list --base-token $T --table-id tbli0erWbDwrfiEj --as user
-
-# 拉取 OKR_KR（含关联 O）
-lark-cli base +record-list --base-token $T --table-id tblZhpELO31mAkg6 --as user
-
-# 拉取 Worklog
-lark-cli base +record-list --base-token $T --table-id tblVsC0L7QFzMeYM --as user --limit 200
-
-# 拉取 Reflect
-lark-cli base +record-list --base-token $T --table-id tblNLcyrOHD3OU87 --as user
-
-# 写数据：统一用 log_write.py（见上面「数据写入脚本」）
+lark-cli base +record-list --base-token $T --table-id $T_O --as user
+lark-cli base +record-list --base-token $T --table-id $T_KR --as user
+lark-cli base +record-list --base-token $T --table-id $T_WL --as user --limit 200
+lark-cli base +record-list --base-token $T --table-id $T_RF --as user
 ```
 
-#### Worklog Base（历史数据）
-
-```bash
-W="DLk8bb838ahfr3sF1UnchSHlnTf"
-
-# 拉取全部历史 worklog
-lark-cli base +record-list --base-token $W --table-id tblWNiZP1xWj1hdd --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > /tmp/worklog_history.json
-
-# 写入新记录（字段: 标题, ai分类, ai板块, 说明, 完成日期）
-cat > /tmp/wl2.json << 'EOF'
-{"fields":["标题","ai分类","ai板块","说明","完成日期"],
- "rows":[["claudecode xxx",["成长"],["agent"],"说明","2026-05-29"]]}
-EOF
-cd /tmp && lark-cli base +record-batch-create --base-token $W --table-id tblWNiZP1xWj1hdd --as user --json @wl2.json
-```
+数据写入统一用 `log_write.py`（从 conf 自动读 Base token/表 ID）。
 
 ### SUM 生成流程
 
-**Step 1: 拉取 Base 数据**
+拉取数据后，用 `sum_generate.py` 生成 Markdown，再委托 f-doc 创建飞书文档。
 
 ```bash
-export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>"
-export PATH="$HOME/.local/bin:$PATH"
-T="L8wjb4CYRa1HeOsGx4BcIOFknyg"
 D=/tmp/sum_$(date +%s) && mkdir -p $D
-
-lark-cli base +record-list --base-token $T --table-id tbli0erWbDwrfiEj --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/okr_o.json
-lark-cli base +record-list --base-token $T --table-id tblZhpELO31mAkg6 --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/okr_kr.json
-lark-cli base +record-list --base-token $T --table-id tblVsC0L7QFzMeYM --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/worklog.json
-lark-cli base +record-list --base-token $T --table-id tblNLcyrOHD3OU87 --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/reflect.json
+lark-cli base +record-list --base-token $T --table-id $T_O --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/okr_o.json
+lark-cli base +record-list --base-token $T --table-id $T_KR --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/okr_kr.json
+lark-cli base +record-list --base-token $T --table-id $T_WL --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/worklog.json
+lark-cli base +record-list --base-token $T --table-id $T_RF --as user --format json --limit 200 2>&1 | sed '/^\[lark-cli\]/d' > $D/reflect.json
 ```
 
 **Step 2: 生成 Markdown**
@@ -565,55 +491,6 @@ SUM 生成飞书文档时，**必须通过 f-doc skill 创建**（不裸调 lark
 f-logme 职责：从 Base 聚合数据 → 按模板填 Markdown → 交给 f-doc 创建文档。
 
 ---
-
-## 线上文档索引
-
-> 每生成一份 SUM 文档，追加到下表。格式：`[标题](url) | 日期`
-
-| 标题 | 链接 | 日期 |
-|------|------|------|
-| 2026Q2 项目总结（SUM 测试） | https://<your-tenant>.feishu.cn/docx/XFvtd6UzToMNHexryw5cOuolnsk | 2026-05-29 |
-| OKR+Worklog 管理系统说明（原迁移计划） | https://<your-tenant>.feishu.cn/docx/JFBedI4aCoIbKgxYzzbc9P2Fn3q | 2026-05-30 → 05-31 更新 |
-
-> 数据源：OKR Base / Worklog Base 见「飞书资源」章节。
-
----
-
-## 历史数据迁移（2026-05-30 v2 重建）
-
-旧 Worklog Base（`DLk8bb838ahfr3sF1UnchSHlnTf`）的 200 条记录（2024-12 ~ 2026-01）已分析并反推为 14 个 O + 21 个 KR，写入新 Base v2。
-
-O/KR 结构覆盖了旧 worklog 的所有主题聚类：
-- 工作 → O1 AI平台建设, O2 日常需求交付
-- 成长 → O5 AI工具链, O6 Coze深潜, O7 系统分析师
-- 其余 learn/project O 从当前工作延伸
-
-**迁移完成**（2026-05-31）：200 条旧记录按 KR+标题相似度聚类合并为 74 条，覆盖 16 个 KR。合并策略：同 KR 内相似主题归并，说明含日期标记 `【YYYY-MM-DD】`，不丢信息。
-
-### 变更追踪机制
-
-- O 和 KR 表含 `创建日期` + `更新日期` 字段
-- 状态含 `Abandoned` 选项：**不删除，只废弃**，保留完整历史轨迹
-- `周期` 字段按时间分组（2025H1/H2, 2026Q1-4, 2026 Full Year, 2027）
-- 按周期筛选可纵向对比各阶段的目标演进
-
----
-
-## 当前状态
-
-> 每次操作后更新此节。
-
-| 指标 | 值 | 最后更新 |
-|------|-----|---------|
-| Base | OKR Base v2 `LX5lb6VfdaJHWrsRbTgc8Y50nmj` | 2026-06-12 |
-| OKR_O 记录 | 15（work×4, learn×6, project×5） | 2026-05-31 |
-| OKR_KR 记录 | 23 | 2026-05-31 |
-| Worklog 记录 | 74（200条旧记录合并迁移，关联16个KR） | 2026-05-31 |
-| Reflect 记录 | 0 | 2026-05-31 |
-| 写入脚本 | `log_write.py`（worklog/reflect/kr-status 三命令，2026-06-12 去伪指标改造） | 2026-06-12 |
-| 活跃周期 | 2026Q2 | — |
-| 旧 Worklog Base | `DLk8bb838ahfr3sF1UnchSHlnTf`（200条, 2024-12 ~ 2026-01） | 保留参考 |
-| 旧 OKR Base v1 | `L8wjb4CYRa1HeOsGx4BcIOFknyg` | 保留参考 |
 
 ## 参考
 
