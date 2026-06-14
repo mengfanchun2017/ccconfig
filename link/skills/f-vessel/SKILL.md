@@ -37,6 +37,22 @@ Tavily extract → 拿到内容 → 直接用
 - **Vessel 只用于 Tavily 提取失败的页面**，或需要交互/登录的场景
 - 日常调研中 Vessel 是最后 fallback，不是主力
 
+## 预检（每次 Vessel 操作前强制执行）
+
+**在任何 Vessel MCP 调用之前，必须先跑健康检查：**
+
+```bash
+vessel-healthcheck.sh --fix --json
+```
+
+结果解读：
+- `status: healthy` → 可以继续
+- `status: unhealthy` → 脚本已自动 `systemctl --user restart vessel.service`，等 3 秒后重试
+- 重试后仍 unhealthy → **停止，报告用户**："Vessel 无法启动，请手动检查 `systemctl --user status vessel.service`"
+- Vessel MCP 工具不可用（`mcp__vessel__*` 不存在）→ **停止，报告用户**："当前 session 未连接 Vessel MCP，请新开 session 重试"
+
+**注意**: Vessel 由 systemd 管理（`systemctl --user status vessel.service`），kill 后会自动重启。健康检查脚本会检测僵尸实例（>1 个主进程）和 GPU 进程僵死（CPU > 30%）。
+
 ## 防卡死规则（硬约束 — 最高优先级）
 
 Vessel 的 40+ 工具平铺注册 + 截图驱动容易导致 agent 陷入死循环。以下规则不可违反：
