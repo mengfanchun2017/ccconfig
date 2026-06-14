@@ -662,7 +662,6 @@ main() {
     echo "可选组件（按需安装）："
     echo "  bash ccconfig/option-ppt-master/init.sh   # ppt-master (PPT 生成)"
     echo "  bash ccconfig/option-officecli/init.sh   # OfficeCLI（AI-native Office 工具）"
-    echo "  bash ccconfig/option-vessel/init.sh      # Vessel AI 浏览器"
     echo "  bash ccconfig/option-bridge/init.sh      # cc-connect（飞书 Bridge）"
     echo ""
     echo "下一步:"

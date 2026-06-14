@@ -96,7 +96,6 @@ f-logme 是 f-worklog 的升级替代，f-worklog 已废弃。
 | 工具 | `write-a-skill` | 创建 skill |
 | 工具 | `caveman` | 压缩输出 |
 | 工具 | `grill-me` | 设计审查 |
-| 工具 | `f-vessel` | 浏览器操控 |
 | 工具 | `zoom-out` | 代码全景 |
 
 ## 注意事项
