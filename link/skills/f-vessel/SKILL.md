@@ -51,7 +51,20 @@ vessel-healthcheck.sh --fix --json
 - 重试后仍 unhealthy → **停止，报告用户**："Vessel 无法启动，请手动检查 `systemctl --user status vessel.service`"
 - Vessel MCP 工具不可用（`mcp__vessel__*` 不存在）→ **停止，报告用户**："当前 session 未连接 Vessel MCP，请新开 session 重试"
 
-**注意**: Vessel 由 systemd 管理（`systemctl --user status vessel.service`），kill 后会自动重启。健康检查脚本会检测僵尸实例（>1 个主进程）和 GPU 进程僵死（CPU > 30%）。
+### 超时保护
+
+`vessel-mcp-proxy.cjs` 有 30 秒 HTTP timeout。Vessel 调用超过 30 秒无响应 → 自动返回 timeout 错误，不会无限等待。收到 timeout 后 → 跑 `vessel-healthcheck.sh --fix` 重启 Vessel。
+
+### Vessel 架构速查
+
+```
+Claude Code → stdio → vessel-mcp-proxy.cjs → HTTP → Vessel browser (:3100/mcp)
+                                                         ↑ systemd 管理
+```
+- **Vessel 由 systemd 管理**（`systemctl --user status vessel.service`），kill 后 3 秒自动重启
+- **proxy 由 Claude Code 管理**（MCP 子进程），新 session 自动启动新 proxy
+- **proxy 修改后需新开 session** 才能生效
+- 健康检查脚本检测：进程数/GPU CPU（所有 GPU 进程取 max）/端口连通/MCP 端点响应
 
 ## 防卡死规则（硬约束 — 最高优先级）
 
