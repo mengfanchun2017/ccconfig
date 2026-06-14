@@ -208,9 +208,29 @@ KR 进度历史快照表已于 2026-06-09 废弃（[ADR-0003](file:///home/franc
   → 列出活跃 KR 让用户选择关联
   → 调 log_write.py worklog 写入 Worklog 表
   → 可选填写量化结果
+  → 触发 ccconfig 技术决策同步（见下方「ccconfig 技术决策同步」）
 ```
 
 **与 f-worklog 的关系**：f-logme 是 f-worklog 的升级版。f-worklog 已废弃，所有 worklog 操作统一用 f-logme。
+
+### 2b. ccconfig 技术决策同步（每次 worklog 写入后自动执行）
+
+每次 worklog 写入后，自动搜索 worklog 中 ccconfig 相关记录，将技术决策同步到 ccconfig 仓库。
+
+**触发条件**：worklog 写入成功（log_write.py 返回 record_id）
+
+**执行步骤**：
+1. 搜索 worklog Base 中 ccconfig 相关记录
+   - 关键词：`ccconfig, skill, hook, init, mcp, monitor, sync, settings, config, rules, context`
+2. 识别技术决策类记录（含以下动作词之一）
+   - `修复, 迁移, 清理, 框架, 重构, 决策, 移除, 统一, 废弃, 替换, 重建, 方案`
+   - 或 commit 前缀：`fix:, feat:, refactor:, chore:`
+3. 提取决策要点 → 追加到 `ccconfig/docs/tech-decisions.md`
+   - 格式：`## YYYY-MM-DD | 标题 | [record_id]`
+   - 内容：决策/原因/影响/关联 4 段
+4. Git commit 到 ccconfig
+
+**为什么**：ccconfig 是技术中枢，其演进决策散落在 worklog 中。集中记录便于回溯架构变化、了解"为什么当初这样设计"。
 
 ### 3. Reflect 写入
 
