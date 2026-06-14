@@ -1,0 +1,6 @@
+{
+  "description": "Cloudflare API tokens — 填入你的 token",
+  "tokens": {
+    "<project-name>": "<cfut_...>"
+  }
+}
