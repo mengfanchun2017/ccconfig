@@ -189,7 +189,7 @@ info_tmux() {
     echo "  1. 台式机 WSL: bash ccconfig/remote/server/tmux-sshd.sh"
     echo "  2. 台式机 Win 管理员 PowerShell: 执行 windows/ 下的 ps1 脚本"
     echo "  3. 两端安装 Tailscale 组网"
-    echo "  4. 笔记本: ssh -p 2222 francis@<台式机IP>"
+    echo "  4. 笔记本: ssh -p 2222 <your-username>@<台式机IP>"
     echo ""
     echo "  详见: ccconfig/remote/readme.md"
 }
