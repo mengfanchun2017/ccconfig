@@ -20,6 +20,7 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 | `base +field-create` | `--json '{"field_name":"X","type":"select","options":[...]}'` | type 是字符串；options 在顶层 |
 | `base +record-batch-create` | `--json '{"fields":[],"rows":[[]]}'` | link: `[{"id":"recXXX"}]` |
 | `base +record-update` | **不存在** → raw API: `lark-cli api PUT .../records/{id} --data '{"fields":{...}}'` | |
+| `base +record-list` | `--base-token X --table-id Y --format json --limit 200` | flag 是 `--base-token` 不是 `--app-token`；默认 table 格式，程序化解析需 `--format json`；limit 最大有效值 200，超 200 条需 `--offset` 分页 |
 | `base +record-search` | `--keyword X --search-field Y` | 返回 `record_id_list`；`+record-list` 不返回 record_id |
 | `slides +create` | `--title --slides '<json-array>'` | 在线 vs 导入 PPTX API 能力差很多 |
 | `slides 导出` | `api POST export_tasks --data '{"type":"slides","token":"X","file_extension":"pptx"}'` | 不是 `drive +export` |
@@ -37,3 +38,29 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 - **colgroup 修复**：用 `block_replace` 替换整个 table（不能用 str_replace 处理 `<colgroup>`）
 - **base select 值**：必须用目标字段已有选项，不能想当然传字符串
 - **lark-cli stdout**：WSL 会注入 `Shell cwd was reset to <path>` 行 → python json.loads 前过滤
+
+## base +record-list JSON 输出格式
+
+`--format json` 时输出结构：
+
+```json
+{
+  "ok": true,
+  "data": {
+    "fields": ["标题", "说明", "日期", ...],
+    "field_id_list": [...],
+    "data": [
+      ["标题值", "说明值", "2026-06-15 00:00:00", ...],
+      ...
+    ],
+    "has_more": true,
+    "record_id_list": ["recXXX", ...]
+  }
+}
+```
+
+**关键**：
+- 记录在 `data.data`（不是 `data.records`）
+- 每条记录是数组，按 `data.fields` 顺序排列，不是 dict
+- `has_more: true` 时用 `--offset` 分页（limit 最大有效值 ~200）
+- Python 解析：`fields = data['data']['fields']; for rec in data['data']['data']: d = dict(zip(fields, rec))`
