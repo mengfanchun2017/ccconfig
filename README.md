@@ -1,32 +1,40 @@
 # ccconfig — Claude Code 配置中枢
 
-> 统一管理 Claude Code 配置。Git 跨设备同步。一键恢复到新终端。
+> 统一管理 Claude Code 配置。双仓库公私分离。一键恢复到新终端。
 
 ## 概述
 
-ccconfig 管理 Claude Code 配置的完整生命周期：
+ccconfig 管理 Claude Code 配置的完整生命周期。**隐私数据（API key / Token / 个人配置）在 ccprivate 私有仓库**，通过 symlink 穿透访问；ccconfig 本身不含任何密钥，可安全公开。
 
 - **环境**：Ubuntu/WSL 一键初始化
-- **配置**：LLM 后端、MCP 服务器、API key 单一真相源
+- **配置**：LLM 后端、MCP 服务器、API key 单一真相源（真实值在 ccprivate）
 - **同步**：文件监听 + 自动 git commit/push，覆盖 `~/git/` 下所有仓库
-- **Skills**：8 自建（symlink）+ 第三方 npx skills 自管（conf 清单）+ 系统层 lark-cli（npm 全局）
-- **Rules**：按路径条件加载（编码、git、python、搜索、飞书、godot）
-- **Agents**：意图路由 agent（assistant、feishucreate）
+- **Skills**：12 自建（symlink）+ 第三方 npx skills 自管（conf 清单）
+- **Rules**：条件规则按路径加载（编码、git、python、搜索、飞书、godot）
+- **Agents**：意图路由 agent
 - **可选**：飞书 Bridge、OfficeCLI、PPT 生成、远程 SSH
 
 ## 架构
 
 ```
-~/.claude/  (符号链接)  ←──  ccconfig/link/  (源，git 跟踪)
-    ├── settings.json        ├── settings.json
-    ├── .config.json         ├── .config.json
-    ├── rules/               ├── rules/         (8 个规则)
-    ├── skills/              ├── skills/        (8 自建 + README)
-    ├── agents/              ├── agents/        (4 个 agent)
-    └── projects/memory/     └── projects/memory/  (跨 session memory)
+ccprivate/ (私有仓库)               ccconfig/ (公开仓库)
+├── conf/*.json (真实值) ──symlink──→ conf/*.json
+├── link/CLAUDE.md         ──→       ~/CLAUDE.md
+├── link/settings.json     ──→       ~/.claude/settings.json
+├── link/.config.json      ──→       ~/.claude/.config.json
+├── link/projects/         ──symlink──→ link/projects/
+└── setup.sh               调用  →   setup-links.sh
 
-~/CLAUDE.md  ←──  ccconfig/link/CLAUDE.md
+                                         ccconfig/link/ (公开部分)
+                                           ├── rules/      ──→ ~/.claude/rules/
+                                           ├── agents/     ──→ ~/.claude/agents/
+                                           ├── commands/   ──→ ~/.claude/commands/
+                                           └── skills/     ──→ ~/.claude/skills/
 ```
+
+> **密钥隔离**：`conf/*.json`（llm/claude/feishu/f-logme/f-doc/f-ppt/cloudflare/supabase/ubuntu）是 ccprivate→ccconfig 的 symlink，`.gitignore` 已忽略。公开仓库只含 `.example` 模板。详见 [BOOTSTRAP.md](BOOTSTRAP.md)。
+
+## 目录结构
 
 ```
 ccconfig/
@@ -36,169 +44,121 @@ ccconfig/
 ├── init-mcp.sh               # MCP 服务器管理
 ├── init-skill.sh             # Skills 同步管理
 ├── init-autostart.sh         # auto-sync systemd 服务
-├── update.sh                 # 月度组件升级（9 个组件）
+├── update.sh                 # 月度组件升级
 │
-├── status.sh                 # 状态检查（12 项）
+├── status.sh                 # 状态检查（13 项）
 ├── monitor.sh                # 多仓库文件监听 + 自动 git 同步
 ├── sync.sh                   # 多仓库智能同步（云端↔本地）
-├── setup-links.sh            # 重建 ~/.claude/ 符号链接
-├── deps-check.sh             # 依赖完整性检查（CLI + JSON）
+├── setup-links.sh            # 公开部分符号链接（被 ccprivate/setup.sh 调用）
+├── deps-check.sh             # 依赖完整性检查
 │
-├── conf/                     # 配置（单一真相源）
-│   ├── claude.json           # MCP 服务器、API key
-│   ├── feishu.json           # 飞书统一配置（lark-cli + cc-connect）
-│   ├── llm.json              # LLM 多后端配置
-│   ├── ubuntu.json           # Git 用户信息
-│   ├── versions.json         # 组件版本 + pin
-│   └── python-requirements.txt  # Python 包清单
+├── conf/                     # 配置模板 + symlink
+│   ├── *.json.example        # 公开模板（可提交）
+│   ├── *.json                # → symlink 到 ccprivate/conf/（不跟踪）
+│   ├── versions.json         # 组件版本（公开）
+│   └── python-requirements.txt
 │
-├── lib/                      # 共享库
-│   └── path-helper.sh        # 动态路径解析（4 级回退）
+├── lib/path-helper.sh        # 动态路径解析 + CCCONFIG_HOME
 │
-├── link/                     # → ~/.claude/ 符号链接源
-│   ├── CLAUDE.md             # AI 行为指南
-│   ├── settings.json         # 权限 + MCP + hooks
-│   ├── .config.json          # 环境 + 状态
-│   ├── rules/                # 条件规则（按路径加载）
+├── link/                     # → ~/.claude/ 符号链接源（公开部分）
+│   ├── rules/                # 条件规则
 │   ├── agents/               # 意图路由 agent
-│   ├── skills/               # 8 自建（f-* + f-logme 私有 + skill-template）
-│   └── projects/             # 每个项目的 MEMORY.md
+│   ├── commands/             # 自定义斜杠命令
+│   ├── skills/               # 12 自建 skill
+│   └── projects/             # → symlink 到 ccprivate/link/projects/
 │
-├── share/                    # 公开分享模块
-│   └── setup.sh              # 引导式 onboarding 向导
+├── hooks/
+│   ├── pre-commit            # git hook：防私密文件意外提交
+│   └── session-end-aggregator.sh  # Claude hook：自动 worklog
+│
+├── share/setup.sh            # 公开模式引导式配置向导
 │
 ├── option-bridge/            # 可选：飞书消息 Bridge
-│   ├── init.sh               # lark-cli + cc-connect 安装器
-│   ├── lark-switch.sh        # 多账号切换
-│   ├── bot-status.sh         # bot 状态查看
-│   └── mcp-bridge/           # 可选 MCP 消息桥
-│
-├── option-officecli/         # 可选：OfficeCLI（AI 原生 Office 工具）
-│   └── init.sh               # 安装器 + 状态 + 升级
-│
-├── option-ppt-master/        # 可选：PPT 生成（python-pptx）
-│   └── init.sh               # 克隆仓库 + 装依赖
+├── option-officecli/         # 可选：OfficeCLI
+├── option-ppt-master/        # 可选：PPT 生成
 │
 ├── remote/                   # 远程访问（Tailscale + SSH + tmux）
-│   ├── server/               # SSH Server + tmux 配置
-│   └── client/               # Windows Tailscale 配置
-│
-├── windows/                  # Windows/WSL 互操作
+├── windows-tools/            # Windows/WSL 互操作
 │
 ├── LICENSE                   # MIT
-├── BOOTSTRAP.md              # 新机器 0→1 拉起指南（gh auth + clone + init.sh all）
+├── BOOTSTRAP.md              # 新机器 0→1 拉起指南
 ├── CHANGELOG.md              # 变更历史
-├── CONTRIBUTING.md           # 贡献指南
-└── .editorconfig             # 编辑器设置
+└── CONTRIBUTING.md           # 贡献指南
 ```
 
 ## 快速开始
 
-> **新机器？** 从零开始（包括装 gh、登录、克隆）→ 看 [BOOTSTRAP.md](BOOTSTRAP.md)。
-> **已初始化过的机器** → 直接：
+> **新机器？** 从零开始 → 看 [BOOTSTRAP.md](BOOTSTRAP.md)（6 阶段，含 gh 登录 + 克隆 ccconfig + ccprivate）。
 
 ```bash
-# 拉最新
-cd ~/git/ccconfig && git pull
+# 1. 克隆双仓库
+gh repo clone <your-username>/cconfig ~/git/cconfig
+gh repo clone <your-username>/ccprivate ~/git/ccprivate
 
-# 交互式菜单
-bash init.sh
+# 2. 私有 + 公开链接一步到位
+bash ~/git/ccprivate/setup.sh
 
-# 或一键全初始化（Ubuntu + LLM + MCP + Skills + Python 包）
-bash init.sh all
+# 3. 一键初始化（Ubuntu + LLM + MCP + Skills + Python）
+bash ~/git/ccconfig/init.sh all
 
-# 状态检查
-bash status.sh
+# 4. 状态检查
+bash ~/git/ccconfig/status.sh
 ```
+
+> **无 ccprivate？** 跑 `bash ccconfig/share/setup.sh` 进入交互式配置向导（API key 手动输入，不依赖私有仓库）。
 
 ## 核心命令
 
 | 命令 | 用途 |
-|---------|---------|
-| `bash init.sh` | 交互式菜单（环境、远程、MCP、skill、工具） |
+|------|------|
+| `bash init.sh` | 交互式菜单 |
 | `bash init.sh all` | 一键全初始化 |
-| `bash status.sh` | 完整状态检查（12 项） |
+| `bash status.sh` | 完整状态检查（13 项） |
 | `bash deps-check.sh` | 依赖完整性检查 |
 | `bash update.sh all` | 月度组件升级 |
-| `bash monitor.sh start` | 启动 auto-sync 守护进程 |
+| `bash monitor.sh start` | 启动 auto-sync |
 | `bash monitor.sh status` | 同步守护进程状态 |
-| `bash monitor.sh log` | 最近同步日志 |
-| `bash setup-links.sh` | 重建 ~/.claude/ 符号链接 |
-| `bash sync.sh --pull` | 强拉远程（暗号 `pullff`） |
+| `bash setup-links.sh` | 重建公开符号链接 |
+| `bash sync.sh --pull` | 强拉远程 |
 
 ## 状态检查覆盖
 
-`status.sh` 每次 Claude Code session 启动时做 12 项检查：
+`status.sh` 每次 Claude Code session 启动检查 13 项：
 
-1. 配置文件链接（settings.json、.config.json、CLAUDE.md、MEMORY.md、rules、commands）
+1. 配置文件链接（settings.json、.config.json、CLAUDE.md、MEMORY.md、rules）
 2. 核心依赖（git、bash、curl）
-3. auto-sync 守护进程 + systemd 服务
-4. GitHub 最后推送日期
-5. MEMORY.md 最后更新
-6. ppt-master 环境（仓库、python-pptx、cairosvg）
-7. 飞书（lark-cli：安装、配置、auth、bridge、bot）
+3. auto-sync 守护进程
+4. GitHub 最后推送
+5. MEMORY 最后更新
+6. ppt-master 环境
+7. 飞书 lark-cli 状态
 8. Playwright 浏览器测试
-9. OfficeCLI（安装、MCP 注册）
-10. MCP 服务器（并行健康检查，24h 缓存）
-11. 远程访问（SSH、端口、WSL 网络模式、Tailscale）
-12. Option 组件自动发现（含 4 个 option-*）
-
-## 依赖检查
-
-`deps-check.sh` 验证所有工具和包依赖：
-
-```bash
-bash deps-check.sh              # 完整检查
-bash deps-check.sh --required   # 仅必要依赖
-bash deps-check.sh --json       # JSON 输出（脚本调用）
-```
-
-检查项：git、bash、curl、node、python3、pip3、npm、gh、claude、inotify-tools、systemd、tmux、ssh、uv、bat (batcat)、glow、nano、lark-cli、cc-connect、officecli、python-pptx、cairosvg、lxml、pillow，外加网络连通性（GitHub、npm、PyPI）。
+9. OfficeCLI 状态
+10. MCP 服务器健康检查（并行，24h 缓存）
+11. 远程访问（SSH、Tailscale）
+12. option-* 可选组件自动发现
+13. .wslconfig 同步检查
 
 ## Auto-Sync
 
-`monitor.sh` 监听 `~/git/` 下所有 git 仓库，自动 commit 和 push：
+`monitor.sh` 监听 `~/git/` 下所有 git 仓库，自动 commit + push：
 
 ```bash
-./monitor.sh start     # 启动守护进程（120s debounce，60s 最小推送间隔）
+./monitor.sh start     # 启动守护进程（120s debounce）
 ./monitor.sh stop      # 停止
-./monitor.sh status    # 查看状态 + 跟踪的仓库 + 待推送改动
+./monitor.sh status    # 查看状态
 ./monitor.sh log 50    # 最近 50 行日志
-./monitor.sh tail      # 实时跟踪推送结果
-./monitor.sh monitor   # 实时跟踪文件变化
 ```
-
-流程：`inotifywait` 监听 `~/git/` → 检测变化 → 120s debounce → `git add -A` → `git commit` → `git pull --ff-only` → `git push` → 重建符号链接 → 同步 skills。
-
-## CLI 工具
-
-`init-ubuntu.sh` 自动安装常用 CLI 工具（`sudo apt install`）：
-
-| 工具 | 命令 | 用途 |
-|------|------|------|
-| bat | `batcat` | 代码语法高亮（Ubuntu 包名 `bat`，命令 `batcat`） |
-| glow | `glow` | Markdown 渲染阅读器 |
-| nano | `nano` | 终端编辑器（通常预装） |
 
 ## 可选组件
 
-所有可选组件遵循 `option-<name>/` 约定：
-
 ```bash
-# 飞书 Bridge（lark-cli + cc-connect）
-bash option-bridge/init.sh
-
-# OfficeCLI（AI 原生 .pptx/.docx/.xlsx）
-bash option-officecli/init.sh
-
-# PPT 生成（python-pptx + cairosvg + ppt-master）
-bash option-ppt-master/init.sh
-
-# Playwright 浏览器测试
-npx playwright install chromium
+bash option-bridge/init.sh       # 飞书 Bridge
+bash option-officecli/init.sh    # OfficeCLI
+bash option-ppt-master/init.sh   # PPT 生成
 ```
 
-每个 option 组件至少支持 `init.sh --status` 健康检查。
+每个组件至少支持 `init.sh --status`。
 
 ## LLM 后端
 
@@ -207,65 +167,62 @@ bash init-llm.sh              # 交互式选择
 bash init-llm.sh list         # 列出可用后端
 bash init-llm.sh deepseek     # 切到 DeepSeek
 bash init-llm.sh minimax      # 切到 MiniMax
-bash init-llm.sh claude       # 切到 Claude（Anthropic）
 ```
 
 ## 远程访问
 
-通过 Tailscale + SSH 从笔记本连到桌面 Claude Code tmux session：
+通过 Tailscale + SSH 连接桌面 Claude Code tmux session：
 
 ```bash
 # 桌面 WSL（一次性配置）
 bash remote/server/tmux-sshd.sh
 
-# 桌面 Windows（管理员 PowerShell）
-powershell -ExecutionPolicy Bypass -File "remote/client/ts-setup.ps1"
-
-# 笔记本
-ssh francis@<Tailscale IP> -p 2222  # 自动 attach 到 tmux 'claude' session
+# 笔记本连接
+ssh <your-username>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
 ```
+
+## 环境变量
+
+| 变量 | 默认值 | 用途 |
+|------|--------|------|
+| `CCCONFIG_HOME` | `$HOME/git/ccconfig` | ccconfig 仓库路径 |
+| `CCPRIVATE_HOME` | `$HOME/git/ccprivate` | ccprivate 仓库路径 |
+
+所有脚本优先读环境变量，默认值保持不变。自定义路径时 `export` 覆盖即可。
+
+## 隐私模型
+
+| 数据 | 存放 | 公开？ |
+|------|------|--------|
+| API key / Token | ccprivate/conf/*.json | 私有仓库 |
+| 个人 CLAUDE.md / settings | ccprivate/link/ | 私有仓库 |
+| 项目 memory | ccprivate/link/projects/ | 私有仓库 |
+| 脚本 / skill / rule / 模板 | ccconfig/ | 公开 |
+| .example 配置模板 | ccconfig/conf/*.example | 公开 |
+| 版本号 / 依赖清单 | ccconfig/conf/versions.json | 公开 |
+
+`hooks/pre-commit` 自动拦截私密文件提交。安全漏洞报告见 [SECURITY.md](SECURITY.md)。
 
 ## 开发
 
 ```bash
-# 语法检查所有脚本
-for f in *.sh lib/*.sh option-*/*.sh share/*.sh; do bash -n "$f" && echo "$f OK"; done
+# 语法检查
+for f in *.sh lib/*.sh option-*/*.sh; do bash -n "$f" && echo "$f OK"; done
 
-# 跑依赖检查
-bash deps-check.sh
-
-# 状态
-bash status.sh
-
-# 验证 JSON 配置
-python3 -c "import json; [json.load(open(f'conf/{f}.json')) for f in ['claude','llm','ubuntu','versions','feishu']]"
+# 验证 JSON 模板
+python3 -c "import json; [json.load(open(f)) for f in __import__('glob').glob('conf/*.example')]"
 ```
 
 ### 添加 Option 组件
 
 1. 创建 `option-<name>/`，含 `init.sh` 和 `README.md`
 2. `init.sh` 支持 `--status` 标志
-3. 依赖加到 `deps-check.sh` 的 `OPTIONAL_DEPS` 数组
-4. 自动出现在 `status.sh` option 组件区
+3. 自动被 `status.sh` 发现
 
 ### 添加 Skill
 
 1. 在 `link/skills/<name>/` 创建 skill
 2. 跑 `bash init-skill.sh sync`
-
-## 不跟踪的文件
-
-- `conf/claude.json` — API key
-- `conf/feishu.json` — App secret
-- `conf/llm.json` — LLM API key
-- `conf/ubuntu.json` — Git 用户信息
-- `link/settings.json` — 个人权限
-- `.monitor-sync.*` — 运行时状态
-- `.snapshots/` — 升级快照
-- `tmp/` — 一次性任务产物
-- `cccshare/` — 公开导出（生成）
-
-> `link/.config.json` 虽然包含 env 凭证（API key），但**实际在 git 跟踪中**（私有仓库）。生成由 `init-mcp.sh sync` 合并 `conf/*.json` + `~/.claude.json` 写入。
 
 ## 许可证
 

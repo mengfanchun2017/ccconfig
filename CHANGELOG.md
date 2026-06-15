@@ -4,44 +4,31 @@ All notable changes to ccconfig will be documented in this file.
 
 ## [Unreleased]
 
-### Changed
-- **f-* skill 三层架构重组**（Layer 1 输出平台 / Layer 2 知识生产 / Layer 3 个人工作流）
-  - 新建 `f-search` — 搜索活动统一原语（query 规划 + 调工具 + Python 过滤 + 聚合 + 来源标注 + 搜索清单），从 f-research 抽
-  - `f-research` → `f-research-domain` — 瘦身到 4 领域方法论（customer JTBD / generic / market / technical），搜索委派 f-search
-  - `f-research-report` → `f-report-gen` — 与 `f-report-std` (std=standard 规范) 配对（xxx-std + xxx-gen 对称）
-  - 11 引用方 + 3 memory 文件全部更新（CLAUDE.md / f-doc / f-logme / f-report-std / f-research-deep / agents / README / memory）
-- `scripts/publish.sh` — 一键把 ccconfig/link/skills/ 的指定 f-* 同步到 claude-skills/plugins/（默认只 commit，--push 才推）
+### Added
+- **双仓库公私分离** — 私有数据迁入 ccprivate 仓库
+  - `conf/*.json` 真实值、`link/CLAUDE.md`、`link/settings.json`、`link/.config.json`、`link/projects/` → ccprivate
+  - ccconfig 保留 `.example` 模板 + symlink，零密钥残留
+  - `ccprivate/setup.sh` 编排私有链接，调用 `cconfig/setup-links.sh` 处理公开部分
+- `$CCCONFIG_HOME` / `$CCPRIVATE_HOME` 环境变量 — 所有脚本支持自定义仓库路径，默认 `~/git/ccconfig`
+- `hooks/pre-commit` — git hook 自动拦截：conf/*.json 非模板文件、API key 模式、私密 link 文件
+- `SECURITY.md` — 安全漏洞报告政策
+- `conf/f-logme.json.example` 加 `kr_route` 示例
+- `conf/cloudflare.json.example` + `conf/supabase.json.example` 模板
 
-### Removed
-- **Vessel 全线移除** — 浏览器测试统一迁移至 Playwright
-  - 删 `option-vessel/`、`bin/vessel-mcp-proxy.cjs`、`bin/vessel-healthcheck.sh`、`link/skills/f-vessel/`
-  - 删 `~/.local/bin/vessel*`、`~/.local/lib/vessel/`、systemd `vessel.service`、`~/.config/vessel/`
-  - 清 `status.sh` check_vessel → check_playwright、`init.sh`/`init-ubuntu.sh` vessel 引用
-  - 清 `.config.json` vessel disabledMcpServers/mcpServers/skillUsageStats
-  - 清 `conf/claude.json`、`settings.json` vessel MCP 条目
-  - 清 `search.md` Vessel → Playwright 替换
-  - <project-name>: `settings.json` vessel → playwright MCP、`f-test-<project-name>` SKILL.md 全 Playwright、ADR 0016 更新
-- `~/.claude/skills/f-research` + `f-research-report` symlink（指向旧路径）
-- `~/.claude/rules/f-research-report.md` symlink
-
-### Fixed
-- `remote/server/tmux-sshd.sh:100` — 反引号语法错误
-- `init-ubuntu.sh` 补 `gh auth setup-git` — 之前 SSH key 未注册到 GitHub 时 monitor push 静默失败
-- LLM 切换：M2.7 已停服，统一切到 M3（`conf/llm.json`）
+### Security
+- **git filter-repo** — 从全部 1144 commits 中永久删除历史密钥（conf/*.json、link/CLAUDE.md、link/projects/ 等 12 个私密文件）
+- **去标识化** — `<your-github-username>` → `<your-github-username>`，`/home/francis` → `$HOME`
+- `.gitignore` 加固 — 加 `__pycache__/`、`*.pyc`、`link/skills/f-doc/config.yaml`、`.env`
 
 ### Changed
-- `.gitignore` — 新增 `tmp/` 忽略规则
-- `init-llm.sh` 默认 deepseek → 从 `conf/llm.json` 的 `current` 字段读取，配置即真相
+- `f-*` skill 三层架构重组（Layer 1/2/3），search/research/report 职责拆分
+- `scripts/publish.sh` — 一键同步 f-* 到 claude-skills marketplace
+- `README.md` — 重写架构图、隐私模型、快速开始（含 ccprivate）
 
 ### Removed
-- `init-llm.zip` — init-llm.sh 的旧 zip 副本，全仓 0 引用
-- `cccshare/` — 空目录，无作用
-- `link/rules/f-research-report.md` 绝对 symlink → 相对 symlink（多机器不再断）
-- `init-ubuntu.sh:setup_fonts()` / `setup_officecli()` / `setup_ppt_master()` — main() 不调的死函数
-- `option-bridge/lark-current.sh` / `claude-lark-refresh.{service,timer}` — 0 consumer
-- `init.sh all` 流程中去重 `init-llm.sh` 调用（由 init-ubuntu.sh 内部 setup_claude_api 负责）
-- `setup_ppt_master` 从 init-ubuntu.sh 强制流水线移到 option-* 可选（与 option-ppt-master 重复）
-- `link/projects/-home-francis-git-papermaster/` — 仓库已废弃，目录和记忆全删
+- Vessel 全线移除，浏览器测试迁移至 Playwright
+- `link/projects/` 下旧项目 CLAUDE.md + memory（已迁 ccprivate）
+- `init-llm.zip`、`cccshare/`、死函数 `setup_fonts/setup_officecli/setup_ppt_master`
 
 ## [1.0] — 2026-05-21
 
