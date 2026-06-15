@@ -3,12 +3,14 @@
 # 由 ccconfig/setup-links.sh 链接到 ~/.claude/shell_aliases.sh
 # ~/.bashrc 自动 source 此文件
 
+CCCONFIG_HOME="${CCCONFIG_HOME:-$HOME/git/ccconfig}"
+
 # claude-mini: 切换到 MiniMax LLM 后启动 Claude
 claude-mini() {
-    bash ~/git/ccconfig/init-llm.sh minimax && claude "$@"
+    bash "$CCCONFIG_HOME/init-llm.sh" minimax && claude "$@"
 }
 
 # claude-ds: 切换到 DeepSeek LLM 后启动 Claude
 claude-ds() {
-    bash ~/git/ccconfig/init-llm.sh deepseek && claude "$@"
+    bash "$CCCONFIG_HOME/init-llm.sh" deepseek && claude "$@"
 }

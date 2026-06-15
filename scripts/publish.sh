@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-CCCONFIG_DIR="${CCCONFIG_DIR:-$HOME/git/ccconfig}"
+CCCONFIG_DIR="${CCCONFIG_DIR:-${CCCONFIG_HOME:-$HOME/git/ccconfig}}"
 CLAUDE_SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/git/claude-skills}"
 PLUGINS_DIR="$CLAUDE_SKILLS_DIR/plugins"
 
