@@ -343,7 +343,7 @@ main() {
         --help|-h)
             echo "用法: lark-switch.sh [name] [-p] [--list]"
             echo ""
-            echo "  name        切换到指定账号（francis / ailab）"
+            echo "  name        切换到指定账号"
             echo "  name -p     切换并持久化到 ~/.bashrc"
             echo "  --list      列出所有账号"
             echo "  (无参数)    显示当前账号"

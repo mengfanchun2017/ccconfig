@@ -26,8 +26,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_SRC="$SCRIPT_DIR/link/skills"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
-MARKETPLACE_REPO="<your-github-username>/claude-skills"
-MARKETPLACE_NAME="<your-github-username>-skills"
+GITHUB_USER="${GITHUB_USER:-<your-github-username>}"
+MARKETPLACE_REPO="$GITHUB_USER/claude-skills"
+MARKETPLACE_NAME="$GITHUB_USER-skills"
 
 # EXTERNAL_PLUGINS 留空（2026-06-06 改设计）：第三方 skill 走 npx skills（user-managed 干净显示）
 # 保留数组兼容旧 sync 流程；marketplace.json 仍发布 mattpocock-skills 给其他人装
@@ -95,9 +96,9 @@ do_link_self_built() {
     good "  symlink: $linked 新建, $skipped 跳过, $cleaned 删断链, $user_managed user-managed"
 }
 
-# 阶段 2：检 marketplace（保留 <your-github-username>-skills 给 f-* 自动跟）
+# 阶段 2：检 marketplace（保留自建 marketplace 给 f-* 自动跟）
 do_ensure_marketplace() {
-    title "阶段 2/3: marketplace 检（<your-github-username>-skills）"
+    title "阶段 2/3: marketplace 检（$MARKETPLACE_NAME）"
 
     info "检 marketplace: $MARKETPLACE_REPO"
     if claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE_NAME"; then
@@ -110,7 +111,7 @@ do_ensure_marketplace() {
         fi
     fi
     echo ""
-    info "  marketplace 保留 <your-github-username>-skills（自建 f-* plugin 在里面；第三方用户走 npx skills 装）"
+    info "  marketplace 保留自建 skills（f-* plugin 在里面；第三方用户走 npx skills 装）"
 }
 
 # 阶段 3：npx skills 装第三方 skill（幂等，从 conf/third-party-skills.txt 读列表）

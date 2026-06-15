@@ -11,7 +11,7 @@ ccconfig 仓库需要公开同步（GitHub 公开 dotfiles 风格），但当前
 
 | 文件 | 含敏感字段 |
 |---|---|
-| `conf/llm.json` | MiniMax `sk-cp-...`、DeepSeek `sk-...` |
+| `conf/llm.json` | LLM API key（MiniMax / DeepSeek / Claude 等） |
 | `conf/claude.json` | Claude API key（如有） |
 | `conf/feishu.json` | 飞书 app_secret / verification token |
 | `conf/ubuntu.json` | （通常无，防御性纳入）|

@@ -26,9 +26,15 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-# ========== 配置 ==========
-BASE_TOKEN = "LX5lb6VfdaJHWrsRbTgc8Y50nmj"
-WORKLOG_TABLE = "tblVsC0L7QFzMeYM"
+# 从 conf/f-logme.json 读配置（symlink → ccprivate）
+def get_feme_config():
+    feme_json = Path.home() / "git" / "ccconfig" / "conf" / "f-logme.json"
+    with open(feme_json) as f:
+        data = json.load(f)
+    okr = data["bases"]["okr_v2"]
+    return okr["token"], okr["tables"]["Worklog"]
+
+BASE_TOKEN, WORKLOG_TABLE = get_feme_config()
 LARK_CLI = "lark-cli"
 LARK_ENV_PREFIX = 'export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOME/.local/bin:$PATH"'
 

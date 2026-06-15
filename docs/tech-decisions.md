@@ -1,9 +1,9 @@
 # ccconfig 技术决策记录
 
 > 从 Worklog 自动提取。每次 worklog 触发后更新。
-> Worklog Base: `LX5lb6VfdaJHWrsRbTgc8Y50nmj` / Table: `tblVsC0L7QFzMeYM`
+> 数据来源: Worklog Base（配置见 `conf/f-logme.json`）
 
-## 2026-06-14 | Vessel → Playwright 全线迁移 | [recvmuX1xqvxN8]
+## 2026-06-14 | Vessel → Playwright 全线迁移
 
 **决策**: 全线移除 Vessel，统一使用 Playwright（MCP + Python 脚本）
 **影响**: 删 option-vessel/、bin/vessel-*、f-vessel skill、systemd vessel.service
@@ -56,7 +56,7 @@
 **决策**: OKR + Worklog + Reflect 三层框架，PARA 方法融合 KR.PARA 字段
 **关联**: f-logme skill / OKR Base v2
 
-## 2026-06-07 | ccconfig docs 框架：4层追踪 | [recvlUPR5AlS1f]
+## 2026-06-07 | ccconfig docs 框架：4层追踪
 
 **决策**: L1/L0 仓库 + L2/L3/L4 飞书 Base + ADR 决策层
 **决策方法**: MADR (Markdown Architecture Decision Records)

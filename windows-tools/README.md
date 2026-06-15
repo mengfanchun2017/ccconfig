@@ -21,7 +21,7 @@ Windows 平台执行的 PowerShell 脚本集合。所有脚本在 Windows 主机
 powershell.exe -ExecutionPolicy Bypass -File "$(wslpath -w <path-to-ps1>)"
 ```
 
-`wslpath -w` 把 WSL 路径转 Windows 路径（如 `/home/francis/git/ccconfig/windows-tools/wslconf/wslconfig.ps1` → `C:\git\ccconfig\windows-tools\wslconf\wslconfig.ps1`）。
+`wslpath -w` 把 WSL 路径转 Windows 路径（如 `$HOME/git/ccconfig/windows-tools/wslconf/wslconfig.ps1` → `C:\git\ccconfig\windows-tools\wslconf\wslconfig.ps1`）。
 
 ### 各目录调用
 

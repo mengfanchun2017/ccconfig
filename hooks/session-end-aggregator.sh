@@ -267,23 +267,26 @@ os.replace(tmp, out_path)
 with open("/tmp/claude_last_session.json", "w") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
 
-# KR 路由：根据 cwd 映射到对应 KR
+# 从 conf/f-logme.json 读配置（symlink → ccprivate）
 HOME = os.path.expanduser("~")
-KR_ROUTE = {
-    os.path.join(HOME, "git/<project-name>"): "recvmpiqCN8SQk",
-    os.path.join(HOME, "git/ccconfig"): "recvmpil28etYG",
-}
+CONF_PATH = os.path.join(HOME, "git/ccconfig/conf/f-logme.json")
+with open(CONF_PATH) as f:
+    _conf = json.load(f)
+_feme = _conf["bases"]["okr_v2"]
+T = _feme["token"]
+TBL = _feme["tables"]["Worklog"]
+
+# KR 路由：根据 cwd 映射到对应 KR
+_kr_route = _conf.get("kr_route", {})
+KR_ROUTE = {os.path.join(HOME, "git", k): v for k, v in _kr_route.items() if k != "_default"}
+_default_kr = _kr_route.get("_default", "")
 kr_id = None
 for prefix, kid in KR_ROUTE.items():
     if cwd and cwd.startswith(prefix) and kid:
         kr_id = kid
         break
 if not kr_id:
-    kr_id = "recvl7jffWBL34"
-
-# 写飞书 worklog（同 session 自动合并）
-T = "LX5lb6VfdaJHWrsRbTgc8Y50nmj"
-TBL = "tblVsC0L7QFzMeYM"
+    kr_id = _default_kr
 WL_CACHE = f"/tmp/claude_session_{sid}_wl.json"
 
 date_str = datetime.date.today().isoformat()

@@ -19,7 +19,7 @@
 | `f-logme/` | 个人管理系统 — OKR/Worklog/Reflect/SUM | 🔒 **私有**（含飞书 tenant + Base ID）|
 | `skill-template/` | 脚手架（开发用）| — 不发布 |
 
-**8 个公开自建**会同步到 [<your-github-username>/claude-skills](https://github.com/<your-github-username>/claude-skills) marketplace。
+**8 个公开自建**会同步到 `<your-github-username>/claude-skills` marketplace。
 
 ## 来源 2：claude-skills marketplace 聚合（auto install via `sync`）
 

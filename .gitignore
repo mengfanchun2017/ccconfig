@@ -21,9 +21,14 @@ link/.config.json
 link/settings.json
 link/CLAUDE.md
 link/projects
+link/skills/f-doc/config.yaml
 
 # 项目级 CLAUDE.md（符号链接到 ccprivate）
 CLAUDE.md
+
+# Python 字节码
+__pycache__/
+*.pyc
 
 
 # auto-sync 运行文件
@@ -40,8 +45,8 @@ CLAUDE.md
 # 编辑器/工具原子写入残留
 *.tmp.*
 
-# 可选：本地环境变量文件
-# .env
+# 本地环境变量文件
+.env
 
 # 临时文件/脚本（一次性任务产物）
 tmp/

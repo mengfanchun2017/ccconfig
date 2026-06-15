@@ -78,7 +78,7 @@ gh auth login --web --hostname github.com
 3. 问 "How would you like to authenticate?" → 选 **Login with a web browser**
 4. 终端打印一行 `! First copy your one-time code: ****-****`
 5. 按回车打开浏览器（或手动访问 https://github.com/login/device）
-6. 粘贴 code → 授权 `<your-github-username>` 账号
+6. 粘贴 code → 授权你的 GitHub 账号
 7. 回到终端，命令完成
 
 **验证**：
@@ -199,7 +199,7 @@ tail -f ~/git/ccconfig/logs/monitor.log
 # 应该看到: OK committed → OK pushed → GitHub
 ```
 
-去 https://github.com/<your-github-username>/ccconfig/commits/main 也能看到刚才的 commit。
+去 `https://github.com/<your-github-username>/ccconfig/commits/main` 也能看到刚才的 commit。
 
 ---
 
@@ -304,8 +304,8 @@ cd ~/git/cconfig && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccp
 |------|------|------|
 | `gh: command not found` | 阶段 1 binary 没装到 PATH | `which gh`，没结果就 `source ~/.bashrc` 或手动加 `/usr/local/bin` |
 | `gh auth login` 浏览器没自动开 | WSL 没装 `wslview` | 手动复制终端的 one-time code，访问 https://github.com/login/device |
-| `gh repo clone` 报 404 | 没登录成功 / 账号不是 `<your-github-username>` 的协作者 | `gh auth status` 确认账号；如果不是协作者，联系 owner 加 |
-| `init.sh all` 卡在 sudo | 密码没缓存 | 输密码，或配 sudo 免密（`echo "francis ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/francis`） |
+| `gh repo clone` 报 404 | 没登录成功 / 账号不是仓库协作者 | `gh auth status` 确认账号；如果不是协作者，联系 owner 加 |
+| `init.sh all` 卡在 sudo | 密码没缓存 | 输密码，或配 sudo 免密（`echo "<your-username> ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/<your-username>`） |
 | monitor 不推 | SSH key 没注册到 GitHub（这台机器以前的残留）| `gh auth setup-git`（init.sh 阶段 1 已自动做）；如还有问题 `git remote set-url origin https://<your-github-username>@github.com/<your-github-username>/ccconfig.git` |
 | WSL 报 `Could not resolve hostname` | `/etc/hosts` 没本机 hostname | `echo "127.0.1.1 $(hostname)" \| sudo tee -a /etc/hosts` |
 

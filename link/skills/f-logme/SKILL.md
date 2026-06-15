@@ -125,7 +125,7 @@ T=$(python3 -c "import json; print(json.load(open('$CONF'))['bases']['okr_v2']['
 
 ### KR_Progress 表字段 🆕 2026-06-04 → 已废弃 2026-06-09
 
-KR 进度历史快照表已于 2026-06-09 废弃（[ADR-0003](file:///home/francis/git/ccconfig/docs/adr/0003-deprecate-tasks-and-kr-progress.md)）。设计反思：每 worklog +5% 的伪指标无法反映 KR 真实进展，与"3 状态"语义冲突。OKR_KR.进度 / 信心 字段同步删除。状态推进改为手动管理，详见 `log_write.py kr-status` 命令。
+KR 进度历史快照表已于 2026-06-09 废弃（[ADR-0003](../../docs/adr/0003-deprecate-tasks-and-kr-progress.md)）。设计反思：每 worklog +5% 的伪指标无法反映 KR 真实进展，与"3 状态"语义冲突。OKR_KR.进度 / 信心 字段同步删除。状态推进改为手动管理，详见 `log_write.py kr-status` 命令。
 
 ---
 
@@ -224,7 +224,7 @@ SUM 分两条通道：
 
 **模板即飞书文档**。用户创建模板文档 → 我 fetch 学习其结构/格式/风格 → 生成时照模板结构填入数据。
 
-**模板位置**：OKR wiki 节点 `VPsDw42KsixH77kugfcc8FyInCh` 下的「模板」文件夹。
+**模板位置**：OKR wiki 节点（配置见 `conf/f-logme.json` → `okr_wiki_node`）下的「模板」文件夹。
 
 **工作流**：
 
