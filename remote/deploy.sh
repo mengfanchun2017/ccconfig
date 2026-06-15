@@ -67,4 +67,4 @@ else
 fi
 
 echo ""
-echo "详细说明: ~/git/ccconfig/remote/readme.md"
+echo "详细说明: ${CCCONFIG_HOME:-$HOME/git/ccconfig}/remote/readme.md"

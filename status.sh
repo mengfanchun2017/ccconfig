@@ -101,8 +101,8 @@ check_symlinks() {
     else
         echo -e "  ${GRAY}自动修复中...${NC}"
         local fixed=false
-        if [ -x "$HOME/git/ccprivate/setup.sh" ]; then
-            if bash "$HOME/git/ccprivate/setup.sh" 2>/dev/null; then
+        if [ -x "$CCPRIVATE_HOME/setup.sh" ]; then
+            if bash "$CCPRIVATE_HOME/setup.sh" 2>/dev/null; then
                 echo -e "  ${GREEN}✅ 配置链接已自动修复 (ccprivate/setup.sh)${NC}"
                 fixed=true
             fi
@@ -112,7 +112,7 @@ check_symlinks() {
             echo -e "  ${YELLOW}⚠️  私有链接需 ccprivate${NC}"
         elif ! $fixed; then
             echo -e "  ${RED}❌ 自动修复失败${NC}"
-            echo -e "  ${GRAY}手动: bash ~/git/ccprivate/setup.sh（全量）${NC}"
+            echo -e "  ${GRAY}手动: bash ${CCPRIVATE_HOME}/setup.sh（全量）${NC}"
         fi
     fi
 }

@@ -41,6 +41,7 @@ enable_autostart() {
 
     # 复制服务文件
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CCCONFIG_HOME="${CCCONFIG_HOME:-$SCRIPT_DIR}"
     cp "$SCRIPT_DIR/monitor.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
 
     cat > "$SYSTEMD_SERVICE" << EOF
@@ -50,7 +51,7 @@ After=default.target
 
 [Service]
 Type=oneshot
-ExecStart=${HOME}/git/ccconfig/monitor.sh start
+ExecStart=${CCCONFIG_HOME}/monitor.sh start
 RemainAfterExit=yes
 
 [Install]
@@ -109,7 +110,7 @@ status_autostart() {
     fi
 
     # 检查当前 monitor-sync 状态
-    AUTO_SYNC_PID_FILE="${HOME}/git/ccconfig/.monitor-sync.pid"
+    AUTO_SYNC_PID_FILE="${CCCONFIG_HOME}/.monitor-sync.pid"
     if [ -f "$AUTO_SYNC_PID_FILE" ] && kill -0 "$(cat "$AUTO_SYNC_PID_FILE")" 2>/dev/null; then
         info "monitor-sync 当前状态: 运行中 (PID: $(cat "$AUTO_SYNC_PID_FILE"))"
     else

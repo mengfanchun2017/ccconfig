@@ -17,6 +17,9 @@ _VERSION_FILE="$_PATH_HELPER_DIR/../conf/versions.json"
 _LOCAL_BIN="$HOME/.local/bin"
 _LOCAL_DIR="$HOME/.local"
 
+export CCCONFIG_HOME="${CCCONFIG_HOME:-$HOME/git/ccconfig}"
+export CCPRIVATE_HOME="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+
 # ========== 版本文件读取 ==========
 
 get_version() {
