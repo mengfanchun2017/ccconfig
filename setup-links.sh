@@ -77,6 +77,19 @@ setup_symlinks() {
         section "Skills"
         bash "$SCRIPT_DIR/init-skill.sh" sync
     fi
+
+    # git pre-commit hook（防私密文件意外提交）
+    local git_hook="$SCRIPT_DIR/.git/hooks/pre-commit"
+    local hook_src="$SCRIPT_DIR/hooks/pre-commit"
+    if [[ -f "$hook_src" ]]; then
+        if [[ -L "$git_hook" ]] && [[ "$(readlink -f "$git_hook")" == "$(readlink -f "$hook_src")" ]]; then
+            info "pre-commit hook: 已链接，跳过"
+        else
+            [[ -e "$git_hook" ]] && rm -f "$git_hook"
+            ln -sf "$hook_src" "$git_hook"
+            success "pre-commit hook: 已安装"
+        fi
+    fi
 }
 
 setup_symlinks

@@ -1,0 +1,69 @@
+#!/bin/bash
+# pre-commit — 防止私密配置被意外 commit
+#
+# 由 setup-links.sh 链接到 .git/hooks/pre-commit
+
+set -e
+
+RED='\033[0;31m'
+NC='\033[0m'
+
+blocked=0
+
+# 获取 staged 文件列表
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+
+# === 规则 1: conf/*.json 只能有 .example 模板和 versions.json ===
+conf_json=$(echo "$staged" | grep '^conf/.*\.json$' || true)
+if [ -n "$conf_json" ]; then
+    while IFS= read -r f; do
+        case "$f" in
+            conf/versions.json) ;;  # 允许
+            *.example) ;;            # 允许 .example 模板
+            *)
+                echo -e "${RED}[pre-commit] BLOCKED: ${f}${NC}"
+                echo "  conf/ 下仅允许 versions.json 和 *.example 模板。"
+                echo "  真实配置在 ccprivate/conf/，通过 symlink 覆盖。"
+                blocked=1
+                ;;
+        esac
+    done <<< "$conf_json"
+fi
+
+# === 规则 2: 禁止私有 link 文件 ===
+for forbidden in \
+    "link/CLAUDE.md" \
+    "link/settings.json" \
+    "link/.config.json" \
+    "link/projects" \
+    "link/skills/f-doc/config.yaml"
+do
+    if echo "$staged" | grep -qxF "$forbidden"; then
+        echo -e "${RED}[pre-commit] BLOCKED: ${forbidden}${NC}"
+        echo "  此文件属于 ccprivate，不应进入 ccconfig。"
+        blocked=1
+    fi
+done
+
+# === 规则 3: 密钥模式扫描 ===
+if [ -n "$staged" ]; then
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        [ ! -f "$f" ] && continue
+        if grep -qE 'sk-[a-zA-Z0-9]{20,}|gho_[a-zA-Z0-9]{36}|ghp_[a-zA-Z0-9]{36}|eyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}' "$f" 2>/dev/null; then
+            echo -e "${RED}[pre-commit] BLOCKED: ${f} — 疑似包含 API key / JWT token${NC}"
+            blocked=1
+        fi
+    done <<< "$staged"
+fi
+
+if [ $blocked -eq 1 ]; then
+    echo ""
+    echo "提交被阻止。修复方式："
+    echo "  1. git rm --cached <文件>   # 从索引移除"
+    echo "  2. 或从文件中删除敏感数据后重新 git add"
+    echo "  3. 真实配置应在 ccprivate 仓库，不在此仓库提交"
+    exit 1
+fi
+
+exit 0
