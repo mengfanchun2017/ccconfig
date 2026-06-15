@@ -415,11 +415,24 @@ export PATH="$HOME/.local/bin:$PATH"
 ### 拉取 Base 数据
 
 ```bash
+# 默认 table 格式（人类可读），--format json 用于程序化解析
 lark-cli base +record-list --base-token $T --table-id $T_O --as user
 lark-cli base +record-list --base-token $T --table-id $T_KR --as user
 lark-cli base +record-list --base-token $T --table-id $T_WL --as user --limit 200
 lark-cli base +record-list --base-token $T --table-id $T_RF --as user
 ```
+
+**JSON 输出格式**（`--format json`）：响应结构为 `data.data`（记录数组）+ `data.fields`（字段名数组）。
+每条记录是数组（按 fields 顺序），不是 dict。解析方式：
+
+```python
+data = json.loads(output)
+fields = data['data']['fields']
+for rec in data['data']['data']:
+    d = dict(zip(fields, rec))  # 转为 dict 使用
+```
+
+**分页**：`--limit` 最大有效值约 200。`has_more: true` 时用 `--offset N` 继续拉取。flag 是 `--base-token` 不是 `--app-token`。
 
 数据写入统一用 `log_write.py`（从 conf 自动读 Base token/表 ID）。
 
