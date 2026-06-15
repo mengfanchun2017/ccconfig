@@ -7,6 +7,11 @@
   "space_id": "<your-space-id>",
   "tenant_domain": "<your-tenant>.feishu.cn",
   "okr_wiki_node": "<your-wiki-node-token>",
+  "kr_route": {
+    "project-a": "<kr-record-id>",
+    "project-b": "<kr-record-id>",
+    "_default": "<default-kr-record-id>"
+  },
   "bases": {
     "okr_v2": {
       "token": "<base-token>",
