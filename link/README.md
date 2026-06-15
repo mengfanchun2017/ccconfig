@@ -1,20 +1,22 @@
 # link/ — 符号链接源
 
-> 此目录下的文件通过 `setup-links.sh` 链接到 `~/.claude/`（Claude Code 配置目录）。
+> 公开部分（rules / agents / commands / skills）链接到 `~/.claude/`。
+> 私有文件（CLAUDE.md / settings.json / .config.json / projects）在 ccprivate。
 
 ## 目录
 
-| 路径 | 链接目标 | 用途 |
+| 路径 | 链接目标 | 仓库 |
 |------|---------|------|
-| `settings.json` | `~/.claude/settings.json` | 权限、MCP、hooks |
-| `.config.json` | `~/.claude/.config.json` | 环境变量、项目状态 |
-| `CLAUDE.md` | `~/CLAUDE.md` | AI 行为指南 |
-| `rules/` | `~/.claude/rules/` | 条件规则（按路径加载） |
-| `agents/` | `~/.claude/agents/` | 自定义 agents |
-| `skills/` | `~/.claude/skills/` | 自定义 skills |
-| `commands/` | `~/.claude/commands/` | 自定义斜杠命令 |
-| `projects/` | `~/.claude/projects/` | 项目 MEMORY.md |
+| `rules/` | `~/.claude/rules/` | ccconfig（公开） |
+| `agents/` | `~/.claude/agents/` | ccconfig（公开） |
+| `skills/` | `~/.claude/skills/` | ccconfig（公开） |
+| `commands/` | `~/.claude/commands/` | ccconfig（公开） |
+| `shell_aliases.sh` | `~/.claude/shell_aliases.sh` | ccconfig（公开） |
+| `projects/` | `~/.claude/projects/` | symlink → ccprivate |
+| `settings.json.example` | —（模板）| ccconfig（公开） |
 
-## 注意
+以下文件**不在** ccconfig，由 ccprivate/setup.sh 直接链接到 `~/` 和 `~/.claude/`：
 
-此目录包含个人配置和 API Key，**不要公开提交**。
+- `~/CLAUDE.md` ← ccprivate/link/CLAUDE.md
+- `~/.claude/settings.json` ← ccprivate/link/settings.json
+- `~/.claude/.config.json` ← ccprivate/link/.config.json

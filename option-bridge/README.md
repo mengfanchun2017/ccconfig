@@ -23,8 +23,8 @@ bash ccconfig/option-bridge/init.sh --lark-cli
 bash ccconfig/option-bridge/init.sh --cc-connect
 
 # 多账号切换
-bash ccconfig/option-bridge/lark-switch.sh francis
-bash ccconfig/option-bridge/lark-switch.sh ailab
+bash ccconfig/option-bridge/lark-switch.sh <your-account>
+bash ccconfig/option-bridge/lark-switch.sh <another-account>
 ```
 
 ## 机器人管理

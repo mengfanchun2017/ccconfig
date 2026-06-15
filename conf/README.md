@@ -1,19 +1,18 @@
-# conf/ — 配置文件（单一真相源）
+# conf/ — 配置模板 + symlink
 
-> 所有初始化/升级脚本读取此目录下的配置文件。修改后下次运行自动生效。
+> 所有初始化/升级脚本读取此目录。真实值在 ccprivate/conf/，通过 symlink 穿透访问。
 
 ## 文件
 
-| 文件 | 用途 | 读取方 | 入 git |
-|------|------|--------|--------|
-| `versions.json` | 组件版本、Node.js pin | `update.sh`, `path-helper.sh` | ✓ |
-| `ubuntu.json` | Git 用户信息、仓库地址 | `init-ubuntu.sh` | ✗ (敏感) |
-| `llm.json` | LLM 多后端配置、当前选择 | `init-llm.sh`, `init-ubuntu.sh` | ✗ (敏感) |
-| `claude.json` | MCP 服务器列表、env 配置 | `init-mcp.sh`, `update.sh` | ✗ (敏感) |
-| `feishu.json` | 飞书 lark-cli + cc-connect 配置 | `option-bridge/` | ✗ (敏感) |
-| `cloudflare.json` | Cloudflare API tokens（多项目共用） | 各项目部署脚本（jq 读 → env） | ✗ (敏感) |
-| `python-requirements.txt` | Python pip 包清单 | `update.sh` | ✓ |
+| 文件 | 用途 | 状态 |
+|------|------|------|
+| `versions.json` | 组件版本、Node.js pin | ✅ 公开，git 跟踪 |
+| `*.json.example` | 配置模板（占位符） | ✅ 公开，git 跟踪 |
+| `*.json` | symlink → ccprivate/conf/ | 🚫 不跟踪（`.gitignore`） |
+| `python-requirements.txt` | Python pip 包清单 | ✅ 公开 |
+| `third-party-skills.txt` | npx skills 清单 | ✅ 公开 |
 
-## 注意
+## 新用户
 
-此目录包含敏感信息（API Key、Token、App Secret），**不要公开提交**。
+1. 如有 ccprivate 仓库：`ccprivate/setup.sh` 自动建立 symlink
+2. 无 ccprivate：`share/setup.sh` 交互式引导，从 `.example` 复制并填入真实值
