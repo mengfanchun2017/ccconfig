@@ -269,7 +269,8 @@ with open("/tmp/claude_last_session.json", "w") as f:
 
 # 从 conf/f-logme.json 读配置（symlink → ccprivate）
 HOME = os.path.expanduser("~")
-CONF_PATH = os.path.join(HOME, "git/ccconfig/conf/f-logme.json")
+CCCONFIG_HOME = os.environ.get("CCCONFIG_HOME", os.path.join(HOME, "git/ccconfig"))
+CONF_PATH = os.path.join(CCCONFIG_HOME, "conf/f-logme.json")
 with open(CONF_PATH) as f:
     _conf = json.load(f)
 _feme = _conf["bases"]["okr_v2"]
