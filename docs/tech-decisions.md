@@ -3,6 +3,12 @@
 > 从 Worklog 自动提取。每次 worklog 触发后更新。
 > 数据来源: Worklog Base（配置见 `conf/f-logme.json`）
 
+## 2026-06-15 | ccconfig 开源安全加固 | [recvmBdslqi2Mr]
+
+**决策**: 所有隐私数据统一存放 ccprivate，ccconfig 通过 symlink 引用；git filter-repo 清洗历史
+**影响**: 26 文件修改，1504 commits 重写，仓库可随时改公开
+**关联**: hooks/session-end-aggregator.sh + merge_worklog.py 改为读 conf/*.json；f-doc/config.yaml 改为 symlink；新增 SECURITY.md
+
 ## 2026-06-14 | Vessel → Playwright 全线迁移
 
 **决策**: 全线移除 Vessel，统一使用 Playwright（MCP + Python 脚本）
