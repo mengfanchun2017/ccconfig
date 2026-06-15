@@ -2,19 +2,14 @@
 
 > **L3 追踪层**。**冷启动入口** — 每次 session 开始先读本文件。
 > 模板: planning-with-files `progress.md` 精简版。
-> 最后更新: 2026-06-08
+> 最后更新: 2026-06-15
 
 ## TL;DR
 
-- **进行中**: Phase 0 / 任务 #2（改 `init.sh` 加 key 缺失检测 + 引导）
-- **已完成**: 任务 #1 ✅（改 `.gitignore` + `git rm --cached` 5 conf）
-- **下次入口**: 见下方
+- **进行中**: 文档 review + Phase 0 收尾
+- **已完成**: 任务 #1 ✅ #6 ✅ #7 ✅ #9 ✅ + ccprivate 拆分 + CCCONFIG_HOME
+- **下次入口**: 任务 #10（f-ship v0.1）或 Phase 1（CI/CD）
 - **阻塞**: 无
-- **4 决策已落地** (2026-06-08):
-  - L2 tasks 表放飞书 Base ✅
-  - findings/adr 保持 2 文件
-  - f-ship skill v0.1 在 Phase 0 末尾抽（任务 #10）
-  - **合并 KR+Task 为单一交付实体** ✅（Tasks → OKR_KR，类别=action）
 
 ## 4 层定位
 
@@ -61,11 +56,14 @@ L4 自动日志:   飞书 f-logme Base Worklog 表 + 关联Action link (SessionE
 
 - [x] 建 4 层追踪系统框架
 - [x] 调研 f-ship skill 候选方案
-- [x] 重构为 3 文件 + MADR + Hill Chart
-- [x] **Phase 0 / 任务 #1**：在 `.gitignore` 加 conf/llm.json 等 5 个真实配置文件 ✅
-  - commit: (待 commit)
-  - 飞书 Status (Hill): done (recvlWXwML5OL2)
-- [ ] **Phase 0 / 任务 #2**：改 `init.sh` 加 key 缺失检测 + 引导分支
+- [x] **Phase 0 / 任务 #1**：改 `.gitignore` + `git rm --cached` ✅
+- [x] **ccprivate 拆分**：私有数据全部迁出，cconfig 零密钥 ✅
+- [x] **去标识化**：username/path 替换为占位符 ✅
+- [x] **git filter-repo**：从全部历史清除 12 个私密文件 ✅
+- [x] **pre-commit hook**：防私密文件意外提交 ✅
+- [x] **CCCONFIG_HOME / CCPRIVATE_HOME**：消除硬编码路径 ✅
+- [x] **CHANGELOG / README / CONTRIBUTING 更新** ✅
+- [ ] **Phase 0 / 任务 #10**：抽 f-ship skill 雏形 v0.1（Phase 0 末尾执行）
 
 ## 阻塞
 

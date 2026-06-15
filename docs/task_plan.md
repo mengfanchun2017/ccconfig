@@ -12,9 +12,9 @@
 
 **Phase 0 — 安全 + 公开化**
 
-- **状态**: 🚧 进行中
+- **状态**: 🚧 收尾中（7/10 完成）
 - **开始**: 2026-06-08
-- **预计完成**: 2026-06-15
+- **预计完成**: 2026-06-20
 - **关联**: [ROADMAP.md Phase 0](../ROADMAP.md), OKR O.「ccconfig 正式化」/KR1
 - **决策**: [ADR-0001](adr/0001-secret-strategy.md)
 - **下次 session 入口**: [progress.md](progress.md)
@@ -26,11 +26,11 @@
 
 | 状态 | 任务 | 说明 |
 |---|---|---|
-| 🔴 unknown | 任务 #2-#10 | 还没动手研究 |
-| 🟡 known | (空) | — |
-| 🟢 done | 任务 #1 | 改 `.gitignore` 5 行 + `git rm --cached` 5 conf，commit，**已完成** |
+| 🔴 unknown | 任务 #3-#5, #10 | key rotation + f-ship 雏形 |
+| 🟡 known | 任务 #2, #8 | 由 ccprivate 架构变更替代 |
+| 🟢 done | 任务 #1, #6, #7, #9 | .gitignore / pre-commit / filter-repo / CHANGELOG |
 
-> **进度计算**: 0 known + 1 done = 1/10 ≈ 10% (按 3 态分桶)
+> **进度计算**: 2 known + 4 done = 6/10 ≈ 60% (按 3 态分桶)
 > 不用 0-100% 是因为「做了 30%」是 fake precision；3 态更诚实。
 
 ## 飞书 OKR_KR 表（合并后）
@@ -56,15 +56,15 @@
 
 | # | 任务 | 优先级 | 预计 | 状态 | 实际开始 | 实际完成 | 备注 |
 |---|---|---|---|---|---|---|---|
-| 1 | `.gitignore` 加 5 个真实 conf | P0 | 15min | 🟡 known | 06-08 |  | 当前在改 |
-| 2 | `init.sh` 加 key 缺失检测 + 引导 | P0 | 1h | 🔴 unknown |  |  | 模式 2 |
+| 1 | `.gitignore` 加 5 个真实 conf | P0 | 15min | 🟢 done | 06-08 | 06-08 | commit 76d8bc0 |
+| 2 | `init.sh` 加 key 缺失检测 + 引导 | P0 | 1h | 🟡 known |  |  | ccprivate 架构变更替代 — conf symlink 由 ccprivate/setup.sh 建立 |
 | 3 | Rotate MiniMax key | P0 | 15min | 🔴 unknown |  |  | MiniMax 后台 |
 | 4 | Rotate DeepSeek key | P0 | 15min | 🔴 unknown |  |  | DeepSeek 后台 |
 | 5 | Rotate 飞书 app_secret | P0 | 15min | 🔴 unknown |  |  | 飞书开放平台 |
-| 6 | 建 `.github/workflows/secret-scan.yml` | P0 | 30min | 🔴 unknown |  |  | gitleaks |
-| 7 | `git filter-repo` 改写历史 | P1 | 1h | 🔴 unknown |  |  | defense in depth |
-| 8 | 验证所有脚本在 conf 缺失时 fallback | P0 | 30min | 🔴 unknown |  |  | status.sh 等 |
-| 9 | CHANGELOG 加 Unreleased 段落 | P0 | 10min | 🔴 unknown |  |  |  |
+| 6 | pre-commit hook 防私密提交 | P0 | 30min | 🟢 done | 06-15 | 06-15 | `hooks/pre-commit`，setup-links.sh 自动安装 |
+| 7 | `git filter-repo` 改写历史 | P1 | 1h | 🟢 done | 06-15 | 06-15 | 1144→1050 commits，12 私密文件清除 |
+| 8 | 验证所有脚本在 conf 缺失时 fallback | P0 | 30min | 🟡 known |  |  | CCCONFIG_HOME 已引入，脚本支持自定义路径 |
+| 9 | CHANGELOG 加 Unreleased 段落 | P0 | 10min | 🟢 done | 06-15 | 06-15 | 2026-06-15 更新 |
 | 10 | 抽 f-ship skill 雏形 v0.1（`link/skills/f-ship/`）| P1 | 4h | 🔴 unknown |  |  | Phase 0 末尾执行；含 SKILL.md + 4 模板 + init.sh |
 
 **总工时**: ~8.5h（任务 #1-9: 4.5h + 任务 #10: 4h）
