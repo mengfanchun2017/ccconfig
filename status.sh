@@ -76,7 +76,7 @@ check_symlinks() {
     fi
 
     # MEMORY.md (memory/ dir is symlink, MEMORY.md is inside it)
-    local memory_dir="$HOME/.claude/projects/-home-francis-git/memory"
+    local memory_dir="$HOME/.claude/projects/-$(echo "$HOME/git" | sed 's|^/||; s|/|-|g')/memory"
     local memory_file="$memory_dir/MEMORY.md"
     if [ -L "$memory_dir" ] && [ -f "$memory_file" ]; then
         echo -e "  ${GREEN}✅${NC} MEMORY.md"

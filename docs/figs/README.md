@@ -37,7 +37,7 @@ plt.rcParams['font.sans-serif'] = ['Noto Sans CJK SC']
 
 | 文件 | 配对的飞书 doc |
 |---|---|
-| `rule-of-three-cover.png` + `cover.mmd` | [固定任务写脚本的工程实践 — Rule of Three 与决策矩阵](https://<your-tenant>.feishu.cn/wiki/VC3twzeTViMoUckA8UfcvnY1nUg) |
+| `rule-of-three-cover.png` + `cover.mmd` | 固定任务写脚本的工程实践 — Rule of Three 与决策矩阵 |
 
 ## 用法
 

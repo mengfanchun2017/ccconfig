@@ -1,9 +1,9 @@
 # task_plan — 当前 Phase 详细计划
 
 > **L2 追踪层（飞书主，仓库镜像）**。当前 active phase 的全部任务、DoD、风险、验证。
-> **主权威**: 飞书 Base OKR_KR 表（`tblZhpELO31mAkg6`，含 `类别=action` 子集 + Hill Chart 3 态）
+> **主权威**: 飞书 Base OKR_KR 表（含 `类别=action` 子集 + Hill Chart 3 态）
 > **本文件**: 设计说明 + 验证清单 + 退出标准；具体每条任务看飞书
-> **历史**: Tasks 表 (`tblnSeKT2LiPUndd`) 已合并入 OKR_KR，详情见 [ADR-0002](adr/0002-merge-kr-and-task.md)
+> **历史**: Tasks 表已合并入 OKR_KR，详情见 [ADR-0002](adr/0002-merge-kr-and-task.md)
 > 多 phase 时：每 phase 一个独立文件（如 `phase-1-cicd.md`），本文件始终指向 active。
 > 模板参考: [planning-with-files](https://github.com/OthmanAdi/planning-with-files)（147k★，Manus 风格 3 文件规划）
 > 进度模型: **Hill Chart**（unknown → known → done，3 态替代 0-100%）
@@ -35,9 +35,9 @@
 
 ## 飞书 OKR_KR 表（合并后）
 
-- **Base URL**: https://<your-tenant>.feishu.cn/base/LX5lb6VfdaJHWrsRbTgc8Y50nmj
-- **Table ID**: `tblZhpELO31mAkg6`（OKR_KR，含 outcome/process/action 3 类）
-- **关联 O**: O.ccconfig-正式化（`recvlUWkTmBWsu`）
+- **Base URL**: `https://<your-tenant>.feishu.cn/base/<your-base-token>`
+- **Table ID**: `<your-okr-kr-table-id>`（OKR_KR，含 outcome/process/action 3 类）
+- **关联 O**: O.ccconfig-正式化
 - **记录数**: 36 条（26 旧 KR + 10 新 action）
 
 **合并后字段**: 标题 / 说明 / 类型 / 类别（NEW: outcome/process/action） / Status (Hill)（NEW）/ 关联ADR（NEW）/ Estimated (min)（NEW）/ 周期 / 进度 / 信心 / 关联O / 创建日期 / 更新日期 / 最终评分 / 编号
@@ -58,8 +58,8 @@
 |---|---|---|---|---|---|---|---|
 | 1 | `.gitignore` 加 5 个真实 conf | P0 | 15min | 🟡 known | 06-08 |  | 当前在改 |
 | 2 | `init.sh` 加 key 缺失检测 + 引导 | P0 | 1h | 🔴 unknown |  |  | 模式 2 |
-| 3 | Rotate MiniMax key（`sk-cp-OjTA4...`） | P0 | 15min | 🔴 unknown |  |  | MiniMax 后台 |
-| 4 | Rotate DeepSeek key（`sk-abc...`） | P0 | 15min | 🔴 unknown |  |  | DeepSeek 后台 |
+| 3 | Rotate MiniMax key | P0 | 15min | 🔴 unknown |  |  | MiniMax 后台 |
+| 4 | Rotate DeepSeek key | P0 | 15min | 🔴 unknown |  |  | DeepSeek 后台 |
 | 5 | Rotate 飞书 app_secret | P0 | 15min | 🔴 unknown |  |  | 飞书开放平台 |
 | 6 | 建 `.github/workflows/secret-scan.yml` | P0 | 30min | 🔴 unknown |  |  | gitleaks |
 | 7 | `git filter-repo` 改写历史 | P1 | 1h | 🔴 unknown |  |  | defense in depth |

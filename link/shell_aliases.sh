@@ -1,3 +1,4 @@
+#!/bin/bash
 # shell_aliases.sh — 跨终端同步的 shell 别名/函数
 # 由 ccconfig/setup-links.sh 链接到 ~/.claude/shell_aliases.sh
 # ~/.bashrc 自动 source 此文件
