@@ -1,6 +1,6 @@
 {
   "description": "Single source of truth for all component versions managed by ccconfig. Edit this file to pin versions.",
-  "last_checked": "2026-06-01T22:24:05.566256+08:00",
+  "last_checked": "2026-06-16T18:02:28.154513+08:00",
   "components": {
     "node": {
       "version": "22.22.3",
@@ -12,7 +12,7 @@
       "lts_only": true
     },
     "gh": {
-      "version": "2.93.0"
+      "version": "2.94.0"
     },
     "mmx_cli": {
       "version": "1.0.16",
