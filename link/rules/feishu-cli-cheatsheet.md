@@ -38,6 +38,7 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 - **colgroup 修复**：用 `block_replace` 替换整个 table（不能用 str_replace 处理 `<colgroup>`）
 - **base select 值**：必须用目标字段已有选项，不能想当然传字符串
 - **lark-cli stdout**：WSL 会注入 `Shell cwd was reset to <path>` 行 → python json.loads 前过滤
+- **`api` 子命令不输出 JSON**：`lark-cli api GET/POST/...` 输出人类可读日志行（如 `[fldmwAFw2J] 编号  type=1005  opts=[]`），**不要** pipe 给 `python3 -c "json.load(sys.stdin)"` → 报 `AttributeError: 'NoneType' object has no attribute 'get'`。只有显式带 `--format json` 的子命令（如 `base +record-list --format json`）才输出 JSON
 
 ## base +record-list JSON 输出格式
 
