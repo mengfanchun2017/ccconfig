@@ -141,13 +141,22 @@ def llm_summarize():
                        "输出严格 JSON（无思考过程、无 markdown 包裹）。\n"
                        "字段：\n"
                        "  title: ≤20 字工作主题\n"
+                       "  type: 成果类型，必选下面一个：工具开发/技术方案/文档输出/学习笔记/问题排查/项目交付\n"
                        "  summary: 2-3 句自然语言概述\n"
-                       "标题规则（强约束）：\n"
-                       "  - 格式：领域前缀 空格 中文描述（如 claudecode 修复 hook 标题格式）\n"
-                       "  - 领域前缀根据文件路径/commit 推断：ccconfig <project-name> claudecode feishu minimax 等\n"
-                       "  - 禁止冒号分隔（不用 ccconfig: xxx）\n"
-                       "  - 禁止下划线（不用 update_claude）\n"
-                       "  - 禁止 【】 括号前缀"),
+                       "标题规则（强约束，违反复查再输出）：\n"
+                       "  - 唯一合法格式：<项目前缀> <动词+对象>，如 claudecode 修复 hook 标题格式\n"
+                       "  - 项目前缀从文件路径/commit 推断：ccconfig claudecode <project-name> feishu minimax sfia docs 等，小写英文\n"
+                       "  - 禁止冒号：不写 claudecode: xxx 或 sfia 技能画像构建：xxx\n"
+                       "  - 禁止下划线：不写 update_claude\n"
+                       "  - 禁止括号：【】[]（）\n"
+                       "  - 禁止标题以\"session 工作\"开头\n"
+                       "成果类型选择规则：\n"
+                       "  - 工具开发：写/改代码、脚本、hook、CLI 工具\n"
+                       "  - 技术方案：架构设计、技术选型、方案对比\n"
+                       "  - 文档输出：写文档、知识库、研究报告、画图\n"
+                       "  - 学习笔记：探索新技术、阅读文档、动手实验\n"
+                       "  - 问题排查：debug、故障修复、根因分析\n"
+                       "  - 项目交付：完整功能上线、里程碑交付"),
             "messages": [{"role": "user", "content": "\n".join(prompt_parts)}],
         }
         req = urllib.request.Request(
@@ -165,6 +174,10 @@ def llm_summarize():
         for c in result.get("content", []):
             if c.get("type") == "text":
                 text += c.get("text", "")
+        m = re.search(r'\{[^{}]*"title"[^{}]*"type"[^{}]*"summary"[^{}]*\}', text, re.DOTALL)
+        if m:
+            return json.loads(m.group(0))
+        # fallback: type 字段可能缺失（旧 prompt 缓存）
         m = re.search(r'\{[^{}]*"title"[^{}]*"summary"[^{}]*\}', text, re.DOTALL)
         if m:
             return json.loads(m.group(0))
@@ -190,6 +203,18 @@ elif user_prompts:
         title = f"session 工作: {user_prompts[0].replace(chr(10), ' ')[:40]}"
 else:
     title = f"session 工作: {sid_short} ({total_user_msgs} user msgs)"
+
+# === 成果类型 ===（LLM 推断，fallback 到启发式）
+VALID_TYPES = {"工具开发", "技术方案", "文档输出", "学习笔记", "问题排查", "项目交付"}
+if llm and llm.get("type") and llm["type"] in VALID_TYPES:
+    work_type = llm["type"]
+elif commits:
+    # 启发式：有 commit → 大概率是开发
+    work_type = "工具开发"
+elif edits:
+    work_type = "文档输出"
+else:
+    work_type = "学习笔记"
 
 # === 说明（自然语言段落，LLM 总结开头 + 元数据简化放最下面） ===
 if llm and llm.get("summary"):
@@ -327,6 +352,7 @@ if prev_exists:
             "asst_msgs": asst_msgs + prev_rounds,
             "user_msgs": total_user_msgs + prev_users,
             "来源": source_val,
+            "成果类型": work_type,
         },
     }
     update_tmp = f"/tmp/wl_update_{sid}.json"
@@ -371,7 +397,7 @@ else:
                    "input_tokens", "output_tokens", "model",
                    "asst_msgs", "user_msgs", "关联KR", "来源"],
         "rows": [[
-            title, "工具开发", description, date_str,
+            title, work_type, description, date_str,
             agg["input_tokens"], agg["output_tokens"],
             model or "",
             asst_msgs, total_user_msgs,
@@ -401,6 +427,7 @@ else:
                 cache = {
                     "record_id": wl_id,
                     "title": title,
+                    "work_type": work_type,
                     "description": description,
                     "asst_msgs": asst_msgs,
                     "user_msgs": total_user_msgs,
