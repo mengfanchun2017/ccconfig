@@ -308,21 +308,15 @@ if prev_exists:
     # 说明：追加新内容
     merged_desc = prev.get("description", "") + f"\n\n---\n{source_val} 更新 ({date_str}):\n{description}"
 
-    # 量化：累加 round 数和 token
+	    # 累加 round 数和 token
     prev_rounds = prev.get("asst_msgs", 0)
     prev_users = prev.get("user_msgs", 0)
-    merged_quant = (f"{asst_msgs + prev_rounds} asst / {total_user_msgs + prev_users} user msgs, "
-                    f"model={model}, "
-                    f"in={agg['input_tokens'] + prev.get('input_tokens',0):,} "
-                    f"out={agg['output_tokens'] + prev.get('output_tokens',0):,}")
-
     # 更新 Feishu 记录
     update_payload = {
         "record_id_list": [prev["record_id"]],
         "patch": {
             "标题": merged_title,
             "说明": merged_desc,
-            "量化结果": merged_quant,
             "input_tokens": agg["input_tokens"] + prev.get("input_tokens", 0),
             "output_tokens": agg["output_tokens"] + prev.get("output_tokens", 0),
             "asst_msgs": asst_msgs + prev_rounds,
@@ -367,21 +361,19 @@ if prev_exists:
 
 else:
     # 首次记录 → 新建
-    wl_payload = {
-        "fields": ["标题", "成果类型", "量化结果", "说明", "日期",
-                   "input_tokens", "output_tokens",
-                   "cache_creation_input_tokens", "cache_read_input_tokens", "model",
-                   "asst_msgs", "user_msgs", "关联KR", "来源"],
-        "rows": [[
-            title, "工具开发", quant, description, date_str,
-            agg["input_tokens"], agg["output_tokens"],
-            agg["cache_creation_input_tokens"], agg["cache_read_input_tokens"],
-            model or "",
-            asst_msgs, total_user_msgs,
-            [{"id": kr_id}],
-            source_val,
-        ]],
-    }
+	    wl_payload = {
+	        "fields": ["标题", "成果类型", "说明", "日期",
+	                   "input_tokens", "output_tokens", "model",
+	                   "asst_msgs", "user_msgs", "关联KR", "来源"],
+	        "rows": [[
+	            title, "工具开发", description, date_str,
+	            agg["input_tokens"], agg["output_tokens"],
+	            model or "",
+	            asst_msgs, total_user_msgs,
+	            [{"id": kr_id}],
+	            source_val,
+	        ]],
+	    }
     wl_tmp = f"/tmp/wl_{sid}.json"
     with open(wl_tmp, "w") as f:
         json.dump(wl_payload, f, ensure_ascii=False)
