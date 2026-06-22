@@ -15,6 +15,16 @@ allowed-tools: Read, Write, Glob, Bash, AskUserQuestion
 > **格式硬约束** → `../f-report-std/rules.d/f-report-std.md`（全局加载）
 > **飞书格式** → `../f-doc/SKILL.md`（工作流 G 处理图子文档）
 
+### 三层分工
+
+| 层 | skill | 职责 |
+|----|-------|------|
+| 机械层 | f-doc | 怎么调 API（fetch / str_replace / block_insert_after / 验证） |
+| 规范层 | f-report-std | 内容写成什么样（模板骨架、论证三要素、数据呈现约定） |
+| 工作流层 | f-report-gen（本 skill） | 内容怎么产出/迭代（3 种输入模式、分轮评审、搜索补素材） |
+
+**更新已有报告时**：f-doc 工作流 A 执行机械操作，本 skill 提供内容迭代流程（v1→v2），f-report-std 提供内容标准。三层各司其职。
+
 ## Step 0: 报告卡片（前置产物）
 
 任何模式开始前，先出 1 页报告卡片让用户确认。卡片模板 → `../f-report-std/templates/report-card.md`。
