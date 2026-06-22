@@ -142,12 +142,12 @@ def llm_summarize():
                        "字段：\n"
                        "  title: ≤20 字工作主题\n"
                        "  summary: 2-3 句自然语言概述\n"
-                       "标题规则（f-logme 规范）：\n"
-                       "  - 成长类（学习/探索/知识）：英文领域前缀 + 空格 + 中文描述\n"
-                       "    例：claudecode 模型分流配置和逻辑\n"
-                       "  - 工作类（具体项目交付/工具开发）：项目英文前缀 + 中文描述\n"
-                       "    例：ccconfig update_claude 重试与截断修复\n"
-                       "  - 禁 【】 括号前缀"),
+                       "标题规则（强约束）：\n"
+                       "  - 格式：领域前缀 空格 中文描述（如 claudecode 修复 hook 标题格式）\n"
+                       "  - 领域前缀根据文件路径/commit 推断：ccconfig <project-name> claudecode feishu minimax 等\n"
+                       "  - 禁止冒号分隔（不用 ccconfig: xxx）\n"
+                       "  - 禁止下划线（不用 update_claude）\n"
+                       "  - 禁止 【】 括号前缀"),
             "messages": [{"role": "user", "content": "\n".join(prompt_parts)}],
         }
         req = urllib.request.Request(
