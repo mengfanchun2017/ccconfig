@@ -313,7 +313,7 @@ if prev_exists:
     # 说明：追加新内容
     merged_desc = prev.get("description", "") + f"\n\n---\n{source_val} 更新 ({date_str}):\n{description}"
 
-	    # 累加 round 数和 token
+    # 累加 round 数和 token
     prev_rounds = prev.get("asst_msgs", 0)
     prev_users = prev.get("user_msgs", 0)
     # 更新 Feishu 记录
@@ -366,19 +366,19 @@ if prev_exists:
 
 else:
     # 首次记录 → 新建
-	    wl_payload = {
-	        "fields": ["标题", "成果类型", "说明", "日期",
-	                   "input_tokens", "output_tokens", "model",
-	                   "asst_msgs", "user_msgs", "关联KR", "来源"],
-	        "rows": [[
-	            title, "工具开发", description, date_str,
-	            agg["input_tokens"], agg["output_tokens"],
-	            model or "",
-	            asst_msgs, total_user_msgs,
-	            [{"id": kr_id}],
-	            source_val,
-	        ]],
-	    }
+    wl_payload = {
+        "fields": ["标题", "成果类型", "说明", "日期",
+                   "input_tokens", "output_tokens", "model",
+                   "asst_msgs", "user_msgs", "关联KR", "来源"],
+        "rows": [[
+            title, "工具开发", description, date_str,
+            agg["input_tokens"], agg["output_tokens"],
+            model or "",
+            asst_msgs, total_user_msgs,
+            [{"id": kr_id}],
+            source_val,
+        ]],
+    }
     wl_tmp = f"/tmp/wl_{sid}.json"
     with open(wl_tmp, "w") as f:
         json.dump(wl_payload, f, ensure_ascii=False)
