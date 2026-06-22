@@ -136,6 +136,10 @@ lark-cli docs +fetch --api-version v2 --doc "{token}" --detail full
 
 ## 工作流 A: 增量更新
 
+> **报告类文档更新**：本工作流只定义机械操作（fetch/策略判断/命令选择/验证）。
+> 内容标准 → `f-report-std`（模板、论证规范、数据呈现）；内容迭代流程 → `f-report-gen`（分轮评审 v1→v2、搜索补素材、图子文档工作流 G）。
+> 即：f-doc 管"怎么改"，f-report-std 管"改成什么样"，f-report-gen 管"内容怎么迭代产出"。
+
 ### Step 1: fetch（必带 `--detail with-ids`）
 
 ```bash

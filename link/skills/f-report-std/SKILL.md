@@ -12,6 +12,14 @@ allowed-tools: Read, Write, Glob, Grep, Bash
 
 横向能力，定义"什么是好的报告"。**不绑定任何输出平台**（飞书/Word/Notion 都适用），具体飞书格式委派 `f-doc`。
 
+## 三层分工
+
+| 层 | skill | 职责 |
+|----|-------|------|
+| 机械层 | f-doc | 怎么调 API（创建/更新/删除文档） |
+| 规范层 | f-report-std（本 skill） | 内容写成什么样 |
+| 工作流层 | f-report-gen | 内容怎么产出/迭代 |
+
 ## 职责边界
 
 | 本 skill 负责 | 不负责（委派其他 skill） |
@@ -19,8 +27,8 @@ allowed-tools: Read, Write, Glob, Grep, Bash
 | 内容结构（H1/章节顺序/概括） | 飞书格式（lark-table 822 等）→ f-doc |
 | 论证规范（数据+因果+不确定） | 搜索/数据收集 → f-research-domain |
 | 数据呈现原则（对比用表/数值量级） | 图表生成（python/mermaid）→ f-doc 工作流 G |
-| 模板（4 套） | 报告工作流执行 → f-report-gen |
-| 引用规范（国标/通用性） | 文档索引维护 → f-doc |
+| 模板（4 套） | 机械操作（fetch/update/delete）→ f-doc |
+| 引用规范（国标/通用性） | 内容迭代流程（v1→v2）→ f-report-gen |
 
 ## 4 套模板
 
