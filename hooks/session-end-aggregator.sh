@@ -194,15 +194,50 @@ if llm and llm.get("title"):
 elif commits:
     title = clean_commit_msg(commits[0])[:60]
 elif user_prompts:
-    # 跳过 status-like 行（✅❌⚠ 占多）找第一条"问题/需求"行
     for p in user_prompts:
         if not re.search(r'[✅❌⚠]', p) and len(p.strip()) > 8:
             title = p.replace("\n", " ")[:40]
             break
     else:
-        title = f"session 工作: {user_prompts[0].replace(chr(10), ' ')[:40]}"
+        title = f"session 工作 ({sid_short} user msgs)"
 else:
-    title = f"session 工作: {sid_short} ({total_user_msgs} user msgs)"
+    title = f"session 工作 ({sid_short} user msgs)"
+
+# === 标题后处理：补全项目前缀 ===
+# 已知前缀列表（小写英文），从 cwd / commits / edits 推断
+KNOWN_PREFIXES = {"ccconfig", "claudecode", "<project-name>", "feishu", "minimax",
+                  "sfia", "coze", "doubao", "trae", "robot", "docs", "agent"}
+# 从 cwd 提取项目名
+cwd_prefix = ""
+if cwd:
+    parts = cwd.strip("/").split("/")
+    # ~/git/<project>/... -> project name
+    for known in KNOWN_PREFIXES:
+        if known in cwd.lower():
+            cwd_prefix = known
+            break
+    if not cwd_prefix and len(parts) >= 3 and parts[1] == "git":
+        cwd_prefix = parts[2].split("/")[0]
+
+# 检查标题是否已有前缀
+title_has_prefix = False
+for prefix in KNOWN_PREFIXES:
+    # title starts with prefix followed by space (not colon, not underscore)
+    if title.lower().startswith(prefix.lower() + " "):
+        title_has_prefix = True
+        break
+
+# 无前缀 → 从 cwd 补
+if not title_has_prefix and cwd_prefix and not title.startswith("session 工作"):
+    title = cwd_prefix + " " + title
+
+# 清理格式违规：冒号 → 空格，下划线 → 空格
+title = re.sub(r'\s*[：:]\s*', ' ', title)
+title = re.sub(r'_+', ' ', title)
+# 去掉括号内容（【】[]）但保留有意义的描述
+title = re.sub(r'[【】\[\]]', '', title)
+# 截断
+title = title.strip()[:60]
 
 # === 成果类型 ===（LLM 推断，fallback 到启发式）
 VALID_TYPES = {"工具开发", "技术方案", "文档输出", "学习笔记", "问题排查", "项目交付"}
