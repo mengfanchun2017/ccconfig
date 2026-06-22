@@ -3,14 +3,21 @@
 Worklog 整合脚本 — 定期扫描重复/低质量记录，输出合并/删除候选。
 
 模式:
-  weekly  — 同日期 + 标题相似 > 0.7 → 候选合并；空记录 → 自动删除
-  monthly — 全量扫描，同主题分散记录 + 无效 KR 关联 → 候选清单
-  dry-run — 预览，不执行修改
+  merge   — 完全同标题自动合并 + 高度相似(>85%)候选清单（每周执行）
+  weekly  — 删空记录 + 同日期相似标题候选（每周辅助）
+  monthly — 全量扫描：低质量标题 + 跨日期同主题 + 无效 KR 关联
+  dry-run — 仅统计输出
+
+合并规则（merge 模式）:
+  1. 完全同标题 → 保留说明最长记录，合并其余说明，删除重复
+  2. 标题相似 > 85% 且同日期 → 候选合并（人工确认）
+  3. 标题相似 > 85% 跨日期 → 递进更新类自动合并，其他候选
 
 用法:
-  python3 worklog_consolidate.py --mode weekly    # 自动清理空记录 + 候选合并
-  python3 worklog_consolidate.py --mode monthly   # 全量扫描候选
-  python3 worklog_consolidate.py --mode dry-run   # 仅输出分析，不做修改
+  python3 worklog_consolidate.py --mode merge       # 预览去重
+  python3 worklog_consolidate.py --mode merge --write  # 执行合并
+  python3 worklog_consolidate.py --mode weekly      # 每周清理
+  python3 worklog_consolidate.py --mode dry-run     # 统计总览
 
 依赖: conf/f-logme.json 中的 Base token/表 ID
 """
@@ -69,7 +76,9 @@ def fetch_all_worklogs():
         rec_ids = data["data"]["record_id_list"]
         for i, row in enumerate(chunk):
             d = dict(zip(fields, row))
-            d["_record_id"] = rec_ids[i] if i < len(rec_ids) else "?"
+            rid = rec_ids[i] if i < len(rec_ids) else "?"
+            d["_record_id"] = rid
+            d["_rid"] = rid
             records.append(d)
         has_more = data["data"].get("has_more", False)
         if not has_more:
@@ -131,22 +140,83 @@ def update_record_title(record_id, new_title):
                 "--as", "user")
 
 
-def merge_records(keep_id, merge_title, merge_desc, delete_ids):
-    """合并多条记录：更新保留记录，删除其余"""
-    # 先更新保留记录
-    if merge_title or merge_desc:
-        fields = {}
-        if merge_title:
-            fields["标题"] = merge_title
-        if merge_desc:
-            fields["说明"] = merge_desc
-        lark("api", "PUT",
-             f"/open-apis/bitable/v1/apps/{BASE}/tables/{TBL}/records/{keep_id}",
-             "--data", json.dumps({"fields": fields}),
-             "--as", "user")
-    # 删除其余
-    for rid in delete_ids:
-        delete_record(rid)
+def update_record(rid, fields):
+    """更新记录字段"""
+    lark("api", "PUT",
+         f"/open-apis/bitable/v1/apps/{BASE}/tables/{TBL}/records/{rid}",
+         "--data", json.dumps({"fields": fields}),
+         "--as", "user")
+
+
+def cmd_merge(records, do_write):
+    """全量去重合并：完全同标题 → 自动合并；高相似 → 候选清单
+
+    合并规则：
+    1. 完全同标题 → 保留说明最长的那条，合并其余说明，删除重复
+    2. 标题相似 > 85% 且同日期 → 候选合并（人工确认）
+    3. 标题相似 > 85% 跨日期 → 如果是递进更新（如采购推进），合并；否则候选
+    """
+    from collections import defaultdict
+
+    # 1. 完全同标题
+    by_title = defaultdict(list)
+    for r in records:
+        t = (r.get("标题") or "").strip()
+        if t:
+            by_title[t].append(r)
+
+    exact_groups = {t: recs for t, recs in by_title.items() if len(recs) > 1}
+    if exact_groups:
+        print(f"\n=== 完全同标题 ({len(exact_groups)} 组) ===")
+        for title, recs in sorted(exact_groups.items(), key=lambda x: -len(x[1])):
+            recs.sort(key=lambda r: len(r.get("说明") or ""), reverse=True)
+            keep = recs[0]
+            rest = recs[1:]
+
+            all_notes = []
+            for r in recs:
+                note = (r.get("说明") or "").strip()
+                if note and note not in all_notes:
+                    all_notes.append(note)
+
+            dates = sorted(set(r.get("日期", "?")[:10] for r in recs))
+            print(f"  [{len(recs)}x] {title[:70]}")
+            print(f"       dates: {', '.join(dates)}")
+
+            if do_write:
+                if len(all_notes) > 1:
+                    update_record(keep["_rid"], {"说明": "\n\n---\n".join(all_notes)})
+                for r in rest:
+                    delete_record(r["_rid"])
+                print(f"       → merged, kept {keep['_rid'][-8:]}, deleted {len(rest)}")
+
+    # 2. 高度相似（> 85%）→ 候选
+    titles_list = [(r["_rid"], r.get("标题", ""), r.get("日期", "")[:10],
+                    (r.get("说明") or "")[:100])
+                   for r in records if r.get("标题")]
+    high_sim = []
+    for i in range(len(titles_list)):
+        for j in range(i + 1, len(titles_list)):
+            sim = title_similarity(titles_list[i][1], titles_list[j][1])
+            if sim > 0.85 and sim < 1.0:
+                high_sim.append((sim, titles_list[i], titles_list[j]))
+
+    if high_sim:
+        high_sim.sort(key=lambda x: -x[0])
+        print(f"\n=== 高度相似候选 ({len(high_sim)} 对，Top 20) ===")
+        for sim, a, b in high_sim[:20]:
+            same_day = a[2] == b[2]
+            tag = "[同日]" if same_day else "[跨日]"
+            print(f"  {sim:.0%} {tag} [{a[2]}] {a[1][:50]}")
+            print(f"         [{b[2]}] {b[1][:50]}")
+        if not do_write:
+            print("  人工确认后: --mode merge --write")
+
+
+def cmd_weekly(records, do_write):
+    """每周清理：删空记录 + 找同日期合并候选"""
+    today = date.today()
+    week_ago = today - timedelta(days=7)
 
 
 def cmd_weekly(records, do_write):
@@ -267,7 +337,7 @@ def cmd_dry_run(records):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--mode", choices=["weekly", "monthly", "dry-run"],
+    p.add_argument("--mode", choices=["weekly", "monthly", "merge", "dry-run"],
                    default="dry-run")
     p.add_argument("--write", action="store_true",
                    help="执行修改（默认仅预览）")
@@ -280,6 +350,8 @@ def main():
         cmd_weekly(records, args.write)
     elif args.mode == "monthly":
         cmd_monthly(records, args.write)
+    elif args.mode == "merge":
+        cmd_merge(records, args.write)
     else:
         cmd_dry_run(records)
 
