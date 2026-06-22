@@ -202,13 +202,23 @@ python3 log_write.py worklog --title "完成 X" --kr recXXX --type "项目交付
 | 标题相似 > 85% + 跨日期 + 递进更新（如采购推进/测试/部署） | 合并说明到最早记录 | ✅ 自动 |
 | 0 user_msgs 且 0 commits 0 edits | 删除 | ✅ 自动 |
 
+**调度机制**（SessionEnd hook 内置）：
+
+| 频率 | 触发方式 | 动作 |
+|------|---------|------|
+| 每周 | 自动（距上次 merge > 7 天时 hook 自动执行） | `--mode merge --write` |
+| 阶段（~30天） | 提醒（hook 写入 notes 文件，下次对话可见） | `--mode monthly` 预览 |
+| 手动 | 用户说 "做周整合" / "阶段总结" | 立即执行 |
+
+状态文件：`/tmp/f-logme_last_merge`、`/tmp/f-logme_last_monthly`（记录上次执行时间戳）。
+
 **脚本**：`worklog_consolidate.py`
 
 ```bash
 python3 worklog_consolidate.py --mode merge         # 预览去重
 python3 worklog_consolidate.py --mode merge --write # 执行合并
-python3 worklog_consolidate.py --mode weekly        # 每周清理
-python3 worklog_consolidate.py --mode monthly       # 每月全量扫描
+python3 worklog_consolidate.py --mode monthly       # 阶段全量扫描
+python3 worklog_consolidate.py --mode dry-run       # 统计总览
 ```
 
 #### 字段规范
