@@ -183,16 +183,33 @@ python3 log_write.py worklog --title "完成 X" --kr recXXX --type "项目交付
 
 #### 整合策略
 
-**每周**（脚本自动扫描）：
-- 同日期 + 标题相似度 > 70% → 候选合并
+**每周** (`--mode merge`)：
+- 完全同标题 → **自动合并**：保留说明最长的那条，合并其余说明（`---` 分隔），删除重复
+- 标题相似 > 85% 且同日期 → 候选合并（人工确认）
 - 空 session 记录（0 轮对话）→ 自动删除
+
+**每月** (`--mode monthly`)：
 - 标题含 `session 工作` / `## Context Usage` → 候选修正
+- 跨日期同主题分散记录 → 候选合并清单
+- 关联 KR 无效（指向已删除记录）→ 批量检测
 
-**每月**（人工 review）：
-- 全量扫描同主题分散记录 → 合并为一条综合记录
-- 关联 KR 无效（指向已删除记录）→ 重新映射或清空
+**合并规则**（写入 skill 方便持续执行）：
 
-**脚本**：`worklog_consolidate.py --mode weekly|monthly`，输出候选清单，人工确认后执行。
+| 条件 | 动作 | 是否自动 |
+|------|------|---------|
+| 完全同标题 | 保留说明最长记录，合并说明，删除其余 | ✅ 自动 |
+| 标题相似 > 85% + 同日期 | 候选合并 | ❌ 人工 |
+| 标题相似 > 85% + 跨日期 + 递进更新（如采购推进/测试/部署） | 合并说明到最早记录 | ✅ 自动 |
+| 0 user_msgs 且 0 commits 0 edits | 删除 | ✅ 自动 |
+
+**脚本**：`worklog_consolidate.py`
+
+```bash
+python3 worklog_consolidate.py --mode merge         # 预览去重
+python3 worklog_consolidate.py --mode merge --write # 执行合并
+python3 worklog_consolidate.py --mode weekly        # 每周清理
+python3 worklog_consolidate.py --mode monthly       # 每月全量扫描
+```
 
 #### 字段规范
 
