@@ -147,37 +147,70 @@ KR 进度历史快照表已于 2026-06-09 废弃（[ADR-0003](../../docs/adr/000
 - ✅ "CC小能手能自动生成季度工作总结"
 - ❌ "写 sum skill"（这是活动，不是结果）
 
-### 2. Worklog 写入
+### 2. Worklog 写入与质量管理
 
+Worklog 有两条写入路径：**自动**（SessionEnd hook）和**手动**（log_write.py / 对话触发）。
+
+#### 自动写入（SessionEnd hook）
+
+Hook 路径：`ccconfig/hooks/session-end-aggregator.sh`。会话结束时自动触发，读取 transcript 提取 commits/edits/tokens，LLM 生成标题后写入飞书 Worklog 表。
+
+**质量规则**（hook 内置）：
+
+| 规则 | 动作 |
+|------|------|
+| 0 条 user 消息 | **跳过**，不写入（空 session 噪音） |
+| LLM 标题生成失败 | fallback → commit message → 首条 user prompt |
+| 标题为 `session 工作` 格式 | 标记为低质量，待人工修正 |
+| 同 session 多次触发 | **合并**到第一条（累加 token/轮数，标题取较长者） |
+
+**KR 自动路由**：根据 session cwd 匹配 `conf/f-logme.json` → `kr_route` 配置，自动关联到对应 KR。未匹配的走 `_default`。
+
+```json
+// conf/f-logme.json → kr_route
+{
+  "<project-name>": "recXXX",     // ~/git/<project-name> → O4 KR-产品化
+  "ccconfig": "recYYY",   // ~/git/ccconfig → O4 KR-工作流
+  "_default": "recYYY"    // 其他目录 → 同上
+}
 ```
-用户: "今天做了 X"
-  → 判断分类（work/learn/project）
-  → 列出活跃 KR 让用户选择关联
-  → 调 log_write.py worklog 写入 Worklog 表
-  → 可选填写量化结果
-  → 触发 ccconfig 技术决策同步（见下方「ccconfig 技术决策同步」）
+
+#### 手动写入
+
+```bash
+python3 log_write.py worklog --title "完成 X" --kr recXXX --type "项目交付" --note "..."
 ```
 
-**与 f-worklog 的关系**：f-logme 是 f-worklog 的升级版。f-worklog 已废弃，所有 worklog 操作统一用 f-logme。
+#### 整合策略
 
-### 2b. ccconfig 技术决策同步（每次 worklog 写入后自动执行）
+**每周**（脚本自动扫描）：
+- 同日期 + 标题相似度 > 70% → 候选合并
+- 空 session 记录（0 轮对话）→ 自动删除
+- 标题含 `session 工作` / `## Context Usage` → 候选修正
 
-每次 worklog 写入后，自动搜索 worklog 中 ccconfig 相关记录，将技术决策同步到 ccconfig 仓库。
+**每月**（人工 review）：
+- 全量扫描同主题分散记录 → 合并为一条综合记录
+- 关联 KR 无效（指向已删除记录）→ 重新映射或清空
 
-**触发条件**：worklog 写入成功（log_write.py 返回 record_id）
+**脚本**：`worklog_consolidate.py --mode weekly|monthly`，输出候选清单，人工确认后执行。
 
-**执行步骤**：
-1. 搜索 worklog Base 中 ccconfig 相关记录
-   - 关键词：`ccconfig, skill, hook, init, mcp, monitor, sync, settings, config, rules, context`
-2. 识别技术决策类记录（含以下动作词之一）
-   - `修复, 迁移, 清理, 框架, 重构, 决策, 移除, 统一, 废弃, 替换, 重建, 方案`
-   - 或 commit 前缀：`fix:, feat:, refactor:, chore:`
-3. 提取决策要点 → 追加到 `ccconfig/docs/tech-decisions.md`
-   - 格式：`## YYYY-MM-DD | 标题 | [record_id]`
-   - 内容：决策/原因/影响/关联 4 段
-4. Git commit 到 ccconfig
+#### 字段规范
 
-**为什么**：ccconfig 是技术中枢，其演进决策散落在 worklog 中。集中记录便于回溯架构变化、了解"为什么当初这样设计"。
+Worklog 表当前字段（11 个，2026-06 清理后）：
+
+| 字段 | 类型 | 写入方式 |
+|------|------|---------|
+| 标题 | 文本 | LLM 生成，≤60 字，无 `##`/`【】` 前缀 |
+| 成果类型 | 单选 | 自动填 `工具开发` |
+| 说明 | 多行文本 | 结构化摘要 + commits + edits |
+| 日期 | 日期 | 当天 |
+| 关联KR | 链接 | kr_route 自动匹配 |
+| input/output_tokens | 数字 | transcript 统计 |
+| model | 文本 | 使用的 LLM |
+| asst/user_msgs | 数字 | 对话轮数 |
+| 来源 | 单选 | auto-clear/new/exit/resume/other |
+
+已删字段（2026-06）：量化结果、cache_creation/read_input_tokens、关联Action、合并到、合并状态
 
 ### 3. Reflect 写入
 

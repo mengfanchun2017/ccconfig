@@ -96,6 +96,11 @@ commits = list(dict.fromkeys(commits))[:20]
 user_prompts = user_prompts[:15]
 total_user_msgs = len(user_prompts)
 
+# 空 session 跳过（0 user msgs 且无实质性产出）
+if total_user_msgs == 0 and len(commits) == 0 and len(edits) == 0:
+    print(f"session-end-aggregator: empty session {sid_short}, skip", file=sys.stderr)
+    sys.exit(0)
+
 # 读 agent 写的 notes
 agent_notes = ""
 if os.path.exists(notes_path):
