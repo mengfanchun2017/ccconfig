@@ -369,6 +369,43 @@ lark-cli base +table-create --base-token $T --as user --name "OKR_KR" --fields '
 | 默认 workflow | ❌ 无 | ❌ lark-cli 无 `+workflow-delete`，API 无 DELETE endpoint |
 | 默认 dashboard | ❌ 无 | ✅ `+dashboard-delete --yes` |
 
+### 主字段 auto_number 转手动编号
+
+auto_number 值无法修改（删除记录后编号永久跳过），但可转为 number 类型后手动设值：
+
+```bash
+# 1. 类型转换：auto_number → number
+lark-cli base +field-update --base-token $T --table-id $T_KR \
+  --field-id fldXXX --json '{"name":"内部ID","type":"number"}' --yes
+
+# 2. 手动写入目标值
+lark-cli api PUT ".../tables/$T_KR/records/$RID" \
+  --data '{"fields":{"内部ID":1}}' --as user
+
+# 3. 删冗余字段，主字段改名
+lark-cli api DELETE ".../tables/$T_KR/fields/$REDUNDANT" --as user
+lark-cli base +field-update --base-token $T --table-id $T_KR \
+  --field-id fldXXX --json '{"name":"编号","type":"number"}' --yes
+
+# 4. 整数格式：formatter="0"（API 直接 PUT）
+lark-cli api PUT ".../tables/$T_KR/fields/fldXXX" \
+  --data '{"field_name":"编号","type":2,"property":{"formatter":"0"}}' --as user
+```
+
+**Why**: auto_number 不可重置、不可手动设值、删除后编号永久跳过。转为 number 后完全自由控制。completed KR 可从 100+ 编号做视觉区分。
+
+### field-update vs raw API PUT
+
+`+field-update` 用 `--json` 传全量 field definition，底层是 PUT 语义。select 字段更新 options 时，**必须用 `+field-update` 而非 raw API**（raw API PUT 常报 field validation failed）。number 字段改 formatter 则必须用 raw API PUT（`+field-update` 不认 `property` key）。
+
+```
+❌ raw API PUT → select options update → field validation failed
+✅ +field-update --json '{"name":"X","type":"select","options":[...]}' --yes
+
+✅ raw API PUT → number formatter → {"field_name":"X","type":2,"property":{"formatter":"0"}}
+❌ +field-update --json '{...,"property":{...}}' → Unrecognized key 'property'
+```
+
 ---
 
 ## 数据写入脚本

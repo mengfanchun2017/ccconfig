@@ -18,6 +18,9 @@ export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOM
 | `whiteboard +query` | `--output_as image\|code\|raw --output ./` | **下划线** `--output_as`；`--output` 必须相对路径 |
 | `base +table-create` | `--name --fields '<json-array>'` | 不是 `--json` |
 | `base +field-create` | `--json '{"field_name":"X","type":"select","options":[...]}'` | type 是字符串；options 在顶层 |
+| `base +field-update` | `--json '{"name":"X","type":"select","options":[...]}' --yes` | 全量 PUT 语义；select 改 options **必须用这个**，raw API 会 validation failed |
+| `base +field-update` (number) | `api PUT .../fields/{id} --data '{"field_name":"X","type":2,"property":{"formatter":"0"}}'` | number 改 formatter **必须 raw API**，`+field-update` 不认 `property` |
+| `auto_number → number` | `+field-update --json '{"name":"X","type":"number"}' --yes` | 转换后手动设值；auto_number 不可重置/手动改值 |
 | `base +record-batch-create` | `--json '{"fields":[],"rows":[[]]}'` | link: `[{"id":"recXXX"}]` |
 | `base +record-update` | **不存在** → raw API: `lark-cli api PUT .../records/{id} --data '{"fields":{...}}'` | |
 | `base +record-list` | `--base-token X --table-id Y --format json --limit 200` | flag 是 `--base-token` 不是 `--app-token`；默认 table 格式，程序化解析需 `--format json`；limit 最大有效值 200，超 200 条需 `--offset` 分页 |
