@@ -1,9 +1,9 @@
 {
   "description": "Single source of truth for all component versions managed by ccconfig. Edit this file to pin versions.",
-  "last_checked": "2026-06-16T18:02:28.154513+08:00",
+  "last_checked": "2026-06-22T08:20:34.918144+08:00",
   "components": {
     "node": {
-      "version": "22.22.3",
+      "version": "22.23.0",
       "pin": "22",
       "install_dir_template": "node-v{VERSION}-linux-x64",
       "install_base": "~/.local",
