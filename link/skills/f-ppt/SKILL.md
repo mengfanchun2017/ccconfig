@@ -19,8 +19,9 @@ allowed-tools: Read, Write, Bash, Glob, mcp__minimax__web_search
 
 ```
 用户需求
-  ├─ 默认 → OfficeCLI（AI-native JSON 批量，精确布局）
+  ├─ 默认 → OfficeCLI + professional_blue 主题（本 skill 内置，蓝+橙双色，Noto Sans SC）
   ├─ "用模板"/"mckinsey风格"/"专业商务" → ppt-master（9 种布局模板，SVG→DrawingML）
+  ├─ "换主题"/"深色"/"科技风"/"金融风" → OfficeCLI 其他内置主题（见下方主题目录）
   ├─ 数据密集/多图表/复杂表格 → python-pptx（图表 API 最成熟）
   ├─ 有现有 PPTX 模板要套用 → ppt-master（pptx_template_import.py）
   ├─ 50+ 页大 deck → OfficeCLI 分批 + 并行 subagent
@@ -126,11 +127,11 @@ bash ccconfig/option-ppt-master/init.sh --status
 
 ### Step 2 — 模板匹配
 
-**默认**：`mckinsey`（白底 + 深蓝页眉 `#005587` + 琥珀强调 `#F5A623`，专业商务）。
+**默认**：`professional_blue`（本 skill 内置主题，蓝 `#0061A8` + 橙 `#F0861C`，Noto Sans SC，详见 §内置主题模板）。
 
 **深色/科技风**：用户说"深色""科技风""暗色"时切换 `anthropic`（深色渐变 + 橙色 `#D97757` 强调）。
 
-模板库：路径见 `conf/f-ppt.json` → `engines.ppt-master.path`，layouts 子目录下 22 种模板。
+模板库：路径见 `conf/f-ppt.json` → `engines.ppt-master.path`，layouts 子目录下 9 种布局。
 
 确认模板后，读取 `design_spec.md` 获取颜色/字体/间距规范，以及 5 个模板 SVG：
 `01_cover.svg` `02_toc.svg` `02_chapter.svg` `03_content.svg` `04_ending.svg`
@@ -253,44 +254,217 @@ officecli get deck.pptx "/slide[1]" --depth 1 --json
 
 **注意**：批量模式需要文件先存在（先 `create` 再 `batch`）。用 `--input` 传 JSON 文件避免 stdin 冲突。
 
-## 设计系统
+## 内置主题模板
 
-OfficeCLI 内置设计规范，生成 deck 时直接引用：
+每个主题是一套完整设计系统：色板 + 字体 + 字号阶梯 + 布局规范。生成 PPT 时直接引用主题名即可，所有色值、字号、字体自动应用。
 
-### 色板速查
+### 主题目录
 
-| 主题 | 主色 | 辅色 | 强调色 | 正文 | 适用场景 |
-|------|------|------|--------|------|---------|
-| Midnight Executive | `1E2761` | `CADCFC` | `FFFFFF` | `333333` | 金融、高管报告 |
-| Coral Energy | `F96167` | `F9E795` | `2F3C7E` | `333333` | 产品发布、营销 |
-| Forest & Moss | `2C5F2D` | `97BC62` | `F5F5F5` | `2D2D2D` | 可持续、ESG |
-| Charcoal Minimal | `36454F` | `F2F2F2` | `212121` | `333333` | 极简企业风 |
-| Ocean Gradient | `065A82` | `1C7293` | `21295C` | `2B3A4E` | 科技、数据 |
+| # | 主题 ID | 主色 | 风格 | 适用场景 |
+|---|---------|------|------|---------|
+| 1 | **professional_blue** ★默认 | `#0061A8` 蓝 | 现代培训/课程 | 通用：课程、汇报、方案、技术分享 |
+| 2 | midnight_executive | `#1E2761` 深海军蓝 | 金融高管 | 金融报告、董事会、战略规划 |
+| 3 | coral_energy | `#F96167` 珊瑚红 | 产品营销 | 产品发布、营销提案、品牌活动 |
+| 4 | forest_moss | `#2C5F2D` 森林绿 | ESG/可持续 | 可持续发展、环境报告、农业 |
+| 5 | charcoal_minimal | `#36454F` 炭灰 | 极简企业 | 企业简介、年度总结、内部通讯 |
+| 6 | ocean_gradient | `#065A82` 海洋蓝 | 科技数据 | 技术方案、数据分析、SaaS |
 
-### 字号规范
+---
+### 主题 1：professional_blue ★默认
+
+> 提取自 `tpFrancis_Course_20260110.pptx`（35 个 slide layouts），由实际 PPT 模板逆向工程。
+> **为什么是默认**：这是唯一由真实 PPT 模板完整提取的主题，其余 5 个为 OfficeCLI 内置色板。它经过了实际演示检验，拥有最完整的布局体系（35 种页面变体），覆盖所有常见场景。
+
+#### 设计理念
+
+蓝橙双色体系。蓝色是理性、专业、技术——适合传递信息和论证；橙色是活力、行动、强调——用来标重点和制造视觉锚点。黑色/深灰背景页（开始、结束）制造仪式感，白底内容页保证可读性。Noto Sans SC 是 Google 与 Adobe 联合开发的中日韩无衬线字体，屏幕可读性优于微软雅黑，开源免授权。
+
+#### 色板
+
+| 角色 | 色值 | 色块 | 名称 | 用法 |
+|------|------|------|------|------|
+| **primary** | `#0061A8` | ██████ | Francis Blue | **主力品牌色**。封面/章节页背景、内容页标题文字、标题装饰条、focus 页装饰形状。占彩色面积的 ~60%。白底上做标题文字对比度 4.8:1（WCAG AA 通过） |
+| **accent** | `#F0861C` | ██████ | Francis Orange | **强调/反色**。`_orange` 变体页整页背景色、数据高亮、警示标注。与 primary 蓝形成 140° 互补色关系，视觉对比强烈。**不要**大面积用于内容页正文背景（刺眼）——仅用于整页反色变体或局部强调 |
+| **dark** | `#1F2329` | ██████ | Near Black | **正文色**（浅色背景上）。比纯黑 `#000000` 略浅，降低对比度至舒适范围（13:1），适合大面积阅读。与 `#0061A8` 标题形成明度对比 |
+| **pure_black** | `#000000` | ██████ | Pure Black | **仪式感背景**。仅用于开始页（start）、结束页（end）的黑色沉浸式背景。**不要**用于内容页背景或正文——太压抑 |
+| **white** | `#FFFFFF` | ██████ | White | 深色/彩色背景上的文字色。内容页卡片底色。与 `#F0861C` 底配白字时对比度 3.2:1（仅限 28pt+ 大字，18pt 正文不可用） |
+| **gray** | `#808080` | ██████ | Medium Gray | **弱化文字**。封面副标题、页码、数据来源标注。与白底对比度 3.9:1（仅限 ≥18pt） |
+| **light_blue** | `#BBE2FF` | ██████ | Sky Blue | 目录页卡片底色。仅此一处使用，提供视觉变化 |
+| **accent_deco** | `#2978B5` | ██████ | Steel Blue | focus 页四角 halfFrame 装饰形状填充。介于 primary 和 light 之间的中间蓝 |
+
+**色板使用规则**：
+
+1. primary、accent、dark、white 是核心四色（每个 PPT 必须出现）；gray、light_blue、accent_deco 是辅助色（按页面类型可选）
+2. 内容页白底上用 `dark` 做正文、`primary` 做标题——这是出现频率最高的组合
+3. `accent` 橙色在整页反色时作为背景（文字用 white），在局部强调时作为文字或色块（用在白底上）
+4. pure_black 背景页上所有文字必须是 white 或 gray，不能出现 primary/accent 文字（看不清）
+5. 不要在 `#F0861C` 背景上放 `<18pt` 的 white 文字（对比度不够）——要么放大字号，要么用 `_orange` 变体仅用于标题页
+
+#### 字体
+
+| 角色 | 字体 | 来源 | 回退链 |
+|------|------|------|--------|
+| **全角色统一** | Noto Sans SC | Google Fonts（开源） | `"Noto Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif` |
+
+**为什么不用微软雅黑**：Noto Sans SC 的屏幕渲染 hinting 优于微软雅黑，小字号（16-18pt）下笔画更清晰；字重覆盖更全（Thin→Black 7 级）；开源免授权，PPT 嵌入不触发字体许可问题。
+
+OfficeCLI 用法：所有 shape 设置 `--prop font="Noto Sans SC"`。
+
+#### 字号阶梯
+
+> 实际 PPT 模板提取的 9 级字号。**Why**：43pt 用于封面是因为 start-center 布局中标题是唯一核心元素；28pt 是内容页标题的甜点——够大能引导视线，不抢占正文；18pt 是投影仪最小可读字号（10 英尺外 18pt ≈ 视力表 20/40）。
+
+| 级别 | 字号 | 粗细 | 用途 | 出现频率 |
+|------|------|------|------|---------|
+| **Hero** | 43pt | Regular | 封面大标题（start-center 布局） | 极低（仅封面） |
+| **End** | 38pt | Regular | 结束页"感谢聆听" | 极低（仅结束） |
+| **H1** | 28pt | Regular | 内容页标题、章节名 | 每页 |
+| **H2** | 23pt | Regular | 4_full 布局标题 | 低 |
+| **H3** | 22pt | Regular | focus 页副标题 | 低 |
+| **H4** | 20pt | Regular | `_title` 变体页标题 | 中 |
+| **Body** | 18pt | Regular | **正文主力**（330 处 / 555 总，占 60%） | 绝大多数 |
+| **Body-S** | 17pt | Regular | 4_title 紧凑正文 | 低 |
+| **Body-XS** | 16pt | Regular | 5/5_title 高密度布局 | 低 |
+| **Caption** | 15pt | Regular | focus 页装饰角标文字 | 极低 |
+
+**关键规则**：
+- 正文 = 18pt 是硬底线。16-17pt 仅在内容过多、卡片放不下时使用
+- 标题 (28pt) 与正文 (18pt) 的比例 = 1.55:1，视觉层级清晰
+- 所有字号均为 Regular 粗细（模板中未使用 Bold）——层级靠字号差别而非粗细差别
+
+#### 布局体系
+
+> 模板有 35 个 slide layouts，按命名规则自动生成不同页面变体。**Why**：数字 = 内容块数量，`_orange` = 橙色反色底，`_title` = 带独立标题区。这个命名体系让 AI 生成 PPT 时可以根据内容自动选 layout。
+
+**页面类型分类**：
+
+| 类别 | Layout 名称 | 用途 | OfficeCLI 对应 |
+|------|-----------|------|---------------|
+| 封面 | `start-focus-black` | 黑色沉浸封面，白色大字 | `background=000000` |
+| 封面 | `start-focus-blue` | 蓝色品牌封面 | `background=0061A8` |
+| 封面 | `start-focus-orange` | 白底橙色强调封面 | `background=FFFFFF` |
+| 封面 | `start-center` | 白底居中大标题（43pt） | `background=FFFFFF` |
+| 目录 | `index` | 编号列表目录，浅蓝卡片 | 卡片网格 |
+| 内容×1 | `1` | 全宽单块内容 | 单 shape 全宽 |
+| 内容×1 | `1_orange` | 同上，橙色反色底 | `background=F0861C` |
+| 内容×2 | `2` / `2_tilt` / `2_horizon` | 双栏/倾斜/水平两块 | 2 栏网格 |
+| 内容×2 | `2_orange` / `2_horizon_orange` | 两块橙色反色 | 同上+反色底 |
+| 内容×3 | `3` / `3_full` | 三块/三色卡片（金绿青） | 3 栏网格 |
+| 内容×3 | `3_orange` | 三块反色 | 同上+反色底 |
+| 内容×4 | `4` / `4_full` / `4_quarter` | 四块/全宽四块/四象限 | 2×2 卡片网格 |
+| 内容×4 | `4_orange` / `4_quarter_orange` | 四块反色 | 同上+反色底 |
+| 内容×5 | `5` | 五块密集布局 | 5 列 |
+| 内容×6 | `6` | 六块密集 | 3×2 网格 |
+| 带标题内容 | `1_title` ~ `5_title` | 标题行 + 内容块 | 标题 shape + 内容 shapes |
+| 聚焦 | `focus` / `focus_orange` / `focus_blue` / `focus_gray` | 带装饰的重点单页 | 单卡片+角落装饰 |
+| 结束 | `end` | 黑色底"感谢聆听" | `background=000000` |
+
+**布局自动选择规则**：
+
+1. 数内容要点数 → 选对应数字的 layout（3 个要点 → `3`，4 个要点 → `4`）
+2. 需要强调/警示 → 加 `_orange` 反色变体
+3. 内容需要标题说明 → 用 `_title` 变体
+4. 单一重点陈述 → `focus` 系列
+5. 数据对比 → `4_quarter`（四象限）
+6. 三色分类 → `3_full`（金/绿/青三色卡片）
+
+**OfficeCLI 实现**（以 3 块内容为例）：
+
+```bash
+# 3 块内容页 — 白底，3 个横向排列卡片
+COL_W=9.78cm  # (33.87 - 3 - 1.52) / 3
+GAP=0.76cm
+MARGIN=1.5cm
+
+officecli add "$F" / --type slide --prop layout=blank --prop background=FFFFFF
+# 标题
+officecli add "$F" "/slide[last()]" --type shape \
+  --prop text="页面标题" --prop font="Noto Sans SC" --prop size=28 \
+  --prop color=0061A8 --prop x=1.5cm --prop y=1cm --prop width=30.87cm --prop height=2cm
+# 卡片 1
+X=1.5cm; officecli add "$F" "/slide[last()]" --type shape \
+  --prop preset=roundRect --prop fill=FFFFFF --prop line=none \
+  --prop x=$X --prop y=4cm --prop width=$COL_W --prop height=10cm
+# 卡片 2  
+X=$(echo "1.5 + 9.78 + 0.76" | bc)cm
+# ...以此类推
+```
+
+**橙色反色页实现**：
+```bash
+# 背景改 F0861C，所有文字→FFFFFF
+officecli add "$F" / --type slide --prop layout=blank --prop background=F0861C
+officecli add "$F" "/slide[last()]" --type shape \
+  --prop text="标题" --prop font="Noto Sans SC" --prop size=28 --prop color=FFFFFF ...
+```
+
+**聚焦页（focus 系列）装饰**：四角放 halfFrame 形状（`preset=halfFrame`），左上右下用 `#2978B5`（蓝），右上左下用 `#F0861C`（橙），`rot=10800000`（旋转 108°），加阴影 `outerShdw`。这是模板的视觉 DNA——在一页纯文字的 deck 里加一页 focus 就能打破单调。
+
+#### 封面规格
+
+| 变体 | 背景色 | 标题色 | 标题字号 | 副标题 | 适用 |
+|------|--------|--------|---------|--------|------|
+| `start-focus-black` | `#000000` | `#FFFFFF` | 28pt | `#808080` 20pt | 正式汇报、仪式感开场 |
+| `start-focus-blue` | `#0061A8` | `#FFFFFF` | 28pt | `#808080` 20pt | 品牌展示、对外提案 |
+| `start-focus-orange` | `#FFFFFF` | `#E07B05` | 28pt | `#808080` 20pt | 轻量内部分享 |
+| `start-center` | 继承/白 | `#000000` | **43pt** | `#0061A8` 22pt | 课程标题、培训封面 |
+
+#### 与其他主题的色板对比
+
+| 主题 | 主色 | 风格 | 对比 professional_blue |
+|------|------|------|-------------------|
+| professional_blue | `#0061A8` 蓝 + `#F0861C` 橙 | 现代培训 | — |
+| midnight_executive | `#1E2761` 深海军蓝 | 金融高管 | 更严肃、无橙色、深蓝底+白字为主 |
+| coral_energy | `#F96167` 珊瑚红 | 产品营销 | 更活泼、红色主导、偏消费品 |
+| forest_moss | `#2C5F2D` 森林绿 | ESG/可持续 | 更柔和、绿色自然感 |
+| charcoal_minimal | `#36454F` 炭灰 | 极简企业 | 更克制、接近黑白、中性 |
+| ocean_gradient | `#065A82` 海洋蓝 | 科技数据 | 更冷、深蓝渐变、偏数据报告 |
+
+---
+### 主题 2-6（OfficeCLI 内置色板）
+
+> 以下 5 个主题来自 OfficeCLI 内置设计系统。色板精简（5 色），适合快速生成。
+
+| 主题 | 主色 | 辅色 | 强调色 | 正文 | 适用 |
+|------|------|------|--------|------|------|
+| midnight_executive | `1E2761` | `CADCFC` | `FFFFFF` | `333333` | 金融、高管报告 |
+| coral_energy | `F96167` | `F9E795` | `2F3C7E` | `333333` | 产品发布、营销 |
+| forest_moss | `2C5F2D` | `97BC62` | `F5F5F5` | `2D2D2D` | 可持续、ESG |
+| charcoal_minimal | `36454F` | `F2F2F2` | `212121` | `333333` | 极简企业风 |
+| ocean_gradient | `065A82` | `1C7293` | `21295C` | `2B3A4E` | 科技、数据 |
+
+### 通用设计规范（所有主题适用）
+
+#### 字号规范
 
 | 元素 | 最小 | 典型 |
 |------|------|------|
-| 幻灯片标题 | ≥ 36pt bold | 36-44pt |
+| 幻灯片标题 | ≥ 28pt | 28-43pt（professional_blue 用 28pt） |
 | 段落标题 | ≥ 20pt | 20-24pt |
-| 正文 | ≥ 18pt | 18-22pt |
+| 正文 | ≥ 18pt | 18-22pt（professional_blue 用 18pt） |
 | 脚注/标签 | ≥ 10pt muted | 10-12pt |
 
-### 字体配对
+**跨主题规则**：正文 18pt 是底线。标题与正文比例 ≥ 1.5:1。不同主题可微调，但不可突破底线。
+
+#### 字体配对
 
 | 标题 | 正文 | 适用 |
 |------|------|------|
+| Noto Sans SC | Noto Sans SC | professional_blue 默认（中文优先） |
 | Georgia | Calibri | 正式商务、金融 |
 | Arial Black | Arial | 营销、产品发布 |
 | Trebuchet MS | Calibri | 科技、SaaS |
 | Consolas | Calibri | 开发者工具 |
 
-### 布局网格
+**跨主题规则**：中文字体统一用 Noto Sans SC 或 Microsoft YaHei；西文可用衬线/无衬线配对。标题与正文必须同一中文字体家族。
+
+#### 布局网格
 
 Widescreen 16:9 = `33.87 × 19.05cm`，12 列网格：
 - 边距 ≥ 1.27cm
 - 卡片间距 ≥ 0.76cm
-- 3 卡布局：`col = (33.87 - 3 - 1.52) / 3 = 9.78cm`
+- 3 卡布局：`col = (33.87 - 2×1.5 - 2×0.76) / 3 = 9.78cm`
+- professional_blue 实际边距 1.5cm（比通用 1.27cm 略宽，留白更多）
 
 ## 模板合并
 
@@ -484,3 +658,123 @@ prs.save("output.pptx")
 - 主色 `1E3A5F`（深海军蓝）、辅色 `E8EDF2`（浅灰）、强调色 `C4A35A`（金）、正文 `2D2D2D`、弱化 `7A8A94`
 - 变体 `2A6291`（中蓝）用于二级卡片
 - 警告卡片用 `990011`（深红）+ `FFFFFF` 文字
+
+---
+# 如何修改模板
+
+修改场景按频率排序，每个场景给出**改什么 → 怎么改 → 影响范围**。
+
+## 改公司/个人品牌色（最常见）
+
+**场景**：你有自己的品牌色（logo 色、公司 VI 色），想替换 professional_blue 的蓝橙配色。
+
+**改法**：在 §内置主题模板 中修改 `professional_blue` 色板的 primary 和 accent：
+
+```
+primary:  #0061A8 → 你的品牌主色
+accent:   #F0861C → 你的品牌强调色
+dark:     #1F2329 → 保持或改成你的深色（如 #1A1A1A）
+```
+
+**连锁修改**（改了 primary/accent 后必须同步改这些）：
+1. `accent_deco` → 取 primary 的 70% 亮度版本（如 `#0061A8` → `#2978B5`），用于 focus 页装饰
+2. 色板使用规则第 3 条的橙色描述 → 改成你的强调色描述
+3. 橙色反色页的 `background=F0861C` → 改成你的 accent 色值
+4. `3_full` 的三色点缀（金绿青）可以保留，它们与品牌色无关
+
+**影响范围**：OfficeCLI 生成的 .pptx 全部使用新色。ppt-master 侧如果你用了 layout+brand 组合，brand spec 也需同步改。
+
+## 改字体
+
+**场景**：你想用微软雅黑、思源黑体、或公司购买的商业字体。
+
+**改法**：修改 `professional_blue` 字体行：
+
+```
+"Noto Sans SC" → "Microsoft YaHei" 或 "Source Han Sans SC" 或你的字体名
+```
+
+**注意事项**：
+- 中文字体必须支持 Regular 和 Bold 两个字重（professional_blue 只用 Regular，但其他主题可能需要 Bold）
+- 字体名必须与系统安装名一致（`fc-list :lang=zh | cut -d: -f2 | sort -u` 查看已安装中文字体）
+- PPTX 嵌入字体需要字体文件支持嵌入许可（Noto Sans SC 的嵌入许可为 "Installable"，安全）
+- OfficeCLI 不负责字体嵌入——字体回退链在 `font=` 属性中指定
+
+## 改字号阶梯
+
+**场景**：你的内容密度需要更小/更大的字号，或投影环境要求最小正文 > 18pt。
+
+**改法**：修改字号阶梯表：
+
+| 改动 | 改法 | 影响 |
+|------|------|------|
+| 正文更大 | Body 18pt → 20pt | 每页容纳内容减少 ~15%，卡片需放大 |
+| 标题更大 | H1 28pt → 32pt | 正文也要同比放大保持比例 |
+| 密集内容 | Body 18pt → 16pt | 可读性下降，仅用于 >50 页大 deck |
+| 比例调整 | 保持 H1/Body ≥ 1.5:1 | 低于此比例视觉层级模糊 |
+
+**关键约束**：不要只改一个数——字号阶梯是体系，改了 Body 就得同步检查 H1~H4 的比例关系。
+
+## 添加新主题
+
+**场景**：你有一个完整的 PPT 模板想加入 f-ppt，供自己和他人使用。
+
+```bash
+# 1. 提取设计系统（同前面提取 professional_blue 的流程）
+python3 << 'PYEOF'
+from pptx import Presentation
+# ... 提取色板、字体、字号、布局
+PYEOF
+
+# 2. 在 §内置主题模板 中添加新主题条目（编号 7+）
+# 格式参照 professional_blue：色板表 + 字体 + 字号阶梯 + 布局体系 + 封面规格
+
+# 3. 在主题目录表中加一行
+# | 7 | your_theme | #xxx 主色 | 风格描述 | 适用场景 |
+
+# 4. 更新引擎选择中的主题列表
+```
+
+**最少信息**（如果没有时间完整提取）：色板（主色+正文色+强调色）+ 字体 + 标题&正文字号。其余可以从通用设计规范继承。
+
+## 修改现有主题的一个色值
+
+**场景**：你喜欢 midnight_executive 但觉得深蓝太暗了。
+
+**改法**：直接改对应主题的色板表单元格。注意：
+- 主色改深了 → 所有用这个颜色的背景、标题、装饰都会同步变深
+- 如果主色是背景色 → 检查上面的白色文字对比度（< 3:1 需调整）
+- 如果主色是文字色 → 检查在白底上的对比度（< 4.5:1 需调整）
+
+## 改布局（添加/删除内容块变体）
+
+**场景**：你的内容经常需要 7 块布局，但模板最大只有 6。
+
+**OfficeCLI 改法**：在生成脚本中计算网格（n 列通用公式）：
+```
+col_w = (33.87 - 2×margin - (n-1)×gap) / n
+```
+margin=1.5cm, gap=0.76cm → 7 列 = (33.87-3-4.56)/7 = 3.76cm/列（太窄，建议换 2 行布局）
+
+**ppt-master 改法**：需要创建新的布局 SVG（`skills/ppt-master/templates/layouts/<name>/03_content.svg`）。
+
+## 改默认主题
+
+**场景**：你希望 f-ppt 默认使用 midnight_executive 而非 professional_blue。
+
+**改法**：
+1. §内置主题模板 → 主题目录表中，把 `★默认` 标移到目标主题
+2. §引擎选择 → 默认分支文字改为新主题名
+3. §引擎 A Step 2 → 默认模板名改为新主题名
+
+## 模板修改的 "不变量"（改不动的）
+
+这些是 OfficeCLI / python-pptx / SVG 的硬限制，无法通过改模板解决：
+
+| 不可变 | 原因 |
+|--------|------|
+| 幻灯片尺寸 33.87×19.05cm | OfficeCLI 和 ppt-master 都硬编码 16:9 |
+| 圆角 borderRadius | OfficeCLI shape 不支持，只能用 `preset=roundRect`（固定圆角半径） |
+| 图表系列颜色 | OfficeCLI chart 的 `seriesN.color` 不被支持，用默认色 |
+| halfFrame 装饰形状 | 这是 OfficeCLI preset 枚举值之一，换了引擎（如 python-pptx）需手写 SVG path |
+| `_orange` 反色命名 | 这是 professional_blue 模板的内部命名约定，换主题后命名逻辑可能不同 |
