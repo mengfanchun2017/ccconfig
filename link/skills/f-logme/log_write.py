@@ -75,14 +75,13 @@ def update_kr_field(kr_id, fields_dict):
 def cmd_worklog(args):
     date_str = args.date or date.today().isoformat()
 
-    fields = ["标题", "关联KR", "成果类型", "量化结果", "说明", "日期"]
+    fields = ["标题", "成果类型", "关联KR", "日期", "说明"]
     row = [
         args.title,
+        args.type or "工具开发",
         [{"id": args.kr}] if args.kr else None,
-        args.type or "项目交付",
-        args.quant or "",
-        args.note or "",
         date_str,
+        args.note or "",
     ]
     payload = {"fields": fields, "rows": [row]}
     path = write_json_file(payload)
@@ -142,7 +141,6 @@ def main():
     w.add_argument("--title", required=True)
     w.add_argument("--kr", help="关联 KR record_id")
     w.add_argument("--type", help="成果类型")
-    w.add_argument("--quant", help="量化结果")
     w.add_argument("--note", help="说明")
     w.add_argument("--date", help="日期 YYYY-MM-DD")
     w.set_defaults(func=cmd_worklog)
