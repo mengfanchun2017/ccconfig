@@ -74,6 +74,75 @@ bash ccconfig/option-officecli/init.sh --status     # 状态检查
 
 ---
 
+# 用户交互（Theme + Layout 选择）
+
+f-ppt 开源后，用户通过自然语言描述需求，AI 自动匹配 Theme 和 Layout。无需记忆命令或文件名。
+
+## 自动选择（默认）
+
+用户说"做个 PPT"时，不询问，直接用默认值：
+- Theme = `professional_blue`
+- 封面 = `cover_dark`
+- 内容页 = 按内容块数自动选 content_N
+
+## 用户指定 Theme
+
+用户提到以下关键词时切换 Theme：
+
+| 用户说 | 对应 Theme | 原因 |
+|--------|-----------|------|
+| "深色"/"深蓝"/"金融风"/"高管"/"正式" | midnight_executive | 深海军蓝，权威感 |
+| "活泼"/"营销"/"产品发布"/"红色"/"热情" | coral_energy | 珊瑚红，冲击力 |
+| "自然"/"绿色"/"环保"/"ESG"/"可持续" | forest_moss | 森林绿，信任感 |
+| "极简"/"简洁"/"黑白"/"灰" | charcoal_minimal | 灰阶，克制 |
+| "科技"/"蓝色"/"数据"/"SaaS" | ocean_gradient | 海洋蓝，冷调 |
+| "默认"/"通用"/"培训"/"课程" | professional_blue | 蓝橙双色 |
+
+## 用户指定封面
+
+| 用户说 | 对应 Layout |
+|--------|------------|
+| "黑底封面"/"正式封面" | cover_dark |
+| "品牌色封面"/"蓝色封面" | cover_blue |
+| "白底大标题"/"居中标题" | cover_center |
+
+## 交互流程
+
+```
+用户: "帮我做个 Q3 技术方案 PPT"
+  → AI 读 SKILL.md 索引表
+  → "技术方案" → ocean_gradient 主题
+  → "Q3 方案" → 内容按章节自动匹配 content_N
+  → 封面默认 cover_dark
+  → 生成
+
+用户: "用深色主题，做个董事会汇报，封面要正式"
+  → "深色" + "董事会" → midnight_executive
+  → "封面要正式" → cover_dark
+  → 生成
+
+用户: "换个主题，太严肃了"
+  → 当前是 midnight_executive → 切换到 coral_energy 或 ocean_gradient
+  → 给用户两个选择（描述差异），让用户确认
+
+用户: "这个主题有什么颜色？"
+  → 读当前 theme 文件的色板表 → 列出角色+色值+用法
+```
+
+## 无经验用户快速上手
+
+用户不需要知道 Theme/Layout 文件名。唯一需要说的是**内容主题 + 风格偏好**：
+
+> "帮我做一个关于 <主题> 的 PPT，风格要 <严肃/活泼/自然/极简/科技>"
+
+AI 自动完成：
+1. 风格词 → 匹配 Theme
+2. 分析内容章节 → 匹配每页 Layout
+3. 读 Theme + Layout 文件 → 生成 OfficeCLI 命令
+4. 执行 → .pptx → 上传飞书
+
+---
+
 # 主题目录 (Theme)
 
 **Theme = 视觉身份**。定义色板 + 字体 + 字号阶梯。一份 PPT 选一个 Theme，全局统一。
