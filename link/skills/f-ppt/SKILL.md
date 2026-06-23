@@ -189,7 +189,7 @@ Widescreen 16:9 = `33.87 × 19.05cm`：
 
 **深色/科技风**：用户说"深色""科技风"时切换 anthropic brand（`~/git/_ext/ppt-master/.../templates/brands/anthropic/design_spec.md`）。
 
-模板库：`~/git/_ext/ppt-master/skills/ppt-master/templates/layouts/`（7 种：academic_defense, ai_ops, government_blue/red, medical_university, pixel_retro, psychology_attachment）。
+模板库：`~/git/_ext/ppt-master/skills/ppt-master/templates/layouts/`（8 种：professional_blue ★默认, academic_defense, ai_ops, government_blue/red, medical_university, pixel_retro, psychology_attachment）。
 
 确认模板后，读 `design_spec.md` + 5 个 SVG：`01_cover.svg` `02_toc.svg` `02_chapter.svg` `03_content.svg` `04_ending.svg`
 
@@ -204,6 +204,8 @@ Widescreen 16:9 = `33.87 × 19.05cm`：
 - 颜色严格使用 theme 色板 + layout design_spec
 - 封面标题中英双语
 - 代码块：`font-family="DejaVu Sans Mono"`，`#1E1E1E` 背景，`rx="8"`
+
+**⚠️ `{{CONTENT_AREA}}` 硬规则**：03_content.svg 中的 `{{CONTENT_AREA}}` 占位符**必须**是独立标记（不在任何 `<text>`/`<g>`/`<rect>` 元素内部）。绝对禁止放在 `<text>...</text>` 标签内——`{{CONTENT_AREA}}` 被替换为包含 `<rect>`/`<circle>`/`<text>` 的 body HTML，若嵌套在 `<text>` 内则所有子元素被 SVG 解析器静默丢弃，导致内容页完全空白（2026-06-23 已复现）。正确写法：`    <!-- Content area -->\n    {{CONTENT_AREA}}\n\n    <!-- Footer -->`
 
 ### Step 4 — 质检 + 导出 + 上传
 
