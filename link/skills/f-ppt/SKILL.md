@@ -371,7 +371,12 @@ officecli query deck.pptx 'picture:no-alt'
 
 ## 文本溢出（autofit）
 
+**⚠️ 默认不启用 autofit**。`normAutofit` + `fontScale` 会导致严重问题：PPT 首次打开时文字按原大小显示，用户点击编辑后 PowerPoint 重新计算缩放比例 → 字体大小改变（变大）→ 破坏排版。2026-06-23 已确认复现。
+
+**仅当文本确实溢出时才用**，且优先修 SVG 源文件让文字适配形状，而不是靠 PPTX 后处理。
+
 ```python
+# 如需启用（谨慎）：
 from pptx import Presentation
 from pptx.oxml.ns import qn
 from lxml import etree
@@ -385,8 +390,7 @@ for slide in prs.slides:
         for tag in [qn('a:normAutofit'), qn('a:spAutoFit'), qn('a:noAutofit')]:
             for el in bodyPr.findall(tag):
                 bodyPr.remove(el)
-        norm = etree.SubElement(bodyPr, qn('a:normAutofit'))
-        norm.set('fontScale', '55000')
+        # 不设任何 autofit → 文字大小由 SVG 精确控制
 prs.save("output.pptx")
 ```
 
@@ -394,8 +398,7 @@ prs.save("output.pptx")
 |-----------|------|------|
 | `80000` | 80% | 标题略溢出 |
 | `65000` | 65% | 卡片正文 |
-| `55000` | 55% | 列表/表格（推荐） |
-| `40000` | 40% | 极端密集 |
+| `55000` | 55% | 列表/表格（慎用） |
 
 ## 大 deck 构建策略（50+ 页）
 
