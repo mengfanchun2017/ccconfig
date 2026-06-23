@@ -2,60 +2,97 @@
 name: f-ppt
 user-invocable: true
 description: |
-  统一 PPT 生成 — 从 md/wiki 到飞书 PPTX。
-  双引擎：ppt-master（SVG 模板 → DrawingML）+ OfficeCLI（原生 OpenXML，AI 友好）。
-  自动选择引擎，支持 22 种模板 + 自定义设计。
+  统一 PPT 生成 — 从 wiki/md 生成 PPTX 上传飞书 wiki。
+  双引擎：OfficeCLI（AI-native JSON，默认）+ ppt-master（SVG 模板）。
+  飞书 Slides API 仅适合极简页面+增量编辑，不适合程序化生成。
 allowed-tools: Read, Write, Bash, Glob, mcp__minimax__web_search
 ---
 
 # Unified PPT
 
-从 wiki 文档或 Markdown 生成飞书 PPTX。**双引擎架构**，按场景自动选择。
+从 wiki 文档或 Markdown 生成 PPTX，上传飞书 wiki 作为子文件。
+
+**核心路径**：officecli 生成 .pptx → `lark-cli drive +upload --wiki-token` 上传 wiki 附件。
+飞书 Slides API 存在严重限制（元素靠像素坐标定位、无布局引擎、内容写入不可靠），不适合程序化批量生成。仅在极简场景（≤5 页纯文本框）或增量编辑已有 slides 时使用。
 
 ## 引擎选择
 
 ```
 用户需求
-  ├─ "用模板"/"mckinsey风格"/"专业商务" → ppt-master（22 种模板，SVG→DrawingML）
-  ├─ "自定义设计"/"深色"/"科技风"/"KPI卡片" → OfficeCLI（精确布局，AI 友好 JSON）
+  ├─ 默认 → OfficeCLI（AI-native JSON 批量，精确布局）
+  ├─ "用模板"/"mckinsey风格"/"专业商务" → ppt-master（9 种布局模板，SVG→DrawingML）
+  ├─ 数据密集/多图表/复杂表格 → python-pptx（图表 API 最成熟）
   ├─ 有现有 PPTX 模板要套用 → ppt-master（pptx_template_import.py）
-  ├─ 需要表格/图表/图片/动画 → OfficeCLI（原生支持）
-  ├─ 简单文本内容页 → 两者皆可，默认 OfficeCLI
-  └─ 从 wiki/md 长篇文档生成 → ppt-master（自动结构化提取）
+  ├─ 50+ 页大 deck → OfficeCLI 分批 + 并行 subagent
+  └─ 飞书在线协作编辑（非生成） → 飞书 Slides API（+replace-slide 增量改）
 ```
 
-### ppt-master 引擎
+## PPTX 生成方案矩阵
 
-- 输出原生 DrawingML 可编辑形状（非 PNG 光栅）
-- 22 种预设模板（mckinsey、anthropic 等）
-- 支持自定义 PPTX 模板提取
-- 11 页 PPT 仅 52KB
-- 依赖：Python 3 + python-pptx + cairosvg + ppt-master 仓库
+> 调研时间：2026-06-23。来源：飞书 Slides XML Schema、python-pptx 官方文档、OfficeCLI (iOfficeAI)、ccconfig f-ppt skill 实测。
 
-### OfficeCLI 引擎
+| 引擎 | 类型 | AI 友好度 | 能力覆盖 | 成本 |
+|------|------|----------|---------|------|
+| **OfficeCLI** | 单二进制 CLI | ★★★★★ | 全能力（JSON 批量/模板合并/热重载） | 免费 |
+| python-pptx | Python 库 | ★★★ | 全能力（图表/表格/图片/SmartArt/动画） | 免费 |
+| ppt-master | Python + SVG | ★★★ | 模板驱动 9 种主题 | 免费 |
+| PptxGenJS | JS 库 | ★★★ | 图表/表格/图片/超链接 | 免费 |
+| Aspose.Slides | 多语言 SDK | ★★★ | 全能力 + AI Agent (GPT 集成) | $3,000/yr |
+| SlideForge | REST API + MCP | ★★★★ | 可视化 QA | $0.05/slide |
 
-- 单二进制文件，零依赖（33MB）
+### OfficeCLI 引擎（默认）
+
+- 单二进制文件，零依赖（33MB），v1.0.112
 - 直接操作 OpenXML，AI-native JSON 输出
 - 批量模式：一个 JSON 数组完成整份 PPT
 - 实时预览热重载（`watch`）
 - 7 页 41 形状的 deck 仅 20KB
 - 模板合并：`{{key}}` 占位符替换
-- 全 Office 格式：docx/xlsx/pptx
+- 内置设计系统：5 种色板 + 字号规范 + 字体配对 + 12 列网格
 - 安装：`curl -fsSL https://d.officecli.ai/install.sh | bash`
+
+### ppt-master 引擎（模板场景）
+
+- 输出原生 DrawingML 可编辑形状（非 PNG 光栅）
+- 9 种布局模板（academic_defense、ai_ops、government_blue/red 等）+ 30+ 图表 SVG
+- 支持自定义 PPTX 模板提取
+- 11 页 PPT 仅 52KB
+- 依赖：Python 3 + python-pptx + cairosvg + ppt-master 仓库
 
 ## 安装
 
 ```bash
+# OfficeCLI 引擎（默认，单二进制下载）
+bash ccconfig/option-officecli/init.sh --install
+
 # ppt-master 引擎（含 Python 依赖 + 仓库克隆）
 bash ccconfig/option-ppt-master/init.sh --install
 
-# OfficeCLI 引擎（单二进制下载）
-bash ccconfig/option-officecli/init.sh --install
-
 # 状态检查
-bash ccconfig/option-ppt-master/init.sh --status
 bash ccconfig/option-officecli/init.sh --status
+bash ccconfig/option-ppt-master/init.sh --status
 ```
+
+## 推荐工作流
+
+```
+源内容（飞书 wiki / Markdown）
+  → 内容分析 + 页面规划
+  → 引擎选择（默认 OfficeCLI，模板需求用 ppt-master）
+  → 生成 .pptx
+  → 后处理（autofit）+ 质检（officecli validate）
+  → lark-cli drive +upload --wiki-token 上传 wiki 附件
+  → 用户在线打开（飞书渲染为在线 Slides 风格）
+```
+
+**不同规模策略**：
+
+| 规模 | 方案 | 说明 |
+|------|------|------|
+| ≤10 页简单 | OfficeCLI 全量 JSON batch | 1 个 JSON 数组完成 |
+| 10-30 页标准 | ppt-master 模板驱动 | 9 种布局 + 30+ 图表 SVG |
+| 30-50 页中等 | OfficeCLI 分批脚本 | 按章节拆 3-5 个 Part 脚本 |
+| 50+ 页大 deck | OfficeCLI 并行 subagent | 5 个 subagent 各写 section 脚本 → 顺序执行 |
 
 ---
 
@@ -277,47 +314,57 @@ officecli query deck.pptx 'picture:no-alt'         # 缺 alt 文本的图片
 
 ---
 
-# 飞书 Slides API 操作
+# 飞书 Slides API 能力边界
+
+> 2026-06-23 实测结论：API 处于早期阶段，适合增量编辑已有 Slides，**不适合程序化批量生成**。
+
+飞书 Slides 使用 SML 2.0（Slides Markup Language）XML schema，命名空间 `http://www.larkoffice.com/sml/2.0`。所有元素靠绝对像素坐标定位，无布局引擎。
+
+## 核心命令
+
+| 命令 | 用途 | 实测状态 |
+|------|------|---------|
+| `slides +create --title --slides` | 创建演示文稿（最多 10 页） | ✅ 能创建空壳，内容写入不可靠 |
+| `slides xml_presentation.slide.create` | 追加/插入幻灯片页 | ✅ 页面创建成功 |
+| `slides +replace-slide --parts` | 替换/插入单个元素（block_replace/block_insert） | ⚠️ block_insert 格式不确定 |
+| `slides +media-upload` | 上传图片获取 file_token | ✅ |
+| `slides xml_presentations get` | 读取全文 XML | ⚠️ 含 PPTX 导入图形的报 3350001 |
+
+## 元素能力
+
+| 元素 | 能力 | 限制 |
+|------|------|------|
+| shape | 100+ 种预设形状（几何/箭头/星形/流程图/标注框） | 需手动计算 topLeftX/Y/width/height |
+| img | 图片嵌入、裁剪、透明度 | 需先 +media-upload 获取 file_token |
+| icon | iconpark 图标库 | 通过 iconType 属性引用 |
+| chart | 7 种图表（pie/column/bar/line/area/radar/combo） | 需关联源表格，程序化链路复杂 |
+| table | Schema 中存在 | 完整 XML 定义未文档化 |
+
+## 样式系统
+
+- **填充**：纯色 rgb/rgba、4 种渐变（linear/radial/rect/shape）、18 种图案、图片填充
+- **边框**：10 种虚线样式、线端样式、连接样式
+- **特效**：阴影（8 参数）、倒影（3 参数）、文字描边
+- **排版**：5 级语义层级（title→headline→sub-headline→body→caption），字号 6-400px，200+ 字体
+
+## 关键限制
+
+1. **无布局引擎**：所有元素手动计算像素坐标，AI 排版极易溢出或重叠
+2. **无模板系统**：仅 master slide，API 不可引用预定义布局
+3. **无批量创建**：+create 最多 10 页，超 10 页需逐页 create
+4. **图表伪可用**：chart 需关联源表格，数据绑定链路不透明
+5. **内容写入不可靠**：`<data>` 内嵌内容被服务器静默丢弃；block_insert 返回 4001000
+6. **读回受限**：含 PPTX 导入图形的 slides 读回报 3350001；单页读取 content 始终为空
+
+## 适用场景
+
+**适合**：增量编辑已有在线 Slides（+replace-slide 替换个别元素）、极简信息页（封面+大字，≤5 页）、iconpark 图标加速、白板嵌入
+
+**不适合**：复杂排版、自动化批量生成、数据驱动图表/表格、>10 页 deck
 
 ## 仓库
 
-`https://<your-tenant>.feishu.cn/base/<your-base-token>`
-
-| 表 | ID | 说明 |
-|---|----|------|
-| Presentations | `<table-id>` | PPT 元数据：名称、Wiki URL、Presentation ID |
-| Slides | `<table-id>` | 每页内容：Slide ID、页码、标题、文本、图片 |
-
-## 可行操作
-
-### 读取
-| 操作 | 命令 |
-|------|------|
-| 读完整 PPT XML | `lark-cli slides xml_presentations get --params '{"xml_presentation_id":"<pid>"}' --format json` |
-| 读单页 XML | `lark-cli slides xml_presentation.slide.get` |
-| 提取文本 | 正则 `<p>(.*?)</p>` 去标签 |
-
-### 创建/上传
-| 操作 | 命令 |
-|------|------|
-| 新建空 PPT | `lark-cli wiki +node-create --space-id <id> --obj-type slides --title "<name>"` |
-| 新建页 | `lark-cli slides xml_presentation.slide.create` |
-| PPTX 上传为 wiki 子文件 | `lark-cli drive +upload --file ./out.pptx --wiki-token <token>` |
-
-### 更新/删除/复制
-| 操作 | 命令 |
-|------|------|
-| 替换整页 | `lark-cli slides xml_presentation.slide.replace` |
-| 删除页 | `lark-cli slides xml_presentation.slide.delete` |
-| 复制 PPT（保留图片） | `lark-cli drive files copy --params '{"file_token":"<src>"}' --data '{"type":"slides","name":"<name>"}'` |
-
-## 不可行操作
-
-| 操作 | 原因 |
-|------|------|
-| 跨 PPT 复制图片页 | 图片使用内部 media token → relation mismatch |
-| PPTX 导出为在线 Slides | `export_tasks` 仅支持 doc/sheet/bitable/docx |
-| PPTX 导入为在线 Slides | `import_tasks` 不支持 slides |
+`lark-cli slides` 系列命令，通过 `--as user` 操作在线 slides。
 
 ---
 
