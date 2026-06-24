@@ -323,6 +323,20 @@ cd /tmp/pptx_project && lark-cli drive +upload --file "./output.pptx" --wiki-tok
 
 PPTX 作为 wiki 子文件上传，侧边栏「文件」中预览编辑。
 
+### 参考文件
+
+生成 ppt-master PPT 时，以下文件提供完整规范，避免逐次试错：
+
+| 文件 | 用途 |
+|------|------|
+| `references/build-guide.md` | 字号常量、形状高度公式、列宽公式、居中公式、卡片/表格/时间线模板 |
+| `references/style-rules.md` | 封面规则、组织标记规则、链接输出规则、颜色规则 |
+| `tools/build_professional_blue.py` | professional_blue 模板的参考构建脚本（332 行，9 页完整示例） |
+| `themes/professional_blue.md` | Theme 色板 + 字体 + 字号阶梯 |
+| `~/git/_ext/ppt-master/.../professional_blue/` | 5 个模板 SVG（cover/toc/chapter/content/ending） |
+
+**构建流程**：读源文档 → 分析章节结构 → 打开 `build-guide.md` 获取公式 → 以 `build_professional_blue.py` 为模板修改内容（改 body 字符串，不改结构和字号常量） → 运行生成 → 质检 → 上传。
+
 ---
 
 # 引擎 B：OfficeCLI（AI 原生）
