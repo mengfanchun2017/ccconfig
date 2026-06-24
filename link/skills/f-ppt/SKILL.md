@@ -177,6 +177,7 @@ cd /mnt/c/ccout && lark-cli drive +upload --file "./output.pptx" \
 | `themes/midnight_executive.md` | 金融深蓝 theme | Q1 选择时 |
 | `themes/charcoal_minimal.md` | 极简灰阶 theme | Q1 选择时 |
 | `references/style-rules.md` | 样式硬规则 + 输出目录 | 每次构建前 |
+| `references/layouts.md` | 页面类型+列数+变体完整体系 | 构建每页时 |
 | `references/build-guide.md` | 坐标公式/列宽/居中 | 构建内容页时 |
 | `tools/autofit_postprocess.py` | 文字溢出保护后处理 | 内容密集时可选 |
 
