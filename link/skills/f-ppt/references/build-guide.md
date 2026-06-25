@@ -127,3 +127,54 @@ text_y = shape_y + (shape_h - text_lines × line_height) / 2
 - ❌ 任何页面出现组织/部门标记
 - ❌ 引入 theme 色板外的颜色
 - ❌ Shape 内容超过 shape 高度（用 autofit 后处理兜底）
+
+## 内容页坐标统一标准
+
+**所有内容页（含 TOC）标题和分隔线必须在相同位置，不可页间偏移**：
+
+| 元素 | 坐标 | 说明 |
+|------|------|------|
+| 页面标题 | x=1.5cm, y=1.0cm, w=30.87cm, h=2.4cm | size=FT(28pt), color=dark, bold |
+| 分隔线 | x=1.5cm, y=3.0cm, w=30.87cm, h=0.03cm | color=LL(E5E6EB) |
+| 正文区起点 | y=3.8cm | 标题+分隔线之后 |
+| 正文区可用高度 | 13cm | 3.8cm → 16.8cm |
+| 页码 | x=30.5cm, y=17.5cm, w=1.5cm, h=0.6cm | size=FN, color=gray, align=right |
+
+封面和结束页不在此标准内（各自独立坐标）。
+
+## 多段落文本框
+
+**列表类内容（如配置要点、步骤说明）使用单一 textbox + 逐段 add paragraph，不拆成多个独立 textbox**。
+
+```bash
+# 创建主文本框（带第一段）
+officecli add output.pptx /slide[N] --type textbox \
+  --prop text='① 第一项内容' --prop font=Arial --prop size=14 \
+  --prop color=1F2329 --prop x=2cm --prop y=3cm --prop width=12cm --prop height=10cm
+
+# 追加段落（共享同一 textbox，用户可统一编辑）
+officecli add output.pptx '/slide[N]/shape[M]' --type paragraph \
+  --prop text='② 第二项内容'
+officecli add output.pptx '/slide[N]/shape[M]' --type paragraph \
+  --prop text='③ 第三项内容'
+```
+
+**为什么**：独立 textbox 在 PowerPoint 中需逐个选中编辑。多段落 textbox 只需点击一次即选中全部文字，方便后续修改。
+
+## 母版设置
+
+所有 slide 级 shape 不自动出现在母版。需要在 slidemaster/slidelayout 层显式添加：
+
+```bash
+# 母版级（所有使用该母版的 slide 继承）
+officecli add output.pptx /slidemaster[1] --type shape \
+  --prop preset=rect --prop fill=<primary> --prop line=none \
+  --prop x=0cm --prop y=0cm --prop width=33.87cm --prop height=0.08cm
+
+# 布局级（使用该布局的 slide 继承）  
+officecli add output.pptx /slidelayout[1] --type shape \
+  --prop text='' --prop font=Arial --prop size=12 --prop color=808080 \
+  --prop x=30.5cm --prop y=17.5cm --prop width=1.5cm --prop height=0.6cm
+```
+
+**约束**：OfficeCLI 仅支持 5 个内置 layout（Blank/Title Slide/Title and Content/Two Content/Title Only），不可新建。layout shape 在 slide 的 `childCount` 中不体现（继承渲染），需通过 `officecli get /slidelayout[N]` 验证。
