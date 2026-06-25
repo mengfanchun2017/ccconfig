@@ -136,6 +136,34 @@ officecli validate output.pptx
 ls -lh output.pptx
 ```
 
+### 4.5 质量检查（硬要求）
+
+**每次构建后必须执行。不通过不输出。**
+
+```bash
+# 1. 文字溢出/排版问题检查
+officecli view output.pptx issues
+
+# 必须有 0 issues。如有溢出：增大 shape height 或缩小 font size
+```
+
+```bash
+# 2. 渲染截图（逐页）
+mkdir -p /tmp/ppt_preview
+officecli view output.pptx screenshot --page 1-N --out /tmp/ppt_preview/slideXX.png
+```
+
+```
+# 3. AI 视觉评审（多模态 LLM 逐页审查）
+对每页截图评估：文字溢出/对齐/间距/色彩/专业度。评分 <4★ 的页修复后重新构建。
+评审标准：参考文献 SlideAudit taxonomy（composition/layout, typography, color, imagery）
+```
+
+**质量门禁**：
+- `view issues` = 0
+- 所有页 AI 评分 ≥ 4★
+- 截图文件大小 >20KB（排除空白页）
+
 ### 5. 飞书上传（仅用户明确要求时）
 
 ```bash
