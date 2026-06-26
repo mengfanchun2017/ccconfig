@@ -93,6 +93,7 @@ pyee==13.0.1
 pynndescent==0.6.0
 pytesseract==0.3.13
 python-dateutil==2.9.0.post0
+python-docx==1.2.0
 python-pptx==1.0.2
 regex==2026.5.9
 rich==15.0.0
@@ -122,4 +123,3 @@ typing_extensions==4.15.0
 umap-learn==0.5.12
 webencodings==0.5.1
 xlsxwriter==3.2.9
-python-docx
