@@ -586,14 +586,17 @@ update_claude() {
     # 清残留 0 字节半成品（之前 claude install 下载失败留下的）
     find "$HOME/.local/share/claude/versions/" -maxdepth 1 -type f -size 0 -delete 2>/dev/null || true
 
-    local before after success_output
+    local before
     before=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
     info "当前版本: $before"
 
     info "正在升级..."
-    success_output=$(claude install --force 2>&1)
-    echo "$success_output"
+    set +e
+    claude install --force 2>&1
+    local install_rc=$?
+    set -e
 
+    local after
     after=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
     if [ "$before" != "$after" ]; then
         if version_ge "$after" "$before"; then
@@ -604,8 +607,8 @@ update_claude() {
         return 0
     fi
 
-    # 版本没变，区分"安装失败"和"已是最新"
-    if echo "$success_output" | grep -q 'successfully installed'; then
+    # 版本没变，用 exit code 区分"已是最新"和"真正失败"
+    if [ $install_rc -eq 0 ]; then
         success "Claude Code 已是最新稳定版 ($after)"
         return 0
     fi
@@ -986,17 +989,16 @@ show_menu() {
 acquire_lock
 trap release_lock EXIT
 
-# 先更新 ccconfig 自身（含冲突处理菜单）
-self_update "${1:-menu}"
-
 case "${1:-menu}" in
     all)
+        self_update "${1:-menu}"
         today=$(date +%Y-%m-%d)
         echo -e "${CYAN}ccconfig 组件升级 $today（基础+扩展）${NC}"
         take_snapshot "pre" > /dev/null
         update_all false
         ;;
     --no-option)
+        self_update "${1:-menu}"
         today=$(date +%Y-%m-%d)
         echo -e "${CYAN}ccconfig 组件升级 $today（不含可选）${NC}"
         take_snapshot "pre" > /dev/null
@@ -1013,7 +1015,9 @@ case "${1:-menu}" in
     services)      fix_systemd_services ;;
     officecli)     update_officecli ;;
     ppt-master)    update_ppt_master ;;
-    menu|"")       show_menu ;;
+    menu|"")
+        self_update "menu"
+        show_menu ;;
     *)
         echo "用法: $0 [all|node|npm|python|cconnect|gh|claude|uv|mcp|services|menu]"
         exit 1
