@@ -662,24 +662,18 @@ update_claude() {
     before=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
     info "当前版本: $before"
 
-    info "正在升级..."
     set +e
-    claude install --force 2>&1
+    claude install --force >/dev/null 2>&1
     local install_rc=$?
     set -e
 
     local after
     after=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
     if [ "$before" != "$after" ]; then
-        if version_ge "$after" "$before"; then
-            success "Claude Code: $before → $after"
-        else
-            warn "Claude Code 版本倒退: $before → $after（可能是 download.claude.ai 暂未同步），保留当前版本"
-        fi
+        success "Claude Code: $before → $after"
         return 0
     fi
 
-    # 版本没变，用 exit code 区分"已是最新"和"真正失败"
     if [ $install_rc -eq 0 ]; then
         success "Claude Code 已是最新稳定版 ($after)"
         return 0
