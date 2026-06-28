@@ -575,6 +575,78 @@ update_gh() {
 
 # ========== 6. Claude Code ==========
 
+# npm registry 回退 — download.claude.ai (Google IP) 在国内被墙时使用
+# @anthropic-ai/claude-code-linux-x64 等包包含原生二进制，由 npmjs.org 分发
+install_claude_via_npm() {
+    local before="$1"
+
+    if ! command -v npm &>/dev/null; then
+        warn "npm 不可用，无法回退"
+        return 1
+    fi
+
+    local arch
+    arch=$(uname -m)
+    local npm_pkg
+    case "$(uname -s)-$arch" in
+        Linux-x86_64)  npm_pkg="@anthropic-ai/claude-code-linux-x64" ;;
+        Linux-aarch64) npm_pkg="@anthropic-ai/claude-code-linux-arm64" ;;
+        Darwin-x86_64) npm_pkg="@anthropic-ai/claude-code-darwin-x64" ;;
+        Darwin-arm64)  npm_pkg="@anthropic-ai/claude-code-darwin-arm64" ;;
+        *) warn "系统架构不支持 npm 回退"; return 1 ;;
+    esac
+
+    local latest
+    latest=$(npm view "$npm_pkg" version 2>/dev/null || echo "")
+    if [ -z "$latest" ]; then
+        warn "获取 npm 版本失败"
+        return 1
+    fi
+
+    if [ "$before" = "$latest" ]; then
+        success "Claude Code 已是最新稳定版 ($before)"
+        return 0
+    fi
+
+    info "CDN 不可达，通过 npm registry 下载 v$latest..."
+    local tmp="/tmp/claude-npm.$$"
+    mkdir -p "$tmp"
+
+    if ! npm pack "$npm_pkg@$latest" --pack-destination "$tmp" 2>&1 | tail -3; then
+        err "npm pack 失败"
+        rm -rf "$tmp"
+        return 1
+    fi
+
+    local tgz
+    tgz=$(find "$tmp" -name "*.tgz" | head -1)
+    if [ -z "$tgz" ]; then
+        err "下载失败，未找到包文件"
+        rm -rf "$tmp"
+        return 1
+    fi
+
+    tar xzf "$tgz" -C "$tmp"
+    local new_bin="$tmp/package/claude"
+    if [ ! -x "$new_bin" ]; then
+        err "npm 包中未找到 claude 二进制"
+        rm -rf "$tmp"
+        return 1
+    fi
+
+    local install_dir="$HOME/.local/share/claude/versions/$latest"
+    mkdir -p "$HOME/.local/share/claude/versions"
+    cp "$new_bin" "$install_dir"
+    chmod +x "$install_dir"
+    rm -f "$LOCAL_BIN/claude"
+    ln -sf "$install_dir" "$LOCAL_BIN/claude"
+    rm -rf "$tmp"
+
+    save_version "claude" "$latest"
+    success "Claude Code (npm): $before → v$latest"
+    return 0
+}
+
 update_claude() {
     section "Claude Code"
 
@@ -612,8 +684,9 @@ update_claude() {
         success "Claude Code 已是最新稳定版 ($after)"
         return 0
     fi
-    warn "Claude Code 升级失败（仍 $after），检查网络或 download.claude.ai"
-    return 1
+
+    # CDN 不可达，回退到 npm registry
+    install_claude_via_npm "$before"
 }
 
 # ========== 7. uv ==========
