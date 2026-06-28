@@ -987,7 +987,7 @@ acquire_lock
 trap release_lock EXIT
 
 # 先更新 ccconfig 自身（含冲突处理菜单）
-self_update
+self_update "${1:-menu}"
 
 case "${1:-menu}" in
     all)
