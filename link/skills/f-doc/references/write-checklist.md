@@ -49,6 +49,7 @@
 - [ ] **colgroup 列宽之和 = 822**（`round(822/N)` 均分：2列→411×2, 3列→274×3, 4列→205×2+206×2, 5列→164×4+166）
 - [ ] 必设属性：`rows="N" cols="N" header-row="true" header-column="true" column-widths="W,W,W"`
 - [ ] 单元格内纯文本，不用 `#` 标题符号
+- [ ] ⚠️ **`<lark-table>` 标签在 `--doc-format markdown` 模式下会导致后续全部内容被静默丢弃**（2026-06-29 确认）。`--doc-format markdown` 创建文档时，必须改用标准 `<table>` 标签（不带 `lark-` 前缀），`<colgroup>` 和 `<tr>/<td>` 保持不变。XML 模式下不受影响
 
 ### 图表
 - [ ] Mermaid 代码块或 whiteboard，**禁止 ASCII 字符画**
