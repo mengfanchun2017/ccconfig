@@ -109,7 +109,7 @@ Q6: 预算偏好？
 # 用 Python 调 Supabase 管理 API 查询（mcp__supabase__execute_sql 可能不可用时的 fallback）
 python3 -c "
 import json, requests
-sql = '''SELECT name, name_zh, university, platform, url, subject_area, stage, difficulty,
+sql = '''SELECT name, name_zh, university, university_qs_rank, platform, url, alternate_url, alternate_platform, subject_area, stage, difficulty,
          duration_weeks, hours_per_week, language, has_chinese_subtitle,
          free_option, certificate_option, certificate_price_usd, certificate_platform,
          rating, prerequisites
@@ -280,10 +280,12 @@ config = {
 📚 下一阶段推荐：
 
 **优先推荐**（先修条件已满足）：
-1. ⭐ <课程名> — <学校> · <平台>
+1. ⭐ <课程名> — <学校> (QS Bio #N) · <平台>
    难度: beginner | 时间: 6周×5h | 语言: 英文(中字)
    免费: <免费方案>
    证书: <证书方案> — $XX (Credly 徽章)
+   链接: <URL>
+   备用: <alternate_url>（同内容其他平台）
    为什么推荐: <理由>
 
 **可选**（匹配你的兴趣但需先修）：
