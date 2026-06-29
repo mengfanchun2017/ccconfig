@@ -7,7 +7,14 @@ allowed-tools: Bash, Read, Write, Edit, Agent, WebSearch, WebFetch, mcp__tavily_
 
 # f-moocrec — MOOC 课程推荐助手
 
-> 用全球最好大学的 MOOC 重建生物科学教育。无论在哪所学校，真心喜欢这个专业的同学都可以学到最好的知识。
+> 学校负责数理基础和通识课。MOOC 补的是**专业课**——用全球最好大学的核心+进阶课程做兴趣探索和专业积累。
+> 高考后到大三前广泛尝试，大三大四项目磨练，为研究生阶段做清晰规划。
+
+## 课程范围
+
+- **不做**：数理基础（微积分/线代/化学/物理）——学校课程+考试自然覆盖，MOOC 再加一层是负担
+- **只做**：生物专业课（core + advanced + frontier），约 30 门
+- **定位**：专业积累 + 兴趣探索，不是替代学校教育
 
 ## 架构
 
@@ -15,8 +22,8 @@ allowed-tools: Bash, Read, Write, Edit, Agent, WebSearch, WebFetch, mcp__tavily_
 Supabase (共享课程数据)              飞书 (学生个人数据)
 ┌──────────────────────┐           ┌──────────────────────────┐
 │ courses 表             │──SQL查询→│ 学生画像 Wiki Doc          │
-│ 40+ 门课元数据          │          │ 学习路径 Wiki Doc          │
-│ 定期更新/多学生共享     │          │ 学习进度 Base Table        │
+│ ~30 门专业课元数据      │          │ 学习路径 Wiki Doc          │
+│ stage=core/adv/frontier│          │ 学习进度 Base Table        │
 └──────────────────────┘           └──────────────────────────┘
 ```
 
@@ -63,7 +70,7 @@ Supabase (共享课程数据)              飞书 (学生个人数据)
 
 ### Step 0.1: Grill 问答
 
-逐题提问，等用户回答后再问下一题：
+逐题提问，等用户回答后再问下一题。**给选项让用户选**（减少打字）。
 
 ```
 Q1: 你叫什么名字？在哪个学校？几年级？（大一/大二/大三/大四/研究生）
@@ -79,6 +86,8 @@ Q5: 职业方向？
 Q6: 预算偏好？
     选项: 完全免费（旁听为主） / 关键课程愿意付费拿证书 / 证书对我很重要适度付费 / 不限预算
 ```
+
+**注意**：数理基础（微积分/线代/化学/物理）不在推荐范围。这些由学校课程自然覆盖，MOOC 再加一层是额外负担。
 
 根据答案推导 `subject_areas`（兴趣→课程领域映射）：
 
@@ -104,7 +113,7 @@ sql = '''SELECT name, name_zh, university, platform, url, subject_area, stage, d
          duration_weeks, hours_per_week, language, has_chinese_subtitle,
          free_option, certificate_option, certificate_price_usd, certificate_platform,
          rating, prerequisites
-         FROM courses WHERE is_active = true AND stage IN (''foundation'',''core'')
+         FROM courses WHERE is_active = true AND stage IN (''core'',''advanced'',''frontier'')
          ORDER BY stage, id'''
 r = requests.post('https://api.supabase.com/v1/projects/<your-supabase-project-id>/database/query',
     headers={'Authorization': 'Bearer <your-supabase-access-token>',
