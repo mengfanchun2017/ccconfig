@@ -22,6 +22,21 @@ Supabase (共享课程数据)              飞书 (学生个人数据)
 
 **资源配置**: `conf/f-moocrec.json` — 飞书 token（wiki node、doc tokens、base token、table ID）
 
+### 配置文件管理（硬规则）
+
+`conf/*.json` 含真实 token → **只能存 ccprivate/conf/，通过 symlink 覆盖**。ccconfig 只提交 `*.example` 模板。
+
+```
+真实配置: ccprivate/conf/f-moocrec.json
+模板:     ccconfig/conf/f-moocrec.json.example（可提交）
+运行时:   ccconfig/conf/f-moocrec.json → symlink → ccprivate/conf/f-moocrec.json
+```
+
+**更新配置后**：
+- ❌ 绝不 `git add conf/f-moocrec.json`（symlink 被 pre-commit hook 阻止）
+- ✅ 只在 ccprivate 仓库提交真实配置
+- ✅ ccconfig 只提交 `.example` 模板更新
+
 ## 快速决策树
 
 ```
