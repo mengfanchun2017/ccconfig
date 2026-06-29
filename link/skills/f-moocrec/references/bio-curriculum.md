@@ -3,6 +3,12 @@
 > 基于 QS 2026 生物科学 Top5（Harvard, MIT, Stanford, Oxford, Cambridge）本科+研究生课程体系
 > 参考 Stanford Biology Core + MIT Course 7 + Harvard MCB
 
+## 范围说明
+
+- **不做**：数理基础（微积分/线代/化学/物理）——学校课程自然覆盖，MOOC 不加负担
+- **只做**：生物专业课（core + advanced + frontier），约 30 门
+- **定位**：专业积累 + 兴趣探索，不是替代学校教育
+
 ## QS 2026 生物科学 Top 10
 
 | 排名 | 学校 | 国家 |
