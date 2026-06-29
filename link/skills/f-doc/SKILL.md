@@ -57,7 +57,7 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, WebSearch, mcp__minimax__und
 - 非正文内容用 `>` 引用包裹，不出现在目录；禁止 `<hr/>` 分割线
 
 ### 表格 → `<lark-table>` XML
-- **禁止 Markdown 表格**，全部用 `<lark-table>` XML
+- **禁止 Markdown 表格**，全部用 `<lark-table>` XML（如用 `--doc-format markdown` 创建，必须改用标准 `<table>` 标签——`<lark-table>` 在 markdown 模式下会截断后续内容）
 - **colgroup 列宽之和 = 822**（`round(822/N)` 均分），写后 fetch `--detail full` 验证
 - 必设属性：`rows="N" cols="N" header-row="true" header-column="true" column-widths="W,W,W"`
 - 单元格内纯文本，不用 `#` 标题符号
