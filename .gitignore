@@ -54,3 +54,4 @@ tmp/
 # Windows 工具目录下的二进制（6.8M，单独从 release 下载；脚本 commit 即可）
 windows-tools/**/ncmdump.exe
 .tmp/
+supabase/.temp/
