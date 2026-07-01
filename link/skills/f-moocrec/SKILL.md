@@ -412,9 +412,35 @@ lark-cli base +record-list --base-token $B --table-id $T --format json --limit 2
 2. **不手动编号**（飞书自动编号）
 3. **不用 H4+**（最深 H3）
 4. **不用 `---` 分割线**
-5. **课程链接必须是完整可点击 URL**
+5. **课程链接必须是完整可点击 URL**（禁止 bit.ly 等短链接，易失效）
 6. **每门课必须同时列出免费方案和证书方案**（双轨）
 7. **证书信息必须包含验证方式**
+8. **图表必须用 `<whiteboard type="mermaid">` XML 语法**，禁止 ASCII 字符画或 Markdown fenced code block（Markdown mermaid code block 不会自动转换为白板，只有 XML `<whiteboard>` 标签会）
+
+   ```xml
+   <!-- ✅ 正确 -->
+   <whiteboard type="mermaid">
+   timeline
+       title 三阶段路线
+       阶段一 : 内容A
+       阶段二 : 内容B
+   </whiteboard>
+   ```
+   
+   ```markdown
+   <!-- ❌ 错误：Markdown mermaid 代码块不会自动转白板 -->
+   ```mermaid
+   timeline
+       title 三阶段路线
+   ```
+   ```
+   
+   ```text
+   <!-- ❌ 错误：ASCII 字符画不是图表 -->
+   阶段一 ─── 阶段二 ─── 阶段三
+   ```
+   
+   支持的 mermaid 类型：flowchart, pie, gantt, timeline, mindmap。不支持 radar-beta, quadrantChart, sankey-beta, block-beta, architecture-beta。详见 f-doc `references/chart-rendering.md`。
 
 ## 飞书操作委派规则
 
@@ -440,6 +466,11 @@ lark-cli base +record-list --base-token $B --table-id $T --format json --limit 2
 | Supabase REST API 直连 | 用管理 API (`api.supabase.com`) + access token |
 | stderr 被当作错误 | lark-cli 日志行在 stdout，WSL 注入行需过滤 |
 | `--content` 中换行符直接写 | 用 heredoc `cat << 'EOF' \| lark-cli ...` |
+| 图表用 ASCII 字符画或 Markdown mermaid 代码块 | 用 `<whiteboard type="mermaid">` XML 语法 |
+| str_replace 用默认 XML 格式匹配 URL | 用 `--doc-format markdown`（XML 下 URL 包在 `<a href>` 中无法匹配） |
+| MIT 课程用 bit.ly 短链接 | 用 Supabase 中的 edX 完整 URL |
+| 课程 URL 有空格（如 `MITxT 7.00x`） | 用 `+` 连接（`MITxT+7.00x`） |
+| `--content @/tmp/file` 绝对路径 | 必须相对路径：`--content @./file` 或 heredoc |
 
 ## 课程数据库维护
 
