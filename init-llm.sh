@@ -226,12 +226,32 @@ interactive_select() {
         ((idx++))
     done < <(echo "$lines")
 
+    # 如果代理运行中，增加网关管理选项
+    local gw_choice=""
+    if is_proxy_running; then
+        echo "  G) 管理 LLM 网关 (option-llmswitch) — 热切换，无需重启"
+        gw_choice="G"
+    fi
+
     echo ""
-    printf "请输入数字 [1-%d] 或直接回车保持当前: " "$total"
+    if [[ -n "$gw_choice" ]]; then
+        printf "请输入数字 [1-%d] 或 %s: " "$total" "$gw_choice"
+    else
+        printf "请输入数字 [1-%d] 或直接回车保持当前: " "$total"
+    fi
     read -r choice
 
     if [[ -z "$choice" ]]; then
         info "保持当前: $current"
+        return 0
+    fi
+
+    if [[ "$choice" == "G" || "$choice" == "g" ]]; then
+        if is_proxy_running; then
+            bash "$SCRIPT_DIR/option-llmswitch/init.sh"
+        else
+            info "LLM 网关未运行"
+        fi
         return 0
     fi
 
@@ -245,8 +265,21 @@ interactive_select() {
 }
 
 # ========== 主流程 ==========
+# ========== 代理检测 ==========
+is_proxy_running() {
+    local pid_file="$HOME/.cache/llmswitch.pid"
+    [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null
+}
+
 main() {
     local cmd="${1:-}"
+
+    # 检测 LLM 网关代理
+    if is_proxy_running; then
+        info "LLM 路由由 option-llmswitch 代理管理（热切换，无需重启）"
+        info "管理代理: bash ccconfig/option-llmswitch/init.sh"
+        echo ""
+    fi
 
     if [[ "$cmd" == "list" ]]; then
         show_list

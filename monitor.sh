@@ -374,6 +374,27 @@ status_watch() {
         echo -e "${YELLOW}未配置${NC}"
     fi
 
+    # LLM Gateway
+    echo -n "  LLM Gateway ... "
+    local llm_pid_file="$HOME/.cache/llmswitch.pid"
+    if [ -f "$llm_pid_file" ] && kill -0 "$(cat "$llm_pid_file")" 2>/dev/null; then
+        local proxy_health=$(curl -s --max-time 2 http://127.0.0.1:8899/health 2>/dev/null || echo '{}')
+        local llm_mode=$(echo "$proxy_health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('mode','?'))" 2>/dev/null)
+        local llm_peak=$(echo "$proxy_health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('peak',False))" 2>/dev/null)
+        local llm_route=$(echo "$proxy_health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('current_route','?'))" 2>/dev/null)
+        if [ "$llm_mode" = "auto" ] && [ "$llm_peak" = "True" ]; then
+            echo -e "${YELLOW}●${NC} auto → ${YELLOW}${llm_route}${NC} (peak)"
+        elif [ "$llm_mode" = "manual" ]; then
+            echo -e "${GREEN}●${NC} manual → ${llm_route}"
+        elif [ "$llm_mode" = "off" ]; then
+            echo -e "${GRAY}●${NC} off"
+        else
+            echo -e "${GREEN}●${NC} auto → ${llm_route}"
+        fi
+    else
+        echo -e "${GRAY}－${NC} not running"
+    fi
+
     # systemd 自启动
     local service_file="$HOME/.config/systemd/user/claude-auto-sync.service"
     echo -n "  systemd 自启动 ... "
