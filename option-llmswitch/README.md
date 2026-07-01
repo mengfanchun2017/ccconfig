@@ -75,9 +75,10 @@ Claude Code ──> 127.0.0.1:8899 (proxy.py) ──> DeepSeek API (off-peak)
 
 ## 与 init-llm.sh 的关系
 
-- **代理运行时**：`init-llm.sh` 会检测到代理并显示提示，菜单增加 `G) 管理 LLM 网关` 选项
-- **代理停止后**：`init-llm.sh` 照常工作（写 env 文件，需重启 CC）
-- 切换主模型/小模型配置通过 `init-llm.sh` 或直接编辑 `conf/llm.json`
+- `init-llm.sh` 是主入口。Gateway 作为第三个选项（与 MiniMax、DeepSeek 同级）
+- 在 `init-llm.sh` 中选择 Gateway 即启动代理并切换；选 MiniMax/DeepSeek 自动停止代理
+- 代理运行时，`init-llm.sh` 在菜单中显示当前路由、高峰时段，支持快捷键管理
+- 本脚本 (`init.sh`) 仍可独立使用（`--start`/`--stop`/`--mode` 等）
 
 ## 监控
 
