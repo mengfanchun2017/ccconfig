@@ -7,6 +7,7 @@ openclaw.json
 # 真实配置文件（含 API key / token / 个人标识符）— 公开仓库不可 commit
 # 对应 .example 模板文件留在仓库中
 conf/llm.json
+option-llmswitch/conf/llmswitch.json
 conf/claude.json
 conf/feishu.json
 conf/ubuntu.json

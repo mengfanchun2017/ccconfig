@@ -1,0 +1,14 @@
+{
+    "_comment": "LLM Switch proxy config. Copy to llmswitch.json and edit.",
+    "listen": {"host": "127.0.0.1", "port": 8899},
+    "mode": "auto",
+    "manual_provider": "minimax",
+    "peak_hours": [
+        {"days": [0,1,2,3,4], "start": "09:00", "end": "12:00"},
+        {"days": [0,1,2,3,4], "start": "14:00", "end": "18:00"}
+    ],
+    "routes": {
+        "deepseek-v4-pro": {"off_peak": "deepseek", "peak": "minimax"},
+        "MiniMax-M3": "minimax"
+    }
+}
