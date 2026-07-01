@@ -431,6 +431,12 @@ colorize_line() {
         return
     fi
 
+    # LLMSWITCH (cyan) — gateway route/start/stop/mode events
+    if echo "$content" | grep -qE '^llmswitch'; then
+        echo -e "  ${CYAN}${ts}${NC}  $content"
+        return
+    fi
+
     # ACTIVITY (cyan) — changes, debounce, sync progress
     if echo "$content" | grep -qE '(\* changes detected|Change detected|Debounce done|syncing |MOVED_TO|DELETED|CREATED|MODIFY)'; then
         echo -e "  ${CYAN}${ts}${NC}  $content"

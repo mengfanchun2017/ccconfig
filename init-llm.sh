@@ -226,19 +226,15 @@ interactive_select() {
         ((idx++))
     done < <(echo "$lines")
 
-    # 如果代理运行中，增加网关管理选项
-    local gw_choice=""
+    # 网关管理选项：未运行时启动，运行中时管理
     if is_proxy_running; then
         echo "  G) 管理 LLM 网关 (option-llmswitch) — 热切换，无需重启"
-        gw_choice="G"
+    else
+        echo "  G) 启动 LLM 网关 (option-llmswitch)"
     fi
 
     echo ""
-    if [[ -n "$gw_choice" ]]; then
-        printf "请输入数字 [1-%d] 或 %s: " "$total" "$gw_choice"
-    else
-        printf "请输入数字 [1-%d] 或直接回车保持当前: " "$total"
-    fi
+    printf "请输入数字 [1-%d] 或 G: " "$total"
     read -r choice
 
     if [[ -z "$choice" ]]; then
@@ -250,7 +246,7 @@ interactive_select() {
         if is_proxy_running; then
             bash "$SCRIPT_DIR/option-llmswitch/init.sh"
         else
-            info "LLM 网关未运行"
+            bash "$SCRIPT_DIR/option-llmswitch/init.sh" --start
         fi
         return 0
     fi

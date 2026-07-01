@@ -23,6 +23,8 @@ LLM_CONF="$REPO_DIR/conf/llm.json"
 PID_FILE="$HOME/.cache/llmswitch.pid"
 LOG_FILE="$HOME/.cache/llmswitch.log"
 ORIG_URL_FILE="$HOME/.cache/llmswitch-orig-baseurl"
+ORIG_MODEL_FILE="$HOME/.cache/llmswitch-orig-model"
+MONITOR_LOG="$REPO_DIR/.monitor-sync.log"
 PROXY_PORT=8899
 PROXY_URL="http://127.0.0.1:$PROXY_PORT"
 
@@ -40,6 +42,11 @@ is_running() {
     [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null
 }
 
+# ========== 通知 monitor ==========
+notify_monitor() {
+    echo "[$(date '+%H:%M:%S')] llmswitch $1" >> "$MONITOR_LOG"
+}
+
 # ========== 获取健康信息 ==========
 get_health() {
     curl -s --max-time 3 "$PROXY_URL/health" 2>/dev/null || echo '{}'
@@ -52,7 +59,6 @@ import json, os, sys
 
 orig_file, proxy_url, llm_conf = sys.argv[1], sys.argv[2], sys.argv[3]
 
-# 读当前 CC 配置
 settings_file = os.path.expanduser("~/.claude/settings.json")
 try:
     with open(settings_file) as f:
@@ -61,39 +67,33 @@ except Exception:
     config = {}
 env = config.get("env", {})
 
-# 输出当前 base_url 和 model 信息
 current_base = env.get("ANTHROPIC_BASE_URL", "")
 current_model = env.get("ANTHROPIC_MODEL", "")
-current_haiku = env.get("ANTHROPIC_DEFAULT_HAIKU_MODEL", "")
 print(f"BASE_URL={current_base}")
 print(f"MODEL={current_model}")
-print(f"HAIKU={current_haiku}")
 PYEOF
 }
 
 write_cc_env() {
-    python3 - "$PROXY_URL" "$LLM_CONF" << 'PYEOF'
+    python3 - "$PROXY_URL" "$CONF_FILE" << 'PYEOF'
 import json, os, sys
 
-proxy_url, llm_conf_path = sys.argv[1], sys.argv[2]
+proxy_url, proxy_conf_path = sys.argv[1], sys.argv[2]
 
-with open(llm_conf_path) as f:
-    llm_config = json.load(f)
-
-providers = llm_config.get("llms", {})
-# 主模型用 deepseek 的 model，小模型用 minimax 的 model
-main_model = providers.get("deepseek", {}).get("model", "deepseek-v4-pro")
-small_model = providers.get("minimax", {}).get("model", "MiniMax-M3")
+try:
+    with open(proxy_conf_path) as f:
+        pconf = json.load(f)
+except Exception:
+    pconf = {}
+main_model = pconf.get("model_name", "llmswitch")
 
 env_update = {
     "ANTHROPIC_BASE_URL": proxy_url,
     "ANTHROPIC_MODEL": main_model,
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": small_model,
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
 }
 
-# 保持已有的 ANTHROPIC_AUTH_TOKEN
 settings_file = os.path.expanduser("~/.claude/settings.json")
 try:
     with open(settings_file) as f:
@@ -101,7 +101,7 @@ try:
 except Exception:
     config = {}
 existing_env = config.get("env", {})
-env_update["ANTHROPIC_AUTH_TOKEN"] = existing_env.get("ANTHROPIC_AUTH_TOKEN", "nervhub")
+env_update["ANTHROPIC_AUTH_TOKEN"] = existing_env.get("ANTHROPIC_AUTH_TOKEN", "llmswitch")
 
 config.setdefault("env", {}).update(env_update)
 with open(settings_file, "w") as f:
@@ -123,32 +123,26 @@ PYEOF
 
 restore_cc_env() {
     local original_url="$1"
-    python3 - "$original_url" << 'PYEOF'
+    local original_model="${2:-}"
+    python3 - "$original_url" "$original_model" << 'PYEOF'
 import json, os, sys
 
-orig_url = sys.argv[1]
+orig_url, orig_model = sys.argv[1], sys.argv[2]
 
 env_update = {"ANTHROPIC_BASE_URL": orig_url}
+if orig_model:
+    env_update["ANTHROPIC_MODEL"] = orig_model
 
-settings_file = os.path.expanduser("~/.claude/settings.json")
-try:
-    with open(settings_file) as f:
-        config = json.load(f)
-except Exception:
-    config = {}
-config.setdefault("env", {}).update(env_update)
-with open(settings_file, "w") as f:
-    json.dump(config, f, indent=4)
-
-claude_json = os.path.expanduser("~/.claude.json")
-try:
-    with open(claude_json) as f:
-        cconfig = json.load(f)
-except Exception:
-    cconfig = {}
-cconfig.setdefault("env", {}).update(env_update)
-with open(claude_json, "w") as f:
-    json.dump(cconfig, f, indent=4)
+for fpath in [os.path.expanduser("~/.claude/settings.json"),
+              os.path.expanduser("~/.claude.json")]:
+    try:
+        with open(fpath) as f:
+            config = json.load(f)
+    except Exception:
+        config = {}
+    config.setdefault("env", {}).update(env_update)
+    with open(fpath, "w") as f:
+        json.dump(config, f, indent=4)
 
 print("OK")
 PYEOF
@@ -176,7 +170,9 @@ do_install() {
     pip3 install -q fastapi uvicorn --break-system-packages 2>/dev/null
     good "Python 依赖已安装 (fastapi, uvicorn)"
     echo ""
-    info "下一步: bash $SCRIPT_DIR/init.sh --start"
+    info "LLM 网关默认未启动。需要时执行:"
+    info "  bash $SCRIPT_DIR/init.sh --start"
+    info "或通过 init-llm.sh 的 G 选项启动。"
 }
 
 # ========== 启动 ==========
@@ -186,7 +182,7 @@ do_start() {
         return 0
     fi
 
-    ensure_config "$CONF_FILE" "option-llmswitch/conf/llmswitch.json" || exit 1
+    ensure_config "$CONF_FILE" "option-llmswitch/conf/llmswitch.json" || return 1
 
     local conf_port=$(python3 -c "import json; print(json.load(open('$CONF_FILE'))['listen']['port'])" 2>/dev/null)
     PROXY_PORT="${conf_port:-8899}"
@@ -197,12 +193,16 @@ do_start() {
         return 1
     fi
 
-    # 保存原始 ANTHROPIC_BASE_URL
+    # 保存原始 ANTHROPIC_BASE_URL + MODEL
     local cc_env=$(read_cc_env)
-    local orig_url=$(echo "$cc_env" | grep '^BASE_URL=' | cut -d= -f2-)
-    if [ -n "$orig_url" ] && [ "$orig_url" != "$PROXY_URL" ]; then
-        echo "$orig_url" > "$ORIG_URL_FILE"
-        info "已保存原始 base_url: $orig_url"
+    local current_url=$(echo "$cc_env" | grep '^BASE_URL=' | cut -d= -f2-)
+    local current_model=$(echo "$cc_env" | grep '^MODEL=' | cut -d= -f2-)
+    if [ -n "$current_url" ] && [ "$current_url" != "$PROXY_URL" ]; then
+        echo "$current_url" > "$ORIG_URL_FILE"
+        echo "$current_model" > "$ORIG_MODEL_FILE"
+        info "已保存原始配置: base_url=$current_url model=$current_model"
+    elif [ "$current_url" = "$PROXY_URL" ] && [ -f "$ORIG_URL_FILE" ]; then
+        info "当前已指向代理，沿用已保存的原始配置"
     fi
 
     # 后台启动
@@ -234,12 +234,25 @@ do_start() {
     else
         info "  当前路由: $route (非高峰)"
     fi
+
+    notify_monitor "started → $route ($([ "$peak" = "True" ] && echo peak || echo off-peak))"
 }
 
 # ========== 停止 ==========
 do_stop() {
     if ! is_running; then
         info "代理未运行"
+        # 代理已崩溃，但 CC 可能还指向代理 URL，尝试恢复
+        if [ -f "$ORIG_URL_FILE" ]; then
+            local orig_url=$(cat "$ORIG_URL_FILE")
+            local orig_model=""
+            [ -f "$ORIG_MODEL_FILE" ] && orig_model=$(cat "$ORIG_MODEL_FILE")
+            if [ -n "$orig_url" ]; then
+                restore_cc_env "$orig_url" "$orig_model"
+                good "CC 配置已恢复: base_url=$orig_url model=$orig_model"
+            fi
+            rm -f "$ORIG_URL_FILE" "$ORIG_MODEL_FILE"
+        fi
         rm -f "$PID_FILE"
         return 0
     fi
@@ -255,15 +268,19 @@ do_stop() {
     rm -f "$PID_FILE"
     good "代理已停止"
 
-    # 恢复原始 ANTHROPIC_BASE_URL
+    # 恢复原始 ANTHROPIC_BASE_URL + MODEL
     if [ -f "$ORIG_URL_FILE" ]; then
         local orig_url=$(cat "$ORIG_URL_FILE")
+        local orig_model=""
+        [ -f "$ORIG_MODEL_FILE" ] && orig_model=$(cat "$ORIG_MODEL_FILE")
         if [ -n "$orig_url" ]; then
-            restore_cc_env "$orig_url"
-            good "CC base_url 已恢复: $orig_url"
+            restore_cc_env "$orig_url" "$orig_model"
+            good "CC 配置已恢复: base_url=$orig_url model=$orig_model"
         fi
-        rm -f "$ORIG_URL_FILE"
+        rm -f "$ORIG_URL_FILE" "$ORIG_MODEL_FILE"
     fi
+
+    notify_monitor "stopped"
 }
 
 # ========== 状态 ==========
@@ -327,6 +344,7 @@ with open(sys.argv[1], "w") as f:
 print("OK")
 PYEOF
         good "模式已设为 $mode (代理未运行，下次启动生效)"
+        notify_monitor "mode → $mode (offline)${provider:+ ($provider)}"
         return 0
     fi
 
@@ -340,8 +358,9 @@ PYEOF
     local resp=$(curl -s -X POST "$PROXY_URL/admin/mode" \
         -H "Content-Type: application/json" \
         -d "$data" 2>/dev/null)
-    if echo "$resp" | grep -q '"ok": true'; then
+    if echo "$resp" | grep -q '"ok"'; then
         good "热切换成功: $mode"
+        notify_monitor "mode → $mode${provider:+ ($provider)}"
         do_status
     else
         bad "热切换失败: $resp"

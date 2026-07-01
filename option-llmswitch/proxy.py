@@ -8,11 +8,8 @@ Usage: python3 proxy.py [--config llmswitch.json] [--llm-config llm.json]
 """
 
 import argparse
-import asyncio
 import json
 import os
-import sys
-import time
 from contextlib import asynccontextmanager
 from datetime import datetime, time as dt_time
 from pathlib import Path
@@ -108,10 +105,18 @@ class ProxyState:
         rule = routes.get(model_name)
 
         if rule is None:
-            current = self.llm_config.get("current", "")
-            if current in self.providers:
-                return current, model_name
-            return None, None
+            # Unknown model — apply fallback routing
+            fallback = self.config.get("fallback_routing", "main")
+            if fallback == "main":
+                fallback = self.config.get("model_name", "llmswitch")
+            elif fallback == "small":
+                fallback = self.config.get("small_model_name", "llmswitch-s")
+            rule = routes.get(fallback, {})
+            if not rule:
+                current = self.llm_config.get("current", "")
+                if current in self.providers:
+                    return current, model_name
+                return None, None
 
         # String value: always route to this provider
         if isinstance(rule, str):
@@ -328,7 +333,7 @@ def main():
     args = parser.parse_args()
 
     import uvicorn
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
 
 if __name__ == "__main__":
