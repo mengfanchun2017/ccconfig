@@ -134,3 +134,60 @@ lark-cli docs +create --api-version v2 --content "{飞书XML}" --title "标题"
 - 批量操作用 `officecli batch --input cmds.json` 不要逐条执行
 - .docx 中文字体默认用 `SimSun`（宋体），英文用 `Calibri`
 - 飞书文档中的内嵌 sheet/bitable 无法在 .docx 中原样保留
+
+## 中文字体（关键，不加 = 乱码）
+
+officecli 创建 .docx 时**默认不设中文字体**，中文全部 fallback 到 Calibri → 无字形 → 乱码。
+
+**每个 paragraph add 必须带中文字体参数**：
+
+```bash
+officecli add file.docx /body --type paragraph \
+  --prop text="中文内容" \
+  --prop font.ea="Microsoft YaHei" \
+  --prop font.latin=Calibri \
+  --prop lang.ea=zh-CN \
+  --prop size=11pt
+```
+
+| 属性 | 值 | 说明 |
+|------|-----|------|
+| `font.ea` | `Microsoft YaHei` / `SimSun` | 东亚字体槽（中文），不加=乱码 |
+| `font.latin` | `Calibri` | 拉丁字体槽（英文/数字） |
+| `lang.ea` | `zh-CN` | 东亚语言标记 |
+| `font` (简写) | `Microsoft YaHei` | 同时设 ascii+hAnsi+eastAsia，可用但中英同字体不推荐 |
+
+**2026-07-02 实测**：不加 `font.ea` → Word 打开全是乱码（`effective.font.ascii: Calibri`，无 `effective.font.eastAsia`）。加后正常渲染。
+
+### Python 调用：禁止 json.dumps 传中文（关键坑）
+
+**`json.dumps(text)` 会把中文转成 `\uXXXX` 转义序列**，officecli 原样写入 XML → Word 看到的是 ASCII 转义字符串，不是汉字 → 乱码。
+
+```python
+# ❌ 错误：json.dumps 把中文转 \uXXXX → officecli 原样写入 → 乱码
+text = "强基计划"
+cmd = f"officecli add ... --prop text={json.dumps(text)}"
+# XML 结果: <w:t>强基计划</w:t>  ← 不是中文！
+
+# ✅ 正确：shlex.quote 保留原始 UTF-8 中文
+import shlex
+cmd = f"officecli add ... --prop text={shlex.quote(text)}"
+# XML 结果: <w:t>强基计划</w:t>  ← 真正的中文
+```
+
+| 方法 | XML 输出 | Word 渲染 |
+|------|---------|-----------|
+| `json.dumps(text)` | `强基...` | 乱码 |
+| `shlex.quote(text)` | `强基计划...` | 正常 |
+| shell heredoc 直接写 | `强基计划...` | 正常 |
+
+**Why**：`json.dumps` 默认 `ensure_ascii=True`，非 ASCII 字符全部转义。officecli 不做反向解析，直接写入 OOXML。
+
+### 页面边距（压缩到 1 页）
+
+```bash
+# A4 默认边距太宽（上下 2.54cm，左右 3.18cm），缩到 1.5cm 可多挤 ~30% 内容
+officecli set file.docx /section[1] \
+  --prop marginTop=1.5cm --prop marginBottom=1.5cm \
+  --prop marginLeft=1.8cm --prop marginRight=1.8cm
+```
