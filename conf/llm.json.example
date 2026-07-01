@@ -15,6 +15,12 @@
             "model": "deepseek-v4-pro",
             "key": "请填入你的 DeepSeek API Key",
             "small_model": "deepseek-v4-pro"
+        },
+        "gateway": {
+            "name": "Gateway",
+            "base_url": "http://127.0.0.1:8899",
+            "model": "llmswitch",
+            "small_model": "llmswitch-s"
         }
     },
     "current": "deepseek"

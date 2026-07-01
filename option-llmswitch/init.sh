@@ -75,10 +75,10 @@ PYEOF
 }
 
 write_cc_env() {
-    python3 - "$PROXY_URL" "$CONF_FILE" << 'PYEOF'
+    python3 - "$PROXY_URL" "$CONF_FILE" "$LLM_CONF" << 'PYEOF'
 import json, os, sys
 
-proxy_url, proxy_conf_path = sys.argv[1], sys.argv[2]
+proxy_url, proxy_conf_path, llm_conf_path = sys.argv[1], sys.argv[2], sys.argv[3]
 
 try:
     with open(proxy_conf_path) as f:
@@ -117,6 +117,16 @@ cconfig.setdefault("env", {}).update(env_update)
 with open(claude_json, "w") as f:
     json.dump(cconfig, f, indent=4)
 
+# sync llm.json current → gateway
+try:
+    with open(llm_conf_path) as f:
+        llmconf = json.load(f)
+    llmconf["current"] = "gateway"
+    with open(llm_conf_path, "w") as f:
+        json.dump(llmconf, f, indent=4, ensure_ascii=False)
+except Exception:
+    pass
+
 print("OK")
 PYEOF
 }
@@ -124,10 +134,10 @@ PYEOF
 restore_cc_env() {
     local original_url="$1"
     local original_model="${2:-}"
-    python3 - "$original_url" "$original_model" << 'PYEOF'
+    python3 - "$original_url" "$original_model" "$LLM_CONF" << 'PYEOF'
 import json, os, sys
 
-orig_url, orig_model = sys.argv[1], sys.argv[2]
+orig_url, orig_model, llm_conf_path = sys.argv[1], sys.argv[2], sys.argv[3]
 
 env_update = {"ANTHROPIC_BASE_URL": orig_url}
 if orig_model:
@@ -143,6 +153,19 @@ for fpath in [os.path.expanduser("~/.claude/settings.json"),
     config.setdefault("env", {}).update(env_update)
     with open(fpath, "w") as f:
         json.dump(config, f, indent=4)
+
+# sync llm.json current — guess provider from restored URL
+try:
+    with open(llm_conf_path) as f:
+        llmconf = json.load(f)
+    for name, llm in llmconf.get("llms", {}).items():
+        if llm.get("base_url") == orig_url and name != "gateway":
+            llmconf["current"] = name
+            break
+    with open(llm_conf_path, "w") as f:
+        json.dump(llmconf, f, indent=4, ensure_ascii=False)
+except Exception:
+    pass
 
 print("OK")
 PYEOF
@@ -201,6 +224,12 @@ do_start() {
         echo "$current_url" > "$ORIG_URL_FILE"
         echo "$current_model" > "$ORIG_MODEL_FILE"
         info "已保存原始配置: base_url=$current_url model=$current_model"
+
+        # Save previous provider for init-llm.sh restore
+        local prev=$(python3 -c "import json; print(json.load(open('$LLM_CONF')).get('current',''))" 2>/dev/null || echo "")
+        if [ -n "$prev" ] && [ "$prev" != "gateway" ]; then
+            echo "$prev" > "$HOME/.cache/llmswitch-prev-provider"
+        fi
     elif [ "$current_url" = "$PROXY_URL" ] && [ -f "$ORIG_URL_FILE" ]; then
         info "当前已指向代理，沿用已保存的原始配置"
     fi
