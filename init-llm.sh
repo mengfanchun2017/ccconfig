@@ -132,9 +132,14 @@ switch_llm() {
         return $?
     fi
 
-    # 切到直连前先停 proxy（失败不中断，后面还要写 CC 配置）
+    # 切到直连前先停 watchdog + proxy
     if is_proxy_running; then
         info "停止网关代理..."
+        local watchdog_pid_file="$HOME/.cache/llmswitch-watchdog.pid"
+        if [ -f "$watchdog_pid_file" ]; then
+            kill "$(cat "$watchdog_pid_file")" 2>/dev/null || true
+            rm -f "$watchdog_pid_file"
+        fi
         bash "$LLMSWITCH_INIT" --stop 2>/dev/null || true
     fi
 
