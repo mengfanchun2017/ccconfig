@@ -2,14 +2,14 @@
 
 > **L3 追踪层**。**冷启动入口** — 每次 session 开始先读本文件。
 > 模板: planning-with-files `progress.md` 精简版。
-> 最后更新: 2026-06-15
+> 最后更新: 2026-07-03
 
 ## TL;DR
 
-- **进行中**: 文档 review + Phase 0 收尾
-- **已完成**: 任务 #1 ✅ #6 ✅ #7 ✅ #9 ✅ + ccprivate 拆分 + CCCONFIG_HOME
-- **下次入口**: 任务 #10（f-ship v0.1）或 Phase 1（CI/CD）
-- **阻塞**: 无
+- **进行中**: Phase 2 文档/ADR/发布流程
+- **已完成**: Phase 0 ✅（安全+公开化）+ Phase 1 ✅（CI workflow + CHANGELOG v2.0.0 + ROADMAP 更新）
+- **下次入口**: Phase 3（打 tag + GitHub Release + 社区健康）
+- **阻塞**: 用户确认 ccconfig 就绪后发布 v2.0.0
 
 ## 4 层定位
 
@@ -54,43 +54,20 @@ L4 自动日志:   飞书 f-logme Base Worklog 表 + 关联Action link (SessionE
 
 ## 进行中
 
-- [x] 建 4 层追踪系统框架
-- [x] 调研 f-ship skill 候选方案
-- [x] **Phase 0 / 任务 #1**：改 `.gitignore` + `git rm --cached` ✅
-- [x] **ccprivate 拆分**：私有数据全部迁出，cconfig 零密钥 ✅
-- [x] **去标识化**：username/path 替换为占位符 ✅
-- [x] **git filter-repo**：从全部历史清除 12 个私密文件 ✅
-- [x] **pre-commit hook**：防私密文件意外提交 ✅
-- [x] **CCCONFIG_HOME / CCPRIVATE_HOME**：消除硬编码路径 ✅
-- [x] **CHANGELOG / README / CONTRIBUTING 更新** ✅
-- [ ] **Phase 0 / 任务 #10**：抽 f-ship skill 雏形 v0.1（Phase 0 末尾执行）
+- [x] Phase 0 全部（安全 + 公开化）✅
+- [x] Phase 1（CI workflow + 发布前清理）✅
+- [ ] Phase 2（ADR 索引补全 + RELEASING.md + 进度文档更新）
+- [ ] 发布 v2.0.0（等用户确认后打 tag + GitHub Release）
 
 ## 阻塞
 
 无。
 
-## 下次 session 入口（具体到 commit 级别）
+## 下次 session 入口
 
-```
-1. 读 ROADMAP.md 确认阶段仍是 Phase 0
-2. 读 docs/task_plan.md 找当前任务 #1 详情
-3. 改 .gitignore：新增
-     conf/llm.json
-     conf/claude.json
-     conf/feishu.json
-     link/.config.json
-     conf/ubuntu.json
-4. 跑 git status 确认其它 conf 不受影响
-5. 改 init.sh：加 detect_real_config() 函数
-   - 检测 conf/llm.json 缺失 → cp .example + 提示
-   - 检测 conf/claude.json / feishu.json 缺失 → 同样逻辑
-6. 跑 bash -n init.sh 语法检查
-7. 测试：临时 mv conf/llm.json 跑 init.sh，验证引导正常
-8. 跑 bash -n status.sh / monitor.sh 确认没断
-9. commit 两个文件 + 更新 progress.md（本文件）
-```
-
-预计 session 时长: 30-45 分钟。
+1. 读 ROADMAP.md — 确认阶段仍是 Phase 2
+2. 读 docs/task_plan.md — 找当前任务
+3. 完成 Phase 2 剩余 → Phase 3 发布 v2.0.0
 
 ## 关键链接
 
@@ -106,6 +83,8 @@ L4 自动日志:   飞书 f-logme Base Worklog 表 + 关联Action link (SessionE
 | 日期 | session 主题 | 主要产出 | 关键链接 |
 |---|---|---|---|
 | 2026-06-08 | 架构审查 + 4 层系统设计 + 调研 + 重构 | ROADMAP / task_plan / findings / progress / ADR-0001 / f-ship 命名 | [commit hash]（待 commit）|
+| 2026-07-02 | Phase 1 发布前清理 | CI workflow + 删 stale 分支/文件 + CHANGELOG v2.0.0 | 7fa60ac |
+| 2026-07-03 | Phase 2 文档/发布流程 | ADR 索引补全 + RELEASING.md + progress 更新 | |
 
 ## 与 f-logme 联动
 

@@ -10,6 +10,8 @@
 | 编号 | 标题 | 日期 | 状态 | 关联 Phase |
 |---|---|---|---|---|
 | [0001](0001-secret-strategy.md) | 真实配置文件不入 git 仓 | 2026-06-08 | ✅ Accepted | Phase 0 |
+| [0002](0002-merge-kr-and-task.md) | 合并 KR + Task 为单一交付实体 | 2026-06-08 | ✅ Accepted | Phase 0 |
+| [0003](0003-deprecate-tasks-and-kr-progress.md) | 废弃 Tasks + KR_Progress 表 | 2026-06-09 | ✅ Accepted | Phase 0 |
 
 ## 强制 4 字段（每条 ADR 必含）
 

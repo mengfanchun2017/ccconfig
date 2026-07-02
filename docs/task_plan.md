@@ -10,14 +10,45 @@
 
 ## 当前 Phase
 
-**Phase 0 — 安全 + 公开化**
+**Phase 2 — 文档/发布流程**
 
-- **状态**: 🚧 收尾中（7/10 完成）
-- **开始**: 2026-06-08
-- **预计完成**: 2026-06-20
-- **关联**: [ROADMAP.md Phase 0](../ROADMAP.md), OKR O.「ccconfig 正式化」/KR1
-- **决策**: [ADR-0001](adr/0001-secret-strategy.md)
+- **状态**: 🚧 进行中
+- **开始**: 2026-07-03
+- **预计完成**: 2026-07-05
+- **关联**: [ROADMAP.md Phase 2](../ROADMAP.md), OKR O.「ccconfig 正式化」/KR1
 - **下次 session 入口**: [progress.md](progress.md)
+
+---
+
+<details>
+<summary>已完成的 Phase 0/1（折叠）</summary>
+
+**Phase 0 — 安全 + 公开化** ✅ 完成
+
+- **状态**: ✅ 完成（7/10 收尾，其余由 ccprivate 架构变更替代）
+- **开始**: 2026-06-08
+- **完成**: 2026-07-02
+- **决策**: [ADR-0001](adr/0001-secret-strategy.md)
+
+**Phase 1 — CI 基础** ✅ 完成
+
+- **状态**: ✅ 完成
+- **开始**: 2026-07-02
+- **完成**: 2026-07-02
+- **产出**: `.github/workflows/check.yml` + CHANGELOG v2.0.0 + ROADMAP 更新
+
+</details>
+
+## 当前任务（Phase 2）
+
+| # | 任务 | 优先级 | 预计 | 状态 |
+|---|------|--------|------|------|
+| 1 | ADR 索引补全（0002/0003）| P0 | 10min | 🟢 done |
+| 2 | 写 RELEASING.md | P0 | 30min | 🟢 done |
+| 3 | 更新 progress.md + task_plan.md | P0 | 15min | 🟢 done |
+| 4 | 检查所有文档一致性 | P1 | 20min | 🟡 known |
+
+**Phase 3（下一个）** — 用户确认后就绪后打 tag + GitHub Release
 
 ## Hill Chart（3 态进度）
 

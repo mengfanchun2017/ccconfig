@@ -166,7 +166,8 @@ env_update = {
     "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', '')),
+    "MAX_THINKING_TOKENS": "0"
 }
 
 claude_json = os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json'))
