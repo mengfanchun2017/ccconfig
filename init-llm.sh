@@ -132,10 +132,10 @@ switch_llm() {
         return $?
     fi
 
-    # 切到直连前先停 proxy
+    # 切到直连前先停 proxy（失败不中断，后面还要写 CC 配置）
     if is_proxy_running; then
         info "停止网关代理..."
-        bash "$LLMSWITCH_INIT" --stop
+        bash "$LLMSWITCH_INIT" --stop 2>/dev/null || true
     fi
 
     # 获取配置
