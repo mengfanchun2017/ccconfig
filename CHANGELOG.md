@@ -13,6 +13,36 @@ All notable changes to ccconfig will be documented in this file.
 - `hooks/pre-commit` — git hook 自动拦截：conf/*.json 非模板文件、API key 模式、私密 link 文件
 - `SECURITY.md` — 安全漏洞报告政策
 - `conf/f-logme.json.example` 加 `kr_route` 示例
+- `option-llmswitch` — 时间路由 LLM 网关代理
+  - `proxy.py` 本地代理 (127.0.0.1:8899)，按时段自动选 DeepSeek (非高峰) / MiniMax (高峰)
+  - `init.sh` 管理脚本 (start/stop/status/mode)
+  - `watchdog.sh` 守护进程 (30s 健康检查 + 自动重启 + 路由变更通知)
+  - `init-llm.sh` Gateway 模式集成 (启动 proxy + watchdog，显示路由目标)
+- `windows-tools/psupdate/` — PowerShell 7 升级工具，绕过 winget MSI 缓存丢失问题
+- `windows-tools/wslconf/` — WSL 2 配置模板 (`.wslconfig` + `/etc/wsl.conf`)
+- `windows-tools/music-convert/` — NCM 解密 + 格式转换工具
+- `lib/README.md` + `conf/README.md` + `link/README.md` + `link/skills/README.md` + `link/agents/README.md`
+
+### Fixed
+- **proxy: build_provider_registry 遍历 gateway 条目 → KeyError → providers 空 → 全部 502**
+  - gateway 条目无 `key` 字段，`cfg["key"]` 抛 KeyError；改为跳过无 key 的非 provider 条目
+- **proxy: 每请求 new AsyncClient → 每次 TCP+TLS 握手，并发时累积延迟**
+  - 改为 lifespan 创建共享 `httpx.AsyncClient`，全请求复用连接池
+- **proxy: strip_thinking() 对 MiniMax 请求体双序列化 (json.loads→json.dumps)**
+  - 大型 tool use JSON 经深拷贝后结构完整性受损 → `API Error: Failed to parse JSON`
+  - MiniMax 直连不报错，移除 body 修改，纯透传（仅改 model name + auth header）
+- **proxy: 响应 content-length 头未移除，github 解压后长度不匹配导致 JSON 截断**
+  - 上游 gzip 响应 content-length 是压缩后大小，httpx 解压后 r.content 变大
+  - Starlette 发现 headers 有 content-length 不重新计算 → CC 按错误长度读 → 截断
+- **init-llm: 切直连后 CC 配置被 watchdog 自动重启覆盖**
+  - watchdog 检测 proxy 死亡 → 自动调 `init.sh --start` → `write_cc_env` 覆写 CC 为 Gateway URL
+  - 修复：切直连前先杀 watchdog
+- **init-llm: switch_to_gateway 不启动 watchdog**
+  - 修后: proxy 启动后自动拉起 watchdog daemon
+- **monitor: llmswitch 路由事件颜色从 cyan 改为橙色 (256-color 208)**，高峰切换更醒目
+- **BOOTSTRAP.md**: 新增 Windows WSL 2 安装指南 + PowerShell 7 升级说明
+- **安全清理**: 移除 `conf/f-moocrec.json.example` 和 `link/skills/` 中的真实飞书 tenant domain
+- **安全清理**: `.gitignore` 加 `*:Zone.Identifier` 防止 Windows ADS 文件误提交
 - `conf/cloudflare.json.example` + `conf/supabase.json.example` 模板
 
 ### Security
