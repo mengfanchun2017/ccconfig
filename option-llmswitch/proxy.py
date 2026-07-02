@@ -262,6 +262,7 @@ async def proxy(path: str, request: Request):
         response_headers = dict(r.headers)
         response_headers.pop("transfer-encoding", None)
         response_headers.pop("content-encoding", None)
+        response_headers.pop("content-length", None)
 
         if "text/event-stream" in r.headers.get("content-type", ""):
             async def stream():
