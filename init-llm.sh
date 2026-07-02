@@ -214,7 +214,6 @@ print("conf/llm.json 已更新")
 PYEOF
 
     success "LLM 已切换为: $name"
-    info "提示：跨模型切换后建议新开 Claude Code session，避免 thinking 块不兼容"
 }
 
 switch_to_gateway() {
@@ -253,7 +252,8 @@ env_update = {
     "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', '')),
+    "MAX_THINKING_TOKENS": "0"
 }
 
 claude_json = os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json'))
@@ -293,7 +293,6 @@ print("conf/llm.json 已更新")
 PYEOF
 
     success "LLM 已切换为: Gateway"
-    info "提示：跨模型切换后建议新开 Claude Code session，避免 thinking 块不兼容"
 }
 
 # ========== 显示列表 ==========
