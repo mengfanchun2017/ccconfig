@@ -26,6 +26,7 @@ source "$SCRIPT_DIR/lib/path-helper.sh"
 CONFIG_FILE="$SCRIPT_DIR/conf/llm.json"
 LLMSWITCH_CONF="$SCRIPT_DIR/option-llmswitch/conf/llmswitch.json"
 LLMSWITCH_INIT="$SCRIPT_DIR/option-llmswitch/init.sh"
+LLMSWITCH_WATCHDOG="$SCRIPT_DIR/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
 ensure_config "$CONFIG_FILE" "conf/llm.json" || exit 1
@@ -223,6 +224,13 @@ switch_to_gateway() {
         bash "$LLMSWITCH_INIT" --start || { error "代理启动失败"; return 1; }
     else
         info "网关代理已在运行"
+    fi
+
+    # 确保 watchdog 运行（监控 proxy 健康 + 路由变更通知）
+    local watchdog_pid_file="$HOME/.cache/llmswitch-watchdog.pid"
+    if ! [ -f "$watchdog_pid_file" ] || ! kill -0 "$(cat "$watchdog_pid_file")" 2>/dev/null; then
+        nohup bash "$LLMSWITCH_WATCHDOG" --daemon >> "$HOME/.cache/llmswitch-watchdog.log" 2>&1 &
+        info "watchdog 已启动"
     fi
 
     # 从 llm.json 读 gateway 条目获取 model/small_model
