@@ -2,7 +2,7 @@
 
 All notable changes to ccconfig will be documented in this file.
 
-## [Unreleased]
+## [2.0.0] — 2026-07-02
 
 ### Added
 - **双仓库公私分离** — 私有数据迁入 ccprivate 仓库
