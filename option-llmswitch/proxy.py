@@ -17,7 +17,6 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import StreamingResponse
-from starlette.background import BackgroundTask
 
 CCCONFIG = Path(os.environ.get("CCCONFIG_HOME", Path.home() / "git" / "ccconfig"))
 
@@ -162,27 +161,6 @@ state = ProxyState()
 http_client = None
 
 
-def strip_thinking(body):
-    """Remove thinking blocks from request body for non-thinking providers."""
-    if not isinstance(body, dict):
-        return body
-    body = json.loads(json.dumps(body))  # deep copy
-    body["thinking"] = {"type": "disabled"}
-    if "messages" in body:
-        for msg in body["messages"]:
-            if isinstance(msg.get("content"), list):
-                msg["content"] = [
-                    b for b in msg["content"]
-                    if b.get("type") != "thinking"
-                ]
-    if "system" in body and isinstance(body["system"], list):
-        body["system"] = [
-            b for b in body["system"]
-            if b.get("type") != "thinking"
-        ]
-    return body
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global http_client
@@ -271,15 +249,6 @@ async def proxy(path: str, request: Request):
     headers["authorization"] = f"Bearer {provider['key']}"
     headers.pop("content-length", None)
 
-    # Strip thinking if routing to MiniMax (which doesn't support it)
-    target_body = body
-    if is_messages and provider_key == "minimax" and body:
-        try:
-            req_json = json.loads(body)
-            target_body = json.dumps(strip_thinking(req_json)).encode("utf-8")
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            pass
-
     client = http_client
 
     try:
@@ -287,7 +256,7 @@ async def proxy(path: str, request: Request):
             method=request.method,
             url=target_url,
             headers=headers,
-            content=target_body,
+            content=body,
         )
 
         response_headers = dict(r.headers)
