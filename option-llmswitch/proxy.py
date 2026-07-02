@@ -159,6 +159,7 @@ class ProxyState:
 
 
 state = ProxyState()
+http_client = None
 
 
 def strip_thinking(body):
@@ -184,10 +185,13 @@ def strip_thinking(body):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global http_client
     llm_config_path = CCCONFIG / "conf" / "llm.json"
     config_path = CCCONFIG / "option-llmswitch" / "conf" / "llmswitch.json"
     state.reload_if_changed(str(config_path), str(llm_config_path))
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0))
     yield
+    await http_client.aclose()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -276,7 +280,7 @@ async def proxy(path: str, request: Request):
         except (json.JSONDecodeError, UnicodeDecodeError):
             pass
 
-    client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0))
+    client = http_client
 
     try:
         r = await client.request(
@@ -292,11 +296,8 @@ async def proxy(path: str, request: Request):
 
         if "text/event-stream" in r.headers.get("content-type", ""):
             async def stream():
-                try:
-                    async for chunk in r.aiter_bytes():
-                        yield chunk
-                finally:
-                    await client.aclose()
+                async for chunk in r.aiter_bytes():
+                    yield chunk
 
             return StreamingResponse(
                 stream(),
@@ -310,17 +311,14 @@ async def proxy(path: str, request: Request):
                 status_code=r.status_code,
                 headers=response_headers,
                 media_type=r.headers.get("content-type", "application/json"),
-                background=BackgroundTask(client.aclose),
             )
     except httpx.ConnectError:
-        await client.aclose()
         return Response(
             content=json.dumps({"error": f"cannot connect to {provider_key}"}).encode(),
             status_code=502,
             media_type="application/json",
         )
     except Exception as e:
-        await client.aclose()
         return Response(
             content=json.dumps({"error": str(e)}).encode(),
             status_code=502,
