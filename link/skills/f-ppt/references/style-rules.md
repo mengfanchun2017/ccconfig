@@ -39,7 +39,7 @@
 
 ## 默认测试文档
 
-- 飞书 wiki: https://<your-tenant>.feishu.cn/wiki/M0z0wSAtNivik6k89EGcyvVenjg
+- 飞书 wiki: https://<your-tenant>.feishu.cn/wiki/<your-wiki-token>
 - 标题: 算力资源池组网规划
 - 内容: 交换机选型 + 服务器部署参数 + 组网方案
 - 用途: f-ppt 功能测试的默认输入文档

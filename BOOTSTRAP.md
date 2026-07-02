@@ -16,6 +16,94 @@
 
 ---
 
+## Windows 前置 — 安装 WSL 2 + Ubuntu
+
+> 如果机器已经是 Linux（或已有 WSL），跳过本节直接到阶段 0。
+
+Windows 10 2004+ / Windows 11 自带 WSL 2 支持。两步：
+
+### 1. 启用 WSL 2
+
+以**管理员**身份打开 PowerShell，执行：
+
+```powershell
+wsl --install
+```
+
+这会自动：
+- 启用"虚拟机平台"和"适用于 Linux 的 Windows 子系统"两个 Windows 功能
+- 安装 WSL 2 内核
+- 将 WSL 2 设为默认版本
+- 安装默认 Linux 发行版（通常是 Ubuntu 24.04 LTS）
+
+**重启 Windows** 后，Ubuntu 会自动启动，提示你创建 Linux 用户名和密码。
+
+> **Note for China users**: 如果下载速度慢或失败，先配镜像：
+> ```powershell
+> # 可选 - 指定镜像加速
+> wsl --install --web-download
+> ```
+
+### 2. 验证 WSL 版本
+
+```powershell
+wsl --list --verbose
+```
+
+确保 VERSION 列为 `2`。如果是 `1`：
+
+```powershell
+wsl --set-version Ubuntu 2
+```
+
+### 3. 进入 Ubuntu
+
+在 PowerShell 中：
+
+```powershell
+wsl
+```
+
+或直接从开始菜单启动 "Ubuntu"。进入后继续下面的阶段 0。
+
+### WSL 网络说明
+
+WSL 2 使用 NAT 网络，与 Windows 主机共享 IP。在 WSL 里跑的服务（如 LLM Gateway proxy）监听 `127.0.0.1` 时，可以从 Windows 浏览器 `http://localhost:<port>` 访问。
+
+---
+
+## 可选 — PowerShell 7 升级
+
+> Windows 自带 PowerShell 5.1。如果你的自动化脚本或 IDE 集成需要 PowerShell 7+，用 `windows-tools/psupdate/` 升级。
+
+**为什么需要升级**：
+- PowerShell 7 有更好的 JSON/HTTP 处理、`&&`/`||` 管道、跨平台兼容
+- `winget upgrade --id Microsoft.PowerShell` 在某些环境因 MSI 缓存丢失而失败（Error 1612/1714/1603）
+- ccconfig 自带 `windows-tools/psupdate/psupdate.ps1` 绕过 winget，直接走 GitHub MSI + 强制旧版卸载
+
+**使用**：
+
+以管理员身份启动 PowerShell 5（或 PowerShell 7），执行：
+
+```powershell
+# 升到最新 stable
+.\windows-tools\psupdate\psupdate.ps1
+
+# 升到指定版本
+.\windows-tools\psupdate\psupdate.ps1 -Version 7.6.2
+```
+
+脚本会：
+1. 从 GitHub Releases 下载最新 MSI
+2. 强制卸载旧版 PowerShell（处理 MSI 缓存丢失的情况）
+3. 静默安装新版
+4. 清理临时文件
+
+> **注意**：PowerShell 7 和 Windows 自带的 PowerShell 5.1 可以共存，不会冲突。
+> 装完后 `pwsh.exe` 就是新版，`powershell.exe` 保持旧版。
+
+---
+
 ## 阶段 0 — OS 基础（首次装的机器）
 
 ```bash
