@@ -151,7 +151,7 @@ commit_and_push() {
             fi
         else
             echo "$pull_output" >> "$LOG_FILE"
-            if [ -z "$pull_output" ]; then
+            if [ -z "$pull_output" ] || [ -z "$(echo "$pull_output" | tr -d '[:space:]')" ]; then
                 warn "[$repo] !! pull failed: timeout (network unreachable)"
             elif echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls"; then
                 warn "[$repo] !! pull failed: network issue"
