@@ -39,6 +39,7 @@ export LD_LIBRARY_PATH="$HOME/.local/lib:$LD_LIBRARY_PATH"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+ORANGE='\033[38;5;208m'
 CYAN='\033[0;36m'
 GRAY='\033[0;90m'
 NC='\033[0m'
@@ -431,9 +432,9 @@ colorize_line() {
         return
     fi
 
-    # LLMSWITCH (cyan) — gateway route/start/stop/mode events
+    # LLMSWITCH (orange) — gateway route/start/stop/mode events
     if echo "$content" | grep -qE '^llmswitch'; then
-        echo -e "  ${CYAN}${ts}${NC}  $content"
+        echo -e "  ${ORANGE}${ts}${NC}  $content"
         return
     fi
 
