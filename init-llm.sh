@@ -2,7 +2,7 @@
 # ==============================================
 # LLM 配置管理脚本
 # 功能：
-#   - 列出所有可用 LLM
+#   - 列出所有可用 LLM（MiniMax / DeepSeek / Gateway）
 #   - 切换 LLM
 #   - 查看当前 LLM
 #
@@ -24,6 +24,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/path-helper.sh"
 CONFIG_FILE="$SCRIPT_DIR/conf/llm.json"
+LLMSWITCH_CONF="$SCRIPT_DIR/option-llmswitch/conf/llmswitch.json"
+LLMSWITCH_INIT="$SCRIPT_DIR/option-llmswitch/init.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
 ensure_config "$CONFIG_FILE" "conf/llm.json" || exit 1
@@ -40,6 +42,37 @@ info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 success() { echo -e "${GREEN}✅ $1${NC}"; }
 warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 error() { echo -e "${RED}❌ $1${NC}"; }
+
+# ========== Gateway 辅助 ==========
+is_proxy_running() {
+    local pid_file="$HOME/.cache/llmswitch.pid"
+    [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null
+}
+
+get_proxy_health() {
+    curl -s --max-time 3 "http://127.0.0.1:8899/health" 2>/dev/null || echo '{}'
+}
+
+read_gateway_routes() {
+    # 返回 "高峰→MiniMax / 非高峰→DeepSeek" 格式的路由摘要
+    python3 - "$LLMSWITCH_CONF" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        config = json.load(f)
+except Exception:
+    sys.exit(0)
+
+routes = config.get('routes', {}).get('llmswitch', {})
+peak = routes.get('peak', '?')
+off_peak = routes.get('off_peak', '?')
+peak_hours = config.get('peak_hours', [])
+blocks = []
+for b in peak_hours:
+    blocks.append(f"{b['start']}-{b['end']}")
+print(f"高峰 {','.join(blocks)} → {peak} ｜ 非高峰 → {off_peak}")
+PYEOF
+}
 
 # ========== 读取配置 ==========
 list_llms() {
@@ -93,6 +126,17 @@ PYEOF
 # ========== 切换 LLM ==========
 switch_llm() {
     local name="$1"
+
+    if [[ "$name" == "gateway" ]]; then
+        switch_to_gateway
+        return $?
+    fi
+
+    # 切到直连前先停 proxy
+    if is_proxy_running; then
+        info "停止网关代理..."
+        bash "$LLMSWITCH_INIT" --stop
+    fi
 
     # 获取配置
     CONFIG=$(get_llm_config "$name") || { error "无法获取 LLM 配置: $name"; return 1; }
@@ -165,6 +209,77 @@ PYEOF
     success "LLM 已切换为: $name"
 }
 
+switch_to_gateway() {
+    info "切换到 Gateway 模式"
+
+    # 启动 proxy（如未运行）
+    if ! is_proxy_running; then
+        info "启动 LLM 网关代理..."
+        bash "$LLMSWITCH_INIT" --start || { error "代理启动失败"; return 1; }
+    else
+        info "网关代理已在运行"
+    fi
+
+    # 从 llm.json 读 gateway 条目获取 model/small_model
+    local CONFIG=$(get_llm_config "gateway") || { error "无法获取 Gateway 配置"; return 1; }
+    IFS='|' read -r BASE_URL MODEL_NAME API_KEY SMALL_MODEL <<< "$CONFIG"
+
+    info "  API: $BASE_URL"
+    info "  模型: $MODEL_NAME → $(read_gateway_routes)"
+    info "  小模型: $SMALL_MODEL"
+
+    export BASE_URL MODEL_NAME SMALL_MODEL
+
+    python3 << 'PYEOF'
+import json, os
+
+env_update = {
+    "ANTHROPIC_BASE_URL": os.environ.get('BASE_URL', ''),
+    "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
+}
+
+claude_json = os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json'))
+try:
+    with open(claude_json, 'r') as f:
+        config = json.load(f)
+except:
+    config = {}
+config.setdefault('env', {}).update(env_update)
+with open(claude_json, 'w') as f:
+    json.dump(config, f, indent=4)
+print("~/.claude.json 已更新")
+
+settings_file = os.path.expanduser("~/.claude/settings.json")
+if os.path.islink(settings_file) and not os.path.exists(settings_file):
+    os.unlink(settings_file)
+try:
+    with open(settings_file, 'r') as f:
+        sconfig = json.load(f)
+except:
+    sconfig = {}
+sconfig.setdefault('env', {}).update(env_update)
+with open(settings_file, 'w') as f:
+    json.dump(sconfig, f, indent=4)
+print("~/.claude/settings.json 已更新")
+PYEOF
+
+    export CONFIG_FILE NAME="gateway"
+    python3 << 'PYEOF'
+import json, os
+with open(os.environ['CONFIG_FILE'], 'r') as f:
+    config = json.load(f)
+config['current'] = os.environ['NAME']
+with open(os.environ['CONFIG_FILE'], 'w') as f:
+    json.dump(config, f, indent=4)
+print("conf/llm.json 已更新")
+PYEOF
+
+    success "LLM 已切换为: Gateway"
+}
+
 # ========== 显示列表 ==========
 show_list() {
     echo ""
@@ -182,13 +297,26 @@ show_list() {
         if [[ -n "$small" ]]; then
             small_info="  (小模型: $small)"
         fi
-        printf "  %s %-10s %-20s%s\n" "$marker" "$display_name" "$model" "$small_info"
+        local route_info=""
+        if [[ "$name" == "gateway" ]]; then
+            route_info="  — $(read_gateway_routes)"
+        fi
+        printf "  %s %-10s %-20s%s%s\n" "$marker" "$display_name" "$model" "$small_info" "$route_info"
     done
     echo ""
 
     current=$(grep "^CURRENT:" <(list_llms) | cut -d: -f2)
     if [[ -n "$current" ]]; then
-        info "当前: $current"
+        if [[ "$current" == "gateway" ]] && is_proxy_running; then
+            local h=$(get_proxy_health)
+            local route=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('current_route','?'))" 2>/dev/null)
+            local peak=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('peak',False))" 2>/dev/null)
+            local peak_str=""
+            [ "$peak" = "True" ] && peak_str=" (高峰)"
+            info "当前: Gateway → $route$peak_str"
+        else
+            info "当前: $current"
+        fi
     fi
 }
 
@@ -213,15 +341,19 @@ interactive_select() {
         if [[ -z "$name" ]]; then
             continue
         fi
-        names+=("$name")  # name 是配置键，用于 switch_llm
+        names+=("$name")
         local small_str=""
         if [[ -n "$small" ]]; then
             small_str=" [小模型: $small]"
         fi
+        local route_str=""
+        if [[ "$name" == "gateway" ]]; then
+            route_str="  — $(read_gateway_routes)"
+        fi
         if [[ "$marker" == "◀" ]]; then
-            printf "  %d) %s (%s)%s ◀ 当前\n" "$idx" "$display_name" "$model" "$small_str"
+            printf "  %d) %s (%s)%s%s ◀ 当前\n" "$idx" "$display_name" "$model" "$small_str" "$route_str"
         else
-            printf "  %d) %s (%s)%s\n" "$idx" "$display_name" "$model" "$small_str"
+            printf "  %d) %s (%s)%s%s\n" "$idx" "$display_name" "$model" "$small_str" "$route_str"
         fi
         ((idx++))
     done < <(echo "$lines")
