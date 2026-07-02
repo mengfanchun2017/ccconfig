@@ -10,6 +10,7 @@ Usage: python3 proxy.py [--config llmswitch.json] [--llm-config llm.json]
 import argparse
 import json
 import os
+import re
 from contextlib import asynccontextmanager
 from datetime import datetime, time as dt_time
 from pathlib import Path
@@ -216,16 +217,12 @@ async def proxy(path: str, request: Request):
     target_model = None
 
     if is_messages and body and "application/json" in content_type:
-        try:
-            req_json = json.loads(body)
-            model_name = req_json.get("model", "")
+        m = re.search(rb'"model"\s*:\s*"([^"]*)"', body)
+        if m:
+            model_name = m.group(1).decode("utf-8")
             provider_key, target_model = state.route(model_name)
-
             if provider_key and target_model and target_model != model_name:
-                req_json["model"] = target_model
-                body = json.dumps(req_json).encode("utf-8")
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            pass
+                body = body[: m.start(1)] + target_model.encode() + body[m.end(1) :]
 
     if provider_key is None:
         current = state.llm_config.get("current", "")
