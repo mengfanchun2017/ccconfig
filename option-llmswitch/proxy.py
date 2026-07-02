@@ -224,6 +224,18 @@ async def proxy(path: str, request: Request):
             if provider_key and target_model and target_model != model_name:
                 body = body[: m.start(1)] + target_model.encode() + body[m.end(1) :]
 
+        # MiniMax thinking compatibility: when routing to MiniMax, inject
+        # thinking=disabled so MiniMax doesn't require thinking blocks to be
+        # passed back. Per-model config in CC may have enabled thinking for
+        # the previous model (Anthropic), which is incompatible with MiniMax.
+        if provider_key == "minimax" and body and b'"thinking"' not in body:
+            body = re.sub(
+                rb'(\{\s*)',
+                rb'\1"thinking":{"type":"disabled"},',
+                body,
+                count=1,
+            )
+
     if provider_key is None:
         current = state.llm_config.get("current", "")
         if current in state.providers:
