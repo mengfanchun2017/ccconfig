@@ -44,6 +44,8 @@ def build_provider_registry(llm_config):
     """Build {provider_key: {base_url, key, model, small_model}}."""
     providers = {}
     for key, cfg in llm_config.get("llms", {}).items():
+        if not cfg.get("key"):
+            continue
         providers[key] = {
             "base_url": cfg["base_url"],
             "key": cfg["key"],
