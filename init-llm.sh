@@ -213,7 +213,7 @@ print("conf/llm.json 已更新")
 PYEOF
 
     success "LLM 已切换为: $name"
-    info "提示：跨模型切换后建议新开 Claude Code session，避免 thinking 块不兼容"
+    warn "切换后会报 \"API Error: Failed to parse JSON\"，需 /exit 后 claude 重连"
 }
 
 switch_to_gateway() {
@@ -292,7 +292,7 @@ print("conf/llm.json 已更新")
 PYEOF
 
     success "LLM 已切换为: Gateway"
-    info "提示：跨模型切换后建议新开 Claude Code session，避免 thinking 块不兼容"
+    warn "切换后会报 \"API Error: Failed to parse JSON\"，需 /exit 后 claude 重连"
 }
 
 # ========== 显示列表 ==========
