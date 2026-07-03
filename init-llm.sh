@@ -129,8 +129,11 @@ switch_llm() {
     local name="$1"
 
     if [[ "$name" == "gateway" ]]; then
-        switch_to_gateway
-        return $?
+        # TODO: 等 CC 修复 thinking 块兼容后取消注释
+        # switch_to_gateway
+        # return $?
+        warn "Gateway 暂不可用 — 等 Claude Code 更新后启用"
+        return 1
     fi
 
     # 切到直连前先停 watchdog + proxy
@@ -409,6 +412,11 @@ interactive_select() {
 
     if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "$total" ]]; then
         target="${names[$((choice-1))]}"
+        if [[ "$target" == "gateway" ]]; then
+            warn "Gateway 暂不可用 — 等 Claude Code 更新后启用"
+            info "建议使用 1) MiniMax 或 2) DeepSeek"
+            return 1
+        fi
         switch_llm "$target"
     else
         error "无效选择: $choice"
