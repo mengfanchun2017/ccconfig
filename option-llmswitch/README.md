@@ -88,20 +88,40 @@ Claude Code ──> 127.0.0.1:8899 (proxy.py) ──> DeepSeek API (off-peak)
 
 ## 已知问题
 
-### 切换后 `API Error: Failed to parse JSON`
+### 1. 切换后 `API Error: Failed to parse JSON`
 
-**现象**：`init-llm.sh` 或 `init-llm.sh gateway` 切换 LLM 后，当前 Claude Code
-session 会间歇性报 `API Error: Failed to parse JSON`。
+**现象**：`init-llm.sh` 切换 LLM 后，当前 CC session 间歇性报错。
 
-**原因**：CC 启动时将 model router 锁定到初始 provider 的行为（包括 thinking
-参数格式），切 provider 后 router 未刷新，旧格式请求与新 provider 不兼容。
-通过 Gateway proxy 时问题更明显，proxy 在 DeepSeek 与 MiniMax 间切换时
-thinking 块格式差异会导致后续请求解析失败。
+**根因**：CC 启动时锁定 model router（含 thinking 参数格式），切换 provider
+后 router 不刷新。通过 Gateway proxy 时，DeepSeek→MiniMax 边界切换会导致
+thinking 块格式差异 → 后续请求解析失败。
 
-**当前方案**：`/exit` 退出 CC，重新 `claude` 启动恢复 session。CC 启动时
-读取最新配置，router 初始化正确。
+**尝试过的修复**（均不完全生效）：
 
-**待 CC 更新**：等 Claude Code 官方支持 `clear_thinking_20251015` beta
-header 或在 session 内动态刷新 model router 行为。
+| 尝试 | 结果 |
+|------|------|
+| `build_provider_registry` 跳过无 key 条目 | 修复 proxy 502，但不解决 JSON 解析 |
+| 共享 `httpx.AsyncClient` 连接池 | 降低延迟，不完全解决 |
+| `strip_thinking()` 移除 thinking 块 | 导致 body 双序列化，引入新错误 |
+| 响应 `content-length` 头移除 | 修复截断，不完全解决 |
+| model 改写改用 regex 精准替换 | 消除全序列化，agent 并发正常 |
+| `MAX_THINKING_TOKENS=0` | 影响模型推理质量，已回退 |
+| proxy 注入 `thinking=disabled` 给 MiniMax | 影响模型推理质量，已回退 |
+
+**当前方案**：
+- proxy 纯透传 thinking 块，零修改
+- `init-llm.sh` Gateway 选项标注 `[等 CC 更新后启用]`
+- 切换后 `/exit` → 重新 `claude` 恢复 session
+- 代码中保留 D/M 强制路由测试选项（已注释），等 CC 修复后启用
+
+**等 CC 支持**：`clear_thinking_20251015` beta header、session 内动态刷新 router
 
 **记录日期**：2026-07-03
+
+### 2. Proxy 透传架构决策
+
+proxy 只改写两条：
+1. **model name**：regex 精准替换（`"model":"llmswitch"` → `"MiniMax-M3"`），零 body 序列化
+2. **Authorization header**：替换为对应 provider 的 API key
+
+其他所有内容（thinking 参数、tool definitions、SSE 流）完整透传，不做任何修改。
