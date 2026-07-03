@@ -85,3 +85,23 @@ Claude Code ──> 127.0.0.1:8899 (proxy.py) ──> DeepSeek API (off-peak)
 - `bash monitor.sh status` — 显示 LLM Gateway 状态行（绿/黄/灰/红）
 - `bash status.sh` — 在 `[12] option-*` 区自动显示状态
 - `curl http://127.0.0.1:8899/health` — 获取 JSON 格式健康信息
+
+## 已知问题
+
+### 切换后 `API Error: Failed to parse JSON`
+
+**现象**：`init-llm.sh` 或 `init-llm.sh gateway` 切换 LLM 后，当前 Claude Code
+session 会间歇性报 `API Error: Failed to parse JSON`。
+
+**原因**：CC 启动时将 model router 锁定到初始 provider 的行为（包括 thinking
+参数格式），切 provider 后 router 未刷新，旧格式请求与新 provider 不兼容。
+通过 Gateway proxy 时问题更明显，proxy 在 DeepSeek 与 MiniMax 间切换时
+thinking 块格式差异会导致后续请求解析失败。
+
+**当前方案**：`/exit` 退出 CC，重新 `claude` 启动恢复 session。CC 启动时
+读取最新配置，router 初始化正确。
+
+**待 CC 更新**：等 Claude Code 官方支持 `clear_thinking_20251015` beta
+header 或在 session 内动态刷新 model router 行为。
+
+**记录日期**：2026-07-03
