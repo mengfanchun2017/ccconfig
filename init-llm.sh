@@ -366,7 +366,7 @@ interactive_select() {
         local route_str=""
         if [[ "$name" == "gateway" ]]; then
             route_str="  — $(read_gateway_routes)  [等 CC 更新后启用]"
-            printf "    %s (%s)%s%s\n" "$display_name" "$model" "$small_str" "$route_str"
+            printf " 暂不开放) %s (%s)%s%s\n" "$display_name" "$model" "$small_str" "$route_str"
             continue
         fi
         names+=("$name")
