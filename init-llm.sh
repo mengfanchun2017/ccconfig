@@ -373,12 +373,49 @@ interactive_select() {
         ((idx++))
     done < <(echo "$lines")
 
+    # Gateway 测试选项（proxy 运行时显示）
+    local test_opts=""
+    if is_proxy_running; then
+        echo ""
+        echo "  Gateway 测试（强制路由）："
+        echo "  D) Gateway → DeepSeek"
+        echo "  M) Gateway → MiniMax"
+        test_opts="DdMm"
+    fi
+
     echo ""
-    printf "请输入数字 [1-%d] 或直接回车保持当前: " "$total"
+    printf "请输入数字 [1-%d] 或直接回车保持当前" "$total"
+    if [[ -n "$test_opts" ]]; then
+        printf "  | D/M 强制路由"
+    fi
+    printf "  | 0 退出: "
     read -r choice
 
     if [[ -z "$choice" ]]; then
         info "保持当前: $current"
+        return 0
+    fi
+
+    if [[ "$choice" == "0" ]]; then
+        info "已退出"
+        return 0
+    fi
+
+    # Gateway 强制路由
+    if [[ "$choice" == "D" || "$choice" == "d" ]]; then
+        if is_proxy_running; then
+            switch_to_gateway
+            bash "$LLMSWITCH_INIT" --mode manual deepseek
+            info "Gateway → DeepSeek (手动强制)"
+        fi
+        return 0
+    fi
+    if [[ "$choice" == "M" || "$choice" == "m" ]]; then
+        if is_proxy_running; then
+            switch_to_gateway
+            bash "$LLMSWITCH_INIT" --mode manual minimax
+            info "Gateway → MiniMax (手动强制)"
+        fi
         return 0
     fi
 
