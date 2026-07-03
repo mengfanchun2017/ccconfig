@@ -348,8 +348,9 @@ interactive_select() {
     printf "当前 LLM：%s\n" "$current"
     echo ""
 
-    # 显示选项
+    # 显示选项（Gateway 不参与编号，仅信息展示）
     local idx=1
+    local selectable=0
     local names=()
     while IFS='|' read -r marker name display_name model base_url small; do
         if [[ "$marker" == "TOTAL:"* ]] || [[ "$marker" == "CURRENT:"* ]]; then
@@ -358,7 +359,6 @@ interactive_select() {
         if [[ -z "$name" ]]; then
             continue
         fi
-        names+=("$name")
         local small_str=""
         if [[ -n "$small" ]]; then
             small_str=" [小模型: $small]"
@@ -366,7 +366,11 @@ interactive_select() {
         local route_str=""
         if [[ "$name" == "gateway" ]]; then
             route_str="  — $(read_gateway_routes)  [等 CC 更新后启用]"
+            printf "    %s (%s)%s%s\n" "$display_name" "$model" "$small_str" "$route_str"
+            continue
         fi
+        names+=("$name")
+        ((selectable++))
         if [[ "$marker" == "◀" ]]; then
             printf "  %d) %s (%s)%s%s ◀ 当前\n" "$idx" "$display_name" "$model" "$small_str" "$route_str"
         else
@@ -375,16 +379,8 @@ interactive_select() {
         ((idx++))
     done < <(echo "$lines")
 
-    # TODO: 等 CC 修复 thinking 块兼容后启用 Gateway 强制路由测试
-    # if is_proxy_running; then
-    #     echo ""
-    #     echo "  Gateway 测试（强制路由）："
-    #     echo "  D) Gateway → DeepSeek"
-    #     echo "  M) Gateway → MiniMax"
-    # fi
-
     echo ""
-    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$total" "$current"
+    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$selectable" "$current"
     read -r choice
 
     if [[ -z "$choice" ]] || [[ "$choice" == "0" ]]; then
@@ -410,13 +406,8 @@ interactive_select() {
     #     return 0
     # fi
 
-    if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "$total" ]]; then
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "$selectable" ]]; then
         target="${names[$((choice-1))]}"
-        if [[ "$target" == "gateway" ]]; then
-            warn "Gateway 暂不可用 — 等 Claude Code 更新后启用"
-            info "建议使用 1) MiniMax 或 2) DeepSeek"
-            return 1
-        fi
         switch_llm "$target"
     else
         error "无效选择: $choice"
