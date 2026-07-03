@@ -337,16 +337,15 @@ show_list() {
 
 # ========== 交互式选择 ==========
 interactive_select() {
-    echo ""
-    echo "请选择 LLM："
-    echo ""
-
     local lines=$(list_llms)
     local total=$(echo "$lines" | grep "^TOTAL:" | cut -d: -f2)
     local current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
 
+    echo ""
+    printf "当前 LLM：%s\n" "$current"
+    echo ""
+
     # 显示选项
-    # 格式: marker|name|display_name|model|base_url|small
     local idx=1
     local names=()
     while IFS='|' read -r marker name display_name model base_url small; do
@@ -363,7 +362,7 @@ interactive_select() {
         fi
         local route_str=""
         if [[ "$name" == "gateway" ]]; then
-            route_str="  — $(read_gateway_routes)"
+            route_str="  — $(read_gateway_routes)  [等 CC 更新后启用]"
         fi
         if [[ "$marker" == "◀" ]]; then
             printf "  %d) %s (%s)%s%s ◀ 当前\n" "$idx" "$display_name" "$model" "$small_str" "$route_str"
@@ -373,51 +372,40 @@ interactive_select() {
         ((idx++))
     done < <(echo "$lines")
 
-    # Gateway 测试选项（proxy 运行时显示）
-    local test_opts=""
-    if is_proxy_running; then
-        echo ""
-        echo "  Gateway 测试（强制路由）："
-        echo "  D) Gateway → DeepSeek"
-        echo "  M) Gateway → MiniMax"
-        test_opts="DdMm"
-    fi
+    # TODO: 等 CC 修复 thinking 块兼容后启用 Gateway 强制路由测试
+    # if is_proxy_running; then
+    #     echo ""
+    #     echo "  Gateway 测试（强制路由）："
+    #     echo "  D) Gateway → DeepSeek"
+    #     echo "  M) Gateway → MiniMax"
+    # fi
 
     echo ""
-    printf "请输入数字 [1-%d] 或直接回车保持当前" "$total"
-    if [[ -n "$test_opts" ]]; then
-        printf "  | D/M 强制路由"
-    fi
-    printf "  | 0 退出: "
+    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$total" "$current"
     read -r choice
 
-    if [[ -z "$choice" ]]; then
+    if [[ -z "$choice" ]] || [[ "$choice" == "0" ]]; then
         info "保持当前: $current"
         return 0
     fi
 
-    if [[ "$choice" == "0" ]]; then
-        info "已退出"
-        return 0
-    fi
-
-    # Gateway 强制路由
-    if [[ "$choice" == "D" || "$choice" == "d" ]]; then
-        if is_proxy_running; then
-            switch_to_gateway
-            bash "$LLMSWITCH_INIT" --mode manual deepseek
-            info "Gateway → DeepSeek (手动强制)"
-        fi
-        return 0
-    fi
-    if [[ "$choice" == "M" || "$choice" == "m" ]]; then
-        if is_proxy_running; then
-            switch_to_gateway
-            bash "$LLMSWITCH_INIT" --mode manual minimax
-            info "Gateway → MiniMax (手动强制)"
-        fi
-        return 0
-    fi
+    # TODO: 等 CC 修复后取消注释
+    # if [[ "$choice" == "D" || "$choice" == "d" ]]; then
+    #     if is_proxy_running; then
+    #         switch_to_gateway
+    #         bash "$LLMSWITCH_INIT" --mode manual deepseek
+    #         info "Gateway → DeepSeek (手动强制)"
+    #     fi
+    #     return 0
+    # fi
+    # if [[ "$choice" == "M" || "$choice" == "m" ]]; then
+    #     if is_proxy_running; then
+    #         switch_to_gateway
+    #         bash "$LLMSWITCH_INIT" --mode manual minimax
+    #         info "Gateway → MiniMax (手动强制)"
+    #     fi
+    #     return 0
+    # fi
 
     if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "$total" ]]; then
         target="${names[$((choice-1))]}"
