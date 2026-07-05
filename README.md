@@ -108,7 +108,9 @@ bash ~/git/ccconfig/init.sh all
 bash ~/git/ccconfig/status.sh
 ```
 
-> **无 ccprivate？** 跑 `bash ccconfig/share/setup.sh` 进入交互式配置向导（API key 手动输入，不依赖私有仓库）。
+> **无 ccprivate？** 两种方式：
+> - **推荐**：按 [ccprivate 搭建指南](docs/ccprivate-guide.md) 建立私有配置仓库（一次配置，多机复用）
+> - **快速**：跑 `bash ccconfig/share/setup.sh` 进入交互式配置向导（手动输入 API key）
 
 ## 核心命令
 
