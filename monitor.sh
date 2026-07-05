@@ -99,9 +99,16 @@ check_deps() {
 commit_and_push() {
     local repo_dir="$1"
 
+    local repo=$(repo_name "$repo_dir")
+    local lock_dir="$repo_dir/.monitor-sync.lock"
+    if ! mkdir "$lock_dir" 2>/dev/null; then
+        do_log "[$repo] skip — sync already in progress"
+        return 0
+    fi
+    trap "rmdir '$lock_dir' 2>/dev/null" RETURN
+
     rm -f "$repo_dir/.git/index.lock" 2>/dev/null
 
-    local repo=$(repo_name "$repo_dir")
     local changed_files=$(git -C "$repo_dir" status --porcelain 2>/dev/null)
     if [ -z "$changed_files" ]; then
         log "[$repo] already up to date"
@@ -133,8 +140,12 @@ commit_and_push() {
         log "[$repo] OK committed $commit_hash"
 
         local branch=$(git -C "$repo_dir" branch --show-current)
-        local pull_output
-        if pull_output=$(timeout 120 git -C "$repo_dir" pull --rebase origin "$branch" 2>&1); then
+        local pull_output pull_rc
+        set +e
+        pull_output=$(timeout --kill-after=10 60 git -C "$repo_dir" pull --rebase origin "$branch" 2>&1)
+        pull_rc=$?
+        set -e
+        if [ $pull_rc -eq 0 ]; then
             if echo "$pull_output" | grep -q "is up to date\|up-to-date\|Already up to date"; then
                 :  # no remote changes, rebase had nothing to do
             else
@@ -151,19 +162,16 @@ commit_and_push() {
             fi
         else
             echo "$pull_output" >> "$LOG_FILE"
-            if [ -z "$pull_output" ] || [ -z "$(echo "$pull_output" | tr -d '[:space:]')" ]; then
-                warn "[$repo] !! pull failed: timeout (network unreachable)"
+            if [ $pull_rc -eq 124 ]; then
+                warn "[$repo] !! pull failed: network timeout (60s)"
             elif echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls"; then
                 warn "[$repo] !! pull failed: network issue"
             elif echo "$pull_output" | grep -qi "unrelated histories"; then
                 error "[$repo] !! pull failed: unrelated histories — 需手动处理"
             elif echo "$pull_output" | grep -qi "CONFLICT\|conflict\|could not be applied"; then
-                # 雪球防御：rebase 冲突 = 本地有 commit + 远程有 commit 分叉。
-                # 自动 reset --hard origin/<branch> 终止雪球（自动 sync 场景下可接受）。
                 git -C "$repo_dir" rebase --abort 2>/dev/null || true
                 warn "[$repo] !! rebase 冲突 — 自动 reset --hard 到 origin/$branch（丢弃本地未推送 commit）"
                 git -C "$repo_dir" reset --hard "origin/$branch" 2>&1 | head -1 >> "$LOG_FILE" || true
-                # 如果 working tree 有未 commit 改动，恢复回来
                 git -C "$repo_dir" stash pop 2>/dev/null || true
                 log "[$repo] 已同步到远程（本地未推送 commit 已丢弃）"
             else
