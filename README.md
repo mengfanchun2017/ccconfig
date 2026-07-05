@@ -94,23 +94,20 @@ ccconfig/
 > **开发者**：用 `main` 分支跟踪最新代码。
 
 ```bash
-# 1. 克隆双仓库（稳定版用 release 分支）
-gh repo clone <your-username>/cconfig ~/git/cconfig -- --branch release
-gh repo clone <your-username>/ccprivate ~/git/ccprivate
+# 1. 克隆 ccconfig（稳定版用 release 分支）
+gh repo clone <your-github-username>/ccconfig ~/git/cconfig -- --branch release
 
-# 2. 私有 + 公开链接一步到位
-bash ~/git/ccprivate/setup.sh
+# 2. 一键创建 ccprivate（交互式，收集 GitHub 账号 + LLM API Key）
+bash ~/git/ccconfig/bin/init-ccprivate.sh
 
-# 3. 一键初始化（Ubuntu + LLM + MCP + Skills + Python）
+# 3. 系统初始化（Ubuntu + LLM + MCP + Skills + Python）
 bash ~/git/ccconfig/init.sh all
 
 # 4. 状态检查
 bash ~/git/ccconfig/status.sh
 ```
 
-> **无 ccprivate？** 两种方式：
-> - **推荐**：按 [ccprivate 搭建指南](docs/ccprivate-guide.md) 建立私有配置仓库（一次配置，多机复用）
-> - **快速**：跑 `bash ccconfig/share/setup.sh` 进入交互式配置向导（手动输入 API key）
+> **已有 ccprivate？** 用 `bash ~/git/ccconfig/bin/init-ccprivate.sh --clone` 从 GitHub 克隆。
 
 ## 核心命令
 

@@ -145,82 +145,71 @@ gh auth status
 
 ---
 
-## 阶段 3 — 克隆仓库
+## 阶段 3 — 克隆 ccconfig + 初始化 ccprivate
 
-> **用户**：直接 clone release 分支拿稳定版。
-> **开发者/想自定义**：先 Fork 再 clone 自己的 fork（main 分支跟踪最新代码）。
+> **用户**：clone release 分支，一条命令建 ccprivate。
+> **开发者**：先 Fork 再 clone 自己的 fork（main 跟踪最新代码）。
 
-### 3a. 创建 ccprivate（一次性）
-
-**ccprivate 是你的私有配置仓库**，存放 API key + Token + 个人 CLAUDE.md + memory。
-ccconfig 本身不含任何密钥，通过 symlink 读取 ccprivate 的真实值。
-
-> 📖 **完整搭建步骤 → [docs/ccprivate-guide.md](docs/ccprivate-guide.md)**
-> 首次使用必须按指南建好 ccprivate；已有则直接 clone。
-
-### 3b. 克隆到本地
+### 3a. 克隆 ccconfig
 
 **用 gh 克隆，不要用 git**（gh 知道用你的 token）：
 
 ```bash
 mkdir -p ~/git && cd ~/git
 
-# ccconfig（稳定版用 release 分支）
+# 稳定版用 release 分支
 gh repo clone <your-github-username>/ccconfig -- --branch release
 
 # 开发者跟踪最新代码用 main：
 # gh repo clone <your-github-username>/ccconfig
-
-# ccprivate（你的私有配置仓库）
-gh repo clone <your-github-username>/ccprivate
 ```
 
-### 3d. Windows 用户：PowerShell 7 + WSL 网络优化
+### 3b. 初始化 ccprivate（一条命令）
 
-> Linux/macOS 用户跳过本节，直接到阶段 4。
+ccprivate 是私有配置仓库，存放 API key + Token + 个人配置。**一条命令完成**：
 
-克隆完 ccconfig 后，`windows-tools/` 脚本已在本地，直接跑。
+```bash
+bash ~/git/ccconfig/bin/init-ccprivate.sh
+```
 
-**PowerShell 7 升级**（以管理员身份打开 PowerShell）：
+脚本交互式收集信息（GitHub 账号、邮箱、LLM API Key），自动：
+- 创建 `~/git/ccprivate/` 完整目录结构
+- 生成 `conf/llm.json` + `conf/claude.json` + `conf/ubuntu.json`
+- 生成 `link/CLAUDE.md` + `link/settings.json` + `setup.sh`
+- 创建 GitHub 私有仓库并推送
+- 建立所有 symlink（私有 + 公开）
+
+> **已有 ccprivate？** 其他机器恢复时用 `bash ~/git/ccconfig/bin/init-ccprivate.sh --clone` 直接克隆。
+>
+> **手动控制**：需要自定义更多配置 → [docs/ccprivate-guide.md](docs/ccprivate-guide.md)。
+
+### 3c. Windows 用户：PowerShell 7 + WSL 网络优化
+
+> Linux/macOS 用户跳过，直接到阶段 4。
+
+`windows-tools/` 脚本已在 ccconfig 里：
+
+**PowerShell 7 升级**（管理员 PowerShell）：
 
 ```powershell
-# ccconfig 自带升级脚本，绕过 winget MSI 缓存丢失问题（Error 1612/1714/1603）
 powershell -ExecutionPolicy Bypass -File ".\windows-tools\psupdate\psupdate.ps1"
 ```
 
-脚本自动：下载最新 MSI → 卸载旧版 → 静默安装新版 → 清理临时文件。PowerShell 7 和系统自带 5.1 共存，`pwsh.exe` 是新版。
-
-**WSL 网络优化**（普通 PowerShell 即可）：
+**WSL 网络优化**（普通 PowerShell）：
 
 ```powershell
-# 配置 .wslconfig（网络镜像 + DNS 隧道 + 自动代理）
 powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconfig.ps1"
-
-# 配置 /etc/wsl.conf（关闭 Windows PATH 注入，避免污染 Linux 环境）
 powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconf.ps1"
-
-# 必须重启 WSL 才能生效
 wsl --shutdown
 ```
 
-配置后 `%USERPROFILE%\.wslconfig` 内容：
-```ini
-[wsl2]
-networkingMode=mirrored
-dnsTunneling=true
-autoProxy=true
-firewall=true
-```
-
-> 配完 WSL 会 shutdown，重新 `wsl` 进入 Ubuntu 后继续阶段 4。
+配完 WSL 会 shutdown，重新 `wsl` 进入 Ubuntu 后继续阶段 4。
 
 ---
 
-```bash
-# 1. 私有链接 + 公开链接一步到位
-bash ~/git/ccprivate/setup.sh
+## 阶段 4 — 系统初始化
 
-# 2. 系统初始化（装依赖、Claude Code、monitor）
+```bash
 cd ~/git/ccconfig
 bash init.sh all
 ```
@@ -229,16 +218,15 @@ bash init.sh all
 
 | 步骤 | 脚本 | 做了什么 |
 |------|------|----------|
-| 私有链接 | `ccprivate/setup.sh` | ~/CLAUDE.md + ~/.claude/* + memory + 项目 CLAUDE.md + conf 覆盖 |
-| 公开链接 | `ccconfig/setup-links.sh` | rules/agents/commands/skills → ~/.claude/ |
 | 1/3 | `init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配置 LLM（从 conf/llm.json 读取当前后端）/ 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
 | 2/3 | `init-mcp.sh` | 装并同步 MCP 服务器 |
 | 3/3 | `init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
 
-**全程无输入**：因为 gh 已经登录，第 1 步的 `gh auth setup-git` 幂等跑过；
-LLM 默认值是 deepseek；MCP 和 skills 都是已配置的服务器列表。
+> **symlink 已在 3b 完成**，阶段 4 不需要再跑 `ccprivate/setup.sh`。
 
-**会触发 sudo**（安装系统包时），提前准备好 sudo 免密或看着密码。
+**全程无输入**：gh 已登录，LLM 默认值在 3b 已写入 conf/llm.json，MCP 和 skills 自动装。
+
+**会触发 sudo**（安装系统包时），提前准备好 sudo 密码。
 
 ---
 
