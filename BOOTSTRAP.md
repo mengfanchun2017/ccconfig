@@ -147,15 +147,10 @@ gh auth status
 
 ## 阶段 3 — 克隆仓库
 
-> **用户 vs 开发者**：普通用户 clone `release` 分支拿稳定版；开发者 clone `main` 跟踪最新代码。
-> 下面命令默认走 `release`。
+> **用户**：直接 clone release 分支拿稳定版。
+> **开发者/想自定义**：先 Fork 再 clone 自己的 fork（main 分支跟踪最新代码）。
 
-### 3a. Fork ccconfig（一次性，在 GitHub 网页操作）
-
-去 https://github.com/<your-github-username>/ccconfig 点 **Fork** 到你自己的账号下。
-（或者直接 clone 原仓库，二选一）
-
-### 3b. 创建 ccprivate（一次性）
+### 3a. 创建 ccprivate（一次性）
 
 **ccprivate 是你的私有配置仓库**，存放 API key + Token + 个人 CLAUDE.md + memory。
 ccconfig 本身不含任何密钥，通过 symlink 读取 ccprivate 的真实值。
@@ -163,21 +158,22 @@ ccconfig 本身不含任何密钥，通过 symlink 读取 ccprivate 的真实值
 > 📖 **完整搭建步骤 → [docs/ccprivate-guide.md](docs/ccprivate-guide.md)**
 > 首次使用必须按指南建好 ccprivate；已有则直接 clone。
 
-### 3c. 克隆到本地
+### 3b. 克隆到本地
 
 **用 gh 克隆，不要用 git**（gh 知道用你的 token）：
 
 ```bash
 mkdir -p ~/git && cd ~/git
 
-# 公开基础设施（用户用 release 分支拿稳定版）
+# ccconfig（稳定版用 release 分支）
 gh repo clone <your-github-username>/ccconfig -- --branch release
 
-# 私有数据层
+# 开发者跟踪最新代码用 main：
+# gh repo clone <your-github-username>/ccconfig
+
+# ccprivate（你的私有配置仓库）
 gh repo clone <your-github-username>/ccprivate
 ```
-
-> **开发者**：用 `gh repo clone <your-username>/ccconfig`（默认 main）。也可以 clone 后再 `git checkout release`/`git checkout main` 切分支。
 
 ### 3d. Windows 用户：PowerShell 7 + WSL 网络优化
 
