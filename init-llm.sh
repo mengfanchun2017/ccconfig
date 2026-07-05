@@ -370,13 +370,13 @@ interactive_select() {
             continue
         fi
         names+=("$name")
-        ((selectable++))
+        selectable=$((selectable + 1))
         if [[ "$marker" == "◀" ]]; then
             printf "  %d) %s (%s)%s%s ◀ 当前\n" "$idx" "$display_name" "$model" "$small_str" "$route_str"
         else
             printf "  %d) %s (%s)%s%s\n" "$idx" "$display_name" "$model" "$small_str" "$route_str"
         fi
-        ((idx++))
+        idx=$((idx + 1))
     done < <(echo "$lines")
 
     echo ""
