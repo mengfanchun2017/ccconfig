@@ -16,11 +16,11 @@
 
 ---
 
-## Windows 前置 — WSL 2 安装 + 系统准备
+## Windows 前置 — 安装 WSL 2 + Ubuntu
 
 > 如果机器已经是 Linux（或已有 WSL），跳过本节直接到阶段 0。
 >
-> Windows 用户本节走完 4 步：WSL 装 Ubuntu → PowerShell 7 升级 → WSL 网络优化 → 进 Ubuntu 开始阶段 0。
+> Windows 用户：装好 WSL + Ubuntu 后直接进阶段 0。PowerShell 7 升级和 WSL 网络优化在克隆 ccconfig 之后再做（见阶段 3 末尾）。
 
 Windows 10 2004+ / Windows 11 自带 WSL 2 支持。
 
@@ -54,65 +54,15 @@ wsl --list --verbose
 wsl --set-version Ubuntu 2
 ```
 
-### 3. 升级 PowerShell 7（推荐）
-
-> Windows 自带 PowerShell 5.1，功能老旧。PowerShell 7 有更好的 JSON/HTTP 处理、`&&`/`||` 管道、跨平台兼容。ccconfig 的 `windows-tools/` 脚本也推荐在 PowerShell 7 下运行。
-
-**常见坑**：`winget upgrade --id Microsoft.PowerShell` 在某些环境因 MSI 缓存丢失而失败（Error 1612/1714/1603）。所以 ccconfig 自带了绕过 winget 的升级脚本。
-
-以**管理员**身份打开 PowerShell，执行：
-
-```powershell
-# 先克隆 ccconfig（或下载 windows-tools/psupdate/psupdate.ps1）
-# 如果还没克隆，直接从 GitHub 下载脚本：
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/<your-username>/ccconfig/main/windows-tools/psupdate/psupdate.ps1" -OutFile "$env:TEMP\psupdate.ps1"
-powershell -ExecutionPolicy Bypass -File "$env:TEMP\psupdate.ps1"
-
-# 如果已克隆 ccconfig，直接用本地脚本：
-# powershell -ExecutionPolicy Bypass -File ".\windows-tools\psupdate\psupdate.ps1"
-```
-
-脚本自动完成：下载最新 MSI → 强制卸载旧版 → 静默安装新版 → 清理临时文件。
-
-> PowerShell 7 和系统自带的 5.1 可以共存。装完后 `pwsh.exe` 就是新版，`powershell.exe` 保持旧版。
-
-### 4. WSL 网络配置优化（推荐）
-
-WSL 2 默认 NAT 网络，配成镜像模式后 Windows 和 WSL 共享 localhost，远程 SSH 等场景更顺畅。
-
-在 Windows 侧（PowerShell，普通用户即可）执行 ccconfig 自带的配置脚本：
-
-```powershell
-# 配置 .wslconfig（网络镜像 + DNS 隧道 + 自动代理）
-powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconfig.ps1"
-
-# 配置 /etc/wsl.conf（关闭 Windows PATH 注入，避免污染 Linux 环境）
-powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconf.ps1"
-
-# 必须重启 WSL 才能生效
-wsl --shutdown
-```
-
-配置后 `.wslconfig` 内容：
-```ini
-[wsl2]
-networkingMode=mirrored
-dnsTunneling=true
-autoProxy=true
-firewall=true
-```
-
-> 如果你没克隆 ccconfig，也可以手动创建 `%USERPROFILE%\.wslconfig` 写入以上内容。
-
-### 5. 进入 Ubuntu
+### 3. 进入 Ubuntu
 
 ```powershell
 wsl
 ```
 
-或从开始菜单启动 "Ubuntu"。进去后继续下面的阶段 0。
+或从开始菜单启动 "Ubuntu"。推荐安装 [Windows Terminal](https://aka.ms/terminal)（Microsoft Store 免费）——多标签、GPU 渲染、UTF-8 完善。
 
-> **推荐 Windows Terminal**：从 Microsoft Store 安装，比系统自带的终端好用得多——多标签、GPU 加速渲染、UTF-8 完善支持。WSL 会自动出现在它的下拉菜单里。
+进去后继续下面的阶段 0。
 
 ---
 
@@ -229,9 +179,46 @@ gh repo clone <your-github-username>/ccprivate
 
 > **开发者**：用 `gh repo clone <your-username>/ccconfig`（默认 main）。也可以 clone 后再 `git checkout release`/`git checkout main` 切分支。
 
----
+### 3d. Windows 用户：PowerShell 7 + WSL 网络优化
 
-## 阶段 4 — 初始化
+> Linux/macOS 用户跳过本节，直接到阶段 4。
+
+克隆完 ccconfig 后，`windows-tools/` 脚本已在本地，直接跑。
+
+**PowerShell 7 升级**（以管理员身份打开 PowerShell）：
+
+```powershell
+# ccconfig 自带升级脚本，绕过 winget MSI 缓存丢失问题（Error 1612/1714/1603）
+powershell -ExecutionPolicy Bypass -File ".\windows-tools\psupdate\psupdate.ps1"
+```
+
+脚本自动：下载最新 MSI → 卸载旧版 → 静默安装新版 → 清理临时文件。PowerShell 7 和系统自带 5.1 共存，`pwsh.exe` 是新版。
+
+**WSL 网络优化**（普通 PowerShell 即可）：
+
+```powershell
+# 配置 .wslconfig（网络镜像 + DNS 隧道 + 自动代理）
+powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconfig.ps1"
+
+# 配置 /etc/wsl.conf（关闭 Windows PATH 注入，避免污染 Linux 环境）
+powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconf.ps1"
+
+# 必须重启 WSL 才能生效
+wsl --shutdown
+```
+
+配置后 `%USERPROFILE%\.wslconfig` 内容：
+```ini
+[wsl2]
+networkingMode=mirrored
+dnsTunneling=true
+autoProxy=true
+firewall=true
+```
+
+> 配完 WSL 会 shutdown，重新 `wsl` 进入 Ubuntu 后继续阶段 4。
+
+---
 
 ```bash
 # 1. 私有链接 + 公开链接一步到位
