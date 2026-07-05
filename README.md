@@ -90,9 +90,12 @@ ccconfig/
 
 > **新机器？** 从零开始 → 看 [BOOTSTRAP.md](BOOTSTRAP.md)（6 阶段，含 gh 登录 + 克隆 ccconfig + ccprivate）。
 
+> **稳定版用户**：clone 默认 `release` 分支（稳定版本快照），不随 main 开发变动。
+> **开发者**：用 `main` 分支跟踪最新代码。
+
 ```bash
-# 1. 克隆双仓库
-gh repo clone <your-username>/cconfig ~/git/cconfig
+# 1. 克隆双仓库（稳定版用 release 分支）
+gh repo clone <your-username>/cconfig ~/git/cconfig -- --branch release
 gh repo clone <your-username>/ccprivate ~/git/ccprivate
 
 # 2. 私有 + 公开链接一步到位
