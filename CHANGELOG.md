@@ -2,6 +2,19 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.0.1] — 2026-07-05
+
+### Added
+- `docs/ccprivate-guide.md` — 7 步完整搭建个人私有配置仓库
+- BOOTSTRAP.md `windows-tools/` 工具参考表
+
+### Changed
+- **BOOTSTRAP.md Windows 前置重构** — PowerShell 7 升级从"可选"改为"推荐"、新增 WSL 网络配置优化、Windows Terminal 推荐
+- **BOOTSTRAP.md 阶段 3 默认 `--branch release`** — 用户拿稳定版，开发者说明在注释
+- BOOTSTRAP.md 常见坑扩充 8 条 WSL/Windows 专属问题
+- README.md 快速开始加 ccprivate 指南链接
+- RELEASING.md 检查清单 +2 项
+
 ## [1.0.0] — 2026-07-05
 
 ### Added
