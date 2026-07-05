@@ -50,6 +50,12 @@ git ls-files conf/ | grep -v ".example" | grep -v "versions.json" | grep -v "pyt
 
 # 5. broken symlink
 find . -type l ! -path "./.git/*" -exec sh -c 'test ! -e "{}" && echo "BROKEN: {}"' \; | grep BROKEN && echo "❌ 有断链" || echo "OK"
+
+# 6. ccprivate 指南存在
+test -f docs/ccprivate-guide.md && echo "OK" || echo "❌ 缺 ccprivate 搭建指南"
+
+# 7. BOOTSTRAP 含 release 分支
+grep -q "branch release" BOOTSTRAP.md && echo "OK" || echo "❌ BOOTSTRAP 未提及 release 分支"
 ```
 
 ## 发布步骤
@@ -117,4 +123,5 @@ git push origin vX.Y.Z
 1. [ ] 切回 main：`git checkout main`
 2. [ ] 验证 `git checkout vX.Y.Z` 后 `bash -n *.sh` 全通过
 3. [ ] 验证 `git clone --branch release` 干净 clone 后 README 步骤可走通
-4. [ ] 更新 `docs/progress.md` 状态变迁日志
+4. [ ] 验证 `docs/ccprivate-guide.md` 步骤可独立完成 ccprivate 搭建
+5. [ ] 更新 `docs/progress.md` 状态变迁日志

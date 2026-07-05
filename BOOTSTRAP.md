@@ -16,13 +16,15 @@
 
 ---
 
-## Windows 前置 — 安装 WSL 2 + Ubuntu
+## Windows 前置 — WSL 2 安装 + 系统准备
 
 > 如果机器已经是 Linux（或已有 WSL），跳过本节直接到阶段 0。
+>
+> Windows 用户本节走完 4 步：WSL 装 Ubuntu → PowerShell 7 升级 → WSL 网络优化 → 进 Ubuntu 开始阶段 0。
 
-Windows 10 2004+ / Windows 11 自带 WSL 2 支持。两步：
+Windows 10 2004+ / Windows 11 自带 WSL 2 支持。
 
-### 1. 启用 WSL 2
+### 1. 启用 WSL 2 + 安装 Ubuntu
 
 以**管理员**身份打开 PowerShell，执行：
 
@@ -38,11 +40,7 @@ wsl --install
 
 **重启 Windows** 后，Ubuntu 会自动启动，提示你创建 Linux 用户名和密码。
 
-> **Note for China users**: 如果下载速度慢或失败，先配镜像：
-> ```powershell
-> # 可选 - 指定镜像加速
-> wsl --install --web-download
-> ```
+> **国内用户**：下载慢或失败时用 `wsl --install --web-download` 走 CDN 加速。
 
 ### 2. 验证 WSL 版本
 
@@ -56,51 +54,65 @@ wsl --list --verbose
 wsl --set-version Ubuntu 2
 ```
 
-### 3. 进入 Ubuntu
+### 3. 升级 PowerShell 7（推荐）
 
-在 PowerShell 中：
+> Windows 自带 PowerShell 5.1，功能老旧。PowerShell 7 有更好的 JSON/HTTP 处理、`&&`/`||` 管道、跨平台兼容。ccconfig 的 `windows-tools/` 脚本也推荐在 PowerShell 7 下运行。
+
+**常见坑**：`winget upgrade --id Microsoft.PowerShell` 在某些环境因 MSI 缓存丢失而失败（Error 1612/1714/1603）。所以 ccconfig 自带了绕过 winget 的升级脚本。
+
+以**管理员**身份打开 PowerShell，执行：
+
+```powershell
+# 先克隆 ccconfig（或下载 windows-tools/psupdate/psupdate.ps1）
+# 如果还没克隆，直接从 GitHub 下载脚本：
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/<your-username>/ccconfig/main/windows-tools/psupdate/psupdate.ps1" -OutFile "$env:TEMP\psupdate.ps1"
+powershell -ExecutionPolicy Bypass -File "$env:TEMP\psupdate.ps1"
+
+# 如果已克隆 ccconfig，直接用本地脚本：
+# powershell -ExecutionPolicy Bypass -File ".\windows-tools\psupdate\psupdate.ps1"
+```
+
+脚本自动完成：下载最新 MSI → 强制卸载旧版 → 静默安装新版 → 清理临时文件。
+
+> PowerShell 7 和系统自带的 5.1 可以共存。装完后 `pwsh.exe` 就是新版，`powershell.exe` 保持旧版。
+
+### 4. WSL 网络配置优化（推荐）
+
+WSL 2 默认 NAT 网络，配成镜像模式后 Windows 和 WSL 共享 localhost，远程 SSH 等场景更顺畅。
+
+在 Windows 侧（PowerShell，普通用户即可）执行 ccconfig 自带的配置脚本：
+
+```powershell
+# 配置 .wslconfig（网络镜像 + DNS 隧道 + 自动代理）
+powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconfig.ps1"
+
+# 配置 /etc/wsl.conf（关闭 Windows PATH 注入，避免污染 Linux 环境）
+powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconf.ps1"
+
+# 必须重启 WSL 才能生效
+wsl --shutdown
+```
+
+配置后 `.wslconfig` 内容：
+```ini
+[wsl2]
+networkingMode=mirrored
+dnsTunneling=true
+autoProxy=true
+firewall=true
+```
+
+> 如果你没克隆 ccconfig，也可以手动创建 `%USERPROFILE%\.wslconfig` 写入以上内容。
+
+### 5. 进入 Ubuntu
 
 ```powershell
 wsl
 ```
 
-或直接从开始菜单启动 "Ubuntu"。进入后继续下面的阶段 0。
+或从开始菜单启动 "Ubuntu"。进去后继续下面的阶段 0。
 
-### WSL 网络说明
-
-WSL 2 使用 NAT 网络，与 Windows 主机共享 IP。在 WSL 里跑的服务（如 LLM Gateway proxy）监听 `127.0.0.1` 时，可以从 Windows 浏览器 `http://localhost:<port>` 访问。
-
----
-
-## 可选 — PowerShell 7 升级
-
-> Windows 自带 PowerShell 5.1。如果你的自动化脚本或 IDE 集成需要 PowerShell 7+，用 `windows-tools/psupdate/` 升级。
-
-**为什么需要升级**：
-- PowerShell 7 有更好的 JSON/HTTP 处理、`&&`/`||` 管道、跨平台兼容
-- `winget upgrade --id Microsoft.PowerShell` 在某些环境因 MSI 缓存丢失而失败（Error 1612/1714/1603）
-- ccconfig 自带 `windows-tools/psupdate/psupdate.ps1` 绕过 winget，直接走 GitHub MSI + 强制旧版卸载
-
-**使用**：
-
-以管理员身份启动 PowerShell 5（或 PowerShell 7），执行：
-
-```powershell
-# 升到最新 stable
-.\windows-tools\psupdate\psupdate.ps1
-
-# 升到指定版本
-.\windows-tools\psupdate\psupdate.ps1 -Version 7.6.2
-```
-
-脚本会：
-1. 从 GitHub Releases 下载最新 MSI
-2. 强制卸载旧版 PowerShell（处理 MSI 缓存丢失的情况）
-3. 静默安装新版
-4. 清理临时文件
-
-> **注意**：PowerShell 7 和 Windows 自带的 PowerShell 5.1 可以共存，不会冲突。
-> 装完后 `pwsh.exe` 就是新版，`powershell.exe` 保持旧版。
+> **推荐 Windows Terminal**：从 Microsoft Store 安装，比系统自带的终端好用得多——多标签、GPU 加速渲染、UTF-8 完善支持。WSL 会自动出现在它的下拉菜单里。
 
 ---
 
@@ -185,20 +197,37 @@ gh auth status
 
 ## 阶段 3 — 克隆仓库
 
+> **用户 vs 开发者**：普通用户 clone `release` 分支拿稳定版；开发者 clone `main` 跟踪最新代码。
+> 下面命令默认走 `release`。
+
+### 3a. Fork ccconfig（一次性，在 GitHub 网页操作）
+
+去 https://github.com/<your-github-username>/ccconfig 点 **Fork** 到你自己的账号下。
+（或者直接 clone 原仓库，二选一）
+
+### 3b. 创建 ccprivate（一次性）
+
+**ccprivate 是你的私有配置仓库**，存放 API key + Token + 个人 CLAUDE.md + memory。
+ccconfig 本身不含任何密钥，通过 symlink 读取 ccprivate 的真实值。
+
+> 📖 **完整搭建步骤 → [docs/ccprivate-guide.md](docs/ccprivate-guide.md)**
+> 首次使用必须按指南建好 ccprivate；已有则直接 clone。
+
+### 3c. 克隆到本地
+
 **用 gh 克隆，不要用 git**（gh 知道用你的 token）：
 
 ```bash
 mkdir -p ~/git && cd ~/git
 
-# 公开基础设施
-gh repo clone <your-github-username>/ccconfig
+# 公开基础设施（用户用 release 分支拿稳定版）
+gh repo clone <your-github-username>/ccconfig -- --branch release
 
-# 私有数据层（如果还没有 remote，先手动创建 GitHub 私有仓库再克隆）
+# 私有数据层
 gh repo clone <your-github-username>/ccprivate
 ```
 
-> **ccprivate 是私有仓库**，含 API key + 个人配置 + memory。如果 GitHub 上还没创建，
-> 先在 GitHub 新建 private repo `ccprivate`，然后 `cd ~/git/ccprivate && git remote add origin <url>`。
+> **开发者**：用 `gh repo clone <your-username>/ccconfig`（默认 main）。也可以 clone 后再 `git checkout release`/`git checkout main` 切分支。
 
 ---
 
@@ -394,8 +423,28 @@ cd ~/git/cconfig && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccp
 | `gh auth login` 浏览器没自动开 | WSL 没装 `wslview` | 手动复制终端的 one-time code，访问 https://github.com/login/device |
 | `gh repo clone` 报 404 | 没登录成功 / 账号不是仓库协作者 | `gh auth status` 确认账号；如果不是协作者，联系 owner 加 |
 | `init.sh all` 卡在 sudo | 密码没缓存 | 输密码，或配 sudo 免密（`echo "<your-username> ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/<your-username>`） |
-| monitor 不推 | SSH key 没注册到 GitHub（这台机器以前的残留）| `gh auth setup-git`（init.sh 阶段 1 已自动做）；如还有问题 `git remote set-url origin https://<your-github-username>@github.com/<your-github-username>/ccconfig.git` |
+| monitor 不推 | SSH key 没注册到 GitHub | `gh auth setup-git`（init.sh 已自动做）；如还有问题 `git remote set-url origin https://<your-username>@github.com/<your-username>/ccconfig.git` |
 | WSL 报 `Could not resolve hostname` | `/etc/hosts` 没本机 hostname | `echo "127.0.1.1 $(hostname)" \| sudo tee -a /etc/hosts` |
+| WSL 内存占用过高 | WSL 2 默认占 50% 主机内存 | 在 `%USERPROFILE%\.wslconfig` 加 `memory=8GB`（见 windows-tools/wslconf/） |
+| WSL 里 `code .` 打不开 VSCode | 没装 WSL 扩展 | 在 VSCode 装 "WSL" 扩展；或直接用 `code` 命令（Windows PATH 注入） |
+| `claude` 命令不存在 | npm 全局安装后 PATH 没刷新 | `hash -r` 或新开终端；还不行就 `export PATH="$HOME/.local/bin:$PATH"` |
+| npm 全局安装权限错误 | npm 全局目录需要 sudo | ccconfig 的 `init-ubuntu.sh` 已将 Node 装到 `~/.local/`，无此问题；如手动装过 Node，跑 `npm config set prefix ~/.local` |
+| `wsl --install` 报 0x8007019e | BIOS 没开虚拟化 | 进 BIOS 启用 Intel VT-x / AMD SVM |
+| `wsl --install` 报 0x80370102 | WSL 2 内核没装 | `wsl --update` 升级 WSL 内核 |
+| init-ubuntu.sh 中途失败 | 某个子步骤挂了 | init-ubuntu.sh 内部子步骤有容错，看报错哪一步；重新跑 `bash init-ubuntu.sh`（多数步骤幂等） |
+| 符号链接在 Windows 文件系统不工作 | WSL 和 Windows 文件系统隔离 | 所有文件放 WSL 原生文件系统（`~/git/`），不要放 `/mnt/c/` |
+
+## Windows 工具
+
+ccconfig 的 `windows-tools/` 目录提供 Windows/WSL 互操作脚本，在 PowerShell 中运行：
+
+| 工具 | 用途 | 命令 |
+|------|------|------|
+| `wslconf/` | WSL 配置（网络镜像 + 关 PATH 注入） | `powershell -File .\windows-tools\wslconf\wslconfig.ps1` |
+| `psupdate/` | PowerShell 7 升级（绕过 winget bug） | 管理员 PowerShell 执行 `psupdate.ps1` |
+| `music-convert/` | 网易云 NCM 解密 | `powershell -File .\windows-tools\music-convert\convert.ps1` |
+
+> WSL 里调 Win 端脚本的标准模式：`powershell.exe -ExecutionPolicy Bypass -File "$(wslpath -w <path-to-ps1>)"`
 
 ---
 
