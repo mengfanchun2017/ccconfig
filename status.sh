@@ -236,8 +236,8 @@ check_git_projects() {
             else
                 mem_status="${RED}❌ 断链${NC}"
             fi
-        elif [ -d "$mem_path" ]; then
-            mem_status="${YELLOW}📁 本地${NC}"
+        elif [ -d "$mem_path" ] && [ -f "$mem_path/MEMORY.md" ]; then
+            mem_status="${GREEN}✅ 本地${NC}"
         else
             mem_status="${GRAY}－${NC}"
         fi
