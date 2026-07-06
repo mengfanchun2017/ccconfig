@@ -7,9 +7,9 @@
 ## TL;DR
 
 - **进行中**: Phase 2 文档/ADR/发布流程
-- **已完成**: Phase 0 ✅（安全+公开化）+ Phase 1 ✅（CI workflow + CHANGELOG v2.0.0 + ROADMAP 更新）
-- **下次入口**: Phase 3（打 tag + GitHub Release + 社区健康）
-- **阻塞**: 用户确认 ccconfig 就绪后发布 v2.0.0
+- **已完成**: Phase 0 ✅（安全+公开化）+ Phase 1 ✅（CI workflow + CHANGELOG + ROADMAP 更新）
+- **下次入口**: Phase 3（社区健康 + 后续迭代）
+- **阻塞**: 无
 
 ## 4 层定位
 

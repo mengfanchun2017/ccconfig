@@ -137,7 +137,7 @@ lark-cli base +table-create \
 输出 JSON 结构方案，字段：
 - slides: [{type, title, key_message, bullets, source_note}]
 - template: mckinsey（默认）
-- 交由 feishucreate 执行
+- 交由 f-ppt skill 执行
 
 ### bitable 格式
 

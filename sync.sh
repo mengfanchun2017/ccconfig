@@ -558,7 +558,6 @@ case "${1:-}" in
         REPO_NAME="ccconfig"
         if [ -n "${2:-}" ]; then
             case "$2" in
-                projectu) REPO_DIR="$HOME/git/projectu"; REPO_NAME="projectu" ;;
                 *) REPO_DIR="$HOME/git/$2"; REPO_NAME="$2" ;;
             esac
         fi
@@ -571,7 +570,6 @@ case "${1:-}" in
         REPO_NAME="ccconfig"
         if [ -n "${2:-}" ]; then
             case "$2" in
-                projectu) REPO_DIR="$HOME/git/projectu"; REPO_NAME="projectu" ;;
                 *) REPO_DIR="$HOME/git/$2"; REPO_NAME="$2" ;;
             esac
         fi
@@ -584,7 +582,6 @@ case "${1:-}" in
         COMMIT_MSG="${3:-}"
         if [ -n "${2:-}" ]; then
             case "$2" in
-                projectu) REPO_DIR="$HOME/git/projectu"; REPO_NAME="projectu" ;;
                 *) REPO_DIR="$HOME/git/$2"; REPO_NAME="$2" ;;
             esac
         fi
@@ -629,7 +626,6 @@ case "${1:-}" in
         REPO_NAME="$1"
         case "$1" in
             ccconfig) REPO_DIR="$SCRIPT_DIR" ;;
-            projectu) REPO_DIR="$HOME/git/projectu" ;;
             *)
                 REPO_DIR="$HOME/git/$1"
                 [ -d "$REPO_DIR/.git" ] || REPO_DIR=""

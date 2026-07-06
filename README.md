@@ -133,6 +133,22 @@ bash ~/git/ccconfig/status.sh
 | `bash setup-links.sh` | 重建公开符号链接 |
 | `bash sync.sh --pull` | 强拉远程 |
 
+## 日常维护
+
+ccconfig 本身是一个 git 仓库，更新方式：
+
+```bash
+# 方式 1：update.sh 会自动先 git pull ccconfig（推荐）
+bash update.sh all
+
+# 方式 2：手动 git pull
+cd ~/git/ccconfig && git pull
+```
+
+`update.sh all` 推荐每月跑一次，升级 Node.js、Claude Code、Python 包等组件。ccconfig 自身会先 `git pull` 确保脚本最新。
+
+> auto-sync monitor 只自动 push，不自动 pull。ccconfig 更新需手动拉取。
+
 ## 状态检查覆盖
 
 `status.sh` 每次 Claude Code session 启动检查 13 项：
