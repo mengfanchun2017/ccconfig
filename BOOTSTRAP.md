@@ -6,7 +6,7 @@
 > 走完一遍后，所有 ccconfig 配置会自动同步、monitor 自动 commit+push。
 
 **适用**：
-- 新装的 WSL2 / Ubuntu 22.04+ / Debian 12+
+- 新装的 WSL2 / Ubuntu 24.04+ / Debian 12+
 - 重装系统后恢复
 - 公司新发的工作机
 
@@ -16,53 +16,197 @@
 
 ---
 
-## Windows 前置 — 安装 WSL 2 + Ubuntu
+## Windows 前置 — WSL2 + Ubuntu 24.04 环境准备
 
-> 如果机器已经是 Linux（或已有 WSL），跳过本节直接到阶段 0。
+> 如果机器已经是 Linux，跳过本节直接到阶段 0。
 >
-> Windows 用户：装好 WSL + Ubuntu 后直接进阶段 0。PowerShell 7 升级和 WSL 网络优化在克隆 ccconfig 之后再做（见阶段 3 末尾）。
+> 本节目标：让不熟悉 WSL 的人也能完成环境搭建。每一步都带验证命令——看到 ✅ 才能继续。
 
-Windows 10 2004+ / Windows 11 自带 WSL 2 支持。
+---
 
-### 1. 启用 WSL 2 + 安装 Ubuntu
+### 1. 升级 PowerShell 7（推荐，最优先做）
 
-以**管理员**身份打开 PowerShell，执行：
+Windows 自带 PowerShell 5.1 功能老旧。PowerShell 7 有更好的 JSON/HTTP 处理、`&&`/`||` 管道、跨平台兼容。cconfig 的 Windows 工具脚本也推荐在 PS7 下运行。
+
+**安装**：以**管理员**身份打开 PowerShell，执行：
 
 ```powershell
-wsl --install
+# 用 winget 一键安装（Windows 11 自带 winget）
+winget install --id Microsoft.PowerShell --source winget
+
+# 如果 winget 报错 MSI 缓存丢失（Error 1612/1714/1603），用 ccconfig 自带脚本：
+# 先下载脚本：Invoke-WebRequest -Uri "https://raw.githubusercontent.com/<your-github-username>/ccconfig/main/windows-tools/psupdate/psupdate.ps1" -OutFile "$env:TEMP\psupdate.ps1"
+# 再安装：powershell -ExecutionPolicy Bypass -File "$env:TEMP\psupdate.ps1"
+```
+
+**验证**：
+
+```powershell
+pwsh --version
+# 应该看到: PowerShell 7.x.x
+```
+
+**进入 PS7**：装完后，开始菜单会出现 **PowerShell 7**。后续所有 PowerShell 操作在 PS7 中执行。也可以在任何终端输入 `pwsh` 启动 PS7。
+
+> PowerShell 7 和系统自带 5.1 共存，不会冲突。`pwsh.exe` = 新版，`powershell.exe` = 旧版。
+
+---
+
+### 2. 安装 WSL2 + Ubuntu 24.04 LTS
+
+在 **PowerShell 7（管理员）** 中执行：
+
+```powershell
+wsl --install -d Ubuntu-24.04
 ```
 
 这会自动：
-- 启用"虚拟机平台"和"适用于 Linux 的 Windows 子系统"两个 Windows 功能
+- 启用"虚拟机平台"和"适用于 Linux 的 Windows 子系统"
 - 安装 WSL 2 内核
 - 将 WSL 2 设为默认版本
-- 安装默认 Linux 发行版（通常是 Ubuntu 24.04 LTS）
+- 安装 Ubuntu 24.04 LTS
 
-**重启 Windows** 后，Ubuntu 会自动启动，提示你创建 Linux 用户名和密码。
+> `--install` 不带 `-d` 会装默认版本（可能是 24.04）。ccconfig 推荐 **Ubuntu 24.04 LTS**，兼容性最好、apt 源最全。
+>
+> **国内用户**：下载慢用 `wsl --install -d Ubuntu-24.04 --web-download`。
 
-> **国内用户**：下载慢或失败时用 `wsl --install --web-download` 走 CDN 加速。
+**重启 Windows** 后，Ubuntu 会自动启动，提示创建 Linux 用户名和密码（牢记，这就是你的 sudo 密码）。
 
-### 2. 验证 WSL 版本
+---
+
+### 3. 验证 WSL + Ubuntu
 
 ```powershell
+# 检查 WSL 版本
+wsl --version
+# 应该看到: WSL 版本 2.x.x
+
+# 检查已安装的发行版
 wsl --list --verbose
+# 应该看到: Ubuntu-24.04  Running  2
 ```
 
-确保 VERSION 列为 `2`。如果是 `1`：
+如果 VERSION 列为 `1`：
 
 ```powershell
-wsl --set-version Ubuntu 2
+wsl --set-version Ubuntu-24.04 2
 ```
 
-### 3. 进入 Ubuntu
+**验证 Ubuntu 版本**（进入 WSL 后）：
+
+```bash
+lsb_release -a
+# 应该看到: Ubuntu 24.04.x LTS
+```
+
+---
+
+### 4. 进入 Ubuntu
 
 ```powershell
 wsl
 ```
 
-或从开始菜单启动 "Ubuntu"。推荐安装 [Windows Terminal](https://aka.ms/terminal)（Microsoft Store 免费）——多标签、GPU 渲染、UTF-8 完善。
+或从开始菜单启动 **Ubuntu 24.04**。
 
-进去后继续下面的阶段 0。
+> **推荐 Windows Terminal**：[Microsoft Store 免费安装](https://aka.ms/terminal)——多标签、GPU 加速渲染、UTF-8 完善。WSL 发行版会自动出现在下拉菜单里。
+
+---
+
+### 5. WSL 网络配置（推荐）
+
+WSL 2 默认 NAT 网络，配成镜像模式后 Windows 和 WSL 共享 localhost，远程 SSH 等场景更顺畅。
+
+在 **PowerShell（普通用户）** 中创建 `%USERPROFILE%\.wslconfig`：
+
+```powershell
+# 方法一：手动创建文件
+notepad $env:USERPROFILE\.wslconfig
+```
+
+写入以下内容：
+
+```ini
+[wsl2]
+networkingMode=mirrored
+dnsTunneling=true
+autoProxy=true
+firewall=true
+memory=8GB
+```
+
+> `memory=8GB` 限制 WSL 最大内存，按自己机器内存调整（16GB → 8GB，32GB → 16GB）。
+
+**方法二**：克隆 ccconfig 后用自带脚本（阶段 3 之后）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconfig.ps1"
+```
+
+**配置生效**：改 `.wslconfig` 后必须重启 WSL：
+
+```powershell
+wsl --shutdown
+```
+
+然后重新 `wsl` 进入 Ubuntu。
+
+---
+
+### 可选：WSL 备份 / 导出 / 导入
+
+熟悉 WSL 基本操作后，建议定期备份 Ubuntu 环境，防止配置丢失。
+
+**导出（备份）**：
+
+```powershell
+# 导出到 D 盘（压缩成 tar.gz）
+wsl --export Ubuntu-24.04 D:\backup\ubuntu-24.04-backup.tar
+
+# 检查备份文件大小
+ls D:\backup\ubuntu-24.04-backup.tar
+```
+
+**导入（恢复/迁移）**：
+
+```powershell
+# 先注销原有发行版（谨慎！会删除原环境）
+wsl --unregister Ubuntu-24.04
+
+# 从备份文件导入
+wsl --import Ubuntu-24.04 D:\wsl\ubuntu D:\backup\ubuntu-24.04-backup.tar
+
+# 设置默认用户（导入后 root 是默认用户）
+Ubuntu-24.04 config --default-user <你的用户名>
+```
+
+**快速重置**（不需要备份，直接删掉重装）：
+
+```powershell
+wsl --unregister Ubuntu-24.04
+wsl --install -d Ubuntu-24.04
+```
+
+> **日常使用**：备份文件放非系统盘（D:/E:），Windows 重装不会丢失。每月备份一次即可。
+
+---
+
+### 可选：WSL 版本升级
+
+```powershell
+# 检查当前 WSL 版本
+wsl --version
+
+# 升级到最新 WSL
+wsl --update
+
+# 升级后建议重启
+wsl --shutdown
+```
+
+---
+
+> **完成本节后**：WSL + Ubuntu 24.04 已就绪，PS7 已安装，网络已配置。进入 Ubuntu 继续阶段 0。
 
 ---
 
@@ -87,7 +231,7 @@ curl --version  # curl 7.81+ 即可
 
 ## 阶段 1 — 装 gh CLI
 
-**Ubuntu 22.04+ / Debian 12+（apt 源有）**：
+**Ubuntu 24.04+ / Debian 12+（apt 源有）**：
 
 ```bash
 # GitHub 官方 apt 源（一次性）
@@ -183,19 +327,11 @@ bash ~/git/ccconfig/bin/init-ccprivate.sh
 >
 > **手动控制**：需要自定义更多配置 → [docs/ccprivate-guide.md](docs/ccprivate-guide.md)。
 
-### 3c. Windows 用户：PowerShell 7 + WSL 网络优化
+### 3c. Windows 用户：WSL 网络配置（如果前置步骤 5 没做）
 
-> Linux/macOS 用户跳过，直接到阶段 4。
+> Linux/macOS 用户跳过。
 
-`windows-tools/` 脚本已在 ccconfig 里：
-
-**PowerShell 7 升级**（管理员 PowerShell）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ".\windows-tools\psupdate\psupdate.ps1"
-```
-
-**WSL 网络优化**（普通 PowerShell）：
+如果已在 Windows 前置步骤 5 手动创建了 `.wslconfig`，跳过本节。否则用 ccconfig 自带脚本：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconfig.ps1"
@@ -203,7 +339,7 @@ powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconf.ps1"
 wsl --shutdown
 ```
 
-配完 WSL 会 shutdown，重新 `wsl` 进入 Ubuntu 后继续阶段 4。
+> 配完 WSL 会 shutdown，重新 `wsl` 进入 Ubuntu 后继续阶段 4。
 
 ---
 
