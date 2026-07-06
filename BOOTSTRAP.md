@@ -14,15 +14,13 @@
 - macOS（部分命令不同，看文末备注）
 - 真机/裸金属（无 sudo 的情况，看文末备注）
 
----
 
-## Windows 前置 — WSL2 + Ubuntu 24.04 环境准备
+## 阶段 0 — Windows 前置：WSL2 + Ubuntu 24.04
 
-> 如果机器已经是 Linux，跳过本节直接到阶段 0。
+> 如果机器已经是 Linux，跳过本节直接到阶段 1。
 >
 > 本节目标：让不熟悉 WSL 的人也能完成环境搭建。每一步都带验证命令——看到 ✅ 才能继续。
 
----
 
 ### 1. 升级 PowerShell 7（推荐，最优先做）
 
@@ -50,7 +48,6 @@ pwsh --version
 
 > PowerShell 7 和系统自带 5.1 共存，不会冲突。`pwsh.exe` = 新版，`powershell.exe` = 旧版。
 
----
 
 ### 2. 安装 WSL2 + Ubuntu 24.04 LTS
 
@@ -60,19 +57,14 @@ pwsh --version
 wsl --install -d Ubuntu-24.04
 ```
 
-这会自动：
-- 启用"虚拟机平台"和"适用于 Linux 的 Windows 子系统"
-- 安装 WSL 2 内核
-- 将 WSL 2 设为默认版本
-- 安装 Ubuntu 24.04 LTS
-
-> `--install` 不带 `-d` 会装默认版本（可能是 24.04）。ccconfig 推荐 **Ubuntu 24.04 LTS**，兼容性最好、apt 源最全。
->
-> **国内用户**：下载慢用 `wsl --install -d Ubuntu-24.04 --web-download`。
+这会自动启用 WSL 功能、安装内核、安装 Ubuntu 24.04 LTS。发行版在 WSL 中的名称为 `Ubuntu-24.04`（`wsl --list` 可查）。
 
 **重启 Windows** 后，Ubuntu 会自动启动，提示创建 Linux 用户名和密码（牢记，这就是你的 sudo 密码）。
 
----
+> `--install` 不带 `-d` 装默认版本。`-d Ubuntu-24.04` 锁定 24.04 LTS，apt 源成熟稳定。
+>
+> **国内用户**：下载慢用 `wsl --install -d Ubuntu-24.04 --web-download`。
+
 
 ### 3. 验证 WSL + Ubuntu
 
@@ -99,7 +91,6 @@ lsb_release -a
 # 应该看到: Ubuntu 24.04.x LTS
 ```
 
----
 
 ### 4. 进入 Ubuntu
 
@@ -111,7 +102,6 @@ wsl
 
 > **推荐 Windows Terminal**：[Microsoft Store 免费安装](https://aka.ms/terminal)——多标签、GPU 加速渲染、UTF-8 完善。WSL 发行版会自动出现在下拉菜单里。
 
----
 
 ### 5. WSL 网络配置（推荐）
 
@@ -137,7 +127,7 @@ memory=8GB
 
 > `memory=8GB` 限制 WSL 最大内存，按自己机器内存调整（16GB → 8GB，32GB → 16GB）。
 
-**方法二**：克隆 ccconfig 后用自带脚本（阶段 3 之后）：
+**方法二**：克隆 ccconfig 后用自带脚本（阶段 4 之后）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconfig.ps1"
@@ -151,7 +141,6 @@ wsl --shutdown
 
 然后重新 `wsl` 进入 Ubuntu。
 
----
 
 ### 可选：WSL 备份 / 导出 / 导入
 
@@ -189,7 +178,6 @@ wsl --install -d Ubuntu-24.04
 
 > **日常使用**：备份文件放非系统盘（D:/E:），Windows 重装不会丢失。每月备份一次即可。
 
----
 
 ### 可选：WSL 版本升级
 
@@ -204,13 +192,11 @@ wsl --update
 wsl --shutdown
 ```
 
----
 
-> **完成本节后**：WSL + Ubuntu 24.04 已就绪，PS7 已安装，网络已配置。进入 Ubuntu 继续阶段 0。
+> **完成本节后**：WSL + Ubuntu 24.04 已就绪，PS7 已安装，网络已配置。进入 Ubuntu 继续阶段 1。
 
----
 
-## 阶段 0 — OS 基础（首次装的机器）
+## 阶段 1 — OS 基础（首次装的机器）
 
 ```bash
 # 1. 更新包索引
@@ -227,9 +213,8 @@ curl --version  # curl 7.81+ 即可
 **WSL 专属**：如果是从 Windows Store 装的 Ubuntu，默认就有 sudo。如果 `sudo` 报
 "unable to resolve host"，先 `sudo nano /etc/hosts` 把 hostname 加到 127.0.1.1。
 
----
 
-## 阶段 1 — 装 gh CLI
+## 阶段 2 — 装 gh CLI
 
 **Ubuntu 24.04+ / Debian 12+（apt 源有）**：
 
@@ -257,9 +242,8 @@ gh --version  # gh version 2.62.0
 - `gh auth login` 准备就绪
 - `gh auth setup-git` 可配置 git credential helper
 
----
 
-## 阶段 2 — 登录 GitHub
+## 阶段 3 — 登录 GitHub
 
 ```bash
 # 浏览器走 OAuth 协议
@@ -287,14 +271,13 @@ gh auth status
 - 这就是 GitHub 发给"这台机器"的 device-scoped token
 - 跨机器**不能直接复制**这文件（OAuth 带 device fingerprint），要在每台机器独立登录
 
----
 
-## 阶段 3 — 克隆 ccconfig + 初始化 ccprivate
+## 阶段 4 — 克隆 ccconfig + 初始化 ccprivate
 
 > **用户**：clone release 分支，一条命令建 ccprivate。
 > **开发者**：先 Fork 再 clone 自己的 fork（main 跟踪最新代码）。
 
-### 3a. 克隆 ccconfig
+### 4a. 克隆 ccconfig
 
 **用 gh 克隆，不要用 git**（gh 知道用你的 token）：
 
@@ -308,7 +291,7 @@ gh repo clone <your-github-username>/ccconfig -- --branch release
 # gh repo clone <your-github-username>/ccconfig
 ```
 
-### 3b. 初始化 ccprivate（一条命令）
+### 4b. 初始化 ccprivate（一条命令）
 
 ccprivate 是私有配置仓库，存放 API key + Token + 个人配置。**一条命令完成**：
 
@@ -327,7 +310,7 @@ bash ~/git/ccconfig/bin/init-ccprivate.sh
 >
 > **手动控制**：需要自定义更多配置 → [docs/ccprivate-guide.md](docs/ccprivate-guide.md)。
 
-### 3c. Windows 用户：WSL 网络配置（如果前置步骤 5 没做）
+### 4c. Windows 用户：WSL 网络配置（如果前置步骤 5 没做）
 
 > Linux/macOS 用户跳过。
 
@@ -339,11 +322,10 @@ powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconf.ps1"
 wsl --shutdown
 ```
 
-> 配完 WSL 会 shutdown，重新 `wsl` 进入 Ubuntu 后继续阶段 4。
+> 配完 WSL 会 shutdown，重新 `wsl` 进入 Ubuntu 后继续阶段 5。
 
----
 
-## 阶段 4 — 系统初始化
+## 阶段 5 — 系统初始化
 
 ```bash
 cd ~/git/ccconfig
@@ -358,15 +340,14 @@ bash init.sh all
 | 2/3 | `init-mcp.sh` | 装并同步 MCP 服务器 |
 | 3/3 | `init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
 
-> **symlink 已在 3b 完成**，阶段 4 不需要再跑 `ccprivate/setup.sh`。
+> **symlink 已在 3b 完成**，阶段 5 不需要再跑 `ccprivate/setup.sh`。
 
 **全程无输入**：gh 已登录，LLM 默认值在 3b 已写入 conf/llm.json，MCP 和 skills 自动装。
 
 **会触发 sudo**（安装系统包时），提前准备好 sudo 密码。
 
----
 
-## 阶段 5 — 克隆所有项目
+## 阶段 6 — 克隆所有项目
 
 ccconfig 已就绪，接下来把其他项目也拉下来。用 `gh repo list` 自动发现：
 
@@ -381,9 +362,8 @@ done
 
 **这一步自动跳过已存在的项目**，可以安全重跑。
 
----
 
-## 阶段 6 — 验证
+## 阶段 7 — 验证
 
 ```bash
 # 12 项状态检查
@@ -425,7 +405,6 @@ tail -f ~/git/ccconfig/logs/monitor.log
 
 去 `https://github.com/<your-github-username>/ccconfig/commits/main` 也能看到刚才的 commit。
 
----
 
 ## 日常使用约定
 
@@ -462,7 +441,6 @@ tail -f ~/git/ccconfig/logs/monitor.log
 | 月度升级 | `bash update.sh all` |
 | 启动 Claude | `cd ~/git/ccconfig && claude`（配置）或 `cd ~/git/<project> && claude`（开发） |
 
----
 
 ## 旧终端快速恢复（已初始化过的机器）
 
@@ -520,13 +498,12 @@ cd ~/git/cconfig && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccp
 | ppt-master 环境 | `bash option-ppt-master/init.sh` |
 | 飞书 / OfficeCLI | 对应 `option-*/init.sh` 重装 |
 
----
 
 ## 常见坑
 
 | 现象 | 原因 | 解决 |
 |------|------|------|
-| `gh: command not found` | 阶段 1 binary 没装到 PATH | `which gh`，没结果就 `source ~/.bashrc` 或手动加 `/usr/local/bin` |
+| `gh: command not found` | 阶段 2 binary 没装到 PATH | `which gh`，没结果就 `source ~/.bashrc` 或手动加 `/usr/local/bin` |
 | `gh auth login` 浏览器没自动开 | WSL 没装 `wslview` | 手动复制终端的 one-time code，访问 https://github.com/login/device |
 | `gh repo clone` 报 404 | 没登录成功 / 账号不是仓库协作者 | `gh auth status` 确认账号；如果不是协作者，联系 owner 加 |
 | `init.sh all` 卡在 sudo | 密码没缓存 | 输密码，或配 sudo 免密（`echo "<your-username> ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/<your-username>`） |
@@ -553,16 +530,15 @@ ccconfig 的 `windows-tools/` 目录提供 Windows/WSL 互操作脚本，在 Pow
 
 > WSL 里调 Win 端脚本的标准模式：`powershell.exe -ExecutionPolicy Bypass -File "$(wslpath -w <path-to-ps1>)"`
 
----
 
 ## macOS 备注
 
-- 阶段 0：`brew install git curl`
-- 阶段 1：`brew install gh`
-- 阶段 2-6：都一样
+- 阶段 1：`brew install git curl`
+- 阶段 2：`brew install gh`
+- 阶段 3-6：都一样
 
 ## 无 sudo 备注
 
-- 阶段 0-2 改成用户级安装：gh binary 装到 `~/bin/`
-- 阶段 4 `init.sh all` 会失败（要装系统包），需要 sudo
+- 阶段 1-2 改成用户级安装：gh binary 装到 `~/bin/`
+- 阶段 5 `init.sh all` 会失败（要装系统包），需要 sudo
 - 替代：只跑 `bash init-skill.sh sync`（不需 sudo），手动配置 `~/.claude/` 符号链接
