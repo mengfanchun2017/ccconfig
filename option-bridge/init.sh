@@ -359,6 +359,9 @@ main() {
             list_apps
             ;;
         --status|-s)
+            local ok=true
+            command -v lark-cli &>/dev/null || ok=false
+            if $ok; then echo "OK lark-cli + Bridge 已配置"; else echo "FAIL Bridge 未完整安装"; fi
             echo -e "${CYAN}── 飞书 Bridge 状态 ──${NC}"
             echo -n "  lark-cli ... "
             if command -v lark-cli &>/dev/null; then
@@ -373,6 +376,7 @@ main() {
                 echo -e "${YELLOW}○${NC} 未安装"
             fi
             bash "$SCRIPT_DIR/bot-status.sh" 2>/dev/null || true
+            $ok || exit 1
             ;;
         --help|-h)
             echo "用法: $0 [--lark-cli|--cc-connect|--all|--list]"

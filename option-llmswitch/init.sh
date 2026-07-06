@@ -477,7 +477,7 @@ main() {
         --start|-S)      do_start ;;
         --stop|-K)       do_stop ;;
         --restart|-R)    do_stop; sleep 1; do_start ;;
-        --status|-s)     do_status ;;
+        --status|-s)     do_status; exit $? ;;
         --mode|-m)       do_mode "${2:-}" "${3:-}" ;;
         --log|-l)        do_log ;;
         --update|-u)     do_update ;;

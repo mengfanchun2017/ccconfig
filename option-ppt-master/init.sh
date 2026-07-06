@@ -146,6 +146,11 @@ update_ppt_master() {
 
 # ========== 状态检查 ==========
 show_status() {
+    local ok=true
+    [[ -d "$PPT_DIR/.git" ]] || ok=false
+    python3 -c "import pptx" 2>/dev/null || ok=false
+    if $ok; then echo "OK ppt-master 就绪"; else echo "FAIL ppt-master 未完整安装"; fi
+
     echo -e "${CYAN}── ppt-master 状态 ──${NC}"
 
     echo -n "  仓库 ... "
@@ -181,6 +186,7 @@ show_status() {
     fi
 
     echo ""
+    $ok || return 1
 }
 
 # ========== 交互式 ==========
