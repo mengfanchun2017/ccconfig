@@ -17,6 +17,7 @@ conf/f-ppt.json
 conf/cloudflare.json
 conf/supabase.json
 conf/f-moocrec.json
+conf/getnote.json
 
 # 私有数据（已迁移到 ccprivate，残留/符号链接不跟踪）
 link/.config.json
