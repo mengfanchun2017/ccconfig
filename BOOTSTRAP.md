@@ -152,7 +152,7 @@ ls D:\backup\ubuntu-24.04-backup.tar
 # 先注销原有发行版（谨慎！会删除原环境）
 wsl --unregister Ubuntu-24.04
 
-# 从备份文件导入
+# 从备份文件导入（第一个参数是名称，可自定义，如 u24claudec）
 wsl --import Ubuntu-24.04 D:\wsl\ubuntu D:\backup\ubuntu-24.04-backup.tar
 
 # 设置默认用户（导入后 root 是默认用户）
