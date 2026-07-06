@@ -230,7 +230,7 @@ start_watch() {
     local debounce=120
     local min_push_gap=60
 
-    setsid inotifywait -m -r -q \
+    inotifywait -m -r -q \
         --exclude '(\.git/|_ext/|\.snapshots/|node_modules/)' \
         -e modify,create,delete,move \
         "$WATCH_DIR" 2>/dev/null | while IFS= read -r line; do
@@ -258,7 +258,7 @@ start_watch() {
 
     # Debounce loop → sync only repos that had changes
     {
-        trap 'kill $event_pid 2>/dev/null; rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"; exit' EXIT
+        trap 'kill $event_pid 2>/dev/null; pkill -P $event_pid 2>/dev/null; rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE" "$PID_FILE"; exit' EXIT
 
         pending=0
         last_push_time=0
