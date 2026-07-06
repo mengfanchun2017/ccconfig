@@ -32,7 +32,6 @@ All notable changes to ccconfig will be documented in this file.
   - `watchdog.sh` 守护进程 (30s 健康检查 + 自动重启 + 路由变更通知)
   - `init-llm.sh` Gateway 模式集成 (启动 proxy + watchdog，显示路由目标)
 - `windows-tools/psupdate/` — PowerShell 7 升级工具，绕过 winget MSI 缓存丢失问题
-- `windows-tools/wslconf/` — WSL 2 配置模板 (`.wslconfig` + `/etc/wsl.conf`)
 - `windows-tools/music-convert/` — NCM 解密 + 格式转换工具
 - `lib/README.md` + `conf/README.md` + `link/README.md` + `link/skills/README.md` + `link/agents/README.md`
 
