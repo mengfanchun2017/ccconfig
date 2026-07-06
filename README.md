@@ -217,7 +217,7 @@ cd ~/git/ccconfig && git pull
 
 ## 自建 Skills
 
-全部 12 个自建 skill 发布在 **[claude-skills](https://github.com/mengfanchun2017/claude-skills)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
+全部 13 个自建 skill 发布在 **[claude-skills](https://github.com/mengfanchun2017/claude-skills)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
 
 | Skill | 用途 | 需外部服务？ |
 |-------|------|-------------|
@@ -233,6 +233,7 @@ cd ~/git/ccconfig && git pull
 | `f-logme` | OKR/Worklog/Reflect/SUM 个人管理 | lark-cli + 飞书 Base |
 | `f-moocrec` | 慕课推荐 | 飞书 Base |
 | `f-vessel` | AI 浏览器操控（Vessel MCP） | Vessel 浏览器 |
+| `f-sysarchi` | 系统分析师备考 — 暗号 `archi` 随工边做边学 | 无 |
 
 > **独立使用**（不需 ccconfig）：`/plugin marketplace add <your-username>/claude-skills` 然后 `/plugin install f-doc@<your-username>-skills`。
 > **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/claude-skills/plugins/` symlink，第三方 skill 从 `conf/third-party-skills.txt` 通过 npx 安装。
