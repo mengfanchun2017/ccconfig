@@ -296,7 +296,7 @@ start_watch() {
 
     # Single inotify watching ~/git/, accepting events from any tracked repo.
     # Debounce triggers sync_repos with only the changed repo list (L2 优化).
-    local debounce=120
+    local debounce=60
     local min_push_gap=60
 
     inotifywait -m -r -q \
