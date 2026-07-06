@@ -309,8 +309,8 @@ check_playwright() {
     echo -e "${CYAN}[8] Playwright 浏览器测试${NC}"
 
     echo -n "  npx playwright ... "
-    if npx playwright --version &>/dev/null; then
-        echo -e "${GREEN}✅${NC} $(npx playwright --version 2>/dev/null)"
+    if timeout 10 npx playwright --version &>/dev/null; then
+        echo -e "${GREEN}✅${NC} $(timeout 10 npx playwright --version 2>/dev/null)"
     else
         echo -e "${GRAY}－${NC} 未安装"
     fi
@@ -325,7 +325,7 @@ check_playwright() {
     fi
 
     echo -n "  MCP ... "
-    if npx @playwright/mcp@latest --version 2>/dev/null | grep -q .; then
+    if timeout 10 npx @playwright/mcp@latest --version 2>/dev/null | grep -q .; then
         echo -e "${GREEN}✅${NC} 可用"
     else
         echo -e "${YELLOW}○${NC} 未配置"
