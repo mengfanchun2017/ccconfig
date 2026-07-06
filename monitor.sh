@@ -223,6 +223,7 @@ start_watch() {
     resurrect_pm2 &
 
     rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
+    find "$WATCH_DIR" -maxdepth 2 -name '.monitor-sync.lock' -type d -exec rmdir {} \; 2>/dev/null || true
     QUIET_MODE=true
 
     # Single inotify watching ~/git/, accepting events from any tracked repo.
