@@ -95,6 +95,36 @@ check_deps() {
     fi
 }
 
+# Push with retry (network intermittent on WSL)
+git_push() {
+    local repo_dir="$1" branch="$2"
+    local attempt=1 max_attempts=3
+    local output rc
+    while [ $attempt -le $max_attempts ]; do
+        set +e
+        output=$(timeout 60 git -C "$repo_dir" push origin "$branch" 2>&1)
+        rc=$?
+        set -e
+        if [ $rc -eq 0 ]; then
+            echo "$output"
+            return 0
+        fi
+        if echo "$output" | grep -qi "connection\|network\|Recv failure\|reset by peer\|timeout\|Could not resolve"; then
+            if [ $attempt -lt $max_attempts ]; then
+                do_log "[$(repo_name "$repo_dir")] push attempt $attempt failed, retry in 10s..."
+                sleep 10
+            fi
+        else
+            # Non-network error (conflict, auth, etc.) — don't retry
+            echo "$output" >&2
+            return $rc
+        fi
+        attempt=$((attempt + 1))
+    done
+    echo "$output" >&2
+    return $rc
+}
+
 # ========== Commit and push for one repo ==========
 commit_and_push() {
     local repo_dir="$1"
@@ -117,10 +147,8 @@ commit_and_push() {
             local count=$(echo "$unpushed" | wc -l)
             log "[$repo] no local changes, pushing $count unpushed commit(s)"
             local push_output push_rc
-            set +e
-            push_output=$(timeout 60 git -C "$repo_dir" push origin "$branch" 2>&1)
+            push_output=$(git_push "$repo_dir" "$branch" 2>&1)
             push_rc=$?
-            set -e
             if [ $push_rc -eq 0 ]; then
                 local latest_hash=$(git -C "$repo_dir" rev-parse --short HEAD)
                 log "[$repo] OK pushed → GitHub ($latest_hash)"
@@ -209,10 +237,8 @@ commit_and_push() {
                 fi
             fi
             local push_output push_rc
-            set +e
-            push_output=$(timeout 60 git -C "$repo_dir" push origin "$branch" 2>&1)
+            push_output=$(git_push "$repo_dir" "$branch" 2>&1)
             push_rc=$?
-            set -e
             if [ $push_rc -eq 0 ]; then
                 log "[$repo] OK pushed → GitHub ($commit_hash)"
             else
