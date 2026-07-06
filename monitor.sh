@@ -291,7 +291,7 @@ start_watch() {
                 fi
 
                 # 去重改动 repo 列表，sync_repos 不传 = 全量（fallback 行为）
-                local changed=$(sort -u "$CHANGED_REPOS_FILE" 2>/dev/null | grep -v '^$' || true)
+                changed=$(sort -u "$CHANGED_REPOS_FILE" 2>/dev/null | grep -v '^$' || true)
                 if [ -z "$changed" ]; then
                     do_log "Debounce done, no changed repos recorded — syncing all (fallback)"
                     sync_repos
