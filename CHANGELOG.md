@@ -2,6 +2,19 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- `docs/architecture.md` — 产品架构总文档（三仓库模型 + 配置数据流 + 初始化/升级流程）
+- `docs/upgrade-guide.md` — 用户升级指南（月度升级 + 大版本 + 回滚）
+
+### Changed
+- **三仓库架构审核** — README/BOOTSTRAP/ROADMAP 全面更新，修复 stale 描述和计数
+
+### Removed
+- `option-ppt-master/` — OfficeCLI 已是唯一 PPT 引擎（f-ppt 已迁移），删除残留目录
+- 所有脚本和文档中的 ppt-master 过时引用
+
 ## [1.0.1] — 2026-07-05
 
 ### Added

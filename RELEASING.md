@@ -56,6 +56,12 @@ test -f docs/ccprivate-guide.md && echo "OK" || echo "❌ 缺 ccprivate 搭建�
 
 # 7. BOOTSTRAP 含 release 分支
 grep -q "branch release" BOOTSTRAP.md && echo "OK" || echo "❌ BOOTSTRAP 未提及 release 分支"
+
+# 8. 架构文档存在
+test -f docs/architecture.md && echo "OK" || echo "❌ 缺架构文档"
+
+# 9. 无 ppt-master 残留引用（CHANGELOG 历史除外）
+! grep -rn "ppt-master\|ppt_master" --include="*.md" --include="*.sh" . --exclude-dir=.git 2>/dev/null | grep -qv CHANGELOG.md && echo "OK" || echo "❌ 仍有 ppt-master 引用"
 ```
 
 ## 发布步骤
