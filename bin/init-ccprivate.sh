@@ -5,7 +5,7 @@
 #   bash ccconfig/bin/init-ccprivate.sh           # 交互式新建
 #   bash ccconfig/bin/init-ccprivate.sh --clone    # 从已有 GitHub 仓库克隆
 #
-# 前置条件：gh auth login 已完成
+# 前置条件：SSH key 已添加到 GitHub（推荐），或 gh auth login 已完成（HTTPS 备选）
 # 输出：~/git/ccprivate/ 完整目录结构 + GitHub 私有仓库 + symlink 已建立
 
 set -e
@@ -320,11 +320,12 @@ create_and_push() {
 
     if gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
         info "GitHub 仓库已存在: $GH_USER/ccprivate"
-        git remote add origin "https://github.com/$GH_USER/ccprivate.git"
+        git remote add origin "git@github.com:$GH_USER/ccprivate.git"
     else
         info "创建私有仓库: $GH_USER/ccprivate"
         gh repo create "$GH_USER/ccprivate" --private --source=. --remote=origin --push 2>&1 | tail -3
-        ok "仓库已创建并推送"
+        git remote set-url origin "git@github.com:$GH_USER/ccprivate.git"
+        ok "仓库已创建并推送（SSH）"
         return 0
     fi
 
@@ -416,6 +417,7 @@ do_clone() {
 
     section "克隆 ccprivate"
     gh repo clone "$GH_USER/ccprivate" "$CCPRIVATE_DIR"
+    git -C "$CCPRIVATE_DIR" remote set-url origin "git@github.com:$GH_USER/ccprivate.git"
 
     section "建立符号链接"
     bash "$CCPRIVATE_DIR/setup.sh"

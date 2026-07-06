@@ -49,15 +49,17 @@ ccprivate/                         ccconfig/
 
 ### 1.2 克隆到本地
 
+**SSH（推荐）**：
+
 ```bash
-mkdir -p ~/git
-cd ~/git
+mkdir -p ~/git && cd ~/git
+git clone git@github.com:<your-github-username>/ccprivate.git
+```
 
-# 用 gh 克隆（需要先 gh auth login）
-gh repo clone <your-github-username>/ccprivate
+**HTTPS（备选）**：
 
-# 或直接用 git
-git clone https://github.com/<your-github-username>/ccprivate.git
+```bash
+gh repo clone <your-github-username>/ccprivate ~/git/ccprivate
 ```
 
 ---
@@ -331,7 +333,7 @@ bash ~/git/ccprivate/setup.sh
 ### 新机器恢复
 
 ```bash
-gh repo clone <your-username>/ccprivate ~/git/ccprivate
+git clone git@github.com:<your-username>/ccprivate.git ~/git/ccprivate
 bash ~/git/ccprivate/setup.sh
 ```
 
