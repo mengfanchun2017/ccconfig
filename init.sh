@@ -237,18 +237,15 @@ submenu_tools() {
     echo "  1) 状态检查       (status.sh)"
     echo "  2) 强制拉取远程   (sync.sh --pull)"
     echo "  3) 升级组件       (update.sh)"
-    echo "  4) WSL 网络/interop 修复 (windows/)"
     echo "  0) 返回"
     echo ""
-    read -p "选择 [1-4,0]: " c
+    read -p "选择 [1-3,0]: " c
     case "$c" in
         1) bash "$SCRIPT_DIR/status.sh"
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         2) run_step "强制拉取" "$SCRIPT_DIR/sync.sh --pull" false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         3) bash "$SCRIPT_DIR/update.sh" ;;
-        4) run_step "WSL修复" "powershell.exe -ExecutionPolicy Bypass -File \"$(wslpath -w $SCRIPT_DIR/windows-tools/wslconf/wslconf.ps1)\"" false
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         0) return ;;
     esac
 }

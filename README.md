@@ -139,7 +139,6 @@ bash ~/git/ccconfig/status.sh
 10. MCP 服务器健康检查（并行，24h 缓存）
 11. 远程访问（SSH、Tailscale）
 12. option-* 可选组件自动发现
-13. .wslconfig 同步检查
 
 ## Auto-Sync
 
