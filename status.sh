@@ -7,13 +7,12 @@
 # 3. auto-sync 状态
 # 4. GitHub 最后推送
 # 5. MEMORY 最后更新
-# 6. ppt-master PPT 生成环境
+# 6. Git 项目状态
 # 7. 飞书 lark-cli 状态
 # 8. Playwright 浏览器测试
-# 9. OfficeCLI 状态
-# 10. MCP 服务器状态
-# 11. 远程连接状态 (Tailscale + SSH)
-# 12. option-* 可选组件
+# 9. MCP 服务器状态
+# 10. 远程连接状态 (Tailscale + SSH)
+# 11. option-* 可选组件
 #
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
@@ -188,10 +187,10 @@ check_memory() {
     fi
 }
 
-# ========== 5b. Git 项目扫描 ==========
+# ========== 6. Git 项目状态 ==========
 check_git_projects() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[5b] Git 项目状态${NC}"
+    echo -e "${CYAN}[6] Git 项目状态${NC}"
 
     local found=0
     for git_dir in "$HOME/git"/*/; do
@@ -263,46 +262,6 @@ check_git_projects() {
     fi
 }
 
-# ========== 6. ppt-master 状态 ==========
-check_ppt_master() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[6] ppt-master (PPT 生成)${NC}"
-
-    local repo_dir="$HOME/git/_ext/ppt-master"
-    local ok=true
-
-    # 仓库
-    if [[ -d "$repo_dir/.git" ]]; then
-        echo -e "  ${GREEN}✅${NC} 仓库已克隆"
-    else
-        echo -e "  ${RED}❌${NC} 仓库未克隆: $repo_dir"
-        ok=false
-    fi
-
-    # python-pptx
-    if python3 -c "import pptx" 2>/dev/null; then
-        local ver=$(python3 -c "import pptx; print(pptx.__version__)" 2>/dev/null)
-        echo -e "  ${GREEN}✅${NC} python-pptx $ver"
-    else
-        echo -e "  ${RED}❌${NC} python-pptx 未安装"
-        ok=false
-    fi
-
-    # cairosvg
-    if python3 -c "import cairosvg" 2>/dev/null; then
-        echo -e "  ${GREEN}✅${NC} cairosvg 已安装"
-    else
-        echo -e "  ${RED}❌${NC} cairosvg 未安装"
-        ok=false
-    fi
-
-    if $ok; then
-        echo -e "  ${GREEN}PPT 生成环境就绪${NC}"
-    else
-        echo -e "  ${YELLOW}修复: bash ccconfig/option-ppt-master/init.sh --install${NC}"
-    fi
-}
-
 # ========== 8. Playwright 浏览器测试 ==========
 check_playwright() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -332,10 +291,10 @@ check_playwright() {
     fi
 }
 
-# ========== 10. MCP 服务器状态 ==========
+# ========== 9. MCP 服务器状态 ==========
 check_mcp() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[10] MCP 服务器${NC}"
+    echo -e "${CYAN}[9] MCP 服务器${NC}"
 
     local claude_json="$HOME/.claude/.config.json"
 
@@ -537,10 +496,10 @@ PYEOF
     echo -e "  ${GRAY}安装/启动: bash ccconfig/option-bridge/init.sh --cc-connect${NC}"
 }
 
-# ========== 11. 远程连接状态 ==========
+# ========== 10. 远程连接状态 ==========
 check_remote() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[11] 远程连接 (SSH + Tailscale)${NC}"
+    echo -e "${CYAN}[10] 远程连接 (SSH + Tailscale)${NC}"
 
     local ssh_ok=false
     local ssh_fix=""
@@ -665,10 +624,10 @@ check_deps_quick() {
     fi
 }
 
-# ========== 12. option-* 组件自动发现 ==========
+# ========== 11. option-* 可选组件 ==========
 check_option_components() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[12] option-* 可选组件${NC}"
+    echo -e "${CYAN}[11] option-* 可选组件${NC}"
 
     local found=0
     for opt_dir in "$REPO_DIR"/option-*/; do
@@ -685,15 +644,14 @@ check_option_components() {
         local out
         out=$(bash "$init_script" --status 2>&1)
         local status_exit=$?
-        local first_line=$(echo "$out" | head -1 | sed 's/[[:space:]]*$//')
-        if [ $status_exit -ne 0 ] || [ -z "$first_line" ]; then
+        local first_line=$(echo "$out" | sed 's/\[[0-9;]*m//g' | grep -vE '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+        if [ -z "$first_line" ]; then
             echo -e "${GRAY}－${NC} (无 --status 支持)"
-        elif echo "$first_line" | grep -qi "^OK\|^✅\|^ready"; then
-            echo -e "${GREEN}✅${NC} $first_line"
+        elif echo "$first_line" | grep -qi "^OK\|^ready"; then
+            echo -e "${GREEN}✅${NC} ${first_line#OK }"
         elif echo "$first_line" | grep -qi "^FAIL\|^❌\|^error"; then
-            echo -e "${RED}❌${NC} $first_line"
+            echo -e "${RED}❌${NC} ${first_line#FAIL }"
         else
-            # 单行 OK/FAIL 规约未遵循，原样显示
             echo -e "${GRAY}－${NC} $first_line"
         fi
     done
@@ -701,33 +659,6 @@ check_option_components() {
     if [ $found -eq 0 ]; then
         echo -e "  ${GRAY}(无可选组件)${NC}"
     fi
-}
-
-# ========== 9. OfficeCLI 状态 ==========
-check_officecli() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[9] OfficeCLI [option]${NC}"
-
-    local officecli_bin="$HOME/.local/bin/officecli"
-
-    echo -n "  安装 ... "
-    if [ -x "$officecli_bin" ]; then
-        local ver=$("$officecli_bin" --version 2>/dev/null)
-        echo -e "${GREEN}✅${NC} $ver"
-    else
-        echo -e "${GRAY}－${NC} (未安装)"
-    fi
-
-    echo -n "  MCP 注册 ... "
-    if [ -x "$officecli_bin" ] && "$officecli_bin" mcp list 2>/dev/null | grep -q "Claude"; then
-        echo -e "${GREEN}✅${NC}"
-    elif [ -x "$officecli_bin" ]; then
-        echo -e "${YELLOW}○${NC} 未注册"
-    else
-        echo -e "${GRAY}－${NC}"
-    fi
-
-    echo -e "  ${GRAY}安装: bash ccconfig/option-officecli/init.sh${NC}"
 }
 
 # ========== 执行所有检查 ==========
@@ -743,10 +674,8 @@ check_autosync
 check_last_push
 check_memory
 check_git_projects
-check_ppt_master
 check_feishu
 check_playwright
-check_officecli
 check_mcp
 check_remote
 check_option_components

@@ -115,6 +115,10 @@ update_officecli() {
 
 # ========== 状态检查 ==========
 show_status() {
+    local ok=true
+    [ -x "$OFFICECLI_BIN" ] || ok=false
+    if $ok; then echo "OK OfficeCLI 已安装"; else echo "FAIL OfficeCLI 未安装"; fi
+
     echo -e "${CYAN}── OfficeCLI 状态 ──${NC}"
 
     echo -n "  二进制 ... "
@@ -135,6 +139,7 @@ show_status() {
     fi
 
     echo ""
+    $ok || return 1
 }
 
 # ========== 交互式 ==========
