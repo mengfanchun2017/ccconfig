@@ -116,10 +116,16 @@ commit_and_push() {
         if [ -n "$unpushed" ]; then
             local count=$(echo "$unpushed" | wc -l)
             log "[$repo] no local changes, pushing $count unpushed commit(s)"
-            if timeout 60 git -C "$repo_dir" push origin "$branch" >> "$LOG_FILE" 2>&1; then
+            local push_output push_rc
+            set +e
+            push_output=$(timeout 60 git -C "$repo_dir" push origin "$branch" 2>&1)
+            push_rc=$?
+            set -e
+            if [ $push_rc -eq 0 ]; then
                 local latest_hash=$(git -C "$repo_dir" rev-parse --short HEAD)
                 log "[$repo] OK pushed → GitHub ($latest_hash)"
             else
+                echo "$push_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
                 warn "[$repo] !! push failed — check network"
             fi
         else
@@ -202,9 +208,15 @@ commit_and_push() {
                     warn "[$repo] links failed"
                 fi
             fi
-            if timeout 60 git -C "$repo_dir" push origin "$branch" >> "$LOG_FILE" 2>&1; then
+            local push_output push_rc
+            set +e
+            push_output=$(timeout 60 git -C "$repo_dir" push origin "$branch" 2>&1)
+            push_rc=$?
+            set -e
+            if [ $push_rc -eq 0 ]; then
                 log "[$repo] OK pushed → GitHub ($commit_hash)"
             else
+                echo "$push_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
                 warn "[$repo] !! push failed — check network"
             fi
         fi
