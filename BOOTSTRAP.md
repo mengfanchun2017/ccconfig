@@ -4,6 +4,9 @@
 > 不假设机器上有 claude、git、gh 任何东西。
 > 全程 5-10 分钟，全手动。
 > 走完一遍后，所有 ccconfig 配置会自动同步、monitor 自动 commit+push。
+>
+> **三仓库模型**：ccconfig（公开 infra）+ claude-skills（公开 skill 市场）+ ccprivate（私有配置）。
+> 三个仓库各司其职，ccconfig 脚本编排、claude-skills 提供 skill 插件、ccprivate 保管密钥。
 
 **适用**：
 - 新装的 WSL2 / Ubuntu 24.04+ / Debian 12+
@@ -276,10 +279,12 @@ gh auth status
 **保存到哪里**：`~/.config/gh/hosts.yml` — OAuth token（**不能跨机器复制**，每台机器独立登录）。
 
 
-## 阶段 4 — 克隆 ccconfig + 初始化 ccprivate
+## 阶段 4 — 克隆三仓库 + 初始化 ccprivate
 
 > **用户**：clone release 分支，一条命令建 ccprivate。
 > **开发者**：先 Fork 再 clone 自己的 fork（main 跟踪最新代码）。
+>
+> **三仓库分工**：ccconfig（infra 脚本）→ claude-skills（skill 插件）→ ccprivate（密钥）。
 
 ### 4a. 克隆 ccconfig
 
@@ -302,7 +307,28 @@ gh repo clone <your-github-username>/ccconfig -- --branch release
 # gh repo clone <your-github-username>/ccconfig
 ```
 
-### 4b. 初始化 ccprivate（一条命令）
+### 4b. 克隆 claude-skills
+
+Skill 插件仓库。`init-skill.sh sync` 从这里 symlink 自建 skill 到 `~/.claude/skills/`。
+
+**SSH（推荐）**：
+
+```bash
+cd ~/git
+git clone git@github.com:<your-github-username>/claude-skills.git
+```
+
+**HTTPS（备选）**：
+
+```bash
+cd ~/git
+gh repo clone <your-github-username>/claude-skills
+```
+
+> **ccconfig 用户**：claude-skills 在阶段 5 的 `init-skill.sh sync` 被自动引用（`CLAUDE_SKILLS_SRC` 默认 `~/git/claude-skills/plugins`）。
+> **独立用户**：不需 ccconfig，直接 `/plugin marketplace add <your-username>/claude-skills` 安装。
+
+### 4c. 初始化 ccprivate（一条命令）
 
 ccprivate 是私有配置仓库，存放 API key + Token + 个人配置。**一条命令完成**：
 
@@ -459,17 +485,21 @@ tail -f ~/git/ccconfig/logs/monitor.log
 **不需要重跑 init.sh all**（会重装系统包）。只需要 4 步：
 
 ```bash
-# 1. 拉最新
+# 1. 拉最新（三个仓库）
 cd ~/git/cconfig && git pull
 cd ~/git/ccprivate && git pull
+cd ~/git/claude-skills && git pull
 
 # 2. 重建所有符号链接（私有 + 公开一步到位）
 bash ~/git/ccprivate/setup.sh
 
-# 3. 状态检查
+# 3. 同步 skills
+bash ~/git/cconfig/init-skill.sh sync
+
+# 4. 状态检查
 cd ~/git/ccconfig && bash status.sh
 
-# 4. 启动 monitor（如果没在跑）
+# 5. 启动 monitor（如果没在跑）
 bash init-autostart.sh
 # 或前台跑：./monitor.sh start
 # 查看状态：./monitor.sh status
@@ -481,7 +511,7 @@ bash init-autostart.sh
 **`pullff` 暗号 = 上面 1+2 一步到位**：
 
 ```bash
-cd ~/git/cconfig && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccprivate/setup.sh
+cd ~/git/cconfig && git pull && cd ~/git/claude-skills && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccprivate/setup.sh
 ```
 
 ### 常见"看着有问题"但实际正常

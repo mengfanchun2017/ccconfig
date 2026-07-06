@@ -1,10 +1,18 @@
 # ccconfig — Claude Code 配置中枢
 
-> 统一管理 Claude Code 配置。双仓库公私分离。一键恢复到新终端。
+> 统一管理 Claude Code 配置。三仓库公私分离。一键恢复到新终端。
 
 ## 概述
 
-ccconfig 管理 Claude Code 配置的完整生命周期。**隐私数据（API key / Token / 个人配置）在 ccprivate 私有仓库**，通过 symlink 穿透访问；ccconfig 本身不含任何密钥，可安全公开。
+ccconfig 是 Claude Code 配置基础设施的公开部分。**三仓库模型**各司其职：
+
+| 仓库 | 可见性 | 内容 |
+|------|--------|------|
+| **ccconfig** | 公开 | infra 脚本（init/bootstrap/sync/monitor）、rules、agents、commands |
+| **[claude-skills](https://github.com/mengfanchun2017/claude-skills)** | 公开 | Skill 插件市场（Anthropic marketplace 兼容），12 个自建 f-* skill |
+| **ccprivate** | 私有 | API key / Token / 个人配置，通过 symlink 穿透访问 |
+
+ccconfig 本身不含任何密钥，可安全公开。Skill 插件独立发布为 claude-skills 仓库，符合 Anthropic marketplace 规范，可被任何 Claude Code 用户 `/plugin marketplace add` 安装。
 
 - **环境**：Ubuntu/WSL 一键初始化
 - **配置**：LLM 后端、MCP 服务器、API key 单一真相源（真实值在 ccprivate）
@@ -18,28 +26,68 @@ ccconfig 管理 Claude Code 配置的完整生命周期。**隐私数据（API k
 
 Claude Code 配置分散在 `~/.claude/`、环境变量、MCP 服务器、skills 等多处。换机器或重装系统后需要数小时重新配置。ccconfig 解决三件事：
 
-1. **统一管理** — 所有配置集中到一个 git 仓库，版本可控
+1. **统一管理** — 所有配置集中到 git 仓库，版本可控
 2. **一键恢复** — 新终端 10 分钟从零到全功能（BOOTSTRAP 7 阶段）
 3. **多设备同步** — auto-sync 守护进程自动 commit+push，多机配置一致
+
+三仓库分工明确：ccconfig 管 infra、claude-skills 管 skill 插件、ccprivate 管密钥。ccconfig 用户一键获得全部能力；claude-skills 可独立使用（不需 ccconfig）。
 
 > 适合：Claude Code 重度用户 / 多机器工作 / 想统一团队 Claude Code 配置的 TL
 
 ## 架构
 
-```
-ccprivate/ (私有仓库)               ccconfig/ (公开仓库)
-├── conf/*.json (真实值) ──symlink──→ conf/*.json
-├── link/CLAUDE.md         ──→       ~/CLAUDE.md
-├── link/settings.json     ──→       ~/.claude/settings.json
-├── link/.config.json      ──→       ~/.claude/.config.json
-├── link/projects/         ──symlink──→ link/projects/
-└── setup.sh               调用  →   setup-links.sh
+```mermaid
+flowchart LR
+  subgraph repos["📦 三仓库（~/git/）"]
+    direction TB
+    skills["<b>claude-skills</b><br/>公开 skill 市场"]
+    ccconfig["<b>ccconfig</b><br/>公开 infra"]
+    ccprivate["<b>ccprivate</b><br/>私有配置"]
+  end
 
-                                         ccconfig/link/ (公开部分)
-                                           ├── rules/      ──→ ~/.claude/rules/
-                                           ├── agents/     ──→ ~/.claude/agents/
-                                           ├── commands/   ──→ ~/.claude/commands/
-                                           └── skills/     ──→ ~/.claude/skills/
+  subgraph skills_content["claude-skills 内容"]
+    plugins["plugins/<br/>f-doc · f-ppt · f-pdf<br/>f-research · f-search<br/>f-logme · f-launch<br/>f-vessel · f-report-std<br/>f-research-deep · f-moocrec<br/>f-research-report"]
+    marketplace["marketplace.json"]
+  end
+
+  subgraph cc_content["cconfig 内容"]
+    scripts["init.sh · init-ubuntu.sh · init-llm.sh<br/>init-skill.sh · init-mcp.sh<br/>monitor.sh · sync.sh · status.sh<br/>setup-links.sh · update.sh"]
+    link["link/<br/>rules/ · agents/ · commands/"]
+    conf["conf/*.example 模板"]
+  end
+
+  subgraph ccprivate_content["ccprivate 内容"]
+    secrets["conf/*.json<br/>API key · Token"]
+    personal["link/<br/>CLAUDE.md · settings.json"]
+    overlay["config/*.yaml<br/>skill 私有覆盖"]
+  end
+
+  subgraph target["🎯 ~/.claude/"]
+    skills_dir["skills/"]
+    rules_dir["rules/"]
+    agents_dir["agents/"]
+    commands_dir["commands/"]
+    settings["settings.json"]
+    claude_md["~/CLAUDE.md"]
+  end
+
+  skills --> plugins
+  skills --> marketplace
+  ccconfig --> scripts
+  ccconfig --> link
+  ccconfig --> conf
+  ccprivate --> secrets
+  ccprivate --> personal
+  ccprivate --> overlay
+
+  plugins -- "init-skill.sh sync<br/>symlink" --> skills_dir
+  overlay -- "init-skill.sh sync<br/>copy config.yaml" --> skills_dir
+  link -- "setup-links.sh<br/>symlink" --> rules_dir
+  link -- "setup-links.sh<br/>symlink" --> agents_dir
+  link -- "setup-links.sh<br/>symlink" --> commands_dir
+  personal -- "setup.sh<br/>symlink" --> settings
+  personal -- "setup.sh<br/>symlink" --> claude_md
+  secrets -- "setup.sh<br/>symlink" --> conf
 ```
 
 > **密钥隔离**：`conf/*.json`（llm/claude/feishu/f-logme/f-doc/f-ppt/cloudflare/supabase/ubuntu）是 ccprivate→ccconfig 的 symlink，`.gitignore` 已忽略。公开仓库只含 `.example` 模板。详见 [BOOTSTRAP.md](BOOTSTRAP.md)。
@@ -74,7 +122,6 @@ ccconfig/
 │   ├── rules/                # 条件规则
 │   ├── agents/               # 意图路由 agent
 │   ├── commands/             # 自定义斜杠命令
-│   ├── skills/               # 12 自建 skill
 │   └── projects/             # → symlink 到 ccprivate/link/projects/
 │
 ├── hooks/
@@ -107,13 +154,16 @@ ccconfig/
 # 1. 克隆 ccconfig（SSH 推荐，稳定版用 release 分支）
 git clone git@github.com:<your-github-username>/ccconfig.git ~/git/ccconfig --branch release
 
-# 2. 一键创建 ccprivate（交互式，收集 GitHub 账号 + LLM API Key）
+# 2. 克隆 claude-skills（skill 插件仓库）
+git clone git@github.com:<your-github-username>/claude-skills.git ~/git/claude-skills
+
+# 3. 一键创建 ccprivate（交互式，收集 GitHub 账号 + LLM API Key）
 bash ~/git/ccconfig/bin/init-ccprivate.sh
 
-# 3. 系统初始化（Ubuntu + LLM + MCP + Skills + Python）
+# 4. 系统初始化（Ubuntu + LLM + MCP + Skills + Python）
 bash ~/git/ccconfig/init.sh all
 
-# 4. 状态检查
+# 5. 状态检查
 bash ~/git/ccconfig/status.sh
 ```
 
@@ -168,21 +218,26 @@ cd ~/git/ccconfig && git pull
 
 ## 自建 Skills
 
+全部 12 个自建 skill 发布在 **[claude-skills](https://github.com/mengfanchun2017/claude-skills)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
+
 | Skill | 用途 | 需外部服务？ |
 |-------|------|-------------|
-| `f-doc` | 飞书文档创建/更新/合并/拆分 | lark-cli + 飞书租户 |
-| `f-ppt` | PPT 生成（双引擎） | officecli（可选飞书） |
-| `f-pdf` | PDF 内容提取 | PyMuPDF (pip) |
-| `f-search` | 多源搜索编排 | Tavily + MiniMax MCP |
-| `f-research-domain` | 领域研究方法论 | 委托 f-search |
-| `f-research-deep` | 批量深度研究 | Tavily + MiniMax MCP |
-| `f-report-gen` | 报告生成（JSON→MD） | 委托 f-doc |
-| `f-report-std` | 报告写作规范（4 模板） | 无 |
+| `f-doc` | 飞书文档创建/更新/合并/拆分/对比 | lark-cli + 飞书租户 |
+| `f-ppt` | PPT 生成（双引擎：ppt-master + OfficeCLI） | officecli（可选飞书） |
+| `f-pdf` | PDF 内容提取（文字/图片/表格/元数据） | PyMuPDF (pip) |
+| `f-search` | 多源搜索编排（Tavily + MiniMax + WebSearch） | Tavily + MiniMax MCP |
+| `f-research` | 快速研究（领域自动识别 + 三源并行） | 委托 f-search |
+| `f-research-deep` | 批量深度研究（outline.yaml → JSON 输出） | Tavily + MiniMax MCP |
+| `f-research-report` | 报告生成（JSON/大纲/素材 → Markdown） | 委托 f-doc + f-report-std |
+| `f-report-std` | 报告写作规范（4 套模板：研究/分析/对比/方案） | 无 |
 | `f-launch` | 项目启动脚手架 | f-logme + f-doc（可选） |
-| `f-logme` | OKR/Worklog/Reflect/SUM | lark-cli + 飞书 Base |
-| `webapp-testing` | Playwright 浏览器测试 | 无 |
+| `f-logme` | OKR/Worklog/Reflect/SUM 个人管理 | lark-cli + 飞书 Base |
+| `f-moocrec` | 慕课推荐 | 飞书 Base |
+| `f-vessel` | AI 浏览器操控（Vessel MCP） | Vessel 浏览器 |
 
-> 详见 [link/skills/README.md](link/skills/README.md)。第三方 skills（caveman、diagnose 等）由 `init-skill.sh sync` 自动安装。
+> **独立使用**（不需 ccconfig）：`/plugin marketplace add <your-username>/claude-skills` 然后 `/plugin install f-doc@<your-username>-skills`。
+> **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/claude-skills/plugins/` symlink，第三方 skill 从 `conf/third-party-skills.txt` 通过 npx 安装。
+> 详见 [claude-skills README](https://github.com/mengfanchun2017/claude-skills)。
 
 ## Auto-Sync
 
@@ -232,6 +287,7 @@ ssh <your-username>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
 |------|--------|------|
 | `CCCONFIG_HOME` | `$HOME/git/ccconfig` | ccconfig 仓库路径 |
 | `CCPRIVATE_HOME` | `$HOME/git/ccprivate` | ccprivate 仓库路径 |
+| `CLAUDE_SKILLS_SRC` | `$HOME/git/claude-skills/plugins` | Skill 插件源目录 |
 
 所有脚本优先读环境变量，默认值保持不变。自定义路径时 `export` 覆盖即可。
 
@@ -242,7 +298,8 @@ ssh <your-username>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
 | API key / Token | ccprivate/conf/*.json | 私有仓库 |
 | 个人 CLAUDE.md / settings | ccprivate/link/ | 私有仓库 |
 | 项目 memory | ccprivate/link/projects/ | 私有仓库 |
-| 脚本 / skill / rule / 模板 | ccconfig/ | 公开 |
+| Skill 插件 (SKILL.md + 模板) | claude-skills/plugins/ | 公开 |
+| 脚本 / rule / agent / command | ccconfig/ | 公开 |
 | .example 配置模板 | ccconfig/conf/*.example | 公开 |
 | 版本号 / 依赖清单 | ccconfig/conf/versions.json | 公开 |
 
@@ -266,8 +323,10 @@ python3 -c "import json; [json.load(open(f)) for f in __import__('glob').glob('c
 
 ### 添加 Skill
 
-1. 在 `link/skills/<name>/` 创建 skill
-2. 跑 `bash init-skill.sh sync`
+1. 在 `~/git/claude-skills/plugins/<name>/` 创建 skill（`SKILL.md` + 可选 `config.yaml.example`）
+2. 更新 `~/git/claude-skills/.claude-plugin/marketplace.json` 注册 plugin 入口
+3. 跑 `bash init-skill.sh sync` 同步到 `~/.claude/skills/`
+4. 私有配置（token 等）放到 `ccprivate/config/<name>.yaml`，sync 时自动覆盖
 
 ## 许可证
 
