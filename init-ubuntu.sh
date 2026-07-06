@@ -7,7 +7,7 @@
 #   - init01git.sh (git/gh + 克隆仓库)
 #   - init02claude.sh (Claude Code + API 配置 + Hook)
 #   - init03env.sh (Node.js/uv/字体/符号链接/auto-sync)
-#   - ppt-master (Python deps + 克隆 hugohe3/ppt-master)
+#   - OfficeCLI (curl 安装)
 #
 # 使用：
 #   bash ccconfig/init-ubuntu.sh
@@ -617,8 +617,7 @@ main() {
     echo "  nano         — 终端编辑器     sudo apt install nano（通常预装）"
     echo ""
     echo "可选组件（按需安装）："
-    echo "  bash ccconfig/option-ppt-master/init.sh   # ppt-master (PPT 生成)"
-    echo "  bash ccconfig/option-officecli/init.sh   # OfficeCLI（AI-native Office 工具）"
+    echo "  bash ccconfig/option-officecli/init.sh   # OfficeCLI（PPT/Office 工具）"
     echo "  bash ccconfig/option-bridge/init.sh      # cc-connect（飞书 Bridge）"
     echo ""
     echo "下一步:"

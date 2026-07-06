@@ -104,7 +104,7 @@ ccconfig/
 ├── init-autostart.sh         # auto-sync systemd 服务
 ├── update.sh                 # 月度组件升级
 │
-├── status.sh                 # 状态检查（13 项）
+├── status.sh                 # 状态检查（11 项）
 ├── monitor.sh                # 多仓库文件监听 + 自动 git 同步
 ├── sync.sh                   # 多仓库智能同步（云端↔本地）
 ├── setup-links.sh            # 公开部分符号链接（被 ccprivate/setup.sh 调用）
@@ -132,7 +132,7 @@ ccconfig/
 │
 ├── option-bridge/            # 可选：飞书消息 Bridge
 ├── option-officecli/         # 可选：OfficeCLI
-├── option-ppt-master/        # 可选：PPT 生成
+├── option-llmswitch/         # 可选：LLM 网关代理
 │
 ├── remote/                   # 远程访问（Tailscale + SSH + tmux）
 ├── windows-tools/            # Windows/WSL 互操作
@@ -201,20 +201,19 @@ cd ~/git/ccconfig && git pull
 
 ## 状态检查覆盖
 
-`status.sh` 每次 Claude Code session 启动检查 13 项：
+`status.sh` 每次 Claude Code session 启动检查 11 项：
 
 1. 配置文件链接（settings.json、.config.json、CLAUDE.md、MEMORY.md、rules）
 2. 核心依赖（git、bash、curl）
 3. auto-sync 守护进程
 4. GitHub 最后推送
 5. MEMORY 最后更新
-6. ppt-master 环境
+6. Git 项目状态
 7. 飞书 lark-cli 状态
 8. Playwright 浏览器测试
-9. OfficeCLI 状态
-10. MCP 服务器健康检查（并行，24h 缓存）
-11. 远程访问（SSH、Tailscale）
-12. option-* 可选组件自动发现
+9. MCP 服务器健康检查（并行，24h 缓存）
+10. 远程访问（SSH、Tailscale）
+11. option-* 可选组件自动发现
 
 ## 自建 Skills
 
@@ -223,7 +222,7 @@ cd ~/git/ccconfig && git pull
 | Skill | 用途 | 需外部服务？ |
 |-------|------|-------------|
 | `f-doc` | 飞书文档创建/更新/合并/拆分/对比 | lark-cli + 飞书租户 |
-| `f-ppt` | PPT 生成（双引擎：ppt-master + OfficeCLI） | officecli（可选飞书） |
+| `f-ppt` | PPT 生成（OfficeCLI 引擎） | officecli（可选飞书） |
 | `f-pdf` | PDF 内容提取（文字/图片/表格/元数据） | PyMuPDF (pip) |
 | `f-search` | 多源搜索编排（Tavily + MiniMax + WebSearch） | Tavily + MiniMax MCP |
 | `f-research` | 快速研究（领域自动识别 + 三源并行） | 委托 f-search |
@@ -255,7 +254,7 @@ cd ~/git/ccconfig && git pull
 ```bash
 bash option-bridge/init.sh       # 飞书 Bridge
 bash option-officecli/init.sh    # OfficeCLI
-bash option-ppt-master/init.sh   # PPT 生成
+bash option-llmswitch/init.sh    # LLM 网关代理
 ```
 
 每个组件至少支持 `init.sh --status`。
