@@ -104,8 +104,8 @@ ccconfig/
 > **开发者**：用 `main` 分支跟踪最新代码。
 
 ```bash
-# 1. 克隆 ccconfig（稳定版用 release 分支）
-gh repo clone <your-github-username>/ccconfig ~/git/cconfig -- --branch release
+# 1. 克隆 ccconfig（SSH 推荐，稳定版用 release 分支）
+git clone git@github.com:<your-github-username>/ccconfig.git ~/git/ccconfig --branch release
 
 # 2. 一键创建 ccprivate（交互式，收集 GitHub 账号 + LLM API Key）
 bash ~/git/ccconfig/bin/init-ccprivate.sh
@@ -189,7 +189,7 @@ cd ~/git/ccconfig && git pull
 `monitor.sh` 监听 `~/git/` 下所有 git 仓库，自动 commit + push：
 
 ```bash
-./monitor.sh start     # 启动守护进程（120s debounce）
+./monitor.sh start     # 启动守护进程（60s debounce）
 ./monitor.sh stop      # 停止
 ./monitor.sh status    # 查看状态
 ./monitor.sh log 50    # 最近 50 行日志
