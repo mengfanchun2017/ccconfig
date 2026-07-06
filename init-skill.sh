@@ -152,32 +152,16 @@ do_install_third_party() {
     good "  第三方 skill: $installed 新装, $already 已装, $failed 失败"
 }
 
-# 阶段 2.5：ccprivate 配置覆盖（私有 token 覆盖 skill 内 config.yaml.example）
+# 阶段 2.5：ccprivate 配置覆盖（委托 ccprivate/bin/apply-config.sh）
 do_apply_ccprivate_config() {
     title "阶段 2.5/3: ccprivate 配置覆盖"
 
-    local ccprivate_config="$CCPRIVATE_DIR/config"
-    if [[ ! -d "$ccprivate_config" ]]; then
-        info "  ccprivate/config/ 不存在，跳过（不需私有配置或未初始化）"
-        return 0
+    local apply_script="$CCPRIVATE_DIR/bin/apply-config.sh"
+    if [[ -x "$apply_script" ]]; then
+        bash "$apply_script"
+    else
+        info "  $apply_script 不可执行，跳过（ccprivate 未初始化或未安装）"
     fi
-
-    local applied=0
-    for config_file in "$ccprivate_config"/*.yaml; do
-        [[ -f "$config_file" ]] || continue
-        local skill_name=$(basename "$config_file" .yaml)
-        local skill_dir="$CLAUDE_SKILLS_DIR/$skill_name"
-
-        if [[ -d "$skill_dir" ]]; then
-            cp "$config_file" "$skill_dir/config.yaml"
-            good "  $skill_name: ✓ config.yaml 已覆盖"
-            applied=$((applied + 1))
-        else
-            info "  $skill_name: skill 不在 ~/.claude/skills/，跳过"
-        fi
-    done
-    echo ""
-    good "  ccprivate 覆盖: $applied 个"
 }
 
 do_sync() {
