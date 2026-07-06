@@ -145,7 +145,7 @@ def llm_summarize():
                        "  summary: 2-3 句自然语言概述\n"
                        "标题规则（强约束，违反复查再输出）：\n"
                        "  - 唯一合法格式：<项目前缀> <动词+对象>，如 claudecode 修复 hook 标题格式\n"
-                       "  - 项目前缀从文件路径/commit 推断：ccconfig claudecode <project-name> feishu minimax sfia docs 等，小写英文\n"
+                       "  - 项目前缀从文件路径/commit 推断：cconfig claudecode project feishu minimax docs 等，小写英文\n"
                        "  - 禁止冒号：不写 claudecode: xxx 或 sfia 技能画像构建：xxx\n"
                        "  - 禁止下划线：不写 update_claude\n"
                        "  - 禁止括号：【】[]（）\n"
@@ -205,7 +205,7 @@ else:
 
 # === 标题后处理：补全项目前缀 ===
 # 已知前缀列表（小写英文），从 cwd / commits / edits 推断
-KNOWN_PREFIXES = {"ccconfig", "claudecode", "<project-name>", "feishu", "minimax",
+KNOWN_PREFIXES = {"ccconfig", "claudecode", "project", "feishu", "minimax",
                   "sfia", "coze", "doubao", "trae", "robot", "docs", "agent"}
 # 从 cwd 提取项目名
 cwd_prefix = ""

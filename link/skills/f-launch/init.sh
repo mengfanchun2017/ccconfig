@@ -43,7 +43,7 @@ f-launch 项目类型 (8 类):
 
 参考案例:
   static-web-personal  → ~/git/<project-name>
-  web-api-backend      → ~/git/<project-name> (待建)
+  web-api-backend      → ~/git/<project-name>
 EOF
 }
 

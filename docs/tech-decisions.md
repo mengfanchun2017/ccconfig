@@ -14,13 +14,13 @@
 **决策**: 全线移除 Vessel，统一使用 Playwright（MCP + Python 脚本）
 **影响**: 删 option-vessel/、bin/vessel-*、f-vessel skill、systemd vessel.service
 **量化**: 删 1183 行 / 改 23 文件
-**关联 ADR**: <project-name> ADR 0016
+**关联 ADR**: 项目 ADR 0016
 
 ## 2026-06-13 | ADR 0016 浏览器测试工具选型 | [recvmsOk3JFBfw]
 
 **决策**: Playwright MCP 做主站（无障碍树 ~800 tokens/页），Vessel 保留给 Admin
 **后续**: 2026-06-14 Vessel 也废弃，全线 Playwright
-**关联文档**: <project-name> docs/adr/0016-browser-testing-tool-selection.md
+**关联文档**: 项目 docs/adr/0016-browser-testing-tool-selection.md
 
 ## 2026-06-13 | webapp-testing 移至用户级 skill | [recvmsYlrlKyxq]
 

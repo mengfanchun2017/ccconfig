@@ -45,7 +45,7 @@ types:
     complexity: 3
     default_stack: [Node-22, TypeScript, Hono, Drizzle, Zod, Vitest, better-auth]
     deploy_targets: [render, railway, fly-io]
-    reference: "~/git/<project-name> (待建)"
+    reference: "~/git/<project-name>"
 
   cli-tool:
     complexity: 2

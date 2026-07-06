@@ -14,6 +14,16 @@ ccconfig 管理 Claude Code 配置的完整生命周期。**隐私数据（API k
 - **Agents**：意图路由 agent
 - **可选**：飞书 Bridge、OfficeCLI、PPT 生成、远程 SSH
 
+## Why ccconfig?
+
+Claude Code 配置分散在 `~/.claude/`、环境变量、MCP 服务器、skills 等多处。换机器或重装系统后需要数小时重新配置。ccconfig 解决三件事：
+
+1. **统一管理** — 所有配置集中到一个 git 仓库，版本可控
+2. **一键恢复** — 新终端 10 分钟从零到全功能（BOOTSTRAP 7 阶段）
+3. **多设备同步** — auto-sync 守护进程自动 commit+push，多机配置一致
+
+> 适合：Claude Code 重度用户 / 多机器工作 / 想统一团队 Claude Code 配置的 TL
+
 ## 架构
 
 ```
@@ -71,7 +81,7 @@ ccconfig/
 │   ├── pre-commit            # git hook：防私密文件意外提交
 │   └── session-end-aggregator.sh  # Claude hook：自动 worklog
 │
-├── share/setup.sh            # 公开模式引导式配置向导
+├── bin/init-ccprivate.sh     # 交互式引导：收集信息 → 创建 ccprivate 仓库
 │
 ├── option-bridge/            # 可选：飞书消息 Bridge
 ├── option-officecli/         # 可选：OfficeCLI
@@ -139,6 +149,24 @@ bash ~/git/ccconfig/status.sh
 10. MCP 服务器健康检查（并行，24h 缓存）
 11. 远程访问（SSH、Tailscale）
 12. option-* 可选组件自动发现
+
+## 自建 Skills
+
+| Skill | 用途 | 需外部服务？ |
+|-------|------|-------------|
+| `f-doc` | 飞书文档创建/更新/合并/拆分 | lark-cli + 飞书租户 |
+| `f-ppt` | PPT 生成（双引擎） | officecli（可选飞书） |
+| `f-pdf` | PDF 内容提取 | PyMuPDF (pip) |
+| `f-search` | 多源搜索编排 | Tavily + MiniMax MCP |
+| `f-research-domain` | 领域研究方法论 | 委托 f-search |
+| `f-research-deep` | 批量深度研究 | Tavily + MiniMax MCP |
+| `f-report-gen` | 报告生成（JSON→MD） | 委托 f-doc |
+| `f-report-std` | 报告写作规范（4 模板） | 无 |
+| `f-launch` | 项目启动脚手架 | f-logme + f-doc（可选） |
+| `f-logme` | OKR/Worklog/Reflect/SUM | lark-cli + 飞书 Base |
+| `webapp-testing` | Playwright 浏览器测试 | 无 |
+
+> 详见 [link/skills/README.md](link/skills/README.md)。第三方 skills（caveman、diagnose 等）由 `init-skill.sh sync` 自动安装。
 
 ## Auto-Sync
 
