@@ -3,6 +3,7 @@ name: f-ppt
 user-invocable: true
 description: |
   文档→PPT 生成。OfficeCLI 引擎，grill-me 交互选 theme/layout/depth，输出到本地或飞书。
+allowed-tools: Read, Write, Bash, Glob, mcp__minimax__web_search
 ---
 
 # f-ppt — 文档 → PPT
