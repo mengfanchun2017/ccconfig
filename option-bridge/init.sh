@@ -359,24 +359,31 @@ main() {
             list_apps
             ;;
         --status|-s)
-            local ok=true
-            command -v lark-cli &>/dev/null || ok=false
-            if $ok; then echo "OK lark-cli + Bridge 已配置"; else echo "FAIL Bridge 未完整安装"; fi
+            local has_lark=false has_bridge=false
+            command -v lark-cli &>/dev/null && has_lark=true
+            command -v cc-connect &>/dev/null && has_bridge=true
+            if $has_lark && $has_bridge; then
+                echo "OK lark-cli + Bridge"
+            elif $has_lark; then
+                echo "OK lark-cli 已配置"
+            else
+                echo "FAIL lark-cli 未安装"
+            fi
             echo -e "${CYAN}── 飞书 Bridge 状态 ──${NC}"
             echo -n "  lark-cli ... "
-            if command -v lark-cli &>/dev/null; then
+            if $has_lark; then
                 echo -e "${GREEN}✅${NC} $(lark-cli --version 2>/dev/null | head -1)"
             else
                 echo -e "${RED}❌${NC} 未安装"
             fi
             echo -n "  cc-connect ... "
-            if command -v cc-connect &>/dev/null; then
+            if $has_bridge; then
                 echo -e "${GREEN}✅${NC} $(cc-connect --version 2>/dev/null | head -1 || echo '已安装')"
             else
                 echo -e "${YELLOW}○${NC} 未安装"
             fi
             bash "$SCRIPT_DIR/bot-status.sh" 2>/dev/null || true
-            $ok || exit 1
+            $has_lark || exit 1
             ;;
         --help|-h)
             echo "用法: $0 [--lark-cli|--cc-connect|--all|--list]"
