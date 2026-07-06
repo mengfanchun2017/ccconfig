@@ -87,8 +87,8 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 
 | 代号 | 场景 | 默认栈 | 真实案例 |
 |------|------|--------|----------|
-| `static-web-personal` | 个人静态 web(礼物/纪念/展示) | HTML+CSS+JS ESM + Leaflet + Supabase(可选) + R2(可选) | [[<project-name>]] |
-| `web-api-backend` | Web 后端 API(CRUD/REST) | Node 22 + Hono + Drizzle + Zod + Vitest | [[<project-name>]] |
+| `static-web-personal` | 个人静态 web(礼物/纪念/展示) | HTML+CSS+JS ESM + Leaflet + Supabase(可选) + R2(可选) | [[project-name]] |
+| `web-api-backend` | Web 后端 API(CRUD/REST) | Node 22 + Hono + Drizzle + Zod + Vitest | [[project-name]] |
 | `cli-tool` | CLI 工具 | Node (TypeScript) / Go / Rust | (待补) |
 | `ai-agent-tool` | AI Agent / 工具调用 | Python + Claude API / LangChain | (待补) |
 | `data-pipeline` | 数据 / ML Pipeline | Python + Airflow / Dagster | (待补) |
@@ -144,4 +144,4 @@ done
 
 | 标题 | 链接 | 日期 | 说明 |
 |------|------|------|------|
-| Web 后端 CRUD/REST API 技术栈选型报告 (<project-name>) | <飞书文档 URL> | 2026-06-11 | web-api-backend 类型的技术选型示例 |
+| Web 后端 CRUD/REST API 技术栈选型报告 | <飞书文档 URL> | 2026-06-11 | web-api-backend 类型的技术选型示例 |

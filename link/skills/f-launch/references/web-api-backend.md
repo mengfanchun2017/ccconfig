@@ -1,7 +1,7 @@
 # web-api-backend — Web 后端 API 项目
 
 > 场景:Web 后端 CRUD/REST API,业务后端,长期演进
-> 复杂度:★★★ | 真实案例:[[<project-name>-tech-report]]
+> 复杂度:★★★ | 真实案例:[[project-name]]
 
 ## 适用
 
@@ -92,7 +92,7 @@ KR3: 部署到 Render/Railway,持续可访问 + 错误率 < 1%
 4. **SQLite → PostgreSQL 迁移存在行为差异** — unique、FTS、事务隔离级别可能不同 [数据有限]。缓解:第 6 周专门做迁移 + 集成测试覆盖关键路径。
 5. **better-auth + Drizzle 集成文档细节** — 部分边缘场景文档覆盖不足 [未验证]。缓解:第 3 周实测搭建最小 demo,记录踩坑到项目 README。
 
-## 真实案例:<project-name>
+## 真实案例
 
 - 飞书技术选型报告:[Web 后端 CRUD/REST API 技术栈选型报告](<飞书文档 URL>)
 - 平衡组合:Node + Hono + Drizzle + PostgreSQL + Zod + Vitest + better-auth + Render → Railway
