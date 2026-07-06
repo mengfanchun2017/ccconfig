@@ -111,7 +111,20 @@ commit_and_push() {
 
     local changed_files=$(git -C "$repo_dir" status --porcelain 2>/dev/null)
     if [ -z "$changed_files" ]; then
-        log "[$repo] already up to date"
+        local branch=$(git -C "$repo_dir" branch --show-current)
+        local unpushed=$(git -C "$repo_dir" log origin/"$branch".."$branch" --oneline 2>/dev/null)
+        if [ -n "$unpushed" ]; then
+            local count=$(echo "$unpushed" | wc -l)
+            log "[$repo] no local changes, pushing $count unpushed commit(s)"
+            if timeout 60 git -C "$repo_dir" push origin "$branch" >> "$LOG_FILE" 2>&1; then
+                local latest_hash=$(git -C "$repo_dir" rev-parse --short HEAD)
+                log "[$repo] OK pushed → GitHub ($latest_hash)"
+            else
+                warn "[$repo] !! push failed — check network"
+            fi
+        else
+            log "[$repo] already up to date"
+        fi
         return 0
     fi
 
