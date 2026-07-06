@@ -129,8 +129,15 @@ commit_and_push() {
     # Skill sync: independent of pull/push, builds local symlinks for new skills in link/skills/.
     # Runs before commit so even "nothing to commit" still rebuilds links.
     if [ -f "$repo_dir/init-skill.sh" ]; then
-        bash "$repo_dir/init-skill.sh" sync >> "$LOG_FILE" 2>&1 && \
-            log "[$repo] OK skills sync" || warn "[$repo] skills sync failed"
+        local skill_output skill_rc
+        skill_output=$(bash "$repo_dir/init-skill.sh" sync 2>&1)
+        skill_rc=$?
+        echo "$skill_output" | while IFS= read -r line; do do_log "[$repo] $line"; done
+        if [ $skill_rc -eq 0 ]; then
+            log "[$repo] OK skills sync"
+        else
+            warn "[$repo] skills sync failed"
+        fi
     fi
 
     local commit_output
@@ -152,8 +159,15 @@ commit_and_push() {
                 log "[$repo] OK rebase — auto-commit重放到远程之上"
             fi
             if [ -f "$repo_dir/setup-links.sh" ]; then
-                bash "$repo_dir/setup-links.sh" >> "$LOG_FILE" 2>&1 && \
-                    log "[$repo] OK links" || warn "[$repo] links failed"
+                local links_output links_rc
+                links_output=$(bash "$repo_dir/setup-links.sh" 2>&1)
+                links_rc=$?
+                echo "$links_output" | while IFS= read -r line; do do_log "[$repo] $line"; done
+                if [ $links_rc -eq 0 ]; then
+                    log "[$repo] OK links"
+                else
+                    warn "[$repo] links failed"
+                fi
             fi
             if timeout 60 git -C "$repo_dir" push origin "$branch" >> "$LOG_FILE" 2>&1; then
                 log "[$repo] OK pushed → GitHub ($commit_hash)"
