@@ -102,7 +102,7 @@ git_push() {
     local output rc
     while [ $attempt -le $max_attempts ]; do
         set +e
-        output=$(timeout 60 git -C "$repo_dir" push origin "$branch" 2>&1)
+        output=$(timeout 30 git -C "$repo_dir" push origin "$branch" 2>&1)
         rc=$?
         set -e
         if [ $rc -eq 0 ]; then
