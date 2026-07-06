@@ -1,5 +1,6 @@
 ---
 name: f-pdf
+user-invocable: true
 description: |
   PDF 内容提取原语 — 文字/图片/表格/元数据提取。
   被 f-doc 的 PDF 翻译工作流委托调用，也可独立使用（PDF→Markdown、图片提取）。
