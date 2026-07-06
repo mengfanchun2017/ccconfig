@@ -536,47 +536,6 @@ PYEOF
     success "SessionStart hook 已配置"
 }
 
-# ========== 10.5. WSL 网络配置（提示）============
-setup_wslconfig() {
-    section "WSL 网络配置"
-
-    local WIN_USER
-    WIN_USER=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' || echo "")
-    local wslconfig="/mnt/c/Users/${WIN_USER}/.wslconfig"
-
-    echo "为确保 WSL2 与 Windows 网络互通（远程 SSH 连接需要），"
-    echo "请在 Windows 侧 %USERPROFILE%\\.wslconfig 中配置："
-    echo ""
-    echo -e "  ${CYAN}[wsl2]${NC}"
-    echo -e "  ${CYAN}networkingMode=mirrored${NC}"
-    echo -e "  ${CYAN}dnsTunneling=true${NC}"
-    echo -e "  ${CYAN}autoProxy=true${NC}"
-    echo -e "  ${CYAN}firewall=true${NC}"
-    echo ""
-
-    if [[ -f "$wslconfig" ]]; then
-        if grep -q "networkingMode=mirrored" "$wslconfig"; then
-            success ".wslconfig 已配置网络镜像模式"
-        else
-            warn ".wslconfig 存在但未配置 networkingMode=mirrored"
-            info "请手动添加上述配置到 $wslconfig"
-        fi
-    else
-        info ".wslconfig 不存在，请创建并添加上述配置"
-        echo ""
-        echo "创建命令（在 WSL 内执行）："
-        echo -e "  ${CYAN}cat > /mnt/c/Users/${WIN_USER}/.wslconfig << 'EOF'${NC}"
-        echo -e "  ${CYAN}[wsl2]${NC}"
-        echo -e "  ${CYAN}networkingMode=mirrored${NC}"
-        echo -e "  ${CYAN}dnsTunneling=true${NC}"
-        echo -e "  ${CYAN}autoProxy=true${NC}"
-        echo -e "  ${CYAN}firewall=true${NC}"
-        echo -e "  ${CYAN}EOF${NC}"
-    fi
-
-    echo ""
-    info "配置后需在 PowerShell 执行 'wsl --shutdown' 重启 WSL 生效"
-}
 
 # ========== 12. CLI 工具 ==========
 setup_cli_tools() {
@@ -646,7 +605,6 @@ main() {
     setup_mmx_cli
     setup_ssh_github
     # 中文字体可选，有需要再手动装: sudo apt-get install fonts-noto-cjk
-    setup_wslconfig
     setup_autosync
     setup_hook
     setup_cli_tools

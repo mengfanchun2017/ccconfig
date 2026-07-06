@@ -289,21 +289,6 @@ bash ~/git/ccconfig/bin/init-ccprivate.sh
 >
 > **手动控制**：需要自定义更多配置 → [docs/ccprivate-guide.md](docs/ccprivate-guide.md)。
 
-### 4c. Windows 用户：WSL 网络配置（如果前置步骤 5 没做）
-
-> Linux/macOS 用户跳过。
-
-如果已在 Windows 前置步骤 5 手动创建了 `.wslconfig`，跳过本节。否则用 ccconfig 自带脚本：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconfig.ps1"
-powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconf.ps1"
-wsl --shutdown
-```
-
-> 配完 WSL 会 shutdown，重新 `wsl -d Ubuntu-24.04` 进入 Ubuntu 后继续阶段 5。
-
-
 ## 阶段 5 — 系统初始化
 
 ```bash
@@ -499,15 +484,12 @@ cd ~/git/cconfig && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccp
 
 ## Windows 工具
 
-ccconfig 的 `windows-tools/` 目录提供 Windows/WSL 互操作脚本，在 PowerShell 中运行：
+ccconfig 的 `windows-tools/` 目录提供 Windows 工具脚本，在 PowerShell 中运行：
 
 | 工具 | 用途 | 命令 |
 |------|------|------|
-| `wslconf/` | WSL 配置（网络镜像 + 关 PATH 注入） | `powershell -File .\windows-tools\wslconf\wslconfig.ps1` |
 | `psupdate/` | PowerShell 7 升级（绕过 winget bug） | 管理员 PowerShell 执行 `psupdate.ps1` |
 | `music-convert/` | 网易云 NCM 解密 | `powershell -File .\windows-tools\music-convert\convert.ps1` |
-
-> WSL 里调 Win 端脚本的标准模式：`powershell.exe -ExecutionPolicy Bypass -File "$(wslpath -w <path-to-ps1>)"`
 
 
 ## macOS 备注
