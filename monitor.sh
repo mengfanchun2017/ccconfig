@@ -165,12 +165,32 @@ commit_and_push() {
         pull_output=$(timeout --kill-after=10 60 git -C "$repo_dir" pull --rebase origin "$branch" 2>&1)
         pull_rc=$?
         set -e
+        local skip_push=false
         if [ $pull_rc -eq 0 ]; then
             if echo "$pull_output" | grep -q "is up to date\|up-to-date\|Already up to date"; then
-                :  # no remote changes, rebase had nothing to do
+                :  # no remote changes
             else
-                log "[$repo] OK rebase — auto-commit重放到远程之上"
+                log "[$repo] OK rebase"
             fi
+        else
+            echo "$pull_output" >> "$LOG_FILE"
+            if [ $pull_rc -eq 124 ] || echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls\|Recv failure"; then
+                warn "[$repo] pull failed (network), pushing directly"
+            elif echo "$pull_output" | grep -qi "unrelated histories"; then
+                error "[$repo] !! unrelated histories — skip push"
+                skip_push=true
+            elif echo "$pull_output" | grep -qi "CONFLICT\|conflict\|could not be applied"; then
+                git -C "$repo_dir" rebase --abort 2>/dev/null || true
+                warn "[$repo] !! rebase 冲突 — reset to origin/$branch"
+                git -C "$repo_dir" reset --hard "origin/$branch" 2>&1 | head -1 >> "$LOG_FILE" || true
+                git -C "$repo_dir" stash pop 2>/dev/null || true
+                skip_push=true
+            else
+                warn "[$repo] pull failed: $(echo "$pull_output" | head -1)"
+            fi
+        fi
+
+        if ! $skip_push; then
             if [ -f "$repo_dir/setup-links.sh" ]; then
                 local links_output links_rc
                 links_output=$(bash "$repo_dir/setup-links.sh" 2>&1)
@@ -186,23 +206,6 @@ commit_and_push() {
                 log "[$repo] OK pushed → GitHub ($commit_hash)"
             else
                 warn "[$repo] !! push failed — check network"
-            fi
-        else
-            echo "$pull_output" >> "$LOG_FILE"
-            if [ $pull_rc -eq 124 ]; then
-                warn "[$repo] !! pull failed: network timeout (60s)"
-            elif echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls"; then
-                warn "[$repo] !! pull failed: network issue"
-            elif echo "$pull_output" | grep -qi "unrelated histories"; then
-                error "[$repo] !! pull failed: unrelated histories — 需手动处理"
-            elif echo "$pull_output" | grep -qi "CONFLICT\|conflict\|could not be applied"; then
-                git -C "$repo_dir" rebase --abort 2>/dev/null || true
-                warn "[$repo] !! rebase 冲突 — 自动 reset --hard 到 origin/$branch（丢弃本地未推送 commit）"
-                git -C "$repo_dir" reset --hard "origin/$branch" 2>&1 | head -1 >> "$LOG_FILE" || true
-                git -C "$repo_dir" stash pop 2>/dev/null || true
-                log "[$repo] 已同步到远程（本地未推送 commit 已丢弃）"
-            else
-                error "[$repo] !! pull failed: $(echo "$pull_output" | head -1)"
             fi
         fi
     else
@@ -290,12 +293,26 @@ start_watch() {
 
         pending=0
         last_push_time=0
+        idle_ticks=0
 
         while kill -0 $event_pid 2>/dev/null; do
             sleep 2
             if [ ! -f "$DEBOUNCE_FILE" ]; then
+                idle_ticks=$((idle_ticks + 1))
+                # Periodic full sync every 30 min idle (900 ticks × 2s)
+                if [ $idle_ticks -ge 900 ]; then
+                    idle_ticks=0
+                    now=$(date +%s)
+                    gap=$((now - last_push_time))
+                    if [ "$last_push_time" -eq 0 ] || [ "$gap" -ge "$min_push_gap" ]; then
+                        do_log "Periodic sync (30min idle)"
+                        sync_repos
+                        last_push_time=$(date +%s)
+                    fi
+                fi
                 continue
             fi
+            idle_ticks=0
             evt_ts=$(cat "$DEBOUNCE_FILE" 2>/dev/null)
             if [ -z "$evt_ts" ]; then
                 continue
