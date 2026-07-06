@@ -222,33 +222,58 @@ gh --version  # gh version 2.62.0
 - `gh auth setup-git` 可配置 git credential helper
 
 
-## 阶段 3 — 登录 GitHub
+## 阶段 3 — SSH Key 配置（推荐）
+
+> **强烈推荐用 SSH**：比 HTTPS 更稳定，不受 GitHub 负载均衡波动影响，push 更快（2-3s vs 5-15s）。
 
 ```bash
-# 浏览器走 OAuth 协议
+# 1. 生成 ED25519 密钥
+ssh-keygen -t ed25519 -C "your-email@example.com" -f ~/.ssh/id_ed25519 -N ""
+
+# 2. 查看公钥（复制整行）
+cat ~/.ssh/id_ed25519.pub
+```
+
+3. 打开 https://github.com/settings/ssh/new ，Title 填 `WSL-cconfig`，粘贴公钥
+4. 测试连接：
+
+```bash
+ssh -T git@github.com
+# 应该看到: Hi <你的账号>! You've successfully authenticated
+```
+
+5. （可选）配置 SSH 保活：
+
+```bash
+cat >> ~/.ssh/config << 'EOF'
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+    ConnectTimeout 10
+EOF
+```
+
+> **同台机器新建 WSL？** `init-ubuntu.sh` 的 `setup_ssh_github()` 会自动从 Windows 宿主目录（`/mnt/c/Users/<用户名>/.ssh/`）复制已有 key，不需要再生成。**换机器**才需要重新走一遍。
+
+### 阶段 3b — gh 登录（HTTPS 备选）
+
+> 如果不用 SSH，可以用 gh OAuth token 走 HTTPS。稳定性和速度不如 SSH。
+
+```bash
 gh auth login --web --hostname github.com
 ```
 
-**操作流程**：
-1. 命令行会问 "What account do you want to log into?" → 选 **GitHub.com**
-2. 问 "What is your preferred protocol?" → 选 **HTTPS**
-3. 问 "How would you like to authenticate?" → 选 **Login with a web browser**
-4. 终端打印一行 `! First copy your one-time code: ****-****`
-5. 按回车打开浏览器（或手动访问 https://github.com/login/device）
-6. 粘贴 code → 授权你的 GitHub 账号
-7. 回到终端，命令完成
-
-**验证**：
+操作流程：选 GitHub.com → 选 HTTPS → 选 Login with a web browser → 粘贴 one-time code。
 
 ```bash
 gh auth status
 # 应该看到: ✓ Logged in to github.com as <你的账号>
 ```
 
-**保存到哪里**：
-- `~/.config/gh/hosts.yml` — 包含 `oauth_token: gho_xxx`（**不要外传**）
-- 这就是 GitHub 发给"这台机器"的 device-scoped token
-- 跨机器**不能直接复制**这文件（OAuth 带 device fingerprint），要在每台机器独立登录
+**保存到哪里**：`~/.config/gh/hosts.yml` — OAuth token（**不能跨机器复制**，每台机器独立登录）。
 
 
 ## 阶段 4 — 克隆 ccconfig + 初始化 ccprivate
@@ -258,7 +283,14 @@ gh auth status
 
 ### 4a. 克隆 ccconfig
 
-**用 gh 克隆，不要用 git**（gh 知道用你的 token）：
+**SSH（推荐）**：
+
+```bash
+mkdir -p ~/git && cd ~/git
+git clone git@github.com:<your-github-username>/ccconfig.git --branch release
+```
+
+**HTTPS（备选）**：
 
 ```bash
 mkdir -p ~/git && cd ~/git
@@ -313,12 +345,25 @@ bash init.sh all
 
 ## 阶段 6 — 克隆所有项目
 
-ccconfig 已就绪，接下来把其他项目也拉下来。用 `gh repo list` 自动发现：
+ccconfig 已就绪，接下来把其他项目也拉下来。
+
+**SSH（推荐）**：
 
 ```bash
 gh repo list <your-github-username> --limit 50 --json name --jq '.[].name' | while read repo; do
-    [ "$repo" = "ccconfig" ] && continue           # 已克隆
-    [ -d "$HOME/git/$repo" ] && continue            # 已存在
+    [ "$repo" = "ccconfig" ] && continue
+    [ -d "$HOME/git/$repo" ] && continue
+    echo "克隆 $repo ..."
+    git clone "git@github.com:<your-github-username>/$repo.git" "$HOME/git/$repo"
+done
+```
+
+**HTTPS（备选）**：
+
+```bash
+gh repo list <your-github-username> --limit 50 --json name --jq '.[].name' | while read repo; do
+    [ "$repo" = "ccconfig" ] && continue
+    [ -d "$HOME/git/$repo" ] && continue
     echo "克隆 $repo ..."
     gh repo clone "<your-github-username>/$repo" "$HOME/git/$repo"
 done
@@ -362,7 +407,7 @@ bash init-autostart.sh
 echo "# smoke test $(date)" >> /tmp/cc-smoke.md
 cp /tmp/cc-smoke.md ~/git/ccconfig/tmp/smoke.md
 
-# 等 2-3 分钟（monitor debounce 120s + push）
+# 等 1-2 分钟（monitor debounce 60s + push）
 tail -f ~/git/ccconfig/logs/monitor.log
 # 应该看到: OK committed → OK pushed → GitHub
 ```
@@ -408,7 +453,7 @@ tail -f ~/git/ccconfig/logs/monitor.log
 
 ## 旧终端快速恢复（已初始化过的机器）
 
-> 适用场景：机器已经按上面走完一遍、ccconfig + ccprivate 都在 `~/git/`、gh 已登录、
+> 适用场景：机器已经按上面走完一遍、ccconfig + ccprivate 都在 `~/git/`、
 > 但长时间没用 / 终端重启 / 切换到新会话后想恢复使用。
 
 **不需要重跑 init.sh all**（会重装系统包）。只需要 4 步：
@@ -430,7 +475,7 @@ bash init-autostart.sh
 # 查看状态：./monitor.sh status
 ```
 
-> **monitor push 行为**：监听 `~/git/` 下所有 git 仓库，触发条件是 inotify 检测到文件变化 → 120s debounce → **只 sync 真正改动的仓库**（不是全量扫）。所以同一个 repo 改两个文件不会重复 push，不同 repo 之间互不打扰。
+> **monitor push 行为**：监听 `~/git/` 下所有 git 仓库，触发条件是 inotify 检测到文件变化 → 60s debounce → **只 sync 真正改动的仓库**（不是全量扫）。所以同一个 repo 改两个文件不会重复 push，不同 repo 之间互不打扰。
 > 跑 `./monitor.sh status` 看每个仓库的 `pending file(s)` 数；如果哪个仓库一直显示 "clean" 但你想强制推，临时改成 `conf/versions.json` 之类即可触发。
 
 **`pullff` 暗号 = 上面 1+2 一步到位**：
@@ -471,7 +516,8 @@ cd ~/git/cconfig && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccp
 | `gh auth login` 浏览器没自动开 | WSL 没装 `wslview` | 手动复制终端的 one-time code，访问 https://github.com/login/device |
 | `gh repo clone` 报 404 | 没登录成功 / 账号不是仓库协作者 | `gh auth status` 确认账号；如果不是协作者，联系 owner 加 |
 | `init.sh all` 卡在 sudo | 密码没缓存 | 输密码，或配 sudo 免密（`echo "<your-username> ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/<your-username>`） |
-| monitor 不推 | SSH key 没注册到 GitHub | `gh auth setup-git`（init.sh 已自动做）；如还有问题 `git remote set-url origin https://<your-username>@github.com/<your-username>/ccconfig.git` |
+| monitor 不推 | SSH key 没注册到 GitHub | `ssh -T git@github.com` 测试；如未认证，走阶段 3 生成 SSH key 并添加到 GitHub |
+| monitor 不推（HTTPS 备选） | gh token 过期 | `gh auth login` 重新登录；`gh auth setup-git` 配置 credential helper |
 | WSL 报 `Could not resolve hostname` | `/etc/hosts` 没本机 hostname | `echo "127.0.1.1 $(hostname)" \| sudo tee -a /etc/hosts` |
 | WSL 内存占用过高 | WSL 2 默认占 50% 主机内存 | 在 `%USERPROFILE%\.wslconfig` 加 `memory=8GB`（见 windows-tools/wslconf/） |
 | WSL 里 `code .` 打不开 VSCode | 没装 WSL 扩展 | 在 VSCode 装 "WSL" 扩展；或直接用 `code` 命令（Windows PATH 注入） |
