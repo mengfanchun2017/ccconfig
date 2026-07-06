@@ -490,7 +490,9 @@ tail_watch() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
-    tail -f "$LOG_FILE" 2>/dev/null | grep -vE ' (MODIFY|CREATE|DELETE|MOVED_FROM|MOVED_TO) ' | while IFS= read -r line; do
+    tail -n 60 "$LOG_FILE" 2>/dev/null | grep -vE ' /home/' | tail -n 10
+    echo -e "${GRAY}--- following ---${NC}"
+    tail -f "$LOG_FILE" 2>/dev/null | grep -vE ' /home/' | while IFS= read -r line; do
         local ts=$(echo "$line" | grep -oE '^\[[0-9:]+\]' | tr -d '[]')
         local content=$(echo "$line" | sed 's/^\[[0-9:]\+\] //')
         colorize_line "${ts:-??:??:??}" "$content"
