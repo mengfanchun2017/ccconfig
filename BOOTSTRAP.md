@@ -66,41 +66,31 @@ wsl --install -d Ubuntu-24.04
 > **国内用户**：下载慢用 `wsl --install -d Ubuntu-24.04 --web-download`。
 
 
-### 3. 验证 WSL + Ubuntu
+### 3. 验证安装
 
 ```powershell
-# 检查 WSL 版本
-wsl --version
-# 应该看到: WSL 版本 2.x.x
-
-# 检查已安装的发行版
 wsl --list --verbose
 # 应该看到: Ubuntu-24.04  Running  2
 ```
 
-如果 VERSION 列为 `1`：
+> `Ubuntu-24.04` 是 WSL 发行版名称（`-d` 指定的），所有后续命令用它定位。新装 WSL 默认就是 V2，无需额外设置。
+
+### 4. 进入 Ubuntu
 
 ```powershell
-wsl --set-version Ubuntu-24.04 2
+wsl -d Ubuntu-24.04
 ```
 
-**验证 Ubuntu 版本**（进入 WSL 后）：
+进去后验证系统版本：
 
 ```bash
 lsb_release -a
 # 应该看到: Ubuntu 24.04.x LTS
 ```
 
+也可从开始菜单启动 **Ubuntu 24.04**。
 
-### 4. 进入 Ubuntu
-
-```powershell
-wsl
-```
-
-或从开始菜单启动 **Ubuntu 24.04**。
-
-> **推荐 Windows Terminal**：[Microsoft Store 免费安装](https://aka.ms/terminal)——多标签、GPU 加速渲染、UTF-8 完善。WSL 发行版会自动出现在下拉菜单里。
+> **推荐 Windows Terminal**：[Microsoft Store 免费安装](https://aka.ms/terminal)——多标签、GPU 加速渲染、UTF-8 完善。WSL 发行版自动出现在下拉菜单。
 
 
 ### 5. WSL 网络配置（推荐）
@@ -139,7 +129,7 @@ powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconfig.ps1"
 wsl --shutdown
 ```
 
-然后重新 `wsl` 进入 Ubuntu。
+然后重新 `wsl -d Ubuntu-24.04` 进入 Ubuntu。
 
 
 ### 可选：WSL 备份 / 导出 / 导入
@@ -322,7 +312,7 @@ powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconf.ps1"
 wsl --shutdown
 ```
 
-> 配完 WSL 会 shutdown，重新 `wsl` 进入 Ubuntu 后继续阶段 5。
+> 配完 WSL 会 shutdown，重新 `wsl -d Ubuntu-24.04` 进入 Ubuntu 后继续阶段 5。
 
 
 ## 阶段 5 — 系统初始化
