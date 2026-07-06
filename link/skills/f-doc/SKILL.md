@@ -1,5 +1,6 @@
 ---
 name: f-doc
+user-invocable: true
 description: |
   统一文档入口 — 创建飞书wiki/表格/白板/PPT、更新报告、整合/拆分文档、飞书↔Office双向转换、文档对比。
   Use when 用户说"创建文档"/"写文档"、"更新文档"/"更新报告"、"整合文档"/"合并文档"、
