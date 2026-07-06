@@ -809,11 +809,11 @@ update_officecli() {
     bash "$SCRIPT_DIR/option-officecli/init.sh" --update
 }
 
-# ========== 10. ppt-master ==========
+# ========== 10. Skills 同步 ==========
 
-update_ppt_master() {
-    section "ppt-master"
-    bash "$SCRIPT_DIR/option-ppt-master/init.sh" --update
+update_skills() {
+    section "Skills (claude-skills + ccprivate overlay)"
+    bash "$SCRIPT_DIR/init-skill.sh" sync
 }
 
 # ========== 11. systemd 服务重建 ==========
@@ -953,7 +953,7 @@ update_all() {
     if [ "$include_option" = "true" ]; then
         run_step "cconnect" "cc-connect"        update_cconnect
         run_step ""         "OfficeCLI"          update_officecli
-        run_step ""         "ppt-master"         update_ppt_master
+        run_step ""         "Skills 同步"       update_skills
     fi
     run_step "gh"       "GitHub CLI"        update_gh
     run_step "claude"   "Claude Code"       update_claude
@@ -1039,7 +1039,7 @@ show_menu() {
     echo "   6) cc-connect（Bridge）"
     echo "   7) systemd 服务重建"
     echo "   8) OfficeCLI"
-    echo "   9) ppt-master"
+    echo "   9) Skills 同步"
     echo ""
     echo "   0) 退出"
     echo ""
@@ -1063,7 +1063,7 @@ show_menu() {
             6)  update_cconnect; did_something=1 ;;
             7)  fix_systemd_services; did_something=1 ;;
             8)  update_officecli; did_something=1 ;;
-            9)  update_ppt_master; did_something=1 ;;
+            9)  update_skills; did_something=1 ;;
             all)
                 take_snapshot "pre" > /dev/null
                 update_all false
@@ -1111,7 +1111,7 @@ case "${1:-menu}" in
     mcp)           update_mcp ;;
     services)      fix_systemd_services ;;
     officecli)     update_officecli ;;
-    ppt-master)    update_ppt_master ;;
+    skills)        update_skills ;;
     menu|"")
         self_update "menu"
         show_menu ;;
