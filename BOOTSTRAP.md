@@ -97,31 +97,20 @@ lsb_release -a
 
 WSL 2 默认 NAT 网络，配成镜像模式后 Windows 和 WSL 共享 localhost，远程 SSH 等场景更顺畅。
 
-在 **PowerShell（普通用户）** 中创建 `%USERPROFILE%\.wslconfig`：
+在 **PowerShell（普通用户）** 中执行，一条命令生成配置文件：
 
 ```powershell
-# 方法一：手动创建文件
-notepad $env:USERPROFILE\.wslconfig
-```
-
-写入以下内容：
-
-```ini
+@"
 [wsl2]
 networkingMode=mirrored
 dnsTunneling=true
 autoProxy=true
 firewall=true
 memory=8GB
+"@ | Out-File -FilePath "$env:USERPROFILE\.wslconfig" -Encoding UTF8
 ```
 
-> `memory=8GB` 限制 WSL 最大内存，按自己机器内存调整（16GB → 8GB，32GB → 16GB）。
-
-**方法二**：克隆 ccconfig 后用自带脚本（阶段 4 之后）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ".\windows-tools\wslconf\wslconfig.ps1"
-```
+> `memory=8GB` 按自己机器内存调整（16GB → 8GB，32GB → 16GB）。
 
 **配置生效**：改 `.wslconfig` 后必须重启 WSL：
 
