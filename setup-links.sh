@@ -72,7 +72,7 @@ setup_symlinks() {
         setup_link "$CLAUDE_DIR/shell_aliases.sh" "$SCRIPT_DIR/link/shell_aliases.sh" "shell_aliases.sh"
     fi
 
-    # skills（从 link/skills/ 同步到 ~/.claude/skills/，防断裂）
+    # skills（从 claude-skills/plugins/ 同步 + ccprivate 配置覆盖）
     if [[ -x "$SCRIPT_DIR/init-skill.sh" ]]; then
         section "Skills"
         bash "$SCRIPT_DIR/init-skill.sh" sync
