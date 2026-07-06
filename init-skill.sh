@@ -1,17 +1,11 @@
 #!/bin/bash
 # Claude Skills 管理脚本
-# 功能：同步自建 skill 符号链接 + 装第三方 skill（npx skills 幂等）
+# 功能：同步自建 skill 符号链接 + ccprivate 配置覆盖 + 装第三方 skill（npx skills 幂等）
 #
-# 三个 skill 来源（聚合到 ~/.claude/skills/ 和 claude plugin list）：
-#   自建 f-*         → symlink 到 ~/.claude/skills/（本仓 link/skills/）
-#   私有 f-logme     → symlink（只本机，不发布）
+# skill 来源（聚合到 ~/.claude/skills/）：
+#   自建 f-*         → symlink 从 claude-skills/plugins/（开源仓库，单一源）
+#   私有配置         → ccprivate config overlay（conf/*.yaml 覆盖 skill 内 config.yaml.example）
 #   第三方 (npx)     → npx skills add 装到 ~/.agents/skills/，自动 symlink 到 ~/.claude/skills/
-#   skill-template   → symlink（dev only，不在 marketplace）
-#
-# 3 层 skill 源独立：
-#   lark-cli (npm)              → 系统层 CLI 工具，update.sh 独立管理（f-doc 编排）
-#   第三方 (mattpocock)         → npx skills 装 6 个，conf/third-party-skills.txt 列表管理
-#   f-* (8 self-built)          → symlink（ccconfig 私有工作副本，claude-skills marketplace 同步发布）
 #
 # 使用：
 #   bash ccconfig/init-skill.sh sync             # 同步自建 + 装第三方
@@ -23,7 +17,8 @@ export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SKILLS_SRC="$SCRIPT_DIR/link/skills"
+SKILLS_SRC="${CLAUDE_SKILLS_SRC:-$HOME/git/claude-skills/plugins}"
+CCPRIVATE_DIR="${CCPRIVATE_DIR:-$HOME/git/ccprivate}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
 GITHUB_USER="${GITHUB_USER:-<your-github-username>}"
@@ -157,9 +152,38 @@ do_install_third_party() {
     good "  第三方 skill: $installed 新装, $already 已装, $failed 失败"
 }
 
+# 阶段 2.5：ccprivate 配置覆盖（私有 token 覆盖 skill 内 config.yaml.example）
+do_apply_ccprivate_config() {
+    title "阶段 2.5/3: ccprivate 配置覆盖"
+
+    local ccprivate_config="$CCPRIVATE_DIR/config"
+    if [[ ! -d "$ccprivate_config" ]]; then
+        info "  ccprivate/config/ 不存在，跳过（不需私有配置或未初始化）"
+        return 0
+    fi
+
+    local applied=0
+    for config_file in "$ccprivate_config"/*.yaml; do
+        [[ -f "$config_file" ]] || continue
+        local skill_name=$(basename "$config_file" .yaml)
+        local skill_dir="$CLAUDE_SKILLS_DIR/$skill_name"
+
+        if [[ -d "$skill_dir" ]]; then
+            cp "$config_file" "$skill_dir/config.yaml"
+            good "  $skill_name: ✓ config.yaml 已覆盖"
+            applied=$((applied + 1))
+        else
+            info "  $skill_name: skill 不在 ~/.claude/skills/，跳过"
+        fi
+    done
+    echo ""
+    good "  ccprivate 覆盖: $applied 个"
+}
+
 do_sync() {
     do_link_self_built
     do_ensure_marketplace
+    do_apply_ccprivate_config
     do_install_third_party
 
     echo ""
@@ -185,7 +209,7 @@ do_cleanup() {
 }
 
 do_list() {
-    echo "=== 自建 skill (link/skills/ 实体) ==="
+    echo "=== 自建 skill (claude-skills/plugins/ 实体) ==="
     ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
     echo ""
     echo "=== ~/.claude/skills/ (symlink + npx-installed) ==="
@@ -195,7 +219,7 @@ do_list() {
         [[ -L "$d" ]] || marker="○"
         local src
         if [[ -L "$d" ]]; then
-            src=$(readlink "$d" | sed 's|.*/\.agents/skills/|npx: |; s|.*/link/skills/|ccconfig: |')
+            src=$(readlink "$d" | sed 's|.*/\.agents/skills/|npx: |; s|.*/claude-skills/plugins/|claude-skills: |; s|.*/link/skills/|ccconfig (legacy): |')
         else
             src="(本地)"
         fi
@@ -215,7 +239,7 @@ do_list() {
 
 do_status() {
     title "Skills 状态"
-    echo -e "${CYAN}link/skills/ (自建 $(ls "$SKILLS_SRC" 2>/dev/null | wc -l) 个)${NC}"
+    echo -e "${CYAN}claude-skills/plugins/ (自建 $(ls "$SKILLS_SRC" 2>/dev/null | wc -l) 个)${NC}"
     for d in "$SKILLS_SRC"/*; do
         [[ -d "$d" ]] || continue
         echo -e "  ${GREEN}✓${NC} $(basename "$d")"
@@ -230,8 +254,10 @@ do_status() {
         local src
         if [[ -L "$d" ]]; then
             local target=$(readlink -f "$d")
-            if [[ "$target" == *"$SKILLS_SRC"* ]]; then
-                src="ccconfig"
+            if [[ "$target" == *"/claude-skills/plugins"* ]]; then
+                src="claude-skills"
+            elif [[ "$target" == *"$SKILLS_SRC"* ]]; then
+                src="claude-skills"
             elif [[ "$target" == *".agents/skills"* ]]; then
                 src="npx skills"
             else
