@@ -56,13 +56,13 @@ do_log() {
 log()    { do_log "$1"; $QUIET_MODE && return; echo -e "${GREEN}[SYNC]${NC} $1"; }
 warn()   { do_log "WARN: $1"; $QUIET_MODE && return; echo -e "${YELLOW}[SYNC]${NC} $1"; }
 info()   { do_log "$1"; $QUIET_MODE && return; echo -e "${CYAN}[SYNC]${NC} $1"; }
-error()  { do_log "ERROR: $1"; $QUIET_MODE && return; echo -e "${RED}[SYNC]${NC} $1" | tee -a "$LOG_FILE"; }
+error()  { do_log "ERROR: $1"; $QUIET_MODE && return; echo -e "${RED}[SYNC]${NC} $1"; }
 
 # ========== Git helpers ==========
 
 # Given a file path, find the nearest parent with .git/
 get_repo_root() {
-    local dir="$1"
+    local dir="${1%/}"  # strip trailing slash
     while [ "$dir" != "/" ] && [ "$dir" != "$HOME" ] && [ "$dir" != "." ]; do
         if [ -d "$dir/.git" ]; then
             echo "$dir"
@@ -173,7 +173,7 @@ commit_and_push() {
                 log "[$repo] OK rebase"
             fi
         else
-            echo "$pull_output" >> "$LOG_FILE"
+            echo "$pull_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
             if [ $pull_rc -eq 124 ] || echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls\|Recv failure"; then
                 warn "[$repo] pull failed (network), pushing directly"
             elif echo "$pull_output" | grep -qi "unrelated histories"; then
@@ -537,7 +537,7 @@ tail_watch() {
 
     {   tail -n 60 "$LOG_FILE" 2>/dev/null | grep -vE ' /home/' | tail -n 10
         echo "GFM_SEP"
-        tail -f "$LOG_FILE" 2>/dev/null | grep -vE ' /home/'
+        tail -f "$LOG_FILE" 2>/dev/null | grep --line-buffered -vE ' /home/'
     } | while IFS= read -r line; do
         if [ "$line" = "GFM_SEP" ]; then
             echo -e "${GRAY}─── following ───${NC}"
