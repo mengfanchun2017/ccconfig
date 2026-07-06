@@ -222,7 +222,7 @@ start_watch() {
     cd "$MONITOR_HOME"
     resurrect_pm2 &
 
-    : > "$LOG_FILE"
+    rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
     QUIET_MODE=true
 
     # Single inotify watching ~/git/, accepting events from any tracked repo.
