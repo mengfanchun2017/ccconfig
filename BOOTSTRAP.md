@@ -526,7 +526,7 @@ cd ~/git/cconfig && git pull && cd ~/git/claude-skills && git pull && cd ~/git/c
 
 ### 状态检查发现问题的应对
 
-`bash status.sh` 12 项检查，**任何一项 ✗ 都先看该项的命令**：
+`bash status.sh` 11 项检查，**任何一项 ✗ 都先看该项的命令**：
 
 | 失败项 | 修命令 |
 |--------|--------|
@@ -534,7 +534,6 @@ cd ~/git/cconfig && git pull && cd ~/git/claude-skills && git pull && cd ~/git/c
 | 核心依赖 | `apt install` 对应包 |
 | auto-sync | `bash init-autostart.sh` |
 | 最后推送 >24h | `systemctl --user start ccconfig-monitor` 或 `./monitor.sh start` |
-| ppt-master 环境 | `bash option-ppt-master/init.sh` |
 | 飞书 / OfficeCLI | 对应 `option-*/init.sh` 重装 |
 
 

@@ -18,7 +18,7 @@
 ## 常用包
 | 包 | 来源 | 用途 |
 |----|------|------|
-| python-pptx | pip3 | PPT 生成 (ppt-master 依赖) |
+| python-pptx | pip3 | PPT 后处理 (autofit fontScale) |
 | python-docx | pip3 | Word 文档读取 |
 | cairosvg | pip3 | SVG → PNG/PDF 转换 |
 | lxml | pip3 | XML 解析 |

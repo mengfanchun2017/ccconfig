@@ -71,8 +71,8 @@ OPTIONAL_DEPS=(
 
 # Python 包
 PYTHON_PACKAGES=(
-    "pptx|python-pptx|PPT 生成 (option-ppt-master)"
-    "cairosvg|cairosvg|SVG 转换 (option-ppt-master)"
+    "pptx|python-pptx|PPT 后处理 (autofit)"
+    "cairosvg|cairosvg|SVG 转换"
     "lxml|lxml|XML 解析"
     "PIL|pillow|图片处理"
     "matplotlib|matplotlib|数据可视化 (报告绘图)"
