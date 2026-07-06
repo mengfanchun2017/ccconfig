@@ -15,4 +15,4 @@
 ## 新用户
 
 1. 如有 ccprivate 仓库：`ccprivate/setup.sh` 自动建立 symlink
-2. 无 ccprivate：`share/setup.sh` 交互式引导，从 `.example` 复制并填入真实值
+2. 无 ccprivate：`bash ccconfig/bin/init-ccprivate.sh` 交互式引导创建

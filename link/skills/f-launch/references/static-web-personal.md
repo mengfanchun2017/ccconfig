@@ -1,7 +1,7 @@
 # static-web-personal — 个人静态 web 项目
 
 > 场景:个人静态 web（礼物 / 纪念 / 展示 / 主页），可选轻量后端（Supabase）
-> 复杂度:★（纯静态）/ ★★（加 Supabase + R2） | 真实案例:[[<project-name>-project]]
+> 复杂度:★（纯静态）/ ★★（加 Supabase + R2） | 真实案例:[[project-name]]
 
 ## 适用
 
@@ -114,7 +114,7 @@ npm run test:e2e               # HTTP smoke
 - `tests/data/` — JSON schema 结构完整性
 - `tests/e2e/` — 页面端点 200 响应
 
-## 真实案例:[[<project-name>-project]]
+## 真实案例:[[project-name]]
 
 - 位置:~/git/<project-name>
 - 版本:v0.3.0-alpha
@@ -142,7 +142,7 @@ npm run test:e2e               # HTTP smoke
 
 ## 关联资源
 
-- <project-name> 项目:`~/git/<project-name>/`
+- 参考项目:`~/git/<project-name>/`
 - Leaflet 入门:https://leafletjs.com/examples.html
 - Cloudflare Pages:https://pages.cloudflare.com/
 - Supabase JS SDK:https://supabase.com/docs/reference/javascript
