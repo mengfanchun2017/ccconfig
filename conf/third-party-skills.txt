@@ -3,6 +3,7 @@
 # 格式：每行 `<source>  <skill-name>`，注释以 # 开头
 # 装法：bash init-skill.sh sync（自动 do_install_third_party，幂等）
 # 更新：npx skills update -g -y 或 bash scripts/update-third-party-skills.sh
+# diff：bash init-skill.sh diff（检测清单 vs 实际安装的 drift）
 #
 # WHY 用 npx skills 不用 marketplace install（2026-06-06 重构）：
 #   - marketplace install 暴露 plugin 前缀（mattpocock-skills:caveman）和 🔒 锁
@@ -10,14 +11,24 @@
 #   - npx skills 装到 ~/.agents/skills/，自动 symlink 到 ~/.claude/skills/（干净显示）
 #   - 缺点：版本不自动跟（需手动 update），但用户可接受（周期性 update）
 
+# ===== 社区 skill：对话增强（mattpocock 中文版）=====
+# 用途：caveman 压缩输出、diagnose 调试、grill-me 追问设计、improve-codebase 重构、write-a-skill 建 skill
 vinvcn/mattpocock-skills-zh-CN  caveman
 vinvcn/mattpocock-skills-zh-CN  diagnose
 vinvcn/mattpocock-skills-zh-CN  grill-me
 vinvcn/mattpocock-skills-zh-CN  improve-codebase-architecture
 vinvcn/mattpocock-skills-zh-CN  write-a-skill
-vinvcn/mattpocock-skills-zh-CN  zoom-out
+
+# ===== Get笔记 CLI skill：笔记/知识库管理 =====
+# CLI: @getnote/cli (npm)，已装 v1.2.0，cli-deps.txt 管安装
+# 5 个 skill 各管一个子命令：auth 认证、kb 知识库、note 笔记 CRUD、search 语义搜索、tag 标签
 iswalle/getnote-cli  getnote-auth
 iswalle/getnote-cli  getnote-kb
 iswalle/getnote-cli  getnote-note
 iswalle/getnote-cli  getnote-search
 iswalle/getnote-cli  getnote-tag
+
+# ===== OfficeCLI skill：Office 文档生成（PPTX/DOCX/XLSX）=====
+# CLI: officecli (curl install)，已装 v1.0.128，option-officecli/init.sh 管安装
+# f-ppt 是总控（设计系统 + autofit + 个人模板），officecli-pptx 是底层参考手册
+iofficeai/officecli  officecli-pptx
