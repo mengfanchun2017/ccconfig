@@ -16,3 +16,5 @@ bad()     { echo -e "${RED}❌ $1${NC}"; }
 warn()    { echo -e "${YELLOW}⚠  $1${NC}"; }
 info()    { echo -e "${CYAN}ℹ   $1${NC}"; }
 section() { echo -e "\n${BLUE}━━━ $1 ━━━${NC}"; }
+success() { good "$@"; }
+error()   { bad "$@"; }
