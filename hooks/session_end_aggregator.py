@@ -2,23 +2,78 @@
 """SessionEnd aggregator — parse Claude transcript, summarize via LLM, write to Feishu Base."""
 import json, sys, os, datetime, re, subprocess
 
-def main():
-    if len(sys.argv) < 7:
-        print(f"Usage: {sys.argv[0]} <transcript> <sid> <cwd> <reason> <out> <notes>", file=sys.stderr)
-        sys.exit(1)
-    transcript, sid, cwd, reason, out_path, notes_path = sys.argv[1:7]
-    aggregate(transcript, sid, cwd, reason, out_path, notes_path)
+
+# ── transcript parsing ──────────────────────────────────────────────
+
+def parse_transcript(path):
+    """Read JSONL transcript → structured dict."""
+    agg = {"input_tokens": 0, "output_tokens": 0,
+           "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}
+    model, models = None, set()
+    commits, edits, user_prompts, asst_msgs = [], [], [], 0
+
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                o = json.loads(line)
+            except Exception:
+                continue
+            t = o.get("type", "")
+            if t == "assistant":
+                asst_msgs += 1
+                m = o.get("message", {})
+                if m.get("model"):
+                    models.add(m["model"])
+                    model = m["model"]
+                usage = m.get("usage", {})
+                for k in agg:
+                    if k in usage:
+                        agg[k] += usage[k]
+                content = m.get("content", [])
+                if isinstance(content, list):
+                    for c in content:
+                        if isinstance(c, dict) and c.get("type") == "tool_use":
+                            n, inp = c.get("name", ""), c.get("input", {})
+                            if n == "Bash":
+                                cmd = inp.get("command", "")
+                                if "git commit" in cmd:
+                                    msg = _extract_commit_msg(cmd)
+                                    if msg:
+                                        commits.append(msg)
+                            elif n in ("Write", "Edit", "MultiEdit"):
+                                fp = inp.get("file_path", "")
+                                if fp:
+                                    edits.append({"tool": n, "file": fp})
+            elif t == "user":
+                m = o.get("message", {})
+                c = m.get("content", "")
+                if isinstance(c, str) and c.strip():
+                    if c.startswith("<") or "Caveat:" in c[:20]:
+                        continue
+                    txt = c.strip().replace("\n", " ")
+                    user_prompts.append(txt[:120] + ("..." if len(txt) > 120 else ""))
+
+    edits = list({e["file"]: e for e in edits}.values())
+    commits = list(dict.fromkeys(commits))[:20]
+    user_prompts = user_prompts[:15]
+
+    edits_by_dir = {}
+    for e in edits:
+        d = os.path.dirname(e["file"])
+        edits_by_dir.setdefault(d, []).append(os.path.basename(e["file"]))
+
+    return {
+        "tokens": agg, "model": model, "models": sorted(models),
+        "commits": commits, "edits": edits, "edits_by_dir": edits_by_dir,
+        "user_prompts": user_prompts, "asst_msgs": asst_msgs,
+        "total_user_msgs": len(user_prompts),
+    }
 
 
-transcript, sid, cwd, reason, out_path, notes_path = sys.argv[1:7]
-
-agg = {"input_tokens": 0, "output_tokens": 0,
-       "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}
-model, models = None, set()
-commits, edits, user_prompts, asst_msgs = [], [], [], 0
-
-
-def extract_commit_msg(cmd):
+def _extract_commit_msg(cmd):
     m = re.search(r"<<-?['\"]?EOF['\"]?\s*\n(.+?)\n\s*EOF", cmd, re.DOTALL)
     if m:
         return m.group(1).strip().split("\n")[0][:200]
@@ -28,84 +83,15 @@ def extract_commit_msg(cmd):
     return None
 
 
-with open(transcript) as f:
-    for line in f:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            o = json.loads(line)
-        except Exception:
-            continue
-        t = o.get("type", "")
-        if t == "assistant":
-            asst_msgs += 1
-            m = o.get("message", {})
-            if m.get("model"):
-                models.add(m["model"])
-                model = m["model"]
-            usage = m.get("usage", {})
-            for k in agg:
-                if k in usage:
-                    agg[k] += usage[k]
-            content = m.get("content", [])
-            if isinstance(content, list):
-                for c in content:
-                    if isinstance(c, dict) and c.get("type") == "tool_use":
-                        n, inp = c.get("name", ""), c.get("input", {})
-                        if n == "Bash":
-                            cmd = inp.get("command", "")
-                            if "git commit" in cmd:
-                                msg = extract_commit_msg(cmd)
-                                if msg:
-                                    commits.append(msg)
-                        elif n in ("Write", "Edit", "MultiEdit"):
-                            fp = inp.get("file_path", "")
-                            if fp:
-                                edits.append({"tool": n, "file": fp})
-        elif t == "user":
-            m = o.get("message", {})
-            c = m.get("content", "")
-            if isinstance(c, str) and c.strip():
-                # 过滤系统消息（local-command-caveat, /command 等）
-                if c.startswith("<") or "Caveat:" in c[:20]:
-                    continue
-                txt = c.strip().replace("\n", " ")
-                user_prompts.append(txt[:120] + ("..." if len(txt) > 120 else ""))
-
-# 去重 + 截断
-edits = list({e["file"]: e for e in edits}.values())
-commits = list(dict.fromkeys(commits))[:20]
-user_prompts = user_prompts[:15]
-total_user_msgs = len(user_prompts)
-
-# 空 session 跳过（0 user msgs 且无实质性产出）
-if total_user_msgs == 0 and len(commits) == 0 and len(edits) == 0:
-    print(f"session-end-aggregator: empty session {sid_short}, skip", file=sys.stderr)
-    sys.exit(0)
-
-# 读 agent 写的 notes
-agent_notes = ""
-if os.path.exists(notes_path):
-    with open(notes_path) as f:
-        agent_notes = f.read().strip()
-
-# 编辑按目录分组
-edits_by_dir = {}
-for e in edits:
-    d = os.path.dirname(e["file"])
-    edits_by_dir.setdefault(d, []).append(os.path.basename(e["file"]))
-
-sid_short = sid[:8]
+def is_empty_session(parsed):
+    return (parsed["total_user_msgs"] == 0 and
+            len(parsed["commits"]) == 0 and
+            len(parsed["edits"]) == 0)
 
 
-def clean_commit_msg(msg):
-    m = re.sub(r"\s*Co-Authored-By:.*$", "", msg, flags=re.DOTALL).strip()
-    return m[:60]
+# ── LLM summarization ────────────────────────────────────────────────
 
-
-# === LLM 总结 ===（走 Anthropic API，结构化 JSON 输出）
-def llm_summarize():
+def llm_summarize(commits, user_prompts, edits):
     try:
         import urllib.request
         prompt_parts = []
@@ -160,7 +146,6 @@ def llm_summarize():
         m = re.search(r'\{[^{}]*"title"[^{}]*"type"[^{}]*"summary"[^{}]*\}', text, re.DOTALL)
         if m:
             return json.loads(m.group(0))
-        # fallback: type 字段可能缺失（旧 prompt 缓存）
         m = re.search(r'\{[^{}]*"title"[^{}]*"summary"[^{}]*\}', text, re.DOTALL)
         if m:
             return json.loads(m.group(0))
@@ -169,320 +154,336 @@ def llm_summarize():
     return None
 
 
-llm = llm_summarize()
+# ── title / type / description ───────────────────────────────────────
 
-# === 标题 ===（LLM 优先，fallback 到结构化推断）
-if llm and llm.get("title"):
-    title = llm["title"].replace("\n", " ").strip()[:60]
-elif commits:
-    title = clean_commit_msg(commits[0])[:60]
-elif user_prompts:
-    for p in user_prompts:
-        if not re.search(r'[✅❌⚠]', p) and len(p.strip()) > 8:
-            title = p.replace("\n", " ")[:40]
-            break
-    else:
-        title = f"session 工作 ({sid_short} user msgs)"
-else:
-    title = f"session 工作 ({sid_short} user msgs)"
-
-# === 标题后处理：补全项目前缀 ===
-# 已知前缀列表（小写英文），从 cwd / commits / edits 推断
 KNOWN_PREFIXES = {"ccconfig", "claudecode", "project", "feishu", "minimax",
                   "sfia", "coze", "doubao", "trae", "robot", "docs", "agent"}
-# 从 cwd 提取项目名
-cwd_prefix = ""
-if cwd:
-    parts = cwd.strip("/").split("/")
-    # ~/git/<project>/... -> project name
-    for known in KNOWN_PREFIXES:
-        if known in cwd.lower():
-            cwd_prefix = known
-            break
-    if not cwd_prefix and len(parts) >= 3 and parts[1] == "git":
-        cwd_prefix = parts[2].split("/")[0]
-
-# 检查标题是否已有前缀
-title_has_prefix = False
-for prefix in KNOWN_PREFIXES:
-    # title starts with prefix followed by space (not colon, not underscore)
-    if title.lower().startswith(prefix.lower() + " "):
-        title_has_prefix = True
-        break
-
-# 无前缀 → 从 cwd 补
-if not title_has_prefix and cwd_prefix and not title.startswith("session 工作"):
-    title = cwd_prefix + " " + title
-
-# 清理格式违规：冒号 → 空格，下划线 → 空格
-title = re.sub(r'\s*[：:]\s*', ' ', title)
-title = re.sub(r'_+', ' ', title)
-# 去掉括号内容（【】[]）但保留有意义的描述
-title = re.sub(r'[【】\[\]]', '', title)
-# 截断
-title = title.strip()[:60]
-
-# === 成果类型 ===（LLM 推断，fallback 到启发式）
 VALID_TYPES = {"工具开发", "技术方案", "文档输出", "学习笔记", "问题排查", "项目交付"}
-if llm and llm.get("type") and llm["type"] in VALID_TYPES:
-    work_type = llm["type"]
-elif commits:
-    # 启发式：有 commit → 大概率是开发
-    work_type = "工具开发"
-elif edits:
-    work_type = "文档输出"
-else:
-    work_type = "学习笔记"
 
-# === 说明（自然语言段落，LLM 总结开头 + 元数据简化放最下面） ===
-if llm and llm.get("summary"):
-    body = llm["summary"].strip()
-else:
-    body = f"本次 session（{sid_short}）进行了 {asst_msgs} 轮对话。"
 
-parts = [body]
+def generate_title(llm, commits, user_prompts, sid_short):
+    if llm and llm.get("title"):
+        return llm["title"].replace("\n", " ").strip()[:60]
+    if commits:
+        return _clean_commit_msg(commits[0])[:60]
+    if user_prompts:
+        for p in user_prompts:
+            if not re.search(r'[✅❌⚠]', p) and len(p.strip()) > 8:
+                return p.replace("\n", " ")[:40]
+    return f"session 工作 ({sid_short} user msgs)"
 
-if commits:
-    commits_brief = "；".join(commits[:3])
-    if len(commits) > 3:
-        commits_brief += f"（+{len(commits)-3} more）"
-    parts.append(f"主要动作：{commits_brief}。")
 
-if edits_by_dir:
-    top_dirs = sorted(edits_by_dir.keys())[:3]
-    parts.append(f"改动 {len(edits)} 个文件，主要在：{' / '.join(top_dirs)}。")
-
-# 剩余用户问题（agent 未通过 commits 回答的），跳过 status 输出
-unanswered = []
-for p in user_prompts[1:]:
-    p_clean = p.replace("\n", " ").strip()
-    if not p_clean:
-        continue
-    # 跳过纯 status 输出（✅❌⚠━ℹ 等占多 / 升级状态行）
-    if re.search(r'[✅❌⚠━ℹ▌▎]', p_clean):
-        continue
-    if "Claude Code" in p_clean and ("版本" in p_clean or "升级" in p_clean):
-        continue
-    unanswered.append(p_clean[:100])
-if unanswered:
-    brief = "；".join(unanswered[:5])
-    if len(brief) > 200:
-        brief = brief[:200] + "…"
-    parts.append("其余用户问题：" + brief + "。")
-
-if agent_notes:
-    parts.append(f"\n备注：\n{agent_notes}")
-
-description = "\n".join(parts)
-
-quant = (f"{asst_msgs} asst / {total_user_msgs} user msgs, model={model}, "
-         f"in={agg['input_tokens']:,} out={agg['output_tokens']:,}")
-
-# === 来源映射 ===（reason → select option）
-REASON_MAP = {
-    "clear": "auto-clear",
-    "new": "auto-new",
-    "exit": "auto-exit",
-    "prompt_input_exit": "auto-exit",
-    "interrupt": "auto-ctrl_c",
-    "ctrl_c": "auto-ctrl_c",
-    "resume": "auto-resume",
-}
-source_val = REASON_MAP.get(reason, "auto-other" if reason else "auto-other")
-
-# 写 /tmp
-result = {
-    "session_id": sid,
-    "cwd": cwd,
-    "reason": reason,
-    "transcript_path": transcript,
-    "ended_at": datetime.datetime.now().isoformat(),
-    "tokens": agg,
-    "model": model,
-    "models_used": sorted(models),
-    "stats": {"assistant_message_count": asst_msgs, "user_message_count": total_user_msgs},
-    "events": {"git_commits": commits, "file_edits": edits},
-    "user_prompts": user_prompts,
-    "agent_notes": agent_notes,
-    "description": description,
-    "quant": quant,
-}
-
-tmp = out_path + ".tmp"
-with open(tmp, "w") as f:
-    json.dump(result, f, indent=2, ensure_ascii=False)
-os.replace(tmp, out_path)
-with open("/tmp/claude_last_session.json", "w") as f:
-    json.dump(result, f, indent=2, ensure_ascii=False)
-
-# 从 conf/f-logme.json 读配置（symlink → ccprivate）
-HOME = os.path.expanduser("~")
-CCCONFIG_HOME = os.environ.get("CCCONFIG_HOME", os.path.join(HOME, "git/ccconfig"))
-CONF_PATH = os.path.join(CCCONFIG_HOME, "conf/f-logme.json")
-try:
-    with open(CONF_PATH) as f:
-        _conf = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError):
-    print(f"[session-end] f-logme.json 不可用，跳过 Base 写入", file=sys.stderr)
-    _dump_result(out_path, result)
-    sys.exit(0)
-_feme = _conf["bases"]["okr_v2"]
-T = _feme["token"]
-TBL = _feme["tables"]["Worklog"]
-
-# KR 路由：根据 cwd 映射到对应 KR
-_kr_route = _conf.get("kr_route", {})
-KR_ROUTE = {os.path.join(HOME, "git", k): v for k, v in _kr_route.items() if k != "_default"}
-_default_kr = _kr_route.get("_default", "")
-kr_id = None
-for prefix, kid in KR_ROUTE.items():
-    if cwd and cwd.startswith(prefix) and kid:
-        kr_id = kid
-        break
-if not kr_id:
-    kr_id = _default_kr
-WL_CACHE = f"/tmp/claude_session_{sid}_wl.json"
-
-date_str = datetime.date.today().isoformat()
-
-env = os.environ.copy()
-# Read lark-cli account from marker file (set by lark-switch.sh)
-_acct_marker = os.path.expanduser("~/.lark-cli-account")
-_acct_dir = os.path.expanduser("~/.lark-cli-ailab")  # fallback
-if os.path.exists(_acct_marker):
-    with open(_acct_marker) as _f:
-        for _line in _f:
-            if _line.startswith("configDir="):
-                _acct_dir = _line.strip().split("=", 1)[1]
+def postprocess_title(title, cwd):
+    cwd_prefix = ""
+    if cwd:
+        parts = cwd.strip("/").split("/")
+        for known in KNOWN_PREFIXES:
+            if known in cwd.lower():
+                cwd_prefix = known
                 break
-env["LARKSUITE_CLI_CONFIG_DIR"] = _acct_dir
-env["PATH"] = os.path.expanduser("~/.local/bin:") + env.get("PATH", "")
+        if not cwd_prefix and len(parts) >= 3 and parts[1] == "git":
+            cwd_prefix = parts[2].split("/")[0]
 
-prev_exists = os.path.exists(WL_CACHE)
-if prev_exists:
-    # 同 session 已有记录 → 合并更新
-    with open(WL_CACHE) as f:
-        prev = json.load(f)
+    title_has_prefix = any(
+        title.lower().startswith(p.lower() + " ") for p in KNOWN_PREFIXES
+    )
+    if not title_has_prefix and cwd_prefix and not title.startswith("session 工作"):
+        title = cwd_prefix + " " + title
 
-    # 标题：取较长的（通常更新后的标题更具体）
-    merged_title = title if len(title) > len(prev.get("title", "")) else prev["title"]
+    title = re.sub(r'\s*[：:]\s*', ' ', title)
+    title = re.sub(r'_+', ' ', title)
+    title = re.sub(r'[【】\[\]]', '', title)
+    return title.strip()[:60]
 
-    # 说明：追加新内容
-    merged_desc = prev.get("description", "") + f"\n\n---\n{source_val} 更新 ({date_str}):\n{description}"
 
-    # 累加 round 数和 token
-    prev_rounds = prev.get("asst_msgs", 0)
-    prev_users = prev.get("user_msgs", 0)
-    # 更新 Feishu 记录
-    update_payload = {
-        "record_id_list": [prev["record_id"]],
-        "patch": {
-            "标题": merged_title,
-            "说明": merged_desc,
-            "input_tokens": agg["input_tokens"] + prev.get("input_tokens", 0),
-            "output_tokens": agg["output_tokens"] + prev.get("output_tokens", 0),
-            "asst_msgs": asst_msgs + prev_rounds,
-            "user_msgs": total_user_msgs + prev_users,
-            "来源": source_val,
-            "成果类型": work_type,
-        },
-    }
-    update_tmp = f"/tmp/wl_update_{sid}.json"
-    with open(update_tmp, "w") as f:
-        json.dump(update_payload, f, ensure_ascii=False)
+def _clean_commit_msg(msg):
+    m = re.sub(r"\s*Co-Authored-By:.*$", "", msg, flags=re.DOTALL).strip()
+    return m[:60]
 
+
+def determine_work_type(llm, commits, edits):
+    if llm and llm.get("type") and llm["type"] in VALID_TYPES:
+        return llm["type"]
+    if commits:
+        return "工具开发"
+    if edits:
+        return "文档输出"
+    return "学习笔记"
+
+
+def assemble_description(llm, commits, edits_by_dir, user_prompts, agent_notes,
+                         source_val, date_str, sid_short, asst_msgs):
+    if llm and llm.get("summary"):
+        body = llm["summary"].strip()
+    else:
+        body = f"本次 session（{sid_short}）进行了 {asst_msgs} 轮对话。"
+
+    parts = [body]
+
+    if commits:
+        brief = "；".join(commits[:3])
+        if len(commits) > 3:
+            brief += f"（+{len(commits)-3} more）"
+        parts.append(f"主要动作：{brief}。")
+
+    if edits_by_dir:
+        top_dirs = sorted(edits_by_dir.keys())[:3]
+        parts.append(f"改动 {sum(len(v) for v in edits_by_dir.values())} 个文件，主要在：{' / '.join(top_dirs)}。")
+
+    unanswered = []
+    for p in user_prompts[1:]:
+        p_clean = p.replace("\n", " ").strip()
+        if not p_clean:
+            continue
+        if re.search(r'[✅❌⚠━ℹ▌▎]', p_clean):
+            continue
+        if "Claude Code" in p_clean and ("版本" in p_clean or "升级" in p_clean):
+            continue
+        unanswered.append(p_clean[:100])
+    if unanswered:
+        brief = "；".join(unanswered[:5])
+        if len(brief) > 200:
+            brief = brief[:200] + "…"
+        parts.append("其余用户问题：" + brief + "。")
+
+    if agent_notes:
+        parts.append(f"\n备注：\n{agent_notes}")
+
+    return "\n".join(parts)
+
+
+REASON_MAP = {
+    "clear": "auto-clear", "new": "auto-new", "exit": "auto-exit",
+    "prompt_input_exit": "auto-exit", "interrupt": "auto-ctrl_c",
+    "ctrl_c": "auto-ctrl_c", "resume": "auto-resume",
+}
+
+
+def get_source_val(reason):
+    return REASON_MAP.get(reason, "auto-other" if reason else "auto-other")
+
+
+# ── Feishu Base sync ─────────────────────────────────────────────────
+
+def _call_lark_cli(args, env, cwd="/tmp", timeout=20):
+    """Run lark-cli, return (ok: bool, parsed_json | None)."""
     try:
         proc = subprocess.run(
-            ["lark-cli", "base", "+record-batch-update",
-             "--base-token", T, "--table-id", TBL,
-             "--as", "user", "--json", f"@{os.path.basename(update_tmp)}"],
-            capture_output=True, text=True, cwd="/tmp", env=env, timeout=20,
+            args, capture_output=True, text=True, cwd=cwd, env=env, timeout=timeout,
         )
-        stdout_clean = "\n".join(
-            l for l in proc.stdout.splitlines() if not l.startswith("[lark-cli]")
-        )
-        if proc.returncode == 0 and '"ok": true' in stdout_clean:
-            print(f"session-end-aggregator: worklog merged → {merged_title}", file=sys.stderr)
-            # 更新缓存（后续 merge 需要累加后的最新值）
-            prev["title"] = merged_title
-            prev["description"] = merged_desc
-            prev["asst_msgs"] = asst_msgs + prev_rounds
-            prev["user_msgs"] = total_user_msgs + prev_users
-            prev["input_tokens"] = agg["input_tokens"] + prev.get("input_tokens", 0)
-            prev["output_tokens"] = agg["output_tokens"] + prev.get("output_tokens", 0)
-            with open(WL_CACHE, "w") as f:
-                json.dump(prev, f, ensure_ascii=False)
-        else:
-            print(f"session-end-aggregator: merge failed rc={proc.returncode}", file=sys.stderr)
     except Exception as e:
-        print(f"session-end-aggregator: merge exception {e}", file=sys.stderr)
-    finally:
+        print(f"session-end-aggregator: lark-cli exception {e}", file=sys.stderr)
+        return False, None
+
+    stdout_clean = "\n".join(
+        l for l in proc.stdout.splitlines() if not l.startswith("[lark-cli]")
+    )
+    if proc.returncode != 0 or '"ok": true' not in stdout_clean:
+        print(f"session-end-aggregator: lark-cli failed rc={proc.returncode}", file=sys.stderr)
+        return False, None
+
+    try:
+        return True, json.loads(stdout_clean)
+    except json.JSONDecodeError:
+        return True, None
+
+
+def _read_conf(ccconfig_home):
+    conf_path = os.path.join(ccconfig_home, "conf/f-logme.json")
+    try:
+        with open(conf_path) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        print("[session-end] f-logme.json 不可用，跳过 Base 写入", file=sys.stderr)
+        return None
+
+
+def _get_kr_id(conf, cwd):
+    kr_route = conf.get("kr_route", {})
+    home = os.path.expanduser("~")
+    kr_map = {os.path.join(home, "git", k): v for k, v in kr_route.items() if k != "_default"}
+    for prefix, kid in kr_map.items():
+        if cwd and cwd.startswith(prefix) and kid:
+            return kid
+    return kr_route.get("_default", "")
+
+
+def _build_lark_env():
+    env = os.environ.copy()
+    acct_marker = os.path.expanduser("~/.lark-cli-account")
+    acct_dir = os.path.expanduser("~/.lark-cli-ailab")
+    if os.path.exists(acct_marker):
+        with open(acct_marker) as f:
+            for line in f:
+                if line.startswith("configDir="):
+                    acct_dir = line.strip().split("=", 1)[1]
+                    break
+    env["LARKSUITE_CLI_CONFIG_DIR"] = acct_dir
+    env["PATH"] = os.path.expanduser("~/.local/bin:") + env.get("PATH", "")
+    return env
+
+
+def _write_wl_cache(cache_path, data):
+    with open(cache_path, "w") as f:
+        json.dump(data, f, ensure_ascii=False)
+
+
+def _read_wl_cache(cache_path):
+    if os.path.exists(cache_path):
+        with open(cache_path) as f:
+            return json.load(f)
+    return None
+
+
+def sync_to_feishu(parsed, title, work_type, description, sid, cwd,
+                   source_val, date_str, agent_notes):
+    home = os.path.expanduser("~")
+    ccconfig_home = os.environ.get("CCCONFIG_HOME", os.path.join(home, "git/ccconfig"))
+    conf = _read_conf(ccconfig_home)
+    if conf is None:
+        return
+
+    feme = conf["bases"]["okr_v2"]
+    base_token = feme["token"]
+    table_id = feme["tables"]["Worklog"]
+    kr_id = _get_kr_id(conf, cwd)
+    env = _build_lark_env()
+    wl_cache_path = f"/tmp/claude_session_{sid}_wl.json"
+
+    agg = parsed["tokens"]
+    asst_msgs = parsed["asst_msgs"]
+    total_user_msgs = parsed["total_user_msgs"]
+    prev = _read_wl_cache(wl_cache_path)
+
+    if prev is not None:
+        # ── merge existing record ──
+        merged_title = title if len(title) > len(prev.get("title", "")) else prev["title"]
+        merged_desc = prev.get("description", "") + f"\n\n---\n{source_val} 更新 ({date_str}):\n{description}"
+
+        payload = {
+            "record_id_list": [prev["record_id"]],
+            "patch": {
+                "标题": merged_title,
+                "说明": merged_desc,
+                "input_tokens": agg["input_tokens"] + prev.get("input_tokens", 0),
+                "output_tokens": agg["output_tokens"] + prev.get("output_tokens", 0),
+                "asst_msgs": asst_msgs + prev.get("asst_msgs", 0),
+                "user_msgs": total_user_msgs + prev.get("user_msgs", 0),
+                "来源": source_val,
+                "成果类型": work_type,
+            },
+        }
+        tmp_path = f"/tmp/wl_update_{sid}.json"
+        with open(tmp_path, "w") as f:
+            json.dump(payload, f, ensure_ascii=False)
+
+        ok, _ = _call_lark_cli(
+            ["lark-cli", "base", "+record-batch-update",
+             "--base-token", base_token, "--table-id", table_id,
+             "--as", "user", "--json", f"@{os.path.basename(tmp_path)}"],
+            env,
+        )
         try:
-            os.remove(update_tmp)
+            os.remove(tmp_path)
         except OSError:
             pass
 
-else:
-    # 首次记录 → 新建
-    wl_payload = {
-        "fields": ["标题", "成果类型", "说明", "日期",
-                   "input_tokens", "output_tokens", "model",
-                   "asst_msgs", "user_msgs", "关联KR", "来源"],
-        "rows": [[
-            title, work_type, description, date_str,
-            agg["input_tokens"], agg["output_tokens"],
-            model or "",
-            asst_msgs, total_user_msgs,
-            [{"id": kr_id}],
-            source_val,
-        ]],
-    }
-    wl_tmp = f"/tmp/wl_{sid}.json"
-    with open(wl_tmp, "w") as f:
-        json.dump(wl_payload, f, ensure_ascii=False)
+        if ok:
+            _write_wl_cache(wl_cache_path, {
+                "record_id": prev["record_id"],
+                "title": merged_title,
+                "work_type": work_type,
+                "description": merged_desc,
+                "asst_msgs": asst_msgs + prev.get("asst_msgs", 0),
+                "user_msgs": total_user_msgs + prev.get("user_msgs", 0),
+                "input_tokens": agg["input_tokens"] + prev.get("input_tokens", 0),
+                "output_tokens": agg["output_tokens"] + prev.get("output_tokens", 0),
+            })
+            print(f"session-end-aggregator: worklog merged → {merged_title}", file=sys.stderr)
+    else:
+        # ── create new record ──
+        payload = {
+            "fields": ["标题", "成果类型", "说明", "日期",
+                       "input_tokens", "output_tokens", "model",
+                       "asst_msgs", "user_msgs", "关联KR", "来源"],
+            "rows": [[
+                title, work_type, description, date_str,
+                agg["input_tokens"], agg["output_tokens"],
+                parsed["model"] or "",
+                asst_msgs, total_user_msgs,
+                [{"id": kr_id}],
+                source_val,
+            ]],
+        }
+        tmp_path = f"/tmp/wl_{sid}.json"
+        with open(tmp_path, "w") as f:
+            json.dump(payload, f, ensure_ascii=False)
 
-    try:
-        proc = subprocess.run(
+        ok, rdata = _call_lark_cli(
             ["lark-cli", "base", "+record-batch-create",
-             "--base-token", T, "--table-id", TBL,
-             "--as", "user", "--json", f"@{os.path.basename(wl_tmp)}"],
-            capture_output=True, text=True, cwd="/tmp", env=env, timeout=20,
+             "--base-token", base_token, "--table-id", table_id,
+             "--as", "user", "--json", f"@{os.path.basename(tmp_path)}"],
+            env,
         )
-        stdout_clean = "\n".join(
-            l for l in proc.stdout.splitlines() if not l.startswith("[lark-cli]")
-        )
-        if proc.returncode == 0 and '"ok": true' in stdout_clean:
-            # 解析 record_id 并缓存
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+        if ok and rdata:
             try:
-                rdata = json.loads(stdout_clean)
                 wl_id = rdata["data"]["record_id_list"][0]
-                cache = {
-                    "record_id": wl_id,
-                    "title": title,
-                    "work_type": work_type,
-                    "description": description,
-                    "asst_msgs": asst_msgs,
+                _write_wl_cache(wl_cache_path, {
+                    "record_id": wl_id, "title": title, "work_type": work_type,
+                    "description": description, "asst_msgs": asst_msgs,
                     "user_msgs": total_user_msgs,
                     "input_tokens": agg["input_tokens"],
                     "output_tokens": agg["output_tokens"],
-                }
-                with open(WL_CACHE, "w") as f:
-                    json.dump(cache, f, ensure_ascii=False)
+                })
                 print(f"session-end-aggregator: worklog created → {title} ({wl_id})", file=sys.stderr)
             except Exception as e:
                 print(f"session-end-aggregator: created but cache failed {e}", file=sys.stderr)
-        else:
-            print(
-                f"session-end-aggregator: lark-cli failed rc={proc.returncode}",
-                file=sys.stderr,
-            )
-    except Exception as e:
-        print(f"session-end-aggregator: lark-cli exception {e}", file=sys.stderr)
-    finally:
-        try:
-            os.remove(wl_tmp)
-        except OSError:
-            pass
+
+
+# ── main ─────────────────────────────────────────────────────────────
+
+def aggregate(transcript, sid, cwd, reason, notes_path):
+    parsed = parse_transcript(transcript)
+
+    if is_empty_session(parsed):
+        print(f"session-end-aggregator: empty session {sid[:8]}, skip", file=sys.stderr)
+        return
+
+    agent_notes = ""
+    if os.path.exists(notes_path):
+        with open(notes_path) as f:
+            agent_notes = f.read().strip()
+
+    llm = llm_summarize(parsed["commits"], parsed["user_prompts"], parsed["edits"])
+
+    title = generate_title(llm, parsed["commits"], parsed["user_prompts"], sid[:8])
+    title = postprocess_title(title, cwd)
+
+    work_type = determine_work_type(llm, parsed["commits"], parsed["edits"])
+    source_val = get_source_val(reason)
+    date_str = datetime.date.today().isoformat()
+
+    description = assemble_description(
+        llm, parsed["commits"], parsed["edits_by_dir"], parsed["user_prompts"],
+        agent_notes, source_val, date_str, sid[:8], parsed["asst_msgs"],
+    )
+
+    sync_to_feishu(parsed, title, work_type, description, sid, cwd,
+                   source_val, date_str, agent_notes)
+
+
+def main():
+    if len(sys.argv) < 7:
+        print(f"Usage: {sys.argv[0]} <transcript> <sid> <cwd> <reason> <out> <notes>", file=sys.stderr)
+        sys.exit(1)
+    transcript, sid, cwd, reason, _out_path, notes_path = sys.argv[1:7]
+    aggregate(transcript, sid, cwd, reason, notes_path)
+
 
 if __name__ == '__main__':
     main()
