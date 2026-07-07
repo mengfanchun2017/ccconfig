@@ -315,6 +315,86 @@ do_list() {
     claude plugin list 2>&1 | head -10
 }
 
+# 检测清单 vs 实际安装的 drift
+# 输出：清单有但未装、已装但不在清单、自建 skill（不在清单管理的范围）
+do_diff() {
+    title "Skills Drift 检测（conf/third-party-skills.txt vs ~/.claude/skills/）"
+
+    # 1. 解析清单中的第三方 skill
+    declare -A MANIFEST_SKILLS  # skill_name → source
+    if [[ -f "$THIRD_PARTY_CONF" ]]; then
+        while IFS= read -r line; do
+            [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+            local skill=$(echo "$line" | awk '{print $2}')
+            local source=$(echo "$line" | awk '{print $1}')
+            [[ -n "$skill" ]] && MANIFEST_SKILLS["$skill"]="$source"
+        done < "$THIRD_PARTY_CONF"
+    fi
+
+    # 2. 扫描 ~/.claude/skills/ 实际安装
+    declare -A INSTALLED
+    declare -A INSTALLED_SRC  # skill_name → source_type
+    for d in "$CLAUDE_SKILLS_DIR"/*; do
+        [[ -e "$d" ]] || continue
+        local name=$(basename "$d")
+        INSTALLED["$name"]=1
+        if [[ -L "$d" ]]; then
+            local target=$(readlink -f "$d")
+            if [[ "$target" == *"/claude-skills/plugins"* ]] || [[ "$target" == *"$SKILLS_SRC"* ]]; then
+                INSTALLED_SRC["$name"]="self-built"
+            elif [[ "$target" == *".agents/skills"* ]]; then
+                INSTALLED_SRC["$name"]="npx"
+            else
+                INSTALLED_SRC["$name"]="user-symlink"
+            fi
+        else
+            INSTALLED_SRC["$name"]="local-dir"
+        fi
+    done
+
+    # 3. 对比
+    local missing=0 extra=0 ok=0
+
+    echo ""
+    echo -e "${CYAN}── 清单有但未装（需 sync）${NC}"
+    for skill in "${!MANIFEST_SKILLS[@]}"; do
+        if [[ -z "${INSTALLED[$skill]}" ]]; then
+            echo -e "  ${RED}✗${NC} $skill — ${MANIFEST_SKILLS[$skill]}"
+            missing=$((missing + 1))
+        fi
+    done
+    [[ $missing -eq 0 ]] && echo -e "  ${GREEN}✓${NC} 无"
+
+    echo ""
+    echo -e "${CYAN}── 已装但不在清单（untracked drift）${NC}"
+    for skill in "${!INSTALLED[@]}"; do
+        if [[ -z "${MANIFEST_SKILLS[$skill]}" ]] && [[ "${INSTALLED_SRC[$skill]}" != "self-built" ]]; then
+            local src_label="${INSTALLED_SRC[$skill]}"
+            echo -e "  ${YELLOW}?${NC} $skill — $src_label（不在 third-party-skills.txt）"
+            extra=$((extra + 1))
+        fi
+    done
+    [[ $extra -eq 0 ]] && echo -e "  ${GREEN}✓${NC} 无"
+
+    echo ""
+    echo -e "${CYAN}── 自建 skill（不在清单管理范围）${NC}"
+    local self_count=0
+    for skill in "${!INSTALLED_SRC[@]}"; do
+        if [[ "${INSTALLED_SRC[$skill]}" == "self-built" ]]; then
+            info "  $skill"
+            self_count=$((self_count + 1))
+        fi
+    done
+    info "  共 $self_count 个"
+
+    echo ""
+    if [[ $missing -eq 0 ]] && [[ $extra -eq 0 ]]; then
+        good "Drift 检测通过：清单与安装一致"
+    else
+        warn "发现 drift：$missing 缺失, $extra untracked → bash init-skill.sh sync 修复缺失"
+    fi
+}
+
 do_status() {
     title "Skills 状态"
     echo -e "${CYAN}claude-skills/plugins/ (自建 $(ls "$SKILLS_SRC" 2>/dev/null | wc -l) 个)${NC}"
@@ -360,7 +440,8 @@ case "$action" in
     cleanup) do_cleanup ;;
     list)    do_list ;;
     status)  do_status ;;
-    *)       echo "用法: $0 {sync|update|cleanup|list|status}"; exit 1 ;;
+    diff)    do_diff ;;
+    *)       echo "用法: $0 {sync|update|cleanup|list|status|diff}"; exit 1 ;;
 esac
 
 echo ""
