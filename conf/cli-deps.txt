@@ -8,4 +8,4 @@
 #   npm update -g <package>       # npm 包
 #   go install ...@latest         # go 包
 
-@getnote/cli  npm:latest  f-getnote
+@getnote/cli  npm:latest  getnote-*
