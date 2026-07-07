@@ -1,3 +1,10 @@
+---
+paths:
+  - "**/*.py"
+  - "**/requirements*.txt"
+  - "**/pyproject.toml"
+---
+
 # Python 管理规范
 
 ## 版本
