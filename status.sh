@@ -17,17 +17,11 @@
 #
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
+set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/colors.sh"
 source "$SCRIPT_DIR/lib/path-helper.sh"
 REPO_DIR="$SCRIPT_DIR"
-
-# 颜色
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-GRAY='\033[0;90m'
-NC='\033[0m'
 
 # ========== Git 拉取 ==========
 git_pull() {
