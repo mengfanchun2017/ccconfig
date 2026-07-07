@@ -1,4 +1,9 @@
-q Git 规范
+---
+paths:
+  - "**/.git/**"
+---
+
+# Git 规范
 
 ## 提交
 - 在 git 仓库中 Edit/Write 后主动 `git add` + `git commit`，不等用户说"提交"
