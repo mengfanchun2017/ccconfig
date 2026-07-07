@@ -1,14 +1,16 @@
 #!/bin/bash
 # Claude Skills 管理脚本
-# 功能：同步自建 skill 符号链接 + ccprivate 配置覆盖 + 装第三方 skill（npx skills 幂等）
+# 功能：装 CLI 依赖 + 同步自建 skill 符号链接 + ccprivate 配置覆盖 + 装第三方 skill（npx skills 幂等）
 #
 # skill 来源（聚合到 ~/.claude/skills/）：
+#   CLI 依赖          → conf/cli-deps.txt 清单，npm/go 自动安装
 #   自建 f-*         → symlink 从 claude-skills/plugins/（开源仓库，单一源）
 #   私有配置         → ccprivate config overlay（conf/*.yaml 覆盖 skill 内 config.yaml.example）
 #   第三方 (npx)     → npx skills add 装到 ~/.agents/skills/，自动 symlink 到 ~/.claude/skills/
 #
 # 使用：
-#   bash ccconfig/init-skill.sh sync             # 同步自建 + 装第三方
+#   bash ccconfig/init-skill.sh sync             # 装 CLI 依赖 + 同步自建 + 装第三方
+#   bash ccconfig/init-skill.sh update           # 更新所有（CLI + npx skills）
 #   bash ccconfig/init-skill.sh cleanup          # 单独清 ~/.claude/skills/ 断链
 #   bash ccconfig/init-skill.sh list             # 查看已安装 skills（symlink + plugin）
 #   bash ccconfig/init-skill.sh status           # 状态总览
@@ -20,6 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_SRC="${CLAUDE_SKILLS_SRC:-$HOME/git/claude-skills/plugins}"
 CCPRIVATE_DIR="${CCPRIVATE_DIR:-$HOME/git/ccprivate}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
+CLI_DEPS_CONF="$SCRIPT_DIR/conf/cli-deps.txt"
 THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
 GITHUB_USER="${GITHUB_USER:-<your-github-username>}"
 MARKETPLACE_REPO="$GITHUB_USER/claude-skills"
@@ -42,10 +45,70 @@ bad() { echo -e "$1${RED}"; }
 info() { echo -e "$1${GRAY}"; }
 warn() { echo -e "$1${YELLOW}"; }
 
+# 阶段 0：装 CLI 工具依赖（conf/cli-deps.txt）
+do_install_cli_deps() {
+    title "阶段 0/4: CLI 工具依赖（conf/cli-deps.txt）"
+
+    if [[ ! -f "$CLI_DEPS_CONF" ]]; then
+        warn "  清单不存在: $CLI_DEPS_CONF — 跳过"
+        return 0
+    fi
+
+    local installed=0 skipped=0 failed=0
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+        local pkg=$(echo "$line" | awk '{print $1}')
+        local mgr=$(echo "$line" | awk '{print $2}' | cut -d: -f1)
+        local required_by=$(echo "$line" | awk '{print $3}')
+
+        case "$mgr" in
+            npm)
+                if npm list -g "$pkg" --depth=0 2>/dev/null | grep -q "$pkg"; then
+                    info "  $pkg (npm): 已装 — $required_by"
+                    skipped=$((skipped + 1))
+                else
+                    info "  $pkg (npm): 安装中..."
+                    if npm install -g "$pkg" 2>&1 | tail -1; then
+                        good "  $pkg (npm): ✓ — $required_by"
+                        installed=$((installed + 1))
+                    else
+                        bad "  $pkg (npm): 失败"
+                        failed=$((failed + 1))
+                    fi
+                fi
+                ;;
+            go)
+                local bin_name=$(basename "$pkg")
+                if command -v "$bin_name" &>/dev/null; then
+                    info "  $pkg (go): 已装 — $required_by"
+                    skipped=$((skipped + 1))
+                else
+                    info "  $pkg (go): 安装中..."
+                    if go install "$pkg" 2>&1; then
+                        good "  $pkg (go): ✓ — $required_by"
+                        installed=$((installed + 1))
+                    else
+                        bad "  $pkg (go): 失败"
+                        failed=$((failed + 1))
+                    fi
+                fi
+                ;;
+            *)
+                warn "  $pkg: 未知管理器 $mgr — 跳过"
+                skipped=$((skipped + 1))
+                ;;
+        esac
+    done < "$CLI_DEPS_CONF"
+
+    echo ""
+    good "  CLI 依赖: $installed 新装, $skipped 已装, $failed 失败"
+}
+
 # 阶段 1：symlink 自建 skill 到 ~/.claude/skills/
 # 保护 npx skills 装的 symlink：目标不在 $SKILLS_SRC/ 下就跳过（user-managed）
 do_link_self_built() {
-    title "阶段 1/3: symlink 自建 skill → ~/.claude/skills/"
+    title "阶段 1/4: symlink 自建 skill → ~/.claude/skills/"
 
     mkdir -p "$CLAUDE_SKILLS_DIR"
 
@@ -93,7 +156,7 @@ do_link_self_built() {
 
 # 阶段 2：检 marketplace（保留自建 marketplace 给 f-* 自动跟）
 do_ensure_marketplace() {
-    title "阶段 2/3: marketplace 检（$MARKETPLACE_NAME）"
+    title "阶段 2/4: marketplace 检（$MARKETPLACE_NAME）"
 
     info "检 marketplace: $MARKETPLACE_REPO"
     if claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE_NAME"; then
@@ -112,7 +175,7 @@ do_ensure_marketplace() {
 # 阶段 3：npx skills 装第三方 skill（幂等，从 conf/third-party-skills.txt 读列表）
 # 已装就 skip（npx skills add 本身幂等）；不重写 ~/.claude/skills/（npx 自己建 symlink）
 do_install_third_party() {
-    title "阶段 3/3: npx skills 装第三方 skill（conf/third-party-skills.txt）"
+    title "阶段 3/4: npx skills 装第三方 skill（conf/third-party-skills.txt）"
 
     if [[ ! -f "$THIRD_PARTY_CONF" ]]; then
         warn "  conf 清单不存在: $THIRD_PARTY_CONF — 跳过"
@@ -154,7 +217,7 @@ do_install_third_party() {
 
 # 阶段 2.5：ccprivate 配置覆盖（委托 ccprivate/bin/apply-config.sh）
 do_apply_ccprivate_config() {
-    title "阶段 2.5/3: ccprivate 配置覆盖"
+    title "阶段 2.5/4: ccprivate 配置覆盖"
 
     local apply_script="$CCPRIVATE_DIR/bin/apply-config.sh"
     if [[ -x "$apply_script" ]]; then
@@ -165,6 +228,7 @@ do_apply_ccprivate_config() {
 }
 
 do_sync() {
+    do_install_cli_deps
     do_link_self_built
     do_ensure_marketplace
     do_apply_ccprivate_config
@@ -172,6 +236,36 @@ do_sync() {
 
     echo ""
     good "完成。验证: bash init-skill.sh status"
+}
+
+# 更新所有（CLI 工具 + npx skills）
+do_update() {
+    title "更新 CLI 工具依赖"
+    if [[ -f "$CLI_DEPS_CONF" ]]; then
+        while IFS= read -r line; do
+            [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+            local pkg=$(echo "$line" | awk '{print $1}')
+            local mgr=$(echo "$line" | awk '{print $2}' | cut -d: -f1)
+            case "$mgr" in
+                npm)
+                    info "  npm update -g $pkg"
+                    npm update -g "$pkg" 2>&1 | tail -1
+                    ;;
+                go)
+                    info "  go install $pkg"
+                    go install "$pkg" 2>&1 | tail -1
+                    ;;
+            esac
+        done < "$CLI_DEPS_CONF"
+    fi
+
+    echo ""
+    title "更新 npx skills（按 upstream 拉最新）"
+    git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
+    npx --yes skills@latest update -g -y 2>&1 | tail -20
+
+    echo ""
+    good "更新完成。重启 Claude Code 加载新 skill 内容。"
 }
 
 # 清理所有 ~/.claude/skills/ 里源已不存在的断链（不删 npx-managed）
@@ -262,12 +356,13 @@ do_status() {
 action="${1:-sync}"
 case "$action" in
     sync)    do_sync ;;
+    update)  do_update ;;
     cleanup) do_cleanup ;;
     list)    do_list ;;
     status)  do_status ;;
-    *)       echo "用法: $0 {sync|cleanup|list|status}"; exit 1 ;;
+    *)       echo "用法: $0 {sync|update|cleanup|list|status}"; exit 1 ;;
 esac
 
 echo ""
-good "提示: 新环境先跑 sync (symlink 自建 + 装 npx 第三方)；更新 npx 装跑 scripts/update-third-party-skills.sh"
+good "提示: 新环境先跑 sync (装 CLI 依赖 + symlink 自建 + 装 npx 第三方)；更新跑 update (CLI + npx skills)"
 exit 0
