@@ -336,8 +336,13 @@ with open("/tmp/claude_last_session.json", "w") as f:
 HOME = os.path.expanduser("~")
 CCCONFIG_HOME = os.environ.get("CCCONFIG_HOME", os.path.join(HOME, "git/ccconfig"))
 CONF_PATH = os.path.join(CCCONFIG_HOME, "conf/f-logme.json")
-with open(CONF_PATH) as f:
-    _conf = json.load(f)
+try:
+    with open(CONF_PATH) as f:
+        _conf = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    print(f"[session-end] f-logme.json 不可用，跳过 Base 写入", file=sys.stderr)
+    _dump_result(out_path, result)
+    sys.exit(0)
 _feme = _conf["bases"]["okr_v2"]
 T = _feme["token"]
 TBL = _feme["tables"]["Worklog"]
@@ -358,7 +363,16 @@ WL_CACHE = f"/tmp/claude_session_{sid}_wl.json"
 date_str = datetime.date.today().isoformat()
 
 env = os.environ.copy()
-env["LARKSUITE_CLI_CONFIG_DIR"] = os.path.expanduser("~/.lark-cli-<account>")
+# Read lark-cli account from marker file (set by lark-switch.sh)
+	_acct_marker = os.path.expanduser("~/.lark-cli-account")
+	_acct_dir = os.path.expanduser("~/.lark-cli-ailab")  # fallback
+	if os.path.exists(_acct_marker):
+	    with open(_acct_marker) as _f:
+	        for _line in _f:
+	            if _line.startswith("configDir="):
+	                _acct_dir = _line.strip().split("=", 1)[1]
+	                break
+	env["LARKSUITE_CLI_CONFIG_DIR"] = _acct_dir
 env["PATH"] = os.path.expanduser("~/.local/bin:") + env.get("PATH", "")
 
 prev_exists = os.path.exists(WL_CACHE)
@@ -491,7 +505,7 @@ PY
 # === 周/阶段定时整合 ===
 MERGE_MARKER="/tmp/f-logme_last_merge"
 MONTHLY_MARKER="/tmp/f-logme_last_monthly"
-CONSOLIDATE_SCRIPT="$HOME/git/ccconfig/link/skills/f-logme/worklog_consolidate.py"
+CONSOLIDATE_SCRIPT="$HOME/.claude/skills/f-logme/worklog_consolidate.py"
 NOW=$(date +%s)
 WEEK=604800   # 7 天
 MONTH=2592000 # 30 天

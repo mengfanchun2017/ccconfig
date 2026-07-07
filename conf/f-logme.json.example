@@ -1,0 +1,31 @@
+{
+  "bases": {
+    "okr_v2": {
+      "token": "<base-token>",
+      "tables": {
+        "OKR_O": "<table-id>",
+        "KR": "<table-id>",
+        "Worklog": "<table-id>",
+        "Reflect": "<table-id>"
+      }
+    },
+    "okr_v1": {
+      "token": "<base-token>"
+    },
+    "worklog_history": {
+      "token": "<base-token>"
+    },
+    "skills_profile": {
+      "token": "<base-token>"
+    }
+  },
+  "kr_route": {
+    "ccconfig": "<rec-id>",
+    "bwater": "<rec-id>"
+  },
+  "default_kr": "<rec-id>",
+  "spaces": {
+    "worklog": "<space-id>",
+    "okr": "<space-id>"
+  }
+}

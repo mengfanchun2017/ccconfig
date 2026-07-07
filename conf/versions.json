@@ -34,6 +34,12 @@
       "download_url_template": "https://github.com/chenhg5/cc-connect/releases/download/v{VERSION}/cc-connect-v{VERSION}-linux-amd64.tar.gz",
       "binary_name": "cc-connect"
     },
+    "lark_cli": {
+      "package": "@larksuite/cli",
+      "install": "npm install -g @larksuite/cli",
+      "check_url": "https://registry.npmjs.org/@larksuite/cli",
+      "_note": "飞书 CLI，通过 npm 管理版本，update.sh 运行时检查最新版"
+    },
     "claude": {
       "version": "2.1.199"
     }
