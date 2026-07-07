@@ -1,5 +1,27 @@
 # 飞书集成规范
 
+## lark-cli auth 预检（写操作前置）
+
+**任何 `docs +create` / `+update` / `drive +upload` 前**，先验证 auth 存活：
+
+```bash
+lark-cli drive +search --query test --page-size 1 --as user 2>&1 | sed '/^\[lark-cli\]/d'
+```
+
+若返回 `"ok":true` → 继续。若返回 `token_missing` / `need_user_authorization` → auth 过期，走 QR 码授权流程（一次性，1 分钟）：
+
+```bash
+# 1. 请求设备授权（含完整读写 scopes）
+lark-cli auth login --scope "docx:document:create,docx:document:readonly,drive:drive:readonly" --no-wait --json
+# 2. 生成 QR 码
+lark-cli auth qrcode "<verification_url>" --output ./feishu-auth-qr.png
+# 3. 用户扫码后确认
+lark-cli auth login --device-code "<device_code>"
+```
+
+**Why**：session token 有 TTL（~30天），过期后需重新授权。config.json 存在 ≠ auth 有效。
+**How to apply**：写操作前先 drive +search 验证，失败走 auth 流程。
+
 ## 工具选择
 - **lark-cli --as user**：所有飞书操作（文档、Base、日历、白板、表格）
 - feishu MCP 已删除，不需要任何 MCP 调用
