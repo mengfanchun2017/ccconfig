@@ -199,29 +199,39 @@ ccconfig 自身：git pull（update.sh 开头自动执行）
 
 ## Skill 系统
 
-### 三层架构
+### 五层架构
 
 ```
-Layer 1: 原语（被委托）
-  f-search         多源搜索编排
-  f-pdf            PDF 内容提取
-  f-report-std     报告写作规范
-  f-diagram        代码驱动图表生成
-  f-docx           Word .docx 生成
-  f-xlsx           Excel .xlsx 生成
+Tier 0: CLI/MCP 工具（真正的原语）
+  lark-cli         飞书 CLI
+  OfficeCLI        Office OpenXML 工具
+  tavily           英文搜索 API
+  minimax          中文搜索 + 多模态生成 API
+  whiteboard-cli   飞书白板 SVG 渲染
 
-Layer 2: 编排（委托 Layer 1）
-  f-feishu         飞书文档统一入口 → 委托 f-pdf/f-pptx/lark-cli
-  f-pptx           PPT 生成 → 委托 OfficeCLI
-  f-research       快速研究 → 委托 f-search
-  f-logme          个人管理 → 委托 f-feishu
+Tier 1: 能力 Skill（包装工具加约定）
+  f-search         多源搜索编排（三源并行 + 去重 + 标注）
+  f-pdf            PDF 内容提取（PyMuPDF）
+  f-diagram        代码驱动图表生成（Mermaid + whiteboard-cli）
+  f-docx           Word .docx 生成（OfficeCLI 引擎）
+  f-xlsx           Excel .xlsx 生成（OfficeCLI 引擎）
+  f-pptx           PPTX 生成（OfficeCLI 引擎 + autofit 后处理）
 
-Layer 3: 复合工作流
-  f-research-deep      批量深度研究
-  f-research-report    报告生成 → 委托 f-research + f-report-std + f-feishu
-  f-launch             项目启动 → 委托 f-logme + f-feishu
-  f-moocrec            慕课推荐 → Supabase + 飞书 Base
-  f-vessel             AI 浏览器 → Vessel MCP
+Tier 2: 编排层（路由 + 文档生命周期）
+  f-feishu         飞书文档统一入口 → 委托 Tier 1 skill + lark-cli
+
+Tier 3: 领域方法论（领域知识 + 框架）
+  f-research-frame  4 领域研究方法论（customer/generic/market/technical）
+  f-report-std     报告写作横向规范（4 套模板）
+  f-sysarchi       系统分析师备考方法论
+
+Tier 4: 应用 Skill（最终用户工作流）
+  f-research-report  报告生成 → 委托 f-research-frame + f-report-std + f-feishu
+  f-logme            个人管理系统（OKR/Worklog/Reflect/SUM）
+  f-launch           项目启动脚手架（8 种项目类型）
+  f-moocrec          慕课推荐（QS 课程 + 学习路径）
+  f-vessel           AI 浏览器操控
+  getnote            得到大脑集成（MCP 驱动）
 ```
 
 ### 安装方式
