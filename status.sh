@@ -13,6 +13,7 @@
 # 9. MCP 服务器状态
 # 10. 远程连接状态 (Tailscale + SSH)
 # 11. option-* 可选组件
+# 12. Skills 安装状态
 #
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
@@ -660,6 +661,50 @@ check_option_components() {
     fi
 }
 
+# ========== 12. Skills 安装状态 ==========
+check_skills() {
+    echo -e "${CYAN}── Skills${NC}"
+
+    local skills_dir="$HOME/.claude/skills"
+    local skills_src="$HOME/git/claude-skills/plugins"
+    local ok=true
+
+    if [[ -d "$skills_src" ]]; then
+        local self_count=$(ls "$skills_src" 2>/dev/null | wc -l)
+        echo -e "  自建: ${GREEN}${self_count}${NC} 个 (claude-skills/plugins/)"
+    else
+        echo -e "  自建: ${YELLOW}未找到${NC} claude-skills/plugins/"
+        ok=false
+    fi
+
+    if [[ -d "$skills_dir" ]]; then
+        local broken=0 linked=0
+        for d in "$skills_dir"/*; do
+            if [[ -L "$d" ]] && [[ ! -e "$d" ]]; then
+                broken=$((broken + 1))
+            elif [[ -L "$d" ]]; then
+                linked=$((linked + 1))
+            fi
+        done
+        echo -e "  已链接: ${GREEN}${linked}${NC} 个"
+        if [[ $broken -gt 0 ]]; then
+            echo -e "  ${RED}断链: ${broken}${NC} 个 → bash init-skill.sh cleanup"
+            ok=false
+        fi
+    else
+        echo -e "  ${YELLOW}~/.claude/skills/ 不存在${NC} → bash init-skill.sh sync"
+        ok=false
+    fi
+
+    local third_party="$SCRIPT_DIR/conf/third-party-skills.txt"
+    if [[ -f "$third_party" ]]; then
+        local tp_count=$(grep -cEv '^\s*(#|$)' "$third_party" 2>/dev/null || echo 0)
+        echo -e "  第三方清单: ${tp_count} 个 (third-party-skills.txt)"
+    fi
+
+    $ok && echo -e "  ${GREEN}✓ Skills 正常${NC}"
+}
+
 # ========== 执行所有检查 ==========
 
 echo ""
@@ -678,5 +723,6 @@ check_playwright
 check_mcp
 check_remote
 check_option_components
+check_skills
 
 echo ""
