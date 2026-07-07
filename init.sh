@@ -5,6 +5,7 @@
 #   bash ccconfig/init.sh              # 交互式菜单（默认）
 #   bash ccconfig/init.sh all          # 一键初始化全部
 #   bash ccconfig/init.sh status       # 状态检查
+#   bash ccconfig/init.sh --dry-run    # 预览将要执行的操作（不实际执行）
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -287,12 +288,22 @@ main_menu() {
 # ========== 入口 ==========
 case "${1:-menu}" in
     all)
-        # BOOTSTRAP 阶段 4 入口：Ubuntu + MCP + Skills + Python 包
         init_all_steps true
         echo ""
         echo "CLI 工具: bat (batcat) / glow / nano — 已由 init-ubuntu.sh 自动安装"
         echo "可选: bash ccconfig/option-bridge/init.sh   # 安装飞书 Bridge"
         exit 0
+        ;;
+    --dry-run|--preview|--what)
+        show_banner
+        echo ""
+        section "预览：将要执行的操作"
+        echo "  init-ubuntu.sh    → 安装系统包 + git/gh/node/uv/claude + symlink + LLM"
+        echo "  init-mcp.sh sync  → 注册 MCP 服务器（Tavily/MiniMax/Supabase）"
+        echo "  init-skill.sh sync → 安装 CLI 依赖 + symlink 自建 skill + 注册 marketplace"
+        echo ""
+        echo "  运行 'bash init.sh all' 执行以上操作"
+        echo "  运行 'bash init.sh' 进入交互式菜单选择单个步骤"
         ;;
     status)
         bash "$SCRIPT_DIR/status.sh"
@@ -301,6 +312,6 @@ case "${1:-menu}" in
         main_menu
         ;;
     *)
-        echo "用法: bash ccconfig/init.sh [all|status|menu]"
+        echo "用法: bash ccconfig/init.sh [all|--dry-run|status|menu]"
         ;;
 esac
