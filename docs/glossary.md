@@ -10,7 +10,7 @@
 | 术语 | 英文 | 定义 |
 |------|------|------|
 | **ccconfig** | Claude Code Config | 公开的 Claude Code 配置基础设施仓库。包含 init/update/status/monitor 等管理脚本、rules/agents/commands 等配置模板、conf/*.example 配置模板。是用户 fork/clone 的入口仓库。不含任何密钥。 |
-| **claude-skills** | Claude Skills Marketplace | 公开的 Skill 插件市场仓库。包含 12 个自建 f-* skill 的 SKILL.md + 辅助脚本。符合 Anthropic marketplace 规范，可独立使用（不依赖 ccconfig）。 |
+| **claude-skills** | Claude Skills Marketplace | 公开的 Skill 插件市场仓库。包含 17 个自建 f-* skill 的 SKILL.md + 辅助脚本。符合 Anthropic marketplace 规范，可独立使用（不依赖 ccconfig）。 |
 | **ccprivate** | Claude Code Private Config | 用户自建的私有配置仓库。存放 API key、Token、个人 CLAUDE.md、settings.json、项目 memory 等敏感数据。通过 symlink 穿透给 ccconfig 读取。每个用户自己创建，不 fork。 |
 
 ### 配置系统
@@ -29,7 +29,7 @@
 | 术语 | 英文 | 定义 |
 |------|------|------|
 | **Skill** | Claude Code Skill | Claude Code 的可复用能力模块。每个 skill 是一个目录，含 SKILL.md（指令）+ 可选脚本/模板/配置。安装在 `~/.claude/skills/` 下。 |
-| **自建 Skill** | Self-Built Skill | 用户自己开发并维护在 claude-skills/plugins/ 中的 f-* 系列 skill。通过 init-skill.sh symlink 安装。共 12 个。 |
+| **自建 Skill** | Self-Built Skill | 用户自己开发并维护在 claude-skills/plugins/ 中的 f-* 系列 skill。通过 init-skill.sh symlink 安装。共 17 个。 |
 | **第三方 Skill** | Third-Party Skill | 来自外部 GitHub 仓库的 skill（如 mattpocock-skills）。通过 `npx skills add` 安装，自动 symlink 到 `~/.claude/skills/`。由 `conf/third-party-skills.txt` 管理清单。 |
 | **f-*** | F-Series Skills | ccconfig 自建 skill 的命名前缀。f = francis（作者名首字母）。包括: f-feishu, f-pptx, f-pdf, f-search, f-research, f-research-deep, f-research-report, f-report-std, f-logme, f-launch, f-moocrec, f-vessel, f-diagram, f-docx, f-xlsx。 |
 | **marketplace.json** | Plugin Marketplace Manifest | Anthropic 规范的 skill 市场清单文件。位于 `.claude-plugin/marketplace.json`。定义每个 plugin 的名称、描述、源路径、版本、关键词。 |
