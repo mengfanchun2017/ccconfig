@@ -47,7 +47,7 @@ model: inherit
 | output_type | 路由 | 说明 |
 |-------------|------|------|
 | `doc` | lark-cli docs +create | 飞书 wiki 文档 |
-| `ppt` | f-ppt skill | 调用 f-ppt 生成 PPTX |
+| `ppt` | f-pptx skill | 调用 f-pptx 生成 PPTX |
 | `table` | lark-cli docs +create（含 lark-table） | 飞书文档内嵌表格 |
 | `bitable` | lark-cli base +table-create | 独立多维表格 |
 
@@ -66,7 +66,7 @@ EOF
 内容组织为 `<lark-table>` XML 格式，嵌入文档中。
 
 **ppt 类型**：
-输出结构化内容方案，交由 f-ppt skill 执行 PPT 生成。
+输出结构化内容方案，交由 f-pptx skill 执行 PPT 生成。
 
 **bitable 类型**：
 ```bash
@@ -137,7 +137,7 @@ lark-cli base +table-create \
 输出 JSON 结构方案，字段：
 - slides: [{type, title, key_message, bullets, source_note}]
 - template: mckinsey（默认）
-- 交由 f-ppt skill 执行
+- 交由 f-pptx skill 执行
 
 ### bitable 格式
 

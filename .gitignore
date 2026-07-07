@@ -12,8 +12,8 @@ conf/claude.json
 conf/feishu.json
 conf/ubuntu.json
 conf/f-logme.json
-conf/f-doc.json
-conf/f-ppt.json
+conf/f-feishu.json
+conf/f-pptx.json
 conf/cloudflare.json
 conf/supabase.json
 conf/f-moocrec.json
@@ -24,7 +24,7 @@ link/.config.json
 link/settings.json
 link/CLAUDE.md
 link/projects
-link/skills/f-doc/config.yaml
+link/skills/f-feishu/config.yaml
 
 # 项目级 CLAUDE.md（符号链接到 ccprivate）
 CLAUDE.md

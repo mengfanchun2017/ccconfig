@@ -129,7 +129,7 @@ link/skills/f-ship/
 └── init.sh
 ```
 
-**依赖**: f-logme (OKR 联动) + f-doc (飞书文档) + lark-cli (Base 操作) — 都已存在。
+**依赖**: f-logme (OKR 联动) + f-feishu (飞书文档) + lark-cli (Base 操作) — 都已存在。
 
 **反模式（避开）**:
 - ❌ L2/L3 全部放仓库（不联动 OKR，浪费 f-logme）
