@@ -31,10 +31,10 @@
 | **Skill** | Claude Code Skill | Claude Code 的可复用能力模块。每个 skill 是一个目录，含 SKILL.md（指令）+ 可选脚本/模板/配置。安装在 `~/.claude/skills/` 下。 |
 | **自建 Skill** | Self-Built Skill | 用户自己开发并维护在 claude-skills/plugins/ 中的 f-* 系列 skill。通过 init-skill.sh symlink 安装。共 12 个。 |
 | **第三方 Skill** | Third-Party Skill | 来自外部 GitHub 仓库的 skill（如 mattpocock-skills）。通过 `npx skills add` 安装，自动 symlink 到 `~/.claude/skills/`。由 `conf/third-party-skills.txt` 管理清单。 |
-| **f-*** | F-Series Skills | ccconfig 自建 skill 的命名前缀。f = francis（作者名首字母）。包括: f-doc, f-ppt, f-pdf, f-search, f-research, f-research-deep, f-research-report, f-report-std, f-logme, f-launch, f-moocrec, f-vessel。 |
+| **f-*** | F-Series Skills | ccconfig 自建 skill 的命名前缀。f = francis（作者名首字母）。包括: f-feishu, f-pptx, f-pdf, f-search, f-research, f-research-deep, f-research-report, f-report-std, f-logme, f-launch, f-moocrec, f-vessel, f-diagram, f-docx, f-xlsx。 |
 | **marketplace.json** | Plugin Marketplace Manifest | Anthropic 规范的 skill 市场清单文件。位于 `.claude-plugin/marketplace.json`。定义每个 plugin 的名称、描述、源路径、版本、关键词。 |
 | **SKILL.md** | Skill Definition File | Skill 的核心定义文件。YAML frontmatter（name, description, allowed-tools）+ Markdown body（工作流指令）。Claude Code 通过此文件理解 skill 的能力和调用方式。 |
-| **Skill 三层架构** | Three-Layer Skill Architecture | ccconfig skill 的分层设计：Layer 1 原语（f-search, f-pdf, f-report-std）被委托调用；Layer 2 编排（f-doc, f-ppt, f-research, f-logme）组合 Layer 1；Layer 3 复合工作流（f-research-deep, f-research-report, f-launch, f-moocrec, f-vessel）编排 Layer 2。 |
+| **Skill 三层架构** | Three-Layer Skill Architecture | ccconfig skill 的分层设计：Layer 1 原语（f-search, f-pdf, f-report-std, f-diagram, f-docx, f-xlsx）被委托调用；Layer 2 编排（f-feishu, f-pptx, f-research, f-logme）组合 Layer 1；Layer 3 复合工作流（f-research-deep, f-research-report, f-launch, f-moocrec, f-vessel）编排 Layer 2。 |
 
 ### 基础设施
 
@@ -74,11 +74,11 @@
 
 | 术语 | 英文 | 定义 |
 |------|------|------|
-| **lark-cli** | Lark CLI | 飞书开放平台命令行工具（`@larksuite/cli`）。npm 全局安装。ccconfig 通过 f-doc skill 编排所有飞书操作（文档/Base/表格/白板）。 |
-| **lark-doc / lark-wiki / lark-whiteboard / lark-base** | Lark Sub-Skills | larksuite/cli monorepo 中的子 skill（26 个）。ccconfig 不使用这些子 skill，而是通过 f-doc 直接调 lark-cli 命令。 |
+| **lark-cli** | Lark CLI | 飞书开放平台命令行工具（`@larksuite/cli`）。npm 全局安装。ccconfig 通过 f-feishu skill 编排所有飞书操作（文档/Base/表格/白板）。 |
+| **lark-doc / lark-wiki / lark-whiteboard / lark-base** | Lark Sub-Skills | larksuite/cli monorepo 中的子 skill（26 个）。ccconfig 不使用这些子 skill，而是通过 f-feishu 直接调 lark-cli 命令。 |
 | **cc-connect** | CC Connect Bridge | 飞书消息桥接服务。可选组件 option-bridge 的一部分。提供 Claude Code ↔ 飞书消息的双向通信。 |
 | **飞书 Base** | Feishu Base (Bitable) | 飞书多维表格。ccconfig 用其存储 OKR/Worklog/Reflect 数据（f-logme skill）。 |
-| **飞书 Wiki** | Feishu Wiki | 飞书知识库。ccconfig 用其作为文档输出目标（f-doc skill）。 |
+| **飞书 Wiki** | Feishu Wiki | 飞书知识库。ccconfig 用其作为文档输出目标（f-feishu skill）。 |
 
 ### 开发流程
 

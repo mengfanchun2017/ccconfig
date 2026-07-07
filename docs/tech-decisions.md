@@ -7,7 +7,7 @@
 
 **决策**: 所有隐私数据统一存放 ccprivate，ccconfig 通过 symlink 引用；git filter-repo 清洗历史
 **影响**: 26 文件修改，1504 commits 重写，仓库可随时改公开
-**关联**: hooks/session-end-aggregator.sh + merge_worklog.py 改为读 conf/*.json；f-doc/config.yaml 改为 symlink；新增 SECURITY.md
+**关联**: hooks/session-end-aggregator.sh + merge_worklog.py 改为读 conf/*.json；f-feishu/config.yaml 改为 symlink；新增 SECURITY.md
 
 ## 2026-06-14 | Vessel → Playwright 全线迁移
 

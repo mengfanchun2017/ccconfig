@@ -21,7 +21,7 @@ ccprivate/                         ccconfig/
 │   ├── feishu.json     ──symlink──→ feishu.json    (飞书 App ID/Secret)
 │   ├── ubuntu.json     ──symlink──→ ubuntu.json    (Git 用户信息)
 │   ├── f-logme.json    ──symlink──→ f-logme.json   (飞书 Base token)
-│   ├── f-doc.json      ──symlink──→ f-doc.json     (飞书 wiki node)
+│   ├── f-feishu.json   ──symlink──→ f-feishu.json  (飞书 wiki node)
 │   └── ...
 │
 ├── link/                          ~/
@@ -162,8 +162,8 @@ cp ~/git/ccconfig/conf/ubuntu.json.example ~/git/ccprivate/conf/ubuntu.json
 |------|------|--------|
 | `conf/feishu.json` | 飞书应用 App ID/Secret | 用飞书功能才需要 |
 | `conf/f-logme.json` | 飞书 OKR Base token | 用工作日志才需要 |
-| `conf/f-doc.json` | 飞书 wiki 节点 token | 用文档功能才需要 |
-| `conf/f-ppt.json` | PPT 生成工具路径 | 用 PPT 功能才需要 |
+| `conf/f-feishu.json` | 飞书 wiki 节点 token | 用文档功能才需要 |
+| `conf/f-pptx.json` | PPT 生成工具路径 | 用 PPT 功能才需要 |
 | `conf/cloudflare.json` | Cloudflare API token | 用 Cloudflare 才需要 |
 | `conf/supabase.json` | Supabase 数据库 token | 用 Supabase 才需要 |
 | `conf/f-moocrec.json` | 慕课推荐配置 | 用课程推荐才需要 |
@@ -286,7 +286,7 @@ bash ~/git/ccprivate/setup.sh
 
 ### Skill 私有配置（YAML 覆盖）
 
-部分 skill（f-logme、f-doc、f-ppt、f-moocrec）需要私有配置（token/URL/table ID）。这些不走 `conf/*.json`，而是通过 `config/*.yaml` + symlink 直接注入 skill 目录：
+部分 skill（f-logme、f-feishu、f-pptx、f-moocrec）需要私有配置（token/URL/table ID）。这些不走 `conf/*.json`，而是通过 `config/*.yaml` + symlink 直接注入 skill 目录：
 
 ```
 ccprivate/config/f-logme.yaml ──apply-config.sh ln -s──→ ~/.claude/skills/f-logme/config.yaml

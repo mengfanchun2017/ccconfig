@@ -11,4 +11,4 @@
 
 ## 注意
 
-feishucreate agent 已合并到 `f-doc` skill。所有飞书文档创建/更新/管理统一由 f-doc 编排。
+feishucreate agent 已合并到 `f-feishu` skill。所有飞书文档创建/更新/管理统一由 f-feishu 编排。

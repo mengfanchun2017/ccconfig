@@ -63,8 +63,8 @@ ccprivate/config/<skill>.yaml  →  ~/.claude/skills/<skill>/config.yaml
 | Skill | YAML 文件 | 必需字段 |
 |-------|----------|---------|
 | f-logme | f-logme.yaml | `lark_cli.config_dir`, `bases.okr_v2.token`, `bases.okr_v2.tables.*` |
-| f-doc | f-doc.yaml | `tenant_domain`, `wiki_nodes.default`, `wiki_nodes.okr` |
-| f-ppt | f-ppt.yaml | （当前无必需字段，OfficeCLI 引擎无需外部配置） |
+| f-feishu | f-feishu.yaml | `tenant_domain`, `wiki_nodes.default`, `wiki_nodes.okr` |
+| f-pptx | f-pptx.yaml | （当前无必需字段，OfficeCLI 引擎无需外部配置） |
 | f-moocrec | f-moocrec.yaml | `lark_cli.config_dir`, `base.token`, `docs.*` |
 
 ### 2.3 ccconfig ↔ ccprivate: 个人配置

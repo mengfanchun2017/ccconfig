@@ -181,7 +181,7 @@ link/skills/f-ship/
 
 **依赖**:
 - `f-logme` (OKR 联动) — 已存在
-- `f-doc` (飞书操作) — 已存在
+- `f-feishu` (飞书操作) — 已存在
 - `lark-cli` (Base 操作) — 已存在
 
 **DoD**:

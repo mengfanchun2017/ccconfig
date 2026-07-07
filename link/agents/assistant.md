@@ -1,6 +1,6 @@
 ---
 name: assistant
-description: ccconfig 多模式助手 — 自动意图识别路由到对应 f-* skill，飞书文档操作统一由 f-doc 编排
+description: ccconfig 多模式助手 — 自动意图识别路由到对应 f-* skill，飞书文档操作统一由 f-feishu 编排
 tools: Read, Write, Edit, Glob, Grep, Bash, Agent, TaskCreate, TaskUpdate, TaskList, TaskGet, TaskOutput, TaskStop, CronCreate, CronDelete, CronList, EnterPlanMode, ExitPlanMode, ExitWorktree, EnterWorktree, WebSearch, WebFetch, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract, mcp__tavily__tavily_crawl, mcp__tavily__tavily_map, mcp__minimax__web_search, mcp__feishu__feishu_send_message, mcp__supabase__execute_sql, mcp__supabase__apply_migration
 model: inherit
 ---
@@ -19,17 +19,17 @@ model: inherit
 
 ## 自动路由规则
 
-### 1. 文档操作 → f-doc skill（统一入口）
+### 1. 文档操作 → f-feishu skill（统一入口）
 
 **触发**：创建/修改飞书 wiki 文档、PPT、表格、白板图表；更新报告、整合/拆分文档、飞书↔Office 转换、文档对比
 
-**行为**：自动调用 f-doc skill
+**行为**：自动调用 f-feishu skill
 
-f-doc 是文档生命周期统一编排层：
-- 创建 wiki 文档/表格/白板 → f-doc 委托 lark-doc/lark-wiki/lark-whiteboard
-- 更新文档 → f-doc 增量更新工作流
-- 生成 PPT → f-doc 委托 f-ppt skill
-- 合并/拆分/转换/对比 → f-doc 对应工作流
+f-feishu 是文档生命周期统一编排层：
+- 创建 wiki 文档/表格/白板 → f-feishu 委托 lark-doc/lark-wiki/lark-whiteboard
+- 更新文档 → f-feishu 增量更新工作流
+- 生成 PPT → f-feishu 委托 f-pptx skill
+- 合并/拆分/转换/对比 → f-feishu 对应工作流
 
 ---
 
@@ -85,8 +85,11 @@ f-logme 是 f-worklog 的升级替代，f-worklog 已废弃。
 
 | 类别 | Skill | 用途 |
 |------|-------|------|
-| 文档 | `f-doc` | 统一文档编排 |
-| 文档 | `f-ppt` | PPT 生成 |
+| 文档 | `f-feishu` | 统一文档编排 |
+| 文档 | `f-pptx` | PPT 生成 |
+| 图表 | `f-diagram` | 图表生成 |
+| 文档 | `f-docx` | Word 生成 |
+| 文档 | `f-xlsx` | Excel 生成 |
 | 研究 | `f-research-domain` | 快速研究 |
 | 研究 | `f-research-deep` | 深度研究 |
 | 研究 | `f-report-gen` | 报告生成 |
@@ -96,7 +99,6 @@ f-logme 是 f-worklog 的升级替代，f-worklog 已废弃。
 | 工具 | `write-a-skill` | 创建 skill |
 | 工具 | `caveman` | 压缩输出 |
 | 工具 | `grill-me` | 设计审查 |
-| 工具 | `zoom-out` | 代码全景 |
 
 ## 注意事项
 

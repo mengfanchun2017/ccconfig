@@ -1,6 +1,6 @@
 # lark-cli 速查
 
-> 完整踩坑记录 → `skills/f-doc/references/lark-cli-cheatsheet.md`
+> 完整踩坑记录 → `skills/f-feishu/references/lark-cli-cheatsheet.md`
 
 ## 运行前缀
 ```bash
