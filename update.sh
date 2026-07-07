@@ -17,6 +17,7 @@
 #   bash ccconfig/update.sh               # 交互式菜单（支持多选，如 "1 3 4"）
 #   bash ccconfig/update.sh all          # 升级基础+升级（不含 option）
 #   bash ccconfig/update.sh <component>  # 升级单个组件
+#   bash ccconfig/update.sh --dry-run    # 只检查不升级，输出版本差异
 # ==============================================
 
 set -e
@@ -115,9 +116,9 @@ print(snap_file)
 PYEOF
 }
 
-# 清理过期快照（保留 3 个月）
+# 清理过期快照（保留 30 天）
 cleanup_old_snapshots() {
-    find "$SCRIPT_DIR/.snapshots" -name "versions.json.*" -mtime +90 -delete 2>/dev/null || true
+    find "$SCRIPT_DIR/.snapshots" -name "versions.json.*" -mtime +30 -delete 2>/dev/null || true
 }
 
 # ========== 1. ccconfig 自更新 ==========
@@ -915,6 +916,95 @@ compatibility_check() {
 
 # ========== 全部升级 ==========
 
+# ========== dry-run 检查模式 ==========
+
+do_dry_run() {
+    section "dry-run 版本检查（不执行升级）"
+    echo ""
+
+    local node_bin
+    node_bin=$(find_node_bin)
+    export PATH="$node_bin:$LOCAL_BIN:$PATH"
+
+    local checks=0 updates=0
+
+    check_component() {
+        local label="$1" current="$2" target="$3"
+        checks=$((checks + 1))
+        if [ "$current" = "$target" ] || [ "$target" = "?" ] || [ -z "$target" ]; then
+            printf "  %-18s %-16s %s\n" "$label" "v$current" "${GREEN}最新${NC}"
+        else
+            printf "  %-18s %-16s ${YELLOW}→ v%-12s${NC}\n" "$label" "v$current" "$target"
+            updates=$((updates + 1))
+        fi
+    }
+
+    # Node.js
+    local node_current node_target node_pin
+    node_current=$(get_live_version "node")
+    node_pin=$(get_node_pin)
+    local MIRROR="https://cdn.npmmirror.com/binaries/node/index.json"
+    local FALLBACK="https://nodejs.org/dist/index.json"
+    local index_json
+    index_json=$(curl -s --connect-timeout 5 --max-time 10 "$MIRROR" 2>/dev/null)
+    [ -z "$index_json" ] && index_json=$(curl -s --connect-timeout 5 --max-time 10 "$FALLBACK" 2>/dev/null)
+    node_target=$(echo "$index_json" | parse_node_target "$node_pin")
+    check_component "Node.js" "$node_current" "$node_target"
+
+    # lark-cli
+    local lark_current lark_target
+    lark_current=$(get_live_version "lark-cli")
+    lark_target=$(npm view @larksuite/cli version 2>/dev/null || echo "?")
+    check_component "lark-cli" "$lark_current" "$lark_target"
+
+    # gh
+    local gh_current gh_target
+    gh_current=$(get_live_version "gh")
+    gh_target=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/cli/cli/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "?")
+    check_component "GitHub CLI" "$gh_current" "$gh_target"
+
+    # Claude Code
+    local claude_current claude_target
+    claude_current=$(get_live_version "claude")
+    local npm_pkg="@anthropic-ai/claude-code-linux-x64"
+    claude_target=$(npm view "$npm_pkg" version 2>/dev/null || echo "?")
+    check_component "Claude Code" "$claude_current" "$claude_target"
+
+    # uv
+    local uv_current uv_target
+    uv_current=$(get_live_version "uv")
+    uv_target=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/astral-sh/uv/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "?")
+    check_component "uv" "$uv_current" "$uv_target"
+
+    # cc-connect
+    if command -v cc-connect &>/dev/null; then
+        local cc_current cc_target
+        cc_current=$(get_live_version "cconnect")
+        cc_target=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/chenhg5/cc-connect/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "?")
+        check_component "cc-connect" "$cc_current" "$cc_target"
+    fi
+
+    # Python pip
+    if command -v pip3 &>/dev/null; then
+        local pip_outdated
+        pip_outdated=$(pip3 list --user --outdated --format=columns 2>/dev/null | tail -n +3 | grep -Ff <(sed -n 's/^\([a-zA-Z0-9_-]*\)==.*/\1/p' "$SCRIPT_DIR/conf/python-requirements.txt" 2>/dev/null) | wc -l || echo "0")
+        checks=$((checks + 1))
+        if [ "$pip_outdated" -eq 0 ]; then
+            printf "  %-18s %-16s %s\n" "Python pip" "-" "${GREEN}最新${NC}"
+        else
+            printf "  %-18s %-16s ${YELLOW}%s 个包可升级${NC}\n" "Python pip" "-" "$pip_outdated"
+            updates=$((updates + 1))
+        fi
+    fi
+
+    echo ""
+    if [ $updates -eq 0 ]; then
+        success "所有 $checks 个组件已是最新"
+    else
+        warn "$updates/$checks 个组件可升级 → bash ccconfig/update.sh all"
+    fi
+}
+
 update_all() {
     local include_option="${1:-true}"
     local overall_status=0
@@ -1115,6 +1205,8 @@ case "${1:-menu}" in
     menu|"")
         self_update "menu"
         show_menu ;;
+    --dry-run|--check|check)
+        do_dry_run ;;
     *)
         echo "用法: $0 [all|node|npm|python|cconnect|gh|claude|uv|mcp|services|menu]"
         exit 1
