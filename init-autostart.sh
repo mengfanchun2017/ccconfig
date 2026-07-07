@@ -44,15 +44,28 @@ enable_autostart() {
 CCCONFIG_HOME="${CCCONFIG_HOME:-$SCRIPT_DIR}"
     cp "$SCRIPT_DIR/monitor.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
 
+    local proxy_env=""
+    if [ -n "$http_proxy" ]; then
+        proxy_env+="Environment=http_proxy=$http_proxy"$'\n'
+        proxy_env+="Environment=https_proxy=$https_proxy"$'\n'
+    fi
+    if [ -n "$HTTP_PROXY" ]; then
+        proxy_env+="Environment=HTTP_PROXY=$HTTP_PROXY"$'\n'
+        proxy_env+="Environment=HTTPS_PROXY=$HTTPS_PROXY"$'\n'
+    fi
+
     cat > "$SYSTEMD_SERVICE" << EOF
 [Unit]
 Description=Claude Code Auto-Sync
 After=default.target
 
 [Service]
-Type=oneshot
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+${proxy_env}Type=forking
+PIDFile=%h/git/ccconfig/.monitor-sync.pid
 ExecStart=${CCCONFIG_HOME}/monitor.sh start
-RemainAfterExit=yes
+Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=default.target
