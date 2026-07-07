@@ -40,5 +40,38 @@
         "command": "true"
     },
     "skipDangerousModePermissionPrompt": true,
-    "autoUpdatesChannel": "stable"
+    "autoUpdatesChannel": "stable",
+    "mcpServers": {
+        "_comment": "MCP server 配置。API key 填入 env 块，不要提交到公开仓库。",
+        "tavily": {
+            "command": "npx",
+            "args": ["-y", "tavily-mcp"],
+            "env": {
+                "TAVILY_API_KEY": "<your-tavily-key>"
+            }
+        },
+        "getnote": {
+            "command": "npx",
+            "args": ["-y", "@getnote/mcp"],
+            "env": {
+                "GETNOTE_API_KEY": "<your-getnote-api-key>",
+                "GETNOTE_CLIENT_ID": "<your-getnote-client-id>"
+            }
+        },
+        "minimax": {
+            "command": "uvx",
+            "args": ["minimax-mcp"],
+            "env": {
+                "MINIMAX_API_KEY": "<your-minimax-key>",
+                "MINIMAX_API_HOST": "https://api.minimax.chat"
+            }
+        },
+        "supabase": {
+            "command": "npx",
+            "args": ["-y", "@supabase/mcp-server-supabase", "--project-ref", "<your-project-ref>"],
+            "env": {
+                "SUPABASE_ACCESS_TOKEN": "<your-supabase-token>"
+            }
+        }
+    }
 }

@@ -11,19 +11,15 @@ option-llmswitch/conf/llmswitch.json
 conf/claude.json
 conf/feishu.json
 conf/ubuntu.json
-conf/f-logme.json
-conf/f-feishu.json
-conf/f-pptx.json
 conf/cloudflare.json
 conf/supabase.json
-conf/f-moocrec.json
+conf/.generated/
 
 # 私有数据（已迁移到 ccprivate，残留/符号链接不跟踪）
 link/.config.json
 link/settings.json
 link/CLAUDE.md
 link/projects
-link/skills/f-feishu/config.yaml
 
 # 项目级 CLAUDE.md（符号链接到 ccprivate）
 CLAUDE.md
