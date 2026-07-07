@@ -246,6 +246,14 @@ EOF
     ok "link/settings.json"
 }
 
+# ── 生成 link/.config.json ──
+gen_dot_config_json() {
+    cat > "$CCPRIVATE_DIR/link/.config.json" << 'EOF'
+{}
+EOF
+    ok "link/.config.json"
+}
+
 # ── 生成 setup.sh ──
 gen_setup_sh() {
     cat > "$CCPRIVATE_DIR/setup.sh" << 'SETUPEOF'
@@ -362,6 +370,7 @@ do_create() {
     gen_ubuntu_json
     gen_claude_md
     gen_settings_json
+    gen_dot_config_json
     gen_setup_sh
 
     # 复制可选 .example 到 ccprivate（用户以后可按需编辑）
