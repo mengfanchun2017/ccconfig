@@ -28,9 +28,8 @@ GITHUB_USER="${GITHUB_USER:-<your-github-username>}"
 MARKETPLACE_REPO="$GITHUB_USER/claude-skills"
 MARKETPLACE_NAME="$GITHUB_USER-skills"
 
-# EXTERNAL_PLUGINS 留空（2026-06-06 改设计）：第三方 skill 走 npx skills（user-managed 干净显示）
-# 保留数组兼容旧 sync 流程；marketplace.json 仍发布 mattpocock-skills 给其他人装
-EXTERNAL_PLUGINS=()
+# 第三方 skill 全部走 npx skills（user-managed 干净显示）
+# marketplace.json 仍发布 mattpocock-skills 给其他人通过 marketplace 安装
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
