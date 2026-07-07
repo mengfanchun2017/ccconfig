@@ -519,17 +519,31 @@ except:
 if 'hooks' not in config:
     config['hooks'] = {}
 
-config['hooks']['SessionStart'] = [{
-    "matcher": "",
-    "hooks": [{
-        "type": "command",
-        "command": "$HOOK_CMD"
-    }]
-}]
+_status_cmd = "$HOOK_CMD"
+_existing = config['hooks'].get('SessionStart', [])
 
-with open(config_file, 'w') as f:
-    json.dump(config, f, indent=4)
-print("Hook 已写入 ~/.claude.json")
+# Check if status.sh is already registered
+_already = False
+for entry in _existing:
+    for h in entry.get('hooks', []):
+        if h.get('command', '') == _status_cmd:
+            _already = True
+            break
+
+if _already:
+    print("SessionStart hook 已存在，跳过")
+else:
+    _existing.append({
+        "matcher": "",
+        "hooks": [{
+            "type": "command",
+            "command": _status_cmd
+        }]
+    })
+    config['hooks']['SessionStart'] = _existing
+    with open(config_file, 'w') as f:
+        json.dump(config, f, indent=4)
+    print("SessionStart hook 已追加")
 PYEOF
 
     success "SessionStart hook 已配置"
