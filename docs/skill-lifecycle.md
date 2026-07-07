@@ -19,7 +19,7 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
 | 仓库 | 角色 | 可见性 |
 |------|------|--------|
 | `~/git/ccconfig` | 安装/更新/初始化脚本、规则、代理 | 公开 |
-| `~/git/claude-skills` | 17 个自建 f-* skill 实体（SKILL.md）、marketplace 注册表 | 公开 |
+| `~/git/claude-skills` | 16 个自建 f-* skill 实体（SKILL.md）、marketplace 注册表 | 公开 |
 | `~/git/ccprivate` | API key、token、个人配置覆盖 | 私有 |
 
 ## Skill 分类
