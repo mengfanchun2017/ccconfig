@@ -3,7 +3,7 @@
 # 功能：装 CLI 依赖 + 同步自建 skill 符号链接 + ccprivate 配置覆盖 + 装第三方 skill（npx skills 幂等）
 #
 # skill 来源（聚合到 ~/.claude/skills/）：
-#   CLI 依赖          → conf/cli-deps.txt 清单，npm/go 自动安装
+#   CLI 依赖          → 自建 skill deps.txt（per-skill 自声明），npm/go 自动安装
 #   自建 f-*         → symlink 从 claude-skills/plugins/（开源仓库，单一源）
 #   私有配置         → ccprivate config overlay（conf/*.yaml 覆盖 skill 内 config.yaml.example）
 #   第三方 (npx)     → npx skills add 装到 ~/.agents/skills/，自动 symlink 到 ~/.claude/skills/
@@ -14,6 +14,7 @@
 #   bash ccconfig/init-skill.sh cleanup          # 单独清 ~/.claude/skills/ 断链
 #   bash ccconfig/init-skill.sh list             # 查看已安装 skills（symlink + plugin）
 #   bash ccconfig/init-skill.sh status           # 状态总览
+#   bash ccconfig/init-skill.sh diff             # 检测第三方 skill 清单 drift
 
 export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 set -e
@@ -22,7 +23,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_SRC="${CLAUDE_SKILLS_SRC:-$HOME/git/claude-skills/plugins}"
 CCPRIVATE_DIR="${CCPRIVATE_DIR:-$HOME/git/ccprivate}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
-CLI_DEPS_CONF="$SCRIPT_DIR/conf/cli-deps.txt"
 THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
 GITHUB_USER="${GITHUB_USER:-<your-github-username>}"
 MARKETPLACE_REPO="$GITHUB_USER/claude-skills"
@@ -46,15 +46,14 @@ info() { echo -e "$1${GRAY}"; }
 warn() { echo -e "$1${YELLOW}"; }
 
 # 阶段 0：装 CLI 工具依赖
-# 来源：自建 skill 的 deps.txt + conf/cli-deps.txt（第三方 skill 补充）
-# 去重：同包名只装一次，优先保留 required_by 信息
+# 来源：自建 skill 目录下的 deps.txt（per-skill 自声明）
+# 去重：同包名只装一次，required_by 聚合多个 skill 名
 do_install_cli_deps() {
-    title "阶段 0/4: CLI 工具依赖"
+    title "阶段 0/4: CLI 工具依赖（自建 skill deps.txt）"
 
     # 收集所有依赖条目（去重 key = pkg|mgr）
     declare -A seen_deps
 
-    # 来源 1：自建 skill 目录下的 deps.txt
     local self_deps=0
     if [[ -d "$SKILLS_SRC" ]]; then
         for skill_dir in "$SKILLS_SRC"/*/; do
@@ -75,27 +74,9 @@ do_install_cli_deps() {
             done < "$dep_file"
         done
     fi
-    info "  自建 skill deps: $self_deps 条"
+    info "  扫描 $self_deps 个唯一依赖"
 
-    # 来源 2：中央 cli-deps.txt（第三方 skill 的依赖补充）
-    local central_deps=0
-    if [[ -f "$CLI_DEPS_CONF" ]]; then
-        while IFS= read -r line; do
-            [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-            local pkg=$(echo "$line" | awk '{print $1}')
-            local mgr=$(echo "$line" | awk '{print $2}' | cut -d: -f1)
-            local required_by=$(echo "$line" | awk '{print $3}')
-            local key="$pkg|$mgr"
-            if [[ -z "${seen_deps[$key]}" ]]; then
-                seen_deps[$key]="$required_by"
-                central_deps=$((central_deps + 1))
-            fi
-        done < "$CLI_DEPS_CONF"
-    fi
-    info "  中央 cli-deps: $central_deps 条（增量）"
-
-    local total=${#seen_deps[@]}
-    [[ $total -eq 0 ]] && info "  无 CLI 依赖" && return 0
+    [[ ${#seen_deps[@]} -eq 0 ]] && info "  无 CLI 依赖" && return 0
 
     echo ""
 
@@ -294,12 +275,11 @@ do_sync() {
 }
 
 # 更新所有（CLI 工具 + npx skills）
-# 收集所有 CLI 依赖（自建 deps.txt + 中央 cli-deps.txt），去重
+# 收集自建 skill deps.txt 中的所有依赖
 _collect_all_deps() {
     declare -n _deps_out=$1
     _deps_out=()
 
-    # 自建 skill deps.txt
     if [[ -d "$SKILLS_SRC" ]]; then
         for skill_dir in "$SKILLS_SRC"/*/; do
             local dep_file="${skill_dir}deps.txt"
@@ -309,14 +289,6 @@ _collect_all_deps() {
                 _deps_out+=("$line")
             done < "$dep_file"
         done
-    fi
-
-    # 中央 cli-deps.txt
-    if [[ -f "$CLI_DEPS_CONF" ]]; then
-        while IFS= read -r line; do
-            [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-            _deps_out+=("$line")
-        done < "$CLI_DEPS_CONF"
     fi
 }
 
@@ -531,5 +503,5 @@ case "$action" in
 esac
 
 echo ""
-good "提示: 新环境先跑 sync (装 CLI 依赖 + symlink 自建 + 装 npx 第三方)；更新跑 update (CLI + npx skills)"
+good "提示: 新环境先跑 sync (装 CLI 依赖 + symlink 自建 + 装 npx 第三方)；更新跑 update (CLI + npx skills)；检测 drift 跑 diff"
 exit 0
