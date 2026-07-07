@@ -1,7 +1,7 @@
 # Context 预算
 
 ## 硬上限
-- rules 始终加载 < 15KB（当前 ~13.8KB ✓）
+- rules 始终加载 < 15KB（当前 ~14.1KB ✓）
 - rules 总计（含 path-scoped）< 20KB（当前 ~18.4KB）
 - MEMORY.md < 40 条目
 - 新 rule 创建前：能放 skill reference？能 path-scope？能合并到已有 rule？
