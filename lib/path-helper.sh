@@ -122,13 +122,6 @@ find_node_bin() {
     return 1
 }
 
-# 获取 node 可执行文件路径
-find_node_exe() {
-    local bin_dir
-    bin_dir=$(find_node_bin)
-    echo "$bin_dir/node"
-}
-
 # 重建 ~/.local/bin/{node,npm,npx} 符号链接
 recreate_node_symlinks() {
     local node_bin_dir="$1"
@@ -179,11 +172,3 @@ ensure_config() {
 }
 
 # 确保 PATH 包含正确的 Node 和 local bin
-ensure_path() {
-    local node_bin
-    node_bin=$(find_node_bin)
-    # 清理 PATH 中的 Windows 路径，确保 Node 和 local bin 在最前
-    local clean_path
-    clean_path=$(echo "$PATH" | tr ':' '\n' | grep -v '^/mnt/' | tr '\n' ':' | sed 's/:$//')
-    export PATH="$node_bin:$_LOCAL_BIN:$clean_path"
-}

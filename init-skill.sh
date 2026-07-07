@@ -69,6 +69,21 @@ do_install_cli_deps() {
                     seen_deps[$key]="$skill_name"
                     self_deps=$((self_deps + 1))
                 else
+                    # 冲突检测：同包名被多个 skill 声明
+                    local prev_skill="${seen_deps[$key]}"
+                    local prev_ver=""
+                    local prev_mgr=""
+                    # 向前查上一个声明的版本
+                    for prev_key in "${!seen_deps[@]}"; do
+                        if [[ "$prev_key" == "$key" ]]; then
+                            prev_ver=$(echo "$prev_key" | cut -d'|' -f1)
+                            break
+                        fi
+                    done
+                    local cur_ver="$pkg"
+                    if [[ "$prev_ver" != "$cur_ver" ]]; then
+                        warn "  ⚠ $pkg: 版本冲突 — $prev_skill 声明 $prev_ver, $skill_name 声明 $cur_ver（取首个）"
+                    fi
                     seen_deps[$key]="${seen_deps[$key]},$skill_name"
                 fi
             done < "$dep_file"
