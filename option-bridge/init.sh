@@ -86,7 +86,7 @@ install_lark_cli() {
 
 setup_lark_cli_account() {
     local name="$1" brand="$2" app_id="$3" app_secret="$4" config_dir="$5"
-    config_dir=$(eval echo "$config_dir")
+    config_dir="${config_dir/#\~/$HOME}"
     mkdir -p "$config_dir"
     export LARKSUITE_CLI_CONFIG_DIR="$config_dir"
 
@@ -143,7 +143,7 @@ install_cconnect() {
     mkdir -p "$tmp" "$HOME/.local/bin"
 
     echo -n "  下载 ... "
-    if curl -fsSL "$url" -o "$tmp/cc-connect.tar.gz" 2>/dev/null; then
+    if curl -fsSL --connect-timeout 10 --max-time 120 "$url" -o "$tmp/cc-connect.tar.gz" 2>/dev/null; then
         tar -xzf "$tmp/cc-connect.tar.gz" -C "$tmp"
         local bin=$(find "$tmp" -name "cc-connect" -type f | head -1)
         [ -n "$bin" ] && { cp "$bin" "$CC_CONNECT_BIN"; chmod +x "$CC_CONNECT_BIN"; good "✅"; } || { bad "❌ 未找到二进制"; return 1; }

@@ -404,7 +404,7 @@ check_feishu() {
         current_dir=$(grep '^configDir=' "$marker_file" 2>/dev/null | cut -d'=' -f2)
     fi
     current_dir="${current_dir:-${LARKSUITE_CLI_CONFIG_DIR:-$HOME/.lark-cli}}"
-    current_dir="$(eval echo "$current_dir")"
+    current_dir="${current_dir/#\~/$HOME}"
 
     # 检查安装
     echo -n "  安装 ... "

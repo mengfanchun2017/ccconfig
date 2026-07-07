@@ -67,7 +67,7 @@ print('|'.join([
 # ========== 检测当前活跃账号 ==========
 detect_current() {
     local current_dir="${LARKSUITE_CLI_CONFIG_DIR:-$HOME/.lark-cli}"
-    current_dir="$(eval echo "$current_dir")"
+    current_dir="${current_dir/#\~/$HOME}"
 
     # 优先从 marker 文件读
     if [ -f "$MARKER_FILE" ]; then
@@ -84,7 +84,8 @@ detect_current() {
         [ -z "$line" ] && continue
         local name config_dir
         IFS='|' read -r name _ _ _ config_dir _ <<< "$(echo "$line" | parse_app)"
-        config_dir=$(eval echo "${config_dir:-$HOME/.lark-cli}")
+        config_dir="${config_dir:-$HOME/.lark-cli}"
+        config_dir="${config_dir/#\~/$HOME}"
         if [ "$config_dir" = "$current_dir" ]; then
             echo "$name"
             return
@@ -118,7 +119,7 @@ show_current() {
     current_name=$(detect_current)
     # 优先从 env var，回退到 marker 文件，再回退到默认
     if [ -n "${LARKSUITE_CLI_CONFIG_DIR:-}" ]; then
-        current_dir="$(eval echo "$LARKSUITE_CLI_CONFIG_DIR")"
+        current_dir="${LARKSUITE_CLI_CONFIG_DIR/#\~/$HOME}"
     elif [ -f "$MARKER_FILE" ]; then
         current_dir=$(grep '^configDir=' "$MARKER_FILE" 2>/dev/null | cut -d'=' -f2)
         current_dir="${current_dir:-$HOME/.lark-cli}"
@@ -191,7 +192,8 @@ list_accounts() {
         brand="${brand:-feishu}"
         app_id="${app_id:-}"
         app_secret="${app_secret:-}"
-        config_dir=$(eval echo "${config_dir:-$HOME/.lark-cli}")
+        config_dir="${config_dir:-$HOME/.lark-cli}"
+        config_dir="${config_dir/#\~/$HOME}"
         desc="${desc:-}"
 
         local marker="  "
@@ -249,7 +251,8 @@ switch_account() {
     brand="${brand:-feishu}"
     app_id="${app_id:-}"
     app_secret="${app_secret:-}"
-    config_dir=$(eval echo "${config_dir:-$HOME/.lark-cli}")
+    config_dir="${config_dir:-$HOME/.lark-cli}"
+    config_dir="${config_dir/#\~/$HOME}"
     desc="${desc:-}"
 
     # 创建配置目录
