@@ -132,14 +132,13 @@ check_last_push() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[4] 最后推送${NC}"
 
-    cd "$REPO_DIR"
-    if [ ! -d ".git" ]; then
+    if [ ! -d "$REPO_DIR/.git" ]; then
         echo -e "  ${YELLOW}⚠️${NC} 非 Git 仓库"
         return
     fi
 
     # 获取最后一次提交的日期和消息
-    local log=$(git log -1 --format="%ci|%s" 2>/dev/null)
+    local log=$(git -C "$REPO_DIR" log -1 --format="%ci|%s" 2>/dev/null)
     if [ -n "$log" ]; then
         local date=$(echo "$log" | cut -d'|' -f1 | cut -d' ' -f1)
         local msg=$(echo "$log" | cut -d'|' -f2-)

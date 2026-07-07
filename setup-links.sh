@@ -50,8 +50,6 @@ setup_link() {
 setup_symlinks() {
     section "符号链接"
 
-    cd "$SCRIPT_DIR"
-
     # agents（指令分流 agent）
     if [[ -d "$SCRIPT_DIR/link/agents" ]]; then
         setup_link "$CLAUDE_DIR/agents" "$SCRIPT_DIR/link/agents" "agents"
