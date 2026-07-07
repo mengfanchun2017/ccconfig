@@ -11,6 +11,7 @@
 # 使用：
 #   bash ccconfig/init-skill.sh sync             # 装 CLI 依赖 + 同步自建 + 装第三方
 #   bash ccconfig/init-skill.sh update           # 更新所有（CLI + npx skills）
+#   bash ccconfig/init-skill.sh remove <name>    # 卸载第三方 skill（从清单 + 磁盘删）
 #   bash ccconfig/init-skill.sh cleanup          # 单独清 ~/.claude/skills/ 断链
 #   bash ccconfig/init-skill.sh list             # 查看已安装 skills（symlink + plugin）
 #   bash ccconfig/init-skill.sh status           # 状态总览
@@ -24,7 +25,7 @@ SKILLS_SRC="${CLAUDE_SKILLS_SRC:-$HOME/git/claude-skills/plugins}"
 CCPRIVATE_DIR="${CCPRIVATE_DIR:-$HOME/git/ccprivate}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
-GITHUB_USER="${GITHUB_USER:-<your-github-username>}"
+GITHUB_USER="${GITHUB_USER:-mengfanchun2017}"
 MARKETPLACE_REPO="$GITHUB_USER/claude-skills"
 MARKETPLACE_NAME="$GITHUB_USER-skills"
 
@@ -452,6 +453,53 @@ do_diff() {
     fi
 }
 
+do_remove() {
+    local skill="$1"
+    if [[ -z "$skill" ]]; then
+        bad "用法: $0 remove <skill-name>"
+        return 1
+    fi
+
+    title "卸载 skill: $skill"
+
+    # 1. 检查是否为自建 skill（拒绝卸载）
+    if [[ -d "$SKILLS_SRC/$skill" ]]; then
+        bad "  $skill 是自建 skill，由 claude-skills 仓库管理，不能通过此脚本卸载"
+        info "  如需移除自建 skill：删除 claude-skills/plugins/$skill/ 目录并提交 PR"
+        return 1
+    fi
+
+    # 2. 检查是否已安装
+    local target="$CLAUDE_SKILLS_DIR/$skill"
+    if [[ ! -e "$target" ]]; then
+        warn "  $skill 未安装（~/.claude/skills/$skill 不存在）"
+    else
+        rm -rf "$target"
+        good "  ✓ 已从 ~/.claude/skills/ 删除"
+    fi
+
+    # 3. 从 third-party-skills.txt 中移除
+    if [[ -f "$THIRD_PARTY_CONF" ]]; then
+        if grep -qE "^[^#]*  $skill\$" "$THIRD_PARTY_CONF"; then
+            local tmpfile=$(mktemp)
+            grep -vE "^[^#]*  $skill\$" "$THIRD_PARTY_CONF" > "$tmpfile"
+            mv "$tmpfile" "$THIRD_PARTY_CONF"
+            good "  ✓ 已从 $THIRD_PARTY_CONF 移除"
+        else
+            info "  $skill 不在 third-party-skills.txt 清单中"
+        fi
+    fi
+
+    # 4. 检查 npx skills 是否有对应安装
+    if [[ -d "$HOME/.agents/skills/$skill" ]]; then
+        warn "  $skill 在 ~/.agents/skills/ 仍有实体。手动删除："
+        info "    rm -rf ~/.agents/skills/$skill"
+    fi
+
+    echo ""
+    good "卸载完成：$skill"
+}
+
 do_status() {
     title "Skills 状态"
     echo -e "${CYAN}claude-skills/plugins/ (自建 $(ls "$SKILLS_SRC" 2>/dev/null | wc -l) 个)${NC}"
@@ -494,11 +542,12 @@ action="${1:-sync}"
 case "$action" in
     sync)    do_sync ;;
     update)  do_update ;;
+    remove)  do_remove "$2" ;;
     cleanup) do_cleanup ;;
     list)    do_list ;;
     status)  do_status ;;
     diff)    do_diff ;;
-    *)       echo "用法: $0 {sync|update|cleanup|list|status|diff}"; exit 1 ;;
+    *)       echo "用法: $0 {sync|update|remove <name>|cleanup|list|status|diff}"; exit 1 ;;
 esac
 
 echo ""

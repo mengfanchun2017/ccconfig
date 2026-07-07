@@ -144,7 +144,7 @@ ccconfig/link/commands/ ──setup-links.sh ln -s──→ ~/.claude/commands/
 init.sh all
   ├── init-ubuntu.sh     # 系统包 + Node + uv + Claude Code + git config + fonts + systemd
   ├── init-mcp.sh        # MCP 服务器安装 + 配置
-  └── init-skill.sh sync # Skills 同步
+  └── init-skill.sh sync # Skills 同步（详见 docs/skill-lifecycle.md）
        ├── Phase 1: symlink 自建 skill（claude-skills/plugins/ → ~/.claude/skills/）
        ├── Phase 2: marketplace 检（claude plugin marketplace add）
        ├── Phase 2.5: ccprivate 配置覆盖（apply-config.sh）

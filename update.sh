@@ -1040,10 +1040,10 @@ update_all() {
     run_step "node"     "Node.js"           update_nodejs
     run_step "lark-cli" "npm 全局包"        update_npm_globals
     run_step ""         "Python pip 包"     update_python_packages
+    run_step ""         "Skills 同步"       update_skills
     if [ "$include_option" = "true" ]; then
         run_step "cconnect" "cc-connect"        update_cconnect
         run_step ""         "OfficeCLI"          update_officecli
-        run_step ""         "Skills 同步"       update_skills
     fi
     run_step "gh"       "GitHub CLI"        update_gh
     run_step "claude"   "Claude Code"       update_claude

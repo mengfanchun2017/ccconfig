@@ -217,7 +217,7 @@ cd ~/git/ccconfig && git pull
 
 ## 自建 Skills
 
-全部 16 个自建 skill 发布在 **[claude-skills](https://github.com/mengfanchun2017/claude-skills)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
+全部 17 个自建 skill 发布在 **[claude-skills](https://github.com/mengfanchun2017/claude-skills)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
 
 | Skill | 用途 | 需外部服务？ |
 |-------|------|-------------|
@@ -228,7 +228,7 @@ cd ~/git/ccconfig && git pull
 | `f-xlsx` | Excel .xlsx 原生生成 | officecli |
 | `f-pdf` | PDF 内容提取（文字/图片/表格/元数据） | PyMuPDF (pip) |
 | `f-search` | 多源搜索编排（Tavily + MiniMax + WebSearch） | Tavily + MiniMax MCP |
-| `f-research` | 快速研究（领域自动识别 + 三源并行） | 委托 f-search |
+| `f-research-frame` | 4 领域研究方法论（customer/generic/market/technical） | 委托 f-search |
 | `f-research-deep` | 批量深度研究（outline.yaml → JSON 输出） | Tavily + MiniMax MCP |
 | `f-research-report` | 报告生成（JSON/大纲/素材 → Markdown） | 委托 f-feishu + f-report-std |
 | `f-report-std` | 报告写作规范（4 套模板：研究/分析/对比/方案） | 无 |
@@ -237,10 +237,12 @@ cd ~/git/ccconfig && git pull
 | `f-moocrec` | 慕课推荐 | 飞书 Base |
 | `f-vessel` | AI 浏览器操控（Vessel MCP） | Vessel 浏览器 |
 | `f-sysarchi` | 系统分析师备考 — 暗号 `archi` 随工边做边学 | 无 |
+| `getnote` | 得到大脑集成 — MCP 驱动，笔记 CRUD/搜索/知识库 | 得到 MCP |
 
 > **独立使用**（不需 ccconfig）：`/plugin marketplace add <your-username>/claude-skills` 然后 `/plugin install f-feishu@<your-username>-skills`。
 > **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/claude-skills/plugins/` symlink，第三方 skill 从 `conf/third-party-skills.txt` 通过 npx 安装。
 > 详见 [claude-skills README](https://github.com/mengfanchun2017/claude-skills)。
+> 完整生命周期（安装/更新/卸载/发布/漂移检测）→ [docs/skill-lifecycle.md](docs/skill-lifecycle.md)。
 
 ## Auto-Sync
 
