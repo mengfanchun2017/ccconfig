@@ -4,8 +4,16 @@
 
 ## 运行前缀
 ```bash
-export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-<account>" && export PATH="$HOME/.local/bin:$PATH"
+# 当前使用 AIlab 企业账号
+export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-ailab" && export PATH="$HOME/.local/bin:$PATH"
 ```
+
+## auth 预检（写操作前必做）
+```bash
+# 验证 token 存活（返回 ok:true 则继续）
+lark-cli drive +search --query test --page-size 1 --as user 2>&1 | sed '/^\[lark-cli\]/d'
+```
+若 `token_missing` → token 过期，走 QR 码授权。**不可跳到 francis 个人账号**（已停用）。
 
 ## 命令速查
 

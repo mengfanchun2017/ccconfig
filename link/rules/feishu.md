@@ -22,6 +22,11 @@ lark-cli auth login --device-code "<device_code>"
 **Why**：session token 有 TTL（~30天），过期后需重新授权。config.json 存在 ≠ auth 有效。
 **How to apply**：写操作前先 drive +search 验证，失败走 auth 流程。
 
+## 账号配置
+- **当前使用**: AIlab 企业飞书账号（`LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-ailab"`）
+- 个人飞书账号已停用，所有操作走 AIlab 企业租户（`rcnejwuhyp41.feishu.cn`）
+- 切换账号: `lark-cli` 前缀必须带 `LARKSUITE_CLI_CONFIG_DIR`，不可省略
+
 ## 工具选择
 - **lark-cli --as user**：所有飞书操作（文档、Base、日历、白板、表格）
 - feishu MCP 已删除，不需要任何 MCP 调用
