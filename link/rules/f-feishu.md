@@ -1,0 +1,1 @@
+/home/francis/git/claude-skills/plugins/f-feishu/rules.d/f-feishu.md
