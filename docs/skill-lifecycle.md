@@ -176,3 +176,35 @@ SessionStart 自动运行，检查：
 | marketplace add 失败 | GITHUB_USER 未设 | `export GITHUB_USER=mengfanchun2017` 或设环境变量 |
 | 第三方 skill 更新后 dialog 仍显示旧内容 | Claude Code 缓存 | 重启 Claude Code |
 | `status.sh` 报告断链 | skill 源目录被移动/删除 | `init-skill.sh cleanup` |
+
+## Rules 三层模型
+
+Skill 的行为约束分三层，各司其职：
+
+```
+Layer 1: 全局 Rule（始终加载）          ~/.claude/rules/ ← ccconfig/link/rules/
+  └─ 每个 session 都注入，适合编码规范、飞书操作等跨领域约束
+  └─ 成本：13.8 KB always-on budget
+
+Layer 2: 路径 Rule（条件加载）          ~/.claude/rules/ + paths: frontmatter
+  └─ 仅当操作文件匹配 glob 时才注入，适合语言/框架特定规则
+  └─ python.md → **/*.py | git.md → **/.git/** | godot.md → **/*.gd
+
+Layer 3: Skill 正文（调用时加载）       plugins/*/SKILL.md
+  └─ 仅当 skill 被 invoke 时加载，含完整工作流 + 约束
+  └─ 已删除 rules.d/ 模式（之前是 Layer 1.5，冗余 + 断链风险）
+```
+
+**三仓库分工**：
+
+| 仓库 | 提供 | 受众 |
+|------|------|------|
+| **ccconfig** | Layer 1+2 rules（全局 + 路径）+ setup-links.sh 安装 | fork/clone ccconfig 的用户 |
+| **claude-skills** | Layer 3 SKILL.md（skill 正文，调用时加载） | `/plugin marketplace add` 或 clone 的用户 |
+| **ccprivate** | 无 rules 注入（仅 CLAUDE.md + settings.json 个人配置） | 用户自建 |
+
+**设计原则**：
+- 全局 rule 只放"不管做什么都可能用到的约束"（code style, feishu auth, search routing）
+- 语言/框架 rule 用 `paths:` 条件加载，不烧无关 session 的 context
+- Skill 约束在 SKILL.md 正文里写，skill 被调用时自然加载
+- 不再使用 rules.d/ symlink 机制（复杂度高 + 断链风险 + 对外部用户不友好）
