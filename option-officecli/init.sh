@@ -61,7 +61,7 @@ install_officecli() {
 
     echo -n "  下载 ... "
     local tmp="/tmp/officecli-$(date +%s)"
-    if curl -L --progress-bar -o "$tmp" "$DOWNLOAD_URL" 2>&1; then
+    if curl -L --connect-timeout 10 --max-time 300 --progress-bar -o "$tmp" "$DOWNLOAD_URL" 2>&1; then
         local size=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
         if [ "$size" -lt 1000000 ]; then
             bad "❌ 下载文件异常小 ($size bytes)"
