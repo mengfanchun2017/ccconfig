@@ -42,7 +42,9 @@ lark-cli drive +search --query test --page-size 1 --as user 2>&1 | sed '/^\[lark
 ## 关键约束
 
 - **含嵌入资源（白板/图片/电子表格）禁止 overwrite** — 只能用 str_replace / block_insert_after / block_delete
-- **@file 路径必须相对当前目录** — `cd /tmp && --json @file` 非 `--json @/tmp/file`；最稳用 heredoc + stdin
+- **@file 路径必须相对当前目录** — `cd /tmp && --content @./file.md`（必须有 `@` 前缀，否则当字符串字面量）
+  - ❌ `--content "./file.md"` → 文档内容变成字符串 "./file.md"
+  - ✅ `--content @./file.md` → 读文件内容
 - **跨租户无法访问** — 不同域名文档需导出本地处理
 - **docs +create 必显式 `--title`** — 否则默认 "Untitled"，事后只能 str_replace 改
 - **docx 删除**：`lark-cli api DELETE /open-apis/drive/v1/files/{token} --params '{"type":"docx"}'`
