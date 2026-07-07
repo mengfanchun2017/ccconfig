@@ -19,14 +19,9 @@ vinvcn/mattpocock-skills-zh-CN  grill-me
 vinvcn/mattpocock-skills-zh-CN  improve-codebase-architecture
 vinvcn/mattpocock-skills-zh-CN  write-a-skill
 
-# ===== Get笔记 CLI skill：笔记/知识库管理 =====
-# CLI: @getnote/cli (npm)，已装 v1.2.0，cli-deps.txt 管安装
-# 5 个 skill 各管一个子命令：auth 认证、kb 知识库、note 笔记 CRUD、search 语义搜索、tag 标签
-iswalle/getnote-cli  getnote-auth
-iswalle/getnote-cli  getnote-kb
-iswalle/getnote-cli  getnote-note
-iswalle/getnote-cli  getnote-search
-iswalle/getnote-cli  getnote-tag
+# ===== MCP server：Get笔记（getnote）=====
+# MCP: @getnote/mcp (npm)，已装 v1.5.2，settings.json mcpServers.getnote 管理配置
+# 27 tools 全覆盖（含图片上传），不再需要 CLI skills
 
 # ===== OfficeCLI skill：Office 文档生成（PPTX/DOCX/XLSX）=====
 # CLI: officecli (curl install)，已装 v1.0.128，option-officecli/init.sh 管安装
