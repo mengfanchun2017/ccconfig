@@ -3,6 +3,12 @@
 > 从 Worklog 自动提取。每次 worklog 触发后更新。
 > 数据来源: Worklog Base（配置见 `conf/f-logme.json`）
 
+## 2026-07-07 | ADR 0004 OfficeCLI Skill 架构 | [recvmtVgHr0iQ4]
+
+**决策**: 只保留 officecli base skill（npx），运行时 `load_skill pptx/word/excel` 获取设计系统；删手动复制的 officecli-pptx
+**影响**: 删 1 个冗余 skill（568 行），context 节省 ~1500 tokens
+**关联 ADR**: [docs/adr/0004-officecli-skill-architecture.md](adr/0004-officecli-skill-architecture.md)
+
 ## 2026-06-15 | ccconfig 开源安全加固 | [recvmBdslqi2Mr]
 
 **决策**: 所有隐私数据统一存放 ccprivate，ccconfig 通过 symlink 引用；git filter-repo 清洗历史
