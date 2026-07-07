@@ -184,11 +184,12 @@ Skill 的行为约束分三层，各司其职：
 ```
 Layer 1: 全局 Rule（始终加载）          ~/.claude/rules/ ← ccconfig/link/rules/
   └─ 每个 session 都注入，适合编码规范、飞书操作等跨领域约束
-  └─ 成本：13.8 KB always-on budget
+  └─ 成本：6.6 KB always-on budget（15KB 上限的 44%）
 
 Layer 2: 路径 Rule（条件加载）          ~/.claude/rules/ + paths: frontmatter
   └─ 仅当操作文件匹配 glob 时才注入，适合语言/框架特定规则
   └─ python.md → **/*.py | git.md → **/.git/** | godot.md → **/*.gd
+  └─ 不破坏 prompt cache（注入到 conversation history，非 system prompt）
 
 Layer 3: Skill 正文（调用时加载）       plugins/*/SKILL.md
   └─ 仅当 skill 被 invoke 时加载，含完整工作流 + 约束

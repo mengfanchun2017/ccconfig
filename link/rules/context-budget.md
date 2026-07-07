@@ -1,16 +1,16 @@
 # Context 预算
 
 ## 硬上限
-- rules 始终加载 < 15KB（当前 ~14.1KB ✓）
-- rules 总计（含 path-scoped）< 20KB（当前 ~18.4KB）
+- rules 始终加载 < 15KB（当前 ~6.6KB ✓）
+- rules 总计（含 path-scoped）< 20KB（当前 ~10.8KB）
 - MEMORY.md < 40 条目
 - 新 rule 创建前：能放 skill reference？能 path-scope？能合并到已有 rule？
 
 ## 当前分布
 | 类别 | 大小 | 文件 |
 |------|------|------|
-| 始终加载 | 13.8 KB | code, feishu, feishu-cli-cheatsheet, search, memory, context-budget, README |
-| path-scoped | 4.1 KB | python (`**/*.py`), git (`**/.git/**`), godot (`**/*.gd`) |
+| 始终加载 | 6.6 KB | code, feishu, feishu-cli-cheatsheet, search, memory, context-budget |
+| path-scoped | 4.2 KB | python (`**/*.py`), git (`**/.git/**`), godot (`**/*.gd`) |
 
 ## 清理
 - 季度 memory review：删过期记忆，mtime > 6 月的考虑归档
