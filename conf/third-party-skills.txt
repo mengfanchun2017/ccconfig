@@ -16,3 +16,8 @@ vinvcn/mattpocock-skills-zh-CN  grill-me
 vinvcn/mattpocock-skills-zh-CN  improve-codebase-architecture
 vinvcn/mattpocock-skills-zh-CN  write-a-skill
 vinvcn/mattpocock-skills-zh-CN  zoom-out
+iswalle/getnote-cli  getnote-auth
+iswalle/getnote-cli  getnote-kb
+iswalle/getnote-cli  getnote-note
+iswalle/getnote-cli  getnote-search
+iswalle/getnote-cli  getnote-tag
