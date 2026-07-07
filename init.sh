@@ -6,15 +6,9 @@
 #   bash ccconfig/init.sh all          # 一键初始化全部
 #   bash ccconfig/init.sh status       # 状态检查
 
+set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-CYAN='\033[0;36m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-BOLD='\033[1m'
-GRAY='\033[0;90m'
-NC='\033[0m'
+source "$SCRIPT_DIR/lib/colors.sh"
 
 show_banner() {
     echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"

@@ -21,6 +21,7 @@ export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/colors.sh"
 SKILLS_SRC="${CLAUDE_SKILLS_SRC:-$HOME/git/claude-skills/plugins}"
 CCPRIVATE_DIR="${CCPRIVATE_DIR:-$HOME/git/ccprivate}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
@@ -32,18 +33,7 @@ MARKETPLACE_NAME="$GITHUB_USER-skills"
 # 第三方 skill 全部走 npx skills（user-managed 干净显示）
 # marketplace.json 仍发布 mattpocock-skills 给其他人通过 marketplace 安装
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-GRAY='\033[0;90m'
-NC='\033[0m'
-
 title() { echo -e "\n========================================\n$1\n========================================\n${CYAN}"; }
-good() { echo -e "$1${GREEN}"; }
-bad() { echo -e "$1${RED}"; }
-info() { echo -e "$1${GRAY}"; }
-warn() { echo -e "$1${YELLOW}"; }
 
 # 阶段 0：装 CLI 工具依赖
 # 来源：自建 skill 目录下的 deps.txt（per-skill 自声明）

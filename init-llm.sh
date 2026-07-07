@@ -23,6 +23,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/path-helper.sh"
+source "$SCRIPT_DIR/lib/colors.sh"
 CONFIG_FILE="$SCRIPT_DIR/conf/llm.json"
 LLMSWITCH_CONF="$SCRIPT_DIR/option-llmswitch/conf/llmswitch.json"
 LLMSWITCH_INIT="$SCRIPT_DIR/option-llmswitch/init.sh"
@@ -30,19 +31,6 @@ LLMSWITCH_WATCHDOG="$SCRIPT_DIR/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
 ensure_config "$CONFIG_FILE" "conf/llm.json" || exit 1
-
-# 颜色
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
-success() { echo -e "${GREEN}✅ $1${NC}"; }
-warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
-error() { echo -e "${RED}❌ $1${NC}"; }
 
 # ========== Gateway 辅助 ==========
 is_proxy_running() {
