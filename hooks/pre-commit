@@ -36,7 +36,7 @@ for forbidden in \
     "link/settings.json" \
     "link/.config.json" \
     "link/projects" \
-    "link/skills/f-doc/config.yaml"
+    "link/skills/f-feishu/config.yaml"
 do
     if echo "$staged" | grep -qxF "$forbidden"; then
         echo -e "${RED}[pre-commit] BLOCKED: ${forbidden}${NC}"

@@ -25,5 +25,5 @@ vinvcn/mattpocock-skills-zh-CN  write-a-skill
 
 # ===== OfficeCLI skill：Office 文档生成（PPTX/DOCX/XLSX）=====
 # CLI: officecli (curl install)，已装 v1.0.128，option-officecli/init.sh 管安装
-# f-ppt 是总控（设计系统 + autofit + 个人模板），officecli-pptx 是底层参考手册
+# f-pptx 是总控（设计系统 + autofit + 个人模板），officecli-pptx 是底层参考手册
 iofficeai/officecli  officecli-pptx

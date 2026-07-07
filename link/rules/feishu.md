@@ -4,13 +4,13 @@
 - **lark-cli --as user**：所有飞书操作（文档、Base、日历、白板、表格）
 - feishu MCP 已删除，不需要任何 MCP 调用
 
-## 文档操作 → f-doc skill
+## 文档操作 → f-feishu skill
 
-**硬前置条件（不可跳过）**：任何 `lark-cli docs +create` / `+update` / `+fetch` 命令执行前，**必须先调用 `f-doc` Skill 工具**。即使你自认为知道 lark-cli 命令怎么写，也必须调——f-doc 的格式约束（禁止 hr 分割线、表格必须 XML + colgroup=822、图表必须 mermaid、禁止 ASCII 伪图、禁止手动编号、禁止 H4+）只有通过 Skill 调用才会加载到上下文。**跳过 Skill 直接裸调 lark-cli 必然导致格式违规**（2026-06-22 已复现：报告文档满篇 `---` 分割线 + Markdown 表格 + ASCII 伪图，3 类违规）。
+**硬前置条件（不可跳过）**：任何 `lark-cli docs +create` / `+update` / `+fetch` 命令执行前，**必须先调用 `f-feishu` Skill 工具**。即使你自认为知道 lark-cli 命令怎么写，也必须调——f-feishu 的格式约束（禁止 hr 分割线、表格必须 XML + colgroup=822、图表必须 mermaid、禁止 ASCII 伪图、禁止手动编号、禁止 H4+）只有通过 Skill 调用才会加载到上下文。**跳过 Skill 直接裸调 lark-cli 必然导致格式违规**（2026-06-22 已复现：报告文档满篇 `---` 分割线 + Markdown 表格 + ASCII 伪图，3 类违规）。
 
-**检查方法**：准备执行 lark-cli docs 命令前，自问"这次会话我调过 f-doc Skill 了吗？"→ 没调就先调。
+**检查方法**：准备执行 lark-cli docs 命令前，自问"这次会话我调过 f-feishu Skill 了吗？"→ 没调就先调。
 
-所有飞书文档的创建/更新/合并/拆分/转换/对比，统一由 `f-doc` skill 编排。写操作检查清单 → `skills/f-doc/references/write-checklist.md`（含命令选择+格式自检+写后验证）。
+所有飞书文档的创建/更新/合并/拆分/转换/对比，统一由 `f-feishu` skill 编排。写操作检查清单 → `skills/f-feishu/references/write-checklist.md`（含命令选择+格式自检+写后验证）。
 
 ## 写操作后必输出完整链接（强约束）
 
