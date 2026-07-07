@@ -91,6 +91,6 @@ print(f"  共 {len(apps)} 个应用，{total_cc} 个 cc-connect 启用")
 PYEOF
 
 echo ""
-echo -e "${GRAY}提示: bash ccconfig/option-bridge/bot-enable.sh <名称>   启用机器人${NC}"
-echo -e "${GRAY}      bash ccconfig/option-bridge/bot-disable.sh <名称>  禁用机器人${NC}"
+echo -e "${GRAY}提示: bash ccconfig/option-bridge/bot-toggle.sh <名称> --enable    启用机器人${NC}"
+echo -e "${GRAY}      bash ccconfig/option-bridge/bot-toggle.sh <名称> --disable   禁用机器人${NC}"
 echo ""

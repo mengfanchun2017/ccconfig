@@ -30,9 +30,9 @@ bash ccconfig/option-bridge/lark-switch.sh <another-account>
 ## 机器人管理
 
 ```bash
-bash ccconfig/option-bridge/bot-status.sh            # 查看状态
-bash ccconfig/option-bridge/bot-enable.sh <名称>     # 启用
-bash ccconfig/option-bridge/bot-disable.sh <名称>    # 禁用
+bash ccconfig/option-bridge/bot-status.sh                   # 查看状态
+bash ccconfig/option-bridge/bot-toggle.sh <名称> --enable   # 启用
+bash ccconfig/option-bridge/bot-toggle.sh <名称> --disable  # 禁用
 ```
 
 ## cc-connect 服务
