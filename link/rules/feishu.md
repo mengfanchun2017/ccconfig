@@ -23,8 +23,7 @@ lark-cli auth login --device-code "<device_code>"
 **How to apply**：写操作前先 drive +search 验证，失败走 auth 流程。
 
 ## 账号配置
-- **当前使用**: AIlab 企业飞书账号（`LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-ailab"`）
-- 个人飞书账号已停用，所有操作走 AIlab 企业租户（`rcnejwuhyp41.feishu.cn`）
+- **当前使用**: 企业飞书账号，通过 `LARKSUITE_CLI_CONFIG_DIR` 环境变量指定 lark-cli 配置目录
 - 切换账号: `lark-cli` 前缀必须带 `LARKSUITE_CLI_CONFIG_DIR`，不可省略
 
 ## 工具选择
@@ -45,7 +44,7 @@ stdout 含日志行，pipe 前 `sed '/^\[lark-cli\]/d'` 过滤。`api` 子命令
 
 ## 最近编辑文档追踪
 
-每次飞书 doc 写操作（create/update/delete/upload）完成后，**必须**更新 `~/.claude/projects/-home-francis-git/memory/recent_feishu_docs.md`：
+每次飞书 doc 写操作（create/update/delete/upload）完成后，**必须**更新当前项目的 `recent_feishu_docs.md` 记忆文件（路径：`~/.claude/projects/<project-id>/memory/recent_feishu_docs.md`）：
 
 - 在表格顶部插入新行：`| 日期 | 标题 | 链接 | 操作 |`
 - 保持最近 15 条，超出删旧

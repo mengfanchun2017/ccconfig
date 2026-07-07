@@ -17,6 +17,27 @@
 - macOS（部分命令不同，看文末备注）
 - 真机/裸金属（无 sudo 的情况，看文末备注）
 
+## 前置环境变量
+
+部分功能需要设置环境变量。自动检测失败时手动设：
+
+| 变量 | 用途 | 默认/自动检测 |
+|------|------|-------------|
+| `GITHUB_USER` | GitHub 用户名（marketplace 注册） | `gh api user --jq '.login'` |
+| `GIT_EMAIL` | Git commit 邮箱 | `gh api user --jq '.email'` |
+| `LARKSUITE_CLI_CONFIG_DIR` | 飞书 lark-cli 配置目录 | `$HOME/.lark-cli` |
+| `ANTHROPIC_AUTH_TOKEN` | Anthropic API 密钥（LLM 切换） | 无（需手动设置） |
+| `CCONFIG_HOME` | ccconfig 安装路径 | `$HOME/git/ccconfig` |
+| `CCPRIVATE_DIR` | ccprivate 路径 | `$HOME/git/ccprivate` |
+| `CLAUDE_SKILLS_SRC` | claude-skills 路径 | `$HOME/git/claude-skills/plugins` |
+
+```bash
+# 在 ~/.bashrc 中示例
+export GITHUB_USER=your-username
+export LARKSUITE_CLI_CONFIG_DIR=$HOME/.lark-cli-ailab
+export ANTHROPIC_AUTH_TOKEN=sk-ant-...
+```
+
 
 ## 阶段 0 — Windows 前置：WSL2 + Ubuntu 24.04
 
