@@ -26,7 +26,11 @@ SKILLS_SRC="${CLAUDE_SKILLS_SRC:-$HOME/git/claude-skills/plugins}"
 CCPRIVATE_DIR="${CCPRIVATE_DIR:-$HOME/git/ccprivate}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
-GITHUB_USER="${GITHUB_USER:-mengfanchun2017}"
+GITHUB_USER="${GITHUB_USER:-$(gh api user --jq '.login' 2>/dev/null)}"
+if [ -z "$GITHUB_USER" ]; then
+    warn "无法检测 GitHub 用户名（gh 未登录或未安装）"
+    warn "  设置环境变量: export GITHUB_USER=<your-github-username>"
+fi
 MARKETPLACE_REPO="$GITHUB_USER/claude-skills"
 MARKETPLACE_NAME="$GITHUB_USER-skills"
 

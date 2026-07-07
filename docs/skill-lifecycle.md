@@ -173,7 +173,7 @@ SessionStart 自动运行，检查：
 | `init-skill.sh sync` 报 "Skills 源目录不存在" | claude-skills 未 clone | `git clone` 到 `~/git/claude-skills` |
 | npx skills add 失败 | GitHub HTTPS 未配 | `init-skill.sh sync` 自动设 `git config --global url."https://github.com/".insteadOf` |
 | 自建 skill 修改不生效 | symlink 断链或指向旧目录 | `init-skill.sh cleanup` + `init-skill.sh sync` |
-| marketplace add 失败 | GITHUB_USER 未设 | `export GITHUB_USER=mengfanchun2017` 或设环境变量 |
+| marketplace add 失败 | GITHUB_USER 未设 | `export GITHUB_USER=<your-username>` 或 `gh auth login` |
 | 第三方 skill 更新后 dialog 仍显示旧内容 | Claude Code 缓存 | 重启 Claude Code |
 | `status.sh` 报告断链 | skill 源目录被移动/删除 | `init-skill.sh cleanup` |
 
