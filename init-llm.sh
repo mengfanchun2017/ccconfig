@@ -117,9 +117,6 @@ switch_llm() {
     local name="$1"
 
     if [[ "$name" == "gateway" ]]; then
-        # TODO: 等 CC 修复 thinking 块兼容后取消注释
-        # switch_to_gateway
-        # return $?
         warn "Gateway 暂不可用 — 等 Claude Code 更新后启用"
         return 1
     fi
@@ -375,24 +372,6 @@ interactive_select() {
         info "保持当前: $current"
         return 0
     fi
-
-    # TODO: 等 CC 修复后取消注释
-    # if [[ "$choice" == "D" || "$choice" == "d" ]]; then
-    #     if is_proxy_running; then
-    #         switch_to_gateway
-    #         bash "$LLMSWITCH_INIT" --mode manual deepseek
-    #         info "Gateway → DeepSeek (手动强制)"
-    #     fi
-    #     return 0
-    # fi
-    # if [[ "$choice" == "M" || "$choice" == "m" ]]; then
-    #     if is_proxy_running; then
-    #         switch_to_gateway
-    #         bash "$LLMSWITCH_INIT" --mode manual minimax
-    #         info "Gateway → MiniMax (手动强制)"
-    #     fi
-    #     return 0
-    # fi
 
     if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "$selectable" ]]; then
         target="${names[$((choice-1))]}"

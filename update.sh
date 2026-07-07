@@ -534,7 +534,7 @@ update_cconnect() {
     local tmp="/tmp/cc-connect-update.$$"
     mkdir -p "$tmp"
 
-    if ! curl -fsSL "$url" -o "$tmp/cc-connect.tar.gz"; then
+    if ! curl -fsSL --connect-timeout 10 --max-time 120 "$url" -o "$tmp/cc-connect.tar.gz"; then
         err "下载失败: $url"
         rm -rf "$tmp"
         return 1
@@ -590,7 +590,7 @@ update_gh() {
     local tmp="/tmp/gh-update.$$"
     mkdir -p "$tmp"
 
-    if ! curl -fsSL "$url" -o "$tmp/gh.tar.gz"; then
+    if ! curl -fsSL --connect-timeout 10 --max-time 120 "$url" -o "$tmp/gh.tar.gz"; then
         err "下载失败: $url"
         rm -rf "$tmp"
         return 1
@@ -734,7 +734,7 @@ update_uv() {
         info "uv 未安装，正在安装..."
     fi
 
-    if curl -LsSf https://astral.sh/uv/install.sh | sh 2>&1 | tail -3; then
+    if curl --connect-timeout 10 --max-time 30 -LsSf https://astral.sh/uv/install.sh | sh 2>&1 | tail -3; then
         local after
         after=$(uv --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
         if command -v uv &>/dev/null; then

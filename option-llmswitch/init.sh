@@ -384,7 +384,7 @@ PYEOF
     fi
     data="$data}"
 
-    local resp=$(curl -s -X POST "$PROXY_URL/admin/mode" \
+    local resp=$(curl -s --connect-timeout 5 --max-time 10 -X POST "$PROXY_URL/admin/mode" \
         -H "Content-Type: application/json" \
         -d "$data" 2>/dev/null)
     if echo "$resp" | grep -q '"ok"'; then

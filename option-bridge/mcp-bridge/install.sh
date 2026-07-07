@@ -20,8 +20,8 @@ NC='\033[0m'
 MCP_NAME="feishu"
 MCP_COMMAND="npx"
 MCP_ARGS="-y @china-mcp/feishu-mcp"
-FEISHU_APP_ID="<your-feishu-app-id>"
-FEISHU_APP_SECRET="<your-feishu-app-secret>"
+FEISHU_APP_ID="${FEISHU_APP_ID:-}"
+FEISHU_APP_SECRET="${FEISHU_APP_SECRET:-}"
 SETTINGS_FILE="$HOME/.claude/settings.json"
 
 do_install() {
@@ -40,6 +40,10 @@ do_install() {
     fi
     echo -e "${GREEN}✅${NC}"
 
+    if [ -z "$FEISHU_APP_ID" ] || [ -z "$FEISHU_APP_SECRET" ]; then
+        echo -e "${RED}❌ 请先设置 FEISHU_APP_ID 和 FEISHU_APP_SECRET 环境变量${NC}"
+        exit 1
+    fi
     echo -n "配置环境变量 ... "
     python3 - "$SETTINGS_FILE" "$FEISHU_APP_ID" "$FEISHU_APP_SECRET" << 'PYEOF'
 import json, sys
