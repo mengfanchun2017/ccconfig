@@ -45,35 +45,90 @@ bad() { echo -e "$1${RED}"; }
 info() { echo -e "$1${GRAY}"; }
 warn() { echo -e "$1${YELLOW}"; }
 
-# 阶段 0：装 CLI 工具依赖（conf/cli-deps.txt）
+# 阶段 0：装 CLI 工具依赖
+# 来源：自建 skill 的 deps.txt + conf/cli-deps.txt（第三方 skill 补充）
+# 去重：同包名只装一次，优先保留 required_by 信息
 do_install_cli_deps() {
-    title "阶段 0/4: CLI 工具依赖（conf/cli-deps.txt）"
+    title "阶段 0/4: CLI 工具依赖"
 
-    if [[ ! -f "$CLI_DEPS_CONF" ]]; then
-        warn "  清单不存在: $CLI_DEPS_CONF — 跳过"
-        return 0
+    # 收集所有依赖条目（去重 key = pkg|mgr）
+    declare -A seen_deps
+
+    # 来源 1：自建 skill 目录下的 deps.txt
+    local self_deps=0
+    if [[ -d "$SKILLS_SRC" ]]; then
+        for skill_dir in "$SKILLS_SRC"/*/; do
+            local dep_file="${skill_dir}deps.txt"
+            [[ -f "$dep_file" ]] || continue
+            local skill_name=$(basename "$skill_dir")
+            while IFS= read -r line; do
+                [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+                local pkg=$(echo "$line" | awk '{print $1}')
+                local mgr=$(echo "$line" | awk '{print $2}' | cut -d: -f1)
+                local key="$pkg|$mgr"
+                if [[ -z "${seen_deps[$key]}" ]]; then
+                    seen_deps[$key]="$skill_name"
+                    self_deps=$((self_deps + 1))
+                else
+                    seen_deps[$key]="${seen_deps[$key]},$skill_name"
+                fi
+            done < "$dep_file"
+        done
     fi
+    info "  自建 skill deps: $self_deps 条"
+
+    # 来源 2：中央 cli-deps.txt（第三方 skill 的依赖补充）
+    local central_deps=0
+    if [[ -f "$CLI_DEPS_CONF" ]]; then
+        while IFS= read -r line; do
+            [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+            local pkg=$(echo "$line" | awk '{print $1}')
+            local mgr=$(echo "$line" | awk '{print $2}' | cut -d: -f1)
+            local required_by=$(echo "$line" | awk '{print $3}')
+            local key="$pkg|$mgr"
+            if [[ -z "${seen_deps[$key]}" ]]; then
+                seen_deps[$key]="$required_by"
+                central_deps=$((central_deps + 1))
+            fi
+        done < "$CLI_DEPS_CONF"
+    fi
+    info "  中央 cli-deps: $central_deps 条（增量）"
+
+    local total=${#seen_deps[@]}
+    [[ $total -eq 0 ]] && info "  无 CLI 依赖" && return 0
+
+    echo ""
+
+    # 安装
+    local npm_global_bin
+    npm_global_bin="$(npm prefix -g 2>/dev/null)/bin"
 
     local installed=0 skipped=0 failed=0
-    while IFS= read -r line; do
-        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-
-        local pkg=$(echo "$line" | awk '{print $1}')
-        local mgr=$(echo "$line" | awk '{print $2}' | cut -d: -f1)
-        local required_by=$(echo "$line" | awk '{print $3}')
+    for key in "${!seen_deps[@]}"; do
+        local pkg="${key%%|*}"
+        local mgr="${key##*|}"
+        local required_by="${seen_deps[$key]}"
 
         case "$mgr" in
             npm)
                 if npm list -g "$pkg" --depth=0 2>/dev/null | grep -q "$pkg"; then
-                    info "  $pkg (npm): 已装 — $required_by"
+                    info "  $pkg: 已装 — $required_by"
                     skipped=$((skipped + 1))
                 else
-                    info "  $pkg (npm): 安装中..."
+                    info "  $pkg: 安装中..."
                     if npm install -g "$pkg" 2>&1 | tail -1; then
-                        good "  $pkg (npm): ✓ — $required_by"
+                        # symlink binary to ~/.local/bin
+                        local bin_name="${pkg##*/}"  # strip @scope/ prefix
+                        bin_name="${bin_name#@*/}"    # strip scope if still present
+                        # handle npm binary name (may differ from package name)
+                        if [[ -x "$npm_global_bin/$bin_name" ]]; then
+                            mkdir -p "$HOME/.local/bin"
+                            ln -sf "$npm_global_bin/$bin_name" "$HOME/.local/bin/$bin_name"
+                        fi
+                        good "  $pkg: ✓ — $required_by"
                         installed=$((installed + 1))
                     else
-                        bad "  $pkg (npm): 失败"
+                        bad "  $pkg: 失败"
                         failed=$((failed + 1))
                     fi
                 fi
@@ -99,7 +154,7 @@ do_install_cli_deps() {
                 skipped=$((skipped + 1))
                 ;;
         esac
-    done < "$CLI_DEPS_CONF"
+    done
 
     echo ""
     good "  CLI 依赖: $installed 新装, $skipped 已装, $failed 失败"
@@ -239,25 +294,56 @@ do_sync() {
 }
 
 # 更新所有（CLI 工具 + npx skills）
-do_update() {
-    title "更新 CLI 工具依赖"
+# 收集所有 CLI 依赖（自建 deps.txt + 中央 cli-deps.txt），去重
+_collect_all_deps() {
+    declare -n _deps_out=$1
+    _deps_out=()
+
+    # 自建 skill deps.txt
+    if [[ -d "$SKILLS_SRC" ]]; then
+        for skill_dir in "$SKILLS_SRC"/*/; do
+            local dep_file="${skill_dir}deps.txt"
+            [[ -f "$dep_file" ]] || continue
+            while IFS= read -r line; do
+                [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+                _deps_out+=("$line")
+            done < "$dep_file"
+        done
+    fi
+
+    # 中央 cli-deps.txt
     if [[ -f "$CLI_DEPS_CONF" ]]; then
         while IFS= read -r line; do
             [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-            local pkg=$(echo "$line" | awk '{print $1}')
-            local mgr=$(echo "$line" | awk '{print $2}' | cut -d: -f1)
-            case "$mgr" in
-                npm)
-                    info "  npm update -g $pkg"
-                    npm update -g "$pkg" 2>&1 | tail -1
-                    ;;
-                go)
-                    info "  go install $pkg"
-                    go install "$pkg" 2>&1 | tail -1
-                    ;;
-            esac
+            _deps_out+=("$line")
         done < "$CLI_DEPS_CONF"
     fi
+}
+
+do_update() {
+    local all_deps
+    _collect_all_deps all_deps
+
+    title "更新 CLI 工具依赖"
+    declare -A updated
+    for line in "${all_deps[@]}"; do
+        local pkg=$(echo "$line" | awk '{print $1}')
+        local mgr=$(echo "$line" | awk '{print $2}' | cut -d: -f1)
+        local key="$pkg|$mgr"
+        [[ -n "${updated[$key]}" ]] && continue
+        updated[$key]=1
+
+        case "$mgr" in
+            npm)
+                info "  npm update -g $pkg"
+                npm update -g "$pkg" 2>&1 | tail -1
+                ;;
+            go)
+                info "  go install $pkg"
+                go install "$pkg" 2>&1 | tail -1
+                ;;
+        esac
+    done
 
     echo ""
     title "更新 npx skills（按 upstream 拉最新）"
