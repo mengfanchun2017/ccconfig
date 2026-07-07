@@ -114,7 +114,7 @@ collect_info() {
 
 # ── 生成 conf/llm.json ──
 gen_llm_json() {
-    local f="$CCPRIVATE_DIR/conf/llm.json"
+    local f="$CCPRIVATE_DIR/conf/.generated/llm.json"
     python3 << PYEOF
 import json
 
@@ -154,7 +154,7 @@ PYEOF
 
 # ── 生成 conf/claude.json ──
 gen_claude_json() {
-    local f="$CCPRIVATE_DIR/conf/claude.json"
+    local f="$CCPRIVATE_DIR/conf/.generated/claude.json"
     local auth_token="${DEEPSEEK_KEY:-${MINIMAX_KEY:-${CLAUDE_KEY:-}}}"
     local base_url="https://api.deepseek.com/anthropic"
     local model="deepseek-v4-pro"
@@ -184,7 +184,7 @@ PYEOF
 
 # ── 生成 conf/ubuntu.json ──
 gen_ubuntu_json() {
-    local f="$CCPRIVATE_DIR/conf/ubuntu.json"
+    local f="$CCPRIVATE_DIR/conf/.generated/ubuntu.json"
     python3 << PYEOF
 import json
 d = {
@@ -352,7 +352,8 @@ do_create() {
     collect_info
 
     section "创建目录结构"
-    mkdir -p "$CCPRIVATE_DIR/conf"
+    mkdir -p "$CCPRIVATE_DIR/conf/.generated"
+    mkdir -p "$CCPRIVATE_DIR/skill-config"
     mkdir -p "$CCPRIVATE_DIR/link/projects"
 
     section "生成配置文件"
