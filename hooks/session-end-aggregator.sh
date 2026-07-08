@@ -27,23 +27,37 @@ NOTES="/tmp/claude_session_${SID}_notes.md"
 
 python3 "$SCRIPT_DIR/hooks/session_end_aggregator.py" "$TPATH" "$SID" "$CWD" "$REASON" "$OUT" "$NOTES"
 
-# === 周/阶段定时整合 ===
+# === 定时整合：日合并 / 周总结 / 月提醒 ===
 MERGE_MARKER="/tmp/f-logme_last_merge"
+WEEKLY_MARKER="/tmp/f-logme_last_weekly"
 MONTHLY_MARKER="/tmp/f-logme_last_monthly"
 CONSOLIDATE_SCRIPT="$HOME/.claude/skills/f-logme/worklog_consolidate.py"
 NOW=$(date +%s)
+DAY=86400
 WEEK=604800   # 7 天
 MONTH=2592000 # 30 天
 
-# 每周自动去重合并
+# 每日自动去重合并
 if [ -f "$MERGE_MARKER" ]; then
     LAST=$(cat "$MERGE_MARKER")
 else
     LAST=0
 fi
-if [ $((NOW - LAST)) -ge $WEEK ] && [ -f "$CONSOLIDATE_SCRIPT" ]; then
-    echo "session-end-aggregator: weekly merge triggered" >&2
+if [ $((NOW - LAST)) -ge $DAY ] && [ -f "$CONSOLIDATE_SCRIPT" ]; then
+    echo "session-end-aggregator: daily merge triggered" >&2
     python3 "$CONSOLIDATE_SCRIPT" --mode merge --write >/dev/null 2>&1 && date +%s > "$MERGE_MARKER"
+fi
+
+# 每周自动生成周总结
+if [ -f "$WEEKLY_MARKER" ]; then
+    LAST_W=$(cat "$WEEKLY_MARKER")
+else
+    LAST_W=0
+fi
+if [ $((NOW - LAST_W)) -ge $WEEK ]; then
+    NOTES="/tmp/claude_session_${SID}_notes.md"
+    echo "[f-logme] 本周工作总结待生成，请调用 f-logme skill 做周总结（做周反思）。" >> "$NOTES"
+    date +%s > "$WEEKLY_MARKER"
 fi
 
 # 阶段提醒（距上次 > 30 天）
