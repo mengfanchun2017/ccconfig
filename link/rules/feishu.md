@@ -40,7 +40,16 @@ lark-cli auth login --device-code "<device_code>"
 
 ## lark-cli 输出解析
 
-stdout 含日志行，pipe 前 `sed '/^\[lark-cli\]/d'` 过滤。`api` 子命令不输出 JSON。详情 → f-feishu `references/lark-cli-cheatsheet.md`。
+stdout 含日志行（`[lark-cli] ...`）和进度行（`Uploading media for import: ...`），pipe 前 `sed '/^\[lark-cli\]/d'` 不敷过滤。**禁止 pipe 到 `json.load` 全量解析**，用 `grep` 提取目标字段：
+
+```bash
+# ❌ 错误：进度行导致 json.load 失败
+lark-cli ... 2>&1 | sed '/^\[lark-cli\]/d' | python3 -c "import json,sys; d=json.load(sys.stdin); ..."
+# ✅ 正确：grep 提取单字段
+lark-cli ... 2>&1 | grep '"token"' | head -1
+```
+
+`api` 子命令不输出 JSON。详情 → f-feishu `references/lark-cli-cheatsheet.md`。
 
 ## 最近编辑文档追踪
 
