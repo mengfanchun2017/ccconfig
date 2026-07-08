@@ -268,7 +268,6 @@ interactive_select() {
     printf "当前 LLM：%s\n" "$current"
     echo ""
 
-    # 显示选项（Gateway 不参与编号，仅信息展示）
     local idx=1
     local selectable=0
     local names=()
@@ -285,9 +284,7 @@ interactive_select() {
         fi
         local route_str=""
         if [[ "$name" == "gateway" ]]; then
-            route_str="  — $(read_gateway_routes)  [等 CC 更新后启用]"
-            printf " 暂不开放) %s (%s)%s%s\n" "$display_name" "$model" "$small_str" "$route_str"
-            continue
+            route_str="  — $(read_gateway_routes)"
         fi
         names+=("$name")
         selectable=$((selectable + 1))
