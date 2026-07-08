@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ccconfig — Claude Code, Configured.</title>
-<meta name="description" content="One repo. One command. Your entire Claude Code environment — rules, skills, MCP, agents — synced across every machine.">
+<title>ccconfig — Claude Code 环境配置，一键搞定。</title>
+<meta name="description" content="一个仓库，一条命令。你的整个 Claude Code 环境 — rules、skills、MCP、agents — 全设备同步。">
 <meta name="color-scheme" content="dark">
-<meta property="og:title" content="ccconfig — Claude Code, Configured.">
-<meta property="og:description" content="One repo. One command. Your entire Claude Code environment synced across every machine.">
+<meta property="og:title" content="ccconfig — Claude Code 环境配置，一键搞定。">
+<meta property="og:description" content="一个仓库，一条命令。Claude Code 环境全设备同步。">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://ccconfig.pages.dev">
+<meta property="og:url" content="https://ccconfigfrancis.pages.dev">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ccconfig — Claude Code, Configured.">
-<meta name="twitter:description" content="One repo. One command. Your entire Claude Code environment synced across every machine.">
+<meta name="twitter:title" content="ccconfig — Claude Code 环境配置，一键搞定。">
+<meta name="twitter:description" content="一个仓库，一条命令。Claude Code 环境全设备同步。">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230a0a0f'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='monospace' font-size='20' font-weight='bold' fill='%234ade80'>C</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,6 +37,8 @@ nav .container{display:flex;align-items:center;justify-content:space-between;hei
 .nav-gh{display:flex;align-items:center;gap:6px;font-size:14px;color:#a1a1aa}
 .nav-gh:hover{color:#e4e4e7}
 .nav-gh svg{width:18px;height:18px}
+.lang-btn{background:none;border:1px solid #2e2e3e;color:#a1a1aa;padding:4px 10px;border-radius:6px;font-size:13px;cursor:pointer;transition:all .2s}
+.lang-btn:hover{color:#e4e4e7;border-color:#52526b}
 
 section{padding:100px 0}
 
@@ -131,23 +133,24 @@ footer a:hover{color:#a1a1aa}
   <div class="container">
     <div class="nav-logo">cc<span>config</span></div>
     <div class="nav-links">
-      <a href="#features">Features</a>
-      <a href="#faq">FAQ</a>
+      <a href="#features" data-i18n="nav_features">Features</a>
+      <a href="#faq" data-i18n="nav_faq">FAQ</a>
       <a href="https://github.com/mengfanchun2017/ccconfig" class="nav-gh" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
         GitHub
       </a>
+      <button class="lang-btn" onclick="toggleLang()" data-i18n="lang_switch">EN</button>
     </div>
   </div>
 </nav>
 
 <section class="hero">
   <div class="container">
-    <h1>Claude Code,<br><span>Configured.</span></h1>
-    <p class="sub">One repo. One command. Your entire Claude Code environment — rules, skills, MCP, agents — synced across every machine.</p>
+    <h1 data-i18n="hero_title">Claude Code,<br>一键配置。</h1>
+    <p class="sub" data-i18n="hero_sub">一个仓库，一条命令。你的整个 Claude Code 环境 — rules、skills、MCP、agents — 全设备同步。</p>
     <div class="hero-cta">
-      <a href="https://github.com/mengfanchun2017/ccconfig" class="primary" target="_blank" rel="noopener">View on GitHub →</a>
-      <a href="#how" class="secondary">How it works</a>
+      <a href="https://github.com/mengfanchun2017/ccconfig" class="primary" target="_blank" rel="noopener" data-i18n="hero_cta_primary">查看 GitHub →</a>
+      <a href="#how" class="secondary" data-i18n="hero_cta_secondary">工作原理</a>
     </div>
     <div class="terminal">
       <div class="terminal-bar">
@@ -163,7 +166,7 @@ footer a:hover{color:#a1a1aa}
         <span class="out">[setup-links] skills → 15 linked</span><br>
         <span class="out">[setup-links] agents → 4 linked</span><br>
         <span class="out">[setup-links] settings → done</span><br>
-        <span class="out">Done. Claude Code is configured.</span><br>
+        <span class="out" data-i18n="terminal_done">完成。Claude Code 已配置。</span><br>
         <span class="prompt">$</span> <span class="cursor"></span>
       </div>
     </div>
@@ -172,24 +175,24 @@ footer a:hover{color:#a1a1aa}
 
 <section id="pain">
   <div class="container">
-    <div class="section-label">The Problem</div>
-    <h2>Your config shouldn't live<br>in a single machine.</h2>
-    <p class="section-desc">Claude Code is powerful. But every new machine means redoing everything. Every change means manual copy-paste. Every teammate means ad-hoc setup.</p>
+    <div class="section-label" data-i18n="pain_label">痛点</div>
+    <h2 data-i18n="pain_title">你的配置不该困在一台机器里。</h2>
+    <p class="section-desc" data-i18n="pain_desc">Claude Code 很强大。但每台新机器都要重来一遍。每次改动都要手动复制。每个队友都要临时配置。</p>
     <div class="pain-grid">
       <div class="pain-card">
         <div class="icon">🖥️</div>
-        <h3>New Machine, Ground Zero</h3>
-        <p>Hours lost hunting down old configs, reinstalling skills, rewriting rules from memory. Every time.</p>
+        <h3 data-i18n="pain_1_title">新机器，从零开始</h3>
+        <p data-i18n="pain_1_desc">花几个小时找旧配置、重装 skills、凭记忆重写 rules。每次如此。</p>
       </div>
       <div class="pain-card">
         <div class="icon">🔄</div>
-        <h3>Config Drift</h3>
-        <p>Desktop has the new rules. Laptop has the old ones. Neither is the full picture. They diverge silently.</p>
+        <h3 data-i18n="pain_2_title">配置漂移</h3>
+        <p data-i18n="pain_2_desc">桌面有新 rules，笔记本用旧的。两台都不完整。越走越远。</p>
       </div>
       <div class="pain-card">
         <div class="icon">👥</div>
-        <h3>Team Chaos</h3>
-        <p>Five teammates. Five manually assembled Claude setups. No shared rules, no common skills, no consistency.</p>
+        <h3 data-i18n="pain_3_title">团队混乱</h3>
+        <p data-i18n="pain_3_desc">五个人，五套手工拼凑的 Claude 配置。无共享 rules，无统一 skills。</p>
       </div>
     </div>
   </div>
@@ -197,39 +200,39 @@ footer a:hover{color:#a1a1aa}
 
 <section id="features">
   <div class="container">
-    <div class="section-label">What It Does</div>
-    <h2>Infrastructure for your<br>Claude Code environment.</h2>
-    <p class="section-desc">Not a tool you run. A foundation you clone. Everything is files. Everything is git. Everything is composable.</p>
+    <div class="section-label" data-i18n="features_label">功能</div>
+    <h2 data-i18n="features_title">Claude Code 环境的基础设施。</h2>
+    <p class="section-desc" data-i18n="features_desc">不是你运行的工具，是你克隆的基石。一切都是文件，一切都在 git，一切皆可组合。</p>
     <div class="features-grid">
       <div class="feature-card">
         <div class="f-icon">🔗</div>
-        <h3>Smart Symlinks</h3>
-        <p>Rules, skills, agents, MCP configs — all linked from one git repo to <code>~/.claude/</code>. One <code>setup-links.sh</code> wires everything.</p>
+        <h3 data-i18n="feat_1_title">智能符号链接</h3>
+        <p data-i18n="feat_1_desc">Rules、skills、agents、MCP 配置 — 全部从一个 git 仓库链接到 <code>~/.claude/</code>。一条 <code>setup-links.sh</code> 全部接通。</p>
       </div>
       <div class="feature-card">
         <div class="f-icon">🔐</div>
-        <h3>Public / Private Split</h3>
-        <p>ccconfig is open source, safe to fork. Secrets live in ccprivate. Symlinks bridge the two. Zero tokens in public repo.</p>
+        <h3 data-i18n="feat_2_title">公开/私密分离</h3>
+        <p data-i18n="feat_2_desc">ccconfig 开源可 fork。秘钥存在 ccprivate。符号链接桥接两者。公开仓库零 token。</p>
       </div>
       <div class="feature-card">
         <div class="f-icon">🔄</div>
-        <h3>Auto-Sync</h3>
-        <p>systemd monitor watches your configs. Changes push to GitHub automatically. Pull on another machine. Identical, always.</p>
+        <h3 data-i18n="feat_3_title">自动同步</h3>
+        <p data-i18n="feat_3_desc">systemd 监控你的配置。有改动自动推送到 GitHub。另一台机器下拉更新。始终一致。</p>
       </div>
       <div class="feature-card">
         <div class="f-icon">📌</div>
-        <h3>Version Pinned</h3>
-        <p><code>conf/versions.json</code> locks every tool version — Node, gh, Claude Code CLI, lark-cli. No surprise breakage on update.</p>
+        <h3 data-i18n="feat_4_title">版本锁定</h3>
+        <p data-i18n="feat_4_desc"><code>conf/versions.json</code> 锁定每个工具版本 — Node、gh、Claude Code CLI、lark-cli。升级不会突然炸掉。</p>
       </div>
       <div class="feature-card">
         <div class="f-icon">⚡</div>
-        <h3>One-Command Upgrade</h3>
-        <p><code>bash update.sh all</code> — monthly maintenance in 30 seconds. Updates tools, rebuilds links, checks everything.</p>
+        <h3 data-i18n="feat_5_title">一键升级</h3>
+        <p data-i18n="feat_5_desc"><code>bash update.sh all</code> — 月度维护 30 秒搞定。更新工具、重建链接、全量检查。</p>
       </div>
       <div class="feature-card">
         <div class="f-icon">📦</div>
-        <h3>Skills Marketplace Ready</h3>
-        <p>15+ Claude Code skills available. Install per-line with <code>/plugin install</code>. Take what you need, ignore the rest.</p>
+        <h3 data-i18n="feat_6_title">Skills 市场就绪</h3>
+        <p data-i18n="feat_6_desc">15+ Claude Code skills 可用。按条安装 <code>/plugin install</code>。按需取用。</p>
       </div>
     </div>
   </div>
@@ -237,24 +240,24 @@ footer a:hover{color:#a1a1aa}
 
 <section id="usecases">
   <div class="container">
-    <div class="section-label">Use Cases</div>
-    <h2>Built for how you<br>actually work.</h2>
-    <p class="section-desc">Three scenarios where ccconfig turns hours into minutes.</p>
+    <div class="section-label" data-i18n="usecases_label">场景</div>
+    <h2 data-i18n="usecases_title">为你真实的工作流而建。</h2>
+    <p class="section-desc" data-i18n="usecases_desc">三个场景，小时变分钟。</p>
     <div class="usecase-grid">
       <div class="usecase-card">
         <div class="uc-num">01</div>
-        <h3>Fresh Machine</h3>
-        <p>From macOS setup wizard to fully configured Claude Code in under 10 minutes. Clone, link, done. Every rule, every skill, every setting — exactly as you left it.</p>
+        <h3 data-i18n="uc_1_title">新装机</h3>
+        <p data-i18n="uc_1_desc">从 macOS 设置向导到 Claude Code 完整配置，不到 10 分钟。克隆、链接、完成。每条 rule、每个 skill、每项设置 — 原封不动。</p>
       </div>
       <div class="usecase-card">
         <div class="uc-num">02</div>
-        <h3>Multi-Device Sync</h3>
-        <p>Desktop at work. Laptop at home. Remote server via SSH. Same rules. Same skills. Same Claude Code experience. Auto-sync keeps them identical.</p>
+        <h3 data-i18n="uc_2_title">多设备同步</h3>
+        <p data-i18n="uc_2_desc">办公室桌面、家里笔记本、SSH 远程服务器。相同 rules、相同 skills、相同 Claude Code 体验。自动同步保持一致。</p>
       </div>
       <div class="usecase-card">
         <div class="uc-num">03</div>
-        <h3>Team Onboarding</h3>
-        <p>New teammate clones ccprivate, runs setup. Instant parity with the rest of the team. Shared rules, shared skills, shared workflows. No configuration meeting required.</p>
+        <h3 data-i18n="uc_3_title">团队入职</h3>
+        <p data-i18n="uc_3_desc">新人克隆 ccprivate，运行 setup。即刻与团队一致。共享 rules、共享 skills、共享工作流。无需配置会议。</p>
       </div>
     </div>
   </div>
@@ -262,32 +265,32 @@ footer a:hover{color:#a1a1aa}
 
 <section id="how">
   <div class="container">
-    <div class="section-label">How It Works</div>
-    <h2>Three steps.<br>Thirty seconds each.</h2>
+    <div class="section-label" data-i18n="how_label">三步</div>
+    <h2 data-i18n="how_title">三步。<br>每步三十秒。</h2>
     <p class="section-desc"></p>
     <div class="steps">
       <div class="step">
         <div class="step-num">1</div>
         <div class="step-content">
-          <h3>Clone the repo</h3>
+          <h3 data-i18n="step_1_title">克隆仓库</h3>
           <p><code>git clone --branch release https://github.com/mengfanchun2017/ccconfig.git</code></p>
-          <p>Release branch is stable. Main is development. You always get the tested version.</p>
+          <p data-i18n="step_1_desc">Release 分支是稳定版。Main 是开发版。你永远拿到测试过的版本。</p>
         </div>
       </div>
       <div class="step">
         <div class="step-num">2</div>
         <div class="step-content">
-          <h3>Run setup</h3>
+          <h3 data-i18n="step_2_title">运行安装</h3>
           <p><code>bash ccconfig/setup-links.sh</code></p>
-          <p>Creates symlinks from <code>~/.claude/</code> to your repo. Rules, skills, agents, MCP configs, settings — all wired up instantly.</p>
+          <p data-i18n="step_2_desc">从 <code>~/.claude/</code> 创建符号链接到你的仓库。Rules、skills、agents、MCP 配置、settings — 全部即刻接通。</p>
         </div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
         <div class="step-content">
-          <h3>Let it sync</h3>
+          <h3 data-i18n="step_3_title">自动同步</h3>
           <p><code>systemctl --user enable auto-sync</code></p>
-          <p>Background monitor watches for changes. Pushes to git automatically. Your other machines pull and stay current.</p>
+          <p data-i18n="step_3_desc">后台监控文件变更。自动推送 git。你的其他机器下拉保持同步。</p>
         </div>
       </div>
     </div>
@@ -297,27 +300,27 @@ footer a:hover{color:#a1a1aa}
 <section id="faq">
   <div class="container">
     <div class="section-label">FAQ</div>
-    <h2>You might wonder.</h2>
+    <h2 data-i18n="faq_title">你可能会问。</h2>
     <div class="faq">
       <div class="faq-item">
-        <div class="faq-q">How is this different from dotfiles?</div>
-        <div class="faq-a">Dotfiles sync files. ccconfig manages versions, dependencies, auto-updates, and bridges public/private repos with symlinks. It's dotfiles with a build system — <code>setup-links.sh</code> understands the full ~/.claude/ directory structure and wires every component to the right place.</div>
+        <div class="faq-q" data-i18n="faq_1_q">和 dotfiles 有什么不同？</div>
+        <div class="faq-a" data-i18n="faq_1_a">Dotfiles 同步文件。ccconfig 管理版本、依赖、自动更新，并用符号链接桥接公开/私密仓库。它是带构建系统的 dotfiles — <code>setup-links.sh</code> 理解完整的 ~/.claude/ 目录结构，把每个组件接到正确位置。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q">Do I need ccprivate?</div>
-        <div class="faq-a">Only if you have API keys, tokens, or private configs. ccconfig works standalone — clone, run setup, you're done. ccprivate is for secrets you don't want in a public repo.</div>
+        <div class="faq-q" data-i18n="faq_2_q">我需要 ccprivate 吗？</div>
+        <div class="faq-a" data-i18n="faq_2_a">只有当你需要存 API key、token 或私有配置时才需要。ccconfig 可独立运行 — 克隆、运行 setup、搞定。ccprivate 是给不想放进公开仓库的秘钥准备的。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q">Can I use only parts of it?</div>
-        <div class="faq-a">Yes. Everything is optional. Skills install per-line with <code>/plugin install</code>. Rules are individual files — keep the ones you want, delete the rest. The symlink system handles partial adoption cleanly.</div>
+        <div class="faq-q" data-i18n="faq_3_q">可以只取部分用吗？</div>
+        <div class="faq-a" data-i18n="faq_3_a">可以。一切都是可选的。Skills 按条安装 <code>/plugin install</code>。Rules 是独立文件 — 留你想要的，删掉不需要的。符号链接系统能干净地处理部分采用。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q">What OS does it support?</div>
-        <div class="faq-a">Linux and WSL2 (Windows) are fully supported and tested daily. macOS support is planned — most scripts work already, but auto-sync needs a launchd equivalent. PRs welcome.</div>
+        <div class="faq-q" data-i18n="faq_4_q">支持哪些操作系统？</div>
+        <div class="faq-a" data-i18n="faq_4_a">Linux 和 WSL2（Windows）完整支持且每日测试。macOS 支持计划中 — 大部分脚本已可用，但 auto-sync 需 launchd 等价实现。欢迎 PR。</div>
       </div>
       <div class="faq-item">
-        <div class="faq-q">Is it stable? Can I trust it in production?</div>
-        <div class="faq-a">ccconfig is used daily across multiple machines by its maintainer. The release branch only receives tagged, tested versions. Auto-sync has been running continuously for months. That said, it's a personal infrastructure project — not an enterprise product. Read the code, it's all bash scripts and symlinks.</div>
+        <div class="faq-q" data-i18n="faq_5_q">稳定吗？能用于生产吗？</div>
+        <div class="faq-a" data-i18n="faq_5_a">ccconfig 由维护者在多台机器上每天使用。Release 分支只接收打过 tag 的测试版本。Auto-sync 已连续运行数月。话虽如此，这是个人基础设施项目 — 不是企业产品。读代码，都是 bash 脚本和符号链接。</div>
       </div>
     </div>
   </div>
@@ -325,9 +328,9 @@ footer a:hover{color:#a1a1aa}
 
 <section class="footer-cta">
   <div class="container">
-    <h2>One command to<br>configure Claude Code.</h2>
-    <p>Clone the release branch. Run setup. Done.</p>
-    <div class="clone-box" onclick="copyClone()" title="Click to copy">
+    <h2 data-i18n="cta_title">一条命令，配置 Claude Code。</h2>
+    <p data-i18n="cta_desc">克隆 release 分支。运行 setup。完成。</p>
+    <div class="clone-box" onclick="copyClone()" title="点击复制">
       git clone --branch release https://github.com/mengfanchun2017/ccconfig.git
     </div>
   </div>
@@ -335,24 +338,184 @@ footer a:hover{color:#a1a1aa}
 
 <footer>
   <div class="container">
-    <p><a href="https://github.com/mengfanchun2017/ccconfig" target="_blank" rel="noopener">GitHub</a> &middot; MIT License &middot; Built with a terminal</p>
+    <p><a href="https://github.com/mengfanchun2017/ccconfig" target="_blank" rel="noopener">GitHub</a> &middot; MIT License &middot; <span data-i18n="footer_tag">终端里搭建的</span></p>
   </div>
 </footer>
 
 <script>
-document.querySelectorAll('.faq-q').forEach(q=>{
-  q.addEventListener('click',()=>q.parentElement.classList.toggle('open'))
-})
+const I18N = {
+  zh: {
+    nav_features: "功能",
+    nav_faq: "FAQ",
+    lang_switch: "EN",
+    hero_title: 'Claude Code,<br>一键配置。',
+    hero_sub: "一个仓库，一条命令。你的整个 Claude Code 环境 — rules、skills、MCP、agents — 全设备同步。",
+    hero_cta_primary: "查看 GitHub →",
+    hero_cta_secondary: "工作原理",
+    terminal_done: "完成。Claude Code 已配置。",
+    pain_label: "痛点",
+    pain_title: "你的配置不该困在一台机器里。",
+    pain_desc: "Claude Code 很强大。但每台新机器都要重来一遍。每次改动都要手动复制。每个队友都要临时配置。",
+    pain_1_title: "新机器，从零开始",
+    pain_1_desc: "花几个小时找旧配置、重装 skills、凭记忆重写 rules。每次如此。",
+    pain_2_title: "配置漂移",
+    pain_2_desc: "桌面有新 rules，笔记本用旧的。两台都不完整。越走越远。",
+    pain_3_title: "团队混乱",
+    pain_3_desc: "五个人，五套手工拼凑的 Claude 配置。无共享 rules，无统一 skills。",
+    features_label: "功能",
+    features_title: "Claude Code 环境的基础设施。",
+    features_desc: "不是你运行的工具，是你克隆的基石。一切都是文件，一切都在 git，一切皆可组合。",
+    feat_1_title: "智能符号链接",
+    feat_1_desc: 'Rules、skills、agents、MCP 配置 — 全部从一个 git 仓库链接到 <code>~/.claude/</code>。一条 <code>setup-links.sh</code> 全部接通。',
+    feat_2_title: "公开/私密分离",
+    feat_2_desc: "ccconfig 开源可 fork。秘钥存在 ccprivate。符号链接桥接两者。公开仓库零 token。",
+    feat_3_title: "自动同步",
+    feat_3_desc: "systemd 监控你的配置。有改动自动推送到 GitHub。另一台机器下拉更新。始终一致。",
+    feat_4_title: "版本锁定",
+    feat_4_desc: '<code>conf/versions.json</code> 锁定每个工具版本 — Node、gh、Claude Code CLI、lark-cli。升级不会突然炸掉。',
+    feat_5_title: "一键升级",
+    feat_5_desc: '<code>bash update.sh all</code> — 月度维护 30 秒搞定。更新工具、重建链接、全量检查。',
+    feat_6_title: "Skills 市场就绪",
+    feat_6_desc: '15+ Claude Code skills 可用。按条安装 <code>/plugin install</code>。按需取用。',
+    usecases_label: "场景",
+    usecases_title: "为你真实的工作流而建。",
+    usecases_desc: "三个场景，小时变分钟。",
+    uc_1_title: "新装机",
+    uc_1_desc: "从 macOS 设置向导到 Claude Code 完整配置，不到 10 分钟。克隆、链接、完成。每条 rule、每个 skill、每项设置 — 原封不动。",
+    uc_2_title: "多设备同步",
+    uc_2_desc: "办公室桌面、家里笔记本、SSH 远程服务器。相同 rules、相同 skills、相同 Claude Code 体验。自动同步保持一致。",
+    uc_3_title: "团队入职",
+    uc_3_desc: "新人克隆 ccprivate，运行 setup。即刻与团队一致。共享 rules、共享 skills、共享工作流。无需配置会议。",
+    how_label: "三步",
+    how_title: "三步。<br>每步三十秒。",
+    step_1_title: "克隆仓库",
+    step_1_desc: "Release 分支是稳定版。Main 是开发版。你永远拿到测试过的版本。",
+    step_2_title: "运行安装",
+    step_2_desc: '从 <code>~/.claude/</code> 创建符号链接到你的仓库。Rules、skills、agents、MCP 配置、settings — 全部即刻接通。',
+    step_3_title: "自动同步",
+    step_3_desc: "后台监控文件变更。自动推送 git。你的其他机器下拉保持同步。",
+    faq_title: "你可能会问。",
+    faq_1_q: "和 dotfiles 有什么不同？",
+    faq_1_a: 'Dotfiles 同步文件。ccconfig 管理版本、依赖、自动更新，并用符号链接桥接公开/私密仓库。它是带构建系统的 dotfiles — <code>setup-links.sh</code> 理解完整的 ~/.claude/ 目录结构，把每个组件接到正确位置。',
+    faq_2_q: "我需要 ccprivate 吗？",
+    faq_2_a: "只有当你需要存 API key、token 或私有配置时才需要。ccconfig 可独立运行 — 克隆、运行 setup、搞定。ccprivate 是给不想放进公开仓库的秘钥准备的。",
+    faq_3_q: "可以只取部分用吗？",
+    faq_3_a: '可以。一切都是可选的。Skills 按条安装 <code>/plugin install</code>。Rules 是独立文件 — 留你想要的，删掉不需要的。符号链接系统能干净地处理部分采用。',
+    faq_4_q: "支持哪些操作系统？",
+    faq_4_a: "Linux 和 WSL2（Windows）完整支持且每日测试。macOS 支持计划中 — 大部分脚本已可用，但 auto-sync 需 launchd 等价实现。欢迎 PR。",
+    faq_5_q: "稳定吗？能用于生产吗？",
+    faq_5_a: "ccconfig 由维护者在多台机器上每天使用。Release 分支只接收打过 tag 的测试版本。Auto-sync 已连续运行数月。话虽如此，这是个人基础设施项目 — 不是企业产品。读代码，都是 bash 脚本和符号链接。",
+    cta_title: "一条命令，配置 Claude Code。",
+    cta_desc: "克隆 release 分支。运行 setup。完成。",
+    footer_tag: "终端里搭建的"
+  },
+  en: {
+    nav_features: "Features",
+    nav_faq: "FAQ",
+    lang_switch: "中文",
+    hero_title: 'Claude Code,<br>Configured.',
+    hero_sub: "One repo. One command. Your entire Claude Code environment — rules, skills, MCP, agents — synced across every machine.",
+    hero_cta_primary: "View on GitHub →",
+    hero_cta_secondary: "How it works",
+    terminal_done: "Done. Claude Code is configured.",
+    pain_label: "The Problem",
+    pain_title: "Your config shouldn't live<br>in a single machine.",
+    pain_desc: "Claude Code is powerful. But every new machine means redoing everything. Every change means manual copy-paste. Every teammate means ad-hoc setup.",
+    pain_1_title: "New Machine, Ground Zero",
+    pain_1_desc: "Hours lost hunting down old configs, reinstalling skills, rewriting rules from memory. Every time.",
+    pain_2_title: "Config Drift",
+    pain_2_desc: "Desktop has the new rules. Laptop has the old ones. Neither is the full picture. They diverge silently.",
+    pain_3_title: "Team Chaos",
+    pain_3_desc: "Five teammates. Five manually assembled Claude setups. No shared rules, no common skills, no consistency.",
+    features_label: "Features",
+    features_title: "Infrastructure for your<br>Claude Code environment.",
+    features_desc: "Not a tool you run. A foundation you clone. Everything is files. Everything is git. Everything is composable.",
+    feat_1_title: "Smart Symlinks",
+    feat_1_desc: 'Rules, skills, agents, MCP configs — all linked from one git repo to <code>~/.claude/</code>. One <code>setup-links.sh</code> wires everything.',
+    feat_2_title: "Public / Private Split",
+    feat_2_desc: "ccconfig is open source, safe to fork. Secrets live in ccprivate. Symlinks bridge the two. Zero tokens in public repo.",
+    feat_3_title: "Auto-Sync",
+    feat_3_desc: "systemd monitor watches your configs. Changes push to GitHub automatically. Pull on another machine. Identical, always.",
+    feat_4_title: "Version Pinned",
+    feat_4_desc: '<code>conf/versions.json</code> locks every tool version — Node, gh, Claude Code CLI, lark-cli. No surprise breakage on update.',
+    feat_5_title: "One-Command Upgrade",
+    feat_5_desc: '<code>bash update.sh all</code> — monthly maintenance in 30 seconds. Updates tools, rebuilds links, checks everything.',
+    feat_6_title: "Skills Marketplace Ready",
+    feat_6_desc: '15+ Claude Code skills available. Install per-line with <code>/plugin install</code>. Take what you need, ignore the rest.',
+    usecases_label: "Use Cases",
+    usecases_title: "Built for how you<br>actually work.",
+    usecases_desc: "Three scenarios where ccconfig turns hours into minutes.",
+    uc_1_title: "Fresh Machine",
+    uc_1_desc: "From macOS setup wizard to fully configured Claude Code in under 10 minutes. Clone, link, done. Every rule, every skill, every setting — exactly as you left it.",
+    uc_2_title: "Multi-Device Sync",
+    uc_2_desc: "Desktop at work. Laptop at home. Remote server via SSH. Same rules. Same skills. Same Claude Code experience. Auto-sync keeps them identical.",
+    uc_3_title: "Team Onboarding",
+    uc_3_desc: "New teammate clones ccprivate, runs setup. Instant parity with the rest of the team. Shared rules, shared skills, shared workflows. No configuration meeting required.",
+    how_label: "How",
+    how_title: "Three steps.<br>Thirty seconds each.",
+    step_1_title: "Clone the repo",
+    step_1_desc: "Release branch is stable. Main is development. You always get the tested version.",
+    step_2_title: "Run setup",
+    step_2_desc: 'Creates symlinks from <code>~/.claude/</code> to your repo. Rules, skills, agents, MCP configs, settings — all wired up instantly.',
+    step_3_title: "Let it sync",
+    step_3_desc: "Background monitor watches for changes. Pushes to git automatically. Your other machines pull and stay current.",
+    faq_title: "You might wonder.",
+    faq_1_q: "How is this different from dotfiles?",
+    faq_1_a: 'Dotfiles sync files. ccconfig manages versions, dependencies, auto-updates, and bridges public/private repos with symlinks. It\'s dotfiles with a build system — <code>setup-links.sh</code> understands the full ~/.claude/ directory structure and wires every component to the right place.',
+    faq_2_q: "Do I need ccprivate?",
+    faq_2_a: "Only if you have API keys, tokens, or private configs. ccconfig works standalone — clone, run setup, you're done. ccprivate is for secrets you don't want in a public repo.",
+    faq_3_q: "Can I use only parts of it?",
+    faq_3_a: 'Yes. Everything is optional. Skills install per-line with <code>/plugin install</code>. Rules are individual files — keep the ones you want, delete the rest. The symlink system handles partial adoption cleanly.',
+    faq_4_q: "What OS does it support?",
+    faq_4_a: "Linux and WSL2 (Windows) are fully supported and tested daily. macOS support is planned — most scripts work already, but auto-sync needs a launchd equivalent. PRs welcome.",
+    faq_5_q: "Is it stable? Can I trust it in production?",
+    faq_5_a: "ccconfig is used daily across multiple machines by its maintainer. The release branch only receives tagged, tested versions. Auto-sync has been running continuously for months. That said, it's a personal infrastructure project — not an enterprise product. Read the code, it's all bash scripts and symlinks.",
+    cta_title: "One command to<br>configure Claude Code.",
+    cta_desc: "Clone the release branch. Run setup. Done.",
+    footer_tag: "Built with a terminal"
+  }
+};
 
-function copyClone(){
-  const v='git clone --branch release https://github.com/mengfanchun2017/ccconfig.git'
-  navigator.clipboard.writeText(v).then(()=>{
-    const b=document.querySelector('.clone-box')
-    const o=b.textContent
-    b.textContent='Copied!'
-    b.style.color='#4ade80'
-    setTimeout(()=>{b.textContent=o;b.style.color=''},2000)
-  })
+let currentLang = 'zh';
+
+function detectLang() {
+  const saved = localStorage.getItem('ccconfig-lang');
+  if (saved === 'en' || saved === 'zh') return saved;
+  const browser = navigator.language || navigator.languages[0] || '';
+  return browser.startsWith('zh') ? 'zh' : 'en';
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  localStorage.setItem('ccconfig-lang', lang);
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (I18N[lang] && I18N[lang][key]) {
+      el.innerHTML = I18N[lang][key];
+    }
+  });
+}
+
+function toggleLang() {
+  setLang(currentLang === 'zh' ? 'en' : 'zh');
+}
+
+setLang(detectLang());
+
+document.querySelectorAll('.faq-q').forEach(q => {
+  q.addEventListener('click', () => q.parentElement.classList.toggle('open'));
+});
+
+function copyClone() {
+  const v = 'git clone --branch release https://github.com/mengfanchun2017/ccconfig.git';
+  navigator.clipboard.writeText(v).then(() => {
+    const b = document.querySelector('.clone-box');
+    const o = b.textContent;
+    b.textContent = 'Copied! ✓';
+    b.style.color = '#4ade80';
+    setTimeout(() => { b.textContent = o; b.style.color = ''; }, 2000);
+  });
 }
 </script>
 
