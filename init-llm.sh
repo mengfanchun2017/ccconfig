@@ -112,13 +112,69 @@ print(f"{llm.get('base_url', '')}|{llm.get('model', '')}|{llm.get('key', '')}|{s
 PYEOF
 }
 
+# ========== 写配置（直连 + gateway 共用） ==========
+# $1: name  $2: base_url  $3: model  $4: small_model  $5: api_key (optional)
+_write_llm_config() {
+    local name="$1" base_url="$2" model_name="$3" small_model="$4" api_key="${5:-}"
+
+    info "  API: $base_url"
+    info "  模型: $model_name"
+    info "  小模型: $small_model"
+
+    export BASE_URL="$base_url" MODEL_NAME="$model_name" SMALL_MODEL="$small_model" API_KEY="$api_key" NAME="$name"
+
+    python3 << 'PYEOF'
+import json, os
+
+env_update = {
+    "ANTHROPIC_BASE_URL": os.environ.get('BASE_URL', ''),
+    "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
+}
+api_key = os.environ.get('API_KEY', '')
+if api_key:
+    env_update["ANTHROPIC_AUTH_TOKEN"] = api_key
+
+def write_json(path, updater):
+    try:
+        with open(path, 'r') as f:
+            data = json.load(f)
+    except:
+        data = {}
+    updater(data)
+    with open(path, 'w') as f:
+        json.dump(data, f, indent=4)
+
+# ~/.claude.json
+write_json(os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json')),
+           lambda d: d.setdefault('env', {}).update(env_update))
+print("~/.claude.json 已更新")
+
+# ~/.claude/settings.json
+sf = os.path.expanduser("~/.claude/settings.json")
+if os.path.islink(sf) and not os.path.exists(sf):
+    os.unlink(sf)
+write_json(sf, lambda d: d.setdefault('env', {}).update(env_update))
+print("~/.claude/settings.json 已更新")
+
+# conf/llm.json current
+write_json(os.environ['CONFIG_FILE'], lambda d: d.update({'current': os.environ['NAME']}))
+print("conf/llm.json 已更新")
+PYEOF
+
+    success "LLM 已切换为: $name"
+    warn "切换后会报 \"API Error: Failed to parse JSON\"，需 /exit 后 claude 重连"
+}
+
 # ========== 切换 LLM ==========
 switch_llm() {
     local name="$1"
 
     if [[ "$name" == "gateway" ]]; then
-        warn "Gateway 暂不可用 — 等 Claude Code 更新后启用"
-        return 1
+        switch_to_gateway
+        return $?
     fi
 
     # 切到直连前先停 watchdog + proxy
@@ -132,82 +188,16 @@ switch_llm() {
         bash "$LLMSWITCH_INIT" --stop 2>/dev/null || true
     fi
 
-    # 获取配置
-    CONFIG=$(get_llm_config "$name") || { error "无法获取 LLM 配置: $name"; return 1; }
-    IFS='|' read -r BASE_URL MODEL_NAME API_KEY SMALL_MODEL <<< "$CONFIG"
+    local config=$(get_llm_config "$name") || { error "无法获取 LLM 配置: $name"; return 1; }
+    IFS='|' read -r base_url model_name api_key small_model <<< "$config"
 
     info "切换到: $name"
-    info "  API: $BASE_URL"
-    info "  模型: $MODEL_NAME"
-    info "  小模型: $SMALL_MODEL"
-
-    # 先 export，让 heredoc 里的 Python 能读到
-    export BASE_URL MODEL_NAME API_KEY SMALL_MODEL
-
-    # 更新 ~/.claude.json 和 settings.json（一次 Python 进程写两个文件）
-    python3 << 'PYEOF'
-import json, os
-
-env_update = {
-    "ANTHROPIC_BASE_URL": os.environ.get('BASE_URL', ''),
-    "ANTHROPIC_AUTH_TOKEN": os.environ.get('API_KEY', ''),
-    "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
-}
-
-claude_json = os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json'))
-try:
-    with open(claude_json, 'r') as f:
-        config = json.load(f)
-except:
-    config = {}
-config.setdefault('env', {}).update(env_update)
-with open(claude_json, 'w') as f:
-    json.dump(config, f, indent=4)
-print("~/.claude.json 已更新")
-
-settings_file = os.path.expanduser("~/.claude/settings.json")
-if os.path.islink(settings_file) and not os.path.exists(settings_file):
-    os.unlink(settings_file)
-try:
-    with open(settings_file, 'r') as f:
-        sconfig = json.load(f)
-except:
-    sconfig = {}
-sconfig.setdefault('env', {}).update(env_update)
-with open(settings_file, 'w') as f:
-    json.dump(sconfig, f, indent=4)
-print("~/.claude/settings.json 已更新")
-PYEOF
-
-    # 更新 conf/llm.json 的 current
-    export CONFIG_FILE NAME="$name"
-    python3 << 'PYEOF'
-import json, os
-
-config_file = os.environ['CONFIG_FILE']
-name = os.environ['NAME']
-
-with open(config_file, 'r') as f:
-    config = json.load(f)
-
-config['current'] = name
-
-with open(config_file, 'w') as f:
-    json.dump(config, f, indent=4)
-print("conf/llm.json 已更新")
-PYEOF
-
-    success "LLM 已切换为: $name"
-    warn "切换后会报 \"API Error: Failed to parse JSON\"，需 /exit 后 claude 重连"
+    _write_llm_config "$name" "$base_url" "$model_name" "$small_model" "$api_key"
 }
 
 switch_to_gateway() {
     info "切换到 Gateway 模式"
 
-    # 启动 proxy（如未运行）
     if ! is_proxy_running; then
         info "启动 LLM 网关代理..."
         bash "$LLMSWITCH_INIT" --start || { error "代理启动失败"; return 1; }
@@ -215,72 +205,17 @@ switch_to_gateway() {
         info "网关代理已在运行"
     fi
 
-    # 确保 watchdog 运行（监控 proxy 健康 + 路由变更通知）
     local watchdog_pid_file="$HOME/.cache/llmswitch-watchdog.pid"
     if ! [ -f "$watchdog_pid_file" ] || ! kill -0 "$(cat "$watchdog_pid_file")" 2>/dev/null; then
         nohup bash "$LLMSWITCH_WATCHDOG" --daemon >> "$HOME/.cache/llmswitch-watchdog.log" 2>&1 &
         info "watchdog 已启动"
     fi
 
-    # 从 llm.json 读 gateway 条目获取 model/small_model
-    local CONFIG=$(get_llm_config "gateway") || { error "无法获取 Gateway 配置"; return 1; }
-    IFS='|' read -r BASE_URL MODEL_NAME API_KEY SMALL_MODEL <<< "$CONFIG"
+    local config=$(get_llm_config "gateway") || { error "无法获取 Gateway 配置"; return 1; }
+    IFS='|' read -r base_url model_name _ small_model <<< "$config"
 
-    info "  API: $BASE_URL"
-    info "  模型: $MODEL_NAME → $(read_gateway_routes)"
-    info "  小模型: $SMALL_MODEL"
-
-    export BASE_URL MODEL_NAME SMALL_MODEL
-
-    python3 << 'PYEOF'
-import json, os
-
-env_update = {
-    "ANTHROPIC_BASE_URL": os.environ.get('BASE_URL', ''),
-    "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
-}
-
-claude_json = os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json'))
-try:
-    with open(claude_json, 'r') as f:
-        config = json.load(f)
-except:
-    config = {}
-config.setdefault('env', {}).update(env_update)
-with open(claude_json, 'w') as f:
-    json.dump(config, f, indent=4)
-print("~/.claude.json 已更新")
-
-settings_file = os.path.expanduser("~/.claude/settings.json")
-if os.path.islink(settings_file) and not os.path.exists(settings_file):
-    os.unlink(settings_file)
-try:
-    with open(settings_file, 'r') as f:
-        sconfig = json.load(f)
-except:
-    sconfig = {}
-sconfig.setdefault('env', {}).update(env_update)
-with open(settings_file, 'w') as f:
-    json.dump(sconfig, f, indent=4)
-print("~/.claude/settings.json 已更新")
-PYEOF
-
-    export CONFIG_FILE NAME="gateway"
-    python3 << 'PYEOF'
-import json, os
-with open(os.environ['CONFIG_FILE'], 'r') as f:
-    config = json.load(f)
-config['current'] = os.environ['NAME']
-with open(os.environ['CONFIG_FILE'], 'w') as f:
-    json.dump(config, f, indent=4)
-print("conf/llm.json 已更新")
-PYEOF
-
-    success "LLM 已切换为: Gateway"
-    warn "切换后会报 \"API Error: Failed to parse JSON\"，需 /exit 后 claude 重连"
+    info "  模型: $model_name → $(read_gateway_routes)"
+    _write_llm_config "gateway" "$base_url" "$model_name" "$small_model" ""
 }
 
 # ========== 显示列表 ==========
