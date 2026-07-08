@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ccconfig — Claude Code, Configured.</title>
+<meta name="description" content="One repo. One command. Your entire Claude Code environment — rules, skills, MCP, agents — synced across every machine.">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="ccconfig — Claude Code, Configured.">
+<meta property="og:description" content="One repo. One command. Your entire Claude Code environment synced across every machine.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ccconfig.pages.dev">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ccconfig — Claude Code, Configured.">
+<meta name="twitter:description" content="One repo. One command. Your entire Claude Code environment synced across every machine.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230a0a0f'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='monospace' font-size='20' font-weight='bold' fill='%234ade80'>C</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:#0a0a0f;color:#d4d4d8;font-family:Inter,system-ui,-apple-system,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:#60a5fa;text-decoration:none;transition:color .2s}
+a:hover{color:#93bbfd}
+code,kbd,pre{font-family:"JetBrains Mono","Fira Code",monospace}
+
+.container{max-width:960px;margin:0 auto;padding:0 24px}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,10,15,.85);backdrop-filter:blur(12px);border-bottom:1px solid #1e1e2e}
+nav .container{display:flex;align-items:center;justify-content:space-between;height:56px}
+.nav-logo{font-weight:700;font-size:18px;color:#e4e4e7}
+.nav-logo span{color:#4ade80}
+.nav-links{display:flex;gap:24px;align-items:center}
+.nav-links a{font-size:14px;color:#a1a1aa}
+.nav-links a:hover{color:#e4e4e7}
+.nav-gh{display:flex;align-items:center;gap:6px;font-size:14px;color:#a1a1aa}
+.nav-gh:hover{color:#e4e4e7}
+.nav-gh svg{width:18px;height:18px}
+
+section{padding:100px 0}
+
+.hero{padding:160px 0 100px;text-align:center}
+.hero h1{font-size:clamp(40px,8vw,72px);font-weight:700;color:#fafafa;line-height:1.1;letter-spacing:-.02em;margin-bottom:20px}
+.hero h1 span{color:#4ade80}
+.hero .sub{font-size:clamp(16px,3vw,20px);color:#a1a1aa;max-width:600px;margin:0 auto 40px;line-height:1.6}
+.hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:48px}
+.hero-cta .primary,.hero-cta .secondary{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;transition:all .2s}
+.hero-cta .primary{background:#4ade80;color:#0a0a0f;border:none}
+.hero-cta .primary:hover{background:#6ee7a0;transform:translateY(-1px);box-shadow:0 8px 24px rgba(74,222,128,.25)}
+.hero-cta .secondary{background:transparent;color:#a1a1aa;border:1px solid #2e2e3e}
+.hero-cta .secondary:hover{color:#e4e4e7;border-color:#52526b}
+
+.terminal{max-width:640px;margin:0 auto;background:#0e0e14;border:1px solid #1e1e2e;border-radius:10px;overflow:hidden;text-align:left;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.terminal-bar{display:flex;align-items:center;gap:8px;padding:12px 16px;background:#13131a;border-bottom:1px solid #1e1e2e}
+.terminal-bar .dot{width:10px;height:10px;border-radius:50%}
+.terminal-bar .dot.r{background:#ff5f57}
+.terminal-bar .dot.y{background:#febc2e}
+.terminal-bar .dot.g{background:#28c840}
+.terminal-body{padding:16px 20px;font-size:14px;line-height:1.8;color:#a1a1aa;overflow-x:auto}
+.terminal-body .prompt{color:#4ade80}
+.terminal-body .cmd{color:#e4e4e7}
+.terminal-body .out{color:#71717a}
+.terminal-body .cursor{display:inline-block;width:8px;height:16px;background:#4ade80;vertical-align:text-bottom;animation:blink 1s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+
+.section-label{font-size:13px;font-weight:600;color:#4ade80;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+h2{font-size:clamp(28px,5vw,40px);font-weight:700;color:#fafafa;line-height:1.2;letter-spacing:-.01em;margin-bottom:16px}
+.section-desc{font-size:17px;color:#a1a1aa;max-width:560px;margin-bottom:48px;line-height:1.7}
+
+.pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.pain-card{background:#13131a;border:1px solid #1e1e2e;border-radius:10px;padding:28px}
+.pain-card .icon{font-size:24px;margin-bottom:12px}
+.pain-card h3{font-size:16px;font-weight:600;color:#e4e4e7;margin-bottom:8px}
+.pain-card p{font-size:14px;color:#71717a;line-height:1.6}
+
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.feature-card{background:#13131a;border:1px solid #1e1e2e;border-radius:10px;padding:28px;transition:border-color .2s}
+.feature-card:hover{border-color:#2e2e4e}
+.feature-card .f-icon{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#1a1a24;border-radius:8px;margin-bottom:16px;font-size:18px}
+.feature-card h3{font-size:15px;font-weight:600;color:#e4e4e7;margin-bottom:8px}
+.feature-card p{font-size:14px;color:#71717a;line-height:1.6}
+
+.usecase-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.usecase-card{background:linear-gradient(135deg,#13131a 0%,#1a1a28 100%);border:1px solid #1e1e2e;border-radius:10px;padding:32px 28px}
+.usecase-card .uc-num{font-size:13px;font-weight:600;color:#4ade80;margin-bottom:12px;letter-spacing:.05em}
+.usecase-card h3{font-size:18px;font-weight:600;color:#e4e4e7;margin-bottom:8px}
+.usecase-card p{font-size:14px;color:#71717a;line-height:1.6}
+
+.steps{max-width:600px;margin:0 auto}
+.step{display:flex;gap:16px;margin-bottom:32px}
+.step-num{flex-shrink:0;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#1a2e1a;color:#4ade80;border-radius:50%;font-size:15px;font-weight:600}
+.step-content h3{font-size:16px;font-weight:600;color:#e4e4e7;margin-bottom:6px}
+.step-content p{font-size:14px;color:#71717a;line-height:1.6}
+.step-content code{background:#1a1a24;padding:2px 8px;border-radius:4px;font-size:13px;color:#4ade80}
+
+.faq{max-width:640px;margin:0 auto}
+.faq-item{border-bottom:1px solid #1e1e2e;padding:20px 0}
+.faq-q{font-size:16px;font-weight:500;color:#e4e4e7;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;user-select:none}
+.faq-q:hover{color:#fafafa}
+.faq-q::after{content:"+";font-size:20px;color:#52525b;transition:transform .2s;flex-shrink:0}
+.faq-a{font-size:14px;color:#71717a;line-height:1.7;margin-top:12px;display:none}
+.faq-item.open .faq-a{display:block}
+.faq-item.open .faq-q::after{content:"−";transform:rotate(180deg)}
+
+.footer-cta{text-align:center;padding:100px 0}
+.footer-cta h2{font-size:clamp(28px,5vw,36px);margin-bottom:12px}
+.footer-cta p{font-size:17px;color:#a1a1aa;margin-bottom:32px}
+.footer-cta .clone-box{display:inline-flex;align-items:center;gap:12px;background:#13131a;border:1px solid #1e1e2e;border-radius:8px;padding:16px 24px;font-family:"JetBrains Mono","Fira Code",monospace;font-size:14px;color:#4ade80;cursor:text;user-select:all;max-width:100%;overflow-x:auto}
+.footer-cta .clone-box .cpy-btn{flex-shrink:0;background:none;border:none;color:#52525b;cursor:pointer;padding:4px;border-radius:4px;transition:color .2s}
+.footer-cta .clone-box .cpy-btn:hover{color:#a1a1aa}
+
+footer{padding:32px 0;border-top:1px solid #1e1e2e;text-align:center;font-size:13px;color:#52525b}
+footer a{color:#71717a}
+footer a:hover{color:#a1a1aa}
+
+@media(max-width:768px){
+  .pain-grid,.features-grid,.usecase-grid{grid-template-columns:1fr}
+  .hero{padding:120px 0 80px}
+  section{padding:64px 0}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .cursor{animation:none}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="nav-logo">cc<span>config</span></div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/mengfanchun2017/ccconfig" class="nav-gh" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="container">
+    <h1>Claude Code,<br><span>Configured.</span></h1>
+    <p class="sub">One repo. One command. Your entire Claude Code environment — rules, skills, MCP, agents — synced across every machine.</p>
+    <div class="hero-cta">
+      <a href="https://github.com/mengfanchun2017/ccconfig" class="primary" target="_blank" rel="noopener">View on GitHub →</a>
+      <a href="#how" class="secondary">How it works</a>
+    </div>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot r"></div>
+        <div class="dot y"></div>
+        <div class="dot g"></div>
+      </div>
+      <div class="terminal-body">
+        <span class="prompt">$</span> <span class="cmd">git clone --branch release https://github.com/mengfanchun2017/ccconfig.git</span><br>
+        <span class="out">Cloning into 'ccconfig'...</span><br>
+        <span class="prompt">$</span> <span class="cmd">bash ccconfig/setup-links.sh</span><br>
+        <span class="out">[setup-links] rules → 9 linked</span><br>
+        <span class="out">[setup-links] skills → 15 linked</span><br>
+        <span class="out">[setup-links] agents → 4 linked</span><br>
+        <span class="out">[setup-links] settings → done</span><br>
+        <span class="out">Done. Claude Code is configured.</span><br>
+        <span class="prompt">$</span> <span class="cursor"></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pain">
+  <div class="container">
+    <div class="section-label">The Problem</div>
+    <h2>Your config shouldn't live<br>in a single machine.</h2>
+    <p class="section-desc">Claude Code is powerful. But every new machine means redoing everything. Every change means manual copy-paste. Every teammate means ad-hoc setup.</p>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="icon">🖥️</div>
+        <h3>New Machine, Ground Zero</h3>
+        <p>Hours lost hunting down old configs, reinstalling skills, rewriting rules from memory. Every time.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">🔄</div>
+        <h3>Config Drift</h3>
+        <p>Desktop has the new rules. Laptop has the old ones. Neither is the full picture. They diverge silently.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">👥</div>
+        <h3>Team Chaos</h3>
+        <p>Five teammates. Five manually assembled Claude setups. No shared rules, no common skills, no consistency.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="container">
+    <div class="section-label">What It Does</div>
+    <h2>Infrastructure for your<br>Claude Code environment.</h2>
+    <p class="section-desc">Not a tool you run. A foundation you clone. Everything is files. Everything is git. Everything is composable.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="f-icon">🔗</div>
+        <h3>Smart Symlinks</h3>
+        <p>Rules, skills, agents, MCP configs — all linked from one git repo to <code>~/.claude/</code>. One <code>setup-links.sh</code> wires everything.</p>
+      </div>
+      <div class="feature-card">
+        <div class="f-icon">🔐</div>
+        <h3>Public / Private Split</h3>
+        <p>ccconfig is open source, safe to fork. Secrets live in ccprivate. Symlinks bridge the two. Zero tokens in public repo.</p>
+      </div>
+      <div class="feature-card">
+        <div class="f-icon">🔄</div>
+        <h3>Auto-Sync</h3>
+        <p>systemd monitor watches your configs. Changes push to GitHub automatically. Pull on another machine. Identical, always.</p>
+      </div>
+      <div class="feature-card">
+        <div class="f-icon">📌</div>
+        <h3>Version Pinned</h3>
+        <p><code>conf/versions.json</code> locks every tool version — Node, gh, Claude Code CLI, lark-cli. No surprise breakage on update.</p>
+      </div>
+      <div class="feature-card">
+        <div class="f-icon">⚡</div>
+        <h3>One-Command Upgrade</h3>
+        <p><code>bash update.sh all</code> — monthly maintenance in 30 seconds. Updates tools, rebuilds links, checks everything.</p>
+      </div>
+      <div class="feature-card">
+        <div class="f-icon">📦</div>
+        <h3>Skills Marketplace Ready</h3>
+        <p>15+ Claude Code skills available. Install per-line with <code>/plugin install</code>. Take what you need, ignore the rest.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="usecases">
+  <div class="container">
+    <div class="section-label">Use Cases</div>
+    <h2>Built for how you<br>actually work.</h2>
+    <p class="section-desc">Three scenarios where ccconfig turns hours into minutes.</p>
+    <div class="usecase-grid">
+      <div class="usecase-card">
+        <div class="uc-num">01</div>
+        <h3>Fresh Machine</h3>
+        <p>From macOS setup wizard to fully configured Claude Code in under 10 minutes. Clone, link, done. Every rule, every skill, every setting — exactly as you left it.</p>
+      </div>
+      <div class="usecase-card">
+        <div class="uc-num">02</div>
+        <h3>Multi-Device Sync</h3>
+        <p>Desktop at work. Laptop at home. Remote server via SSH. Same rules. Same skills. Same Claude Code experience. Auto-sync keeps them identical.</p>
+      </div>
+      <div class="usecase-card">
+        <div class="uc-num">03</div>
+        <h3>Team Onboarding</h3>
+        <p>New teammate clones ccprivate, runs setup. Instant parity with the rest of the team. Shared rules, shared skills, shared workflows. No configuration meeting required.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="container">
+    <div class="section-label">How It Works</div>
+    <h2>Three steps.<br>Thirty seconds each.</h2>
+    <p class="section-desc"></p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Clone the repo</h3>
+          <p><code>git clone --branch release https://github.com/mengfanchun2017/ccconfig.git</code></p>
+          <p>Release branch is stable. Main is development. You always get the tested version.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>Run setup</h3>
+          <p><code>bash ccconfig/setup-links.sh</code></p>
+          <p>Creates symlinks from <code>~/.claude/</code> to your repo. Rules, skills, agents, MCP configs, settings — all wired up instantly.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Let it sync</h3>
+          <p><code>systemctl --user enable auto-sync</code></p>
+          <p>Background monitor watches for changes. Pushes to git automatically. Your other machines pull and stay current.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="container">
+    <div class="section-label">FAQ</div>
+    <h2>You might wonder.</h2>
+    <div class="faq">
+      <div class="faq-item">
+        <div class="faq-q">How is this different from dotfiles?</div>
+        <div class="faq-a">Dotfiles sync files. ccconfig manages versions, dependencies, auto-updates, and bridges public/private repos with symlinks. It's dotfiles with a build system — <code>setup-links.sh</code> understands the full ~/.claude/ directory structure and wires every component to the right place.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Do I need ccprivate?</div>
+        <div class="faq-a">Only if you have API keys, tokens, or private configs. ccconfig works standalone — clone, run setup, you're done. ccprivate is for secrets you don't want in a public repo.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I use only parts of it?</div>
+        <div class="faq-a">Yes. Everything is optional. Skills install per-line with <code>/plugin install</code>. Rules are individual files — keep the ones you want, delete the rest. The symlink system handles partial adoption cleanly.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What OS does it support?</div>
+        <div class="faq-a">Linux and WSL2 (Windows) are fully supported and tested daily. macOS support is planned — most scripts work already, but auto-sync needs a launchd equivalent. PRs welcome.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Is it stable? Can I trust it in production?</div>
+        <div class="faq-a">ccconfig is used daily across multiple machines by its maintainer. The release branch only receives tagged, tested versions. Auto-sync has been running continuously for months. That said, it's a personal infrastructure project — not an enterprise product. Read the code, it's all bash scripts and symlinks.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="footer-cta">
+  <div class="container">
+    <h2>One command to<br>configure Claude Code.</h2>
+    <p>Clone the release branch. Run setup. Done.</p>
+    <div class="clone-box" onclick="copyClone()" title="Click to copy">
+      git clone --branch release https://github.com/mengfanchun2017/ccconfig.git
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><a href="https://github.com/mengfanchun2017/ccconfig" target="_blank" rel="noopener">GitHub</a> &middot; MIT License &middot; Built with a terminal</p>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.faq-q').forEach(q=>{
+  q.addEventListener('click',()=>q.parentElement.classList.toggle('open'))
+})
+
+function copyClone(){
+  const v='git clone --branch release https://github.com/mengfanchun2017/ccconfig.git'
+  navigator.clipboard.writeText(v).then(()=>{
+    const b=document.querySelector('.clone-box')
+    const o=b.textContent
+    b.textContent='Copied!'
+    b.style.color='#4ade80'
+    setTimeout(()=>{b.textContent=o;b.style.color=''},2000)
+  })
+}
+</script>
+
+</body>
+</html>
