@@ -19,13 +19,13 @@ ccconfig/
 ├── link/             # → ~/.claude/ 符号链接源
 ├── option-*/         # 可选组件（option- 前缀）
 ├── remote/           # 远程连接
-└── windows/          # Windows/WSL 互操作
+└── windows-tools/    # Windows/WSL 互操作
 ```
 
 ## 提交规范
 
 - 提交信息用中文描述 WHY
-- Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+- Co-Authored-By: Claude <noreply@anthropic.com>
 - 不跳过 hooks，不 force push 到 main
 
 ## 脚本规范
