@@ -9,14 +9,16 @@
 ```
 docs/
 ├── README.md                ← 本文件（索引）
-├── task_plan.md             ← L2 当前 phase 详细计划（含 Hill Chart）
-├── findings.md              ← L2.5 研究 / 发现 / 临时笔记
 ├── progress.md              ← L3 跨 session 进度（冷启动入口）
 ├── adr/                     ← L0 决策记录
 │   ├── README.md            ← ADR 索引 + 模板
 │   └── NNNN-*.md
 └── plans/                   ← Phase 归档（已完成 phase 详细计划）
     └── README.md
+
+.github/
+├── task_plan.md             ← L2 当前 phase 详细计划（含 Hill Chart）
+└── findings.md              ← L2.5 研究 / 发现 / 临时笔记
 ```
 
 ## 4 层追踪 + 1 层决策
@@ -24,8 +26,8 @@ docs/
 | 层 | 粒度 | 文件 | 模板来源 | 何时更新 | 谁维护 |
 |---|---|---|---|---|---|
 | L1 Roadmap | 季度 / 多月 | `ROADMAP.md`（根）| Shape Up pitch | 阶段切换 | 人 |
-| L2 Phase 计划 | 1-2 周 | `docs/task_plan.md` | planning-with-files | 阶段开始/结束 | 人 + 飞书 OKR_KR |
-| L2.5 研究 | 滚动 | `docs/findings.md` | planning-with-files | 调研后即写 | 人 |
+| L2 Phase 计划 | 1-2 周 | `.github/task_plan.md` | planning-with-files | 阶段开始/结束 | 人 + 飞书 OKR_KR |
+| L2.5 研究 | 滚动 | `.github/findings.md` | planning-with-files | 调研后即写 | 人 |
 | L3 当前任务 | 当 session | `docs/progress.md` | planning-with-files | **每次 session 末**（必改）| 人 |
 | L0 决策 | 不定期 | `docs/adr/NNNN-*.md` | MADR 4.0 | 决策时 | 人 |
 | L4 Worklog | 天 | 飞书 f-logme Base | f-logme 5 层 | **自动**（SessionEnd hook）| hook |
