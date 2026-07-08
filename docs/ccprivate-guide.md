@@ -71,6 +71,7 @@ cd ~/git/ccprivate
 
 # 创建子目录
 mkdir -p conf
+mkdir -p skill-config
 mkdir -p link/projects
 ```
 
@@ -79,11 +80,13 @@ mkdir -p link/projects
 ```
 ccprivate/
 ├── conf/                 # 真实配置文件（含 API Key）
+├── skill-config/         # Skill 配置 YAML（供 apply-config.sh symlink）
 ├── link/                 # 个人 Claude Code 配置
 │   ├── CLAUDE.md         # 你的全局 AI 行为指南
 │   ├── settings.json     # Claude Code 权限设置
 │   ├── .config.json      # Claude Code 扩展配置
 │   └── projects/         # 项目级 memory
+├── bin/                  # 运维脚本
 └── setup.sh              # 一键建立所有 symlink
 ```
 

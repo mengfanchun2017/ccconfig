@@ -1,6 +1,6 @@
 # Releasing ccconfig
 
-> 发布流程。ccconfig 双仓库（公开 + 私有），发布仅涉及公开部分。
+> 发布流程。ccconfig 三仓库（ccconfig + claude-skills + ccprivate），发布涉及公开部分（ccconfig + claude-skills）。
 >
 > **分支模型**：`main` = 开发分支（高频 push），`release` = 稳定分支（仅发版时更新）。
 > 用户 clone `release` 分支，不受 main 日常变动影响。
@@ -11,9 +11,9 @@
 
 | 变更 | 版本 | 例子 |
 |------|------|------|
-| 破坏性变更（不兼容旧配置） | MAJOR | 2.0→3.0 |
-| 新功能/新 option/新 script | MINOR | 2.0→2.1 |
-| Bug fix / 文档 / CI | PATCH | 2.0→2.0.1 |
+| 破坏性变更（不兼容旧配置） | MAJOR | 1.0→2.0 |
+| 新功能/新 option/新 script | MINOR | 1.1→1.2 |
+| Bug fix / 文档 / CI | PATCH | 1.1.0→1.1.1 |
 
 `conf/versions.json` 是外部组件版本源，**与 ccconfig 自身版本无关**。
 
@@ -23,9 +23,9 @@
 main（开发）                  release（给用户）
 ───────────                  ───────────────
 每天 push N 次 →              ← 不变，用户 pull 无变化
-打 tag v2.1.0 ──merge──→     更新到 v2.1.0
+打 tag v1.2.0 ──merge──→     更新到 v1.2.0
 每天 push 3 次 →              ← 不变
-打 tag v2.2.0 ──merge──→     更新到 v2.2.0
+打 tag v1.3.0 ──merge──→     更新到 v1.3.0
 ```
 
 - **main**：日常开发。高频 commit/push，可能有未完成的功能。
@@ -123,6 +123,8 @@ git push origin vX.Y.Z
 |------|------|------|
 | v1.0 | 初始版本 | ✅ 2026-05-21 |
 | v1.0.0 | 公私分离 + 安全加固 + 公开化 | ✅ 2026-07-05 |
+| v1.0.1–v1.0.3 | Bug fix / 增量修复 | ✅ |
+| v1.1.0 | 三仓库架构审查 + lib/git-conflict 公共库 | ✅ 2026-07-08 |
 
 ## 发布后
 
