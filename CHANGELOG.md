@@ -17,6 +17,7 @@ All notable changes to ccconfig will be documented in this file.
 
 ### Changed
 - **三仓库架构审核** — README/BOOTSTRAP/ROADMAP 全面更新，修复 stale 描述和计数
+- **docs: 说明文件全面审查** — 三仓库 README/BOOTSTRAP/CONTRIBUTING/ROADMAP/RELEASING 数字一致性修正、过期引用清理、拼写错误修复
 
 ### Removed
 - `option-ppt-master/` — OfficeCLI 已是唯一 PPT 引擎（f-ppt 已迁移），删除残留目录
