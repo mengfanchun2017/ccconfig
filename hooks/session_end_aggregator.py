@@ -128,8 +128,10 @@ def llm_summarize(commits, user_prompts, edits):
                        "  - 项目交付：完整功能上线、里程碑交付"),
             "messages": [{"role": "user", "content": "\n".join(prompt_parts)}],
         }
+        base_url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
+        api_url = base_url.rstrip("/") + "/messages"
         req = urllib.request.Request(
-            "https://api.anthropic.com/v1/messages",
+            api_url,
             data=json.dumps(data).encode(),
             headers={
                 "x-api-key": os.environ.get("ANTHROPIC_AUTH_TOKEN", ""),
@@ -162,15 +164,34 @@ VALID_TYPES = {"工具开发", "技术方案", "文档输出", "学习笔记", "
 
 
 def generate_title(llm, commits, user_prompts, sid_short):
-    if llm and llm.get("title"):
+    if llm and llm.get("title") and len(llm["title"].strip()) >= 6:
         return llm["title"].replace("\n", " ").strip()[:60]
     if commits:
-        return _clean_commit_msg(commits[0])[:60]
+        for c in commits:
+            cleaned = _clean_commit_msg(c)
+            if len(cleaned) >= 6 and not cleaned.startswith("session"):
+                return cleaned[:60]
     if user_prompts:
         for p in user_prompts:
-            if not re.search(r'[✅❌⚠]', p) and len(p.strip()) > 8:
-                return p.replace("\n", " ")[:40]
+            p_clean = p.replace("\n", " ").strip()
+            if not re.search(r'[✅❌⚠]', p_clean) and len(p_clean) > 8:
+                prefix = _guess_prefix_from_prompts(user_prompts)
+                title = p_clean[:40]
+                if prefix and not title.lower().startswith(prefix.lower()):
+                    title = prefix + " " + title
+                return title[:60]
+    if commits:
+        return _clean_commit_msg(commits[0])[:60]
     return f"session 工作 ({sid_short} user msgs)"
+
+
+def _guess_prefix_from_prompts(prompts):
+    for p in prompts:
+        p_lower = p.lower()
+        for prefix in KNOWN_PREFIXES:
+            if prefix.lower() in p_lower:
+                return prefix
+    return None
 
 
 def postprocess_title(title, cwd):
