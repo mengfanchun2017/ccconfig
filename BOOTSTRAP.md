@@ -27,8 +27,8 @@
 | `GIT_EMAIL` | Git commit 邮箱 | `gh api user --jq '.email'` |
 | `LARKSUITE_CLI_CONFIG_DIR` | 飞书 lark-cli 配置目录 | `$HOME/.lark-cli` |
 | `ANTHROPIC_AUTH_TOKEN` | Anthropic API 密钥（LLM 切换） | 无（需手动设置） |
-| `CCONFIG_HOME` | ccconfig 安装路径 | `$HOME/git/ccconfig` |
-| `CCPRIVATE_DIR` | ccprivate 路径 | `$HOME/git/ccprivate` |
+| `CCCONFIG_HOME` | ccconfig 安装路径 | `$HOME/git/ccconfig` |
+| `CCPRIVATE_HOME` | ccprivate 路径 | `$HOME/git/ccprivate` |
 | `CLAUDE_SKILLS_SRC` | claude-skills 路径 | `$HOME/git/claude-skills/plugins` |
 
 ```bash
@@ -229,15 +229,15 @@ sudo apt install -y gh
 **Ubuntu 20.04 / 其他（apt 源没有，直接下 binary）**：
 
 ```bash
-# 看 https://github.com/cli/cli/releases/latest 的版本号，替换下面 v2.x.x
-GH_VERSION="2.62.0"
+# 版本号看 conf/versions.json 的 gh.version，或 https://github.com/cli/cli/releases/latest
+GH_VERSION=$(python3 -c "import json; print(json.load(open('conf/versions.json')).get('components',{}).get('gh',{}).get('version','2.96.0'))")
 curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
 tar -xzf /tmp/gh.tar.gz -C /tmp
 sudo mv /tmp/gh_${GH_VERSION}_linux_amd64/bin/gh /usr/local/bin/gh
 rm -rf /tmp/gh.tar.gz /tmp/gh_${GH_VERSION}_linux_amd64
 
 # 验证
-gh --version  # gh version 2.62.0
+gh --version
 ```
 
 **装完会做这几件事**：
@@ -383,7 +383,7 @@ bash init.sh all
 | 2/3 | `init-mcp.sh` | 装并同步 MCP 服务器 |
 | 3/3 | `init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
 
-> **symlink 已在 3b 完成**，阶段 5 不需要再跑 `ccprivate/setup.sh`。
+> **symlink 已在阶段 4b/4c 完成**，阶段 5 不需要再跑 `ccprivate/setup.sh`。
 
 **全程无输入**：gh 已登录，LLM 默认值在 3b 已写入 conf/llm.json，MCP 和 skills 自动装。
 
@@ -450,13 +450,13 @@ bash init-autostart.sh
 **端到端测试**（确认 monitor 推得动）：
 
 ```bash
-# 在 ccconfig 目录随便改个文件
-echo "# smoke test $(date)" >> /tmp/cc-smoke.md
-cp /tmp/cc-smoke.md ~/git/ccconfig/tmp/smoke.md
+# 在 ccconfig 目录随便改个文件触发 monitor
+echo "# smoke test $(date)" > ~/git/ccconfig/.smoke-test.md
 
 # 等 1-2 分钟（monitor debounce 60s + push）
-tail -f ~/git/ccconfig/logs/monitor.log
+tail -f ~/git/ccconfig/.monitor-sync.log
 # 应该看到: OK committed → OK pushed → GitHub
+# 测完删掉: rm ~/git/ccconfig/.smoke-test.md
 ```
 
 去 `https://github.com/<your-github-username>/ccconfig/commits/main` 也能看到刚才的 commit。
@@ -507,7 +507,7 @@ tail -f ~/git/ccconfig/logs/monitor.log
 
 ```bash
 # 1. 拉最新（三个仓库）
-cd ~/git/cconfig && git pull
+cd ~/git/ccconfig && git pull
 cd ~/git/ccprivate && git pull
 cd ~/git/claude-skills && git pull
 
@@ -515,7 +515,7 @@ cd ~/git/claude-skills && git pull
 bash ~/git/ccprivate/setup.sh
 
 # 3. 同步 skills
-bash ~/git/cconfig/init-skill.sh sync
+bash ~/git/ccconfig/init-skill.sh sync
 
 # 4. 状态检查
 cd ~/git/ccconfig && bash status.sh
@@ -532,7 +532,7 @@ bash init-autostart.sh
 **`pullff` 暗号 = 上面 1+2 一步到位**：
 
 ```bash
-cd ~/git/cconfig && git pull && cd ~/git/claude-skills && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccprivate/setup.sh
+cd ~/git/ccconfig && git pull && cd ~/git/claude-skills && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccprivate/setup.sh
 ```
 
 ### 常见"看着有问题"但实际正常
@@ -569,7 +569,7 @@ cd ~/git/cconfig && git pull && cd ~/git/claude-skills && git pull && cd ~/git/c
 | monitor 不推 | SSH key 没注册到 GitHub | `ssh -T git@github.com` 测试；如未认证，走阶段 3 生成 SSH key 并添加到 GitHub |
 | monitor 不推（HTTPS 备选） | gh token 过期 | `gh auth login` 重新登录；`gh auth setup-git` 配置 credential helper |
 | WSL 报 `Could not resolve hostname` | `/etc/hosts` 没本机 hostname | `echo "127.0.1.1 $(hostname)" \| sudo tee -a /etc/hosts` |
-| WSL 内存占用过高 | WSL 2 默认占 50% 主机内存 | 在 `%USERPROFILE%\.wslconfig` 加 `memory=8GB`（见 windows-tools/wslconf/） |
+| WSL 内存占用过高 | WSL 2 默认占 50% 主机内存 | 在 `%USERPROFILE%\.wslconfig` 加 `memory=8GB`（见阶段 0 § 2） |
 | WSL 里 `code .` 打不开 VSCode | 没装 WSL 扩展 | 在 VSCode 装 "WSL" 扩展；或直接用 `code` 命令（Windows PATH 注入） |
 | `claude` 命令不存在 | npm 全局安装后 PATH 没刷新 | `hash -r` 或新开终端；还不行就 `export PATH="$HOME/.local/bin:$PATH"` |
 | npm 全局安装权限错误 | npm 全局目录需要 sudo | ccconfig 的 `init-ubuntu.sh` 已将 Node 装到 `~/.local/`，无此问题；如手动装过 Node，跑 `npm config set prefix ~/.local` |
