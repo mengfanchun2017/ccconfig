@@ -11,6 +11,7 @@ All notable changes to ccconfig will be documented in this file.
 
 ### Changed
 - refactor: sync.sh / update.sh 冲突处理逻辑提取到 `lib/git-conflict.sh`，消除 ~200 行重复
+- refactor: init-llm.sh `switch_llm` / `switch_to_gateway` 合并共享 `_write_llm_config()`，消除 ~130 行重复
 - fix: docs/README.md 路径修正 — task_plan/findings 实际路径在 `.github/`
 - prune: 清理 23 个过期 snapshot（>30 天）
 
