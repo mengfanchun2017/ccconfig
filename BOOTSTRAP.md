@@ -34,7 +34,7 @@
 ```bash
 # 在 ~/.bashrc 中示例
 export GITHUB_USER=your-username
-export LARKSUITE_CLI_CONFIG_DIR=$HOME/.lark-cli-ailab
+export LARKSUITE_CLI_CONFIG_DIR=$HOME/.lark-cli-<your-account>
 export ANTHROPIC_AUTH_TOKEN=sk-ant-...
 ```
 
