@@ -52,13 +52,13 @@ flowchart LR
 
   subgraph cc_content["cconfig 内容"]
     scripts["init.sh · init-ubuntu.sh · init-llm.sh<br/>init-skill.sh · init-mcp.sh<br/>monitor.sh · sync.sh · status.sh<br/>setup-links.sh · update.sh"]
-    link["link/<br/>rules/ · agents/ · commands/"]
+    link["link/<br/>rules/ · agents/ · commands/<br/>shell_aliases.sh"]
     conf["conf/*.example 模板"]
   end
 
   subgraph ccprivate_content["ccprivate 内容"]
     secrets["conf/*.json<br/>API key · Token"]
-    personal["link/<br/>CLAUDE.md · settings.json"]
+    personal["link/<br/>CLAUDE.md · settings.json<br/>.config.json"]
     overlay["skill-config/*.yaml<br/>skill 私有覆盖"]
   end
 
@@ -69,6 +69,8 @@ flowchart LR
     commands_dir["commands/"]
     settings["settings.json"]
     claude_md["~/CLAUDE.md"]
+    config_json[".config.json"]
+    shell_aliases["shell_aliases.sh"]
   end
 
   skills --> plugins
@@ -87,7 +89,9 @@ flowchart LR
   link -- "setup-links.sh<br/>symlink" --> commands_dir
   personal -- "setup.sh<br/>symlink" --> settings
   personal -- "setup.sh<br/>symlink" --> claude_md
+  personal -- "setup.sh<br/>symlink" --> config_json
   secrets -- "setup.sh<br/>symlink" --> conf
+  link -- "setup-links.sh<br/>symlink" --> shell_aliases
 ```
 
 > **密钥隔离**：`conf/*.json`（llm/claude/feishu/f-logme/f-feishu/f-pptx/cloudflare/supabase/ubuntu）是 ccprivate→ccconfig 的 symlink，`.gitignore` 已忽略。公开仓库只含 `.example` 模板。详见 [BOOTSTRAP.md](BOOTSTRAP.md)。
@@ -104,7 +108,7 @@ ccconfig/
 ├── init-autostart.sh         # auto-sync systemd 服务
 ├── update.sh                 # 月度组件升级
 │
-├── status.sh                 # 状态检查（12 项）
+├── status.sh                 # 状态检查（11 项）
 ├── monitor.sh                # 多仓库文件监听 + 自动 git 同步
 ├── sync.sh                   # 多仓库智能同步（云端↔本地）
 ├── setup-links.sh            # 公开部分符号链接（被 ccprivate/setup.sh 调用）
@@ -114,6 +118,7 @@ ccconfig/
 │   ├── *.json.example        # 公开模板（可提交）
 │   ├── *.json                # → symlink 到 ccprivate/conf/（不跟踪）
 │   ├── versions.json         # 组件版本（公开）
+│   ├── third-party-skills.txt # 第三方 npx skill 清单
 │   └── python-requirements.txt
 │
 ├── lib/
@@ -122,16 +127,34 @@ ccconfig/
 │   └── colors.sh             # 终端颜色定义
 │
 ├── link/                     # → ~/.claude/ 符号链接源（公开部分）
-│   ├── rules/                # 条件规则
+│   ├── rules/                # 条件规则（9 个）
 │   ├── agents/               # 意图路由 agent
 │   ├── commands/             # 自定义斜杠命令
+│   ├── skills/               # skill 配置（README 占位）
+│   ├── shell_aliases.sh      # 跨终端 shell 别名同步
+│   ├── settings.json.example # settings 公开模板
 │   └── projects/             # → symlink 到 ccprivate/link/projects/
 │
 ├── hooks/
 │   ├── pre-commit            # git hook：防私密文件意外提交
-│   └── session-end-aggregator.sh  # Claude hook：自动 worklog
+│   ├── session-end-aggregator.sh  # Claude hook：自动 worklog
+│   └── session_end_aggregator.py # worklog 聚合逻辑
 │
-├── bin/init-ccprivate.sh     # 交互式引导：收集信息 → 创建 ccprivate 仓库
+├── bin/
+│   ├── init-ccprivate.sh     # 交互式引导：收集信息 → 创建 ccprivate 仓库
+│   └── memory-check.sh       # MEMORY.md 过期/孤立条目检测
+│
+├── scripts/                  # 内部/自动化脚本
+│   ├── merge_worklog.py      # worklog 合并
+│   ├── publish.sh            # 发布辅助
+│   └── update-third-party-skills.sh  # 第三方 skill 更新
+│
+├── docs/                     # 设计文档
+│   ├── architecture.md       # 架构设计
+│   ├── prd.md                # 产品需求文档
+│   ├── adr/                  # 架构决策记录
+│   ├── plans/                # 实现计划
+│   └── figs/                 # 图表素材
 │
 ├── option-bridge/            # 可选：飞书消息 Bridge
 ├── option-officecli/         # 可选：OfficeCLI
@@ -140,9 +163,17 @@ ccconfig/
 ├── remote/                   # 远程访问（Tailscale + SSH + tmux）
 ├── windows-tools/            # Windows/WSL 互操作
 │
+├── .github/                  # CI/CD
+│   └── workflows/            # check.yml, secrets-scan.yml
+│
+├── www/                      # Cloudflare Pages 站点
+│
 ├── LICENSE                   # MIT
 ├── BOOTSTRAP.md              # 新机器 0→1 拉起指南
 ├── CHANGELOG.md              # 变更历史
+├── RELEASING.md              # 发布流程
+├── ROADMAP.md                # 路线图
+├── SECURITY.md               # 安全策略
 └── CONTRIBUTING.md           # 贡献指南
 ```
 
@@ -178,7 +209,7 @@ bash ~/git/ccconfig/status.sh
 |------|------|
 | `bash init.sh` | 交互式菜单 |
 | `bash init.sh all` | 一键全初始化 |
-| `bash status.sh` | 完整状态检查（12 项） |
+| `bash status.sh` | 完整状态检查（11 项） |
 | `bash deps-check.sh` | 依赖完整性检查 |
 | `bash update.sh all` | 月度组件升级 |
 | `bash monitor.sh start` | 启动 auto-sync |
@@ -204,7 +235,7 @@ cd ~/git/ccconfig && git pull
 
 ## 状态检查覆盖
 
-`status.sh` 每次 Claude Code session 启动检查 12 项：
+`status.sh` 每次 Claude Code session 启动检查 11 项：
 
 1. 配置文件链接（settings.json、.config.json、CLAUDE.md、MEMORY.md、rules）
 2. 核心依赖（git、bash、curl）
