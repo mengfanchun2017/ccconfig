@@ -1,6 +1,6 @@
 # ccconfig Roadmap
 
-> 最后更新: 2026-07-06
+> 最后更新: 2026-07-08
 > 目标: 2026 Q3 末前从「个人 dotfiles」升级到「正式开源项目」基线
 > 关联 OKR: 飞书 Base OKR_O 表中 O.「ccconfig 正式化」
 > 设计来源: [Shape Up](https://basecamp.com/shapeup)（pitch + cycle 概念）

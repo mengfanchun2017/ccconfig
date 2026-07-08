@@ -2,26 +2,33 @@
 
 All notable changes to ccconfig will be documented in this file.
 
-## [Unreleased]
+## [1.1.0] — 2026-07-08
 
 ### Added
+- `lib/git-conflict.sh` — Git 冲突解决公共库（sync.sh + update.sh 共用）
 - `docs/architecture.md` — 产品架构总文档（三仓库模型 + 配置数据流 + 初始化/升级流程）
 - `docs/upgrade-guide.md` — 用户升级指南（月度升级 + 大版本 + 回滚）
-- `lib/git-conflict.sh` — Git 冲突解决公共库（sync.sh + update.sh 共用）
+- claude-skills README 按需安装表 — 15 个 skill 每个一行 `/plugin install` 命令
 
 ### Changed
-- refactor: sync.sh / update.sh 冲突处理逻辑提取到 `lib/git-conflict.sh`，消除 ~200 行重复
-- refactor: init-llm.sh `switch_llm` / `switch_to_gateway` 合并共享 `_write_llm_config()`，消除 ~130 行重复
-- fix: docs/README.md 路径修正 — task_plan/findings 实际路径在 `.github/`
-- prune: 清理 23 个过期 snapshot（>30 天）
-
-### Changed
-- **三仓库架构审核** — README/BOOTSTRAP/ROADMAP 全面更新，修复 stale 描述和计数
-- **docs: 说明文件全面审查** — 三仓库 README/BOOTSTRAP/CONTRIBUTING/ROADMAP/RELEASING 数字一致性修正、过期引用清理、拼写错误修复
+- **init-llm.sh 重构** — `switch_llm` / `switch_to_gateway` 合并共享 `_write_llm_config()`，消除 ~130 行重复
+- **sync.sh / update.sh 重构** — 冲突处理逻辑提取到 `lib/git-conflict.sh`，消除 ~200 行重复
+- **claude-skills 公开化** — 仓库可见性 PRIVATE→PUBLIC，marketplace 版本 0.5.0→0.8.0
+- **三仓库文档全面审查** — README/BOOTSTRAP/CONTRIBUTING/ROADMAP/RELEASING 共 32 个文件、45 处修正
+  - 数字一致性：skill 计数统一为 15、status 检查 12 项、BOOTSTRAP 8 阶段
+  - 过期引用清理：f-vessel/f-research-deep 移除、f-doc→f-feishu、task_plan 路径修正
+  - 拼写/环境变量名/目录名修正（cconfig→ccconfig、CCONFIG→CCCONFIG、config→skill-config）
+- **BOOTSTRAP 流程修正** — gh auth 独立为必须阶段、gh 版本动态读取、smoke test 路径修复
+- **单 skill 安装指南** — 15 行按需安装命令表，用户不需要装全部 skills
 
 ### Removed
-- `option-ppt-master/` — OfficeCLI 已是唯一 PPT 引擎（f-ppt 已迁移），删除残留目录
-- 所有脚本和文档中的 ppt-master 过时引用
+- `option-ppt-master/` — OfficeCLI 已是唯一 PPT 引擎
+- Vessel 全线移除，浏览器测试迁移至 Playwright（已于 v1.0.0 完成，本版本清理残留引用）
+
+### Fixed
+- docs/README.md 路径修正 — task_plan/findings 实际在 `.github/`
+- 清理 23 个过期 snapshot（>30 天）
+- BOOTSTRAP.md 环境变量名 CCONFIG_HOME→CCCONFIG_HOME、CCPRIVATE_DIR→CCPRIVATE_HOME
 
 ## [1.0.1] — 2026-07-05
 
