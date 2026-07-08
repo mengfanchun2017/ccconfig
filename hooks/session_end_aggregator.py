@@ -386,10 +386,10 @@ def sync_to_feishu(parsed, title, work_type, description, sid, cwd,
             "patch": {
                 "标题": merged_title,
                 "说明": merged_desc,
-                "input_tokens": agg["input_tokens"] + prev.get("input_tokens", 0),
-                "output_tokens": agg["output_tokens"] + prev.get("output_tokens", 0),
-                "asst_msgs": asst_msgs + prev.get("asst_msgs", 0),
-                "user_msgs": total_user_msgs + prev.get("user_msgs", 0),
+                "输入Token": agg["input_tokens"] + prev.get("input_tokens", 0),
+                "输出Token": agg["output_tokens"] + prev.get("output_tokens", 0),
+                "助手消息数": asst_msgs + prev.get("asst_msgs", 0),
+                "用户消息数": total_user_msgs + prev.get("user_msgs", 0),
                 "成果类型": work_type,
             },
         }
@@ -424,8 +424,8 @@ def sync_to_feishu(parsed, title, work_type, description, sid, cwd,
         # ── create new record ──
         payload = {
             "fields": ["标题", "成果类型", "说明", "日期",
-                       "input_tokens", "output_tokens",
-                       "asst_msgs", "user_msgs", "关联KR"],
+                       "输入Token", "输出Token",
+                       "助手消息数", "用户消息数", "关联KR"],
             "rows": [[
                 title, work_type, description, date_str,
                 agg["input_tokens"], agg["output_tokens"],
