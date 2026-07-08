@@ -390,7 +390,6 @@ def sync_to_feishu(parsed, title, work_type, description, sid, cwd,
                 "output_tokens": agg["output_tokens"] + prev.get("output_tokens", 0),
                 "asst_msgs": asst_msgs + prev.get("asst_msgs", 0),
                 "user_msgs": total_user_msgs + prev.get("user_msgs", 0),
-                "来源": source_val,
                 "成果类型": work_type,
             },
         }
@@ -425,15 +424,13 @@ def sync_to_feishu(parsed, title, work_type, description, sid, cwd,
         # ── create new record ──
         payload = {
             "fields": ["标题", "成果类型", "说明", "日期",
-                       "input_tokens", "output_tokens", "model",
-                       "asst_msgs", "user_msgs", "关联KR", "来源"],
+                       "input_tokens", "output_tokens",
+                       "asst_msgs", "user_msgs", "关联KR"],
             "rows": [[
                 title, work_type, description, date_str,
                 agg["input_tokens"], agg["output_tokens"],
-                parsed["model"] or "",
                 asst_msgs, total_user_msgs,
                 [{"id": kr_id}],
-                source_val,
             ]],
         }
         tmp_path = f"/tmp/wl_{sid}.json"
