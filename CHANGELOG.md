@@ -2,6 +2,11 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.2.0] — 2026-07-08
+
+### Changed
+- **session-end-aggregator** — 合并频率从每周改为每日，新增每周总结提醒触发（`WEEKLY_MARKER`），session 结束时自动提示做周总结
+
 ## [1.1.0] — 2026-07-08
 
 ### Added
