@@ -246,9 +246,30 @@ gh --version
 - `gh auth setup-git` 可配置 git credential helper
 
 
-## 阶段 3 — SSH Key 配置（推荐）
+## 阶段 3 — GitHub 认证
 
-> **强烈推荐用 SSH**：比 HTTPS 更稳定，不受 GitHub 负载均衡波动影响，push 更快（2-3s vs 5-15s）。
+> 两个认证都需要：gh auth 用于 `gh repo create` 和 `gh api` 调用（阶段 4c 创建 ccprivate 仓库必需），SSH key 用于 git clone/push/pull（更快更稳定）。
+
+### 3a. gh auth login（必需）
+
+`init-ccprivate.sh` 用 `gh repo create` 创建私有仓库、`gh api user` 获取用户名，**必须先完成 gh 登录**：
+
+```bash
+gh auth login --web --hostname github.com
+```
+
+操作流程：选 GitHub.com → 选 HTTPS → 选 Login with a web browser → 粘贴 one-time code。
+
+```bash
+gh auth status
+# 应该看到: ✓ Logged in to github.com as <你的账号>
+```
+
+> gh auth token 保存在 `~/.config/gh/hosts.yml`，**不能跨机器复制**，每台机器独立登录。
+
+### 3b. SSH Key（推荐，替代 HTTPS git 传输）
+
+> SSH 比 HTTPS 更稳定，push 更快（2-3s vs 5-15s）。阶段 3a 的 gh login 和本节的 SSH key 各司其职：gh 管 API 调用，SSH 管 git 传输。
 
 ```bash
 # 1. 生成 ED25519 密钥
@@ -281,23 +302,6 @@ EOF
 ```
 
 > **同台机器新建 WSL？** `init-ubuntu.sh` 的 `setup_ssh_github()` 会自动从 Windows 宿主目录（`/mnt/c/Users/<用户名>/.ssh/`）复制已有 key，不需要再生成。**换机器**才需要重新走一遍。
-
-### 阶段 3b — gh 登录（HTTPS 备选）
-
-> 如果不用 SSH，可以用 gh OAuth token 走 HTTPS。稳定性和速度不如 SSH。
-
-```bash
-gh auth login --web --hostname github.com
-```
-
-操作流程：选 GitHub.com → 选 HTTPS → 选 Login with a web browser → 粘贴 one-time code。
-
-```bash
-gh auth status
-# 应该看到: ✓ Logged in to github.com as <你的账号>
-```
-
-**保存到哪里**：`~/.config/gh/hosts.yml` — OAuth token（**不能跨机器复制**，每台机器独立登录）。
 
 
 ## 阶段 4 — 克隆三仓库 + 初始化 ccprivate
@@ -385,7 +389,7 @@ bash init.sh all
 
 > **symlink 已在阶段 4b/4c 完成**，阶段 5 不需要再跑 `ccprivate/setup.sh`。
 
-**全程无输入**：gh 已登录，LLM 默认值在 3b 已写入 conf/llm.json，MCP 和 skills 自动装。
+**全程无输入**：gh 已登录，LLM 默认值在阶段 4c（init-ccprivate.sh）已写入 conf/llm.json，MCP 和 skills 自动装。
 
 **会触发 sudo**（安装系统包时），提前准备好 sudo 密码。
 
@@ -434,7 +438,7 @@ bash status.sh
 [4] 最后推送          (刚才 init 的某个时间)
 [5] MEMORY 更新       ✅
 [7] 飞书              (未配置，可选)
-[7c] OfficeCLI        (未安装，可选)
+[11] option-*         (各组件状态)
 ```
 
 **如果 auto-sync 没起来**：
