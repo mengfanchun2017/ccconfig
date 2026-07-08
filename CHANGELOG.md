@@ -7,6 +7,12 @@ All notable changes to ccconfig will be documented in this file.
 ### Added
 - `docs/architecture.md` — 产品架构总文档（三仓库模型 + 配置数据流 + 初始化/升级流程）
 - `docs/upgrade-guide.md` — 用户升级指南（月度升级 + 大版本 + 回滚）
+- `lib/git-conflict.sh` — Git 冲突解决公共库（sync.sh + update.sh 共用）
+
+### Changed
+- refactor: sync.sh / update.sh 冲突处理逻辑提取到 `lib/git-conflict.sh`，消除 ~200 行重复
+- fix: docs/README.md 路径修正 — task_plan/findings 实际路径在 `.github/`
+- prune: 清理 23 个过期 snapshot（>30 天）
 
 ### Changed
 - **三仓库架构审核** — README/BOOTSTRAP/ROADMAP 全面更新，修复 stale 描述和计数
