@@ -57,3 +57,6 @@ supabase/.temp/
 
 # Windows Alternate Data Stream (Zone.Identifier)
 *:Zone.Identifier
+
+# Wrangler local cache
+.wrangler/
