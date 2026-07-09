@@ -394,7 +394,11 @@ do_cleanup() {
 
 do_list() {
     echo "=== 自建 skill (claude-skills/plugins/ 实体) ==="
-    ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
+    if [[ -d "$SKILLS_SRC" ]]; then
+        ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
+    else
+        echo "  (目录不存在: $SKILLS_SRC)"
+    fi
     echo ""
     echo "=== ~/.claude/skills/ (symlink + npx-installed) ==="
     for d in "$CLAUDE_SKILLS_DIR"/*; do
@@ -550,11 +554,15 @@ do_remove() {
 
 do_status() {
     title "Skills 状态"
-    echo -e "${CYAN}claude-skills/plugins/ (自建 $(ls "$SKILLS_SRC" 2>/dev/null | wc -l) 个)${NC}"
-    for d in "$SKILLS_SRC"/*; do
-        [[ -d "$d" ]] || continue
-        echo -e "  ${GREEN}✓${NC} $(basename "$d")"
-    done
+    if [[ -d "$SKILLS_SRC" ]]; then
+        echo -e "${CYAN}claude-skills/plugins/ (自建 $(ls "$SKILLS_SRC" 2>/dev/null | wc -l) 个)${NC}"
+        for d in "$SKILLS_SRC"/*; do
+            [[ -d "$d" ]] || continue
+            echo -e "  ${GREEN}✓${NC} $(basename "$d")"
+        done
+    else
+        echo -e "${YELLOW}claude-skills/plugins/ 未找到${NC}"
+    fi
 
     echo ""
     echo -e "${CYAN}~/.claude/skills/ ($(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l) 项)${NC}"
