@@ -111,8 +111,18 @@ def llm_summarize(commits, user_prompts, edits):
             return None
         data = {
             "model": model,
-            "max_tokens": 400,
-            "system": "你是 worklog 总结助手。输出严格 JSON（无 markdown 包裹）。字段：title(≤20字，格式：<项目前缀> <动词+对象>)、type(工具开发/技术方案/文档输出/学习笔记/问题排查/项目交付)、summary(2-3句概述)。标题禁止冒号、下划线、括号，禁止以\"session 工作\"开头。",
+            "max_tokens": 600,
+            "system": """你是 worklog 总结助手。输出严格 JSON（无 markdown 包裹）。
+
+字段：
+- title（≤30字，中文）：根据 session 内容判断**工作领域** + 概括具体做了什么。
+  领域根据实际内容自选：Claude Code配置 / 飞书集成 / Worklog系统 / LLM代理 / ccconfig基础设施 / Cloudflare开发 / Git工作流 / 文档整理 / AI浏览器 / 技能开发 / 项目管理
+  正确范例："cconfig SessionEnd hook 双 hooks 路径修复"、"飞书 f-logme worklog 质量规范编写"、"Claude Code DeepSeek FIM补全调研"
+  错误范例："session 工作总结"、"docs add Cloudflare plugin documentation"（英文）、"cconfig 我刚刚做了一个操作然后发现..."（口语/用户原话）
+  禁止：以"session"开头、英文标题、冒号/下划线/括号/【】、用户聊天原话
+- type：工具开发/技术方案/文档输出/学习笔记/问题排查/项目交付（根据实际内容选一个）
+- summary（3-5句中文）：纯工作摘要，**禁止**贴原始数据（commits列表/文件路径/token数/用户聊天原文）。
+  结构：做了什么 → 关键产出/结论 → 如有阻塞或下一步计划。""",
             "messages": [{"role": "user", "content": "\n".join(prompt_parts)}],
         }
         api_url = base_url.rstrip("/") + "/messages"
@@ -149,7 +159,19 @@ KNOWN_PREFIXES = {"ccconfig", "claudecode", "project", "feishu", "minimax",
 VALID_TYPES = {"工具开发", "技术方案", "文档输出", "学习笔记", "问题排查", "项目交付"}
 
 
-def generate_title(llm, commits, user_prompts, sid_short):
+def _cwd_project(cwd):
+    if not cwd:
+        return None
+    parts = cwd.strip("/").split("/")
+    for known in KNOWN_PREFIXES:
+        if known in cwd.lower():
+            return known
+    if len(parts) >= 3 and parts[1] == "git":
+        return parts[2].split("/")[0]
+    return os.path.basename(cwd)
+
+
+def generate_title(llm, commits, user_prompts, sid_short, cwd, edits):
     if llm and llm.get("title") and len(llm["title"].strip()) >= 6:
         return llm["title"].replace("\n", " ").strip()[:60]
     if commits:
@@ -157,39 +179,19 @@ def generate_title(llm, commits, user_prompts, sid_short):
             cleaned = _clean_commit_msg(c)
             if len(cleaned) >= 6 and not cleaned.startswith("session"):
                 return cleaned[:60]
-    if user_prompts:
-        for p in user_prompts:
-            p_clean = p.replace("\n", " ").strip()
-            if not re.search(r'[✅❌⚠]', p_clean) and len(p_clean) > 8:
-                prefix = _guess_prefix_from_prompts(user_prompts)
-                title = p_clean[:40]
-                if prefix and not title.lower().startswith(prefix.lower()):
-                    title = prefix + " " + title
-                return title[:60]
-    if commits:
-        return _clean_commit_msg(commits[0])[:60]
-    return f"session 工作 ({sid_short} user msgs)"
-
-
-def _guess_prefix_from_prompts(prompts):
-    for p in prompts:
-        p_lower = p.lower()
-        for prefix in KNOWN_PREFIXES:
-            if prefix.lower() in p_lower:
-                return prefix
-    return None
+    cwd_prefix = _cwd_project(cwd)
+    if edits:
+        n = len(edits)
+        if cwd_prefix:
+            return f"{cwd_prefix} 编辑了{n}个文件"
+        return f"编辑了{n}个文件"
+    if cwd_prefix:
+        return f"{cwd_prefix} 会话工作"
+    return f"session 工作 ({sid_short})"
 
 
 def postprocess_title(title, cwd):
-    cwd_prefix = ""
-    if cwd:
-        parts = cwd.strip("/").split("/")
-        for known in KNOWN_PREFIXES:
-            if known in cwd.lower():
-                cwd_prefix = known
-                break
-        if not cwd_prefix and len(parts) >= 3 and parts[1] == "git":
-            cwd_prefix = parts[2].split("/")[0]
+    cwd_prefix = _cwd_project(cwd)
 
     title_has_prefix = any(
         title.lower().startswith(p.lower() + " ") for p in KNOWN_PREFIXES
@@ -223,40 +225,21 @@ def assemble_description(llm, commits, edits_by_dir, user_prompts, agent_notes,
     if llm and llm.get("summary"):
         body = llm["summary"].strip()
     else:
-        body = f"本次 session（{sid_short}）进行了 {asst_msgs} 轮对话。"
-
-    parts = [body]
-
-    if commits:
-        brief = "；".join(commits[:3])
-        if len(commits) > 3:
-            brief += f"（+{len(commits)-3} more）"
-        parts.append(f"主要动作：{brief}。")
-
-    if edits_by_dir:
-        top_dirs = sorted(edits_by_dir.keys())[:3]
-        parts.append(f"改动 {sum(len(v) for v in edits_by_dir.values())} 个文件，主要在：{' / '.join(top_dirs)}。")
-
-    unanswered = []
-    for p in user_prompts[1:]:
-        p_clean = p.replace("\n", " ").strip()
-        if not p_clean:
-            continue
-        if re.search(r'[✅❌⚠━ℹ▌▎]', p_clean):
-            continue
-        if "Claude Code" in p_clean and ("版本" in p_clean or "升级" in p_clean):
-            continue
-        unanswered.append(p_clean[:100])
-    if unanswered:
-        brief = "；".join(unanswered[:5])
-        if len(brief) > 200:
-            brief = brief[:200] + "…"
-        parts.append("其余用户问题：" + brief + "。")
+        parts = []
+        if commits:
+            parts.append(f"提交了 {len(commits)} 个 commit")
+        if edits_by_dir:
+            total = sum(len(v) for v in edits_by_dir.values())
+            parts.append(f"编辑了 {total} 个文件")
+        if parts:
+            body = "，".join(parts) + "。"
+        else:
+            body = f"进行了 {asst_msgs} 轮对话。"
 
     if agent_notes:
-        parts.append(f"\n备注：\n{agent_notes}")
+        body += f"\n\n备注：{agent_notes}"
 
-    return "\n".join(parts)
+    return body
 
 
 REASON_MAP = {
@@ -465,7 +448,8 @@ def aggregate(transcript, sid, cwd, reason, notes_path):
 
     llm = llm_summarize(parsed["commits"], parsed["user_prompts"], parsed["edits"])
 
-    title = generate_title(llm, parsed["commits"], parsed["user_prompts"], sid[:8])
+    title = generate_title(llm, parsed["commits"], parsed["user_prompts"], sid[:8],
+                          cwd, parsed["edits"])
     title = postprocess_title(title, cwd)
 
     work_type = determine_work_type(llm, parsed["commits"], parsed["edits"])

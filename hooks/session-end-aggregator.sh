@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# SessionEnd hook: 从 transcript 聚合 token + 事件 + 用户需求 → 写飞书 worklog
-# 设计：自动写飞书，说明栏用结构化数据（commits/edits/prompts/notes/tokens），
-#      不用 "auto-aggregated" 这种占位符。
+# SessionEnd hook: 从 transcript 聚合 → LLM 生成工作摘要 → 写飞书 worklog
+# 说明栏只放工作摘要（token/消息数/commits 等原始数据已在独立列）。
 # Agent 可在工作中往 /tmp/claude_session_<sid>_notes.md 追加 1 行总结。
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,6 +45,14 @@ fi
 if [ $((NOW - LAST)) -ge $DAY ] && [ -f "$CONSOLIDATE_SCRIPT" ]; then
     echo "session-end-aggregator: daily merge triggered" >&2
     python3 "$CONSOLIDATE_SCRIPT" --mode merge --write >/dev/null 2>&1 && date +%s > "$MERGE_MARKER"
+
+    # 每日 git/PR 研究 — 查当天所有 repo commit + GitHub PR，LLM 合成日 worklog
+    GIT_RESEARCH="$SCRIPT_DIR/worklog_daily_research.py"
+    YESTERDAY=$(date -d "yesterday" +%Y-%m-%d 2>/dev/null || date -d "-1 day" +%Y-%m-%d)
+    if [ -f "$GIT_RESEARCH" ]; then
+        echo "session-end-aggregator: daily git/PR research triggered" >&2
+        python3 "$GIT_RESEARCH" --date "$YESTERDAY" --write >/dev/null 2>&1
+    fi
 fi
 
 # 每周自动生成周总结
