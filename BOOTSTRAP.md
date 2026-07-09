@@ -336,6 +336,8 @@ gh repo clone <your-github-username>/ccconfig -- --branch release
 
 Skill 插件仓库。`init-skill.sh sync` 从这里 symlink 自建 skill 到 `~/.claude/skills/`。
 
+> **v1.3.1+**：`init-skill.sh` 内置 `ensure_claude_skills()` 自动 clone。如果 gh 已登录，阶段 5 的 `init.sh all` 会自动完成这一步。手动 clone 仅需在 gh 未登录时做。
+
 **SSH（推荐）**：
 
 ```bash
@@ -350,7 +352,7 @@ cd ~/git
 gh repo clone <your-github-username>/claude-skills
 ```
 
-> **ccconfig 用户**：claude-skills 在阶段 5 的 `init-skill.sh sync` 被自动引用（`CLAUDE_SKILLS_SRC` 默认 `~/git/claude-skills/plugins`）。
+> **ccconfig 用户**：claude-skills 在阶段 5 的 `init-skill.sh sync` 被自动引用（`CLAUDE_SKILLS_SRC` 默认 `~/git/claude-skills/plugins`）。如果目录缺失且 gh 可用，自动 clone；否则跳过并提示手动克隆。
 > **独立用户**：不需 ccconfig，直接 `/plugin marketplace add <your-username>/claude-skills` 安装。
 
 ### 4c. 初始化 ccprivate（一条命令）
