@@ -2,6 +2,17 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.3.2] — 2026-07-09
+
+### Changed
+- **域名迁移** — ccconfiged.pages.dev → cconf.aiagt.dev、ccskills.pages.dev → cskills.aiagt.dev
+- **CF Pages 落地页** — `www/index.html` 重写三步流程（ccprivate → init.sh all → 完成）、终端命令更新、I18N 中英双语
+- **commit hash 显示** — pre-commit hook 注入 HTML 占位符，纯静态方案，不依赖 GitHub API（不受限流）
+
+### Fixed
+- CF Pages 构建失败 — `wrangler.toml` `build.command` 对 Pages 无效，改回纯静态部署
+- commit hash 显示 `···` — GitHub API 无认证限流 60req/h 导致 fetch 失败
+
 ## [1.3.1] — 2026-07-09
 
 ### Added
