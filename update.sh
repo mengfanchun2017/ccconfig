@@ -12,6 +12,9 @@
 #   [5] MCP 缓存        → 刷新 npx/uvx 缓存
 #   [6] cc-connect     → GitHub Release [option]
 #   [7] systemd 服务    → 重建 + 重启 [option]
+#   [8] OfficeCLI      → GitHub Release [option]
+#   [9] Skills 同步     → claude-skills + ccprivate [option]
+#   [10] Cloudflare 插件 → claude plugin [option]
 #
 # 使用：
 #   bash ccconfig/update.sh               # 交互式菜单（支持多选，如 "1 3 4"）
@@ -768,14 +771,21 @@ update_officecli() {
     bash "$SCRIPT_DIR/option-officecli/init.sh" --update
 }
 
-# ========== 10. Skills 同步 ==========
+# ========== 10. Cloudflare 插件 ==========
+
+update_cloudflare_plugin() {
+    section "Cloudflare 插件"
+    bash "$SCRIPT_DIR/option-cloudflare/init.sh" --update
+}
+
+# ========== 11. Skills 同步 ==========
 
 update_skills() {
     section "Skills (claude-skills + ccprivate overlay)"
     bash "$SCRIPT_DIR/init-skill.sh" sync
 }
 
-# ========== 11. systemd 服务重建 ==========
+# ========== 12. systemd 服务重建 ==========
 
 fix_systemd_services() {
     section "systemd 服务"
@@ -1002,6 +1012,7 @@ update_all() {
     if [ "$include_option" = "true" ]; then
         run_step "cconnect" "cc-connect"        update_cconnect
         run_step ""         "OfficeCLI"          update_officecli
+        run_step ""         "Cloudflare 插件"    update_cloudflare_plugin
     fi
     run_step "gh"       "GitHub CLI"        update_gh
     run_step "claude"   "Claude Code"       update_claude
@@ -1088,6 +1099,7 @@ show_menu() {
     echo "   7) systemd 服务重建"
     echo "   8) OfficeCLI"
     echo "   9) Skills 同步"
+    echo "   10) Cloudflare 插件"
     echo ""
     echo "   0) 退出"
     echo ""
@@ -1098,7 +1110,7 @@ show_menu() {
 
     # 多选支持：空格/逗号分隔如 "1 3 4" 或 "1,3,4"
     local selections
-    selections=$(echo "$choice" | tr ',' ' ' | tr '[:space:]' '\n' | grep -E '^[1-9]$|^all$' | sort -u | tr '\n' ' ')
+    selections=$(echo "$choice" | tr ',' ' ' | tr '[:space:]' '\n' | grep -E '^[1-9]$|^10$|^all$' | sort -u | tr '\n' ' ')
 
     local did_something=0
     for sel in $selections; do
@@ -1112,6 +1124,7 @@ show_menu() {
             7)  fix_systemd_services; did_something=1 ;;
             8)  update_officecli; did_something=1 ;;
             9)  update_skills; did_something=1 ;;
+            10) update_cloudflare_plugin; did_something=1 ;;
             all)
                 take_snapshot "pre" > /dev/null
                 update_all false
@@ -1160,6 +1173,7 @@ case "${1:-menu}" in
     services)      fix_systemd_services ;;
     officecli)     update_officecli ;;
     skills)        update_skills ;;
+    cloudflare)    update_cloudflare_plugin ;;
     menu|"")
         self_update "menu"
         show_menu ;;
