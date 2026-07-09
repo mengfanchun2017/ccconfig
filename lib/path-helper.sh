@@ -152,11 +152,16 @@ ensure_config() {
         return 0
     fi
 
+    # 处理 broken symlink（ccprivate 不在时 conf/*.json → ccprivate 的 symlink 断链）
+    if [ -L "$config_file" ] && [ ! -e "$config_file" ]; then
+        rm -f "$config_file"
+    fi
+
     local example_file="${config_file}.example"
     if [ -f "$example_file" ]; then
         echo ""
         echo -e "\033[1;33m⚠️  配置文件不存在: ${friendly_name}\033[0m"
-        echo "   从模板复制: ${example_file}"
+        echo -e "   从模板复制: ${example_file}"
         cp "$example_file" "$config_file"
         echo ""
         echo -e "\033[0;36m📝 请编辑配置文件填入你的信息:\033[0m"

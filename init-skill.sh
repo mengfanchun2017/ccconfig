@@ -23,6 +23,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/colors.sh"
 SKILLS_SRC="${CLAUDE_SKILLS_SRC:-$HOME/git/claude-skills/plugins}"
+CLAUDE_SKILLS_REPO_DIR="$HOME/git/claude-skills"
 CCPRIVATE_DIR="${CCPRIVATE_DIR:-$HOME/git/ccprivate}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
@@ -33,6 +34,41 @@ if [ -z "$GITHUB_USER" ]; then
 fi
 MARKETPLACE_REPO="$GITHUB_USER/claude-skills"
 MARKETPLACE_NAME="$GITHUB_USER-skills"
+
+# 自动 clone claude-skills 仓库（首次初始化时）
+ensure_claude_skills() {
+    if [[ -d "$CLAUDE_SKILLS_REPO_DIR/.git" ]]; then
+        # 仓库已存在，git pull 更新
+        git -C "$CLAUDE_SKILLS_REPO_DIR" pull --ff-only origin main 2>/dev/null || true
+        return 0
+    fi
+
+    if [[ -d "$SKILLS_SRC" ]]; then
+        return 0
+    fi
+
+    # 尝试 clone
+    local clone_url=""
+    if [[ -n "$GITHUB_USER" ]]; then
+        clone_url="git@github.com:${GITHUB_USER}/claude-skills.git"
+    fi
+
+    info "claude-skills 仓库未找到，尝试 clone..."
+    if [[ -n "$clone_url" ]] && git clone "$clone_url" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
+        good "claude-skills 已 clone: $CLAUDE_SKILLS_REPO_DIR"
+        return 0
+    fi
+
+    # SSH 失败尝试 HTTPS
+    if [[ -n "$GITHUB_USER" ]] && git clone "https://github.com/${GITHUB_USER}/claude-skills.git" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
+        good "claude-skills 已 clone (HTTPS): $CLAUDE_SKILLS_REPO_DIR"
+        return 0
+    fi
+
+    warn "无法 clone claude-skills 仓库"
+    warn "  手动: git clone git@github.com:<your-user>/claude-skills.git ~/git/claude-skills"
+    return 1
+}
 
 # 第三方 skill 全部走 npx skills（user-managed 干净显示）
 # marketplace.json 仍发布 mattpocock-skills 给其他人通过 marketplace 安装
@@ -157,9 +193,12 @@ do_link_self_built() {
 
     mkdir -p "$CLAUDE_SKILLS_DIR"
 
+    ensure_claude_skills || true
+
     if [[ ! -d "$SKILLS_SRC" ]]; then
-        bad "Skills 源目录不存在: $SKILLS_SRC"
-        return 1
+        warn "Skills 源目录不存在: $SKILLS_SRC（跳过自建 skill symlink）"
+        warn "  手动 clone 后重跑: bash ccconfig/init-skill.sh sync"
+        return 0
     fi
 
     local linked=0 skipped=0 cleaned=0 user_managed=0

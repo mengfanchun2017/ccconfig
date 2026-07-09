@@ -15,6 +15,60 @@ show_banner() {
     echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
 }
 
+# 首次初始化检查：缺失的依赖仓库
+check_first_time() {
+    local issues=0
+    local ccprivate_ok=true
+    local claude_skills_ok=true
+
+    if [[ ! -d "$HOME/git/ccprivate" ]]; then
+        ccprivate_ok=false
+        issues=$((issues + 1))
+    fi
+    if [[ ! -d "$HOME/git/claude-skills/.git" ]] && [[ ! -d "$HOME/git/claude-skills/plugins" ]]; then
+        claude_skills_ok=false
+        issues=$((issues + 1))
+    fi
+
+    if [[ $issues -eq 0 ]]; then
+        return 0
+    fi
+
+    echo ""
+    echo -e "${YELLOW}━━━ 首次初始化引导 ━━━${NC}"
+    echo ""
+
+    if ! $ccprivate_ok; then
+        echo -e "  ${RED}❌${NC} ccprivate 未找到 — 私有配置（API Key、CLAUDE.md、settings.json）"
+        echo -e "     ${CYAN}→${NC} bash ccconfig/bin/init-ccprivate.sh"
+        echo ""
+    fi
+
+    if ! $claude_skills_ok; then
+        echo -e "  ${YELLOW}○${NC} claude-skills 未找到 — 自建 skills（f-* 系列）"
+        echo -e "     ${CYAN}→${NC} init-skill.sh 会自动 clone，或手动:"
+        echo -e "        git clone git@github.com:<your-user>/claude-skills.git ~/git/claude-skills"
+        echo ""
+    fi
+
+    echo -e "  ${GRAY}建议顺序: ccprivate → claude-skills → 一键全部初始化${NC}"
+    echo ""
+
+    if ! $ccprivate_ok; then
+        read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
+        create_ccp="${create_ccp:-y}"
+        if [[ "$create_ccp" =~ ^[Yy]$ ]]; then
+            bash "$SCRIPT_DIR/bin/init-ccprivate.sh"
+            echo ""
+            echo -e "${GREEN}✅ ccprivate 已创建${NC}"
+            echo -e "${YELLOW}请重新运行 init.sh 继续初始化${NC}"
+            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0
+        fi
+    fi
+
+    return 0
+}
+
 # 一键全部初始化的标准 3 步（+ 可选 Python 包）。
 # 三个入口都走这里，确保行为一致：
 #   - submenu_env 4: ★ 一键全部
@@ -23,6 +77,7 @@ show_banner() {
 init_all_steps() {
     local with_python="${1:-false}"
     show_banner
+    check_first_time
     run_step "1/3 Ubuntu 环境" "$SCRIPT_DIR/init-ubuntu.sh" true
     # LLM 由 init-ubuntu.sh 内部 setup_claude_api 从 conf/llm.json 读取
     run_step "2/3 MCP 服务器"  "$SCRIPT_DIR/init-mcp.sh"   true
@@ -250,6 +305,7 @@ submenu_tools() {
 # ========== 主菜单 ==========
 main_menu() {
     show_banner
+    check_first_time
     echo ""
     echo "  ── 环境初始化 ──"
     echo "  1) Ubuntu 环境  │ LLM切换 │ 自启动"
