@@ -47,26 +47,26 @@ ensure_claude_skills() {
         return 0
     fi
 
-    # 尝试 clone
-    local clone_url=""
-    if [[ -n "$GITHUB_USER" ]]; then
-        clone_url="git@github.com:${GITHUB_USER}/claude-skills.git"
+    # gh 未就绪 → 静默跳过（Step 3 的 init-ubuntu.sh 装好 gh 后会处理）
+    if [[ -z "$GITHUB_USER" ]]; then
+        return 1
     fi
 
+    # 尝试 clone
+    local clone_url="git@github.com:${GITHUB_USER}/claude-skills.git"
     info "claude-skills 仓库未找到，尝试 clone..."
-    if [[ -n "$clone_url" ]] && git clone "$clone_url" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
+    if git clone "$clone_url" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
         good "claude-skills 已 clone: $CLAUDE_SKILLS_REPO_DIR"
         return 0
     fi
 
-    # SSH 失败尝试 HTTPS
-    if [[ -n "$GITHUB_USER" ]] && git clone "https://github.com/${GITHUB_USER}/claude-skills.git" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
+    if git clone "https://github.com/${GITHUB_USER}/claude-skills.git" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
         good "claude-skills 已 clone (HTTPS): $CLAUDE_SKILLS_REPO_DIR"
         return 0
     fi
 
     warn "无法 clone claude-skills 仓库"
-    warn "  手动: git clone git@github.com:<your-user>/claude-skills.git ~/git/claude-skills"
+    warn "  手动: git clone git@github.com:${GITHUB_USER}/claude-skills.git ~/git/claude-skills"
     return 1
 }
 
@@ -196,8 +196,10 @@ do_link_self_built() {
     ensure_claude_skills || true
 
     if [[ ! -d "$SKILLS_SRC" ]]; then
-        warn "Skills 源目录不存在: $SKILLS_SRC（跳过自建 skill symlink）"
-        warn "  手动 clone 后重跑: bash ccconfig/init-skill.sh sync"
+        if [[ -n "$GITHUB_USER" ]]; then
+            warn "Skills 源目录不存在: $SKILLS_SRC（跳过自建 skill symlink）"
+            warn "  手动 clone 后重跑: bash ccconfig/init-skill.sh sync"
+        fi
         return 0
     fi
 
