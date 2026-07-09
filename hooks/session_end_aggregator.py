@@ -92,6 +92,11 @@ def is_empty_session(parsed):
 # ── LLM summarization ────────────────────────────────────────────────
 
 def llm_summarize(commits, user_prompts, edits):
+    base_url = os.environ.get("ANTHROPIC_BASE_URL", "").strip()
+    model = os.environ.get("ANTHROPIC_DEFAULT_HAIKU_MODEL", "") or os.environ.get("ANTHROPIC_MODEL", "")
+    api_key = os.environ.get("ANTHROPIC_AUTH_TOKEN", "").strip()
+    if not base_url or not model or not api_key:
+        return None
     try:
         import urllib.request
         prompt_parts = []
@@ -104,44 +109,23 @@ def llm_summarize(commits, user_prompts, edits):
             prompt_parts.append("\nedited_files:\n" + "\n".join(f"- {f[:100]}" for f in files))
         if not prompt_parts:
             return None
-        model = os.environ.get("ANTHROPIC_MODEL", "deepseek-v4-pro")
         data = {
             "model": model,
-            "max_tokens": 600,
-            "system": ("你是 worklog 总结助手。给定用户诉求+commit+改动文件，"
-                       "输出严格 JSON（无思考过程、无 markdown 包裹）。\n"
-                       "字段：\n"
-                       "  title: ≤20 字工作主题\n"
-                       "  type: 成果类型，必选下面一个：工具开发/技术方案/文档输出/学习笔记/问题排查/项目交付\n"
-                       "  summary: 2-3 句自然语言概述\n"
-                       "标题规则（强约束，违反复查再输出）：\n"
-                       "  - 唯一合法格式：<项目前缀> <动词+对象>，如 claudecode 修复 hook 标题格式\n"
-                       "  - 项目前缀从文件路径/commit 推断：cconfig claudecode project feishu minimax docs 等，小写英文\n"
-                       "  - 禁止冒号：不写 claudecode: xxx 或 sfia 技能画像构建：xxx\n"
-                       "  - 禁止下划线：不写 update_claude\n"
-                       "  - 禁止括号：【】[]（）\n"
-                       "  - 禁止标题以\"session 工作\"开头\n"
-                       "成果类型选择规则：\n"
-                       "  - 工具开发：写/改代码、脚本、hook、CLI 工具\n"
-                       "  - 技术方案：架构设计、技术选型、方案对比\n"
-                       "  - 文档输出：写文档、知识库、研究报告、画图\n"
-                       "  - 学习笔记：探索新技术、阅读文档、动手实验\n"
-                       "  - 问题排查：debug、故障修复、根因分析\n"
-                       "  - 项目交付：完整功能上线、里程碑交付"),
+            "max_tokens": 400,
+            "system": "你是 worklog 总结助手。输出严格 JSON（无 markdown 包裹）。字段：title(≤20字，格式：<项目前缀> <动词+对象>)、type(工具开发/技术方案/文档输出/学习笔记/问题排查/项目交付)、summary(2-3句概述)。标题禁止冒号、下划线、括号，禁止以\"session 工作\"开头。",
             "messages": [{"role": "user", "content": "\n".join(prompt_parts)}],
         }
-        base_url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
         api_url = base_url.rstrip("/") + "/messages"
         req = urllib.request.Request(
             api_url,
             data=json.dumps(data).encode(),
             headers={
-                "x-api-key": os.environ.get("ANTHROPIC_AUTH_TOKEN", ""),
+                "x-api-key": api_key,
                 "anthropic-version": "2023-06-01",
                 "Content-Type": "application/json",
             },
         )
-        with urllib.request.urlopen(req, timeout=12) as resp:
+        with urllib.request.urlopen(req, timeout=20) as resp:
             result = json.loads(resp.read())
         text = ""
         for c in result.get("content", []):
