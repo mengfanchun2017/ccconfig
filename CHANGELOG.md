@@ -2,6 +2,22 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.3.0] — 2026-07-09
+
+### Added
+- **产品落地页** (`www/`) — Cloudflare Pages 部署，含 commit hash 显示、ccskills 链接、架构介绍
+- **Cloudflare 插件管理** (`option-cloudflare/`) — `init.sh` 管理脚本，一键安装/配置 Cloudflare MCP 插件
+- **worklog 日报研究 hook** (`hooks/worklog_daily_research.py`) — 每日自动汇总 worklog 并输出研究建议
+
+### Changed
+- **ccskills 品牌升级** — claude-skills → ccskills.pages.dev，技能生态联合区域
+- **域名迁移** — ccconfig 域名改为 ccconfiged.pages.dev
+- **session-end-aggregator** — worklog 字段扩展（新增 model、session_type 等字段）
+
+### Docs
+- `docs/cloudflare-plugin.md` — Cloudflare 插件参考文档
+- `docs/design/worklog-field-extension.md` — worklog 字段扩展设计文档
+
 ## [1.2.0] — 2026-07-08
 
 ### Changed
