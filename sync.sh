@@ -52,7 +52,7 @@ repo_status() {
 do_cconfig_post() {
     echo ""
     echo -e "${CYAN}── 重建符号链接 ──${NC}"
-    bash "$SCRIPT_DIR/setup-links.sh"
+    bash "$SCRIPT_DIR/setup-links.sh" || echo -e "  ${YELLOW}⚠️ 部分链接失败（首次初始化正常）${NC}"
 
     echo ""
     echo -e "${CYAN}── 新配置模板检测 ──${NC}"

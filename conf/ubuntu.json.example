@@ -4,7 +4,7 @@
 
   "git": {
     "repo": "你的GitHub用户名/ccconfig",
-    "target_dir": "$HOME/git/ccconfig",
+    "target_dir": "~/git/ccconfig",
     "email": "you@example.com",
     "username": "你的GitHub用户名"
   }
