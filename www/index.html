@@ -158,7 +158,7 @@ footer a:hover{color:#a1a1aa}
 <section class="hero">
   <div class="container">
     <h1 data-i18n="hero_title">Claude Code,<br>一键配置。</h1>
-    <p class="sub" data-i18n="hero_sub">一个仓库，一条命令。你的整个 Claude Code 环境 — rules、skills、MCP、agents — 全设备同步。</p>
+    <p class="sub" data-i18n="hero_sub">一个仓库，一条命令。Ubuntu 环境 + Claude Code + MCP + 15 skills — 全设备同步。首次运行自动引导，claude-skills 自动 clone。</p>
     <div class="hero-cta">
       <a href="https://github.com/mengfanchun2017/ccconfig" class="primary" target="_blank" rel="noopener" data-i18n="hero_cta_primary">查看 GitHub →</a>
       <a href="#how" class="secondary" data-i18n="hero_cta_secondary">工作原理</a>
@@ -172,12 +172,13 @@ footer a:hover{color:#a1a1aa}
       <div class="terminal-body">
         <span class="prompt">$</span> <span class="cmd">git clone --branch release https://github.com/mengfanchun2017/ccconfig.git</span><br>
         <span class="out">Cloning into 'ccconfig'...</span><br>
-        <span class="prompt">$</span> <span class="cmd">bash ccconfig/setup-links.sh</span><br>
-        <span class="out">[setup-links] rules → 9 linked</span><br>
-        <span class="out">[setup-links] skills → 15 linked</span><br>
-        <span class="out">[setup-links] agents → 4 linked</span><br>
-        <span class="out">[setup-links] settings → done</span><br>
-        <span class="out" data-i18n="terminal_done">完成。Claude Code 已配置。</span><br>
+        <span class="prompt">$</span> <span class="cmd">bash ccconfig/bin/init-ccprivate.sh</span><br>
+        <span class="out">创建 ccprivate → conf/llm.json → conf/claude.json → symlink 建立</span><br>
+        <span class="prompt">$</span> <span class="cmd">bash ccconfig/init.sh all</span><br>
+        <span class="out">[1/3] Ubuntu 环境 → git/gh/node/claude/autosync ✓</span><br>
+        <span class="out">[2/3] MCP 服务器 → Tavily/MiniMax/Supabase ✓</span><br>
+        <span class="out">[3/3] Skills → claude-skills clone + 15 symlink + marketplace ✓</span><br>
+        <span class="out" data-i18n="terminal_done">完成。Claude Code 全环境已配置。</span><br>
         <span class="prompt">$</span> <span class="cursor"></span>
       </div>
     </div>
@@ -294,7 +295,7 @@ footer a:hover{color:#a1a1aa}
 <section id="how">
   <div class="container">
     <div class="section-label" data-i18n="how_label">三步</div>
-    <h2 data-i18n="how_title">三步。<br>每步三十秒。</h2>
+    <h2 data-i18n="how_title">三步。<br>五分钟配好 Claude Code。</h2>
     <p class="section-desc"></p>
     <div class="steps">
       <div class="step">
@@ -302,23 +303,23 @@ footer a:hover{color:#a1a1aa}
         <div class="step-content">
           <h3 data-i18n="step_1_title">克隆仓库</h3>
           <p><code>git clone --branch release https://github.com/mengfanchun2017/ccconfig.git</code></p>
-          <p data-i18n="step_1_desc">Release 分支是稳定版。Main 是开发版。你永远拿到测试过的版本。</p>
+          <p data-i18n="step_1_desc">Release 分支是稳定版。Main 是开发版。拿到测试过的版本。</p>
         </div>
       </div>
       <div class="step">
         <div class="step-num">2</div>
         <div class="step-content">
-          <h3 data-i18n="step_2_title">运行安装</h3>
-          <p><code>bash ccconfig/setup-links.sh</code></p>
-          <p data-i18n="step_2_desc">从 <code>~/.claude/</code> 创建符号链接到你的仓库。Rules、skills、agents、MCP 配置、settings — 全部即刻接通。</p>
+          <h3 data-i18n="step_2_title">创建私有配置</h3>
+          <p><code>bash ccconfig/bin/init-ccprivate.sh</code></p>
+          <p data-i18n="step_2_desc">交互式收集 GitHub 账号 + LLM API Key。自动生成配置、创建私有仓库、建立 symlink。一条命令完成。</p>
         </div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
         <div class="step-content">
-          <h3 data-i18n="step_3_title">自动同步</h3>
-          <p><code>systemctl --user enable auto-sync</code></p>
-          <p data-i18n="step_3_desc">后台监控文件变更。自动推送 git。你的其他机器下拉保持同步。</p>
+          <h3 data-i18n="step_3_title">一键初始化</h3>
+          <p><code>bash ccconfig/init.sh all</code></p>
+          <p data-i18n="step_3_desc">装好 Ubuntu 工具链 + Claude Code + MCP 服务器 + 15 个 skills（自动 clone claude-skills）。首次运行有引导 wizard。</p>
         </div>
       </div>
     </div>
@@ -356,10 +357,10 @@ footer a:hover{color:#a1a1aa}
 
 <section class="footer-cta">
   <div class="container">
-    <h2 data-i18n="cta_title">一条命令，配置 Claude Code。</h2>
-    <p data-i18n="cta_desc">克隆 release 分支。运行 setup。完成。</p>
+    <h2 data-i18n="cta_title">一条命令，配置 Claude Code 全环境。</h2>
+    <p data-i18n="cta_desc">克隆 release 分支。创建 ccprivate。运行 init.sh all。完成。</p>
     <div class="clone-box" onclick="copyClone()" title="点击复制">
-      git clone --branch release https://github.com/mengfanchun2017/ccconfig.git
+      git clone --branch release https://github.com/mengfanchun2017/ccconfig.git && bash ccconfig/init.sh all
     </div>
     <div style="margin-top:32px">
       <p style="font-size:14px;color:#71717a;margin-bottom:12px" data-i18n="cta_skills">还需要技能？看看</p>
@@ -381,10 +382,10 @@ const I18N = {
     nav_faq: "FAQ",
     lang_switch: "EN",
     hero_title: 'Claude Code,<br>一键配置。',
-    hero_sub: "一个仓库，一条命令。你的整个 Claude Code 环境 — rules、skills、MCP、agents — 全设备同步。",
+    hero_sub: "一个仓库，一条命令。Ubuntu 环境 + Claude Code + MCP + 15 skills — 全设备同步。首次运行自动引导，claude-skills 自动 clone。",
     hero_cta_primary: "查看 GitHub →",
     hero_cta_secondary: "工作原理",
-    terminal_done: "完成。Claude Code 已配置。",
+    terminal_done: "完成。Claude Code 全环境已配置。",
     pain_label: "痛点",
     pain_title: "你的配置不该困在一台机器里。",
     pain_desc: "Claude Code 很强大。但每台新机器都要重来一遍。每次改动都要手动复制。每个队友都要临时配置。",
@@ -423,13 +424,13 @@ const I18N = {
     uc_3_title: "团队入职",
     uc_3_desc: "新人克隆 ccprivate，运行 setup。即刻与团队一致。共享 rules、共享 skills、共享工作流。无需配置会议。",
     how_label: "三步",
-    how_title: "三步。<br>每步三十秒。",
+    how_title: "三步。<br>五分钟配好 Claude Code。",
     step_1_title: "克隆仓库",
-    step_1_desc: "Release 分支是稳定版。Main 是开发版。你永远拿到测试过的版本。",
-    step_2_title: "运行安装",
-    step_2_desc: '从 <code>~/.claude/</code> 创建符号链接到你的仓库。Rules、skills、agents、MCP 配置、settings — 全部即刻接通。',
-    step_3_title: "自动同步",
-    step_3_desc: "后台监控文件变更。自动推送 git。你的其他机器下拉保持同步。",
+    step_1_desc: "Release 分支是稳定版。Main 是开发版。拿到测试过的版本。",
+    step_2_title: "创建私有配置",
+    step_2_desc: "交互式收集 GitHub 账号 + LLM API Key。自动生成配置、创建私有仓库、建立 symlink。一条命令完成。",
+    step_3_title: "一键初始化",
+    step_3_desc: "装好 Ubuntu 工具链 + Claude Code + MCP 服务器 + 15 个 skills（自动 clone claude-skills）。首次运行有引导 wizard。",
     faq_title: "你可能会问。",
     faq_1_q: "和 dotfiles 有什么不同？",
     faq_1_a: 'Dotfiles 同步文件。ccconfig 管理版本、依赖、自动更新，并用符号链接桥接公开/私密仓库。它是带构建系统的 dotfiles — <code>setup-links.sh</code> 理解完整的 ~/.claude/ 目录结构，把每个组件接到正确位置。',
@@ -441,8 +442,8 @@ const I18N = {
     faq_4_a: "Linux 和 WSL2（Windows）完整支持且每日测试。macOS 支持计划中 — 大部分脚本已可用，但 auto-sync 需 launchd 等价实现。欢迎 PR。",
     faq_5_q: "稳定吗？能用于生产吗？",
     faq_5_a: "ccconfig 由维护者在多台机器上每天使用。Release 分支只接收打过 tag 的测试版本。Auto-sync 已连续运行数月。话虽如此，这是个人基础设施项目 — 不是企业产品。读代码，都是 bash 脚本和符号链接。",
-    cta_title: "一条命令，配置 Claude Code。",
-    cta_desc: "克隆 release 分支。运行 setup。完成。",
+    cta_title: "一条命令，配置 Claude Code 全环境。",
+    cta_desc: "克隆 release 分支。创建 ccprivate。运行 init.sh all。完成。",
     cta_skills: "还需要技能？看看",
     footer_tag: "终端里搭建的"
   },
@@ -451,10 +452,10 @@ const I18N = {
     nav_faq: "FAQ",
     lang_switch: "中文",
     hero_title: 'Claude Code,<br>Configured.',
-    hero_sub: "One repo. One command. Your entire Claude Code environment — rules, skills, MCP, agents — synced across every machine.",
+    hero_sub: "One repo. One command. Ubuntu env + Claude Code + MCP + 15 skills — synced across every machine. First-run wizard guides you, claude-skills auto-cloned.",
     hero_cta_primary: "View on GitHub →",
     hero_cta_secondary: "How it works",
-    terminal_done: "Done. Claude Code is configured.",
+    terminal_done: "Done. Full Claude Code environment configured.",
     pain_label: "The Problem",
     pain_title: "Your config shouldn't live<br>in a single machine.",
     pain_desc: "Claude Code is powerful. But every new machine means redoing everything. Every change means manual copy-paste. Every teammate means ad-hoc setup.",
@@ -493,13 +494,13 @@ const I18N = {
     uc_3_title: "Team Onboarding",
     uc_3_desc: "New teammate clones ccprivate, runs setup. Instant parity with the rest of the team. Shared rules, shared skills, shared workflows. No configuration meeting required.",
     how_label: "How",
-    how_title: "Three steps.<br>Thirty seconds each.",
+    how_title: "Three steps.<br>Five minutes to full Claude Code.",
     step_1_title: "Clone the repo",
     step_1_desc: "Release branch is stable. Main is development. You always get the tested version.",
-    step_2_title: "Run setup",
-    step_2_desc: 'Creates symlinks from <code>~/.claude/</code> to your repo. Rules, skills, agents, MCP configs, settings — all wired up instantly.',
-    step_3_title: "Let it sync",
-    step_3_desc: "Background monitor watches for changes. Pushes to git automatically. Your other machines pull and stay current.",
+    step_2_title: "Create private config",
+    step_2_desc: "Interactive setup collects GitHub + LLM API keys. Auto-generates config files, creates private repo, wires up symlinks. One command.",
+    step_3_title: "One-command init",
+    step_3_desc: "Installs Ubuntu toolchain + Claude Code + MCP servers + 15 skills (auto-clones claude-skills). First-run wizard guides the way.",
     faq_title: "You might wonder.",
     faq_1_q: "How is this different from dotfiles?",
     faq_1_a: 'Dotfiles sync files. ccconfig manages versions, dependencies, auto-updates, and bridges public/private repos with symlinks. It\'s dotfiles with a build system — <code>setup-links.sh</code> understands the full ~/.claude/ directory structure and wires every component to the right place.',
@@ -511,8 +512,8 @@ const I18N = {
     faq_4_a: "Linux and WSL2 (Windows) are fully supported and tested daily. macOS support is planned — most scripts work already, but auto-sync needs a launchd equivalent. PRs welcome.",
     faq_5_q: "Is it stable? Can I trust it in production?",
     faq_5_a: "ccconfig is used daily across multiple machines by its maintainer. The release branch only receives tagged, tested versions. Auto-sync has been running continuously for months. That said, it's a personal infrastructure project — not an enterprise product. Read the code, it's all bash scripts and symlinks.",
-    cta_title: "One command to<br>configure Claude Code.",
-    cta_desc: "Clone the release branch. Run setup. Done.",
+    cta_title: "One command to<br>configure your full Claude Code environment.",
+    cta_desc: "Clone release. Create ccprivate. Run init.sh all. Done.",
     cta_skills: "Need skills too? Check out",
     footer_tag: "Built with a terminal"
   }
