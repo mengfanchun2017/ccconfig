@@ -66,12 +66,19 @@ if [ $blocked -eq 1 ]; then
     exit 1
 fi
 
-# === commit-hash.js 自动更新（CF Pages 显示用）===
-HASH_FILE="www/commit-hash.js"
-if [ -f "$HASH_FILE" ]; then
-    CURRENT_HASH=$(git rev-parse HEAD)
-    echo "window.__COMMIT__ = '${CURRENT_HASH}';" > "$HASH_FILE"
-    git add "$HASH_FILE" 2>/dev/null || true
+# === commit hash 自动注入（CF Pages 显示用）===
+CURRENT_HASH=$(git rev-parse HEAD)
+HASH_SHORT="${CURRENT_HASH:0:7}"
+
+# commit-hash.js
+echo "window.__COMMIT__ = '${CURRENT_HASH}';" > www/commit-hash.js
+git add www/commit-hash.js 2>/dev/null || true
+
+# index.html 占位符替换（COMMIT_FULL → 40位, COMMIT_7 → 7位）
+if [ -f www/index.html ]; then
+    sed -i "s/COMMIT_FULL/${CURRENT_HASH}/g" www/index.html
+    sed -i "s/COMMIT_7/${HASH_SHORT}/g" www/index.html
+    git add www/index.html 2>/dev/null || true
 fi
 
 exit 0
