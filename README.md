@@ -188,20 +188,20 @@ ccconfig/
 # 1. 克隆 ccconfig（SSH 推荐，稳定版用 release 分支）
 git clone git@github.com:<your-github-username>/ccconfig.git ~/git/ccconfig --branch release
 
-# 2. 克隆 claude-skills（skill 插件仓库）
-git clone git@github.com:<your-github-username>/claude-skills.git ~/git/claude-skills
-
-# 3. 一键创建 ccprivate（交互式，收集 GitHub 账号 + LLM API Key）
+# 2. 一键创建 ccprivate（交互式，收集 GitHub 账号 + LLM API Key）
 bash ~/git/ccconfig/bin/init-ccprivate.sh
 
-# 4. 系统初始化（Ubuntu + LLM + MCP + Skills + Python）
+# 3. 系统初始化（Ubuntu + LLM + MCP + Skills + Python）
+#    claude-skills 自动 clone（gh 已登录时），无需手动克隆
 bash ~/git/ccconfig/init.sh all
 
-# 5. 状态检查
+# 4. 状态检查
 bash ~/git/ccconfig/status.sh
 ```
 
 > **已有 ccprivate？** 用 `bash ~/git/ccconfig/bin/init-ccprivate.sh --clone` 从 GitHub 克隆。
+> **gh 未登录？** claude-skills 需要手动克隆：`git clone git@github.com:<your-gh>/claude-skills.git ~/git/claude-skills`
+> **不改系统？** 用 `bash ~/git/ccconfig/init.sh` 进入交互式菜单，按需选择单个步骤。
 
 ## 核心命令
 
@@ -216,6 +216,16 @@ bash ~/git/ccconfig/status.sh
 | `bash monitor.sh status` | 同步守护进程状态 |
 | `bash setup-links.sh` | 重建公开符号链接 |
 | `bash sync.sh --pull` | 强拉远程 |
+
+## 测试
+
+```bash
+bash ccconfig/tests/test-init.sh              # 17 用例，mock 隔离，秒级完成
+bash ccconfig/tests/test-init.sh --verbose    # 详细输出
+bash ccconfig/tests/test-init.sh --list       # 仅列出用例
+```
+
+覆盖 `ensure_config` / `ensure_claude_skills` / `check_first_time` / placeholder 检测 / `$HOME` 展开 / `init --dry-run` / sync 容错 / MCP 路径修正。改完 init 脚本后跑一遍验证不引入回归。
 
 ## 日常维护
 
