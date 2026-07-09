@@ -2,6 +2,26 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.3.1] — 2026-07-09
+
+### Added
+- **`tests/test-init.sh`** — init 流程自动化测试（17 用例，mock 隔离环境，零网络秒级完成）
+- **`check_first_time()`** — `init.sh` 首次初始化引导，自动检测缺失的 ccprivate/claude-skills 并引导创建
+
+### Changed
+- **`init-skill.sh`** — 新增 `ensure_claude_skills()` 自动 clone claude-skills 仓库；`do_status()`/`do_list()` 加目录守卫；缺目录时优雅降级不报错
+- **`init-ubuntu.sh`** — placeholder 检测（避免用模板值 clone）、`$HOME` 字面量展开修复、`setup_symlinks()` 非致命
+- **`init-mcp.sh`** — sync 目标路径修正为 `~/.claude/settings.json`（之前写到不存在的 `cconfig/link/settings.json`）；broken symlink 处理；缺 `~/.claude.json` 容错
+- **`setup-links.sh`** — skills 同步失败不中断
+- **`sync.sh`** — `do_cconfig_post()` 中 setup-links 非致命
+- **`status.sh`** — `check_skills()` 路径改用 `CLAUDE_SKILLS_SRC` 环境变量
+- **`lib/path-helper.sh`** — `ensure_config()` 处理 broken symlink（ccprivate 不在时 conf/*.json 断链）
+
+### Fixed
+- 新机器首次 `init.sh` → setup-links → init-skill 全链路崩溃（claude-skills 缺失导致 `set -e` 级联退出）
+- `conf/ubuntu.json` broken symlink 时 `ensure_config` 的 `cp` 写入失败
+- `init-ccprivate.sh` 生成的 `target_dir` 含 `$HOME` 字面量无法展开
+
 ## [1.3.0] — 2026-07-09
 
 ### Added
