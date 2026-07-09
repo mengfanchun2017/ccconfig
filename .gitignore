@@ -22,8 +22,7 @@ link/settings.json
 link/CLAUDE.md
 link/projects
 
-# 项目级 CLAUDE.md（符号链接到 ccprivate）
-CLAUDE.md
+# 项目级 CLAUDE.md 现在是真实文件，已提交
 
 # Python 字节码
 __pycache__/
