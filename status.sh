@@ -660,7 +660,7 @@ check_skills() {
     echo -e "${CYAN}── Skills${NC}"
 
     local skills_dir="$HOME/.claude/skills"
-    local skills_src="$HOME/git/claude-skills/plugins"
+    local skills_src="${CLAUDE_SKILLS_SRC:-$HOME/git/claude-skills/plugins}"
     local ok=true
 
     if [[ -d "$skills_src" ]]; then
