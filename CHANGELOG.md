@@ -2,6 +2,12 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.3.3] — 2026-07-10
+
+### Changed
+- **域名标准化** — `config.aiagt.dev` (ccconfig) + `skill.aiagt.dev` (ccskills)，互链统一
+- **`ensure_claude_skills()`** — gh 未就绪时静默跳过，不在 Step 2 显示无行动力的 warning；gh 就绪时才尝试 clone 并提示
+
 ## [1.3.2] — 2026-07-09
 
 ### Changed
