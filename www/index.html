@@ -242,9 +242,26 @@ footer a:hover{color:#a1a1aa}
       </div>
       <div class="feature-card">
         <div class="f-icon">📦</div>
-        <h3 data-i18n="feat_6_title">Skills 市场就绪</h3>
-        <p data-i18n="feat_6_desc">15+ Claude Code skills 可用。按条安装 <code>/plugin install</code>。按需取用。</p>
+        <h3 data-i18n="feat_6_title"><a href="https://ccskills.pages.dev" target="_blank" rel="noopener" style="color:inherit">Skills 市场就绪 →</a></h3>
+        <p data-i18n="feat_6_desc">15+ Claude Code skills 可用。按条安装 <code>/plugin install</code>。按需取用。底层工具 ccconfig 已装好，技能开箱即用。</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<section id="skills-eco" style="padding:60px 0">
+  <div class="container" style="max-width:720px;text-align:center">
+    <div class="section-label" data-i18n="seco_label">技能生态</div>
+    <h2 data-i18n="seco_title" style="margin-bottom:12px">ccconfig + ccskills</h2>
+    <p data-i18n="seco_desc" style="font-size:15px;color:#a1a1aa;margin-bottom:24px;line-height:1.6;max-width:560px;margin-left:auto;margin-right:auto">ccconfig 装好底层工具（lark-cli、officecli、PyMuPDF、MCP 服务器），<a href="https://ccskills.pages.dev" target="_blank" rel="noopener">ccskills</a> 提供 15 个 Claude Code 技能。两者独立部署、互不干扰。装了 ccconfig 再装技能，每个都开箱即用。</p>
+    <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+      <a href="https://ccskills.pages.dev" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:#13131a;border:1px solid #2e2e4e;border-radius:10px;padding:16px 24px;transition:border-color .2s;text-decoration:none">
+        <span style="font-size:22px">📦</span>
+        <span style="text-align:left">
+          <span style="display:block;font-size:15px;font-weight:600;color:#e4e4e7">ccskills</span>
+          <span style="font-size:12px;color:#71717a" data-i18n="seco_skills">15 个技能 · 按需安装 · 独立使用</span>
+        </span>
+      </a>
     </div>
   </div>
 </section>
@@ -390,8 +407,12 @@ const I18N = {
     feat_4_desc: '<code>conf/versions.json</code> 锁定每个工具版本 — Node、gh、Claude Code CLI、lark-cli。升级不会突然炸掉。',
     feat_5_title: "一键升级",
     feat_5_desc: '<code>bash update.sh all</code> — 月度维护 30 秒搞定。更新工具、重建链接、全量检查。',
-    feat_6_title: "Skills 市场就绪",
-    feat_6_desc: '15+ Claude Code skills 可用。按条安装 <code>/plugin install</code>。按需取用。',
+    feat_6_title: '<a href="https://ccskills.pages.dev" target="_blank" rel="noopener" style="color:inherit">Skills 市场就绪 →</a>',
+    feat_6_desc: '15+ Claude Code skills 可用。按条安装 <code>/plugin install</code>。按需取用。底层工具 ccconfig 已装好，技能开箱即用。',
+    seco_label: "技能生态",
+    seco_title: "ccconfig + ccskills",
+    seco_desc: 'ccconfig 装好底层工具（lark-cli、officecli、PyMuPDF、MCP 服务器），<a href="https://ccskills.pages.dev" target="_blank" rel="noopener">ccskills</a> 提供 15 个 Claude Code 技能。两者独立部署、互不干扰。装了 ccconfig 再装技能，每个都开箱即用。',
+    seco_skills: "15 个技能 · 按需安装 · 独立使用",
     usecases_label: "场景",
     usecases_title: "为你真实的工作流而建。",
     usecases_desc: "三个场景，小时变分钟。",
@@ -456,8 +477,12 @@ const I18N = {
     feat_4_desc: '<code>conf/versions.json</code> locks every tool version — Node, gh, Claude Code CLI, lark-cli. No surprise breakage on update.',
     feat_5_title: "One-Command Upgrade",
     feat_5_desc: '<code>bash update.sh all</code> — monthly maintenance in 30 seconds. Updates tools, rebuilds links, checks everything.',
-    feat_6_title: "Skills Marketplace Ready",
-    feat_6_desc: '15+ Claude Code skills available. Install per-line with <code>/plugin install</code>. Take what you need, ignore the rest.',
+    feat_6_title: '<a href="https://ccskills.pages.dev" target="_blank" rel="noopener" style="color:inherit">Skills Marketplace Ready →</a>',
+    feat_6_desc: '15+ Claude Code skills available. Install with <code>/plugin install</code>. Underlying tools pre-installed by ccconfig, skills work out of the box.',
+    seco_label: "Ecosystem",
+    seco_title: "ccconfig + ccskills",
+    seco_desc: 'ccconfig installs the tools (lark-cli, officecli, PyMuPDF, MCP servers), <a href="https://ccskills.pages.dev" target="_blank" rel="noopener">ccskills</a> provides 15 Claude Code skills. Independently deployed, no interference. Install ccconfig first, then any skill works immediately.',
+    seco_skills: "15 skills · pick what you need · works standalone",
     usecases_label: "Use Cases",
     usecases_title: "Built for how you<br>actually work.",
     usecases_desc: "Three scenarios where ccconfig turns hours into minutes.",
