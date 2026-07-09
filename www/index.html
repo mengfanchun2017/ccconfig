@@ -344,12 +344,16 @@ footer a:hover{color:#a1a1aa}
     <div class="clone-box" onclick="copyClone()" title="点击复制">
       git clone --branch release https://github.com/mengfanchun2017/ccconfig.git
     </div>
+    <div style="margin-top:32px">
+      <p style="font-size:14px;color:#71717a;margin-bottom:12px" data-i18n="cta_skills">还需要技能？看看</p>
+      <a href="https://claude-skills-by9.pages.dev" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;font-size:15px;font-weight:500;color:#a78bfa">📦 claude-skills →</a>
+    </div>
   </div>
 </section>
 
 <footer>
   <div class="container">
-    <p><a href="https://github.com/mengfanchun2017/ccconfig" target="_blank" rel="noopener">GitHub</a> &middot; MIT License &middot; <span data-i18n="footer_tag">终端里搭建的</span></p>
+    <p><a href="https://github.com/mengfanchun2017/ccconfig" target="_blank" rel="noopener">GitHub</a> &middot; <a href="https://claude-skills-by9.pages.dev" target="_blank" rel="noopener">claude-skills</a> &middot; MIT License &middot; <span data-i18n="footer_tag">终端里搭建的</span></p>
   </div>
 </footer>
 
@@ -418,6 +422,7 @@ const I18N = {
     faq_5_a: "ccconfig 由维护者在多台机器上每天使用。Release 分支只接收打过 tag 的测试版本。Auto-sync 已连续运行数月。话虽如此，这是个人基础设施项目 — 不是企业产品。读代码，都是 bash 脚本和符号链接。",
     cta_title: "一条命令，配置 Claude Code。",
     cta_desc: "克隆 release 分支。运行 setup。完成。",
+    cta_skills: "还需要技能？看看",
     footer_tag: "终端里搭建的"
   },
   en: {
@@ -483,6 +488,7 @@ const I18N = {
     faq_5_a: "ccconfig is used daily across multiple machines by its maintainer. The release branch only receives tagged, tested versions. Auto-sync has been running continuously for months. That said, it's a personal infrastructure project — not an enterprise product. Read the code, it's all bash scripts and symlinks.",
     cta_title: "One command to<br>configure Claude Code.",
     cta_desc: "Clone the release branch. Run setup. Done.",
+    cta_skills: "Need skills too? Check out",
     footer_tag: "Built with a terminal"
   }
 };
