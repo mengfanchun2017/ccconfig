@@ -104,7 +104,9 @@ def llm_summarize(commits, user_prompts, edits):
             prompt_parts.append("\nedited_files:\n" + "\n".join(f"- {f[:100]}" for f in files))
         if not prompt_parts:
             return None
+        model = os.environ.get("ANTHROPIC_MODEL", "deepseek-v4-pro")
         data = {
+            "model": model,
             "max_tokens": 600,
             "system": ("你是 worklog 总结助手。给定用户诉求+commit+改动文件，"
                        "输出严格 JSON（无思考过程、无 markdown 包裹）。\n"
