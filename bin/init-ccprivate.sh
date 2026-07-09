@@ -186,11 +186,11 @@ PYEOF
 gen_ubuntu_json() {
     local f="$CCPRIVATE_DIR/conf/.generated/ubuntu.json"
     python3 << PYEOF
-import json
+import json, os
 d = {
     "git": {
         "repo": "$GH_USER/ccconfig",
-        "target_dir": "\$HOME/git/ccconfig",
+        "target_dir": os.path.expanduser("~/git/ccconfig"),
         "email": "$GIT_EMAIL",
         "username": "$GH_USER"
     }

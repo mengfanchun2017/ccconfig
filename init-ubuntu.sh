@@ -120,9 +120,17 @@ setup_git_github() {
     # SSH 是推荐的 git 协议，HTTPS→SSH 转换由 setup_ssh_github() 统一处理
     # 不在此处全局强制 HTTPS
 
+    # 检测 placeholder 值（用户未编辑 conf/ubuntu.json）
+    if [[ "$REPO" =~ ^你的 ]] || [[ "$REPO" =~ example ]] || [[ -z "$REPO" ]]; then
+        warn "conf/ubuntu.json 含 placeholder 值，跳过仓库 clone"
+        warn "  编辑 conf/ubuntu.json 填入真实信息后重跑"
+        return 0
+    fi
+
     # 克隆/更新仓库
-    # 处理 ~ 展开（bash 内置参数展开，不使用 eval 避免命令注入）
+    # 处理 ~ 和 $HOME 展开（bash 内置参数展开，不使用 eval 避免命令注入）
     TARGET_DIR="${TARGET_DIR/\~/$HOME}"
+    TARGET_DIR="${TARGET_DIR/\$HOME/$HOME}"
     PARENT_DIR=$(dirname "$TARGET_DIR")
     mkdir -p "$PARENT_DIR"
 

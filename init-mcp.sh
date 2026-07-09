@@ -165,17 +165,23 @@ try:
     conf_json = sys.argv[2]
     settings_file = sys.argv[3]
 
-    # 读取 ~/.claude.json
-    with open(claude_json, 'r') as f:
-        claude_data = json.load(f)
+    # 读取 ~/.claude.json（可能不存在 — 新机器首次运行）
+    try:
+        with open(claude_json, 'r') as f:
+            claude_data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        claude_data = {}
 
     # 读取 conf/claude.json（完整配置源）
     with open(conf_json, 'r') as f:
         conf_data = json.load(f)
 
-    # 读取 settings.json
-    with open(settings_file, 'r') as f:
-        settings_data = json.load(f)
+    # 读取 settings.json（处理文件不存在/断链 — 新机器无 ccprivate 常见）
+    try:
+        with open(settings_file, 'r') as f:
+            settings_data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        settings_data = {}
 
     # 构建完整的 mcpServers 配置（从 conf/claude.json）
     mcp_servers = {}
@@ -234,15 +240,24 @@ try:
     elif 'env' in claude_data:
         settings_data['env'] = claude_data['env']
 
-    # 写回 settings.json（先写 .tmp + atomic rename，再备份原文件）
+    # 写回 settings.json
     import os, shutil
-    bak = settings_file + '.bak'
-    if os.path.exists(settings_file):
-        shutil.copy2(settings_file, bak)
-    tmp = settings_file + '.tmp'
+    actual = settings_file
+    if os.path.islink(settings_file):
+        actual = os.path.realpath(settings_file)
+        if not os.path.exists(os.path.dirname(actual)):
+            os.makedirs(os.path.dirname(actual), exist_ok=True)
+        if os.path.islink(settings_file) and not os.path.exists(settings_file):
+            os.unlink(settings_file)
+    bak = actual + '.bak'
+    if os.path.exists(actual):
+        shutil.copy2(actual, bak)
+    tmp = actual + '.tmp'
     with open(tmp, 'w') as f:
         json.dump(settings_data, f, indent=2)
-    os.replace(tmp, settings_file)
+    os.replace(tmp, actual)
+    if os.path.islink(settings_file) and actual != settings_file:
+        pass  # already resolved to real path, written there
 
     print('ok')
 except Exception as e:
@@ -257,8 +272,9 @@ if [ ! -f "$MCP_CONF_FILE" ]; then
 fi
 
 if ! command -v claude &> /dev/null; then
-    bad "❌ Claude Code 未安装"
-    exit 1
+    warn "Claude Code 未安装，跳过 MCP 注册（先运行 init-ubuntu.sh）"
+    info "MCP 配置文件已就绪，Claude Code 安装后重跑: bash ccconfig/init-mcp.sh sync"
+    exit 0
 fi
 
 title "Claude MCP 管理"
@@ -357,8 +373,8 @@ do_sync() {
     # 同步到 settings.json
     section "同步到 GitHub"
     info "同步 mcpServers 和 hooks..."
-    SETTINGS_FILE="$SCRIPT_DIR/link/settings.json"
-    CONFIG_FILE="$SCRIPT_DIR/link/.config.json"
+    SETTINGS_FILE="$HOME/.claude/settings.json"
+    CONFIG_FILE="$HOME/.claude/.config.json"
 
     # 同步到 settings.json
     result=$(sync_to_settings "$SETTINGS_FILE")
