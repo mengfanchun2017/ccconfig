@@ -15,7 +15,6 @@
 <meta name="twitter:title" content="ccconfig — Claude Code 环境配置，一键搞定。">
 <meta name="twitter:description" content="一个仓库，一条命令。Claude Code 环境全设备同步。">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230a0a0f'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='monospace' font-size='20' font-weight='bold' fill='%234ade80'>C</text></svg>">
-<script src="/commit-hash.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -147,9 +146,9 @@ footer a:hover{color:#a1a1aa}
       </a>
       <button class="lang-btn" onclick="toggleLang()" data-i18n="lang_switch">EN</button>
       <span class="nav-version" id="version-badge" title="deployed commit">
-        <a href="https://github.com/mengfanchun2017/ccconfig/commit/" target="_blank" rel="noopener" id="commit-link">
+        <a href="https://github.com/mengfanchun2017/ccconfig/commit/8d48f4c8406581065cb73df96d8b191cf4ee004e" target="_blank" rel="noopener" id="commit-link">
           <span class="dot-live"></span>
-          <span id="commit-hash">···</span>
+          <span id="commit-hash">8d48f4c</span>
         </a>
       </span>
     </div>
@@ -562,17 +561,6 @@ function copyClone() {
   });
 }
 
-(function loadVersion() {
-  const hashEl = document.getElementById('commit-hash');
-  const linkEl = document.getElementById('commit-link');
-  const sha = window.__COMMIT__;
-  if (sha) {
-    hashEl.textContent = sha.substring(0, 7);
-    linkEl.href = 'https://github.com/mengfanchun2017/ccconfig/commit/' + sha;
-  }
-  // __COMMIT__ 在构建时由 wrangler.toml build.command 注入 commit-hash.js
-  // 永不失效，不依赖 GitHub API，不受限流影响
-})();
 </script>
 
 </body>
