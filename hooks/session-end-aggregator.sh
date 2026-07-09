@@ -25,7 +25,7 @@ fi
 OUT="/tmp/claude_session_${SID}.json"
 NOTES="/tmp/claude_session_${SID}_notes.md"
 
-python3 "$SCRIPT_DIR/hooks/session_end_aggregator.py" "$TPATH" "$SID" "$CWD" "$REASON" "$OUT" "$NOTES"
+python3 "$SCRIPT_DIR/session_end_aggregator.py" "$TPATH" "$SID" "$CWD" "$REASON" "$OUT" "$NOTES"
 
 # === 定时整合：日合并 / 周总结 / 月提醒 ===
 MERGE_MARKER="/tmp/f-logme_last_merge"
