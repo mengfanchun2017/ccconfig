@@ -439,7 +439,7 @@ SSHEOF
 
 # ========== 8. 符号链接 ==========
 setup_symlinks() {
-    bash "$SCRIPT_DIR/setup-links.sh"
+    bash "$SCRIPT_DIR/setup-links.sh" || warn "符号链接/skills 部分失败（首次初始化正常，ccprivate 就绪后重跑即可）"
 }
 
 # ========== 9. auto-sync ==========

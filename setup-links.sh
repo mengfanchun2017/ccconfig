@@ -73,7 +73,7 @@ setup_symlinks() {
     # skills（从 claude-skills/plugins/ 同步 + ccprivate 配置覆盖）
     if [[ -x "$SCRIPT_DIR/init-skill.sh" ]]; then
         section "Skills"
-        bash "$SCRIPT_DIR/init-skill.sh" sync
+        bash "$SCRIPT_DIR/init-skill.sh" sync || info "Skills 同步部分失败（首次初始化可忽略，ccprivate 就绪后重跑）"
     fi
 
     # git pre-commit hook（防私密文件意外提交）
