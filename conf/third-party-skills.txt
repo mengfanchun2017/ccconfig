@@ -6,18 +6,17 @@
 # diff：bash init-skill.sh diff（检测清单 vs 实际安装的 drift）
 #
 # WHY 用 npx skills 不用 marketplace install（2026-06-06 重构）：
-#   - marketplace install 暴露 plugin 前缀（mattpocock-skills:caveman）和 🔒 锁
+#   - marketplace install 暴露 plugin 前缀和 🔒 锁
 #   - dialog 太噪音，用户无法单独 toggle 每个 skill
 #   - npx skills 装到 ~/.agents/skills/，自动 symlink 到 ~/.claude/skills/（干净显示）
 #   - 缺点：版本不自动跟（需手动 update），但用户可接受（周期性 update）
 
-# ===== 社区 skill：对话增强（mattpocock 中文版）=====
-# 用途：caveman 压缩输出、diagnose 调试、grill-me 追问设计、improve-codebase 重构、write-a-skill 建 skill
-vinvcn/mattpocock-skills-zh-CN  caveman
-vinvcn/mattpocock-skills-zh-CN  diagnose
-vinvcn/mattpocock-skills-zh-CN  grill-me
-vinvcn/mattpocock-skills-zh-CN  improve-codebase-architecture
-vinvcn/mattpocock-skills-zh-CN  write-a-skill
+# ===== 社区 skill：对话增强（mattpocock 官方版）=====
+# 用途：diagnosing-bugs 调试、grill-me 追问设计、improve-codebase 重构、writing-great-skills 建 skill
+mattpocock/skills  diagnosing-bugs
+mattpocock/skills  grill-me
+mattpocock/skills  improve-codebase-architecture
+mattpocock/skills  writing-great-skills
 
 # ===== MCP server：Get笔记（getnote）=====
 # MCP: @getnote/mcp (npm)，已装 v1.5.2，settings.json mcpServers.getnote 管理配置
