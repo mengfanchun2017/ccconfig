@@ -69,27 +69,45 @@ check_first_time() {
     return 0
 }
 
-# 一键全部初始化的标准 3 步（+ 可选 Python 包）。
+# 一键全部初始化的标准 5 步。
 # 三个入口都走这里，确保行为一致：
 #   - submenu_env 4: ★ 一键全部
 #   - main_menu 6:   ★ 一键全部初始化
-#   - case "all":    bash init.sh all（带 Python 包，对应 BOOTSTRAP 阶段 4）
+#   - case "all":    bash init.sh all
 init_all_steps() {
     local with_python="${1:-false}"
     show_banner
     check_first_time
-    run_step "1/3 Ubuntu 环境" "$SCRIPT_DIR/init-ubuntu.sh" true
-    # LLM 由 init-ubuntu.sh 内部 setup_claude_api 从 conf/llm.json 读取
-    run_step "2/3 MCP 服务器"  "$SCRIPT_DIR/init-mcp.sh"   true
-    run_step "3/3 Skills"      "$SCRIPT_DIR/init-skill.sh" sync
+
+    run_step "1/5 Ubuntu 环境" "$SCRIPT_DIR/init-ubuntu.sh" true
+    echo -e "  ${GRAY}下一步: 2/5 LLM 配置（自动进行）${NC}"
+
+    run_step "2/5 LLM 配置" "$SCRIPT_DIR/init-llm.sh" true
+    echo -e "  ${GRAY}下一步: 3/5 MCP 服务器${NC}"
+
+    run_step "3/5 MCP 服务器" "$SCRIPT_DIR/init-mcp.sh" true
+    echo -e "  ${GRAY}下一步: 4/5 Skills${NC}"
+
+    run_step "4/5 Skills" "$SCRIPT_DIR/init-skill.sh" sync
+    echo -e "  ${GRAY}下一步: 5/5 验证${NC}"
+
     if [ "$with_python" = "true" ]; then
-        run_step "4/4 Python 包" \
-            bash -c "source '$SCRIPT_DIR/lib/path-helper.sh' 2>/dev/null; '$SCRIPT_DIR/update.sh' python" true
+        run_step "5/5 Python 包 + 验证" \
+            bash -c "source '$SCRIPT_DIR/lib/path-helper.sh' 2>/dev/null; '$SCRIPT_DIR/update.sh' python; bash '$SCRIPT_DIR/status.sh'" true
+    else
+        run_step "5/5 验证" "bash '$SCRIPT_DIR/status.sh'" false
     fi
+
     echo ""
-    echo "🎉 全部初始化完成（飞书 Bridge 为可选组件）"
-    echo "提示: auto-sync 和 SessionStart hook 已在步骤1中配置"
-    echo "提示: Playwright Chromium 浏览器通过 npx @playwright/mcp 自动可用"
+    echo -e "${GREEN}🎉 全部初始化完成${NC}"
+    echo ""
+    echo -e "${BOLD}日常使用:${NC}"
+    echo "  切换 LLM:       bash ccconfig/init-llm.sh"
+    echo "  更新系统:       bash ccconfig/update.sh all"
+    echo "  状态检查:       bash ccconfig/status.sh"
+    echo "  飞书 Bridge:    bash ccconfig/option-bridge/init.sh"
+    echo ""
+    echo -e "${GRAY}auto-sync 已在步骤1配置，配置变更自动推送到 GitHub${NC}"
 }
 
 run_step() {

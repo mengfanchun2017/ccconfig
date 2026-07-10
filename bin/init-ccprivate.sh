@@ -430,6 +430,25 @@ do_create() {
         fi
     fi
 
+    # 自动检测 GitHub 是否已有 ccprivate
+    local gh_user=$(detect_gh_user)
+    if [ -n "$gh_user" ] && gh repo view "$gh_user/ccprivate" &>/dev/null 2>&1; then
+        info "GitHub 已有 ccprivate 仓库: $gh_user/ccprivate"
+        echo ""
+        echo "  已有 ccprivate 仓库，无需重新创建。"
+        echo "  推荐用 clone 方式拉取已有配置："
+        echo ""
+        echo -e "    ${GREEN}bash $CCCONFIG_DIR/bin/init-ccprivate.sh --clone${NC}"
+        echo ""
+        read -p "  是否用 --clone 方式？[Y/n]: " use_clone
+        use_clone="${use_clone:-y}"
+        if [[ "$use_clone" =~ ^[Yy]$ ]]; then
+            do_clone
+            return $?
+        fi
+        echo "  继续新建将覆盖 GitHub 上的已有仓库。"
+    fi
+
     collect_info
 
     section "创建目录结构"
@@ -478,8 +497,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
     echo ""
     ok "ccprivate 创建完成"
     echo ""
-    echo "  下一步:"
-    echo "    bash $CCCONFIG_DIR/init.sh all"
+    echo -e "  ${BOLD}下一步:${NC} 完整系统初始化"
+    echo -e "    ${GREEN}bash $CCCONFIG_DIR/init.sh all${NC}"
+    echo -e "  ${GRAY}(5 步: Ubuntu → LLM → MCP → Skills → 验证)${NC}"
     echo ""
 }
 
@@ -549,6 +569,7 @@ PYEOF
 
     echo ""
     ok "ccprivate 更新完成"
+    echo -e "  ${GRAY}配置已刷新。如需重跑系统初始化: bash $CCCONFIG_DIR/init.sh all${NC}"
 }
 
 # ── 主流程：克隆已有 ──
@@ -582,6 +603,10 @@ do_clone() {
     bash "$CCPRIVATE_DIR/setup.sh"
 
     ok "ccprivate 克隆完成"
+    echo ""
+    echo -e "  ${BOLD}下一步:${NC} 完整系统初始化"
+    echo -e "    ${GREEN}bash $CCCONFIG_DIR/init.sh all${NC}"
+    echo -e "  ${GRAY}(5 步: Ubuntu → LLM → MCP → Skills → 验证)${NC}"
 }
 
 # ── 入口 ──

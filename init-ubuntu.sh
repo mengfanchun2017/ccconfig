@@ -642,8 +642,9 @@ main() {
     echo "  bash ccconfig/option-officecli/init.sh   # OfficeCLI（PPT/Office 工具）"
     echo "  bash ccconfig/option-bridge/init.sh      # cc-connect（飞书 Bridge）"
     echo ""
-    echo "下一步:"
-    echo "  bash ccconfig/init-mcp.sh   # 安装 MCP 服务器"
+    echo -e "  ${BOLD}继续初始化:${NC}"
+    echo -e "    全部自动: ${GREEN}bash ccconfig/init.sh all${NC}"
+    echo -e "    分步: LLM → MCP → Skills → 验证"
     echo ""
 }
 
