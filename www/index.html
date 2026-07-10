@@ -101,6 +101,17 @@ h2{font-size:clamp(28px,5vw,40px);font-weight:700;color:#fafafa;line-height:1.2;
 .step-content p{font-size:14px;color:#71717a;line-height:1.6}
 .step-content code{background:#1a1a24;padding:2px 8px;border-radius:4px;font-size:13px;color:#4ade80}
 
+	.code-block{position:relative;display:inline-flex;align-items:center;gap:0;max-width:100%}
+	.code-block code{border-radius:4px 0 0 4px}
+	.code-block .copy-btn{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#1a1a24;border:1px solid #2e2e3e;border-left:none;border-radius:0 4px 4px 0;color:#52525b;cursor:pointer;font-size:12px;transition:all .2s;padding:0}
+	.code-block .copy-btn:hover{color:#4ade80;border-color:#4ade80;background:#1a2e1a}
+	.code-block .copy-btn.copied{color:#4ade80;border-color:#4ade80}
+
+	.terminal-copy{position:absolute;top:8px;right:12px;display:flex;align-items:center;gap:4px;background:#1a1a24;border:1px solid #2e2e3e;border-radius:6px;padding:4px 10px;color:#52525b;cursor:pointer;font-size:12px;font-family:Inter,system-ui,sans-serif;transition:all .2s;opacity:0}
+	.terminal:hover .terminal-copy{opacity:1}
+	.terminal-copy:hover{color:#4ade80;border-color:#4ade80}
+	.terminal-copy.copied{color:#4ade80;border-color:#4ade80}
+
 .faq{max-width:640px;margin:0 auto}
 .faq-item{border-bottom:1px solid #1e1e2e;padding:20px 0}
 .faq-q{font-size:16px;font-weight:500;color:#e4e4e7;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;user-select:none}
@@ -169,6 +180,7 @@ footer a:hover{color:#a1a1aa}
         <div class="dot y"></div>
         <div class="dot g"></div>
       </div>
+      <button class="terminal-copy" onclick="copyTerminal()" title="复制全部命令">📋 复制命令</button>
       <div class="terminal-body">
         <span class="prompt">$</span> <span class="cmd">git clone --branch release https://github.com/mengfanchun2017/ccconfig.git</span><br>
         <span class="out">Cloning into 'ccconfig'...</span><br>
@@ -302,7 +314,7 @@ footer a:hover{color:#a1a1aa}
         <div class="step-num">1</div>
         <div class="step-content">
           <h3 data-i18n="step_1_title">克隆仓库</h3>
-          <p><code>git clone --branch release https://github.com/mengfanchun2017/ccconfig.git</code></p>
+          <p><span class="code-block"><code>git clone --branch release https://github.com/mengfanchun2017/ccconfig.git</code><button class="copy-btn" onclick="copyCode(this)" title="复制">📋</button></span></p>
           <p data-i18n="step_1_desc">Release 分支是稳定版。Main 是开发版。拿到测试过的版本。</p>
         </div>
       </div>
@@ -310,7 +322,7 @@ footer a:hover{color:#a1a1aa}
         <div class="step-num">2</div>
         <div class="step-content">
           <h3 data-i18n="step_2_title">创建私有配置</h3>
-          <p><code>bash ccconfig/bin/init-ccprivate.sh</code></p>
+          <p><span class="code-block"><code>bash ccconfig/bin/init-ccprivate.sh</code><button class="copy-btn" onclick="copyCode(this)" title="复制">📋</button></span></p>
           <p data-i18n="step_2_desc">交互式收集 GitHub 账号 + LLM API Key。自动生成配置、创建私有仓库、建立 symlink。一条命令完成。</p>
         </div>
       </div>
@@ -318,7 +330,7 @@ footer a:hover{color:#a1a1aa}
         <div class="step-num">3</div>
         <div class="step-content">
           <h3 data-i18n="step_3_title">一键初始化</h3>
-          <p><code>bash ccconfig/init.sh all</code></p>
+          <p><span class="code-block"><code>bash ccconfig/init.sh all</code><button class="copy-btn" onclick="copyCode(this)" title="复制">📋</button></span></p>
           <p data-i18n="step_3_desc">装好 Ubuntu 工具链 + Claude Code + MCP 服务器 + 15 个 skills（自动 clone claude-skills）。首次运行有引导 wizard。</p>
         </div>
       </div>
@@ -558,6 +570,30 @@ function copyClone() {
     b.textContent = 'Copied! ✓';
     b.style.color = '#4ade80';
     setTimeout(() => { b.textContent = o; b.style.color = ''; }, 2000);
+  });
+}
+
+function copyCode(btn) {
+  const code = btn.parentElement.querySelector('code');
+  if (!code) return;
+  navigator.clipboard.writeText(code.textContent).then(() => {
+    btn.textContent = '✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+function copyTerminal() {
+  const cmds = [
+    'git clone --branch release https://github.com/mengfanchun2017/ccconfig.git',
+    'bash ccconfig/bin/init-ccprivate.sh',
+    'bash ccconfig/init.sh all'
+  ].join('\n');
+  const btn = document.querySelector('.terminal-copy');
+  navigator.clipboard.writeText(cmds).then(() => {
+    btn.textContent = '✓ 已复制';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋 复制命令'; btn.classList.remove('copied'); }, 1500);
   });
 }
 

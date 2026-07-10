@@ -4,6 +4,7 @@
 # 用法：
 #   bash ccconfig/bin/init-ccprivate.sh           # 交互式新建
 #   bash ccconfig/bin/init-ccprivate.sh --clone    # 从已有 GitHub 仓库克隆
+#   bash ccconfig/bin/init-ccprivate.sh --update   # 更新已有 ccprivate（pull + setup + 刷新配置）
 #
 # 前置条件：SSH key 已添加到 GitHub（推荐），或 gh auth login 已完成（HTTPS 备选）
 # 输出：~/git/ccprivate/ 完整目录结构 + GitHub 私有仓库 + symlink 已建立
@@ -30,6 +31,28 @@ info()   { echo -e "  ${GRAY}$1${NC}"; }
 ok()     { echo -e "  ${GREEN}✅ $1${NC}"; }
 warn()   { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
 err()    { echo -e "  ${RED}❌ $1${NC}"; }
+
+# ── gh auth 预检 ──
+check_gh_auth() {
+    if gh auth status &>/dev/null; then
+        info "GitHub 认证: ${GREEN}已登录${NC}"
+        return 0
+    fi
+    warn "GitHub 未认证，需要先登录"
+    echo ""
+    read -p "  现在登录? [Y/n]: " do_login
+    do_login="${do_login:-y}"
+    if [[ "$do_login" =~ ^[Yy]$ ]]; then
+        gh auth login
+        if gh auth status &>/dev/null; then
+            ok "GitHub 认证完成"
+            return 0
+        fi
+        err "GitHub 认证失败"
+        return 1
+    fi
+    return 1
+}
 
 # ── 自动检测 GitHub username ──
 detect_gh_user() {
@@ -409,6 +432,8 @@ do_create() {
 
 Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
 
+    check_gh_auth || return 1
+
     create_and_push
 
     section "建立符号链接"
@@ -420,6 +445,49 @@ Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
     echo "  下一步:"
     echo "    bash $CCCONFIG_DIR/init.sh all"
     echo ""
+}
+
+# ── 主流程：更新已有 ──
+do_update() {
+    banner
+
+    if [ ! -d "$CCPRIVATE_DIR/.git" ]; then
+        err "$CCPRIVATE_DIR 不是 git 仓库，无法更新"
+        echo "  请先运行: bash $CCCONFIG_DIR/bin/init-ccprivate.sh --clone"
+        return 1
+    fi
+
+    check_gh_auth || return 1
+
+    section "拉取最新 ccprivate"
+    cd "$CCPRIVATE_DIR"
+    git pull origin main 2>&1 | tail -3
+
+    section "刷新生成配置"
+    DEEPSEEK_KEY="" MINIMAX_KEY="" CLAUDE_KEY=""
+    if [ -f "$CCPRIVATE_DIR/conf/.generated/llm.json" ]; then
+        DEEPSEEK_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/llm.json')); print(d.get('llms',{}).get('deepseek',{}).get('key',''))" 2>/dev/null || echo "")
+        MINIMAX_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/llm.json')); print(d.get('llms',{}).get('minimax',{}).get('key',''))" 2>/dev/null || echo "")
+        CLAUDE_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/llm.json')); print(d.get('llms',{}).get('claude',{}).get('key',''))" 2>/dev/null || echo "")
+        DEFAULT_LLM=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/llm.json')); print(d.get('current','deepseek'))" 2>/dev/null || echo "deepseek")
+        if [ -n "$DEEPSEEK_KEY" ] || [ -n "$MINIMAX_KEY" ] || [ -n "$CLAUDE_KEY" ]; then
+            gen_llm_json
+            gen_claude_json
+        fi
+    fi
+    if [ -f "$CCPRIVATE_DIR/conf/.generated/ubuntu.json" ]; then
+        GH_USER=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/ubuntu.json')); print(d.get('git',{}).get('username',''))" 2>/dev/null || echo "")
+        GIT_EMAIL=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/ubuntu.json')); print(d.get('git',{}).get('email',''))" 2>/dev/null || echo "")
+        if [ -n "$GH_USER" ]; then
+            gen_ubuntu_json
+        fi
+    fi
+
+    section "建立符号链接"
+    bash "$CCPRIVATE_DIR/setup.sh"
+
+    echo ""
+    ok "ccprivate 更新完成"
 }
 
 # ── 主流程：克隆已有 ──
@@ -443,6 +511,8 @@ do_clone() {
         fi
     fi
 
+    check_gh_auth || return 1
+
     section "克隆 ccprivate"
     gh repo clone "$GH_USER/ccprivate" "$CCPRIVATE_DIR"
     git -C "$CCPRIVATE_DIR" remote set-url origin "git@github.com:$GH_USER/ccprivate.git"
@@ -457,6 +527,9 @@ do_clone() {
 case "${1:-}" in
     --clone|-c)
         do_clone
+        ;;
+    --update|-u)
+        do_update
         ;;
     *)
         do_create

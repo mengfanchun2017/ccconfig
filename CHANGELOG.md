@@ -2,6 +2,13 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.3.6] — 2026-07-10
+
+### Added
+- **`init-ccprivate.sh`** — `--update` 模式：已有 ccprivate 时 pull + 刷新 .generated 配置 + 重建 symlink，不再只能用 clone
+- **`init-ccprivate.sh`** — `check_gh_auth()` 预检：写操作前验证 `gh auth status`，未认证时引导 `gh auth login`
+- **`www/index.html`** — 三步流程中每个 `<code>` 命令旁加 📋 复制按钮；终端模拟器加「复制命令」按钮
+
 ## [1.3.5] — 2026-07-10
 
 ### Fixed
