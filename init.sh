@@ -15,55 +15,27 @@ show_banner() {
     echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
 }
 
-# 首次初始化检查：缺失的依赖仓库
+# 首次初始化检查：仅检查 ccprivate（claude-skills 由 init-skill.sh 自动 clone）
 check_first_time() {
-    local issues=0
-    local ccprivate_ok=true
-    local claude_skills_ok=true
-
-    if [[ ! -d "$HOME/git/ccprivate" ]]; then
-        ccprivate_ok=false
-        issues=$((issues + 1))
-    fi
-    if [[ ! -d "$HOME/git/claude-skills/.git" ]] && [[ ! -d "$HOME/git/claude-skills/plugins" ]]; then
-        claude_skills_ok=false
-        issues=$((issues + 1))
-    fi
-
-    if [[ $issues -eq 0 ]]; then
+    if [[ -d "$HOME/git/ccprivate" ]]; then
         return 0
     fi
 
     echo ""
     echo -e "${YELLOW}━━━ 首次初始化引导 ━━━${NC}"
     echo ""
-
-    if ! $ccprivate_ok; then
-        echo -e "  ${RED}❌${NC} ccprivate 未找到 — 私有配置（API Key、CLAUDE.md、settings.json）"
-        echo -e "     ${CYAN}→${NC} bash ccconfig/bin/init-ccprivate.sh"
-        echo ""
-    fi
-
-    if ! $claude_skills_ok; then
-        echo -e "  ${YELLOW}○${NC} claude-skills 未找到 — 自建 skills（f-* 系列）"
-        echo -e "     ${CYAN}→${NC} init-skill.sh 会自动 clone，或手动:"
-        echo -e "        git clone git@github.com:<your-user>/claude-skills.git ~/git/claude-skills"
-        echo ""
-    fi
-
-    echo -e "  ${GRAY}建议顺序: ccprivate → claude-skills → 一键全部初始化${NC}"
+    echo -e "  ${RED}❌${NC} ccprivate 未找到 — 私有配置（API Key、CLAUDE.md、settings.json）"
+    echo -e "     ${CYAN}→${NC} bash ccconfig/bin/init-ccprivate.sh"
     echo ""
 
-    if ! $ccprivate_ok; then
-        read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
-        create_ccp="${create_ccp:-y}"
-        if [[ "$create_ccp" =~ ^[Yy]$ ]]; then
-            bash "$SCRIPT_DIR/bin/init-ccprivate.sh"
-            echo ""
-            echo -e "${GREEN}✅ ccprivate 已创建${NC}"
-            echo -e "${YELLOW}请重新运行 init.sh 继续初始化${NC}"
-            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0
-        fi
+    read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
+    create_ccp="${create_ccp:-y}"
+    if [[ "$create_ccp" =~ ^[Yy]$ ]]; then
+        bash "$SCRIPT_DIR/bin/init-ccprivate.sh"
+        echo ""
+        echo -e "${GREEN}✅ ccprivate 已创建${NC}"
+        echo -e "${YELLOW}请重新运行 init.sh 继续初始化${NC}"
+        echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0
     fi
 
     return 0
@@ -92,11 +64,9 @@ init_all_steps() {
     echo -e "  ${GRAY}下一步: 5/5 验证${NC}"
 
     if [ "$with_python" = "true" ]; then
-        run_step "5/5 Python 包 + 验证" \
-            bash -c "source '$SCRIPT_DIR/lib/path-helper.sh' 2>/dev/null; '$SCRIPT_DIR/update.sh' python; bash '$SCRIPT_DIR/status.sh'" true
-    else
-        run_step "5/5 验证" "bash '$SCRIPT_DIR/status.sh'" false
+        run_step "5a/5 Python 包" "$SCRIPT_DIR/update.sh" true python
     fi
+    run_step "5/5 验证" "$SCRIPT_DIR/status.sh" false
 
     echo ""
     echo -e "${GREEN}🎉 全部初始化完成${NC}"

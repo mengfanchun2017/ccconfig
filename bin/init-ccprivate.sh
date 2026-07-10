@@ -365,6 +365,19 @@ for src in "$SCRIPT_DIR/conf/"*.json; do
     ln -s "$src" "$dst"
     echo "  conf/$name → ccprivate"
 done
+# 旧格式回退（兼容 1.3.7 及更早的 ccprivate）
+if [ -d "$SCRIPT_DIR/conf/.generated" ]; then
+    for src in "$SCRIPT_DIR/conf/.generated/"*.json; do
+        [ -f "$src" ] || continue
+        name=$(basename "$src")
+        [ -f "$SCRIPT_DIR/conf/$name" ] && continue
+        dst="$CCCONFIG_DIR/conf/$name"
+        [ -L "$dst" ] && rm -f "$dst"
+        [ -f "$dst" ] && rm -f "$dst"
+        ln -s "$src" "$dst"
+        echo "  conf/$name → ccprivate (.generated)"
+    done
+fi
 
 # --- ccconfig link/projects overlay ---
 echo "--- ccconfig link overlay ---"
