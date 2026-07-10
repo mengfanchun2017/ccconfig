@@ -234,11 +234,13 @@ try:
     if 'hooks' in claude_data:
         settings_data['hooks'] = claude_data['hooks']
 
-    # 同步 env（API 凭证配置）
-    if 'env' in conf_data:
-        settings_data['env'] = conf_data['env']
-    elif 'env' in claude_data:
-        settings_data['env'] = claude_data['env']
+    # 同步 env：merge（settings 已有 keys 优先 → init-llm 写入不被覆盖；
+    #              conf/claude.json 仅补缺失 keys → MCP API key 等）
+    conf_env = conf_data.get('env', {})
+    settings_data.setdefault('env', {})
+    for k, v in conf_env.items():
+        if k not in settings_data['env']:
+            settings_data['env'][k] = v
 
     # 写回 settings.json
     import os, shutil
@@ -277,24 +279,25 @@ if ! command -v claude &> /dev/null; then
     exit 0
 fi
 
-title "Claude MCP 管理"
-
 # 读取配置
 MCP_SETTINGS=$(read_mcp_settings)
 IFS='|' read -r DEFAULT_ACTION AUTO_CONFIG_KEYS <<< "$MCP_SETTINGS"
 
-# 显示 MCP 列表
+# 概览：待注册 MCP
 section "MCP 服务器"
+pending=""
 McpNames=$(read_mcp_list)
 while IFS='|' read -r name desc mtype command args_str env_str; do
     [[ -z "$name" ]] && continue
     if [[ "$(is_registered "$name")" == "true" ]]; then
-        good "✓ $name [已注册]"
+        info "✓ $name (已注册)"
     else
-        warn "○ $name [未注册]"
+        pending+="$name "
     fi
 done <<< "$McpNames"
-
+if [[ -n "$pending" ]]; then
+    info "将注册: $pending"
+fi
 echo ""
 
 # 根据 default_action 执行对应操作
@@ -342,57 +345,23 @@ do_config_keys() {
 do_sync() {
     title "双向同步"
 
-    # 预缓存 npx 模块（新环境首次使用 npx 需要先缓存）
-    section "预缓存 npx 模块"
-    # 清除旧的 npx 缓存（循环外一次清完，避免后续包缓存被清导致重复下载）
-    local npx_cache_dir="$HOME/.npm/_npx"
-    if [ -d "$npx_cache_dir" ]; then
-        rm -rf "$npx_cache_dir" 2>/dev/null || true
-    fi
-    while IFS='|' read -r name desc mtype command args_str env_str; do
-        [[ -z "$name" ]] && continue
-        if [[ "$command" == "npx" ]]; then
-            first_arg=$(echo "$args_str" | awk '{print $1}')
-            if [[ -n "$first_arg" ]]; then
-                echo -n "缓存 $name ($first_arg) ... "
-                if timeout 60 npx --yes "$first_arg" --version &>/dev/null; then
-                    good "✅"
-                else
-                    warn "缓存失败（不影响注册）"
-                fi
-            fi
-        fi
-    done <<< "$McpNames"
-    echo ""
-
     do_install
     echo ""
     do_config_keys
     echo ""
 
-    # 同步到 settings.json
-    section "同步到 GitHub"
-    info "同步 mcpServers 和 hooks..."
+    # 同步到 settings.json / .config.json（本地文件，由 auto-sync 推 GitHub）
     SETTINGS_FILE="$HOME/.claude/settings.json"
     CONFIG_FILE="$HOME/.claude/.config.json"
 
-    # 同步到 settings.json
-    result=$(sync_to_settings "$SETTINGS_FILE")
-    if [[ "$result" == "ok" ]]; then
-        good "✅ 已同步到 settings.json"
-    else
-        bad "❌ 同步失败: $result"
-    fi
-
-    # 同步到 .config.json（Claude Code 实际读取这个文件）
-    result=$(sync_to_settings "$CONFIG_FILE")
-    if [[ "$result" == "ok" ]]; then
-        good "✅ 已同步到 .config.json"
-    else
-        bad "❌ 同步失败: $result"
-    fi
-
-    info "GitHub 同步将在下次 auto-sync 或手动 push 时完成"
+    for f in "$SETTINGS_FILE" "$CONFIG_FILE"; do
+        result=$(sync_to_settings "$f")
+        if [[ "$result" == "ok" ]]; then
+            good "✅ 已写入 $(basename "$f")"
+        else
+            bad "❌ 同步失败 ($(basename "$f")): $result"
+        fi
+    done
 }
 
 # 执行对应操作
@@ -471,10 +440,6 @@ esac
 echo ""
 title "✅ 完成"
 echo "提示: claude mcp list 查看注册状态"
-echo ""
-echo -e "${YELLOW}💡 飞书 MCP Bridge（bot 消息）已独立为可选组件${NC}"
-echo -e "   如需要: ${CYAN}bash ccconfig/option-bridge/mcp-bridge/install.sh${NC}"
-echo -e "   不需要可忽略（lark-cli 已覆盖文档/日历/任务）"
 
 # 确保脚本正常退出
 exit 0

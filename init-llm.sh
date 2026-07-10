@@ -169,7 +169,6 @@ print("~/.claude/settings.json 已更新")
 PYEOF
 
     success "LLM 已切换为: $name"
-    warn "切换后会报 \"API Error: Failed to parse JSON\"，需 /exit 后 claude 重连"
 }
 
 # ========== 切换 LLM ==========
