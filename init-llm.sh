@@ -121,7 +121,7 @@ _write_llm_config() {
     info "  模型: $model_name"
     info "  小模型: $small_model"
 
-    export BASE_URL="$base_url" MODEL_NAME="$model_name" SMALL_MODEL="$small_model" API_KEY="$api_key" NAME="$name"
+    export CONFIG_FILE="$CONFIG_FILE" CLAUDE_JSON="$CLAUDE_JSON" BASE_URL="$base_url" MODEL_NAME="$model_name" SMALL_MODEL="$small_model" API_KEY="$api_key" NAME="$name"
 
     python3 << 'PYEOF'
 import json, os
@@ -135,7 +135,11 @@ env_update = {
 }
 api_key = os.environ.get('API_KEY', '')
 if api_key:
-    env_update["ANTHROPIC_AUTH_TOKEN"] = api_key
+    if any(kw in api_key for kw in ['请填入', '请替换', 'your key', 'your_key', 'placeholder', 'changeme']):
+        print(f"\033[1;33m⚠️  API Key 疑似占位符，跳过写入 ANTHROPIC_AUTH_TOKEN: {api_key[:30]}...\033[0m")
+        print("   请编辑 conf/llm.json 填入真实 Key 后重试")
+    else:
+        env_update["ANTHROPIC_AUTH_TOKEN"] = api_key
 
 def write_json(path, updater):
     try:
@@ -146,6 +150,10 @@ def write_json(path, updater):
     updater(data)
     with open(path, 'w') as f:
         json.dump(data, f, indent=4)
+
+# conf/llm.json current（先写源，避免中断导致 settings.json 被写但源未更新）
+write_json(os.environ['CONFIG_FILE'], lambda d: d.update({'current': os.environ['NAME']}))
+print("conf/llm.json 已更新")
 
 # ~/.claude.json
 write_json(os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json')),
@@ -158,10 +166,6 @@ if os.path.islink(sf) and not os.path.exists(sf):
     os.unlink(sf)
 write_json(sf, lambda d: d.setdefault('env', {}).update(env_update))
 print("~/.claude/settings.json 已更新")
-
-# conf/llm.json current
-write_json(os.environ['CONFIG_FILE'], lambda d: d.update({'current': os.environ['NAME']}))
-print("conf/llm.json 已更新")
 PYEOF
 
     success "LLM 已切换为: $name"

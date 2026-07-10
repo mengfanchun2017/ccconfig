@@ -2,6 +2,13 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.3.7] — 2026-07-10
+
+### Fixed
+- **`init-llm.sh`** — `_write_llm_config()` 漏 export `CONFIG_FILE` 导致 Python heredoc KeyError，settings.json 被部分写入后崩溃
+- **`init-llm.sh`** — 占位符 key 检测：`ensure_config` 复制模板后 key 含「请填入」仍被写入 settings.json，现跳过并警告
+- **`init-llm.sh`** — 写顺序调整：先写 `conf/llm.json`（源），后写 `settings.json`（派生），避免源写入失败时派生文件已被污染
+
 ## [1.3.6] — 2026-07-10
 
 ### Added
