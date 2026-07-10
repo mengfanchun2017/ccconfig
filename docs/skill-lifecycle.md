@@ -138,8 +138,10 @@ github.com/example/tool go
 # 格式：<source>  <skill-name>（两个空格分隔）
 # 注释行（#开头）和空行被忽略
 
-vinvcn/mattpocock-skills-zh-CN  caveman
-vinvcn/mattpocock-skills-zh-CN  diagnose
+mattpocock/skills  diagnosing-bugs
+mattpocock/skills  grill-me
+mattpocock/skills  improve-codebase-architecture
+mattpocock/skills  writing-great-skills
 iofficeai/officecli  officecli
 ```
 

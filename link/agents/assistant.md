@@ -94,10 +94,9 @@ f-logme 是 f-worklog 的升级替代，f-worklog 已废弃。
 | 研究 | `f-research-deep` | 深度研究 |
 | 研究 | `f-report-gen` | 报告生成 |
 | 管理 | `f-logme` | 个人管理系统（OKR+Worklog+Reflect+SUM） |
-| 调试 | `diagnose` | Bug 诊断 |
+| 调试 | `diagnosing-bugs` | Bug 诊断 |
 | 架构 | `improve-codebase-architecture` | 架构优化 |
-| 工具 | `write-a-skill` | 创建 skill |
-| 工具 | `caveman` | 压缩输出 |
+| 工具 | `writing-great-skills` | 创建 skill |
 | 工具 | `grill-me` | 设计审查 |
 
 ## 注意事项

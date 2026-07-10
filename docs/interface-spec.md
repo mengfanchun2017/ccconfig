@@ -179,8 +179,11 @@ ccprivate/link/projects/<id>/   →  ~/.claude/projects/<id>/memory/
 
 ```
 # <source>  <skill-name>
-vinvcn/mattpocock-skills-zh-CN  caveman
-vinvcn/mattpocock-skills-zh-CN  diagnose
+mattpocock/skills  diagnosing-bugs
+mattpocock/skills  grill-me
+mattpocock/skills  improve-codebase-architecture
+mattpocock/skills  writing-great-skills
+iofficeai/officecli  officecli
 ```
 
 **格式**: 空格/制表符分隔。`#` 开头为注释。
