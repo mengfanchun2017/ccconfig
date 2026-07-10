@@ -33,7 +33,13 @@ err()    { echo -e "  ${RED}❌ $1${NC}"; }
 
 # ── 自动检测 GitHub username ──
 detect_gh_user() {
-    gh api user --jq '.login' 2>/dev/null || echo ""
+    local user
+    user=$(gh api user --jq '.login' 2>/dev/null) || true
+    if echo "$user" | grep -qE '^[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]$'; then
+        echo "$user"
+    else
+        echo ""
+    fi
 }
 
 # ── 自动检测 git email ──
@@ -41,9 +47,12 @@ detect_git_email() {
     local e
     e=$(git config --global user.email 2>/dev/null || echo "")
     [ -n "$e" ] && echo "$e" && return
-    e=$(gh api user --jq '.email' 2>/dev/null || echo "")
-    [ -n "$e" ] && echo "$e" && return
-    echo ""
+    e=$(gh api user --jq '.email' 2>/dev/null) || true
+    if echo "$e" | grep -qE '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'; then
+        echo "$e"
+    else
+        echo ""
+    fi
 }
 
 # ── 收集用户信息 ──
@@ -115,37 +124,40 @@ collect_info() {
 # ── 生成 conf/llm.json ──
 gen_llm_json() {
     local f="$CCPRIVATE_DIR/conf/.generated/llm.json"
-    python3 << PYEOF
-import json
+    DEEPSEEK_KEY="${DEEPSEEK_KEY:-}" MINIMAX_KEY="${MINIMAX_KEY:-}" CLAUDE_KEY="${CLAUDE_KEY:-}" DEFAULT_LLM="$DEFAULT_LLM" OUT="$f" python3 << 'PYEOF'
+import json, os
 
 llms = {}
-if "${DEEPSEEK_KEY:-}":
+dk = os.environ.get("DEEPSEEK_KEY", "")
+mk = os.environ.get("MINIMAX_KEY", "")
+ck = os.environ.get("CLAUDE_KEY", "")
+if dk:
     llms["deepseek"] = {
         "name": "DeepSeek",
         "base_url": "https://api.deepseek.com/anthropic",
         "model": "deepseek-v4-pro",
-        "key": "${DEEPSEEK_KEY}",
+        "key": dk,
         "small_model": "deepseek-v4-pro"
     }
-if "${MINIMAX_KEY:-}":
+if mk:
     llms["minimax"] = {
         "name": "MiniMax",
         "base_url": "https://api.minimaxi.com/anthropic",
         "model": "MiniMax-M3",
-        "key": "${MINIMAX_KEY}",
+        "key": mk,
         "small_model": "MiniMax-M3"
     }
-if "${CLAUDE_KEY:-}":
+if ck:
     llms["claude"] = {
         "name": "Claude",
         "base_url": "https://api.anthropic.com",
         "model": "claude-sonnet-4-6",
-        "key": "${CLAUDE_KEY}",
+        "key": ck,
         "small_model": "claude-haiku-4-5"
     }
 
-d = {"llms": llms, "current": "$DEFAULT_LLM"}
-with open("$f", "w") as fh:
+d = {"llms": llms, "current": os.environ["DEFAULT_LLM"]}
+with open(os.environ["OUT"], "w") as fh:
     json.dump(d, fh, indent=4, ensure_ascii=False)
     fh.write("\n")
 PYEOF
@@ -163,19 +175,19 @@ gen_claude_json() {
         claude)  base_url="https://api.anthropic.com"; model="claude-sonnet-4-6" ;;
     esac
 
-    python3 << PYEOF
-import json
+    AUTH_TOKEN="$auth_token" BASE_URL="$base_url" MODEL="$model" OUT="$f" python3 << 'PYEOF'
+import json, os
 d = {
     "env": {
-        "ANTHROPIC_BASE_URL": "$base_url",
-        "ANTHROPIC_MODEL": "$model",
+        "ANTHROPIC_BASE_URL": os.environ["BASE_URL"],
+        "ANTHROPIC_MODEL": os.environ["MODEL"],
         "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-        "ANTHROPIC_AUTH_TOKEN": "$auth_token"
+        "ANTHROPIC_AUTH_TOKEN": os.environ["AUTH_TOKEN"]
     },
     "settings": {"default_action": "sync", "auto_config_keys": True},
     "mcp_servers": []
 }
-with open("$f", "w") as fh:
+with open(os.environ["OUT"], "w") as fh:
     json.dump(d, fh, indent=2, ensure_ascii=False)
     fh.write("\n")
 PYEOF
@@ -185,17 +197,17 @@ PYEOF
 # ── 生成 conf/ubuntu.json ──
 gen_ubuntu_json() {
     local f="$CCPRIVATE_DIR/conf/.generated/ubuntu.json"
-    python3 << PYEOF
+    GH_USER="$GH_USER" GIT_EMAIL="$GIT_EMAIL" OUT="$f" python3 << 'PYEOF'
 import json, os
 d = {
     "git": {
-        "repo": "$GH_USER/ccconfig",
-        "target_dir": os.path.expanduser("~/git/ccconfig"),
-        "email": "$GIT_EMAIL",
-        "username": "$GH_USER"
+        "repo": os.environ["GH_USER"] + "/cconfig",
+        "target_dir": os.path.expanduser("~/git/cconfig"),
+        "email": os.environ["GIT_EMAIL"],
+        "username": os.environ["GH_USER"]
     }
 }
-with open("$f", "w") as fh:
+with open(os.environ["OUT"], "w") as fh:
     json.dump(d, fh, indent=2, ensure_ascii=False)
     fh.write("\n")
 PYEOF
