@@ -431,37 +431,25 @@ create_and_push() {
 do_create() {
     banner
 
+    # 本地已有 ccprivate → 直接跑 setup.sh，不啰嗦
     if [ -d "$CCPRIVATE_DIR" ] && [ -n "$(ls -A "$CCPRIVATE_DIR" 2>/dev/null)" ]; then
-        warn "$CCPRIVATE_DIR 已存在且非空"
-        read -p "  覆盖? [y/N]: " overwrite
-        if [[ "$overwrite" =~ ^[Yy]$ ]]; then
-            rm -rf "$CCPRIVATE_DIR"
-        else
-            info "跳过创建，直接跑 setup.sh"
-            bash "$CCPRIVATE_DIR/setup.sh"
-            return 0
-        fi
+        info "$CCPRIVATE_DIR 已存在，刷新符号链接"
+        bash "$CCPRIVATE_DIR/setup.sh"
+        return 0
     fi
 
-    # 自动检测 GitHub 是否已有 ccprivate
+    # GitHub 已有 ccprivate → 引导 clone，不新建
     local gh_user=$(detect_gh_user)
     if [ -n "$gh_user" ] && gh repo view "$gh_user/ccprivate" &>/dev/null 2>&1; then
         info "GitHub 已有 ccprivate 仓库: $gh_user/ccprivate"
         echo ""
-        echo "  已有 ccprivate 仓库，无需重新创建。"
-        echo "  推荐用 clone 方式拉取已有配置："
+        echo -e "  ${GREEN}已有配置，直接 clone 即可，无需重新创建。${NC}"
         echo ""
-        echo -e "    ${GREEN}bash $CCCONFIG_DIR/bin/init-ccprivate.sh --clone${NC}"
-        echo ""
-        read -p "  是否用 --clone 方式？[Y/n]: " use_clone
-        use_clone="${use_clone:-y}"
-        if [[ "$use_clone" =~ ^[Yy]$ ]]; then
-            do_clone
-            return $?
-        fi
-        echo "  继续新建将覆盖 GitHub 上的已有仓库。"
+        do_clone
+        return $?
     fi
 
+    # 完全新建
     collect_info
 
     section "创建目录结构"
@@ -594,28 +582,27 @@ do_clone() {
         read -p "  GitHub 用户名: " GH_USER
     fi
 
-    if [ -d "$CCPRIVATE_DIR" ]; then
-        warn "$CCPRIVATE_DIR 已存在"
-        read -p "  删除后重新克隆? [y/N]: " reclone
-        if [[ "$reclone" =~ ^[Yy]$ ]]; then
-            rm -rf "$CCPRIVATE_DIR"
-        else
-            info "跳过克隆"
-            bash "$CCPRIVATE_DIR/setup.sh"
-            return 0
-        fi
-    fi
-
     check_gh_auth || return 1
 
-    section "克隆 ccprivate"
-    gh repo clone "$GH_USER/ccprivate" "$CCPRIVATE_DIR"
-    git -C "$CCPRIVATE_DIR" remote set-url origin "git@github.com:$GH_USER/ccprivate.git"
+    if [ -d "$CCPRIVATE_DIR/.git" ]; then
+        info "ccprivate 已存在，拉取最新"
+        cd "$CCPRIVATE_DIR"
+        git pull origin main 2>&1 | tail -2
+    elif [ -d "$CCPRIVATE_DIR" ]; then
+        warn "$CCPRIVATE_DIR 存在但不是 git 仓库"
+        rm -rf "$CCPRIVATE_DIR"
+        section "克隆 ccprivate"
+        gh repo clone "$GH_USER/ccprivate" "$CCPRIVATE_DIR"
+    else
+        section "克隆 ccprivate"
+        gh repo clone "$GH_USER/ccprivate" "$CCPRIVATE_DIR"
+    fi
+    git -C "$CCPRIVATE_DIR" remote set-url origin "git@github.com:$GH_USER/ccprivate.git" 2>/dev/null || true
 
     section "建立符号链接"
     bash "$CCPRIVATE_DIR/setup.sh"
 
-    ok "ccprivate 克隆完成"
+    ok "ccprivate 就绪"
     echo ""
     echo -e "  ${BOLD}下一步:${NC} 完整系统初始化"
     echo -e "    ${GREEN}bash $CCCONFIG_DIR/init.sh all${NC}"

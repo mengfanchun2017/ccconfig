@@ -2,6 +2,17 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.4.4] — 2026-07-10
+
+### Fixed
+- **三层交互简化** — `do_create` 本地已有 ccprivate → 直接 setup.sh；GitHub 已有 → 自动 clone；完全新建 → 收集信息
+- **`do_clone` 幂等** — 已有 git repo → pull；非 git 目录 → 删除重建；否则 → 新 clone
+
+## [1.4.3] — 2026-07-10
+
+### Changed
+- **Skill 源迁移** — mattpocock/skills 官方源；删 caveman；diagnose→diagnosing-bugs；write-a-skill→writing-great-skills
+
 ## [1.4.2] — 2026-07-10
 
 ### Changed
