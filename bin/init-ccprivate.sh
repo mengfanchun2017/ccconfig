@@ -584,16 +584,15 @@ do_clone() {
 
     check_gh_auth || return 1
 
-    if [ -d "$CCPRIVATE_DIR/.git" ]; then
+    if [ -d "$CCPRIVATE_DIR/.git" ] && git -C "$CCPRIVATE_DIR" remote get-url origin &>/dev/null; then
         info "ccprivate 已存在，拉取最新"
-        cd "$CCPRIVATE_DIR"
-        git pull origin main 2>&1 | tail -2
-    elif [ -d "$CCPRIVATE_DIR" ]; then
-        warn "$CCPRIVATE_DIR 存在但不是 git 仓库"
-        rm -rf "$CCPRIVATE_DIR"
-        section "克隆 ccprivate"
-        gh repo clone "$GH_USER/ccprivate" "$CCPRIVATE_DIR"
+        git -C "$CCPRIVATE_DIR" pull origin main 2>&1 | tail -2
     else
+        # 无 remote（失败的 do_create 残留）或非 git 目录 → 直接 clone
+        if [ -d "$CCPRIVATE_DIR" ]; then
+            info "移除旧 ccprivate（无 remote 或非 git 仓库）"
+            rm -rf "$CCPRIVATE_DIR"
+        fi
         section "克隆 ccprivate"
         gh repo clone "$GH_USER/ccprivate" "$CCPRIVATE_DIR"
     fi
