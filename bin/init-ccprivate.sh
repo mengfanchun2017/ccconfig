@@ -152,7 +152,7 @@ collect_info() {
 
 # ── 生成 conf/llm.json ──
 gen_llm_json() {
-    local f="$CCPRIVATE_DIR/conf/.generated/llm.json"
+    local f="$CCPRIVATE_DIR/conf/llm.json"
     DEEPSEEK_KEY="${DEEPSEEK_KEY:-}" MINIMAX_KEY="${MINIMAX_KEY:-}" CLAUDE_KEY="${CLAUDE_KEY:-}" DEFAULT_LLM="$DEFAULT_LLM" OUT="$f" python3 << 'PYEOF'
 import json, os
 
@@ -195,7 +195,7 @@ PYEOF
 
 # ── 生成 conf/claude.json ──
 gen_claude_json() {
-    local f="$CCPRIVATE_DIR/conf/.generated/claude.json"
+    local f="$CCPRIVATE_DIR/conf/claude.json"
     local auth_token="${DEEPSEEK_KEY:-${MINIMAX_KEY:-${CLAUDE_KEY:-}}}"
     local base_url="https://api.deepseek.com/anthropic"
     local model="deepseek-v4-pro"
@@ -225,7 +225,7 @@ PYEOF
 
 # ── 生成 conf/ubuntu.json ──
 gen_ubuntu_json() {
-    local f="$CCPRIVATE_DIR/conf/.generated/ubuntu.json"
+    local f="$CCPRIVATE_DIR/conf/ubuntu.json"
     GH_USER="$GH_USER" GIT_EMAIL="$GIT_EMAIL" OUT="$f" python3 << 'PYEOF'
 import json, os
 d = {
@@ -299,56 +299,81 @@ EOF
 gen_setup_sh() {
     cat > "$CCPRIVATE_DIR/setup.sh" << 'SETUPEOF'
 #!/bin/bash
-# ccprivate setup.sh — 私有 + 公开链接一步到位
-set -e
+# ccprivate setup.sh — 私有链接一步到位（不含 skills，skills 由 init.sh all 统一管理）
+set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CCCONFIG_DIR="${CCCONFIG_HOME:-$HOME/git/ccconfig}"
-GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
-info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
-ok() { echo -e "${GREEN}✅ $1${NC}"; }
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CCCONFIG_DIR="${CCCONFIG_DIR:-$HOME/git/ccconfig}"
+CLAUDE_DIR="$HOME/.claude"
 
-link_file() {
-    local src="$1" dst="$2" name="$3"
-    mkdir -p "$(dirname "$dst")"
-    if [ -L "$dst" ] && [ "$(readlink -f "$dst")" = "$(readlink -f "$src")" ]; then
-        info "$name: 已链接"
-        return 0
+echo "=== ccprivate setup ==="
+
+setup_link() {
+    local link="$1" target="$2" label="$3"
+    mkdir -p "$(dirname "$link")"
+    if [ -L "$link" ]; then
+        local existing=$(readlink -f "$link" 2>/dev/null)
+        local expected=$(readlink -f "$target" 2>/dev/null)
+        if [ "$existing" = "$expected" ]; then
+            echo "  $label: 已链接，跳过"
+            return 0
+        fi
+        rm -f "$link"
+    elif [ -e "$link" ]; then
+        rm -rf "$link"
     fi
-    [ -e "$dst" ] || [ -L "$dst" ] && rm -f "$dst"
-    ln -sf "$src" "$dst"
-    ok "$name: 已链接"
+    ln -s "$target" "$link"
+    echo "  $label"
 }
 
-echo "=== ccprivate → ccconfig 私有链接 ==="
+# --- 用户级链接 ---
+echo "--- 用户级链接 ---"
+setup_link "$HOME/CLAUDE.md"           "$SCRIPT_DIR/link/CLAUDE.md"     "~/CLAUDE.md"
+setup_link "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/link/settings.json" "~/.claude/settings.json"
+setup_link "$CLAUDE_DIR/.config.json"  "$SCRIPT_DIR/link/.config.json"  "~/.claude/.config.json"
 
-for f in "$SCRIPT_DIR"/conf/*.json; do
-    [ -f "$f" ] || continue
-    name=$(basename "$f")
-    link_file "$f" "$CCCONFIG_DIR/conf/$name" "conf/$name"
+# --- Memory 链接 ---
+echo "--- Memory 链接 ---"
+for proj_dir in "$SCRIPT_DIR/link/projects"/-home-*-*/; do
+    [ -d "$proj_dir" ] || continue
+    PROJ_NAME=$(basename "$proj_dir")
+    if [ -d "${proj_dir}memory" ]; then
+        setup_link "$CLAUDE_DIR/projects/$PROJ_NAME/memory" "${proj_dir}memory" "memory/$PROJ_NAME"
+    fi
 done
 
-if [ -f "$SCRIPT_DIR/link/CLAUDE.md" ]; then
-    link_file "$SCRIPT_DIR/link/CLAUDE.md" "$HOME/CLAUDE.md" "~/CLAUDE.md"
-fi
-if [ -f "$SCRIPT_DIR/link/settings.json" ]; then
-    link_file "$SCRIPT_DIR/link/settings.json" "$HOME/.claude/settings.json" "settings.json"
-fi
-if [ -f "$SCRIPT_DIR/link/.config.json" ]; then
-    link_file "$SCRIPT_DIR/link/.config.json" "$HOME/.claude/.config.json" ".config.json"
-fi
-if [ -d "$SCRIPT_DIR/link/projects" ]; then
-    link_file "$SCRIPT_DIR/link/projects" "$CCCONFIG_DIR/link/projects" "link/projects"
-fi
+# --- 项目 CLAUDE.md ---
+echo "--- 项目 CLAUDE.md ---"
+for proj_dir in "$SCRIPT_DIR/link/projects"/-home-*-*/; do
+    [ -d "$proj_dir" ] || continue
+    PROJ_NAME=$(basename "$proj_dir")
+    if [ "$PROJ_NAME" = "-home-${USER}-git" ]; then continue; fi
+    PROJ_PATH="/$(echo "$PROJ_NAME" | sed 's/^-//' | sed 's/-/\//g')"
+    if [ -f "${proj_dir}CLAUDE.md" ] && [ -d "$PROJ_PATH" ]; then
+        setup_link "$PROJ_PATH/CLAUDE.md" "${proj_dir}CLAUDE.md" "$PROJ_NAME/CLAUDE.md"
+    fi
+done
 
-echo ""
-echo "=== ccconfig 公开链接 ==="
-if [ -f "$CCCONFIG_DIR/setup-links.sh" ]; then
-    bash "$CCCONFIG_DIR/setup-links.sh"
-fi
+# --- Conf 链接（cconfig/conf/ → ccprivate/conf/） ---
+echo "--- Conf 链接 ---"
+for src in "$SCRIPT_DIR/conf/"*.json; do
+    [ -f "$src" ] || continue
+    name=$(basename "$src")
+    dst="$CCCONFIG_DIR/conf/$name"
+    [ -L "$dst" ] && rm -f "$dst"
+    [ -f "$dst" ] && rm -f "$dst"
+    ln -s "$src" "$dst"
+    echo "  conf/$name → ccprivate"
+done
 
-echo ""
-ok "全部链接完成"
+# --- ccconfig link/projects overlay ---
+echo "--- ccconfig link overlay ---"
+for old in "$CCCONFIG_DIR/link/CLAUDE.md" "$CCCONFIG_DIR/link/settings.json" "$CCCONFIG_DIR/link/.config.json"; do
+    if [ -f "$old" ] && [ ! -L "$old" ]; then rm -f "$old"; fi
+done
+setup_link "$CCCONFIG_DIR/link/projects" "$SCRIPT_DIR/link/projects" "ccconfig/link/projects"
+
+echo "=== ccprivate setup 完成 ==="
 echo "下一步: bash $CCCONFIG_DIR/init.sh all"
 SETUPEOF
     chmod +x "$CCPRIVATE_DIR/setup.sh"
@@ -401,7 +426,7 @@ do_create() {
     collect_info
 
     section "创建目录结构"
-    mkdir -p "$CCPRIVATE_DIR/conf/.generated"
+    mkdir -p "$CCPRIVATE_DIR/conf"
     mkdir -p "$CCPRIVATE_DIR/skill-config"
     mkdir -p "$CCPRIVATE_DIR/link/projects"
 
@@ -465,19 +490,19 @@ do_update() {
 
     section "刷新生成配置"
     DEEPSEEK_KEY="" MINIMAX_KEY="" CLAUDE_KEY=""
-    if [ -f "$CCPRIVATE_DIR/conf/.generated/llm.json" ]; then
-        DEEPSEEK_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/llm.json')); print(d.get('llms',{}).get('deepseek',{}).get('key',''))" 2>/dev/null || echo "")
-        MINIMAX_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/llm.json')); print(d.get('llms',{}).get('minimax',{}).get('key',''))" 2>/dev/null || echo "")
-        CLAUDE_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/llm.json')); print(d.get('llms',{}).get('claude',{}).get('key',''))" 2>/dev/null || echo "")
-        DEFAULT_LLM=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/llm.json')); print(d.get('current','deepseek'))" 2>/dev/null || echo "deepseek")
+    if [ -f "$CCPRIVATE_DIR/conf/llm.json" ]; then
+        DEEPSEEK_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/llm.json')); print(d.get('llms',{}).get('deepseek',{}).get('key',''))" 2>/dev/null || echo "")
+        MINIMAX_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/llm.json')); print(d.get('llms',{}).get('minimax',{}).get('key',''))" 2>/dev/null || echo "")
+        CLAUDE_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/llm.json')); print(d.get('llms',{}).get('claude',{}).get('key',''))" 2>/dev/null || echo "")
+        DEFAULT_LLM=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/llm.json')); print(d.get('current','deepseek'))" 2>/dev/null || echo "deepseek")
         if [ -n "$DEEPSEEK_KEY" ] || [ -n "$MINIMAX_KEY" ] || [ -n "$CLAUDE_KEY" ]; then
             gen_llm_json
             gen_claude_json
         fi
     fi
-    if [ -f "$CCPRIVATE_DIR/conf/.generated/ubuntu.json" ]; then
-        GH_USER=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/ubuntu.json')); print(d.get('git',{}).get('username',''))" 2>/dev/null || echo "")
-        GIT_EMAIL=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/.generated/ubuntu.json')); print(d.get('git',{}).get('email',''))" 2>/dev/null || echo "")
+    if [ -f "$CCPRIVATE_DIR/conf/ubuntu.json" ]; then
+        GH_USER=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/ubuntu.json')); print(d.get('git',{}).get('username',''))" 2>/dev/null || echo "")
+        GIT_EMAIL=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/ubuntu.json')); print(d.get('git',{}).get('email',''))" 2>/dev/null || echo "")
         if [ -n "$GH_USER" ]; then
             gen_ubuntu_json
         fi

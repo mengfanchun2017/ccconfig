@@ -2,6 +2,14 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.3.8] — 2026-07-10
+
+### Fixed
+- **根因修复** — `gen_llm_json`/`gen_claude_json`/`gen_ubuntu_json` 写入 `ccprivate/conf/`（原 `.generated/` 隐藏目录），消除 `.example` 模板覆盖冲突
+- **`gen_setup_sh`** — 缺 conf 链接逻辑导致 `cconfig/conf/llm.json` symlink 从未创建，`ensure_config` 复制占位符模板 → init-llm 写入 `请填入你的 DeepSeek API Key` 到 settings.json → Claude 连不上
+- **ccprivate/setup.sh** — 移除 `.generated` 4b 段，conf 统一由 4a 段链接；移除 `cconfig/setup-links.sh` 调用避免 skills 在 init-ccprivate + init.sh all 间重复跑两次
+- **测试** — `tests/test-init-ccprivate.sh` 14 用例覆盖路径/占位符检测/symlink 解析/settings.json 写入/正则过滤
+
 ## [1.3.7] — 2026-07-10
 
 ### Fixed
