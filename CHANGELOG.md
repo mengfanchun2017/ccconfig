@@ -2,6 +2,11 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.3.5] — 2026-07-10
+
+### Fixed
+- **`init-ccprivate.sh`** — GH_USER 为空时无校验导致 `gh repo create "/ccprivate"` 报错，加非空循环验证；GitHub 用户名正则放宽支持单字符
+
 ## [1.3.4] — 2026-07-10
 
 ### Fixed
