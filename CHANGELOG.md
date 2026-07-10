@@ -2,6 +2,13 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.4.1] — 2026-07-10
+
+### Fixed
+- **`.generated` 回退** — `ccprivate/setup.sh` 加回 `.generated/*.json` 链接，兼容旧格式 ccprivate repo（v1.3.7 及更早）。新格式 `conf/` 优先，旧格式 `.generated/` 作为回退
+- **步骤 5 `run_step` 崩溃** — `bash bash` 双重嵌套导致 "cannot execute binary file"，改为直接传脚本路径
+- **claude-skills 噪音** — `check_first_time` 不再警告 claude-skills 缺失（`init-skill.sh` 自动 clone）
+
 ## [1.4.0] — 2026-07-10
 
 ### Changed (架构重构)
