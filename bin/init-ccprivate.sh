@@ -35,7 +35,7 @@ err()    { echo -e "  ${RED}❌ $1${NC}"; }
 detect_gh_user() {
     local user
     user=$(gh api user --jq '.login' 2>/dev/null) || true
-    if echo "$user" | grep -qE '^[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]$'; then
+    if echo "$user" | grep -qE '^[a-zA-Z0-9](-?[a-zA-Z0-9])*$'; then
         echo "$user"
     else
         echo ""
@@ -68,7 +68,10 @@ collect_info() {
             read -p "  输入 GitHub 用户名: " GH_USER
         fi
     else
-        read -p "  GitHub 用户名: " GH_USER
+        while [ -z "$GH_USER" ]; do
+            read -p "  GitHub 用户名: " GH_USER
+            [ -z "$GH_USER" ] && err "GitHub 用户名不能为空"
+        done
     fi
 
     GIT_EMAIL=$(detect_git_email)
@@ -80,7 +83,10 @@ collect_info() {
             read -p "  输入邮箱: " GIT_EMAIL
         fi
     else
-        read -p "  Git 邮箱: " GIT_EMAIL
+        while [ -z "$GIT_EMAIL" ]; do
+            read -p "  Git 邮箱: " GIT_EMAIL
+            [ -z "$GIT_EMAIL" ] && err "Git 邮箱不能为空"
+        done
     fi
 
     section "LLM API Key（至少填一个）"
