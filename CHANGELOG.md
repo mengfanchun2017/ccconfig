@@ -2,6 +2,11 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.3.4] — 2026-07-10
+
+### Fixed
+- **`init-ccprivate.sh`** — `detect_gh_user()` gh auth 失效时 401 JSON 被捕获为用户名，含 `"` 字符破坏 Python heredoc 语法；加正则校验过滤非用户名输出，Python heredoc 改用 env var 注入替代 shell 插值
+
 ## [1.3.3] — 2026-07-10
 
 ### Changed
