@@ -47,7 +47,6 @@ check_first_time() {
 #   - main_menu 6:   ★ 一键全部初始化
 #   - case "all":    bash init.sh all
 init_all_steps() {
-    local with_python="${1:-false}"
     show_banner
     check_first_time
 
@@ -63,19 +62,21 @@ init_all_steps() {
     run_step "4/5 Skills" "$SCRIPT_DIR/init-skill.sh" sync
     echo -e "  ${GRAY}下一步: 5/5 验证${NC}"
 
-    if [ "$with_python" = "true" ]; then
-        run_step "5a/5 Python 包" "$SCRIPT_DIR/update.sh" true python
-    fi
     run_step "5/5 验证" "$SCRIPT_DIR/status.sh" false
 
     echo ""
     echo -e "${GREEN}🎉 全部初始化完成${NC}"
     echo ""
     echo -e "${BOLD}日常使用:${NC}"
-    echo "  切换 LLM:       bash ccconfig/init-llm.sh"
-    echo "  更新系统:       bash ccconfig/update.sh all"
-    echo "  状态检查:       bash ccconfig/status.sh"
-    echo "  飞书 Bridge:    bash ccconfig/option-bridge/init.sh"
+    echo "  切换 LLM:          bash ccconfig/init-llm.sh"
+    echo "  更新系统:          bash ccconfig/update.sh all"
+    echo "  状态检查:          bash ccconfig/status.sh"
+    echo ""
+    echo -e "${BOLD}可选组件:${NC}"
+    echo "  飞书 Bridge:       bash ccconfig/option-bridge/init.sh"
+    echo "  Cloudflare 插件:   bash ccconfig/option-cloudflare/init.sh"
+    echo "  OfficeCLI:         bash ccconfig/option-officecli/init.sh"
+    echo "  Python 包更新:     bash ccconfig/update.sh python"
     echo ""
     echo -e "${GRAY}auto-sync 已在步骤1配置，配置变更自动推送到 GitHub${NC}"
 }
@@ -332,7 +333,7 @@ main_menu() {
 # ========== 入口 ==========
 case "${1:-menu}" in
     all)
-        init_all_steps true
+        init_all_steps
         echo ""
         echo "CLI 工具: bat (batcat) / glow / nano — 已由 init-ubuntu.sh 自动安装"
         echo "可选: bash ccconfig/option-bridge/init.sh   # 安装飞书 Bridge"

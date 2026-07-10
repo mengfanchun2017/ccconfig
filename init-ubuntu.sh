@@ -558,47 +558,19 @@ PYEOF
 }
 
 
-# ========== 12. CLI 工具 ==========
+# ========== 12. CLI 工具（仅检查，不自动安装） ==========
 setup_cli_tools() {
-    section "CLI 工具 (bat/glow/nano)"
+    section "CLI 工具（可选，按需手动安装）"
 
-    # bat (Ubuntu 包名为 bat，命令为 batcat — 避免与 bacula-console-qt 冲突)
-    if command -v batcat &>/dev/null; then
-        success "bat (batcat) 已安装: $(batcat --version | head -1)"
-    elif command -v bat &>/dev/null; then
-        success "bat 已安装: $(bat --version | head -1)"
-    else
-        warn "bat 未安装，正在安装..."
-        if sudo apt-get install -y bat; then
-            success "bat 安装完成（命令: batcat）"
-        else
-            warn "bat 安装失败（sudo apt install bat）"
-        fi
-    fi
+    local bat_ok=false glow_ok=false nano_ok=false
+    command -v batcat &>/dev/null && bat_ok=true
+    command -v bat &>/dev/null && bat_ok=true
+    command -v glow &>/dev/null && glow_ok=true
+    command -v nano &>/dev/null && nano_ok=true
 
-    # glow — Markdown 渲染阅读器
-    if command -v glow &>/dev/null; then
-        success "glow 已安装: $(glow --version)"
-    else
-        warn "glow 未安装，正在安装..."
-        if sudo apt-get install -y glow; then
-            success "glow 安装完成: $(glow --version)"
-        else
-            warn "glow 安装失败（sudo apt install glow）"
-        fi
-    fi
-
-    # nano — 编辑器（Ubuntu 预装，确认存在）
-    if command -v nano &>/dev/null; then
-        success "nano 已安装: $(nano --version | head -1)"
-    else
-        warn "nano 未安装，正在安装..."
-        if sudo apt-get install -y nano; then
-            success "nano 安装完成"
-        else
-            warn "nano 安装失败（sudo apt install nano）"
-        fi
-    fi
+    $bat_ok && info "bat  ✓" || info "bat  ✗ (可选: sudo apt install bat)"
+    $glow_ok && info "glow ✓" || info "glow ✗ (可选: sudo apt install glow)"
+    $nano_ok && info "nano ✓" || info "nano ✗ (可选: sudo apt install nano)"
 }
 
 # ========== 主流程 ==========
@@ -633,18 +605,15 @@ main() {
     echo ""
     success "初始化完成！"
     echo ""
-    echo "CLI 工具（已自动安装）："
-    echo "  bat (batcat) — 代码语法高亮   sudo apt install bat"
-    echo "  glow         — Markdown 渲染   sudo apt install glow"
-    echo "  nano         — 终端编辑器     sudo apt install nano（通常预装）"
-    echo ""
-    echo "可选组件（按需安装）："
-    echo "  bash ccconfig/option-officecli/init.sh   # OfficeCLI（PPT/Office 工具）"
-    echo "  bash ccconfig/option-bridge/init.sh      # cc-connect（飞书 Bridge）"
-    echo ""
     echo -e "  ${BOLD}继续初始化:${NC}"
     echo -e "    全部自动: ${GREEN}bash ccconfig/init.sh all${NC}"
     echo -e "    分步: LLM → MCP → Skills → 验证"
+    echo ""
+    echo "可选组件（按需手动安装）："
+    echo "  bash ccconfig/option-officecli/init.sh    # OfficeCLI"
+    echo "  bash ccconfig/option-bridge/init.sh       # 飞书 Bridge"
+    echo "  bash ccconfig/option-cloudflare/init.sh   # Cloudflare 插件"
+    echo "  sudo apt install bat glow                  # CLI 工具"
     echo ""
 }
 

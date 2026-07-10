@@ -2,6 +2,14 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.4.2] — 2026-07-10
+
+### Changed
+- **CLI 工具不自动装** — `init-ubuntu.sh` 不再 `sudo apt install bat/glow`，只检查状态；可选工具统一在末尾提醒
+- **Python 包移出初始化** — `init.sh all` 步骤 5 纯验证，不再跑 `update.sh python`；Python 包独立命令
+- **Cloudflare → option** — `cloudflare.json.example` 移至 `option-cloudflare/`，不再自动链接；按需 `bash ccconfig/option-cloudflare/init.sh`
+- **可选组件统一** — 所有 option（Bridge/Cloudflare/OfficeCLI/CLI 工具/Python）集中在 init.sh all 结束提醒
+
 ## [1.4.1] — 2026-07-10
 
 ### Fixed
