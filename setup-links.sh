@@ -70,11 +70,8 @@ setup_symlinks() {
         setup_link "$CLAUDE_DIR/shell_aliases.sh" "$SCRIPT_DIR/link/shell_aliases.sh" "shell_aliases.sh"
     fi
 
-    # skills（从 claude-skills/plugins/ 同步 + ccprivate 配置覆盖）
-    if [[ -x "$SCRIPT_DIR/init-skill.sh" ]]; then
-        section "Skills"
-        bash "$SCRIPT_DIR/init-skill.sh" sync || info "Skills 同步部分失败（首次初始化可忽略，ccprivate 就绪后重跑）"
-    fi
+    # skills 由 init.sh all 步骤 5 统一管理，此处不做，避免重复初始化
+    # 如需单独初始化 skills: bash ccconfig/init-skill.sh sync
 
     # git pre-commit hook（防私密文件意外提交）
     local git_hook="$SCRIPT_DIR/.git/hooks/pre-commit"

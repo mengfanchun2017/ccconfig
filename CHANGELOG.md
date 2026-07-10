@@ -2,6 +2,14 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.4.0] — 2026-07-10
+
+### Changed (架构重构)
+- **消除 skills 重复初始化** — `setup-links.sh` 移除 `init-skill.sh sync` 调用，skills 统一由 `init.sh all` 步骤 4 管理
+- **智能检测已有 ccprivate** — `init-ccprivate.sh` 自动检查 GitHub 是否已有 ccprivate 仓库，有则引导 `--clone`，避免重复创建
+- **5 步初始化** — `init.sh all` 重构为 5 步（Ubuntu → LLM → MCP → Skills → 验证），每步后提示下一步
+- **下一步提示** — 每个初始化脚本结束时输出清晰的下一步命令，用户无需翻文档
+
 ## [1.3.9] — 2026-07-10
 
 ### Fixed (review findings)
