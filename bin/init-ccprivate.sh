@@ -194,29 +194,21 @@ PYEOF
 }
 
 # ── 生成 conf/claude.json ──
+# LLM env (ANTHROPIC_BASE_URL/MODEL/AUTH_TOKEN) 由 init-llm.sh 独占管理
+# 这里只放 Claude Code 行为开关 + MCP 配置占位
 gen_claude_json() {
     local f="$CCPRIVATE_DIR/conf/claude.json"
-    local auth_token="${DEEPSEEK_KEY:-${MINIMAX_KEY:-${CLAUDE_KEY:-}}}"
-    local base_url="https://api.deepseek.com/anthropic"
-    local model="deepseek-v4-pro"
-    case "$DEFAULT_LLM" in
-        minimax) base_url="https://api.minimaxi.com/anthropic"; model="MiniMax-M3" ;;
-        claude)  base_url="https://api.anthropic.com"; model="claude-sonnet-4-6" ;;
-    esac
 
-    AUTH_TOKEN="$auth_token" BASE_URL="$base_url" MODEL="$model" OUT="$f" python3 << 'PYEOF'
-import json, os
+    python3 - <<PYEOF
+import json
 d = {
     "env": {
-        "ANTHROPIC_BASE_URL": os.environ["BASE_URL"],
-        "ANTHROPIC_MODEL": os.environ["MODEL"],
-        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-        "ANTHROPIC_AUTH_TOKEN": os.environ["AUTH_TOKEN"]
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
     },
     "settings": {"default_action": "sync", "auto_config_keys": True},
     "mcp_servers": []
 }
-with open(os.environ["OUT"], "w") as fh:
+with open("$f", "w") as fh:
     json.dump(d, fh, indent=2, ensure_ascii=False)
     fh.write("\n")
 PYEOF
@@ -498,8 +490,8 @@ Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
     echo ""
     ok "ccprivate 创建完成"
     echo ""
-    echo -e "  ${BOLD}下一步:${NC} 完整系统初始化"
-    echo -e "    ${GREEN}bash $CCCONFIG_DIR/init.sh all${NC}"
+    echo -e "  ${YELLOW}⚠️  下一步必须先 cd 到 ccconfig 目录${NC}"
+    echo -e "    ${GREEN}cd $CCCONFIG_DIR && bash init.sh all${NC}"
     echo -e "  ${GRAY}(5 步: Ubuntu → LLM → MCP → Skills → 验证)${NC}"
     echo ""
 }
@@ -603,8 +595,8 @@ do_clone() {
 
     ok "ccprivate 就绪"
     echo ""
-    echo -e "  ${BOLD}下一步:${NC} 完整系统初始化"
-    echo -e "    ${GREEN}bash $CCCONFIG_DIR/init.sh all${NC}"
+    echo -e "  ${YELLOW}⚠️  下一步必须先 cd 到 ccconfig 目录${NC}"
+    echo -e "    ${GREEN}cd $CCCONFIG_DIR && bash init.sh all${NC}"
     echo -e "  ${GRAY}(5 步: Ubuntu → LLM → MCP → Skills → 验证)${NC}"
 }
 
