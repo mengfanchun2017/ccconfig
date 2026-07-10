@@ -373,6 +373,13 @@ for old in "$CCCONFIG_DIR/link/CLAUDE.md" "$CCCONFIG_DIR/link/settings.json" "$C
 done
 setup_link "$CCCONFIG_DIR/link/projects" "$SCRIPT_DIR/link/projects" "ccconfig/link/projects"
 
+# --- ccconfig 公开链接（agents/rules/commands/skills） ---
+if [ -x "$CCCONFIG_DIR/setup-links.sh" ]; then
+    echo "--- 调 ccconfig/setup-links.sh（公开部分）---"
+    bash "$CCCONFIG_DIR/setup-links.sh"
+fi
+
+echo ""
 echo "=== ccprivate setup 完成 ==="
 echo "下一步: bash $CCCONFIG_DIR/init.sh all"
 SETUPEOF
@@ -445,7 +452,11 @@ do_create() {
         local name=$(basename "$example" .example)
         if [ ! -f "$CCPRIVATE_DIR/conf/$name" ]; then
             cp "$example" "$CCPRIVATE_DIR/conf/$name"
-            info "conf/$name (从模板复制，按需编辑)"
+            if grep -qE '请填入|请替换|your.key|placeholder|changeme' "$CCPRIVATE_DIR/conf/$name" 2>/dev/null; then
+                warn "conf/$name 含占位符值，请编辑填入真实信息: vim $CCPRIVATE_DIR/conf/$name"
+            else
+                info "conf/$name (从模板复制，按需编辑)"
+            fi
         fi
     done
 
@@ -489,20 +500,45 @@ do_update() {
     git pull origin main 2>&1 | tail -3
 
     section "刷新生成配置"
-    DEEPSEEK_KEY="" MINIMAX_KEY="" CLAUDE_KEY=""
+    local llm_src=""
     if [ -f "$CCPRIVATE_DIR/conf/llm.json" ]; then
-        DEEPSEEK_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/llm.json')); print(d.get('llms',{}).get('deepseek',{}).get('key',''))" 2>/dev/null || echo "")
-        MINIMAX_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/llm.json')); print(d.get('llms',{}).get('minimax',{}).get('key',''))" 2>/dev/null || echo "")
-        CLAUDE_KEY=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/llm.json')); print(d.get('llms',{}).get('claude',{}).get('key',''))" 2>/dev/null || echo "")
-        DEFAULT_LLM=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/llm.json')); print(d.get('current','deepseek'))" 2>/dev/null || echo "deepseek")
+        llm_src="$CCPRIVATE_DIR/conf/llm.json"
+    elif [ -f "$CCPRIVATE_DIR/conf/.generated/llm.json" ]; then
+        llm_src="$CCPRIVATE_DIR/conf/.generated/llm.json"
+        info "从旧路径迁移: conf/.generated/ → conf/"
+    fi
+    if [ -n "$llm_src" ]; then
+        eval "$(LLM_SRC="$llm_src" python3 << 'PYEOF'
+import json, os
+d = json.load(open(os.environ["LLM_SRC"]))
+llms = d.get("llms", {})
+for key, var in [("deepseek","DEEPSEEK_KEY"), ("minimax","MINIMAX_KEY"), ("claude","CLAUDE_KEY")]:
+    print(f'{var}={llms.get(key,{}).get("key","")}')
+print(f'DEFAULT_LLM={d.get("current","deepseek")}')
+PYEOF
+        )"
         if [ -n "$DEEPSEEK_KEY" ] || [ -n "$MINIMAX_KEY" ] || [ -n "$CLAUDE_KEY" ]; then
             gen_llm_json
             gen_claude_json
         fi
     fi
+
+    local ubuntu_src=""
     if [ -f "$CCPRIVATE_DIR/conf/ubuntu.json" ]; then
-        GH_USER=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/ubuntu.json')); print(d.get('git',{}).get('username',''))" 2>/dev/null || echo "")
-        GIT_EMAIL=$(python3 -c "import json; d=json.load(open('$CCPRIVATE_DIR/conf/ubuntu.json')); print(d.get('git',{}).get('email',''))" 2>/dev/null || echo "")
+        ubuntu_src="$CCPRIVATE_DIR/conf/ubuntu.json"
+    elif [ -f "$CCPRIVATE_DIR/conf/.generated/ubuntu.json" ]; then
+        ubuntu_src="$CCPRIVATE_DIR/conf/.generated/ubuntu.json"
+        info "从旧路径迁移: conf/.generated/ → conf/"
+    fi
+    if [ -n "$ubuntu_src" ]; then
+        eval "$(UBUNTU_SRC="$ubuntu_src" python3 << 'PYEOF'
+import json, os
+d = json.load(open(os.environ["UBUNTU_SRC"]))
+g = d.get("git", {})
+print(f'GH_USER={g.get("username","")}')
+print(f'GIT_EMAIL={g.get("email","")}')
+PYEOF
+        )"
         if [ -n "$GH_USER" ]; then
             gen_ubuntu_json
         fi

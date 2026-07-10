@@ -2,6 +2,16 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.3.9] — 2026-07-10
+
+### Fixed (review findings)
+- **#1 do_update 迁移** — 加 `.generated/` 回退检查，旧 repo 也可刷新配置
+- **#2 Shell 注入** — `do_update` 的 `python3 -c` 双引号插值改为 heredoc + env var 安全模式
+- **#3 setup-links.sh** — `gen_setup_sh` 加回 `ccconfig/setup-links.sh` 调用，防止新用户丢失 agents/rules/skills 链接
+- **#4 .example 占位符** — 复制 `.example` 时检测占位符值（请填入/your key 等），含占位符时 warn
+- **#5 python3 合并** — `do_update` 6 次 `python3 -c` 合并为 2 次 heredoc
+- **#6 测试** — 重写 `test-init-ccprivate.sh`，13 用例含 .generated 迁移 + placeholder 拒绝 + symlink 解析
+
 ## [1.3.8] — 2026-07-10
 
 ### Fixed
