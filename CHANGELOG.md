@@ -2,6 +2,21 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.4.5] — 2026-07-10
+
+### Fixed
+- **LLM env 不再被覆盖** — `init-mcp.sh sync` 改为 merge env，保留 `init-llm.sh` 写入的 LLM 配置；解决「显示 DS，进来是 minimax」
+- **`gen_claude_json` 不再生成 LLM env** — LLM 配置由 `init-llm.sh` 独占管理，避免冲突
+- **`deps-check.sh` pip3 检测** — 改用 `python3 -m pip --version`，避免 venv 系统误报缺失
+- **`init-ccprivate.sh` cd 强引导** — `do_create` / `do_clone` 末尾加 `cd $CCCONFIG_DIR` 黄色提示，新机器配置更明确
+
+### Removed
+- **`init-llm.sh` API Error 死提醒** — 切换后不再弹无意义告警
+- **`init-mcp.sh` 大标题框 + [未注册] 列表** — UI 精简
+- **`init-mcp.sh` npx 预缓存** — 首次使用自动下载，init 时不再卡 30s
+- **`init-mcp.sh` 同步到 GitHub section** — 改为静默写入
+- **`init-mcp.sh` 末尾飞书 Bridge 提示** — 已在 init.sh 最终输出列出
+
 ## [1.4.4] — 2026-07-10
 
 ### Fixed

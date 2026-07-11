@@ -44,7 +44,6 @@ REQUIRED_DEPS=(
 CORE_DEPS=(
     "node|node --version|node|Node.js 运行时"
     "python3|python3 --version|python3|Python 3 运行时"
-    "pip3|pip3 --version|pip3|Python 包管理"
     "npm|npm --version|npm|Node 包管理"
 )
 
@@ -204,6 +203,8 @@ fi
 for dep in "${CORE_DEPS[@]}"; do
     check_dep "$dep" "true"
 done
+# pip: 用 python3 -m pip 探测（pip3 不一定独立存在）
+check_dep "pip|python3 -m pip --version|pip|Python 包管理" "true"
 
 if ! $REQUIRED_ONLY; then
     # 功能
