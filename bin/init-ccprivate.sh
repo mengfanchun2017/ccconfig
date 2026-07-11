@@ -98,15 +98,36 @@ PYEOF
 # 三级 fallback：web flow → PAT (stdin) → SSH key only
 # 任何方式成功后退出；都失败则返回非零
 check_gh_auth() {
+    # 1. 已登录 → 直接通过
     if gh auth status &>/dev/null; then
-        info "GitHub 认证: ${GREEN}已登录${NC}"
+        info "GitHub 认证: ${GREEN}已登录${NC} ($(gh api user --jq '.login' 2>/dev/null))"
         return 0
     fi
 
-    # 有 SSH key → 可以走 git 协议（clone/push），gh API 调用会受限但 init-ccprivate 够用
+    # 2. 环境变量 GH_TOKEN / GITHUB_TOKEN 已设 → 零交互注入
+    local env_token=""
+    if [[ -n "${GH_TOKEN:-}" ]]; then env_token="$GH_TOKEN"
+    elif [[ -n "${GITHUB_TOKEN:-}" ]]; then env_token="$GITHUB_TOKEN"
+    fi
+    if [[ -n "$env_token" ]]; then
+        info "检测到环境变量 GH_TOKEN/GITHUB_TOKEN，自动注入 gh auth"
+        printf '%s' "$env_token" | gh auth login --with-token --hostname github.com >/dev/null 2>&1
+        if gh auth status &>/dev/null; then
+            ok "GitHub 认证完成（env token）: $(gh api user --jq '.login' 2>/dev/null)"
+            gh auth setup-git >/dev/null 2>&1 || true
+            return 0
+        fi
+        warn "env token 注入失败，落到交互流程"
+    fi
+
+    # 3. 检测 SSH key
+    local has_ssh=false
     if [[ -f "$HOME/.ssh/id_ed25519" ]] || [[ -f "$HOME/.ssh/id_rsa" ]]; then
+        has_ssh=true
+    fi
+
+    if $has_ssh; then
         info "GitHub 认证: ${GREEN}SSH key 已配置${NC}（git push/clone 可用）"
-        # 仍尝试配 gh auth 让 API 调用也能用，否则 gh repo create 会失败
         warn "但 gh CLI 未登录，部分操作（创建仓库、API 查询）会失败"
         echo ""
         read -p "  现在补 gh 登录? [Y/n]: " do_login
@@ -114,7 +135,6 @@ check_gh_auth() {
         if [[ ! "$do_login" =~ ^[Yy]$ ]]; then
             return 0  # SSH 够用，让后续逻辑自己处理 gh API 失败
         fi
-        # 落到下面的 login flow
     else
         warn "GitHub 未认证，需要先登录"
         echo ""
@@ -129,11 +149,11 @@ check_gh_auth() {
         fi
     fi
 
-    # 三种登录方式
+    # 4. 三种登录方式（推荐顺序：PAT > Web > SSH only）
     echo ""
     echo "  选择登录方式:"
-    echo "  1) Web 浏览器（推荐，OAuth 自动配 credential helper）"
-    echo "  2) Personal Access Token（粘贴 PAT，适合 WSL/无浏览器/SSH 已配）"
+    echo "  1) Personal Access Token（推荐，最稳）"
+    echo "  2) Web 浏览器 OAuth（首次登录，需浏览器）"
     echo "  3) 跳过，只用 SSH key（git 操作可用，gh API 受限）"
     echo ""
     read -p "  选择 [1]: " login_method
@@ -141,16 +161,28 @@ check_gh_auth() {
 
     case "$login_method" in
         1)
-            gh auth login --web --hostname github.com
-            ;;
-        2)
+            # PAT 引导：完整 URL + 4 步说明
             echo ""
-            info "在 https://github.com/settings/tokens 创建 PAT（classic，需 repo + read:org scope）"
-            info "粘贴到下面（不会回显，Ctrl+D 结束）:"
+            echo -e "  ${CYAN}━━━ PAT 生成步骤 ━━━${NC}"
+            echo ""
+            echo "  1. 浏览器打开: https://github.com/settings/tokens/new"
+            echo "     (GitHub 登录后会自动跳到 New Personal Access Token 页面)"
+            echo ""
+            echo "  2. 填写:"
+            echo "     - Note:        ccconfig-wsl  (标识用，方便日后 revoke)"
+            echo "     - Expiration:  No expiration (classic 可选)"
+            echo "     - Select scopes: 勾选以下三项"
+            echo "         ✅ repo        (private repo 读写必需)"
+            echo "         ✅ read:org    (gh api 调用 org 信息需要)"
+            echo "         ✅ gist        (gh gist 命令需要)"
+            echo ""
+            echo "  3. 滚到底部点 Generate token"
+            echo "     ⚠️  立刻复制保存（页面关闭后 token 不会再显示）"
+            echo ""
+            echo "  4. 回到终端粘贴（不会回显）:"
             echo ""
             local token=""
-            # 从 stdin 读一行，--with-token 只接 stdin
-            read -r -s -p "  Token: " token
+            read -r -s -p "  Token (ghp_xxx 或 github_pat_xxx): " token
             echo ""
             if [[ -z "$token" ]]; then
                 err "Token 为空"
@@ -158,7 +190,14 @@ check_gh_auth() {
             fi
             # 清理 Windows 剪贴板带进来的 CRLF
             token=$(printf '%s' "$token" | tr -d '\r\n')
+            # 简单格式校验（classic: ghp_...；fine-grained: github_pat_...）
+            if [[ ! "$token" =~ ^(ghp_|github_pat_) ]]; then
+                warn "Token 格式不像 GitHub PAT（应以 ghp_ 或 github_pat_ 开头），仍尝试..."
+            fi
             echo "$token" | gh auth login --with-token --hostname github.com
+            ;;
+        2)
+            gh auth login --web --hostname github.com
             ;;
         3)
             warn "跳过 gh 认证，git push/clone 走 SSH"
