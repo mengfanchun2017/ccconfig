@@ -2,13 +2,13 @@
 
 All notable changes to ccconfig will be documented in this file.
 
-## [Unreleased]
+## [1.4.6] — 2026-07-11
 
 ### Fixed
 - **`init-ccprivate.sh` gh 缺失自动装** — 新增 `ensure_gh_cli()`，gh 不在 PATH 时引导选择 apt 或 binary 装到 `~/.local/bin/gh`，解决首次初始化 `gh: command not found` 直接退出
 - **`init-ccprivate.sh` git identity 缺失** — 新增 `ensure_git_ident()`，git init 前检测 `--global` user.name/email，缺失则用已收集的 `GH_USER`/`GIT_EMAIL` 写入，再缺则交互询问；解决 `fatal: empty ident name ... not allowed`
 - **`init-ccprivate.sh` feishu 占位符引导** — 新增 `prompt_feishu_config()`，检测到 `conf/feishu.json` 还是 `.example` 模板时询问「现在填 or 跳过」，填则交互收集 App ID/App Secret/应用名；跳过则保留占位符（晚点手动编辑）
-- **`init-ccprivate.sh` gh auth 三级 fallback** — `check_gh_auth()` 重写：web 浏览器 OAuth / PAT stdin 注入（清理 CRLF）/ SSH key only；PAT 路径用 `read -s` 不回显；适配 WSL 无浏览器场景
+- **`init-ccprivate.sh` gh auth PAT 推荐路径** — `check_gh_auth()` 重写：GH_TOKEN 环境变量 → SSH 检测 → **PAT 引导（带完整 URL + 4 步操作）** → Web OAuth → SSH only；PAT 默认推荐（最稳、不依赖浏览器、跨平台），含 `https://github.com/settings/tokens/new` 链接和 scope 清单（`repo`/`read:org`/`gist`），`read -s` 不回显，自动清理 Windows CRLF 防 `Bad credentials`，格式校验 `^(ghp_|github_pat_)`
 
 ## [1.4.5] — 2026-07-10
 
