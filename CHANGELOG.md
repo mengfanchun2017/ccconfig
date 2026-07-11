@@ -2,6 +2,12 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [1.4.7] — 2026-07-11
+
+### Added
+- **`bootstrap.sh`** — 全新 WSL 一行起步脚本。`curl | bash` 即可完成 git 检测 + sudo apt 装 git + clone ccconfig + 输出 init.sh 引导。支持 `CCCONFIG_REPO`/`CCCONFIG_BRANCH`/`BOOTSTRAP_NOSUDO` 环境变量；幂等（重跑 = pull）
+- **`tests/test-bootstrap.sh`** — 12 类 24 用例覆盖默认值/4 步结构/curl wget fallback/幂等性/PATH 隔离检测
+
 ## [1.4.6] — 2026-07-11
 
 ### Fixed
