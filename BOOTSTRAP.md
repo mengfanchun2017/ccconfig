@@ -8,6 +8,39 @@
 > **三仓库模型**：ccconfig（公开 infra）+ claude-skills（公开 skill 市场）+ ccprivate（私有配置）。
 > 三个仓库各司其职，ccconfig 脚本编排、claude-skills 提供 skill 插件、ccprivate 保管密钥。
 
+## ⚡ 一行起步（推荐）
+
+新机器只需 **一条命令**：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh | bash
+```
+
+`bootstrap.sh` 自动：
+1. 检测 `curl`/`wget`（WSL/Ubuntu 自带）
+2. 用 `sudo apt-get` 装 `git`（如果缺失）
+3. clone ccconfig 到 `~/git/ccconfig`（或已有则 `git pull`）
+4. 输出下一步命令（`bash init.sh all`）
+
+> **支持的环境变量**：
+> - `CCCONFIG_REPO` — 覆盖默认仓库（如 fork 自己的）
+> - `CCCONFIG_BRANCH` — 覆盖默认分支（生产环境用 `release`）
+> - `BOOTSTRAP_NOSUDO=1` — 跳过 sudo 装 git（适合受限环境，git 必须已装）
+>
+> **示例**（开发者跟踪 main + 用 fork）：
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh \
+>   | CCCONFIG_REPO=myuser/ccconfig CCCONFIG_BRANCH=main bash
+> ```
+
+跑完 bootstrap 后，看 [阶段 5](#阶段-5--系统初始化) 继续（`bash init.sh all`）。
+
+---
+
+## 手动 7 阶段（Reference）
+
+如果一行命令失败或你想完全控制每一步，按下面 7 阶段走。
+
 **适用**：
 - 新装的 WSL2 / Ubuntu 24.04+ / Debian 12+
 - 重装系统后恢复
