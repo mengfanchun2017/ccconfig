@@ -85,3 +85,32 @@ MCP 服务器均为 HTTP 远程类型，无持久进程。OAuth 在首次调用 
 - GitHub: <https://github.com/cloudflare/skills>
 - 插件市场: <https://pluginmarketplace.ai/blog/cloudflare-claude-plugin-marketplace-mcp>
 - 官方文档: <https://developers.cloudflare.com/agent-setup/claude-code>
+
+---
+
+## ccconfig 落地页 (`www/` → `config.aiagt.dev`)
+
+**仓库**：[`ccconfig/www/`](https://github.com/mengfanchun2017/ccconfig/tree/main/www) 静态站 → Cloudflare Pages → `config.aiagt.dev`
+
+**关键配置**（Dashboard → Workers & Pages → ccconfiged → Settings）：
+- **Build configuration → Root directory**：`www`
+- **Build command / Build output directory**：留空（纯静态）
+- **Source → Path includes**：`www/**`（监控 www 下变更触发 deploy）
+- **Source → Production branch**：`main`
+
+**部署触发**：push 到 main 分支且 `www/**` 有变更 → CF GitHub App webhook → 自动 build + deploy。新 deploy 自动成为 production；自定义域 alias 跟着切换。
+
+**手动 retry / rollback**：
+```bash
+# API retry（重新 build 最新 commit）
+curl -X POST "https://api.cloudflare.com/client/v4/accounts/<account_id>/pages/projects/ccconfiged/deployments" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+  -d '{}'
+
+# API rollback（切 alias 到指定 deploy）
+curl -X POST "https://api.cloudflare.com/client/v4/accounts/<account_id>/pages/projects/ccconfiged/deployments/<short_id>/rollback" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" -d '{}'
+```
+
+**踩坑（v1.4.7 修复）**：
+- Dashboard 早期误设 `root_dir: "sites/config"` + `path_includes: ["sites/config/**"]`，导致 www/ 变更全部 `is_skipped: true`（`skip_reason: "path_config"`）。正确：`root_dir: "www"` + `path_includes: ["www/**"]`。
