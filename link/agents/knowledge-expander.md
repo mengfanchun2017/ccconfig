@@ -1,7 +1,7 @@
 ---
 name: knowledge-expander
 description: 知识扩展子代理 — 接收单个知识点，三源并行搜索后创建飞书内容（文档/PPT/表格/多维表格）。由 assistant agent 在拆分父文档后并行启动多个实例。
-tools: Bash, Read, WebSearch, mcp__minimax__web_search, mcp__tavily__tavily_search, mcp__tavily__tavily_extract
+tools: Bash, Read, Write, Edit, WebSearch, Skill, mcp__minimax__web_search, mcp__tavily__tavily_search, mcp__tavily__tavily_extract
 model: inherit
 ---
 

@@ -12,7 +12,7 @@
 1. **ADR-0002（2026-06-08）**：合并 Tasks 表入 OKR_KR，加 `类别` 字段（outcome/process/action）作 fractal OKR
 2. **10 条 Tasks 数据已迁 OKR_KR**（编号 27-36，类别=action），Tasks 表清空（0 记录）
 
-但飞书 Base **不支持删表**，Tasks 表（`tblnSeKT2LiPUndd`）和 KR_Progress 表（`tbljvET4DFtRomGi`）作为 placeholder 留在 Base 内，造成：
+但飞书 Base **不支持删表**，Tasks 表（`<tasks-table-id>`）和 KR_Progress 表（`<kr-progress-table-id>`）作为 placeholder 留在 Base 内，造成：
 - Base 视图 6 个表（OKR_O / OKR_KR / Worklog / Reflect / KR_Progress / Tasks），实际用 4 个
 - 新用户打开 Base 看到空表困惑「这是干嘛的」
 - Tasks 字段 ID 仍占用但无数据，未来可能误用
@@ -58,8 +58,8 @@
 
 **采纳 Option C**：
 
-1. **Tasks 表 (`tblnSeKT2LiPUndd`)**：用户在飞书 UI 自行删除（2026-06-09）
-2. **KR_Progress 表 (`tbljvET4DFtRomGi`)**：在 ccconfig 文档中标记废弃（用户自行决定是否 UI 删除）
+1. **Tasks 表 (`<tasks-table-id>`)**：用户在飞书 UI 自行删除（2026-06-09）
+2. **KR_Progress 表 (`<kr-progress-table-id>`)**：在 ccconfig 文档中标记废弃（用户自行决定是否 UI 删除）
 3. **OKR_KR.进度 字段**：保留但标记为「**legacy**，新 action 不必填」，23 旧 KR 的 进度 值不破坏
 4. **新进度模型统一用 `Status (Hill)` 3 态**（unknown / known / done）
 
@@ -80,7 +80,7 @@
 
 ### Risks
 
-- **R1**：飞书 UI 删 Tasks 时**误删 OKR_KR**（用户操作风险）→ 缓解：用户在删前先用 +table-list 确认 table_id 是 `tblnSeKT2LiPUndd`
+- **R1**：飞书 UI 删 Tasks 时**误删 OKR_KR**（用户操作风险）→ 缓解：用户在删前先用 +table-list 确认 table_id 是 `<tasks-table-id>`
 - **R2**：未来想启用 KR_Progress，需查 ADR-0003 才知道原 schema（已写在 cheatsheet）→ 缓解：本 ADR 已记录表 ID 和原 schema 来源
 
 ## Implementation
@@ -88,15 +88,15 @@
 **用户操作**（2026-06-09）：
 1. 飞书 UI 打开 OKR Base v2
 2. 找到 Tasks 表（最后 1 个，0 记录）
-3. 确认 table_id = `tblnSeKT2LiPUndd`（用 `lark-cli base +table-list` 验）
+3. 确认 table_id = `<tasks-table-id>`（用 `lark-cli base +table-list` 验）
 4. 右键 → 删除表（飞书 UI 操作）
-5. 同样可选处理 KR_Progress (`tbljvET4DFtRomGi`)
+5. 同样可选处理 KR_Progress (`<kr-progress-table-id>`)
 
 **Claude 操作**（本 ADR 落地）：
 - 写本 ADR
 - 更新 [[okr-base-v2-2026-05-31]] 标记 Tasks 和 KR_Progress 为 deprecated
 - 更新 [[ccconfig-4-layer-framework-2026-06-08]] L2 描述
-- 更新 `docs/findings.md` 加本决策 entry
+- 更新 `../.github/findings.md` 加本决策 entry
 - 更新 `ROADMAP.md` 飞书 Base 状态描述
 
 ## Notes

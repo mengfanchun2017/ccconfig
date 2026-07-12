@@ -4,7 +4,7 @@
 # 在台式机 Windows 管理员 PowerShell 中执行:
 #   powershell -ExecutionPolicy Bypass -File "C:\git\wsl-portforward.ps1"
 # 或从 WSL 文件系统直接执行:
-#   powershell -ExecutionPolicy Bypass -File "\\wsl$\Ubuntu\home\francis\git\ccconfig\ssh\wsl-portforward.ps1"
+#   powershell -ExecutionPolicy Bypass -File "\\wsl$\Ubuntu\home\$env:USER\git\ccconfig\remote\server\wsl-portforward.ps1"
 # ============================================================
 
 $Port = 2222

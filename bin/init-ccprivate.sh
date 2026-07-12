@@ -302,8 +302,8 @@ apps[0]["appId"] = os.environ["APP_ID"]
 apps[0]["appSecret"] = os.environ["APP_SECRET"]
 apps[0]["description"] = apps[0].get("description", "filled by init-ccprivate")
 apps[0]["brand"] = "feishu"
-apps[0]["workDir"] = "$HOME/git"
-apps[0]["claudeConfigDir"] = "$HOME/.claude"
+apps[0]["workDir"] = os.path.expanduser("~/git")
+apps[0]["claudeConfigDir"] = os.path.expanduser("~/.claude")
 apps[0].setdefault("larkCli", {"enabled": True, "configDir": "~/.lark-cli", "description": ""})
 apps[0]["larkCli"]["enabled"] = True
 d["apps"] = apps
@@ -478,12 +478,13 @@ PYEOF
 # ── 生成 conf/ubuntu.json ──
 gen_ubuntu_json() {
     local f="$CCPRIVATE_DIR/conf/ubuntu.json"
-    GH_USER="$GH_USER" GIT_EMAIL="$GIT_EMAIL" OUT="$f" python3 << 'PYEOF'
+    GH_USER="$GH_USER" GIT_EMAIL="$GIT_EMAIL" CCCONFIG_DIR="${CCCONFIG_DIR:-$HOME/git/ccconfig}" OUT="$f" python3 << 'PYEOF'
 import json, os
+ccconfig_dir = os.environ.get("CCCONFIG_DIR", os.path.expanduser("~/git/ccconfig"))
 d = {
     "git": {
-        "repo": os.environ["GH_USER"] + "/cconfig",
-        "target_dir": os.path.expanduser("~/git/cconfig"),
+        "repo": os.environ["GH_USER"] + "/ccconfig",
+        "target_dir": ccconfig_dir,
         "email": os.environ["GIT_EMAIL"],
         "username": os.environ["GH_USER"]
     }
