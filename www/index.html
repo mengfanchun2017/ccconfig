@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- git-integration-test: 2026-07-09 -->
 <title>ccconfig — Claude Code 环境配置，一键搞定。</title>
-<meta name="description" content="一行 curl | bash。Ubuntu 环境 + Claude Code + MCP + 15 skills — 全设备同步。从全新 WSL 到完整配置，5 分钟。">
+<meta name="description" content="Fork + Clone + Bootstrap。Ubuntu 环境 + Claude Code + MCP + 15 skills — 全设备同步。从全新 WSL 到完整配置，5 分钟。">
 <meta name="color-scheme" content="dark">
-<meta property="og:title" content="ccconfig — Claude Code 环境配置，一行命令起步。">
-<meta property="og:description" content="一行 curl | bash。从全新 WSL 到完整 Claude Code 配置，5 分钟。">
+<meta property="og:title" content="ccconfig — Claude Code 环境配置，Fork + Clone + Bootstrap。">
+<meta property="og:description" content="Fork + Clone + Bootstrap。从全新 WSL 到完整 Claude Code 配置，5 分钟。">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://config.aiagt.dev">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ccconfig — Claude Code 环境配置，一行命令起步。">
-<meta name="twitter:description" content="一行 curl | bash。从全新 WSL 到完整 Claude Code 配置，5 分钟。">
+<meta name="twitter:title" content="ccconfig — Claude Code 环境配置，Fork + Clone + Bootstrap。">
+<meta name="twitter:description" content="Fork + Clone + Bootstrap。从全新 WSL 到完整 Claude Code 配置，5 分钟。">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230a0a0f'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='monospace' font-size='20' font-weight='bold' fill='%234ade80'>C</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -178,8 +178,8 @@ footer a:hover{color:#a1a1aa}
 
 <section class="hero">
   <div class="container">
-    <h1 data-i18n="hero_title">Claude Code,<br>一行起步。</h1>
-    <p class="sub" data-i18n="hero_sub">curl 一行，从全新 WSL 到完整配置。Ubuntu 环境 + Claude Code + LLM + MCP + 15 skills — 全设备同步。首次运行自动引导，claude-skills 自动 clone。</p>
+    <h1 data-i18n="hero_title">Claude Code,<br>三步起步。</h1>
+    <p class="sub" data-i18n="hero_sub">Fork + Clone + Bootstrap，从全新 WSL 到完整配置。Ubuntu 环境 + Claude Code + LLM + MCP + 15 skills — 全设备同步。首次运行自动引导。</p>
     <div class="hero-cta">
       <a href="https://github.com/mengfanchun2017/ccconfig" class="primary" target="_blank" rel="noopener" data-i18n="hero_cta_primary">查看 GitHub →</a>
       <a href="#how" class="secondary" data-i18n="hero_cta_secondary">工作原理</a>
@@ -192,11 +192,14 @@ footer a:hover{color:#a1a1aa}
       </div>
       <button class="terminal-copy" onclick="copyTerminal()" title="复制全部命令">📋 复制命令</button>
       <div class="terminal-body">
-        <span class="prompt">$</span> <span class="cmd">curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh | bash</span><br>
-        <span class="out">[1/4] 检测 curl/wget ✓</span><br>
-        <span class="out">[2/4] 检测 git → 已装，跳过</span><br>
-        <span class="out">[3/4] clone ccconfig → ~/git/ccconfig ✓</span><br>
-        <span class="out">[4/4] 引导完成</span><br>
+        <span class="prompt">$</span> <span class="cmd">git clone https://github.com/&lt;your-username&gt;/ccconfig.git ~/git/ccconfig</span><br>
+        <span class="out">Cloning into '~/git/ccconfig'...</span><br>
+        <span class="prompt">$</span> <span class="cmd">cd ~/git/ccconfig && bash bootstrap.sh</span><br>
+        <span class="out">[1/5] 前置检查 → git/curl ✓</span><br>
+        <span class="out">[2/5] 装 gh CLI → OK</span><br>
+        <span class="out">[3/5] gh auth → OK</span><br>
+        <span class="out">[4/5] git 用户身份 → OK</span><br>
+        <span class="out">[5/5] 引导完成</span><br>
         <span class="prompt">$</span> <span class="cmd">cd ~/git/ccconfig && bash init.sh all</span><br>
         <span class="out">[1/5] Ubuntu 环境 → git/gh/node/claude ✓</span><br>
         <span class="out">[2/5] LLM 配置 → DeepSeek/MiniMax/Claude ✓</span><br>
@@ -320,15 +323,15 @@ footer a:hover{color:#a1a1aa}
 <section id="how">
   <div class="container">
     <div class="section-label" data-i18n="how_label">三步</div>
-    <h2 data-i18n="how_title">一行起步。<br>五分钟配好 Claude Code。</h2>
-    <p class="section-desc" data-i18n="how_desc">全新 WSL/Ubuntu 只需一行命令。bootstrap 自动装 git + clone ccconfig，剩下的跟着引导走。</p>
+    <h2 data-i18n="how_title">三步起步。<br>五分钟配好 Claude Code。</h2>
+    <p class="section-desc" data-i18n="how_desc">全新 WSL/Ubuntu 只需三步命令。Fork → Clone → Bootstrap，剩下的跟着引导走。</p>
     <div class="steps">
       <div class="step">
         <div class="step-num">1</div>
         <div class="step-content">
-          <h3 data-i18n="step_1_title">一行起步</h3>
-          <p><span class="code-block"><code>curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh | bash</code><button class="copy-btn" onclick="copyCode(this)" title="复制">📋</button></span></p>
-          <p data-i18n="step_1_desc">检测 curl/wget → sudo apt 装 git → clone ccconfig 到 ~/git/ccconfig。零假设、零文档查找。支持环境变量覆盖仓库、分支、NO-SUDO 模式。</p>
+          <h3 data-i18n="step_1_title">Fork + Clone + Bootstrap</h3>
+          <p><span class="code-block"><code>git clone https://github.com/&lt;your-username&gt;/ccconfig.git ~/git/ccconfig && cd ~/git/ccconfig && bash bootstrap.sh</code><button class="copy-btn" onclick="copyCode(this)" title="复制">📋</button></span></p>
+          <p data-i18n="step_1_desc">Fork → clone → 一行 bootstrap 装 gh + GitHub 认证。支持 CCCONFIG_REPO/BRANCH/BOOTSTRAP_NOSUDO 环境变量覆盖。</p>
         </div>
       </div>
       <div class="step">
@@ -383,9 +386,9 @@ footer a:hover{color:#a1a1aa}
 <section class="footer-cta">
   <div class="container">
     <h2 data-i18n="cta_title">一行命令，配置 Claude Code 全环境。</h2>
-    <p data-i18n="cta_desc">全新机器只需 curl 一行。剩下跟着引导走。</p>
+    <p data-i18n="cta_desc">Fork → Clone → Bootstrap → 完成。剩下跟着引导走。</p>
     <div class="clone-box" onclick="copyClone()" title="点击复制">
-      curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh | bash
+      git clone https://github.com/&lt;your-username&gt;/ccconfig.git ~/git/ccconfig && cd ~/git/ccconfig && bash bootstrap.sh
     </div>
     <div style="margin-top:32px">
       <p style="font-size:14px;color:#71717a;margin-bottom:12px" data-i18n="cta_skills">还需要技能？看看</p>
@@ -406,8 +409,8 @@ const I18N = {
     nav_features: "功能",
     nav_faq: "FAQ",
     lang_switch: "EN",
-    hero_title: 'Claude Code,<br>一行起步。',
-    hero_sub: "curl 一行，从全新 WSL 到完整配置。Ubuntu 环境 + Claude Code + LLM + MCP + 15 skills — 全设备同步。首次运行自动引导，claude-skills 自动 clone。",
+    hero_title: 'Claude Code,<br>三步起步。',
+    hero_sub: "Fork + Clone + Bootstrap，从全新 WSL 到完整配置。Ubuntu 环境 + Claude Code + LLM + MCP + 15 skills — 全设备同步。",
     hero_cta_primary: "查看 GitHub →",
     hero_cta_secondary: "工作原理",
     terminal_done: "完成。Claude Code 全环境已配置。",
@@ -449,10 +452,10 @@ const I18N = {
     uc_3_title: "团队入职",
     uc_3_desc: "新人克隆 ccprivate，运行 setup。即刻与团队一致。共享 rules、共享 skills、共享工作流。无需配置会议。",
     how_label: "三步",
-    how_title: "一行起步。<br>五分钟配好 Claude Code。",
-    how_desc: "全新 WSL/Ubuntu 只需一行命令。bootstrap 自动装 git + clone ccconfig，剩下的跟着引导走。",
-    step_1_title: "一行起步",
-    step_1_desc: "检测 curl/wget → sudo apt 装 git → clone ccconfig 到 ~/git/ccconfig。零假设、零文档查找。支持环境变量覆盖仓库、分支、NO-SUDO 模式。",
+    how_title: "三步起步。<br>五分钟配好 Claude Code。",
+    how_desc: "全新 WSL/Ubuntu 只需三步命令。bootstrap 自动装 git + clone ccconfig，剩下的跟着引导走。",
+    step_1_title: "Fork + Clone + Bootstrap",
+    step_1_desc: "Fork → clone → 一行 bootstrap 装 gh + GitHub 认证。支持 CCCONFIG_REPO/BRANCH/BOOTSTRAP_NOSUDO 环境变量覆盖。",
     step_2_title: "创建私有配置",
     step_2_desc: "交互式收集 GitHub 账号 + LLM API Key。自动生成配置、创建私有仓库、建立 symlink。v1.4.6+ 增强：自动装 gh / 检测 git ident / feishu 占位符引导 / PAT 推荐路径。",
     step_3_title: "一键初始化",
@@ -469,7 +472,7 @@ const I18N = {
     faq_5_q: "稳定吗？能用于生产吗？",
     faq_5_a: "ccconfig 由维护者在多台机器上每天使用。Release 分支只接收打过 tag 的测试版本。Auto-sync 已连续运行数月。话虽如此，这是个人基础设施项目 — 不是企业产品。读代码，都是 bash 脚本和符号链接。",
     cta_title: "一行命令，配置 Claude Code 全环境。",
-    cta_desc: "全新机器只需 curl 一行。剩下跟着引导走。",
+    cta_desc: "Fork → Clone → Bootstrap → 完成。剩下跟着引导走。",
     cta_skills: "还需要技能？看看",
     footer_tag: "终端里搭建的"
   },
@@ -477,8 +480,8 @@ const I18N = {
     nav_features: "Features",
     nav_faq: "FAQ",
     lang_switch: "中文",
-    hero_title: 'Claude Code,<br>One-line bootstrap.',
-    hero_sub: "One curl command. From a fresh WSL to a fully configured environment. Ubuntu + Claude Code + LLM + MCP + 15 skills — synced across every machine. First-run wizard guides you, claude-skills auto-cloned.",
+    hero_title: 'Claude Code,<br>Fork + Clone + Bootstrap.',
+    hero_sub: "Fork + Clone + Bootstrap. From fresh WSL to fully configured environment. Ubuntu + Claude Code + LLM + MCP + 15 skills — synced across every machine.",
     hero_cta_primary: "View on GitHub →",
     hero_cta_secondary: "How it works",
     terminal_done: "Done. Full Claude Code environment configured.",
@@ -520,10 +523,10 @@ const I18N = {
     uc_3_title: "Team Onboarding",
     uc_3_desc: "New teammate clones ccprivate, runs setup. Instant parity with the rest of the team. Shared rules, shared skills, shared workflows. No configuration meeting required.",
     how_label: "How",
-    how_title: "One-line bootstrap.<br>Five minutes to full Claude Code.",
-    how_desc: "Fresh WSL/Ubuntu needs just one command. bootstrap auto-installs git and clones ccconfig; the rest follows the guided wizard.",
-    step_1_title: "One-line bootstrap",
-    step_1_desc: "Detect curl/wget → sudo apt install git → clone ccconfig to ~/git/ccconfig. Zero assumptions, zero docs lookup. Env vars override repo/branch/NO-SUDO mode.",
+    how_title: "Fork + Clone + Bootstrap.<br>Five minutes to full Claude Code.",
+    how_desc: "Fresh WSL/Ubuntu needs just three commands. bootstrap auto-installs git and clones ccconfig; the rest follows the guided wizard.",
+    step_1_title: "Fork + Clone + Bootstrap",
+    step_1_desc: "Fork → clone → one-line bootstrap installs gh + GitHub auth. Env vars override CCCONFIG_REPO/BRANCH/BOOTSTRAP_NOSUDO.",
     step_2_title: "Create private config",
     step_2_desc: "Interactive setup collects GitHub + LLM API keys. Auto-generates config files, creates private repo, wires up symlinks. v1.4.6+ adds: auto-install gh / detect git identity / feishu placeholder guidance / PAT-first auth.",
     step_3_title: "One-command init",
@@ -540,7 +543,7 @@ const I18N = {
     faq_5_q: "Is it stable? Can I trust it in production?",
     faq_5_a: "ccconfig is used daily across multiple machines by its maintainer. The release branch only receives tagged, tested versions. Auto-sync has been running continuously for months. That said, it's a personal infrastructure project — not an enterprise product. Read the code, it's all bash scripts and symlinks.",
     cta_title: "One command to<br>configure your full Claude Code environment.",
-    cta_desc: "Fresh machine needs just one curl. The rest follows the guided wizard.",
+    cta_desc: "Fork → Clone → Bootstrap. Done. The rest follows the guided wizard.",
     cta_skills: "Need skills too? Check out",
     footer_tag: "Built with a terminal"
   }
@@ -578,7 +581,7 @@ document.querySelectorAll('.faq-q').forEach(q => {
 });
 
 function copyClone() {
-  const v = 'curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh | bash';
+  const v = 'git clone https://github.com/<your-username>/ccconfig.git ~/git/ccconfig && cd ~/git/ccconfig && bash bootstrap.sh';
   navigator.clipboard.writeText(v).then(() => {
     const b = document.querySelector('.clone-box');
     const o = b.textContent;
@@ -600,7 +603,7 @@ function copyCode(btn) {
 
 function copyTerminal() {
   const cmds = [
-    'curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh | bash',
+    'git clone https://github.com/<your-username>/ccconfig.git ~/git/ccconfig && cd ~/git/ccconfig && bash bootstrap.sh',
     'cd ~/git/ccconfig && bash init.sh all'
   ].join('\n');
   const btn = document.querySelector('.terminal-copy');
