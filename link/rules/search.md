@@ -1,6 +1,7 @@
 # 搜索策略
 
-> 方向性规则。详细搜索方法（Tavily 参数、Python 过滤代码、去重逻辑）→ `skills/f-search/SKILL.md`
+> 方向性规则。依赖 Tavily + Minimax MCP（须先配 `conf/claude.json`）。未配 MCP 可替换为 WebSearch。
+> 详细搜索方法 → `skills/f-search/SKILL.md`
 
 ## 分流规则
 - 中文搜索: minimax web_search MCP
