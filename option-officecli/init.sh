@@ -28,7 +28,20 @@ info() { echo -e "${GRAY}$1${NC}"; }
 
 OFFICECLI_BIN="$HOME/.local/bin/officecli"
 GITHUB_REPO="iOfficeAI/OfficeCLI"
-DOWNLOAD_URL="https://github.com/iOfficeAI/OfficeCLI/releases/latest/download/OfficeCLI-linux-x64"
+
+_detect_platform() {
+    local os arch
+    os=$(uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')
+    arch=$(uname -m 2>/dev/null)
+    case "$arch" in x86_64) arch="x64" ;; aarch64|arm64) arch="arm64" ;; esac
+    case "$os" in
+        linux)  echo "linux-${arch}" ;;
+        darwin) echo "macos-${arch}" ;;
+        mingw*|msys*|cygwin*) echo "win-${arch}.exe" ;;
+        *)      echo "linux-${arch}" ;;  # fallback
+    esac
+}
+DOWNLOAD_URL="https://github.com/iOfficeAI/OfficeCLI/releases/latest/download/OfficeCLI-$(_detect_platform)"
 
 banner() {
     echo -e "${CYAN}"
