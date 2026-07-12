@@ -12,8 +12,8 @@
 **主题**: 飞书 OKR Base v2 视图简化
 
 **决策**：
-- Tasks 表 (`tblnSeKT2LiPUndd`) 废弃 — 10 条数据已迁 OKR_KR（[ADR-0002](adr/0002-merge-kr-and-task.md) 合并后），用户在飞书 UI 自行删除
-- KR_Progress 表 (`tbljvET4DFtRomGi`) 废弃 — 0 记录，新进度模型用 OKR_KR.类别 + Status (Hill) 3 态覆盖「当前进度」概念，「历史轨迹」需求未验证
+- Tasks 表 (`<tasks-table-id>`) 废弃 — 10 条数据已迁 OKR_KR（[ADR-0002](adr/0002-merge-kr-and-task.md) 合并后），用户在飞书 UI 自行删除
+- KR_Progress 表 (`<kr-progress-table-id>`) 废弃 — 0 记录，新进度模型用 OKR_KR.类别 + Status (Hill) 3 态覆盖「当前进度」概念，「历史轨迹」需求未验证
 
 **飞书 Base 现状**（2026-06-09）：
 - OKR_O (15) — 长期目标

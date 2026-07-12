@@ -17,8 +17,8 @@ docs/
     └── README.md
 
 .github/
-├── task_plan.md             ← L2 当前 phase 详细计划（含 Hill Chart）
-└── findings.md              ← L2.5 研究 / 发现 / 临时笔记
+├── ../.github/task_plan.md             ← L2 当前 phase 详细计划（含 Hill Chart）
+└── ../.github/findings.md              ← L2.5 研究 / 发现 / 临时笔记
 ```
 
 ## 4 层追踪 + 1 层决策
