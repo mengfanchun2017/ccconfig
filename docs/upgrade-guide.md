@@ -85,7 +85,7 @@ bash ~/git/ccconfig/init-skill.sh sync
 独立用户（不用 ccconfig）：
 
 ```
-/plugin marketplace update mengfanchun2017-skills
+/plugin marketplace update <your-username>-skills
 ```
 
 ## ccconfig 自身更新
