@@ -125,6 +125,12 @@ do_install_cli_deps() {
 
     echo ""
 
+    # Node.js 预检：npm 无 Node 不可用，提前跳过避免 set -e 下静默失败
+    if ! npm --version &>/dev/null; then
+        warn "  Node.js 未安装，跳过 CLI 依赖安装（先运行 init-ubuntu.sh）"
+        return 0
+    fi
+
     # 安装
     local npm_global_bin
     npm_global_bin="$(npm prefix -g 2>/dev/null)/bin"
@@ -243,6 +249,11 @@ do_link_self_built() {
 # 阶段 2：检 marketplace（保留自建 marketplace 给 f-* 自动跟）
 do_ensure_marketplace() {
     title "阶段 2/4: marketplace 检（$MARKETPLACE_NAME）"
+
+    if ! command -v claude &>/dev/null; then
+        info "  Claude Code 未安装，跳过 marketplace 注册（init-ubuntu.sh 装好后再跑）"
+        return 0
+    fi
 
     info "检 marketplace: $MARKETPLACE_REPO"
     if claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE_NAME"; then
