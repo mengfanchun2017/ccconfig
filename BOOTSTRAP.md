@@ -8,9 +8,9 @@
 > **三仓库模型**：ccconfig（公开 infra）+ claude-skills（公开 skill 市场）+ ccprivate（私有配置）。
 > 三个仓库各司其职，ccconfig 脚本编排、claude-skills 提供 skill 插件、ccprivate 保管密钥。
 
-## ⚡ 三步起步（推荐）
+## ⚡ 四步起步（推荐）
 
-新机器按顺序跑三条命令：
+新机器按顺序跑四条命令：
 
 ```bash
 # Step 1: 先 clone ccconfig（git 自带代理栈，绕开 curl 443 问题）
@@ -20,23 +20,35 @@ cd ~/git/ccconfig
 # Step 2: 装 gh + GitHub 认证
 bash bootstrap.sh
 
-# Step 3: 全量初始化
+# Step 3: 创建 ccprivate 私有仓库（API Key / Token / 个人配置）
+bash bin/init-ccprivate.sh
+
+# Step 4: 全量初始化（ccprivate 已就位）
 bash init.sh all
 ```
 
-> **为什么是三步而不是一行 curl | bash?**
+> **为什么是四步而不是一行 curl | bash?**
 > curl 在国内环境经常被 GFW 阻断 `port 443`，但 `git clone` 走自己的代理栈（`~/.gitconfig` 的 `http.proxy` 或环境变量），所以 git 能通 curl 不一定通。
-> 三步拆分让"网络好"的步骤先跑，"网络差"的步骤后跑，问题更容易定位。
+> 拆分让"网络好"的步骤先跑，"网络差"的步骤后跑，问题更容易定位。
+> ccprivate 创建必须在 init.sh all 之前，否则 LLM API key 等私有配置缺失导致后续步骤失败。
 
 `bootstrap.sh` 自动：
 1. 检测 git（必须已装）
 2. 装 GitHub CLI (gh)，apt 优先，二进制兜底
-3. gh auth 登录（如 SSH 密钥已存在则跳过）
+3. gh auth 登录（PAT 路径，向导生成 classic PAT）
 4. 配置 git 用户身份（从 gh api 拿）和 credential helper
 5. 输出下一步命令
 
+`bin/init-ccprivate.sh` 自动：
+1. 询问 GitHub PAT（gh auth 没设时）
+2. 在 GitHub 创建 ccprivate 私有仓库（用 gh api）
+3. clone 到 `~/git/ccprivate`
+4. 写 `conf/llm.json` / `conf/feishu.json` 等私有配置
+5. 建立符号链接 `~/.claude/CLAUDE.md` → ccprivate/CLAUDE.md 等
+
 > **支持的环境变量**：
 > - `BOOTSTRAP_NOSUDO=1` — 跳过 sudo apt，用二进制装 gh（适合受限环境）
+> - `GH_TOKEN` — bootstrap.sh 直接用此 PAT 登录（CI 友好，跳过交互）
 >
 > **示例**（公司受限机）：
 > ```bash

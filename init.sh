@@ -16,6 +16,8 @@ show_banner() {
 }
 
 # 首次初始化检查：仅检查 ccprivate（claude-skills 由 init-skill.sh 自动 clone）
+# 只在交互菜单入口（main_menu）调用，引导用户去 bash bin/init-ccprivate.sh
+# init_all_steps 假定 ccprivate 已存在（用户在 4 步流程的 Step 3 创建过）
 check_first_time() {
     if [[ -d "$HOME/git/ccprivate" ]]; then
         return 0
@@ -26,6 +28,8 @@ check_first_time() {
     echo ""
     echo -e "  ${RED}❌${NC} ccprivate 未找到 — 私有配置（API Key、CLAUDE.md、settings.json）"
     echo -e "     ${CYAN}→${NC} bash ccconfig/bin/init-ccprivate.sh"
+    echo ""
+    echo -e "  ${GRAY}（4 步流程：clone → bash bootstrap.sh → bash bin/init-ccprivate.sh → bash init.sh all）${NC}"
     echo ""
 
     read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
@@ -46,9 +50,9 @@ check_first_time() {
 #   - submenu_env 4: ★ 一键全部
 #   - main_menu 6:   ★ 一键全部初始化
 #   - case "all":    bash init.sh all
+# 假定 ccprivate 已存在（4 步流程的 Step 3 已创建）
 init_all_steps() {
     show_banner
-    check_first_time
 
     run_step "1/5 Ubuntu 环境" "$SCRIPT_DIR/init-ubuntu.sh" true
     echo -e "  ${GRAY}下一步: 2/5 LLM 配置（自动进行）${NC}"
