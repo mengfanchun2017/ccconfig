@@ -65,7 +65,7 @@ setup_ccprivate() {
 
     export PATH="$LOCAL_BIN:$PATH"
 
-    local CCPRIVATE_DIR="$HOME/git/ccprivate"
+    local CCPRIVATE_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 
     # 已 clone → 跳过（bin/init-ccprivate.sh 在 4 步流程 Step 3 已处理）
     if [[ -d "$CCPRIVATE_DIR/.git" ]]; then

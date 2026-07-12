@@ -186,7 +186,9 @@ ccconfig/
 
 ```bash
 # 1. 克隆 ccconfig（SSH 推荐，稳定版用 release 分支）
+# Fork 后 clone（SSH 推荐，HTTPS 备选）
 git clone git@github.com:<your-github-username>/ccconfig.git ~/git/ccconfig --branch release
+# 或 HTTPS: git clone https://github.com/<your-github-username>/ccconfig.git ~/git/ccconfig --branch release
 
 # 2. 一键创建 ccprivate（交互式，收集 GitHub 账号 + LLM API Key）
 bash ~/git/ccconfig/bin/init-ccprivate.sh
@@ -220,9 +222,9 @@ bash ~/git/ccconfig/status.sh
 ## 测试
 
 ```bash
-bash ccconfig/tests/test-init.sh              # 17 用例，mock 隔离，秒级完成
-bash ccconfig/tests/test-init.sh --verbose    # 详细输出
-bash ccconfig/tests/test-init.sh --list       # 仅列出用例
+bash ~/git/ccconfig/tests/test-init.sh              # 17 用例，mock 隔离，秒级完成
+bash ~/git/ccconfig/tests/test-init.sh --verbose    # 详细输出
+bash ~/git/ccconfig/tests/test-init.sh --list       # 仅列出用例
 ```
 
 覆盖 `ensure_config` / `ensure_claude_skills` / `check_first_time` / placeholder 检测 / `$HOME` 展开 / `init --dry-run` / sync 容错 / MCP 路径修正。改完 init 脚本后跑一遍验证不引入回归。

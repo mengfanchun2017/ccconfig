@@ -9,7 +9,7 @@ paths:
 - 在 git 仓库中 Edit/Write 后主动 `git add` + `git commit`，不等用户说"提交"
 - 不跳过 hooks（--no-verify）
 - commit 消息用 heredoc 传递，描述 why 不描述 what
-- Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+- Co-Authored-By: Claude <noreply@anthropic.com>
 
 ## 安全
 - push 前确认远程分支
