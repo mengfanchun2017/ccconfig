@@ -11,16 +11,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/colors.sh"
 
-# 每步详细说明（做什么 / 为什么 / 预计耗时）
-# 用法: step_info "1/5" "Ubuntu 环境" "做什么" "为什么" "~3 min"
-step_info() {
-    local n="$1" title="$2" what="$3" why="$4" eta="$5"
-    echo -e "  ${GRAY}做什么${NC}  $what"
-    echo -e "  ${GRAY}为什么${NC}  $why"
-    echo -e "  ${GRAY}预计${NC}    ~$eta"
-    echo -e "  ${GRAY}跳过${NC}    此步失败不影响下一步（init_all 自动 continue）"
-}
-
 show_banner() {
     echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
 }
@@ -64,49 +54,34 @@ check_first_time() {
 init_all_steps() {
     show_banner
 
-    echo ""
-    echo -e "${CYAN}━━━ 1/5 Ubuntu 环境 ━━━${NC}"
-    step_info "1/5" "Ubuntu 环境" \
-        "装 Node / Claude Code / Claude 原生二进制 / uv / 建立符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
+    run_step "1/5 Ubuntu 环境" "$SCRIPT_DIR/init-ubuntu.sh" true \
+        "装 Node / Claude Code / Claude 原生二进制 / uv / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
         "Claude Code 需要 Node 运行时；uv 装 Python 工具；auto-sync 让配置变更自动 push 到 GitHub" \
         "3 min（含 apt 下载）"
-    run_step "1/5 Ubuntu 环境" "$SCRIPT_DIR/init-ubuntu.sh" true
-    echo -e "  ${GRAY}下一步: 2/5 LLM 配置${NC}"
+    info "下一步: 2/5 LLM 配置"
 
-    echo ""
-    echo -e "${CYAN}━━━ 2/5 LLM 配置 ━━━${NC}"
-    step_info "2/5" "LLM 配置" \
-        "把当前 LLM（DeepSeek/MiniMax/Claude 等）的 API key 写入 ~/.claude/settings.json 环境变量" \
-        "Claude Code 通过 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_BASE_URL 调用 LLM，没配就跑不了" \
+    run_step "2/5 LLM 配置" "$SCRIPT_DIR/init-llm.sh" true \
+        "把当前 LLM（DeepSeek/MiniMax/Claude 等）的 API key 写入 ~/.claude/settings.json" \
+        "Claude Code 通过 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_BASE_URL 调用 LLM；没配就跑不了" \
         "10 s"
-    run_step "2/5 LLM 配置" "$SCRIPT_DIR/init-llm.sh" true
-    echo -e "  ${GRAY}下一步: 3/5 MCP 服务器${NC}"
+    info "下一步: 3/5 MCP 服务器"
 
-    echo ""
-    echo -e "${CYAN}━━━ 3/5 MCP 服务器 ━━━${NC}"
-    step_info "3/5" "MCP 服务器" \
-        "注册 Tavily（英文搜索）/ MiniMax（中文搜索+多模态）/ Supabase（数据库）/ Cloudflare（开发者平台）到 ~/.claude/settings.json" \
-        "这些 MCP 提供搜索/数据库/部署能力，是 Claude Code 的'工具箱'" \
+    run_step "3/5 MCP 服务器" "$SCRIPT_DIR/init-mcp.sh" true \
+        "注册 Tavily（英文搜索）/ MiniMax（中文+多模态）/ Supabase（数据库）/ Cloudflare（开发者平台）到 ~/.claude/settings.json" \
+        "MCP 是 Claude Code 的'工具箱'：搜索/数据库/部署/可观测，skills 按需调用" \
         "20 s"
-    run_step "3/5 MCP 服务器" "$SCRIPT_DIR/init-mcp.sh" true
-    echo -e "  ${GRAY}下一步: 4/5 Skills${NC}"
+    info "下一步: 4/5 Skills"
 
-    echo ""
-    echo -e "${CYAN}━━━ 4/5 Skills ━━━${NC}"
-    step_info "4/5" "Skills" \
-        "同步 claude-skills（公开 skill 市场）+ ccconfig 自建 skill 到 ~/.claude/skills/；symlink 绑定" \
-        "Skills 是 Claude Code 的可复用工作流（飞书/PPT/PDF 等），按需自动加载" \
-        "30 s（首次拉取 ~1 min）"
-    run_step "4/5 Skills" "$SCRIPT_DIR/init-skill.sh" sync
-    echo -e "  ${GRAY}下一步: 5/5 验证${NC}"
+    run_step "4/5 Skills" "$SCRIPT_DIR/init-skill.sh" sync \
+        "同步 claude-skills 公开市场 + ccconfig 自建 skill → ~/.claude/skills/；symlink 绑定" \
+        "Skills 是 Claude Code 的可复用工作流：飞书写文档、PPT 生成、PDF 提取、ECharts 画图…按需自动加载" \
+        "30 s（首次 ~1 min）"
+    info "下一步: 5/5 验证"
 
-    echo ""
-    echo -e "${CYAN}━━━ 5/5 验证 ━━━${NC}"
-    step_info "5/5" "状态验证" \
-        "11 项检查：配置链接 / 依赖版本 / auto-sync 状态 / 最后推送 / MEMORY / 各 option-* 子模块" \
-        "确认所有组件就位，发现漏配可以立刻补" \
+    run_step "5/5 状态验证" "$SCRIPT_DIR/status.sh" false \
+        "11 项检查：配置链接 / 依赖版本 / auto-sync / 最后推送 / MEMORY / 各 option-* 子模块" \
+        "确认所有组件就位；发现问题可立刻补（status.sh 约 10 s）" \
         "10 s"
-    run_step "5/5 验证" "$SCRIPT_DIR/status.sh" false
 
     echo ""
     echo -e "${GREEN}🎉 全部初始化完成${NC}"
@@ -126,16 +101,21 @@ init_all_steps() {
 }
 
 run_step() {
-    local label="$1"
-    local script="$2"
-    local auto="$3"
-    shift 3
+    local label="$1" script="$2" auto="$3"
+    # 可选：做什么 / 为什么 / 预计（仅 init_all_steps 传）
+    local what="${4:-}" why="${5:-}" eta="${6:-}"
 
     echo ""
     echo -e "${CYAN}━━━ ${label} ━━━${NC}"
 
+    if [[ -n "$what" ]]; then
+        echo -e "  ${GRAY}做什么${NC}  $what"
+        [[ -n "$why" ]] && echo -e "  ${GRAY}为什么${NC}  $why"
+        [[ -n "$eta" ]] && echo -e "  ${GRAY}预计${NC}    ~$eta"
+    fi
+
     if [ "$auto" = "true" ]; then
-        if bash "$script" "$@"; then
+        if bash "$script"; then
             echo -e "${GREEN}✅ ${label} 完成${NC}"
         else
             echo -e "${RED}❌ ${label} 失败（继续）${NC}"
