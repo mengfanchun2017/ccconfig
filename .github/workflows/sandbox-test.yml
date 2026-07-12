@@ -1,0 +1,32 @@
+name: Sandbox Integration Test
+
+on:
+  push:
+    branches: [main, release]
+    paths-ignore:
+      - '**.md'
+      - 'www/**'
+      - 'docs/**'
+      - '.github/findings.md'
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sandbox image
+        run: docker build -t ccconfig-sandbox -f tests/sandbox/Dockerfile .
+
+      - name: Run sandbox integration test
+        run: docker run --rm -i ccconfig-sandbox
+
+      - name: Report
+        if: always()
+        run: |
+          echo "::notice:: 沙盒测试完成 — 查看上方日志了解详情"
+          echo "::notice:: 本地运行: docker build -t ccconfig-sandbox -f tests/sandbox/Dockerfile . && docker run --rm ccconfig-sandbox"

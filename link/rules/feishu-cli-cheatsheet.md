@@ -1,5 +1,6 @@
 # lark-cli 速查
 
+> **可选模块**：仅在使用飞书/Lark 功能时需要。不使用可安全忽略此文件。
 > 完整命令参考 + 踩坑记录 → f-feishu skill `references/lark-cli-cheatsheet.md`
 
 ## 运行前缀

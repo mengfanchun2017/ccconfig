@@ -203,8 +203,8 @@ fi
 for dep in "${CORE_DEPS[@]}"; do
     check_dep "$dep" "true"
 done
-# pip: 用 python3 -m pip 探测（pip3 不一定独立存在）
-check_dep "pip|python3 -m pip --version|pip|Python 包管理" "true"
+# pip: pip3 优先（Ubuntu 24.04 默认无 pip），回退 python3 -m pip
+check_dep "pip3|python3 -m pip --version|pip|Python 包管理" "true"
 
 if ! $REQUIRED_ONLY; then
     # 功能

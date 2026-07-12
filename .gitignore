@@ -1,62 +1,49 @@
+
 # Claude Code 本地配置（包含 API Key，不同步）
-.claude.json
-
 # GetNote 等外部工具配置（包含 API Key）
-openclaw.json
-
-# 真实配置文件（含 API key / token / 个人标识符）— 公开仓库不可 commit
-# 对应 .example 模板文件留在仓库中
-conf/llm.json
-option-llmswitch/conf/llmswitch.json
-conf/claude.json
-conf/feishu.json
-conf/ubuntu.json
-conf/cloudflare.json
-conf/supabase.json
-conf/f-logme.json
-conf/.generated/
-
-# 私有数据（已迁移到 ccprivate，残留/符号链接不跟踪）
-link/.config.json
-link/settings.json
-link/CLAUDE.md
-link/projects
-
-# 项目级 CLAUDE.md（符号链接到 ccprivate）
-CLAUDE.md
-
 # Python 字节码
-__pycache__/
-*.pyc
-
-
+# Windows Alternate Data Stream (Zone.Identifier)
+# Windows 工具目录下的二进制（6.8M，单独从 release 下载；脚本 commit 即可）
+# Wrangler local cache
 # auto-sync 运行文件
+# 临时文件/脚本（一次性任务产物）
+# 升级快照（init-update.sh 自动生成，仅用于调试）
+# 对应 .example 模板文件留在仓库中
+# 本地环境变量文件
+# 真实配置文件（含 API key / token / 个人标识符）— 公开仓库不可 commit
+# 私有数据（已迁移到 ccprivate，残留/符号链接不跟踪）
+# 编辑器/工具原子写入残留
+# 项目级 CLAUDE.md（符号链接到 ccprivate）
+*.pyc
+*.tmp.*
+*:Zone.Identifier
 .auto-sync.log
 .auto-sync.pid
+.claude.json
+.env
+.monitor-sync.changed-repos
+.monitor-sync.debounce
 .monitor-sync.log
 .monitor-sync.pid
-.monitor-sync.debounce
-.monitor-sync.changed-repos
-
-# 升级快照（init-update.sh 自动生成，仅用于调试）
 .snapshots/
-
-# 编辑器/工具原子写入残留
-*.tmp.*
-
-# 本地环境变量文件
-.env
-
-# 临时文件/脚本（一次性任务产物）
-tmp/
-
-# Windows 工具目录下的二进制（6.8M，单独从 release 下载；脚本 commit 即可）
-windows-tools/**/ncmdump.exe
 .tmp/
-supabase/.temp/
-
-# Windows Alternate Data Stream (Zone.Identifier)
-*:Zone.Identifier
-
-# Wrangler local cache
 .wrangler/
+CLAUDE.md
+__pycache__/
+conf/.generated/
+conf/claude.json
+conf/cloudflare.json
+conf/f-logme.json
+conf/feishu.json
+conf/llm.json
+conf/supabase.json
+conf/ubuntu.json
+link/.config.json
+link/CLAUDE.md
+link/projects
+link/settings.json
+openclaw.json
+option-llmswitch/conf/llmswitch.json
+supabase/.temp/
+tmp/
+windows-tools/**/ncmdump.exe
