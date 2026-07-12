@@ -2,12 +2,25 @@
 
 All notable changes to ccconfig will be documented in this file.
 
-## [Unreleased]
+## [1.4.8] — 2026-07-12
+
+### Fixed
+- **`init-ubuntu.sh` `setup_ccprivate`** — 从 ubuntu.json 读硬编码 `/home/francis` 路径致 `mkdir` 权限拒绝 → `set -e` 退出，Node/Claude Code 未安装。改用 `$HOME/git/ccprivate` + 已 clone 则跳过
+- **`bootstrap.sh`** — `$OLDPWD`→`SCRIPT_DIR`（非 repo 根运行时版本查找静默失败）、GRAY ANSI `\033[0:0m`→`\033[0;90m`、硬编码用户名范化
+- **`init-skill.sh`** — `GITHUB_USER` parse 时一次性求值→`_github_user()` 延迟函数；git `insteadOf` 规则冲突（HTTPS↔SSH 互相覆盖）；claude-skills clone 用户 fork 优先→上游公共仓库回退
+- **`bin/init-ccprivate.sh`** — feishu.json `$HOME` 字面量→`os.path.expanduser("~")`；`gen_ubuntu_json` typo `cconfig`→`ccconfig` + 读 `CCCONFIG_DIR` 环境变量
+- **`init-ubuntu.sh`** — inotify-tools apt 优先 + `uname -m` 架构检测；`setup_claude_api`→`setup_llm_backend`
+- **`www/index.html`** — commit hash 断裂、"macOS"→"Ubuntu/WSL"、移动端导航+复制按钮修复
+- **`docs/` 安全** — 替换 Feishu Base table ID + Worklog record ID 为占位符；修复 `task_plan.md`/`findings.md` 内部链接
+- **Agent 配置** — `assistant.md`/`knowledge-expander.md` 补回 `Skill` 工具
+- **`link/` 示例文件** — `settings.json.example`/`claude.json.example` API URL/模型用占位符
 
 ### Changed
-- **三步起步流程** — `curl | bash` 拆成 `git clone → bash bootstrap.sh → bash init.sh all`。`git` 自带代理栈（`~/.gitconfig` 的 `http.proxy` 或环境变量），能绕过国内 `curl port 443` 失败问题；bootstrap 专注装 gh + GitHub 认证 + git 用户身份；init 不再做重复的 git/gh 工作
-- **`bootstrap.sh` 重写** — 去掉 git/curl/wget 检测、apt 装 git、ccconfig clone（这些移给用户/前置步骤）。专注 5 步：前置检查 → 装 gh → gh auth → git 用户身份 → 输出 init 引导
-- **`init-ubuntu.sh` `setup_git_github` → `setup_ccprivate`** — 删除 git/gh 安装和认证逻辑（bootstrap 已做），只剩 ccprivate 私有仓库 clone/pull（读 `conf/ubuntu.json` 的 `git.target_dir`）
+- **`init.sh`** — 结语提示路径 `ccconfig/…`→`$SCRIPT_DIR/…`
+- **CCPRIVATE 变量统一** — `init-skill.sh`/`init-ubuntu.sh` 改用 `CCPRIVATE_HOME`
+- **`deps-check.sh`** — 修复建议路径 `ccconfig/…`→`$SCRIPT_DIR/…`
+
+## [Unreleased]
 
 ## [1.4.7] — 2026-07-11
 
