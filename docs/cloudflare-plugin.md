@@ -88,11 +88,13 @@ MCP 服务器均为 HTTP 远程类型，无持久进程。OAuth 在首次调用 
 
 ---
 
-## ccconfig 落地页 (`www/` → `config.aiagt.dev`)
+## ccconfig 落地页 (`www/` → Cloudflare Pages)
 
-**仓库**：[`ccconfig/www/`](https://github.com/mengfanchun2017/ccconfig/tree/main/www) 静态站 → Cloudflare Pages → `config.aiagt.dev`
+> **维护者参考**：此章节为项目维护者的 Cloudflare Pages 部署记录，包含个人域名和项目名。Fork 用户请替换为自己的 CF 配置。
 
-**关键配置**（Dashboard → Workers & Pages → ccconfiged → Settings）：
+**仓库**：`ccconfig/www/` 静态站 → Cloudflare Pages 部署
+
+**关键配置**（Dashboard → Workers & Pages → &lt;your-cf-project&gt; → Settings）：
 - **Build configuration → Root directory**：`www`
 - **Build command / Build output directory**：留空（纯静态）
 - **Source → Path includes**：`www/**`（监控 www 下变更触发 deploy）
@@ -103,12 +105,12 @@ MCP 服务器均为 HTTP 远程类型，无持久进程。OAuth 在首次调用 
 **手动 retry / rollback**：
 ```bash
 # API retry（重新 build 最新 commit）
-curl -X POST "https://api.cloudflare.com/client/v4/accounts/<account_id>/pages/projects/ccconfiged/deployments" \
+curl -X POST "https://api.cloudflare.com/client/v4/accounts/<account_id>/pages/projects/&lt;your-cf-project&gt;/deployments" \
   -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
   -d '{}'
 
 # API rollback（切 alias 到指定 deploy）
-curl -X POST "https://api.cloudflare.com/client/v4/accounts/<account_id>/pages/projects/ccconfiged/deployments/<short_id>/rollback" \
+curl -X POST "https://api.cloudflare.com/client/v4/accounts/<account_id>/pages/projects/&lt;your-cf-project&gt;/deployments/<short_id>/rollback" \
   -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" -d '{}'
 ```
 

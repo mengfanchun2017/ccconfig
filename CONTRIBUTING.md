@@ -24,7 +24,7 @@ ccconfig/
 
 ## 提交规范
 
-- 提交信息用中文描述 WHY
+- 提交信息：English preferred, 中文 accepted — 描述 WHY 不描述 WHAT
 - Co-Authored-By: Claude <noreply@anthropic.com>
 - 不跳过 hooks，不 force push 到 main
 
