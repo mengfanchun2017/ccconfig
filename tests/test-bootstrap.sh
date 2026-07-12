@@ -87,9 +87,10 @@ grep -q 'git config --global user.email' "$BOOTSTRAP" && pass "sets git user.ema
 grep -q 'git config --global user.name' "$BOOTSTRAP" && pass "sets git user.name" || fail "no git config name"
 grep -q 'gh auth setup-git' "$BOOTSTRAP" && pass "runs gh auth setup-git" || fail "no setup-git"
 
-# ── Test 10: 三步流程在文档中体现（脚本里能搜到 init.sh all 引导） ──
-echo "=== Test 10: 三步流程定位 ==="
-grep -q 'cd ~/git/ccconfig && bash init.sh all' "$BOOTSTRAP" && pass "指引 cd + init.sh all" || fail "no cd + init.sh all guide"
+# ── Test 10: 四步流程在脚本中体现 ──
+echo "=== Test 10: 四步流程定位 ==="
+grep -q 'bash bin/init-ccprivate.sh' "$BOOTSTRAP" && pass "指引 init-ccprivate (Step 3)" || fail "no init-ccprivate guide"
+grep -q 'bash init.sh all' "$BOOTSTRAP" && pass "指引 init.sh all (Step 4)" || fail "no init.sh all guide"
 
 # ── Test 11: 颜色变量定义 ──
 echo "=== Test 11: 颜色输出 ==="
