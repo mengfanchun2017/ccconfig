@@ -434,9 +434,8 @@ if $LIST_ONLY; then
 fi
 
 echo ""
-echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║   ccconfig init 流程自动化测试           ║${NC}"
-echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+echo -e "${CYAN}ccconfig init 流程自动化测试${NC}"
+    echo -e "${CYAN}══════════════════════════${NC}"
 echo ""
 
 setup_test_env
