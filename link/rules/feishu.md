@@ -1,5 +1,7 @@
 # 飞书集成规范
 
+> **可选模块**：仅在使用飞书/Lark 文档功能时需要。不使用可安全忽略此文件。
+
 ## lark-cli auth 预检（写操作前置）
 
 **任何 `docs +create` / `+update` / `drive +upload` 前**，先验证 auth 存活：
