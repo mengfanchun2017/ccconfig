@@ -27,13 +27,18 @@ CLAUDE_SKILLS_REPO_DIR="$HOME/git/claude-skills"
 CCPRIVATE_DIR="${CCPRIVATE_DIR:-$HOME/git/ccprivate}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
-GITHUB_USER="${GITHUB_USER:-$(gh api user --jq '.login' 2>/dev/null)}"
-if [ -z "$GITHUB_USER" ]; then
-    warn "无法检测 GitHub 用户名（gh 未登录或未安装）"
-    warn "  设置环境变量: export GITHUB_USER=<your-github-username>"
-fi
-MARKETPLACE_REPO="$GITHUB_USER/claude-skills"
-MARKETPLACE_NAME="$GITHUB_USER-skills"
+
+# 延迟求值：脚本启动时 gh 可能未装（init-ubuntu.sh 在后续步骤才装）
+# 设为函数，每次调用时重新检测
+_github_user() {
+    if [[ -n "${GITHUB_USER:-}" ]]; then
+        echo "$GITHUB_USER"
+    elif gh api user --jq '.login' 2>/dev/null; then
+        :
+    fi
+}
+_marketplace_repo() { echo "$(_github_user)/claude-skills"; }
+_marketplace_name() { echo "$(_github_user)-skills"; }
 
 # 自动 clone claude-skills 仓库（首次初始化时）
 ensure_claude_skills() {
@@ -48,25 +53,27 @@ ensure_claude_skills() {
     fi
 
     # gh 未就绪 → 静默跳过（Step 3 的 init-ubuntu.sh 装好 gh 后会处理）
-    if [[ -z "$GITHUB_USER" ]]; then
+    local gh_user
+    gh_user=$(_github_user)
+    if [[ -z "$gh_user" ]]; then
         return 1
     fi
 
     # 尝试 clone
-    local clone_url="git@github.com:${GITHUB_USER}/claude-skills.git"
+    local clone_url="git@github.com:${gh_user}/claude-skills.git"
     info "claude-skills 仓库未找到，尝试 clone..."
     if git clone "$clone_url" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
         good "claude-skills 已 clone: $CLAUDE_SKILLS_REPO_DIR"
         return 0
     fi
 
-    if git clone "https://github.com/${GITHUB_USER}/claude-skills.git" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
+    if git clone "https://github.com/${gh_user}/claude-skills.git" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
         good "claude-skills 已 clone (HTTPS): $CLAUDE_SKILLS_REPO_DIR"
         return 0
     fi
 
     warn "无法 clone claude-skills 仓库"
-    warn "  手动: git clone git@github.com:${GITHUB_USER}/claude-skills.git ~/git/claude-skills"
+    warn "  手动: git clone git@github.com:${gh_user}/claude-skills.git ~/git/claude-skills"
     return 1
 }
 
@@ -202,7 +209,7 @@ do_link_self_built() {
     ensure_claude_skills || true
 
     if [[ ! -d "$SKILLS_SRC" ]]; then
-        if [[ -n "$GITHUB_USER" ]]; then
+        if [[ -n "$(_github_user)" ]]; then
             warn "Skills 源目录不存在: $SKILLS_SRC（跳过自建 skill symlink）"
             warn "  手动 clone 后重跑: bash ccconfig/init-skill.sh sync"
         fi
@@ -248,18 +255,27 @@ do_link_self_built() {
 
 # 阶段 2：检 marketplace（保留自建 marketplace 给 f-* 自动跟）
 do_ensure_marketplace() {
-    title "阶段 2/4: marketplace 检（$MARKETPLACE_NAME）"
+    local mkt_repo mkt_name
+    mkt_repo=$(_marketplace_repo)
+    mkt_name=$(_marketplace_name)
+
+    if [[ -z "$mkt_repo" ]] || [[ "$mkt_repo" == "/claude-skills" ]]; then
+        info "  无法确定 marketplace 仓库，跳过"
+        return 0
+    fi
+
+    title "阶段 2/4: marketplace 检（$mkt_name）"
 
     if ! command -v claude &>/dev/null; then
         info "  Claude Code 未安装，跳过 marketplace 注册（init-ubuntu.sh 装好后再跑）"
         return 0
     fi
 
-    info "检 marketplace: $MARKETPLACE_REPO"
-    if claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE_NAME"; then
+    info "检 marketplace: $mkt_repo"
+    if claude plugin marketplace list 2>/dev/null | grep -q "$mkt_name"; then
         good "  ✓ marketplace 已添加"
     else
-        if claude plugin marketplace add "$MARKETPLACE_REPO" --scope user 2>&1 | tail -3; then
+        if claude plugin marketplace add "$mkt_repo" --scope user 2>&1 | tail -3; then
             good "  ✓ marketplace 已添加"
         else
             warn "  ! marketplace 添加失败（无网络？继续）"
@@ -279,8 +295,11 @@ do_install_third_party() {
         return 0
     fi
 
-    # 防御：github URL 走 HTTPS（init-ubuntu.sh 应已配，这里双保险）
-    git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
+    # 防御：git clone 走 HTTPS（若未配 SSH 则避免 git@ 协议失败）
+    # 注意：不要与 init-ubuntu.sh 的 url."git@github.com:".insteadOf "https://github.com/" 冲突
+    if ! git config --global url."git@github.com:".insteadOf 2>/dev/null | grep -q "https://github.com/"; then
+        git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
+    fi
 
     local installed=0 already=0 failed=0
     while IFS= read -r line; do
@@ -380,7 +399,9 @@ do_update() {
 
     echo ""
     title "更新 npx skills（按 upstream 拉最新）"
-    git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
+    if ! git config --global url."git@github.com:".insteadOf 2>/dev/null | grep -q "https://github.com/"; then
+        git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
+    fi
     npx --yes skills@latest update -g -y 2>&1 | tail -20
 
     echo ""

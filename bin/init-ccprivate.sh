@@ -302,8 +302,8 @@ apps[0]["appId"] = os.environ["APP_ID"]
 apps[0]["appSecret"] = os.environ["APP_SECRET"]
 apps[0]["description"] = apps[0].get("description", "filled by init-ccprivate")
 apps[0]["brand"] = "feishu"
-apps[0]["workDir"] = "$HOME/git"
-apps[0]["claudeConfigDir"] = "$HOME/.claude"
+apps[0]["workDir"] = os.path.expanduser("~/git")
+apps[0]["claudeConfigDir"] = os.path.expanduser("~/.claude")
 apps[0].setdefault("larkCli", {"enabled": True, "configDir": "~/.lark-cli", "description": ""})
 apps[0]["larkCli"]["enabled"] = True
 d["apps"] = apps
