@@ -15,8 +15,8 @@
 
 ```
 L1 季度:       ROADMAP.md
-L2 阶段计划:   飞书 Base OKR_KR 表 (主, 含 outcome/process/action) + docs/task_plan.md (设计说明)
-L2.5 研究:     docs/findings.md
+L2 阶段计划:   飞书 Base OKR_KR 表 (主, 含 outcome/process/action) + .github/task_plan.md (设计说明)
+L2.5 研究:     .github/findings.md
 L3 状态（本）: docs/progress.md (手写快查) + 飞书 Dashboard view (权威实时)
 L0 决策:       docs/adr/ (新增 ADR-0002 合并决策)
 L4 自动日志:   飞书 f-logme Base Worklog 表 + 关联Action link (SessionEnd hook 自动)
@@ -42,7 +42,7 @@ L4 自动日志:   飞书 f-logme Base Worklog 表 + 关联Action link (SessionE
 - 更新 task_plan.md（加任务 #10，10 个任务）
 - **建飞书 O.ccconfig-正式化**（OKR_O 编号待定）
 - **建飞书 KR1/2/3**（编号 24/25/26，关联 O）
-- **建飞书 Tasks 表**（`tblnSeKT2LiPUndd`，8 字段含 Hill Chart）
+- **建飞书 Tasks 表**（`<tasks-table-id>`，8 字段含 Hill Chart）
 - **录入 10 个 Phase 0 任务**到飞书 Tasks 表（每条 linked KR1 + ADR-0001）
 - **架构深搜**：KR vs Task 合并 — 发现 Linear/Notion/MoonCamp/Atomic Habits 4 个独立验证
 - **合并决策**：Tasks → OKR_KR，加 `类别` 字段（outcome/process/action）
@@ -66,14 +66,14 @@ L4 自动日志:   飞书 f-logme Base Worklog 表 + 关联Action link (SessionE
 ## 下次 session 入口
 
 1. 读 ROADMAP.md — 确认阶段仍是 Phase 2
-2. 读 docs/task_plan.md — 找当前任务
+2. 读 .github/task_plan.md — 找当前任务
 3. 完成 Phase 2 剩余 → Phase 3 发布 v2.0.0
 
 ## 关键链接
 
 - [Roadmap](../ROADMAP.md) — L1
-- [Task Plan](task_plan.md) — L2 当前阶段
-- [Findings](findings.md) — L2.5 研究笔记
+- [Task Plan](../.github/task_plan.md) — L2 当前阶段
+- [Findings](../.github/findings.md) — L2.5 研究笔记
 - [ADR 索引](adr/README.md) — L0
 - [CONTRIBUTING.md](../CONTRIBUTING.md)
 - [BOOTSTRAP.md](../BOOTSTRAP.md)

@@ -1,7 +1,7 @@
 ---
 name: assistant
 description: ccconfig 多模式助手 — 自动意图识别路由到对应 f-* skill，飞书文档操作统一由 f-feishu 编排
-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, TaskCreate, TaskUpdate, TaskList, TaskGet, TaskOutput, TaskStop, CronCreate, CronDelete, CronList, EnterPlanMode, ExitPlanMode, ExitWorktree, EnterWorktree, WebSearch, WebFetch, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract, mcp__tavily__tavily_crawl, mcp__tavily__tavily_map, mcp__minimax__web_search, mcp__feishu__feishu_send_message, mcp__supabase__execute_sql, mcp__supabase__apply_migration
+tools: Read, Write, Edit, Glob, Grep, Bash, Agent, Skill, TaskCreate, TaskUpdate, TaskList, TaskGet, TaskOutput, TaskStop, CronCreate, CronDelete, CronList, EnterPlanMode, ExitPlanMode, ExitWorktree, EnterWorktree, WebSearch, WebFetch, mcp__tavily__tavily_search, mcp__tavily__tavily_research, mcp__tavily__tavily_extract, mcp__tavily__tavily_crawl, mcp__tavily__tavily_map, mcp__minimax__web_search, mcp__feishu__feishu_send_message, mcp__supabase__execute_sql, mcp__supabase__apply_migration
 model: inherit
 ---
 
@@ -75,8 +75,8 @@ f-logme 是 f-worklog 的升级替代，f-worklog 已废弃。
 
 ## 关键路径
 
-- 项目根目录：`$HOME/git`
-- ccconfig 配置：`$HOME/git/ccconfig`
+- 项目根目录：`${CCCONFIG_PROJECTS:-$HOME/git}`
+- ccconfig 配置：`${CCCONFIG_HOME:-$HOME/git/ccconfig}`
 - 当前语言：中文
 
 ---
