@@ -33,6 +33,28 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 >   | CCCONFIG_REPO=myuser/ccconfig CCCONFIG_BRANCH=main bash
 > ```
 
+### 🚨 国内/代理环境必看
+
+如果 curl 报 `failed to connect to github.com port 443`（直连被墙），`bootstrap.sh` 会在 Step 1 检测到并退出，给出三种修法：
+
+1. **配代理**（最常见，端口以你的代理软件为准）：
+   ```bash
+   export https_proxy=http://127.0.0.1:7897
+   export http_proxy=$https_proxy
+   curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh | bash
+   ```
+2. **用 ghproxy.com 镜像**（无需代理，但下载走第三方）：
+   ```bash
+   curl -fsSL https://ghproxy.com/raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh | bash
+   ```
+3. **手动 git clone**（git 也读 `$https_proxy`，配置后即可）：
+   ```bash
+   git clone https://github.com/mengfanchun2017/ccconfig.git ~/git/ccconfig
+   cd ~/git/ccconfig && bash init.sh all
+   ```
+
+> `init-ubuntu.sh` 内部下载（gh/node 二进制、git clone 私有仓库）也已加 ghproxy.com 兜底，单条命令失败不会卡死整个流程。
+
 跑完 bootstrap 后，看 [阶段 5](#阶段-5--系统初始化) 继续（`bash init.sh all`）。
 
 ---
