@@ -100,9 +100,9 @@ fi
 
 # ========== Step 3: gh auth 登录 ==========
 section "Step 3/5 GitHub 认证"
-echo -e "  ${GRAY}做什么${NC}  登录 GitHub（浏览器 OAuth 一键授权，30 s）"
+echo -e "  ${GRAY}做什么${NC}  登录 GitHub"
 echo -e "  ${GRAY}为什么${NC}  gh 调用 API 全靠登录 token；没它 Step 4 拿不到 git 身份、后续 gh repo create 也不行"
-echo -e "  ${GRAY}预计${NC}    ~30 s（浏览器点 Approve 即完；headless 回退 PAT）"
+echo -e "  ${GRAY}预计${NC}    ~30 s（有代理）/ ~2 min（手动 fine-grained PAT）"
 
 if gh auth status &>/dev/null 2>&1; then
     ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
@@ -110,28 +110,50 @@ elif [[ -f "$HOME/.ssh/id_ed25519" ]]; then
     info "gh 未登录，但 SSH 密钥已存在 → 跳过 gh 认证"
     info "（git 操作走 SSH，不需 gh token）"
 elif [[ -n "${GH_TOKEN:-}" ]]; then
+    # 最优雅：fine-grained PAT 已设为 env var，一次配置永久生效
+    info "检测到 \$GH_TOKEN，自动登录..."
     echo "$GH_TOKEN" | gh auth login --hostname github.com --with-token
-    ok "GitHub 已登录（via \$GH_TOKEN）"
+    ok "GitHub 已登录（via fine-grained PAT / \$GH_TOKEN）"
+elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    info "检测到 \$GITHUB_TOKEN，自动登录..."
+    echo "$GITHUB_TOKEN" | gh auth login --hostname github.com --with-token
+    ok "GitHub 已登录（via \$GITHUB_TOKEN）"
 else
-    # 优先：Web OAuth（浏览器弹窗，点 Approve → 30 s 完事）
-    # gh auth login --web 在所有 gh 版本都支持，零 flags 兼容问题
-    info "浏览器打开 github.com → 点 Approve 即可（~30 s）"
-    if gh auth login --web --git-protocol https --hostname github.com; then
-        ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
-    else
-        # Web OAuth 失败（无浏览器/headless）→ 回退 PAT
-        warn "浏览器 OAuth 失败（headless / 无 GUI？），回退 PAT 路径"
+    # 检测代理（gh auth login --web 需要走代理才能连 github.com）
+    _has_proxy=false
+    [[ -n "${https_proxy:-}" || -n "${HTTPS_PROXY:-}" || -n "${all_proxy:-}" ]] && _has_proxy=true
+
+    if $_has_proxy; then
+        # 代理通 → Web OAuth 一键授权（30 s，零手动）
+        info "代理已配，浏览器打开 github.com → 点 Approve 即可（~30 s）"
+        if gh auth login --web --git-protocol https --hostname github.com; then
+            ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
+        else
+            warn "Web OAuth 失败，回退 fine-grained PAT..."
+            _has_proxy=false
+        fi
+    fi
+
+    if ! $_has_proxy && ! gh auth status &>/dev/null 2>&1; then
+        # 无代理或无 GUI → Fine-grained PAT（官方推荐，比 classic PAT 更现代）
         echo ""
-        echo -e "  ${BOLD}PAT 路径:${NC}"
-        echo -e "  ${CYAN}1)${NC} 浏览器打开: ${BOLD}https://github.com/settings/tokens/new${NC}"
-        echo -e "     Note: 随便填 / Expiration: 90 days / Scopes 勾 ${YELLOW}repo${NC} ${YELLOW}read:org${NC} ${YELLOW}gist${NC}"
-        echo -e "  ${CYAN}2)${NC} 复制 ${RED}ghp_xxx${NC} 到这粘贴（输入隐藏）:"
+        echo -e "  ${BOLD}Fine-grained PAT（官方推荐）${NC}"
+        echo ""
+        echo -e "  ${CYAN}1)${NC} 浏览器打开: ${BOLD}https://github.com/settings/tokens?type=beta${NC}"
+        echo -e "     - Resource owner: 选自己"
+        echo -e "     - Repository access: All repositories"
+        echo -e "     - Permissions: 勾 ${YELLOW}Contents: Read${NC} ${YELLOW}Metadata: Read${NC}"
+        echo -e "     - 点 Generate token → 复制 ${RED}github_pat_xxx${NC} 开头的字符串"
+        echo ""
+        echo -e "  ${CYAN}2)${NC} 回到这里粘贴（输入隐藏）："
         echo ""
         read -rs -p "    PAT: " GH_TOKEN_INPUT
         echo ""
         if [[ -z "$GH_TOKEN_INPUT" ]]; then
-            err "未输入 PAT，退出。重跑 bootstrap.sh 即可"
-            exit 1
+            echo ""
+            echo -e "  ${YELLOW}跳过认证。之后可重跑 bootstrap.sh 或手动:${NC}"
+            echo -e "  ${YELLOW}  export GH_TOKEN=<你的 fine-grained PAT>${NC}"
+            echo -e "  ${YELLOW}  gh auth login --with-token <<< \"\$GH_TOKEN\"${NC}"
         fi
         GH_TOKEN_INPUT=$(echo "$GH_TOKEN_INPUT" | tr -d '\r\n')
         echo "$GH_TOKEN_INPUT" | gh auth login --hostname github.com --with-token
