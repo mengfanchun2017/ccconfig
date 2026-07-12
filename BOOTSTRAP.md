@@ -8,32 +8,44 @@
 > **三仓库模型**：ccconfig（公开 infra）+ claude-skills（公开 skill 市场）+ ccprivate（私有配置）。
 > 三个仓库各司其职，ccconfig 脚本编排、claude-skills 提供 skill 插件、ccprivate 保管密钥。
 
-## ⚡ 一行起步（推荐）
+## ⚡ 三步起步（推荐）
 
-新机器只需 **一条命令**：
+新机器按顺序跑三条命令：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh | bash
+# Step 1: 先 clone ccconfig（git 自带代理栈，绕开 curl 443 问题）
+git clone https://github.com/mengfanchun2017/ccconfig.git ~/git/ccconfig
+cd ~/git/ccconfig
+
+# Step 2: 装 gh + GitHub 认证
+bash bootstrap.sh
+
+# Step 3: 全量初始化
+bash init.sh all
 ```
 
+> **为什么是三步而不是一行 curl | bash?**
+> curl 在国内环境经常被 GFW 阻断 `port 443`，但 `git clone` 走自己的代理栈（`~/.gitconfig` 的 `http.proxy` 或环境变量），所以 git 能通 curl 不一定通。
+> 三步拆分让"网络好"的步骤先跑，"网络差"的步骤后跑，问题更容易定位。
+
 `bootstrap.sh` 自动：
-1. 检测 `curl`/`wget`（WSL/Ubuntu 自带）
-2. 用 `sudo apt-get` 装 `git`（如果缺失）
-3. clone ccconfig 到 `~/git/ccconfig`（或已有则 `git pull`）
-4. 输出下一步命令（`bash init.sh all`）
+1. 检测 git（必须已装）
+2. 装 GitHub CLI (gh)，apt 优先，二进制兜底
+3. gh auth 登录（如 SSH 密钥已存在则跳过）
+4. 配置 git 用户身份（从 gh api 拿）和 credential helper
+5. 输出下一步命令
 
 > **支持的环境变量**：
-> - `CCCONFIG_REPO` — 覆盖默认仓库（如 fork 自己的）
-> - `CCCONFIG_BRANCH` — 覆盖默认分支（生产环境用 `release`）
-> - `BOOTSTRAP_NOSUDO=1` — 跳过 sudo 装 git（适合受限环境，git 必须已装）
+> - `BOOTSTRAP_NOSUDO=1` — 跳过 sudo apt，用二进制装 gh（适合受限环境）
 >
-> **示例**（开发者跟踪 main + 用 fork）：
+> **示例**（公司受限机）：
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh \
->   | CCCONFIG_REPO=myuser/ccconfig CCCONFIG_BRANCH=main bash
+> git clone https://github.com/mengfanchun2017/ccconfig.git ~/git/ccconfig
+> cd ~/git/ccconfig && BOOTSTRAP_NOSUDO=1 bash bootstrap.sh
+> bash init.sh all
 > ```
 
-跑完 bootstrap 后，看 [阶段 5](#阶段-5--系统初始化) 继续（`bash init.sh all`）。
+跑完 bootstrap 后，继续跑 `bash init.sh all`。
 
 ---
 
