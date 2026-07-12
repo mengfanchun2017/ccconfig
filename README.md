@@ -185,30 +185,32 @@ ccconfig/
 > **开发者**：用 `main` 分支跟踪最新代码。
 
 ```bash
-# 1. 克隆 ccconfig（SSH 推荐，稳定版用 release 分支）
-# Fork 后 clone（SSH 推荐，HTTPS 备选）
+# 1. Fork + Clone（SSH 推荐，HTTPS 备选，稳定版用 release 分支）
 git clone git@github.com:<your-github-username>/ccconfig.git ~/git/ccconfig --branch release
-# 或 HTTPS: git clone https://github.com/<your-github-username>/ccconfig.git ~/git/ccconfig --branch release
 
-# 2. 一键创建 ccprivate（交互式，收集 GitHub 账号 + LLM API Key）
+# 2. 装 gh CLI + GitHub 认证（已有 gh 可跳过）
+bash ~/git/ccconfig/bootstrap.sh
+
+# 3. 创建 ccprivate 私有配置仓库
 bash ~/git/ccconfig/bin/init-ccprivate.sh
 
-# 3. 系统初始化（Ubuntu + LLM + MCP + Skills + Python）
-#    claude-skills 自动 clone（gh 已登录时），无需手动克隆
+# 4. 全量初始化（Ubuntu → LLM → MCP → Skills → 验证）
 bash ~/git/ccconfig/init.sh all
 
-# 4. 状态检查
+# 5. 状态检查
 bash ~/git/ccconfig/status.sh
 ```
 
-> **已有 ccprivate？** 用 `bash ~/git/ccconfig/bin/init-ccprivate.sh --clone` 从 GitHub 克隆。
-> **gh 未登录？** claude-skills 需要手动克隆：`git clone git@github.com:<your-gh>/claude-skills.git ~/git/claude-skills`
-> **不改系统？** 用 `bash ~/git/ccconfig/init.sh` 进入交互式菜单，按需选择单个步骤。
+> **gh 已装？** 跳过步骤 2。`init-ccprivate.sh` 内部也会检测 gh 并引导安装。
+> **已有 ccprivate？** `bash ~/git/ccconfig/bin/init-ccprivate.sh --clone` 从 GitHub 克隆。
+> **不改系统？** `bash ~/git/ccconfig/init.sh` 进入交互式菜单，按需选择。
 
 ## 核心命令
 
 | 命令 | 用途 |
 |------|------|
+| `bash bootstrap.sh` | 装 gh CLI + GitHub 认证 |
+| `bash bin/init-ccprivate.sh` | 创建/克隆 ccprivate |
 | `bash init.sh` | 交互式菜单 |
 | `bash init.sh all` | 一键全初始化 |
 | `bash status.sh` | 完整状态检查（11 项） |
