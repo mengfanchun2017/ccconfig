@@ -45,9 +45,8 @@ get_gh_version() {
 }
 
 echo ""
-echo -e "${CYAN}╔════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║   ccconfig bootstrap — 装 gh + GitHub 认证  ║${NC}"
-echo -e "${CYAN}╚════════════════════════════════════════════╝${NC}"
+echo -e "${CYAN}ccconfig bootstrap — 装 gh + GitHub 认证${NC}"
+echo -e "${CYAN}════════════════════════════════════${NC}"
 echo ""
 [[ -n "$NOSUDO" ]] && info "模式: NO-SUDO（用 binary 装 gh）"
 
@@ -98,10 +97,9 @@ fi
 
 # ========== Step 3: gh auth 登录 ==========
 section "Step 3/5 GitHub 认证"
-echo -e "  ${GRAY}做什么${NC}  登录 GitHub（PAT 方式）"
-echo -e "  ${GRAY}为什么${NC}  gh 能调 GitHub API 全靠已登录的 token；没它 Step 4 拿不到 git 身份、"
-echo -e "           后续也无法 gh repo create / gh api 等操作"
-echo -e "  ${GRAY}预计${NC}    ~1 min（含浏览器操作）"
+echo -e "  ${GRAY}做什么${NC}  登录 GitHub（浏览器 OAuth 一键授权，30 s）"
+echo -e "  ${GRAY}为什么${NC}  gh 调用 API 全靠登录 token；没它 Step 4 拿不到 git 身份、后续 gh repo create 也不行"
+echo -e "  ${GRAY}预计${NC}    ~30 s（浏览器点 Approve 即完；headless 回退 PAT）"
 
 if gh auth status &>/dev/null 2>&1; then
     ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
@@ -109,34 +107,33 @@ elif [[ -f "$HOME/.ssh/id_ed25519" ]]; then
     info "gh 未登录，但 SSH 密钥已存在 → 跳过 gh 认证"
     info "（git 操作走 SSH，不需 gh token）"
 elif [[ -n "${GH_TOKEN:-}" ]]; then
-    # 自动化/CI 路径：env var 直传
     echo "$GH_TOKEN" | gh auth login --hostname github.com --with-token
     ok "GitHub 已登录（via \$GH_TOKEN）"
 else
-    # 交互路径：让用户在 https://github.com/settings/tokens/new 生成 PAT
-    # 推荐 classic PAT，勾选 repo / read:org / gist scopes
-    echo ""
-    echo -e "  ${BOLD}推荐路径：生成 PAT 并粘贴（最稳）${NC}"
-    echo ""
-    echo -e "  ${CYAN}1)${NC} 浏览器打开: ${BOLD}https://github.com/settings/tokens/new${NC}"
-    echo -e "     - Note: 随便填（如 ccconfig-$(hostname)）"
-    echo -e "     - Expiration: 90 days 或更长"
-    echo -e "     - Scopes: 勾选 ${YELLOW}repo${NC} + ${YELLOW}read:org${NC} + ${YELLOW}gist${NC}"
-    echo -e "     - 点 Generate token → 复制 ${RED}ghp_xxx${NC} 开头的字符串"
-    echo ""
-    echo -e "  ${CYAN}2)${NC} 回到这里粘贴（输入隐藏）："
-    echo ""
-    read -rs -p "    PAT: " GH_TOKEN_INPUT
-    echo ""
-    if [[ -z "$GH_TOKEN_INPUT" ]]; then
-        err "未输入 PAT，退出"
-        err "  重跑 bootstrap.sh，或手动: gh auth login --with-token"
-        exit 1
+    # 优先：Web OAuth（浏览器弹窗，点 Approve → 30 s 完事）
+    # gh auth login --web 在所有 gh 版本都支持，零 flags 兼容问题
+    info "浏览器打开 github.com → 点 Approve 即可（~30 s）"
+    if gh auth login --web --git-protocol https --hostname github.com; then
+        ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
+    else
+        # Web OAuth 失败（无浏览器/headless）→ 回退 PAT
+        warn "浏览器 OAuth 失败（headless / 无 GUI？），回退 PAT 路径"
+        echo ""
+        echo -e "  ${BOLD}PAT 路径:${NC}"
+        echo -e "  ${CYAN}1)${NC} 浏览器打开: ${BOLD}https://github.com/settings/tokens/new${NC}"
+        echo -e "     Note: 随便填 / Expiration: 90 days / Scopes 勾 ${YELLOW}repo${NC} ${YELLOW}read:org${NC} ${YELLOW}gist${NC}"
+        echo -e "  ${CYAN}2)${NC} 复制 ${RED}ghp_xxx${NC} 到这粘贴（输入隐藏）:"
+        echo ""
+        read -rs -p "    PAT: " GH_TOKEN_INPUT
+        echo ""
+        if [[ -z "$GH_TOKEN_INPUT" ]]; then
+            err "未输入 PAT，退出。重跑 bootstrap.sh 即可"
+            exit 1
+        fi
+        GH_TOKEN_INPUT=$(echo "$GH_TOKEN_INPUT" | tr -d '\r\n')
+        echo "$GH_TOKEN_INPUT" | gh auth login --hostname github.com --with-token
+        ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
     fi
-    # 去 Windows CRLF（git bash / WSL 常见问题）
-    GH_TOKEN_INPUT=$(echo "$GH_TOKEN_INPUT" | tr -d '\r\n')
-    echo "$GH_TOKEN_INPUT" | gh auth login --hostname github.com --with-token
-    ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
 fi
 
 # ========== Step 4: git 用户身份 + credential helper ==========
