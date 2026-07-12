@@ -52,9 +52,6 @@ echo ""
 
 # ========== Step 1: 前置检查 ==========
 section "Step 1/5 前置检查"
-echo -e "  ${GRAY}做什么${NC}  确认 git 已装 + ~/.local/bin 在 PATH"
-echo -e "  ${GRAY}为什么${NC}  bootstrap 只管 gh，不重复装 git（Step 1 clone 已装）"
-echo -e "  ${GRAY}预计${NC}    < 1 s"
 
 if ! command -v git &>/dev/null; then
     err "git 未装"
@@ -135,15 +132,20 @@ else
     fi
 
     if ! $_has_proxy && ! gh auth status &>/dev/null 2>&1; then
-        # 无代理或无 GUI → Fine-grained PAT（官方推荐，比 classic PAT 更现代）
+        # Fine-grained PAT（官方推荐，比 classic PAT 更安全）
+        # 选 Read and Write 才能 push；多机器可用同一个 token（账户级，非机器级）
         echo ""
         echo -e "  ${BOLD}Fine-grained PAT（官方推荐）${NC}"
         echo ""
         echo -e "  ${CYAN}1)${NC} 浏览器打开: ${BOLD}https://github.com/settings/tokens?type=beta${NC}"
         echo -e "     - Resource owner: 选自己"
         echo -e "     - Repository access: All repositories"
-        echo -e "     - Permissions: 勾 ${YELLOW}Contents: Read${NC} ${YELLOW}Metadata: Read${NC}"
+        echo -e "     - Permissions:"
+        echo -e "       ${YELLOW}Contents: Read and Write${NC}  (push / clone 私有仓库)"
+        echo -e "       ${YELLOW}Metadata: Read${NC}             (gh api user 拿身份)"
         echo -e "     - 点 Generate token → 复制 ${RED}github_pat_xxx${NC} 开头的字符串"
+        echo -e "     ${GRAY}（Token 绑定账户，非机器；配置到多台机器都能用。建议写到 ~/.bashrc:${NC}"
+        echo -e "     ${GRAY}  export GH_TOKEN=github_pat_xxx${NC}"
         echo ""
         echo -e "  ${CYAN}2)${NC} 回到这里粘贴（输入隐藏）："
         echo ""
@@ -154,10 +156,11 @@ else
             echo -e "  ${YELLOW}跳过认证。之后可重跑 bootstrap.sh 或手动:${NC}"
             echo -e "  ${YELLOW}  export GH_TOKEN=<你的 fine-grained PAT>${NC}"
             echo -e "  ${YELLOW}  gh auth login --with-token <<< \"\$GH_TOKEN\"${NC}"
+        else
+            GH_TOKEN_INPUT=$(echo "$GH_TOKEN_INPUT" | tr -d '\r\n')
+            echo "$GH_TOKEN_INPUT" | gh auth login --hostname github.com --with-token
+            ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
         fi
-        GH_TOKEN_INPUT=$(echo "$GH_TOKEN_INPUT" | tr -d '\r\n')
-        echo "$GH_TOKEN_INPUT" | gh auth login --hostname github.com --with-token
-        ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
     fi
 fi
 
@@ -191,15 +194,19 @@ section "Step 5/5 准备完成"
 echo ""
 echo -e "  ${GREEN}ccconfig 已就绪 🎉${NC}"
 echo ""
-echo -e "  ${BOLD}还剩两步（四步流程的 Step 3 + Step 4）:${NC}"
+echo -e "  ${BOLD}还剩两步:${NC}"
 echo ""
-echo -e "    ${CYAN}bash bin/init-ccprivate.sh${NC}"
-echo -e "      ${GRAY}创建 ccprivate 私有仓库（API Key / Token / 个人配置），约 30 s${NC}"
+echo -e "    ${CYAN}bash bin/init-ccprivate.sh${NC}   # Step 3: 创建 ccprivate 私有仓库"
+echo -e "    ${CYAN}bash init.sh all${NC}             # Step 4: 全量初始化（ccprivate 已就位）"
 echo ""
-echo -e "    ${CYAN}bash init.sh all${NC}"
-echo -e "      ${GRAY}全量初始化：Ubuntu 环境 → LLM → MCP → Skills → 验证，约 5 min${NC}"
+echo -e "  ${GRAY}Step 4 会自动做 5 件事:${NC}"
+echo -e "  ${GRAY}  1. Ubuntu 环境（Node/Claude Code/symlink）${NC}"
+echo -e "  ${GRAY}  2. LLM 配置（自动写 ANTHROPIC_AUTH_TOKEN）${NC}"
+echo -e "  ${GRAY}  3. MCP 服务器（Tavily/MiniMax/Supabase/Cloudflare）${NC}"
+echo -e "  ${GRAY}  4. Skills 同步${NC}"
+echo -e "  ${GRAY}  5. 状态验证${NC}"
 echo ""
-echo -e "  ${YELLOW}⚠️  init.sh all 首次运行会问:${NC}"
+echo -e "  ${YELLOW}⚠️  首次运行会问:${NC}"
 echo -e "  ${YELLOW}  - sudo 密码（装系统包）${NC}"
 echo -e "  ${YELLOW}  - LLM API Key（DeepSeek/MiniMax/Claude 至少一个）${NC}"
 echo ""
