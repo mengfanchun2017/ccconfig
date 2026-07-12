@@ -1,24 +1,28 @@
 #!/bin/bash
-# bootstrap.sh — 全新 WSL / Ubuntu 零依赖一行起步
+# bootstrap.sh — ccconfig 起步阶段 2：装 gh + GitHub 认证
 #
-# 设计目标：用户复制一条命令就能把空 WSL 拉到 init.sh 入口
+# 设计：三步流程中的第二步。
+#   Step 1: git clone https://github.com/mengfanchun2017/ccconfig.git ~/git/ccconfig
+#   Step 2: bash bootstrap.sh           ← 你在这里
+#   Step 3: cd ~/git/ccconfig && bash init.sh all
 #
-# 用法（两种）：
-#   curl -fsSL https://raw.githubusercontent.com/<user>/ccconfig/main/bootstrap.sh | bash
-#   curl -fsSL https://.../bootstrap.sh | CCCONFIG_REPO=<user>/ccconfig bash
+# 职责：
+#   - 装 GitHub CLI (gh)，apt 优先，二进制兜底
+#   - gh auth 登录（如已有 SSH 密钥则跳过）
+#   - 配置 git 用户身份（从 gh api 拿）
+#   - 配置 git credential helper（gh 接管）
+#   - 输出下一步引导
 #
 # 环境变量：
-#   CCCONFIG_REPO   GitHub 仓库（默认 mengfanchun2017/ccconfig）
-#   CCCONFIG_BRANCH 分支（默认 main；发布版可改 release）
-#   BOOTSTRAP_NOSUDO=1  跳过 sudo，用 binary 装（适合受限环境）
+#   BOOTSTRAP_NOSUDO=1  跳过 sudo apt，用二进制装 gh（适合受限环境）
 #
-# 依赖：bash + 网络（curl 或 wget）+ sudo（仅 apt 路径需要）
+# 依赖：git 已装（Step 1 装的）+ sudo（apt 路径需要，NOSUDO 模式除外）
 
 set -euo pipefail
 
 # ========== 颜色 ==========
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; NC='\033[0m'
+CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0:0m'; NC='\033[0m'
 
 info() { echo -e "  ${GRAY}$1${NC}"; }
 ok()   { echo -e "  ${GREEN}✅ $1${NC}"; }
@@ -26,104 +30,115 @@ warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
 err()  { echo -e "  ${RED}❌ $1${NC}"; }
 section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 
-CCCONFIG_REPO="${CCCONFIG_REPO:-mengfanchun2017/ccconfig}"
-CCCONFIG_BRANCH="${CCCONFIG_BRANCH:-main}"
-CCCONFIG_DIR="${CCCONFIG_HOME:-$HOME/git/ccconfig}"
+LOCAL_BIN="$HOME/.local/bin"
 NOSUDO="${BOOTSTRAP_NOSUDO:-}"
+
+# get_gh_version: 优先从 ccconfig 的 path-helper.sh 拿，回退写死值
+get_gh_version() {
+    local helper="$OLDPWD/lib/path-helper.sh"
+    if [[ -f "$helper" ]]; then
+        (source "$helper" && get_gh_version) 2>/dev/null && return
+    fi
+    echo "2.65.0"
+}
 
 echo ""
 echo -e "${CYAN}╔════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║   ccconfig bootstrap — 全新 WSL 一键起步   ║${NC}"
+echo -e "${CYAN}║   ccconfig bootstrap — 装 gh + GitHub 认证  ║${NC}"
 echo -e "${CYAN}╚════════════════════════════════════════════╝${NC}"
 echo ""
-info "目标仓库: $CCCONFIG_REPO ($CCCONFIG_BRANCH)"
-info "目标路径: $CCCONFIG_DIR"
-[[ -n "$NOSUDO" ]] && info "模式: NO-SUDO（用 binary 装）"
+[[ -n "$NOSUDO" ]] && info "模式: NO-SUDO（用 binary 装 gh）"
 
-# ========== Step 1: 网络工具 ==========
-section "Step 1/4 网络工具（curl/wget）"
+# ========== Step 1: 前置检查 ==========
+section "Step 1/5 前置检查"
 
-have_curl=false; have_wget=false
-command -v curl &>/dev/null && have_curl=true
-command -v wget &>/dev/null && have_wget=true
-
-if $have_curl || $have_wget; then
-    $have_curl && ok "curl 已装" || ok "wget 已装"
-else
-    err "curl 和 wget 都缺失 — 无法下载任何东西"
-    err "  请手动安装一个: sudo apt install curl  或  sudo apt install wget"
+if ! command -v git &>/dev/null; then
+    err "git 未装"
+    err "  漏跑 Step 1？先: sudo apt install git"
+    err "  或直接: git clone https://github.com/mengfanchun2017/ccconfig.git ~/git/ccconfig"
     exit 1
 fi
+ok "git: $(git --version | cut -d' ' -f3)"
 
-# 优先 curl，wget 兜底
-fetch() {
-    local url="$1" out="$2"
-    if $have_curl; then
-        curl -fsSL "$url" -o "$out"
-    else
-        wget -q "$url" -O "$out"
+# 把 ~/.local/bin 放进 PATH
+export PATH="$LOCAL_BIN:$PATH"
+if [[ ":$PATH:" != *":$LOCAL_BIN:"* ]]; then
+    if ! grep -q '\.local/bin' "$HOME/.bashrc" 2>/dev/null; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+        info "已追加 PATH → ~/.bashrc（新终端生效）"
     fi
-}
+fi
+mkdir -p "$LOCAL_BIN"
 
-# ========== Step 2: git（必需） ==========
-section "Step 2/4 git"
+# ========== Step 2: 装 gh ==========
+section "Step 2/5 装 GitHub CLI (gh)"
 
-if command -v git &>/dev/null; then
-    ok "git 已装: $(git --version | head -1)"
+if command -v gh &>/dev/null; then
+    ok "gh 已装: $(gh --version | head -1)"
+elif [[ -n "$NOSUDO" ]] || ! command -v sudo &>/dev/null; then
+    info "下载 gh 二进制（NO-SUDO 模式）..."
+    gh_ver=$(get_gh_version)
+    curl -fsSL "https://github.com/cli/cli/releases/download/v${gh_ver}/gh_${gh_ver}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+    tar -xzf /tmp/gh.tar.gz -C /tmp
+    mv "/tmp/gh_${gh_ver}_linux_amd64/bin/gh" "$LOCAL_BIN/gh"
+    chmod +x "$LOCAL_BIN/gh"
+    rm -rf /tmp/gh.tar.gz "/tmp/gh_${gh_ver}_linux_amd64"
+    ok "gh 已装: $(gh --version | head -1)"
 else
-    warn "git 未装"
-    if [[ -n "$NOSUDO" ]]; then
-        # 从 kernel.org 下 tarball，本地编译太慢，改为提示用户
-        err "NO-SUDO 模式无法装 git，请先手动装: sudo apt install git"
-        exit 1
-    fi
-    if ! command -v sudo &>/dev/null; then
-        err "sudo 不可用，请手动装: apt install git (root) 或用 sudo 配置 NOPASSWD"
-        exit 1
-    fi
-    info "运行: sudo apt-get update && sudo apt-get install -y git"
+    info "运行: sudo apt-get update && sudo apt-get install -y gh"
     sudo apt-get update -qq
-    sudo apt-get install -y git
-    ok "git 已装: $(git --version | head -1)"
+    sudo apt-get install -y gh
+    ok "gh 已装: $(gh --version | head -1)"
 fi
 
-# ========== Step 3: clone / 更新 ccconfig ==========
-section "Step 3/4 ccconfig 仓库"
+# ========== Step 3: gh auth 登录 ==========
+section "Step 3/5 GitHub 认证"
 
-mkdir -p "$(dirname "$CCCONFIG_DIR")"
-
-if [ -d "$CCCONFIG_DIR/.git" ]; then
-    info "ccconfig 已存在，pull 最新"
-    cd "$CCCONFIG_DIR"
-    git fetch origin "$CCCONFIG_BRANCH" 2>&1 | tail -1 || true
-    git checkout "$CCCONFIG_BRANCH" 2>&1 | tail -1
-    git pull --ff-only origin "$CCCONFIG_BRANCH" 2>&1 | tail -2 || warn "pull 失败（可能本地有改动），继续"
-    ok "ccconfig 已更新"
+if gh auth status &>/dev/null 2>&1; then
+    ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
+elif [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+    info "gh 未登录，但 SSH 密钥已存在 → 跳过 gh 认证"
+    info "（git 操作走 SSH，不需 gh token）"
 else
-    info "clone $CCCONFIG_REPO → $CCCONFIG_DIR"
-    if command -v gh &>/dev/null && gh auth status &>/dev/null; then
-        gh repo clone "$CCCONFIG_REPO" "$CCCONFIG_DIR" -- --branch "$CCCONFIG_BRANCH" 2>&1 | tail -2
-    else
-        git clone "https://github.com/${CCCONFIG_REPO}.git" "$CCCONFIG_DIR" --branch "$CCCONFIG_BRANCH" 2>&1 | tail -3
-    fi
-    ok "ccconfig 已 clone"
+    echo ""
+    echo -e "  ${BOLD}请在浏览器中授权 GitHub:${NC}"
+    echo ""
+    gh auth login --git-protocol https --skip-ssh-key --hostname github.com
 fi
 
-cd "$CCCONFIG_DIR"
-chmod +x init.sh init-*.sh setup.sh bin/*.sh option-*/init.sh 2>/dev/null || true
+# ========== Step 4: git 用户身份 + credential helper ==========
+section "Step 4/5 git 用户身份"
 
-# ========== Step 4: 引导下一步 ==========
-section "Step 4/4 准备完成"
+if gh auth status &>/dev/null 2>&1; then
+    gh_email=$(gh api user --jq '.email // empty' 2>/dev/null)
+    gh_name=$(gh api user --jq '.name // .login' 2>/dev/null)
+    [[ -n "$gh_email" ]] && git config --global user.email "$gh_email"
+    [[ -n "$gh_name" ]]  && git config --global user.name  "$gh_name"
+    ok "git user: $(git config --global user.name) <$(git config --global user.email)>"
+    gh auth setup-git >/dev/null 2>&1 || true
+    ok "git credential helper → gh"
+elif [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+    info "SSH 密钥已配，跳过 git 身份设置"
+    info "  请手动: git config --global user.email \"you@example.com\""
+    info "         git config --global user.name  \"Your Name\""
+else
+    warn "GitHub 未认证，git 身份未配置"
+    warn "  手动: git config --global user.email \"you@example.com\""
+    warn "        git config --global user.name  \"Your Name\""
+fi
+
+# ========== Step 5: 引导下一步 ==========
+section "Step 5/5 准备完成"
 
 echo ""
 echo -e "  ${GREEN}ccconfig 已就绪 🎉${NC}"
 echo ""
 echo -e "  ${BOLD}下一步:${NC}"
 echo ""
-echo -e "    ${CYAN}cd $CCCONFIG_DIR && bash init.sh all${NC}"
+echo -e "    ${CYAN}cd ~/git/ccconfig && bash init.sh all${NC}"
 echo ""
 echo -e "  ${GRAY}这一步会自动做 5 件事:${NC}"
-echo -e "  ${GRAY}  1. Ubuntu 环境（git/gh/Node/Claude Code/symlink）${NC}"
+echo -e "  ${GRAY}  1. Ubuntu 环境（Node/Claude Code/symlink）${NC}"
 echo -e "  ${GRAY}  2. LLM 配置（自动写 ANTHROPIC_AUTH_TOKEN）${NC}"
 echo -e "  ${GRAY}  3. MCP 服务器（Tavily/MiniMax/Supabase/Cloudflare）${NC}"
 echo -e "  ${GRAY}  4. Skills 同步${NC}"
@@ -131,12 +146,10 @@ echo -e "  ${GRAY}  5. 状态验证${NC}"
 echo ""
 echo -e "  ${YELLOW}⚠️  首次运行会问:${NC}"
 echo -e "  ${YELLOW}  - sudo 密码（装系统包）${NC}"
-echo -e "  ${YELLOW}  - GitHub 认证（推荐 PAT，比 Web OAuth 稳）${NC}"
 echo -e "  ${YELLOW}  - LLM API Key（DeepSeek/MiniMax/Claude 至少一个）${NC}"
 echo ""
 echo -e "  ${BOLD}其他选项:${NC}"
 echo -e "    ${CYAN}bash init.sh${NC}              # 交互菜单（单步）"
 echo -e "    ${CYAN}bash status.sh${NC}           # 看当前状态"
-echo -e "    ${CYAN}cat BOOTSTRAP.md${NC}         # 完整 7 阶段手册"
+echo -e "    ${CYAN}cat BOOTSTRAP.md${NC}         # 完整手册"
 echo ""
-echo -e "  ${GRAY}完成后日常使用: cd ~/git/ccconfig && claude (配置) 或 cd ~/git/<项目> && claude (开发)${NC}"
