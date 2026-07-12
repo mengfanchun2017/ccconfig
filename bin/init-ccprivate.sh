@@ -512,7 +512,7 @@ gen_claude_md() {
 - WebSearch WebFetch Skill(*)
 
 ## 工作目录
-- 配置维护 → `cd ~/git/ccconfig && claude`
+- 配置维护 → `cd ${CCCONFIG_HOME:-~/git/ccconfig} && claude`
 - 项目开发 → `cd ~/git/<project> && claude`
 EOF
     ok "link/CLAUDE.md"
@@ -659,9 +659,15 @@ create_and_push() {
 
     cd "$CCPRIVATE_DIR"
 
-    # 检查是否已有 remote
     if git remote get-url origin &>/dev/null; then
         info "remote 已存在，跳过创建"
+        return 0
+    fi
+
+    if ! gh auth status &>/dev/null 2>&1; then
+        warn "gh 未认证，无法自动创建 GitHub 仓库"
+        info "  手动: 在 GitHub 创建私有仓库 $GH_USER/ccprivate"
+        info "  然后: git remote add origin git@github.com:$GH_USER/ccprivate.git"
         return 0
     fi
 
