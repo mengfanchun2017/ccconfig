@@ -191,13 +191,13 @@ setup_claude_code() {
 
     warn "Claude Code 未安装，尝试安装..."
 
-    # 方式一：npm 安装 bootstrap（claude.ai 在国内被屏蔽，先用 npm 安装 CLI 主程序）
-    local _node_ver=$(get_node_version)
-    NPM_GLOBAL_BIN="$HOME/.local/node-v${_node_ver}-linux-x64/bin"
-    export PATH="$NPM_GLOBAL_BIN:$LOCAL_BIN:$PATH"
+    # 确保 node/npm/npx 在 PATH 中
+    local node_bin
+    node_bin=$(find_node_bin 2>/dev/null || echo "$LOCAL_BIN")
+    export PATH="$node_bin:$LOCAL_BIN:$PATH"
     mkdir -p "$LOCAL_BIN"
 
-    info "安装 Claude Code npm 包（国内可访问）..."
+    info "安装 Claude Code npm 包..."
     local _claude_ver=$(get_version "claude_code")
     local _claude_pkg="@anthropic-ai/claude-code"
     [[ -n "$_claude_ver" ]] && _claude_pkg="${_claude_pkg}@${_claude_ver}"
@@ -206,15 +206,27 @@ setup_claude_code() {
         return 1
     fi
 
-    # 方式二：用 claude install 下载原生二进制（npm 包内置此命令，可在国内下载二进制）
-    info "下载 Claude Code 原生二进制..."
-    if claude install 2>&1 | tail -5; then
-        if command -v claude &>/dev/null; then
-            success "Claude Code 原生安装成功: $(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    # npm install -g 后，从 npm 实际 prefix 拿 claude 路径（不用猜测 node-vXX 目录）
+    local npm_bin
+    npm_bin="$(npm prefix -g 2>/dev/null)/bin"
+    if [[ -x "$npm_bin/claude" ]]; then
+        ln -sf "$npm_bin/claude" "$LOCAL_BIN/claude"
+        export PATH="$LOCAL_BIN:$PATH"
+        info "npm 版本已安装: $(claude --version 2>/dev/null | head -1)"
+    fi
+
+    # 方式二：用 claude install 下载原生二进制（npm 包内置此命令）
+    if command -v claude &>/dev/null; then
+        info "下载 Claude Code 原生二进制..."
+        if claude install 2>&1 | tail -5; then
+            command -v claude &>/dev/null && success "Claude Code 原生安装成功"
+        else
+            warn "原生二进制下载失败（保留 npm 版本）"
         fi
     else
-        warn "原生二进制下载失败（保留 npm 版本）"
-        ln -sf "$NPM_GLOBAL_BIN/claude" "$LOCAL_BIN/claude" 2>/dev/null || true
+        error "Claude Code 安装失败 — npm 和原生均不可用"
+        error "  手动: npm install -g @anthropic-ai/claude-code && claude install"
+        return 1
     fi
 }
 
