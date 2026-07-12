@@ -59,11 +59,21 @@ PYEOF
 }
 
 # ========== 1. ccprivate 私有仓库 clone ==========
-# 假定 bootstrap.sh 已装好 git/gh/认证
+# 已由 bin/init-ccprivate.sh 在 Step 3 处理；此处仅做幂等补刀
 setup_ccprivate() {
     section "ccprivate 私有仓库"
 
     export PATH="$LOCAL_BIN:$PATH"
+
+    local CCPRIVATE_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+
+    # 已 clone → 跳过（bin/init-ccprivate.sh 在 4 步流程 Step 3 已处理）
+    if [[ -d "$CCPRIVATE_DIR/.git" ]]; then
+        info "ccprivate 已存在，pull 最新"
+        git -C "$CCPRIVATE_DIR" pull --ff-only 2>&1 | tail -2 || warn "pull 失败（本地有改动），继续"
+        success "ccprivate 已更新"
+        return 0
+    fi
 
     # git 必须已装（bootstrap.sh 装）
     if ! command -v git &>/dev/null; then
@@ -71,43 +81,45 @@ setup_ccprivate() {
         exit 1
     fi
 
-    CONFIG_DATA=$(read_git_config || echo "|||")
-    IFS='|' read -r REPO TARGET_DIR CONFIG_EMAIL CONFIG_USERNAME <<< "$CONFIG_DATA"
+    # 从 conf/ubuntu.json 读 GitHub 用户名，推导 ccprivate 仓库名
+    local REPO_USERNAME
+    REPO_USERNAME=$(python3 -c "
+import json, sys
+try:
+    with open('$CONFIG_FILE') as f:
+        d = json.load(f)
+    print(d.get('git', {}).get('username', ''))
+except: pass
+" 2>/dev/null)
+    local CCPRIVATE_REPO="${REPO_USERNAME:-$(gh api user --jq '.login' 2>/dev/null || echo '')}/ccprivate"
 
-    # 检测 placeholder 值（用户未编辑 conf/ubuntu.json）
-    if [[ "$REPO" =~ ^你的 ]] || [[ "$REPO" =~ example ]] || [[ -z "$REPO" ]]; then
-        warn "conf/ubuntu.json 含 placeholder 值，跳过 ccprivate clone"
-        warn "  编辑 conf/ubuntu.json 填入真实信息后重跑"
+    if [[ -z "${REPO_USERNAME:-}" ]] || [[ "$CCPRIVATE_REPO" == "/ccprivate" ]]; then
+        warn "无法确定 ccprivate 仓库名，跳过 clone"
+        warn "  手动: gh repo clone <your-username>/ccprivate $CCPRIVATE_DIR"
         return 0
     fi
 
-    # 处理 ~ 和 $HOME 展开（bash 内置参数展开，不使用 eval 避免命令注入）
-    TARGET_DIR="${TARGET_DIR/\~/$HOME}"
-    TARGET_DIR="${TARGET_DIR/\$HOME/$HOME}"
-    PARENT_DIR=$(dirname "$TARGET_DIR")
-    mkdir -p "$PARENT_DIR"
+    local PARENT_DIR
+    PARENT_DIR=$(dirname "$CCPRIVATE_DIR")
+    mkdir -p "$PARENT_DIR" 2>/dev/null || { warn "无法创建 $PARENT_DIR，跳过 ccprivate clone"; return 0; }
 
-    if [[ -d "$TARGET_DIR/.git" ]]; then
-        info "ccprivate 已存在，pull 最新"
-        git -C "$TARGET_DIR" pull --ff-only 2>&1 | tail -2 || warn "pull 失败（本地有改动），继续"
-        success "ccprivate 已更新"
+    info "克隆 ccprivate: $CCPRIVATE_REPO → $CCPRIVATE_DIR"
+    if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+        git clone "git@github.com:${CCPRIVATE_REPO}.git" "$CCPRIVATE_DIR" || {
+            error "SSH 克隆失败，尝试 gh..."
+            gh repo clone "$CCPRIVATE_REPO" "$CCPRIVATE_DIR" 2>/dev/null || warn "gh clone 也失败"
+        }
+    elif gh auth status &>/dev/null 2>&1; then
+        gh repo clone "$CCPRIVATE_REPO" "$CCPRIVATE_DIR" 2>/dev/null || warn "gh clone 失败"
     else
-        info "克隆 ccprivate: $REPO → $TARGET_DIR"
-        # 优先用 SSH，其次 gh（git 走自己代理栈，绕过 curl 443 问题）
-        if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
-            git clone "git@github.com:${REPO}.git" "$TARGET_DIR" || {
-                error "SSH 克隆失败，尝试 gh..."
-                gh repo clone "$REPO" "$TARGET_DIR"
-            }
-        elif gh auth status &>/dev/null 2>&1; then
-            gh repo clone "$REPO" "$TARGET_DIR"
-        elif gh repo clone "$REPO" "$TARGET_DIR"; then
-            :  # gh 未登录但 binary 可用，尝试裸 clone
-        else
-            error "ccprivate 克隆失败"
-            error "  请确认 GitHub 认证（bootstrap.sh）后重试"
-            exit 1
-        fi
+        git clone "https://github.com/${CCPRIVATE_REPO}.git" "$CCPRIVATE_DIR" 2>/dev/null || {
+            warn "ccprivate clone 失败"
+            warn "  手动: bash bin/init-ccprivate.sh"
+            return 0
+        }
+    fi
+
+    if [[ -d "$CCPRIVATE_DIR/.git" ]]; then
         success "ccprivate 已 clone"
     fi
 }
@@ -207,7 +219,7 @@ setup_claude_code() {
 }
 
 # ========== 5. LLM 配置（调用 llminit.sh） ==========
-setup_claude_api() {
+setup_llm_backend() {
     section "LLM 配置"
 
     if [[ ! -f "$SCRIPT_DIR/init-llm.sh" ]]; then
@@ -388,37 +400,59 @@ setup_symlinks() {
 setup_autosync() {
     section "auto-sync"
 
-    # 安装 inotifywait（免 sudo：从 deb 提取）
+    # 安装 inotifywait（apt 优先，失败则免 sudo deb 提取）
     if ! command -v inotifywait &>/dev/null; then
-        info "安装 inotify-tools（免 sudo）..."
-        local tmp_dir="/tmp/inotify-install-$$"
-        mkdir -p "$tmp_dir"
+        local installed=false
 
-        # 用 subshell 隔离 cd，避免影响外部 cwd
-        (
-            cd "$tmp_dir" || exit 1
-            # 下载并提取主包
-            curl -sL "http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/inotify-tools_3.22.6.0-4_amd64.deb" -o pkg.deb
-            dpkg-deb -x pkg.deb . 2>/dev/null
+        # 方式 1：apt（有 sudo 且非 NOSUDO 模式）
+        if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
+            info "安装 inotify-tools（apt）..."
+            if sudo apt-get install -y inotify-tools 2>/dev/null; then
+                success "inotify-tools (apt) 安装成功"
+                installed=true
+            fi
+        fi
 
-            # 下载并提取依赖库
-            curl -sL "http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/libinotifytools0_3.22.6.0-4_amd64.deb" -o lib.deb
-            dpkg-deb -x lib.deb . 2>/dev/null
+        # 方式 2：免 sudo deb 提取
+        if ! $installed; then
+            info "安装 inotify-tools（免 sudo deb 提取）..."
+            local arch
+            arch=$(uname -m 2>/dev/null || echo "x86_64")
+            [[ "$arch" == "x86_64" ]] && arch="amd64"
+            [[ "$arch" == "aarch64" ]] && arch="arm64"
 
-            # 安装到用户目录
-            mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
-            cp usr/bin/inotify* "$HOME/.local/bin/"
-            chmod +x "$HOME/.local/bin/inotify"*
-            cp usr/lib/x86_64-linux-gnu/libinotifytools.so.0 "$HOME/.local/lib/"
-        ) || warn "inotify-tools 解包失败"
+            local tmp_dir="/tmp/inotify-install-$$"
+            mkdir -p "$tmp_dir"
 
-        rm -rf "$tmp_dir"
+            (
+                cd "$tmp_dir" || exit 1
+                local base="http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools"
+                curl -sL "$base/inotify-tools_3.22.6.0-4_${arch}.deb" -o pkg.deb
+                curl -sL "$base/libinotifytools0_3.22.6.0-4_${arch}.deb" -o lib.deb
+                dpkg-deb -x pkg.deb . 2>/dev/null
+                dpkg-deb -x lib.deb . 2>/dev/null
 
-        if command -v inotifywait &>/dev/null; then
-            success "inotify-tools 安装成功"
-        else
+                mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
+                cp usr/bin/inotify* "$HOME/.local/bin/" 2>/dev/null || true
+                chmod +x "$HOME/.local/bin/inotify"* 2>/dev/null || true
+                # lib 路径按架构来
+                local libdir
+                libdir=$(find usr/lib -name "libinotifytools.so.0" 2>/dev/null | head -1)
+                [[ -n "$libdir" ]] && cp "$libdir" "$HOME/.local/lib/"
+            ) || warn "inotify-tools 解包失败"
+
+            rm -rf "$tmp_dir"
+
+            if command -v inotifywait &>/dev/null; then
+                success "inotify-tools 安装成功"
+                installed=true
+            fi
+        fi
+
+        if ! $installed; then
             warn "inotify-tools 安装失败"
-            warn "auto-sync 将无法工作"
+            warn "  auto-sync 将无法工作"
+            warn "  手动: sudo apt install inotify-tools"
         fi
     fi
 
@@ -528,7 +562,7 @@ main() {
     setup_uv
     setup_claude_code
     setup_symlinks
-    setup_claude_api
+    setup_llm_backend
     setup_mmx_cli
     setup_ssh_github
     # 中文字体可选，有需要再手动装: sudo apt-get install fonts-noto-cjk

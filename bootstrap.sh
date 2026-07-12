@@ -2,7 +2,7 @@
 # bootstrap.sh — ccconfig 起步阶段 2：装 gh + GitHub 认证
 #
 # 设计：四步流程中的第二步。
-#   Step 1: git clone https://github.com/mengfanchun2017/ccconfig.git ~/git/ccconfig
+#   Step 1: git clone https://github.com/<your-username>/ccconfig.git ~/git/ccconfig
 #   Step 2: bash bootstrap.sh                       ← 你在这里
 #   Step 3: bash bin/init-ccprivate.sh              ← 创建 ccprivate 私有仓库
 #   Step 4: bash init.sh all                        ← 全量初始化
@@ -15,6 +15,8 @@
 #   - 输出下一步引导
 #
 # 环境变量：
+#   CCCONFIG_REPO=myuser/ccconfig  指定仓库（fork 用，默认从 clone URL 自动检测）
+#   CCCONFIG_BRANCH=release        指定分支（默认 main）
 #   BOOTSTRAP_NOSUDO=1  跳过 sudo apt，用二进制装 gh（适合受限环境）
 #   GH_TOKEN            直接用此 PAT 登录（CI 友好，跳过交互）
 #
@@ -24,7 +26,7 @@ set -euo pipefail
 
 # ========== 颜色 ==========
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0:0m'; NC='\033[0m'
+CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; NC='\033[0m'
 
 info() { echo -e "  ${GRAY}$1${NC}"; }
 ok()   { echo -e "  ${GREEN}✅ $1${NC}"; }
@@ -32,12 +34,13 @@ warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
 err()  { echo -e "  ${RED}❌ $1${NC}"; }
 section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_BIN="$HOME/.local/bin"
 NOSUDO="${BOOTSTRAP_NOSUDO:-}"
 
 # get_gh_version: 优先从 ccconfig 的 path-helper.sh 拿，回退写死值
 get_gh_version() {
-    local helper="$OLDPWD/lib/path-helper.sh"
+    local helper="$SCRIPT_DIR/lib/path-helper.sh"
     if [[ -f "$helper" ]]; then
         (source "$helper" && get_gh_version) 2>/dev/null && return
     fi
@@ -56,7 +59,7 @@ section "Step 1/5 前置检查"
 if ! command -v git &>/dev/null; then
     err "git 未装"
     err "  漏跑 Step 1？先: sudo apt install git"
-    err "  或直接: git clone https://github.com/mengfanchun2017/ccconfig.git ~/git/ccconfig"
+    err "  或直接: git clone ${CCCONFIG_REPO:-https://github.com/<your-username>/ccconfig}.git ~/git/ccconfig"
     exit 1
 fi
 ok "git: $(git --version | cut -d' ' -f3)"

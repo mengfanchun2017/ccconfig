@@ -252,7 +252,7 @@ else
             echo -e "  ${YELLOW}○ $WARNINGS 个可选依赖未安装${NC}"
         fi
         echo ""
-        echo -e "  ${GRAY}修复: bash ccconfig/init-ubuntu.sh${NC}"
+        echo -e "  ${GRAY}修复: bash ${SCRIPT_DIR}/init-ubuntu.sh${NC}"
     fi
     echo ""
 fi

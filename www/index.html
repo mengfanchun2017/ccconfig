@@ -32,8 +32,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,10,15,.85
 nav .container{display:flex;align-items:center;justify-content:space-between;height:56px}
 .nav-logo{font-weight:700;font-size:18px;color:#e4e4e7}
 .nav-logo span{color:#4ade80}
-.nav-links{display:flex;gap:24px;align-items:center}
-.nav-links a{font-size:14px;color:#a1a1aa}
+.nav-links{display:flex;gap:24px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.nav-links a{font-size:14px;color:#a1a1aa;white-space:nowrap}
 .nav-links a:hover{color:#e4e4e7}
 .nav-gh{display:flex;align-items:center;gap:6px;font-size:14px;color:#a1a1aa}
 .nav-gh:hover{color:#e4e4e7}
@@ -109,6 +109,7 @@ h2{font-size:clamp(28px,5vw,40px);font-weight:700;color:#fafafa;line-height:1.2;
 
 	.terminal-copy{position:absolute;top:8px;right:12px;display:flex;align-items:center;gap:4px;background:#1a1a24;border:1px solid #2e2e3e;border-radius:6px;padding:4px 10px;color:#52525b;cursor:pointer;font-size:12px;font-family:Inter,system-ui,sans-serif;transition:all .2s;opacity:0}
 	.terminal:hover .terminal-copy{opacity:1}
+	@media(hover:none){.terminal-copy{opacity:1}}
 	.terminal-copy:hover{color:#4ade80;border-color:#4ade80}
 	.terminal-copy.copied{color:#4ade80;border-color:#4ade80}
 
@@ -136,6 +137,15 @@ footer a:hover{color:#a1a1aa}
   .pain-grid,.features-grid,.usecase-grid{grid-template-columns:1fr}
   .hero{padding:120px 0 80px}
   section{padding:64px 0}
+  nav .container{height:auto;min-height:56px;padding-top:8px;padding-bottom:8px;flex-wrap:wrap;gap:8px}
+  .nav-links{gap:12px}
+  .nav-links a{font-size:12px}
+  .nav-version{font-size:10px}
+}
+@media(max-width:480px){
+  .nav-links{gap:8px}
+  .nav-logo{font-size:15px}
+  .lang-btn{padding:3px 8px;font-size:11px}
 }
 
 @media(prefers-reduced-motion:reduce){
@@ -157,9 +167,9 @@ footer a:hover{color:#a1a1aa}
       </a>
       <button class="lang-btn" onclick="toggleLang()" data-i18n="lang_switch">EN</button>
       <span class="nav-version" id="version-badge" title="deployed commit">
-        <a href="https://github.com/mengfanchun2017/ccconfig/commit/8d48f4c8406581065cb73df96d8b191cf4ee004e" target="_blank" rel="noopener" id="commit-link">
+        <a href="https://github.com/mengfanchun2017/ccconfig" target="_blank" rel="noopener" id="commit-link">
           <span class="dot-live"></span>
-          <span id="commit-hash">8d48f4c</span>
+          <span id="commit-hash">main</span>
         </a>
       </span>
     </div>
@@ -291,7 +301,7 @@ footer a:hover{color:#a1a1aa}
       <div class="usecase-card">
         <div class="uc-num">01</div>
         <h3 data-i18n="uc_1_title">新装机</h3>
-        <p data-i18n="uc_1_desc">从 macOS 设置向导到 Claude Code 完整配置，不到 10 分钟。克隆、链接、完成。每条 rule、每个 skill、每项设置 — 原封不动。</p>
+        <p data-i18n="uc_1_desc">从全新 Ubuntu/WSL 到 Claude Code 完整配置，不到 10 分钟。克隆、链接、完成。每条 rule、每个 skill、每项设置 — 原封不动。</p>
       </div>
       <div class="usecase-card">
         <div class="uc-num">02</div>
@@ -325,7 +335,7 @@ footer a:hover{color:#a1a1aa}
         <div class="step-num">2</div>
         <div class="step-content">
           <h3 data-i18n="step_2_title">创建私有配置</h3>
-          <p><span class="code-block"><code>bash ccconfig/bin/init-ccprivate.sh</code><button class="copy-btn" onclick="copyCode(this)" title="复制">📋</button></span></p>
+          <p><span class="code-block"><code>cd ~/git/ccconfig && bash bin/init-ccprivate.sh</code><button class="copy-btn" onclick="copyCode(this)" title="复制">📋</button></span></p>
           <p data-i18n="step_2_desc">交互式收集 GitHub 账号 + LLM API Key。自动生成配置、创建私有仓库、建立 symlink。v1.4.6+ 增强：自动装 gh / 检测 git ident / feishu 占位符引导 / PAT 推荐路径。</p>
         </div>
       </div>
@@ -333,7 +343,7 @@ footer a:hover{color:#a1a1aa}
         <div class="step-num">3</div>
         <div class="step-content">
           <h3 data-i18n="step_3_title">一键初始化</h3>
-          <p><span class="code-block"><code>bash ccconfig/init.sh all</code><button class="copy-btn" onclick="copyCode(this)" title="复制">📋</button></span></p>
+          <p><span class="code-block"><code>cd ~/git/ccconfig && bash init.sh all</code><button class="copy-btn" onclick="copyCode(this)" title="复制">📋</button></span></p>
           <p data-i18n="step_3_desc">装好 Ubuntu 工具链 + Claude Code + LLM env + MCP 服务器 + 15 个 skills（自动 clone claude-skills）。5 步走完，全设备同步。</p>
         </div>
       </div>
@@ -433,7 +443,7 @@ const I18N = {
     usecases_title: "为你真实的工作流而建。",
     usecases_desc: "三个场景，小时变分钟。",
     uc_1_title: "新装机",
-    uc_1_desc: "从 macOS 设置向导到 Claude Code 完整配置，不到 10 分钟。克隆、链接、完成。每条 rule、每个 skill、每项设置 — 原封不动。",
+    uc_1_desc: "从全新 Ubuntu/WSL 到 Claude Code 完整配置，不到 10 分钟。克隆、链接、完成。每条 rule、每个 skill、每项设置 — 原封不动。",
     uc_2_title: "多设备同步",
     uc_2_desc: "办公室桌面、家里笔记本、SSH 远程服务器。相同 rules、相同 skills、相同 Claude Code 体验。自动同步保持一致。",
     uc_3_title: "团队入职",
@@ -504,7 +514,7 @@ const I18N = {
     usecases_title: "Built for how you<br>actually work.",
     usecases_desc: "Three scenarios where ccconfig turns hours into minutes.",
     uc_1_title: "Fresh Machine",
-    uc_1_desc: "From macOS setup wizard to fully configured Claude Code in under 10 minutes. Clone, link, done. Every rule, every skill, every setting — exactly as you left it.",
+    uc_1_desc: "From fresh Ubuntu/WSL to fully configured Claude Code in under 10 minutes. Clone, link, done. Every rule, every skill, every setting — exactly as you left it.",
     uc_2_title: "Multi-Device Sync",
     uc_2_desc: "Desktop at work. Laptop at home. Remote server via SSH. Same rules. Same skills. Same Claude Code experience. Auto-sync keeps them identical.",
     uc_3_title: "Team Onboarding",
@@ -605,4 +615,3 @@ function copyTerminal() {
 
 </body>
 </html>
-<!-- bootstrap.sh v1.4.7 部署测试 1783786817 -->

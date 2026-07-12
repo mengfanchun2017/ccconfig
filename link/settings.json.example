@@ -1,10 +1,10 @@
 {
     "env": {
-        "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
-        "ANTHROPIC_MODEL": "deepseek-v4-pro",
+        "ANTHROPIC_BASE_URL": "<your-llm-base-url>",
+        "ANTHROPIC_MODEL": "<your-llm-model>",
         "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-        "ANTHROPIC_AUTH_TOKEN": "请填入你的 API Key",
-        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-pro"
+        "ANTHROPIC_AUTH_TOKEN": "<your-api-key>",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "<your-small-model>"
     },
     "permissions": {
         "allow": [
@@ -29,7 +29,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "bash $HOME/git/ccconfig/status.sh"
+                        "command": "bash ${CCCONFIG_HOME:-$HOME/git/ccconfig}/status.sh"
                     }
                 ]
             }

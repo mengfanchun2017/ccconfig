@@ -2,7 +2,7 @@
 
 > **Status**: ✅ Accepted
 > **日期**: 2026-06-08
-> **关联**: [Phase 0 安全 + 公开化](../task_plan.md)
+> **关联**: [Phase 0 安全 + 公开化](../../.github/task_plan.md)
 > **模板**: MADR 4.0 极简版
 
 ## Context and Problem Statement
@@ -102,7 +102,7 @@ ccconfig 仓库需要公开同步（GitHub 公开 dotfiles 风格），但当前
 
 ## Implementation
 
-详见 [Phase 0 task_plan.md](../task_plan.md) 任务 #1-#9。
+详见 [Phase 0 task_plan.md](../../.github/task_plan.md) 任务 #1-#9。
 
 ## Notes
 
