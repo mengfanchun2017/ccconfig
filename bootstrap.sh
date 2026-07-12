@@ -40,8 +40,8 @@ info "目标仓库: $CCCONFIG_REPO ($CCCONFIG_BRANCH)"
 info "目标路径: $CCCONFIG_DIR"
 [[ -n "$NOSUDO" ]] && info "模式: NO-SUDO（用 binary 装）"
 
-# ========== Step 1: 网络工具 ==========
-section "Step 1/4 网络工具（curl/wget）"
+# ========== Step 1: 网络工具 + GitHub 连通性 ==========
+section "Step 1/4 网络工具 + GitHub 连通性"
 
 have_curl=false; have_wget=false
 command -v curl &>/dev/null && have_curl=true
@@ -64,6 +64,40 @@ fetch() {
         wget -q "$url" -O "$out"
     fi
 }
+
+# 检测 GitHub 直连（443）。失败时给清晰的故障指引。
+check_github_connectivity() {
+    local probe_url="https://raw.githubusercontent.com/${CCCONFIG_REPO}/${CCCONFIG_BRANCH}/README.md"
+    if $have_curl; then
+        curl -fsS --connect-timeout 8 --max-time 15 -o /dev/null "$probe_url" 2>/dev/null
+    else
+        wget -q --timeout=15 --tries=1 -O /dev/null "$probe_url" 2>/dev/null
+    fi
+}
+
+info "测试 GitHub 连通性..."
+if check_github_connectivity; then
+    ok "GitHub 直连通"
+else
+    warn "GitHub 直连不通（DNS 失败 / GFW 阻断 / 需代理）"
+    echo ""
+    echo -e "  ${BOLD}常见修复:${NC}"
+    echo ""
+    echo -e "  ${CYAN}1)${NC} 配置代理（推荐，国内环境几乎必备）:"
+    echo -e "     export https_proxy=http://127.0.0.1:7897"
+    echo -e "     export http_proxy=\$https_proxy"
+    echo -e "     然后重跑本条 curl 命令"
+    echo ""
+    echo -e "  ${CYAN}2)${NC} 用 ghproxy.com 镜像（无需代理）:"
+    echo -e "     curl -fsSL https://ghproxy.com/raw.githubusercontent.com/${CCCONFIG_REPO}/${CCCONFIG_BRANCH}/bootstrap.sh | bash"
+    echo ""
+    echo -e "  ${CYAN}3)${NC} 手动 git clone 后本地跑（git 也读 \$https_proxy，配置后即可）:"
+    echo -e "     git clone https://github.com/${CCCONFIG_REPO}.git ~/git/ccconfig"
+    echo -e "     cd ~/git/ccconfig && bash init.sh all"
+    echo ""
+    err "GitHub 不可达，退出。请按上述任一方式修复后重试。"
+    exit 1
+fi
 
 # ========== Step 2: git（必需） ==========
 section "Step 2/4 git"
