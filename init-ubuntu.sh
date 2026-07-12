@@ -58,76 +58,29 @@ except:
 PYEOF
 }
 
-# ========== 1. Git + GitHub ==========
-setup_git_github() {
-    section "Git + GitHub"
+# ========== 1. ccprivate 私有仓库 clone ==========
+# 假定 bootstrap.sh 已装好 git/gh/认证
+setup_ccprivate() {
+    section "ccprivate 私有仓库"
 
-    # git 检查
-    info "检查 git..."
+    export PATH="$LOCAL_BIN:$PATH"
+
+    # git 必须已装（bootstrap.sh 装）
     if ! command -v git &>/dev/null; then
-        error "git 未安装，请先: sudo apt install git"
+        error "git 未安装，请先跑 bootstrap.sh"
         exit 1
     fi
-    success "git 已安装: $(git --version | cut -d' ' -f3)"
 
-    # Git 用户身份
-    info "检查 Git 用户身份..."
     CONFIG_DATA=$(read_git_config || echo "|||")
     IFS='|' read -r REPO TARGET_DIR CONFIG_EMAIL CONFIG_USERNAME <<< "$CONFIG_DATA"
 
-    if [[ -n "$CONFIG_EMAIL" ]]; then
-        git config --global user.email "$CONFIG_EMAIL" 2>/dev/null || true
-    fi
-    if [[ -n "$CONFIG_USERNAME" ]]; then
-        git config --global user.name "$CONFIG_USERNAME" 2>/dev/null || true
-    fi
-    success "Git 用户: $(git config --global user.email) ($(git config --global user.name))"
-
-    # gh 安装
-    info "检查 GitHub CLI (gh)..."
-    export PATH="$LOCAL_BIN:$PATH"
-    if ! command -v gh &>/dev/null; then
-        warn "gh 未安装，正在下载..."
-        mkdir -p "$LOCAL_BIN"
-        local gh_ver=$(get_gh_version)
-        curl -fsSL "https://github.com/cli/cli/releases/download/v${gh_ver}/gh_${gh_ver}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
-        tar -xzf /tmp/gh.tar.gz -C /tmp
-        mv /tmp/gh_${gh_ver}_linux_amd64/bin/gh "$LOCAL_BIN/gh"
-        chmod +x "$LOCAL_BIN/gh"
-        rm -rf /tmp/gh.tar.gz /tmp/gh_${gh_ver}_linux_amd64
-        success "gh 已安装"
-    else
-        success "gh 已安装"
-    fi
-
-    # gh 登录（如 SSH 密钥已存在则跳过交互式认证）
-    if gh auth status &>/dev/null; then
-        success "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
-    elif [[ -f "$HOME/.ssh/id_ed25519" ]]; then
-        info "gh 未登录，但 SSH 密钥已存在，跳过 gh 认证"
-    else
-        echo ""
-        echo "请在浏览器中授权 GitHub:"
-        gh auth login --git-protocol https --skip-ssh-key --hostname github.com
-    fi
-
-    # 配置 git credential helper（幂等 — 已配则 no-op，gh 未登录则跳过）
-    if gh auth status &>/dev/null; then
-        gh auth setup-git >/dev/null 2>&1 || true
-        success "git credential helper → gh auth git-credential"
-    fi
-
-    # SSH 是推荐的 git 协议，HTTPS→SSH 转换由 setup_ssh_github() 统一处理
-    # 不在此处全局强制 HTTPS
-
     # 检测 placeholder 值（用户未编辑 conf/ubuntu.json）
     if [[ "$REPO" =~ ^你的 ]] || [[ "$REPO" =~ example ]] || [[ -z "$REPO" ]]; then
-        warn "conf/ubuntu.json 含 placeholder 值，跳过仓库 clone"
+        warn "conf/ubuntu.json 含 placeholder 值，跳过 ccprivate clone"
         warn "  编辑 conf/ubuntu.json 填入真实信息后重跑"
         return 0
     fi
 
-    # 克隆/更新仓库
     # 处理 ~ 和 $HOME 展开（bash 内置参数展开，不使用 eval 避免命令注入）
     TARGET_DIR="${TARGET_DIR/\~/$HOME}"
     TARGET_DIR="${TARGET_DIR/\$HOME/$HOME}"
@@ -135,46 +88,27 @@ setup_git_github() {
     mkdir -p "$PARENT_DIR"
 
     if [[ -d "$TARGET_DIR/.git" ]]; then
-        info "仓库已存在，更新中..."
-        local old_commit=$(git -C "$TARGET_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-
-        # 先 fetch 远程
-        git -C "$TARGET_DIR" fetch origin main 2>/dev/null || true
-
-        # 检查是否有分歧
-        local local_commit=$(git -C "$TARGET_DIR" rev-parse --short HEAD)
-        local remote_commit=$(git -C "$TARGET_DIR" rev-parse --short origin/main)
-
-        if [[ "$local_commit" == "$remote_commit" ]]; then
-            info "已是最新版本: $local_commit"
-        else
-            # 有分歧，尝试合并
-            if git -C "$TARGET_DIR" pull --ff-only origin main 2>&1 | grep -q "Already up to date\|Fast-forward"; then
-                local new_commit=$(git -C "$TARGET_DIR" rev-parse --short HEAD)
-                success "仓库已更新: $old_commit → $new_commit"
-            else
-                warn "本地有提交未推送，尝试推送..."
-                git -C "$TARGET_DIR" push origin main 2>&1 | tail -2 || true
-                local new_commit=$(git -C "$TARGET_DIR" rev-parse --short HEAD)
-                info "已同步到: $new_commit"
-            fi
-        fi
-    elif [[ -d "$TARGET_DIR" ]]; then
-        warn "目标目录已存在但不是 git 仓库"
+        info "ccprivate 已存在，pull 最新"
+        git -C "$TARGET_DIR" pull --ff-only 2>&1 | tail -2 || warn "pull 失败（本地有改动），继续"
+        success "ccprivate 已更新"
     else
-        info "克隆仓库: $REPO → $TARGET_DIR"
-        # 优先用 SSH，其次 gh
+        info "克隆 ccprivate: $REPO → $TARGET_DIR"
+        # 优先用 SSH，其次 gh（git 走自己代理栈，绕过 curl 443 问题）
         if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
             git clone "git@github.com:${REPO}.git" "$TARGET_DIR" || {
                 error "SSH 克隆失败，尝试 gh..."
                 gh repo clone "$REPO" "$TARGET_DIR"
             }
+        elif gh auth status &>/dev/null 2>&1; then
+            gh repo clone "$REPO" "$TARGET_DIR"
         elif gh repo clone "$REPO" "$TARGET_DIR"; then
-            success "仓库克隆完成"
+            :  # gh 未登录但 binary 可用，尝试裸 clone
         else
-            error "克隆失败"
+            error "ccprivate 克隆失败"
+            error "  请确认 GitHub 认证（bootstrap.sh）后重试"
             exit 1
         fi
+        success "ccprivate 已 clone"
     fi
 }
 
@@ -589,7 +523,7 @@ main() {
         echo '[ -f ~/.claude/shell_aliases.sh ] && source ~/.claude/shell_aliases.sh' >> "$HOME/.bashrc"
     fi
 
-    setup_git_github
+    setup_ccprivate
     setup_nodejs
     setup_uv
     setup_claude_code

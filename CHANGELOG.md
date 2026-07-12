@@ -2,6 +2,13 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **三步起步流程** — `curl | bash` 拆成 `git clone → bash bootstrap.sh → bash init.sh all`。`git` 自带代理栈（`~/.gitconfig` 的 `http.proxy` 或环境变量），能绕过国内 `curl port 443` 失败问题；bootstrap 专注装 gh + GitHub 认证 + git 用户身份；init 不再做重复的 git/gh 工作
+- **`bootstrap.sh` 重写** — 去掉 git/curl/wget 检测、apt 装 git、ccconfig clone（这些移给用户/前置步骤）。专注 5 步：前置检查 → 装 gh → gh auth → git 用户身份 → 输出 init 引导
+- **`init-ubuntu.sh` `setup_git_github` → `setup_ccprivate`** — 删除 git/gh 安装和认证逻辑（bootstrap 已做），只剩 ccprivate 私有仓库 clone/pull（读 `conf/ubuntu.json` 的 `git.target_dir`）
+
 ## [1.4.7] — 2026-07-11
 
 ### Added
