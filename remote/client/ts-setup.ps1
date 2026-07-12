@@ -120,7 +120,7 @@ Write-Host "先查看服务器 IP（在服务器上执行）:" -ForegroundColor 
 Write-Host "  tailscale ip -4" -ForegroundColor White
 Write-Host ""
 Write-Host "拿到 IP 后，在本机 PowerShell 执行（不需管理员）:" -ForegroundColor Yellow
-Write-Host "  New-Item -ItemType Directory -Force -Path `"`$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8weky3b8dbbwe\LocalState\Fragments`" | Out-Null; @{profiles=@(@{guid=`"{(New-Guid)}`";name=`"Claude Code`";commandline=`"ssh -p 2222 francis@<服务器IP>`";icon=`"🐚`";tabTitle=`"Claude`";hidden=`$false})} | ConvertTo-Json -Depth 3 | Out-File -FilePath `"`$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8weky3b8dbbwe\LocalState\Fragments\claude-code-ssh.json`" -Encoding UTF8; Write-Host 'Done. 关闭重开 Windows Terminal' -ForegroundColor Green"
+Write-Host "  New-Item -ItemType Directory -Force -Path # 见 remote/readme.md `"`$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8weky3b8dbbwe\LocalState\Fragments`" | Out-Null; @{profiles=@(@{guid=`"{(New-Guid)}`";name=`"Claude Code`";commandline=`"ssh -p 2222 <用户名>@<服务器IP>`";icon=`"🐚`";tabTitle=`"Claude`";hidden=`$false})} | ConvertTo-Json -Depth 3 | Out-File -FilePath `"`$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8weky3b8dbbwe\LocalState\Fragments\claude-code-ssh.json`" -Encoding UTF8; Write-Host 'Done. 关闭重开 Windows Terminal' -ForegroundColor Green"
 Write-Host ""
 Write-Host "  `<服务器IP>` 替换为服务器的 Tailscale 虚拟 IP" -ForegroundColor DarkGray
 Write-Host ""

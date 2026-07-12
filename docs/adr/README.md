@@ -67,6 +67,6 @@ Proposed ──> Accepted ──> Superseded by NNNN
 
 ## 链接
 
-- [Phase 0 计划](../task_plan.md)
+- [Phase 0 计划](../../.github/task_plan.md)
 - [ROADMAP](../../ROADMAP.md)
 - [progress](../progress.md)
