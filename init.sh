@@ -87,15 +87,15 @@ init_all_steps() {
     echo -e "${GREEN}🎉 全部初始化完成${NC}"
     echo ""
     echo -e "${BOLD}日常使用:${NC}"
-    echo "  切换 LLM:          bash ccconfig/init-llm.sh"
-    echo "  更新系统:          bash ccconfig/update.sh all"
-    echo "  状态检查:          bash ccconfig/status.sh"
+    echo "  切换 LLM:          bash $SCRIPT_DIR/init-llm.sh"
+    echo "  更新系统:          bash $SCRIPT_DIR/update.sh all"
+    echo "  状态检查:          bash $SCRIPT_DIR/status.sh"
     echo ""
     echo -e "${BOLD}可选组件:${NC}"
-    echo "  飞书 Bridge:       bash ccconfig/option-bridge/init.sh"
-    echo "  Cloudflare 插件:   bash ccconfig/option-cloudflare/init.sh"
-    echo "  OfficeCLI:         bash ccconfig/option-officecli/init.sh"
-    echo "  Python 包更新:     bash ccconfig/update.sh python"
+    echo "  飞书 Bridge:       bash $SCRIPT_DIR/option-bridge/init.sh"
+    echo "  Cloudflare 插件:   bash $SCRIPT_DIR/option-cloudflare/init.sh"
+    echo "  OfficeCLI:         bash $SCRIPT_DIR/option-officecli/init.sh"
+    echo "  Python 包更新:     bash $SCRIPT_DIR/update.sh python"
     echo ""
     echo -e "${GRAY}auto-sync 已在步骤1配置，配置变更自动推送到 GitHub${NC}"
 }
@@ -360,7 +360,7 @@ case "${1:-menu}" in
         init_all_steps
         echo ""
         echo "CLI 工具: bat (batcat) / glow / nano — 已由 init-ubuntu.sh 自动安装"
-        echo "可选: bash ccconfig/option-bridge/init.sh   # 安装飞书 Bridge"
+        echo "可选: bash $SCRIPT_DIR/option-bridge/init.sh   # 安装飞书 Bridge"
         exit 0
         ;;
     --dry-run|--preview|--what)
