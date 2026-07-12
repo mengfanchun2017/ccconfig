@@ -71,6 +71,14 @@ echo "=== Test 8: gh auth 逻辑 ==="
 grep -q 'gh auth status' "$BOOTSTRAP" && pass "checks gh auth" || fail "no gh auth check"
 grep -q 'id_ed25519' "$BOOTSTRAP" && pass "detects existing SSH key" || fail "no SSH detection"
 grep -q 'gh auth login' "$BOOTSTRAP" && pass "prompts gh auth login" || fail "no gh auth login"
+grep -q 'with-token' "$BOOTSTRAP" && pass "uses --with-token (PAT 路径)" || fail "no --with-token (PAT 路径)"
+grep -q 'GH_TOKEN' "$BOOTSTRAP" && pass "supports \$GH_TOKEN env" || fail "no \$GH_TOKEN env"
+# 不能用 --skip-ssh-key（Ubuntu apt 版 gh 2.45 不支持）
+if ! grep -q -- '--skip-ssh-key' "$BOOTSTRAP"; then
+    pass "no --skip-ssh-key (Ubuntu apt gh 兼容性)"
+else
+    fail "still uses --skip-ssh-key (breaks Ubuntu apt gh)"
+fi
 
 # ── Test 9: git 用户身份从 gh api 拿 ──
 echo "=== Test 9: git 身份配置 ==="
