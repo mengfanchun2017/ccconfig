@@ -14,7 +14,7 @@
 
 ```bash
 # Step 1: 先 clone ccconfig（git 自带代理栈，绕开 curl 443 问题）
-git clone https://github.com/mengfanchun2017/ccconfig.git ~/git/ccconfig
+git clone https://github.com/<your-github-username>/ccconfig.git ~/git/ccconfig
 cd ~/git/ccconfig
 
 # Step 2: 装 gh + GitHub 认证
@@ -52,7 +52,7 @@ bash init.sh all
 >
 > **示例**（公司受限机）：
 > ```bash
-> git clone https://github.com/mengfanchun2017/ccconfig.git ~/git/ccconfig
+> git clone https://github.com/<your-github-username>/ccconfig.git ~/git/ccconfig
 > cd ~/git/ccconfig && BOOTSTRAP_NOSUDO=1 bash bootstrap.sh
 > bash init.sh all
 > ```
@@ -61,7 +61,7 @@ bash init.sh all
 
 ---
 
-## 手动 7 阶段（Reference）
+## 手动 8 阶段（Reference）
 
 如果一行命令失败或你想完全控制每一步，按下面 7 阶段走。
 

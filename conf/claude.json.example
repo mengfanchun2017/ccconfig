@@ -2,10 +2,10 @@
   "description": "MCP 配置 — 整合 MCP 服务器列表和 env 配置",
   "_note": "复制此文件为 claude.json 并填入你的 API Key",
   "env": {
-    "ANTHROPIC_BASE_URL": "https://api.minimaxi.com/anthropic",
-    "ANTHROPIC_MODEL": "MiniMax-M2.7",
+    "ANTHROPIC_BASE_URL": "<your-llm-base-url>",
+    "ANTHROPIC_MODEL": "<your-llm-model>",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "ANTHROPIC_AUTH_TOKEN": "请填入你的 API Key"
+    "ANTHROPIC_AUTH_TOKEN": "<your-api-key>"
   },
   "settings": {
     "default_action": "sync",

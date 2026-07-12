@@ -24,7 +24,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/colors.sh"
 SKILLS_SRC="${CLAUDE_SKILLS_SRC:-$HOME/git/claude-skills/plugins}"
 CLAUDE_SKILLS_REPO_DIR="$HOME/git/claude-skills"
-CCPRIVATE_DIR="${CCPRIVATE_DIR:-$HOME/git/ccprivate}"
+CCPRIVATE_DIR="${CCPRIVATE_HOME:-${CCPRIVATE_DIR:-$HOME/git/ccprivate}}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
 
