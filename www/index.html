@@ -32,8 +32,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,10,15,.85
 nav .container{display:flex;align-items:center;justify-content:space-between;height:56px}
 .nav-logo{font-weight:700;font-size:18px;color:#e4e4e7}
 .nav-logo span{color:#4ade80}
-.nav-links{display:flex;gap:24px;align-items:center}
-.nav-links a{font-size:14px;color:#a1a1aa}
+.nav-links{display:flex;gap:24px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.nav-links a{font-size:14px;color:#a1a1aa;white-space:nowrap}
 .nav-links a:hover{color:#e4e4e7}
 .nav-gh{display:flex;align-items:center;gap:6px;font-size:14px;color:#a1a1aa}
 .nav-gh:hover{color:#e4e4e7}
@@ -137,6 +137,15 @@ footer a:hover{color:#a1a1aa}
   .pain-grid,.features-grid,.usecase-grid{grid-template-columns:1fr}
   .hero{padding:120px 0 80px}
   section{padding:64px 0}
+  nav .container{height:auto;min-height:56px;padding-top:8px;padding-bottom:8px;flex-wrap:wrap;gap:8px}
+  .nav-links{gap:12px}
+  .nav-links a{font-size:12px}
+  .nav-version{font-size:10px}
+}
+@media(max-width:480px){
+  .nav-links{gap:8px}
+  .nav-logo{font-size:15px}
+  .lang-btn{padding:3px 8px;font-size:11px}
 }
 
 @media(prefers-reduced-motion:reduce){
