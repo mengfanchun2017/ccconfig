@@ -39,7 +39,8 @@ is_proxy_running() {
 }
 
 get_proxy_health() {
-    curl -s --max-time 3 "http://127.0.0.1:8899/health" 2>/dev/null || echo '{}'
+    local port="${LLMSWITCH_PORT:-8899}"
+    curl -s --max-time 3 "http://127.0.0.1:${port}/health" 2>/dev/null || echo '{}'
 }
 
 read_gateway_routes() {
@@ -268,7 +269,11 @@ interactive_select() {
     local current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
 
     echo ""
-    printf "当前 LLM：%s\n" "$current"
+    if [[ -n "$current" ]]; then
+        printf "当前 LLM：%s\n" "$current"
+    else
+        echo "当前 LLM：未配置（选择下方编号初始化）"
+    fi
     echo ""
 
     local idx=1
