@@ -25,7 +25,7 @@ LOG_FILE="$HOME/.cache/llmswitch.log"
 ORIG_URL_FILE="$HOME/.cache/llmswitch-orig-baseurl"
 ORIG_MODEL_FILE="$HOME/.cache/llmswitch-orig-model"
 MONITOR_LOG="$REPO_DIR/.monitor-sync.log"
-PROXY_PORT=8899
+PROXY_PORT="${LLMSWITCH_PORT:-8899}"
 PROXY_URL="http://127.0.0.1:$PROXY_PORT"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -101,7 +101,9 @@ try:
 except Exception:
     config = {}
 existing_env = config.get("env", {})
-env_update["ANTHROPIC_AUTH_TOKEN"] = existing_env.get("ANTHROPIC_AUTH_TOKEN", "llmswitch")
+# 如果用户已配置 token 则保留，否则不设默认值（避免 "Bearer llmswitch" 被发到上游）
+if existing_env.get("ANTHROPIC_AUTH_TOKEN"):
+    env_update["ANTHROPIC_AUTH_TOKEN"] = existing_env["ANTHROPIC_AUTH_TOKEN"]
 
 config.setdefault("env", {}).update(env_update)
 with open(settings_file, "w") as f:

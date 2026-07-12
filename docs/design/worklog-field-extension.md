@@ -84,7 +84,7 @@
 
 ### Step 1：飞书 Base 加字段（手动操作）
 
-在 Worklog 表 (`tblVsC0L7QFzMeYM`) 添加：
+在 Worklog 表 (`<worklog-table-id>`) 添加：
 1. 标签 — 多选字段，选项见上
 2. 状态 — 单选字段
 3. 耗时(分钟) — 数字字段

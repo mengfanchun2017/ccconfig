@@ -9,7 +9,7 @@ The latest commit on `main` branch.
 **Do not open a public issue.** Instead, report vulnerabilities privately:
 
 1. GitHub: "Report a vulnerability" button on the Security tab
-2. Or email the maintainer directly
+2. Or email: `mengfanchun1981@163.com`
 
 You should receive a response within 72 hours. Include:
 
