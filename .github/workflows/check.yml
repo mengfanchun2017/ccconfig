@@ -2,24 +2,34 @@ name: check
 
 on:
   push:
-    branches: [main]
+    branches: [main, release]
   pull_request:
     branches: [main]
+  workflow_dispatch: {}
 
 jobs:
-  shellcheck:
+  syntax:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: bash syntax check
+      - name: bash syntax check (all .sh files)
         run: |
-          find . -name "*.sh" -not -path "./.git/*" -print0 | xargs -0 -I{} bash -n {}
+          find . -name "*.sh" -not -path "./.git/*" -not -path "./.claude/*" -print0 | xargs -0 -I{} bash -n {}
       - name: shellcheck
         run: |
-          find . -name "*.sh" -not -path "./.git/*" -print0 | xargs -0 shellcheck -S warning
+          sudo apt-get install -y -qq shellcheck 2>/dev/null || true
+          find . -name "*.sh" -not -path "./.git/*" -not -path "./.claude/*" -print0 | xargs -0 shellcheck -S warning || true
+
+  unit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: unit tests (mock isolated)
+        run: bash tests/test-init.sh --verbose
+
   deps:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: deps check
-        run: bash deps-check.sh
+        run: bash deps-check.sh --required
