@@ -77,6 +77,9 @@ mkdir -p "$LOCAL_BIN"
 
 # ========== Step 2: 装 gh ==========
 section "Step 2/5 装 GitHub CLI (gh)"
+echo -e "  ${GRAY}做什么${NC}  装 GitHub CLI（gh 命令），sudo apt 优先（稳），curl 二进制兜底（NOSUDO 模式）"
+echo -e "  ${GRAY}为什么${NC}  私仓交互全靠 gh；有了它才能做 Step 3 认证 + Step 4 配 git 身份"
+echo -e "  ${GRAY}预计${NC}    ~15 s（apt）/ ~30 s（curl 二进制）"
 
 if command -v gh &>/dev/null; then
     ok "gh 已装: $(gh --version | head -1)"
@@ -98,6 +101,10 @@ fi
 
 # ========== Step 3: gh auth 登录 ==========
 section "Step 3/5 GitHub 认证"
+echo -e "  ${GRAY}做什么${NC}  登录 GitHub（PAT 方式）"
+echo -e "  ${GRAY}为什么${NC}  gh 能调 GitHub API 全靠已登录的 token；没它 Step 4 拿不到 git 身份、"
+echo -e "           后续也无法 gh repo create / gh api 等操作"
+echo -e "  ${GRAY}预计${NC}    ~1 min（含浏览器操作）"
 
 if gh auth status &>/dev/null 2>&1; then
     ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
@@ -137,6 +144,9 @@ fi
 
 # ========== Step 4: git 用户身份 + credential helper ==========
 section "Step 4/5 git 用户身份"
+echo -e "  ${GRAY}做什么${NC}  从 gh api 取 GitHub 用户名+邮箱 → 写入 git config --global；配 gh credential helper"
+echo -e "  ${GRAY}为什么${NC}  git commit 需要 user.name / user.email；gh credential helper 让 clone/push 免密"
+echo -e "  ${GRAY}预计${NC}    < 5 s"
 
 if gh auth status &>/dev/null 2>&1; then
     gh_email=$(gh api user --jq '.email // empty' 2>/dev/null)
