@@ -139,7 +139,18 @@ else
         gh repo clone "$CCCONFIG_REPO" "$CCCONFIG_DIR" -- --branch "$CCCONFIG_BRANCH" 2>&1 | tail -2
     else
         # HTTPS clone（无需 auth），public repo 够用
-        git clone "https://github.com/${CCCONFIG_REPO}.git" "$CCCONFIG_DIR" --branch "$CCCONFIG_BRANCH" 2>&1 | tail -3
+        # 失败时自动回退 ghproxy.com 镜像
+        if ! git clone "https://github.com/${CCCONFIG_REPO}.git" "$CCCONFIG_DIR" --branch "$CCCONFIG_BRANCH" 2>&1 | tail -3; then
+            warn "GitHub 直连 clone 失败，尝试 ghproxy.com 镜像..."
+            if git clone "https://ghproxy.com/https://github.com/${CCCONFIG_REPO}.git" "$CCCONFIG_DIR" --branch "$CCCONFIG_BRANCH" 2>&1 | tail -3; then
+                ok "通过 ghproxy.com 镜像 clone 成功"
+            else
+                err "GitHub 和 ghproxy.com 都不可达"
+                err "  请检查网络/代理后重试，或手动:"
+                err "    git clone https://github.com/${CCCONFIG_REPO}.git $CCCONFIG_DIR"
+                exit 1
+            fi
+        fi
     fi
     ok "ccconfig 已 clone"
 fi

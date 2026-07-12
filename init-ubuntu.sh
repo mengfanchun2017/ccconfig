@@ -38,6 +38,20 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+# 统一下载：curl 失败时回退 ghproxy.com 镜像
+# 用法: _fetch URL OUTPUT 或 _fetch URL OUTPUT --silent
+_fetch() {
+    local url="$1" out="$2"; shift 2
+    if curl -fsSL "$@" "$url" -o "$out" 2>/dev/null; then
+        return 0
+    fi
+    # 把 https://github.com/... 转 https://ghproxy.com/https://github.com/...
+    # 把 https://raw.githubusercontent.com/... 转 https://ghproxy.com/https://raw.githubusercontent.com/...
+    local mirror_url="https://ghproxy.com/${url}"
+    warn "直连失败，尝试 ghproxy.com 镜像..."
+    curl -fsSL "$@" "$mirror_url" -o "$out"
+}
+
 info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 success() { echo -e "${GREEN}✅ $1${NC}"; }
 warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
@@ -90,7 +104,7 @@ setup_git_github() {
         warn "gh 未安装，正在下载..."
         mkdir -p "$LOCAL_BIN"
         local gh_ver=$(get_gh_version)
-        curl -fsSL "https://github.com/cli/cli/releases/download/v${gh_ver}/gh_${gh_ver}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+        _fetch "https://github.com/cli/cli/releases/download/v${gh_ver}/gh_${gh_ver}_linux_amd64.tar.gz" /tmp/gh.tar.gz
         tar -xzf /tmp/gh.tar.gz -C /tmp
         mv /tmp/gh_${gh_ver}_linux_amd64/bin/gh "$LOCAL_BIN/gh"
         chmod +x "$LOCAL_BIN/gh"
@@ -169,10 +183,15 @@ setup_git_github() {
                 error "SSH 克隆失败，尝试 gh..."
                 gh repo clone "$REPO" "$TARGET_DIR"
             }
-        elif gh repo clone "$REPO" "$TARGET_DIR"; then
+        elif gh repo clone "$REPO" "$TARGET_DIR" 2>/dev/null; then
             success "仓库克隆完成"
+        elif git clone "https://github.com/${REPO}.git" "$TARGET_DIR" 2>&1 | tail -3; then
+            success "HTTPS 克隆完成"
+        elif git clone "https://ghproxy.com/https://github.com/${REPO}.git" "$TARGET_DIR" 2>&1 | tail -3; then
+            warn "GitHub 直连失败，使用 ghproxy.com 镜像克隆"
         else
-            error "克隆失败"
+            error "克隆失败（SSH/HTTPS/ghproxy 均不可达）"
+            error "  请检查代理或手动: git clone https://github.com/${REPO}.git $TARGET_DIR"
             exit 1
         fi
     fi
@@ -192,7 +211,7 @@ setup_nodejs() {
         local node_ver=$(get_node_version)
         local url="https://nodejs.org/dist/v${node_ver}/node-v${node_ver}-linux-x64.tar.gz"
         info "下载: $url"
-        curl -fsSL "$url" -o /tmp/node.tar.gz
+        _fetch "$url" /tmp/node.tar.gz
         tar -xzf /tmp/node.tar.gz -C "$HOME/.local/"
         mkdir -p "$LOCAL_BIN"
         recreate_node_symlinks "$HOME/.local/node-v${node_ver}-linux-x64/bin"
