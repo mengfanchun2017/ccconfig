@@ -423,9 +423,8 @@ do_update() {
 # ========== 交互式菜单 ==========
 do_menu() {
     echo ""
-    echo -e "${CYAN}╔════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║       LLM Gateway Manager         ║${NC}"
-    echo -e "${CYAN}╚════════════════════════════════════╝${NC}"
+echo -e "${CYAN}LLM Gateway Manager${NC}"
+    echo -e "${CYAN}══════════════════${NC}"
     echo ""
 
     if is_running; then
