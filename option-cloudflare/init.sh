@@ -32,10 +32,9 @@ MARKETPLACE_DIR="$HOME/.claude/plugins/marketplaces/cloudflare"
 
 banner() {
     echo -e "${CYAN}"
-    echo "╔══════════════════════════════════════════════════╗"
-    echo "║   Cloudflare Plugin — Workers/Pages/D1/R2/AI    ║"
-    echo "║   11 skills + 2 commands + 5 MCP 服务器          ║"
-    echo "╚══════════════════════════════════════════════════╝"
+    echo "Cloudflare Plugin — Workers/Pages/D1/R2/AI"
+    echo "═════════════════════════════════════════"
+    echo "    11 skills + 2 commands + 5 MCP 服务器"
     echo "$NC"
 }
 

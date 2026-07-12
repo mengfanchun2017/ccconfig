@@ -32,10 +32,9 @@ DOWNLOAD_URL="https://github.com/iOfficeAI/OfficeCLI/releases/latest/download/Of
 
 banner() {
     echo -e "${CYAN}"
-    echo "╔══════════════════════════════════════════════════╗"
-    echo "║     OfficeCLI — AI-native Office 工具            ║"
-    echo "║     .pptx .docx .xlsx 单二进制零依赖             ║"
-    echo "╚══════════════════════════════════════════════════╝"
+    echo "OfficeCLI — AI-native Office 工具"
+    echo "═══════════════════════════════════"
+    echo "    .pptx .docx .xlsx 单二进制零依赖"
     echo "$NC"
 }
 
