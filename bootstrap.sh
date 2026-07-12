@@ -1,20 +1,22 @@
 #!/bin/bash
 # bootstrap.sh — ccconfig 起步阶段 2：装 gh + GitHub 认证
 #
-# 设计：三步流程中的第二步。
+# 设计：四步流程中的第二步。
 #   Step 1: git clone https://github.com/mengfanchun2017/ccconfig.git ~/git/ccconfig
-#   Step 2: bash bootstrap.sh           ← 你在这里
-#   Step 3: cd ~/git/ccconfig && bash init.sh all
+#   Step 2: bash bootstrap.sh                       ← 你在这里
+#   Step 3: bash bin/init-ccprivate.sh              ← 创建 ccprivate 私有仓库
+#   Step 4: bash init.sh all                        ← 全量初始化
 #
 # 职责：
 #   - 装 GitHub CLI (gh)，apt 优先，二进制兜底
-#   - gh auth 登录（如已有 SSH 密钥则跳过）
+#   - gh auth 登录（PAT 路径，向导生成 classic PAT）
 #   - 配置 git 用户身份（从 gh api 拿）
 #   - 配置 git credential helper（gh 接管）
 #   - 输出下一步引导
 #
 # 环境变量：
 #   BOOTSTRAP_NOSUDO=1  跳过 sudo apt，用二进制装 gh（适合受限环境）
+#   GH_TOKEN            直接用此 PAT 登录（CI 友好，跳过交互）
 #
 # 依赖：git 已装（Step 1 装的）+ sudo（apt 路径需要，NOSUDO 模式除外）
 
@@ -157,11 +159,12 @@ section "Step 5/5 准备完成"
 echo ""
 echo -e "  ${GREEN}ccconfig 已就绪 🎉${NC}"
 echo ""
-echo -e "  ${BOLD}下一步:${NC}"
+echo -e "  ${BOLD}还剩两步:${NC}"
 echo ""
-echo -e "    ${CYAN}cd ~/git/ccconfig && bash init.sh all${NC}"
+echo -e "    ${CYAN}bash bin/init-ccprivate.sh${NC}   # Step 3: 创建 ccprivate 私有仓库"
+echo -e "    ${CYAN}bash init.sh all${NC}             # Step 4: 全量初始化（ccprivate 已就位）"
 echo ""
-echo -e "  ${GRAY}这一步会自动做 5 件事:${NC}"
+echo -e "  ${GRAY}Step 4 会自动做 5 件事:${NC}"
 echo -e "  ${GRAY}  1. Ubuntu 环境（Node/Claude Code/symlink）${NC}"
 echo -e "  ${GRAY}  2. LLM 配置（自动写 ANTHROPIC_AUTH_TOKEN）${NC}"
 echo -e "  ${GRAY}  3. MCP 服务器（Tavily/MiniMax/Supabase/Cloudflare）${NC}"
