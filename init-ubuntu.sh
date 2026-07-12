@@ -59,11 +59,21 @@ PYEOF
 }
 
 # ========== 1. ccprivate 私有仓库 clone ==========
-# 假定 bootstrap.sh 已装好 git/gh/认证
+# 已由 bin/init-ccprivate.sh 在 Step 3 处理；此处仅做幂等补刀
 setup_ccprivate() {
     section "ccprivate 私有仓库"
 
     export PATH="$LOCAL_BIN:$PATH"
+
+    local CCPRIVATE_DIR="$HOME/git/ccprivate"
+
+    # 已 clone → 跳过（bin/init-ccprivate.sh 在 4 步流程 Step 3 已处理）
+    if [[ -d "$CCPRIVATE_DIR/.git" ]]; then
+        info "ccprivate 已存在，pull 最新"
+        git -C "$CCPRIVATE_DIR" pull --ff-only 2>&1 | tail -2 || warn "pull 失败（本地有改动），继续"
+        success "ccprivate 已更新"
+        return 0
+    fi
 
     # git 必须已装（bootstrap.sh 装）
     if ! command -v git &>/dev/null; then
@@ -71,43 +81,45 @@ setup_ccprivate() {
         exit 1
     fi
 
-    CONFIG_DATA=$(read_git_config || echo "|||")
-    IFS='|' read -r REPO TARGET_DIR CONFIG_EMAIL CONFIG_USERNAME <<< "$CONFIG_DATA"
+    # 从 conf/ubuntu.json 读 GitHub 用户名，推导 ccprivate 仓库名
+    local REPO_USERNAME
+    REPO_USERNAME=$(python3 -c "
+import json, sys
+try:
+    with open('$CONFIG_FILE') as f:
+        d = json.load(f)
+    print(d.get('git', {}).get('username', ''))
+except: pass
+" 2>/dev/null)
+    local CCPRIVATE_REPO="${REPO_USERNAME:-$(gh api user --jq '.login' 2>/dev/null || echo '')}/ccprivate"
 
-    # 检测 placeholder 值（用户未编辑 conf/ubuntu.json）
-    if [[ "$REPO" =~ ^你的 ]] || [[ "$REPO" =~ example ]] || [[ -z "$REPO" ]]; then
-        warn "conf/ubuntu.json 含 placeholder 值，跳过 ccprivate clone"
-        warn "  编辑 conf/ubuntu.json 填入真实信息后重跑"
+    if [[ -z "${REPO_USERNAME:-}" ]] || [[ "$CCPRIVATE_REPO" == "/ccprivate" ]]; then
+        warn "无法确定 ccprivate 仓库名，跳过 clone"
+        warn "  手动: gh repo clone <your-username>/ccprivate $CCPRIVATE_DIR"
         return 0
     fi
 
-    # 处理 ~ 和 $HOME 展开（bash 内置参数展开，不使用 eval 避免命令注入）
-    TARGET_DIR="${TARGET_DIR/\~/$HOME}"
-    TARGET_DIR="${TARGET_DIR/\$HOME/$HOME}"
-    PARENT_DIR=$(dirname "$TARGET_DIR")
-    mkdir -p "$PARENT_DIR"
+    local PARENT_DIR
+    PARENT_DIR=$(dirname "$CCPRIVATE_DIR")
+    mkdir -p "$PARENT_DIR" 2>/dev/null || { warn "无法创建 $PARENT_DIR，跳过 ccprivate clone"; return 0; }
 
-    if [[ -d "$TARGET_DIR/.git" ]]; then
-        info "ccprivate 已存在，pull 最新"
-        git -C "$TARGET_DIR" pull --ff-only 2>&1 | tail -2 || warn "pull 失败（本地有改动），继续"
-        success "ccprivate 已更新"
+    info "克隆 ccprivate: $CCPRIVATE_REPO → $CCPRIVATE_DIR"
+    if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+        git clone "git@github.com:${CCPRIVATE_REPO}.git" "$CCPRIVATE_DIR" || {
+            error "SSH 克隆失败，尝试 gh..."
+            gh repo clone "$CCPRIVATE_REPO" "$CCPRIVATE_DIR" 2>/dev/null || warn "gh clone 也失败"
+        }
+    elif gh auth status &>/dev/null 2>&1; then
+        gh repo clone "$CCPRIVATE_REPO" "$CCPRIVATE_DIR" 2>/dev/null || warn "gh clone 失败"
     else
-        info "克隆 ccprivate: $REPO → $TARGET_DIR"
-        # 优先用 SSH，其次 gh（git 走自己代理栈，绕过 curl 443 问题）
-        if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
-            git clone "git@github.com:${REPO}.git" "$TARGET_DIR" || {
-                error "SSH 克隆失败，尝试 gh..."
-                gh repo clone "$REPO" "$TARGET_DIR"
-            }
-        elif gh auth status &>/dev/null 2>&1; then
-            gh repo clone "$REPO" "$TARGET_DIR"
-        elif gh repo clone "$REPO" "$TARGET_DIR"; then
-            :  # gh 未登录但 binary 可用，尝试裸 clone
-        else
-            error "ccprivate 克隆失败"
-            error "  请确认 GitHub 认证（bootstrap.sh）后重试"
-            exit 1
-        fi
+        git clone "https://github.com/${CCPRIVATE_REPO}.git" "$CCPRIVATE_DIR" 2>/dev/null || {
+            warn "ccprivate clone 失败"
+            warn "  手动: bash bin/init-ccprivate.sh"
+            return 0
+        }
+    fi
+
+    if [[ -d "$CCPRIVATE_DIR/.git" ]]; then
         success "ccprivate 已 clone"
     fi
 }
