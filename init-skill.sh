@@ -40,7 +40,11 @@ _github_user() {
 _marketplace_repo() { echo "$(_github_user)/claude-skills"; }
 _marketplace_name() { echo "$(_github_user)-skills"; }
 
+# 上游公共 claude-skills 仓库（新用户无需 fork，直接用这个起步）
+CLAUDE_SKILLS_UPSTREAM="${CLAUDE_SKILLS_UPSTREAM:-mengfanchun2017/claude-skills}"
+
 # 自动 clone claude-skills 仓库（首次初始化时）
+# 策略：用户的 fork 优先 → 回退到上游公共仓库
 ensure_claude_skills() {
     if [[ -d "$CLAUDE_SKILLS_REPO_DIR/.git" ]]; then
         # 仓库已存在，git pull 更新
@@ -52,33 +56,38 @@ ensure_claude_skills() {
         return 0
     fi
 
-    # gh 未就绪 → 静默跳过（Step 3 的 init-ubuntu.sh 装好 gh 后会处理）
-    local gh_user
+    local gh_user candidates=() clone_url
     gh_user=$(_github_user)
-    if [[ -z "$gh_user" ]]; then
-        return 1
-    fi
 
-    # 尝试 clone
-    local clone_url="git@github.com:${gh_user}/claude-skills.git"
-    info "claude-skills 仓库未找到，尝试 clone..."
-    if git clone "$clone_url" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
-        good "claude-skills 已 clone: $CLAUDE_SKILLS_REPO_DIR"
-        return 0
-    fi
+    # 候选仓库列表：用户 fork → 上游公共仓库
+    [[ -n "$gh_user" ]] && candidates+=("$gh_user/claude-skills")
+    candidates+=("$CLAUDE_SKILLS_UPSTREAM")
 
-    if git clone "https://github.com/${gh_user}/claude-skills.git" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
-        good "claude-skills 已 clone (HTTPS): $CLAUDE_SKILLS_REPO_DIR"
-        return 0
-    fi
+    for candidate in "${candidates[@]}"; do
+        [[ "$candidate" == "/claude-skills" ]] && continue
+
+        # SSH 优先
+        clone_url="git@github.com:${candidate}.git"
+        info "claude-skills 仓库未找到，尝试 clone: $candidate"
+        if git clone "$clone_url" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
+            good "claude-skills 已 clone (SSH): $CLAUDE_SKILLS_REPO_DIR"
+            return 0
+        fi
+
+        if git clone "https://github.com/${candidate}.git" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
+            good "claude-skills 已 clone (HTTPS): $CLAUDE_SKILLS_REPO_DIR"
+            return 0
+        fi
+    done
 
     warn "无法 clone claude-skills 仓库"
-    warn "  手动: git clone git@github.com:${gh_user}/claude-skills.git ~/git/claude-skills"
+    warn "  设置环境变量: export CLAUDE_SKILLS_UPSTREAM=<your-username>/claude-skills"
+    warn "  手动: git clone https://github.com/${CLAUDE_SKILLS_UPSTREAM}.git ~/git/claude-skills"
     return 1
 }
 
 # 第三方 skill 全部走 npx skills（user-managed 干净显示）
-# marketplace.json 仍发布 mattpocock-skills 给其他人通过 marketplace 安装
+# 自建 skill（f-* 系列）通过 claude-skills 仓库分发，用户可选 fork 自定义
 
 title() { echo -e "\n========================================\n$1\n========================================\n${CYAN}"; }
 

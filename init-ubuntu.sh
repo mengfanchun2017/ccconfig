@@ -219,7 +219,7 @@ setup_claude_code() {
 }
 
 # ========== 5. LLM 配置（调用 llminit.sh） ==========
-setup_claude_api() {
+setup_llm_backend() {
     section "LLM 配置"
 
     if [[ ! -f "$SCRIPT_DIR/init-llm.sh" ]]; then
@@ -400,37 +400,59 @@ setup_symlinks() {
 setup_autosync() {
     section "auto-sync"
 
-    # 安装 inotifywait（免 sudo：从 deb 提取）
+    # 安装 inotifywait（apt 优先，失败则免 sudo deb 提取）
     if ! command -v inotifywait &>/dev/null; then
-        info "安装 inotify-tools（免 sudo）..."
-        local tmp_dir="/tmp/inotify-install-$$"
-        mkdir -p "$tmp_dir"
+        local installed=false
 
-        # 用 subshell 隔离 cd，避免影响外部 cwd
-        (
-            cd "$tmp_dir" || exit 1
-            # 下载并提取主包
-            curl -sL "http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/inotify-tools_3.22.6.0-4_amd64.deb" -o pkg.deb
-            dpkg-deb -x pkg.deb . 2>/dev/null
+        # 方式 1：apt（有 sudo 且非 NOSUDO 模式）
+        if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
+            info "安装 inotify-tools（apt）..."
+            if sudo apt-get install -y inotify-tools 2>/dev/null; then
+                success "inotify-tools (apt) 安装成功"
+                installed=true
+            fi
+        fi
 
-            # 下载并提取依赖库
-            curl -sL "http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/libinotifytools0_3.22.6.0-4_amd64.deb" -o lib.deb
-            dpkg-deb -x lib.deb . 2>/dev/null
+        # 方式 2：免 sudo deb 提取
+        if ! $installed; then
+            info "安装 inotify-tools（免 sudo deb 提取）..."
+            local arch
+            arch=$(uname -m 2>/dev/null || echo "x86_64")
+            [[ "$arch" == "x86_64" ]] && arch="amd64"
+            [[ "$arch" == "aarch64" ]] && arch="arm64"
 
-            # 安装到用户目录
-            mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
-            cp usr/bin/inotify* "$HOME/.local/bin/"
-            chmod +x "$HOME/.local/bin/inotify"*
-            cp usr/lib/x86_64-linux-gnu/libinotifytools.so.0 "$HOME/.local/lib/"
-        ) || warn "inotify-tools 解包失败"
+            local tmp_dir="/tmp/inotify-install-$$"
+            mkdir -p "$tmp_dir"
 
-        rm -rf "$tmp_dir"
+            (
+                cd "$tmp_dir" || exit 1
+                local base="http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools"
+                curl -sL "$base/inotify-tools_3.22.6.0-4_${arch}.deb" -o pkg.deb
+                curl -sL "$base/libinotifytools0_3.22.6.0-4_${arch}.deb" -o lib.deb
+                dpkg-deb -x pkg.deb . 2>/dev/null
+                dpkg-deb -x lib.deb . 2>/dev/null
 
-        if command -v inotifywait &>/dev/null; then
-            success "inotify-tools 安装成功"
-        else
+                mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
+                cp usr/bin/inotify* "$HOME/.local/bin/" 2>/dev/null || true
+                chmod +x "$HOME/.local/bin/inotify"* 2>/dev/null || true
+                # lib 路径按架构来
+                local libdir
+                libdir=$(find usr/lib -name "libinotifytools.so.0" 2>/dev/null | head -1)
+                [[ -n "$libdir" ]] && cp "$libdir" "$HOME/.local/lib/"
+            ) || warn "inotify-tools 解包失败"
+
+            rm -rf "$tmp_dir"
+
+            if command -v inotifywait &>/dev/null; then
+                success "inotify-tools 安装成功"
+                installed=true
+            fi
+        fi
+
+        if ! $installed; then
             warn "inotify-tools 安装失败"
-            warn "auto-sync 将无法工作"
+            warn "  auto-sync 将无法工作"
+            warn "  手动: sudo apt install inotify-tools"
         fi
     fi
 
@@ -540,7 +562,7 @@ main() {
     setup_uv
     setup_claude_code
     setup_symlinks
-    setup_claude_api
+    setup_llm_backend
     setup_mmx_cli
     setup_ssh_github
     # 中文字体可选，有需要再手动装: sudo apt-get install fonts-noto-cjk
