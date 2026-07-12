@@ -1,6 +1,6 @@
 {
     "description": "LLM 配置管理 - 支持多后端切换",
-    "_note": "复制此文件为 llm.json 并填入你的 API Key。运行 bash ccconfig/init-llm.sh 切换 LLM",
+    "_note": "复制此文件为 llm.json 并填入你的 API Key。运行 bash ccconfig/init-llm.sh 切换 LLM。模型名称可能变更，请以提供商最新文档为准。",
     "llms": {
         "minimax": {
             "name": "MiniMax",
@@ -17,11 +17,12 @@
             "small_model": "deepseek-v4-pro"
         },
         "gateway": {
+            "_comment": "可选：本地 LLM 路由网关（需安装 option-llmswitch）",
             "name": "Gateway",
             "base_url": "http://127.0.0.1:8899",
-            "model": "llmswitch",
-            "small_model": "llmswitch-s"
+            "model": "<your-gateway-model>",
+            "small_model": "<your-gateway-small-model>"
         }
     },
-    "current": "deepseek"
+    "current": ""
 }
