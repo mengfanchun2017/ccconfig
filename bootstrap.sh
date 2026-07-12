@@ -132,15 +132,20 @@ else
     fi
 
     if ! $_has_proxy && ! gh auth status &>/dev/null 2>&1; then
-        # 无代理或无 GUI → Fine-grained PAT（官方推荐，比 classic PAT 更现代）
+        # Fine-grained PAT（官方推荐，比 classic PAT 更安全）
+        # 选 Read and Write 才能 push；多机器可用同一个 token（账户级，非机器级）
         echo ""
         echo -e "  ${BOLD}Fine-grained PAT（官方推荐）${NC}"
         echo ""
         echo -e "  ${CYAN}1)${NC} 浏览器打开: ${BOLD}https://github.com/settings/tokens?type=beta${NC}"
         echo -e "     - Resource owner: 选自己"
         echo -e "     - Repository access: All repositories"
-        echo -e "     - Permissions: 勾 ${YELLOW}Contents: Read${NC} ${YELLOW}Metadata: Read${NC}"
+        echo -e "     - Permissions:"
+        echo -e "       ${YELLOW}Contents: Read and Write${NC}  (push / clone 私有仓库)"
+        echo -e "       ${YELLOW}Metadata: Read${NC}             (gh api user 拿身份)"
         echo -e "     - 点 Generate token → 复制 ${RED}github_pat_xxx${NC} 开头的字符串"
+        echo -e "     ${GRAY}（Token 绑定账户，非机器；配置到多台机器都能用。建议写到 ~/.bashrc:${NC}"
+        echo -e "     ${GRAY}  export GH_TOKEN=github_pat_xxx${NC}"
         echo ""
         echo -e "  ${CYAN}2)${NC} 回到这里粘贴（输入隐藏）："
         echo ""
@@ -151,10 +156,11 @@ else
             echo -e "  ${YELLOW}跳过认证。之后可重跑 bootstrap.sh 或手动:${NC}"
             echo -e "  ${YELLOW}  export GH_TOKEN=<你的 fine-grained PAT>${NC}"
             echo -e "  ${YELLOW}  gh auth login --with-token <<< \"\$GH_TOKEN\"${NC}"
+        else
+            GH_TOKEN_INPUT=$(echo "$GH_TOKEN_INPUT" | tr -d '\r\n')
+            echo "$GH_TOKEN_INPUT" | gh auth login --hostname github.com --with-token
+            ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
         fi
-        GH_TOKEN_INPUT=$(echo "$GH_TOKEN_INPUT" | tr -d '\r\n')
-        echo "$GH_TOKEN_INPUT" | gh auth login --hostname github.com --with-token
-        ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
     fi
 fi
 
