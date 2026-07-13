@@ -26,7 +26,7 @@ show_menu() {
     echo -e "${CYAN}ccconfig 运维中心${NC}"
     echo ""
     echo "  1) 状态检查       status"
-    echo "  2) Monitor 管理   start / stop / status / tail"
+    echo "  2) Monitor 管理   monitor start / stop / status / tail"
     echo "  3) 同步           sync --pull"
     echo "  4) 升级           update all"
     echo "  5) 依赖检查       deps"
@@ -57,10 +57,10 @@ show_menu() {
 submenu_monitor() {
     echo ""
     echo -e "${CYAN}── Monitor 管理 ──${NC}"
-    echo "  1) 启动  start"
-    echo "  2) 停止  stop"
-    echo "  3) 状态  status"
-    echo "  4) 日志  tail"
+    echo "  1) 启动            monitor start"
+    echo "  2) 停止            monitor stop"
+    echo "  3) 看状态          monitor status"
+    echo "  4) 看日志          monitor tail"
     echo "  0) 返回"
     echo ""
     read -p "选择 [0-4]: " c
