@@ -288,11 +288,11 @@ start_watch() {
     fi
 
     cd "$MONITOR_HOME"
+    QUIET_MODE=true
     resurrect_pm2 &
 
     rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
     find "$WATCH_DIR" -maxdepth 2 -name '.monitor-sync.lock' -type d -exec rmdir {} \; 2>/dev/null || true
-    QUIET_MODE=true
 
     # Single inotify watching ~/git/, accepting events from any tracked repo.
     # Debounce triggers sync_repos with only the changed repo list (L2 优化).
@@ -388,6 +388,8 @@ start_watch() {
         done
     } &
     local monitor_pid=$!
+    disown $monitor_pid 2>/dev/null || true
+    disown $event_pid 2>/dev/null || true
 
     echo $monitor_pid > "$PID_FILE"
     echo -e "${GREEN}[SYNC]${NC} Started (monitor: $monitor_pid, events: $event_pid)"
