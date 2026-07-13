@@ -44,7 +44,7 @@ ccprivate/conf/<name>.json  →  ccconfig/conf/<name>.json
 
 ### 2.2 ccconfig ↔ ccprivate: Skill 配置 YAML
 
-**方向**: ccprivate → claude-skills（单向注入）
+**方向**: ccprivate → skill（单向注入）
 **机制**: symlink（通过 apply-config.sh）
 **路径映射**:
 
@@ -84,14 +84,14 @@ ccprivate/link/projects/<id>/   →  ~/.claude/projects/<id>/memory/
 - ccprivate/setup.sh 负责建立这些 symlink
 - 项目 CLAUDE.md 额外从 `ccprivate/link/projects/<id>/CLAUDE.md` 链接到 `~/git/<project>/CLAUDE.md`
 
-### 2.4 ccconfig ↔ claude-skills: Skill 安装
+### 2.4 ccconfig ↔ skill: Skill 安装
 
-**方向**: claude-skills → `~/.claude/skills/`
+**方向**: skill → `~/.claude/skills/`
 **机制**: symlink（通过 init-skill.sh）
 **路径映射**:
 
 ```
-~/git/claude-skills/plugins/<skill>/  →  ~/.claude/skills/<skill>/
+~/git/skill/plugins/<skill>/  →  ~/.claude/skills/<skill>/
 ```
 
 **契约**:
@@ -121,7 +121,7 @@ ccprivate/link/projects/<id>/   →  ~/.claude/projects/<id>/memory/
 ### 3.3 setup-links.sh → init-skill.sh
 
 **调用格式**: `bash $SCRIPT_DIR/init-skill.sh sync`
-**前置条件**: `$SKILLS_SRC` 路径存在（默认 `$HOME/git/claude-skills/plugins`）
+**前置条件**: `$SKILLS_SRC` 路径存在（默认 `$HOME/git/skill/plugins`）
 
 ### 3.4 init-skill.sh → apply-config.sh
 
@@ -140,7 +140,7 @@ ccprivate/link/projects/<id>/   →  ~/.claude/projects/<id>/memory/
 |------|--------|--------|--------|
 | `CCCONFIG_HOME` | `$HOME/git/ccconfig` | 所有脚本 | ✅ `export` |
 | `CCPRIVATE_HOME` | `$HOME/git/ccprivate` | setup.sh, init-skill.sh, status.sh | ✅ `export` |
-| `CLAUDE_SKILLS_SRC` | `$HOME/git/claude-skills/plugins` | init-skill.sh | ✅ `export` |
+| `SKILL_SRC` | `$HOME/git/skill/plugins` | init-skill.sh | ✅ `export` |
 
 **定义位置**: `lib/path-helper.sh`（被所有脚本 source）
 

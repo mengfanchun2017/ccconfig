@@ -156,7 +156,7 @@ All notable changes to ccconfig will be documented in this file.
 - **`init-mcp.sh`** — sync 目标路径修正为 `~/.claude/settings.json`（之前写到不存在的 `cconfig/link/settings.json`）；broken symlink 处理；缺 `~/.claude.json` 容错
 - **`setup-links.sh`** — skills 同步失败不中断
 - **`sync.sh`** — `do_cconfig_post()` 中 setup-links 非致命
-- **`status.sh`** — `check_skills()` 路径改用 `CLAUDE_SKILLS_SRC` 环境变量
+- **`status.sh`** — `check_skills()` 路径改用 `SKILL_SRC` 环境变量
 - **`lib/path-helper.sh`** — `ensure_config()` 处理 broken symlink（ccprivate 不在时 conf/*.json 断链）
 
 ### Fixed

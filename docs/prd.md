@@ -52,7 +52,7 @@
 流程:
   1. 安装 gh CLI → 登录 GitHub
   2. 生成 SSH key → 添加到 GitHub
-  3. git clone ccconfig + claude-skills
+  3. git clone ccconfig + skill
   4. 运行 init-ccprivate.sh → 填写 GitHub 账号 + API Key
   5. 运行 init.sh all → 自动安装所有依赖
   6. 运行 status.sh → 验证 11 项检查通过
@@ -77,7 +77,7 @@
 角色: 开发者在笔记本上恢复环境
 前置: 台式机已配置好 ccconfig，monitor 自动 push 到 GitHub
 流程:
-  1. git clone ccconfig + ccprivate + claude-skills
+  1. git clone ccconfig + ccprivate + skill
   2. 运行 ccprivate/setup.sh → 一键建立所有 symlink
   3. 运行 init-skill.sh sync → 同步 skills
   4. 运行 status.sh → 验证
@@ -90,7 +90,7 @@
 角色: 开发者/TL
 前置: ccconfig 已安装
 流程:
-  1. 在 claude-skills/plugins/<name>/ 创建 SKILL.md
+  1. 在 skill/plugins/<name>/ 创建 SKILL.md
   2. 可选: 创建 config.yaml.example
   3. 在 marketplace.json 注册
   4. 运行 init-skill.sh sync
@@ -124,7 +124,7 @@
 ### FR-2: Skills 管理
 | ID | 需求 | 优先级 |
 |----|------|--------|
-| FR-2.1 | 自建 skill 从 claude-skills symlink 到 ~/.claude/skills/ | P0 |
+| FR-2.1 | 自建 skill 从 skill symlink 到 ~/.claude/skills/ | P0 |
 | FR-2.2 | 私有配置 YAML 覆盖（ccprivate config → skill config.yaml） | P0 |
 | FR-2.3 | 第三方 skill 通过 npx skills 安装（idempotent） | P1 |
 | FR-2.4 | marketplace 自动注册 | P1 |
@@ -203,7 +203,7 @@
 |----|------|------|
 | NFR-5.1 | 脚本语法 | 全部通过 `bash -n` |
 | NFR-5.2 | option-* 自动发现 | 无需修改 status.sh |
-| NFR-5.3 | 环境变量可配 | CCCONFIG_HOME / CCPRIVATE_HOME / CLAUDE_SKILLS_SRC |
+| NFR-5.3 | 环境变量可配 | CCCONFIG_HOME / CCPRIVATE_HOME / SKILL_SRC |
 
 ## 6. 约束与假设
 
@@ -214,7 +214,7 @@
 - 需要至少一个 LLM API Key（DeepSeek / MiniMax / Anthropic）
 
 ### 6.2 业务约束
-- ccconfig + claude-skills 为 MIT 开源
+- ccconfig + skill 为 MIT 开源
 - ccprivate 为个人私有仓库（每人自建）
 - 发布分支: main（开发）/ release（稳定）
 
@@ -227,7 +227,7 @@
 ## 7. 验收标准
 
 ### 7.1 新机初始化验收
-- [ ] `git clone --branch release` 后按 BOOTSTRAP 步骤执行，10 分钟内 `status.sh` 显示全绿
+- [ ] `git clone` 后按 BOOTSTRAP 步骤执行，10 分钟内 `status.sh` 显示全绿
 - [ ] `claude` 命令可用，`/skills` 显示 12 个 f-* skill
 - [ ] 修改任意文件，60s 内 monitor 自动 commit + push
 

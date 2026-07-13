@@ -15,7 +15,7 @@ show_banner() {
     echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
 }
 
-# 首次初始化检查：仅检查 ccprivate（claude-skills 由 init-skill.sh 自动 clone）
+# 首次初始化检查：仅检查 ccprivate（skill 由 init-skill.sh 自动 clone）
 # 只在交互菜单入口（main_menu）调用，引导用户去 bash bin/init-ccprivate.sh
 # init_all_steps 假定 ccprivate 已存在（用户在 4 步流程的 Step 3 创建过）
 check_first_time() {
@@ -73,7 +73,7 @@ init_all_steps() {
     info "下一步: 4/5 Skills"
 
     run_step "4/5 Skills" "$SCRIPT_DIR/init-skill.sh" sync \
-        "同步 claude-skills 公开市场 + ccconfig 自建 skill → ~/.claude/skills/；symlink 绑定" \
+        "同步 skill 公开市场 + ccconfig 自建 skill → ~/.claude/skills/；symlink 绑定" \
         "Skills 是 Claude Code 的可复用工作流：飞书写文档、PPT 生成、PDF 提取、ECharts 画图…按需自动加载" \
         "30 s（首次 ~1 min）"
     info "下一步: 5/5 验证"

@@ -13,7 +13,7 @@
 #   [6] cc-connect     → GitHub Release [option]
 #   [7] systemd 服务    → 重建 + 重启 [option]
 #   [8] OfficeCLI      → GitHub Release [option]
-#   [9] Skills 同步     → claude-skills + ccprivate [option]
+#   [9] Skills 同步     → skill + ccprivate [option]
 #   [10] Cloudflare 插件 → claude plugin [option]
 #
 # 使用：
@@ -781,7 +781,7 @@ update_cloudflare_plugin() {
 # ========== 11. Skills 同步 ==========
 
 update_skills() {
-    section "Skills (claude-skills + ccprivate overlay)"
+    section "Skills (skill + ccprivate overlay)"
     bash "$SCRIPT_DIR/init-skill.sh" sync
 }
 

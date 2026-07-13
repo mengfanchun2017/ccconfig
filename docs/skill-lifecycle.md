@@ -5,7 +5,7 @@
 ## 架构
 
 ```
-ccconfig (infra)                       claude-skills (content)
+ccconfig (infra)                       skill (content)
 ─────────────────                      ──────────────────────
 init-skill.sh ──symlink──────────────> plugins/*/SKILL.md
 update.sh ──调用──> init-skill.sh      .claude-plugin/marketplace.json
@@ -19,14 +19,14 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
 | 仓库 | 角色 | 可见性 |
 |------|------|--------|
 | `~/git/ccconfig` | 安装/更新/初始化脚本、规则、代理 | 公开 |
-| `~/git/claude-skills` | 16 个自建 f-* skill 实体（SKILL.md）、marketplace 注册表 | 公开 |
+| `~/git/skill` | 16 个自建 f-* skill 实体（SKILL.md）、marketplace 注册表 | 公开 |
 | `~/git/ccprivate` | API key、token、个人配置覆盖 | 私有 |
 
 ## Skill 分类
 
 | 类型 | 来源 | 安装方式 | 管理 |
 |------|------|---------|------|
-| **自建 f-*** | `claude-skills/plugins/` | symlink 到 `~/.claude/skills/` | git 仓库（claude-skills） |
+| **自建 f-*** | `skill/plugins/` | symlink 到 `~/.claude/skills/` | git 仓库（skill） |
 | **第三方 (npx)** | 上游 GitHub 仓库 | `npx skills add` → `~/.agents/skills/` → auto symlink | `conf/third-party-skills.txt` 清单 |
 | **私有配置** | `ccprivate/skill-config/` | symlink `config.yaml` 覆盖 skill 默认配置 | ccprivate 仓库 |
 
@@ -41,7 +41,7 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
 | 查看列表 | `bash init-skill.sh list` | 已安装 skills + 来源标注 |
 | 状态总览 | `bash init-skill.sh status` | 自建数量 + 链接状态 + marketplace |
 | 漂移检测 | `bash init-skill.sh diff` | third-party-skills.txt vs 实际安装 |
-| 发布自建 skill | `bash scripts/publish.sh <name> [--push]` | link/skills/ → claude-skills/plugins/ |
+| 发布自建 skill | `bash scripts/publish.sh <name> [--push]` | link/skills/ → skill/plugins/ |
 | 月度升级（含 skills） | `bash update.sh all` | 包含 skills sync |
 | 单独 skill 升级 | `bash update.sh skills` | 只跑 init-skill.sh sync |
 
@@ -54,7 +54,7 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
   └─ 扫描自建 skill deps.txt → 去重 → npm/go 安装缺失包
 
 阶段 1: symlink 自建 skill
-  └─ claude-skills/plugins/* → ~/.claude/skills/*
+  └─ skill/plugins/* → ~/.claude/skills/*
   └─ 保护 user-managed symlink（npx 装的跳过）
 
 阶段 2: marketplace 检
@@ -80,7 +80,7 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
 
 ## 更新流程
 
-**自建 skill**：`git pull` claude-skills 仓库即可 — symlink 指向源目录，无需重链接。
+**自建 skill**：`git pull` skill 仓库即可 — symlink 指向源目录，无需重链接。
 
 **第三方 skill**：
 ```bash
@@ -93,13 +93,13 @@ npx skills update -g -y            # 等效直接命令
 ## 卸载流程（`init-skill.sh remove <name>`）
 
 ```
-1. 检查是否为自建 skill → 是则拒绝（由 claude-skills 仓库管理）
+1. 检查是否为自建 skill → 是则拒绝（由 skill 仓库管理）
 2. 删除 ~/.claude/skills/<name>
 3. 从 conf/third-party-skills.txt 移除对应行
 4. 提示 ~/.agents/skills/<name> 需手动清理
 ```
 
-**自建 skill 的移除**：删除 `claude-skills/plugins/<name>/` 目录，提交 PR，然后 `git pull` + `init-skill.sh sync`。
+**自建 skill 的移除**：删除 `skill/plugins/<name>/` 目录，提交 PR，然后 `git pull` + `init-skill.sh sync`。
 
 ## 发布自建 skill
 
@@ -107,13 +107,13 @@ npx skills update -g -y            # 等效直接命令
 
 ```
 1. 在 ccconfig/link/skills/<name>/ 编辑 SKILL.md（开发沙箱）
-2. bash scripts/publish.sh <name>        # 复制到 claude-skills/plugins/
+2. bash scripts/publish.sh <name>        # 复制到 skill/plugins/
 3. bash scripts/publish.sh <name> --push # 同上 + git push
-4. cd ~/git/claude-skills && git pull    # 拉最新
+4. cd ~/git/skill && git pull    # 拉最新
 5. bash init-skill.sh sync               # symlink 到 ~/.claude/skills/
 ```
 
-**注意**：`link/skills/` 是开发编辑区，`claude-skills/plugins/` 是发布源。`init-skill.sh sync` 只从 `claude-skills/plugins/` 安装。
+**注意**：`link/skills/` 是开发编辑区，`skill/plugins/` 是发布源。`init-skill.sh sync` 只从 `skill/plugins/` 安装。
 
 ## deps.txt 格式
 
@@ -157,7 +157,7 @@ iofficeai/officecli  officecli
 |------|------|------|
 | 清单有但未装 | third-party-skills.txt 有，~/.claude/skills/ 无 | `init-skill.sh sync` |
 | 已装但不在清单 | ~/.claude/skills/ 有，但不在清单也不在自建 | 手动加清单或删文件 |
-| 自建 skill | claude-skills/plugins/ 中的，不在清单管理范围 | 正常，无操作 |
+| 自建 skill | skill/plugins/ 中的，不在清单管理范围 | 正常，无操作 |
 
 ## 状态检查（`status.sh` 第 12 项）
 
@@ -172,7 +172,7 @@ SessionStart 自动运行，检查：
 
 | 症状 | 可能原因 | 解决 |
 |------|---------|------|
-| `init-skill.sh sync` 报 "Skills 源目录不存在" | claude-skills 未 clone | `git clone` 到 `~/git/claude-skills` |
+| `init-skill.sh sync` 报 "Skills 源目录不存在" | skill 未 clone | `git clone` 到 `~/git/skill` |
 | npx skills add 失败 | GitHub HTTPS 未配 | `init-skill.sh sync` 自动设 `git config --global url."https://github.com/".insteadOf` |
 | 自建 skill 修改不生效 | symlink 断链或指向旧目录 | `init-skill.sh cleanup` + `init-skill.sh sync` |
 | marketplace add 失败 | GITHUB_USER 未设 | `export GITHUB_USER=<your-username>` 或 `gh auth login` |
@@ -203,7 +203,7 @@ Layer 3: Skill 正文（调用时加载）       plugins/*/SKILL.md
 | 仓库 | 提供 | 受众 |
 |------|------|------|
 | **ccconfig** | Layer 1+2 rules（全局 + 路径）+ setup-links.sh 安装 | fork/clone ccconfig 的用户 |
-| **claude-skills** | Layer 3 SKILL.md（skill 正文，调用时加载） | `/plugin marketplace add` 或 clone 的用户 |
+| **skill** | Layer 3 SKILL.md（skill 正文，调用时加载） | `/plugin marketplace add` 或 clone 的用户 |
 | **ccprivate** | 无 rules 注入（仅 CLAUDE.md + settings.json 个人配置） | 用户自建 |
 
 **设计原则**：

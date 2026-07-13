@@ -23,7 +23,7 @@ You should receive a response within 72 hours. Include:
 1. Acknowledgment within 72 hours
 2. Status update within 7 days
 3. Disclosure timeline agreed with reporter
-4. Credit in release notes (unless you prefer anonymity)
+4. Credit in CHANGELOG (unless you prefer anonymity)
 
 ## Scope
 

@@ -4,7 +4,7 @@
 #
 # skill 来源（聚合到 ~/.claude/skills/）：
 #   CLI 依赖          → 自建 skill deps.txt（per-skill 自声明），npm/go 自动安装
-#   自建 f-*         → symlink 从 claude-skills/plugins/（开源仓库，单一源）
+#   自建 f-*         → symlink 从 skill/plugins/（开源仓库，单一源）
 #   私有配置         → ccprivate config overlay（conf/*.yaml 覆盖 skill 内 config.yaml.example）
 #   第三方 (npx)     → npx skills add 装到 ~/.agents/skills/，自动 symlink 到 ~/.claude/skills/
 #
@@ -22,8 +22,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/colors.sh"
-SKILLS_SRC="${CLAUDE_SKILLS_SRC:-$HOME/git/claude-skills/plugins}"
-CLAUDE_SKILLS_REPO_DIR="$HOME/git/claude-skills"
+SKILLS_SRC="${SKILL_SRC:-$HOME/git/skill/plugins}"
+SKILL_REPO_DIR="$HOME/git/skill"
 CCPRIVATE_DIR="${CCPRIVATE_HOME:-${CCPRIVATE_DIR:-$HOME/git/ccprivate}}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
@@ -37,18 +37,18 @@ _github_user() {
         :
     fi
 }
-_marketplace_repo() { echo "$(_github_user)/claude-skills"; }
+_marketplace_repo() { echo "$(_github_user)/skill"; }
 _marketplace_name() { echo "$(_github_user)-skills"; }
 
-# 上游公共 claude-skills 仓库（新用户无需 fork，直接用这个起步）
-CLAUDE_SKILLS_UPSTREAM="${CLAUDE_SKILLS_UPSTREAM:-mengfanchun2017/claude-skills}"
+# 上游公共 skill 仓库（新用户无需 fork，直接用这个起步）
+SKILL_UPSTREAM="${SKILL_UPSTREAM:-mengfanchun2017/skill}"
 
-# 自动 clone claude-skills 仓库（首次初始化时）
+# 自动 clone skill 仓库（首次初始化时）
 # 策略：用户的 fork 优先 → 回退到上游公共仓库
 ensure_claude_skills() {
-    if [[ -d "$CLAUDE_SKILLS_REPO_DIR/.git" ]]; then
+    if [[ -d "$SKILL_REPO_DIR/.git" ]]; then
         # 仓库已存在，git pull 更新
-        git -C "$CLAUDE_SKILLS_REPO_DIR" pull --ff-only origin main 2>/dev/null || true
+        git -C "$SKILL_REPO_DIR" pull --ff-only origin main 2>/dev/null || true
         return 0
     fi
 
@@ -60,34 +60,34 @@ ensure_claude_skills() {
     gh_user=$(_github_user)
 
     # 候选仓库列表：用户 fork → 上游公共仓库
-    [[ -n "$gh_user" ]] && candidates+=("$gh_user/claude-skills")
-    candidates+=("$CLAUDE_SKILLS_UPSTREAM")
+    [[ -n "$gh_user" ]] && candidates+=("$gh_user/skill")
+    candidates+=("$SKILL_UPSTREAM")
 
     for candidate in "${candidates[@]}"; do
-        [[ "$candidate" == "/claude-skills" ]] && continue
+        [[ "$candidate" == "/skill" ]] && continue
 
         # SSH 优先
         clone_url="git@github.com:${candidate}.git"
-        info "claude-skills 仓库未找到，尝试 clone: $candidate"
-        if git clone "$clone_url" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
-            good "claude-skills 已 clone (SSH): $CLAUDE_SKILLS_REPO_DIR"
+        info "skill 仓库未找到，尝试 clone: $candidate"
+        if git clone "$clone_url" "$SKILL_REPO_DIR" 2>/dev/null; then
+            good "skill 已 clone (SSH): $SKILL_REPO_DIR"
             return 0
         fi
 
-        if git clone "https://github.com/${candidate}.git" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
-            good "claude-skills 已 clone (HTTPS): $CLAUDE_SKILLS_REPO_DIR"
+        if git clone "https://github.com/${candidate}.git" "$SKILL_REPO_DIR" 2>/dev/null; then
+            good "skill 已 clone (HTTPS): $SKILL_REPO_DIR"
             return 0
         fi
     done
 
-    warn "无法 clone claude-skills 仓库"
-    warn "  设置环境变量: export CLAUDE_SKILLS_UPSTREAM=<your-username>/claude-skills"
-    warn "  手动: git clone https://github.com/${CLAUDE_SKILLS_UPSTREAM}.git ~/git/claude-skills"
+    warn "无法 clone skill 仓库"
+    warn "  设置环境变量: export SKILL_UPSTREAM=<your-username>/skill"
+    warn "  手动: git clone https://github.com/${SKILL_UPSTREAM}.git ~/git/skill"
     return 1
 }
 
 # 第三方 skill 全部走 npx skills（user-managed 干净显示）
-# 自建 skill（f-* 系列）通过 claude-skills 仓库分发，用户可选 fork 自定义
+# 自建 skill（f-* 系列）通过 skill 仓库分发，用户可选 fork 自定义
 
 title() { echo -e "\n========================================\n$1\n========================================\n${CYAN}"; }
 
@@ -268,7 +268,7 @@ do_ensure_marketplace() {
     mkt_repo=$(_marketplace_repo)
     mkt_name=$(_marketplace_name)
 
-    if [[ -z "$mkt_repo" ]] || [[ "$mkt_repo" == "/claude-skills" ]]; then
+    if [[ -z "$mkt_repo" ]] || [[ "$mkt_repo" == "/skill" ]]; then
         info "  无法确定 marketplace 仓库，跳过"
         return 0
     fi
@@ -436,7 +436,7 @@ do_cleanup() {
 }
 
 do_list() {
-    echo "=== 自建 skill (claude-skills/plugins/ 实体) ==="
+    echo "=== 自建 skill (skill/plugins/ 实体) ==="
     if [[ -d "$SKILLS_SRC" ]]; then
         ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
     else
@@ -450,7 +450,7 @@ do_list() {
         [[ -L "$d" ]] || marker="○"
         local src
         if [[ -L "$d" ]]; then
-            src=$(readlink "$d" | sed 's|.*/\.agents/skills/|npx: |; s|.*/claude-skills/plugins/|claude-skills: |; s|.*/link/skills/|ccconfig (legacy): |')
+            src=$(readlink "$d" | sed 's|.*/\.agents/skills/|npx: |; s|.*/skill/plugins/|skill: |; s|.*/link/skills/|ccconfig (legacy): |')
         else
             src="(本地)"
         fi
@@ -493,7 +493,7 @@ do_diff() {
         INSTALLED["$name"]=1
         if [[ -L "$d" ]]; then
             local target=$(readlink -f "$d")
-            if [[ "$target" == *"/claude-skills/plugins"* ]] || [[ "$target" == *"$SKILLS_SRC"* ]]; then
+            if [[ "$target" == *"/skill/plugins"* ]] || [[ "$target" == *"$SKILLS_SRC"* ]]; then
                 INSTALLED_SRC["$name"]="self-built"
             elif [[ "$target" == *".agents/skills"* ]]; then
                 INSTALLED_SRC["$name"]="npx"
@@ -559,8 +559,8 @@ do_remove() {
 
     # 1. 检查是否为自建 skill（拒绝卸载）
     if [[ -d "$SKILLS_SRC/$skill" ]]; then
-        bad "  $skill 是自建 skill，由 claude-skills 仓库管理，不能通过此脚本卸载"
-        info "  如需移除自建 skill：删除 claude-skills/plugins/$skill/ 目录并提交 PR"
+        bad "  $skill 是自建 skill，由 skill 仓库管理，不能通过此脚本卸载"
+        info "  如需移除自建 skill：删除 skill/plugins/$skill/ 目录并提交 PR"
         return 1
     fi
 
@@ -598,13 +598,13 @@ do_remove() {
 do_status() {
     title "Skills 状态"
     if [[ -d "$SKILLS_SRC" ]]; then
-        echo -e "${CYAN}claude-skills/plugins/ (自建 $(ls "$SKILLS_SRC" 2>/dev/null | wc -l) 个)${NC}"
+        echo -e "${CYAN}skill/plugins/ (自建 $(ls "$SKILLS_SRC" 2>/dev/null | wc -l) 个)${NC}"
         for d in "$SKILLS_SRC"/*; do
             [[ -d "$d" ]] || continue
             echo -e "  ${GREEN}✓${NC} $(basename "$d")"
         done
     else
-        echo -e "${YELLOW}claude-skills/plugins/ 未找到${NC}"
+        echo -e "${YELLOW}skill/plugins/ 未找到${NC}"
     fi
 
     echo ""
@@ -616,10 +616,10 @@ do_status() {
         local src
         if [[ -L "$d" ]]; then
             local target=$(readlink -f "$d")
-            if [[ "$target" == *"/claude-skills/plugins"* ]]; then
-                src="claude-skills"
+            if [[ "$target" == *"/skill/plugins"* ]]; then
+                src="skill"
             elif [[ "$target" == *"$SKILLS_SRC"* ]]; then
-                src="claude-skills"
+                src="skill"
             elif [[ "$target" == *".agents/skills"* ]]; then
                 src="npx skills"
             else

@@ -75,7 +75,7 @@
 
 ## 2026-06-05 | ccconfig skill marketplace 重构 | [recvlJxGbGN85g]
 
-**决策**: skills 双轨管理：ccconfig 工作副本 + claude-skills marketplace + sync 一体化
+**决策**: skills 双轨管理：ccconfig 工作副本 + skill marketplace + sync 一体化
 **关联**: setup-links.sh / publish.sh
 
 ## 2026-06-05 | f-skill 三层架构重组 | [recvlJKEDfyZFg]
