@@ -212,7 +212,7 @@ test_check_first_time_no_ccprivate() {
     # 模拟 check_first_time 逻辑
     local issues=0 ccprivate_ok=true claude_skills_ok=true
     if [[ ! -d "$HOME/git/ccprivate" ]]; then ccprivate_ok=false; issues=$((issues+1)); fi
-    if [[ ! -d "$HOME/git/claude-skills/.git" ]] && [[ ! -d "$HOME/git/claude-skills/plugins" ]]; then
+    if [[ ! -d "$HOME/git/skill/.git" ]] && [[ ! -d "$HOME/git/skill/plugins" ]]; then
         claude_skills_ok=false; issues=$((issues+1))
     fi
     if [ "$ccprivate_ok" = false ] && [ "$claude_skills_ok" = false ] && [ "$issues" = "2" ]; then
@@ -236,30 +236,30 @@ test_check_first_time_has_ccprivate() {
 test_ensure_claude_skills_no_gh() {
     source "$HOME/git/ccconfig/lib/colors.sh"
     export GITHUB_USER=""
-    CLAUDE_SKILLS_REPO_DIR="$HOME/git/claude-skills"
-    CLAUDE_SKILLS_SRC="$CLAUDE_SKILLS_REPO_DIR/plugins"
+    SKILL_REPO_DIR="$HOME/git/skill"
+    SKILL_SRC="$SKILL_REPO_DIR/plugins"
 
     # 执行 init-skill.sh 的 ensure_claude_skills 逻辑
     local result=0
-    if [[ -d "$CLAUDE_SKILLS_REPO_DIR/.git" ]]; then
+    if [[ -d "$SKILL_REPO_DIR/.git" ]]; then
         result=0
-    elif [[ -d "$CLAUDE_SKILLS_SRC" ]]; then
+    elif [[ -d "$SKILL_SRC" ]]; then
         result=0
     else
         local clone_url=""
         if [[ -n "$GITHUB_USER" ]]; then
-            clone_url="git@github.com:${GITHUB_USER}/claude-skills.git"
+            clone_url="git@github.com:${GITHUB_USER}/skill.git"
         fi
-        if [[ -n "$clone_url" ]] && git clone "$clone_url" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
+        if [[ -n "$clone_url" ]] && git clone "$clone_url" "$SKILL_REPO_DIR" 2>/dev/null; then
             result=0
-        elif [[ -n "$GITHUB_USER" ]] && git clone "https://github.com/${GITHUB_USER}/claude-skills.git" "$CLAUDE_SKILLS_REPO_DIR" 2>/dev/null; then
+        elif [[ -n "$GITHUB_USER" ]] && git clone "https://github.com/${GITHUB_USER}/skill.git" "$SKILL_REPO_DIR" 2>/dev/null; then
             result=0
         else
             result=1
         fi
     fi
 
-    if [ "$result" = "1" ] && [ ! -d "$CLAUDE_SKILLS_SRC" ]; then
+    if [ "$result" = "1" ] && [ ! -d "$SKILL_SRC" ]; then
         _pass "ensure_claude_skills: 无 gh → clone 失败但返回 1，调用方用 || true 吞"
     else
         _fail "ensure_claude_skills" "expected return 1, got $result"
@@ -268,26 +268,26 @@ test_ensure_claude_skills_no_gh() {
 
 test_ensure_claude_skills_with_gh() {
     export GITHUB_USER="testuser"
-    CLAUDE_SKILLS_REPO_DIR="$HOME/git/claude-skills-gh"
-    CLAUDE_SKILLS_SRC="$CLAUDE_SKILLS_REPO_DIR/plugins"
+    SKILL_REPO_DIR="$HOME/git/skill-gh"
+    SKILL_SRC="$SKILL_REPO_DIR/plugins"
 
     # mock git clone: 创建目录
     local result=0
-    if [[ -d "$CLAUDE_SKILLS_REPO_DIR/.git" ]]; then
+    if [[ -d "$SKILL_REPO_DIR/.git" ]]; then
         result=0
-    elif [[ -d "$CLAUDE_SKILLS_SRC" ]]; then
+    elif [[ -d "$SKILL_SRC" ]]; then
         result=0
     else
-        mkdir -p "$CLAUDE_SKILLS_SRC"
+        mkdir -p "$SKILL_SRC"
         result=0
     fi
 
-    if [ "$result" = "0" ] && [ -d "$CLAUDE_SKILLS_SRC" ]; then
+    if [ "$result" = "0" ] && [ -d "$SKILL_SRC" ]; then
         _pass "ensure_claude_skills: 有 gh → clone 成功"
     else
         _fail "ensure_claude_skills" "expected success"
     fi
-    rm -rf "$CLAUDE_SKILLS_REPO_DIR"
+    rm -rf "$SKILL_REPO_DIR"
 }
 
 test_symlinks_missing_source() {

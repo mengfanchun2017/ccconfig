@@ -5,8 +5,8 @@
 > 全程 5-10 分钟，全手动。
 > 走完一遍后，所有 ccconfig 配置会自动同步、monitor 自动 commit+push。
 >
-> **三仓库模型**：ccconfig（公开 infra）+ claude-skills（公开 skill 市场）+ ccprivate（私有配置）。
-> 三个仓库各司其职，ccconfig 脚本编排、claude-skills 提供 skill 插件、ccprivate 保管密钥。
+> **三仓库模型**：ccconfig（公开 infra）+ skill（公开 skill 市场）+ ccprivate（私有配置）。
+> 三个仓库各司其职，ccconfig 脚本编排、skill 提供 skill 插件、ccprivate 保管密钥。
 
 ## ⚡ 四步起步（推荐）
 
@@ -86,7 +86,7 @@ bash init.sh all
 | `ANTHROPIC_AUTH_TOKEN` | Anthropic API 密钥（LLM 切换） | 无（需手动设置） |
 | `CCCONFIG_HOME` | ccconfig 安装路径 | `$HOME/git/ccconfig` |
 | `CCPRIVATE_HOME` | ccprivate 路径 | `$HOME/git/ccprivate` |
-| `CLAUDE_SKILLS_SRC` | claude-skills 路径 | `$HOME/git/claude-skills/plugins` |
+| `SKILL_SRC` | skill 路径 | `$HOME/git/skill/plugins` |
 
 ```bash
 # 在 ~/.bashrc 中示例
@@ -363,10 +363,7 @@ EOF
 
 ## 阶段 4 — 克隆三仓库 + 初始化 ccprivate
 
-> **用户**：clone release 分支，一条命令建 ccprivate。
-> **开发者**：先 Fork 再 clone 自己的 fork（main 跟踪最新代码）。
->
-> **三仓库分工**：ccconfig（infra 脚本）→ claude-skills（skill 插件）→ ccprivate（密钥）。
+> **三仓库分工**：ccconfig（infra 脚本）→ skill（skill 插件）→ ccprivate（密钥）。
 
 ### 4a. 克隆 ccconfig
 
@@ -374,22 +371,17 @@ EOF
 
 ```bash
 mkdir -p ~/git && cd ~/git
-git clone git@github.com:<your-github-username>/ccconfig.git --branch release
+git clone git@github.com:<your-github-username>/ccconfig.git
 ```
 
 **HTTPS（备选）**：
 
 ```bash
 mkdir -p ~/git && cd ~/git
-
-# 稳定版用 release 分支
-gh repo clone <your-github-username>/ccconfig -- --branch release
-
-# 开发者跟踪最新代码用 main：
-# gh repo clone <your-github-username>/ccconfig
+gh repo clone <your-github-username>/ccconfig
 ```
 
-### 4b. 克隆 claude-skills
+### 4b. 克隆 skill
 
 Skill 插件仓库。`init-skill.sh sync` 从这里 symlink 自建 skill 到 `~/.claude/skills/`。
 
@@ -399,18 +391,18 @@ Skill 插件仓库。`init-skill.sh sync` 从这里 symlink 自建 skill 到 `~/
 
 ```bash
 cd ~/git
-git clone git@github.com:<your-github-username>/claude-skills.git
+git clone git@github.com:<your-github-username>/skill.git
 ```
 
 **HTTPS（备选）**：
 
 ```bash
 cd ~/git
-gh repo clone <your-github-username>/claude-skills
+gh repo clone <your-github-username>/skill
 ```
 
-> **ccconfig 用户**：claude-skills 在阶段 5 的 `init-skill.sh sync` 被自动引用（`CLAUDE_SKILLS_SRC` 默认 `~/git/claude-skills/plugins`）。如果目录缺失且 gh 可用，自动 clone；否则跳过并提示手动克隆。
-> **独立用户**：不需 ccconfig，直接 `/plugin marketplace add <your-username>/claude-skills` 安装。
+> **ccconfig 用户**：skill 在阶段 5 的 `init-skill.sh sync` 被自动引用（`SKILL_SRC` 默认 `~/git/skill/plugins`）。如果目录缺失且 gh 可用，自动 clone；否则跳过并提示手动克隆。
+> **独立用户**：不需 ccconfig，直接 `/plugin marketplace add <your-username>/skill` 安装。
 
 ### 4c. 初始化 ccprivate（一条命令）
 
@@ -572,7 +564,7 @@ tail -f ~/git/ccconfig/.monitor-sync.log
 # 1. 拉最新（三个仓库）
 cd ~/git/ccconfig && git pull
 cd ~/git/ccprivate && git pull
-cd ~/git/claude-skills && git pull
+cd ~/git/skill && git pull
 
 # 2. 重建所有符号链接（私有 + 公开一步到位）
 bash ~/git/ccprivate/setup.sh
@@ -595,7 +587,7 @@ bash init-autostart.sh
 **`pullff` 暗号 = 上面 1+2 一步到位**：
 
 ```bash
-cd ~/git/ccconfig && git pull && cd ~/git/claude-skills && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccprivate/setup.sh
+cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivate && git pull && bash ~/git/ccprivate/setup.sh
 ```
 
 ### 常见"看着有问题"但实际正常

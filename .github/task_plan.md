@@ -48,7 +48,7 @@
 | 3 | 更新 progress.md + task_plan.md | P0 | 15min | 🟢 done |
 | 4 | 检查所有文档一致性 | P1 | 20min | 🟡 known |
 
-**Phase 3（下一个）** — 用户确认后就绪后打 tag + GitHub Release
+**Phase 3（下一个）** — 打轻量 tag（可选，觉得版本稳定时）
 
 ## Hill Chart（3 态进度）
 

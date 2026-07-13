@@ -56,8 +56,8 @@ L4 自动日志:   飞书 f-logme Base Worklog 表 + 关联Action link (SessionE
 
 - [x] Phase 0 全部（安全 + 公开化）✅
 - [x] Phase 1（CI workflow + 发布前清理）✅
-- [ ] Phase 2（ADR 索引补全 + RELEASING.md + 进度文档更新）
-- [ ] 发布 v2.0.0（等用户确认后打 tag + GitHub Release）
+- [x] Phase 2（ADR 索引补全 + 简化发布模型 + 进度文档更新）
+- [ ] 打轻量 tag（可选，觉得版本稳定时）
 
 ## 阻塞
 
@@ -84,7 +84,8 @@ L4 自动日志:   飞书 f-logme Base Worklog 表 + 关联Action link (SessionE
 |---|---|---|---|
 | 2026-06-08 | 架构审查 + 4 层系统设计 + 调研 + 重构 | ROADMAP / task_plan / findings / progress / ADR-0001 / f-ship 命名 | [commit hash]（待 commit）|
 | 2026-07-02 | Phase 1 发布前清理 | CI workflow + 删 stale 分支/文件 + CHANGELOG v2.0.0 | 7fa60ac |
-| 2026-07-03 | Phase 2 文档/发布流程 | ADR 索引补全 + RELEASING.md + progress 更新 | |
+| 2026-07-03 | Phase 2 文档/发布流程 | ADR 索引补全 + 发布流程文档 + progress 更新 | |
+| 2026-07-13 | 简化发布模型 | 删除 release 分支，main 即 stable。删 RELEASING.md，更新 CI/文档 | |
 
 ## 与 f-logme 联动
 

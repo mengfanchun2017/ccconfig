@@ -4,7 +4,7 @@
 
 | 脚本 | 用途 |
 |------|------|
-| `publish.sh` | 将 ccconfig/link/skills/ 发布到 claude-skills/plugins/ |
+| `publish.sh` | 将 ccconfig/link/skills/ 发布到 skill/plugins/ |
 | `update-third-party-skills.sh` | 委托 `init-skill.sh update` 更新第三方 skill |
 | `merge_worklog.py` | Worklog 合并去重（飞书 Base → LLM → 写回） |
 
