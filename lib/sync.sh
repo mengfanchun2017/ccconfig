@@ -24,7 +24,7 @@ RED='\033[0;31m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
 list_repos() {
     local repos=()
     # ccconfig 始终第一位
-    repos+=("ccconfig|$SCRIPT_DIR|rw")
+    repos+=("ccconfig|$CCCONFIG_ROOT|rw")
     # ~/git/ 下其他自有仓库
     if [ -d "$HOME/git" ]; then
         for d in "$HOME/git"/*/; do
