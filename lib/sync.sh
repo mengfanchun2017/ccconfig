@@ -53,12 +53,12 @@ repo_status() {
 do_cconfig_post() {
     echo ""
     echo -e "${CYAN}── 重建符号链接 ──${NC}"
-    bash "$SCRIPT_DIR/setup-links.sh" || echo -e "  ${YELLOW}⚠️ 部分链接失败（首次初始化正常）${NC}"
+    bash "$CCCONFIG_ROOT/lib/setup-links.sh" || echo -e "  ${YELLOW}⚠️ 部分链接失败（首次初始化正常）${NC}"
 
     echo ""
     echo -e "${CYAN}── 新配置模板检测 ──${NC}"
     local found=0
-    for example in "$SCRIPT_DIR"/conf/*.json.example; do
+    for example in "$CCCONFIG_ROOT"/conftemp/*.json.example; do
         [ -f "$example" ] || continue
         local base=$(basename "$example" .example)
         local target="$CCCONFIG_ROOT/conftemp/$base"
@@ -83,13 +83,13 @@ do_summary() {
     echo ""
 
     local last_commit last_date
-    last_commit=$(git -C "$SCRIPT_DIR" log -1 --format="%h %s" 2>/dev/null)
-    last_date=$(git -C "$SCRIPT_DIR" log -1 --format="%ci" 2>/dev/null | cut -d' ' -f1)
+    last_commit=$(git -C "$CCCONFIG_ROOT" log -1 --format="%h %s" 2>/dev/null)
+    last_date=$(git -C "$CCCONFIG_ROOT" log -1 --format="%ci" 2>/dev/null | cut -d' ' -f1)
 
     echo -e "  最后提交: ${GREEN}$last_commit${NC}"
     echo -e "  提交日期: ${GRAY}$last_date${NC}"
 
-    local pid_file="$SCRIPT_DIR/.monitor-sync.pid"
+    local pid_file="$CCCONFIG_ROOT/.monitor-sync.pid"
     if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
         echo -e "  auto-sync: ${GREEN}✅ 运行中${NC}"
     else
@@ -364,7 +364,7 @@ show_help() {
 # ========== 主流程 ==========
 case "${1:-}" in
     --pull)
-        REPO_DIR="$SCRIPT_DIR"
+        REPO_DIR="$CCCONFIG_ROOT"
         REPO_NAME="ccconfig"
         if [ -n "${2:-}" ]; then
             case "$2" in
@@ -376,7 +376,7 @@ case "${1:-}" in
         [ "$REPO_NAME" = "cconfig" ] && do_cconfig_post
         ;;
     --push)
-        REPO_DIR="$SCRIPT_DIR"
+        REPO_DIR="$CCCONFIG_ROOT"
         REPO_NAME="ccconfig"
         if [ -n "${2:-}" ]; then
             case "$2" in
@@ -387,7 +387,7 @@ case "${1:-}" in
         git_force_push "$REPO_DIR" "" "$REPO_NAME"
         ;;
     --commitpush)
-        REPO_DIR="$SCRIPT_DIR"
+        REPO_DIR="$CCCONFIG_ROOT"
         REPO_NAME="ccconfig"
         COMMIT_MSG="${3:-}"
         if [ -n "${2:-}" ]; then
@@ -435,7 +435,7 @@ case "${1:-}" in
         REPO_DIR=""
         REPO_NAME="$1"
         case "$1" in
-            ccconfig) REPO_DIR="$SCRIPT_DIR" ;;
+            ccconfig) REPO_DIR="$CCCONFIG_ROOT" ;;
             *)
                 REPO_DIR="$HOME/git/$1"
                 [ -d "$REPO_DIR/.git" ] || REPO_DIR=""

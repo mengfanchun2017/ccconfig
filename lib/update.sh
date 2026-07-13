@@ -73,8 +73,8 @@ take_snapshot() {
     local label="$1"
     local ts
     ts=$(date +%Y%m%d-%H%M%S)
-    mkdir -p "$SCRIPT_DIR/.snapshots"
-    local snap_file="$SCRIPT_DIR/.snapshots/versions.json.${label}.${ts}"
+    mkdir -p "$CCCONFIG_ROOT/.snapshots"
+    local snap_file="$CCCONFIG_ROOT/.snapshots/versions.json.${label}.${ts}"
 
     # 记录 live versions
     python3 - "$snap_file" "$VERSION_FILE" << 'PYEOF'
@@ -123,7 +123,7 @@ PYEOF
 
 # 清理过期快照（保留 30 天）
 cleanup_old_snapshots() {
-    find "$SCRIPT_DIR/.snapshots" -name "versions.json.*" -mtime +30 -delete 2>/dev/null || true
+    find "$CCCONFIG_ROOT/.snapshots" -name "versions.json.*" -mtime +30 -delete 2>/dev/null || true
 }
 
 # ========== 1. ccconfig 自更新 ==========
@@ -132,10 +132,10 @@ self_update() {
     section "ccconfig 自更新"
 
     info "fetching origin/main..."
-    git -C "$SCRIPT_DIR" fetch origin main 2>/dev/null || { warn "无法连接远程，跳过自更新"; return 0; }
+    git -C "$CCCONFIG_ROOT" fetch origin main 2>/dev/null || { warn "无法连接远程，跳过自更新"; return 0; }
 
-    local remote=$(git -C "$SCRIPT_DIR" rev-parse --short origin/main 2>/dev/null)
-    local local_commit=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null)
+    local remote=$(git -C "$CCCONFIG_ROOT" rev-parse --short origin/main 2>/dev/null)
+    local local_commit=$(git -C "$CCCONFIG_ROOT" rev-parse --short HEAD 2>/dev/null)
 
     if [ "$local_commit" = "$remote" ]; then
         success "ccconfig 已是最新: $local_commit"
@@ -145,17 +145,17 @@ self_update() {
     # 尝试 fast-forward
     local pull_output pull_ok=true
     set +e
-    pull_output=$(git -C "$SCRIPT_DIR" pull --ff-only origin main 2>&1)
+    pull_output=$(git -C "$CCCONFIG_ROOT" pull --ff-only origin main 2>&1)
     local pull_status=$?
     set -e
 
     if [ $pull_status -eq 0 ]; then
         echo "$pull_output" | tail -2
-        local after=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)
+        local after=$(git -C "$CCCONFIG_ROOT" rev-parse --short HEAD)
         success "ccconfig: $local_commit → $after"
 
         local update_files
-        update_files=$(git -C "$SCRIPT_DIR" diff --name-only "$local_commit..$after" 2>/dev/null || echo "")
+        update_files=$(git -C "$CCCONFIG_ROOT" diff --name-only "$local_commit..$after" 2>/dev/null || echo "")
         if echo "$update_files" | grep -qE "update.sh|lib/path-helper.sh|conf/versions.json"; then
             warn "关键文件已更新，重新加载..."
             exec bash "$SCRIPT_DIR/update.sh" "${1:-menu}"
