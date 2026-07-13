@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# publish.sh — 把 ccconfig/link/skills/ 的指定 skill 推到 claude-skills/plugins/
+# publish.sh — 把 ccconfig/link/skills/ 的指定 skill 推到 skill/plugins/
 # 用法:
 #   bash publish.sh <skill-name> [<skill-name> ...]
 #   bash publish.sh --push <skill-name> [<skill-name> ...]   # 同步 + push
 #
 # 行为:
-#   1. 复制 ccconfig/link/skills/<skill> → claude-skills/plugins/<skill>
-#   2. 在 claude-skills 仓 git add + commit
+#   1. 复制 ccconfig/link/skills/<skill> → skill/plugins/<skill>
+#   2. 在 skill 仓 git add + commit
 #   3. 默认不 push；加 --push 才推到 origin
 #
 # 适用: ccconfig 改完 f-* skill 后一键同步到发布仓
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 CCCONFIG_DIR="${CCCONFIG_DIR:-${CCCONFIG_HOME:-$HOME/git/ccconfig}}"
-CLAUDE_SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/git/claude-skills}"
+CLAUDE_SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/git/skill}"
 PLUGINS_DIR="$CLAUDE_SKILLS_DIR/plugins"
 
 DO_PUSH=false
@@ -60,7 +60,7 @@ done
 
 # 校验目标仓
 if [[ ! -d "$CLAUDE_SKILLS_DIR" ]]; then
-  echo "❌ claude-skills 仓不存在: $CLAUDE_SKILLS_DIR"
+  echo "❌ skill 仓不存在: $CLAUDE_SKILLS_DIR"
   echo "   用 CLAUDE_SKILLS_DIR 环境变量指定其他位置"
   exit 1
 fi
@@ -79,7 +79,7 @@ for skill in "${SKILLS[@]}"; do
   echo "  ✓ $skill → $dst"
 done
 
-# 在 claude-skills 仓 commit
+# 在 skill 仓 commit
 echo ""
 echo "=== commit ==="
 cd "$CLAUDE_SKILLS_DIR"
@@ -87,7 +87,7 @@ cd "$CLAUDE_SKILLS_DIR"
 # 检查 working tree 是否干净（除了我们要发布的 skill）
 CHANGED_OUTSIDE=$(git status --porcelain | grep -v "^.. plugins/$SKILLS" | grep -v "^?? plugins/$SKILLS" || true)
 if [[ -n "$CHANGED_OUTSIDE" ]]; then
-  echo "❌ claude-skills 仓有未提交改动（不在 plugins/ 下）："
+  echo "❌ skill 仓有未提交改动（不在 plugins/ 下）："
   echo "$CHANGED_OUTSIDE"
   echo "   先处理这些改动再发布"
   exit 1
@@ -107,7 +107,7 @@ COMMIT_MSG="sync: 发布 ${SKILL_LIST}
 
 由 ccconfig/scripts/publish.sh 自动生成。
 源: ccconfig/link/skills/ (本地)
-目标: claude-skills/plugins/ (公开)
+目标: skill/plugins/ (公开)
 
 Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 

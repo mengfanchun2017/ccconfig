@@ -660,14 +660,14 @@ check_skills() {
     echo -e "${CYAN}── Skills${NC}"
 
     local skills_dir="$HOME/.claude/skills"
-    local skills_src="${CLAUDE_SKILLS_SRC:-$HOME/git/claude-skills/plugins}"
+    local skills_src="${SKILL_SRC:-$HOME/git/skill/plugins}"
     local ok=true
 
     if [[ -d "$skills_src" ]]; then
         local self_count=$(ls "$skills_src" 2>/dev/null | wc -l)
-        echo -e "  自建: ${GREEN}${self_count}${NC} 个 (claude-skills/plugins/)"
+        echo -e "  自建: ${GREEN}${self_count}${NC} 个 (skill/plugins/)"
     else
-        echo -e "  自建: ${YELLOW}未找到${NC} claude-skills/plugins/"
+        echo -e "  自建: ${YELLOW}未找到${NC} skill/plugins/"
         ok=false
     fi
 

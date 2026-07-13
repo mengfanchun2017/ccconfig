@@ -9,10 +9,10 @@ ccconfig 是 Claude Code 配置基础设施的公开部分。**三仓库模型**
 | 仓库 | 可见性 | 内容 |
 |------|--------|------|
 | **ccconfig** | 公开 | infra 脚本（init/bootstrap/sync/monitor）、rules、agents、commands |
-| **[claude-skills](https://github.com/mengfanchun2017/claude-skills)** | 公开 | Skill 插件市场（Anthropic marketplace 兼容），15 个自建 f-* skill |
+| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | Skill 插件市场（Anthropic marketplace 兼容），15 个自建 f-* skill |
 | **ccprivate** | 私有 | API key / Token / 个人配置，通过 symlink 穿透访问 |
 
-ccconfig 本身不含任何密钥，可安全公开。Skill 插件独立发布为 claude-skills 仓库，符合 Anthropic marketplace 规范，可被任何 Claude Code 用户 `/plugin marketplace add` 安装。
+ccconfig 本身不含任何密钥，可安全公开。Skill 插件独立发布为 skill 仓库，符合 Anthropic marketplace 规范，可被任何 Claude Code 用户 `/plugin marketplace add` 安装。
 
 - **环境**：Ubuntu/WSL 一键初始化
 - **配置**：LLM 后端、MCP 服务器、API key 单一真相源（真实值在 ccprivate）
@@ -30,7 +30,7 @@ Claude Code 配置分散在 `~/.claude/`、环境变量、MCP 服务器、skills
 2. **一键恢复** — 新终端 10 分钟从零到全功能（BOOTSTRAP 8 阶段）
 3. **多设备同步** — auto-sync 守护进程自动 commit+push，多机配置一致
 
-三仓库分工明确：ccconfig 管 infra、claude-skills 管 skill 插件、ccprivate 管密钥。ccconfig 用户一键获得全部能力；claude-skills 可独立使用（不需 ccconfig）。
+三仓库分工明确：ccconfig 管 infra、skill 管 skill 插件、ccprivate 管密钥。ccconfig 用户一键获得全部能力；skill 可独立使用（不需 ccconfig）。
 
 > 适合：Claude Code 重度用户 / 多机器工作 / 想统一团队 Claude Code 配置的 TL
 
@@ -40,12 +40,12 @@ Claude Code 配置分散在 `~/.claude/`、环境变量、MCP 服务器、skills
 flowchart LR
   subgraph repos["📦 三仓库（~/git/）"]
     direction TB
-    skills["<b>claude-skills</b><br/>公开 skill 市场"]
+    skills["<b>skill</b><br/>公开 skill 市场"]
     ccconfig["<b>ccconfig</b><br/>公开 infra"]
     ccprivate["<b>ccprivate</b><br/>私有配置"]
   end
 
-  subgraph skills_content["claude-skills 内容"]
+  subgraph skills_content["skill 内容"]
     plugins["plugins/<br/>f-feishu · f-pptx · f-pdf<br/>f-diagram · f-docx · f-xlsx<br/>f-research-frame · f-search<br/>f-logme · f-launch<br/>f-moocrec · f-report-std<br/>f-research-report · f-sysarchi<br/>getnote"]
     marketplace["marketplace.json"]
   end
@@ -171,7 +171,6 @@ ccconfig/
 ├── LICENSE                   # MIT
 ├── BOOTSTRAP.md              # 新机器 0→1 拉起指南
 ├── CHANGELOG.md              # 变更历史
-├── RELEASING.md              # 发布流程
 ├── ROADMAP.md                # 路线图
 ├── SECURITY.md               # 安全策略
 └── CONTRIBUTING.md           # 贡献指南
@@ -181,12 +180,11 @@ ccconfig/
 
 > **新机器？** 从零开始 → 看 [BOOTSTRAP.md](BOOTSTRAP.md)（8 阶段，含 gh 登录 + 克隆 ccconfig + ccprivate）。
 
-> **稳定版用户**：clone 默认 `release` 分支（稳定版本快照），不随 main 开发变动。
-> **开发者**：用 `main` 分支跟踪最新代码。
+> **main 即稳定版**：直接 clone 默认分支，`git pull` 更新。需要钉版本时 `git checkout <tag>`。
 
 ```bash
-# 1. Fork + Clone（SSH 推荐，HTTPS 备选，稳定版用 release 分支）
-git clone git@github.com:<your-github-username>/ccconfig.git ~/git/ccconfig --branch release
+# 1. Fork + Clone（SSH 推荐，HTTPS 备选）
+git clone git@github.com:<your-github-username>/ccconfig.git ~/git/ccconfig
 
 # 2. 装 gh CLI + GitHub 认证（已有 gh 可跳过）
 bash ~/git/ccconfig/bootstrap.sh
@@ -265,7 +263,7 @@ cd ~/git/ccconfig && git pull
 
 ## 自建 Skills
 
-全部 15 个自建 skill 发布在 **[claude-skills](https://github.com/mengfanchun2017/claude-skills)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
+全部 15 个自建 skill 发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
 
 | Skill | 用途 | 需外部服务？ |
 |-------|------|-------------|
@@ -285,9 +283,9 @@ cd ~/git/ccconfig && git pull
 | `f-sysarchi` | 系统分析师备考 — 暗号 `archi` 随工边做边学 | 无 |
 | `getnote` | 得到大脑集成 — MCP 驱动，笔记 CRUD/搜索/知识库 | 得到 MCP |
 
-> **独立使用**（不需 ccconfig）：`/plugin marketplace add <your-username>/claude-skills` 然后 `/plugin install f-feishu@<your-username>-skills`。
-> **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/claude-skills/plugins/` symlink，第三方 skill 从 `conf/third-party-skills.txt` 通过 npx 安装。
-> 详见 [claude-skills README](https://github.com/mengfanchun2017/claude-skills)。
+> **独立使用**（不需 ccconfig）：`/plugin marketplace add <your-username>/skill` 然后 `/plugin install f-feishu@<your-username>-skills`。
+> **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/skill/plugins/` symlink，第三方 skill 从 `conf/third-party-skills.txt` 通过 npx 安装。
+> 详见 [skill README](https://github.com/mengfanchun2017/skill)。
 > 完整生命周期（安装/更新/卸载/发布/漂移检测）→ [docs/skill-lifecycle.md](docs/skill-lifecycle.md)。
 
 ## Auto-Sync
@@ -338,7 +336,7 @@ ssh <your-username>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
 |------|--------|------|
 | `CCCONFIG_HOME` | `$HOME/git/ccconfig` | ccconfig 仓库路径 |
 | `CCPRIVATE_HOME` | `$HOME/git/ccprivate` | ccprivate 仓库路径 |
-| `CLAUDE_SKILLS_SRC` | `$HOME/git/claude-skills/plugins` | Skill 插件源目录 |
+| `SKILL_SRC` | `$HOME/git/skill/plugins` | Skill 插件源目录 |
 
 所有脚本优先读环境变量，默认值保持不变。自定义路径时 `export` 覆盖即可。
 
@@ -349,7 +347,7 @@ ssh <your-username>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
 | API key / Token | ccprivate/conf/*.json | 私有仓库 |
 | 个人 CLAUDE.md / settings | ccprivate/link/ | 私有仓库 |
 | 项目 memory | ccprivate/link/projects/ | 私有仓库 |
-| Skill 插件 (SKILL.md + 模板) | claude-skills/plugins/ | 公开 |
+| Skill 插件 (SKILL.md + 模板) | skill/plugins/ | 公开 |
 | 脚本 / rule / agent / command | ccconfig/ | 公开 |
 | .example 配置模板 | ccconfig/conf/*.example | 公开 |
 | 版本号 / 依赖清单 | ccconfig/conf/versions.json | 公开 |
@@ -374,8 +372,8 @@ python3 -c "import json; [json.load(open(f)) for f in __import__('glob').glob('c
 
 ### 添加 Skill
 
-1. 在 `~/git/claude-skills/plugins/<name>/` 创建 skill（`SKILL.md` + 可选 `config.yaml.example`）
-2. 更新 `~/git/claude-skills/.claude-plugin/marketplace.json` 注册 plugin 入口
+1. 在 `~/git/skill/plugins/<name>/` 创建 skill（`SKILL.md` + 可选 `config.yaml.example`）
+2. 更新 `~/git/skill/.claude-plugin/marketplace.json` 注册 plugin 入口
 3. 跑 `bash init-skill.sh sync` 同步到 `~/.claude/skills/`
 4. 私有配置（token 等）放到 `ccprivate/config/<name>.yaml`，sync 时自动覆盖
 

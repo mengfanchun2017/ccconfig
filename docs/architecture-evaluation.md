@@ -11,7 +11,7 @@
 
 ### 1.2 评估范围
 - ccconfig: init/update/status/monitor/sync 脚本体系 + 配置模板 + symlink 管理
-- claude-skills: marketplace + 12 个 skill 插件 + config overlay
+- skill: marketplace + 12 个 skill 插件 + config overlay
 - ccprivate: 私有配置层 + symlink 穿透机制
 - 三仓库间的接口和交互
 
@@ -42,10 +42,10 @@
 ```
 WSL2 Ubuntu 24.04
 ├── ~/git/ccconfig/        ← git clone（公开）
-├── ~/git/claude-skills/   ← git clone（公开）
+├── ~/git/skill/   ← git clone（公开）
 ├── ~/git/ccprivate/       ← git clone（私有）
 ├── ~/.claude/
-│   ├── skills/            ← symlink → claude-skills/plugins/
+│   ├── skills/            ← symlink → skill/plugins/
 │   ├── rules/             ← symlink → ccconfig/link/rules/
 │   ├── agents/            ← symlink → ccconfig/link/agents/
 │   ├── settings.json      ← symlink → ccprivate/link/settings.json
@@ -62,7 +62,7 @@ WSL2 Ubuntu 24.04
 | ID | 场景 | 刺激 | 响应 |
 |----|------|------|------|
 | M-1 | 上游发布新版本 | 用户运行 `update.sh all` | 5 分钟内所有组件升级完成 |
-| M-2 | 添加新 skill | 在 claude-skills 创建 SKILL.md → `init-skill.sh sync` | 新 skill 在 `/skills` 可见 |
+| M-2 | 添加新 skill | 在 skill 创建 SKILL.md → `init-skill.sh sync` | 新 skill 在 `/skills` 可见 |
 | M-3 | 修改配置 | 编辑 ccprivate/conf/llm.json | 立即生效（symlink），无需重跑脚本 |
 | M-4 | 添加新 option 组件 | 创建 option-*/init.sh | status.sh 自动发现 |
 

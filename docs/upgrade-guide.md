@@ -2,14 +2,9 @@
 
 > 面向已安装用户。如何跟上 ccconfig 上游更新，保持终端最佳状态。
 
-## 发布通道
+## 发布模型
 
-| 分支 | 用户 | 更新频率 | 稳定性 |
-|------|------|---------|--------|
-| `release` | 普通用户 | 大版本发布时 merge | 稳定，推荐 |
-| `main` | 开发者 | 每天 push | 最新，可能有未完成功能 |
-
-**推荐**：clone 时用 `--branch release`，拿稳定版本。想尝鲜用 `main`。
+**main 即稳定版**。所有用户 clone 默认 main 分支，`git pull` 更新即可。需要钉版本时 `git checkout <tag>`。
 
 ```bash
 # 查看当前分支
@@ -71,14 +66,14 @@ bash ~/git/ccconfig/scripts/update-third-party-skills.sh
 ```
 
 skill 同步流程（3 阶段）：
-1. symlink 自建 f-* skill（claude-skills/plugins → ~/.claude/skills/）
+1. symlink 自建 f-* skill（skill/plugins → ~/.claude/skills/）
 2. ccprivate 配置覆盖（config/*.yaml → ~/.claude/skills/<skill>/config.yaml）
 3. npx skills 装第三方 skill（conf/third-party-skills.txt）
 
-## claude-skills 更新
+## skill 更新
 
 ```bash
-cd ~/git/claude-skills && git pull
+cd ~/git/skill && git pull
 bash ~/git/ccconfig/init-skill.sh sync
 ```
 
@@ -100,17 +95,12 @@ bash ~/git/ccprivate/setup.sh
 
 ## 大版本升级
 
-当 ccconfig 发布新 MAJOR.MINOR 版本时：
+当 ccconfig 有重大变更时：
 
-1. 看 [CHANGELOG.md](../CHANGELOG.md) 了解破坏性变更
-2. 看 [RELEASING.md](../RELEASING.md) 了解发布内容
+1. 看 [CHANGELOG.md](../CHANGELOG.md) 了解变更内容
 
 ```bash
-# release 分支用户：直接 git pull
-cd ~/git/ccconfig && git pull origin release
-
-# main 分支用户：可能有冲突
-cd ~/git/ccconfig && git pull origin main
+cd ~/git/ccconfig && git pull
 ```
 
 大版本升级后建议：
@@ -197,7 +187,7 @@ python3 -c "import json; print(json.load(open('~/git/ccconfig/.snapshots/version
   └── 跑 update.sh all（月度）
 
 机器 B（笔记本）
-  ├── 开机 → git pull ccconfig + ccprivate + claude-skills
+  ├── 开机 → git pull ccconfig + ccprivate + skill
   ├── bash ~/git/ccprivate/setup.sh  # 重建 symlink
   └── bash ~/git/cconfig/init-skill.sh sync
 ```
