@@ -13,6 +13,9 @@
 # 真实配置文件（含 API key / token / 个人标识符）— 公开仓库不可 commit
 # 私有数据（已迁移到 ccprivate，残留/符号链接不跟踪）
 # 编辑器/工具原子写入残留
+# 第三方 skill 安装残留（不跟踪，由 init-skill.sh 管理）
+.agents/
+.claude/skills/
 # 项目级 CLAUDE.md（符号链接到 ccprivate）
 *.pyc
 *.tmp.*
