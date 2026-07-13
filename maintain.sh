@@ -27,7 +27,7 @@ show_menu() {
     echo ""
     echo "  1) 状态检查       status"
     echo "  2) Monitor 管理   monitor → 日志，monitor start|stop|status"
-    echo "  3) 同步           sync --pull"
+    echo "  3) 同步           sync（检查更新 → ff-only → 冲突时交互）"
     echo "  4) 升级           update all"
     echo "  5) 依赖检查       deps"
     echo "  6) 自动修复       fix"
@@ -39,7 +39,7 @@ show_menu() {
         1) bash "$LIB_DIR/status.sh"
            echo -e "${YELLOW}操作完成，按回车返回...${NC}"; read -r; show_menu ;;
         2) submenu_monitor ;;
-        3) bash "$LIB_DIR/sync.sh" --pull
+        3) bash "$LIB_DIR/sync.sh"
            echo -e "${YELLOW}操作完成，按回车返回...${NC}"; read -r; show_menu ;;
         4) bash "$LIB_DIR/update.sh" all
            echo -e "${YELLOW}操作完成，按回车返回...${NC}"; read -r; show_menu ;;
