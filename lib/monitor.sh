@@ -175,9 +175,9 @@ commit_and_push() {
 
     # Skill sync: independent of pull/push, builds local symlinks for new skills in link/skills/.
     # Runs before commit so even "nothing to commit" still rebuilds links.
-    if [ -f "$repo_dir/init-skill.sh" ]; then
+    if [ -f "$repo_dir/lib/init-skill.sh" ]; then
         local skill_output skill_rc
-        skill_output=$(bash "$repo_dir/init-skill.sh" sync 2>&1)
+        skill_output=$(bash "$repo_dir/lib/init-skill.sh" sync 2>&1)
         skill_rc=$?
         echo "$skill_output" | while IFS= read -r line; do do_log "[$repo] $line"; done
         if [ $skill_rc -eq 0 ]; then
@@ -225,9 +225,9 @@ commit_and_push() {
         fi
 
         if ! $skip_push; then
-            if [ -f "$repo_dir/setup-links.sh" ]; then
+            if [ -f "$repo_dir/lib/setup-links.sh" ]; then
                 local links_output links_rc
-                links_output=$(bash "$repo_dir/setup-links.sh" 2>&1)
+                links_output=$(bash "$repo_dir/lib/setup-links.sh" 2>&1)
                 links_rc=$?
                 echo "$links_output" | while IFS= read -r line; do do_log "[$repo] $line"; done
                 if [ $links_rc -eq 0 ]; then

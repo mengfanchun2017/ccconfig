@@ -8,12 +8,12 @@
 #   - save_version()     写入版本到 versions.json
 #   - recreate_node_symlinks()  重建 ~/.local/bin/{node,npm,npx} 符号链接
 #
-# 用法：source "$SCRIPT_DIR/lib/path-helper.sh"
+# 用法：source "$SCRIPT_DIR/path-helper.sh"
 # ==============================================
 
 # 自动检测自身所在目录（被 source 时 BASH_SOURCE[0] 指向本文件）
 _PATH_HELPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_VERSION_FILE="$_PATH_HELPER_DIR/../conf/versions.json"
+_VERSION_FILE="$_PATH_HELPER_DIR/../conftemp/versions.json"
 _LOCAL_BIN="$HOME/.local/bin"
 _LOCAL_DIR="$HOME/.local"
 
@@ -152,7 +152,7 @@ ensure_config() {
         return 0
     fi
 
-    # 处理 broken symlink（ccprivate 不在时 conf/*.json → ccprivate 的 symlink 断链）
+    # 处理 broken symlink（ccprivate 不在时 conftemp/*.json → ccprivate 的 symlink 断链）
     if [ -L "$config_file" ] && [ ! -e "$config_file" ]; then
         rm -f "$config_file"
     fi

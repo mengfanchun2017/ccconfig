@@ -21,12 +21,13 @@ export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/colors.sh"
+CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/colors.sh"
 SKILLS_SRC="${SKILL_SRC:-$HOME/git/skill/plugins}"
 SKILL_REPO_DIR="$HOME/git/skill"
 CCPRIVATE_DIR="${CCPRIVATE_HOME:-${CCPRIVATE_DIR:-$HOME/git/ccprivate}}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
-THIRD_PARTY_CONF="$SCRIPT_DIR/conf/third-party-skills.txt"
+THIRD_PARTY_CONF="$CCCONFIG_ROOT/conftemp/third-party-skills.txt"
 
 # 延迟求值：脚本启动时 gh 可能未装（init-ubuntu.sh 在后续步骤才装）
 # 设为函数，每次调用时重新检测

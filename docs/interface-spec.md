@@ -29,7 +29,7 @@ ccprivate/conf/<name>.json  →  ccconfig/conf/<name>.json
 - ccconfig 只读，不写
 - ccconfig `.gitignore` 必须排除 `conf/*.json`（除 `versions.json` 和 `*.example`）
 - ccprivate/setup.sh 负责建立 symlink
-- 脚本通过 `$CCCONFIG_HOME/conf/<name>.json` 路径读取
+- 脚本通过 `$CCCONFIG_HOME/conftemp/<name>.json` 路径读取
 
 **已定义接口**:
 
@@ -233,7 +233,7 @@ bases:
 
 | 接口 | 版本 | 变更策略 |
 |------|------|---------|
-| conf/*.json schema | v1 | 新增字段向后兼容，不删字段 |
+| conftemp/*.json schema | v1 | 新增字段向后兼容，不删字段 |
 | config.yaml schema | v1 | 新增字段向后兼容 |
 | marketplace.json schema | Anthropic spec | 跟随 Anthropic 规范更新 |
 | 环境变量 | v1 | 新增变量可，改名需 CHANGELOG |

@@ -78,7 +78,7 @@ WSL2 Ubuntu 24.04
 
 | ID | 场景 | 刺激 | 响应 |
 |----|------|------|------|
-| S-1 | 误提交私密文件 | `git commit` 包含 `conf/*.json` | pre-commit hook 拦截 |
+| S-1 | 误提交私密文件 | `git commit` 包含 `conftemp/*.json` | pre-commit hook 拦截 |
 | S-2 | API key 泄漏 | push 到公开仓库 | 已通过 filter-repo 清理历史 |
 | S-3 | 新用户 clone | clone ccconfig 公开仓库 | 零密钥残留 |
 
@@ -98,7 +98,7 @@ WSL2 Ubuntu 24.04
 |----|--------|--------------|------|
 | SP-1 | symlink 路径硬编码 | 可移植性 | `~/git/ccconfig` 假设可通过环境变量覆盖，但多层脚本间传递可能断裂 |
 | SP-2 | init-skill.sh debounce 时间 | 可用性 vs 可靠性 | 60s 太短 → 频繁 push；太长 → 数据丢失窗口大 |
-| SP-3 | conf/ 中 JSON vs config/ 中 YAML 并存 | 可修改性 | 两种格式、两种消费路径，增加理解成本 |
+| SP-3 | conftemp/ 中 JSON vs config/ 中 YAML 并存 | 可修改性 | 两种格式、两种消费路径，增加理解成本 |
 | SP-4 | Python 脚本依赖 pip 包 | 可移植性 | 新机器必须先 `pip3 install` 才能跑 Python 脚本 |
 | SP-5 | lark-cli npm 全局安装 | 可靠性 | Node 升级后 symlink 可能指向旧版本，需重建 |
 

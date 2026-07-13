@@ -1,4 +1,4 @@
-# conf/ — 配置模板 + symlink
+# conftemp/ — 配置模板 + symlink
 
 > 所有初始化/升级脚本读取此目录。真实值在 ccprivate/conf/，通过 symlink 穿透访问。
 

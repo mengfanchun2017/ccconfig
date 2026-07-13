@@ -14,7 +14,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/git-conflict.sh"
+CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/git-conflict.sh"
 
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'
 RED='\033[0;31m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
@@ -60,7 +61,7 @@ do_cconfig_post() {
     for example in "$SCRIPT_DIR"/conf/*.json.example; do
         [ -f "$example" ] || continue
         local base=$(basename "$example" .example)
-        local target="$SCRIPT_DIR/conf/$base"
+        local target="$CCCONFIG_ROOT/conftemp/$base"
         if [ ! -f "$target" ]; then
             cp "$example" "$target"
             echo -e "  ${GREEN}✅${NC} 新建 $base (从 .example 复制)"
