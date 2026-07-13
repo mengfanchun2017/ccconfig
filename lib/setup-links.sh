@@ -14,6 +14,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 CLAUDE_DIR="$HOME/.claude"
 
 # 颜色
@@ -51,31 +52,31 @@ setup_symlinks() {
     section "符号链接"
 
     # agents（指令分流 agent）
-    if [[ -d "$SCRIPT_DIR/link/agents" ]]; then
-        setup_link "$CLAUDE_DIR/agents" "$SCRIPT_DIR/link/agents" "agents"
+    if [[ -d "$CCCONFIG_ROOT/link/agents" ]]; then
+        setup_link "$CLAUDE_DIR/agents" "$CCCONFIG_ROOT/link/agents" "agents"
     fi
 
     # rules（条件规则，按路径加载）
-    if [[ -d "$SCRIPT_DIR/link/rules" ]]; then
-        setup_link "$CLAUDE_DIR/rules" "$SCRIPT_DIR/link/rules" "rules"
+    if [[ -d "$CCCONFIG_ROOT/link/rules" ]]; then
+        setup_link "$CLAUDE_DIR/rules" "$CCCONFIG_ROOT/link/rules" "rules"
     fi
 
     # commands（自定义斜杠命令）
-    if [[ -d "$SCRIPT_DIR/link/commands" ]]; then
-        setup_link "$CLAUDE_DIR/commands" "$SCRIPT_DIR/link/commands" "commands"
+    if [[ -d "$CCCONFIG_ROOT/link/commands" ]]; then
+        setup_link "$CLAUDE_DIR/commands" "$CCCONFIG_ROOT/link/commands" "commands"
     fi
 
     # shell_aliases.sh（跨终端 shell 别名同步）
-    if [[ -f "$SCRIPT_DIR/link/shell_aliases.sh" ]]; then
-        setup_link "$CLAUDE_DIR/shell_aliases.sh" "$SCRIPT_DIR/link/shell_aliases.sh" "shell_aliases.sh"
+    if [[ -f "$CCCONFIG_ROOT/link/shell_aliases.sh" ]]; then
+        setup_link "$CLAUDE_DIR/shell_aliases.sh" "$CCCONFIG_ROOT/link/shell_aliases.sh" "shell_aliases.sh"
     fi
 
     # skills 由 init.sh all 步骤 5 统一管理，此处不做，避免重复初始化
     # 如需单独初始化 skills: bash ccconfig/init-skill.sh sync
 
     # git pre-commit hook（防私密文件意外提交）
-    local git_hook="$SCRIPT_DIR/.git/hooks/pre-commit"
-    local hook_src="$SCRIPT_DIR/hooks/pre-commit"
+    local git_hook="$CCCONFIG_ROOT/.git/hooks/pre-commit"
+    local hook_src="$CCCONFIG_ROOT/hooks/pre-commit"
     if [[ -f "$hook_src" ]]; then
         if [[ -L "$git_hook" ]] && [[ "$(readlink -f "$git_hook")" == "$(readlink -f "$hook_src")" ]]; then
             info "pre-commit hook: 已链接，跳过"
