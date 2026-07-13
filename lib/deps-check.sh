@@ -16,8 +16,8 @@ source "$SCRIPT_DIR/path-helper.sh" 2>/dev/null || true
 
 export PATH="$HOME/.local/bin:$(find_node_bin 2>/dev/null || echo ""):$PATH"
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; GRAY='\033[0;90m'; NC='\033[0m'
+RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[1;33m'
+CYAN=$'\033[0;36m'; GRAY=$'\033[0;90m'; NC=$'\033[0m'
 
 MISSING=0
 WARNINGS=0
@@ -169,14 +169,14 @@ check_network() {
         if $JSON_OUT; then
             echo "{\"name\":\"$label\",\"status\":\"OK\"},"
         else
-            printf "  %b %-18s %s%b\n" "✅" "$label" "${GRAY}可达${NC}"
+            printf "  %s %-18s %s%s%s\n" "✅" "$label" "$GRAY" "可达" "$NC"
         fi
     else
         MISSING=$((MISSING + 1))
         if $JSON_OUT; then
             echo "{\"name\":\"$label\",\"status\":\"不可达\"},"
         else
-            printf "  %b %-18s %s%b\n" "❌" "$label" "${RED}不可达${NC}"
+            printf "  %s %-18s %s%s%s\n" "❌" "$label" "$RED" "不可达" "$NC"
         fi
     fi
 }
@@ -232,7 +232,6 @@ if ! $REQUIRED_ONLY; then
     echo ""
     echo -e "${CYAN}── 网络连通性 ──${NC}"
     check_network "https://github.com" "GitHub"
-    check_network "https://registry.npmjs.org" "npm registry"
     check_network "https://pypi.org" "PyPI"
 fi
 

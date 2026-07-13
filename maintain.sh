@@ -26,7 +26,7 @@ show_menu() {
     echo -e "${CYAN}ccconfig 运维中心${NC}"
     echo ""
     echo "  1) 状态检查       status"
-    echo "  2) Monitor 管理   monitor start / stop / status / tail"
+    echo "  2) Monitor 管理   monitor → 日志，monitor start|stop|status"
     echo "  3) 同步           sync --pull"
     echo "  4) 升级           update all"
     echo "  5) 依赖检查       deps"
@@ -60,7 +60,7 @@ submenu_monitor() {
     echo "  1) 启动            monitor start"
     echo "  2) 停止            monitor stop"
     echo "  3) 看状态          monitor status"
-    echo "  4) 看日志          monitor tail"
+    echo "  4) 看日志（默认）  monitor"
     echo "  0) 返回"
     echo ""
     read -p "选择 [0-4]: " c
@@ -69,7 +69,7 @@ submenu_monitor() {
         1) bash "$LIB_DIR/monitor.sh" start ;;
         2) bash "$LIB_DIR/monitor.sh" stop ;;
         3) bash "$LIB_DIR/monitor.sh" status ;;
-        4) bash "$LIB_DIR/monitor.sh" tail ;;
+        4) bash "$LIB_DIR/monitor.sh" ;;
         0) show_menu; return ;;
         *) submenu_monitor ;;
     esac
@@ -79,7 +79,7 @@ submenu_monitor() {
 # ========== 直接命令模式（暗号/脚本调用） ==========
 case "${1:-}" in
     status)   bash "$LIB_DIR/status.sh" ;;
-    monitor)  bash "$LIB_DIR/monitor.sh" "${2:-status}" ;;
+    monitor)  bash "$LIB_DIR/monitor.sh" "${2:-}" ;;
     sync)     shift; bash "$LIB_DIR/sync.sh" "$@" ;;
     update)   shift; bash "$LIB_DIR/update.sh" "$@" ;;
     deps)     bash "$LIB_DIR/deps-check.sh" ;;

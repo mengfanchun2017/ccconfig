@@ -646,7 +646,7 @@ push_public() {
 }
 
 # ========== Main ==========
-case "${1:-status}" in
+case "${1:-tail}" in
     start)    start_watch ;;
     stop)     stop_watch ;;
     status)   status_watch ;;
