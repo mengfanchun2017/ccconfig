@@ -19,16 +19,17 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/conf/ubuntu.json"
+CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+CONFIG_FILE="$CCCONFIG_ROOT/conftemp/ubuntu.json"
 CLAUDE_DIR="$HOME/.claude"
 LOCAL_BIN="$HOME/.local/bin"
 
 # 动态路径解析（替代硬编码版本号）
-source "$SCRIPT_DIR/lib/path-helper.sh"
+source "$SCRIPT_DIR/path-helper.sh"
 
 # 检查配置文件（首次使用时从 .example 复制）
-ensure_config "$CONFIG_FILE" "conf/ubuntu.json" || exit 1
-ensure_config "$SCRIPT_DIR/conf/llm.json" "conf/llm.json" || exit 1
+ensure_config "$CONFIG_FILE" "conftemp/ubuntu.json" || exit 1
+ensure_config "$CCCONFIG_ROOT/conftemp/llm.json" "conf/llm.json" || exit 1
 
 # 颜色
 RED='\033[0;31m'
@@ -234,20 +235,20 @@ setup_claude_code() {
 setup_llm_backend() {
     section "LLM 配置"
 
-    if [[ ! -f "$SCRIPT_DIR/init-llm.sh" ]]; then
+    if [[ ! -f "$CCCONFIG_ROOT/lib/init-llm.sh" ]]; then
         error "init-llm.sh 未找到，跳过 LLM 配置"
         return 1
     fi
 
     # 直接切换到 conf-llm.json 中指定的 current LLM（不交互）
-    local current_llm=$(python3 -c "import json; f=open('$SCRIPT_DIR/conf/llm.json'); print(json.load(f).get('current',''))" 2>/dev/null || echo "")
+    local current_llm=$(python3 -c "import json; f=open('$CCCONFIG_ROOT/conftemp/llm.json'); print(json.load(f).get('current',''))" 2>/dev/null || echo "")
 
     if [[ -n "$current_llm" ]]; then
         info "配置 LLM: $current_llm"
-        bash "$SCRIPT_DIR/init-llm.sh" "$current_llm"
+        bash "$CCCONFIG_ROOT/lib/init-llm.sh" "$current_llm"
     else
         info "当前无默认 LLM，运行交互式选择..."
-        bash "$SCRIPT_DIR/init-llm.sh"
+        bash "$CCCONFIG_ROOT/lib/init-llm.sh"
     fi
 }
 
@@ -476,7 +477,7 @@ setup_autosync() {
     fi
 
     # 启用 auto-sync 自启动
-    if bash "$SCRIPT_DIR/init-autostart.sh" enable 2>/dev/null; then
+    if bash "$CCCONFIG_ROOT/lib/init-autostart.sh" enable 2>/dev/null; then
         success "auto-sync 自启动已启用"
     else
         warn "auto-sync 自启动启用失败"

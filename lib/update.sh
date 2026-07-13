@@ -26,11 +26,12 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/path-helper.sh"
-source "$SCRIPT_DIR/lib/git-conflict.sh"
+CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/path-helper.sh"
+source "$SCRIPT_DIR/git-conflict.sh"
 
 LOCAL_BIN="$HOME/.local/bin"
-VERSION_FILE="$SCRIPT_DIR/conf/versions.json"
+VERSION_FILE="$CCCONFIG_ROOT/conftemp/versions.json"
 LOCK_FILE="/tmp/ccconfig-update.lock"
 
 RED='\033[0;31m'
@@ -338,7 +339,7 @@ update_npm_globals() {
 update_python_packages() {
     section "Python pip 包"
 
-    local req_file="$SCRIPT_DIR/conf/python-requirements.txt"
+    local req_file="$CCCONFIG_ROOT/conftemp/python-requirements.txt"
 
     if [ ! -f "$req_file" ]; then
         info "未找到 $req_file，跳过"
@@ -728,7 +729,7 @@ update_mcp() {
     rm -rf "$HOME/.npm/_npx" 2>/dev/null || true
 
     # 预拉取 MCP 包
-    local mcp_conf="$SCRIPT_DIR/conf/claude.json"
+    local mcp_conf="$CCCONFIG_ROOT/conftemp/claude.json"
     if [ -f "$mcp_conf" ]; then
         python3 - "$mcp_conf" << 'PYEOF'
 import json, sys, subprocess
@@ -768,21 +769,21 @@ PYEOF
 
 update_officecli() {
     section "OfficeCLI"
-    bash "$SCRIPT_DIR/option-officecli/init.sh" --update
+    bash "$CCCONFIG_ROOT/option-officecli/init.sh" --update
 }
 
 # ========== 10. Cloudflare 插件 ==========
 
 update_cloudflare_plugin() {
     section "Cloudflare 插件"
-    bash "$SCRIPT_DIR/option-cloudflare/init.sh" --update
+    bash "$CCCONFIG_ROOT/option-cloudflare/init.sh" --update
 }
 
 # ========== 11. Skills 同步 ==========
 
 update_skills() {
     section "Skills (skill + ccprivate overlay)"
-    bash "$SCRIPT_DIR/init-skill.sh" sync
+    bash "$CCCONFIG_ROOT/lib/init-skill.sh" sync
 }
 
 # ========== 12. systemd 服务重建 ==========
@@ -955,7 +956,7 @@ do_dry_run() {
     # Python pip
     if command -v pip3 &>/dev/null; then
         local pip_outdated
-        pip_outdated=$(pip3 list --user --outdated --format=columns 2>/dev/null | tail -n +3 | grep -Ff <(sed -n 's/^\([a-zA-Z0-9_-]*\)==.*/\1/p' "$SCRIPT_DIR/conf/python-requirements.txt" 2>/dev/null) | wc -l || echo "0")
+        pip_outdated=$(pip3 list --user --outdated --format=columns 2>/dev/null | tail -n +3 | grep -Ff <(sed -n 's/^\([a-zA-Z0-9_-]*\)==.*/\1/p' "$CCCONFIG_ROOT/conftemp/python-requirements.txt" 2>/dev/null) | wc -l || echo "0")
         checks=$((checks + 1))
         if [ "$pip_outdated" -eq 0 ]; then
             printf "  %-18s %-16s %s\n" "Python pip" "-" "${GREEN}最新${NC}"

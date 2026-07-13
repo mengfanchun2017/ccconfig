@@ -19,8 +19,9 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/colors.sh"
-source "$SCRIPT_DIR/lib/path-helper.sh"
+CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/colors.sh"
+source "$SCRIPT_DIR/path-helper.sh"
 REPO_DIR="$SCRIPT_DIR"
 
 # ========== Git 拉取 ==========
@@ -100,7 +101,7 @@ check_symlinks() {
                 fixed=true
             fi
         fi
-        if ! $fixed && bash "$REPO_DIR/setup-links.sh" 2>/dev/null; then
+        if ! $fixed && bash "$REPO_DIR/lib/setup-links.sh" 2>/dev/null; then
             echo -e "  ${GREEN}✅ 公开链接已自动修复 (cconfig/setup-links.sh)${NC}"
             echo -e "  ${YELLOW}⚠️  私有链接需 ccprivate${NC}"
         elif ! $fixed; then
@@ -115,8 +116,8 @@ check_autosync() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[3] auto-sync${NC}"
 
-    if [ -x "$REPO_DIR/monitor.sh" ]; then
-        bash "$REPO_DIR/monitor.sh" status 2>/dev/null
+    if [ -x "$REPO_DIR/lib/monitor.sh" ]; then
+        bash "$REPO_DIR/lib/monitor.sh" status 2>/dev/null
     else
         echo -e "  ${RED}❌${NC} monitor.sh 不存在"
     fi
@@ -563,7 +564,7 @@ check_remote() {
         echo -e "${RED}❌${NC} 被 Windows 占用"
     elif [ "$socket_failed" = true ]; then
         echo -e "${YELLOW}○${NC} 需重置 socket"
-    elif [ -n "$ssh_fix" ] && [ "$ssh_fix" != "bash ccconfig/remote/server/tmux-sshd.sh" ]; then
+    elif [ -n "$ssh_fix" ] && [ "$ssh_fix" != "bash ccconfig/option-remote/server/tmux-sshd.sh" ]; then
         echo -e "${YELLOW}○${NC} $ssh_fix"
     else
         echo -e "${YELLOW}○${NC} 未监听"
@@ -610,7 +611,7 @@ check_deps_quick() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[2] 核心依赖${NC}"
 
-    local deps_script="$REPO_DIR/deps-check.sh"
+    local deps_script="$REPO_DIR/lib/deps-check.sh"
     if [ -x "$deps_script" ]; then
         bash "$deps_script" --required 2>/dev/null
     else
@@ -690,7 +691,7 @@ check_skills() {
         ok=false
     fi
 
-    local third_party="$SCRIPT_DIR/conf/third-party-skills.txt"
+    local third_party="$CCCONFIG_ROOT/conftemp/third-party-skills.txt"
     if [[ -f "$third_party" ]]; then
         local tp_count=$(grep -cEv '^\s*(#|$)' "$third_party" 2>/dev/null || echo 0)
         echo -e "  第三方清单: ${tp_count} 个 (third-party-skills.txt)"
