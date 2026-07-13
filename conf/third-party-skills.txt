@@ -1,30 +1,5 @@
-# 第三方 skill 清单（user-managed via npx skills add）
+# 第三方 skill 清单（已废弃 — 2026-07-13 重构后全部移入 ~/git/skill/plugins/）
 #
-# 格式：每行 `<source>  <skill-name>`，注释以 # 开头
-# 装法：bash init-skill.sh sync（自动 do_install_third_party，幂等）
-# 更新：npx skills update -g -y 或 bash scripts/update-third-party-skills.sh
-# diff：bash init-skill.sh diff（检测清单 vs 实际安装的 drift）
-#
-# WHY 用 npx skills 不用 marketplace install（2026-06-06 重构）：
-#   - marketplace install 暴露 plugin 前缀和 🔒 锁
-#   - dialog 太噪音，用户无法单独 toggle 每个 skill
-#   - npx skills 装到 ~/.agents/skills/，自动 symlink 到 ~/.claude/skills/（干净显示）
-#   - 缺点：版本不自动跟（需手动 update），但用户可接受（周期性 update）
-
-# ===== 社区 skill：对话增强（mattpocock 官方版）=====
-# 用途：diagnosing-bugs 调试、grill-me 追问设计、improve-codebase 重构、writing-great-skills 建 skill
-mattpocock/skills  diagnosing-bugs
-mattpocock/skills  grill-me
-mattpocock/skills  improve-codebase-architecture
-mattpocock/skills  writing-great-skills
-
-# ===== MCP server：Get笔记（getnote）=====
-# MCP: @getnote/mcp (npm)，已装 v1.5.2，settings.json mcpServers.getnote 管理配置
-# 27 tools 全覆盖（含图片上传），不再需要 CLI skills
-
-# ===== OfficeCLI skill：Office 文档生成（PPTX/DOCX/XLSX）=====
-# CLI: officecli (curl install)，已装 v1.0.128，option-officecli/init.sh 管安装
-# officecli = 命令参考 + load_skill 机制（pptx/word/excel 子技能内置 CLI 二进制，运行时加载）
-# f-pptx/f-docx/f-xlsx = 个人设计系统 + 个人模板，不重复 officecli 的命令参考
-# 详见 docs/adr/0004-officecli-skill-architecture.md
-iofficeai/officecli  officecli
+# 所有 skill（自建 f-* + 精选第三方）现在统一放在 mengfanchun2017/skill 仓库
+# init-skill.sh 阶段 1 do_link_self_built 自动 symlink ~/git/skill/plugins/* → ~/.claude/skills/
+# 不再依赖 npx skills add（网络依赖），本地 git repo 即唯一源
