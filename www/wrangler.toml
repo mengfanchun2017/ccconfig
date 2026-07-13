@@ -1,3 +1,4 @@
+# Fork 用户: 改为你自己的 Cloudflare Pages 项目名
 name = "ccconfiged"
 compatibility_date = "2026-07-08"
 pages_build_output_dir = "."

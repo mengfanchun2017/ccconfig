@@ -1,1 +1,1 @@
-window.__COMMIT__ = '2c25d2ec08de51846cbf879e24a0fb93cd3c4537';
+window.__COMMIT__ = '8e7d15a014d7a30a32ba40350952ae389a66561f';
