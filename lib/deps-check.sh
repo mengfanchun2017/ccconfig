@@ -12,7 +12,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/path-helper.sh" 2>/dev/null || true
+source "$SCRIPT_DIR/path-helper.sh" 2>/dev/null || true
 
 export PATH="$HOME/.local/bin:$(find_node_bin 2>/dev/null || echo ""):$PATH"
 
@@ -53,7 +53,7 @@ FEATURE_DEPS=(
     "claude|claude --version|claude|Claude Code CLI"
     "inotifywait|inotifywait --help|inotify-tools|文件监控 (monitor.sh)"
     "systemctl|systemctl --version|systemd|服务管理 (init-autostart.sh)"
-    "tmux|tmux -V|tmux|终端复用 (remote/)"
+    "tmux|tmux -V|tmux|终端复用 (option-remote/)"
     "ssh|ssh -V 2>&1|openssh-client|SSH 远程连接"
     "uv|uv --version|uv|Python 包管理器"
     "batcat|batcat --version|bat|代码语法高亮 (setup_cli_tools)"

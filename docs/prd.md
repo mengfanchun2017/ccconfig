@@ -105,7 +105,7 @@
 流程:
   1. 修改 link/rules/ 添加团队编码规范
   2. 修改 link/agents/ 添加团队专用 agent
-  3. 修改 conf/third-party-skills.txt 添加团队需要的 skill
+  3. 修改 conftemp/third-party-skills.txt 添加团队需要的 skill
   4. git push → 团队成员 git pull
 后置: 团队成员拿到统一配置
 ```
@@ -237,8 +237,8 @@
 - [ ] 升级后所有 symlink 不中断
 
 ### 7.3 安全验收
-- [ ] `grep -rn "sk-" conf/` 在公开仓库无结果（除 .example）
-- [ ] `git ls-files conf/` 仅含 .example + versions.json + 公开文件
+- [ ] `grep -rn "sk-" conftemp/` 在公开仓库无结果（除 .example）
+- [ ] `git ls-files conftemp/` 仅含 .example + versions.json + 公开文件
 - [ ] pre-commit hook 拒绝提交私密文件
 
 ## 8. 与软考系统分析师考点的映射

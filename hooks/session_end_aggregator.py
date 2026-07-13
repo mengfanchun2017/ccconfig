@@ -279,7 +279,7 @@ def _call_lark_cli(args, env, cwd="/tmp", timeout=20):
 
 
 def _read_conf(ccconfig_home):
-    conf_path = os.path.join(ccconfig_home, "conf/f-logme.json")
+    conf_path = os.path.join(ccconfig_home, "conftemp/f-logme.json")
     try:
         with open(conf_path) as f:
             return json.load(f)

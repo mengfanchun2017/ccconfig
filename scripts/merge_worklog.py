@@ -26,9 +26,9 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-# 从 conf/f-logme.json 读配置（symlink → ccprivate）
+# 从 conftemp/f-logme.json 读配置（symlink → ccprivate）
 def get_feme_config():
-    feme_json = Path.home() / "git" / "ccconfig" / "conf" / "f-logme.json"
+    feme_json = Path.home() / "git" / "ccconfig" / "conftemp" / "f-logme.json"
     with open(feme_json) as f:
         data = json.load(f)
     okr = data["bases"]["okr_v2"]

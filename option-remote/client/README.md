@@ -1,4 +1,4 @@
-# remote/client/ — 笔记本（客户端）
+# option-remote/client/ — 笔记本（客户端）
 
 > 在笔记本 Windows 上执行的脚本。
 

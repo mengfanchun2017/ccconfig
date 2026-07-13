@@ -286,8 +286,8 @@ sudo apt install -y gh
 **Ubuntu 20.04 / 其他（apt 源没有，直接下 binary）**：
 
 ```bash
-# 版本号看 conf/versions.json 的 gh.version，或 https://github.com/cli/cli/releases/latest
-GH_VERSION=$(python3 -c "import json; print(json.load(open('conf/versions.json')).get('components',{}).get('gh',{}).get('version','2.96.0'))")
+# 版本号看 conftemp/versions.json 的 gh.version，或 https://github.com/cli/cli/releases/latest
+GH_VERSION=$(python3 -c "import json; print(json.load(open('conftemp/versions.json')).get('components',{}).get('gh',{}).get('version','2.96.0'))")
 curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
 tar -xzf /tmp/gh.tar.gz -C /tmp
 sudo mv /tmp/gh_${GH_VERSION}_linux_amd64/bin/gh /usr/local/bin/gh
@@ -358,7 +358,7 @@ Host github.com
 EOF
 ```
 
-> **同台机器新建 WSL？** `init-ubuntu.sh` 的 `setup_ssh_github()` 会自动从 Windows 宿主目录（`/mnt/c/Users/<用户名>/.ssh/`）复制已有 key，不需要再生成。**换机器**才需要重新走一遍。
+> **同台机器新建 WSL？** `lib/init-ubuntu.sh` 的 `setup_ssh_github()` 会自动从 Windows 宿主目录（`/mnt/c/Users/<用户名>/.ssh/`）复制已有 key，不需要再生成。**换机器**才需要重新走一遍。
 
 
 ## 阶段 4 — 克隆三仓库 + 初始化 ccprivate
@@ -383,9 +383,9 @@ gh repo clone <your-github-username>/ccconfig
 
 ### 4b. 克隆 skill
 
-Skill 插件仓库。`init-skill.sh sync` 从这里 symlink 自建 skill 到 `~/.claude/skills/`。
+Skill 插件仓库。`lib/init-skill.sh sync` 从这里 symlink 自建 skill 到 `~/.claude/skills/`。
 
-> **v1.3.1+**：`init-skill.sh` 内置 `ensure_claude_skills()` 自动 clone。如果 gh 已登录，阶段 5 的 `init.sh all` 会自动完成这一步。手动 clone 仅需在 gh 未登录时做。
+> **v1.3.1+**：`lib/init-skill.sh` 内置 `ensure_claude_skills()` 自动 clone。如果 gh 已登录，阶段 5 的 `init.sh all` 会自动完成这一步。手动 clone 仅需在 gh 未登录时做。
 
 **SSH（推荐）**：
 
@@ -401,7 +401,7 @@ cd ~/git
 gh repo clone <your-github-username>/skill
 ```
 
-> **ccconfig 用户**：skill 在阶段 5 的 `init-skill.sh sync` 被自动引用（`SKILL_SRC` 默认 `~/git/skill/plugins`）。如果目录缺失且 gh 可用，自动 clone；否则跳过并提示手动克隆。
+> **ccconfig 用户**：skill 在阶段 5 的 `lib/init-skill.sh sync` 被自动引用（`SKILL_SRC` 默认 `~/git/skill/plugins`）。如果目录缺失且 gh 可用，自动 clone；否则跳过并提示手动克隆。
 > **独立用户**：不需 ccconfig，直接 `/plugin marketplace add <your-username>/skill` 安装。
 
 ### 4c. 初始化 ccprivate（一条命令）
@@ -434,9 +434,9 @@ bash init.sh all
 
 | 步骤 | 脚本 | 做了什么 |
 |------|------|----------|
-| 1/3 | `init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配置 LLM（从 conf/llm.json 读取当前后端）/ 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
-| 2/3 | `init-mcp.sh` | 装并同步 MCP 服务器 |
-| 3/3 | `init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
+| 1/3 | `lib/init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配置 LLM（从 conftemp/llm.json 读取当前后端）/ 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
+| 2/3 | `lib/init-mcp.sh` | 装并同步 MCP 服务器 |
+| 3/3 | `lib/init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
 
 > **symlink 已在阶段 4b/4c 完成**，阶段 5 不需要再跑 `ccprivate/setup.sh`。
 
@@ -478,7 +478,7 @@ done
 
 ```bash
 # 11 项状态检查
-bash status.sh
+bash lib/status.sh
 ```
 
 **应该看到（精简版）**：
@@ -496,10 +496,10 @@ bash status.sh
 
 ```bash
 # 手动启
-bash init-autostart.sh
+bash lib/init-autostart.sh
 
 # 或临时跑前台（看日志）
-./monitor.sh start
+./lib/monitor.sh start
 ```
 
 **端到端测试**（确认 monitor 推得动）：
@@ -545,11 +545,11 @@ tail -f ~/git/ccconfig/.monitor-sync.log
 | 操作 | 命令 |
 |------|------|
 | 改文件自动推 | 默认行为，monitor 在跑 |
-| 看状态 | `bash status.sh` |
+| 看状态 | `bash lib/status.sh` |
 | 装可选组件 | `bash init.sh` → 7) 可选组件 |
-| 强制拉远程 | `bash sync.sh --pull`（暗号 `pullff`） |
+| 强制拉远程 | `bash lib/sync.sh --pull`（暗号 `pullff`） |
 | 切 LLM 后端 | `bash init.sh` → 1) → 2) |
-| 月度升级 | `bash update.sh all` |
+| 月度升级 | `bash lib/update.sh all` |
 | 启动 Claude | `cd ~/git/ccconfig && claude`（配置）或 `cd ~/git/<project> && claude`（开发） |
 
 
@@ -570,19 +570,19 @@ cd ~/git/skill && git pull
 bash ~/git/ccprivate/setup.sh
 
 # 3. 同步 skills
-bash ~/git/ccconfig/init-skill.sh sync
+bash ~/git/ccconfig/lib/init-skill.sh sync
 
 # 4. 状态检查
-cd ~/git/ccconfig && bash status.sh
+cd ~/git/ccconfig && bash lib/status.sh
 
 # 5. 启动 monitor（如果没在跑）
-bash init-autostart.sh
-# 或前台跑：./monitor.sh start
-# 查看状态：./monitor.sh status
+bash lib/init-autostart.sh
+# 或前台跑：./lib/monitor.sh start
+# 查看状态：./lib/monitor.sh status
 ```
 
 > **monitor push 行为**：监听 `~/git/` 下所有 git 仓库，触发条件是 inotify 检测到文件变化 → 60s debounce → **只 sync 真正改动的仓库**（不是全量扫）。所以同一个 repo 改两个文件不会重复 push，不同 repo 之间互不打扰。
-> 跑 `./monitor.sh status` 看每个仓库的 `pending file(s)` 数；如果哪个仓库一直显示 "clean" 但你想强制推，临时改成 `conf/versions.json` 之类即可触发。
+> 跑 `./lib/monitor.sh status` 看每个仓库的 `pending file(s)` 数；如果哪个仓库一直显示 "clean" 但你想强制推，临时改成 `conftemp/versions.json` 之类即可触发。
 
 **`pullff` 暗号 = 上面 1+2 一步到位**：
 
@@ -595,21 +595,21 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 | 现象 | 原因 | 处理 |
 |------|------|------|
 | `/skills` 菜单看不到新加的 skill | Claude Code 启动时缓存 skill 列表，**不重扫** | **新开一个 session**（`claude` 新窗口或 `claude -c`） |
-| `bash init-skill.sh sync` 显示"本地已有，跳过" | `~/.claude/skills/<name>` 是真目录不是 symlink | `rm -rf ~/.claude/skills/<name>` 再跑 sync |
-| `./monitor.sh status` 显示 stopped | systemd user service 没起来 | `systemctl --user status ccconfig-monitor.service` 看原因；`bash init-autostart.sh` 重装 |
-| LLM 切了但 Claude 还是用旧的 | `conf/llm.json` 改了但 settings.json 没更新 | `bash init-llm.sh <backend>` 重写 settings.json |
+| `bash lib/init-skill.sh sync` 显示"本地已有，跳过" | `~/.claude/skills/<name>` 是真目录不是 symlink | `rm -rf ~/.claude/skills/<name>` 再跑 sync |
+| `./lib/monitor.sh status` 显示 stopped | systemd user service 没起来 | `systemctl --user status ccconfig-monitor.service` 看原因；`bash lib/init-autostart.sh` 重装 |
+| LLM 切了但 Claude 还是用旧的 | `conftemp/llm.json` 改了但 settings.json 没更新 | `bash lib/init-llm.sh <backend>` 重写 settings.json |
 | 飞书操作报 token 过期 | 跨账号 / 长效 token 过期 | 重新跑 `bash option-bridge/init.sh` |
 
 ### 状态检查发现问题的应对
 
-`bash status.sh` 11 项检查，**任何一项 ✗ 都先看该项的命令**：
+`bash lib/status.sh` 11 项检查，**任何一项 ✗ 都先看该项的命令**：
 
 | 失败项 | 修命令 |
 |--------|--------|
 | 配置文件链接 | `bash ~/git/ccprivate/setup.sh` |
 | 核心依赖 | `apt install` 对应包 |
-| auto-sync | `bash init-autostart.sh` |
-| 最后推送 >24h | `systemctl --user start ccconfig-monitor` 或 `./monitor.sh start` |
+| auto-sync | `bash lib/init-autostart.sh` |
+| 最后推送 >24h | `systemctl --user start ccconfig-monitor` 或 `./lib/monitor.sh start` |
 | 飞书 / OfficeCLI | 对应 `option-*/init.sh` 重装 |
 
 
@@ -627,10 +627,10 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 | WSL 内存占用过高 | WSL 2 默认占 50% 主机内存 | 在 `%USERPROFILE%\.wslconfig` 加 `memory=8GB`（见阶段 0 § 2） |
 | WSL 里 `code .` 打不开 VSCode | 没装 WSL 扩展 | 在 VSCode 装 "WSL" 扩展；或直接用 `code` 命令（Windows PATH 注入） |
 | `claude` 命令不存在 | npm 全局安装后 PATH 没刷新 | `hash -r` 或新开终端；还不行就 `export PATH="$HOME/.local/bin:$PATH"` |
-| npm 全局安装权限错误 | npm 全局目录需要 sudo | ccconfig 的 `init-ubuntu.sh` 已将 Node 装到 `~/.local/`，无此问题；如手动装过 Node，跑 `npm config set prefix ~/.local` |
+| npm 全局安装权限错误 | npm 全局目录需要 sudo | ccconfig 的 `lib/init-ubuntu.sh` 已将 Node 装到 `~/.local/`，无此问题；如手动装过 Node，跑 `npm config set prefix ~/.local` |
 | `wsl --install` 报 0x8007019e | BIOS 没开虚拟化 | 进 BIOS 启用 Intel VT-x / AMD SVM |
 | `wsl --install` 报 0x80370102 | WSL 2 内核没装 | `wsl --update` 升级 WSL 内核 |
-| init-ubuntu.sh 中途失败 | 某个子步骤挂了 | init-ubuntu.sh 内部子步骤有容错，看报错哪一步；重新跑 `bash init-ubuntu.sh`（多数步骤幂等） |
+| init-ubuntu.sh 中途失败 | 某个子步骤挂了 | init-ubuntu.sh 内部子步骤有容错，看报错哪一步；重新跑 `bash lib/init-ubuntu.sh`（多数步骤幂等） |
 | 符号链接在 Windows 文件系统不工作 | WSL 和 Windows 文件系统隔离 | 所有文件放 WSL 原生文件系统（`~/git/`），不要放 `/mnt/c/` |
 
 ## Windows 工具
@@ -653,4 +653,4 @@ ccconfig 的 `windows-tools/` 目录提供 Windows 工具脚本，在 PowerShell
 
 - 阶段 1-2 改成用户级安装：gh binary 装到 `~/bin/`
 - 阶段 5 `init.sh all` 会失败（要装系统包），需要 sudo
-- 替代：只跑 `bash init-skill.sh sync`（不需 sudo），手动配置 `~/.claude/` 符号链接
+- 替代：只跑 `bash lib/init-skill.sh sync`（不需 sudo），手动配置 `~/.claude/` 符号链接

@@ -53,11 +53,11 @@ flowchart LR
   subgraph cc_content["cconfig 内容"]
     scripts["init.sh · init-ubuntu.sh · init-llm.sh<br/>init-skill.sh · init-mcp.sh<br/>monitor.sh · sync.sh · status.sh<br/>setup-links.sh · update.sh"]
     link["link/<br/>rules/ · agents/ · commands/<br/>shell_aliases.sh"]
-    conf["conf/*.example 模板"]
+    conftemp["conftemp/*.example 模板"]
   end
 
   subgraph ccprivate_content["ccprivate 内容"]
-    secrets["conf/*.json<br/>API key · Token"]
+    secrets["conftemp/*.json<br/>API key · Token"]
     personal["link/<br/>CLAUDE.md · settings.json<br/>.config.json"]
     overlay["skill-config/*.yaml<br/>skill 私有覆盖"]
   end
@@ -100,28 +100,29 @@ flowchart LR
 
 ```
 ccconfig/
-├── init.sh                   # 入口（交互式二级菜单）
-├── init-ubuntu.sh            # Ubuntu/WSL 全环境初始化
-├── init-llm.sh               # LLM 后端切换
-├── init-mcp.sh               # MCP 服务器管理
-├── init-skill.sh             # Skills 同步管理
-├── init-autostart.sh         # auto-sync systemd 服务
-├── update.sh                 # 月度组件升级
+├── bootstrap.sh              # Step 2: 装 gh + GitHub 认证
+├── init.sh                   # 入口（交互式二级菜单 + 一键全部）
+├── maintain.sh               # 统一运维入口（status/monitor/sync/update/deps/fix）
 │
-├── status.sh                 # 状态检查（11 项）
-├── monitor.sh                # 多仓库文件监听 + 自动 git 同步
-├── sync.sh                   # 多仓库智能同步（云端↔本地）
-├── setup-links.sh            # 公开部分符号链接（被 ccprivate/setup.sh 调用）
-├── deps-check.sh             # 依赖完整性检查
-│
-├── conf/                     # 配置模板 + symlink
+├── conftemp/                 # 配置模板 + symlink → ccprivate/conf/
 │   ├── *.json.example        # 公开模板（可提交）
 │   ├── *.json                # → symlink 到 ccprivate/conf/（不跟踪）
 │   ├── versions.json         # 组件版本（公开）
 │   ├── third-party-skills.txt # 第三方 npx skill 清单
 │   └── python-requirements.txt
 │
-├── lib/
+├── lib/                      # 脚本库 + 子脚本
+│   ├── init-ubuntu.sh        # Ubuntu/WSL 全环境初始化
+│   ├── init-llm.sh           # LLM 后端切换
+│   ├── init-mcp.sh           # MCP 服务器管理
+│   ├── init-skill.sh         # Skills 同步管理
+│   ├── init-autostart.sh     # auto-sync systemd 服务
+│   ├── monitor.sh            # 多仓库文件监听 + 自动 git 同步
+│   ├── status.sh             # 状态检查（11 项）
+│   ├── sync.sh               # 多仓库智能同步（云端↔本地）
+│   ├── update.sh             # 月度组件升级
+│   ├── setup-links.sh        # 公开部分符号链接
+│   ├── deps-check.sh         # 依赖完整性检查
 │   ├── path-helper.sh        # 动态路径解析 + CCCONFIG_HOME
 │   ├── git-conflict.sh       # Git 冲突解决公共库
 │   └── colors.sh             # 终端颜色定义
@@ -160,7 +161,7 @@ ccconfig/
 ├── option-officecli/         # 可选：OfficeCLI
 ├── option-llmswitch/         # 可选：LLM 网关代理
 │
-├── remote/                   # 远程访问（Tailscale + SSH + tmux）
+├── option-remote/                   # 远程访问（Tailscale + SSH + tmux）
 ├── windows-tools/            # Windows/WSL 互操作
 │
 ├── .github/                  # CI/CD
@@ -284,7 +285,7 @@ cd ~/git/ccconfig && git pull
 | `getnote` | 得到大脑集成 — MCP 驱动，笔记 CRUD/搜索/知识库 | 得到 MCP |
 
 > **独立使用**（不需 ccconfig）：`/plugin marketplace add <your-username>/skill` 然后 `/plugin install f-feishu@<your-username>-skills`。
-> **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/skill/plugins/` symlink，第三方 skill 从 `conf/third-party-skills.txt` 通过 npx 安装。
+> **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/skill/plugins/` symlink，第三方 skill 从 `conftemp/third-party-skills.txt` 通过 npx 安装。
 > 详见 [skill README](https://github.com/mengfanchun2017/skill)。
 > 完整生命周期（安装/更新/卸载/发布/漂移检测）→ [docs/skill-lifecycle.md](docs/skill-lifecycle.md)。
 
@@ -324,7 +325,7 @@ bash init-llm.sh minimax      # 切到 MiniMax
 
 ```bash
 # 桌面 WSL（一次性配置）
-bash remote/server/tmux-sshd.sh
+bash option-remote/server/tmux-sshd.sh
 
 # 笔记本连接
 ssh <your-username>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
@@ -349,7 +350,7 @@ ssh <your-username>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
 | 项目 memory | ccprivate/link/projects/ | 私有仓库 |
 | Skill 插件 (SKILL.md + 模板) | skill/plugins/ | 公开 |
 | 脚本 / rule / agent / command | ccconfig/ | 公开 |
-| .example 配置模板 | ccconfig/conf/*.example | 公开 |
+| .example 配置模板 | ccconfig/conftemp/*.example | 公开 |
 | 版本号 / 依赖清单 | ccconfig/conf/versions.json | 公开 |
 
 `hooks/pre-commit` 自动拦截私密文件提交。安全漏洞报告见 [SECURITY.md](SECURITY.md)。
@@ -361,7 +362,7 @@ ssh <your-username>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
 for f in *.sh lib/*.sh option-*/*.sh; do bash -n "$f" && echo "$f OK"; done
 
 # 验证 JSON 模板
-python3 -c "import json; [json.load(open(f)) for f in __import__('glob').glob('conf/*.example')]"
+python3 -c "import json; [json.load(open(f)) for f in __import__('glob').glob('conftemp/*.example')]"
 ```
 
 ### 添加 Option 组件

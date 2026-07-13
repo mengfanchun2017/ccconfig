@@ -301,7 +301,7 @@ All notable changes to ccconfig will be documented in this file.
 - `option-bridge/` — 飞书消息 Bridge
 - `option-ppt-master/` — PPT 生成环境
 - `option-vessel/` — Vessel AI 浏览器（已于 2026-06-14 移除，全线迁移至 Playwright）
-- `remote/` — 远程连接（Tailscale + SSH + tmux）
+- `option-remote/` — 远程连接（Tailscale + SSH + tmux）
 - `windows/` — Windows/WSL 互操作
 - `conf/` — 配置文件单一来源
 - `lib/path-helper.sh` — 动态路径解析

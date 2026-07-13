@@ -2,8 +2,8 @@
 # ============================================================
 # deploy.sh — 将 remote 配置部署到 Windows 和 WSL
 # 用法:
-#   台式机: bash ccconfig/remote/deploy.sh server
-#   笔记本: bash ccconfig/remote/deploy.sh client
+#   台式机: bash ccconfig/option-remote/deploy.sh server
+#   笔记本: bash ccconfig/option-remote/deploy.sh client
 # ============================================================
 set -e
 
@@ -51,7 +51,7 @@ if [ "$TYPE" = "server" ]; then
     echo "=== 部署完成 ==="
     echo ""
     echo "台式机还需执行（WSL 中）:"
-    echo "  bash ccconfig/remote/server/tmux-sshd.sh"
+    echo "  bash ccconfig/option-remote/server/tmux-sshd.sh"
     echo ""
     echo "台式机还需执行（Windows 管理员 PowerShell）:"
     echo '  powershell -ExecutionPolicy Bypass -File "C:\git\winremote\tmux-portforward.ps1"'
@@ -67,4 +67,4 @@ else
 fi
 
 echo ""
-echo "详细说明: ${CCCONFIG_HOME:-$HOME/git/ccconfig}/remote/readme.md"
+echo "详细说明: ${CCCONFIG_HOME:-$HOME/git/ccconfig}/option-remote/readme.md"

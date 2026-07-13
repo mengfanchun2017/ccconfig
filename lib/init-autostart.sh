@@ -63,7 +63,7 @@ After=default.target
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 ${proxy_env}Type=forking
 PIDFile=%h/git/ccconfig/.monitor-sync.pid
-ExecStart=${CCCONFIG_HOME}/monitor.sh start
+ExecStart=${CCCONFIG_HOME}/lib/monitor.sh start
 Restart=always
 RestartSec=10
 

@@ -22,15 +22,16 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/path-helper.sh"
-source "$SCRIPT_DIR/lib/colors.sh"
-CONFIG_FILE="$SCRIPT_DIR/conf/llm.json"
-LLMSWITCH_CONF="$SCRIPT_DIR/option-llmswitch/conf/llmswitch.json"
-LLMSWITCH_INIT="$SCRIPT_DIR/option-llmswitch/init.sh"
-LLMSWITCH_WATCHDOG="$SCRIPT_DIR/option-llmswitch/watchdog.sh"
+CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/path-helper.sh"
+source "$SCRIPT_DIR/colors.sh"
+CONFIG_FILE="$CCCONFIG_ROOT/conftemp/llm.json"
+LLMSWITCH_CONF="$CCCONFIG_ROOT/option-llmswitch/conf/llmswitch.json"
+LLMSWITCH_INIT="$CCCONFIG_ROOT/option-llmswitch/init.sh"
+LLMSWITCH_WATCHDOG="$CCCONFIG_ROOT/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
-ensure_config "$CONFIG_FILE" "conf/llm.json" || exit 1
+ensure_config "$CONFIG_FILE" "conftemp/llm.json" || exit 1
 
 # ========== Gateway 辅助 ==========
 is_proxy_running() {
@@ -154,7 +155,7 @@ def write_json(path, updater):
 
 # conf/llm.json current（先写源，避免中断导致 settings.json 被写但源未更新）
 write_json(os.environ['CONFIG_FILE'], lambda d: d.update({'current': os.environ['NAME']}))
-print("conf/llm.json 已更新")
+print("conftemp/llm.json 已更新")
 
 # ~/.claude.json
 write_json(os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json')),

@@ -1,4 +1,4 @@
-# remote/server/ — 台式机（服务器端）
+# option-remote/server/ — 台式机（服务器端）
 
 > 在台式机 WSL/Windows 上执行的脚本。
 
