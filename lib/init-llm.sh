@@ -126,22 +126,36 @@ _write_llm_config() {
     export CONFIG_FILE="$CONFIG_FILE" CLAUDE_JSON="$CLAUDE_JSON" BASE_URL="$base_url" MODEL_NAME="$model_name" SMALL_MODEL="$small_model" API_KEY="$api_key" NAME="$name"
 
     python3 << 'PYEOF'
-import json, os
+import json, os, sys
 
-env_update = {
-    "ANTHROPIC_BASE_URL": os.environ.get('BASE_URL', ''),
-    "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
-}
-api_key = os.environ.get('API_KEY', '')
-if api_key:
-    if any(kw in api_key for kw in ['请填入', '请替换', 'your key', 'your_key', 'placeholder', 'changeme']):
-        print(f"\033[1;33m⚠️  API Key 疑似占位符，跳过写入 ANTHROPIC_AUTH_TOKEN: {api_key[:30]}...\033[0m")
-        print("   请编辑 conf/llm.json 填入真实 Key 后重试")
-    else:
-        env_update["ANTHROPIC_AUTH_TOKEN"] = api_key
+PLACEHOLDER_KW = ['请填入', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-']
+
+def is_placeholder(val):
+    if not val or not isinstance(val, str):
+        return True
+    v = val.lower()
+    for p in PLACEHOLDER_KW:
+        if p.lower() in v:
+            return True
+    return False
+
+def mask_key(k):
+    if not k or len(k) < 8:
+        return "(空)"
+    return f"...{k[-4:]}"
+
+def read_existing_token():
+    """从 ~/.claude/settings.json 读取已有的 ANTHROPIC_AUTH_TOKEN"""
+    sf = os.path.expanduser("~/.claude/settings.json")
+    try:
+        with open(sf, 'r') as f:
+            d = json.load(f)
+        tok = d.get('env', {}).get('ANTHROPIC_AUTH_TOKEN', '')
+        if tok and not is_placeholder(tok):
+            return tok
+    except:
+        pass
+    return ''
 
 def write_json(path, updater):
     try:
@@ -153,9 +167,45 @@ def write_json(path, updater):
     with open(path, 'w') as f:
         json.dump(data, f, indent=4)
 
-# conf/llm.json current（先写源，避免中断导致 settings.json 被写但源未更新）
-write_json(os.environ['CONFIG_FILE'], lambda d: d.update({'current': os.environ['NAME']}))
+api_key = os.environ.get('API_KEY', '')
+existing_token = read_existing_token()
+
+# ── Key 决策 ──
+if api_key and not is_placeholder(api_key):
+    # llm.json 中是真 key
+    final_token = api_key
+    print(f"\033[0;32m  Key: {mask_key(api_key)}\033[0m")
+elif existing_token:
+    # llm.json 是占位符，但 settings.json 已有真 key（来自 ccprivate）
+    final_token = existing_token
+    print(f"\033[0;32m  Key: 来自已有配置 {mask_key(existing_token)}\033[0m")
+else:
+    # 两者都没有真 key
+    final_token = ''
+    print(f"\033[1;33m  Key: 未配置，后续可在 Claude 中或编辑 llm.json 填入\033[0m")
+
+# ── 写 llm.json 的 current 和 key ──
+def update_llm_json(d):
+    d['current'] = os.environ['NAME']
+    if final_token:
+        # 回写真 key 到 llm.json（替换占位符）
+        llms = d.get('llms', {})
+        cur = os.environ['NAME']
+        if cur in llms:
+            llms[cur]['key'] = final_token
+write_json(os.environ['CONFIG_FILE'], update_llm_json)
 print("conftemp/llm.json 已更新")
+
+# ── 写 env ──
+env_update = {
+    "ANTHROPIC_BASE_URL": os.environ.get('BASE_URL', ''),
+    "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
+}
+if final_token:
+    env_update["ANTHROPIC_AUTH_TOKEN"] = final_token
 
 # ~/.claude.json
 write_json(os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json')),
@@ -195,6 +245,30 @@ switch_llm() {
 
     local config=$(get_llm_config "$name") || { error "无法获取 LLM 配置: $name"; return 1; }
     IFS='|' read -r base_url model_name api_key small_model <<< "$config"
+
+    # 占位符 key → 尝试从已有配置读取，都没有就交互输入
+    if echo "$api_key" | grep -qE '请填入|请替换|your.key|placeholder|changeme|<your-'; then
+        local existing_key
+        existing_key=$(python3 -c "
+import json, os
+try:
+    with open(os.path.expanduser('~/.claude/settings.json')) as f:
+        d = json.load(f)
+    tok = d.get('env', {}).get('ANTHROPIC_AUTH_TOKEN', '')
+    print(tok)
+except: pass
+" 2>/dev/null)
+        if [[ -n "$existing_key" ]] && ! echo "$existing_key" | grep -qE '请填入|请替换|your.key|placeholder|changeme|<your-'; then
+            info "  Key: 来自已有配置 ...${existing_key: -4}"
+            api_key="$existing_key"
+        elif [[ -t 0 ]]; then
+            # 交互式终端 → 提示输入
+            echo ""
+            echo -e "  ${YELLOW}未找到 ${name} 的 API Key${NC}"
+            echo -e "  ${GRAY}（新终端首次需输入，之后存到 ccprivate 供其他终端复用）${NC}"
+            read -p "  输入 ${name} API Key: " api_key
+        fi
+    fi
 
     info "切换到: $name"
     _write_llm_config "$name" "$base_url" "$model_name" "$small_model" "$api_key"
