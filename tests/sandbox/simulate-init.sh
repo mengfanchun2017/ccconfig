@@ -105,11 +105,25 @@ MOCK
     echo '{}' > "$HOME/git/ccprivate/link/.config.json"
     echo "# CLAUDE.md" > "$HOME/git/ccprivate/link/CLAUDE.md"
 
-    # Memory
-    mkdir -p "$HOME/.claude/projects/-home-francis-git/memory"
-    echo "# MEMORY" > "$HOME/.claude/projects/-home-francis-git/memory/MEMORY.md"
-    mkdir -p "$HOME/git/ccconfig/link/projects/-home-francis-git/memory"
-    echo "# MEMORY" > "$HOME/git/ccconfig/link/projects/-home-francis-git/memory/MEMORY.md"
+    # Memory — 计算项目 ID（与 status.sh 逻辑一致）
+    local proj_id
+    proj_id="-$(echo "$HOME/git" | sed 's|^/||; s|/|-|g')"
+    local mem_dir="$HOME/.claude/projects/$proj_id/memory"
+    local link_proj="$HOME/git/ccconfig/link/projects/$proj_id/memory"
+
+    # condition 1: memory_dir 是 symlink（ccprivate setup.sh 会建立这个链接）
+    mkdir -p "$HOME/.claude/projects"
+    mkdir -p "$link_proj"
+    echo "# MEMORY" > "$link_proj/MEMORY.md"
+    ln -sf "$link_proj" "$mem_dir" 2>/dev/null || true
+
+    # 清理 link/projects/ 中的无关项目（避免 check_memory 误报断链）
+    for extra in "$HOME/git/ccconfig/link/projects"/*/; do
+        [[ -d "$extra" ]] || continue
+        local ename=$(basename "$extra")
+        [[ "$ename" == "$proj_id" ]] && continue
+        rm -rf "$extra"
+    done
 
     # skill 仓库 mock
     mkdir -p "$HOME/git/skill/plugins"
