@@ -67,18 +67,19 @@ if [ $blocked -eq 1 ]; then
 fi
 
 # === commit hash 自动注入（CF Pages 显示用）===
-CURRENT_HASH=$(git rev-parse HEAD)
-HASH_SHORT="${CURRENT_HASH:0:7}"
+# www/ 已移至 aiagt/sites/config/，此处保留兼容旧路径
+if [ -d www ]; then
+    CURRENT_HASH=$(git rev-parse HEAD)
+    HASH_SHORT="${CURRENT_HASH:0:7}"
 
-# commit-hash.js
-echo "window.__COMMIT__ = '${CURRENT_HASH}';" > www/commit-hash.js
-git add www/commit-hash.js 2>/dev/null || true
+    echo "window.__COMMIT__ = '${CURRENT_HASH}';" > www/commit-hash.js
+    git add www/commit-hash.js 2>/dev/null || true
 
-# index.html 占位符替换（COMMIT_FULL → 40位, COMMIT_7 → 7位）
-if [ -f www/index.html ]; then
-    sed -i "s/COMMIT_FULL/${CURRENT_HASH}/g" www/index.html
-    sed -i "s/COMMIT_7/${HASH_SHORT}/g" www/index.html
-    git add www/index.html 2>/dev/null || true
+    if [ -f www/index.html ]; then
+        sed -i "s/COMMIT_FULL/${CURRENT_HASH}/g" www/index.html
+        sed -i "s/COMMIT_7/${HASH_SHORT}/g" www/index.html
+        git add www/index.html 2>/dev/null || true
+    fi
 fi
 
 exit 0

@@ -41,8 +41,8 @@ enable_autostart() {
 
     # 复制服务文件
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CCCONFIG_HOME="${CCCONFIG_HOME:-$SCRIPT_DIR}"
-    cp "$SCRIPT_DIR/monitor.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
+CCCONFIG_HOME="${CCCONFIG_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+    cp "$SCRIPT_DIR/maintain-daemon.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
 
     local proxy_env=""
     if [ -n "$http_proxy" ]; then
@@ -63,7 +63,7 @@ After=default.target
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 ${proxy_env}Type=forking
 PIDFile=%h/git/ccconfig/.monitor-sync.pid
-ExecStart=${CCCONFIG_HOME}/lib/monitor.sh start
+ExecStart=${CCCONFIG_HOME}/lib/maintain-daemon.sh start
 Restart=always
 RestartSec=10
 

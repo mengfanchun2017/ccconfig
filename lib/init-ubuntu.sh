@@ -29,7 +29,7 @@ source "$SCRIPT_DIR/path-helper.sh"
 
 # 检查配置文件（首次使用时从 .example 复制）
 ensure_config "$CONFIG_FILE" "conftemp/ubuntu.json" || exit 1
-ensure_config "$CCCONFIG_ROOT/conftemp/llm.json" "conf/llm.json" || exit 1
+ensure_config "$CCCONFIG_ROOT/conftemp/llm.json" "conftemp/llm.json" || exit 1
 
 # 颜色
 RED='\033[0;31m'
