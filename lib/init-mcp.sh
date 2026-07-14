@@ -215,6 +215,17 @@ try:
                 entry['args'] = existing['args']
             if existing.get('headers'):
                 entry['headers'].update(existing['headers'])
+        # ★ 保留 settings.json 中已有的 env（来自 ccprivate 的真 key，最高优先级）
+        if name in settings_data.get('mcpServers', {}):
+            saved_env = settings_data['mcpServers'][name].get('env', {})
+            # 只保留非占位符的 key
+            real_keys = {k: v for k, v in saved_env.items()
+                         if v and '请填入' not in str(v) and '请到' not in str(v)
+                         and 'your key' not in str(v).lower() and 'placeholder' not in str(v).lower()
+                         and '<your-' not in str(v)}
+            if real_keys:
+                entry['env'] = {**entry.get('env', {}), **real_keys}
+                print(f"  \033[0;32m{name}\033[0m: 保留已有 Key ({', '.join(real_keys.keys())})")
         mcp_servers[name] = entry
 
     settings_data['mcpServers'] = mcp_servers
