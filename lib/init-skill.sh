@@ -226,6 +226,16 @@ do_link_self_built() {
         return 0
     fi
 
+    local src_count=$(ls -d "$SKILLS_SRC"/*/ 2>/dev/null | wc -l)
+    local existing_count=$(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l)
+    info "  源: $SKILLS_SRC ($src_count 个 skill)"
+    info "  目标: $CLAUDE_SKILLS_DIR ($existing_count 个已存在)"
+
+    if [[ $src_count -eq 0 ]]; then
+        warn "  源目录无 skill，检查: ls $SKILLS_SRC/"
+        return 0
+    fi
+
     local linked=0 skipped=0 cleaned=0 user_managed=0
     for skill_dir in "$SKILLS_SRC"/*; do
         [[ -d "$skill_dir" ]] || continue
