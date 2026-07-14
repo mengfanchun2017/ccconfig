@@ -81,10 +81,58 @@ init_all_steps() {
             echo -e "  ${GRAY}→${NC} $(basename "$cfg")"
         done
         echo ""
-        echo -e "${CYAN}📝 请编辑以上配置文件填入 API Key 等信息后重新运行:${NC}"
-        for cfg in "${missing_configs[@]}"; do
-            echo "   vim $cfg"
-        done
+
+        # 交互式配置：让用户直接在这里填关键信息，不用手动 vim JSON
+        echo -e "${CYAN}是否需要现在交互式配置？（推荐）${NC}"
+        echo "  会依次引导你选择 LLM、输入 API Key、填写 Git 信息"
+        echo ""
+        read -p "交互式配置？[Y/n]: " do_interactive
+        do_interactive="${do_interactive:-y}"
+
+        if [[ "$do_interactive" =~ ^[Yy]$ ]]; then
+            # 1. Ubuntu 配置：git username / email
+            echo ""
+            echo -e "${CYAN}── Git 信息 ──${NC}"
+            local git_user git_email
+            read -p "  GitHub 用户名: " git_user
+            read -p "  Git 邮箱: " git_email
+            if [[ -n "$git_user" ]] || [[ -n "$git_email" ]]; then
+                python3 - "$CCCONFIG_ROOT/conftemp/ubuntu.json" "$git_user" "$git_email" << 'PYEOF'
+import json, sys
+with open(sys.argv[1], 'r') as f:
+    d = json.load(f)
+if sys.argv[2]:
+    d.setdefault('git', {})['username'] = sys.argv[2]
+if sys.argv[3]:
+    d.setdefault('git', {})['email'] = sys.argv[3]
+with open(sys.argv[1], 'w') as f:
+    json.dump(d, f, indent=2, ensure_ascii=False)
+print("OK")
+PYEOF
+                echo -e "  ${GREEN}✅${NC} Git 信息已写入 ubuntu.json"
+            fi
+
+            # 2. LLM 配置：选 LLM → 输 Key → 写 llm.json + settings.json
+            echo ""
+            echo -e "${CYAN}── LLM 配置 ──${NC}"
+            if [[ -f "$CCCONFIG_ROOT/lib/init-llm.sh" ]]; then
+                bash "$CCCONFIG_ROOT/lib/init-llm.sh"
+            fi
+
+            # 3. MCP Key 提示（不强制，后续可补）
+            echo ""
+            echo -e "${YELLOW}── MCP 配置（可选）──${NC}"
+            echo "  MCP 服务器需要 API Key（Tavily / MiniMax / Supabase）"
+            echo "  现在跳过也没关系，后续跑 init-mcp.sh 会检测缺失的 Key 并提示"
+            echo ""
+            echo -e "  手动编辑: ${GRAY}vim $CCCONFIG_ROOT/conftemp/claude.json${NC}"
+        else
+            echo ""
+            echo -e "${CYAN}📝 请手动编辑配置文件填入 API Key 等信息后重新运行:${NC}"
+            for cfg in "${missing_configs[@]}"; do
+                echo "   vim $cfg"
+            done
+        fi
         echo ""
         echo -e "   ${GREEN}bash init.sh all${NC}"
         return 0
