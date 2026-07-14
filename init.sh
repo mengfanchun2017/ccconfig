@@ -90,6 +90,8 @@ init_all_steps() {
         return 0
     fi
 
+    export INIT_ALL_FLOW=1
+
     run_step "1/5 Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true \
         "装 Node / Claude Code / Claude 原生二进制 / uv / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
         "Claude Code 需要 Node 运行时；uv 装 Python 工具；auto-sync 让配置变更自动 push 到 GitHub" \
