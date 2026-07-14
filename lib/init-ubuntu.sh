@@ -166,6 +166,32 @@ setup_uv() {
     fi
 }
 
+# ========== 3.5 Python pip 包（init 时安装，update 时升级） ==========
+setup_python_packages() {
+    section "Python pip 包"
+
+    local req_file="$CCCONFIG_ROOT/conftemp/python-requirements.txt"
+
+    if [ ! -f "$req_file" ]; then
+        info "未找到 $req_file，跳过"
+        return 0
+    fi
+
+    if ! command -v pip3 &>/dev/null; then
+        warn "pip3 未安装，跳过 Python 包安装（先确保 python3-pip 已装: sudo apt install python3-pip）"
+        return 0
+    fi
+
+    info "安装 Python 依赖..."
+    local out
+    out=$(pip3 install --user -r "$req_file" 2>&1) || {
+        warn "部分包安装失败（可能已满足或需 sudo apt install python3-xxx）"
+        echo "$out" | tail -5
+        return 0
+    }
+    success "Python pip 包已安装"
+}
+
 # ========== 4. Claude Code (原生方式) ==========
 setup_claude_code() {
     section "Claude Code"
@@ -573,8 +599,23 @@ main() {
     setup_ccprivate
     setup_nodejs
     setup_uv
+    setup_python_packages
     setup_claude_code
     setup_symlinks
+
+    # ccprivate 私有链接（MEMORY.md, CLAUDE.md, settings.json 等）
+    local ccprivate_setup="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/setup.sh"
+    if [[ -x "$ccprivate_setup" ]]; then
+        section "ccprivate 私有链接"
+        if bash "$ccprivate_setup" 2>/dev/null; then
+            success "ccprivate 链接已建立"
+        else
+            warn "ccprivate 链接部分失败（首次初始化正常，后续会自愈）"
+        fi
+    else
+        info "ccprivate/setup.sh 不可执行，跳过私有链接（ccprivate 就绪后重跑 init-ubuntu.sh）"
+    fi
+
     setup_llm_backend
     setup_mmx_cli
     setup_ssh_github
