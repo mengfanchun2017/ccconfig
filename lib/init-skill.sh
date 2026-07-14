@@ -237,8 +237,10 @@ do_link_self_built() {
             skipped=$((skipped + 1))
         elif [[ -L "$target" ]] && [[ ! -e "$target" ]]; then
             rm -f "$target"
-            good "  $name: ✓ 删断链（源已移走）"
+            ln -s "$skill_dir" "$target"
+            good "  $name: ✓ 删断链 + 重新链接"
             cleaned=$((cleaned + 1))
+            linked=$((linked + 1))
         elif [[ -L "$target" ]]; then
             # symlink 目标存在但不在 $SKILLS_SRC/ → user-managed（npx skills 装的）
             if [[ "$(readlink -f "$target")" != "$(readlink -f "$skill_dir")" ]]; then
