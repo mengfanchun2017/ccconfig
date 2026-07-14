@@ -29,7 +29,7 @@ run_sim() {
     # ── Mock 外部命令 ──
     mkdir -p "$HOME/.local/bin"
     for cmd in git gh npm npx claude curl systemctl inotifywait sudo uv uvx pip3 python3; do
-        cat > "$HOME/.local/bin/$cmd" << "MOCK"
+        cat > "$HOME/.local/bin/$cmd" << 'ENDOFMOCK'
 #!/bin/bash
 case "$(basename $0)" in
     git)
@@ -41,7 +41,7 @@ case "$(basename $0)" in
             *) echo "mock git output" ;;
         esac ;;
     pip3) echo "mock pip3: installed packages" ;;
-    python3) /usr/bin/python3 "$@" 2>/dev/null || echo "mock python3" ;;
+    python3) /usr/bin/python3 "$@" < /dev/stdin 2>/dev/null || echo "mock python3" ;;
     uv) echo "uv 0.11.28" ;;
     uvx) echo "uvx 0.11.28" ;;
     node) echo "v22.23.1" ;;
@@ -75,7 +75,7 @@ case "$(basename $0)" in
     *) echo "mock $(basename $0)" ;;
 esac
 exit 0
-MOCK
+ENDOFMOCK
         chmod +x "$HOME/.local/bin/$cmd"
     done
 
