@@ -276,9 +276,14 @@ do_link_self_built() {
     local orphan=0
     for target in "$CLAUDE_SKILLS_DIR"/*; do
         [[ -L "$target" ]] || continue
-        local tgt_real=$(readlink -f "$target" 2>/dev/null) || continue
-        [[ "$tgt_real" == "$SKILLS_SRC"/* ]] || continue
         local name=$(basename "$target")
+        # 用 readlink（不加 -f）拿原始目标，断链时 -f 返回空导致跳过
+        local tgt_raw
+        tgt_raw=$(readlink "$target" 2>/dev/null) || continue
+        # 解析相对路径 → 绝对路径
+        local tgt_dir
+        tgt_dir="$(cd "$(dirname "$target")" 2>/dev/null && cd "$(dirname "$tgt_raw")" 2>/dev/null && pwd 2>/dev/null)/$(basename "$tgt_raw")"
+        [[ "$tgt_dir" == "$SKILLS_SRC"/* ]] || continue
         if [[ ! -d "$SKILLS_SRC/$name" ]]; then
             rm -f "$target"
             good "  $name: ✓ 删孤儿（源已删除）"
