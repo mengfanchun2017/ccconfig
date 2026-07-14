@@ -117,7 +117,7 @@ check_autosync() {
     echo -e "${CYAN}[3] auto-sync${NC}"
 
     if [ -x "$REPO_DIR/lib/monitor.sh" ]; then
-        bash "$REPO_DIR/lib/monitor.sh" status 2>/dev/null
+        bash "$REPO_DIR/lib/monitor.sh" status 2>/dev/null || true
     else
         echo -e "  ${RED}❌${NC} monitor.sh 不存在"
     fi
@@ -647,7 +647,7 @@ check_deps_quick() {
 
     local deps_script="$REPO_DIR/lib/deps-check.sh"
     if [ -x "$deps_script" ]; then
-        bash "$deps_script" --required 2>/dev/null
+        bash "$deps_script" --required 2>/dev/null || true
     else
         echo -e "  ${YELLOW}○${NC} deps-check.sh 不存在"
     fi
