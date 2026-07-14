@@ -16,13 +16,13 @@ run_sim() {
     echo -e "${CYAN}── Round $round: $desc ──${NC}"
 
     local TEST_HOME=$(mktemp -d)
-    trap "rm -rf $TEST_HOME" RETURN
+    local _save_cwd="$PWD"
+    trap "cd '$_save_cwd' 2>/dev/null || cd /; rm -rf $TEST_HOME" RETURN
 
     export HOME="$TEST_HOME"
     mkdir -p "$HOME/git" "$HOME/.claude" "$HOME/.local/bin" "$HOME/.cache"
 
-    local CCCONFIG_DIR
-    CCCONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+    local CCCONFIG_DIR="/home/francis/git/ccconfig"
     cp -r "$CCCONFIG_DIR" "$HOME/git/ccconfig"
     export PATH="$HOME/.local/bin:$HOME/git/ccconfig:$PATH"
 
