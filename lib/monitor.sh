@@ -302,7 +302,7 @@ start_watch() {
     inotifywait -m -r -q \
         --exclude '(\.git/|_ext/|\.snapshots/|node_modules/)' \
         -e modify,create,delete,move \
-        "$WATCH_DIR" 2>/dev/null | while IFS= read -r line; do
+        "$WATCH_DIR" 2>>"$LOG_FILE" | while IFS= read -r line; do
             # Skip sync-internal files
             case "$line" in
                 *".monitor-sync"*) continue ;;
@@ -392,6 +392,7 @@ start_watch() {
     disown $event_pid 2>/dev/null || true
 
     echo $monitor_pid > "$PID_FILE"
+    do_log "Monitor started (monitor: $monitor_pid, events: $event_pid)"
     echo -e "${GREEN}[SYNC]${NC} Started (monitor: $monitor_pid, events: $event_pid)"
     echo -e "${GRAY}Use: status | log | tail${NC}"
     echo -e "${GRAY}Watching: $WATCH_DIR → all git repos${NC}"
@@ -566,7 +567,12 @@ log_watch() {
 # ========== Tail (formatted) ==========
 tail_watch() {
     if [ ! -f "$LOG_FILE" ]; then
-        echo -e "${YELLOW}[SYNC]${NC} monitor-sync not running"
+        # Log 文件未创建 = 从未启动过
+        if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+            echo -e "${GREEN}[SYNC]${NC} Running (PID: $(cat "$PID_FILE")) — no file changes yet"
+        else
+            echo -e "${YELLOW}[SYNC]${NC} monitor-sync not running"
+        fi
         return
     fi
 
