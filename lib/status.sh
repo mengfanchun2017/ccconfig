@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/path-helper.sh"
-REPO_DIR="$SCRIPT_DIR"
+REPO_DIR="$CCCONFIG_ROOT"
 
 # ========== Git 拉取 ==========
 git_pull() {
@@ -150,7 +150,7 @@ check_memory() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[5] MEMORY 更新${NC}"
 
-    local projects_src="$SCRIPT_DIR/link/projects"
+    local projects_src="$CCCONFIG_ROOT/link/projects"
 
     for proj_dir in "$projects_src"/-home-*-*/; do
         [[ -d "$proj_dir" ]] || continue
@@ -311,9 +311,35 @@ check_mcp() {
 import json, sys, subprocess, os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+PLACEHOLDER_PATTERNS = ['请填入', '请到', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-']
+
+def _is_placeholder(val):
+    if not val or not isinstance(val, str):
+        return False
+    v = val.lower()
+    for p in PLACEHOLDER_PATTERNS:
+        if p.lower() in v:
+            return True
+    return False
+
+def _check_missing_keys(config):
+    """检测 env/args 中是否有占位符 API key，返回缺失的 key 名列表"""
+    missing = []
+    env = config.get('env', {})
+    for k, v in env.items():
+        if _is_placeholder(v):
+            missing.append(k)
+    args = config.get('args', [])
+    for i, a in enumerate(args):
+        if _is_placeholder(a):
+            if i > 0:
+                missing.append(args[i-1] if i > 0 else f'args[{i}]')
+            else:
+                missing.append(f'args[{i}]')
+    return missing
+
 def test_mcp(name, config):
     try:
-        # HTTP 类型 MCP 无 command 字段，单独标记不视为错误
         if config.get('type') == 'http':
             url = config.get('url', '?')
             return name, f"✅ http ({url})", None
@@ -321,6 +347,11 @@ def test_mcp(name, config):
         args = config.get('args', [])
         if not cmd:
             return name, None, "无命令"
+
+        missing = _check_missing_keys(config)
+        if missing:
+            return name, None, f"缺少 Key: {', '.join(missing[:3])}"
+
         full_cmd = [cmd] + args if args else [cmd]
         env = os.environ.copy()
         env.update(config.get('env', {}))
@@ -341,6 +372,9 @@ def test_mcp(name, config):
                 except: pass
         return name, "✅ (无版本)", None
     except subprocess.TimeoutExpired:
+        missing = _check_missing_keys(config)
+        if missing:
+            return name, None, f"缺少 Key: {', '.join(missing[:3])}"
         return name, None, "超时"
     except FileNotFoundError:
         return name, None, "命令未找到"

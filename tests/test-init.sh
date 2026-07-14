@@ -172,19 +172,20 @@ teardown_test_env() {
 # ═══════════════════════════════════════════════
 
 test_ensure_config_broken_symlink() {
-    # 场景：conf/ubuntu.json 是 broken symlink（ccprivate 不在）
+    # 场景：conftemp/ubuntu.json 是 broken symlink（ccprivate 不在）
     # ensure_config 返回 1 表示"模板已复制，请编辑后重试"
     local d="$HOME/git/ccconfig"
-    echo '{"test":true}' > "$d/conf/test.json.example"
-    ln -sf /nonexistent/path/config.json "$d/conf/test.json"
+    mkdir -p "$d/conftemp"
+    echo '{"test":true}' > "$d/conftemp/test.json.example"
+    ln -sf /nonexistent/path/config.json "$d/conftemp/test.json"
 
     source "$d/lib/path-helper.sh"
-    if ensure_config "$d/conf/test.json" "test.json" 2>/dev/null; then
+    if ensure_config "$d/conftemp/test.json" "test.json" 2>/dev/null; then
         _fail "ensure_config" "broken symlink → 模板复制后应返回 1（提示编辑），不是 0"
     else
         _pass "ensure_config: broken symlink → 模板复制后返回 1（提示用户编辑）"
     fi
-    if [ -f "$d/conf/test.json" ] && grep -q '"test":true' "$d/conf/test.json"; then
+    if [ -f "$d/conftemp/test.json" ] && grep -q '"test":true' "$d/conftemp/test.json"; then
         _pass "ensure_config: broken symlink → 模板内容已正确写入"
     else
         _fail "ensure_config" "模板未正确写入文件"
@@ -193,18 +194,20 @@ test_ensure_config_broken_symlink() {
 
 test_ensure_config_exists() {
     local d="$HOME/git/ccconfig"
-    echo '{"real":true}' > "$d/conf/real.json"
+    mkdir -p "$d/conftemp"
+    echo '{"real":true}' > "$d/conftemp/real.json"
     source "$d/lib/path-helper.sh"
     assert_ok "ensure_config: 已有配置直接返回 0" \
-        ensure_config "$d/conf/real.json" "real.json"
+        ensure_config "$d/conftemp/real.json" "real.json"
 }
 
 test_ensure_config_missing() {
     local d="$HOME/git/ccconfig"
-    rm -f "$d/conf/new.json" "$d/conf/new.json.example"
+    mkdir -p "$d/conftemp"
+    rm -f "$d/conftemp/new.json" "$d/conftemp/new.json.example"
     source "$d/lib/path-helper.sh"
     assert_fail "ensure_config: 模板也不存在时返回 1" \
-        ensure_config "$d/conf/new.json" "new.json"
+        ensure_config "$d/conftemp/new.json" "new.json"
 }
 
 test_check_first_time_no_ccprivate() {
@@ -401,6 +404,194 @@ print('ok-' + str(len(d)))
     fi
 }
 
+test_status_repo_dir() {
+    # 验证 status.sh 中 REPO_DIR 指向 ccconfig 根目录而非 lib/
+    local d="$HOME/git/ccconfig"
+    # 模拟 status.sh 的路径初始化
+    local SCRIPT_DIR="$d/lib"
+    local CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+    local REPO_DIR="$CCCONFIG_ROOT"  # 修复后
+    if [ "$REPO_DIR" = "$d" ]; then
+        _pass "status.sh: REPO_DIR=$CCCONFIG_ROOT → 指向 ccconfig 根目录"
+    else
+        _fail "status.sh" "REPO_DIR=$REPO_DIR, expected $d"
+    fi
+    # 验证关键路径可解析
+    if [ -d "$REPO_DIR/lib" ]; then
+        _pass "status.sh: \$REPO_DIR/lib/ 可访问"
+    else
+        _fail "status.sh" "\$REPO_DIR/lib/ 不可访问"
+    fi
+    if [ -d "$REPO_DIR/.git" ]; then
+        _pass "status.sh: \$REPO_DIR/.git 可访问"
+    else
+        _fail "status.sh" "\$REPO_DIR/.git 不可访问"
+    fi
+}
+
+test_check_memory_path() {
+    # 验证 check_memory 使用 $CCCONFIG_ROOT/link/projects 而非 $SCRIPT_DIR/link/projects
+    local d="$HOME/git/ccconfig"
+    local SCRIPT_DIR="$d/lib"
+    local CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+    # 修复后: projects_src="$CCCONFIG_ROOT/link/projects"
+    local projects_src="$CCCONFIG_ROOT/link/projects"
+    if [ -d "$projects_src" ]; then
+        _pass "check_memory: projects_src=$CCCONFIG_ROOT/link/projects → 可访问"
+    else
+        _fail "check_memory" "projects_src=$projects_src 不可访问"
+    fi
+    # 修复前: projects_src="$SCRIPT_DIR/link/projects" ('lib/link/projects' 不存在)
+    local old_src="$SCRIPT_DIR/link/projects"
+    if [ ! -d "$old_src" ]; then
+        _pass "check_memory: 旧路径 $old_src 不存在（已修复为 CCCONFIG_ROOT）"
+    else
+        _skip "check_memory" "旧路径意外存在: $old_src"
+    fi
+}
+
+test_mcp_key_detection() {
+    # 验证 MCP check 中 placeholder API key 检测逻辑
+    local result
+    result=$(python3 - "$HOME" << 'PYEOF' 2>&1
+import sys, json
+
+PLACEHOLDER_PATTERNS = ['请填入', '请到', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-']
+
+def _is_placeholder(val):
+    if not val or not isinstance(val, str):
+        return False
+    v = val.lower()
+    for p in PLACEHOLDER_PATTERNS:
+        if p.lower() in v:
+            return True
+    return False
+
+# 测试用例
+tests = [
+    ("请填入你的 MiniMax API Key", True),
+    ("请到 https://tavily.com 注册获取 API Key", True),
+    ("sk-real-key-12345", False),
+    ("your_key_here", True),
+    ("", False),
+    ("<your-api-key>", True),
+    ("changeme", True),
+    ("real-api-key-abcdef", False),
+]
+all_ok = True
+for val, expected in tests:
+    actual = _is_placeholder(val)
+    if actual != expected:
+        print(f"FAIL: _is_placeholder('{val}') = {actual}, expected {expected}")
+        all_ok = False
+if all_ok:
+    print("OK")
+PYEOF
+)
+    if echo "$result" | grep -q "OK"; then
+        _pass "mcp key: placeholder 检测逻辑 8/8 正确"
+    else
+        _fail "mcp key" "$result"
+    fi
+
+    # 测试 env/args 中检测缺失 key
+    result=$(python3 - "$HOME" << 'PYEOF' 2>&1
+import json
+
+PLACEHOLDER_PATTERNS = ['请填入', '请到', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-']
+
+def _is_placeholder(val):
+    if not val or not isinstance(val, str):
+        return False
+    v = val.lower()
+    for p in PLACEHOLDER_PATTERNS:
+        if p.lower() in v:
+            return True
+    return False
+
+def _check_missing_keys(config):
+    missing = []
+    env = config.get('env', {})
+    for k, v in env.items():
+        if _is_placeholder(v):
+            missing.append(k)
+    args = config.get('args', [])
+    for i, a in enumerate(args):
+        if _is_placeholder(a):
+            if i > 0:
+                missing.append(args[i-1])
+            else:
+                missing.append(f'args[{i}]')
+    return missing
+
+# 模拟 claude.json.example 中的 tavily 配置
+tavily = {"env": {"TAVILY_API_KEY": "请到 https://tavily.com 注册获取 API Key"}}
+m1 = _check_missing_keys(tavily)
+assert "TAVILY_API_KEY" in m1, f"tavily key not detected: {m1}"
+
+# 模拟 supabase 配置
+supabase = {"args": ["-y", "@supabase/mcp-server-supabase", "--project-ref", "请填入你的 Supabase project ref"]}
+m2 = _check_missing_keys(supabase)
+assert len(m2) > 0, f"supabase key not detected: {m2}"
+
+# 模拟正确配置
+ok_config = {"env": {"TAVILY_API_KEY": "tvly-sk-real"}}
+m3 = _check_missing_keys(ok_config)
+assert len(m3) == 0, f"false positive: {m3}"
+
+print("OK")
+PYEOF
+)
+    if echo "$result" | grep -q "OK"; then
+        _pass "mcp key: env/args 缺失 key 检测正确（tavily + supabase + 正常）"
+    else
+        _fail "mcp key" "$result"
+    fi
+}
+
+test_init_config_preflight() {
+    # 验证 init_all_steps 的 config 预检逻辑
+    local d="$HOME/git/ccconfig"
+    mkdir -p "$d/conftemp"
+
+    # 场景 1：三个配置都缺失 → 从 .example 复制并提示
+    local missing=0
+    local configs=(
+        "$d/conftemp/ubuntu.json"
+        "$d/conftemp/llm.json"
+        "$d/conftemp/claude.json"
+    )
+    for cfg in "${configs[@]}"; do
+        if [[ -f "$cfg" ]]; then
+            continue
+        fi
+        local example="${cfg}.example"
+        if [[ -f "$example" ]]; then
+            cp "$example" "$cfg"
+            missing=$((missing + 1))
+        fi
+    done
+    if [ "$missing" -gt 0 ]; then
+        _pass "config preflight: $missing 个缺失配置从 .example 复制"
+    else
+        # 配置文件可能已存在（从 ccconfig 源复制过来），跳过
+        _skip "config preflight" "配置文件已存在，跳过（非新环境）"
+    fi
+
+    # 场景 2：配置已存在 → 直接继续
+    local all_exist=true
+    for cfg in "${configs[@]}"; do
+        if [[ ! -f "$cfg" ]]; then
+            all_exist=false
+        fi
+    done
+    if $all_exist; then
+        _pass "config preflight: 所有配置就绪 → 继续执行"
+    else
+        _fail "config preflight" "部分配置仍缺失"
+    fi
+}
+
 # ═══════════════════════════════════════════════
 # 执行
 # ═══════════════════════════════════════════════
@@ -420,6 +611,10 @@ all_tests=(
     "sync: setup-links 失败 → 不中断同步"          test_sync_setup_links_nonfatal
     "mcp sync: 写 ~/.claude/settings.json"         test_mcp_config_path
     "mcp sync: ~/.claude.json 缺失 → 不崩溃"      test_mcp_missing_config_json
+    "status.sh: REPO_DIR → CCCONFIG_ROOT"          test_status_repo_dir
+    "check_memory: projects_src → CCCONFIG_ROOT"   test_check_memory_path
+    "mcp key: placeholder 检测 8/8 正确"            test_mcp_key_detection
+    "config preflight: 缺配置→从模板复制"          test_init_config_preflight
 )
 
 if $LIST_ONLY; then

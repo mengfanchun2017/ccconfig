@@ -275,7 +275,7 @@ sync_repos() {
 resurrect_pm2() {
     export PATH="$HOME/.local/bin:$PATH"
     command -v pm2 &>/dev/null || return 0
-    pm2 ping &>/dev/null && { log "Resurrecting PM2..."; pm2 resurrect 2>/dev/null || true; }
+    pm2 ping &>/dev/null && pm2 list 2>/dev/null | grep -q "│ [0-9]" && { log "Resurrecting PM2..."; pm2 resurrect >/dev/null 2>&1 || true; }
 }
 
 # ========== Start monitoring ==========

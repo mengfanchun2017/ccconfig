@@ -9,6 +9,7 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CCCONFIG_ROOT="$SCRIPT_DIR"
 source "$SCRIPT_DIR/lib/colors.sh"
 
 show_banner() {
@@ -53,6 +54,41 @@ check_first_time() {
 # 假定 ccprivate 已存在（4 步流程的 Step 3 已创建）
 init_all_steps() {
     show_banner
+
+    # 预检：确保 3 个配置文件已就绪，缺失则从 .example 复制并提示编辑
+    local configs=(
+        "$CCCONFIG_ROOT/conftemp/ubuntu.json"
+        "$CCCONFIG_ROOT/conftemp/llm.json"
+        "$CCCONFIG_ROOT/conftemp/claude.json"
+    )
+    local missing_configs=()
+    for cfg in "${configs[@]}"; do
+        if [[ -f "$cfg" ]]; then
+            continue
+        fi
+        local example="${cfg}.example"
+        if [[ -f "$example" ]]; then
+            cp "$example" "$cfg"
+            missing_configs+=("$cfg")
+        fi
+    done
+
+    if [[ ${#missing_configs[@]} -gt 0 ]]; then
+        echo ""
+        echo -e "${YELLOW}━━━ 配置文件已从模板创建 ━━━${NC}"
+        echo ""
+        for cfg in "${missing_configs[@]}"; do
+            echo -e "  ${GRAY}→${NC} $(basename "$cfg")"
+        done
+        echo ""
+        echo -e "${CYAN}📝 请编辑以上配置文件填入 API Key 等信息后重新运行:${NC}"
+        for cfg in "${missing_configs[@]}"; do
+            echo "   vim $cfg"
+        done
+        echo ""
+        echo -e "   ${GREEN}bash init.sh all${NC}"
+        return 0
+    fi
 
     run_step "1/5 Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true \
         "装 Node / Claude Code / Claude 原生二进制 / uv / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
