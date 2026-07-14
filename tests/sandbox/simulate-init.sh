@@ -111,11 +111,19 @@ MOCK
     local mem_dir="$HOME/.claude/projects/$proj_id/memory"
     local link_proj="$HOME/git/ccconfig/link/projects/$proj_id/memory"
 
-    # condition 1: memory_dir 是 symlink（ccprivate setup.sh 会建立这个链接）
-    mkdir -p "$HOME/.claude/projects"
+    # condition 1: memory_dir 是 symlink → 目标目录下的 MEMORY.md
+    mkdir -p "$(dirname "$mem_dir")"
     mkdir -p "$link_proj"
     echo "# MEMORY" > "$link_proj/MEMORY.md"
+    rm -rf "$mem_dir" 2>/dev/null || true
     ln -sf "$link_proj" "$mem_dir" 2>/dev/null || true
+
+    # 调试：验证 symlink 创建成功
+    if [ -L "$mem_dir" ] && [ -f "$mem_dir/MEMORY.md" ]; then
+        echo "  [mock] MEMORY.md symlink OK" >&2
+    else
+        echo "  [mock] MEMORY.md symlink FAILED (-L=$([ -L "$mem_dir" ] && echo 1 || echo 0), -f=$([ -f "$mem_dir/MEMORY.md" ] && echo 1 || echo 0))" >&2
+    fi
 
     # 清理 link/projects/ 中的无关项目（避免 check_memory 误报断链）
     for extra in "$HOME/git/ccconfig/link/projects"/*/; do
