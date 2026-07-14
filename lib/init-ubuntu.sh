@@ -177,8 +177,23 @@ setup_python_packages() {
         return 0
     fi
 
+    # 确保 pip3 可用（WSL Ubuntu 默认无 python3-pip）
     if ! command -v pip3 &>/dev/null; then
-        warn "pip3 未安装，跳过 Python 包安装（先确保 python3-pip 已装: sudo apt install python3-pip）"
+        if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
+            info "安装 python3-pip + python3-venv（apt）..."
+            sudo apt-get install -y python3-pip python3-venv 2>/dev/null || {
+                warn "apt 安装失败，尝试 ensurepip..."
+                python3 -m ensurepip --user 2>/dev/null || true
+            }
+        else
+            info "尝试 python3 -m ensurepip..."
+            python3 -m ensurepip --user 2>/dev/null || true
+        fi
+    fi
+
+    if ! command -v pip3 &>/dev/null; then
+        warn "pip3 仍不可用，跳过 Python 包安装"
+        warn "  手动: sudo apt install python3-pip && pip3 install --user -r $req_file"
         return 0
     fi
 
