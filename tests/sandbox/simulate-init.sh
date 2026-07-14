@@ -83,21 +83,31 @@ MOCK
     mkdir -p "$HOME/git/ccprivate"
     cat > "$HOME/git/ccprivate/setup.sh" << 'MOCK'
 #!/bin/bash
+# 真实创建 symlinks，不只是打印
+mkdir -p ~/.claude
+ln -sf ~/git/ccprivate/link/CLAUDE.md ~/CLAUDE.md 2>/dev/null || true
+ln -sf ~/git/ccprivate/link/settings.json ~/.claude/settings.json 2>/dev/null || true
+ln -sf ~/git/ccprivate/link/.config.json ~/.claude/.config.json 2>/dev/null || true
 echo "--- 用户级链接 ---"
 echo "  ~/CLAUDE.md: 已链接，跳过"
 echo "  ~/.claude/settings.json: 已链接，跳过"
 echo "  ~/.claude/.config.json: 已链接，跳过"
 echo "--- Memory 链接 ---"
 echo "  memory/-home-francis-git-ccconfig: 已链接，跳过"
-echo "  memory/-home-francis-git: 已链接，跳过"
 echo "--- Conf 覆盖 ---"
 exit 0
 MOCK
     chmod +x "$HOME/git/ccprivate/setup.sh"
+
+    # ccprivate link 目录（setup.sh 的源）
+    mkdir -p "$HOME/git/ccprivate/link"
+    echo '{"env":{}}' > "$HOME/git/ccprivate/link/settings.json"
+    echo '{}' > "$HOME/git/ccprivate/link/.config.json"
+    echo "# CLAUDE.md" > "$HOME/git/ccprivate/link/CLAUDE.md"
+
+    # Memory
     mkdir -p "$HOME/.claude/projects/-home-francis-git/memory"
     echo "# MEMORY" > "$HOME/.claude/projects/-home-francis-git/memory/MEMORY.md"
-
-    # 设置 link/projects 符号链接
     mkdir -p "$HOME/git/ccconfig/link/projects/-home-francis-git/memory"
     echo "# MEMORY" > "$HOME/git/ccconfig/link/projects/-home-francis-git/memory/MEMORY.md"
 

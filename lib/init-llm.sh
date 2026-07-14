@@ -325,7 +325,7 @@ interactive_select() {
 
 # ========== 主流程 ==========
 main() {
-    local cmd="${1:-}"
+    local cmd="${1:-${INIT_LLM_NAME:-}}"
 
     if [[ "$cmd" == "list" ]]; then
         show_list
@@ -333,7 +333,7 @@ main() {
         # 无参数：交互式选择
         interactive_select
     else
-        # 直接指定 LLM 名称
+        # 直接指定 LLM 名称（或从 INIT_LLM_NAME env 读取）
         switch_llm "$cmd"
     fi
 }

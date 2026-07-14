@@ -140,6 +140,12 @@ PYEOF
 
     export INIT_ALL_FLOW=1
 
+    # 读取 llm.json 中预设的 current（交互式配置阶段已写入），
+    # 传给 init-llm.sh 避免重复交互选择
+    local current_llm
+    current_llm=$(python3 -c "import json; print(json.load(open('$CCCONFIG_ROOT/conftemp/llm.json')).get('current',''))" 2>/dev/null || echo "")
+    export INIT_LLM_NAME="$current_llm"
+
     run_step "1/5 Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true \
         "装 Node / Claude Code / Claude 原生二进制 / uv / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
         "Claude Code 需要 Node 运行时；uv 装 Python 工具；auto-sync 让配置变更自动 push 到 GitHub" \
