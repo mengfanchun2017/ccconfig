@@ -17,7 +17,7 @@
 #
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
-set -euo pipefail
+set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/colors.sh"
