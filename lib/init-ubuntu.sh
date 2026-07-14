@@ -258,7 +258,13 @@ setup_claude_code() {
 }
 
 # ========== 5. LLM 配置（调用 llminit.sh） ==========
+# init.sh all 流程中 LLM 配置是独立步骤（Step 2），此处跳过避免重复
 setup_llm_backend() {
+    if [[ "${INIT_ALL_FLOW:-}" == "1" ]]; then
+        info "LLM 配置由 init.sh Step 2 处理，跳过"
+        return 0
+    fi
+
     section "LLM 配置"
 
     if [[ ! -f "$CCCONFIG_ROOT/lib/init-llm.sh" ]]; then
