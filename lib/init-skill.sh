@@ -291,6 +291,17 @@ do_link_self_built() {
         fi
     done
 
+    # 清理所有断链（无论指向哪里，目标不存在就清）
+    for target in "$CLAUDE_SKILLS_DIR"/*; do
+        [[ -L "$target" ]] || continue
+        if [[ ! -e "$target" ]]; then
+            local name=$(basename "$target")
+            rm -f "$target"
+            good "  $name: ✓ 删断链"
+            orphan=$((orphan + 1))
+        fi
+    done
+
     echo ""
     good "  symlink: $linked 新建, $skipped 跳过, $cleaned 删断链, $orphan 删孤儿, $user_managed user-managed"
 }
