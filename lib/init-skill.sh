@@ -271,8 +271,23 @@ do_link_self_built() {
             linked=$((linked + 1))
         fi
     done
+
+    # 清理孤儿 symlink：~/.claude/skills/ 中有链接指向 $SKILLS_SRC 但源已删除的
+    local orphan=0
+    for target in "$CLAUDE_SKILLS_DIR"/*; do
+        [[ -L "$target" ]] || continue
+        local tgt_real=$(readlink -f "$target" 2>/dev/null) || continue
+        [[ "$tgt_real" == "$SKILLS_SRC"/* ]] || continue
+        local name=$(basename "$target")
+        if [[ ! -d "$SKILLS_SRC/$name" ]]; then
+            rm -f "$target"
+            good "  $name: ✓ 删孤儿（源已删除）"
+            orphan=$((orphan + 1))
+        fi
+    done
+
     echo ""
-    good "  symlink: $linked 新建, $skipped 跳过, $cleaned 删断链, $user_managed user-managed"
+    good "  symlink: $linked 新建, $skipped 跳过, $cleaned 删断链, $orphan 删孤儿, $user_managed user-managed"
 }
 
 # 阶段 2：检 marketplace（保留自建 marketplace 给 f-* 自动跟）
