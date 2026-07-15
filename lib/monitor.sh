@@ -95,6 +95,20 @@ check_deps() {
     fi
 }
 
+# Check if HTTPS_PROXY is alive (2s timeout). Returns 0 if reachable or no proxy configured.
+check_proxy() {
+    local proxy="${HTTPS_PROXY:-${https_proxy:-${HTTP_PROXY:-${http_proxy}}}}"
+    [ -z "$proxy" ] && return 0
+    local hostport=$(echo "$proxy" | sed 's|^https\?://||;s|/$||')
+    [ -z "$hostport" ] && return 0
+    local host="${hostport%:*}" port="${hostport##*:}"
+    if command -v nc &>/dev/null; then
+        timeout 2 nc -z "$host" "$port" 2>/dev/null
+    else
+        return 0  # no nc, assume reachable (don't false-skip pull)
+    fi
+}
+
 # Push with retry (network intermittent on WSL)
 git_push() {
     local repo_dir="$1" branch="$2"
@@ -194,33 +208,55 @@ commit_and_push() {
         log "[$repo] OK committed $commit_hash"
 
         local branch=$(git -C "$repo_dir" branch --show-current)
-        local pull_output pull_rc
-        set +e
-        pull_output=$(timeout --kill-after=10 60 git -C "$repo_dir" pull --rebase origin "$branch" 2>&1)
-        pull_rc=$?
-        set -e
         local skip_push=false
-        if [ $pull_rc -eq 0 ]; then
-            if echo "$pull_output" | grep -q "is up to date\|up-to-date\|Already up to date"; then
-                :  # no remote changes
-            else
-                log "[$repo] OK rebase"
-            fi
+
+        # Proxy health check: if proxy is configured but down, skip pull (avoids hang)
+        if [ -n "${HTTPS_PROXY}${https_proxy}${HTTP_PROXY}${http_proxy}" ] && ! check_proxy; then
+            do_log "[$repo] proxy not reachable, skipping pull (push directly)"
         else
-            echo "$pull_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
-            if [ $pull_rc -eq 124 ] || echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls\|Recv failure"; then
-                warn "[$repo] pull failed (network), pushing directly"
-            elif echo "$pull_output" | grep -qi "unrelated histories"; then
-                error "[$repo] !! unrelated histories — skip push"
-                skip_push=true
-            elif echo "$pull_output" | grep -qi "CONFLICT\|conflict\|could not be applied"; then
-                git -C "$repo_dir" rebase --abort 2>/dev/null || true
-                warn "[$repo] !! rebase 冲突 — reset to origin/$branch"
-                git -C "$repo_dir" reset --hard "origin/$branch" 2>&1 | head -1 >> "$LOG_FILE" || true
-                git -C "$repo_dir" stash pop 2>/dev/null || true
-                skip_push=true
-            else
-                warn "[$repo] pull failed: $(echo "$pull_output" | head -1)"
+            local pull_attempt=1 pull_max=2
+            local pull_ok=false
+            while [ $pull_attempt -le $pull_max ]; do
+                local pull_output pull_rc
+                set +e
+                pull_output=$(timeout --kill-after=5 30 git -C "$repo_dir" pull --rebase origin "$branch" 2>&1)
+                pull_rc=$?
+                set -e
+                if [ $pull_rc -eq 0 ]; then
+                    if echo "$pull_output" | grep -q "is up to date\|up-to-date\|Already up to date"; then
+                        :  # no remote changes
+                    else
+                        log "[$repo] OK rebase"
+                    fi
+                    pull_ok=true
+                    break
+                fi
+                # Network/timeout error -> retry; non-network error -> don't retry
+                if [ $pull_rc -eq 124 ] || echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls\|Recv failure"; then
+                    if [ $pull_attempt -lt $pull_max ]; then
+                        do_log "[$repo] pull attempt $pull_attempt failed, retry in 10s..."
+                        sleep 10
+                    fi
+                else
+                    echo "$pull_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
+                    if echo "$pull_output" | grep -qi "unrelated histories"; then
+                        error "[$repo] !! unrelated histories — skip push"
+                        skip_push=true
+                    elif echo "$pull_output" | grep -qi "CONFLICT\|conflict\|could not be applied"; then
+                        git -C "$repo_dir" rebase --abort 2>/dev/null || true
+                        warn "[$repo] !! rebase 冲突 — reset to origin/$branch"
+                        git -C "$repo_dir" reset --hard "origin/$branch" 2>&1 | head -1 >> "$LOG_FILE" || true
+                        git -C "$repo_dir" stash pop 2>/dev/null || true
+                        skip_push=true
+                    else
+                        warn "[$repo] pull failed: $(echo "$pull_output" | head -1)"
+                    fi
+                    break  # non-network error, don't retry
+                fi
+                pull_attempt=$((pull_attempt + 1))
+            done
+            if ! $pull_ok && ! $skip_push; then
+                warn "[$repo] pull failed after $pull_max attempts, pushing directly"
             fi
         fi
 
