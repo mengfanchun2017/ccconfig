@@ -302,7 +302,7 @@ start_watch() {
     inotifywait -m -r -q \
         --exclude '(\.git/|_ext/|\.snapshots/|node_modules/)' \
         -e modify,create,delete,move \
-        "$WATCH_DIR" 2>>"$LOG_FILE" | while IFS= read -r line; do
+        "$WATCH_DIR" 2> >(tr -d '\000' >> "$LOG_FILE") | while IFS= read -r line; do
             # Skip sync-internal files
             case "$line" in
                 *".monitor-sync"*) continue ;;
@@ -317,7 +317,7 @@ start_watch() {
             # Skip repos without remote
             git -C "$repo_root" remote get-url origin &>/dev/null 2>&1 || continue
 
-            echo "[$(date '+%H:%M:%S')] $(repo_name "$repo_root"): $line" >> "$LOG_FILE"
+            echo "[$(date '+%H:%M:%S')] $(repo_name "$repo_root"): $line" | tr -d '\000' >> "$LOG_FILE"
             date +%s > "$DEBOUNCE_FILE"
             # 记录改动的 repo，debounce 后只 sync 这些（避免无关仓库 add+commit 噪音）
             echo "$repo_root" >> "$CHANGED_REPOS_FILE"
@@ -581,9 +581,9 @@ tail_watch() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
-    {   tail -n 60 "$LOG_FILE" 2>/dev/null | grep -vE ' /home/' | tail -n 10
+    {   tail -n 60 "$LOG_FILE" 2>/dev/null | grep -a -vE ' /home/' | tail -n 10
         echo "GFM_SEP"
-        tail -f "$LOG_FILE" 2>/dev/null | grep --line-buffered -vE ' /home/'
+        tail -f "$LOG_FILE" 2>/dev/null | grep -a --line-buffered -vE ' /home/'
     } | while IFS= read -r line; do
         if [ "$line" = "GFM_SEP" ]; then
             echo -e "${GRAY}─── following ───${NC}"
