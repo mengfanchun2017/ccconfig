@@ -69,16 +69,18 @@ check_symlinks() {
         issues=$((issues + 1))
     fi
 
-    # MEMORY.md (memory/ dir is symlink, MEMORY.md is inside it)
-    local memory_dir="$HOME/.claude/projects/-$(echo "$HOME/git" | sed 's|^/||; s|/|-|g')/memory"
-    local memory_file="$memory_dir/MEMORY.md"
-    if [ -L "$memory_dir" ] && [ -f "$memory_file" ]; then
-        echo -e "  ${GREEN}✅${NC} MEMORY.md"
-    elif [ -L "$memory_file" ] && [ -e "$memory_file" ]; then
+    # MEMORY.md — 检查项目级 memory（Claude Code 自动管理或 ccprivate symlink）
+    local has_memory=false
+    for mem_dir in "$HOME/.claude/projects"/-home-*-*/memory/; do
+        if [ -d "$mem_dir" ] && [ -f "$mem_dir/MEMORY.md" ]; then
+            has_memory=true
+            break
+        fi
+    done
+    if $has_memory; then
         echo -e "  ${GREEN}✅${NC} MEMORY.md"
     else
-        echo -e "  ${RED}❌${NC} MEMORY.md"
-        issues=$((issues + 1))
+        echo -e "  ${YELLOW}○${NC} MEMORY.md (无项目 memory)"
     fi
 
     # rules (条件规则)
