@@ -46,6 +46,9 @@ show_menu() {
         5) bash "$LIB_DIR/deps-check.sh"
            echo -e "${YELLOW}操作完成，按回车返回...${NC}"; read -r; show_menu ;;
         6) bash "$LIB_DIR/setup-links.sh"
+           if [ -f "$HOME/git/ccprivate/setup.sh" ]; then
+               bash "$HOME/git/ccprivate/setup.sh"
+           fi
            bash "$LIB_DIR/init-autostart.sh" enable
            echo -e "${GREEN}修复完成${NC}"
            echo -e "${YELLOW}操作完成，按回车返回...${NC}"; read -r; show_menu ;;
@@ -83,7 +86,11 @@ case "${1:-}" in
     sync)     shift; bash "$LIB_DIR/sync.sh" "$@" ;;
     update)   shift; bash "$LIB_DIR/update.sh" "$@" ;;
     deps)     bash "$LIB_DIR/deps-check.sh" ;;
-    fix)      bash "$LIB_DIR/setup-links.sh"; bash "$LIB_DIR/init-autostart.sh" enable
+    fix)      bash "$LIB_DIR/setup-links.sh"
+              if [ -f "$HOME/git/ccprivate/setup.sh" ]; then
+                  bash "$HOME/git/ccprivate/setup.sh"
+              fi
+              bash "$LIB_DIR/init-autostart.sh" enable
               echo "修复完成，运行 maintain.sh status 验证" ;;
     ""|menu)  show_menu ;;
     *)        echo "用法: bash maintain.sh [status|monitor|sync|update|deps|fix]"; exit 1 ;;
