@@ -71,7 +71,7 @@ setup_symlinks() {
         setup_link "$CLAUDE_DIR/shell_aliases.sh" "$CCCONFIG_ROOT/link/shell_aliases.sh" "shell_aliases.sh"
     fi
 
-    # skills 由 init.sh all 步骤 5 统一管理，此处不做，避免重复初始化
+    # skills 由 init.sh all 步骤 4/5 统一管理，此处不做，避免重复初始化
     # 如需单独初始化 skills: bash ccconfig/init-skill.sh sync
 
     # git pre-commit hook（防私密文件意外提交）
