@@ -289,7 +289,7 @@ def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> d
         text = msg.get("content")
         if isinstance(text, str) and text:
             content.append({"type": "text", "text": text})
-        for tc in msg.get("tool_calls", []):
+        for tc in (msg.get("tool_calls") or []):
             fn = tc.get("function", {})
             content.append({
                 "type": "tool_use",
@@ -328,7 +328,7 @@ http_client = None
 @app.on_event("startup")
 async def on_startup():
     global http_client
-    http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0))
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0), trust_env=False)
 
 
 @app.on_event("shutdown")
