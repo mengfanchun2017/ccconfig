@@ -335,6 +335,51 @@ with open(p, 'w') as f: json.dump(d, f, indent=4)
     fi
 }
 
+# ========== OpenAI Bridge 自动启动 ==========
+# 给 OpenAI-only 端点（不含 /anthropic 也不是 127.0.0.1）启 bridge
+# 用法: _ensure_openai_bridge <upstream_base> <model> <key>
+# 返回 0=已启成功, 1=失败
+_ensure_openai_bridge() {
+    local upstream="$1" model="$2" key="$3"
+    local port=8898
+    local health=$(curl -s --max-time 2 "http://127.0.0.1:${port}/health" 2>/dev/null)
+
+    if [[ -n "$health" ]] && echo "$health" | grep -q "\"upstream\":\"$upstream\""; then
+        # bridge 已启且 upstream 匹配，复用
+        info "  [bridge] 已运行且 upstream 匹配"
+        return 0
+    fi
+
+    if [[ -n "$health" ]]; then
+        # bridge 已启但 upstream 不对，杀掉重启
+        pkill -f "openai_bridge.py.*--port ${port}" 2>/dev/null || true
+        sleep 1
+    fi
+
+    # 启新 bridge（unset 代理 env 直连上游）
+    cd "$CCCONFIG_ROOT"
+    nohup env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
+        OPENAI_BRIDGE_UPSTREAM="$upstream" \
+        OPENAI_BRIDGE_KEY="$key" \
+        OPENAI_BRIDGE_MODEL="$model" \
+        python3 option-llmswitch/openai_bridge.py --port "$port" \
+        > "$HOME/.cache/openai_bridge.log" 2>&1 &
+    disown
+
+    # 等待启动
+    for i in 1 2 3 4 5; do
+        sleep 1
+        health=$(curl -s --max-time 2 "http://127.0.0.1:${port}/health" 2>/dev/null)
+        [[ -n "$health" ]] && break
+    done
+
+    if [[ -z "$health" ]]; then
+        return 1
+    fi
+    return 0
+}
+
+
 # ========== 切换 LLM ==========
 switch_llm() {
     local name="$1"
@@ -363,6 +408,18 @@ switch_llm() {
 
     local config=$(get_llm_config "$name") || { error "无法获取 LLM 配置: $name"; return 1; }
     IFS='|' read -r base_url model_name api_key small_model <<< "$config"
+
+    # 检测 OpenAI-only 端点（不是 Anthropic compatible），自动启 bridge + 改写 base_url
+    if [[ "$base_url" != *"/anthropic"* ]] && [[ "$base_url" != *"://127.0.0.1"* ]]; then
+        info "  检测到 OpenAI-only 端点，自动启用 Anthropic↔OpenAI bridge..."
+        if _ensure_openai_bridge "$base_url" "$model_name" "$api_key"; then
+            base_url="http://127.0.0.1:8898"
+            info "  Bridge 已就绪，base_url → $base_url"
+        else
+            error "  bridge 启动失败，请检查 ~/.cache/openai_bridge.log"
+            return 1
+        fi
+    fi
 
     # 占位符 key → 尝试从已有配置读取，都没有就交互输入
     if echo "$api_key" | grep -qE '请填入|请替换|your.key|placeholder|changeme|<your-'; then
