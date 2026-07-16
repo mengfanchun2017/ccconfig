@@ -1,16 +1,14 @@
 #!/bin/bash
 # Claude Skills 管理脚本
-# 功能：装 CLI 依赖 + 同步自建 skill 符号链接 + ccprivate 配置覆盖 + 装第三方 skill（npx skills 幂等）
+# 功能：装 CLI 依赖 + 同步自建 skill 符号链接 + ccprivate 配置覆盖
 #
 # skill 来源（聚合到 ~/.claude/skills/）：
 #   CLI 依赖          → 自建 skill deps.txt（per-skill 自声明），npm/go 自动安装
 #   自建 f-*         → symlink 从 skill/plugins/（开源仓库，单一源）
 #   私有配置         → ccprivate config overlay（conf/*.yaml 覆盖 skill 内 config.yaml.example）
-#   第三方 (npx)     → npx skills add 装到 ~/.agents/skills/，自动 symlink 到 ~/.claude/skills/
 #
 # 使用：
-#   bash ccconfig/init-skill.sh sync             # 装 CLI 依赖 + 同步自建 + 装第三方
-#   bash ccconfig/init-skill.sh update           # 更新所有（CLI + npx skills）
+#   bash ccconfig/init-skill.sh sync             # 装 CLI 依赖 + 同步自建 + ccprivate 配置覆盖
 #   bash ccconfig/init-skill.sh remove <name>    # 卸载第三方 skill（从清单 + 磁盘删）
 #   bash ccconfig/init-skill.sh cleanup          # 单独清 ~/.claude/skills/ 断链
 #   bash ccconfig/init-skill.sh list             # 查看已安装 skills（symlink + plugin）
@@ -90,7 +88,13 @@ ensure_claude_skills() {
 # 第三方 skill 全部走 npx skills（user-managed 干净显示）
 # 自建 skill（f-* 系列）通过 skill 仓库分发，用户可选 fork 自定义
 
-title() { echo -e "\n========================================\n$1\n========================================\n${CYAN}"; }
+title() {
+    if [[ "${INIT_ALL_FLOW:-0}" == "1" ]]; then
+        echo -e "\n${CYAN}── $1 ──${NC}"
+    else
+        echo -e "\n========================================\n$1\n========================================\n${CYAN}"
+    fi
+}
 
 # 阶段 0：装 CLI 工具依赖
 # 来源：自建 skill 目录下的 deps.txt（per-skill 自声明）
@@ -212,6 +216,7 @@ do_install_cli_deps() {
 # 阶段 1：symlink 自建 skill 到 ~/.claude/skills/
 # 保护 npx skills 装的 symlink：目标不在 $SKILLS_SRC/ 下就跳过（user-managed）
 do_link_self_built() {
+    local quiet="${INIT_ALL_FLOW:-0}"
     title "阶段 1/4: symlink 自建 skill → ~/.claude/skills/"
 
     mkdir -p "$CLAUDE_SKILLS_DIR"
@@ -228,8 +233,8 @@ do_link_self_built() {
 
     local src_count=$(ls -d "$SKILLS_SRC"/*/ 2>/dev/null | wc -l)
     local existing_count=$(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l)
-    info "  源: $SKILLS_SRC ($src_count 个 skill)"
-    info "  目标: $CLAUDE_SKILLS_DIR ($existing_count 个已存在)"
+    [[ "$quiet" != "1" ]] && info "  源: $SKILLS_SRC ($src_count 个 skill)"
+    [[ "$quiet" != "1" ]] && info "  目标: $CLAUDE_SKILLS_DIR ($existing_count 个已存在)"
 
     if [[ $src_count -eq 0 ]]; then
         warn "  源目录无 skill，检查: ls $SKILLS_SRC/"
@@ -243,104 +248,102 @@ do_link_self_built() {
         local target="$CLAUDE_SKILLS_DIR/$name"
 
         if [[ -L "$target" ]] && [[ -e "$target" ]] && [[ "$(readlink -f "$target")" == "$(readlink -f "$skill_dir")" ]]; then
-            info "  $name: 已链接"
+            [[ "$quiet" != "1" ]] && info "  $name: 已链接"
             skipped=$((skipped + 1))
         elif [[ -L "$target" ]] && [[ ! -e "$target" ]]; then
             rm -f "$target"
             ln -s "$skill_dir" "$target"
-            good "  $name: ✓ 删断链 + 重新链接"
+            [[ "$quiet" != "1" ]] && good "  $name: ✓ 删断链 + 重新链接"
             cleaned=$((cleaned + 1))
             linked=$((linked + 1))
         elif [[ -L "$target" ]]; then
-            # symlink 目标存在但不在 $SKILLS_SRC/ → user-managed（npx skills 装的）
             if [[ "$(readlink -f "$target")" != "$(readlink -f "$skill_dir")" ]]; then
-                info "  $name: user-managed (npx 等)，保留"
+                [[ "$quiet" != "1" ]] && info "  $name: user-managed (npx 等)，保留"
                 user_managed=$((user_managed + 1))
             else
                 rm -f "$target"
                 ln -s "$skill_dir" "$target"
-                good "  $name: ✓ (修复链接)"
+                [[ "$quiet" != "1" ]] && good "  $name: ✓ (修复链接)"
                 linked=$((linked + 1))
             fi
         elif [[ -d "$target" ]]; then
-            info "  $name: 本地已有（非链接），跳过"
+            [[ "$quiet" != "1" ]] && info "  $name: 本地已有（非链接），跳过"
             skipped=$((skipped + 1))
         else
             ln -s "$skill_dir" "$target"
-            good "  $name: ✓"
+            [[ "$quiet" != "1" ]] && good "  $name: ✓"
             linked=$((linked + 1))
         fi
     done
 
-    # 清理孤儿 symlink：~/.claude/skills/ 中有链接指向 $SKILLS_SRC 但源已删除的
     local orphan=0
     for target in "$CLAUDE_SKILLS_DIR"/*; do
         [[ -L "$target" ]] || continue
         local name=$(basename "$target")
-        # 用 readlink（不加 -f）拿原始目标，断链时 -f 返回空导致跳过
         local tgt_raw
         tgt_raw=$(readlink "$target" 2>/dev/null) || continue
-        # 解析相对路径 → 绝对路径
         local tgt_dir
         tgt_dir="$(cd "$(dirname "$target")" 2>/dev/null && cd "$(dirname "$tgt_raw")" 2>/dev/null && pwd 2>/dev/null)/$(basename "$tgt_raw")"
         [[ "$tgt_dir" == "$SKILLS_SRC"/* ]] || continue
         if [[ ! -d "$SKILLS_SRC/$name" ]]; then
             rm -f "$target"
-            good "  $name: ✓ 删孤儿（源已删除）"
+            [[ "$quiet" != "1" ]] && good "  $name: ✓ 删孤儿（源已删除）"
             orphan=$((orphan + 1))
         fi
     done
 
-    # 清理所有断链（无论指向哪里，目标不存在就清）
     for target in "$CLAUDE_SKILLS_DIR"/*; do
         [[ -L "$target" ]] || continue
         if [[ ! -e "$target" ]]; then
             local name=$(basename "$target")
             rm -f "$target"
-            good "  $name: ✓ 删断链"
+            [[ "$quiet" != "1" ]] && good "  $name: ✓ 删断链"
             orphan=$((orphan + 1))
         fi
     done
 
-    echo ""
-    good "  symlink: $linked 新建, $skipped 跳过, $cleaned 删断链, $orphan 删孤儿, $user_managed user-managed"
+    echo -e "  symlink: ${GREEN}${linked} 新建${NC}, ${GRAY}${skipped} 跳过${NC}, ${cleaned} 修复, ${orphan} 清理"
 }
 
 # 阶段 2：检 marketplace（保留自建 marketplace 给 f-* 自动跟）
 do_ensure_marketplace() {
+    local quiet="${INIT_ALL_FLOW:-0}"
     local mkt_repo mkt_name
     mkt_repo=$(_marketplace_repo)
     mkt_name=$(_marketplace_name)
 
     if [[ -z "$mkt_repo" ]] || [[ "$mkt_repo" == "/skill" ]]; then
-        info "  无法确定 marketplace 仓库，跳过"
+        [[ "$quiet" != "1" ]] && info "  无法确定 marketplace 仓库，跳过"
         return 0
     fi
 
     title "阶段 2/4: marketplace 检（$mkt_name）"
 
     if ! command -v claude &>/dev/null; then
-        info "  Claude Code 未安装，跳过 marketplace 注册（init-ubuntu.sh 装好后再跑）"
+        [[ "$quiet" != "1" ]] && info "  Claude Code 未安装，跳过 marketplace 注册"
         return 0
     fi
 
-    info "检 marketplace: $mkt_repo"
     if claude plugin marketplace list 2>/dev/null | grep -q "$mkt_name"; then
-        good "  ✓ marketplace 已添加"
+        [[ "$quiet" != "1" ]] && good "  ✓ marketplace 已添加"
     else
         if claude plugin marketplace add "$mkt_repo" --scope user 2>&1 | tail -3; then
-            good "  ✓ marketplace 已添加"
+            [[ "$quiet" != "1" ]] && good "  ✓ marketplace 已添加"
         else
-            warn "  ! marketplace 添加失败（无网络？继续）"
+            [[ "$quiet" != "1" ]] && warn "  ! marketplace 添加失败（无网络？继续）"
         fi
     fi
-    echo ""
-    info "  marketplace 保留自建 skills（f-* plugin 在里面；第三方用户走 npx skills 装）"
+    [[ "$quiet" != "1" ]] && echo ""
+    [[ "$quiet" != "1" ]] && info "  marketplace 保留自建 skills（f-* plugin 在里面；第三方用户走 npx skills 装）"
 }
 
-# 阶段 3：npx skills 装第三方 skill（幂等，从 conf/third-party-skills.txt 读列表）
-# 已装就 skip（npx skills add 本身幂等）；不重写 ~/.claude/skills/（npx 自己建 symlink）
+# 阶段 3：（已废弃 — 2026-07-15）
+# 所有 skill 统一在 ~/git/skill/plugins/ 管理，不再通过 npx skills 安装
+# 函数体保留向后兼容直接调用，do_sync 中已跳过
 do_install_third_party() {
+    info "阶段 3/4 (npx skills) 已废弃，所有 skill 在 ~/git/skill/plugins/ 统一管理"
+    return 0
+
     title "阶段 3/4: npx skills 装第三方 skill（conf/third-party-skills.txt）"
 
     if [[ ! -f "$THIRD_PARTY_CONF" ]]; then
@@ -386,25 +389,37 @@ do_install_third_party() {
 
 # 阶段 2.5：ccprivate 配置覆盖（委托 ccprivate/bin/apply-config.sh）
 do_apply_ccprivate_config() {
+    local quiet="${INIT_ALL_FLOW:-0}"
     title "阶段 2.5/4: ccprivate 配置覆盖"
 
     local apply_script="$CCPRIVATE_DIR/bin/apply-config.sh"
     if [[ -x "$apply_script" ]]; then
-        bash "$apply_script"
+        if [[ "$quiet" == "1" ]]; then
+            bash "$apply_script" 2>/dev/null
+        else
+            bash "$apply_script"
+        fi
     else
-        info "  $apply_script 不可执行，跳过（ccprivate 未初始化或未安装）"
+        [[ "$quiet" != "1" ]] && info "  $apply_script 不可执行，跳过（ccprivate 未初始化或未安装）"
     fi
 }
 
 do_sync() {
+    local quiet="${INIT_ALL_FLOW:-0}"
+
     do_install_cli_deps
     do_link_self_built
     do_ensure_marketplace
     do_apply_ccprivate_config
-    do_install_third_party
+    # Phase 3 (do_install_third_party) 已废弃 — 2026-07-15
 
-    echo ""
-    good "完成。验证: bash init-skill.sh status"
+    if [[ "$quiet" == "1" ]]; then
+        local count=$(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l)
+        echo -e "  Skills: ${GREEN}${count} 个${NC} → ~/.claude/skills/"
+    else
+        echo ""
+        good "完成。验证: bash init-skill.sh status"
+    fi
 }
 
 # 更新所有（CLI 工具 + npx skills）
@@ -694,5 +709,5 @@ case "$action" in
 esac
 
 echo ""
-good "提示: 新环境先跑 sync (装 CLI 依赖 + symlink 自建 + 装 npx 第三方)；更新跑 update (CLI + npx skills)；检测 drift 跑 diff"
+good "提示: 新环境先跑 sync (装 CLI 依赖 + symlink 自建)；更新跑 update (CLI 工具)"
 exit 0

@@ -454,25 +454,23 @@ PYEOF
 }
 
 # ── 生成 conf/claude.json ──
-# LLM env (ANTHROPIC_BASE_URL/MODEL/AUTH_TOKEN) 由 init-llm.sh 独占管理
-# 这里只放 Claude Code 行为开关 + MCP 配置占位
+# 从 .example 模板复制（含完整 MCP 定义和占位 Key），LLM env 由 init-llm.sh 独占管理
 gen_claude_json() {
     local f="$CCPRIVATE_DIR/conf/claude.json"
+    local template="$CCCONFIG_DIR/conftemp/claude.json.example"
 
-    python3 - <<PYEOF
+    if [[ -f "$template" ]]; then
+        cp "$template" "$f"
+    else
+        python3 - <<PYEOF
 import json
-d = {
-    "env": {
-        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
-    },
-    "settings": {"default_action": "sync", "auto_config_keys": True},
-    "mcp_servers": []
-}
+d = {"env": {"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}, "settings": {"default_action": "sync", "auto_config_keys": True}, "mcp_servers": []}
 with open("$f", "w") as fh:
     json.dump(d, fh, indent=2, ensure_ascii=False)
     fh.write("\n")
 PYEOF
-    ok "conf/claude.json"
+    fi
+    ok "conf/claude.json（从模板生成，MCP Key 为占位符，后续用 init-mcp.sh keys 填写）"
 }
 
 # ── 生成 conf/ubuntu.json ──

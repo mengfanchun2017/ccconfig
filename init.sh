@@ -150,25 +150,21 @@ PYEOF
         "装 Node / Claude Code / Claude 原生二进制 / uv / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
         "Claude Code 需要 Node 运行时；uv 装 Python 工具；auto-sync 让配置变更自动 push 到 GitHub" \
         "3 min（含 apt 下载）"
-    info "下一步: 2/5 LLM 配置"
 
     run_step "2/5 LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true \
         "把当前 LLM（DeepSeek/MiniMax/Claude 等）的 API key 写入 ~/.claude/settings.json" \
         "Claude Code 通过 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_BASE_URL 调用 LLM；没配就跑不了" \
         "10 s"
-    info "下一步: 3/5 MCP 服务器"
 
     run_step "3/5 MCP 服务器" "$SCRIPT_DIR/lib/init-mcp.sh" true \
         "注册 Tavily（英文搜索）/ MiniMax（中文+多模态）/ Supabase（数据库）/ Cloudflare（开发者平台）到 ~/.claude/settings.json" \
         "MCP 是 Claude Code 的'工具箱'：搜索/数据库/部署/可观测，skills 按需调用" \
         "20 s"
-    info "下一步: 4/5 Skills"
 
     run_step "4/5 Skills" "$SCRIPT_DIR/lib/init-skill.sh" sync \
         "同步 skill 公开市场 + ccconfig 自建 skill → ~/.claude/skills/；symlink 绑定" \
         "Skills 是 Claude Code 的可复用工作流：飞书写文档、PPT 生成、PDF 提取、ECharts 画图…按需自动加载" \
         "30 s（首次 ~1 min）"
-    info "下一步: 5/5 验证"
 
     run_step "5/5 状态验证" "$SCRIPT_DIR/lib/status.sh" false \
         "11 项检查：配置链接 / 依赖版本 / auto-sync / 最后推送 / MEMORY / 各 option-* 子模块" \
@@ -194,17 +190,15 @@ PYEOF
 
 run_step() {
     local label="$1" script="$2" auto="$3"
-    # 可选：做什么 / 为什么 / 预计（仅 init_all_steps 传）
     local what="${4:-}" why="${5:-}" eta="${6:-}"
 
     echo ""
     echo -e "${CYAN}━━━ ${label} ━━━${NC}"
-
     if [[ -n "$what" ]]; then
-        echo -e "  ${GRAY}做什么${NC}  $what"
-        [[ -n "$why" ]] && echo -e "  ${GRAY}为什么${NC}  $why"
-        [[ -n "$eta" ]] && echo -e "  ${GRAY}预计${NC}    ~$eta"
+        echo -e "  ${GRAY}${what}${NC}"
+        [[ -n "$eta" ]] && echo -e "  ${GRAY}预计 ~${eta}${NC}"
     fi
+    echo ""
 
     if [ "$auto" = "true" ]; then
         if bash "$script"; then
@@ -356,16 +350,19 @@ submenu_mcp() {
     echo -e "${CYAN}── MCP 管理 ──${NC}"
     echo "  1) 安装并同步 MCP  (init-mcp.sh sync)"
     echo "  2) 仅安装缺失 MCP  (init-mcp.sh install)"
-    echo "  3) 状态检查         (status.sh)"
+    echo "  3) 配置 API Key     (init-mcp.sh keys)"
+    echo "  4) 状态检查         (status.sh)"
     echo "  0) 返回"
     echo ""
-    read -p "选择 [1-3,0]: " c
+    read -p "选择 [1-4,0]: " c
     case "$c" in
         1) run_step "MCP 同步"   "$SCRIPT_DIR/lib/init-mcp.sh" true
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         2) echo ""; bash "$SCRIPT_DIR/lib/init-mcp.sh" install
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        3) bash "$SCRIPT_DIR/lib/status.sh"
+        3) echo ""; bash "$SCRIPT_DIR/lib/init-mcp.sh" keys
+           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        4) bash "$SCRIPT_DIR/lib/status.sh"
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         0) return ;;
     esac
