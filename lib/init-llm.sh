@@ -202,6 +202,7 @@ env_update = {
     "ANTHROPIC_MODEL": os.environ.get('MODEL_NAME', ''),
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "ENABLE_PROMPT_CACHING_1H": "1",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL', os.environ.get('MODEL_NAME', ''))
 }
 if final_token:

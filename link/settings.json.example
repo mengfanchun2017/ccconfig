@@ -3,6 +3,7 @@
         "ANTHROPIC_BASE_URL": "<your-llm-base-url>",
         "ANTHROPIC_MODEL": "<your-llm-model>",
         "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+        "ENABLE_PROMPT_CACHING_1H": "1",
         "ANTHROPIC_AUTH_TOKEN": "<your-api-key>",
         "ANTHROPIC_DEFAULT_HAIKU_MODEL": "<your-small-model>"
     },
