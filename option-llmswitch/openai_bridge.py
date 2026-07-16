@@ -270,7 +270,11 @@ async def messages(request: Request):
         "Authorization": f"Bearer {state['upstream_key']}",
         "Content-Type": "application/json",
     }
-    target_url = state["upstream"].rstrip("/") + "/v1/chat/completions"
+    upstream_base = state["upstream"].rstrip("/")
+    if upstream_base.endswith("/v1"):
+        target_url = upstream_base + "/chat/completions"
+    else:
+        target_url = upstream_base + "/v1/chat/completions"
 
     client = http_client
     if stream:
