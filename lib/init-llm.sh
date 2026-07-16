@@ -455,6 +455,121 @@ show_list() {
     fi
 }
 
+# ========== Delete (删除预设) ==========
+# 用法: delete_preset [name]
+# - 不带参数时交互式选
+# - 内置 provider (minimax/deepseek/gateway) 拒绝删
+# - 当前正在 current 的预设拒绝删（需先 switch 到别的）
+delete_preset() {
+    local target="${1:-}"
+    if [[ -n "$target" ]]; then
+        _delete_preset_confirm "$target"
+        return $?
+    fi
+
+    # 交互式：列出所有可删的预设
+    echo ""
+    echo "可用预设："
+    local idx=1
+    local deletable_names=()
+    while IFS='|' read -r name display_name model base_url; do
+        if [[ -z "$name" ]]; then continue; fi
+        if [[ "$name" == "minimax" || "$name" == "deepseek" || "$name" == "gateway" ]]; then
+            printf "  %d) %s [内置 — 不可删]\n" "$idx" "$name"
+        else
+            printf "  %d) %s (%s)\n" "$idx" "$name" "$model"
+            deletable_names+=("$name")
+        fi
+        idx=$((idx + 1))
+    done < <(python3 - <<PYEOF
+import json, sys
+p = "${CONFIG_FILE}"
+try:
+    with open(p, 'r') as f:
+        d = json.load(f)
+except:
+    sys.exit(0)
+for name, cfg in d.get('llms', {}).items():
+    print(f"{name}|{cfg.get('name', name)}|{cfg.get('model', '')}|{cfg.get('base_url', '')}")
+PYEOF
+    )
+
+    if [[ ${#deletable_names[@]} -eq 0 ]]; then
+        echo ""
+        error "没有可删除的自定义预设"
+        return 1
+    fi
+
+    echo ""
+    read -p "输入要删除的预设名称（留空取消）: " target
+    if [[ -z "$target" ]]; then
+        info "已取消"
+        return 0
+    fi
+    _delete_preset_confirm "$target"
+}
+
+_delete_preset_confirm() {
+    local target="$1"
+
+    # 守卫 1: 内置
+    if [[ "$target" == "minimax" || "$target" == "deepseek" || "$target" == "gateway" ]]; then
+        error "内置预设 '$target' 不可删除"
+        return 1
+    fi
+
+    # 守卫 2: 是否存在
+    if ! python3 -c "
+import json, sys
+p = '${CONFIG_FILE}'
+try:
+    with open(p, 'r') as f: d = json.load(f)
+except: sys.exit(1)
+sys.exit(0 if '${target}' in d.get('llms', {}) else 2)
+" 2>/dev/null; then
+        error "预设 '$target' 不存在"
+        return 1
+    fi
+
+    # 守卫 3: 是否为当前 current
+    local cur=$(python3 -c "
+import json
+try:
+    with open('${CONFIG_FILE}') as f: d = json.load(f)
+    print(d.get('current', ''))
+except: pass
+")
+    if [[ "$cur" == "$target" ]]; then
+        error "预设 '$target' 正在被使用（current=$target），请先切换到别的 provider 再删除"
+        return 1
+    fi
+
+    # 二次确认
+    read -p "确认删除预设 '$target'？(y/N): " ans
+    case "$ans" in
+        [Yy]|[Yy][Ee][Ss]) ;;
+        *) info "已取消"; return 0 ;;
+    esac
+
+    # 删除
+    python3 - <<PYEOF
+import json
+p = "${CONFIG_FILE}"
+with open(p, 'r') as f:
+    d = json.load(f)
+llms = d.get('llms', {})
+if "${target}" in llms:
+    del llms["${target}"]
+    with open(p, 'w') as f:
+        json.dump(d, f, indent=4, ensure_ascii=False)
+    print(f"已删除预设: ${target}")
+else:
+    print(f"预设 ${target} 不存在", file=sys.stderr)
+PYEOF
+    success "预设 '$target' 已删除"
+}
+
+
 # ========== 交互式选择 ==========
 interactive_select() {
     local lines=$(list_llms)
@@ -497,12 +612,14 @@ interactive_select() {
         idx=$((idx + 1))
     done < <(echo "$lines")
 
-    # Custom 是固定选项，与 $selectable 无关联，单独编号
+    # Custom + Delete 是固定选项，与 $selectable 无关联，单独编号
     local custom_idx=$((selectable + 1))
+    local delete_idx=$((selectable + 2))
     printf "  %d) %s\n" "$custom_idx" "Custom (输入任意 base_url + model + key)"
+    printf "  %d) %s\n" "$delete_idx" "Delete (删除已保存的自定义预设)"
 
     echo ""
-    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$custom_idx" "$current"
+    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$delete_idx" "$current"
     read -r choice
 
     if [[ -z "$choice" ]] || [[ "$choice" == "0" ]]; then
@@ -512,6 +629,11 @@ interactive_select() {
 
     if [[ "$choice" == "$custom_idx" ]]; then
         switch_custom
+        return $?
+    fi
+
+    if [[ "$choice" == "$delete_idx" ]]; then
+        delete_preset
         return $?
     fi
 
@@ -532,6 +654,9 @@ main() {
         show_list
     elif [[ "$cmd" == "custom" ]] || [[ "$cmd" == "-c" ]]; then
         switch_custom
+    elif [[ "$cmd" == "delete" ]] || [[ "$cmd" == "-d" ]]; then
+        # 可选第二参数：要删的预设名
+        delete_preset "${2:-}"
     elif [[ -z "$cmd" ]]; then
         # 无参数：交互式选择
         interactive_select
