@@ -65,6 +65,25 @@ print(f"高峰 {','.join(blocks)} → {peak} ｜ 非高峰 → {off_peak}")
 PYEOF
 }
 
+get_gateway_status_one_liner() {
+    if ! is_proxy_running; then
+        echo "未运行"
+        return
+    fi
+    local h=$(get_proxy_health)
+    local mode=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('mode','?'))" 2>/dev/null || echo "?")
+    local peak=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('peak',False))" 2>/dev/null || echo "False")
+    local route=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('current_route','?'))" 2>/dev/null || echo "?")
+    local peak_str=""
+    [ "$peak" = "True" ] && peak_str=" (高峰)"
+    local watchdog_pid="$HOME/.cache/llmswitch-watchdog.pid"
+    local watchdog_str="✗"
+    [ -f "$watchdog_pid" ] && kill -0 "$(cat "$watchdog_pid")" 2>/dev/null && watchdog_str="✓"
+    local auto_str="✗"
+    [ "$mode" = "auto" ] && [ "$watchdog_str" = "✓" ] && auto_str="✓"
+    echo "→ $route$peak_str | mode:$mode | auto-switch:$auto_str | watchdog:$watchdog_str"
+}
+
 # ========== 读取配置 ==========
 list_llms() {
     python3 - "$CONFIG_FILE" << 'PYEOF'
@@ -470,6 +489,9 @@ switch_to_gateway() {
 
     info "  模型: $model_name → $(read_gateway_routes)"
     _write_llm_config "gateway" "$base_url" "$model_name" "$small_model" ""
+
+    local summary=$(get_gateway_status_one_liner)
+    success "Gateway 已切换 $summary"
 }
 
 # ========== 显示列表 ==========
@@ -499,13 +521,9 @@ show_list() {
 
     current=$(grep "^CURRENT:" <(list_llms) | cut -d: -f2)
     if [[ -n "$current" ]]; then
-        if [[ "$current" == "gateway" ]] && is_proxy_running; then
-            local h=$(get_proxy_health)
-            local route=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('current_route','?'))" 2>/dev/null)
-            local peak=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('peak',False))" 2>/dev/null)
-            local peak_str=""
-            [ "$peak" = "True" ] && peak_str=" (高峰)"
-            info "当前: Gateway → $route$peak_str"
+        if [[ "$current" == "gateway" ]]; then
+            local status=$(get_gateway_status_one_liner)
+            info "当前: Gateway $status"
         else
             info "当前: $current"
         fi
@@ -674,14 +692,16 @@ interactive_select() {
         idx=$((idx + 1))
     done < <(echo "$lines")
 
-    # Custom + Delete 是固定选项，与 $selectable 无关联，单独编号
+    # Custom + Delete + Configure Gateway 是固定选项
     local custom_idx=$((selectable + 1))
     local delete_idx=$((selectable + 2))
+    local gateway_conf_idx=$((selectable + 3))
     printf "  %d) %s\n" "$custom_idx" "Custom (输入任意 base_url + model + key)"
     printf "  %d) %s\n" "$delete_idx" "Delete (删除已保存的自定义预设)"
+    printf "  %d) %s\n" "$gateway_conf_idx" "Configure Gateway (peak_hours / routes / mode)"
 
     echo ""
-    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$delete_idx" "$current"
+    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$gateway_conf_idx" "$current"
     read -r choice
 
     if [[ -z "$choice" ]] || [[ "$choice" == "0" ]]; then
@@ -696,6 +716,11 @@ interactive_select() {
 
     if [[ "$choice" == "$delete_idx" ]]; then
         delete_preset
+        return $?
+    fi
+
+    if [[ "$choice" == "$gateway_conf_idx" ]]; then
+        bash "$LLMSWITCH_INIT" --config
         return $?
     fi
 
