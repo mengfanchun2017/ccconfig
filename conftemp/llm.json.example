@@ -16,6 +16,14 @@
             "key": "请填入你的 DeepSeek API Key",
             "small_model": "deepseek-v4-pro"
         },
+        "openaialt": {
+            "_comment": "可选：OpenAI-compatible 端点，自动启用 Anthropic↔OpenAI bridge",
+            "name": "OpenAIAlt",
+            "base_url": "https://api.example.com/v1",
+            "model": "<your-model>",
+            "key": "请填入你的 API Key",
+            "small_model": "<your-model>"
+        },
         "gateway": {
             "_comment": "可选：本地 LLM 路由网关（需安装 option-llmswitch）",
             "name": "Gateway",

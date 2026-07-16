@@ -96,6 +96,95 @@ flowchart LR
 
 > **密钥隔离**：`conf/*.json`（llm/claude/feishu/f-logme/f-feishu/f-pptx/cloudflare/supabase/ubuntu）是 ccprivate→ccconfig 的 symlink，`.gitignore` 已忽略。公开仓库只含 `.example` 模板。详见 [BOOTSTRAP.md](BOOTSTRAP.md)。
 
+## 特色亮点
+
+ccconfig 不只是符号链接集合。以下是你真正用到的能力：
+
+### 🔀 LLM 后端随心切
+
+```bash
+bash lib/init-llm.sh              # 交互菜单
+bash lib/init-llm.sh deepseek     # 一条命令切
+```
+
+- **多预设管理** — 内置 MiniMax/DeepSeek/Gateway，支持自建自定义预设（OpenRouter、自部署网关等），菜单操作增删查切
+- **Custom 临时模式** — 输入任意 Anthropic-compatible 端点 URL 即刻切换，不写配置；需要时可保存为永久预设
+- **Gateway 自动切换** — 安装 `option-llmswitch` 后，LLM 代理网关按高峰/非高峰时段自动切后端（如高峰 DeepSeek → MiniMax），Claude Code 不重启
+- **OpenAI Bridge** — 遇到 OpenAI-only 端点（无 `/anthropic` 路由），自动启动 Anthropic↔OpenAI 协议转换 proxy，零感知
+- **Key 智能来源** — 切换时自动复用已有配置中的 API key，不需反复粘贴
+- **Prompt Cache 1h** — 环境变量 `ENABLE_PROMPT_CACHING_1H=1` 自动注入，闲置回来不重算前缀，恢复更快
+
+> 最近新增：Delete 删除预设（三道守卫防误删）、Gateway 配置交互式向导（模式/高峰时段/路由名/手动 provider 过滤）、路由名编号菜单、`start-openai-bridge.sh` 一键启动
+
+### 🧩 Skills 即插即用
+
+- **双通道 skill 源** — 自建 skill (git symlink) + 第三方 skill (npx 安装)，`lib/init-skill.sh sync` 统一管理
+- **漂移检测** — 自动清理断链、孤儿 skill 残留、marketplace 遗留
+- **配置叠加** — 私有 skill 配置 (ccprivate/config/*.yaml) 自动覆盖公开模板，sync 时合并
+- **独立可用** — Skills 市场独立于 ccconfig，任何 Claude Code 用户可 `/plugin marketplace add` 安装
+
+### 🔐 公开/私密分离（三仓库模型）
+
+| 仓库 | 存什么 | 可公开？ |
+|------|--------|---------|
+| ccconfig | 脚本、rules、agents、commands、.example 模板 | ✅ 开源可 fork |
+| skill | 15 个 f-* skill 插件 | ✅ marketplace 规范 |
+| ccprivate | API key、token、个人 CLAUDE.md/settings.json | ❌ 私有 |
+
+符号链接桥接三仓库。公开仓库零 token。`pre-commit` hook 自动拦截私密文件提交。
+
+### 🔄 Auto-Sync 守护进程
+
+systemd 文件监听 (`inotify`) + 60 秒 debounce，`~/git/` 下所有仓库自动 commit + push。多机配置始终一致。
+
+- 智能冲突处理 — pull 代理超时优化、冲突解决公共库 (`lib/git-conflict.sh`)
+- 运行状态一目了然 — `maintain.sh status` 检查 12 项状态，含 GitHub 最后推送时间
+
+### 🚀 新机器 10 分钟上线
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh | bash
+```
+
+一行命令走完 8 阶段：装 gh → 登录 GitHub → 克隆 ccconfig → 创建 ccprivate → Ubuntu 环境 → LLM 配置 → MCP 注册 → Skills 同步。详见 [BOOTSTRAP.md](BOOTSTRAP.md)。
+
+### 🧪 完整测试套件
+
+```bash
+bash tests/test-init.sh            # 45 个用例，mock 隔离，秒级完成
+bash tests/test-init.sh --verbose  # 详细输出
+```
+
+覆盖 ensure_config / ensure_claude_skills / 首次检测 / placeholder 识别 / `$HOME` 展开 / `init --dry-run` / sync 容错 / MCP 路径修正。改完脚本跑一遍验证不引入回归。
+
+### 📌 版本锁定
+
+`conftemp/versions.json` 单一真相源锁定每个工具版本 — Node、gh、Claude Code CLI、lark-cli、Python uv、第三方 skill 版本。`update.sh all` 按版本清单升级，不会意外炸掉。
+
+### 🛠 统一运维入口
+
+```bash
+bash maintain.sh [status|monitor|sync|update|deps|fix]
+```
+
+- `status` — 12 项全量检查（链接/依赖/守护进程/Git 推送/MCP 健康/Skills/可选组件）
+- `fix` — 自动修复断链、重建符号链接
+- `deps` — 依赖完整性检查（Node/uv/gh/lark-cli 等）
+- `monitor` — 启动/停止/查看 auto-sync 守护进程
+
+### 🔌 可选组件生态
+
+| 组件 | 一句话 | 安装 |
+|------|--------|------|
+| `option-llmswitch` | LLM 网关代理，按时段自动切后端 | `bash option-llmswitch/init.sh` |
+| `option-bridge` | 飞书消息 Bridge + 多机器人 | `bash option-bridge/init.sh` |
+| `option-officecli` | AI-native Office 工具（PPT/docx/xlsx 生成） | `bash option-officecli/init.sh` |
+| `option-cloudflare` | Cloudflare Workers/R2/D1/Pages 开发环境 | `bash option-cloudflare/init.sh` |
+| `option-remote` | Tailscale + SSH 远程连接桌面 tmux session | 见 `option-remote/readme.md` |
+| `windows-tools` | WSL/Windows 互操作工具（音乐转换、PS 更新） | — |
+
+每个组件 `init.sh` 均支持 `--status`，自动被 `status.sh` 发现。
+
 ## 目录结构
 
 ```
@@ -117,8 +206,9 @@ ccconfig/
 │   ├── init-mcp.sh           # MCP 服务器管理
 │   ├── init-skill.sh         # Skills 同步管理
 │   ├── init-autostart.sh     # auto-sync systemd 服务
+│   ├── start-openai-bridge.sh # OpenAI-only 端点协议桥
 │   ├── monitor.sh            # 多仓库文件监听 + 自动 git 同步
-│   ├── status.sh             # 状态检查（11 项）
+│   ├── status.sh             # 状态检查（12 项）
 │   ├── sync.sh               # 多仓库智能同步（云端↔本地）
 │   ├── update.sh             # 月度组件升级
 │   ├── setup-links.sh        # 公开部分符号链接
@@ -220,16 +310,6 @@ bash ~/git/ccconfig/status.sh
 | `bash lib/setup-links.sh` | 重建公开符号链接 |
 | `bash lib/sync.sh --pull` | 强拉远程 |
 
-## 测试
-
-```bash
-bash ~/git/ccconfig/tests/test-init.sh              # 17 用例，mock 隔离，秒级完成
-bash ~/git/ccconfig/tests/test-init.sh --verbose    # 详细输出
-bash ~/git/ccconfig/tests/test-init.sh --list       # 仅列出用例
-```
-
-覆盖 `ensure_config` / `ensure_claude_skills` / `check_first_time` / placeholder 检测 / `$HOME` 展开 / `init --dry-run` / sync 容错 / MCP 路径修正。改完 init 脚本后跑一遍验证不引入回归。
-
 ## 日常维护
 
 ccconfig 本身是一个 git 仓库，更新方式：
@@ -289,39 +369,6 @@ cd ~/git/ccconfig && git pull
 > **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/skill/plugins/` symlink，第三方 skill 从 `conftemp/third-party-skills.txt` 通过 npx 安装。
 > 详见 [skill README](https://github.com/mengfanchun2017/skill)。
 > 完整生命周期（安装/更新/卸载/发布/漂移检测）→ [docs/skill-lifecycle.md](docs/skill-lifecycle.md)。
-
-## Auto-Sync
-
-`monitor.sh` 监听 `~/git/` 下所有 git 仓库，自动 commit + push：
-
-```bash
-./monitor.sh start     # 启动守护进程（60s debounce）
-./monitor.sh stop      # 停止
-./monitor.sh status    # 查看状态
-./monitor.sh log 50    # 最近 50 行日志
-```
-
-## 可选组件
-
-```bash
-bash option-bridge/init.sh       # 飞书 Bridge
-bash option-officecli/init.sh    # OfficeCLI
-bash option-llmswitch/init.sh    # LLM 网关代理
-```
-
-每个组件至少支持 `init.sh --status`。
-
-## LLM 后端
-
-```bash
-bash lib/init-llm.sh              # 交互式选择
-bash lib/init-llm.sh list         # 列出可用后端
-bash lib/init-llm.sh deepseek     # 切到 DeepSeek
-bash lib/init-llm.sh minimax      # 切到 MiniMax
-```
-
-> **OpenAI-only 端点**（如 airchina）：`lib/init-llm.sh` 自动检测并启用 Anthropic↔OpenAI bridge（端口 8898）。
-> 亦可独立启动 bridge：`bash lib/start-airchina-bridge.sh`
 
 ## 远程访问
 

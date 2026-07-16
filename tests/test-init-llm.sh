@@ -2,7 +2,7 @@
 # test-init-llm.sh — init-llm.sh + llmswitch init.sh 综合测试
 #
 # 覆盖场景：
-#   llm.json 读写、Gateway 配置、bridge、airchina、高峰时段、路由、
+#   llm.json 读写、Gateway 配置、bridge、openaialt、高峰时段、路由、
 #   编号菜单、backend 名显示、init-llm.sh list/switch、llmswitch init.sh config
 #
 # 用法：
@@ -81,8 +81,8 @@ setup_test_env() {
 #!/bin/bash
 # mock curl: health endpoint 返回 health JSON，其他返回空
 if echo "$*" | grep -q "/health"; then
-	echo '{"status":"ok","upstream":"https://aiplus.airchina.com.cn:18080/v1","upstream_key":"sk-test","upstream_model":"deepseek-v4-flash"}'
-elif echo "$*" | grep -q "aiplus"; then
+	echo '{"status":"ok","upstream":"https://api.example.com/v1","upstream_key":"sk-test","upstream_model":"deepseek-v4-flash"}'
+elif echo "$*" | grep -q "api.example.com"; then
 	echo '{"choices":[{"message":{"content":"mock reply"},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5}}'
 else
 	echo '{"status":"ok"}'
@@ -146,7 +146,7 @@ EOF
 	cp "$CCCONFIG_DIR/lib/init-llm.sh" "$TEST_HOME/git/ccconfig/lib/"
 	cp "$CCCONFIG_DIR/option-llmswitch/init.sh" "$TEST_HOME/git/ccconfig/option-llmswitch/"
 	cp "$CCCONFIG_DIR/option-llmswitch/openai_bridge.py" "$TEST_HOME/git/ccconfig/option-llmswitch/"
-	cp "$CCCONFIG_DIR/lib/start-airchina-bridge.sh" "$TEST_HOME/git/ccconfig/lib/"
+	cp "$CCCONFIG_DIR/lib/start-openai-bridge.sh" "$TEST_HOME/git/ccconfig/lib/"
 	cp "$CCCONFIG_DIR/option-llmswitch/watchdog.sh" "$TEST_HOME/git/ccconfig/option-llmswitch/" 2>/dev/null || true
 
 	# 复制依赖的 lib 文件
@@ -203,11 +203,11 @@ EOF
 			"small_model": "llmgateway-s",
 			"key": "sk-test-gateway"
 		},
-		"airchina": {
-			"name": "airchina",
-			"base_url": "https://aiplus.airchina.com.cn:18080/v1",
+		"openaialt": {
+			"name": "openaialt",
+			"base_url": "https://api.example.com/v1",
 			"model": "deepseek-v4-flash",
-			"key": "sk-test-airchina",
+			"key": "sk-test-openaialt",
 			"small_model": "deepseek-v4-flash"
 		}
 	},
@@ -255,10 +255,10 @@ cleanup_test_env() {
 # ── 测试用例定义 ──
 TESTS=(
 	# ═══ 分组 1: llm.json 读写 ═══
-	"t_llm_json_has_airchina_name:airchina display name = 'airchina'"
-	"t_llm_json_has_no_guohang:airchina name 不含 '国航'"
+	"t_llm_json_has_openaialt_name:openaialt display name = 'openaialt'"
+	"t_llm_json_has_no_china_air:openaialt name 不含 'china'"
 	"t_llm_json_current_is_gateway:current = gateway"
-	"t_llm_json_all_providers:4 个 provider (minimax/deepseek/gateway/airchina)"
+	"t_llm_json_all_providers:4 个 provider (minimax/deepseek/gateway/openaialt)"
 
 	# ═══ 分组 2: Gateway 配置 (llmswitch.json) ═══
 	"t_peak_hours_daily:高峰时段 days 含 0-6 (每日)"
@@ -270,10 +270,10 @@ TESTS=(
 	"t_mode_is_auto:mode=auto"
 
 	# ═══ 分组 3: init-llm.sh 输出 ═══
-	"t_list_shows_airchina:list 输出含 airchina"
+	"t_list_shows_openaialt:list 输出含 openaialt"
 	"t_list_shows_gateway:list 输出含 Gateway"
 	"t_list_shows_models:list 输出含模型名"
-	"t_list_no_guohang:list 输出不含 '国航AI+'"
+	"t_list_no_china_air:list 输出不含 'china'"
 	"t_list_shows_gateway_routes:Gateway 条目含路由摘要"
 	"t_list_shows_small_models:list 输出含小模型信息"
 
@@ -282,8 +282,8 @@ TESTS=(
 	"t_config_shows_peak_daily:配置菜单显示每日高峰"
 	"t_config_shows_current_mode:配置菜单显示当前模式"
 
-	# ═══ 分组 5: airchina 一致性 ═══
-	"t_airchina_display_consistent:llm.json 和 list 输出 name 一致都是 airchina"
+	# ═══ 分组 5: openaialt 一致性 ═══
+	"t_openaialt_display_consistent:llm.json 和 list 输出 name 一致都是 openaialt"
 
 	# ═══ 分组 6: openai_bridge.py 语法 ═══
 	"t_bridge_py_syntax:openai_bridge.py Python 语法正确"
@@ -291,7 +291,7 @@ TESTS=(
 	"t_bridge_py_has_tool_call_handler:含 tool_call 流式转换逻辑"
 	"t_bridge_py_has_anthropic_tool_use:非流式响应含 tool_use"
 
-	# ═══ 分组 7: start-airchina-bridge.sh ═══
+	# ═══ 分组 7: start-openai-bridge.sh ═══
 	"t_start_bridge_no_init_llm:start 脚本不含 init-llm.sh 调用"
 	"t_start_bridge_has_auto_key:start 脚本含自动读 key 逻辑"
 	"t_start_bridge_syntax:start 脚本 bash 语法正确"
@@ -335,13 +335,13 @@ run_test() {
 	local id="$1"
 	case "$id" in
 		# ═══ 分组 1: llm.json 读写 ═══
-		t_llm_json_has_airchina_name)
-			local name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['llms']['airchina']['name'])")
-			[[ "$name" == "airchina" ]] && _pass "airchina.name = airchina" || _fail "airchina.name = $name"
+		t_llm_json_has_openaialt_name)
+			local name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['llms']['openaialt']['name'])")
+			[[ "$name" == "openaialt" ]] && _pass "openaialt.name = openaialt" || _fail "openaialt.name = $name"
 			;;
-		t_llm_json_has_no_guohang)
-			local name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['llms']['airchina']['name'])")
-			[[ "$name" != *"国航"* ]] && _pass "airchina.name 不含国航" || _fail "airchina.name 含国航: $name"
+		t_llm_json_has_no_china_air)
+			local name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['llms']['openaialt']['name'])")
+			[[ "$name" != *"china"* ]] && _pass "openaialt.name 不含 china" || _fail "openaialt.name 含 china: $name"
 			;;
 		t_llm_json_current_is_gateway)
 			local cur=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['current'])")
@@ -389,7 +389,7 @@ run_test() {
 			;;
 
 		# ═══ 分组 3: init-llm.sh 输出 ═══
-		t_list_shows_airchina)
+		t_list_shows_openaialt)
 			local out; out=$(CONFIG_FILE="$TEST_HOME/git/ccconfig/conftemp/llm.json" python3 -c "
 import json
 with open('$TEST_HOME/git/ccconfig/conftemp/llm.json') as f:
@@ -397,7 +397,7 @@ with open('$TEST_HOME/git/ccconfig/conftemp/llm.json') as f:
 for name, cfg in d['llms'].items():
     print(f\"{cfg['name']} ({cfg['model']})\")
 " 2>/dev/null)
-			echo "$out" | grep -q "airchina" && _pass "list shows airchina" || _fail "list missing airchina: $out"
+			echo "$out" | grep -q "openaialt" && _pass "list shows openaialt" || _fail "list missing openaialt: $out"
 			;;
 		t_list_shows_gateway)
 			local out; out=$(python3 -c "
@@ -419,7 +419,7 @@ for name, cfg in d['llms'].items():
 " 2>/dev/null)
 			echo "$out" | grep -q "deepseek-v4-pro" && _pass "list shows deepseek-v4-pro" || _fail "list missing deepseek-v4-pro"
 			;;
-		t_list_no_guohang)
+		t_list_no_china_air)
 			local out; out=$(python3 -c "
 import json
 with open('$TEST_HOME/git/ccconfig/conftemp/llm.json') as f:
@@ -427,7 +427,7 @@ with open('$TEST_HOME/git/ccconfig/conftemp/llm.json') as f:
 for name, cfg in d['llms'].items():
     print(f\"{cfg['name']}\")
 " 2>/dev/null)
-			echo "$out" | grep -vq "国航" && _pass "list no 国航AI+" || _fail "list has 国航: $out"
+			echo "$out" | grep -vq "china" && _pass "list no china" || _fail "list has china: $out"
 			;;
 		t_list_shows_gateway_routes)
 			local out; out=$(python3 -c "
@@ -453,7 +453,7 @@ for name, cfg in d['llms'].items():
     if sm:
         print(f'{name}: {sm}')
 " 2>/dev/null)
-			echo "$out" | grep -q "minimax: MiniMax-M3" && echo "$out" | grep -q "airchina: deepseek-v4-flash" \
+			echo "$out" | grep -q "minimax: MiniMax-M3" && echo "$out" | grep -q "openaialt: deepseek-v4-flash" \
 				&& _pass "small_model info present" \
 				|| _fail "small_model missing: $out"
 			;;
@@ -479,12 +479,12 @@ for name, cfg in d['llms'].items():
 				|| _fail "no current_mode display"
 			;;
 
-		# ═══ 分组 5: airchina 一致性 ═══
-		t_airchina_display_consistent)
-			local json_name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['llms']['airchina']['name'])")
+		# ═══ 分组 5: openaialt 一致性 ═══
+		t_openaialt_display_consistent)
+			local json_name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['llms']['openaialt']['name'])")
 			# 验证 name 和 key 一致
-			[[ "$json_name" == "airchina" ]] && _pass "airchina name = key = airchina" \
-				|| _fail "airchina name: $json_name, key: airchina"
+			[[ "$json_name" == "openaialt" ]] && _pass "openaialt name = key = openaialt" \
+				|| _fail "openaialt name: $json_name, key: openaialt"
 			;;
 
 		# ═══ 分组 6: openai_bridge.py ═══
@@ -509,21 +509,21 @@ for name, cfg in d['llms'].items():
 				|| _fail "no tool_use in Anthropic response"
 			;;
 
-		# ═══ 分组 7: start-airchina-bridge.sh ═══
+		# ═══ 分组 7: start-openai-bridge.sh ═══
 		t_start_bridge_no_init_llm)
-			! grep -q "bash.*init-llm.sh" "$TEST_HOME/git/ccconfig/lib/start-airchina-bridge.sh" \
+			! grep -q "bash.*init-llm.sh" "$TEST_HOME/git/ccconfig/lib/start-openai-bridge.sh" \
 				&& _pass "start script does NOT call init-llm.sh" \
 				|| _fail "start script still calls init-llm.sh"
 			;;
 		t_start_bridge_has_auto_key)
-			grep -q "llms.*airchina.*key" "$TEST_HOME/git/ccconfig/lib/start-airchina-bridge.sh" \
-				&& _pass "start script auto-reads airchina key from llm.json" \
+			grep -q "print(prov.get" "$TEST_HOME/git/ccconfig/lib/start-openai-bridge.sh" \
+				&& _pass "start script auto-reads provider config from llm.json" \
 				|| _fail "start script missing auto key logic"
 			;;
 		t_start_bridge_syntax)
-			bash -n "$TEST_HOME/git/ccconfig/lib/start-airchina-bridge.sh" 2>/dev/null \
-				&& _pass "start-airchina-bridge.sh syntax OK" \
-				|| _fail "start-airchina-bridge.sh syntax error"
+			bash -n "$TEST_HOME/git/ccconfig/lib/start-openai-bridge.sh" 2>/dev/null \
+				&& _pass "start-openai-bridge.sh syntax OK" \
+				|| _fail "start-openai-bridge.sh syntax error"
 			;;
 
 		# ═══ 分组 8: bridge Anthropic→OpenAI 转换 ═══
