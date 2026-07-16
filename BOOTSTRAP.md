@@ -434,9 +434,11 @@ bash init.sh all
 
 | 步骤 | 脚本 | 做了什么 |
 |------|------|----------|
-| 1/3 | `lib/init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配置 LLM（从 conftemp/llm.json 读取当前后端）/ 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
-| 2/3 | `lib/init-mcp.sh` | 装并同步 MCP 服务器 |
-| 3/3 | `lib/init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
+| 1/5 | `lib/init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
+| 2/5 | `lib/init-llm.sh` | 从 conftemp/llm.json 读取当前 LLM，写入 API key 到 settings.json |
+| 3/5 | `lib/init-mcp.sh` | 装并同步 MCP 服务器 |
+| 4/5 | `lib/init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
+| 5/5 | `lib/status.sh` | 12 项状态验证
 
 > **symlink 已在阶段 4b/4c 完成**，阶段 5 不需要再跑 `ccprivate/setup.sh`。
 

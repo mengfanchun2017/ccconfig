@@ -212,13 +212,13 @@ bash ~/git/ccconfig/status.sh
 | `bash bin/init-ccprivate.sh` | 创建/克隆 ccprivate |
 | `bash init.sh` | 交互式菜单 |
 | `bash init.sh all` | 一键全初始化 |
-| `bash status.sh` | 完整状态检查（11 项） |
-| `bash deps-check.sh` | 依赖完整性检查 |
-| `bash update.sh all` | 月度组件升级 |
-| `bash monitor.sh start` | 启动 auto-sync |
-| `bash monitor.sh status` | 同步守护进程状态 |
-| `bash setup-links.sh` | 重建公开符号链接 |
-| `bash sync.sh --pull` | 强拉远程 |
+| `bash lib/status.sh` | 完整状态检查（12 项） |
+| `bash lib/deps-check.sh` | 依赖完整性检查 |
+| `bash lib/update.sh all` | 月度组件升级 |
+| `bash lib/monitor.sh start` | 启动 auto-sync |
+| `bash lib/monitor.sh status` | 同步守护进程状态 |
+| `bash lib/setup-links.sh` | 重建公开符号链接 |
+| `bash lib/sync.sh --pull` | 强拉远程 |
 
 ## 测试
 
@@ -248,7 +248,7 @@ cd ~/git/ccconfig && git pull
 
 ## 状态检查覆盖
 
-`status.sh` 每次 Claude Code session 启动检查 11 项：
+`status.sh` 每次 Claude Code session 启动检查 12 项：
 
 1. 配置文件链接（settings.json、.config.json、CLAUDE.md、MEMORY.md、rules）
 2. 核心依赖（git、bash、curl）
@@ -261,6 +261,7 @@ cd ~/git/ccconfig && git pull
 9. MCP 服务器健康检查（并行，24h 缓存）
 10. 远程访问（SSH、Tailscale）
 11. option-* 可选组件自动发现
+12. Skills 安装状态
 
 ## 自建 Skills
 
@@ -313,11 +314,14 @@ bash option-llmswitch/init.sh    # LLM 网关代理
 ## LLM 后端
 
 ```bash
-bash init-llm.sh              # 交互式选择
-bash init-llm.sh list         # 列出可用后端
-bash init-llm.sh deepseek     # 切到 DeepSeek
-bash init-llm.sh minimax      # 切到 MiniMax
+bash lib/init-llm.sh              # 交互式选择
+bash lib/init-llm.sh list         # 列出可用后端
+bash lib/init-llm.sh deepseek     # 切到 DeepSeek
+bash lib/init-llm.sh minimax      # 切到 MiniMax
 ```
+
+> **OpenAI-only 端点**（如 airchina）：`lib/init-llm.sh` 自动检测并启用 Anthropic↔OpenAI bridge（端口 8898）。
+> 亦可独立启动 bridge：`bash lib/start-airchina-bridge.sh`
 
 ## 远程访问
 
