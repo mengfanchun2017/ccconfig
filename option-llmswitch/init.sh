@@ -545,7 +545,12 @@ PYEOF
 _do_config_routes() {
     echo ""
     echo "  路由配置:"
-    python3 - "$CONF_FILE" << 'PYEOF'
+    local route_names=()
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        route_names+=("$line")
+        printf "    %d) %s\n" "${#route_names[@]}" "$line"
+    done < <(python3 - "$CONF_FILE" << 'PYEOF'
 import json, sys
 try:
     with open(sys.argv[1]) as f:
@@ -555,12 +560,18 @@ except:
 routes = d.get('routes', {})
 for name, rule in routes.items():
     if isinstance(rule, dict):
-        print(f"    {name}: 高峰→{rule.get('peak','?')}, 非高峰→{rule.get('off_peak','?')}")
+        print(f"{name}: 高峰→{rule.get('peak','?')}, 非高峰→{rule.get('off_peak','?')}")
     else:
-        print(f"    {name}: →{rule}")
+        print(f"{name}: →{rule}")
 PYEOF
+    )
     echo ""
-    read -p "  要编辑的路由名 (如 llmswitch / llmswitch-s, 回车取消): " route_name
+    read -p "  选择路由 [1-${#route_names[@]}，回车取消]: " route_sel
+    if [[ ! "$route_sel" =~ ^[0-9]+$ ]] || (( route_sel < 1 || route_sel > ${#route_names[@]} )); then
+        [[ -n "$route_sel" ]] && warn "  无效选择: $route_sel"
+        return
+    fi
+    local route_name=$(echo "${route_names[$((route_sel-1))]}" | cut -d: -f1)
     [[ -z "$route_name" ]] && return
 
     echo ""
