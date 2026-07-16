@@ -135,12 +135,44 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
     return openai_body
 
 
+def _ensure_started(state, out, msg_id, model):
+    if not state.get("started"):
+        state["started"] = True
+        msg_start = {
+            "type": "message_start",
+            "message": {
+                "id": msg_id, "type": "message", "role": "assistant",
+                "model": model, "content": [],
+                "stop_reason": None, "stop_sequence": None,
+                "usage": {"input_tokens": 0, "output_tokens": 0},
+            },
+        }
+        out.append(f"event: message_start\ndata: {json.dumps(msg_start, separators=(',', ':'))}\n\n")
+        out.append('event: ping\ndata: {"type":"ping"}\n\n')
+
+
+def _close_text_block(state, out, idx):
+    if state.get(f"text_open_{idx}"):
+        out.append(f'event: content_block_stop\ndata: {{"type":"content_block_stop","index":{idx}}}\n\n')
+        state[f"text_open_{idx}"] = False
+
+
+def _close_tool_blocks(state, out):
+    for key in list(state.keys()):
+        if key.startswith("tool_") and state.get(key):
+            tc_info = state[key]
+            out.append(f'event: content_block_stop\ndata: {{"type":"content_block_stop","index":{tc_info["index"]}}}\n\n')
+            state[key] = False
+
+
 def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, state=None):
     """OpenAI stream chunk (可能含多行 data:...) → Anthropic SSE 事件集。
 
-    state: dict 跟踪 message_start/content_block_start 是否已发出。"""
+    state: dict 跟踪 message_start / text block / tool blocks 是否已发出。
+    state["block_idx"]: 下一个可用的 Anthropic content_block index
+    state["tool_N"]: {index, id, name, args} per OpenAI tool_call index N"""
     if state is None:
-        state = {"started": False, "block_open": False, "finished": False}
+        state = {"started": False, "finished": False, "block_idx": 0}
     if not chunk_text:
         return None
 
@@ -153,11 +185,10 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
         if not payload:
             continue
         if payload == "[DONE]":
-            if state["finished"]:
+            if state.get("finished"):
                 continue
-            if state["block_open"]:
-                out.append('event: content_block_stop\ndata: {"type":"content_block_stop","index":0}\n\n')
-                state["block_open"] = False
+            _close_text_block(state, out, 0)
+            _close_tool_blocks(state, out)
             stop_delta = {"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None}}
             out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
             out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
@@ -174,40 +205,70 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
             out.append(f"event: error\ndata: {json.dumps(err_obj, separators=(',', ':'))}\n\n")
             continue
 
-        if not state["started"]:
-            state["started"] = True
-            msg_start = {
-                "type": "message_start",
-                "message": {
-                    "id": msg_id, "type": "message", "role": "assistant",
-                    "model": model, "content": [],
-                    "stop_reason": None, "stop_sequence": None,
-                    "usage": {"input_tokens": 0, "output_tokens": 0},
-                },
-            }
-            out.append(f"event: message_start\ndata: {json.dumps(msg_start, separators=(',', ':'))}\n\n")
-            out.append('event: ping\ndata: {"type":"ping"}\n\n')
+        _ensure_started(state, out, msg_id, model)
 
         for choice in obj.get("choices", []):
             delta = choice.get("delta", {})
             content = delta.get("content")
             if content:
-                if not state["block_open"]:
+                if not state.get("text_open_0"):
                     out.append(
                         'event: content_block_start\n'
                         'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n'
                     )
-                    state["block_open"] = True
+                    state["text_open_0"] = True
                 block_delta = {
                     "type": "content_block_delta",
                     "index": 0,
                     "delta": {"type": "text_delta", "text": content},
                 }
                 out.append(f"event: content_block_delta\ndata: {json.dumps(block_delta, separators=(',', ':'))}\n\n")
+
+            # tool_call deltas
+            for tc in delta.get("tool_calls", []):
+                tc_idx = tc.get("index", 0)
+                tc_key = f"tool_{tc_idx}"
+
+                if tc_key not in state:
+                    state[tc_key] = {
+                        "index": state.get("block_idx", 0),
+                        "id": tc.get("id", ""),
+                        "name": "",
+                        "args": "",
+                    }
+                    state["block_idx"] = state.get("block_idx", 0) + 1
+
+                tc_info = state[tc_key]
+                if "id" in tc and tc["id"]:
+                    tc_info["id"] = tc["id"]
+                fn = tc.get("function", {})
+                if "name" in fn and fn["name"]:
+                    tc_info["name"] = fn["name"]
+                if "arguments" in fn:
+                    tc_info["args"] += fn["arguments"]
+
+                # emit content_block_start on first encounter
+                if not state.get(f"{tc_key}_open"):
+                    state[f"{tc_key}_open"] = True
+                    block_start = {
+                        "type": "content_block_start",
+                        "index": tc_info["index"],
+                        "content_block": {"type": "tool_use", "id": tc_info["id"], "name": tc_info["name"], "input": {}},
+                    }
+                    out.append(f"event: content_block_start\ndata: {json.dumps(block_start, separators=(',', ':'))}\n\n")
+
+                # emit args delta (accumulated so far)
+                if fn.get("arguments"):
+                    args_delta = {
+                        "type": "content_block_delta",
+                        "index": tc_info["index"],
+                        "delta": {"type": "input_json_delta", "partial_json": fn["arguments"]},
+                    }
+                    out.append(f"event: content_block_delta\ndata: {json.dumps(args_delta, separators=(',', ':'))}\n\n")
+
             if choice.get("finish_reason"):
-                if state["block_open"]:
-                    out.append('event: content_block_stop\ndata: {"type":"content_block_stop","index":0}\n\n')
-                    state["block_open"] = False
+                _close_text_block(state, out, 0)
+                _close_tool_blocks(state, out)
                 stop_delta = {"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None}}
                 out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
 
@@ -222,20 +283,35 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
 def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> dict:
     """非流式：OpenAI Chat Completions response → Anthropic message。"""
     choices = openai_body.get("choices", [])
-    text_parts = []
+    content = []
     for ch in choices:
         msg = ch.get("message", {})
-        content = msg.get("content")
-        if isinstance(content, str):
-            text_parts.append({"type": "text", "text": content})
+        text = msg.get("content")
+        if isinstance(text, str) and text:
+            content.append({"type": "text", "text": text})
+        for tc in msg.get("tool_calls", []):
+            fn = tc.get("function", {})
+            content.append({
+                "type": "tool_use",
+                "id": tc.get("id", ""),
+                "name": fn.get("name", ""),
+                "input": json.loads(fn.get("arguments", "{}")) if fn.get("arguments") else {},
+            })
     usage = openai_body.get("usage", {})
+    finish = None
+    if choices:
+        fr = choices[0].get("finish_reason", "")
+        if fr == "stop":
+            finish = "end_turn"
+        elif fr == "tool_calls":
+            finish = "tool_use"
     return {
         "id": openai_body.get("id", msg_id),
         "type": "message",
         "role": "assistant",
         "model": openai_body.get("model", ""),
-        "content": text_parts,
-        "stop_reason": "end_turn" if choices and choices[0].get("finish_reason") == "stop" else None,
+        "content": content,
+        "stop_reason": finish,
         "stop_sequence": None,
         "usage": {
             "input_tokens": usage.get("prompt_tokens", 0),
