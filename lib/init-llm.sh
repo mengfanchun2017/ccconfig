@@ -223,14 +223,131 @@ PYEOF
     success "LLM 已切换为: $name"
 }
 
+# ========== Custom (临时输入任意 Anthropic-compatible 端点) ==========
+# 用法: switch_custom
+# 不写 llm.json，不持久化，只切当前会话；可选择后续保存为预设
+switch_custom() {
+    # 切到直连前先停 watchdog + proxy（同 switch_llm 行为）
+    if is_proxy_running; then
+        info "停止网关代理..."
+        local watchdog_pid_file="$HOME/.cache/llmswitch-watchdog.pid"
+        if [ -f "$watchdog_pid_file" ]; then
+            kill "$(cat "$watchdog_pid_file")" 2>/dev/null || true
+            rm -f "$watchdog_pid_file"
+        fi
+        bash "$LLMSWITCH_INIT" --stop 2>/dev/null || true
+    fi
+
+    echo ""
+    echo "  ── 自定义 Anthropic-compatible 端点 ──"
+    echo "  示例: OpenRouter https://openrouter.ai/api/v1"
+    echo "        自部署网关 https://your-llm.example.com/anthropic"
+    echo ""
+    read -p "  Base URL: " custom_url
+    if [[ -z "$custom_url" ]]; then
+        error "Base URL 不能为空"
+        return 1
+    fi
+
+    read -p "  Model 名称: " custom_model
+    if [[ -z "$custom_model" ]]; then
+        error "Model 名称不能为空"
+        return 1
+    fi
+
+    read -p "  API Key (留空 = 复用当前 key): " custom_key
+
+    # 复用逻辑：用户留空就从 settings.json 取
+    if [[ -z "$custom_key" ]]; then
+        custom_key=$(python3 -c "
+import json, os
+try:
+    with open(os.path.expanduser('~/.claude/settings.json')) as f:
+        d = json.load(f)
+    tok = d.get('env', {}).get('ANTHROPIC_AUTH_TOKEN', '')
+    print(tok)
+except: pass
+" 2>/dev/null || echo "")
+    fi
+
+    echo ""
+    read -p "  是否保存为预设 (Y/n): " save_choice
+    local save_preset="n"
+    case "$save_choice" in
+        [Yy]|"") save_preset="y" ;;
+    esac
+
+    if [[ "$save_preset" == "y" ]]; then
+        # 用户想持久化：写 llm.json + 切到新预设
+        local preset_name
+        read -p "  预设名称 (英文, 如 my-llm): " preset_name
+        preset_name=$(echo "$preset_name" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+        if [[ -z "$preset_name" ]]; then
+            error "预设名称不能为空，跳过保存"
+            save_preset="n"
+        else
+            # 写到 llm.json（不覆盖已有 providers）
+            python3 - <<PYEOF
+import json, os
+p = "${CONFIG_FILE}"
+try:
+    with open(p, 'r') as f:
+        d = json.load(f)
+except Exception:
+    d = {}
+llms = d.setdefault('llms', {})
+key_val = """${custom_key}""".strip() if """${custom_key}""" else ''
+llms["${preset_name}"] = {
+    "name": "${preset_name}",
+    "base_url": "${custom_url}",
+    "model": "${custom_model}",
+    "key": key_val,
+    "small_model": "${custom_model}",
+}
+d['current'] = '${preset_name}'
+with open(p, 'w') as f:
+    json.dump(d, f, indent=4, ensure_ascii=False)
+print(f"llm.json 已写入预设: ${preset_name}")
+PYEOF
+            info "已保存为预设: $preset_name（下次菜单可见）"
+        fi
+        # 切到新预设
+        switch_llm "$preset_name"
+        return $?
+    fi
+
+    if [[ "$save_preset" != "y" ]]; then
+        # 临时模式：直接写 env，不动 llm.json
+        info "临时切换（不保存），切换到: ${custom_url} | ${custom_model}"
+        export CONFIG_FILE CLAUDE_JSON BASE_URL="$custom_url" MODEL_NAME="$custom_model" SMALL_MODEL="$custom_model" API_KEY="$custom_key" NAME="custom"
+        _write_llm_config "custom" "$custom_url" "$custom_model" "$custom_model" "$custom_key"
+        # current 字段记录为 custom 标记（不污染 llm.json 的预设列表）
+        python3 -c "
+import json
+p = '${CONFIG_FILE}'
+try:
+    with open(p, 'r') as f: d = json.load(f)
+except: d = {}
+d['current'] = 'custom'
+with open(p, 'w') as f: json.dump(d, f, indent=4)
+" 2>/dev/null
+    fi
+}
+
 # ========== 切换 LLM ==========
 switch_llm() {
     local name="$1"
 
-    if [[ "$name" == "gateway" ]]; then
-        switch_to_gateway
-        return $?
-    fi
+    case "$name" in
+        gateway)
+            switch_to_gateway
+            return $?
+            ;;
+        custom|-c)
+            switch_custom
+            return $?
+            ;;
+    esac
 
     # 切到直连前先停 watchdog + proxy
     if is_proxy_running; then
@@ -379,13 +496,22 @@ interactive_select() {
         idx=$((idx + 1))
     done < <(echo "$lines")
 
+    # Custom 是固定选项，与 $selectable 无关联，单独编号
+    local custom_idx=$((selectable + 1))
+    printf "  %d) %s\n" "$custom_idx" "Custom (输入任意 base_url + model + key)"
+
     echo ""
-    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$selectable" "$current"
+    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$custom_idx" "$current"
     read -r choice
 
     if [[ -z "$choice" ]] || [[ "$choice" == "0" ]]; then
         info "保持当前: $current"
         return 0
+    fi
+
+    if [[ "$choice" == "$custom_idx" ]]; then
+        switch_custom
+        return $?
     fi
 
     if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "$selectable" ]]; then
@@ -403,6 +529,8 @@ main() {
 
     if [[ "$cmd" == "list" ]]; then
         show_list
+    elif [[ "$cmd" == "custom" ]] || [[ "$cmd" == "-c" ]]; then
+        switch_custom
     elif [[ -z "$cmd" ]]; then
         # 无参数：交互式选择
         interactive_select
