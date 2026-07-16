@@ -467,19 +467,19 @@ delete_preset() {
         return $?
     fi
 
-    # 交互式：列出所有可删的预设
+    # 交互式：只列可删的（内置不显示）
     echo ""
-    echo "可用预设："
+    echo "可删除的自定义预设（内置不可删）："
     local idx=1
     local deletable_names=()
     while IFS='|' read -r name display_name model base_url; do
         if [[ -z "$name" ]]; then continue; fi
+        # 跳过内置
         if [[ "$name" == "minimax" || "$name" == "deepseek" || "$name" == "gateway" ]]; then
-            printf "  %d) %s [内置 — 不可删]\n" "$idx" "$name"
-        else
-            printf "  %d) %s (%s)\n" "$idx" "$name" "$model"
-            deletable_names+=("$name")
+            continue
         fi
+        printf "  %d) %s (%s)\n" "$idx" "$name" "$model"
+        deletable_names+=("$name")
         idx=$((idx + 1))
     done < <(python3 - <<PYEOF
 import json, sys
@@ -501,11 +501,16 @@ PYEOF
     fi
 
     echo ""
-    read -p "输入要删除的预设名称（留空取消）: " target
-    if [[ -z "$target" ]]; then
+    read -p "输入编号 [1-$((idx-1))] 删除（留空取消）: " choice
+    if [[ -z "$choice" ]]; then
         info "已取消"
         return 0
     fi
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 )) || (( choice > ${#deletable_names[@]} )); then
+        error "无效编号: $choice"
+        return 1
+    fi
+    target="${deletable_names[$((choice-1))]}"
     _delete_preset_confirm "$target"
 }
 
