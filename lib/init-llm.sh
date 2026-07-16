@@ -535,7 +535,7 @@ delete_preset() {
         if [[ "$name" == "minimax" || "$name" == "deepseek" || "$name" == "gateway" ]]; then
             continue
         fi
-        printf "  %d) %s (%s)\n" "$idx" "$name" "$model"
+        printf "  %d) %s (%s)\n" "$idx" "$display_name" "$model"
         deletable_names+=("$name")
         idx=$((idx + 1))
     done < <(python3 - <<PYEOF
