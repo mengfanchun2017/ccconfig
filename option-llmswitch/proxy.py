@@ -162,6 +162,129 @@ state = ProxyState()
 http_client = None
 
 
+# ========== Provider-specific 请求体转换 ==========
+# 解决不同 provider 对 Anthropic API 字段支持的差异，避免 4xx 错误。
+# 配置可热重载（通过 llmswitch.json 的 "provider_rules" 字段），无配置时使用 PROVIDER_RULES 默认值。
+def _default_provider_rules():
+    return {
+        # MiniMax Anthropic 端点：忽略 OpenAI-origin 字段；非 thinking 模型不支持 budget_tokens > 0
+        # MiniMax 文档说明 presence_penalty / frequency_penalty / logit_bias 被忽略但实测常抛 400，保守剥离
+        # Claude Code 在会话恢复时会回放 thinking blocks 到 messages 中，MiniMax 不识别
+        "minimax": {
+            "strip_top_level": ["presence_penalty", "frequency_penalty", "logit_bias", "logprobs", "top_logprobs"],
+            "thinking": "clamp_budget",  # 若 budget_tokens >= max_tokens - safety，把 budget 削到 max_tokens * 0.6
+            "strip_thinking_blocks": False,  # MiniMax 实测不报错，保留以维持会话连贯
+        },
+        # DeepSeek Anthropic 端点：基本全兼容，但 thinking 模式下 strip 一些采样参数（reasoning mode 忽略）
+        "deepseek": {
+            "strip_top_level": ["logit_bias", "top_logprobs"],
+            "thinking": "passthrough",  # 不做处理
+            "strip_thinking_blocks": False,
+        },
+    }
+
+
+def _load_provider_rules(config):
+    """从 llmswitch.json 读 provider_rules，没配就用默认。"""
+    return config.get("provider_rules", _default_provider_rules())
+
+
+def _strip_thinking_blocks(body):
+    """从 messages[].content[] 中剥离 type=='thinking' 的块。
+    返回 (new_body, changed)。"""
+    try:
+        data = json.loads(body)
+    except Exception:
+        return body, False
+    if not isinstance(data, dict) or "messages" not in data:
+        return body, False
+    changed = False
+    for msg in data["messages"]:
+        if not isinstance(msg, dict):
+            continue
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        new_content = [b for b in content if not (isinstance(b, dict) and b.get("type") in ("thinking", "redacted_thinking"))]
+        if len(new_content) != len(content):
+            msg["content"] = new_content
+            changed = True
+    if changed:
+        return json.dumps(data, ensure_ascii=False).encode("utf-8"), True
+    return body, False
+
+
+def _strip_top_level(body, fields):
+    """从请求体顶层剥离字段。返回 (new_body, changed)。"""
+    if not fields:
+        return body, False
+    try:
+        data = json.loads(body)
+    except Exception:
+        return body, False
+    if not isinstance(data, dict):
+        return body, False
+    changed = False
+    for f in fields:
+        if f in data:
+            del data[f]
+            changed = True
+    if changed:
+        return json.dumps(data, ensure_ascii=False).encode("utf-8"), True
+    return body, False
+
+
+def _clamp_thinking_budget(body):
+    """若 thinking.budget_tokens >= max_tokens（MiniMax 硬性要求 budget < max），
+    把它削到 max_tokens * 0.6。解决 Claude Code 已知 bug：adaptive thinking 把 max_tokens
+    砍 1/3 但 budget 不变，导致 'max_tokens must be greater than thinking.budget_tokens' 错误。
+    返回 (new_body, changed)。"""
+    try:
+        data = json.loads(body)
+    except Exception:
+        return body, False
+    if not isinstance(data, dict):
+        return body, False
+    thinking = data.get("thinking")
+    if not isinstance(thinking, dict):
+        return body, False
+    if thinking.get("type") not in ("enabled", "adaptive"):
+        return body, False
+    budget = thinking.get("budget_tokens")
+    max_tokens = data.get("max_tokens")
+    if not isinstance(budget, int) or not isinstance(max_tokens, int):
+        return body, False
+    if budget >= max_tokens:
+        # 留 1024 给实际输出
+        new_budget = max(1024, max_tokens - 1024)
+        thinking["budget_tokens"] = new_budget
+        return json.dumps(data, ensure_ascii=False).encode("utf-8"), True
+    return body, False
+
+
+def transform_body_for_provider(body_bytes, provider_key, rules):
+    """按 provider 规则转换请求体。返回 (new_body, transformations_applied)。"""
+    if not rules:
+        return body_bytes, []
+    rule = rules.get(provider_key, {})
+    if not rule:
+        return body_bytes, []
+    applied = []
+    body = body_bytes
+    body, changed = _strip_top_level(body, rule.get("strip_top_level", []))
+    if changed:
+        applied.append("strip_top_level")
+    if rule.get("thinking") == "clamp_budget":
+        body, changed = _clamp_thinking_budget(body)
+        if changed:
+            applied.append("clamp_budget")
+    if rule.get("strip_thinking_blocks"):
+        body, changed = _strip_thinking_blocks(body)
+        if changed:
+            applied.append("strip_thinking_blocks")
+    return body, applied
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global http_client
@@ -215,6 +338,7 @@ async def proxy(path: str, request: Request):
 
     provider_key = None
     target_model = None
+    model_name = ""
 
     if is_messages and body and "application/json" in content_type:
         m = re.search(rb'"model"\s*:\s*"([^"]*)"', body)
@@ -240,6 +364,12 @@ async def proxy(path: str, request: Request):
     target_url = f"{provider['base_url'].rstrip('/')}/{path.lstrip('/')}"
     if request.url.query:
         target_url += f"?{request.url.query}"
+
+    # Provider-specific 请求体转换（参数剥离 / thinking 处理）
+    rules = _load_provider_rules(state.config or {})
+    body, transforms = transform_body_for_provider(body, provider_key, rules)
+    if transforms:
+        print(f"[llmswitch] {provider_key} transforms={transforms} model={target_model or model_name}", flush=True)
 
     headers = dict(request.headers)
     headers.pop("host", None)
