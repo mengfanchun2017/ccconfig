@@ -16,7 +16,6 @@
 # 第三方 skill 安装残留（不跟踪，由 init-skill.sh 管理）
 .agents/
 .claude/skills/
-# 项目级 CLAUDE.md（符号链接到 ccprivate）
 *.pyc
 *.tmp.*
 *:Zone.Identifier
@@ -31,7 +30,6 @@
 .snapshots/
 .tmp/
 .wrangler/
-CLAUDE.md
 __pycache__/
 conftemp/.generated/
 conftemp/claude.json
@@ -43,7 +41,6 @@ conftemp/supabase.json
 conftemp/ubuntu.json
 link/.config.json
 link/CLAUDE.md
-link/projects
 link/settings.json
 openclaw.json
 option-llmswitch/conf/llmswitch.json
