@@ -19,7 +19,7 @@ source "$REPO_DIR/lib/path-helper.sh"
 
 CONF_FILE="$SCRIPT_DIR/conf/llmswitch.json"
 CONF_EXAMPLE="$SCRIPT_DIR/conf/llmswitch.json.example"
-LLM_CONF="$REPO_DIR/conf/llm.json"
+LLM_CONF="$REPO_DIR/conftemp/llm.json"
 PID_FILE="$HOME/.cache/llmswitch.pid"
 LOG_FILE="$HOME/.cache/llmswitch.log"
 ORIG_URL_FILE="$HOME/.cache/llmswitch-orig-baseurl"
@@ -399,6 +399,305 @@ PYEOF
     fi
 }
 
+# ========== 配置向导 ==========
+
+_read_provider_list() {
+    python3 - "$LLM_CONF" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        d = json.load(f)
+except:
+    d = {}
+for name, cfg in d.get('llms', {}).items():
+    if name == 'gateway':
+        continue
+    model = cfg.get('model', '?')
+    print(f"{name}|{model}")
+PYEOF
+}
+
+_do_config_mode() {
+    local current_mode=$(python3 -c "import json; print(json.load(open('$CONF_FILE')).get('mode','auto'))" 2>/dev/null || echo "auto")
+
+    echo ""
+    echo "  当前模式: $current_mode"
+    echo "  1) auto   — 按时段自动切换"
+    echo "  2) manual — 固定后端"
+    echo "  3) off    — 禁用路由（直通 current）"
+    echo ""
+    read -p "  选模式 (1-3, 回车取消): " mode_choice
+
+    case "$mode_choice" in
+        1) do_mode "auto" ;;
+        2)
+            echo ""
+            echo "  可用后端:"
+            _read_provider_list | while IFS='|' read -r name model; do
+                echo "    $name ($model)"
+            done
+            echo ""
+            read -p "  输入后端名称: " manual_p
+            if [[ -n "$manual_p" ]]; then
+                do_mode "manual" "$manual_p"
+            fi
+            ;;
+        3) do_mode "off" ;;
+        *) info "已取消" ;;
+    esac
+}
+
+_do_config_peak_hours() {
+    while true; do
+        echo ""
+        echo "  高峰时段配置:"
+        python3 - "$CONF_FILE" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        d = json.load(f)
+except:
+    d = {}
+blocks = d.get('peak_hours', [])
+if not blocks:
+    print("  (无高峰时段)")
+else:
+    for i, b in enumerate(blocks, 1):
+        days = b.get('days', [])
+        start = b.get('start', '?')
+        end = b.get('end', '?')
+        day_names = {0:'一',1:'二',2:'三',3:'四',4:'五',5:'六',6:'日'}
+        day_str = ','.join(day_names.get(d,str(d)) for d in sorted(days))
+        print(f"  {i}) 星期{day_str} {start}-{end}")
+PYEOF
+        echo ""
+        echo "  操作: a) 添加  d) 删除(编号)  q) 返回"
+        read -p "  选择: " action
+        case "$action" in
+            a|A)
+                read -p "  星期几 (0=一,1=二,...,6=日, 工作日如 0,1,2,3,4): " days_input
+                read -p "  开始时间 (HH:MM): " start_input
+                read -p "  结束时间 (HH:MM): " end_input
+                [[ -z "$days_input" || -z "$start_input" || -z "$end_input" ]] && { warn "  输入不完整"; continue; }
+                python3 - "$CONF_FILE" "$days_input" "$start_input" "$end_input" << 'PYEOF'
+import json, sys
+conf_file = sys.argv[1]
+days_str = sys.argv[2]
+start = sys.argv[3]
+end = sys.argv[4]
+days = []
+for part in days_str.split(','):
+    part = part.strip()
+    if not part: continue
+    if '-' in part:
+        a, b = part.split('-', 1)
+        try:
+            for d in range(int(a), int(b)+1):
+                days.append(d)
+        except: pass
+    else:
+        try: days.append(int(part))
+        except: pass
+try:
+    with open(conf_file) as f:
+        d = json.load(f)
+except:
+    d = {}
+d.setdefault('peak_hours', []).append({"days": sorted(set(days)), "start": start, "end": end})
+with open(conf_file, 'w') as f:
+    json.dump(d, f, indent=2)
+print(f"  已添加: 星期{','.join(map(str,sorted(set(days))))} {start}-{end}")
+PYEOF
+                ;;
+            d|D)
+                read -p "  要删除的编号: " del_idx
+                python3 - "$CONF_FILE" "$del_idx" << 'PYEOF'
+import json, sys
+conf_file = sys.argv[1]
+try: idx = int(sys.argv[2]) - 1
+except: print("  无效编号"); sys.exit(1)
+try:
+    with open(conf_file) as f:
+        d = json.load(f)
+except:
+    print("  无配置"); sys.exit(1)
+blocks = d.get('peak_hours', [])
+if idx < 0 or idx >= len(blocks):
+    print("  编号超出范围"); sys.exit(1)
+removed = blocks.pop(idx)
+d['peak_hours'] = blocks
+with open(conf_file, 'w') as f:
+    json.dump(d, f, indent=2)
+print(f"  已删除: 星期{','.join(map(str,removed.get('days',[])))} {removed.get('start','')}-{removed.get('end','')}")
+PYEOF
+                ;;
+            q|Q|"") break ;;
+            *) warn "无效选择" ;;
+        esac
+    done
+}
+
+_do_config_routes() {
+    echo ""
+    echo "  路由配置:"
+    python3 - "$CONF_FILE" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        d = json.load(f)
+except:
+    d = {}
+routes = d.get('routes', {})
+for name, rule in routes.items():
+    if isinstance(rule, dict):
+        print(f"    {name}: 高峰→{rule.get('peak','?')}, 非高峰→{rule.get('off_peak','?')}")
+    else:
+        print(f"    {name}: →{rule}")
+PYEOF
+    echo ""
+    read -p "  要编辑的路由名 (如 llmswitch / llmswitch-s, 回车取消): " route_name
+    [[ -z "$route_name" ]] && return
+
+    echo ""
+    echo "  可用后端:"
+    while IFS='|' read -r name model; do
+        [[ -z "$name" ]] && continue
+        echo "    $name ($model)"
+    done < <(_read_provider_list)
+
+    local route_type=$(python3 - "$CONF_FILE" "$route_name" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        d = json.load(f)
+    r = d.get('routes', {}).get(sys.argv[2], {})
+    if isinstance(r, dict) and 'peak' in r:
+        print("dict")
+    else:
+        print("str")
+except:
+    print("str")
+PYEOF
+    )
+
+    if [[ "$route_type" == "dict" ]]; then
+        read -p "  高峰后端: " peak_p
+        read -p "  非高峰后端: " offpeak_p
+        python3 - "$CONF_FILE" "$route_name" "$peak_p" "$offpeak_p" << 'PYEOF'
+import json, sys
+conf_file = sys.argv[1]; route_name = sys.argv[2]; peak = sys.argv[3]; off_peak = sys.argv[4]
+try:
+    with open(conf_file) as f: d = json.load(f)
+except: d = {}
+d.setdefault('routes', {})[route_name] = {"peak": peak, "off_peak": off_peak}
+with open(conf_file, 'w') as f: json.dump(d, f, indent=2)
+print(f"  已更新 {route_name}: 高峰→{peak}, 非高峰→{off_peak}")
+PYEOF
+    else
+        read -p "  固定后端: " fixed_p
+        python3 - "$CONF_FILE" "$route_name" "$fixed_p" << 'PYEOF'
+import json, sys
+conf_file = sys.argv[1]; route_name = sys.argv[2]; provider = sys.argv[3]
+try:
+    with open(conf_file) as f: d = json.load(f)
+except: d = {}
+d.setdefault('routes', {})[route_name] = provider
+with open(conf_file, 'w') as f: json.dump(d, f, indent=2)
+print(f"  已更新 {route_name}: →{provider}")
+PYEOF
+    fi
+
+    # 热切换通知
+    if is_running; then
+        info "  路由已更新，代理运行时实时生效（下次请求自动读取新配置）"
+    fi
+}
+
+_do_config_manual_provider() {
+    echo ""
+    echo "  可用后端:"
+    while IFS='|' read -r name model; do
+        [[ -z "$name" ]] && continue
+        echo "    $name ($model)"
+    done < <(_read_provider_list)
+    echo ""
+    read -p "  输入后端名称 (回车取消): " manual_p
+    [[ -z "$manual_p" ]] && return
+
+    if is_running; then
+        do_mode "manual" "$manual_p"
+    else
+        python3 - "$CONF_FILE" "$manual_p" << 'PYEOF'
+import json, sys
+with open(sys.argv[1]) as f: d = json.load(f)
+d["mode"] = "manual"
+d["manual_provider"] = sys.argv[2]
+with open(sys.argv[1], "w") as f: json.dump(d, f, indent=2)
+print("OK")
+PYEOF
+        good "  模式已设为 manual → $manual_p (代理未运行, 下次启动生效)"
+    fi
+}
+
+do_configure() {
+    while true; do
+        local current_mode=$(python3 -c "import json; print(json.load(open('$CONF_FILE')).get('mode','?'))" 2>/dev/null || echo "?")
+        local current_mp=$(python3 -c "import json; print(json.load(open('$CONF_FILE')).get('manual_provider','-'))" 2>/dev/null || echo "-")
+
+        echo ""
+        hdr "LLM Gateway 配置"
+        echo -e "${CYAN}══════════════════${NC}"
+        echo ""
+        echo "  当前模式: $current_mode"
+        echo "  手动 provider: $current_mp"
+        python3 - "$CONF_FILE" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f: d = json.load(f)
+except: d = {}
+blocks = d.get('peak_hours', [])
+routes = d.get('routes', {})
+print("  高峰时段:")
+if blocks:
+    for i, b in enumerate(blocks, 1):
+        ds = sorted(b.get('days', []))
+        dn = {0:'一',1:'二',2:'三',3:'四',4:'五',5:'六',6:'日'}
+        day_str = ','.join(dn.get(d,str(d)) for d in ds)
+        print(f"    {i}) 星期{day_str} {b.get('start','?')}-{b.get('end','?')}")
+else:
+    print("    (无)")
+print("  路由:")
+if routes:
+    for name, rule in routes.items():
+        if isinstance(rule, dict):
+            print(f"    {name}: 高峰→{rule.get('peak','?')}, 非高峰→{rule.get('off_peak','?')}")
+        else:
+            print(f"    {name}: →{rule}")
+else:
+    print("    (无)")
+PYEOF
+
+        echo ""
+        echo -e "  ${BOLD}配置项:${NC}"
+        echo -e "  ${GREEN}1)${NC} 切换模式 (auto/manual/off)"
+        echo -e "  ${CYAN}2)${NC} 配置高峰时段"
+        echo -e "  ${YELLOW}3)${NC} 配置路由"
+        echo -e "  ${GREEN}4)${NC} 配置手动 provider"
+        echo -e "  ${GRAY}0)${NC} 返回"
+        echo ""
+        read -p "  选择 [0-4]: " config_choice
+
+        case "$config_choice" in
+            1) _do_config_mode ;;
+            2) _do_config_peak_hours ;;
+            3) _do_config_routes ;;
+            4) _do_config_manual_provider ;;
+            0) return 0 ;;
+            *) bad "无效选择" ;;
+        esac
+    done
+}
+
 # ========== 日志 ==========
 do_log() {
     if [ -f "$LOG_FILE" ]; then
@@ -442,12 +741,13 @@ echo -e "${CYAN}LLM Gateway Manager${NC}"
     echo -e "  ${YELLOW}3)${NC} 重启代理"
     echo -e "  ${CYAN}4)${NC} 切换模式"
     echo ""
-    echo -e "  ${GRAY}5)${NC} 查看日志"
-    echo -e "  ${GRAY}6)${NC} 安装/重新安装"
+    echo -e "  ${BOLD}5)${NC} 配置向导 (peak_hours / routes / mode)"
+    echo -e "  ${GRAY}6)${NC} 查看日志"
+    echo -e "  ${GRAY}7)${NC} 安装/重新安装"
     echo -e "  ${GRAY}0)${NC} 退出"
     echo ""
 
-    read -rp "  选择 [0-6]: " choice
+    read -rp "  选择 [0-7]: " choice
 
     case "$choice" in
         1) do_start ;;
@@ -464,8 +764,9 @@ echo -e "${CYAN}LLM Gateway Manager${NC}"
                 do_mode "$m"
             fi
             ;;
-        5) do_log ;;
-        6) do_install ;;
+		5) do_configure ;;
+		6) do_log ;;
+		7) do_install ;;
         0) return 0 ;;
         *) bad "无效选择" ;;
     esac
@@ -482,6 +783,7 @@ main() {
         --mode|-m)       do_mode "${2:-}" "${3:-}" ;;
         --log|-l)        do_log ;;
         --update|-u)     do_update ;;
+        --config|-c)     do_configure ;;
         *)               do_menu ;;
     esac
 }
