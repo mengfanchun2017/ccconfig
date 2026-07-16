@@ -6,9 +6,20 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$BASH_SOURCE")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# 加载 ccprivate token if exists
+# 优先 env，其次 .airchina-bridge.env，最后从 llm.json 自动读
 ENV_FILE="${CCCONFIG_ROOT}/conftemp/.airchina-bridge.env"
 [ -f "$ENV_FILE" ] && source "$ENV_FILE"
+
+if [[ -z "${AIRCHINA_KEY:-}" ]]; then
+    AIRCHINA_KEY=$(python3 -c "
+import json
+try:
+    with open('${CCCONFIG_ROOT}/conftemp/llm.json') as f:
+        d = json.load(f)
+    print(d['llms']['airchina']['key'])
+except: pass
+" 2>/dev/null)
+fi
 
 if [[ -z "${AIRCHINA_KEY:-}" ]]; then
     echo "❌ AIRCHINA_KEY 未设置"
