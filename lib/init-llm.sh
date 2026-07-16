@@ -54,7 +54,7 @@ try:
 except Exception:
     sys.exit(0)
 
-routes = config.get('routes', {}).get('llmswitch', {})
+routes = config.get('routes', {}).get('llmgateway', {})
 peak = routes.get('peak', '?')
 off_peak = routes.get('off_peak', '?')
 peak_hours = config.get('peak_hours', [])
