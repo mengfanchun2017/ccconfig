@@ -100,11 +100,13 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
                     m["tool_calls"] = tool_calls
                 messages.append(m)
 
+    max_tokens_val = anth_body.get("max_tokens", 4096)
     openai_body = {
         "model": target_model,
         "messages": messages,
         "stream": bool(anth_body.get("stream")),
-        "max_tokens": anth_body.get("max_tokens", 4096),
+        "max_tokens": max_tokens_val,
+        "max_completion_tokens": max_tokens_val,
     }
     for k in ("temperature", "top_p", "stop", "frequency_penalty", "presence_penalty", "n"):
         if k in anth_body:
