@@ -69,18 +69,27 @@ check_symlinks() {
         issues=$((issues + 1))
     fi
 
-    # MEMORY.md — 检查项目级 memory（Claude Code 自动管理或 ccprivate symlink）
-    local has_memory=false
-    for mem_dir in "$HOME/.claude/projects"/-home-*-*/memory/; do
-        if [ -d "$mem_dir" ] && [ -f "$mem_dir/MEMORY.md" ]; then
-            has_memory=true
-            break
+    # MEMORY.md — 检查项目级 memory 基础设施
+    # memory 内容由 Claude Code 自动管理，这里只检查 symlink 链路是否就绪
+    local mem_ok=false
+    if [ -L "$HOME/.claude/projects" ]; then
+        # ccprivate 创建的 symlink：~/.claude/projects → ccprivate/link/projects
+        local mem_target=$(readlink "$HOME/.claude/projects" 2>/dev/null)
+        if [ -d "$HOME/.claude/projects" ]; then
+            mem_ok=true
         fi
-    done
-    if $has_memory; then
+    elif [ -d "$HOME/.claude/projects" ]; then
+        # Claude Code 自动创建了 projects 目录
+        mem_ok=true
+    elif [ -L "$CCCONFIG_ROOT/link/projects" ]; then
+        # ccconfig/link/projects → ccprivate/link/projects 链路存在
+        # ~/.claude/projects 尚未创建（新装，Claude Code 未运行过）
+        mem_ok=true
+    fi
+    if $mem_ok; then
         echo -e "  ${GREEN}✅${NC} MEMORY.md"
     else
-        echo -e "  ${YELLOW}○${NC} MEMORY.md (无项目 memory)"
+        echo -e "  ${YELLOW}○${NC} MEMORY.md (ccprivate 未链接，run setup.sh)"
     fi
 
     # rules (条件规则)
@@ -180,7 +189,11 @@ check_memory() {
     done
 
     if ! compgen -G "$projects_src/-home-*-*" > /dev/null 2>&1; then
-        echo -e "  ${YELLOW}⚠️${NC} link/projects/ 下无项目记忆目录"
+        if [ -L "$projects_src" ] && [ -d "$projects_src" ]; then
+            echo -e "  ${GREEN}✅${NC} link/projects/ 就绪（尚无项目 memory，Claude Code 首次运行后自动创建）"
+        else
+            echo -e "  ${YELLOW}⚠️${NC} link/projects/ 未链接（run ccprivate/setup.sh）"
+        fi
     fi
 }
 

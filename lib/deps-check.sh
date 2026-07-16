@@ -203,8 +203,22 @@ fi
 for dep in "${CORE_DEPS[@]}"; do
     check_dep "$dep" "true"
 done
-# pip: pip3 优先（Ubuntu 24.04 默认无 pip），回退 python3 -m pip
-check_dep "pip3|python3 -m pip --version|pip|Python 包管理" "true"
+
+# pip: 特殊检查 — Ubuntu 24.04 默认无 pip3 命令，python3 -m pip 也可用
+local pip_ok=false pip_ver=""
+if command -v pip3 &>/dev/null; then
+    pip_ver=$(pip3 --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 || echo "?")
+    pip_ok=true
+elif python3 -m pip --version &>/dev/null 2>&1; then
+    pip_ver=$(python3 -m pip --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 || echo "?")
+    pip_ok=true
+fi
+if $pip_ok; then
+    printf "  %b %-18s %-16s %b%s%b\n" "✅" "pip" "$pip_ver" "$GRAY" "Python 包管理" "$NC"
+else
+    printf "  %b %-18s %-16s %b%s%b\n" "❌" "pip" "-" "$RED" "Python 包管理" "$NC"
+    MISSING=$((MISSING + 1))
+fi
 
 if ! $REQUIRED_ONLY; then
     # 功能

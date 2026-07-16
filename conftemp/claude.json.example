@@ -1,11 +1,8 @@
 {
   "description": "MCP 配置 — 整合 MCP 服务器列表和 env 配置",
-  "_note": "复制此文件为 claude.json 并填入你的 API Key",
+  "_note": "MCP Key 为占位符，运行 bash ccconfig/lib/init-mcp.sh keys 交互式填写",
   "env": {
-    "ANTHROPIC_BASE_URL": "<your-llm-base-url>",
-    "ANTHROPIC_MODEL": "<your-llm-model>",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "ANTHROPIC_AUTH_TOKEN": "<your-api-key>"
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
   },
   "settings": {
     "default_action": "sync",
@@ -14,7 +11,8 @@
   "mcp_servers": [
     {
       "name": "tavily",
-      "description": "网络搜索",
+      "description": "Web 搜索（英文）",
+      "how_to_get": "去 https://tavily.com 注册，免费额度 1000 次/月",
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "tavily-mcp"],
@@ -24,7 +22,8 @@
     },
     {
       "name": "minimax",
-      "description": "MiniMax AI - 网络搜索和图片理解",
+      "description": "MiniMax AI - 中文搜索和图片理解",
+      "how_to_get": "去 https://platform.minimax.io 注册",
       "type": "stdio",
       "command": "uvx",
       "args": ["minimax-coding-plan-mcp", "-y"],
@@ -36,6 +35,7 @@
     {
       "name": "minimax-mcp",
       "description": "MiniMax 多模态 - 语音/视频/图像/音乐生成",
+      "how_to_get": "共用 Minimax Key，无需额外注册",
       "type": "stdio",
       "command": "uvx",
       "args": ["minimax-mcp"],
@@ -47,6 +47,8 @@
     {
       "name": "supabase",
       "description": "Supabase 数据库",
+      "disabled": true,
+      "how_to_get": "去 https://supabase.com 创建项目 → Project Settings 获取 project-ref 和 access-token",
       "type": "stdio",
       "command": "npx",
       "args": [
