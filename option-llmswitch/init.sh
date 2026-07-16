@@ -433,13 +433,18 @@ _do_config_mode() {
         2)
             echo ""
             echo "  可用后端:"
-            _read_provider_list | while IFS='|' read -r name model; do
-                echo "    $name ($model)"
-            done
+            local provs=()
+            while IFS='|' read -r name model; do
+                [[ -z "$name" ]] && continue
+                provs+=("$name")
+                printf "    %d) %s (%s)\n" "${#provs[@]}" "$name" "$model"
+            done < <(_read_provider_list)
             echo ""
-            read -p "  输入后端名称: " manual_p
-            if [[ -n "$manual_p" ]]; then
-                do_mode "manual" "$manual_p"
+            read -p "  选择后端 [1-${#provs[@]}，回车取消]: " prov_choice
+            if [[ "$prov_choice" =~ ^[0-9]+$ ]] && (( prov_choice >= 1 && prov_choice <= ${#provs[@]} )); then
+                do_mode "manual" "${provs[$((prov_choice-1))]}"
+            elif [[ -n "$prov_choice" ]]; then
+                warn "  无效选择: $prov_choice"
             fi
             ;;
         3) do_mode "off" ;;
@@ -560,9 +565,11 @@ PYEOF
 
     echo ""
     echo "  可用后端:"
+    local route_provs=()
     while IFS='|' read -r name model; do
         [[ -z "$name" ]] && continue
-        echo "    $name ($model)"
+        route_provs+=("$name")
+        printf "      %d) %s (%s)\n" "${#route_provs[@]}" "$name" "$model"
     done < <(_read_provider_list)
 
     local route_type=$(python3 - "$CONF_FILE" "$route_name" << 'PYEOF'
@@ -580,10 +587,19 @@ except:
 PYEOF
     )
 
+    _pick_route_provider() {
+        local prompt="$1" prov_name
+        read -p "  $prompt [1-${#route_provs[@]}]: " prov_choice
+        if [[ "$prov_choice" =~ ^[0-9]+$ ]] && (( prov_choice >= 1 && prov_choice <= ${#route_provs[@]} )); then
+            prov_name="${route_provs[$((prov_choice-1))]}"
+        fi
+        echo "${prov_name:-}"
+    }
+
     if [[ "$route_type" == "dict" ]]; then
-        read -p "  高峰后端: " peak_p
-        read -p "  非高峰后端: " offpeak_p
-        python3 - "$CONF_FILE" "$route_name" "$peak_p" "$offpeak_p" << 'PYEOF'
+        peak_p=$(_pick_route_provider "高峰后端")
+        offpeak_p=$(_pick_route_provider "非高峰后端")
+        python3 - "$CONF_FILE" "$route_name" "${peak_p:-}" "${offpeak_p:-}" << 'PYEOF'
 import json, sys
 conf_file = sys.argv[1]; route_name = sys.argv[2]; peak = sys.argv[3]; off_peak = sys.argv[4]
 try:
@@ -594,8 +610,8 @@ with open(conf_file, 'w') as f: json.dump(d, f, indent=2)
 print(f"  已更新 {route_name}: 高峰→{peak}, 非高峰→{off_peak}")
 PYEOF
     else
-        read -p "  固定后端: " fixed_p
-        python3 - "$CONF_FILE" "$route_name" "$fixed_p" << 'PYEOF'
+        fixed_p=$(_pick_route_provider "固定后端")
+        python3 - "$CONF_FILE" "$route_name" "${fixed_p:-}" << 'PYEOF'
 import json, sys
 conf_file = sys.argv[1]; route_name = sys.argv[2]; provider = sys.argv[3]
 try:
@@ -616,13 +632,19 @@ PYEOF
 _do_config_manual_provider() {
     echo ""
     echo "  可用后端:"
+    local provs=()
     while IFS='|' read -r name model; do
         [[ -z "$name" ]] && continue
-        echo "    $name ($model)"
+        provs+=("$name")
+        printf "    %d) %s (%s)\n" "${#provs[@]}" "$name" "$model"
     done < <(_read_provider_list)
     echo ""
-    read -p "  输入后端名称 (回车取消): " manual_p
-    [[ -z "$manual_p" ]] && return
+    read -p "  选择后端 [1-${#provs[@]}，回车取消]: " prov_choice
+    if [[ ! "$prov_choice" =~ ^[0-9]+$ ]] || (( prov_choice < 1 || prov_choice > ${#provs[@]} )); then
+        [[ -n "$prov_choice" ]] && warn "  无效选择: $prov_choice"
+        return
+    fi
+    local manual_p="${provs[$((prov_choice-1))]}"
 
     if is_running; then
         do_mode "manual" "$manual_p"
