@@ -133,78 +133,86 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
     return openai_body
 
 
-def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str):
-    """将一个 OpenAI chat-completion chunk line 转成 Anthropic SSE 格式。"""
-    if not chunk_text or not chunk_text.startswith("data:"):
-        return None
-    payload = chunk_text[len("data:"):].strip()
-    if payload == "[DONE]":
-        return (
-            'event: message_stop\n'
-            'data: {"type":"message_stop"}\n\n'
-        )
-    try:
-        obj = json.loads(payload)
-    except Exception:
-        return None
+def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, state=None):
+    """OpenAI stream chunk (可能含多行 data:...) → Anthropic SSE 事件集。
 
-    if "error" in obj:
-        err = obj["error"]
-        return (
-            'event: error\n'
-            f'data: {json.dumps({"type":"error","error":{"type":"api_error","message":err.get("message","unknown")}})}\n\n'
-        )
+    state: dict 跟踪 message_start/content_block_start 是否已发出。"""
+    if state is None:
+        state = {"started": False, "block_open": False, "finished": False}
+    if not chunk_text:
+        return None
 
     out = []
-    usage = obj.get("usage")
-    if usage:
-        msg_start = {
-            "type": "message_start",
-            "message": {
-                "id": msg_id, "type": "message", "role": "assistant",
-                "model": model, "content": [],
-                "usage": {"input_tokens": usage.get("prompt_tokens", 0), "output_tokens": 0},
-            },
-        }
-        out.append(
-            f"event: message_start\ndata: {json.dumps(msg_start, separators=(',', ':'))}\n\n"
-        )
-        msg_delta_usage = {
-            "type": "message_delta",
-            "usage": {"output_tokens": usage.get("completion_tokens", 0)},
-        }
-        out.append(
-            f"event: message_delta\ndata: {json.dumps(msg_delta_usage, separators=(',', ':'))}\n\n"
-        )
+    for line in chunk_text.split("\n"):
+        line = line.strip()
+        if not line.startswith("data:"):
+            continue
+        payload = line[len("data:"):].strip()
+        if not payload:
+            continue
+        if payload == "[DONE]":
+            if state["finished"]:
+                continue
+            if state["block_open"]:
+                out.append('event: content_block_stop\ndata: {"type":"content_block_stop","index":0}\n\n')
+                state["block_open"] = False
+            stop_delta = {"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None}}
+            out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
+            out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
+            state["finished"] = True
+            continue
+        try:
+            obj = json.loads(payload)
+        except Exception:
+            continue
 
-    for choice in obj.get("choices", []):
-        delta = choice.get("delta", {})
-        content = delta.get("content")
-        if content:
-            out.append(
-                'event: content_block_start\n'
-                'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n'
-            )
-            block_delta = {
-                "type": "content_block_delta",
-                "index": 0,
-                "delta": {"type": "text_delta", "text": content},
+        if "error" in obj:
+            err = obj["error"]
+            err_obj = {"type": "error", "error": {"type": "api_error", "message": err.get("message", "unknown")}}
+            out.append(f"event: error\ndata: {json.dumps(err_obj, separators=(',', ':'))}\n\n")
+            continue
+
+        if not state["started"]:
+            state["started"] = True
+            msg_start = {
+                "type": "message_start",
+                "message": {
+                    "id": msg_id, "type": "message", "role": "assistant",
+                    "model": model, "content": [],
+                    "stop_reason": None, "stop_sequence": None,
+                    "usage": {"input_tokens": 0, "output_tokens": 0},
+                },
             }
-            out.append(
-                f"event: content_block_delta\ndata: {json.dumps(block_delta, separators=(',', ':'))}\n\n"
-            )
-            out.append(
-                'event: content_block_stop\n'
-                'data: {"type":"content_block_stop","index":0}\n\n'
-            )
-        if choice.get("finish_reason"):
-            stop_delta = {
-                "type": "message_delta",
-                "delta": {"stop_reason": "end_turn", "stop_sequence": None},
-            }
-            out.append(
-                f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n"
-            )
+            out.append(f"event: message_start\ndata: {json.dumps(msg_start, separators=(',', ':'))}\n\n")
+            out.append('event: ping\ndata: {"type":"ping"}\n\n')
+
+        for choice in obj.get("choices", []):
+            delta = choice.get("delta", {})
+            content = delta.get("content")
+            if content:
+                if not state["block_open"]:
+                    out.append(
+                        'event: content_block_start\n'
+                        'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n'
+                    )
+                    state["block_open"] = True
+                block_delta = {
+                    "type": "content_block_delta",
+                    "index": 0,
+                    "delta": {"type": "text_delta", "text": content},
+                }
+                out.append(f"event: content_block_delta\ndata: {json.dumps(block_delta, separators=(',', ':'))}\n\n")
+            if choice.get("finish_reason"):
+                if state["block_open"]:
+                    out.append('event: content_block_stop\ndata: {"type":"content_block_stop","index":0}\n\n')
+                    state["block_open"] = False
+                stop_delta = {"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None}}
+                out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
+
+        usage = obj.get("usage")
+        if usage:
+            msg_delta_usage = {"type": "message_delta", "usage": {"output_tokens": usage.get("completion_tokens", 0)}}
+            out.append(f"event: message_delta\ndata: {json.dumps(msg_delta_usage, separators=(',', ':'))}\n\n")
 
     return "".join(out) if out else None
 
@@ -236,6 +244,20 @@ def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> d
 
 app = FastAPI()
 state = {"upstream": "", "upstream_key": "", "upstream_model": ""}
+http_client = None
+
+
+@app.on_event("startup")
+async def on_startup():
+    global http_client
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0))
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    global http_client
+    if http_client:
+        await http_client.aclose()
 
 
 @app.post("/v1/messages")
@@ -250,23 +272,25 @@ async def messages(request: Request):
     }
     target_url = state["upstream"].rstrip("/") + "/v1/chat/completions"
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
-        if stream:
-            async def gen():
-                async with client.stream("POST", target_url, headers=headers, json=upstream_body) as r:
-                    async for chunk in r.aiter_text():
-                        sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"])
-                        if sse_out:
-                            yield sse_out
-            return StreamingResponse(gen(), media_type="text/event-stream")
-        else:
-            r = await client.post(target_url, headers=headers, json=upstream_body)
-            try:
-                openai_json = r.json()
-            except Exception:
-                return JSONResponse({"error": "upstream non-json", "body": r.text[:500]}, status_code=502)
-            anth = openai_to_anthropic_resp(openai_json)
-            return JSONResponse(anth)
+    client = http_client
+    if stream:
+        sse_state = {"started": False, "block_open": False, "finished": False}
+
+        async def gen():
+            async with client.stream("POST", target_url, headers=headers, json=upstream_body) as r:
+                async for chunk in r.aiter_text():
+                    sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
+                    if sse_out:
+                        yield sse_out
+        return StreamingResponse(gen(), media_type="text/event-stream")
+    else:
+        r = await client.post(target_url, headers=headers, json=upstream_body)
+        try:
+            openai_json = r.json()
+        except Exception:
+            return JSONResponse({"error": "upstream non-json", "body": r.text[:500]}, status_code=502)
+        anth = openai_to_anthropic_resp(openai_json)
+        return JSONResponse(anth)
 
 
 @app.post("/admin/reload")
