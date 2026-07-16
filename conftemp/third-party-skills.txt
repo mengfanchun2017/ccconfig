@@ -1,5 +1,0 @@
-# 第三方 skill 清单（已废弃 — 2026-07-13 重构后全部移入 ~/git/skill/plugins/）
-#
-# 所有 skill（自建 f-* + 精选第三方）现在统一放在 mengfanchun2017/skill 仓库
-# init-skill.sh 阶段 1 do_link_self_built 自动 symlink ~/git/skill/plugins/* → ~/.claude/skills/
-# 不再依赖 npx skills add（网络依赖），本地 git repo 即唯一源

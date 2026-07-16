@@ -166,7 +166,22 @@ setup_uv() {
     fi
 }
 
-# ========== 3.5 Python pip 包（init 时安装，update 时升级） ==========
+# ========== 3.5 Python pip（Ubuntu 24 默认无 pip3） ==========
+ensure_pip() {
+    section "Python pip"
+    if command -v pip3 &>/dev/null || python3 -m pip --version &>/dev/null 2>&1; then
+        success "pip 可用: $(pip3 --version 2>/dev/null || python3 -m pip --version 2>/dev/null | head -1)"
+        return 0
+    fi
+    warn "pip3 未安装，尝试安装..."
+    if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
+        sudo apt-get install -y python3-pip python3-venv 2>/dev/null && success "pip3 已安装" && return 0
+    fi
+    python3 -m ensurepip --user 2>/dev/null && success "pip (ensurepip)" && return 0
+    warn "pip 安装失败，Python 包管理功能不可用"
+}
+
+# ========== 3.6 Python pip 包（init 时安装，update 时升级） ==========
 setup_python_packages() {
     section "Python pip 包"
 
@@ -620,6 +635,7 @@ main() {
     setup_ccprivate
     setup_nodejs
     setup_uv
+    ensure_pip
     setup_python_packages
     setup_claude_code
     setup_symlinks
