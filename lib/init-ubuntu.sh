@@ -260,31 +260,57 @@ setup_claude_code() {
     local _claude_ver=$(get_version "claude_code")
     local _claude_pkg="@anthropic-ai/claude-code"
     [[ -n "$_claude_ver" ]] && _claude_pkg="${_claude_pkg}@${_claude_ver}"
-    if ! npm install -g "$_claude_pkg" 2>&1 | tail -3; then
+    if ! npm install -g "$_claude_pkg" 2>&1 | tail -5; then
         error "npm 安装失败"
+        warn "  重试: npm install -g $_claude_pkg"
+        warn "  国内网络: 配置 npm 镜像或挂代理"
+        warn "  手动: npm install -g @anthropic-ai/claude-code && claude install"
+        hash -r 2>/dev/null || true
         return 1
     fi
 
-    # npm install -g 后，从 npm 实际 prefix 拿 claude 路径（不用猜测 node-vXX 目录）
-    local npm_bin
-    npm_bin="$(npm prefix -g 2>/dev/null)/bin"
+    # npm install 成功但 node_modules 刷新可能影响 PATH，hash -r 刷新 shell hash
+    hash -r 2>/dev/null || true
+
+    # npm install -g 后，找 claude 可执行文件路径
+    local claude_src=""
+    local npm_bin="$(npm prefix -g 2>/dev/null)/bin"
     if [[ -x "$npm_bin/claude" ]]; then
-        ln -sf "$npm_bin/claude" "$LOCAL_BIN/claude"
+        claude_src="$npm_bin/claude"
+    else
+        # 回退：find_node_bin 扫描 node_modules/.bin 等位置
+        claude_src="$(find_node_bin claude 2>/dev/null || true)"
+    fi
+    if [[ -n "$claude_src" ]] && [[ -x "$claude_src" ]]; then
+        ln -sf "$claude_src" "$LOCAL_BIN/claude"
         export PATH="$LOCAL_BIN:$PATH"
         info "npm 版本已安装: $(claude --version 2>/dev/null | head -1)"
+    else
+        warn "claude 可执行文件未找到，尝试 which/find 自动搜索..."
+        local found
+        found=$(find "$HOME" -maxdepth 5 -name claude -type f -executable 2>/dev/null | head -1)
+        if [[ -n "$found" ]]; then
+            ln -sf "$found" "$LOCAL_BIN/claude"
+            info "claude 已链接: $found"
+        else
+            warn "claude 未在标准位置找到，运行 claude install 后重试"
+        fi
     fi
 
     # 方式二：用 claude install 下载原生二进制（npm 包内置此命令）
     if command -v claude &>/dev/null; then
         info "下载 Claude Code 原生二进制..."
-        if claude install 2>&1 | tail -5; then
-            command -v claude &>/dev/null && success "Claude Code 原生安装成功"
+        if claude install --force 2>&1 | tail -5; then
+            success "Claude Code 原生安装成功"
         else
             warn "原生二进制下载失败（保留 npm 版本）"
+            warn "  重试: claude install --force"
+            warn "  走代理: export HTTPS_PROXY=http://127.0.0.1:7890 && claude install --force"
         fi
     else
         error "Claude Code 安装失败 — npm 和原生均不可用"
         error "  手动: npm install -g @anthropic-ai/claude-code && claude install"
+        error "  代理: export HTTPS_PROXY=http://127.0.0.1:7890 && npm install -g @anthropic-ai/claude-code"
         hash -r 2>/dev/null || true
         return 1
     fi
@@ -642,7 +668,7 @@ main() {
     setup_uv
     ensure_pip
     setup_python_packages
-    setup_claude_code
+    setup_claude_code || CLAUDE_CLI_NOT_READY=1
     setup_symlinks
 
     # ccprivate 私有链接（MEMORY.md, CLAUDE.md, settings.json 等）

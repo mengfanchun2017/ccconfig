@@ -324,6 +324,12 @@ do_ensure_marketplace() {
         return 0
     fi
 
+    # 二次验证：claude 命令能正常执行（npm 装残了可能在 PATH 但不可用）
+    if ! claude --version &>/dev/null; then
+        [[ "$quiet" != "1" ]] && warn "  claude 命令不可用，跳过 marketplace 注册"
+        return 0
+    fi
+
     if claude plugin marketplace list 2>/dev/null | grep -q "$mkt_name"; then
         [[ "$quiet" != "1" ]] && good "  ✓ marketplace 已添加"
     else
