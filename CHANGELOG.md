@@ -2,6 +2,26 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **`conf/` 目录重命名** — `conftemp/` → `conf/`，准确反映目录用途（配置模板 + symlink，非临时文件）。所有 30+ 引用文件同步更新
+- **`scripts/` → `lib/` 合并** — 3 个脚本（publish.sh、update-third-party-skills.sh、merge_worklog.py）并入 `lib/`，消除顶层目录碎片
+
+### Removed
+- **`.snapshots/`** — 40+ 个版本快照文件（已 gitignore，不再需要）
+- **`.github/findings.md`、`.github/task_plan.md`** — 临时规划文件
+- **`docs/progress.md`、`docs/architecture-evaluation.md`、`docs/glossary.md`、`docs/interface-spec.md`** — 过期/低价值文档
+- **`docs/design/`、`docs/plans/`、`docs/figs/`** — 空目录/单文件目录/素材
+- **`windows-tools/music-convert/`** — 非核心功能
+- **`www/` 目录引用** — 已不存在，从文档中移除
+
+### Updated
+- **README.md** — 完整重写：新目录树、清晰的功能模块说明、精简重复内容
+- **BOOTSTRAP.md** — 路径更新
+- **ROADMAP.md** — 废弃章节清理、Phase 3 更新
+- **docs/README.md** — 索引重写
+
 ## [1.4.8] — 2026-07-12
 
 ### Fixed
