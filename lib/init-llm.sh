@@ -189,38 +189,11 @@ def write_json(path, updater):
 api_key = os.environ.get('API_KEY', '')
 existing_token = read_existing_token()
 
-def is_duplicate_key(key_val):
-    """检测 key 是否被 llm.json 中多个 provider 共用（疑似 copy-paste 错误）"""
-    if not key_val or is_placeholder(key_val):
-        return False
-    try:
-        with open(os.environ['CONFIG_FILE'], 'r') as f:
-            llms = json.load(f).get('llms', {})
-        users = [n for n, c in llms.items() if c.get('key', '') == key_val]
-        return len(users) > 1
-    except:
-        return False
-
 # ── Key 决策 ──
 if api_key and not is_placeholder(api_key):
-    if is_duplicate_key(api_key) and existing_token and existing_token != api_key:
-        # llm.json 中多个 provider 共用同一 key（疑似 copy-paste），
-        # 且 settings.json 已有不同 token → 保护已有 token
-        final_token = existing_token
-        dup_names = []
-        try:
-            with open(os.environ['CONFIG_FILE'], 'r') as f:
-                llms = json.load(f).get('llms', {})
-            dup_names = [n for n, c in llms.items() if c.get('key', '') == api_key]
-        except:
-            pass
-        print(f"\033[1;33m  ⚠ Key {mask_key(api_key)} 被 {', '.join(dup_names)} 共用（疑似 copy-paste）\033[0m")
-        print(f"\033[0;32m  → 保护已有配置: {mask_key(existing_token)}\033[0m")
-        print(f"\033[0;90m  → 修复: 编辑 llm.json 为每个 provider 填入正确 key\033[0m")
-    else:
-        # llm.json 中是真 key（未被共用或有意识相同）
-        final_token = api_key
-        print(f"\033[0;32m  Key: {mask_key(api_key)}\033[0m")
+    # llm.json 中是真 key
+    final_token = api_key
+    print(f"\033[0;32m  Key: {mask_key(api_key)}\033[0m")
 elif existing_token:
     # llm.json 是占位符，但 settings.json 已有真 key（来自 ccprivate）
     final_token = existing_token
