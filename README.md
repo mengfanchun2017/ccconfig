@@ -8,7 +8,7 @@ ccconfig 是 Claude Code 配置基础设施的公开部分。**三仓库模型**
 
 | 仓库 | 可见性 | 内容 |
 |------|--------|------|
-| **ccconfig** | 公开 | infra 脚本（init/bootstrap/sync/monitor）、rules、agents、commands |
+| **ccconfig** | 公开 | infra 脚本（init/bootstrap/sync/monitor）、.example 模板（rules/agents/commands/conf） |
 | **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | Skill 插件市场（Anthropic marketplace 兼容），16 个自建 f-* skill |
 | **ccprivate** | 私有 | API key / Token / 个人配置，通过 symlink 穿透访问 |
 
@@ -42,9 +42,8 @@ ccconfig/
 ├── init.sh                   # 统一入口（交互式二级菜单 + 一键全部）
 ├── maintain.sh               # 统一运维入口（status/monitor/sync/update/deps/fix）
 │
-├── conf/                     # 配置模板 + symlink → ccprivate/conf/
-│   ├── *.json.example        # 公开模板（可提交）
-│   ├── *.json                # → symlink 到 ccprivate/conf/（不跟踪）
+├── conf/                     # 配置模板（不包含真实密钥）
+│   ├── *.json.example        # 公开模板（可提交，用户复制到 ccprivate/conf/）
 │   ├── versions.json         # 组件版本锁定（单一真相源）
 │   ├── third-party-skills.txt # 第三方 npx skill 清单
 │   └── python-requirements.txt
@@ -57,10 +56,11 @@ ccconfig/
 │   ├── init-autostart.sh     # auto-sync systemd 服务
 │   ├── start-openai-bridge.sh # OpenAI-only 端点协议桥
 │   ├── monitor.sh            # 多仓库 inotify 监听 + 自动 git 同步
-│   ├── status.sh             # 状态检查（13 项）
+│   ├── status.sh             # 状态检查（14 项）
 │   ├── sync.sh               # 多仓库智能同步（云端↔本地）
 │   ├── update.sh             # 月度组件升级
-│   ├── setup-links.sh        # 公开部分符号链接
+│   ├── setup-links.sh        # 公开符号链接（shell_aliases + pre-commit）
+│   ├── example-sync.sh       # .example 模板与 ccprivate 同步管理
 │   ├── deps-check.sh         # 依赖完整性检查
 │   ├── path-helper.sh        # 动态路径解析 + CCCONFIG_HOME
 │   ├── git-conflict.sh       # Git 冲突解决公共库
@@ -69,10 +69,10 @@ ccconfig/
 │   ├── update-third-party-skills.sh # 第三方 skill 批量更新
 │   └── merge_worklog.py      # Worklog 合并去重
 │
-├── link/                     # → ~/.claude/ 符号链接源（公开部分）
-│   ├── rules/                # 条件规则（9 个，按路径加载）
-│   ├── agents/               # 意图路由 agent
-│   ├── commands/             # 自定义斜杠命令
+├── link/                     # .example 模板目录（运行时文件在 ccprivate）
+│   ├── rules/*.md.example    # 条件规则模板（9 个，按路径加载）
+│   ├── agents/*.md.example   # 意图路由 agent 模板
+│   ├── commands/             # 自定义命令目录（ccprivate/commands/ 为运行时）
 │   ├── shell_aliases.sh      # 跨终端 shell 别名同步
 │   └── projects/             # → symlink 到 ccprivate/link/projects/
 │
@@ -173,11 +173,15 @@ bash lib/init-llm.sh deepseek     # 一条命令切
 
 | 仓库 | 存什么 | 可公开？ |
 |------|--------|---------|
-| ccconfig | 脚本、rules、agents、commands、.example 模板 | ✅ 开源可 fork |
+| ccconfig | 脚本、.example 模板（rules/agents/commands/conf） | ✅ 开源可 fork |
 | skill | 16 个 f-* skill 插件 | ✅ marketplace 规范 |
 | ccprivate | API key、token、个人 CLAUDE.md/settings.json | ❌ 私有 |
 
 符号链接桥接三仓库。公开仓库零 token。`hooks/pre-commit` 自动拦截私密文件提交。
+
+> **运行时文件（rules/agents/commands）在 ccprivate**：ccconfig 仅提供 `.example` 模板。
+> `~/.claude/rules` → `ccprivate/rules`，`~/.claude/agents` → `ccprivate/agents`。
+> 用户改 ccprivate 文件，`git pull ccconfig` 不覆盖。新模板通过 `maintain.sh example promote` 手动合并。
 
 ### 🔄 Auto-Sync 守护进程
 
@@ -207,13 +211,14 @@ bash tests/test-init.sh --verbose  # 详细输出
 ### 🛠 统一运维入口
 
 ```bash
-bash maintain.sh [status|monitor|sync|update|deps|fix]
+bash maintain.sh [status|monitor|sync|update|deps|fix|example]
 ```
 
-- `status` — 13 项全量检查（链接/依赖/守护进程/Git 推送/MCP 健康/Skills/可选组件）
+- `status` — 14 项全量检查（链接/依赖/守护进程/Git 推送/MCP 健康/Skills/Example 同步/可选组件）
 - `fix` — 自动修复断链、重建符号链接
 - `deps` — 依赖完整性检查（Node/uv/gh/lark-cli 等）
 - `monitor` — 启动/停止/查看 auto-sync 守护进程
+- `example` — .example 模板与 ccprivate 同步状态（status + promote）
 
 ### 🔌 可选组件生态
 
@@ -240,6 +245,8 @@ bash maintain.sh [status|monitor|sync|update|deps|fix]
 | `bash maintain.sh fix` | 自动修复断链 |
 | `bash maintain.sh monitor start` | 启动 auto-sync |
 | `bash maintain.sh sync --pull` | 强拉远程（暗号 `pullff`） |
+| `bash maintain.sh example` | 检测 .example 模板与 ccprivate 差异 |
+| `bash maintain.sh example promote` | 推送 .example 变更到 ccprivate |
 | `bash lib/init-llm.sh` | 切换 LLM 后端 |
 | `bash lib/init-skill.sh sync` | 同步 Skills |
 | `bash lib/update.sh all` | 月度组件升级 |
@@ -258,9 +265,9 @@ cd ~/git/ccconfig && git pull
 
 ## 状态检查覆盖
 
-`maintain.sh status` 每次 Claude Code session 启动检查 13 项：
+`maintain.sh status` 每次 Claude Code session 启动检查 14 项：
 
-1. 配置文件链接（settings.json、.config.json、CLAUDE.md、MEMORY.md、rules）
+1. 配置文件链接（settings.json、.config.json、CLAUDE.md、MEMORY.md、rules → ccprivate）
 2. 核心依赖（git、bash、curl、node、python3、npm）
 3. auto-sync 守护进程
 4. GitHub 最后推送
@@ -272,6 +279,7 @@ cd ~/git/ccconfig && git pull
 10. 远程访问（SSH、Tailscale）
 11. option-* 可选组件自动发现
 12. Skills 安装状态
+13. Example 模板同步（ccconfig .example vs ccprivate 运行时文件）
 
 ## 自建 Skills
 
@@ -331,7 +339,9 @@ ssh <user>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
 | 个人 CLAUDE.md / settings | ccprivate/link/ | 私有仓库 |
 | 项目 memory | ccprivate/link/projects/ | 私有仓库 |
 | Skill 插件 | skill/plugins/ | 公开 |
-| 脚本 / rule / agent / command | ccconfig/ | 公开 |
+| 脚本框架 | ccconfig/ | 公开 |
+| .example 模板（rules/agents/commands/conf） | ccconfig/link/ + conf/ | 公开 |
+| 运行时 rules / agents / commands | ccprivate/rules + agents + commands/ | 私有 |
 | 配置模板 (.example) | ccconfig/conf/*.example | 公开 |
 | 版本号 / 依赖清单 | ccconfig/conf/versions.json | 公开 |
 

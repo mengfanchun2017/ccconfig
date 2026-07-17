@@ -440,7 +440,7 @@ bash init.sh all
 | 4/5 | `lib/init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
 | 5/5 | `maintain.sh finalize` | 修复符号链接 + 启动 auto-sync + 状态验证
 
-> **symlink 已在阶段 4b/4c + 5/5 修复**，无需手动跑 `ccprivate/setup.sh`。
+> **symlink 已全量建立**（用户级 + rules/agents/commands → ccprivate），无需手动跑 `ccprivate/setup.sh`。
 
 **全程无输入**：gh 已登录，LLM 默认值在阶段 4c（init-ccprivate-repo.sh）已写入 conf/llm.json，MCP 和 skills 自动装。
 
@@ -479,7 +479,7 @@ done
 ## 阶段 7 — 验证
 
 ```bash
-# 13 项状态检查
+# 14 项状态检查
 bash maintain.sh status
 ```
 
@@ -604,7 +604,7 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 
 ### 状态检查发现问题的应对
 
-`bash maintain.sh status` 13 项检查，**任何一项 ✗ 都先看该项的命令**：
+`bash maintain.sh status` 14 项检查，**任何一项 ✗ 都先看该项的命令**：
 
 | 失败项 | 修命令 |
 |--------|--------|

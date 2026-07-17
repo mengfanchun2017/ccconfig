@@ -184,7 +184,7 @@ SessionStart 自动运行，检查：
 Skill 的行为约束分三层，各司其职：
 
 ```
-Layer 1: 全局 Rule（始终加载）          ~/.claude/rules/ ← ccconfig/link/rules/
+Layer 1: 全局 Rule（始终加载）          ~/.claude/rules/ ← ccprivate/rules/
   └─ 每个 session 都注入，适合编码规范、飞书操作等跨领域约束
   └─ 成本：6.6 KB always-on budget（15KB 上限的 44%）
 

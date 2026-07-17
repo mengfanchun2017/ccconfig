@@ -192,7 +192,7 @@ python3 -c "import json; print(json.load(open('~/git/ccconfig/.snapshots/version
   └── bash ~/git/cconfig/init-skill.sh sync
 ```
 
-ccprivate 的 conf/*.json 通过 setup.sh symlink 到 ccconfig/conf/，改 ccprivate 后 push → 另一台机器 pull ccprivate + 重跑 setup.sh 即可同步。
+ccprivate 的 conf/*.json 由 ccconfig 脚本 resolve_conf() 直接读取，改 ccprivate 后 push → 另一台机器 pull ccprivate + 重跑 setup.sh 即可同步。
 
 ## 常见问题
 
