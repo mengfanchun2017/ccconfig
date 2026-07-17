@@ -344,12 +344,7 @@ collect_info() {
 
     GH_USER=$(detect_gh_user)
     if [ -n "$GH_USER" ]; then
-        info "GitHub 账号: ${GREEN}$GH_USER${NC}"
-        read -p "  确认? [Y/n]: " confirm
-        confirm="${confirm:-y}"
-        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-            read -p "  输入 GitHub 用户名: " GH_USER
-        fi
+        info "GitHub 账号: ${GREEN}$GH_USER${NC}（从 gh 自动检测）"
     else
         while [ -z "$GH_USER" ]; do
             read -p "  GitHub 用户名: " GH_USER
@@ -359,12 +354,7 @@ collect_info() {
 
     GIT_EMAIL=$(detect_git_email)
     if [ -n "$GIT_EMAIL" ]; then
-        info "Git 邮箱: ${GREEN}$GIT_EMAIL${NC}"
-        read -p "  确认? [Y/n]: " confirm
-        confirm="${confirm:-y}"
-        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-            read -p "  输入邮箱: " GIT_EMAIL
-        fi
+        info "Git 邮箱: ${GREEN}$GIT_EMAIL${NC}（从 gh/git config 自动检测）"
     else
         while [ -z "$GIT_EMAIL" ]; do
             read -p "  Git 邮箱: " GIT_EMAIL
