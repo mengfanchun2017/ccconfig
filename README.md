@@ -38,7 +38,7 @@ Claude Code 配置分散在 `~/.claude/`、环境变量、MCP 服务器、skills
 
 ```
 ccconfig/
-├── bootstrap.sh              # 装 gh CLI + GitHub 认证
+├── bootstrap-gh-auth.sh      # 装 gh CLI + GitHub 认证
 ├── init.sh                   # 统一入口（交互式二级菜单 + 一键全部）
 ├── maintain.sh               # 统一运维入口（status/monitor/sync/update/deps/fix）
 │
@@ -77,7 +77,7 @@ ccconfig/
 │   └── projects/             # → symlink 到 ccprivate/link/projects/
 │
 ├── bin/                      # 面向用户的辅助工具
-│   ├── init-ccprivate.sh     # ccprivate 仓库交互式创建向导
+│   ├── init-ccprivate-repo.sh # ccprivate 仓库交互式创建向导
 │   └── memory-check.sh       # MEMORY.md 过期/孤立条目检测
 │
 ├── hooks/                    # Git hooks + Claude Code hooks
@@ -89,7 +89,7 @@ ccconfig/
 │   ├── test-init.sh          # init.sh 45 用例（mock 隔离）
 │   ├── test-init-llm.sh      # LLM 切换测试
 │   ├── test-bootstrap.sh     # bootstrap 24 用例
-│   ├── test-init-ccprivate.sh # ccprivate 初始化测试
+│   ├── test-init-ccprivate-repo.sh # ccprivate 初始化测试
 │   └── sandbox/              # Docker 沙箱环境
 │
 ├── docs/                     # 设计文档
@@ -130,19 +130,22 @@ ccconfig/
 git clone git@github.com:<your-github-username>/ccconfig.git ~/git/ccconfig
 
 # 2. 装 gh CLI + GitHub 认证（已有 gh 可跳过）
-bash ~/git/ccconfig/bootstrap.sh
+bash ~/git/ccconfig/bootstrap-gh-auth.sh
 
 # 3. 创建 ccprivate 私有配置仓库
-bash ~/git/ccconfig/bin/init-ccprivate.sh
+bash ~/git/ccconfig/bin/init-ccprivate-repo.sh
 
-# 4. 全量初始化（Ubuntu → LLM → MCP → Skills → 验证）
+# 4. 全量初始化（Ubuntu → LLM → MCP → Skills → 收尾）
 bash ~/git/ccconfig/init.sh all
 
-# 5. 状态检查
+# 5. 装可选组件（可选）
+bash ~/git/ccconfig/init-option.sh
+
+# 6. 日常状态检查
 bash ~/git/ccconfig/maintain.sh status
 ```
 
-> **gh 已装？** 跳过步骤 2。 **已有 ccprivate？** `bash ~/git/ccconfig/bin/init-ccprivate.sh --clone` 从 GitHub 克隆。 **不改系统？** `bash init.sh` 进入交互式菜单按需选择。
+> **gh 已装？** 跳过步骤 2。 **已有 ccprivate？** `bash ~/git/ccconfig/bin/init-ccprivate-repo.sh --clone` 从 GitHub 克隆。 **不改系统？** `bash init.sh` 进入交互式菜单按需选择。
 
 ## 特色亮点
 
@@ -183,7 +186,7 @@ systemd 文件监听 (`inotify`) + 60 秒 debounce，`~/git/` 下所有仓库自
 ### 🚀 新机器 10 分钟上线
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/bootstrap-gh-auth.sh | bash
 ```
 
 一行命令走完 gh 安装 + GitHub 认证 → 引导后续步骤。详见 [BOOTSTRAP.md](BOOTSTRAP.md)。
@@ -229,8 +232,8 @@ bash maintain.sh [status|monitor|sync|update|deps|fix]
 
 | 命令 | 用途 |
 |------|------|
-| `bash bootstrap.sh` | 装 gh CLI + GitHub 认证 |
-| `bash bin/init-ccprivate.sh` | 创建/克隆 ccprivate |
+| `bash bootstrap-gh-auth.sh` | 装 gh CLI + GitHub 认证 |
+| `bash bin/init-ccprivate-repo.sh` | 创建/克隆 ccprivate |
 | `bash init.sh` | 交互式菜单 |
 | `bash init.sh all` | 一键全初始化（5 步：Ubuntu → LLM → MCP → Skills → 验证） |
 | `bash maintain.sh status` | 完整状态检查（12 项） |

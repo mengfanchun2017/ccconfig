@@ -1,5 +1,5 @@
 #!/bin/bash
-# test-init-ccprivate.sh — unit tests for init-ccprivate.sh config generation + migration
+# test-init-ccprivate-repo.sh — unit tests for bin/init-ccprivate-repo.sh config generation + migration
 set -euo pipefail
 
 TMPDIR=$(mktemp -d)
