@@ -4,7 +4,7 @@
 # 设计：四步流程中的第二步。
 #   Step 1: git clone https://github.com/<your-username>/ccconfig.git ~/git/ccconfig
 #   Step 2: bash bootstrap-gh-auth.sh               ← 你在这里
-#   Step 3: bash bin/init-ccprivate-repo.sh         ← 创建 ccprivate 私有仓库
+#   Step 3: bash init-ccprivate-repo.sh         ← 创建 ccprivate 私有仓库
 #   Step 4: bash init.sh all                        ← 全量初始化
 #
 # 职责：
@@ -199,7 +199,7 @@ echo -e "  ${GREEN}ccconfig 已就绪 🎉${NC}"
 echo ""
 echo -e "  ${BOLD}还剩两步:${NC}"
 echo ""
-echo -e "    ${CYAN}bash bin/init-ccprivate-repo.sh${NC}   # Step 3: 创建 ccprivate 私有仓库"
+echo -e "    ${CYAN}bash init-ccprivate-repo.sh${NC}   # Step 3: 创建 ccprivate 私有仓库"
 echo -e "    ${CYAN}bash init.sh all${NC}             # Step 4: 全量初始化（ccprivate 已就位）"
 echo ""
 echo -e "  ${GRAY}Step 4 会自动做 5 件事:${NC}"

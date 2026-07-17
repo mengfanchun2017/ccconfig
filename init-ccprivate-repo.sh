@@ -2,9 +2,9 @@
 # init-ccprivate-repo.sh — 一键创建 ccprivate 私有配置仓库
 #
 # 用法：
-#   bash ccconfig/bin/init-ccprivate-repo.sh           # 交互式新建
-#   bash ccconfig/bin/init-ccprivate-repo.sh --clone    # 从已有 GitHub 仓库克隆
-#   bash ccconfig/bin/init-ccprivate-repo.sh --update   # 更新已有 ccprivate（pull + setup + 刷新配置）
+#   bash ccconfig/init-ccprivate-repo.sh           # 交互式新建
+#   bash ccconfig/init-ccprivate-repo.sh --clone    # 从已有 GitHub 仓库克隆
+#   bash ccconfig/init-ccprivate-repo.sh --update   # 更新已有 ccprivate（pull + setup + 刷新配置）
 #
 # 前置条件：SSH key 已添加到 GitHub（推荐），或 gh auth login 已完成（HTTPS 备选）
 # 输出：~/git/ccprivate/ 完整目录结构 + GitHub 私有仓库 + symlink 已建立
@@ -12,7 +12,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+CCCONFIG_DIR="$SCRIPT_DIR"
 CCPRIVATE_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 LOCAL_BIN="$HOME/.local/bin"
 export PATH="$LOCAL_BIN:$PATH"
@@ -771,7 +771,7 @@ do_update() {
 
     if [ ! -d "$CCPRIVATE_DIR/.git" ]; then
         err "$CCPRIVATE_DIR 不是 git 仓库，无法更新"
-        echo "  请先运行: bash $CCCONFIG_DIR/bin/init-ccprivate-repo.sh --clone"
+        echo "  请先运行: bash $CCCONFIG_DIR/init-ccprivate-repo.sh --clone"
         return 1
     fi
 

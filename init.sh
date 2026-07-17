@@ -28,7 +28,7 @@ check_first_time() {
     echo -e "${YELLOW}━━━ 首次初始化引导 ━━━${NC}"
     echo ""
     echo -e "  ${RED}❌${NC} ccprivate 未找到 — 私有配置（API Key、CLAUDE.md、settings.json）"
-    echo -e "     ${CYAN}→${NC} bash ccconfig/bin/init-ccprivate-repo.sh"
+    echo -e "     ${CYAN}→${NC} bash ccconfig/init-ccprivate-repo.sh"
     echo ""
     echo -e "  ${GRAY}（6 步流程：clone → bootstrap-gh-auth.sh → init-ccprivate-repo.sh → init.sh all → init-option.sh → maintain.sh status）${NC}"
     echo ""
@@ -36,7 +36,7 @@ check_first_time() {
     read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
     create_ccp="${create_ccp:-y}"
     if [[ "$create_ccp" =~ ^[Yy]$ ]]; then
-        bash "$SCRIPT_DIR/bin/init-ccprivate-repo.sh"
+        bash "$SCRIPT_DIR/init-ccprivate-repo.sh"
         echo ""
         echo -e "${GREEN}✅ ccprivate 已创建${NC}"
         echo -e "${YELLOW}请重新运行 init.sh 继续初始化${NC}"
@@ -54,7 +54,7 @@ init_all_steps() {
     # 预检：确保 ccprivate 配置已就绪
     local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
     if [[ ! -d "$ccpriv" ]]; then
-        err "ccprivate 未找到，请先: bash bin/init-ccprivate-repo.sh"
+        err "ccprivate 未找到，请先: bash init-ccprivate-repo.sh"
         exit 1
     fi
 
