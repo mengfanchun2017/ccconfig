@@ -109,7 +109,7 @@ ccconfig/link/commands/ ──setup-links.sh ln -s──→ ~/.claude/commands/
 │   │   ├── rules/              # 条件规则（10 个）
 │   │   ├── agents/             # 意图路由 agent
 │   │   └── commands/           # 自定义斜杠命令
-│   ├── bin/init-ccprivate-repo.sh   # ccprivate 一键创建向导
+│   ├── init-ccprivate-repo.sh   # ccprivate 一键创建向导
 │   ├── hooks/                  # git pre-commit + SessionEnd hook
 │   ├── option-*/               # 可选组件（bridge/officecli/llmswitch/remote/cloudflare）
 │   └── docs/                   # 架构/升级/ADR/进度 文档
@@ -139,7 +139,7 @@ ccconfig/link/commands/ ──setup-links.sh ln -s──→ ~/.claude/commands/
 阶段 4: 克隆三仓库 + init-ccprivate-repo.sh
 阶段 5: init.sh all（Ubuntu + LLM + MCP + Skills）
 阶段 6: 克隆所有项目
-阶段 7: status.sh 验证
+阶段 7: maintain.sh status 验证
 ```
 
 关键脚本调用链：
@@ -184,7 +184,7 @@ inotify 监听 ~/git/ 下所有仓库
 
 systemd user service 守护，开机自启。`monitor.sh status` 查看各仓库状态。
 
-### 状态检查（status.sh）
+### 状态检查（maintain.sh status）
 
 每次 Claude Code 启动自动运行（SessionStart hook）。13 项检查：
 1. 配置文件链接 2. 核心依赖 3. auto-sync 4. 最后推送 5. MEMORY 更新
@@ -280,7 +280,7 @@ option-cloudflare/  Cloudflare Workers/Pages/D1/R2/AI 开发环境
 option-remote/      Tailscale + SSH 远程访问桌面 tmux session
 ```
 
-每个组件含 `init.sh`（安装）和 `init.sh --status`（状态检查）。`status.sh` 自动发现所有 `option-*/` 并报告状态。
+每个组件含 `init.sh`（安装）和 `init.sh --status`（状态检查）。`maintain.sh status` 自动发现所有 `option-*/` 并报告状态。
 
 ### 添加新 Skill
 
@@ -293,7 +293,7 @@ option-remote/      Tailscale + SSH 远程访问桌面 tmux session
 
 1. 创建 `option-<name>/`，含 `init.sh` 和 `README.md`
 2. `init.sh` 支持 `--status` 标志
-3. 自动被 `status.sh` 发现
+3. 自动被 `maintain.sh status` 发现
 
 ## 远程访问
 

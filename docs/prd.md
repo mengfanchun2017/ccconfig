@@ -55,7 +55,7 @@
   3. git clone ccconfig + skill
   4. 运行 init-ccprivate-repo.sh → 填写 GitHub 账号 + API Key
   5. 运行 init.sh all → 自动安装所有依赖
-  6. 运行 status.sh → 验证 11 项检查通过
+  6. 运行 maintain.sh status → 验证 11 项检查通过
 后置: Claude Code 可用，所有 skill 已装，auto-sync 在跑
 耗时: ≤10 分钟
 ```
@@ -80,7 +80,7 @@
   1. git clone ccconfig + ccprivate + skill
   2. 运行 ccprivate/setup.sh → 一键建立所有 symlink
   3. 运行 init-skill.sh sync → 同步 skills
-  4. 运行 status.sh → 验证
+  4. 运行 maintain.sh status → 验证
 后置: 笔记本配置与台式机一致
 耗时: ≤3 分钟
 ```
@@ -227,7 +227,7 @@
 ## 7. 验收标准
 
 ### 7.1 新机初始化验收
-- [ ] `git clone` 后按 BOOTSTRAP 步骤执行，10 分钟内 `status.sh` 显示全绿
+- [ ] `git clone` 后按 BOOTSTRAP 步骤执行，10 分钟内 `maintain.sh status` 显示全绿
 - [ ] `claude` 命令可用，`/skills` 显示 12 个 f-* skill
 - [ ] 修改任意文件，60s 内 monitor 自动 commit + push
 

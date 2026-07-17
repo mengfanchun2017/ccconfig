@@ -89,7 +89,7 @@ grep -q 'gh auth setup-git' "$BOOTSTRAP" && pass "runs gh auth setup-git" || fai
 
 # ── Test 10: 四步流程在脚本中体现 ──
 echo "=== Test 10: 四步流程定位 ==="
-grep -q 'bin/init-ccprivate-repo.sh' "$BOOTSTRAP" && pass "指引 init-ccprivate-repo (Step 3)" || fail "no init-ccprivate-repo guide"
+grep -q 'init-ccprivate-repo.sh' "$BOOTSTRAP" && pass "指引 init-ccprivate-repo (Step 3)" || fail "no init-ccprivate-repo guide"
 grep -q 'bash init.sh all' "$BOOTSTRAP" && pass "指引 init.sh all (Step 4)" || fail "no init.sh all guide"
 
 # ── Test 11: 颜色变量定义 ──

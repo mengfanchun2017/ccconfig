@@ -61,7 +61,7 @@ PYEOF
 }
 
 # ========== 1. ccprivate 私有仓库 clone ==========
-# 已由 bin/init-ccprivate-repo.sh 在 Step 3 处理；此处仅做幂等补刀
+# 已由 init-ccprivate-repo.sh 在 Step 3 处理；此处仅做幂等补刀
 setup_ccprivate() {
     section "ccprivate 私有仓库"
 
@@ -69,7 +69,7 @@ setup_ccprivate() {
 
     local CCPRIVATE_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 
-    # 已 clone → 跳过（bin/init-ccprivate-repo.sh 在 4 步流程 Step 3 已处理）
+    # 已 clone → 跳过（init-ccprivate-repo.sh 在 4 步流程 Step 3 已处理）
     if [[ -d "$CCPRIVATE_DIR/.git" ]]; then
         info "ccprivate 已存在，pull 最新"
         git -C "$CCPRIVATE_DIR" pull --ff-only 2>&1 | tail -2 || warn "pull 失败（本地有改动），继续"
@@ -116,7 +116,7 @@ except: pass
     else
         git clone "https://github.com/${CCPRIVATE_REPO}.git" "$CCPRIVATE_DIR" 2>/dev/null || {
             warn "ccprivate clone 失败"
-            warn "  手动: bash bin/init-ccprivate-repo.sh"
+            warn "  手动: bash init-ccprivate-repo.sh"
             return 0
         }
     fi

@@ -159,7 +159,7 @@ iofficeai/officecli  officecli
 | 已装但不在清单 | ~/.claude/skills/ 有，但不在清单也不在自建 | 手动加清单或删文件 |
 | 自建 skill | skill/plugins/ 中的，不在清单管理范围 | 正常，无操作 |
 
-## 状态检查（`status.sh` 第 12 项）
+## 状态检查（`maintain.sh status` 第 12 项）
 
 SessionStart 自动运行，检查：
 - 自建 skill 源目录是否存在
@@ -177,7 +177,7 @@ SessionStart 自动运行，检查：
 | 自建 skill 修改不生效 | symlink 断链或指向旧目录 | `init-skill.sh cleanup` + `init-skill.sh sync` |
 | marketplace add 失败 | GITHUB_USER 未设 | `export GITHUB_USER=<your-username>` 或 `gh auth login` |
 | 第三方 skill 更新后 dialog 仍显示旧内容 | Claude Code 缓存 | 重启 Claude Code |
-| `status.sh` 报告断链 | skill 源目录被移动/删除 | `init-skill.sh cleanup` |
+| `maintain.sh status` 报告断链 | skill 源目录被移动/删除 | `init-skill.sh cleanup` |
 
 ## Rules 三层模型
 

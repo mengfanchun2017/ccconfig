@@ -201,7 +201,7 @@ resolve_conf() {
 
     echo "" >&2
     echo "[path-helper] ❌ 未找到 ccprivate/conf/$name" >&2
-    echo "[path-helper] 需要先建立 ccprivate: bash ccconfig/bin/init-ccprivate-repo.sh" >&2
+    echo "[path-helper] 需要先建立 ccprivate: bash ccconfig/init-ccprivate-repo.sh" >&2
     echo "" >&2
     return 1
 }
