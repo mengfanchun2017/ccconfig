@@ -13,7 +13,7 @@ ccconfig/
 ├── bootstrap.sh      # 装 gh + GitHub 认证
 ├── init.sh           # 初始化入口（交互式菜单）
 ├── maintain.sh       # 统一运维入口
-├── conftemp/         # 配置模板（含 .example 模板）
+├── conf/         # 配置模板（含 .example 模板）
 ├── lib/              # 子脚本 + 共享库
 ├── link/             # → ~/.claude/ 符号链接源
 ├── option-*/         # 可选组件（option- 前缀）
@@ -46,11 +46,11 @@ ccconfig/
 ## 隐私模型
 
 - ccconfig 是公开仓库，**不含任何 API key / Token / 个人标识符**
-- `conftemp/*.json` 是 symlink → ccprivate（私有仓库），`.gitignore` 已忽略
-- `conftemp/*.json.example` 是公开模板，新用户复制后填入自己的值
+- `conf/*.json` 是 symlink → ccprivate（私有仓库），`.gitignore` 已忽略
+- `conf/*.json.example` 是公开模板，新用户复制后填入自己的值
 - `link/CLAUDE.md`、`link/settings.json`、`link/.config.json` 仅存在于 ccprivate
 - `link/projects/` 是 symlink → ccprivate/link/projects/
-- `hooks/pre-commit` 自动拦截：conftemp/*.json 真实文件、API key 模式、私密 link 文件
+- `hooks/pre-commit` 自动拦截：conf/*.json 真实文件、API key 模式、私密 link 文件
 - 所有脚本通过 `$CCCONFIG_HOME` / `$CCPRIVATE_HOME` 解析路径（默认 `~/git/ccconfig`）
 
 ## Pull Request 流程

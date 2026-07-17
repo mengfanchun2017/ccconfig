@@ -740,7 +740,7 @@ check_skills() {
         ok=false
     fi
 
-    local third_party="$CCCONFIG_ROOT/conftemp/third-party-skills.txt"
+    local third_party="$CCCONFIG_ROOT/conf/third-party-skills.txt"
     if [[ -f "$third_party" ]]; then
         local tp_count=$(grep -cEv '^\s*(#|$)' "$third_party" 2>/dev/null || echo 0)
         echo -e "  第三方清单: ${tp_count} 个 (third-party-skills.txt)"

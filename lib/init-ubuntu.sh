@@ -20,7 +20,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
-CONFIG_FILE="$CCCONFIG_ROOT/conftemp/ubuntu.json"
+CONFIG_FILE="$CCCONFIG_ROOT/conf/ubuntu.json"
 CLAUDE_DIR="$HOME/.claude"
 LOCAL_BIN="$HOME/.local/bin"
 
@@ -28,8 +28,8 @@ LOCAL_BIN="$HOME/.local/bin"
 source "$SCRIPT_DIR/path-helper.sh"
 
 # 检查配置文件（首次使用时从 .example 复制）
-ensure_config "$CONFIG_FILE" "conftemp/ubuntu.json" || exit 1
-ensure_config "$CCCONFIG_ROOT/conftemp/llm.json" "conftemp/llm.json" || exit 1
+ensure_config "$CONFIG_FILE" "conf/ubuntu.json" || exit 1
+ensure_config "$CCCONFIG_ROOT/conf/llm.json" "conf/llm.json" || exit 1
 
 # 颜色
 RED='\033[0;31m'
@@ -185,7 +185,7 @@ ensure_pip() {
 setup_python_packages() {
     section "Python pip 包"
 
-    local req_file="$CCCONFIG_ROOT/conftemp/python-requirements.txt"
+    local req_file="$CCCONFIG_ROOT/conf/python-requirements.txt"
 
     if [ ! -f "$req_file" ]; then
         info "未找到 $req_file，跳过"
@@ -303,7 +303,7 @@ setup_llm_backend() {
     fi
 
     # 直接切换到 conf-llm.json 中指定的 current LLM（不交互）
-    local current_llm=$(python3 -c "import json; f=open('$CCCONFIG_ROOT/conftemp/llm.json'); print(json.load(f).get('current',''))" 2>/dev/null || echo "")
+    local current_llm=$(python3 -c "import json; f=open('$CCCONFIG_ROOT/conf/llm.json'); print(json.load(f).get('current',''))" 2>/dev/null || echo "")
 
     if [[ -n "$current_llm" ]]; then
         info "配置 LLM: $current_llm"

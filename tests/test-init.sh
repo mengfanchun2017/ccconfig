@@ -172,20 +172,20 @@ teardown_test_env() {
 # ═══════════════════════════════════════════════
 
 test_ensure_config_broken_symlink() {
-    # 场景：conftemp/ubuntu.json 是 broken symlink（ccprivate 不在）
+    # 场景：conf/ubuntu.json 是 broken symlink（ccprivate 不在）
     # ensure_config 返回 1 表示"模板已复制，请编辑后重试"
     local d="$HOME/git/ccconfig"
-    mkdir -p "$d/conftemp"
-    echo '{"test":true}' > "$d/conftemp/test.json.example"
-    ln -sf /nonexistent/path/config.json "$d/conftemp/test.json"
+    mkdir -p "$d/conf"
+    echo '{"test":true}' > "$d/conf/test.json.example"
+    ln -sf /nonexistent/path/config.json "$d/conf/test.json"
 
     source "$d/lib/path-helper.sh"
-    if ensure_config "$d/conftemp/test.json" "test.json" 2>/dev/null; then
+    if ensure_config "$d/conf/test.json" "test.json" 2>/dev/null; then
         _fail "ensure_config" "broken symlink → 模板复制后应返回 1（提示编辑），不是 0"
     else
         _pass "ensure_config: broken symlink → 模板复制后返回 1（提示用户编辑）"
     fi
-    if [ -f "$d/conftemp/test.json" ] && grep -q '"test":true' "$d/conftemp/test.json"; then
+    if [ -f "$d/conf/test.json" ] && grep -q '"test":true' "$d/conf/test.json"; then
         _pass "ensure_config: broken symlink → 模板内容已正确写入"
     else
         _fail "ensure_config" "模板未正确写入文件"
@@ -194,20 +194,20 @@ test_ensure_config_broken_symlink() {
 
 test_ensure_config_exists() {
     local d="$HOME/git/ccconfig"
-    mkdir -p "$d/conftemp"
-    echo '{"real":true}' > "$d/conftemp/real.json"
+    mkdir -p "$d/conf"
+    echo '{"real":true}' > "$d/conf/real.json"
     source "$d/lib/path-helper.sh"
     assert_ok "ensure_config: 已有配置直接返回 0" \
-        ensure_config "$d/conftemp/real.json" "real.json"
+        ensure_config "$d/conf/real.json" "real.json"
 }
 
 test_ensure_config_missing() {
     local d="$HOME/git/ccconfig"
-    mkdir -p "$d/conftemp"
-    rm -f "$d/conftemp/new.json" "$d/conftemp/new.json.example"
+    mkdir -p "$d/conf"
+    rm -f "$d/conf/new.json" "$d/conf/new.json.example"
     source "$d/lib/path-helper.sh"
     assert_fail "ensure_config: 模板也不存在时返回 1" \
-        ensure_config "$d/conftemp/new.json" "new.json"
+        ensure_config "$d/conf/new.json" "new.json"
 }
 
 test_check_first_time_no_ccprivate() {
@@ -552,14 +552,14 @@ PYEOF
 test_init_config_preflight() {
     # 验证 init_all_steps 的 config 预检逻辑
     local d="$HOME/git/ccconfig"
-    mkdir -p "$d/conftemp"
+    mkdir -p "$d/conf"
 
     # 场景 1：三个配置都缺失 → 从 .example 复制并提示
     local missing=0
     local configs=(
-        "$d/conftemp/ubuntu.json"
-        "$d/conftemp/llm.json"
-        "$d/conftemp/claude.json"
+        "$d/conf/ubuntu.json"
+        "$d/conf/llm.json"
+        "$d/conf/claude.json"
     )
     for cfg in "${configs[@]}"; do
         if [[ -f "$cfg" ]]; then

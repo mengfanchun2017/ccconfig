@@ -58,10 +58,10 @@ do_cconfig_post() {
     echo ""
     echo -e "${CYAN}── 新配置模板检测 ──${NC}"
     local found=0
-    for example in "$CCCONFIG_ROOT"/conftemp/*.json.example; do
+    for example in "$CCCONFIG_ROOT"/conf/*.json.example; do
         [ -f "$example" ] || continue
         local base=$(basename "$example" .example)
-        local target="$CCCONFIG_ROOT/conftemp/$base"
+        local target="$CCCONFIG_ROOT/conf/$base"
         if [ ! -f "$target" ]; then
             cp "$example" "$target"
             echo -e "  ${GREEN}✅${NC} 新建 $base (从 .example 复制)"

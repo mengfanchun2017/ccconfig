@@ -62,7 +62,7 @@ bash ~/git/ccconfig/init-skill.sh sync
 bash ~/git/ccconfig/init-skill.sh status
 
 # 更新第三方 skill（npx skills）
-bash ~/git/ccconfig/scripts/update-third-party-skills.sh
+bash ~/git/ccconfig/lib/update-third-party-skills.sh
 ```
 
 skill 同步流程（3 阶段）：
