@@ -490,7 +490,7 @@ check_feishu() {
     fi
 
     # 列出所有已配置账号
-    local feishu_json="$REPO_DIR/conf/feishu.json"
+    local feishu_json="$(resolve_conf feishu.json)"
     if [ -f "$feishu_json" ]; then
         local accounts_info
         accounts_info=$(python3 - "$feishu_json" "$current_name" << 'PYEOF' 2>/dev/null

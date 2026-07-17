@@ -4,7 +4,8 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-FEISHU_CONF="$CCCONFIG_DIR/conf/feishu.json"
+source "$CCCONFIG_DIR/lib/path-helper.sh"
+FEISHU_CONF="$(resolve_conf feishu.json)" || exit 1
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

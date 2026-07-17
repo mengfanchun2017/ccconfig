@@ -20,9 +20,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-FEISHU_CONF="$CCCONFIG_DIR/conf/feishu.json"
-
 source "$CCCONFIG_DIR/lib/path-helper.sh"
+FEISHU_CONF="$(resolve_conf feishu.json)" || exit 1
 export PATH="$(find_node_bin):${HOME}/.local/bin:$PATH"
 export LARK_CLI_NO_PROXY=1
 
@@ -170,7 +169,7 @@ apps = data.get('apps', [])
 
 lines = ['# ╔══════════════════════════════════════════════════╗',
          '# ║  cc-connect 配置 — 由 ccconfig/option-bridge/init.sh 生成 ║',
-         '# ║  修改: 编辑 ccconfig/conf/feishu.json              ║',
+         '# ║  修改: 编辑 ~/git/ccprivate/conf/feishu.json         ║',
          '# ╚══════════════════════════════════════════════════╝', '',
          '[log]', 'level = "info"', '']
 

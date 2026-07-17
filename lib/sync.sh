@@ -56,15 +56,17 @@ do_cconfig_post() {
     bash "$CCCONFIG_ROOT/lib/setup-links.sh" || echo -e "  ${YELLOW}⚠️ 部分链接失败（首次初始化正常）${NC}"
 
     echo ""
-    echo -e "${CYAN}── 新配置模板检测 ──${NC}"
+    echo -e "${CYAN}── 新配置模板检测（复制到 ccprivate）──${NC}"
+    local ccpriv="${CCPRIVATE_DIR:-$HOME/git/ccprivate}"
     local found=0
     for example in "$CCCONFIG_ROOT"/conf/*.json.example; do
         [ -f "$example" ] || continue
         local base=$(basename "$example" .example)
-        local target="$CCCONFIG_ROOT/conf/$base"
+        local target="$ccpriv/conf/$base"
         if [ ! -f "$target" ]; then
+            mkdir -p "$ccpriv/conf"
             cp "$example" "$target"
-            echo -e "  ${GREEN}✅${NC} 新建 $base (从 .example 复制)"
+            echo -e "  ${GREEN}✅${NC} 新建 $base (→ ccprivate/conf/$base)"
             found=1
         fi
     done
