@@ -19,8 +19,8 @@ paths:
 - 如果 apt 和 pip 都有同一个包，pip 版本会优先（user site 路径优先）
 
 ## 依赖清单
-- 用户安装: `ccconfig/conftemp/python-requirements.txt`
-- 恢复: `pip3 install -r ccconfig/conftemp/python-requirements.txt`
+- 用户安装: `ccconfig/conf/python-requirements.txt`
+- 恢复: `pip3 install -r ccconfig/conf/python-requirements.txt`
 
 ## 常用包
 | 包 | 来源 | 用途 |
@@ -43,13 +43,13 @@ paths:
 
 ## 安装/更新权限
 - Claude 可以在任务需要时自主 `pip3 install` 新包，不询问用户
-- 安装后自动更新 `ccconfig/conftemp/python-requirements.txt` 并标注新增
+- 安装后自动更新 `ccconfig/conf/python-requirements.txt` 并标注新增
 - 用户执行 `pip3 install` 同理，Claude 应该同步更新清单
 
 ## 升级
-- 月度升级（`bash ccconfig/update.sh all`）自动执行 `pip3 install --upgrade -r ccconfig/conftemp/python-requirements.txt`
-- 手动升级: `pip3 install --upgrade -r ccconfig/conftemp/python-requirements.txt`
-- 生成最新清单: `pip3 freeze --user > ccconfig/conftemp/python-requirements.txt`
+- 月度升级（`bash ccconfig/maintain.sh update all`）自动执行 `pip3 install --upgrade -r ccconfig/conf/python-requirements.txt`
+- 手动升级: `pip3 install --upgrade -r ccconfig/conf/python-requirements.txt`
+- 生成最新清单: `pip3 freeze --user > ccconfig/conf/python-requirements.txt`
 
 ## 禁止
 - 禁止用 `sudo pip3 install`（sudo 会装到系统 site-packages，与 apt 冲突）

@@ -105,7 +105,7 @@ fi
 SKILL_LIST=$(IFS=', '; echo "${SKILLS[*]}")
 COMMIT_MSG="sync: 发布 ${SKILL_LIST}
 
-由 ccconfig/scripts/publish.sh 自动生成。
+由 ccconfig/lib/publish.sh 自动生成。
 源: ccconfig/link/skills/ (本地)
 目标: skill/plugins/ (公开)
 
