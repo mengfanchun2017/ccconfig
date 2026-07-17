@@ -243,6 +243,7 @@ setup_claude_code() {
         else
             success "Claude Code 已安装: $current_version（原生）"
         fi
+        hash -r 2>/dev/null || true
         return 0
     fi
 
@@ -283,8 +284,10 @@ setup_claude_code() {
     else
         error "Claude Code 安装失败 — npm 和原生均不可用"
         error "  手动: npm install -g @anthropic-ai/claude-code && claude install"
+        hash -r 2>/dev/null || true
         return 1
     fi
+    hash -r 2>/dev/null || true
 }
 
 # ========== 5. LLM 配置（调用 llminit.sh） ==========
