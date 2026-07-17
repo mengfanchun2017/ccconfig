@@ -176,4 +176,34 @@ ensure_config() {
     fi
 }
 
+# ========== 配置文件路径解析 ==========
+
+# 解析 ccprivate 配置文件的绝对路径
+# 优先级：$CCPRIVATE_DIR/conf/ > $HOME/git/ccprivate/conf/
+# 用法: resolve_conf <filename>  # 如 resolve_conf llm.json
+# 返回: 输出绝对路径; 找不到则报错退出
+resolve_conf() {
+    local name="$1"
+    local candidates=()
+
+    if [ -n "${CCPRIVATE_DIR:-}" ]; then
+        candidates+=("$CCPRIVATE_DIR/conf/$name")
+    fi
+    candidates+=("$HOME/git/ccprivate/conf/$name")
+
+    local path
+    for path in "${candidates[@]}"; do
+        if [ -f "$path" ]; then
+            echo "$path"
+            return 0
+        fi
+    done
+
+    echo "" >&2
+    echo "[path-helper] ❌ 未找到 ccprivate/conf/$name" >&2
+    echo "[path-helper] 需要先建立 ccprivate: bash ccconfig/bin/init-ccprivate.sh" >&2
+    echo "" >&2
+    return 1
+}
+
 # 确保 PATH 包含正确的 Node 和 local bin
