@@ -286,8 +286,8 @@ sudo apt install -y gh
 **Ubuntu 20.04 / 其他（apt 源没有，直接下 binary）**：
 
 ```bash
-# 版本号看 conftemp/versions.json 的 gh.version，或 https://github.com/cli/cli/releases/latest
-GH_VERSION=$(python3 -c "import json; print(json.load(open('conftemp/versions.json')).get('components',{}).get('gh',{}).get('version','2.96.0'))")
+# 版本号看 conf/versions.json 的 gh.version，或 https://github.com/cli/cli/releases/latest
+GH_VERSION=$(python3 -c "import json; print(json.load(open('conf/versions.json')).get('components',{}).get('gh',{}).get('version','2.96.0'))")
 curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
 tar -xzf /tmp/gh.tar.gz -C /tmp
 sudo mv /tmp/gh_${GH_VERSION}_linux_amd64/bin/gh /usr/local/bin/gh
@@ -435,7 +435,7 @@ bash init.sh all
 | 步骤 | 脚本 | 做了什么 |
 |------|------|----------|
 | 1/5 | `lib/init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
-| 2/5 | `lib/init-llm.sh` | 从 conftemp/llm.json 读取当前 LLM，写入 API key 到 settings.json |
+| 2/5 | `lib/init-llm.sh` | 从 conf/llm.json 读取当前 LLM，写入 API key 到 settings.json |
 | 3/5 | `lib/init-mcp.sh` | 装并同步 MCP 服务器 |
 | 4/5 | `lib/init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
 | 5/5 | `lib/status.sh` | 12 项状态验证
@@ -584,7 +584,7 @@ bash lib/init-autostart.sh
 ```
 
 > **monitor push 行为**：监听 `~/git/` 下所有 git 仓库，触发条件是 inotify 检测到文件变化 → 60s debounce → **只 sync 真正改动的仓库**（不是全量扫）。所以同一个 repo 改两个文件不会重复 push，不同 repo 之间互不打扰。
-> 跑 `./lib/monitor.sh status` 看每个仓库的 `pending file(s)` 数；如果哪个仓库一直显示 "clean" 但你想强制推，临时改成 `conftemp/versions.json` 之类即可触发。
+> 跑 `./lib/monitor.sh status` 看每个仓库的 `pending file(s)` 数；如果哪个仓库一直显示 "clean" 但你想强制推，临时改成 `conf/versions.json` 之类即可触发。
 
 **`pullff` 暗号 = 上面 1+2 一步到位**：
 
@@ -599,7 +599,7 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 | `/skills` 菜单看不到新加的 skill | Claude Code 启动时缓存 skill 列表，**不重扫** | **新开一个 session**（`claude` 新窗口或 `claude -c`） |
 | `bash lib/init-skill.sh sync` 显示"本地已有，跳过" | `~/.claude/skills/<name>` 是真目录不是 symlink | `rm -rf ~/.claude/skills/<name>` 再跑 sync |
 | `./lib/monitor.sh status` 显示 stopped | systemd user service 没起来 | `systemctl --user status ccconfig-monitor.service` 看原因；`bash lib/init-autostart.sh` 重装 |
-| LLM 切了但 Claude 还是用旧的 | `conftemp/llm.json` 改了但 settings.json 没更新 | `bash lib/init-llm.sh <backend>` 重写 settings.json |
+| LLM 切了但 Claude 还是用旧的 | `conf/llm.json` 改了但 settings.json 没更新 | `bash lib/init-llm.sh <backend>` 重写 settings.json |
 | 飞书操作报 token 过期 | 跨账号 / 长效 token 过期 | 重新跑 `bash option-bridge/init.sh` |
 
 ### 状态检查发现问题的应对

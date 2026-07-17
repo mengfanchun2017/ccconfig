@@ -25,13 +25,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/path-helper.sh"
 source "$SCRIPT_DIR/colors.sh"
-CONFIG_FILE="$CCCONFIG_ROOT/conftemp/llm.json"
+CONFIG_FILE="$CCCONFIG_ROOT/conf/llm.json"
 LLMSWITCH_CONF="$CCCONFIG_ROOT/option-llmswitch/conf/llmswitch.json"
 LLMSWITCH_INIT="$CCCONFIG_ROOT/option-llmswitch/init.sh"
 LLMSWITCH_WATCHDOG="$CCCONFIG_ROOT/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
-ensure_config "$CONFIG_FILE" "conftemp/llm.json" || exit 1
+ensure_config "$CONFIG_FILE" "conf/llm.json" || exit 1
 
 # ========== Gateway 辅助 ==========
 is_proxy_running() {
@@ -213,7 +213,7 @@ def update_llm_json(d):
         if cur in llms:
             llms[cur]['key'] = final_token
 write_json(os.environ['CONFIG_FILE'], update_llm_json)
-print("conftemp/llm.json 已更新")
+print("conf/llm.json 已更新")
 
 # ── 写 env ──
 env_update = {

@@ -31,7 +31,7 @@ source "$SCRIPT_DIR/path-helper.sh"
 source "$SCRIPT_DIR/git-conflict.sh"
 
 LOCAL_BIN="$HOME/.local/bin"
-VERSION_FILE="$CCCONFIG_ROOT/conftemp/versions.json"
+VERSION_FILE="$CCCONFIG_ROOT/conf/versions.json"
 LOCK_FILE="/tmp/ccconfig-update.lock"
 
 RED='\033[0;31m'
@@ -339,7 +339,7 @@ update_npm_globals() {
 update_python_packages() {
     section "Python pip 包"
 
-    local req_file="$CCCONFIG_ROOT/conftemp/python-requirements.txt"
+    local req_file="$CCCONFIG_ROOT/conf/python-requirements.txt"
 
     if [ ! -f "$req_file" ]; then
         info "未找到 $req_file，跳过"
@@ -729,7 +729,7 @@ update_mcp() {
     rm -rf "$HOME/.npm/_npx" 2>/dev/null || true
 
     # 预拉取 MCP 包
-    local mcp_conf="$CCCONFIG_ROOT/conftemp/claude.json"
+    local mcp_conf="$CCCONFIG_ROOT/conf/claude.json"
     if [ -f "$mcp_conf" ]; then
         python3 - "$mcp_conf" << 'PYEOF'
 import json, sys, subprocess
@@ -956,7 +956,7 @@ do_dry_run() {
     # Python pip
     if command -v pip3 &>/dev/null; then
         local pip_outdated
-        pip_outdated=$(pip3 list --user --outdated --format=columns 2>/dev/null | tail -n +3 | grep -Ff <(sed -n 's/^\([a-zA-Z0-9_-]*\)==.*/\1/p' "$CCCONFIG_ROOT/conftemp/python-requirements.txt" 2>/dev/null) | wc -l || echo "0")
+        pip_outdated=$(pip3 list --user --outdated --format=columns 2>/dev/null | tail -n +3 | grep -Ff <(sed -n 's/^\([a-zA-Z0-9_-]*\)==.*/\1/p' "$CCCONFIG_ROOT/conf/python-requirements.txt" 2>/dev/null) | wc -l || echo "0")
         checks=$((checks + 1))
         if [ "$pip_outdated" -eq 0 ]; then
             printf "  %-18s %-16s %s\n" "Python pip" "-" "${GREEN}最新${NC}"

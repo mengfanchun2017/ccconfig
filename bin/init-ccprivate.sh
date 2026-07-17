@@ -34,7 +34,7 @@ warn()   { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
 err()    { echo -e "  ${RED}❌ $1${NC}"; }
 
 # ── gh CLI 安装（如缺失） ──
-# 复用 init-ubuntu.sh 的下载逻辑：从 conftemp/versions.json 取版本号，binary 装到 ~/.local/bin
+# 复用 init-ubuntu.sh 的下载逻辑：从 conf/versions.json 取版本号，binary 装到 ~/.local/bin
 ensure_gh_cli() {
     if command -v gh &>/dev/null; then
         return 0
@@ -63,7 +63,7 @@ ensure_gh_cli() {
             gh_ver=$(CCCONFIG_DIR="$CCCONFIG_DIR" python3 - << 'PYEOF' 2>/dev/null || echo "2.96.0"
 import json, os
 try:
-    with open(os.path.join(os.environ["CCCONFIG_DIR"], "conftemp", "versions.json")) as f:
+    with open(os.path.join(os.environ["CCCONFIG_DIR"], "conf", "versions.json")) as f:
         print(json.load(f).get("components", {}).get("gh", {}).get("version", "2.96.0"))
 except Exception:
     print("2.96.0")
@@ -457,7 +457,7 @@ PYEOF
 # 从 .example 模板复制（含完整 MCP 定义和占位 Key），LLM env 由 init-llm.sh 独占管理
 gen_claude_json() {
     local f="$CCPRIVATE_DIR/conf/claude.json"
-    local template="$CCCONFIG_DIR/conftemp/claude.json.example"
+    local template="$CCCONFIG_DIR/conf/claude.json.example"
 
     if [[ -f "$template" ]]; then
         cp "$template" "$f"
@@ -605,16 +605,16 @@ for proj_dir in "$SCRIPT_DIR/link/projects"/-home-*-*/; do
     fi
 done
 
-# --- Conf 链接（cconfig/conftemp/ → ccprivate/conf/） ---
+# --- Conf 链接（cconfig/conf/ → ccprivate/conf/） ---
 echo "--- Conf 链接 ---"
 for src in "$SCRIPT_DIR/conf/"*.json; do
     [ -f "$src" ] || continue
     name=$(basename "$src")
-    dst="$CCCONFIG_DIR/conftemp/$name"
+    dst="$CCCONFIG_DIR/conf/$name"
     [ -L "$dst" ] && rm -f "$dst"
     [ -f "$dst" ] && rm -f "$dst"
     ln -s "$src" "$dst"
-    echo "  conftemp/$name → ccprivate"
+    echo "  conf/$name → ccprivate"
 done
 # 旧格式回退（兼容 1.3.7 及更早的 ccprivate）
 if [ -d "$SCRIPT_DIR/conf/.generated" ]; then
@@ -622,11 +622,11 @@ if [ -d "$SCRIPT_DIR/conf/.generated" ]; then
         [ -f "$src" ] || continue
         name=$(basename "$src")
         [ -f "$SCRIPT_DIR/conf/$name" ] && continue
-        dst="$CCCONFIG_DIR/conftemp/$name"
+        dst="$CCCONFIG_DIR/conf/$name"
         [ -L "$dst" ] && rm -f "$dst"
         [ -f "$dst" ] && rm -f "$dst"
         ln -s "$src" "$dst"
-        echo "  conftemp/$name → ccprivate (.generated)"
+        echo "  conf/$name → ccprivate (.generated)"
     done
 fi
 
@@ -724,7 +724,7 @@ do_create() {
     gen_setup_sh
 
     # 复制可选 .example 到 ccprivate（用户以后可按需编辑）
-    for example in "$CCCONFIG_DIR"/conftemp/*.example; do
+    for example in "$CCCONFIG_DIR"/conf/*.example; do
         [ -f "$example" ] || continue
         local name=$(basename "$example" .example)
         if [ ! -f "$CCPRIVATE_DIR/conf/$name" ]; then

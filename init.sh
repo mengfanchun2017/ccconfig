@@ -57,9 +57,9 @@ init_all_steps() {
 
     # 预检：确保 3 个配置文件已就绪，缺失则从 .example 复制并提示编辑
     local configs=(
-        "$CCCONFIG_ROOT/conftemp/ubuntu.json"
-        "$CCCONFIG_ROOT/conftemp/llm.json"
-        "$CCCONFIG_ROOT/conftemp/claude.json"
+        "$CCCONFIG_ROOT/conf/ubuntu.json"
+        "$CCCONFIG_ROOT/conf/llm.json"
+        "$CCCONFIG_ROOT/conf/claude.json"
     )
     local missing_configs=()
     for cfg in "${configs[@]}"; do
@@ -97,7 +97,7 @@ init_all_steps() {
             read -p "  GitHub 用户名: " git_user
             read -p "  Git 邮箱: " git_email
             if [[ -n "$git_user" ]] || [[ -n "$git_email" ]]; then
-                python3 - "$CCCONFIG_ROOT/conftemp/ubuntu.json" "$git_user" "$git_email" << 'PYEOF'
+                python3 - "$CCCONFIG_ROOT/conf/ubuntu.json" "$git_user" "$git_email" << 'PYEOF'
 import json, sys
 with open(sys.argv[1], 'r') as f:
     d = json.load(f)
@@ -125,7 +125,7 @@ PYEOF
             echo "  MCP 服务器需要 API Key（Tavily / MiniMax / Supabase）"
             echo "  现在跳过也没关系，后续跑 init-mcp.sh 会检测缺失的 Key 并提示"
             echo ""
-            echo -e "  手动编辑: ${GRAY}vim $CCCONFIG_ROOT/conftemp/claude.json${NC}"
+            echo -e "  手动编辑: ${GRAY}vim $CCCONFIG_ROOT/conf/claude.json${NC}"
         else
             echo ""
             echo -e "${CYAN}📝 请手动编辑配置文件填入 API Key 等信息后重新运行:${NC}"
@@ -143,7 +143,7 @@ PYEOF
     # 读取 llm.json 中预设的 current（交互式配置阶段已写入），
     # 传给 init-llm.sh 避免重复交互选择
     local current_llm
-    current_llm=$(python3 -c "import json; print(json.load(open('$CCCONFIG_ROOT/conftemp/llm.json')).get('current',''))" 2>/dev/null || echo "")
+    current_llm=$(python3 -c "import json; print(json.load(open('$CCCONFIG_ROOT/conf/llm.json')).get('current',''))" 2>/dev/null || echo "")
     export INIT_LLM_NAME="$current_llm"
 
     run_step "1/5 Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true \

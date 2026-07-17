@@ -17,6 +17,10 @@
 | `update.sh` | 月度组件升级 | maintain.sh update |
 | `setup-links.sh` | 公开部分符号链接 | ccprivate/setup.sh |
 | `deps-check.sh` | 依赖完整性检查 | status.sh |
+| `start-openai-bridge.sh` | OpenAI-only 端点协议桥 | init-llm.sh |
+| `publish.sh` | 自建 skill 发布到 marketplace | 手动 |
+| `update-third-party-skills.sh` | 第三方 skill 批量更新 | update.sh |
+| `merge_worklog.py` | Worklog 合并去重 | SessionEnd hook |
 
 ## 共享库
 
@@ -35,7 +39,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 
 source "$SCRIPT_DIR/path-helper.sh"          # sibling in lib/
-CONFIG="$CCCONFIG_ROOT/conftemp/llm.json"    # conftemp/ at repo root
+CONFIG="$CCCONFIG_ROOT/conf/llm.json"    # conf/ at repo root
 ```
 
 ## 使用

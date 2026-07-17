@@ -13,7 +13,7 @@ PROVIDER="${1:-}"
 # 从 llm.json 读取 provider 信息
 read_provider_from_json() {
     local provider="$1"
-    python3 - "$CCCONFIG_ROOT/conftemp/llm.json" "$provider" << 'PYEOF'
+    python3 - "$CCCONFIG_ROOT/conf/llm.json" "$provider" << 'PYEOF'
 import json, sys
 with open(sys.argv[1]) as f:
     d = json.load(f)
@@ -29,7 +29,7 @@ if [[ -z "$PROVIDER" ]]; then
     PROVIDER=$(python3 -c "
 import json
 try:
-    with open('$CCCONFIG_ROOT/conftemp/llm.json') as f:
+    with open('$CCCONFIG_ROOT/conf/llm.json') as f:
         d = json.load(f)
     print(d.get('current', ''))
 except: pass
@@ -46,7 +46,7 @@ fi
 IFS=$'\n' read -r UPSTREAM KEY MODEL <<< "$(read_provider_from_json "$PROVIDER")"
 
 if [[ -z "$UPSTREAM" ]]; then
-    echo "❌ 未找到 provider '$PROVIDER' 的 base_url（检查 conftemp/llm.json）"
+    echo "❌ 未找到 provider '$PROVIDER' 的 base_url（检查 conf/llm.json）"
     exit 1
 fi
 if [[ -z "$KEY" ]]; then

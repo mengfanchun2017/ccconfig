@@ -137,8 +137,8 @@ EOF
 	export PATH="$TEST_HOME/.local/bin:$PATH"
 	export HOME="$TEST_HOME"
 
-	# conftemp + option-llmswitch/conf 目录
-	mkdir -p "$TEST_HOME/git/ccconfig/conftemp"
+	# conf + option-llmswitch/conf 目录
+	mkdir -p "$TEST_HOME/git/ccconfig/conf"
 	mkdir -p "$TEST_HOME/git/ccconfig/option-llmswitch/conf"
 	mkdir -p "$TEST_HOME/git/ccconfig/lib"
 
@@ -177,8 +177,8 @@ warn() { echo -e "[WARN] $1"; }
 EOF
 	fi
 
-	# 初始 llm.json（模拟真实 conftemp/llm.json）
-	cat > "$TEST_HOME/git/ccconfig/conftemp/llm.json" << 'LLMJSON'
+	# 初始 llm.json（模拟真实 conf/llm.json）
+	cat > "$TEST_HOME/git/ccconfig/conf/llm.json" << 'LLMJSON'
 {
 	"description": "LLM 配置管理 - 支持多后端切换",
 	"llms": {
@@ -336,19 +336,19 @@ run_test() {
 	case "$id" in
 		# ═══ 分组 1: llm.json 读写 ═══
 		t_llm_json_has_openaialt_name)
-			local name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['llms']['openaialt']['name'])")
+			local name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conf/llm.json'))['llms']['openaialt']['name'])")
 			[[ "$name" == "openaialt" ]] && _pass "openaialt.name = openaialt" || _fail "openaialt.name = $name"
 			;;
 		t_llm_json_has_no_china_air)
-			local name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['llms']['openaialt']['name'])")
+			local name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conf/llm.json'))['llms']['openaialt']['name'])")
 			[[ "$name" != *"china"* ]] && _pass "openaialt.name 不含 china" || _fail "openaialt.name 含 china: $name"
 			;;
 		t_llm_json_current_is_gateway)
-			local cur=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['current'])")
+			local cur=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conf/llm.json'))['current'])")
 			[[ "$cur" == "gateway" ]] && _pass "current=gateway" || _fail "current=$cur"
 			;;
 		t_llm_json_all_providers)
-			local count=$(python3 -c "import json; print(len(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['llms']))")
+			local count=$(python3 -c "import json; print(len(json.load(open('$TEST_HOME/git/ccconfig/conf/llm.json'))['llms']))")
 			[[ "$count" == "4" ]] && _pass "4 providers" || _fail "got $count providers"
 			;;
 
@@ -390,9 +390,9 @@ run_test() {
 
 		# ═══ 分组 3: init-llm.sh 输出 ═══
 		t_list_shows_openaialt)
-			local out; out=$(CONFIG_FILE="$TEST_HOME/git/ccconfig/conftemp/llm.json" python3 -c "
+			local out; out=$(CONFIG_FILE="$TEST_HOME/git/ccconfig/conf/llm.json" python3 -c "
 import json
-with open('$TEST_HOME/git/ccconfig/conftemp/llm.json') as f:
+with open('$TEST_HOME/git/ccconfig/conf/llm.json') as f:
     d = json.load(f)
 for name, cfg in d['llms'].items():
     print(f\"{cfg['name']} ({cfg['model']})\")
@@ -402,7 +402,7 @@ for name, cfg in d['llms'].items():
 		t_list_shows_gateway)
 			local out; out=$(python3 -c "
 import json
-with open('$TEST_HOME/git/ccconfig/conftemp/llm.json') as f:
+with open('$TEST_HOME/git/ccconfig/conf/llm.json') as f:
     d = json.load(f)
 for name, cfg in d['llms'].items():
     print(f\"{cfg['name']} ({cfg['model']})\")
@@ -412,7 +412,7 @@ for name, cfg in d['llms'].items():
 		t_list_shows_models)
 			local out; out=$(python3 -c "
 import json
-with open('$TEST_HOME/git/ccconfig/conftemp/llm.json') as f:
+with open('$TEST_HOME/git/ccconfig/conf/llm.json') as f:
     d = json.load(f)
 for name, cfg in d['llms'].items():
     print(f\"{cfg['name']} ({cfg['model']})\")
@@ -422,7 +422,7 @@ for name, cfg in d['llms'].items():
 		t_list_no_china_air)
 			local out; out=$(python3 -c "
 import json
-with open('$TEST_HOME/git/ccconfig/conftemp/llm.json') as f:
+with open('$TEST_HOME/git/ccconfig/conf/llm.json') as f:
     d = json.load(f)
 for name, cfg in d['llms'].items():
     print(f\"{cfg['name']}\")
@@ -446,7 +446,7 @@ print(f'→{peak} / →{off_peak}')
 		t_list_shows_small_models)
 			local out; out=$(python3 -c "
 import json
-with open('$TEST_HOME/git/ccconfig/conftemp/llm.json') as f:
+with open('$TEST_HOME/git/ccconfig/conf/llm.json') as f:
     d = json.load(f)
 for name, cfg in d['llms'].items():
     sm = cfg.get('small_model', '')
@@ -481,7 +481,7 @@ for name, cfg in d['llms'].items():
 
 		# ═══ 分组 5: openaialt 一致性 ═══
 		t_openaialt_display_consistent)
-			local json_name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conftemp/llm.json'))['llms']['openaialt']['name'])")
+			local json_name=$(python3 -c "import json; print(json.load(open('$TEST_HOME/git/ccconfig/conf/llm.json'))['llms']['openaialt']['name'])")
 			# 验证 name 和 key 一致
 			[[ "$json_name" == "openaialt" ]] && _pass "openaialt name = key = openaialt" \
 				|| _fail "openaialt name: $json_name, key: openaialt"
