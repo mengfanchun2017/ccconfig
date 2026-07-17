@@ -279,6 +279,17 @@ def _call_lark_cli(args, env, cwd="/tmp", timeout=20):
 
 
 def _read_conf(ccconfig_home):
+    # 优先读取 ccprivate/conf/f-logme.json（ccconfig 不存个人配置）
+    for base in [os.environ.get("CCPRIVATE_HOME"), os.path.expanduser("~/git/ccprivate")]:
+        if base:
+            p = os.path.join(base, "conf/f-logme.json")
+            if os.path.isfile(p):
+                try:
+                    with open(p) as f:
+                        return json.load(f)
+                except (json.JSONDecodeError,):
+                    pass
+    # fallback（向后兼容）
     conf_path = os.path.join(ccconfig_home, "conf/f-logme.json")
     try:
         with open(conf_path) as f:

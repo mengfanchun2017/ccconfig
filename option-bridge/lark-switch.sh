@@ -12,7 +12,9 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FEISHU_CONF="$SCRIPT_DIR/../conf/feishu.json"
+CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$CCCONFIG_DIR/lib/path-helper.sh"
+FEISHU_CONF="$(resolve_conf feishu.json)" || exit 1
 MARKER_FILE="$HOME/.lark-cli-account"
 
 # 颜色
