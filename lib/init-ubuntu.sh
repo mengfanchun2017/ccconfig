@@ -643,11 +643,11 @@ main() {
     echo "Ubuntu 初始化 - $(date '+%Y-%m-%d')"
     echo ""
 
-    # 确保 ~/.local/bin 在 PATH 中
-    export PATH="$LOCAL_BIN:$PATH"
-    if [[ ":$PATH:" != *":$LOCAL_BIN:"* ]]; then
+    # 确保 ~/.local/bin 在 PATH 中（先写 bashrc，再 export 给当前进程）
+    if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc" 2>/dev/null; then
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
     fi
+    export PATH="$LOCAL_BIN:$PATH"
 
     # shell 别名同步（cconfig/setup-links.sh 维护符号链接）
     if ! grep -q "shell_aliases.sh" "$HOME/.bashrc" 2>/dev/null; then
