@@ -30,7 +30,7 @@ check_first_time() {
     echo -e "  ${RED}❌${NC} ccprivate 未找到 — 私有配置（API Key、CLAUDE.md、settings.json）"
     echo -e "     ${CYAN}→${NC} bash ccconfig/bin/init-ccprivate-repo.sh"
     echo ""
-    echo -e "  ${GRAY}（4 步流程：clone → bash bootstrap-gh-auth.sh → bash bin/init-ccprivate-repo.sh → bash init.sh all）${NC}"
+    echo -e "  ${GRAY}（6 步流程：clone → bootstrap-gh-auth.sh → init-ccprivate-repo.sh → init.sh all → init-option.sh → maintain.sh status）${NC}"
     echo ""
 
     read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
