@@ -322,7 +322,7 @@ skill 内 Python 脚本 `open('config.yaml')` 自动跟踪 symlink 读到 ccpriv
 A: ccprivate 和 ccconfig 是完全不同的仓库。ccconfig 是公开的工具集，ccprivate 是你个人的密钥库。没有"官方 ccprivate"可以 fork——每个人的密钥不同。
 
 ### Q: 可以不用 ccprivate 吗？
-A: 可以。用 `bash ccconfig/bin/init-ccprivate-repo.sh` 交互式配置向导，手动输入 API Key。但 ccprivate 方式更方便——一次配置，多机复用，`git pull` 即可恢复。
+A: 可以。用 `bash ccconfig/init-ccprivate-repo.sh` 交互式配置向导，手动输入 API Key。但 ccprivate 方式更方便——一次配置，多机复用，`git pull` 即可恢复。
 
 ### Q: ccprivate/setup.sh 和 ccconfig/setup-links.sh 的关系？
 A: `ccprivate/setup.sh` 做私有链接（conf + CLAUDE.md + settings.json），然后调用 `ccconfig/setup-links.sh` 做公开链接（rules/agents/commands/skills）。一步到位。

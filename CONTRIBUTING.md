@@ -40,7 +40,7 @@ ccconfig/
 1. 创建 `option-<name>/` 目录
 2. 包含 `init.sh`（入口）和 `README.md`（说明）
 3. 在 `deps-check.sh` 的 `OPTIONAL_DEPS` 数组添加依赖检测
-4. 在 `status.sh` 添加状态检查
+4. 在 `lib/status.sh` 添加状态检查
 5. 更新 `README.md` 目录结构
 
 ## 隐私模型

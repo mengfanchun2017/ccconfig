@@ -77,9 +77,9 @@ ccconfig/
 │   └── projects/             # → symlink 到 ccprivate/link/projects/
 │
 ├── bin/                      # 面向用户的辅助工具
-│   ├── init-ccprivate-repo.sh # ccprivate 仓库交互式创建向导
 │   └── memory-check.sh       # MEMORY.md 过期/孤立条目检测
 │
+├── init-ccprivate-repo.sh   # ccprivate 仓库交互式创建向导
 ├── hooks/                    # Git hooks + Claude Code hooks
 │   ├── pre-commit            # 防私密文件意外提交
 │   ├── session-end-aggregator.sh  # SessionEnd hook：自动 worklog
@@ -226,14 +226,14 @@ bash maintain.sh [status|monitor|sync|update|deps|fix]
 | `option-remote` | Tailscale + SSH 远程连接桌面 tmux session | 见 `option-remote/readme.md` |
 | `windows-tools` | Windows/WSL 互操作工具（PowerShell 更新） | — |
 
-每个组件 `init.sh` 均支持 `--status`，自动被 `status.sh` 发现。
+每个组件 `init.sh` 均支持 `--status`，自动被 `maintain.sh status` 发现。
 
 ## 核心命令
 
 | 命令 | 用途 |
 |------|------|
 | `bash bootstrap-gh-auth.sh` | 装 gh CLI + GitHub 认证 |
-| `bash bin/init-ccprivate-repo.sh` | 创建/克隆 ccprivate |
+| `bash init-ccprivate-repo.sh` | 创建/克隆 ccprivate |
 | `bash init.sh` | 交互式菜单 |
 | `bash init.sh all` | 一键全初始化（5 步：Ubuntu → LLM → MCP → Skills → 验证） |
 | `bash maintain.sh status` | 完整状态检查（12 项） |
@@ -348,7 +348,7 @@ python3 -c "import json; [json.load(open(f)) for f in __import__('glob').glob('c
 
 1. 创建 `option-<name>/`，含 `init.sh` 和 `README.md`
 2. `init.sh` 支持 `--status` 标志
-3. 自动被 `status.sh` 发现
+3. 自动被 `maintain.sh status` 发现
 
 ### 添加 Skill
 

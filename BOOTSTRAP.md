@@ -21,7 +21,7 @@ cd ~/git/ccconfig
 bash bootstrap-gh-auth.sh
 
 # Step 3: 创建 ccprivate 私有仓库（API Key / Token / 个人配置）
-bash bin/init-ccprivate-repo.sh
+bash init-ccprivate-repo.sh
 
 # Step 4: 全量初始化（ccprivate 已就位）
 bash init.sh all
@@ -39,7 +39,7 @@ bash init.sh all
 4. 配置 git 用户身份（从 gh api 拿）和 credential helper
 5. 输出下一步命令
 
-`bin/init-ccprivate-repo.sh` 自动：
+`init-ccprivate-repo.sh` 自动：
 1. 询问 GitHub PAT（gh auth 没设时）
 2. 在 GitHub 创建 ccprivate 私有仓库（用 gh api）
 3. clone 到 `~/git/ccprivate`
@@ -409,7 +409,7 @@ gh repo clone <your-github-username>/skill
 ccprivate 是私有配置仓库，存放 API key + Token + 个人配置。**一条命令完成**：
 
 ```bash
-bash ~/git/ccconfig/bin/init-ccprivate-repo.sh
+bash init-ccprivate-repo.sh
 ```
 
 脚本交互式收集信息（GitHub 账号、邮箱、LLM API Key），自动：
@@ -419,7 +419,7 @@ bash ~/git/ccconfig/bin/init-ccprivate-repo.sh
 - 创建 GitHub 私有仓库并推送
 - 建立所有 symlink（私有 + 公开）
 
-> **已有 ccprivate？** 其他机器恢复时用 `bash ~/git/ccconfig/bin/init-ccprivate-repo.sh --clone` 直接克隆。
+> **已有 ccprivate？** 其他机器恢复时用 `bash init-ccprivate-repo.sh --clone` 直接克隆。
 >
 > **手动控制**：需要自定义更多配置 → [docs/ccprivate-guide.md](docs/ccprivate-guide.md)。
 
@@ -479,8 +479,8 @@ done
 ## 阶段 7 — 验证
 
 ```bash
-# 11 项状态检查
-bash lib/status.sh
+# 13 项状态检查
+bash maintain.sh status
 ```
 
 **应该看到（精简版）**：
@@ -547,7 +547,7 @@ tail -f ~/git/ccconfig/.monitor-sync.log
 | 操作 | 命令 |
 |------|------|
 | 改文件自动推 | 默认行为，monitor 在跑 |
-| 看状态 | `bash lib/status.sh` |
+| 看状态 | `bash maintain.sh status` |
 | 装可选组件 | `bash init.sh` → 6) 可选组件 |
 | 强制拉远程 | `bash lib/sync.sh --pull`（暗号 `pullff`） |
 | 切 LLM 后端 | `bash init.sh` → 1) → 2) |
@@ -604,7 +604,7 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 
 ### 状态检查发现问题的应对
 
-`bash lib/status.sh` 11 项检查，**任何一项 ✗ 都先看该项的命令**：
+`bash maintain.sh status` 13 项检查，**任何一项 ✗ 都先看该项的命令**：
 
 | 失败项 | 修命令 |
 |--------|--------|
