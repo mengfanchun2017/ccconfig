@@ -116,7 +116,7 @@
 | ID | 需求 | 优先级 |
 |----|------|--------|
 | FR-1.1 | 一键安装 Ubuntu/WSL 全环境（git, Node.js, uv, Claude Code, 字体） | P0 |
-| FR-1.2 | 交互式创建私有配置仓库（init-ccprivate.sh） | P0 |
+| FR-1.2 | 交互式创建私有配置仓库（init-ccprivate-repo.sh） | P0 |
 | FR-1.3 | LLM 后端切换（DeepSeek / MiniMax / Claude / Gateway） | P0 |
 | FR-1.4 | MCP 服务器安装与配置 | P1 |
 | FR-1.5 | 符号链接自动建立（私有 + 公开一步到位） | P0 |

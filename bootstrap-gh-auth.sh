@@ -156,7 +156,7 @@ else
         echo ""
         if [[ -z "$GH_TOKEN_INPUT" ]]; then
             echo ""
-            echo -e "  ${YELLOW}跳过认证。之后可重跑 bootstrap.sh 或手动:${NC}"
+            echo -e "  ${YELLOW}跳过认证。之后可重跑 bootstrap-gh-auth.sh 或手动:${NC}"
             echo -e "  ${YELLOW}  export GH_TOKEN=<你的 fine-grained PAT>${NC}"
             echo -e "  ${YELLOW}  gh auth login --with-token <<< \"\$GH_TOKEN\"${NC}"
         else

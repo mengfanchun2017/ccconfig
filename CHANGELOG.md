@@ -5,6 +5,16 @@ All notable changes to ccconfig will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- **`bootstrap.sh` → `bootstrap-gh-auth.sh`** — 改名明确 GitHub auth 定位。全仓库 18+ 引用同步更新
+- **`bin/init-ccprivate.sh` → `bin/init-ccprivate-repo.sh`** — 改名 + `cd` → `pushd/popd` cwd 安全修复
+- **6 步初始化流程** — 新增 `init-option.sh`（可选组件入口）+ `maintain.sh finalize`（收尾步骤）
+- **`init.sh`** — 重构：删 submenu_tools（运维移 maintain.sh），Step 5/5 调 `maintain.sh finalize`
+- **`maintain.sh`** — 双重角色：默认 `finalize`（链接修复+服务+状态）+ 交互菜单（日常运维）
+- **`lib/init-ubuntu.sh`** — `setup_cli_tools()` 体清空（移入 init-option.sh）
+- **`init-option.sh`** — **新建**。内置 bat(alias cat)/glow/nano 安装，自动发现 5 个 option-*/init.sh，支持 `--status`/`all`/`menu`/`<name>`
+- **`option-remote/init.sh`** — **新建**。`--status` 支持（SSH + Tailscale 状态）
+- **`docs/architecture.md`** — 脚本调用链补全 5/5 步，option-* 列表补全 5 个
+- **`docs/prd.md`** — 脚本名更新 `init-ccprivate.sh` → `init-ccprivate-repo.sh`
 - **`conf/` 目录重命名** — `conftemp/` → `conf/`，准确反映目录用途（配置模板 + symlink，非临时文件）。所有 30+ 引用文件同步更新
 - **`scripts/` → `lib/` 合并** — 3 个脚本（publish.sh、update-third-party-skills.sh、merge_worklog.py）并入 `lib/`，消除顶层目录碎片
 

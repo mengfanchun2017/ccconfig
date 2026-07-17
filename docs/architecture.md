@@ -146,13 +146,15 @@ ccconfig/link/commands/ ──setup-links.sh ln -s──→ ~/.claude/commands/
 
 ```
 init.sh all
-  ├── init-ubuntu.sh     # 系统包 + Node + uv + Claude Code + git config + fonts + systemd
-  ├── init-mcp.sh        # MCP 服务器安装 + 配置
-  └── init-skill.sh sync # Skills 同步（详见 docs/skill-lifecycle.md）
-       ├── Phase 1: symlink 自建 skill（skill/plugins/ → ~/.claude/skills/）
-       ├── Phase 2: marketplace 检（claude plugin marketplace add）
-       ├── Phase 2.5: ccprivate 配置覆盖（apply-config.sh）
-       └── Phase 3: npx skills 装第三方 skill（conf/third-party-skills.txt）
+  ├── 1/5 init-ubuntu.sh     # 系统包 + Node + uv + Claude Code + git config + fonts + systemd
+  ├── 2/5 init-llm.sh        # LLM 后端配置（API key → settings.json）
+  ├── 3/5 init-mcp.sh        # MCP 服务器安装 + 配置
+  ├── 4/5 init-skill.sh sync # Skills 同步（详见 docs/skill-lifecycle.md）
+  │      ├── Phase 1: symlink 自建 skill（skill/plugins/ → ~/.claude/skills/）
+  │      ├── Phase 2: marketplace 检（claude plugin marketplace add）
+  │      ├── Phase 2.5: ccprivate 配置覆盖（apply-config.sh）
+  │      └── Phase 3: npx skills 装第三方 skill（conf/third-party-skills.txt）
+  └── 5/5 maintain.sh finalize # 收尾：链接修复 + auto-sync 启动 + 状态验证
 ```
 
 symlink 建立链：
@@ -274,6 +276,8 @@ skill 的 `config.yaml` 实际是 symlink → `ccprivate/skill-config/<skill>.ya
 option-bridge/      飞书消息 Bridge（lark-cli + cc-connect）
 option-officecli/   OfficeCLI（PPT/Office 原生 OpenXML 工具）
 option-llmswitch/   LLM 时间路由网关代理（DeepSeek ↔ MiniMax 自动切换）
+option-cloudflare/  Cloudflare Workers/Pages/D1/R2/AI 开发环境
+option-remote/      Tailscale + SSH 远程访问桌面 tmux session
 ```
 
 每个组件含 `init.sh`（安装）和 `init.sh --status`（状态检查）。`status.sh` 自动发现所有 `option-*/` 并报告状态。
