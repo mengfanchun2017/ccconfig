@@ -20,12 +20,13 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
-CONFIG_FILE="$(resolve_conf ubuntu.json)" || exit 1
 CLAUDE_DIR="$HOME/.claude"
 LOCAL_BIN="$HOME/.local/bin"
 
-# 动态路径解析（替代硬编码版本号）
+# 动态路径解析（resolve_conf 在其中定义，必须优先 source）
 source "$SCRIPT_DIR/path-helper.sh"
+
+CONFIG_FILE="$(resolve_conf ubuntu.json)" || exit 1
 
 # 检查配置文件（首次使用时从 .example 复制）
 # CONFIG_FILE resolved via resolve_conf() above
