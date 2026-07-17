@@ -19,7 +19,7 @@ source "$REPO_DIR/lib/path-helper.sh"
 
 CONF_FILE="$SCRIPT_DIR/conf/llmswitch.json"
 CONF_EXAMPLE="$SCRIPT_DIR/conf/llmswitch.json.example"
-LLM_CONF="$REPO_DIR/conftemp/llm.json"
+LLM_CONF="$REPO_DIR/conf/llm.json"
 PID_FILE="$HOME/.cache/llmswitch.pid"
 LOG_FILE="$HOME/.cache/llmswitch.log"
 ORIG_URL_FILE="$HOME/.cache/llmswitch-orig-baseurl"

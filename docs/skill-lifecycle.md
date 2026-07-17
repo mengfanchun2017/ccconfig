@@ -41,7 +41,7 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
 | 查看列表 | `bash init-skill.sh list` | 已安装 skills + 来源标注 |
 | 状态总览 | `bash init-skill.sh status` | 自建数量 + 链接状态 + marketplace |
 | 漂移检测 | `bash init-skill.sh diff` | third-party-skills.txt vs 实际安装 |
-| 发布自建 skill | `bash scripts/publish.sh <name> [--push]` | link/skills/ → skill/plugins/ |
+| 发布自建 skill | `bash lib/publish.sh <name> [--push]` | link/skills/ → skill/plugins/ |
 | 月度升级（含 skills） | `bash update.sh all` | 包含 skills sync |
 | 单独 skill 升级 | `bash update.sh skills` | 只跑 init-skill.sh sync |
 
@@ -107,8 +107,8 @@ npx skills update -g -y            # 等效直接命令
 
 ```
 1. 在 ccconfig/link/skills/<name>/ 编辑 SKILL.md（开发沙箱）
-2. bash scripts/publish.sh <name>        # 复制到 skill/plugins/
-3. bash scripts/publish.sh <name> --push # 同上 + git push
+2. bash lib/publish.sh <name>        # 复制到 skill/plugins/
+3. bash lib/publish.sh <name> --push # 同上 + git push
 4. cd ~/git/skill && git pull    # 拉最新
 5. bash init-skill.sh sync               # symlink 到 ~/.claude/skills/
 ```

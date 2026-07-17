@@ -50,11 +50,11 @@ flowchart TB
 ### 系统配置（JSON，程序消费）
 
 ```
-ccprivate/conf/llm.json ──setup.sh ln -s──→ ccconfig/conftemp/llm.json ──init-llm.sh 读取──→ ~/.claude/.config.json
-ccprivate/conf/claude.json ──setup.sh ln -s──→ ccconfig/conftemp/claude.json ──init-mcp.sh 读取──→ ~/.claude/.config.json
+ccprivate/conf/llm.json ──setup.sh ln -s──→ ccconfig/conf/llm.json ──init-llm.sh 读取──→ ~/.claude/.config.json
+ccprivate/conf/claude.json ──setup.sh ln -s──→ ccconfig/conf/claude.json ──init-mcp.sh 读取──→ ~/.claude/.config.json
 ```
 
-ccconfig/conftemp/*.json 是 symlink → ccprivate/conf/*.json。脚本通过 ccconfig 路径读取，实际拿到 ccprivate 的真实值。`conftemp/*.json.example` 是公开模板。
+ccconfig/conf/*.json 是 symlink → ccprivate/conf/*.json。脚本通过 ccconfig 路径读取，实际拿到 ccprivate 的真实值。`conf/*.json.example` 是公开模板。
 
 ### Skill 配置（YAML，skill 直接读取）
 
@@ -89,7 +89,7 @@ ccconfig/link/commands/ ──setup-links.sh ln -s──→ ~/.claude/commands/
 │   ├── bootstrap.sh            # Step 2: 装 gh + GitHub 认证
 │   ├── init.sh                 # 统一入口（交互式二级菜单）
 │   ├── maintain.sh             # 统一运维入口
-│   ├── conftemp/               # 配置模板（*.example）+ symlink（*.json → ccprivate）
+│   ├── conf/               # 配置模板（*.example）+ symlink（*.json → ccprivate）
 │   ├── lib/                    # 脚本库 + 子脚本
 │   │   ├── init-ubuntu.sh      # Ubuntu/WSL 全环境初始化
 │   │   ├── init-llm.sh         # LLM 后端切换
@@ -152,7 +152,7 @@ init.sh all
        ├── Phase 1: symlink 自建 skill（skill/plugins/ → ~/.claude/skills/）
        ├── Phase 2: marketplace 检（claude plugin marketplace add）
        ├── Phase 2.5: ccprivate 配置覆盖（apply-config.sh）
-       └── Phase 3: npx skills 装第三方 skill（conftemp/third-party-skills.txt）
+       └── Phase 3: npx skills 装第三方 skill（conf/third-party-skills.txt）
 ```
 
 symlink 建立链：
@@ -160,7 +160,7 @@ symlink 建立链：
 ```
 ccprivate/setup.sh
   ├── ~/CLAUDE.md, ~/.claude/settings.json → ccprivate/link/
-  ├── ccconfig/conftemp/*.json → ccprivate/conf/*.json
+  ├── ccconfig/conf/*.json → ccprivate/conf/*.json
   ├── ccconfig/link/projects → ccprivate/link/projects
   └── 调用 ccconfig/setup-links.sh
        ├── ~/.claude/rules → ccconfig/link/rules
@@ -243,7 +243,7 @@ Tier 4: 应用 Skill（最终用户工作流）
 | 来源 | 安装方式 | 管理 |
 |------|---------|------|
 | 自建 f-*（16 个） | `init-skill.sh sync` 从 skill symlink | ccconfig |
-| 第三方（mattpocock） | `npx skills add` 从 GitHub | `conftemp/third-party-skills.txt` |
+| 第三方（mattpocock） | `npx skills add` 从 GitHub | `conf/third-party-skills.txt` |
 | 私有覆盖 | `apply-config.sh` ln -s ccprivate/skill-config/*.yaml | ccprivate |
 
 ### 私有配置覆盖
@@ -260,9 +260,9 @@ skill 的 `config.yaml` 实际是 symlink → `ccprivate/skill-config/<skill>.ya
 | Skill 私有配置 | ccprivate/skill-config/*.yaml | 私有仓库 |
 | infra 脚本 | ccconfig/*.sh | 公开 |
 | rules / agents / commands | ccconfig/link/ | 公开 |
-| 配置模板 (.example) | ccconfig/conftemp/*.example | 公开 |
+| 配置模板 (.example) | ccconfig/conf/*.example | 公开 |
 | Skill 插件 (SKILL.md + 模板) | skill/plugins/ | 公开 |
-| 版本号 / 依赖清单 | ccconfig/conftemp/versions.json | 公开 |
+| 版本号 / 依赖清单 | ccconfig/conf/versions.json | 公开 |
 
 `hooks/pre-commit` 自动拦截私密文件提交到公开仓库。
 

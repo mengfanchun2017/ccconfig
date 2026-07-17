@@ -53,11 +53,11 @@ flowchart LR
   subgraph cc_content["cconfig 内容"]
     scripts["init.sh · init-ubuntu.sh · init-llm.sh<br/>init-skill.sh · init-mcp.sh<br/>monitor.sh · sync.sh · status.sh<br/>setup-links.sh · update.sh"]
     link["link/<br/>rules/ · agents/ · commands/<br/>shell_aliases.sh"]
-    conftemp["conftemp/*.example 模板"]
+    conf["conf/*.example 模板"]
   end
 
   subgraph ccprivate_content["ccprivate 内容"]
-    secrets["conftemp/*.json<br/>API key · Token"]
+    secrets["conf/*.json<br/>API key · Token"]
     personal["link/<br/>CLAUDE.md · settings.json<br/>.config.json"]
     overlay["skill-config/*.yaml<br/>skill 私有覆盖"]
   end
@@ -159,7 +159,7 @@ bash tests/test-init.sh --verbose  # 详细输出
 
 ### 📌 版本锁定
 
-`conftemp/versions.json` 单一真相源锁定每个工具版本 — Node、gh、Claude Code CLI、lark-cli、Python uv、第三方 skill 版本。`update.sh all` 按版本清单升级，不会意外炸掉。
+`conf/versions.json` 单一真相源锁定每个工具版本 — Node、gh、Claude Code CLI、lark-cli、Python uv、第三方 skill 版本。`update.sh all` 按版本清单升级，不会意外炸掉。
 
 ### 🛠 统一运维入口
 
@@ -193,7 +193,7 @@ ccconfig/
 ├── init.sh                   # 入口（交互式二级菜单 + 一键全部）
 ├── maintain.sh               # 统一运维入口（status/monitor/sync/update/deps/fix）
 │
-├── conftemp/                 # 配置模板 + symlink → ccprivate/conf/
+├── conf/                 # 配置模板 + symlink → ccprivate/conf/
 │   ├── *.json.example        # 公开模板（可提交）
 │   ├── *.json                # → symlink 到 ccprivate/conf/（不跟踪）
 │   ├── versions.json         # 组件版本（公开）
@@ -366,7 +366,7 @@ cd ~/git/ccconfig && git pull
 | `getnote` | 得到大脑集成 — MCP 驱动，笔记 CRUD/搜索/知识库 | 得到 MCP |
 
 > **独立使用**（不需 ccconfig）：`/plugin marketplace add <your-username>/skill` 然后 `/plugin install f-feishu@<your-username>-skills`。
-> **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/skill/plugins/` symlink，第三方 skill 从 `conftemp/third-party-skills.txt` 通过 npx 安装。
+> **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/skill/plugins/` symlink，第三方 skill 从 `conf/third-party-skills.txt` 通过 npx 安装。
 > 详见 [skill README](https://github.com/mengfanchun2017/skill)。
 > 完整生命周期（安装/更新/卸载/发布/漂移检测）→ [docs/skill-lifecycle.md](docs/skill-lifecycle.md)。
 
@@ -401,7 +401,7 @@ ssh <your-username>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
 | 项目 memory | ccprivate/link/projects/ | 私有仓库 |
 | Skill 插件 (SKILL.md + 模板) | skill/plugins/ | 公开 |
 | 脚本 / rule / agent / command | ccconfig/ | 公开 |
-| .example 配置模板 | ccconfig/conftemp/*.example | 公开 |
+| .example 配置模板 | ccconfig/conf/*.example | 公开 |
 | 版本号 / 依赖清单 | ccconfig/conf/versions.json | 公开 |
 
 `hooks/pre-commit` 自动拦截私密文件提交。安全漏洞报告见 [SECURITY.md](SECURITY.md)。
@@ -413,7 +413,7 @@ ssh <your-username>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
 for f in *.sh lib/*.sh option-*/*.sh; do bash -n "$f" && echo "$f OK"; done
 
 # 验证 JSON 模板
-python3 -c "import json; [json.load(open(f)) for f in __import__('glob').glob('conftemp/*.example')]"
+python3 -c "import json; [json.load(open(f)) for f in __import__('glob').glob('conf/*.example')]"
 ```
 
 ### 添加 Option 组件

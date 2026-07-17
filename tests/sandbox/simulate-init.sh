@@ -143,9 +143,9 @@ MOCK
     # ── 创建 .example 模板及配置文件（模拟已编辑过）──
     local ccd="$HOME/git/ccconfig"
     if [[ "$1" == "with_configs" ]]; then
-        echo '{"git":{"username":"testuser","email":"test@test.com"}}' > "$ccd/conftemp/ubuntu.json"
-        echo '{"current":"deepseek","llms":{"deepseek":{"name":"DeepSeek","base_url":"https://api.deepseek.com","model":"deepseek-chat","key":"sk-test123","small_model":"deepseek-chat"}}}' > "$ccd/conftemp/llm.json"
-        echo '{"mcp_servers":[]}' > "$ccd/conftemp/claude.json"
+        echo '{"git":{"username":"testuser","email":"test@test.com"}}' > "$ccd/conf/ubuntu.json"
+        echo '{"current":"deepseek","llms":{"deepseek":{"name":"DeepSeek","base_url":"https://api.deepseek.com","model":"deepseek-chat","key":"sk-test123","small_model":"deepseek-chat"}}}' > "$ccd/conf/llm.json"
+        echo '{"mcp_servers":[]}' > "$ccd/conf/claude.json"
     fi
 
     cd "$ccd"
