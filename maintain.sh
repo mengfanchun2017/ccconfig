@@ -174,6 +174,7 @@ case "${1:-finalize}" in
                    bash "$HOME/git/ccprivate/setup.sh"
                fi
                bash "$LIB_DIR/init-autostart.sh" enable ;;
+    example)   shift; bash "$LIB_DIR/example-sync.sh" "$@" ;;
     menu)      show_menu ;;
-    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|menu]"; exit 1 ;;
+    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|menu]"; exit 1 ;;
 esac

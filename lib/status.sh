@@ -113,11 +113,10 @@ check_symlinks() {
             fi
         fi
         if ! $fixed && bash "$REPO_DIR/lib/setup-links.sh" 2>/dev/null; then
-            echo -e "  ${GREEN}✅ 公开链接已自动修复 (cconfig/setup-links.sh)${NC}"
-            echo -e "  ${YELLOW}⚠️  私有链接需 ccprivate${NC}"
+            echo -e "  ${GREEN}✅ 公开链接已修复 (setup-links.sh)${NC}"
         elif ! $fixed; then
             echo -e "  ${RED}❌ 自动修复失败${NC}"
-            echo -e "  ${GRAY}手动: bash ${CCPRIVATE_HOME}/setup.sh（全量）${NC}"
+            echo -e "  ${GRAY}手动: bash ${CCPRIVATE_HOME}/setup.sh${NC}"
         fi
     fi
 }
@@ -749,6 +748,86 @@ check_skills() {
     $ok && echo -e "  ${GREEN}✓ Skills 正常${NC}"
 }
 
+# ========== Example 模板同步检查 ==========
+check_example_sync() {
+    local ccconfig_example="$CCCONFIG_ROOT/link"
+    local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[12b] Example 模板同步${NC}"
+
+    # rules 检查
+    local rules_outdated=0 rules_new=0 rules_added=0
+    if [ -d "$ccpriv/rules" ]; then
+        for f in "$ccpriv/rules/"*.md; do [ -f "$f" ] || continue; done 2>/dev/null
+    fi
+    for example in "$ccconfig_example/rules/"*.md.example; do
+        [ -f "$example" ] || continue
+        local base=$(basename "$example" .md.example)
+        local target="$ccpriv/rules/${base}.md"
+        if [ ! -f "$target" ]; then
+            rules_new=$((rules_new + 1))
+        elif ! diff -q "$example" "$target" &>/dev/null; then
+            rules_outdated=$((rules_outdated + 1))
+        fi
+    done
+    rules_added=0
+    for f in "$ccpriv/rules/"*.md; do
+        [ -f "$f" ] || continue
+        base=$(basename "$f" .md)
+        [ -f "$ccconfig_example/rules/${base}.md.example" ] || rules_added=$((rules_added + 1))
+    done
+
+    local out=""
+    [ $rules_outdated -gt 0 ] && out="${out}${YELLOW}${rules_outdated} 过期${NC} "
+    [ $rules_new -gt 0 ] && out="${out}${CYAN}${rules_new} 新增${NC} "
+    [ $rules_added -gt 0 ] && out="${out}${GRAY}${rules_added} 独有${NC} "
+    [ -z "$out" ] && out="${GREEN}✅ 同步${NC}"
+    echo -e "  rules: $out"
+
+    # agents 检查
+    local agents_outdated=0 agents_new=0 agents_added=0
+    for example in "$ccconfig_example/agents/"*.md.example; do
+        [ -f "$example" ] || continue
+        local base=$(basename "$example" .md.example)
+        local target="$ccpriv/agents/${base}.md"
+        if [ ! -f "$target" ]; then
+            agents_new=$((agents_new + 1))
+        elif ! diff -q "$example" "$target" &>/dev/null; then
+            agents_outdated=$((agents_outdated + 1))
+        fi
+    done
+    agents_added=0
+    for f in "$ccpriv/agents/"*.md; do
+        [ -f "$f" ] || continue
+        base=$(basename "$f" .md)
+        [ -f "$ccconfig_example/agents/${base}.md.example" ] || agents_added=$((agents_added + 1))
+    done
+
+    local out=""
+    [ $agents_outdated -gt 0 ] && out="${out}${YELLOW}${agents_outdated} 过期${NC} "
+    [ $agents_new -gt 0 ] && out="${out}${CYAN}${agents_new} 新增${NC} "
+    [ $agents_added -gt 0 ] && out="${out}${GRAY}${agents_added} 独有${NC} "
+    [ -z "$out" ] && out="${GREEN}✅ 同步${NC}"
+    echo -e "  agents: $out"
+
+    local needs_action=$((rules_outdated + rules_new + agents_outdated + agents_new))
+    if [ $needs_action -gt 0 ]; then
+        echo ""
+        echo -e "  ${GRAY}运行: bash maintain.sh example promote${NC}"
+    fi
+
+    # conf 新增模板检测
+    local conf_new=0
+    for example in "$CCCONFIG_ROOT"/conf/*.json.example; do
+        [ -f "$example" ] || continue
+        local base=$(basename "$example" .example)
+        [ -f "$ccpriv/conf/$base" ] || conf_new=$((conf_new + 1))
+    done
+    [ $conf_new -gt 0 ] && echo -e "  conf: ${CYAN}${conf_new} 新模板${NC}（自 sync.sh 处理）"
+}
+
 # ========== 执行所有检查 ==========
 
 echo ""
@@ -768,5 +847,6 @@ check_mcp
 check_remote
 check_option_components
 check_skills
+check_example_sync
 
 echo ""
