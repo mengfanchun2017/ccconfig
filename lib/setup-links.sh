@@ -8,7 +8,7 @@
 # 由 ccprivate/setup.sh 管理。
 #
 # 使用：
-#   bash ccconfig/setup-links.sh
+#   bash ccconfig/lib/setup-links.sh
 #   （通常由 ccprivate/setup.sh 调用）
 # ==============================================
 

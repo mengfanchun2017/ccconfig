@@ -181,7 +181,7 @@ case "${1:-status}" in
     promote)
         if [ -n "${2:-}" ]; then
             # 接收相对路径或绝对路径
-            local file="$2"
+            file="$2"
             [[ "$file" != /* ]] && file="$CCCONFIG_ROOT/$file"
             promote_one "$file"
         else
