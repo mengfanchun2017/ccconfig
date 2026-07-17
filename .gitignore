@@ -1,37 +1,4 @@
-
-# Claude Code 本地配置（包含 API Key，不同步）
-# GetNote 等外部工具配置（包含 API Key）
-# Python 字节码
-# Windows Alternate Data Stream (Zone.Identifier)
-# Windows 工具目录下的二进制（6.8M，单独从 release 下载；脚本 commit 即可）
-# Wrangler local cache
-# auto-sync 运行文件
-# 临时文件/脚本（一次性任务产物）
-# 升级快照（init-update.sh 自动生成，仅用于调试）
-# 对应 .example 模板文件留在仓库中
-# 本地环境变量文件
-# 真实配置文件（含 API key / token / 个人标识符）— 公开仓库不可 commit
-# 私有数据（已迁移到 ccprivate，残留/符号链接不跟踪）
-# 编辑器/工具原子写入残留
-# 第三方 skill 安装残留（不跟踪，由 init-skill.sh 管理）
-.agents/
-.claude/skills/
-*.pyc
-*.tmp.*
-*:Zone.Identifier
-.auto-sync.log
-.auto-sync.pid
-.claude.json
-.env
-.monitor-sync.changed-repos
-.monitor-sync.debounce
-.monitor-sync.log
-.monitor-sync.pid
-.snapshots/
-.tmp/
-.wrangler/
-__pycache__/
-conf/.generated/
+# 公开仓库可忽略：symlink→ccprivate 的配置文件（含 API key/token）
 conf/claude.json
 conf/cloudflare.json
 conf/f-logme.json
@@ -39,11 +6,32 @@ conf/feishu.json
 conf/llm.json
 conf/supabase.json
 conf/ubuntu.json
-link/.config.json
-link/CLAUDE.md
+conf/.generated/
 link/settings.json
-openclaw.json
 option-llmswitch/conf/llmswitch.json
-supabase/.temp/
+
+# Python 字节码
+*.pyc
+__pycache__/
+
+# 运行时文件
+.monitor-sync.*
+.auto-sync.*
+
+# 临时文件
+*.tmp.*
+.tmp/
 tmp/
-windows-tools/**/ncmdump.exe
+.env
+
+# 编辑器
+*:Zone.Identifier
+
+# 其他
+.agents/
+.claude/skills/
+.claude.json
+.snapshots/
+.wrangler/
+openclaw.json
+supabase/.temp/
