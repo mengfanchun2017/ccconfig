@@ -85,18 +85,16 @@ init_all_steps() {
         echo ""
 
         echo -e "${CYAN}是否需要现在交互式配置？（推荐）${NC}"
-        echo "  会依次引导你选择 LLM、输入 API Key、填写 Git 信息"
+        echo "  会引导你选择 LLM、输入 API Key（Git 信息从 git config 自动读取）"
         echo ""
         read -p "交互式配置？[Y/n]: " do_interactive
         do_interactive="${do_interactive:-y}"
 
         if [[ "$do_interactive" =~ ^[Yy]$ ]]; then
-            # 1. Ubuntu 配置：git username / email
-            echo ""
-            echo -e "${CYAN}── Git 信息 ──${NC}"
+            # 1. Git 信息：从 git config 自动读，不需要再问用户
             local git_user git_email
-            read -p "  GitHub 用户名: " git_user
-            read -p "  Git 邮箱: " git_email
+            git_user="$(git config --global user.name 2>/dev/null || echo '')"
+            git_email="$(git config --global user.email 2>/dev/null || echo '')"
             if [[ -n "$git_user" ]] || [[ -n "$git_email" ]]; then
                 python3 - "$ccpriv/conf/ubuntu.json" "$git_user" "$git_email" << 'PYEOF'
 import json, sys
@@ -108,9 +106,8 @@ if sys.argv[3]:
     d.setdefault('git', {})['email'] = sys.argv[3]
 with open(sys.argv[1], 'w') as f:
     json.dump(d, f, indent=2, ensure_ascii=False)
-print("OK")
 PYEOF
-                echo -e "  ${GREEN}✅${NC} Git 信息已写入 ccprivate/conf/ubuntu.json"
+                echo -e "  ${GREEN}✅${NC} Git 信息已从 git config 写入 ccprivate/conf/ubuntu.json"
             fi
 
             # 2. LLM 配置：选 LLM → 输 Key → 写 llm.json + settings.json
