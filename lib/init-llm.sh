@@ -25,13 +25,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/path-helper.sh"
 source "$SCRIPT_DIR/colors.sh"
-CONFIG_FILE="$CCCONFIG_ROOT/conf/llm.json"
+CONFIG_FILE="$(resolve_conf llm.json)" || exit 1
 LLMSWITCH_CONF="$CCCONFIG_ROOT/option-llmswitch/conf/llmswitch.json"
 LLMSWITCH_INIT="$CCCONFIG_ROOT/option-llmswitch/init.sh"
 LLMSWITCH_WATCHDOG="$CCCONFIG_ROOT/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
-ensure_config "$CONFIG_FILE" "conf/llm.json" || exit 1
+# CONFIG_FILE already resolved via resolve_conf() above
 
 # ========== Gateway 辅助 ==========
 is_proxy_running() {
