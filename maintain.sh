@@ -1,16 +1,13 @@
 #!/bin/bash
-# maintain.sh — ccconfig 收尾 + 状态入口
-#
-# 双重角色：
-#   1. 首次安装 Step 5：链接修复 → 状态检查 → 服务启动
-#   2. 日常运维入口：状态检查、监控管理
+# maintain.sh — ccconfig 收尾 + 日常运维入口
 #
 # 用法：
-#   bash maintain.sh                    # 收尾（链接修复 + status + 服务）
-#   bash maintain.sh status             # 仅状态检查
+#   bash maintain.sh                    # 收尾（首次安装）
+#   bash maintain.sh status             # 状态检查
+#   bash maintain.sh self [cc|skill|all]  # 自我更新（ccconfig + skill）
+#   bash maintain.sh upgrade [comp]     # 升级组件版本
+#   bash maintain.sh sync [--pull|--push] [repo]  # Git 同步
 #   bash maintain.sh monitor [start|stop|status|tail]
-#   bash maintain.sh sync [--pull|--push] [repo]
-#   bash maintain.sh update [all|python|<comp>]
 #   bash maintain.sh deps               # 依赖检查
 #   bash maintain.sh fix                # 自动修复
 #
@@ -68,9 +65,41 @@ do_finalize() {
     echo ""
     echo -e "  ${CYAN}bash maintain.sh status${NC}    # 状态检查"
     echo -e "  ${CYAN}bash maintain.sh monitor${NC}   # 监控日志"
-    echo -e "  ${CYAN}bash maintain.sh update all${NC} # 升级系统"
+    echo -e "  ${CYAN}bash maintain.sh self all${NC}   # 更新 ccconfig + skill"
+    echo -e "  ${CYAN}bash maintain.sh upgrade all${NC} # 升级系统组件"
     echo -e "  ${CYAN}bash init-option.sh${NC}        # 装可选组件"
     echo ""
+}
+
+# ── 自我更新（ccconfig + skill）──
+do_self() {
+    local target="${1:-all}"
+    case "$target" in
+        cc|ccconfig)
+            echo -e "${CYAN}── ccconfig 自更新 ──${NC}"
+            git -C "$SCRIPT_DIR" fetch origin main 2>/dev/null || { warn "无法连接远程"; return 1; }
+            local local_commit=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null)
+            git -C "$SCRIPT_DIR" pull --ff-only origin main 2>/dev/null && {
+                local after=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)
+                [ "$local_commit" != "$after" ] && ok "ccconfig: $local_commit → $after" || ok "ccconfig 已是最新: $local_commit"
+            } || { warn "ccconfig 拉取失败（有本地改动？）"; return 1; }
+            echo ""
+            bash "$LIB_DIR/setup-links.sh"
+            ;;
+        skill)
+            echo -e "${CYAN}── Skill 同步 ──${NC}"
+            bash "$LIB_DIR/init-skill.sh" sync
+            ;;
+        all|"")
+            do_self cc
+            echo ""
+            do_self skill
+            ;;
+        *)
+            err "未知 self 目标: $target（可用: cc, skill, all）"
+            return 1
+            ;;
+    esac
 }
 
 # ── 交互菜单 ──
@@ -78,23 +107,25 @@ show_menu() {
     echo ""
     echo -e "${CYAN}ccconfig 运维中心${NC}"
     echo ""
-    echo "  1) 状态检查       status"
-    echo "  2) Monitor 管理   日志，monitor start|stop|status"
-    echo "  3) 同步           检查更新 → ff-only → 冲突时交互"
-    echo "  4) 升级           update all"
-    echo "  5) 依赖检查       deps"
-    echo "  6) 自动修复       fix"
+    echo "  1) 状态检查"
+    echo "  2) Monitor 管理"
+    echo "  3) 自我更新（ccconfig + skill）"
+    echo "  4) Git 同步其他仓库"
+    echo "  5) 组件升级"
+    echo "  6) 依赖检查"
+    echo "  7) 自动修复（链接 + 服务）"
     echo "  0) 退出"
     echo ""
-    read -p "选择 [0-6]: " c
+    read -p "选择 [0-7]: " c
 
     case "$c" in
         1) bash "$LIB_DIR/status.sh" ;;
         2) submenu_monitor ;;
-        3) bash "$LIB_DIR/sync.sh" ;;
-        4) bash "$LIB_DIR/update.sh" all ;;
-        5) bash "$LIB_DIR/deps-check.sh" ;;
-        6) bash "$LIB_DIR/setup-links.sh"
+        3) do_self all ;;
+        4) bash "$LIB_DIR/sync.sh" ;;
+        5) bash "$LIB_DIR/update.sh" menu ;;
+        6) bash "$LIB_DIR/deps-check.sh" ;;
+        7) bash "$LIB_DIR/setup-links.sh"
            if [ -f "$HOME/git/ccprivate/setup.sh" ]; then
                bash "$HOME/git/ccprivate/setup.sh"
            fi
@@ -132,9 +163,11 @@ submenu_monitor() {
 case "${1:-finalize}" in
     finalize|first|init|"")  do_finalize ;;
     status)    bash "$LIB_DIR/status.sh" ;;
-    monitor)   bash "$LIB_DIR/monitor.sh" "${2:-}" ;;
+    self)      shift; do_self "${1:-all}" ;;
+    upgrade)   shift; bash "$LIB_DIR/update.sh" "$@" ;;
+    update)    shift; bash "$LIB_DIR/update.sh" "$@" ;;        # alias（旧名保留）
     sync)      shift; bash "$LIB_DIR/sync.sh" "$@" ;;
-    update)    shift; bash "$LIB_DIR/update.sh" "$@" ;;
+    monitor)   bash "$LIB_DIR/monitor.sh" "${2:-}" ;;
     deps)      bash "$LIB_DIR/deps-check.sh" ;;
     fix)       bash "$LIB_DIR/setup-links.sh"
                if [ -f "$HOME/git/ccprivate/setup.sh" ]; then
@@ -142,5 +175,5 @@ case "${1:-finalize}" in
                fi
                bash "$LIB_DIR/init-autostart.sh" enable ;;
     menu)      show_menu ;;
-    *)  echo "用法: bash maintain.sh [status|monitor|sync|update|deps|fix|menu]"; exit 1 ;;
+    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|menu]"; exit 1 ;;
 esac
