@@ -20,7 +20,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
-CONFIG_FILE="$CCCONFIG_ROOT/conf/ubuntu.json"
+CONFIG_FILE="$(resolve_conf ubuntu.json)" || exit 1
 CLAUDE_DIR="$HOME/.claude"
 LOCAL_BIN="$HOME/.local/bin"
 
@@ -28,8 +28,8 @@ LOCAL_BIN="$HOME/.local/bin"
 source "$SCRIPT_DIR/path-helper.sh"
 
 # 检查配置文件（首次使用时从 .example 复制）
-ensure_config "$CONFIG_FILE" "conf/ubuntu.json" || exit 1
-ensure_config "$CCCONFIG_ROOT/conf/llm.json" "conf/llm.json" || exit 1
+# CONFIG_FILE resolved via resolve_conf() above
+# llm.json 由 init-llm.sh 管理，此处无需检查
 
 # 颜色
 RED='\033[0;31m'
