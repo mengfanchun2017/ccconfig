@@ -61,7 +61,7 @@ PYEOF
 }
 
 # ========== 1. ccprivate 私有仓库 clone ==========
-# 已由 bin/init-ccprivate.sh 在 Step 3 处理；此处仅做幂等补刀
+# 已由 bin/init-ccprivate-repo.sh 在 Step 3 处理；此处仅做幂等补刀
 setup_ccprivate() {
     section "ccprivate 私有仓库"
 
@@ -69,7 +69,7 @@ setup_ccprivate() {
 
     local CCPRIVATE_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 
-    # 已 clone → 跳过（bin/init-ccprivate.sh 在 4 步流程 Step 3 已处理）
+    # 已 clone → 跳过（bin/init-ccprivate-repo.sh 在 4 步流程 Step 3 已处理）
     if [[ -d "$CCPRIVATE_DIR/.git" ]]; then
         info "ccprivate 已存在，pull 最新"
         git -C "$CCPRIVATE_DIR" pull --ff-only 2>&1 | tail -2 || warn "pull 失败（本地有改动），继续"
@@ -77,9 +77,9 @@ setup_ccprivate() {
         return 0
     fi
 
-    # git 必须已装（bootstrap.sh 装）
+    # git 必须已装（bootstrap-gh-auth.sh 装）
     if ! command -v git &>/dev/null; then
-        error "git 未安装，请先跑 bootstrap.sh"
+        error "git 未安装，请先跑 bootstrap-gh-auth.sh"
         exit 1
     fi
 
@@ -116,7 +116,7 @@ except: pass
     else
         git clone "https://github.com/${CCPRIVATE_REPO}.git" "$CCPRIVATE_DIR" 2>/dev/null || {
             warn "ccprivate clone 失败"
-            warn "  手动: bash bin/init-ccprivate.sh"
+            warn "  手动: bash bin/init-ccprivate-repo.sh"
             return 0
         }
     fi
@@ -632,19 +632,10 @@ PYEOF
 }
 
 
-# ========== 12. CLI 工具（仅检查，不自动安装） ==========
+# ========== 12. CLI 工具（已移至 init-option.sh） ==========
 setup_cli_tools() {
-    section "CLI 工具（可选，按需手动安装）"
-
-    local bat_ok=false glow_ok=false nano_ok=false
-    command -v batcat &>/dev/null && bat_ok=true
-    command -v bat &>/dev/null && bat_ok=true
-    command -v glow &>/dev/null && glow_ok=true
-    command -v nano &>/dev/null && nano_ok=true
-
-    $bat_ok && info "bat  ✓" || info "bat  ✗ (可选: sudo apt install bat)"
-    $glow_ok && info "glow ✓" || info "glow ✗ (可选: sudo apt install glow)"
-    $nano_ok && info "nano ✓" || info "nano ✗ (可选: sudo apt install nano)"
+    # 交给 init-option.sh 统一管理
+    true
 }
 
 # ========== 主流程 ==========
@@ -699,11 +690,12 @@ main() {
     echo -e "    全部自动: ${GREEN}bash ccconfig/init.sh all${NC}"
     echo -e "    分步: LLM → MCP → Skills → 验证"
     echo ""
-    echo "可选组件（按需手动安装）："
-    echo "  bash ccconfig/option-officecli/init.sh    # OfficeCLI"
-    echo "  bash ccconfig/option-bridge/init.sh       # 飞书 Bridge"
-    echo "  bash ccconfig/option-cloudflare/init.sh   # Cloudflare 插件"
-    echo "  sudo apt install bat glow                  # CLI 工具"
+    echo "可选组件（按需: bash ccconfig/init-option.sh）："
+    echo "  bat/glow/nano    # CLI 工具"
+    echo "  OfficeCLI        # 命令行 Office 文档创建"
+    echo "  Bridge           # 飞书集成"
+    echo "  Cloudflare       # Workers/R2/D1 开发"
+    echo "  Remote           # SSH + Tailscale 远程连接"
     echo ""
 }
 
