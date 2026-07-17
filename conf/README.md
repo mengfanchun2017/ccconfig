@@ -1,6 +1,7 @@
-# conf/ — 配置模板 + symlink
+# conf/ — 公开配置模板 + 版本文件
 
-> 所有初始化/升级脚本读取此目录。真实值在 ccprivate/conf/，通过 symlink 穿透访问。
+> 本目录只含公开文件。个人配置（API key/token）在 `~/git/ccprivate/conf/`，
+> 脚本通过 `resolve_conf()` 自动查找，无需 symlink。
 
 ## 文件
 
@@ -8,11 +9,10 @@
 |------|------|------|
 | `versions.json` | 组件版本、Node.js pin | ✅ 公开，git 跟踪 |
 | `*.json.example` | 配置模板（占位符） | ✅ 公开，git 跟踪 |
-| `*.json` | symlink → ccprivate/conf/ | 🚫 不跟踪（`.gitignore`） |
 | `python-requirements.txt` | Python pip 包清单 | ✅ 公开 |
-| `third-party-skills.txt` | npx skills 清单 | ✅ 公开 |
 
 ## 新用户
 
-1. 如有 ccprivate 仓库：`ccprivate/setup.sh` 自动建立 symlink
+1. 如有 ccprivate 仓库：`cd ~/git/ccprivate && bash setup.sh` 建立用户级链接
 2. 无 ccprivate：`bash ccconfig/bin/init-ccprivate.sh` 交互式引导创建
+3. 配置在 `~/git/ccprivate/conf/` 目录，脚本自动通过 `resolve_conf()` 读取
