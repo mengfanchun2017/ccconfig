@@ -3,7 +3,7 @@
 > 项目级。仅在 `~/git/ccconfig/` 工作时加载，与用户级 `~/CLAUDE.md` 合并生效。
 
 ## 项目定位
-ccconfig 是 Claude Code 环境的可复用基础设施。维护 rules、agents、commands、skills、setup/init 脚本等公开部分。私有数据在 ccprivate，通过 symlink 穿透访问。
+ccconfig 是 Claude Code 环境的可复用基础设施。维护 .example 模板（rules/agents/commands/conf）、skills、setup/init 脚本等公开部分。运行时文件在 ccprivate，通过 symlink 穿透访问。用户改 ccprivate 文件不受 ccconfig 更新影响。
 
 ## 暗号
 | 暗号 | 行为 |
