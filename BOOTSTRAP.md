@@ -548,7 +548,7 @@ tail -f ~/git/ccconfig/.monitor-sync.log
 |------|------|
 | 改文件自动推 | 默认行为，monitor 在跑 |
 | 看状态 | `bash lib/status.sh` |
-| 装可选组件 | `bash init.sh` → 7) 可选组件 |
+| 装可选组件 | `bash init.sh` → 6) 可选组件 |
 | 强制拉远程 | `bash lib/sync.sh --pull`（暗号 `pullff`） |
 | 切 LLM 后端 | `bash init.sh` → 1) → 2) |
 | 月度升级 | `bash lib/update.sh all` |
