@@ -655,15 +655,18 @@ SETUPEOF
 create_and_push() {
     section "创建 GitHub 私有仓库"
 
-    cd "$CCPRIVATE_DIR"
+    pushd "$CCPRIVATE_DIR" >/dev/null
 
     if git remote get-url origin &>/dev/null; then
+        popd >/dev/null
+        popd >/dev/null
         info "remote 已存在，跳过创建"
         return 0
     fi
 
     if ! gh auth status &>/dev/null 2>&1; then
         warn "gh 未认证，无法自动创建 GitHub 仓库"
+        popd >/dev/null
         info "  手动: 在 GitHub 创建私有仓库 $GH_USER/ccprivate"
         info "  然后: git remote add origin git@github.com:$GH_USER/ccprivate.git"
         return 0
@@ -676,12 +679,14 @@ create_and_push() {
         info "创建私有仓库: $GH_USER/ccprivate"
         gh repo create "$GH_USER/ccprivate" --private --source=. --remote=origin --push 2>&1 | tail -3
         git remote set-url origin "git@github.com:$GH_USER/ccprivate.git"
+        popd >/dev/null
         ok "仓库已创建并推送（SSH）"
         return 0
     fi
 
     git push -u origin main 2>&1 | tail -2
     ok "已推送"
+    popd >/dev/null
 }
 
 # ── 主流程：新建 ──
@@ -744,12 +749,13 @@ do_create() {
     # 先保证 git user.name/email 配好，否则 git init + commit 会报 empty ident
     ensure_git_ident || { err "git 身份未配置，无法提交"; return 1; }
 
-    cd "$CCPRIVATE_DIR"
+    pushd "$CCPRIVATE_DIR" >/dev/null
     git init -b main
     git add -A
     git commit -m "init: ccprivate 个人配置
 
 Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
+    popd >/dev/null
 
     # gh CLI 必须在 create_and_push 前可用（用 gh repo create）
     ensure_gh_cli || return 1
@@ -783,7 +789,7 @@ do_update() {
     check_gh_auth || return 1
 
     section "拉取最新 ccprivate"
-    cd "$CCPRIVATE_DIR"
+    pushd "$CCPRIVATE_DIR" >/dev/null
     git pull origin main 2>&1 | tail -3
 
     section "刷新生成配置"
@@ -830,6 +836,8 @@ PYEOF
             gen_ubuntu_json
         fi
     fi
+
+    popd >/dev/null
 
     section "建立符号链接"
     bash "$CCPRIVATE_DIR/setup.sh"
