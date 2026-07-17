@@ -72,6 +72,36 @@ do_cconfig_post() {
     done
     [ $found -eq 0 ] && echo -e "  ${GRAY}无新配置模板${NC}" || echo -e "  ${YELLOW}⚠️ 请编辑新配置文件填入个人凭证${NC}"
 
+
+    # rules 新模板检测
+    local rules_found=0
+    for example in "$CCCONFIG_ROOT"/link/rules/*.md.example; do
+        [ -f "$example" ] || continue
+        local base=$(basename "$example" .md.example)
+        local target="$ccpriv/rules/$base.md"
+        if [ ! -f "$target" ]; then
+            mkdir -p "$ccpriv/rules"
+            cp "$example" "$target"
+            echo -e "  ${GREEN}✅${NC} 新建 rules/$base.md (→ ccprivate/rules/)"
+            rules_found=1
+        fi
+    done
+    [ $rules_found -eq 0 ] || echo -e "  ${GRAY}rules 新模板已复制到 ccprivate${NC}"
+
+    # agents 新模板检测
+	    local agents_found=0
+	    for example in "$CCCONFIG_ROOT"/link/agents/*.md.example; do
+	        [ -f "$example" ] || continue
+	        local base=$(basename "$example" .md.example)
+	        local target="$ccpriv/agents/$base.md"
+	        if [ ! -f "$target" ]; then
+	            mkdir -p "$ccpriv/agents"
+	            cp "$example" "$target"
+	            echo -e "  ${GREEN}✅${NC} 新建 agents/$base.md (→ ccprivate/agents/)"
+	            agents_found=1
+	        fi
+	    done
+	    [ $agents_found -eq 0 ] || echo -e "  ${GRAY}agents 新模板已复制到 ccprivate${NC}"
     echo ""
     echo -e "${CYAN}── 依赖检查 ──${NC}"
     [ -x "$SCRIPT_DIR/deps-check.sh" ] && bash "$SCRIPT_DIR/deps-check.sh" --required
@@ -454,3 +484,5 @@ case "${1:-}" in
         fi
         ;;
 esac
+
+    # rules 新模板检测

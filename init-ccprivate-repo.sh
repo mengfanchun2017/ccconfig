@@ -540,7 +540,15 @@ EOF
 gen_setup_sh() {
     cat > "$CCPRIVATE_DIR/setup.sh" << 'SETUPEOF'
 #!/bin/bash
-# ccprivate setup.sh — 私有链接一步到位（不含 skills，skills 由 init.sh all 统一管理）
+# ccprivate setup.sh — 私有配置注入
+#
+# 职责：
+#   1. 用户级文件 symlink → ~/ 和 ~/.claude/
+#   2. 运行时链接（rules/agents/commands → ccprivate）
+#   3. ccconfig 公开链接（shell_aliases + pre-commit hook）
+#
+# 用法：
+#   bash ~/git/ccprivate/setup.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -595,42 +603,22 @@ for proj_dir in "$SCRIPT_DIR/link/projects"/-home-*-*/; do
     fi
 done
 
-# --- Conf 链接（cconfig/conf/ → ccprivate/conf/） ---
-echo "--- Conf 链接 ---"
-for src in "$SCRIPT_DIR/conf/"*.json; do
-    [ -f "$src" ] || continue
-    name=$(basename "$src")
-    dst="$CCCONFIG_DIR/conf/$name"
-    [ -L "$dst" ] && rm -f "$dst"
-    [ -f "$dst" ] && rm -f "$dst"
-    ln -s "$src" "$dst"
-    echo "  conf/$name → ccprivate"
-done
-# 旧格式回退（兼容 1.3.7 及更早的 ccprivate）
-if [ -d "$SCRIPT_DIR/conf/.generated" ]; then
-    for src in "$SCRIPT_DIR/conf/.generated/"*.json; do
-        [ -f "$src" ] || continue
-        name=$(basename "$src")
-        [ -f "$SCRIPT_DIR/conf/$name" ] && continue
-        dst="$CCCONFIG_DIR/conf/$name"
-        [ -L "$dst" ] && rm -f "$dst"
-        [ -f "$dst" ] && rm -f "$dst"
-        ln -s "$src" "$dst"
-        echo "  conf/$name → ccprivate (.generated)"
-    done
+# --- 运行时链接（rules/agents/commands → ccprivate） ---
+echo "--- 运行时链接 ---"
+if [ -d "$SCRIPT_DIR/rules" ]; then
+    setup_link "$CLAUDE_DIR/rules" "$SCRIPT_DIR/rules" "rules → ccprivate/rules"
+fi
+if [ -d "$SCRIPT_DIR/agents" ]; then
+    setup_link "$CLAUDE_DIR/agents" "$SCRIPT_DIR/agents" "agents → ccprivate/agents"
+fi
+if [ -d "$SCRIPT_DIR/commands" ]; then
+    setup_link "$CLAUDE_DIR/commands" "$SCRIPT_DIR/commands" "commands → ccprivate/commands"
 fi
 
-# --- ccconfig link/projects overlay ---
-echo "--- ccconfig link overlay ---"
-for old in "$CCCONFIG_DIR/link/CLAUDE.md" "$CCCONFIG_DIR/link/settings.json" "$CCCONFIG_DIR/link/.config.json"; do
-    if [ -f "$old" ] && [ ! -L "$old" ]; then rm -f "$old"; fi
-done
-setup_link "$CCCONFIG_DIR/link/projects" "$SCRIPT_DIR/link/projects" "ccconfig/link/projects"
-
-# --- ccconfig 公开链接（agents/rules/commands/skills） ---
-if [ -x "$CCCONFIG_DIR/setup-links.sh" ]; then
-    echo "--- 调 ccconfig/setup-links.sh（公开部分）---"
-    bash "$CCCONFIG_DIR/setup-links.sh"
+# --- ccconfig 公开链接（shell_aliases + pre-commit hook） ---
+echo "--- ccconfig 公开链接 ---"
+if [ -x "$CCCONFIG_DIR/lib/setup-links.sh" ]; then
+    bash "$CCCONFIG_DIR/lib/setup-links.sh"
 fi
 
 echo ""
@@ -707,6 +695,9 @@ do_create() {
     section "创建目录结构"
     mkdir -p "$CCPRIVATE_DIR/conf"
     mkdir -p "$CCPRIVATE_DIR/skill-config"
+    mkdir -p "$CCPRIVATE_DIR/rules"
+    mkdir -p "$CCPRIVATE_DIR/agents"
+    mkdir -p "$CCPRIVATE_DIR/commands"
     mkdir -p "$CCPRIVATE_DIR/link/projects"
 
     section "生成配置文件"
@@ -732,6 +723,27 @@ do_create() {
         fi
     done
 
+    # 复制 rules .example 到 ccprivate（首次初始化）
+    for example in "$CCCONFIG_DIR"/link/rules/*.md.example; do
+        [ -f "$example" ] || continue
+        local base=$(basename "$example" .md.example)
+        local target="$CCPRIVATE_DIR/rules/$base.md"
+        if [ ! -f "$target" ]; then
+            cp "$example" "$target"
+            info "rules/$base.md (从模板复制)"
+        fi
+    done
+
+    # 复制 agents .example 到 ccprivate（首次初始化）
+    for example in "$CCCONFIG_DIR"/link/agents/*.md.example; do
+        [ -f "$example" ] || continue
+        local base=$(basename "$example" .md.example)
+        local target="$CCPRIVATE_DIR/agents/$base.md"
+        if [ ! -f "$target" ]; then
+            cp "$example" "$target"
+            info "agents/$base.md (从模板复制)"
+        fi
+    done
     # 飞书配置引导（占位符 → 现在填 or 跳过）
     prompt_feishu_config
 
