@@ -134,8 +134,8 @@ PYEOF
             done
         fi
         echo ""
-        echo -e "   ${GREEN}bash init.sh all${NC}"
-        return 0
+        echo -e "   ${GREEN}继续执行全部初始化步骤...${NC}"
+        # 不回退，继续跑 5 步流程
     fi
 
     export INIT_ALL_FLOW=1
