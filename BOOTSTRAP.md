@@ -32,7 +32,7 @@ bash init.sh all
 > 拆分让"网络好"的步骤先跑，"网络差"的步骤后跑，问题更容易定位。
 > ccprivate 创建必须在 init.sh all 之前，否则 LLM API key 等私有配置缺失导致后续步骤失败。
 
-`bootstrap.sh` 自动：
+`bootstrap-gh-auth.sh` 自动：
 1. 检测 git（必须已装）
 2. 装 GitHub CLI (gh)，apt 优先，二进制兜底
 3. gh auth 登录（PAT 路径，向导生成 classic PAT）
@@ -48,12 +48,12 @@ bash init.sh all
 
 > **支持的环境变量**：
 > - `BOOTSTRAP_NOSUDO=1` — 跳过 sudo apt，用二进制装 gh（适合受限环境）
-> - `GH_TOKEN` — bootstrap.sh 直接用此 PAT 登录（CI 友好，跳过交互）
+> - `GH_TOKEN` — bootstrap-gh-auth.sh 直接用此 PAT 登录（CI 友好，跳过交互）
 >
 > **示例**（公司受限机）：
 > ```bash
 > git clone https://github.com/<your-github-username>/ccconfig.git ~/git/ccconfig
-> cd ~/git/ccconfig && BOOTSTRAP_NOSUDO=1 bash bootstrap.sh
+> cd ~/git/ccconfig && BOOTSTRAP_NOSUDO=1 bash bootstrap-gh-auth.sh
 > bash init.sh all
 > ```
 
