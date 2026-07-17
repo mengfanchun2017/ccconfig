@@ -19,7 +19,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-BOOTSTRAP="$CCCONFIG_DIR/bootstrap.sh"
+BOOTSTRAP="$CCCONFIG_DIR/bootstrap-gh-auth.sh"
 
 PASS=0; FAIL=0
 pass() { echo "  ✅ $1"; PASS=$((PASS+1)); }
@@ -89,7 +89,7 @@ grep -q 'gh auth setup-git' "$BOOTSTRAP" && pass "runs gh auth setup-git" || fai
 
 # ── Test 10: 四步流程在脚本中体现 ──
 echo "=== Test 10: 四步流程定位 ==="
-grep -q 'bash bin/init-ccprivate.sh' "$BOOTSTRAP" && pass "指引 init-ccprivate (Step 3)" || fail "no init-ccprivate guide"
+grep -q 'bin/init-ccprivate-repo.sh' "$BOOTSTRAP" && pass "指引 init-ccprivate-repo (Step 3)" || fail "no init-ccprivate-repo guide"
 grep -q 'bash init.sh all' "$BOOTSTRAP" && pass "指引 init.sh all (Step 4)" || fail "no init.sh all guide"
 
 # ── Test 11: 颜色变量定义 ──

@@ -14,5 +14,5 @@
 ## 新用户
 
 1. 如有 ccprivate 仓库：`cd ~/git/ccprivate && bash setup.sh` 建立用户级链接
-2. 无 ccprivate：`bash ccconfig/bin/init-ccprivate.sh` 交互式引导创建
+2. 无 ccprivate：`bash ccconfig/bin/init-ccprivate-repo.sh` 交互式引导创建
 3. 配置在 `~/git/ccprivate/conf/` 目录，脚本自动通过 `resolve_conf()` 读取

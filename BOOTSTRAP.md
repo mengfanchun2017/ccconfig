@@ -18,10 +18,10 @@ git clone https://github.com/<your-github-username>/ccconfig.git ~/git/ccconfig
 cd ~/git/ccconfig
 
 # Step 2: 装 gh + GitHub 认证
-bash bootstrap.sh
+bash bootstrap-gh-auth.sh
 
 # Step 3: 创建 ccprivate 私有仓库（API Key / Token / 个人配置）
-bash bin/init-ccprivate.sh
+bash bin/init-ccprivate-repo.sh
 
 # Step 4: 全量初始化（ccprivate 已就位）
 bash init.sh all
@@ -39,7 +39,7 @@ bash init.sh all
 4. 配置 git 用户身份（从 gh api 拿）和 credential helper
 5. 输出下一步命令
 
-`bin/init-ccprivate.sh` 自动：
+`bin/init-ccprivate-repo.sh` 自动：
 1. 询问 GitHub PAT（gh auth 没设时）
 2. 在 GitHub 创建 ccprivate 私有仓库（用 gh api）
 3. clone 到 `~/git/ccprivate`
@@ -309,7 +309,7 @@ gh --version
 
 ### 3a. gh auth login（必需）
 
-`init-ccprivate.sh` 用 `gh repo create` 创建私有仓库、`gh api user` 获取用户名，**必须先完成 gh 登录**：
+`init-ccprivate-repo.sh` 用 `gh repo create` 创建私有仓库、`gh api user` 获取用户名，**必须先完成 gh 登录**：
 
 ```bash
 gh auth login --web --hostname github.com
@@ -409,7 +409,7 @@ gh repo clone <your-github-username>/skill
 ccprivate 是私有配置仓库，存放 API key + Token + 个人配置。**一条命令完成**：
 
 ```bash
-bash ~/git/ccconfig/bin/init-ccprivate.sh
+bash ~/git/ccconfig/bin/init-ccprivate-repo.sh
 ```
 
 脚本交互式收集信息（GitHub 账号、邮箱、LLM API Key），自动：
@@ -419,7 +419,7 @@ bash ~/git/ccconfig/bin/init-ccprivate.sh
 - 创建 GitHub 私有仓库并推送
 - 建立所有 symlink（私有 + 公开）
 
-> **已有 ccprivate？** 其他机器恢复时用 `bash ~/git/ccconfig/bin/init-ccprivate.sh --clone` 直接克隆。
+> **已有 ccprivate？** 其他机器恢复时用 `bash ~/git/ccconfig/bin/init-ccprivate-repo.sh --clone` 直接克隆。
 >
 > **手动控制**：需要自定义更多配置 → [docs/ccprivate-guide.md](docs/ccprivate-guide.md)。
 
@@ -438,11 +438,11 @@ bash init.sh all
 | 2/5 | `lib/init-llm.sh` | 从 conf/llm.json 读取当前 LLM，写入 API key 到 settings.json |
 | 3/5 | `lib/init-mcp.sh` | 装并同步 MCP 服务器 |
 | 4/5 | `lib/init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
-| 5/5 | `lib/status.sh` | 12 项状态验证
+| 5/5 | `maintain.sh finalize` | 修复符号链接 + 启动 auto-sync + 状态验证
 
-> **symlink 已在阶段 4b/4c 完成**，阶段 5 不需要再跑 `ccprivate/setup.sh`。
+> **symlink 已在阶段 4b/4c + 5/5 修复**，无需手动跑 `ccprivate/setup.sh`。
 
-**全程无输入**：gh 已登录，LLM 默认值在阶段 4c（init-ccprivate.sh）已写入 conf/llm.json，MCP 和 skills 自动装。
+**全程无输入**：gh 已登录，LLM 默认值在阶段 4c（init-ccprivate-repo.sh）已写入 conf/llm.json，MCP 和 skills 自动装。
 
 **会触发 sudo**（安装系统包时），提前准备好 sudo 密码。
 

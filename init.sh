@@ -1,11 +1,12 @@
 #!/bin/bash
-# ccconfig 统一入口 — 两级交互式菜单
+# init.sh — ccconfig 初始化统一入口
 #
 # 使用：
-#   bash ccconfig/init.sh              # 交互式菜单（默认）
-#   bash ccconfig/init.sh all          # 一键初始化全部
-#   bash ccconfig/init.sh status       # 状态检查
-#   bash ccconfig/init.sh --dry-run    # 预览将要执行的操作（不实际执行）
+#   bash init.sh                  # 交互式菜单（默认）
+#   bash init.sh all              # 一键全部（跳过交互，全自动）
+#   bash init.sh status           # 状态检查
+#   bash init.sh --dry-run        # 预览将要执行的操作（不实际执行）
+#   bash init.sh option           # 可选组件安装（跳转到 init-option.sh）
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,8 +18,7 @@ show_banner() {
 }
 
 # 首次初始化检查：仅检查 ccprivate（skill 由 init-skill.sh 自动 clone）
-# 只在交互菜单入口（main_menu）调用，引导用户去 bash bin/init-ccprivate.sh
-# init_all_steps 假定 ccprivate 已存在（用户在 4 步流程的 Step 3 创建过）
+# init_all_steps 假定 ccprivate 已存在（4 步流程的 Step 3 已创建）
 check_first_time() {
     if [[ -d "$HOME/git/ccprivate" ]]; then
         return 0
@@ -28,15 +28,15 @@ check_first_time() {
     echo -e "${YELLOW}━━━ 首次初始化引导 ━━━${NC}"
     echo ""
     echo -e "  ${RED}❌${NC} ccprivate 未找到 — 私有配置（API Key、CLAUDE.md、settings.json）"
-    echo -e "     ${CYAN}→${NC} bash ccconfig/bin/init-ccprivate.sh"
+    echo -e "     ${CYAN}→${NC} bash ccconfig/bin/init-ccprivate-repo.sh"
     echo ""
-    echo -e "  ${GRAY}（4 步流程：clone → bash bootstrap.sh → bash bin/init-ccprivate.sh → bash init.sh all）${NC}"
+    echo -e "  ${GRAY}（4 步流程：clone → bash bootstrap-gh-auth.sh → bash bin/init-ccprivate-repo.sh → bash init.sh all）${NC}"
     echo ""
 
     read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
     create_ccp="${create_ccp:-y}"
     if [[ "$create_ccp" =~ ^[Yy]$ ]]; then
-        bash "$SCRIPT_DIR/bin/init-ccprivate.sh"
+        bash "$SCRIPT_DIR/bin/init-ccprivate-repo.sh"
         echo ""
         echo -e "${GREEN}✅ ccprivate 已创建${NC}"
         echo -e "${YELLOW}请重新运行 init.sh 继续初始化${NC}"
@@ -47,21 +47,19 @@ check_first_time() {
 }
 
 # 一键全部初始化的标准 5 步。
-# 三个入口都走这里，确保行为一致：
-#   - submenu_env 4: ★ 一键全部
-#   - main_menu 6:   ★ 一键全部初始化
-#   - case "all":    bash init.sh all
 # 假定 ccprivate 已存在（4 步流程的 Step 3 已创建）
 init_all_steps() {
     show_banner
 
-    # 预检：确保 ccprivate 配置已就绪（缺失则从 .example 复制到 ccprivate 并提示编辑）
+    # 预检：确保 ccprivate 配置已就绪
     local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
-    local configs=(
-        "ubuntu.json"
-        "llm.json"
-        "claude.json"
-    )
+    if [[ ! -d "$ccpriv" ]]; then
+        err "ccprivate 未找到，请先: bash bin/init-ccprivate-repo.sh"
+        exit 1
+    fi
+
+    # 配置预检：缺失的配置从 .example 复制
+    local configs=("ubuntu.json" "llm.json" "claude.json")
     local missing_configs=()
     for name in "${configs[@]}"; do
         if [[ -f "$ccpriv/conf/$name" ]]; then
@@ -85,13 +83,12 @@ init_all_steps() {
         echo ""
 
         echo -e "${CYAN}是否需要现在交互式配置？（推荐）${NC}"
-        echo "  会引导你选择 LLM、输入 API Key（Git 信息从 git config 自动读取）"
         echo ""
         read -p "交互式配置？[Y/n]: " do_interactive
         do_interactive="${do_interactive:-y}"
 
         if [[ "$do_interactive" =~ ^[Yy]$ ]]; then
-            # 1. Git 信息：从 git config 自动读，不需要再问用户
+            # Git 信息：从 git config 自动读
             local git_user git_email
             git_user="$(git config --global user.name 2>/dev/null || echo '')"
             git_email="$(git config --global user.email 2>/dev/null || echo '')"
@@ -110,17 +107,17 @@ PYEOF
                 echo -e "  ${GREEN}✅${NC} Git 信息已从 git config 写入 ccprivate/conf/ubuntu.json"
             fi
 
-            # 2. LLM 配置：选 LLM → 输 Key → 写 llm.json + settings.json
+            # LLM 配置
             echo ""
             echo -e "${CYAN}── LLM 配置 ──${NC}"
             if [[ -f "$CCCONFIG_ROOT/lib/init-llm.sh" ]]; then
                 bash "$CCCONFIG_ROOT/lib/init-llm.sh"
             fi
 
-            # 3. MCP Key 提示（不强制，后续可补）
+            # MCP Key 提示
             echo ""
             echo -e "${YELLOW}── MCP 配置（可选）──${NC}"
-            echo "  MCP 服务器需要 API Key（Tavily / MiniMax / Supabase）"
+            echo "  MCP 服务器需要 API Key（Tavily / MiniMax / Supabase / Cloudflare）"
             echo "  现在跳过也没关系，后续跑 init-mcp.sh 会检测缺失的 Key 并提示"
             echo ""
             echo -e "  手动编辑: ${GRAY}vim $ccpriv/conf/claude.json${NC}"
@@ -160,12 +157,13 @@ PYEOF
 
     run_step "4/5 Skills" "$SCRIPT_DIR/lib/init-skill.sh" sync \
         "同步 skill 公开市场 + ccconfig 自建 skill → ~/.claude/skills/；symlink 绑定" \
-        "Skills 是 Claude Code 的可复用工作流：飞书写文档、PPT 生成、PDF 提取、ECharts 画图…按需自动加载" \
+        "Skills 是 Claude Code 的可复用工作流" \
         "30 s（首次 ~1 min）"
 
-    run_step "5/5 状态验证" "$SCRIPT_DIR/lib/status.sh" false \
-        "11 项检查：配置链接 / 依赖版本 / auto-sync / 最后推送 / MEMORY / 各 option-* 子模块" \
-        "确认所有组件就位；发现问题可立刻补（status.sh 约 10 s）" \
+    # Step 5/5: maintain.sh finalize（链接修复 + 状态检查 + 服务启动）
+    run_step "5/5 收尾（链接修复 + 状态检查 + 服务启动）" "$SCRIPT_DIR/maintain.sh" finalize \
+        "修复符号链接 / 启动 auto-sync 服务 / 状态验证" \
+        "确认所有组件就位，可以开始工作" \
         "10 s"
 
     echo ""
@@ -174,15 +172,9 @@ PYEOF
     echo -e "${BOLD}日常使用:${NC}"
     echo "  切换 LLM:          bash $SCRIPT_DIR/lib/init-llm.sh"
     echo "  更新系统:          bash $SCRIPT_DIR/lib/update.sh all"
-    echo "  状态检查:          bash $SCRIPT_DIR/lib/status.sh"
+    echo "  状态检查:          bash maintain.sh status"
+    echo "  装可选组件:        bash init-option.sh"
     echo ""
-    echo -e "${BOLD}可选组件:${NC}"
-    echo "  飞书 Bridge:       bash $SCRIPT_DIR/option-bridge/init.sh"
-    echo "  Cloudflare 插件:   bash $SCRIPT_DIR/option-cloudflare/init.sh"
-    echo "  OfficeCLI:         bash $SCRIPT_DIR/option-officecli/init.sh"
-    echo "  Python 包更新:     bash $SCRIPT_DIR/lib/update.sh python"
-    echo ""
-    echo -e "${GRAY}auto-sync 已在步骤1配置，配置变更自动推送到 GitHub${NC}"
 }
 
 run_step() {
@@ -203,6 +195,8 @@ run_step() {
         else
             echo -e "${RED}❌ ${label} 失败（继续）${NC}"
         fi
+    elif [ "$auto" = "finalize" ]; then
+        bash "$script" finalize && echo -e "${GREEN}✅ ${label} 完成${NC}" || echo -e "${RED}❌ ${label} 失败${NC}"
     else
         read -p "运行？[Y/n]: " confirm || true
         confirm="${confirm:-y}"
@@ -226,7 +220,7 @@ submenu_env() {
     echo "  1) Ubuntu 全环境初始化 (init-ubuntu.sh)"
     echo "  2) LLM 后端切换       (init-llm.sh)"
     echo "  3) auto-sync 自启动    (init-autostart.sh)"
-    echo "  4) ★ 一键全部（ubuntu + MCP + skills）"
+    echo "  4) ★ 一键全部（ubuntu + LLM + MCP + skills + 收尾）"
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-4,0]: " c
@@ -243,103 +237,24 @@ submenu_env() {
     esac
 }
 
-# ========== 可选组件（自动发现 option-*/ ） ==========
-discover_options() {
-    local opts=()
-    for d in "$SCRIPT_DIR"/option-*/; do
-        [ -d "$d" ] || continue
-        local name=$(basename "$d")
-        opts+=("$name|$d")
-    done
-    printf '%s\n' "${opts[@]}"
-}
-
-option_has_init() {
-    [ -x "$1/init.sh" ] || [ -f "$1/init.sh" ]
-}
-
 submenu_options() {
-    echo ""
-    echo -e "${CYAN}── 可选组件 ──${NC}"
-    echo ""
-
-    local idx=1
-    local -a opt_names opt_dirs
-
-    while IFS='|' read -r name dir; do
-        [ -z "$name" ] && continue
-        opt_names+=("$name")
-        opt_dirs+=("$dir")
-        local status=""
-        if option_has_init "$dir"; then
-            status="  ← init.sh"
-        fi
-        echo -e "  ${BOLD}$idx)${NC} $name ${GRAY}$status${NC}"
-        idx=$((idx + 1))
-    done <<< "$(discover_options)"
-
-    echo "  0) 返回"
-    echo ""
-    read -p "选择: " c
-
-    case "$c" in
-        0|"") return ;;
-        *)
-            if [[ "$c" =~ ^[0-9]+$ ]] && [ "$c" -ge 1 ] && [ "$c" -le ${#opt_dirs[@]} ]; then
-                local i=$((c - 1))
-                local name="${opt_names[$i]}" dir="${opt_dirs[$i]}"
-                echo ""
-                echo -e "${CYAN}── $name ──${NC}"
-                echo ""
-                echo "  1) 安装/初始化"
-                echo "  2) 状态检查"
-                echo "  0) 返回"
-                echo ""
-                read -p "选择: " sub
-
-                case "$sub" in
-                    1) run_step "$name 安装" "$dir/init.sh" false
-                       echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-                    2)
-                       if [ -x "$dir/init.sh" ]; then
-                           bash "$dir/init.sh" --status 2>/dev/null || echo -e "  ${YELLOW}○ 状态检查不支持${NC}"
-                       else
-                           echo -e "  ${YELLOW}○ 无 init.sh${NC}"
-                       fi
-                       echo ""; read -p "按回车返回..." dummy
-                       ;;
-                esac
-            fi
-            ;;
-    esac
+    bash "$SCRIPT_DIR/init-option.sh"
 }
 
 submenu_remote() {
     echo ""
     echo -e "${CYAN}── 远程连接 ──${NC}"
-    echo "  1) SSH Server + tmux 安装  (option-remote/server/tmux-sshd.sh)"
-    echo "  2) 部署配置到 Windows       (option-remote/deploy.sh server)"
-    echo "  3) 查看完整说明             (option-remote/readme.md)"
+    echo "  1) SSH Server + tmux 安装"
+    echo "  2) 部署配置到 Windows"
+    echo "  3) 查看完整说明"
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-3,0]: " c
     case "$c" in
         1) run_step "SSH Server" "$SCRIPT_DIR/option-remote/server/tmux-sshd.sh" false ;;
         2) bash "$SCRIPT_DIR/option-remote/deploy.sh" server ;;
-        3) echo ""; info_tmux ;;
+        3) echo ""; cat "$SCRIPT_DIR/option-remote/readme.md" 2>/dev/null || echo -e "  ${YELLOW}readme.md 不存在${NC}" ;;
     esac
-}
-
-info_tmux() {
-    echo -e "${CYAN}远程连接方案：${NC}"
-    echo ""
-    echo "  配置步骤："
-    echo "  1. 台式机 WSL: bash ccconfig/option-remote/server/tmux-sshd.sh"
-    echo "  2. 台式机 Win 管理员 PowerShell: 执行 windows/ 下的 ps1 脚本"
-    echo "  3. 两端安装 Tailscale 组网"
-    echo "  4. 笔记本: ssh -p 2222 <your-username>@<台式机IP>"
-    echo ""
-    echo "  详见: ccconfig/option-remote/readme.md"
 }
 
 submenu_mcp() {
@@ -348,18 +263,15 @@ submenu_mcp() {
     echo "  1) 安装并同步 MCP  (init-mcp.sh sync)"
     echo "  2) 仅安装缺失 MCP  (init-mcp.sh install)"
     echo "  3) 配置 API Key     (init-mcp.sh keys)"
-    echo "  4) 状态检查         (status.sh)"
     echo "  0) 返回"
     echo ""
-    read -p "选择 [1-4,0]: " c
+    read -p "选择 [1-3,0]: " c
     case "$c" in
         1) run_step "MCP 同步"   "$SCRIPT_DIR/lib/init-mcp.sh" true
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         2) echo ""; bash "$SCRIPT_DIR/lib/init-mcp.sh" install
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         3) echo ""; bash "$SCRIPT_DIR/lib/init-mcp.sh" keys
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        4) bash "$SCRIPT_DIR/lib/status.sh"
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         0) return ;;
     esac
@@ -382,59 +294,36 @@ submenu_skills() {
     esac
 }
 
-submenu_tools() {
-    echo ""
-    echo -e "${CYAN}── 系统工具 ──${NC}"
-    echo "  1) 状态检查       (status.sh)"
-    echo "  2) 强制拉取远程   (sync.sh --pull)"
-    echo "  3) 升级组件       (update.sh)"
-    echo "  0) 返回"
-    echo ""
-    read -p "选择 [1-3,0]: " c
-    case "$c" in
-        1) bash "$SCRIPT_DIR/lib/status.sh"
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        2) run_step "强制拉取" "$SCRIPT_DIR/lib/sync.sh --pull" false
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        3) bash "$SCRIPT_DIR/lib/update.sh" ;;
-        0) return ;;
-    esac
-}
-
 # ========== 主菜单 ==========
 main_menu() {
     show_banner
     check_first_time
     echo ""
-    echo "  ── 环境初始化 ──"
+    echo "  ── 初始化 ──"
     echo "  1) Ubuntu 环境  │ LLM切换 │ 自启动"
-    echo "  2) 远程连接    │ SSH │ tmux │ EasyTier"
-    echo "  3) MCP 管理    │ 安装 │ 同步 │ 状态"
+    echo "  2) 远程连接    │ SSH │ tmux"
+    echo "  3) MCP 管理    │ 安装 │ 同步"
     echo "  4) Skills      │ 同步 │ 状态"
-    echo "  5) 系统工具    │ 检查 │ 拉取 │ 升级"
-    echo "  6) ★ 一键全部初始化"
+    echo "  5) ★ 一键全部初始化"
     echo "  ── 可选组件 ──"
-    echo "  7) 可选组件（option-*）"
+    echo "  6) 可选组件（bat / glow / nano / option-*）"
     echo "  0) 退出"
     echo ""
-    read -p "选择 [0-7]: " choice
+    read -p "选择 [0-6]: " choice
 
     case "$choice" in
         1) submenu_env ;;
         2) submenu_remote ;;
         3) submenu_mcp ;;
         4) submenu_skills ;;
-        5) submenu_tools ;;
-        6)
-            init_all_steps
-            exit 0
-            ;;
-        7) submenu_options ;;
+        5) init_all_steps
+           exit 0 ;;
+        6) submenu_options
+           echo -e "${YELLOW}操作完成${NC}";;
         0) echo ""; exit 0 ;;
         *) echo "无效选择"; main_menu ;;
     esac
 
-    # 操作后回到主菜单
     echo ""
     read -p "按回车返回主菜单..." dummy
     main_menu
@@ -444,29 +333,31 @@ main_menu() {
 case "${1:-menu}" in
     all)
         init_all_steps
-        echo ""
-        echo "CLI 工具: bat (batcat) / glow / nano — 已由 init-ubuntu.sh 自动安装"
-        echo "可选: bash $SCRIPT_DIR/option-bridge/init.sh   # 安装飞书 Bridge"
         exit 0
+        ;;
+    option|options)
+        bash "$SCRIPT_DIR/init-option.sh"
         ;;
     --dry-run|--preview|--what)
         show_banner
         echo ""
-        section "预览：将要执行的操作"
-        echo "  init-ubuntu.sh    → 安装系统包 + git/gh/node/uv/claude + symlink + LLM"
-        echo "  init-mcp.sh sync  → 注册 MCP 服务器（Tavily/MiniMax/Supabase）"
-        echo "  init-skill.sh sync → 安装 CLI 依赖 + symlink 自建 skill + 注册 marketplace"
+        echo -e "${CYAN}━━━ 预览：将要执行的操作 ━━━${NC}"
+        echo "  1) init-ubuntu.sh    → 系统包 + node/gh/claude/uv + symlink"
+        echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
+        echo "  3) init-mcp.sh sync  → 注册 MCP 服务器"
+        echo "  4) init-skill.sh sync → 同步 skills"
+        echo "  5) maintain.sh       → 链接修复 + 状态 + 服务"
         echo ""
-        echo "  运行 'bash init.sh all' 执行以上操作"
-        echo "  运行 'bash init.sh' 进入交互式菜单选择单个步骤"
+        echo "  运行 'bash init.sh all' 执行以上所有步骤"
+        echo "  运行 'bash init.sh' 进入交互式菜单"
         ;;
     status)
-        bash "$SCRIPT_DIR/lib/status.sh"
+        bash "$SCRIPT_DIR/maintain.sh" status
         ;;
     menu|"")
         main_menu
         ;;
     *)
-        echo "用法: bash ccconfig/init.sh [all|--dry-run|status|menu]"
+        echo "用法: bash init.sh [all|option|--dry-run|status|menu]"
         ;;
 esac
