@@ -6,6 +6,8 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$BASH_SOURCE")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/path-helper.sh"
+LLM_CONF="$(resolve_conf llm.json)" || exit 1
 
 # 解析参数
 PROVIDER="${1:-}"
@@ -13,7 +15,7 @@ PROVIDER="${1:-}"
 # 从 llm.json 读取 provider 信息
 read_provider_from_json() {
     local provider="$1"
-    python3 - "$CCCONFIG_ROOT/conf/llm.json" "$provider" << 'PYEOF'
+    python3 - "$LLM_CONF" "$provider" << 'PYEOF'
 import json, sys
 with open(sys.argv[1]) as f:
     d = json.load(f)
@@ -29,7 +31,7 @@ if [[ -z "$PROVIDER" ]]; then
     PROVIDER=$(python3 -c "
 import json
 try:
-    with open('$CCCONFIG_ROOT/conf/llm.json') as f:
+    with open('$LLM_CONF') as f:
         d = json.load(f)
     print(d.get('current', ''))
 except: pass
@@ -46,7 +48,7 @@ fi
 IFS=$'\n' read -r UPSTREAM KEY MODEL <<< "$(read_provider_from_json "$PROVIDER")"
 
 if [[ -z "$UPSTREAM" ]]; then
-    echo "❌ 未找到 provider '$PROVIDER' 的 base_url（检查 conf/llm.json）"
+    echo "❌ 未找到 provider '$PROVIDER' 的 base_url（检查 llm.json）"
     exit 1
 fi
 if [[ -z "$KEY" ]]; then

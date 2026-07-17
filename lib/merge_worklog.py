@@ -26,9 +26,9 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-# 从 conf/f-logme.json 读配置（symlink → ccprivate）
+# 从 ccprivate/conf/f-logme.json 读配置
 def get_feme_config():
-    feme_json = Path.home() / "git" / "ccconfig" / "conf" / "f-logme.json"
+    feme_json = Path.home() / "git" / "ccprivate" / "conf" / "f-logme.json"
     with open(feme_json) as f:
         data = json.load(f)
     okr = data["bases"]["okr_v2"]
@@ -47,8 +47,8 @@ def get_llm_config():
     model = os.environ.get("ANTHROPIC_MODEL", "MiniMax-M3")
     if base_url and api_key:
         return base_url, api_key, model
-    # fallback: conf/llm.json（不在 git 里）
-    llm_json = Path.home() / "git" / "ccconfig" / "conf" / "llm.json"
+    # fallback: ccprivate/conf/llm.json
+    llm_json = Path.home() / "git" / "ccprivate" / "conf" / "llm.json"
     if llm_json.exists():
         with open(llm_json) as f:
             data = json.load(f)

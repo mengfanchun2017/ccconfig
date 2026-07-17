@@ -31,7 +31,7 @@ source "$SCRIPT_DIR/path-helper.sh"
 source "$SCRIPT_DIR/git-conflict.sh"
 
 LOCAL_BIN="$HOME/.local/bin"
-VERSION_FILE="$CCCONFIG_ROOT/conf/versions.json"
+VERSION_FILE="$CCCONFIG_ROOT/conf/versions.json"  # 公开文件，不走 resolve_conf
 LOCK_FILE="/tmp/ccconfig-update.lock"
 
 RED='\033[0;31m'
@@ -729,7 +729,7 @@ update_mcp() {
     rm -rf "$HOME/.npm/_npx" 2>/dev/null || true
 
     # 预拉取 MCP 包
-    local mcp_conf="$CCCONFIG_ROOT/conf/claude.json"
+    local mcp_conf="$(resolve_conf claude.json)"
     if [ -f "$mcp_conf" ]; then
         python3 - "$mcp_conf" << 'PYEOF'
 import json, sys, subprocess

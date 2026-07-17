@@ -5,8 +5,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-FEISHU_CONF="$CCCONFIG_DIR/conf/feishu.json"
-source "$SCRIPT_DIR/../lib/colors.sh"
+source "$CCCONFIG_DIR/lib/path-helper.sh"
+source "$CCCONFIG_DIR/lib/colors.sh"
+FEISHU_CONF="$(resolve_conf feishu.json)" || exit 1
 
 ACTION=""
 BOT_NAME=""
