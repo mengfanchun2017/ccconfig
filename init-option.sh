@@ -167,10 +167,10 @@ install_nano() {
 option_status() {
     local name="$1"
 
-    # option-* 目录
+    # option-* 目录（取首个含文字的行，跳过纯ANSI行）
     if has_init_script "$name"; then
-        bash "$SCRIPT_DIR/option-$name/init.sh" --status 2>&1 | head -1
-        return ${PIPESTATUS[0]}
+        bash "$SCRIPT_DIR/option-$name/init.sh" --status 2>&1 | grep -m1 -E '[a-zA-Z]{2}'
+        return 0
     fi
 
     # 内置 CLI
@@ -220,13 +220,14 @@ list_all() {
         idx=$((idx + 1))
     done
 
-    # option-* 目录
+    # option-* 目录（去掉 option- 前缀再存储，option_status 内部重新加）
     local dirs
     dirs=$(list_option_dirs)
     for d in $dirs; do
-        all_names+=("$d")
-        all_labels+=("$(basename "$d" | sed 's/^option-//')")
-        printf "  %2d) %-12s %b\n" $idx "$d" "$(option_status "$d")"
+        local bare="${d#option-}"
+        all_names+=("$bare")
+        all_labels+=("$bare")
+        printf "  %2d) %-12s %b\n" $idx "$bare" "$(option_status "$bare")"
         idx=$((idx + 1))
     done
 
@@ -243,7 +244,7 @@ interactive_menu() {
     for n in bat glow nano; do all_names+=("$n"); done
     local dirs
     dirs=$(list_option_dirs)
-    for d in $dirs; do all_names+=("$d"); done
+    for d in $dirs; do all_names+=("${d#option-}"); done
 
     while true; do
         list_all
@@ -281,12 +282,12 @@ case "${1:-menu}" in
         ;;
     -l|list)
         for n in bat glow nano; do echo "$n"; done
-        list_option_dirs
+        for d in $(list_option_dirs); do echo "${d#option-}"; done
         ;;
     all|--all|-a)
         shift 2>/dev/null || true
         for n in bat glow nano; do install_option "$n"; done
-        for d in $(list_option_dirs); do install_option "$d"; done
+        for d in $(list_option_dirs); do install_option "${d#option-}"; done
         echo -e "\n${GREEN}✅ 全部可选组件安装完成${NC}"
         ;;
     menu|--menu|"")
