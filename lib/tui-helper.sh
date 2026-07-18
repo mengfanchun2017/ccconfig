@@ -34,14 +34,18 @@ _tui_extract_num() { echo "$1" | sed 's/^[[:space:]]*\([0-9]*\).*/\1/'; }
 _tui_choose() {
   local title="$1" && shift
   local -a items=("$@")
-  local sel
+  local sel tmpf
 
   case "$__TUI_BACKEND" in
     gum)
-      sel=$(gum choose --header="$title" --header.foreground="$TUI_ACCENT" \
+      tmpf=$(mktemp) || { echo "0"; return 0; }
+      gum choose --header="$title" --header.foreground="$TUI_ACCENT" \
         --cursor="●" --cursor.foreground="$TUI_PRIMARY" \
         --selected.foreground="$TUI_SUCCESS" \
-        "${items[@]}") || { echo "0"; return 0; }
+        "${items[@]}" > "$tmpf" || true
+      sel=$(cat "$tmpf" 2>/dev/null || true)
+      rm -f "$tmpf"
+      if [[ -z "$sel" ]]; then echo "0"; return 0; fi
       _tui_extract_num "$sel"
       ;;
     whiptail)
@@ -75,9 +79,9 @@ _tui_confirm() {
   case "$__TUI_BACKEND" in
     gum)
       if [[ "$default" = "y" ]]; then
-        gum confirm --affirmative="Yes" --negative="No" "$prompt"
+        gum confirm --affirmative="Yes" --negative="No" "$prompt" || return 1
       else
-        gum confirm --affirmative="Yes" --negative="No" --default=no "$prompt"
+        gum confirm --affirmative="Yes" --negative="No" --default=no "$prompt" || return 1
       fi
       ;;
     whiptail)
