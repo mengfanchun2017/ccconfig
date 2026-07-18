@@ -18,13 +18,14 @@ TUI_SUCCESS="#10B981"
 TUI_WARN="#F59E0B"
 TUI_DIM="#6B7280"
 
-# ── 后端检测 ──
-_tui_backend() {
-  if command -v gum &>/dev/null; then echo "gum"
-  elif command -v whiptail &>/dev/null; then echo "whiptail"
-  else echo "raw"
-  fi
-}
+# ── 后端检测（source 时缓存在全局变量，避免 subshell 嵌套） ──
+if command -v gum &>/dev/null; then
+  __TUI_BACKEND="gum"
+elif command -v whiptail &>/dev/null; then
+  __TUI_BACKEND="whiptail"
+else
+  __TUI_BACKEND="raw"
+fi
 
 # ── 提取编号（从 "1. Foo bar" 中提取 "1"） ──
 _tui_extract_num() { echo "$1" | sed 's/^[[:space:]]*\([0-9]*\).*/\1/'; }
@@ -33,14 +34,14 @@ _tui_extract_num() { echo "$1" | sed 's/^[[:space:]]*\([0-9]*\).*/\1/'; }
 _tui_choose() {
   local title="$1" && shift
   local -a items=("$@")
+  local sel
 
-  case "$(_tui_backend)" in
+  case "$__TUI_BACKEND" in
     gum)
-      local sel
       sel=$(gum choose --header="$title" --header.foreground="$TUI_ACCENT" \
         --cursor="●" --cursor.foreground="$TUI_PRIMARY" \
         --selected.foreground="$TUI_SUCCESS" \
-        "${items[@]}" 2>/dev/null) || { echo "0"; return 0; }
+        "${items[@]}") || { echo "0"; return 0; }
       _tui_extract_num "$sel"
       ;;
     whiptail)
@@ -49,7 +50,6 @@ _tui_choose() {
         tag=$(_tui_extract_num "$item")
         args+=("$tag" "$item")
       done
-      local sel
       sel=$(whiptail --title "$title" --menu "" 0 0 0 "${args[@]}" 3>&1 1>&2 2>&3) || { echo "0"; return 0; }
       echo "$sel"
       ;;
@@ -72,12 +72,12 @@ _tui_choose() {
 _tui_confirm() {
   local prompt="$1" default="${2:-y}"
 
-  case "$(_tui_backend)" in
+  case "$__TUI_BACKEND" in
     gum)
       if [[ "$default" = "y" ]]; then
-        gum confirm --affirmative="Yes" --negative="No" "$prompt" 2>/dev/null
+        gum confirm --affirmative="Yes" --negative="No" "$prompt"
       else
-        gum confirm --affirmative="Yes" --negative="No" --default=no "$prompt" 2>/dev/null
+        gum confirm --affirmative="Yes" --negative="No" --default=no "$prompt"
       fi
       ;;
     whiptail)
@@ -101,11 +101,11 @@ _tui_confirm() {
 _tui_input() {
   local title="$1" default="${2:-}"
 
-  case "$(_tui_backend)" in
+  case "$__TUI_BACKEND" in
     gum)
       gum input --header="$title" --header.foreground="$TUI_ACCENT" \
         --placeholder="$default" --value="$default" \
-        --prompt="→ " --prompt.foreground="$TUI_ACCENT" 2>/dev/null || echo ""
+        --prompt="→ " --prompt.foreground="$TUI_ACCENT" || echo ""
       ;;
     whiptail)
       local val
@@ -124,10 +124,10 @@ _tui_input() {
 _tui_password() {
   local title="$1"
 
-  case "$(_tui_backend)" in
+  case "$__TUI_BACKEND" in
     gum)
       gum input --password --header="$title" --header.foreground="$TUI_ACCENT" \
-        --placeholder="输入后按回车" --prompt="→ " --prompt.foreground="$TUI_ACCENT" 2>/dev/null || echo ""
+        --placeholder="输入后按回车" --prompt="→ " --prompt.foreground="$TUI_ACCENT" || echo ""
       ;;
     whiptail)
       local val
@@ -148,12 +148,12 @@ _tui_multi() {
   local title="$1" && shift
   local -a items=("$@")
 
-  case "$(_tui_backend)" in
+  case "$__TUI_BACKEND" in
     gum)
       gum choose --no-limit --header="$title" --header.foreground="$TUI_ACCENT" \
         --cursor="●" --cursor.foreground="$TUI_PRIMARY" \
         --selected.foreground="$TUI_SUCCESS" \
-        "${items[@]}" 2>/dev/null || true
+        "${items[@]}" || true
       ;;
     whiptail)
       local -a args=()

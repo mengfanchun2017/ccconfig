@@ -325,6 +325,7 @@ case "${1:-menu}" in
         bash "$SCRIPT_DIR/maintain.sh" status
         ;;
     menu|"")
+        _ensure_gum
         main_menu
         ;;
     *)
