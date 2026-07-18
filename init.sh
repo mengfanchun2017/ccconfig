@@ -50,6 +50,7 @@ check_first_time() {
 # 假定 ccprivate 已存在（4 步流程的 Step 3 已创建）
 init_all_steps() {
     show_banner
+    export INIT_ALL_FLOW=1
 
     # 预检：确保 ccprivate 配置已就绪
     local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
@@ -58,7 +59,7 @@ init_all_steps() {
         exit 1
     fi
 
-    # 配置预检：缺失的配置从 .example 复制
+    # 配置预检：缺失的配置从 .example 复制（全自动，不交互）
     local configs=("ubuntu.json" "llm.json" "claude.json")
     local missing_configs=()
     for name in "${configs[@]}"; do
@@ -82,18 +83,12 @@ init_all_steps() {
         done
         echo ""
 
-        echo -e "${CYAN}是否需要现在交互式配置？（推荐）${NC}"
-        echo ""
-        read -p "交互式配置？[Y/n]: " do_interactive
-        do_interactive="${do_interactive:-y}"
-
-        if [[ "$do_interactive" =~ ^[Yy]$ ]]; then
-            # Git 信息：从 git config 自动读
-            local git_user git_email
-            git_user="$(git config --global user.name 2>/dev/null || echo '')"
-            git_email="$(git config --global user.email 2>/dev/null || echo '')"
-            if [[ -n "$git_user" ]] || [[ -n "$git_email" ]]; then
-                python3 - "$ccpriv/conf/ubuntu.json" "$git_user" "$git_email" << 'PYEOF'
+        # Git 信息：从 git config 自动读
+        local git_user git_email
+        git_user="$(git config --global user.name 2>/dev/null || echo '')"
+        git_email="$(git config --global user.email 2>/dev/null || echo '')"
+        if [[ -n "$git_user" ]] || [[ -n "$git_email" ]]; then
+            python3 - "$ccpriv/conf/ubuntu.json" "$git_user" "$git_email" << 'PYEOF'
 import json, sys
 with open(sys.argv[1], 'r') as f:
     d = json.load(f)
@@ -104,35 +99,17 @@ if sys.argv[3]:
 with open(sys.argv[1], 'w') as f:
     json.dump(d, f, indent=2, ensure_ascii=False)
 PYEOF
-                echo -e "  ${GREEN}✅${NC} Git 信息已从 git config 写入 ccprivate/conf/ubuntu.json"
-            fi
-
-            # LLM 配置
-            echo ""
-            echo -e "${CYAN}── LLM 配置 ──${NC}"
-            if [[ -f "$CCCONFIG_ROOT/lib/init-llm.sh" ]]; then
-                bash "$CCCONFIG_ROOT/lib/init-llm.sh"
-            fi
-
-            # MCP Key 提示
-            echo ""
-            echo -e "${YELLOW}── MCP 配置（可选）──${NC}"
-            echo "  MCP 服务器需要 API Key（Tavily / MiniMax / Supabase / Cloudflare）"
-            echo "  现在跳过也没关系，后续跑 init-mcp.sh 会检测缺失的 Key 并提示"
-            echo ""
-            echo -e "  手动编辑: ${GRAY}vim $ccpriv/conf/claude.json${NC}"
-        else
-            echo ""
-            echo -e "${CYAN}📝 请手动编辑配置文件填入 API Key 等信息后重新运行:${NC}"
-            for name in "${missing_configs[@]}"; do
-                echo "   vim $ccpriv/conf/$name"
-            done
+            echo -e "  ${GREEN}✅${NC} Git 信息已从 git config 写入 ccprivate/conf/ubuntu.json"
         fi
-        echo ""
-        echo -e "   ${GREEN}继续执行全部初始化步骤...${NC}"
-    fi
 
-    export INIT_ALL_FLOW=1
+        echo ""
+        echo -e "  ${GRAY}📝 配置文件已创建，请手动编辑填入 API Key：${NC}"
+        for name in "${missing_configs[@]}"; do
+            echo "     vim $ccpriv/conf/$name"
+        done
+        echo ""
+        echo -e "  ${GREEN}继续执行全部初始化步骤...${NC}"
+    fi
 
     # 读取 llm.json 中预设的 current
     local llm_json="$ccpriv/conf/llm.json"
@@ -155,7 +132,7 @@ PYEOF
         "MCP 是 Claude Code 的'工具箱'：搜索/数据库/部署/可观测，skills 按需调用" \
         "20 s"
 
-    run_step "4/5 Skills" "$SCRIPT_DIR/lib/init-skill.sh" sync \
+    run_step "4/5 Skills" "$SCRIPT_DIR/lib/init-skill.sh" true sync \
         "同步 skill 公开市场 + ccconfig 自建 skill → ~/.claude/skills/；symlink 绑定" \
         "Skills 是 Claude Code 的可复用工作流" \
         "30 s（首次 ~1 min）"
@@ -187,6 +164,7 @@ PYEOF
 run_step() {
     local label="$1" script="$2" auto="$3"
     local what="${4:-}" why="${5:-}" eta="${6:-}"
+    shift 6 2>/dev/null || true  # remaining args passed to script
 
     echo ""
     echo -e "${CYAN}━━━ ${label} ━━━${NC}"
@@ -197,7 +175,7 @@ run_step() {
     echo ""
 
     if [ "$auto" = "true" ]; then
-        if bash "$script"; then
+        if bash "$script" "$@"; then
             echo -e "${GREEN}✅ ${label} 完成${NC}"
         else
             echo -e "${RED}❌ ${label} 失败（继续）${NC}"
@@ -208,7 +186,7 @@ run_step() {
         read -p "运行？[Y/n]: " confirm || true
         confirm="${confirm:-y}"
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            if bash "$script"; then
+            if bash "$script" "$@"; then
                 echo -e "${GREEN}✅ ${label} 完成${NC}"
             else
                 echo -e "${RED}❌ ${label} 失败${NC}"
