@@ -21,35 +21,46 @@ err()     { echo -e "  ${RED}❌ $1${NC}"; }
 do_status() {
     local all_ok=true
 
-    echo -n "  SSH Server ... "
+    # SSH
+    local ssh_status="未安装"
     if systemctl is-active ssh.socket &>/dev/null 2>&1 || systemctl is-active ssh &>/dev/null 2>&1; then
         local port
         port=$(grep -oP '^Port \K[0-9]+' /etc/ssh/sshd_config 2>/dev/null || echo "22")
-        echo -e "${GREEN}✅${NC} 端口 $port"
+        ssh_status="✅ 端口 $port"
     elif command -v sshd &>/dev/null; then
-        echo -e "${YELLOW}○${NC} 已安装未启动"
+        ssh_status="○ 已安装未启动"
         all_ok=false
     else
-        echo -e "${GRAY}－${NC} 未安装"
         all_ok=false
     fi
 
-    echo -n "  Tailscale ... "
+    # Tailscale
+    local ts_status="未安装"
     local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
     if [ -f "$ts_exe" ]; then
         local ts_ip
         ts_ip=$("$ts_exe" ip -4 2>/dev/null || echo "")
         if [ -n "$ts_ip" ]; then
-            echo -e "${GREEN}✅${NC} $ts_ip"
+            ts_status="✅ $ts_ip"
         else
-            echo -e "${YELLOW}○${NC} 未登录"
+            ts_status="○ 未登录"
             all_ok=false
         fi
     else
-        echo -e "${GRAY}－${NC} 未安装"
         all_ok=false
     fi
 
+    # 第一行：给 status.sh check_option_components 解析
+    if $all_ok; then
+        echo "OK remote (SSH + Tailscale 就绪)"
+    elif systemctl is-active ssh.socket &>/dev/null 2>&1; then
+        echo "OK remote (SSH 就绪, Tailscale 未登录)"
+    else
+        echo "remote: SSH $ssh_status"
+    fi
+
+    echo -e "  SSH Server ... ${ssh_status}"
+    echo -e "  Tailscale ... ${ts_status}"
     echo -n "  远程可用 ... "
     if systemctl is-active ssh.socket &>/dev/null 2>&1 && [ -f "$ts_exe" ]; then
         local port
@@ -63,10 +74,7 @@ do_status() {
         fi
     else
         echo -e "${GRAY}－${NC} 需安装 SSH + Tailscale"
-        all_ok=false
     fi
-
-    $all_ok && echo -e "${GREEN}OK remote${NC}" || echo -e "${YELLOW}FAIL${NC}"
     return 0
 }
 

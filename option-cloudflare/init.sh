@@ -70,7 +70,6 @@ except:
 }
 
 do_status() {
-    banner
     local status
     status=$(check_installed)
     local mp_ok=$(echo "$status" | cut -d'|' -f1)
@@ -83,6 +82,8 @@ do_status() {
     else
         echo "Cloudflare Plugin — 未安装（bash ccconfig/option-cloudflare/init.sh --install）"
     fi
+
+    banner
 
     echo -e "  Marketplace (cloudflare/skills):  $([ "$mp_ok" = true ] && echo "${GREEN}✓${NC} 已添加" || echo "${RED}✗${NC} 未添加")"
     echo -e "  Plugin (cloudflare@cloudflare):   $([ "$pl_ok" = true ] && echo "${GREEN}✓${NC} 已安装 v$ver" || echo "${RED}✗${NC} 未安装")"
