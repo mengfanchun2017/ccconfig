@@ -317,9 +317,9 @@ do_stop() {
 # ========== 状态 ==========
 do_status() {
     if ! is_running; then
-        echo "FAIL llmswitch proxy not running"
-        bad "代理未运行"
-        return 1
+        echo "llmswitch proxy not running"
+        echo -e "  ${YELLOW}○${NC} 代理未运行 → bash ccconfig/option-llmswitch/init.sh --start"
+        return 0
     fi
 
     local h=$(get_health)
