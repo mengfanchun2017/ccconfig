@@ -77,6 +77,13 @@ do_status() {
     local pl_ok=$(echo "$status" | cut -d'|' -f2)
     local ver=$(echo "$status" | cut -d'|' -f3)
 
+    # 第一行：给 status.sh check_option_components 解析
+    if [ "$pl_ok" = true ]; then
+        echo "OK Cloudflare Plugin v$ver"
+    else
+        echo "Cloudflare Plugin — 未安装（bash ccconfig/option-cloudflare/init.sh --install）"
+    fi
+
     echo -e "  Marketplace (cloudflare/skills):  $([ "$mp_ok" = true ] && echo "${GREEN}✓${NC} 已添加" || echo "${RED}✗${NC} 未添加")"
     echo -e "  Plugin (cloudflare@cloudflare):   $([ "$pl_ok" = true ] && echo "${GREEN}✓${NC} 已安装 v$ver" || echo "${RED}✗${NC} 未安装")"
     echo ""
