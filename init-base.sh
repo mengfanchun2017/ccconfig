@@ -1,12 +1,12 @@
 #!/bin/bash
-# init.sh — ccconfig 初始化统一入口
+# init-base.sh — ccconfig 初始化统一入口
 #
 # 使用：
-#   bash init.sh                  # 交互式菜单（默认）
-#   bash init.sh all              # 一键全部（跳过交互，全自动）
-#   bash init.sh status           # 状态检查
-#   bash init.sh --dry-run        # 预览将要执行的操作（不实际执行）
-#   bash init.sh option           # 可选组件安装（跳转到 init-option.sh）
+#   bash init-base.sh                  # 交互式菜单（默认）
+#   bash init-base.sh all              # 一键全部（跳过交互，全自动）
+#   bash init-base.sh status           # 状态检查
+#   bash init-base.sh --dry-run        # 预览将要执行的操作（不实际执行）
+#   bash init-base.sh option           # 可选组件安装（跳转到 init-option.sh）
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,7 +30,7 @@ check_first_time() {
     echo -e "  ${RED}❌${NC} ccprivate 未找到 — 私有配置（API Key、CLAUDE.md、settings.json）"
     echo -e "     ${CYAN}→${NC} bash ccconfig/init-ccprivate-repo.sh"
     echo ""
-    echo -e "  ${GRAY}（6 步流程：clone → bootstrap-gh-auth.sh → init-ccprivate-repo.sh → init.sh all → init-option.sh → maintain.sh status）${NC}"
+    echo -e "  ${GRAY}（6 步流程：clone → bootstrap-gh-auth.sh → init-ccprivate-repo.sh → init-base.sh all → init-option.sh → maintain.sh status）${NC}"
     echo ""
 
     read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
@@ -117,28 +117,23 @@ PYEOF
     current_llm=$(python3 -c "import json; print(json.load(open('$llm_json')).get('current',''))" 2>/dev/null || echo "")
     export INIT_LLM_NAME="$current_llm"
 
-    run_step "1/5 Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true \
+    run_step "1/4 Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true \
         "装 Node / Claude Code / Claude 原生二进制 / uv / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
         "Claude Code 需要 Node 运行时；uv 装 Python 工具；auto-sync 让配置变更自动 push 到 GitHub" \
         "3 min（含 apt 下载）"
 
-    run_step "2/5 LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true \
+    run_step "2/4 LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true \
         "把当前 LLM（DeepSeek/MiniMax/Claude 等）的 API key 写入 ~/.claude/settings.json" \
         "Claude Code 通过 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_BASE_URL 调用 LLM；没配就跑不了" \
         "10 s"
 
-    run_step "3/5 MCP 服务器" "$SCRIPT_DIR/lib/init-mcp.sh" true \
+    run_step "3/4 MCP 服务器" "$SCRIPT_DIR/lib/init-mcp.sh" true \
         "注册 Tavily（英文搜索）/ MiniMax（中文+多模态）/ Supabase（数据库）/ Cloudflare（开发者平台）到 ~/.claude/settings.json" \
         "MCP 是 Claude Code 的'工具箱'：搜索/数据库/部署/可观测，skills 按需调用" \
         "20 s"
 
-    run_step "4/5 Skills" "$SCRIPT_DIR/lib/init-skill.sh" true sync \
-        "同步 skill 公开市场 + ccconfig 自建 skill → ~/.claude/skills/；symlink 绑定" \
-        "Skills 是 Claude Code 的可复用工作流" \
-        "30 s（首次 ~1 min）"
-
-    # Step 5/5: maintain.sh finalize（链接修复 + 状态检查 + 服务启动）
-    run_step "5/5 收尾（链接修复 + 状态检查 + 服务启动）" "$SCRIPT_DIR/maintain.sh" finalize \
+    # Step 4/4: maintain.sh finalize（链接修复 + 状态检查 + 服务启动）
+    run_step "4/4 收尾（链接修复 + 状态检查 + 服务启动）" "$SCRIPT_DIR/maintain.sh" finalize \
         "修复符号链接 / 启动 auto-sync 服务 / 状态验证" \
         "确认所有组件就位，可以开始工作" \
         "10 s"
@@ -157,6 +152,7 @@ PYEOF
     echo "  切换 LLM:          bash $SCRIPT_DIR/lib/init-llm.sh"
     echo "  更新系统:          bash $SCRIPT_DIR/lib/update.sh all"
     echo "  状态检查:          bash maintain.sh status"
+    echo "  装 Skills:         bash option-skill/init.sh --install"
     echo "  装可选组件:        bash init-option.sh"
     echo ""
 }
@@ -264,16 +260,17 @@ submenu_mcp() {
 
 submenu_skills() {
     echo ""
-    echo -e "${CYAN}── Skills 管理 ──${NC}"
-    echo "  1) 同步 skills 到 Claude Code"
+    echo -e "${CYAN}── Skills 管理（可选组件）──${NC}"
+    echo "  1) 安装/同步 skills"
     echo "  2) 查看 skills 状态"
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-2,0]: " c
     case "$c" in
-        1) run_step "Skills 同步" "$SCRIPT_DIR/lib/init-skill.sh" sync
+        1) bash "$SCRIPT_DIR/option-skill/init.sh" --install
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        2) bash "$SCRIPT_DIR/lib/init-skill.sh" status
+        2) bash "$SCRIPT_DIR/option-skill/init.sh" --status
+           bash "$SCRIPT_DIR/lib/init-skill.sh" status
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         0) return ;;
     esac
@@ -289,7 +286,7 @@ main_menu() {
     echo "  2) 远程连接    │ SSH │ tmux"
     echo "  3) MCP 管理    │ 安装 │ 同步"
     echo "  4) Skills      │ 同步 │ 状态"
-    echo "  5) ★ 一键全部初始化"
+    echo "  5) ★ 一键全部初始化（4 步：Ubuntu → LLM → MCP → 收尾）"
     echo "  ── 可选组件 ──"
     echo "  6) 可选组件（bat / glow / nano / option-*）"
     echo "  0) 退出"
@@ -330,11 +327,11 @@ case "${1:-menu}" in
         echo "  1) init-ubuntu.sh    → 系统包 + node/gh/claude/uv + symlink"
         echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
         echo "  3) init-mcp.sh sync  → 注册 MCP 服务器"
-        echo "  4) init-skill.sh sync → 同步 skills"
-        echo "  5) maintain.sh       → 链接修复 + 状态 + 服务"
+        echo "  4) maintain.sh       → 链接修复 + 状态 + 服务"
         echo ""
-        echo "  运行 'bash init.sh all' 执行以上所有步骤"
-        echo "  运行 'bash init.sh' 进入交互式菜单"
+        echo "  运行 'bash init-base.sh all' 执行以上所有步骤"
+        echo "  运行 'bash init-base.sh' 进入交互式菜单"
+        echo "  Skills 可选: bash option-skill/init.sh --install"
         ;;
     status)
         bash "$SCRIPT_DIR/maintain.sh" status
@@ -343,6 +340,6 @@ case "${1:-menu}" in
         main_menu
         ;;
     *)
-        echo "用法: bash init.sh [all|option|--dry-run|status|menu]"
+        echo "用法: bash init-base.sh [all|option|--dry-run|status|menu]"
         ;;
 esac

@@ -623,7 +623,7 @@ fi
 
 echo ""
 echo "=== ccprivate setup 完成 ==="
-echo "下一步: bash $CCCONFIG_DIR/init.sh all"
+echo "下一步: bash $CCCONFIG_DIR/init-base.sh all"
 SETUPEOF
     chmod +x "$CCPRIVATE_DIR/setup.sh"
     ok "setup.sh"
@@ -772,7 +772,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
     ok "ccprivate 创建完成"
     echo ""
     echo -e "  ${YELLOW}⚠️  下一步必须先 cd 到 ccconfig 目录${NC}"
-    echo -e "    ${GREEN}cd $CCCONFIG_DIR && bash init.sh all${NC}"
+    echo -e "    ${GREEN}cd $CCCONFIG_DIR && bash init-base.sh all${NC}"
     echo -e "  ${GRAY}(5 步: Ubuntu → LLM → MCP → Skills → 验证)${NC}"
     echo ""
 }
@@ -846,7 +846,7 @@ PYEOF
 
     echo ""
     ok "ccprivate 更新完成"
-    echo -e "  ${GRAY}配置已刷新。如需重跑系统初始化: bash $CCCONFIG_DIR/init.sh all${NC}"
+    echo -e "  ${GRAY}配置已刷新。如需重跑系统初始化: bash $CCCONFIG_DIR/init-base.sh all${NC}"
 }
 
 # ── 主流程：克隆已有 ──
@@ -882,7 +882,7 @@ do_clone() {
     ok "ccprivate 就绪"
     echo ""
     echo -e "  ${YELLOW}⚠️  下一步必须先 cd 到 ccconfig 目录${NC}"
-    echo -e "    ${GREEN}cd $CCCONFIG_DIR && bash init.sh all${NC}"
+    echo -e "    ${GREEN}cd $CCCONFIG_DIR && bash init-base.sh all${NC}"
     echo -e "  ${GRAY}(5 步: Ubuntu → LLM → MCP → Skills → 验证)${NC}"
 }
 

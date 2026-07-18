@@ -2,7 +2,7 @@
 
 > lark-cli 文档操作 + cc-connect 多机器人 Bridge，配置源为 `conf/feishu.json`
 >
-> **状态**: 可选安装，默认不包含在 `init.sh all` 中
+> **状态**: 可选安装，默认不包含在 `init-base.sh all` 中
 
 ## 组件
 

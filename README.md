@@ -39,7 +39,7 @@ Claude Code 配置分散在 `~/.claude/`、环境变量、MCP 服务器、skills
 ```
 ccconfig/
 ├── bootstrap-gh-auth.sh      # 装 gh CLI + GitHub 认证
-├── init.sh                   # 统一入口（交互式二级菜单 + 一键全部）
+├── init-base.sh               # 统一入口（交互式二级菜单 + 一键全部）
 ├── maintain.sh               # 统一运维入口（status/monitor/sync/update/deps/fix）
 │
 ├── conf/                     # 配置模板（不包含真实密钥）
@@ -108,6 +108,7 @@ ccconfig/
 ├── option-officecli/         # 可选：AI-native Office 工具
 ├── option-cloudflare/        # 可选：Cloudflare Workers/Pages/D1/R2
 ├── option-remote/            # 可选：Tailscale + SSH 远程访问
+├── option-skill/             # 可选：Claude Code Skills（18 个 f-* 工作流）
 ├── windows-tools/            # Windows/WSL 互操作（PS 更新）
 │
 ├── .github/workflows/        # CI（check / sandbox-test / secrets-scan）
@@ -136,7 +137,7 @@ bash ~/git/ccconfig/bootstrap-gh-auth.sh
 bash ~/git/ccconfig/init-ccprivate-repo.sh
 
 # 4. 全量初始化（Ubuntu → LLM → MCP → Skills → 收尾）
-bash ~/git/ccconfig/init.sh all
+bash ~/git/ccconfig/init-base.sh all
 
 # 5. 装可选组件（可选）
 bash ~/git/ccconfig/init-option.sh
@@ -145,7 +146,7 @@ bash ~/git/ccconfig/init-option.sh
 bash ~/git/ccconfig/maintain.sh status
 ```
 
-> **gh 已装？** 跳过步骤 2。 **已有 ccprivate？** `bash ~/git/ccconfig/init-ccprivate-repo.sh --clone` 从 GitHub 克隆。 **不改系统？** `bash init.sh` 进入交互式菜单按需选择。
+> **gh 已装？** 跳过步骤 2。 **已有 ccprivate？** `bash ~/git/ccconfig/init-ccprivate-repo.sh --clone` 从 GitHub 克隆。 **不改系统？** `bash init-base.sh` 进入交互式菜单按需选择。
 
 ## 特色亮点
 
@@ -229,9 +230,10 @@ bash maintain.sh [status|monitor|sync|update|deps|fix|example]
 | `option-officecli` | AI-native Office 工具（PPT/docx/xlsx 生成） | `bash option-officecli/init.sh` |
 | `option-cloudflare` | Cloudflare Workers/R2/D1/Pages 开发环境 | `bash option-cloudflare/init.sh` |
 | `option-remote` | Tailscale + SSH 远程连接桌面 tmux session | 见 `option-remote/readme.md` |
+| `option-skill` | Claude Code Skills（18 个 f-* 工作流） | `bash option-skill/init.sh --install` |
 | `windows-tools` | Windows/WSL 互操作工具（PowerShell 更新） | — |
 
-每个组件 `init.sh` 均支持 `--status`，自动被 `maintain.sh status` 发现。
+每个组件 `init-base.sh` 均支持 `--status`，自动被 `maintain.sh status` 发现。
 
 ## 核心命令
 
@@ -239,16 +241,18 @@ bash maintain.sh [status|monitor|sync|update|deps|fix|example]
 |------|------|
 | `bash bootstrap-gh-auth.sh` | 装 gh CLI + GitHub 认证 |
 | `bash init-ccprivate-repo.sh` | 创建/克隆 ccprivate |
-| `bash init.sh` | 交互式菜单 |
-| `bash init.sh all` | 一键全初始化（5 步：Ubuntu → LLM → MCP → Skills → 验证） |
+| `bash init-base.sh` | 交互式菜单 |
+| `bash init-base.sh all` | 一键全初始化（4 步：Ubuntu → LLM → MCP → 收尾） |
 | `bash maintain.sh status` | 完整状态检查（13 项） |
 | `bash maintain.sh fix` | 自动修复断链 |
 | `bash maintain.sh monitor start` | 启动 auto-sync |
 | `bash maintain.sh sync --pull` | 强拉远程（暗号 `pullff`） |
+| `bash maintain.sh self skill` | 更新 skills（git pull + relink） |
 | `bash maintain.sh example` | 检测 .example 模板与 ccprivate 差异 |
 | `bash maintain.sh example promote` | 推送 .example 变更到 ccprivate |
 | `bash lib/init-llm.sh` | 切换 LLM 后端 |
-| `bash lib/init-skill.sh sync` | 同步 Skills |
+| `bash option-skill/init.sh --install` | 安装 Skills（可选组件） |
+| `bash option-skill/init.sh --update` | 更新 Skills |
 | `bash lib/update.sh all` | 月度组件升级 |
 
 ## 日常维护
@@ -359,8 +363,8 @@ python3 -c "import json; [json.load(open(f)) for f in __import__('glob').glob('c
 
 ### 添加 Option 组件
 
-1. 创建 `option-<name>/`，含 `init.sh` 和 `README.md`
-2. `init.sh` 支持 `--status` 标志
+1. 创建 `option-<name>/`，含 `init-base.sh` 和 `README.md`
+2. `init-base.sh` 支持 `--status` 标志
 3. 自动被 `maintain.sh status` 发现
 
 ### 添加 Skill

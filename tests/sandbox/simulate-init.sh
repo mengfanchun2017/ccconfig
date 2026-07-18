@@ -1,5 +1,5 @@
 #!/bin/bash
-# 模拟 3 轮全新环境 init.sh all，快速暴露流程中的错误
+# 模拟 3 轮全新环境 init-base.sh all，快速暴露流程中的错误
 # 在隔离临时目录运行，mock 外部命令
 set -euo pipefail
 
@@ -151,9 +151,9 @@ MOCK
     cd "$ccd"
 
     # 执行
-    echo "  → bash init.sh all"
+    echo "  → bash init-base.sh all"
     local out rc
-    out=$(bash init.sh all 2>&1) || rc=$?
+    out=$(bash init-base.sh all 2>&1) || rc=$?
     rc=${rc:-0}
 
     # 判断结果

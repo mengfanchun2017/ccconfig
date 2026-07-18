@@ -8,7 +8,7 @@ All notable changes to ccconfig will be documented in this file.
 - **`bootstrap.sh` → `bootstrap-gh-auth.sh`** — 改名明确 GitHub auth 定位。全仓库 18+ 引用同步更新
 - **`bin/init-ccprivate.sh` → `bin/init-ccprivate-repo.sh`** — 改名 + `cd` → `pushd/popd` cwd 安全修复
 - **6 步初始化流程** — 新增 `init-option.sh`（可选组件入口）+ `maintain.sh finalize`（收尾步骤）
-- **`init.sh`** — 重构：删 submenu_tools（运维移 maintain.sh），Step 5/5 调 `maintain.sh finalize`
+- **`init-base.sh`** — 重构：删 submenu_tools（运维移 maintain.sh），Step 5/5 调 `maintain.sh finalize`
 - **`maintain.sh`** — 双重角色：默认 `finalize`（链接修复+服务+状态）+ 交互菜单（日常运维）
 - **`lib/init-ubuntu.sh`** — `setup_cli_tools()` 体清空（移入 init-option.sh）
 - **`init-option.sh`** — **新建**。内置 bat(alias cat)/glow/nano 安装，自动发现 5 个 option-*/init.sh，支持 `--status`/`all`/`menu`/`<name>`
@@ -46,7 +46,7 @@ All notable changes to ccconfig will be documented in this file.
 - **`link/` 示例文件** — `settings.json.example`/`claude.json.example` API URL/模型用占位符
 
 ### Changed
-- **`init.sh`** — 结语提示路径 `ccconfig/…`→`$SCRIPT_DIR/…`
+- **`init-base.sh`** — 结语提示路径 `ccconfig/…`→`$SCRIPT_DIR/…`
 - **CCPRIVATE 变量统一** — `init-skill.sh`/`init-ubuntu.sh` 改用 `CCPRIVATE_HOME`
 - **`deps-check.sh`** — 修复建议路径 `ccconfig/…`→`$SCRIPT_DIR/…`
 
@@ -96,9 +96,9 @@ All notable changes to ccconfig will be documented in this file.
 
 ### Changed
 - **CLI 工具不自动装** — `init-ubuntu.sh` 不再 `sudo apt install bat/glow`，只检查状态；可选工具统一在末尾提醒
-- **Python 包移出初始化** — `init.sh all` 步骤 5 纯验证，不再跑 `update.sh python`；Python 包独立命令
+- **Python 包移出初始化** — `init-base.sh all` 步骤 5 纯验证，不再跑 `update.sh python`；Python 包独立命令
 - **Cloudflare → option** — `cloudflare.json.example` 移至 `option-cloudflare/`，不再自动链接；按需 `bash ccconfig/option-cloudflare/init.sh`
-- **可选组件统一** — 所有 option（Bridge/Cloudflare/OfficeCLI/CLI 工具/Python）集中在 init.sh all 结束提醒
+- **可选组件统一** — 所有 option（Bridge/Cloudflare/OfficeCLI/CLI 工具/Python）集中在 init-base.sh all 结束提醒
 
 ## [1.4.1] — 2026-07-10
 
@@ -110,9 +110,9 @@ All notable changes to ccconfig will be documented in this file.
 ## [1.4.0] — 2026-07-10
 
 ### Changed (架构重构)
-- **消除 skills 重复初始化** — `setup-links.sh` 移除 `init-skill.sh sync` 调用，skills 统一由 `init.sh all` 步骤 4 管理
+- **消除 skills 重复初始化** — `setup-links.sh` 移除 `init-skill.sh sync` 调用，skills 统一由 `init-base.sh all` 步骤 4 管理
 - **智能检测已有 ccprivate** — `init-ccprivate.sh` 自动检查 GitHub 是否已有 ccprivate 仓库，有则引导 `--clone`，避免重复创建
-- **5 步初始化** — `init.sh all` 重构为 5 步（Ubuntu → LLM → MCP → Skills → 验证），每步后提示下一步
+- **5 步初始化** — `init-base.sh all` 重构为 5 步（Ubuntu → LLM → MCP → Skills → 验证），每步后提示下一步
 - **下一步提示** — 每个初始化脚本结束时输出清晰的下一步命令，用户无需翻文档
 
 ## [1.3.9] — 2026-07-10
@@ -130,7 +130,7 @@ All notable changes to ccconfig will be documented in this file.
 ### Fixed
 - **根因修复** — `gen_llm_json`/`gen_claude_json`/`gen_ubuntu_json` 写入 `ccprivate/conf/`（原 `.generated/` 隐藏目录），消除 `.example` 模板覆盖冲突
 - **`gen_setup_sh`** — 缺 conf 链接逻辑导致 `cconfig/conf/llm.json` symlink 从未创建，`ensure_config` 复制占位符模板 → init-llm 写入 `请填入你的 DeepSeek API Key` 到 settings.json → Claude 连不上
-- **ccprivate/setup.sh** — 移除 `.generated` 4b 段，conf 统一由 4a 段链接；移除 `cconfig/setup-links.sh` 调用避免 skills 在 init-ccprivate + init.sh all 间重复跑两次
+- **ccprivate/setup.sh** — 移除 `.generated` 4b 段，conf 统一由 4a 段链接；移除 `cconfig/setup-links.sh` 调用避免 skills 在 init-ccprivate + init-base.sh all 间重复跑两次
 - **测试** — `tests/test-init-ccprivate.sh` 14 用例覆盖路径/占位符检测/symlink 解析/settings.json 写入/正则过滤
 
 ## [1.3.7] — 2026-07-10
@@ -167,7 +167,7 @@ All notable changes to ccconfig will be documented in this file.
 
 ### Changed
 - **域名迁移** — ccconfiged.pages.dev → cconf.aiagt.dev、ccskills.pages.dev → cskills.aiagt.dev
-- **CF Pages 落地页** — `www/index.html` 重写三步流程（ccprivate → init.sh all → 完成）、终端命令更新、I18N 中英双语
+- **CF Pages 落地页** — `www/index.html` 重写三步流程（ccprivate → init-base.sh all → 完成）、终端命令更新、I18N 中英双语
 - **commit hash 显示** — pre-commit hook 注入 HTML 占位符，纯静态方案，不依赖 GitHub API（不受限流）
 
 ### Fixed
@@ -178,7 +178,7 @@ All notable changes to ccconfig will be documented in this file.
 
 ### Added
 - **`tests/test-init.sh`** — init 流程自动化测试（17 用例，mock 隔离环境，零网络秒级完成）
-- **`check_first_time()`** — `init.sh` 首次初始化引导，自动检测缺失的 ccprivate/claude-skills 并引导创建
+- **`check_first_time()`** — `init-base.sh` 首次初始化引导，自动检测缺失的 ccprivate/claude-skills 并引导创建
 
 ### Changed
 - **`init-skill.sh`** — 新增 `ensure_claude_skills()` 自动 clone claude-skills 仓库；`do_status()`/`do_list()` 加目录守卫；缺目录时优雅降级不报错
@@ -190,7 +190,7 @@ All notable changes to ccconfig will be documented in this file.
 - **`lib/path-helper.sh`** — `ensure_config()` 处理 broken symlink（ccprivate 不在时 conf/*.json 断链）
 
 ### Fixed
-- 新机器首次 `init.sh` → setup-links → init-skill 全链路崩溃（claude-skills 缺失导致 `set -e` 级联退出）
+- 新机器首次 `init-base.sh` → setup-links → init-skill 全链路崩溃（claude-skills 缺失导致 `set -e` 级联退出）
 - `conf/ubuntu.json` broken symlink 时 `ensure_config` 的 `cp` 写入失败
 - `init-ccprivate.sh` 生成的 `target_dir` 含 `$HOME` 字面量无法展开
 
@@ -198,7 +198,7 @@ All notable changes to ccconfig will be documented in this file.
 
 ### Added
 - **产品落地页** (`www/`) — Cloudflare Pages 部署，含 commit hash 显示、ccskills 链接、架构介绍
-- **Cloudflare 插件管理** (`option-cloudflare/`) — `init.sh` 管理脚本，一键安装/配置 Cloudflare MCP 插件
+- **Cloudflare 插件管理** (`option-cloudflare/`) — `init-base.sh` 管理脚本，一键安装/配置 Cloudflare MCP 插件
 - **worklog 日报研究 hook** (`hooks/worklog_daily_research.py`) — 每日自动汇总 worklog 并输出研究建议
 
 ### Changed
@@ -269,7 +269,7 @@ All notable changes to ccconfig will be documented in this file.
 - `conf/f-logme.json.example` 加 `kr_route` 示例
 - `option-llmswitch` — 时间路由 LLM 网关代理
   - `proxy.py` 本地代理 (127.0.0.1:8899)，按时段自动选 DeepSeek (非高峰) / MiniMax (高峰)
-  - `init.sh` 管理脚本 (start/stop/status/mode)
+  - `init-base.sh` 管理脚本 (start/stop/status/mode)
   - `watchdog.sh` 守护进程 (30s 健康检查 + 自动重启 + 路由变更通知)
   - `init-llm.sh` Gateway 模式集成 (启动 proxy + watchdog，显示路由目标)
 - `windows-tools/psupdate/` — PowerShell 7 升级工具，绕过 winget MSI 缓存丢失问题
@@ -317,7 +317,7 @@ All notable changes to ccconfig will be documented in this file.
 
 ### Added
 - 初始版本，从私有配置整理为结构化仓库
-- `init.sh` — 统一入口，交互式两级菜单
+- `init-base.sh` — 统一入口，交互式两级菜单
 - `init-ubuntu.sh` — Ubuntu/WSL 全环境初始化
 - `init-llm.sh` — LLM 多后端切换（DeepSeek、MiniMax、Claude）
 - `init-mcp.sh` — MCP 服务器管理

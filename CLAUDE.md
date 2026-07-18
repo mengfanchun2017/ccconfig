@@ -17,7 +17,7 @@ ccconfig 是 Claude Code 环境的可复用基础设施。维护 .example 模板
 - 运维入口: `bash maintain.sh` (收尾/status/self/upgrade/sync/monitor/fix)
 - 自我更新: `bash maintain.sh self all`（拉 ccconfig + 重建链接 + skill 同步）
 - 组件升级: `bash maintain.sh upgrade all`（Node.js/Claude 等）
-- 初始化入口: `bash init.sh`
+- 初始化入口: `bash init-base.sh`
 - LLM 切换: `bash lib/init-llm.sh`
 - auto-sync 全自动运行，无需手动同步
 

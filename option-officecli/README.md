@@ -1,6 +1,6 @@
 # OfficeCLI — AI-native Office 工具
 
-> 可选组件，默认不在 `init.sh all` 中安装
+> 可选组件，默认不在 `init-base.sh all` 中安装
 
 ## 是什么
 

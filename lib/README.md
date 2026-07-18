@@ -6,10 +6,10 @@
 
 | 文件 | 用途 | 调用者 |
 |------|------|--------|
-| `init-ubuntu.sh` | Ubuntu/WSL 全环境初始化 | init.sh all |
+| `init-ubuntu.sh` | Ubuntu/WSL 全环境初始化 | init-base.sh all |
 | `init-llm.sh` | LLM 后端切换 | init.sh / init-ubuntu.sh |
-| `init-mcp.sh` | MCP 服务器管理 | init.sh all |
-| `init-skill.sh` | Skills 同步管理 | init.sh all |
+| `init-mcp.sh` | MCP 服务器管理 | init-base.sh all |
+| `init-skill.sh` | Skills 同步管理 | init-base.sh all |
 | `init-autostart.sh` | auto-sync systemd 服务 | init-ubuntu.sh |
 | `monitor.sh` | 多仓库文件监听 + 自动 git 同步 | maintain.sh / systemd |
 | `status.sh` | 状态检查（11 项） | maintain.sh status |
@@ -47,5 +47,5 @@ CONFIG="$CCCONFIG_ROOT/conf/llm.json"    # conf/ at repo root
 ```bash
 # 用户入口（repo root）
 bash maintain.sh status      # → lib/status.sh
-bash init.sh all             # → lib/init-ubuntu.sh → lib/init-mcp.sh → lib/init-skill.sh
+bash init-base.sh all             # → lib/init-ubuntu.sh → lib/init-mcp.sh → lib/init-skill.sh
 ```

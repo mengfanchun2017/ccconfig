@@ -110,7 +110,7 @@ cd ~/git/ccconfig && git pull
 bash ~/git/ccprivate/setup.sh
 
 # 重新初始化（幂等，只装缺失的）
-bash ~/git/ccconfig/init.sh all
+bash ~/git/ccconfig/init-base.sh all
 
 # 验证
 bash ~/git/ccconfig/status.sh

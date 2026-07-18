@@ -71,7 +71,7 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
 
 | 触发 | 何时运行 |
 |------|---------|
-| `init.sh all` | 新环境初始化（第 3/3 步） |
+| `init-base.sh all` | 新环境初始化（第 3/3 步） |
 | `init-ubuntu.sh` | WSL/Ubuntu 完整初始化 |
 | `setup-links.sh` | 符号链接重建 |
 | `sync.sh`（cconfig post-sync） | 每次 ccconfig git pull 后 |

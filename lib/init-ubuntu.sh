@@ -318,7 +318,7 @@ setup_claude_code() {
 }
 
 # ========== 5. LLM 配置（调用 llminit.sh） ==========
-# init.sh all 流程中 LLM 配置是独立步骤（Step 2），此处跳过避免重复
+# init-base.sh all 流程中 LLM 配置是独立步骤（Step 2），此处跳过避免重复
 setup_llm_backend() {
     if [[ "${INIT_ALL_FLOW:-}" == "1" ]]; then
         info "LLM 配置由 init.sh Step 2 处理，跳过"
@@ -689,7 +689,7 @@ main() {
 
     if [[ "${INIT_ALL_FLOW:-}" != "1" ]]; then
         echo -e "  ${BOLD}继续初始化:${NC}"
-        echo -e "    全部自动: ${GREEN}bash ccconfig/init.sh all${NC}"
+        echo -e "    全部自动: ${GREEN}bash ccconfig/init-base.sh all${NC}"
         echo -e "    分步: LLM → MCP → Skills → 验证"
         echo ""
     fi

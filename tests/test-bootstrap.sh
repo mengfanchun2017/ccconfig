@@ -9,7 +9,7 @@
 #   5. gh 安装三路径（apt / NOSUDO binary / 已装）
 #   6. gh auth 引导 + SSH 跳过逻辑
 #   7. git 用户身份从 gh api 拿
-#   8. 引导输出包含 cd + init.sh all
+#   8. 引导输出包含 cd + init-base.sh all
 #
 # 不测什么：
 #   - 实际网络 clone（CI 沙箱可能无外网）
@@ -57,7 +57,7 @@ grep -q 'git 未装' "$BOOTSTRAP" && pass "报错 'git 未装'" || fail "no 'git
 
 # ── Test 6: 关键引导输出 ──
 echo "=== Test 6: 引导输出 ==="
-grep -q 'bash init.sh all' "$BOOTSTRAP" && pass "instructs bash init.sh all" || fail "missing init.sh all"
+grep -q 'bash init-base.sh all' "$BOOTSTRAP" && pass "instructs bash init-base.sh all" || fail "missing init-base.sh all"
 grep -q 'BOOTSTRAP_NOSUDO' "$BOOTSTRAP" && pass "supports BOOTSTRAP_NOSUDO env" || fail "missing NO-SUDO support"
 
 # ── Test 7: gh 安装三路径 ──
@@ -90,7 +90,7 @@ grep -q 'gh auth setup-git' "$BOOTSTRAP" && pass "runs gh auth setup-git" || fai
 # ── Test 10: 四步流程在脚本中体现 ──
 echo "=== Test 10: 四步流程定位 ==="
 grep -q 'init-ccprivate-repo.sh' "$BOOTSTRAP" && pass "指引 init-ccprivate-repo (Step 3)" || fail "no init-ccprivate-repo guide"
-grep -q 'bash init.sh all' "$BOOTSTRAP" && pass "指引 init.sh all (Step 4)" || fail "no init.sh all guide"
+grep -q 'bash init-base.sh all' "$BOOTSTRAP" && pass "指引 init-base.sh all (Step 4)" || fail "no init-base.sh all guide"
 
 # ── Test 11: 颜色变量定义 ──
 echo "=== Test 11: 颜色输出 ==="
