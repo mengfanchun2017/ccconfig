@@ -339,7 +339,7 @@ test_home_expansion() {
 
 test_init_dry_run() {
     local out
-    out=$(bash "$HOME/git/ccconfig/init.sh" --dry-run 2>&1) || true
+    out=$(bash "$HOME/git/ccconfig/init-base.sh" --dry-run 2>&1) || true
     if echo "$out" | grep -q "init-ubuntu.sh"; then
         _pass "init --dry-run: 输出了执行预览"
     else

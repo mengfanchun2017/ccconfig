@@ -66,8 +66,9 @@ do_finalize() {
     echo -e "  ${CYAN}bash maintain.sh status${NC}    # 状态检查"
     echo -e "  ${CYAN}bash maintain.sh monitor${NC}   # 监控日志"
     echo -e "  ${CYAN}bash maintain.sh self all${NC}   # 更新 ccconfig + skill"
+    echo -e "  ${CYAN}bash maintain.sh self skill${NC}  # 仅更新 skills"
     echo -e "  ${CYAN}bash maintain.sh upgrade all${NC} # 升级系统组件"
-    echo -e "  ${CYAN}bash init-option.sh${NC}        # 装可选组件"
+    echo -e "  ${CYAN}bash init-option.sh${NC}        # 装可选组件（含 skills）"
     echo ""
 }
 

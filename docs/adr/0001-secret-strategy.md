@@ -44,7 +44,7 @@ ccconfig 仓库需要公开同步（GitHub 公开 dotfiles 风格），但当前
 - **Cons**:
   - Claude Code settings.json / hooks 引用 env 语法不一致
   - 跨工具各自管 env，配置碎片化
-  - `init.sh` 检测不到 env 是否已设，错误提示不友好
+  - `init-base.sh` 检测不到 env 是否已设，错误提示不友好
 
 ### Option C: 1Password CLI / Keychain 拉取
 
@@ -52,10 +52,10 @@ ccconfig 仓库需要公开同步（GitHub 公开 dotfiles 风格），但当前
 - **Cons**:
   - 强依赖外部账号 / 客户端
   - macOS 专属（Linux 需 pass / bitwarden）→ 跨平台不一致
-  - `init.sh` 调用 `op read` 增加外部依赖
+  - `init-base.sh` 调用 `op read` 增加外部依赖
   - 用户未装时引导路径复杂
 
-### Option D: `.gitignore` + `.example` + `init.sh` 引导（**采纳**）
+### Option D: `.gitignore` + `.example` + `init-base.sh` 引导（**采纳**）
 
 - **Pros**:
   - 简单：标准 Git 工作流
@@ -73,9 +73,9 @@ ccconfig 仓库需要公开同步（GitHub 公开 dotfiles 风格），但当前
 
 1. `.gitignore` 5 个真实文件（`conf/*.json` 非 `*.example` + `link/.config.json`）
 2. 公开仓库仅含 `.example` 模板
-3. `init.sh` bootstrap 阶段加检测分支：缺失 → `cp .example 真实文件` + 提示用户编辑
+3. `init-base.sh` bootstrap 阶段加检测分支：缺失 → `cp .example 真实文件` + 提示用户编辑
 4. 每台机器一份真实 key，跨机器不传播
-5. 给现有 1 周迁移期：旧机器跑 `init.sh` 自动补齐
+5. 给现有 1 周迁移期：旧机器跑 `init-base.sh` 自动补齐
 
 ## Consequences
 

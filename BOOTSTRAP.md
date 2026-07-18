@@ -24,13 +24,13 @@ bash bootstrap-gh-auth.sh
 bash init-ccprivate-repo.sh
 
 # Step 4: 全量初始化（ccprivate 已就位）
-bash init.sh all
+bash init-base.sh all
 ```
 
 > **为什么是四步而不是一行 curl | bash?**
 > curl 在国内环境经常被 GFW 阻断 `port 443`，但 `git clone` 走自己的代理栈（`~/.gitconfig` 的 `http.proxy` 或环境变量），所以 git 能通 curl 不一定通。
 > 拆分让"网络好"的步骤先跑，"网络差"的步骤后跑，问题更容易定位。
-> ccprivate 创建必须在 init.sh all 之前，否则 LLM API key 等私有配置缺失导致后续步骤失败。
+> ccprivate 创建必须在 init-base.sh all 之前，否则 LLM API key 等私有配置缺失导致后续步骤失败。
 
 `bootstrap-gh-auth.sh` 自动：
 1. 检测 git（必须已装）
@@ -54,10 +54,10 @@ bash init.sh all
 > ```bash
 > git clone https://github.com/<your-github-username>/ccconfig.git ~/git/ccconfig
 > cd ~/git/ccconfig && BOOTSTRAP_NOSUDO=1 bash bootstrap-gh-auth.sh
-> bash init.sh all
+> bash init-base.sh all
 > ```
 
-跑完 bootstrap 后，继续跑 `bash init.sh all`。
+跑完 bootstrap 后，继续跑 `bash init-base.sh all`。
 
 ---
 
@@ -385,7 +385,7 @@ gh repo clone <your-github-username>/ccconfig
 
 Skill 插件仓库。`lib/init-skill.sh sync` 从这里 symlink 自建 skill 到 `~/.claude/skills/`。
 
-> **v1.3.1+**：`lib/init-skill.sh` 内置 `ensure_claude_skills()` 自动 clone。如果 gh 已登录，阶段 5 的 `init.sh all` 会自动完成这一步。手动 clone 仅需在 gh 未登录时做。
+> **v1.3.1+**：`lib/init-skill.sh` 内置 `ensure_claude_skills()` 自动 clone。如果 gh 已登录，阶段 5 的 `init-base.sh all` 会自动完成这一步。手动 clone 仅需在 gh 未登录时做。
 
 **SSH（推荐）**：
 
@@ -427,7 +427,7 @@ bash init-ccprivate-repo.sh
 
 ```bash
 cd ~/git/ccconfig
-bash init.sh all
+bash init-base.sh all
 ```
 
 **这一步会自动做**（按顺序）：
@@ -548,9 +548,9 @@ tail -f ~/git/ccconfig/.monitor-sync.log
 |------|------|
 | 改文件自动推 | 默认行为，monitor 在跑 |
 | 看状态 | `bash maintain.sh status` |
-| 装可选组件 | `bash init.sh` → 6) 可选组件 |
+| 装可选组件 | `bash init-base.sh` → 6) 可选组件 |
 | 强制拉远程 | `bash lib/sync.sh --pull`（暗号 `pullff`） |
-| 切 LLM 后端 | `bash init.sh` → 1) → 2) |
+| 切 LLM 后端 | `bash init-base.sh` → 1) → 2) |
 | 月度升级 | `bash lib/update.sh all` |
 | 启动 Claude | `cd ~/git/ccconfig && claude`（配置）或 `cd ~/git/<project> && claude`（开发） |
 
@@ -560,7 +560,7 @@ tail -f ~/git/ccconfig/.monitor-sync.log
 > 适用场景：机器已经按上面走完一遍、ccconfig + ccprivate 都在 `~/git/`、
 > 但长时间没用 / 终端重启 / 切换到新会话后想恢复使用。
 
-**不需要重跑 init.sh all**（会重装系统包）。只需要 4 步：
+**不需要重跑 init-base.sh all**（会重装系统包）。只需要 4 步：
 
 ```bash
 # 1. 拉最新（三个仓库）
@@ -622,7 +622,7 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 | `gh: command not found` | 阶段 2 binary 没装到 PATH | `which gh`，没结果就 `source ~/.bashrc` 或手动加 `/usr/local/bin` |
 | `gh auth login` 浏览器没自动开 | WSL 没装 `wslview` | 手动复制终端的 one-time code，访问 https://github.com/login/device |
 | `gh repo clone` 报 404 | 没登录成功 / 账号不是仓库协作者 | `gh auth status` 确认账号；如果不是协作者，联系 owner 加 |
-| `init.sh all` 卡在 sudo | 密码没缓存 | 输密码，或配 sudo 免密（`echo "<your-username> ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/<your-username>`） |
+| `init-base.sh all` 卡在 sudo | 密码没缓存 | 输密码，或配 sudo 免密（`echo "<your-username> ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/<your-username>`） |
 | monitor 不推 | SSH key 没注册到 GitHub | `ssh -T git@github.com` 测试；如未认证，走阶段 3 生成 SSH key 并添加到 GitHub |
 | monitor 不推（HTTPS 备选） | gh token 过期 | `gh auth login` 重新登录；`gh auth setup-git` 配置 credential helper |
 | WSL 报 `Could not resolve hostname` | `/etc/hosts` 没本机 hostname | `echo "127.0.1.1 $(hostname)" \| sudo tee -a /etc/hosts` |
@@ -654,5 +654,5 @@ ccconfig 的 `windows-tools/` 目录提供 Windows 工具脚本，在 PowerShell
 ## 无 sudo 备注
 
 - 阶段 1-2 改成用户级安装：gh binary 装到 `~/bin/`
-- 阶段 5 `init.sh all` 会失败（要装系统包），需要 sudo
+- 阶段 5 `init-base.sh all` 会失败（要装系统包），需要 sudo
 - 替代：只跑 `bash lib/init-skill.sh sync`（不需 sudo），手动配置 `~/.claude/` 符号链接
