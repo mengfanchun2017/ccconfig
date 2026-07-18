@@ -12,9 +12,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$SCRIPT_DIR"
 source "$SCRIPT_DIR/lib/colors.sh"
+source "$SCRIPT_DIR/lib/tui-helper.sh"
 
 show_banner() {
-    echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
+    if command -v gum &>/dev/null; then
+        gum style --border rounded --border-foreground "$TUI_PRIMARY" \
+            --padding "1 3" --margin "1 0" --bold \
+            --foreground "$TUI_ACCENT" "Claude Code 配置中枢 · ccconfig"
+    else
+        echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
+    fi
 }
 
 # 首次初始化检查：仅检查 ccprivate（skill 由 init-skill.sh 自动 clone）
@@ -33,9 +40,7 @@ check_first_time() {
     echo -e "  ${GRAY}（6 步流程：clone → bootstrap-gh-auth.sh → init-ccprivate-repo.sh → init-base.sh all → init-option.sh → maintain.sh status）${NC}"
     echo ""
 
-    read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
-    create_ccp="${create_ccp:-y}"
-    if [[ "$create_ccp" =~ ^[Yy]$ ]]; then
+    if _tui_confirm "是否现在创建 ccprivate？" "y"; then
         bash "$SCRIPT_DIR/init-ccprivate-repo.sh"
         echo ""
         echo -e "${GREEN}✅ ccprivate 已创建${NC}"
@@ -179,9 +184,7 @@ run_step() {
     elif [ "$auto" = "finalize" ]; then
         bash "$script" finalize && echo -e "${GREEN}✅ ${label} 完成${NC}" || echo -e "${RED}❌ ${label} 失败${NC}"
     else
-        read -p "运行？[Y/n]: " confirm || true
-        confirm="${confirm:-y}"
-        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        if _tui_confirm "运行 $label？" "y"; then
             if bash "$script" "$@"; then
                 echo -e "${GREEN}✅ ${label} 完成${NC}"
             else
@@ -196,15 +199,12 @@ run_step() {
 # ========== 子菜单 ==========
 
 submenu_env() {
-    echo ""
-    echo -e "${CYAN}── 环境初始化 ──${NC}"
-    echo "  1) Ubuntu 全环境初始化 (init-ubuntu.sh)"
-    echo "  2) LLM 后端切换       (init-llm.sh)"
-    echo "  3) auto-sync 自启动    (init-autostart.sh)"
-    echo "  4) ★ 一键全部（ubuntu + LLM + MCP + skills + 收尾）"
-    echo "  0) 返回"
-    echo ""
-    read -p "选择 [1-4,0]: " c
+    c=$(_tui_choose "基础环境" \
+        "1. Ubuntu 全环境初始化 (init-ubuntu.sh)" \
+        "2. LLM 后端切换 (init-llm.sh)" \
+        "3. auto-sync 自启动 (init-autostart.sh)" \
+        "4. ★ 一键全部 (ubuntu+LLM+MCP+收尾)" \
+        "0. 返回")
     case "$c" in
         1) run_step "Ubuntu 初始化"    "$SCRIPT_DIR/lib/init-ubuntu.sh"    false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
@@ -223,14 +223,11 @@ submenu_options() {
 }
 
 submenu_remote() {
-    echo ""
-    echo -e "${CYAN}── 远程连接 ──${NC}"
-    echo "  1) SSH Server + tmux 安装"
-    echo "  2) 部署配置到 Windows"
-    echo "  3) 查看完整说明"
-    echo "  0) 返回"
-    echo ""
-    read -p "选择 [1-3,0]: " c
+    c=$(_tui_choose "远程连接" \
+        "1. SSH Server + tmux 安装" \
+        "2. 部署配置到 Windows" \
+        "3. 查看完整说明" \
+        "0. 返回")
     case "$c" in
         1) run_step "SSH Server" "$SCRIPT_DIR/option-remote/server/tmux-sshd.sh" false ;;
         2) bash "$SCRIPT_DIR/option-remote/deploy.sh" server ;;
@@ -239,14 +236,11 @@ submenu_remote() {
 }
 
 submenu_mcp() {
-    echo ""
-    echo -e "${CYAN}── MCP 管理 ──${NC}"
-    echo "  1) 安装并同步 MCP  (init-mcp.sh sync)"
-    echo "  2) 仅安装缺失 MCP  (init-mcp.sh install)"
-    echo "  3) 配置 API Key     (init-mcp.sh keys)"
-    echo "  0) 返回"
-    echo ""
-    read -p "选择 [1-3,0]: " c
+    c=$(_tui_choose "MCP 管理" \
+        "1. 安装并同步 MCP (init-mcp.sh sync)" \
+        "2. 仅安装缺失 MCP (init-mcp.sh install)" \
+        "3. 配置 API Key (init-mcp.sh keys)" \
+        "0. 返回")
     case "$c" in
         1) run_step "MCP 同步"   "$SCRIPT_DIR/lib/init-mcp.sh" true
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
@@ -259,13 +253,10 @@ submenu_mcp() {
 }
 
 submenu_skills() {
-    echo ""
-    echo -e "${CYAN}── Skills 管理（可选组件）──${NC}"
-    echo "  1) 安装/同步 skills"
-    echo "  2) 查看 skills 状态"
-    echo "  0) 返回"
-    echo ""
-    read -p "选择 [1-2,0]: " c
+    c=$(_tui_choose "Skills 管理" \
+        "1. 安装/同步 skills" \
+        "2. 查看 skills 状态" \
+        "0. 返回")
     case "$c" in
         1) bash "$SCRIPT_DIR/option-skill/init.sh" --install
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
@@ -280,18 +271,15 @@ submenu_skills() {
 main_menu() {
     show_banner
     check_first_time
-    echo ""
-    echo "  ── 初始化 ──"
-    echo "  1) Ubuntu 环境  │ LLM切换 │ 自启动"
-    echo "  2) 远程连接    │ SSH │ tmux"
-    echo "  3) MCP 管理    │ 安装 │ 同步"
-    echo "  4) Skills      │ 同步 │ 状态"
-    echo "  5) ★ 一键全部初始化（4 步：Ubuntu → LLM → MCP → 收尾）"
-    echo "  ── 可选组件 ──"
-    echo "  6) 可选组件（bat / glow / nano / option-*）"
-    echo "  0) 退出"
-    echo ""
-    read -p "选择 [0-6]: " choice
+
+    choice=$(_tui_choose "Claude Code 配置中枢" \
+        "1. 基础环境 (Ubuntu/LLM/自启动)" \
+        "2. 远程连接 (SSH/tmux)" \
+        "3. MCP 管理" \
+        "4. Skills 管理" \
+        "5. ★ 一键全部初始化 (4步)" \
+        "6. 可选组件 (bat/glow/nano/option-*)" \
+        "0. 退出")
 
     case "$choice" in
         1) submenu_env ;;
@@ -302,8 +290,8 @@ main_menu() {
            exit 0 ;;
         6) submenu_options
            echo -e "${YELLOW}操作完成${NC}";;
-        0) echo ""; exit 0 ;;
-        *) echo "无效选择"; main_menu ;;
+        0|"") echo ""; exit 0 ;;
+        *) main_menu ;;
     esac
 
     echo ""
