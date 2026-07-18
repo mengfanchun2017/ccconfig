@@ -6,14 +6,14 @@
 # 2. 核心依赖
 # 3. auto-sync 状态
 # 4. GitHub 最后推送
-# 5. MEMORY 最后更新
+# 5. MEMORY（~/.claude/projects/ 直查）
 # 6. Git 项目状态
 # 7. 飞书 lark-cli 状态
 # 8. Playwright 浏览器测试
 # 9. MCP 服务器状态
-# 10. 远程连接状态 (Tailscale + SSH)
-# 11. option-* 可选组件
-# 12. Skills 安装状态
+# 10. option-* 可选组件（含远程连接 SSH/Tailscale）
+# 11. Skills 安装状态
+# 12. Example 模板同步
 #
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
@@ -160,39 +160,35 @@ check_memory() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}[5] MEMORY 更新${NC}"
 
-    local projects_src="$CCCONFIG_ROOT/link/projects"
+    local projects_dir="$HOME/.claude/projects"
+    local found=0
 
-    for proj_dir in "$projects_src"/-home-*-*/; do
+    if [[ ! -d "$projects_dir" ]]; then
+        echo -e "  ${YELLOW}⚠️${NC} ~/.claude/projects/ 不存在（Claude Code 首次运行后自动创建）"
+        return
+    fi
+
+    for proj_dir in "$projects_dir"/*/; do
         [[ -d "$proj_dir" ]] || continue
         local proj_name=$(basename "$proj_dir")
-        local display_name=$(echo "$proj_name" | sed 's/^-home-[^-]*-//' | tr '-' '/')
-        local mem_target="$HOME/.claude/projects/$proj_name/memory"
+        # 跳过 worktree 临时目录
+        [[ "$proj_name" == *"--claude-worktrees-"* ]] && continue
 
-        if [[ -d "${proj_dir}memory" ]]; then
-            # 形式 B: memory/ 子目录
-            if [[ -L "$mem_target" ]] && [[ -e "$mem_target" ]]; then
-                local mtime=$(stat -L -c %y "$mem_target/MEMORY.md" 2>/dev/null | cut -d'.' -f1)
-                [[ -n "$mtime" ]] && echo -e "  ${GREEN}✅${NC} $display_name — $mtime" || echo -e "  ${YELLOW}⚠️${NC} $display_name — 缺 MEMORY.md 索引"
-            else
-                echo -e "  ${RED}❌${NC} $display_name — 链接断（run setup-links.sh）"
-            fi
-        elif [[ -f "${proj_dir}MEMORY.md" ]]; then
-            # 形式 A: 单文件 MEMORY.md
-            if [[ -L "$mem_target/MEMORY.md" ]] && [[ -e "$mem_target/MEMORY.md" ]]; then
-                local mtime=$(stat -L -c %y "$mem_target/MEMORY.md" 2>/dev/null | cut -d'.' -f1)
-                echo -e "  ${GREEN}✅${NC} $display_name — $mtime"
-            else
-                echo -e "  ${RED}❌${NC} $display_name — 链接断（run setup-links.sh）"
-            fi
+        local mem_dir="${proj_dir}memory"
+        if [[ -f "$mem_dir/MEMORY.md" ]]; then
+            local mtime=$(stat -L -c %y "$mem_dir/MEMORY.md" 2>/dev/null | cut -d'.' -f1)
+            local display_name=$(echo "$proj_name" | sed 's/^-home-[^-]*-//' | tr '-' '/')
+            echo -e "  ${GREEN}✅${NC} $display_name — $mtime"
+            found=$((found + 1))
+        elif [[ -d "$mem_dir" ]]; then
+            local display_name=$(echo "$proj_name" | sed 's/^-home-[^-]*-//' | tr '-' '/')
+            echo -e "  ${GRAY}○${NC} $display_name — 无 MEMORY.md"
+            found=$((found + 1))
         fi
     done
 
-    if ! compgen -G "$projects_src/-home-*-*" > /dev/null 2>&1; then
-        if [ -L "$projects_src" ] && [ -d "$projects_src" ]; then
-            echo -e "  ${GREEN}✅${NC} link/projects/ 就绪（尚无项目 memory，Claude Code 首次运行后自动创建）"
-        else
-            echo -e "  ${YELLOW}⚠️${NC} link/projects/ 未链接（run ccprivate/setup.sh）"
-        fi
+    if [[ $found -eq 0 ]]; then
+        echo -e "  ${GRAY}(尚无项目 memory，Claude Code 运行后自动创建)${NC}"
     fi
 }
 
@@ -336,8 +332,7 @@ def _is_placeholder(val):
             return True
     return False
 
-def _check_missing_keys(config):
-    """检测 env/args 中是否有占位符 API key，返回缺失的 key 名列表"""
+def _missing_keys(config):
     missing = []
     env = config.get('env', {})
     for k, v in env.items():
@@ -347,7 +342,7 @@ def _check_missing_keys(config):
     for i, a in enumerate(args):
         if _is_placeholder(a):
             if i > 0:
-                missing.append(args[i-1] if i > 0 else f'args[{i}]')
+                missing.append(args[i-1])
             else:
                 missing.append(f'args[{i}]')
     return missing
@@ -361,10 +356,6 @@ def test_mcp(name, config):
         args = config.get('args', [])
         if not cmd:
             return name, None, "无命令"
-
-        missing = _check_missing_keys(config)
-        if missing:
-            return name, None, f"缺少 Key: {', '.join(missing[:3])}"
 
         full_cmd = [cmd] + args if args else [cmd]
         env = os.environ.copy()
@@ -384,9 +375,13 @@ def test_mcp(name, config):
                         ver = resp["result"].get("serverInfo", {}).get("version", "?")
                         return name, f"✅ {ver}", None
                 except: pass
+        # 连接失败，检查是否因缺 Key
+        missing = _missing_keys(config)
+        if missing:
+            return name, None, f"缺少 Key: {', '.join(missing[:3])}"
         return name, "✅ (无版本)", None
     except subprocess.TimeoutExpired:
-        missing = _check_missing_keys(config)
+        missing = _missing_keys(config)
         if missing:
             return name, None, f"缺少 Key: {', '.join(missing[:3])}"
         return name, None, "超时"
@@ -539,121 +534,6 @@ PYEOF
     echo -e "  ${GRAY}安装/启动: bash ccconfig/option-bridge/init.sh --cc-connect${NC}"
 }
 
-# ========== 10. 远程连接状态 ==========
-check_remote() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[10] 远程连接 (SSH + Tailscale)${NC}"
-
-    local ssh_ok=false
-    local ssh_fix=""
-
-    # SSH 配置
-    local ssh_port
-    ssh_port=$(grep -oP '^Port \K[0-9]+' /etc/ssh/sshd_config 2>/dev/null || echo "22")
-
-    # SSH socket 状态
-    local socket_active=$(systemctl is-active ssh.socket 2>/dev/null)
-    local socket_failed=false
-    local portproxy_conflict=false
-    if [ "$socket_active" = "active" ]; then
-        echo -e "  SSH (端口 $ssh_port) ... ${GREEN}✅${NC} 运行中"
-        ssh_ok=true
-    elif systemctl is-enabled ssh.socket &>/dev/null 2>&1; then
-        if [ "$socket_active" = "failed" ]; then
-            socket_failed=true
-            # 诊断：检查是否被 Windows 进程占用
-            local netstat_out
-            netstat_out=$(/mnt/c/Windows/System32/netstat.exe -ano 2>/dev/null | grep ":$ssh_port ")
-            if [ -n "$netstat_out" ]; then
-                local win_pid
-                win_pid=$(echo "$netstat_out" | awk '{print $NF}' | tr -d '\r')
-                local proc_name
-                proc_name=$(/mnt/c/Windows/System32/tasklist.exe 2>/dev/null | grep -E "^[^ ]+[ ]+$win_pid " | head -1 | awk '{print $1}')
-                portproxy_conflict=true
-                if [ "$proc_name" = "svchost.exe" ]; then
-                    echo -e "  SSH (端口 $ssh_port) ... ${RED}❌${NC} 端口被 Windows iphlpsvc 占用"
-                elif [ -n "$proc_name" ]; then
-                    echo -e "  SSH (端口 $ssh_port) ... ${RED}❌${NC} 端口被 Windows $proc_name 占用"
-                else
-                    echo -e "  SSH (端口 $ssh_port) ... ${RED}❌${NC} 端口被 Windows PID $win_pid 占用"
-                fi
-            else
-                echo -e "  SSH (端口 $ssh_port) ... ${YELLOW}○${NC} 启动失败（瞬态端口冲突）"
-            fi
-        else
-            echo -e "  SSH (端口 $ssh_port) ... ${YELLOW}○${NC} 已配置但未启动"
-        fi
-    else
-        echo -e "  SSH ... ${GRAY}－${NC} 未安装"
-    fi
-
-    # 端口冲突诊断
-    if [ "$portproxy_conflict" = true ]; then
-        local proxy_rule
-        proxy_rule=$(/mnt/c/Windows/System32/netsh.exe interface portproxy show all 2>/dev/null | grep ":$ssh_port" || echo "")
-        echo -e "    ${GRAY}原因: mirrored 模式下残留 portproxy 规则${NC}"
-        if [ -n "$proxy_rule" ]; then
-            echo -e "    ${GRAY}$proxy_rule${NC}"
-        fi
-        echo -e "    ${GRAY}修复 (Win 管理员 PS): netsh interface portproxy delete v4tov4 listenport=$ssh_port listenaddress=0.0.0.0${NC}"
-        echo -e "    ${GRAY}修复 (WSL):           sudo systemctl reset-failed ssh.socket && sudo systemctl start ssh.socket${NC}"
-        ssh_fix="先删除 Windows portproxy 规则，再 sudo systemctl reset-failed ssh.socket && sudo systemctl start ssh.socket"
-    elif [ "$socket_failed" = true ]; then
-        ssh_fix="sudo systemctl reset-failed ssh.socket && sudo systemctl start ssh.socket"
-    elif [ -z "$ssh_fix" ]; then
-        ssh_fix="sudo systemctl start ssh.socket"
-    fi
-
-    # 端口检查
-    echo -n "  端口 $ssh_port ... "
-    if ss -tlnp 2>/dev/null | grep -q ":$ssh_port "; then
-        echo -e "${GREEN}✅${NC} 已监听"
-    elif [ "$portproxy_conflict" = true ]; then
-        echo -e "${RED}❌${NC} 被 Windows 占用"
-    elif [ "$socket_failed" = true ]; then
-        echo -e "${YELLOW}○${NC} 需重置 socket"
-    elif [ -n "$ssh_fix" ] && [ "$ssh_fix" != "bash ccconfig/option-remote/server/tmux-sshd.sh" ]; then
-        echo -e "${YELLOW}○${NC} $ssh_fix"
-    else
-        echo -e "${YELLOW}○${NC} 未监听"
-    fi
-
-    # WSL 网络模式
-    local win_user
-    win_user=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' || echo "$USER")
-    local wslconfig="/mnt/c/Users/${win_user}/.wslconfig"
-    echo -n "  网络模式 ... "
-    if [ -f "$wslconfig" ] && grep -q "networkingMode=mirrored" "$wslconfig" 2>/dev/null; then
-        echo -e "${GREEN}✅${NC} mirrored"
-    else
-        echo -e "${YELLOW}○${NC} 非 mirrored（mirrored 模式下无需端口转发）"
-    fi
-
-    # Tailscale (Windows 侧)
-    local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
-    echo -n "  Tailscale ... "
-    if [ -f "$ts_exe" ]; then
-        local ts_ip
-        ts_ip=$("$ts_exe" ip -4 2>/dev/null || echo "")
-        if [ -n "$ts_ip" ]; then
-            echo -e "${GREEN}✅${NC} $ts_ip"
-        else
-            echo -e "${YELLOW}○${NC} 未登录或无网络"
-        fi
-    else
-        echo -e "${GRAY}－${NC} 未安装"
-    fi
-
-    echo -n "  远程可用 ... "
-    if [ "$ssh_ok" = true ] && ss -tlnp 2>/dev/null | grep -q ":$ssh_port "; then
-        echo -e "${GREEN}✅${NC} ssh $USER@<Tailscale IP> -p $ssh_port"
-    elif [ -n "$ssh_fix" ]; then
-        echo -e "${YELLOW}○${NC} $ssh_fix"
-    else
-        echo -e "${GRAY}－${NC}"
-    fi
-}
-
 # ========== 2. 依赖检查 ==========
 check_deps_quick() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -667,10 +547,10 @@ check_deps_quick() {
     fi
 }
 
-# ========== 11. option-* 可选组件 ==========
+# ========== 10. option-* 可选组件（含远程连接） ==========
 check_option_components() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[11] option-* 可选组件${NC}"
+    echo -e "${CYAN}[10] option-* 可选组件（含远程连接）${NC}"
 
     local found=0
     for opt_dir in "$REPO_DIR"/option-*/; do
@@ -681,21 +561,44 @@ check_option_components() {
         found=$((found + 1))
         echo -n "  $name ... "
         if [ ! -f "$init_script" ]; then
-            echo -e "${YELLOW}○${NC} (无 init.sh)"
+            echo -e "${GRAY}－${NC} (无 init.sh)"
             continue
         fi
+
         local out
-        out=$(bash "$init_script" --status 2>&1)
-        local status_exit=$?
-        local first_line=$(echo "$out" | sed 's/\[[0-9;]*m//g' | grep -vE '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+        out=$(bash "$init_script" --status 2>&1) || true
+        local esc=$'\033'
+        local first_line=$(echo "$out" | sed "s/${esc}\[[0-9;]*m//g" | grep -vE '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+
         if [ -z "$first_line" ]; then
-            echo -e "${GRAY}－${NC} (无 --status 支持)"
-        elif echo "$first_line" | grep -qi "^OK\|^ready"; then
+            echo -e "${GRAY}－${NC}"
+        elif echo "$first_line" | grep -qi "^OK"; then
             echo -e "${GREEN}✅${NC} ${first_line#OK }"
+        elif echo "$first_line" | grep -qi "^ready"; then
+            echo -e "${GREEN}✅${NC} ${first_line#ready }"
         elif echo "$first_line" | grep -qi "^FAIL\|^❌\|^error"; then
-            echo -e "${RED}❌${NC} ${first_line#FAIL }"
+            # 可选组件未运行不算错误，黄色提示
+            local msg="${first_line#FAIL }"
+            msg="${msg#❌ }"
+            echo -e "${YELLOW}○${NC} $msg"
         else
-            echo -e "${GRAY}－${NC} $first_line"
+            # 检查是否有安装/配置标记（SSH ✅ 等）
+            if echo "$first_line" | grep -q '✅'; then
+                echo -e "${GREEN}✅${NC} ${first_line}"
+            elif echo "$first_line" | grep -qE '(未安装|未登录|not running|not installed)'; then
+                echo -e "${GRAY}－${NC} $first_line"
+            elif echo "$first_line" | grep -qiE '(cloudflare|plugin|workers)'; then
+                echo -e "${GRAY}－${NC} $first_line"
+            else
+                echo -e "${GRAY}－${NC} $first_line"
+            fi
+        fi
+
+        # option-remote: 额外展开 SSH/Tailscale 详情
+        if [[ "$name" == "option-remote" ]]; then
+            echo "$out" | sed "s/${esc}\[[0-9;]*m//g" | grep -vE '^[[:space:]]*$' | tail -n +2 | while IFS= read -r line; do
+                echo "    $line"
+            done
         fi
     done
 
@@ -844,7 +747,6 @@ check_git_projects
 check_feishu
 check_playwright
 check_mcp
-check_remote
 check_option_components
 check_skills
 check_example_sync
