@@ -446,16 +446,7 @@ do_sync() {
         if [[ "$quiet" == "1" ]]; then
             echo ""
             echo -e "${YELLOW}⚠  检测到 ${missing} 个 MCP 缺失 API Key${NC}"
-            echo "  1) 现在填写（交互式逐项输入）"
-            echo "  2) 跳过（后续 MCP 中自行认证或手动: bash ccconfig/lib/init-mcp.sh keys）"
-            echo ""
-            interactive_read "  选择 [2]: " key_choice
-            key_choice="${key_choice:-2}"
-            if [[ "$key_choice" == "1" ]]; then
-                do_keys
-            else
-                info "  跳过 Key 配置。补填: bash ccconfig/lib/init-mcp.sh keys"
-            fi
+            echo -e "  ${GRAY}跳过（后续手动补填: bash ccconfig/lib/init-mcp.sh keys）${NC}"
         else
             echo ""
             while IFS='|' read -r name desc mtype command args_str env_str disabled how_to_get; do

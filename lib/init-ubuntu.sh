@@ -175,7 +175,7 @@ ensure_pip() {
         return 0
     fi
     warn "pip3 未安装，尝试安装..."
-    if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
+    if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null; then
         sudo apt-get install -y python3-pip python3-venv 2>/dev/null && success "pip3 已安装" && return 0
     fi
     python3 -m ensurepip --user 2>/dev/null && success "pip (ensurepip)" && return 0
@@ -195,7 +195,7 @@ setup_python_packages() {
 
     # 确保 pip3 可用（WSL Ubuntu 默认无 python3-pip）
     if ! command -v pip3 &>/dev/null; then
-        if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
+        if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null; then
             info "安装 python3-pip + python3-venv（apt）..."
             sudo apt-get install -y python3-pip python3-venv 2>/dev/null || {
                 warn "apt 安装失败，尝试 ensurepip..."
@@ -654,6 +654,7 @@ main() {
         echo '[ -f ~/.claude/shell_aliases.sh ] && source ~/.claude/shell_aliases.sh' >> "$HOME/.bashrc"
     fi
 
+    setup_ssh_github
     setup_ccprivate
     setup_nodejs
     setup_uv
@@ -677,7 +678,6 @@ main() {
 
     setup_llm_backend
     setup_mmx_cli
-    setup_ssh_github
     # 中文字体可选，有需要再手动装: sudo apt-get install fonts-noto-cjk
     setup_autosync
     setup_hook
@@ -686,10 +686,14 @@ main() {
     echo ""
     success "初始化完成！"
     echo ""
-    echo -e "  ${BOLD}继续初始化:${NC}"
-    echo -e "    全部自动: ${GREEN}bash ccconfig/init.sh all${NC}"
-    echo -e "    分步: LLM → MCP → Skills → 验证"
-    echo ""
+
+    if [[ "${INIT_ALL_FLOW:-}" != "1" ]]; then
+        echo -e "  ${BOLD}继续初始化:${NC}"
+        echo -e "    全部自动: ${GREEN}bash ccconfig/init.sh all${NC}"
+        echo -e "    分步: LLM → MCP → Skills → 验证"
+        echo ""
+    fi
+
     echo "可选组件（按需: bash ccconfig/init-option.sh）："
     echo "  bat/glow/nano    # CLI 工具"
     echo "  OfficeCLI        # 命令行 Office 文档创建"
