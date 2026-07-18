@@ -54,7 +54,7 @@
   2. 生成 SSH key → 添加到 GitHub
   3. git clone ccconfig + skill
   4. 运行 init-ccprivate-repo.sh → 填写 GitHub 账号 + API Key
-  5. 运行 init.sh all → 自动安装所有依赖
+  5. 运行 init-base.sh all → 自动安装所有依赖
   6. 运行 maintain.sh status → 验证 11 项检查通过
 后置: Claude Code 可用，所有 skill 已装，auto-sync 在跑
 耗时: ≤10 分钟
