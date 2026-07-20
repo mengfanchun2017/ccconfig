@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$SCRIPT_DIR"
 source "$SCRIPT_DIR/lib/colors.sh"
-source "$SCRIPT_DIR/lib/tui-helper.sh"
+set +u; source "$SCRIPT_DIR/lib/tui-helper.sh"; set -u
 
 show_banner() {
     if command -v gum &>/dev/null; then
