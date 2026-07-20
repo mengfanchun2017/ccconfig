@@ -199,13 +199,13 @@ run_step() {
 # ========== 子菜单 ==========
 
 submenu_env() {
-    c=$(_tui_choose "基础环境" \
+    _tui_choose "基础环境" \
         "1. Ubuntu 全环境初始化 (init-ubuntu.sh)" \
         "2. LLM 后端切换 (init-llm.sh)" \
         "3. auto-sync 自启动 (init-autostart.sh)" \
         "4. ★ 一键全部 (ubuntu+LLM+MCP+收尾)" \
-        "0. 返回")
-    case "$c" in
+        "0. 返回"
+    case "$__TUI_CHOICE" in
         1) run_step "Ubuntu 初始化"    "$SCRIPT_DIR/lib/init-ubuntu.sh"    false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         2) run_step "LLM 切换"         "$SCRIPT_DIR/lib/init-llm.sh"       false
@@ -223,12 +223,12 @@ submenu_options() {
 }
 
 submenu_remote() {
-    c=$(_tui_choose "远程连接" \
+    _tui_choose "远程连接" \
         "1. SSH Server + tmux 安装" \
         "2. 部署配置到 Windows" \
         "3. 查看完整说明" \
-        "0. 返回")
-    case "$c" in
+        "0. 返回"
+    case "$__TUI_CHOICE" in
         1) run_step "SSH Server" "$SCRIPT_DIR/option-remote/server/tmux-sshd.sh" false ;;
         2) bash "$SCRIPT_DIR/option-remote/deploy.sh" server ;;
         3) echo ""; cat "$SCRIPT_DIR/option-remote/readme.md" 2>/dev/null || echo -e "  ${YELLOW}readme.md 不存在${NC}" ;;
@@ -236,12 +236,12 @@ submenu_remote() {
 }
 
 submenu_mcp() {
-    c=$(_tui_choose "MCP 管理" \
+    _tui_choose "MCP 管理" \
         "1. 安装并同步 MCP (init-mcp.sh sync)" \
         "2. 仅安装缺失 MCP (init-mcp.sh install)" \
         "3. 配置 API Key (init-mcp.sh keys)" \
-        "0. 返回")
-    case "$c" in
+        "0. 返回"
+    case "$__TUI_CHOICE" in
         1) run_step "MCP 同步"   "$SCRIPT_DIR/lib/init-mcp.sh" true
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         2) echo ""; bash "$SCRIPT_DIR/lib/init-mcp.sh" install
@@ -253,11 +253,11 @@ submenu_mcp() {
 }
 
 submenu_skills() {
-    c=$(_tui_choose "Skills 管理" \
+    _tui_choose "Skills 管理" \
         "1. 安装/同步 skills" \
         "2. 查看 skills 状态" \
-        "0. 返回")
-    case "$c" in
+        "0. 返回"
+    case "$__TUI_CHOICE" in
         1) bash "$SCRIPT_DIR/option-skill/init.sh" --install
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
         2) bash "$SCRIPT_DIR/option-skill/init.sh" --status
@@ -272,16 +272,16 @@ main_menu() {
     show_banner
     check_first_time
 
-    choice=$(_tui_choose "Claude Code 配置中枢" \
+    _tui_choose "Claude Code 配置中枢" \
         "1. 基础环境 (Ubuntu/LLM/自启动)" \
         "2. 远程连接 (SSH/tmux)" \
         "3. MCP 管理" \
         "4. Skills 管理" \
         "5. ★ 一键全部初始化 (4步)" \
         "6. 可选组件 (bat/glow/nano/option-*)" \
-        "0. 退出")
+        "0. 退出"
 
-    case "$choice" in
+    case "$__TUI_CHOICE" in
         1) submenu_env ;;
         2) submenu_remote ;;
         3) submenu_mcp ;;
