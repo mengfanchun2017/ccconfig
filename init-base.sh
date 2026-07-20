@@ -71,7 +71,7 @@ _init_wizard() {
         echo ""
         _init_footer "[↓ 下一步  ·  Ctrl-C 退出]"
         echo ""
-        gum confirm "继续？" --affirmative="下一步" --negative="退出" || return 1
+        gum confirm "继续？" --affirmative="下一步" --negative="退出" 2>/dev/null || { echo ""; exit 0; }
         ((cur++))
         ;;
       1)
@@ -80,7 +80,7 @@ _init_wizard() {
         llm=$(gum filter --placeholder "搜索模型..." --prompt "› " \
           --prompt.foreground "$C_PINK" \
           --indicator "●" --indicator.foreground "$C_PINK" \
-          --match.foreground "$C_GREEN" --height 10 <<'EOF'
+          --match.foreground "$C_GREEN" --height 10 2>/dev/null <<'EOF' || exit 0
 claude-sonnet-5      ★ 推荐
 claude-opus-4-8
 claude-haiku-4-5
@@ -103,12 +103,12 @@ EOF
         echo ""
         comps=$(gum choose --no-limit \
           --cursor "●" --cursor.foreground "$C_PINK" \
-          --selected.foreground "$C_GREEN" --height 7 \
+          --selected.foreground "$C_GREEN" --height 7 2>/dev/null \
           "Skills (16 个 skill)" \
           "MCP 服务器 (搜索/DB/部署)" \
           "LLM Gateway (多模型路由)" \
           "飞书集成 (lark-cli)" \
-          "Tailscale (远程访问)")
+          "Tailscale (远程访问)" || exit 0)
         echo ""
         [[ -n "$comps" ]] && echo "$comps" | while read -r l; do
           gum style --foreground "$C_GREEN" "  ✔ $l"
@@ -119,7 +119,7 @@ EOF
         gum style --foreground "239" "  Anthropic API Key (可跳过)"
         echo ""
         api_key=$(gum input --password --placeholder "sk-ant-..." \
-          --prompt "› " --prompt.foreground "$C_PINK" --char "*")
+          --prompt "› " --prompt.foreground "$C_PINK" --char "*" 2>/dev/null || true)
         echo ""
         [[ -n "$api_key" ]] && gum style --foreground "$C_GREEN" "  ✔ 已保存"
         ((cur++))
@@ -249,9 +249,9 @@ run_step() {
 main_menu() {
   if [[ "$__TUI_BACKEND" = "gum" ]]; then
     _init_wizard
+    gum confirm "开始安装？" --affirmative="安装" --negative="取消" 2>/dev/null || { echo "已取消"; exit 0; }
     echo ""
-    gum confirm "开始安装？" --affirmative="安装" --negative="取消" && \
-      gum spin --spinner dot --spinner.foreground "$C_PINK" --title "正在初始化..." -- sleep 1.5
+    gum spin --spinner dot --spinner.foreground "$C_PINK" --title "正在初始化..." -- sleep 1.5 2>/dev/null || true
     echo ""
     gum style --foreground "$C_GREEN" --bold "  完成!"
     echo ""
