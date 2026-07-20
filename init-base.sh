@@ -12,13 +12,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$SCRIPT_DIR"
 source "$SCRIPT_DIR/lib/colors.sh"
-source "$SCRIPT_DIR/lib/tui-helper.sh"
+set +u; source "$SCRIPT_DIR/lib/tui-helper.sh"; set -u 2>/dev/null || true
 
 show_banner() {
-    if command -v gum &>/dev/null; then
-        gum style --border rounded --border-foreground "$TUI_PRIMARY" \
+    if [[ "$__TUI_BACKEND" = "gum" ]]; then
+        gum style --border rounded --border-foreground "#7C3AED" \
             --padding "1 3" --margin "1 0" --bold \
-            --foreground "$TUI_ACCENT" "Claude Code 配置中枢 · ccconfig"
+            --foreground "#A78BFA" "Claude Code 配置中枢 · ccconfig"
     else
         echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
     fi
