@@ -9,7 +9,7 @@ ccconfig 是 Claude Code 环境的可复用基础设施。维护 .example 模板
 | 暗号 | 行为 |
 |------|------|
 | hookstatus | `bash maintain.sh status` 状态检查 |
-| @res `<主题>` | 中英文双语搜索 → 飞书文档 + 白板图表（f-feishu skill 编排） |
+| @res `<主题>` | 中英文双语搜索 → 飞书文档 + 白板图表（ffeishu skill 编排） |
 | ccusage | `npx ccusage@latest daily\|monthly` 用量统计 |
 | pullff `[repo]` | `bash maintain.sh sync --pull` 强拉远程 |
 
