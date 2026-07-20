@@ -1,5 +1,6 @@
 #!/bin/bash
 # tui-helper.sh — TUI 统一封装（gum → whiptail → raw read 三级 fallback）
+set +u
 #
 # 使用：
 #   source "$SCRIPT_DIR/lib/tui-helper.sh"
@@ -38,9 +39,8 @@ _tui_choose() {
 
   case "$__TUI_BACKEND" in
     gum)
-      # gum choose 在非 TTY 下报错。用 filter 替代，stdout 捕获正常
-      choice=$(gum filter --placeholder "$title" --height 12 --indicator="●" \
-        <<< "$(printf '%s\n' "${items[@]}")")
+      choice=$(printf '%s\n' "${items[@]:-}" | gum filter --placeholder "$title" \
+        --height 12 --indicator="●")
       __TUI_CHOICE=$(echo "$choice" | sed 's/^[[:space:]]*\([0-9]*\).*/\1/')
       __TUI_CHOICE="${__TUI_CHOICE:-0}"
       ;;
@@ -197,3 +197,5 @@ _ensure_gum() {
   rm -rf "$tmpd"
   return 0
 }
+
+set -u 2>/dev/null || true
