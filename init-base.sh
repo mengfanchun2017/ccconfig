@@ -155,15 +155,6 @@ PYEOF
     echo "  装 Skills:         bash option-skill/init.sh --install"
     echo "  装可选组件:        bash init-option.sh"
     echo ""
-    echo ""
-    echo -e "${YELLOW}━━━ Worklog 日合并 ━━━${NC}"
-    echo "  Worklog 使用 f-logme skill 手动记录 + 每日自动合并。"
-    echo "  首次在 Claude 中说一句即可配置: "
-    echo ""
-    echo -e "    ${GREEN}\"设 worklog 日合并每天中午12:01执行\"${NC}"
-    echo ""
-    echo "  改时间: \"改 worklog 日合并时间到 HH:MM\""
-    echo ""
 }
 
 run_step() {
