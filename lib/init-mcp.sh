@@ -253,9 +253,13 @@ try:
         elif 'disabledMcpServers' in settings_data['projects'][proj_path]:
             del settings_data['projects'][proj_path]['disabledMcpServers']
 
-    # 同步 hooks
+    # 同步 hooks：合并而非覆盖（保留 settings 中已有的 SessionEnd 等 hooks）
     if 'hooks' in claude_data:
-        settings_data['hooks'] = claude_data['hooks']
+        merged = settings_data.get('hooks', {})
+        for hook_type, hook_list in claude_data['hooks'].items():
+            if hook_type not in merged or not merged[hook_type]:
+                merged[hook_type] = hook_list
+        settings_data['hooks'] = merged
 
     # 同步 env：merge（settings 已有 keys 优先 → init-llm 写入不被覆盖；
     #              conf/claude.json 仅补缺失 keys → MCP API key 等）
