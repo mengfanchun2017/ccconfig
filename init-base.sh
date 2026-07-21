@@ -205,7 +205,7 @@ submenu_env() {
     echo "  1) Ubuntu 全环境初始化 (init-ubuntu.sh)"
     echo "  2) LLM 后端切换       (init-llm.sh)"
     echo "  3) auto-sync 自启动    (init-autostart.sh)"
-    echo "  4) ★ 一键全部（ubuntu + LLM + MCP + skills + 收尾）"
+    echo "  4) ★ 一键全部（ubuntu + LLM + MCP + 收尾）"
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-4,0]: " c
