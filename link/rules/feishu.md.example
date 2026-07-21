@@ -34,7 +34,7 @@ lark-cli auth login --device-code "<device_code>"
 
 ## 文档操作 → f-feishu skill
 
-**硬前置条件**：任何 `lark-cli docs` 命令前必须先调 `f-feishu` Skill。格式约束（禁止分割线、表格必须 XML+colgroup=822、禁止手动编号、禁止 ASCII 伪图）只在 skill 调用时加载到上下文。跳过直接裸调 lark-cli 必然格式违规。
+**硬前置条件**：任何 `lark-cli docs` 命令前必须先调 `ffeishu` Skill。格式约束（禁止分割线、表格必须 XML+colgroup=822、禁止手动编号、禁止 ASCII 伪图）只在 skill 调用时加载到上下文。跳过直接裸调 lark-cli 必然格式违规。
 
 ## 写操作后必输出完整链接
 
@@ -51,7 +51,7 @@ lark-cli ... 2>&1 | sed '/^\[lark-cli\]/d' | python3 -c "import json,sys; d=json
 lark-cli ... 2>&1 | grep '"token"' | head -1
 ```
 
-`api` 子命令不输出 JSON。详情 → f-feishu `references/lark-cli-cheatsheet.md`。
+`api` 子命令不输出 JSON。详情 → ffeishu `references/lark-cli-cheatsheet.md`。
 
 ## 最近编辑文档追踪
 

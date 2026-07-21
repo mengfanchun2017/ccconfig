@@ -16,8 +16,8 @@
 | 规则 | 加载 | 大小 | 内容 |
 |------|:--:|------|------|
 | `code.md` | 始终 | 0.8K | 编码规范、禁止操作 |
-| `feishu.md` | 始终 | 2.7K | 飞书集成：auth 预检、账号、f-feishu 前置、URL 输出 |
-| `feishu-cli-cheatsheet.md` | 始终 | 0.7K | lark-cli 速查指针 → f-feishu references/ |
+| `feishu.md` | 始终 | 2.7K | 飞书集成：auth 预检、账号、ffeishu 前置、URL 输出 |
+| `feishu-cli-cheatsheet.md` | 始终 | 0.7K | lark-cli 速查指针 → ffeishu references/ |
 | `search.md` | 始终 | 1.2K | 搜索策略、三源并行 |
 | `memory.md` | 始终 | 0.5K | 自动记忆、变更摘要、试错记录 |
 | `context-budget.md` | 始终 | 0.7K | rules/MEMORY 预算上限 |
@@ -27,4 +27,4 @@
 
 **始终加载: 6.6KB / 15KB budget（44%）\| 路径加载: 4.2KB \| 合计: 10.8KB**
 
-> 已移除：`README.md` → docs/rules-catalog.md（给人类看的目录）。`feedback_cwd_drift.md` → memory。`f-feishu.md`（rules.d 断链）。`feishu-cli-cheatsheet.md` 命令表 → f-feishu/references/lark-cli-cheatsheet.md。
+> 已移除：`README.md` → docs/rules-catalog.md（给人类看的目录）。`feedback_cwd_drift.md` → memory。`ffeishu.md`（rules.d 断链）。`feishu-cli-cheatsheet.md` 命令表 → ffeishu/references/lark-cli-cheatsheet.md。

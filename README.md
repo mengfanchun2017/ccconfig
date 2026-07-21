@@ -291,18 +291,18 @@ cd ~/git/ccconfig && git pull
 
 | Skill | 用途 | 需外部服务？ |
 |-------|------|-------------|
-| `f-feishu` | 飞书文档创建/更新/合并/拆分/对比 | lark-cli + 飞书租户 |
-| `f-pptx` | PPT 生成（OfficeCLI 引擎） | officecli |
-| `f-diagram` | 代码驱动图表生成（Mermaid + whiteboard） | 无 |
-| `f-docx` | Word .docx 原生生成 | officecli |
-| `f-libaudit` | 库审计报告生成 | 无 |
-| `f-xlsx` | Excel .xlsx 原生生成 | officecli |
-| `f-pdf` | PDF 内容提取（文字/图片/表格/元数据） | PyMuPDF |
-| `f-search` | 多源搜索编排（Tavily + MiniMax + WebSearch） | Tavily + MiniMax MCP |
-| `f-research-frame` | 4 领域研究方法论 | 委托 f-search |
-| `f-research-report` | 报告生成（JSON/大纲/素材 → Markdown） | 委托 f-feishu + f-report-std |
-| `f-report-std` | 报告写作规范（4 套模板） | 无 |
-| `f-launch` | 项目启动脚手架 | flogme + f-feishu（可选） |
+| `ffeishu` | 飞书文档创建/更新/合并/拆分/对比 | lark-cli + 飞书租户 |
+| `fpptx` | PPT 生成（OfficeCLI 引擎） | officecli |
+| `fdiagram` | 代码驱动图表生成（Mermaid + whiteboard） | 无 |
+| `fdocx` | Word .docx 原生生成 | officecli |
+| `flibaudit` | 库审计报告生成 | 无 |
+| `fxlsx` | Excel .xlsx 原生生成 | officecli |
+| `fpdf` | PDF 内容提取（文字/图片/表格/元数据） | PyMuPDF |
+| `fsearch` | 多源搜索编排（Tavily + MiniMax + WebSearch） | Tavily + MiniMax MCP |
+| `fresearchframe` | 4 领域研究方法论 | 委托 fsearch |
+| `fresearchreport` | 报告生成（JSON/大纲/素材 → Markdown） | 委托 ffeishu + freportstd |
+| `freportstd` | 报告写作规范（4 套模板） | 无 |
+| `flaunch` | 项目启动脚手架 | flogme + ffeishu（可选） |
 | `flogme` | OKR/Worklog/Reflect/SUM 个人管理 | lark-cli + 飞书 Base |
 | `f-moocrec` | 慕课推荐 | 飞书 Base |
 | `f-skillcreat` | Skill 开发脚手架 | 无 |
@@ -310,7 +310,7 @@ cd ~/git/ccconfig && git pull
 | `f-sysarchi` | 系统分析师备考 | 无 |
 | `getnote` | 得到大脑集成 — MCP 驱动 | 得到 MCP |
 
-> **独立使用**（不需 ccconfig）：`/plugin marketplace add <your-username>/skill` 然后 `/plugin install f-feishu@<your-username>-skills`。
+> **独立使用**（不需 ccconfig）：`/plugin marketplace add <your-username>/skill` 然后 `/plugin install ffeishu@<your-username>-skills`。
 > **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/skill/plugins/` symlink。完整生命周期 → [docs/skill-lifecycle.md](docs/skill-lifecycle.md)。
 
 ## 远程访问
