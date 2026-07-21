@@ -243,7 +243,7 @@ def build_merge_prompt(group_key, records):
         entries_text.append(f"### 条目 {i}\n标题: {title}\n说明: {desc}")
     entries_block = "\n\n".join(entries_text)
 
-    prompt = f"""你是 f-logme worklog 合并助手。
+    prompt = f"""你是 flogme worklog 合并助手。
 
 输入: {len(records)} 条 worklog（同一日期 + 同一分类 + 同一 KR）
 - 日期: {date_str}
