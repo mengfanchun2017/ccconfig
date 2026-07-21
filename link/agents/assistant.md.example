@@ -51,13 +51,13 @@ f-feishu 是文档生命周期统一编排层：
 
 ---
 
-### 3. 个人管理 → f-logme skill
+### 3. 个人管理 → flogme skill
 
 **触发**：记录工作、写日志、OKR 管理、目标设定、反思、生成周期/领域总结
 
-**行为**：自动调用 f-logme skill
+**行为**：自动调用 flogme skill
 
-f-logme 是个人管理系统统一入口，五层架构：
+flogme 是个人管理系统统一入口，五层架构：
 - OKR（O + KR）：长期目标 + 可量化关键结果
 - Worklog：日常记录，必须关联 KR
 - Reflect：周期反思（周/月/季度）
@@ -65,9 +65,9 @@ f-logme 是个人管理系统统一入口，五层架构：
 
 **分类**：所有层级共用 work / learn / project 三类。
 
-f-logme 是 f-worklog 的升级替代，f-worklog 已废弃。
+flogme 是 f-worklog 的升级替代，f-worklog 已废弃。
 
-详细 → `skills/f-logme/SKILL.md`
+详细 → `skills/flogme/SKILL.md`
 
 ---
 
@@ -93,7 +93,7 @@ f-logme 是 f-worklog 的升级替代，f-worklog 已废弃。
 | 研究 | `f-research-domain` | 快速研究 |
 | 研究 | `f-research-deep` | 深度研究 |
 | 研究 | `f-report-gen` | 报告生成 |
-| 管理 | `f-logme` | 个人管理系统（OKR+Worklog+Reflect+SUM） |
+| 管理 | `flogme` | 个人管理系统（OKR+Worklog+Reflect+SUM） |
 | 调试 | `diagnosing-bugs` | Bug 诊断 |
 | 架构 | `improve-codebase-architecture` | 架构优化 |
 | 工具 | `writing-great-skills` | 创建 skill |

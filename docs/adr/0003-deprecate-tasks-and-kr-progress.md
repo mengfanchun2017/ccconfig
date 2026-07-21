@@ -103,7 +103,7 @@
 
 - 飞书 Base 删表是**不可逆**操作（飞书官方限制）。如需回滚只能从 git history 查 ADR 重建设
 - OKR_KR.进度 字段虽不强制填，但 23 旧 KRs 的值是 5-31 期间累积的有效数据，**保留**
-- 未来如需历史轨迹，参考 KR_Progress 原 schema（在原 `link/skills/f-logme/SKILL.md` 5 层架构定义中）
+- 未来如需历史轨迹，参考 KR_Progress 原 schema（在原 `link/skills/flogme/SKILL.md` 5 层架构定义中）
 
 ## Related Decisions
 

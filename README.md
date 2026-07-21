@@ -302,8 +302,8 @@ cd ~/git/ccconfig && git pull
 | `f-research-frame` | 4 领域研究方法论 | 委托 f-search |
 | `f-research-report` | 报告生成（JSON/大纲/素材 → Markdown） | 委托 f-feishu + f-report-std |
 | `f-report-std` | 报告写作规范（4 套模板） | 无 |
-| `f-launch` | 项目启动脚手架 | f-logme + f-feishu（可选） |
-| `f-logme` | OKR/Worklog/Reflect/SUM 个人管理 | lark-cli + 飞书 Base |
+| `f-launch` | 项目启动脚手架 | flogme + f-feishu（可选） |
+| `flogme` | OKR/Worklog/Reflect/SUM 个人管理 | lark-cli + 飞书 Base |
 | `f-moocrec` | 慕课推荐 | 飞书 Base |
 | `f-skillcreat` | Skill 开发脚手架 | 无 |
 | `f-syncdoc` | 源码文档同步 + 产品页同步 | aiagt page |
