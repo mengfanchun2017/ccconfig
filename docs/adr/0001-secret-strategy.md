@@ -25,7 +25,7 @@ ccconfig 仓库需要公开同步（GitHub 公开 dotfiles 风格），但当前
 - **D2 通用性**：跨平台（Linux / macOS / WSL）、跨工具（claude / lark-cli / cc-connect）一致
 - **D3 透明性**：conf 文件 diff 可读，code review 正常
 - **D4 单人项目**：避免企业级密钥管理工具的过度工程（git-crypt / SOPS / KMS）
-- **D5 兼容 f-logme**：key 不进 git 也不进飞书 Base
+- **D5 兼容 flogme**：key 不进 git 也不进飞书 Base
 
 ## Considered Options
 
@@ -61,7 +61,7 @@ ccconfig 仓库需要公开同步（GitHub 公开 dotfiles 风格），但当前
   - 简单：标准 Git 工作流
   - 通用：跨平台、跨工具一致
   - 透明：diff 可读
-  - 与 f-logme 兼容
+  - 与 flogme 兼容
 - **Cons**:
   - 每台新机器首次要手动填 key（5 秒操作）
   - 多机器时 key 漂移（每台独立 update，不自动同步）
@@ -106,7 +106,7 @@ ccconfig 仓库需要公开同步（GitHub 公开 dotfiles 风格），但当前
 
 ## Notes
 
-- 调研时（2026-06-08）发现 Option C（1Password CLI）其实是更优长期方案，但当前 f-logme 还没自动 rotate 提醒机制，先用最简 D 方案
+- 调研时（2026-06-08）发现 Option C（1Password CLI）其实是更优长期方案，但当前 flogme 还没自动 rotate 提醒机制，先用最简 D 方案
 - 未来若个人 tool 增多、key 轮换频繁，可升级到 Option C（增补 ADR）
 
 ## Related Decisions
