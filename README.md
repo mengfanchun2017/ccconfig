@@ -136,7 +136,7 @@ bash ~/git/ccconfig/bootstrap-gh-auth.sh
 # 3. 创建 ccprivate 私有配置仓库
 bash ~/git/ccconfig/init-ccprivate-repo.sh
 
-# 4. 全量初始化（Ubuntu → LLM → MCP → Skills → 收尾）
+# 4. 全量初始化（Ubuntu → LLM → MCP → 收尾）
 bash ~/git/ccconfig/init-base.sh all
 
 # 5. 装可选组件（可选）
@@ -287,7 +287,7 @@ cd ~/git/ccconfig && git pull
 
 ## 自建 Skills
 
-全部 16 个自建 skill 发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
+全部 18 个自建 skill 发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
 
 | Skill | 用途 | 需外部服务？ |
 |-------|------|-------------|

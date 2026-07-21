@@ -434,15 +434,14 @@ bash init-base.sh all
 
 | 步骤 | 脚本 | 做了什么 |
 |------|------|----------|
-| 1/5 | `lib/init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
-| 2/5 | `lib/init-llm.sh` | 从 conf/llm.json 读取当前 LLM，写入 API key 到 settings.json |
-| 3/5 | `lib/init-mcp.sh` | 装并同步 MCP 服务器 |
-| 4/5 | `lib/init-skill.sh sync` | 链接自建 skill + npx skills 装第三方（conf 清单幂等，~2s）|
-| 5/5 | `maintain.sh finalize` | 修复符号链接 + 启动 auto-sync + 状态验证
+| 1/4 | `lib/init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
+| 2/4 | `lib/init-llm.sh` | 从 conf/llm.json 读取当前 LLM，写入 API key 到 settings.json |
+| 3/4 | `lib/init-mcp.sh` | 装并同步 MCP 服务器 |
+| 4/4 | `maintain.sh finalize` | 修复符号链接 + 启动 auto-sync + 状态验证
 
 > **symlink 已全量建立**（用户级 + rules/agents/commands → ccprivate），无需手动跑 `ccprivate/setup.sh`。
 
-**全程无输入**：gh 已登录，LLM 默认值在阶段 4c（init-ccprivate-repo.sh）已写入 conf/llm.json，MCP 和 skills 自动装。
+**全程无输入**：gh 已登录，LLM 默认值在阶段 4c（init-ccprivate-repo.sh）已写入 conf/llm.json，MCP 自动注册。Skills 可选：`bash option-skill/init.sh --install`。
 
 **会触发 sudo**（安装系统包时），提前准备好 sudo 密码。
 
