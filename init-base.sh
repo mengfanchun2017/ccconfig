@@ -13,6 +13,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$SCRIPT_DIR"
 source "$SCRIPT_DIR/lib/colors.sh"
 
+# 别名（colors.sh 用 good/bad，此处加 ok/err 兼容）
+ok() { good "$@"; }
+err() { bad "$@"; }
+
 show_banner() {
     echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
 }
@@ -30,7 +34,7 @@ check_first_time() {
     echo -e "  ${RED}❌${NC} ccprivate 未找到 — 私有配置（API Key、CLAUDE.md、settings.json）"
     echo -e "     ${CYAN}→${NC} bash ccconfig/init-ccprivate-repo.sh"
     echo ""
-    echo -e "  ${GRAY}（6 步流程：clone → bootstrap-gh-auth.sh → init-ccprivate-repo.sh → init-base.sh all → init-option.sh → maintain.sh status）${NC}"
+    echo -e "  ${GRAY}（完整流程：clone → bootstrap-gh-auth.sh → init-ccprivate-repo.sh → init-base.sh all → 可选 init-option.sh/option-skill/init.sh → maintain.sh status）${NC}"
     echo ""
 
     read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
@@ -286,7 +290,7 @@ main_menu() {
     echo "  2) 远程连接    │ SSH │ tmux"
     echo "  3) MCP 管理    │ 安装 │ 同步"
     echo "  4) Skills      │ 同步 │ 状态"
-    echo "  5) ★ 一键全部初始化（4 步：Ubuntu → LLM → MCP → 收尾）"
+    echo "  5) ★ 一键全部初始化（Ubuntu → LLM → MCP → 收尾）"
     echo "  ── 可选组件 ──"
     echo "  6) 可选组件（bat / glow / nano / option-*）"
     echo "  0) 退出"
