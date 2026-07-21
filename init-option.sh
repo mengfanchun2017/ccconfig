@@ -210,12 +210,11 @@ list_all() {
 
     # 选项索引
     local idx=1
-    local -a all_names all_labels
+    local -a all_names
 
     # 内置 CLI 工具
     for name in bat glow nano; do
         all_names+=("$name")
-        all_labels+=("${CLI_OPTIONS[$name]}")
         printf "  %2d) %-12s %b\n" $idx "$name" "$(option_status "$name")"
         idx=$((idx + 1))
     done
@@ -226,7 +225,6 @@ list_all() {
     for d in $dirs; do
         local bare="${d#option-}"
         all_names+=("$bare")
-        all_labels+=("$bare")
         printf "  %2d) %-12s %b\n" $idx "$bare" "$(option_status "$bare")"
         idx=$((idx + 1))
     done
