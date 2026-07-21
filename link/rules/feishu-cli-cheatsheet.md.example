@@ -16,4 +16,4 @@ lark-cli drive +search --query test --page-size 1 --as user 2>&1 | sed '/^\[lark
 
 ## 命令速查
 
-命令表 + 关键约束 + JSON 格式 → f-feishu skill `references/lark-cli-cheatsheet.md`（调用 f-feishu 时自动加载）。
+命令表 + 关键约束 + JSON 格式 → ffeishu skill `references/lark-cli-cheatsheet.md`（调用 ffeishu 时自动加载）。
