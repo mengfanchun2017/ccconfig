@@ -43,7 +43,7 @@ check_first_time() {
         bash "$SCRIPT_DIR/init-ccprivate-repo.sh"
         echo ""
         echo -e "${GREEN}✅ ccprivate 已创建${NC}"
-        echo -e "${YELLOW}请重新运行 init.sh 继续初始化${NC}"
+        echo -e "${YELLOW}请重新运行 bash init-base.sh 继续初始化${NC}"
         echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0
     fi
 
