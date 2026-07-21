@@ -13,10 +13,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$SCRIPT_DIR"
 source "$SCRIPT_DIR/lib/colors.sh"
 
-# 别名（colors.sh 用 good/bad，此处加 ok/err 兼容）
-ok() { good "$@"; }
-err() { bad "$@"; }
-
 show_banner() {
     echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
 }

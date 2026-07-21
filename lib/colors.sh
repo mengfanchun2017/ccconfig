@@ -11,10 +11,13 @@ GRAY='\033[0;90m'
 DIM='\033[2m'
 NC='\033[0m'
 
-good()    { echo -e "${GREEN}✅ $1${NC}"; }
-bad()     { echo -e "${RED}❌ $1${NC}"; }
-warn()    { echo -e "${YELLOW}⚠  $1${NC}"; }
-info()    { echo -e "${CYAN}ℹ   $1${NC}"; }
-section() { echo -e "\n${BLUE}━━━ $1 ━━━${NC}"; }
-success() { good "$@"; }
-error()   { bad "$@"; }
+ok()    { echo -e "  ${GREEN}✅ $1${NC}"; }
+err()   { echo -e "  ${RED}❌ $1${NC}"; }
+warn()  { echo -e "  ${YELLOW}⚠  $1${NC}"; }
+info()  { echo -e "  ${GRAY}$1${NC}"; }
+section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
+# 旧名别名（兼容）
+good()  { ok "$@"; }
+bad()   { err "$@"; }
+success() { ok "$@"; }
+error()   { err "$@"; }
