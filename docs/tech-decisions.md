@@ -1,7 +1,7 @@
 # ccconfig 技术决策记录
 
 > 从 Worklog 自动提取。每次 worklog 触发后更新。
-> 数据来源: Worklog Base（配置见 `conf/f-logme.json`）
+> 数据来源: Worklog Base（配置见 `conf/flogme.json`）
 
 ## 2026-07-07 | ADR 0004 OfficeCLI Skill 架构 | [<worklog-record-id>]
 
@@ -66,7 +66,7 @@
 ## 2026-06-10 | okr-worklog 成长系统框架 | [<worklog-record-id>]
 
 **决策**: OKR + Worklog + Reflect 三层框架，PARA 方法融合 KR.PARA 字段
-**关联**: f-logme skill / OKR Base v2
+**关联**: flogme skill / OKR Base v2
 
 ## 2026-06-07 | ccconfig docs 框架：4层追踪
 
@@ -97,7 +97,7 @@
 
 ## 更新机制
 
-每次 f-logme worklog 触发时：
+每次 flogme worklog 触发时：
 1. 搜索 worklog 中 ccconfig 相关记录（标题/说明含 ccconfig|skill|hook|init|mcp|monitor|sync|config|rules 关键词）
 2. 识别技术决策类记录（含 修复|迁移|清理|框架|重构|决策|移除|统一|废弃|fix|feat|refactor|chore）
 3. 提取标题、record_id、决策要点 → 写入本文件
