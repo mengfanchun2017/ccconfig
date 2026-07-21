@@ -1,7 +1,7 @@
 # 安全网：防止个人配置误提交（配置在 ccprivate/conf/，脚本通过 resolve_conf() 读取）
 conf/claude.json
 conf/cloudflare.json
-conf/f-logme.json  # renamed to skill-config/flogme.yaml
+conf/f-logme.json  # 旧路径，配置已迁到 ccprivate/skill-config/flogme.yaml
 conf/feishu.json
 conf/llm.json
 conf/supabase.json
