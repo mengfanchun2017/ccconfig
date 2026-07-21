@@ -135,7 +135,7 @@ MOCK
 
     # skill 仓库 mock
     mkdir -p "$HOME/git/skill/plugins"
-    for s in f-diagram f-docx f-feishu flogme f-pptx f-search f-xlsx f-syncpage f-skillcreat; do
+    for s in f-diagram f-docx ffeishu flogme fpptx fsearch fxlsx fsyncpage fskillcreat; do
         mkdir -p "$HOME/git/skill/plugins/$s"
     done
     mkdir -p "$HOME/git/skill/.git"
