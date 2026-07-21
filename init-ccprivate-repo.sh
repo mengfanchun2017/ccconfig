@@ -18,7 +18,13 @@ LOCAL_BIN="$HOME/.local/bin"
 export PATH="$LOCAL_BIN:$PATH"
 
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'
-RED='\033[0;31m'; BOLD='\033[1m'; GRAY='\033[0;90m'; NC='\033[0m'
+RED='\033[0;31m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
+
+ok()    { echo -e "  ${GREEN}✅ $1${NC}"; }
+warn()  { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
+err()   { echo -e "  ${RED}❌ $1${NC}"; }
+info()  { echo -e "  ${GRAY}$1${NC}"; }
+section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 
 banner() {
     echo ""
@@ -26,12 +32,6 @@ banner() {
     echo -e "${CYAN}════════════════════════════════════${NC}"
     echo ""
 }
-
-section() { echo -e "\n${BOLD}$1${NC}"; }
-info()   { echo -e "  ${GRAY}$1${NC}"; }
-ok()     { echo -e "  ${GREEN}✅ $1${NC}"; }
-warn()   { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
-err()    { echo -e "  ${RED}❌ $1${NC}"; }
 
 # ── gh CLI 安装（如缺失） ──
 # 复用 init-ubuntu.sh 的下载逻辑：从 conf/versions.json 取版本号，binary 装到 ~/.local/bin
@@ -633,49 +633,43 @@ SETUPEOF
 create_and_push() {
     section "创建 GitHub 私有仓库"
 
-    pushd "$CCPRIVATE_DIR" >/dev/null
+    pushd "$CCPRIVATE_DIR" >/dev/null || return 1
+    local _rc=0
 
     if git remote get-url origin &>/dev/null; then
-        popd >/dev/null
-        popd >/dev/null
         info "remote 已存在，跳过创建"
-        return 0
-    fi
-
-    if ! gh auth status &>/dev/null 2>&1; then
+    elif ! gh auth status &>/dev/null 2>&1; then
         warn "gh 未认证，无法自动创建 GitHub 仓库"
-        popd >/dev/null
         info "  手动: 在 GitHub 创建私有仓库 $GH_USER/ccprivate"
         info "  然后: git remote add origin git@github.com:$GH_USER/ccprivate.git"
-        return 0
-    fi
-
-    if gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
+    elif gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
         info "GitHub 仓库已存在: $GH_USER/ccprivate"
         git remote add origin "git@github.com:$GH_USER/ccprivate.git"
+        git push -u origin main 2>&1 | tail -2
+        ok "已推送"
     else
         info "创建私有仓库: $GH_USER/ccprivate"
         gh repo create "$GH_USER/ccprivate" --private --source=. --remote=origin --push 2>&1 | tail -3
         git remote set-url origin "git@github.com:$GH_USER/ccprivate.git"
-        popd >/dev/null
         ok "仓库已创建并推送（SSH）"
-        return 0
     fi
 
-    git push -u origin main 2>&1 | tail -2
-    ok "已推送"
     popd >/dev/null
+    return $_rc
 }
 
 # ── 主流程：新建 ──
 do_create() {
     banner
 
-    # 本地已有 ccprivate → 直接跑 setup.sh，不啰嗦
-    if [ -d "$CCPRIVATE_DIR" ] && [ -n "$(ls -A "$CCPRIVATE_DIR" 2>/dev/null)" ]; then
+    # 本地已有完整 ccprivate → 跑 setup.sh 刷新
+    if [ -d "$CCPRIVATE_DIR" ] && [ -f "$CCPRIVATE_DIR/setup.sh" ]; then
         info "$CCPRIVATE_DIR 已存在，刷新符号链接"
         bash "$CCPRIVATE_DIR/setup.sh"
         return 0
+    elif [ -d "$CCPRIVATE_DIR" ] && [ -n "$(ls -A "$CCPRIVATE_DIR" 2>/dev/null)" ]; then
+        err "$CCPRIVATE_DIR 非空但缺少 setup.sh，请手动清理后重试"
+        return 1
     fi
 
     # GitHub 已有 ccprivate → 引导 clone，不新建
