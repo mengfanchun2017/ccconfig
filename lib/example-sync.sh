@@ -20,14 +20,14 @@ CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 CCPRIVATE="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 
 source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
-    GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'
-    RED='\033[0;31m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
+    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+    CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
+    ok()    { echo -e "  ${GREEN}✅ $1${NC}"; }
+    err()   { echo -e "  ${RED}❌ $1${NC}"; }
+    warn()  { echo -e "  ${YELLOW}⚠  $1${NC}"; }
+    info()  { echo -e "  ${GRAY}$1${NC}"; }
+    section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 }
-
-info() { echo -e "  ${GRAY}$1${NC}"; }
-ok()   { echo -e "  ${GREEN}✅ $1${NC}"; }
-warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
-err()  { echo -e "  ${RED}❌ $1${NC}"; }
 
 # ── 收集差异 ──
 # 返回数组: outdated=("path1" "path2")  new_files=("path3")

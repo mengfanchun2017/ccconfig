@@ -26,11 +26,12 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-# 从 ccprivate/conf/f-logme.json 读配置
+# 从 ccprivate/skill-config/f-logme.yaml 读配置
 def get_feme_config():
-    feme_json = Path.home() / "git" / "ccprivate" / "conf" / "f-logme.json"
-    with open(feme_json) as f:
-        data = json.load(f)
+    feme_yaml = Path.home() / "git" / "ccprivate" / "skill-config" / "f-logme.yaml"
+    with open(feme_yaml) as f:
+        import yaml
+        data = yaml.safe_load(f)
     okr = data["bases"]["okr_v2"]
     return okr["token"], okr["tables"]["Worklog"]
 
