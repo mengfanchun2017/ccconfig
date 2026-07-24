@@ -32,7 +32,7 @@ lark-cli auth login --device-code "<device_code>"
 - **lark-cli --as user**：所有飞书操作（文档、Base、日历、白板、表格）
 - feishu MCP 已删除，不需要任何 MCP 调用
 
-## 文档操作 → f-feishu skill
+## 文档操作 → ffeishu skill
 
 **硬前置条件**：任何 `lark-cli docs` 命令前必须先调 `ffeishu` Skill。格式约束（禁止分割线、表格必须 XML+colgroup=822、禁止手动编号、禁止 ASCII 伪图）只在 skill 调用时加载到上下文。跳过直接裸调 lark-cli 必然格式违规。
 
