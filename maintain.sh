@@ -50,11 +50,17 @@ do_finalize() {
     section "2. 启动 auto-sync"
     bash "$LIB_DIR/init-autostart.sh" enable 2>/dev/null && ok "auto-sync 已启动" || warn "auto-sync 启动失败（可手动: bash $LIB_DIR/monitor.sh start）"
 
-    # 3. 状态检查（精简版）
-    section "3. 状态总览"
+    # 3. Example 模板自动同步（静默，只复制新增/更新，不覆盖用户编辑过的）
+    if [ -x "$LIB_DIR/example-sync.sh" ]; then
+        section "3. Example 模板同步"
+        bash "$LIB_DIR/example-sync.sh" sync 2>/dev/null && ok "模板已同步" || warn "模板同步跳过"
+    fi
+
+    # 4. 状态检查（精简版）
+    section "4. 状态总览"
     bash "$LIB_DIR/status.sh"
 
-    # 4. 输出汇总
+    # 5. 输出汇总
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}  ccconfig 就绪 🎉${NC}"
@@ -63,7 +69,7 @@ do_finalize() {
     echo -e "  ${BOLD}日常命令:${NC}"
     echo ""
     echo -e "  ${CYAN}bash maintain.sh status${NC}    # 状态检查"
-    echo -e "  ${CYAN}bash maintain.sh monitor${NC}   # 监控日志"
+    echo -e "  ${CYAN}bash maintain.sh monitor${NC}   # 启动监控（tail 看日志）"
     echo -e "  ${CYAN}bash maintain.sh self all${NC}   # 更新 ccconfig + skill"
     echo -e "  ${CYAN}bash maintain.sh self skill${NC}  # 仅更新 skills"
     echo -e "  ${CYAN}bash maintain.sh upgrade all${NC} # 升级系统组件"

@@ -645,13 +645,13 @@ create_and_push() {
         info "  然后: git remote add origin git@github.com:$GH_USER/ccprivate.git"
     elif gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
         info "GitHub 仓库已存在: $GH_USER/ccprivate"
-        git remote add origin "git@github.com:$GH_USER/ccprivate.git"
+        git remote add origin "https://github.com/$GH_USER/ccprivate.git"
         git push -u origin main 2>&1 | tail -2
         ok "已推送"
     else
         info "创建私有仓库: $GH_USER/ccprivate"
         gh repo create "$GH_USER/ccprivate" --private --source=. --remote=origin --push 2>&1 | tail -3
-        git remote set-url origin "git@github.com:$GH_USER/ccprivate.git"
+        # SSH 转换由 init-ubuntu.sh 处理
         ok "仓库已创建并推送（SSH）"
     fi
 
@@ -869,7 +869,7 @@ do_clone() {
         section "克隆 ccprivate"
         gh repo clone "$GH_USER/ccprivate" "$CCPRIVATE_DIR"
     fi
-    git -C "$CCPRIVATE_DIR" remote set-url origin "git@github.com:$GH_USER/ccprivate.git" 2>/dev/null || true
+    # SSH 转换由 init-ubuntu.sh 在 SSH 连接测试通过后处理
 
     section "建立符号链接"
     bash "$CCPRIVATE_DIR/setup.sh"

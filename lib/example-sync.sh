@@ -8,6 +8,7 @@
 #   bash ccconfig/lib/example-sync.sh status          # 差异检测
 #   bash ccconfig/lib/example-sync.sh promote          # 交互式推动
 #   bash ccconfig/lib/example-sync.sh promote <file>   # 单文件推动
+#   bash ccconfig/lib/example-sync.sh sync              # 非交互自动同步（仅新增）
 #
 # 文件匹配规则：
 #   ccconfig/link/rules/<name>.md.example  →  ccprivate/rules/<name>.md
@@ -177,6 +178,23 @@ do_promote_interactive() {
 case "${1:-status}" in
     status)
         do_status
+        ;;
+    sync)
+        # 非交互自动同步：只复制新增的模板（不覆盖用户已编辑的）
+        local -a _out=() _new=()
+        collect_diffs _out _new
+        if [ ${#_new[@]} -eq 0 ] && [ ${#_out[@]} -eq 0 ]; then
+            ok "模板已是最新"
+            exit 0
+        fi
+        # 只同步新增（不覆盖用户可能编辑过的过期文件）
+        for f in "${_new[@]}"; do
+            local rel="${f#$CCCONFIG_ROOT/}"
+            promote_one "$f" > /dev/null 2>&1
+            info "新增: $rel"
+        done
+        [ ${#_out[@]} -gt 0 ] && warn "${#_out[@]} 个过期文件未覆盖（用户可能编辑过，手动: bash maintain.sh example promote）"
+        ok "模板同步完成"
         ;;
     promote)
         if [ -n "${2:-}" ]; then
