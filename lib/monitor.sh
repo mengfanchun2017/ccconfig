@@ -362,14 +362,41 @@ start_watch() {
     local event_pid=$!
 
     # Debounce loop → sync only repos that had changes
+    # Auto-restart inotifywait up to 3 times if it dies (WSL can drop watches)
     {
         trap 'kill $event_pid 2>/dev/null; pkill -P $event_pid 2>/dev/null; rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE" "$PID_FILE"; exit' EXIT
 
         pending=0
         last_push_time=0
         idle_ticks=0
+        local inotify_restarts=0
 
-        while kill -0 $event_pid 2>/dev/null; do
+        while true; do
+            if ! kill -0 $event_pid 2>/dev/null; then
+                inotify_restarts=$((inotify_restarts + 1))
+                if [ $inotify_restarts -gt 3 ]; then
+                    do_log "inotifywait died 3 times, giving up"
+                    break
+                fi
+                do_log "inotifywait died, restarting (attempt $inotify_restarts/3)..."
+                inotifywait -m -r -q                     --exclude '(\.git/|_ext/|\.snapshots/|node_modules/)'                     -e modify,create,delete,move                     "$WATCH_DIR" 2> >(tr -d '\000' >> "$LOG_FILE") | while IFS= read -r line; do
+                        case "$line" in
+                            *".monitor-sync"*) continue ;;
+                            *".tmp."*) continue ;;
+                            *".snapshots/"*) continue ;;
+                            *"_ext/"*) continue ;;
+                        esac
+                        local filepath=$(echo "$line" | awk '{print $1}')
+                        local repo_root
+                        repo_root=$(get_repo_root "$filepath" 2>/dev/null) || continue
+                        git -C "$repo_root" remote get-url origin &>/dev/null 2>&1 || continue
+                        echo "[$(date '+%H:%M:%S')] $(repo_name "$repo_root"): $line" | tr -d '\000' >> "$LOG_FILE"
+                        date +%s > "$DEBOUNCE_FILE"
+                        echo "$repo_root" >> "$CHANGED_REPOS_FILE"
+                    done &
+                event_pid=$!
+                sleep 2
+            fi
             sleep 2
             if [ ! -f "$DEBOUNCE_FILE" ]; then
                 idle_ticks=$((idle_ticks + 1))
@@ -530,7 +557,12 @@ status_watch() {
     local service_file="$HOME/.config/systemd/user/claude-auto-sync.service"
     echo -n "  systemd 自启动 ... "
     if [ -f "$service_file" ]; then
-        echo -e "${GREEN}✅${NC}"
+        if systemctl --user status claude-auto-sync.service &>/dev/null 2>&1; then
+            echo -e "${GREEN}✅${NC}"
+        else
+            echo -e "${YELLOW}⚠ ${NC}service 文件存在，但 systemd user bus 不可用（WSL 常见）"
+            echo -e "  ${GRAY}替代启动: bash ccconfig/lib/monitor.sh start${NC}"
+        fi
     else
         echo -e "${RED}❌${NC} 未配置"
     fi
@@ -688,12 +720,13 @@ push_public() {
 }
 
 # ========== Main ==========
-case "${1:-tail}" in
+case "${1}" in
     start)    start_watch ;;
     stop)     stop_watch ;;
     status)   status_watch ;;
     log)      log_watch "$2" ;;
     monitor)  run_monitor ;;
+    ""|start) start_watch ;;
     tail)     tail_watch ;;
     pub|pushpub) push_public ;;
     help|--help|-h) show_help ;;

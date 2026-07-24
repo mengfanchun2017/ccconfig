@@ -48,6 +48,18 @@ install_option() {
     local name="$1"
     shift
 
+    # bridge 子选项：lark-cli / cconnect
+    if [ "$name" = "lark-cli" ] && has_init_script "bridge"; then
+        section "安装 lark-cli（飞书文档工具）"
+        bash "$SCRIPT_DIR/option-bridge/init.sh" --lark-cli
+        return $?
+    fi
+    if [ "$name" = "cconnect" ] && has_init_script "bridge"; then
+        section "安装 cc-connect（飞书消息 Bridge）"
+        bash "$SCRIPT_DIR/option-bridge/init.sh" --cc-connect
+        return $?
+    fi
+
     # option-* 目录
     if has_init_script "$name"; then
         section "安装 $name"
@@ -162,6 +174,32 @@ install_nano() {
     fi
 }
 
+# ── bridge 子选项状态 ──
+bridge_sub_status() {
+    local sub="$1"
+    if [ "$sub" = "lark-cli" ]; then
+        if command -v lark-cli &>/dev/null; then
+            if lark-cli config show 2>/dev/null | grep -q "appId"; then
+                echo -e "${GREEN}✅${NC} lark-cli 已配置"
+            else
+                echo -e "${GREEN}✅${NC} lark-cli 已安装"
+            fi
+        else
+            echo -e "${GRAY}－${NC} lark-cli 未安装"
+        fi
+    else
+        if command -v cc-connect &>/dev/null; then
+            if pgrep -f "cc-connect" >/dev/null 2>&1; then
+                echo -e "${GREEN}✅${NC} cc-connect 运行中"
+            else
+                echo -e "${YELLOW}○${NC} cc-connect 未运行"
+            fi
+        else
+            echo -e "${GRAY}－${NC} cc-connect 未安装"
+        fi
+    fi
+}
+
 # ── 状态查询 ──
 option_status() {
     local name="$1"
@@ -236,16 +274,24 @@ list_all() {
 interactive_menu() {
     echo -e "${CYAN}Claude Code 可选组件安装${NC}"
 
-    # 收集所有选项
+    # 收集所有选项（bridge 拆分为 lark-cli + cconnect）
     local -a all_names
     for n in bat glow nano; do all_names+=("$n"); done
     local dirs
     dirs=$(list_option_dirs)
-    for d in $dirs; do all_names+=("${d#option-}"); done
+    for d in $dirs; do
+        local bare="${d#option-}"
+        if [ "$bare" = "bridge" ]; then
+            all_names+=("lark-cli")
+            all_names+=("cconnect")
+        else
+            all_names+=("$bare")
+        fi
+    done
 
     while true; do
         list_all
-        read -p "选择安装 (1-${#all_names[@]}, 输入 a 安装全部, 0 退出): " choice
+        read -p "选择安装 (1-${#all_names[@]}, 空格分隔多选, a 全部, 0 退出): " choice
 
         case "$choice" in
             0|q|exit) echo ""; exit 0 ;;
@@ -258,11 +304,15 @@ interactive_menu() {
                 echo ""
                 ;;
             *)
-                if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#all_names[@]} ]; then
-                    install_option "${all_names[$((choice - 1))]}"
-                else
+                local any_valid=false
+                for token in $choice; do
+                    if [[ "$token" =~ ^[0-9]+$ ]] && [ "$token" -ge 1 ] && [ "$token" -le ${#all_names[@]} ]; then
+                        install_option "${all_names[$((token - 1))]}"
+                        any_valid=true
+                    fi
+                done
+                if ! $any_valid; then
                     warn "无效选择"
-                    continue
                 fi
                 ;;
         esac
@@ -284,7 +334,15 @@ case "${1:-menu}" in
     all|--all|-a)
         shift 2>/dev/null || true
         for n in bat glow nano; do install_option "$n"; done
-        for d in $(list_option_dirs); do install_option "${d#option-}"; done
+        for d in $(list_option_dirs); do
+            local bare="${d#option-}"
+            if [ "$bare" = "bridge" ]; then
+                install_option "lark-cli"
+                install_option "cconnect"
+            else
+                install_option "$bare"
+            fi
+        done
         echo -e "\n${GREEN}✅ 全部可选组件安装完成${NC}"
         ;;
     menu|--menu|"")
