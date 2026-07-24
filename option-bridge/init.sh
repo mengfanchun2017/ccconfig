@@ -37,11 +37,10 @@ warn() { echo -e "${YELLOW}$1${NC}"; }
 info() { echo -e "${GRAY}$1${NC}"; }
 
 banner() {
-    echo -e "${CYAN}"
-    echo "飞书 Bridge 初始化（可选组件）"
-    echo "═══════════════════════════════════"
-    echo "    lark-cli (文档) + cc-connect (消息)"
-    echo "$NC"
+    echo -e "${CYAN}飞书 Bridge 初始化（可选组件）${NC}"
+    echo -e "${CYAN}═══════════════════════════════════${NC}"
+    echo -e "  lark-cli (文档) + cc-connect (消息)"
+    echo ""
 }
 
 # ========== JSON 读取 ==========
@@ -116,6 +115,7 @@ run_lark_cli() {
     fi
 
     echo -e "${CYAN}配置 lark-cli 账号 (${#apps[@]} 个):${NC}"
+    local first_name=""
     for line in "${apps[@]}"; do
         local name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
         local brand=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('brand','feishu'))" 2>/dev/null)
@@ -124,7 +124,16 @@ run_lark_cli() {
         local lc=$(echo "$line" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('larkCli',{})))" 2>/dev/null)
         local config_dir=$(echo "$lc" | python3 -c "import json,sys; print(json.load(sys.stdin).get('configDir','~/.lark-cli'))" 2>/dev/null || echo "~/.lark-cli")
         setup_lark_cli_account "$name" "$brand" "$app_id" "$app_secret" "$config_dir"
+        [ -z "$first_name" ] && first_name="$name"
     done
+
+    # 激活第一个账号（写入 marker 文件，status.sh 可检测）
+    if [ -n "$first_name" ]; then
+        echo ""
+        echo -e "${CYAN}激活默认账号: ${GREEN}${first_name}${NC}"
+        bash "$SCRIPT_DIR/lark-switch.sh" "$first_name"
+        echo -e "${GRAY}后续切换: bash ccconfig/option-bridge/lark-switch.sh <name>${NC}"
+    fi
 }
 
 # ========== cc-connect ==========

@@ -176,7 +176,7 @@ ensure_pip() {
     fi
     warn "pip3 未安装，尝试安装..."
     if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null; then
-        sudo apt-get install -y python3-pip python3-venv 2>/dev/null && success "pip3 已安装" && return 0
+        sudo apt-get install -y -qq --no-install-recommends python3-pip &>/dev/null && success "pip3 已安装" && return 0
     fi
     python3 -m ensurepip --user 2>/dev/null && success "pip (ensurepip)" && return 0
     warn "pip 安装失败，Python 包管理功能不可用"
@@ -196,8 +196,8 @@ setup_python_packages() {
     # 确保 pip3 可用（WSL Ubuntu 默认无 python3-pip）
     if ! command -v pip3 &>/dev/null; then
         if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null; then
-            info "安装 python3-pip + python3-venv（apt）..."
-            sudo apt-get install -y python3-pip python3-venv 2>/dev/null || {
+            info "安装 python3-pip（apt）..."
+            sudo apt-get install -y -qq --no-install-recommends python3-pip &>/dev/null || {
                 warn "apt 安装失败，尝试 ensurepip..."
                 python3 -m ensurepip --user 2>/dev/null || true
             }
@@ -215,11 +215,16 @@ setup_python_packages() {
 
     info "安装 Python 依赖..."
     local out
-    out=$(pip3 install --user -r "$req_file" 2>&1) || {
-        warn "部分包安装失败（可能已满足或需 sudo apt install python3-xxx）"
-        echo "$out" | tail -5
-        return 0
-    }
+    # Ubuntu 24.04+ PEP 668: try --user first, fall back to --break-system-packages
+    out=$(pip3 install --user -r "$req_file" 2>&1) || true
+    if echo "$out" | grep -q "externally-managed-environment"; then
+        info "PEP 668 环境，使用 --break-system-packages..."
+        out=$(pip3 install --break-system-packages --user -r "$req_file" 2>&1) || {
+            warn "部分包安装失败（可能已满足或需 sudo apt install python3-xxx）"
+            echo "$out" | tail -5
+            return 0
+        }
+    fi
     success "Python pip 包已安装"
 }
 
@@ -403,7 +408,13 @@ setup_ssh_github() {
     WIN_USER=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' || echo "")
     local WIN_SSH_DIR="/mnt/c/Users/${WIN_USER}/.ssh"
     local KEY_NAME="id_ed25519"
-    local GITHUB_EMAIL="${CONFIG_EMAIL:-you@example.com}"
+        local GITHUB_EMAIL
+    GITHUB_EMAIL=$(git config --global user.email 2>/dev/null || echo "")
+    if [[ -z "$GITHUB_EMAIL" ]]; then
+        local ubuntu_json="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/ubuntu.json"
+        GITHUB_EMAIL=$(python3 -c "import json; print(json.load(open('$ubuntu_json')).get('git',{}).get('email',''))" 2>/dev/null || echo "")
+    fi
+    GITHUB_EMAIL="${GITHUB_EMAIL:-you@example.com}"
 
     mkdir -p "$SSH_DIR"
     chmod 700 "$SSH_DIR"
@@ -417,6 +428,25 @@ setup_ssh_github() {
         chmod 600 "$SSH_DIR/$KEY_NAME"
         chmod 644 "$SSH_DIR/${KEY_NAME}.pub"
         success "SSH 密钥已从 Windows 宿主复制"
+
+        # 提示验证公钥是否已添加
+        echo ""
+        warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        warn "⚠ 确认此公钥已添加到 GitHub："
+        warn ""
+        echo "   https://github.com/settings/keys"
+        warn ""
+        cat "$SSH_DIR/${KEY_NAME}.pub"
+        warn ""
+        warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+
+        if ! ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 git@github.com 2>&1 | grep -q "successfully authenticated"; then
+            warn "SSH 测试未通过，公钥可能未添加到 GitHub"
+            info "添加后运行: ssh -T git@github.com 验证"
+        else
+            success "SSH 连接已验证 ✓"
+        fi
     else
         info "生成新的 SSH 密钥..."
         ssh-keygen -t ed25519 -C "$GITHUB_EMAIL" -f "$SSH_DIR/$KEY_NAME" -N ""
@@ -462,38 +492,38 @@ SSHEOF
 
     # === 2.5. 预添加 GitHub 主机密钥（避免首次连接 yes/no 交互） ===
     if ! grep -q "github.com" "$SSH_DIR/known_hosts" 2>/dev/null; then
-        ssh-keyscan github.com >> "$SSH_DIR/known_hosts" 2>/dev/null || true
+        timeout 10 ssh-keyscan github.com >> "$SSH_DIR/known_hosts" 2>/dev/null || true
         chmod 644 "$SSH_DIR/known_hosts"
         info "GitHub 主机密钥已添加"
     fi
 
-    # === 3. 扫描 ~/git/ 下所有仓库，HTTPS → SSH ===
-    if [[ -d "$HOME/git" ]]; then
-        while IFS= read -r -d '' gitdir; do
-            local repo_dir=$(dirname "$gitdir")
-            local current_url=$(git -C "$repo_dir" remote get-url origin 2>/dev/null || echo "")
-            if [[ "$current_url" == https://github.com/* ]]; then
-                local repo_path="${current_url#https://github.com/}"
-                git -C "$repo_dir" remote set-url origin "git@github.com:${repo_path}"
-                success "$(basename "$repo_dir"): HTTPS → SSH"
-            elif [[ "$current_url" == git@github.com:* ]]; then
-                info "$(basename "$repo_dir"): 已是 SSH"
-            fi
-        done < <(find "$HOME/git" -maxdepth 3 -name .git -type d -print0 2>/dev/null)
-    fi
-
-    # === 4. 测试连接 ===
+    # === 3. 测试连接 ===
     info "测试 GitHub SSH 连接..."
-    if ssh -T -o StrictHostKeyChecking=accept-new git@github.com 2>&1 | grep -q "successfully authenticated"; then
+    if ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 git@github.com 2>&1 | grep -q "successfully authenticated"; then
         success "GitHub SSH 连接成功"
 
-        # SSH 通了，设置全局规则让以后所有 GitHub 仓库自动走 SSH
+        # SSH 通了，扫描仓库转 HTTPS → SSH + 设置全局规则
+        if [[ -d "$HOME/git" ]]; then
+            while IFS= read -r -d '' gitdir; do
+                local repo_dir=$(dirname "$gitdir")
+                local current_url=$(git -C "$repo_dir" remote get-url origin 2>/dev/null || echo "")
+                if [[ "$current_url" == https://github.com/* ]]; then
+                    local repo_path="${current_url#https://github.com/}"
+                    git -C "$repo_dir" remote set-url origin "git@github.com:${repo_path}"
+                    success "$(basename "$repo_dir"): HTTPS → SSH"
+                elif [[ "$current_url" == git@github.com:* ]]; then
+                    info "$(basename "$repo_dir"): 已是 SSH"
+                fi
+            done < <(find "$HOME/git" -maxdepth 3 -name .git -type d -print0 2>/dev/null)
+        fi
+
         if [[ "$(git config --global url.'git@github.com:'.insteadOf 2>/dev/null)" != "https://github.com/" ]]; then
             git config --global url."git@github.com:".insteadOf "https://github.com/"
             success "全局 Git 已配置: HTTPS 自动替换为 SSH"
         fi
     else
         warn "GitHub SSH 连接测试未通过（可能需先添加公钥到 github.com/settings/keys）"
+        warn "仓库保持 HTTPS，SSH 配好后运行 maintain.sh fix 自动转换"
     fi
 }
 
