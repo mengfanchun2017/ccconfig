@@ -187,7 +187,7 @@ commit_and_push() {
 
     git -C "$repo_dir" add -A -- ':!.monitor-sync.*' 2>/dev/null || warn "[$repo] git add failed (nested .git?)"
 
-    # Skill sync: independent of pull/push, builds local symlinks for new skills in link/skills/.
+    # Skill sync: independent of pull/push, builds local symlinks for new skills in templates/skills/.
     # Runs before commit so even "nothing to commit" still rebuilds links.
     if [ -f "$repo_dir/lib/init-skill.sh" ]; then
         local skill_output skill_rc

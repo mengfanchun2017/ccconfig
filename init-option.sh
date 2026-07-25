@@ -110,10 +110,10 @@ install_bat() {
     fi
 
     # alias cat=bat
-    local alias_file="$HOME/.claude/shell_aliases.sh"
+    local alias_file="$HOME/.claude/shell_init.sh"
     if [ -f "$alias_file" ] && ! grep -q "alias cat=bat" "$alias_file" 2>/dev/null; then
         echo -e "\n# bat: cat 替代\nif command -v batcat &>/dev/null; then\n    alias cat=batcat\nelif command -v bat &>/dev/null; then\n    alias cat=bat\nfi" >> "$alias_file"
-        ok "alias cat=bat 已写入 shell_aliases.sh"
+        ok "alias cat=bat 已写入 shell_init.sh"
     elif grep -q "alias cat=bat" "$alias_file" 2>/dev/null; then
         ok "alias cat=bat 已存在"
     fi

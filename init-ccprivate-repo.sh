@@ -546,7 +546,7 @@ gen_setup_sh() {
 # 职责：
 #   1. 用户级文件 symlink → ~/ 和 ~/.claude/
 #   2. 运行时链接（rules/agents/commands → ccprivate）
-#   3. ccconfig 公开链接（shell_aliases + pre-commit hook）
+#   3. ccconfig 公开链接（shell_init + pre-commit hook）
 #
 # 用法：
 #   bash ~/git/ccprivate/setup.sh
@@ -616,7 +616,7 @@ if [ -d "$SCRIPT_DIR/commands" ]; then
     setup_link "$CLAUDE_DIR/commands" "$SCRIPT_DIR/commands" "commands → ccprivate/commands"
 fi
 
-# --- ccconfig 公开链接（shell_aliases + pre-commit hook） ---
+# --- ccconfig 公开链接（shell_init + pre-commit hook） ---
 echo "--- ccconfig 公开链接 ---"
 if [ -x "$CCCONFIG_DIR/lib/setup-links.sh" ]; then
     bash "$CCCONFIG_DIR/lib/setup-links.sh"
@@ -719,7 +719,7 @@ do_create() {
     done
 
     # 复制 rules .example 到 ccprivate（首次初始化）
-    for example in "$CCCONFIG_DIR"/link/rules/*.md.example; do
+    for example in "$CCCONFIG_DIR"/templates/rules/*.md.example; do
         [ -f "$example" ] || continue
         local base=$(basename "$example" .md.example)
         local target="$CCPRIVATE_DIR/rules/$base.md"
@@ -730,7 +730,7 @@ do_create() {
     done
 
     # 复制 agents .example 到 ccprivate（首次初始化）
-    for example in "$CCCONFIG_DIR"/link/agents/*.md.example; do
+    for example in "$CCCONFIG_DIR"/templates/agents/*.md.example; do
         [ -f "$example" ] || continue
         local base=$(basename "$example" .md.example)
         local target="$CCPRIVATE_DIR/agents/$base.md"

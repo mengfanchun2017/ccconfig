@@ -103,8 +103,8 @@
 角色: TL
 前置: fork 了 ccconfig
 流程:
-  1. 修改 link/rules/ 添加团队编码规范
-  2. 修改 link/agents/ 添加团队专用 agent
+  1. 修改 templates/rules/ 添加团队编码规范
+  2. 修改 templates/agents/ 添加团队专用 agent
   3. 修改 conf/third-party-skills.txt 添加团队需要的 skill
   4. git push → 团队成员 git pull
 后置: 团队成员拿到统一配置

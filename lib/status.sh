@@ -24,6 +24,10 @@ source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/path-helper.sh"
 REPO_DIR="$CCCONFIG_ROOT"
 
+# --quick: 跳过慢检查（Playwright、MCP、option 组件、模板对比）
+QUICK_MODE=false
+[[ "${1:-}" == "--quick" ]] && QUICK_MODE=true
+
 # ========== Git 拉取 ==========
 git_pull() {
     if [ ! -d "$REPO_DIR/.git" ]; then
@@ -81,8 +85,8 @@ check_symlinks() {
     elif [ -d "$HOME/.claude/projects" ]; then
         # Claude Code 自动创建了 projects 目录
         mem_ok=true
-    elif [ -L "$CCCONFIG_ROOT/link/projects" ]; then
-        # ccconfig/link/projects → ccprivate/link/projects 链路存在
+    elif [ -d "$CCPRIVATE_HOME/link/projects" ]; then
+        # ccprivate/link/projects 链路存在
         # ~/.claude/projects 尚未创建（新装，Claude Code 未运行过）
         mem_ok=true
     fi
@@ -653,7 +657,7 @@ check_skills() {
 
 # ========== Example 模板同步检查 ==========
 check_example_sync() {
-    local ccconfig_example="$CCCONFIG_ROOT/link"
+    local ccconfig_example="$CCCONFIG_ROOT/templates"
     local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 
     echo ""
@@ -734,7 +738,11 @@ check_example_sync() {
 # ========== 执行所有检查 ==========
 
 echo ""
-echo -e "${GREEN}=== Claude Config 状态检查 ===${NC}"
+if $QUICK_MODE; then
+    echo -e "${GREEN}=== Claude Config 状态检查（快速模式）===${NC}"
+else
+    echo -e "${GREEN}=== Claude Config 状态检查 ===${NC}"
+fi
 echo ""
 
 git_pull
@@ -745,10 +753,13 @@ check_last_push
 check_memory
 check_git_projects
 check_feishu
-check_playwright
-check_mcp
-check_option_components
-check_skills
-check_example_sync
+
+if ! $QUICK_MODE; then
+    check_playwright
+    check_mcp
+    check_option_components
+    check_skills
+    check_example_sync
+fi
 
 echo ""

@@ -2,7 +2,7 @@
 # ==============================================
 # setup-links.sh — ccconfig 公开部分符号链接
 #
-# 处理：shell_aliases.sh + pre-commit hook
+# 处理：shell_init.sh + pre-commit hook
 # rules/agents/commands 已移至 ccprivate/setup.sh 管理
 # 私有部分（CLAUDE.md, settings.json, .config.json, memory, projects）
 # 由 ccprivate/setup.sh 管理。
@@ -52,9 +52,12 @@ setup_link() {
 setup_symlinks() {
     section "符号链接"
 
-    # shell_aliases.sh（跨终端 shell 别名同步）
-    if [[ -f "$CCCONFIG_ROOT/link/shell_aliases.sh" ]]; then
-        setup_link "$CLAUDE_DIR/shell_aliases.sh" "$CCCONFIG_ROOT/link/shell_aliases.sh" "shell_aliases.sh"
+    # 清理旧 shell_aliases.sh（已重命名为 shell_init.sh）
+    [[ -L "$CLAUDE_DIR/shell_aliases.sh" ]] && rm -f "$CLAUDE_DIR/shell_aliases.sh"
+
+    # shell_init.sh（终端初始化：monitor 自启、memory symlink、别名/函数）
+    if [[ -f "$CCCONFIG_ROOT/lib/shell_init.sh" ]]; then
+        setup_link "$CLAUDE_DIR/shell_init.sh" "$CCCONFIG_ROOT/lib/shell_init.sh" "shell_init.sh"
     fi
 
     # skills 由 option-skill/init.sh 管理（可选组件），此处不做，避免重复初始化

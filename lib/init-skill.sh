@@ -515,7 +515,7 @@ do_list() {
         [[ -L "$d" ]] || marker="○"
         local src
         if [[ -L "$d" ]]; then
-            src=$(readlink "$d" | sed 's|.*/\.agents/skills/|npx: |; s|.*/skill/plugins/|skill: |; s|.*/link/skills/|ccconfig (legacy): |')
+            src=$(readlink "$d" | sed 's|.*/\.agents/skills/|npx: |; s|.*/skill/plugins/|skill: |; s|.*/templates/skills/|ccconfig (legacy): |')
         else
             src="(本地)"
         fi

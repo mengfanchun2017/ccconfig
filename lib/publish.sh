@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# publish.sh — 把 ccconfig/link/skills/ 的指定 skill 推到 skill/plugins/
+# publish.sh — 把 ccconfig/templates/skills/ 的指定 skill 推到 skill/plugins/
 # 用法:
 #   bash publish.sh <skill-name> [<skill-name> ...]
 #   bash publish.sh --push <skill-name> [<skill-name> ...]   # 同步 + push
 #
 # 行为:
-#   1. 复制 ccconfig/link/skills/<skill> → skill/plugins/<skill>
+#   1. 复制 ccconfig/templates/skills/<skill> → skill/plugins/<skill>
 #   2. 在 skill 仓 git add + commit
 #   3. 默认不 push；加 --push 才推到 origin
 #
@@ -47,7 +47,7 @@ fi
 
 # 校验源
 for skill in "${SKILLS[@]}"; do
-  src="$CCCONFIG_DIR/link/skills/$skill"
+  src="$CCCONFIG_DIR/templates/skills/$skill"
   if [[ ! -d "$src" ]]; then
     echo "❌ 源不存在: $src"
     exit 1
@@ -68,7 +68,7 @@ fi
 # 复制
 echo "=== 复制 ==="
 for skill in "${SKILLS[@]}"; do
-  src="$CCCONFIG_DIR/link/skills/$skill"
+  src="$CCCONFIG_DIR/templates/skills/$skill"
   dst="$PLUGINS_DIR/$skill"
 
   if [[ -d "$dst" ]]; then
@@ -106,7 +106,7 @@ SKILL_LIST=$(IFS=', '; echo "${SKILLS[*]}")
 COMMIT_MSG="sync: 发布 ${SKILL_LIST}
 
 由 ccconfig/lib/publish.sh 自动生成。
-源: ccconfig/link/skills/ (本地)
+源: ccconfig/templates/skills/ (本地)
 目标: skill/plugins/ (公开)
 
 Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"

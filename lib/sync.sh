@@ -75,7 +75,7 @@ do_cconfig_post() {
 
     # rules 新模板检测
     local rules_found=0
-    for example in "$CCCONFIG_ROOT"/link/rules/*.md.example; do
+    for example in "$CCCONFIG_ROOT"/templates/rules/*.md.example; do
         [ -f "$example" ] || continue
         local base=$(basename "$example" .md.example)
         local target="$ccpriv/rules/$base.md"
@@ -89,19 +89,19 @@ do_cconfig_post() {
     [ $rules_found -eq 0 ] || echo -e "  ${GRAY}rules 新模板已复制到 ccprivate${NC}"
 
     # agents 新模板检测
-	    local agents_found=0
-	    for example in "$CCCONFIG_ROOT"/link/agents/*.md.example; do
-	        [ -f "$example" ] || continue
-	        local base=$(basename "$example" .md.example)
-	        local target="$ccpriv/agents/$base.md"
-	        if [ ! -f "$target" ]; then
-	            mkdir -p "$ccpriv/agents"
-	            cp "$example" "$target"
-	            echo -e "  ${GREEN}✅${NC} 新建 agents/$base.md (→ ccprivate/agents/)"
-	            agents_found=1
-	        fi
-	    done
-	    [ $agents_found -eq 0 ] || echo -e "  ${GRAY}agents 新模板已复制到 ccprivate${NC}"
+    local agents_found=0
+    for example in "$CCCONFIG_ROOT"/templates/agents/*.md.example; do
+        [ -f "$example" ] || continue
+        local base=$(basename "$example" .md.example)
+        local target="$ccpriv/agents/$base.md"
+        if [ ! -f "$target" ]; then
+            mkdir -p "$ccpriv/agents"
+            cp "$example" "$target"
+            echo -e "  ${GREEN}✅${NC} 新建 agents/$base.md (→ ccprivate/agents/)"
+            agents_found=1
+        fi
+    done
+    [ $agents_found -eq 0 ] || echo -e "  ${GRAY}agents 新模板已复制到 ccprivate${NC}"
     echo ""
     echo -e "${CYAN}── 依赖检查 ──${NC}"
     [ -x "$SCRIPT_DIR/deps-check.sh" ] && bash "$SCRIPT_DIR/deps-check.sh" --required
