@@ -109,7 +109,7 @@ MOCK
     local proj_id
     proj_id="-$(echo "$HOME/git" | sed 's|^/||; s|/|-|g')"
     local mem_dir="$HOME/.claude/projects/$proj_id/memory"
-    local link_proj="$HOME/git/ccconfig/link/projects/$proj_id/memory"
+    local link_proj="$HOME/git/ccprivate/link/projects/$proj_id/memory"
 
     # condition 1: memory_dir 是 symlink → 目标目录下的 MEMORY.md
     mkdir -p "$(dirname "$mem_dir")"
@@ -125,8 +125,8 @@ MOCK
         echo "  [mock] MEMORY.md symlink FAILED (-L=$([ -L "$mem_dir" ] && echo 1 || echo 0), -f=$([ -f "$mem_dir/MEMORY.md" ] && echo 1 || echo 0))" >&2
     fi
 
-    # 清理 link/projects/ 中的无关项目（避免 check_memory 误报断链）
-    for extra in "$HOME/git/ccconfig/link/projects"/*/; do
+    # 清理 ccprivate link/projects/ 中的无关项目（避免 check_memory 误报断链）
+    for extra in "$HOME/git/ccprivate/link/projects"/*/; do
         [[ -d "$extra" ]] || continue
         local ename=$(basename "$extra")
         [[ "$ename" == "$proj_id" ]] && continue
