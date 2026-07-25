@@ -327,6 +327,10 @@ start_watch() {
     QUIET_MODE=true
     resurrect_pm2 &
 
+    # 清理上次崩溃残留的僵尸 inotifywait
+    pkill -f "inotifywait.*$WATCH_DIR" 2>/dev/null || true
+    sleep 1
+
     rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
     find "$WATCH_DIR" -maxdepth 2 -name '.monitor-sync.lock' -type d -exec rmdir {} \; 2>/dev/null || true
 
@@ -336,13 +340,12 @@ start_watch() {
     local min_push_gap=60
 
     inotifywait -m -r -q \
-        --exclude '(\.git/|_ext/|\.snapshots/|node_modules/)' \
+        --exclude '(\.git/|_ext/|\.snapshots/|node_modules/|\.tmp\.)' \
         -e modify,create,delete,move \
         "$WATCH_DIR" 2> >(tr -d '\000' >> "$LOG_FILE") | while IFS= read -r line; do
             # Skip sync-internal files
             case "$line" in
                 *".monitor-sync"*) continue ;;
-                *".tmp."*) continue ;;
                 *".snapshots/"*) continue ;;
                 *"_ext/"*) continue ;;
             esac
@@ -379,10 +382,9 @@ start_watch() {
                     break
                 fi
                 do_log "inotifywait died, restarting (attempt $inotify_restarts/3)..."
-                inotifywait -m -r -q                     --exclude '(\.git/|_ext/|\.snapshots/|node_modules/)'                     -e modify,create,delete,move                     "$WATCH_DIR" 2> >(tr -d '\000' >> "$LOG_FILE") | while IFS= read -r line; do
+                inotifywait -m -r -q                     --exclude '(\.git/|_ext/|\.snapshots/|node_modules/|\.tmp\.)'                     -e modify,create,delete,move                     "$WATCH_DIR" 2> >(tr -d '\000' >> "$LOG_FILE") | while IFS= read -r line; do
                         case "$line" in
                             *".monitor-sync"*) continue ;;
-                            *".tmp."*) continue ;;
                             *".snapshots/"*) continue ;;
                             *"_ext/"*) continue ;;
                         esac
@@ -460,6 +462,13 @@ start_watch() {
     echo -e "${GRAY}Use: status | log | tail${NC}"
     echo -e "${GRAY}Watching: $WATCH_DIR → all git repos${NC}"
     echo -e "${GRAY}Repos: $(list_repos | xargs -I{} basename {} | tr '\n' ' ')${NC}"
+
+    # 启动后 30s 扫描已有改动（不等 debounce）
+    (
+        sleep 30
+        do_log "Initial scan for pending changes..."
+        sync_repos
+    ) &
 }
 
 # ========== Stop monitoring ==========
@@ -554,14 +563,22 @@ status_watch() {
     fi
 
     # systemd 自启动
-    local service_file="$HOME/.config/systemd/user/claude-auto-sync.service"
+    local user_svc="$HOME/.config/systemd/user/claude-auto-sync.service"
+    local sys_svc="/etc/systemd/system/claude-auto-sync.service"
     echo -n "  systemd 自启动 ... "
-    if [ -f "$service_file" ]; then
-        if systemctl --user status claude-auto-sync.service &>/dev/null 2>&1; then
-            echo -e "${GREEN}✅${NC}"
+    if [ -f "$sys_svc" ]; then
+        if systemctl is-active --quiet claude-auto-sync.service 2>/dev/null; then
+            echo -e "${GREEN}✅${NC} (system-level)"
         else
-            echo -e "${YELLOW}⚠ ${NC}service 文件存在，但 systemd user bus 不可用（WSL 常见）"
-            echo -e "  ${GRAY}替代启动: bash ccconfig/lib/monitor.sh start${NC}"
+            echo -e "${YELLOW}⚠ ${NC}system service 存在但未运行 → sudo systemctl enable --now claude-auto-sync"
+        fi
+    elif [ -f "$user_svc" ]; then
+        if systemctl --user status claude-auto-sync.service &>/dev/null 2>&1; then
+            echo -e "${GREEN}✅${NC} (user-level)"
+        else
+            echo -e "${YELLOW}⚠ ${NC}user service 存在，但 systemd user bus 不可用（WSL 常见）"
+            echo -e "  ${GRAY}替代: bash ccconfig/lib/monitor.sh start${NC}"
+            echo -e "  ${GRAY}推荐: 安装 system-level service → sudo cp ccconfig/lib/claude-auto-sync.service /etc/systemd/system/ && sudo systemctl enable --now claude-auto-sync${NC}"
         fi
     else
         echo -e "${RED}❌${NC} 未配置"
@@ -679,7 +696,7 @@ run_monitor() {
     echo ""
 
     inotifywait -m -r -q \
-        --exclude '\.git/|_ext/|\.snapshots/|node_modules/|\.log$|\.monitor-sync\.|\.tmp$|\.swp$' \
+        --exclude '\.git/|_ext/|\.snapshots/|node_modules/|\.log$|\.monitor-sync\.|\.tmp$|\.tmp\.|\.swp$' \
         -e modify,create,delete,move \
         "$WATCH_DIR" 2>/dev/null | while read -r path action file; do
             local full_path="${path}${file}"

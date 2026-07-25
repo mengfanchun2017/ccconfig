@@ -238,7 +238,7 @@ check_git_projects() {
                 claude_status="${RED}❌ 断链${NC}"
             fi
         elif [ -f "${git_dir}CLAUDE.md" ]; then
-            claude_status="${YELLOW}📄 本地文件${NC}"
+            claude_status="${YELLOW}📄 项目文件${NC}"
         else
             claude_status="${GRAY}－${NC}"
         fi

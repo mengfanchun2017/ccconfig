@@ -1,10 +1,13 @@
 #!/bin/bash
 # Claude Config - 启用/禁用 auto-sync 自启动
 #
+# 统一使用系统级 systemd service（WSL 和原生 Linux 通用）：
+#   /etc/systemd/system/claude-auto-sync.service
+#
 # 使用方法：
-#   bash ccconfig/init-autostart.sh enable   # 启用自启动
-#   bash ccconfig/init-autostart.sh disable  # 禁用自启动
-#   bash ccconfig/init-autostart.sh status    # 查看状态
+#   bash ccconfig/lib/init-autostart.sh enable   # 启用自启动
+#   bash ccconfig/lib/init-autostart.sh disable  # 禁用自启动
+#   bash ccconfig/lib/init-autostart.sh status   # 查看状态
 #
 
 set -e
@@ -12,142 +15,119 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+GRAY='\033[0;90m'
 NC='\033[0m'
 
 info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-SYSTEMD_SERVICE="$HOME/.config/systemd/user/claude-auto-sync.service"
-SYSTEMD_SERVICE_NAME="claude-auto-sync"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CCCONFIG_HOME="${CCCONFIG_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+SVC_TEMPLATE="$SCRIPT_DIR/claude-auto-sync.service"
+SYS_SVC_FILE="/etc/systemd/system/claude-auto-sync.service"
+SVC_NAME="claude-auto-sync"
+USER_SVC_FILE="$HOME/.config/systemd/user/claude-auto-sync.service"
+
+# ── 清理旧用户级 service（迁移遗留） ──
+
+cleanup_legacy_user_service() {
+    if [ -f "$USER_SVC_FILE" ]; then
+        info "清理旧用户级 service..."
+        systemctl --user disable --now "$SVC_NAME" 2>/dev/null || true
+        rm -f "$USER_SVC_FILE"
+        rm -f "$HOME/.config/systemd/user/default.target.wants/$SVC_NAME" 2>/dev/null || true
+    fi
+}
+
+# ── 清理僵尸 inotifywait ──
+
+cleanup_zombie_inotify() {
+    sudo pkill -f "inotifywait.*$HOME/git" 2>/dev/null || true
+}
+
+# ── enable/disable ──
 
 enable_autostart() {
-    info "启用 auto-sync 自启动..."
-
-    # 检查 systemd 是否可用
     if ! command -v systemctl &>/dev/null; then
-        error "systemd 不可用，无法设置自启动"
+        error "systemd 不可用"
         return 1
     fi
 
-    # 检查 WSL 是否支持 systemd
     if [ ! -f /proc/1/comm ] || ! grep -q "systemd" /proc/1/comm 2>/dev/null; then
-        warn "当前环境可能不支持 systemd 用户服务"
-        warn "尝试启用..."
+        error "systemd 非 PID 1，无法使用系统级 service"
+        return 1
     fi
 
-    # 创建 systemd 服务目录（如果不存在）
-    mkdir -p "$(dirname "$SYSTEMD_SERVICE")"
+    cleanup_legacy_user_service
+    cleanup_zombie_inotify
 
-    # 复制服务文件
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CCCONFIG_HOME="${CCCONFIG_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-    cp "$SCRIPT_DIR/monitor.sh" "$HOME/.local/bin/claude-auto-sync-wrapper.sh" 2>/dev/null || true
-
-    local proxy_env=""
-    if [ -n "$http_proxy" ]; then
-        proxy_env+="Environment=http_proxy=$http_proxy"$'\n'
-        proxy_env+="Environment=https_proxy=$https_proxy"$'\n'
-    fi
-    if [ -n "$HTTP_PROXY" ]; then
-        proxy_env+="Environment=HTTP_PROXY=$HTTP_PROXY"$'\n'
-        proxy_env+="Environment=HTTPS_PROXY=$HTTPS_PROXY"$'\n'
+    if [ ! -f "$SVC_TEMPLATE" ]; then
+        error "service 模板不存在: $SVC_TEMPLATE"
+        return 1
     fi
 
-    cat > "$SYSTEMD_SERVICE" << EOF
-[Unit]
-Description=Claude Code Auto-Sync
-After=default.target
-
-[Service]
-Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-${proxy_env}Type=forking
-PIDFile=%h/git/ccconfig/.monitor-sync.pid
-ExecStart=${CCCONFIG_HOME}/lib/monitor.sh start
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=default.target
-EOF
-
-    # 启用服务
-    systemctl --user daemon-reload 2>/dev/null || true
-    systemctl --user enable "$SYSTEMD_SERVICE_NAME" 2>/dev/null || {
-        warn "systemctl --user 启用失败，尝试直接操作..."
-        # 创建符号链接方式
-        mkdir -p "$HOME/.config/systemd/user/default.target.wants"
-        ln -sf "$SYSTEMD_SERVICE" "$HOME/.config/systemd/user/default.target.wants/$SYSTEMD_SERVICE_NAME" 2>/dev/null || true
-    }
-
-    info "自启动已启用"
-    info "下次 WSL 启动时 auto-sync 将自动运行"
-
-    # 保存当前 PM2 进程列表（供 resurrect 使用）
-    export PATH="$HOME/.local/bin:$PATH"
-    if pm2 ping &>/dev/null; then
-        pm2 save 2>/dev/null && info "PM2 进程列表已保存" || warn "PM2 save 失败"
-    fi
+    info "安装系统级 systemd service..."
+    sudo cp "$SVC_TEMPLATE" "$SYS_SVC_FILE"
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now "$SVC_NAME"
+    info "auto-sync 已启用（开机自启 + 当前已运行）"
+    info "首次启动后 60s 内自动检测已有改动并推送"
 }
 
 disable_autostart() {
     info "禁用 auto-sync 自启动..."
-
-    if command -v systemctl &>/dev/null; then
-        systemctl --user disable "$SYSTEMD_SERVICE_NAME" 2>/dev/null || true
+    if [ -f "$SYS_SVC_FILE" ]; then
+        sudo systemctl disable --now "$SVC_NAME" 2>/dev/null || true
+        sudo rm -f "$SYS_SVC_FILE"
+        sudo systemctl daemon-reload
     fi
-
-    rm -f "$HOME/.config/systemd/user/default.target.wants/$SYSTEMD_SERVICE_NAME" 2>/dev/null || true
-    rm -f "$SYSTEMD_SERVICE" 2>/dev/null || true
-
+    cleanup_legacy_user_service
     info "自启动已禁用"
 }
 
 status_autostart() {
-    echo "========================================"
-    echo "auto-sync 自启动状态"
-    echo "========================================"
+    echo ""
+    echo -e "${CYAN}=== auto-sync 自启动状态 ===${NC}"
+    echo ""
 
-    # 检查 systemd 服务
-    if [ -f "$SYSTEMD_SERVICE" ]; then
-        info "systemd 服务文件: 已创建"
-        if command -v systemctl &>/dev/null; then
-            if systemctl --user is-enabled "$SYSTEMD_SERVICE_NAME" 2>/dev/null; then
-                info "systemd 服务: 已启用"
-            else
-                warn "systemd 服务: 未启用"
-            fi
+    if [ -f "$SYS_SVC_FILE" ]; then
+        echo -n "  systemd service ... "
+        if systemctl is-active --quiet "$SVC_NAME" 2>/dev/null; then
+            echo -e "${GREEN}✅${NC} active"
+        else
+            echo -e "${YELLOW}⚠ ${NC}文件存在但未运行 → sudo systemctl start $SVC_NAME"
         fi
     else
-        warn "systemd 服务文件: 未创建"
+        echo -e "  systemd service ... ${GRAY}未安装${NC} → bash ccconfig/lib/init-autostart.sh enable"
     fi
 
-    # 检查当前 monitor-sync 状态
-    AUTO_SYNC_PID_FILE="${CCCONFIG_HOME}/.monitor-sync.pid"
-    if [ -f "$AUTO_SYNC_PID_FILE" ] && kill -0 "$(cat "$AUTO_SYNC_PID_FILE")" 2>/dev/null; then
-        info "monitor-sync 当前状态: 运行中 (PID: $(cat "$AUTO_SYNC_PID_FILE"))"
+    local pid_file="${CCCONFIG_HOME}/.monitor-sync.pid"
+    if [ -f "$pid_file" ] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+        echo -e "  monitor-sync ... ${GREEN}✅${NC} 运行中 (PID: $(cat "$pid_file"))"
     else
-        warn "monitor-sync 当前状态: 未运行"
+        echo -e "  monitor-sync ... ${YELLOW}○${NC} 未运行"
+    fi
+
+    local inotify_count=$(pgrep -cf "inotifywait.*$HOME/git" 2>/dev/null || echo 0)
+    if [ "$inotify_count" -gt 1 ]; then
+        echo -e "  inotifywait ... ${YELLOW}⚠ ${inotify_count} 个${NC} → enable 自动清理"
+    elif [ "$inotify_count" -eq 1 ]; then
+        echo -e "  inotifywait ... ${GREEN}✅${NC}"
+    else
+        echo -e "  inotifywait ... ${GRAY}－${NC}"
     fi
 
     echo ""
-    echo "自启动配置方法："
-    echo "  启用: bash ccconfig/init-autostart.sh enable"
-    echo "  禁用: bash ccconfig/init-autostart.sh disable"
-    echo "  状态: bash ccconfig/init-autostart.sh status"
+    echo -e "${GRAY}命令: enable | disable | status${NC}"
     echo ""
 }
 
 case "${1:-status}" in
-    enable)
-        enable_autostart
-        ;;
-    disable)
-        disable_autostart
-        ;;
-    status)
-        status_autostart
-        ;;
+    enable)  enable_autostart  ;;
+    disable) disable_autostart ;;
+    status)  status_autostart  ;;
     *)
         echo "用法: $0 {enable|disable|status}"
         exit 1
