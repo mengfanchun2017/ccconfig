@@ -41,6 +41,6 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 - cloudflare@cloudflare — Cloudflare 开发者平台。详见 `docs/cloudflare-plugin.md`
 
 ## 约束
-- 本仓库不记录项目级 memory（架构决策在用户级 memory，`~/.claude/projects/-home-francis-git/memory/`）
+- 本仓库不记录 memory（memory symlink → ccprivate/link/memory/，由 ccprivate/setup.sh 建立）
 - 私有数据（conf 真实值、CLAUDE.md 内容）通过 symlink 引用 ccprivate，不在本仓库提交
 - ccconfig 最终目标是可公开

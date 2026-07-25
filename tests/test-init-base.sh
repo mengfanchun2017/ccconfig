@@ -430,23 +430,24 @@ test_status_repo_dir() {
 }
 
 test_check_memory_path() {
-    # 验证 check_memory 使用 $CCCONFIG_ROOT/link/projects 而非 $SCRIPT_DIR/link/projects
+    # 验证 MEMORY 基础设施路径使用 ccprivate/link/projects
+    # projects/ 从 ccconfig/link/ 移入 ccprivate/link/；ccconfig/link/ 已重命名为 templates/
     local d="$HOME/git/ccconfig"
     local SCRIPT_DIR="$d/lib"
     local CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
-    # 修复后: projects_src="$CCCONFIG_ROOT/link/projects"
-    local projects_src="$CCCONFIG_ROOT/link/projects"
+    local CCPRIVATE_HOME="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+    local projects_src="$CCPRIVATE_HOME/link/projects"
     if [ -d "$projects_src" ]; then
-        _pass "check_memory: projects_src=$CCCONFIG_ROOT/link/projects → 可访问"
+        _pass "check_memory: projects_src=$projects_src → 可访问"
     else
-        _fail "check_memory" "projects_src=$projects_src 不可访问"
+        _skip "check_memory" "ccprivate/link/projects 不存在（测试环境无 ccprivate）"
     fi
-    # 修复前: projects_src="$SCRIPT_DIR/link/projects" ('lib/link/projects' 不存在)
-    local old_src="$SCRIPT_DIR/link/projects"
+    # 旧路径 ccconfig/link/projects 不应存在（link/ 已改为 templates/）
+    local old_src="$CCCONFIG_ROOT/link/projects"
     if [ ! -d "$old_src" ]; then
-        _pass "check_memory: 旧路径 $old_src 不存在（已修复为 CCCONFIG_ROOT）"
+        _pass "check_memory: 旧路径 $old_src 不存在（link/ → templates/）"
     else
-        _skip "check_memory" "旧路径意外存在: $old_src"
+        _fail "check_memory" "旧路径仍存在: $old_src"
     fi
 }
 

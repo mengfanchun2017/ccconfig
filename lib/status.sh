@@ -162,7 +162,7 @@ check_last_push() {
 # ========== 5. MEMORY 最后更新 ==========
 check_memory() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[5] MEMORY 更新${NC}"
+    echo -e "${CYAN}[5] MEMORY${NC}"
 
     local projects_dir="$HOME/.claude/projects"
     local found=0
@@ -175,18 +175,31 @@ check_memory() {
     for proj_dir in "$projects_dir"/*/; do
         [[ -d "$proj_dir" ]] || continue
         local proj_name=$(basename "$proj_dir")
-        # 跳过 worktree 临时目录
         [[ "$proj_name" == *"--claude-worktrees-"* ]] && continue
 
         local mem_dir="${proj_dir}memory"
+        local display_name=$(echo "$proj_name" | sed 's/^-home-[^-]*-//' | tr '-' '/')
+
+        # symlink 检查
+        local link_info=""
+        if [[ -L "$mem_dir" ]]; then
+            local target=$(readlink "$mem_dir" 2>/dev/null)
+            if [[ -d "$mem_dir" ]]; then
+                link_info=" → $target"
+            else
+                echo -e "  ${RED}❌${NC} $display_name — symlink 断链: $target"
+                found=$((found + 1))
+                continue
+            fi
+        fi
+
         if [[ -f "$mem_dir/MEMORY.md" ]]; then
             local mtime=$(stat -L -c %y "$mem_dir/MEMORY.md" 2>/dev/null | cut -d'.' -f1)
-            local display_name=$(echo "$proj_name" | sed 's/^-home-[^-]*-//' | tr '-' '/')
-            echo -e "  ${GREEN}✅${NC} $display_name — $mtime"
+            local count=$(ls -1 "$mem_dir"/*.md 2>/dev/null | grep -v MEMORY | wc -l)
+            echo -e "  ${GREEN}✅${NC} $display_name — $mtime — ${count} 条记忆${link_info}"
             found=$((found + 1))
         elif [[ -d "$mem_dir" ]]; then
-            local display_name=$(echo "$proj_name" | sed 's/^-home-[^-]*-//' | tr '-' '/')
-            echo -e "  ${GRAY}○${NC} $display_name — 无 MEMORY.md"
+            echo -e "  ${GRAY}○${NC} $display_name — 无 MEMORY.md${link_info}"
             found=$((found + 1))
         fi
     done
