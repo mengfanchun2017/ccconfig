@@ -15,7 +15,7 @@ ccconfig/
 ├── maintain.sh       # 统一运维入口
 ├── conf/         # 配置模板（含 .example 模板）
 ├── lib/              # 子脚本 + 共享库
-├── link/             # → ~/.claude/ 符号链接源
+├── templates/        # .example 模板目录
 ├── option-*/         # 可选组件（option- 前缀）
 └── windows-tools/    # Windows/WSL 互操作
 ```
@@ -48,8 +48,7 @@ ccconfig/
 - ccconfig 是公开仓库，**不含任何 API key / Token / 个人标识符**
 - `conf/*.json` 是 symlink → ccprivate（私有仓库），`.gitignore` 已忽略
 - `conf/*.json.example` 是公开模板，新用户复制后填入自己的值
-- `link/CLAUDE.md`、`link/settings.json`、`link/.config.json` 仅存在于 ccprivate
-- `link/projects/` 是 symlink → ccprivate/link/projects/
+- `templates/` 存放 `.example` 模板；运行时文件（CLAUDE.md、settings.json 等）在 ccprivate/link/
 - `hooks/pre-commit` 自动拦截：conf/*.json 真实文件、API key 模式、私密 link 文件
 - 所有脚本通过 `$CCCONFIG_HOME` / `$CCPRIVATE_HOME` 解析路径（默认 `~/git/ccconfig`）
 

@@ -67,7 +67,7 @@ bash "$CCCONFIG_HOME/setup-links.sh" 2>&1 | tail -3 || true
 
 check_symlink "$HOME/.claude/rules" "rules symlink"
 check_symlink "$HOME/.claude/commands" "commands symlink"
-check_file "$HOME/.claude/shell_aliases.sh" "shell_aliases 已链接"
+check_file "$HOME/.claude/shell_init.sh" "shell_init 已链接"
 
 # ── 4. deps-check.sh ──
 echo ""

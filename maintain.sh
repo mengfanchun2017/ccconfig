@@ -1,15 +1,16 @@
 #!/bin/bash
-# maintain.sh — ccconfig 收尾 + 日常运维入口
+# maintain.sh — ccconfig 运维入口（默认菜单）
 #
 # 用法：
-#   bash maintain.sh                    # 收尾（首次安装）
-#   bash maintain.sh status             # 状态检查
-#   bash maintain.sh self [cc|skill|all]  # 自我更新（ccconfig + skill）
-#   bash maintain.sh upgrade [comp]     # 升级组件版本
+#   bash maintain.sh                    # 交互菜单（推荐）
+#   bash maintain.sh setup              # 一键收尾（首次安装/修复）
+#   bash maintain.sh status [--quick]   # 状态检查（--quick 跳过慢检查）
+#   bash maintain.sh self [cc|skill|all]  # 自我更新
+#   bash maintain.sh upgrade [comp]     # 升级组件
 #   bash maintain.sh sync [--pull|--push] [repo]  # Git 同步
-#   bash maintain.sh monitor [start|stop|status|tail]
+#   bash maintain.sh monitor [start|stop|status|log|tail]
 #   bash maintain.sh deps               # 依赖检查
-#   bash maintain.sh fix                # 自动修复
+#   bash maintain.sh fix                # 自动修复（= setup）
 #
 # 暗号：
 #   hookstatus → bash maintain.sh status
@@ -56,9 +57,9 @@ do_finalize() {
         bash "$LIB_DIR/example-sync.sh" sync 2>/dev/null && ok "模板已同步" || warn "模板同步跳过"
     fi
 
-    # 4. 状态检查（精简版）
+    # 4. 状态检查
     section "4. 状态总览"
-    bash "$LIB_DIR/status.sh"
+    bash "$LIB_DIR/status.sh" --quick
 
     # 5. 输出汇总
     echo ""
@@ -68,12 +69,11 @@ do_finalize() {
     echo ""
     echo -e "  ${BOLD}日常命令:${NC}"
     echo ""
-    echo -e "  ${CYAN}bash maintain.sh status${NC}    # 状态检查"
-    echo -e "  ${CYAN}bash maintain.sh monitor${NC}   # 启动监控（tail 看日志）"
-    echo -e "  ${CYAN}bash maintain.sh self all${NC}   # 更新 ccconfig + skill"
-    echo -e "  ${CYAN}bash maintain.sh self skill${NC}  # 仅更新 skills"
-    echo -e "  ${CYAN}bash maintain.sh upgrade all${NC} # 升级系统组件"
-    echo -e "  ${CYAN}bash init-option.sh${NC}        # 装可选组件（含 skills）"
+    echo -e "  ${CYAN}bash maintain.sh${NC}             # 交互菜单（推荐）"
+    echo -e "  ${CYAN}bash maintain.sh status --quick${NC}  # 快速状态"
+    echo -e "  ${CYAN}bash maintain.sh status${NC}         # 全量状态"
+    echo -e "  ${CYAN}bash maintain.sh self all${NC}       # 更新 ccconfig + skill"
+    echo -e "  ${CYAN}bash maintain.sh upgrade all${NC}     # 升级系统组件"
     echo ""
 }
 
@@ -111,76 +111,80 @@ do_self() {
 # ── 交互菜单 ──
 show_menu() {
     echo ""
-    echo -e "${CYAN}ccconfig 运维中心${NC}"
+    echo -e "${CYAN}━━━ ccconfig 运维中心 ━━━${NC}"
     echo ""
-    echo "  1) 状态检查"
-    echo "  2) Monitor 管理"
-    echo "  3) 自我更新（ccconfig + skill）"
-    echo "  4) Git 同步其他仓库"
-    echo "  5) 组件升级"
-    echo "  6) 依赖检查"
-    echo "  7) 自动修复（链接 + 服务）"
+    echo "  1) 状态检查         ─ 全量状态（链接/依赖/同步/Git/飞书/Playwright/MCP）"
+    echo "  2) Monitor 管理     ─ 启停/状态/日志/实时监控"
+    echo "  3) 自我更新         ─ 拉取 ccconfig + skill 最新"
+    echo "  4) Git 同步         ─ 多仓库菜单式同步"
+    echo "  5) 组件升级         ─ Node.js / Claude / gh / uv / lark-cli ..."
+    echo "  6) 依赖检查         ─ 必需/核心/功能/可选依赖"
+    echo "  7) 一键修复         ─ 重建链接 + 启用 auto-sync（= setup）"
+    echo "  8) 模板同步         ─ .example 模板 → ccprivate"
+    echo ""
     echo "  0) 退出"
     echo ""
-    read -p "选择 [0-7]: " c
+    read -p "选择 [0-8]: " c
 
     case "$c" in
-        1) bash "$LIB_DIR/status.sh" ;;
+        1) bash "$LIB_DIR/status.sh" "$@" ;;
         2) submenu_monitor ;;
         3) do_self all ;;
         4) bash "$LIB_DIR/sync.sh" ;;
         5) bash "$LIB_DIR/update.sh" menu ;;
         6) bash "$LIB_DIR/deps-check.sh" ;;
-        7) bash "$LIB_DIR/setup-links.sh"
-           if [ -f "$HOME/git/ccprivate/setup.sh" ]; then
-               bash "$HOME/git/ccprivate/setup.sh"
-           fi
-           bash "$LIB_DIR/init-autostart.sh" enable ;;
+        7) do_finalize ;;
+        8) bash "$LIB_DIR/example-sync.sh" status
+           echo ""
+           read -p "同步新增模板？[y/N]: " yn
+           [[ "$yn" =~ ^[Yy] ]] && bash "$LIB_DIR/example-sync.sh" sync ;;
         0) echo ""; exit 0 ;;
         *) show_menu ;;
     esac
 
     echo ""
-    read -p "按回车返回..." dummy
+    read -p "按回车返回菜单..." dummy
     show_menu
 }
 
 submenu_monitor() {
     echo ""
     echo -e "${CYAN}── Monitor 管理 ──${NC}"
-    echo "  1) 启动"
-    echo "  2) 停止"
-    echo "  3) 看状态"
-    echo "  4) 看日志（默认）"
+    echo ""
+    echo "  1) 启动             ─ 后台启动文件监控 + 自动提交推送"
+    echo "  2) 停止             ─ 停止监控进程"
+    echo "  3) 看状态           ─ 进程状态 + 各仓库待提交文件数"
+    echo "  4) 看日志           ─ 最近 30 条提交/推送记录（彩色）"
+    echo "  5) 实时追踪 (tail)  ─ 持续输出推送结果（Ctrl+C 退出）"
+    echo "  6) 文件变更 (mon)   ─ 实时显示文件变更事件（Ctrl+C 退出）"
+    echo ""
     echo "  0) 返回"
     echo ""
-    read -p "选择 [0-4]: " c
+    read -p "选择 [0-6]: " c
     case "$c" in
         1) bash "$LIB_DIR/monitor.sh" start ;;
         2) bash "$LIB_DIR/monitor.sh" stop ;;
         3) bash "$LIB_DIR/monitor.sh" status ;;
-        4) bash "$LIB_DIR/monitor.sh" ;;
+        4) bash "$LIB_DIR/monitor.sh" log 30 ;;
+        5) bash "$LIB_DIR/monitor.sh" tail ;;
+        6) bash "$LIB_DIR/monitor.sh" monitor ;;
         0) return ;;
         *) submenu_monitor ;;
     esac
 }
 
 # ── 入口 ──
-case "${1:-finalize}" in
-    finalize|first|init|"")  do_finalize ;;
-    status)    bash "$LIB_DIR/status.sh" ;;
+case "${1:-menu}" in
+    menu|"")   show_menu ;;
+    setup|finalize|first|init)  do_finalize ;;
+    status)    shift; bash "$LIB_DIR/status.sh" "$@" ;;
     self)      shift; do_self "${1:-all}" ;;
     upgrade)   shift; bash "$LIB_DIR/update.sh" "$@" ;;
     update)    shift; bash "$LIB_DIR/update.sh" "$@" ;;        # alias（旧名保留）
     sync)      shift; bash "$LIB_DIR/sync.sh" "$@" ;;
-    monitor)   bash "$LIB_DIR/monitor.sh" "${2:-}" ;;
+    monitor)   shift; bash "$LIB_DIR/monitor.sh" "${1:-}" ;;
     deps)      bash "$LIB_DIR/deps-check.sh" ;;
-    fix)       bash "$LIB_DIR/setup-links.sh"
-               if [ -f "$HOME/git/ccprivate/setup.sh" ]; then
-                   bash "$HOME/git/ccprivate/setup.sh"
-               fi
-               bash "$LIB_DIR/init-autostart.sh" enable ;;
+    fix)       do_finalize ;;
     example)   shift; bash "$LIB_DIR/example-sync.sh" "$@" ;;
-    menu)      show_menu ;;
-    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|menu]"; exit 1 ;;
+    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|menu]"; exit 1 ;;
 esac

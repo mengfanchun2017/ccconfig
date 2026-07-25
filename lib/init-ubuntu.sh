@@ -680,8 +680,8 @@ main() {
     export PATH="$LOCAL_BIN:$PATH"
 
     # shell 别名同步（cconfig/setup-links.sh 维护符号链接）
-    if ! grep -q "shell_aliases.sh" "$HOME/.bashrc" 2>/dev/null; then
-        echo '[ -f ~/.claude/shell_aliases.sh ] && source ~/.claude/shell_aliases.sh' >> "$HOME/.bashrc"
+    if ! grep -q "shell_init.sh" "$HOME/.bashrc" 2>/dev/null; then
+        echo '[ -f ~/.claude/shell_init.sh ] && source ~/.claude/shell_init.sh' >> "$HOME/.bashrc"
     fi
 
     setup_ssh_github
