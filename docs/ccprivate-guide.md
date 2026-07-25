@@ -217,7 +217,7 @@ Claude Code 权限设置。至少包含：
 }
 ```
 
-> 更多权限选项参考 `ccconfig/link/settings.json.example`。
+> 更多权限选项参考 `ccconfig/templates/settings.json.example`。
 
 ### 4.3 ~/.claude/.config.json
 
@@ -232,7 +232,7 @@ Claude Code 扩展配置（可选）。如果你有自定义配置，放这里�
 1. 个人 link/ → ~/  symlink（CLAUDE.md、settings.json、.config.json）
 2. 运行时 rules/agents/commands → ~/.claude/（ccprivate 侧）
 3. projects/ memory 目录 symlink
-4. 调用 `ccconfig/lib/setup-links.sh` 处理 shell_aliases + pre-commit
+4. 调用 `ccconfig/lib/setup-links.sh` 处理 shell_init + pre-commit
 
 ```bash
 # 查看生成的 setup.sh
@@ -328,7 +328,7 @@ A: ccprivate 和 ccconfig 是完全不同的仓库。ccconfig 是公开的工具
 A: 可以。用 `bash ccconfig/init-ccprivate-repo.sh` 交互式配置向导，手动输入 API Key。但 ccprivate 方式更方便——一次配置，多机复用，`git pull` 即可恢复。
 
 ### Q: ccprivate/setup.sh 和 ccconfig/setup-links.sh 的关系？
-A: `ccprivate/setup.sh` 做私有链接（CLAUDE.md + settings.json + rules + agents + commands），然后调用 `ccconfig/lib/setup-links.sh` 做 shell_aliases + pre-commit hook。一步到位。
+A: `ccprivate/setup.sh` 做私有链接（CLAUDE.md + settings.json + rules + agents + commands），然后调用 `ccconfig/lib/setup-links.sh` 做 shell_init + pre-commit hook。一步到位。
 
 ### Q: conf/ 文件是 symlink，git 会跟踪吗？
 A: ccconfig 的 `.gitignore` 已忽略 `conf/*.json`（除 `.example` 和 `versions.json`），symlink 不会被 commit。`hooks/pre-commit` 也会拦截。

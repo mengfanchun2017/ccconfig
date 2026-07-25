@@ -59,7 +59,7 @@ ccconfig/
 │   ├── status.sh             # 状态检查（14 项）
 │   ├── sync.sh               # 多仓库智能同步（云端↔本地）
 │   ├── update.sh             # 月度组件升级
-│   ├── setup-links.sh        # 公开符号链接（shell_aliases + pre-commit）
+│   ├── setup-links.sh        # 公开符号链接（shell_init + pre-commit）
 │   ├── example-sync.sh       # .example 模板与 ccprivate 同步管理
 │   ├── deps-check.sh         # 依赖完整性检查
 │   ├── path-helper.sh        # 动态路径解析 + CCCONFIG_HOME
@@ -69,12 +69,11 @@ ccconfig/
 │   ├── update-third-party-skills.sh # 第三方 skill 批量更新
 │   └── merge_worklog.py      # Worklog 合并去重
 │
-├── link/                     # .example 模板目录（运行时文件在 ccprivate）
-│   ├── rules/*.md.example    # 条件规则模板（9 个，按路径加载）
+├── templates/                # .example 模板目录（运行时文件在 ccprivate）
+│   ├── rules/*.md.example    # 条件规则模板（按路径加载）
 │   ├── agents/*.md.example   # 意图路由 agent 模板
-│   ├── commands/             # 自定义命令目录（ccprivate/commands/ 为运行时）
-│   ├── shell_aliases.sh      # 跨终端 shell 别名同步
-│   └── projects/             # → symlink 到 ccprivate/link/projects/
+│   ├── skills/               # skill 开发沙箱
+│   └── settings.json.example # Claude Code 配置模板
 │
 ├── bin/                      # 面向用户的辅助工具
 │   └── memory-check.sh       # MEMORY.md 过期/孤立条目检测
@@ -344,7 +343,7 @@ ssh <user>@<Tailscale IP> -p 2222  # 自动 attach 到 tmux
 | 项目 memory | ccprivate/link/projects/ | 私有仓库 |
 | Skill 插件 | skill/plugins/ | 公开 |
 | 脚本框架 | ccconfig/ | 公开 |
-| .example 模板（rules/agents/commands/conf） | ccconfig/link/ + conf/ | 公开 |
+| .example 模板（rules/agents/commands/conf） | ccconfig/templates/ + conf/ | 公开 |
 | 运行时 rules / agents / commands | ccprivate/rules + agents + commands/ | 私有 |
 | 配置模板 (.example) | ccconfig/conf/*.example | 公开 |
 | 版本号 / 依赖清单 | ccconfig/conf/versions.json | 公开 |

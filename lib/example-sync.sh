@@ -11,8 +11,8 @@
 #   bash ccconfig/lib/example-sync.sh sync              # 非交互自动同步（仅新增）
 #
 # 文件匹配规则：
-#   ccconfig/link/rules/<name>.md.example  →  ccprivate/rules/<name>.md
-#   ccconfig/link/agents/<name>.md.example →  ccprivate/agents/<name>.md
+#   ccconfig/templates/rules/<name>.md.example  →  ccprivate/rules/<name>.md
+#   ccconfig/templates/agents/<name>.md.example →  ccprivate/agents/<name>.md
 #   ccconfig/conf/<name>.json.example       →  ccprivate/conf/<name> (不含 .example)
 
 set -euo pipefail
@@ -35,8 +35,8 @@ source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
 collect_diffs() {
     local -n _outdated="$1" _new="$2"
     local mapping=(
-        "link/rules:rules:.md.example:.md"
-        "link/agents:agents:.md.example:.md"
+        "templates/rules:rules:.md.example:.md"
+        "templates/agents:agents:.md.example:.md"
         "conf:conf:.json.example:.json"
     )
 
@@ -101,10 +101,10 @@ promote_one() {
     local rel="${example#$CCCONFIG_ROOT/}"
     local base dst
 
-    if [[ "$rel" == link/rules/*.md.example ]]; then
+    if [[ "$rel" == templates/rules/*.md.example ]]; then
         base=$(basename "$example" .md.example)
         dst="$CCPRIVATE/rules/${base}.md"
-    elif [[ "$rel" == link/agents/*.md.example ]]; then
+    elif [[ "$rel" == templates/agents/*.md.example ]]; then
         base=$(basename "$example" .md.example)
         dst="$CCPRIVATE/agents/${base}.md"
     elif [[ "$rel" == conf/*.json.example ]]; then

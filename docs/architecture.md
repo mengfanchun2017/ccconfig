@@ -80,7 +80,7 @@ ccprivate/agents/ ──setup.sh ln -s──→ ~/.claude/agents/
 ccprivate/commands/ ──setup.sh ln -s──→ ~/.claude/commands/
 ```
 
-ccconfig/link/ 存放 `.example` 模板（如 `rules/code.md.example`），用户修改 ccprivate/rules/ 下的文件，不受 ccconfig 更新影响。新模板通过 `maintain.sh example promote` 手动合并。
+ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），用户修改 ccprivate/rules/ 下的文件，不受 ccconfig 更新影响。新模板通过 `maintain.sh example promote` 手动合并。
 
 ## 目录结构
 
@@ -106,10 +106,10 @@ ccconfig/link/ 存放 `.example` 模板（如 `rules/code.md.example`），用�
 │   │   ├── path-helper.sh      # 动态路径解析库
 │   │   ├── git-conflict.sh     # Git 冲突解决公共库
 │   │   └── colors.sh           # 终端颜色定义
-│   ├── link/                   # .example 模板目录（运行时在 ccprivate）
+│   ├── templates/              # .example 模板目录（运行时在 ccprivate）
 │   │   ├── rules/              # 条件规则模板（9 个，.md.example）
 │   │   ├── agents/             # 意图路由 agent 模板（.md.example）
-│   │   └── commands/           # 自定义命令（运行时在 ccprivate/commands/）
+│   │   └── skills/             # skill 开发沙箱
 │   ├── init-ccprivate-repo.sh   # ccprivate 一键创建向导
 │   ├── hooks/                  # git pre-commit hook
 │   ├── option-*/               # 可选组件（bridge/officecli/llmswitch/remote/cloudflare）
@@ -164,8 +164,7 @@ ccprivate/setup.sh
   ├── ~/.claude/rules → ccprivate/rules
   ├── ~/.claude/agents → ccprivate/agents
   ├── ~/.claude/commands → ccprivate/commands
-  ├── ccconfig/link/projects → ccprivate/link/projects
-  └── 调用 ccconfig/lib/setup-links.sh（shell_aliases + pre-commit hook）
+  └── 调用 ccconfig/lib/setup-links.sh（shell_init + pre-commit hook）
 ```
 
 ## 日常维护
@@ -259,7 +258,7 @@ skill 的 `config.yaml` 实际是 symlink → `ccprivate/skill-config/<skill>.ya
 | 项目 memory | ccprivate/link/projects/ | 私有仓库 |
 | Skill 私有配置 | ccprivate/skill-config/*.yaml | 私有仓库 |
 | infra 脚本 | ccconfig/*.sh | 公开 |
-| rules / agents / commands 模板 | ccconfig/link/（.example） | 公开 |
+| rules / agents / commands 模板 | ccconfig/templates/（.example） | 公开 |
 | 运行时 rules / agents / commands | ccprivate/ | 私有 |
 | 配置模板 (.example) | ccconfig/conf/*.example | 公开 |
 | Skill 插件 (SKILL.md + 模板) | skill/plugins/ | 公开 |
