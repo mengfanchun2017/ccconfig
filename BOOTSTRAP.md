@@ -33,11 +33,12 @@ bash init-base.sh all
 > ccprivate 创建必须在 init-base.sh all 之前，否则 LLM API key 等私有配置缺失导致后续步骤失败。
 
 `bootstrap-gh-auth.sh` 自动：
-1. 检测 git（必须已装）
-2. 装 GitHub CLI (gh)，apt 优先，二进制兜底
-3. gh auth 登录（PAT 路径，向导生成 classic PAT）
-4. 配置 git 用户身份（从 gh api 拿）和 credential helper
-5. 输出下一步命令
+1. 系统环境准备（apt update + upgrade + autoremove，可选跳过）
+2. 检测 git（必须已装）
+3. 装 GitHub CLI (gh)，apt 优先，二进制兜底
+4. gh auth 登录（PAT 路径，向导生成 classic PAT）
+5. 配置 git 用户身份（从 gh api 拿）和 credential helper
+6. 输出下一步命令
 
 `init-ccprivate-repo.sh` 自动：
 1. 询问 GitHub PAT（gh auth 没设时）
@@ -259,13 +260,16 @@ wsl --shutdown
 ## 阶段 1 — OS 基础（首次装的机器）
 
 ```bash
-# 1. 更新包索引
-sudo apt update
+# 1. 更新包索引 + 升级所有包
+sudo apt update && sudo apt upgrade -y
 
 # 2. 装 git / curl / wget / sudo（通常已有，但保险起见）
 sudo apt install -y git curl wget sudo
 
-# 3. 验证
+# 3. 清理冗余包（释放磁盘空间）
+sudo apt autoremove -y
+
+# 4. 验证
 git --version   # git version 2.34+ 即可
 curl --version  # curl 7.81+ 即可
 ```
