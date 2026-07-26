@@ -140,7 +140,13 @@ setup_nodejs() {
         local node_ver=$(get_node_version)
         local url="https://nodejs.org/dist/v${node_ver}/node-v${node_ver}-linux-x64.tar.gz"
         info "下载: $url"
-        curl -fsSL "$url" -o /tmp/node.tar.gz
+        curl -fsSL --retry 3 --retry-delay 2 "$url" -o /tmp/node.tar.gz || \
+            curl -fsSL --retry 3 --retry-delay 2 --http1.1 "$url" -o /tmp/node.tar.gz || {
+                error "Node.js 下载失败（网络问题）"
+                warn "  重试: bash ccconfig/lib/init-ubuntu.sh"
+                warn "  代理: export HTTPS_PROXY=http://127.0.0.1:7890 && bash ccconfig/lib/init-ubuntu.sh"
+                return 1
+            }
         tar -xzf /tmp/node.tar.gz -C "$HOME/.local/"
         mkdir -p "$LOCAL_BIN"
         recreate_node_symlinks "$HOME/.local/node-v${node_ver}-linux-x64/bin"
