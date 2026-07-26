@@ -125,6 +125,69 @@ check_symlinks() {
     fi
 }
 
+# ========== 1b. ccprivate 结构 ==========
+check_ccprivate_structure() {
+    local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}[1b] ccprivate 结构${NC}"
+
+    if [ ! -d "$ccpriv" ]; then
+        echo -e "  ${RED}❌${NC} ccprivate 目录不存在: $ccpriv"
+        echo -e "  ${GRAY}创建: bash ccconfig/init-ccprivate-repo.sh${NC}"
+        return
+    fi
+
+    local issues=0
+
+    # --- .generated/ 残留 ---
+    if [ -d "$ccpriv/conf/.generated" ] && [ -n "$(ls -A "$ccpriv/conf/.generated" 2>/dev/null)" ]; then
+        local gen_count=$(ls "$ccpriv/conf/.generated/"*.json 2>/dev/null | wc -l)
+        echo -e "  ${YELLOW}⚠${NC}  conf/.generated/ 残留 (${gen_count} 文件) — 需迁移到 conf/"
+        issues=$((issues + 1))
+    fi
+
+    # --- 目录完整性 ---
+    local expected_dirs=("skill-config" "rules" "agents" "commands" "bin")
+    local missing_dirs=()
+    for d in "${expected_dirs[@]}"; do
+        [ -d "$ccpriv/$d" ] || missing_dirs+=("$d")
+    done
+    if [ ${#missing_dirs[@]} -gt 0 ]; then
+        echo -e "  ${YELLOW}⚠${NC}  缺少目录: ${missing_dirs[*]}"
+        issues=$((issues + 1))
+    fi
+
+    # --- setup.sh 版本 ---
+    if [ -f "$ccpriv/setup.sh" ]; then
+        if grep -q 'shell_aliases' "$ccpriv/setup.sh" 2>/dev/null; then
+            echo -e "  ${RED}❌${NC} setup.sh 为旧版 (v2) — 含 shell_aliases 引用"
+            issues=$((issues + 1))
+        elif grep -q 'link/projects' "$ccpriv/setup.sh" 2>/dev/null; then
+            echo -e "  ${YELLOW}⚠${NC}  setup.sh 使用 link/projects/ 模式 (v2，与模板不同)"
+            issues=$((issues + 1))
+        fi
+    else
+        echo -e "  ${RED}❌${NC} setup.sh 缺失"
+        issues=$((issues + 1))
+    fi
+
+    # --- link/ 内容 ---
+    local missing_links=()
+    for f in "CLAUDE.md" "settings.json" ".config.json"; do
+        [ -f "$ccpriv/link/$f" ] || missing_links+=("$f")
+    done
+    if [ ${#missing_links[@]} -gt 0 ]; then
+        echo -e "  ${YELLOW}⚠${NC}  link/ 缺少: ${missing_links[*]}"
+        issues=$((issues + 1))
+    fi
+
+    if [ $issues -eq 0 ]; then
+        echo -e "  ${GREEN}✅ ccprivate 结构正常${NC}"
+    else
+        echo -e "  ${GRAY}修复: bash maintain.sh upgrade-ccprivate${NC}"
+    fi
+}
+
 # ========== 3. 检查 auto-sync ==========
 check_autosync() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -760,6 +823,7 @@ echo ""
 
 git_pull
 check_symlinks
+check_ccprivate_structure
 check_deps_quick
 check_autosync
 check_last_push
