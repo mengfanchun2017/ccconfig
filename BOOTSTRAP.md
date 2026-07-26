@@ -136,31 +136,31 @@ pwsh --version
 在 **PowerShell 7（管理员）** 中执行：
 
 ```powershell
-wsl --install -d Ubuntu-26.04
+wsl --install -d Ubuntu-26.04 --install-dir C:\wsl\u26claude --name u26claude
 ```
 
-这会自动启用 WSL 功能、安装内核、安装 Ubuntu 26.04 LTS。发行版在 WSL 中的名称为 `Ubuntu-26.04`（`wsl --list` 可查）。
+这会自动启用 WSL 功能、安装内核、安装 Ubuntu 26.04 LTS。WSL 发行版名称为 `u26claude`（`wsl --list` 可查），文件放在 `C:\wsl\u26claude`。
 
 **重启 Windows** 后，Ubuntu 会自动启动，提示创建 Linux 用户名和密码（牢记，这就是你的 sudo 密码）。
 
 > `--install` 不带 `-d` 装默认版本。`-d Ubuntu-26.04` 锁定 26.04 LTS，apt 源成熟稳定。
 >
-> **国内用户**：下载慢用 `wsl --install -d Ubuntu-26.04 --web-download`。
+> **国内用户**：下载慢加 `--web-download`。
 
 
 ### 3. 验证安装
 
 ```powershell
 wsl --list --verbose
-# 应该看到: Ubuntu-26.04  Running  2
+# 应该看到: u26claude  Running  2
 ```
 
-> `Ubuntu-26.04` 是 WSL 发行版名称（`-d` 指定的），所有后续命令用它定位。新装 WSL 默认就是 V2，无需额外设置。
+> `u26claude` 是 WSL 发行版名称（`--name` 指定的），所有后续命令用它定位。新装 WSL 默认就是 V2，无需额外设置。
 
 ### 4. 进入 Ubuntu
 
 ```powershell
-wsl -d Ubuntu-26.04
+wsl -d u26claude
 ```
 
 进去后验证系统版本：
@@ -200,7 +200,7 @@ memory=8GB
 wsl --shutdown
 ```
 
-然后重新 `wsl -d Ubuntu-26.04` 进入 Ubuntu。
+然后重新 `wsl -d u26claude` 进入 Ubuntu。
 
 
 ### 可选：WSL 备份 / 导出 / 导入
@@ -211,7 +211,7 @@ wsl --shutdown
 
 ```powershell
 # 导出到 D 盘（压缩成 tar.gz）
-wsl --export Ubuntu-26.04 D:\backup\ubuntu-26.04-backup.tar
+wsl --export u26claude D:\backup\ubuntu-26.04-backup.tar
 
 # 检查备份文件大小
 ls D:\backup\ubuntu-26.04-backup.tar
@@ -221,7 +221,7 @@ ls D:\backup\ubuntu-26.04-backup.tar
 
 ```powershell
 # 先注销原有发行版（谨慎！会删除原环境）
-wsl --unregister Ubuntu-26.04
+wsl --unregister u26claude
 
 # 从备份导入，可自定义发行版名称（如 u26claudec）
 wsl --import u26claudec D:\wsl\u26claudec D:\backup\ubuntu-26.04-backup.tar
@@ -233,8 +233,8 @@ u26claudec config --default-user <你的用户名>
 **快速重置**（不需要备份，直接删掉重装）：
 
 ```powershell
-wsl --unregister Ubuntu-26.04
-wsl --install -d Ubuntu-26.04
+wsl --unregister u26claude
+wsl --install -d Ubuntu-26.04 --install-dir C:\wsl\u26claude --name u26claude
 ```
 
 > **日常使用**：备份文件放非系统盘（D:/E:），Windows 重装不会丢失。每月备份一次即可。
@@ -449,6 +449,13 @@ bash init-base.sh all
 
 **会触发 sudo**（安装系统包时），提前准备好 sudo 密码。
 
+> **⚠️ 跑完后 `claude` 不生效？**
+> `init-base.sh` 在子 shell 中运行，PATH 变更不作用于当前终端。运行：
+> ```bash
+> source ~/.bashrc
+> ```
+> 或直接 `hash -r`。之后 `claude` 即可用。不需要开新终端。
+
 
 ## 阶段 6 — 克隆所有项目
 
@@ -544,6 +551,8 @@ tail -f ~/git/ccconfig/.monitor-sync.log
 > ccconfig 不记录项目级 memory。架构决策在用户级 memory。
 
 ## 完成 — 接下来干嘛
+
+> **⚠️ `claude: command not found`？** 运行 `source ~/.bashrc` 即可，不需要开新终端。
 
 机器已经全功能：
 
