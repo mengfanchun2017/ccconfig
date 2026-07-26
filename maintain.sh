@@ -37,14 +37,14 @@ do_finalize() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
-    # 1. 修复符号链接
+    # 1. 修复符号链接（ccprivate/setup.sh 统一处理公私链接）
     section "1. 修复符号链接"
-    bash "$LIB_DIR/setup-links.sh"
-
     local ccprivate_setup="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/setup.sh"
     if [[ -x "$ccprivate_setup" ]]; then
-        info "运行 ccprivate/setup.sh（私有链接）..."
-        bash "$ccprivate_setup" 2>/dev/null && ok "私有链接已修复" || warn "私有链接部分失败"
+        bash "$ccprivate_setup" 2>/dev/null && ok "符号链接已修复" || warn "符号链接部分失败"
+    else
+        bash "$LIB_DIR/setup-links.sh"
+        info "ccprivate/setup.sh 不可用，仅修复了公开链接"
     fi
 
     # 2. auto-sync 服务

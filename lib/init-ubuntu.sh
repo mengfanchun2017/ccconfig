@@ -398,7 +398,9 @@ setup_mmx_cli() {
 
 # ========== 6. GitHub SSH 密钥（多 WSL 共享） ==========
 # 策略：
-#   - 同机多 WSL：密钥放 Windows 宿主目录 (/mnt/c/Users/<用户名>/.ssh/)，各 WSL 复制到本地
+#   - gh auth（bootstrap-gh-auth.sh 已做）= GitHub API/CLI 认证
+#   - SSH 密钥（本段）= git push/pull 传输层认证，两者独立
+#   - 同机多 WSL：密钥放 Windows 宿主目录，各 WSL 复制到本地
 #   - 不同机器：各自生成独立密钥，公钥都加到 github.com/settings/keys
 setup_ssh_github() {
     section "GitHub SSH 密钥"
@@ -408,7 +410,7 @@ setup_ssh_github() {
     WIN_USER=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' || echo "")
     local WIN_SSH_DIR="/mnt/c/Users/${WIN_USER}/.ssh"
     local KEY_NAME="id_ed25519"
-        local GITHUB_EMAIL
+    local GITHUB_EMAIL
     GITHUB_EMAIL=$(git config --global user.email 2>/dev/null || echo "")
     if [[ -z "$GITHUB_EMAIL" ]]; then
         local ubuntu_json="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/ubuntu.json"
@@ -421,32 +423,13 @@ setup_ssh_github() {
 
     # === 1. 获取或生成密钥 ===
     if [[ -f "$SSH_DIR/$KEY_NAME" ]]; then
-        info "SSH 密钥已存在: $SSH_DIR/$KEY_NAME"
+        info "SSH 密钥已存在"
     elif [[ -f "$WIN_SSH_DIR/$KEY_NAME" ]]; then
-        info "从 Windows 宿主目录复制密钥..."
+        info "从 Windows 宿主复制密钥..."
         cp "$WIN_SSH_DIR/$KEY_NAME" "$WIN_SSH_DIR/${KEY_NAME}.pub" "$SSH_DIR/"
         chmod 600 "$SSH_DIR/$KEY_NAME"
         chmod 644 "$SSH_DIR/${KEY_NAME}.pub"
-        success "SSH 密钥已从 Windows 宿主复制"
-
-        # 提示验证公钥是否已添加
-        echo ""
-        warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        warn "⚠ 确认此公钥已添加到 GitHub："
-        warn ""
-        echo "   https://github.com/settings/keys"
-        warn ""
-        cat "$SSH_DIR/${KEY_NAME}.pub"
-        warn ""
-        warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo ""
-
-        if ! ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 git@github.com 2>&1 | grep -q "successfully authenticated"; then
-            warn "SSH 测试未通过，公钥可能未添加到 GitHub"
-            info "添加后运行: ssh -T git@github.com 验证"
-        else
-            success "SSH 连接已验证 ✓"
-        fi
+        success "SSH 密钥已复制"
     else
         info "生成新的 SSH 密钥..."
         ssh-keygen -t ed25519 -C "$GITHUB_EMAIL" -f "$SSH_DIR/$KEY_NAME" -N ""
@@ -457,22 +440,13 @@ setup_ssh_github() {
         # 同步到 Windows 宿主目录（供同机其他 WSL 共享）
         if mkdir -p "$WIN_SSH_DIR" 2>/dev/null; then
             cp "$SSH_DIR/$KEY_NAME" "$SSH_DIR/${KEY_NAME}.pub" "$WIN_SSH_DIR/" 2>/dev/null || true
-            info "已同步到 Windows 宿主目录（供其他 WSL 使用）"
         fi
-
-        # 显示公钥，提示用户添加到 GitHub
-        echo ""
-        warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        warn "⚠ 请将以下公钥添加到 GitHub："
-        warn ""
-        echo "   https://github.com/settings/keys"
-        warn ""
-        cat "$SSH_DIR/${KEY_NAME}.pub"
-        warn ""
-        warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo ""
-        info "添加完成后，SSH 即可免密推送"
     fi
+
+    # 显示公钥指纹（一行，不占版面）
+    local _fp
+    _fp=$(ssh-keygen -lf "$SSH_DIR/$KEY_NAME" 2>/dev/null | awk '{print $2}')
+    info "公钥指纹: $_fp"
 
     # === 2. 配置 ~/.ssh/config ===
     if ! grep -q "Host github.com" "$SSH_DIR/config" 2>/dev/null; then
@@ -485,24 +459,19 @@ Host github.com
     IdentitiesOnly yes
 SSHEOF
         chmod 644 "$SSH_DIR/config"
-        info "SSH config 已配置 GitHub"
-    else
-        info "SSH config GitHub 已存在"
     fi
 
-    # === 2.5. 预添加 GitHub 主机密钥（避免首次连接 yes/no 交互） ===
+    # === 3. 预添加 GitHub 主机密钥 ===
     if ! grep -q "github.com" "$SSH_DIR/known_hosts" 2>/dev/null; then
         timeout 10 ssh-keyscan github.com >> "$SSH_DIR/known_hosts" 2>/dev/null || true
         chmod 644 "$SSH_DIR/known_hosts"
-        info "GitHub 主机密钥已添加"
     fi
 
-    # === 3. 测试连接 ===
-    info "测试 GitHub SSH 连接..."
+    # === 4. 测试连接 ===
     if ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 git@github.com 2>&1 | grep -q "successfully authenticated"; then
         success "GitHub SSH 连接成功"
 
-        # SSH 通了，扫描仓库转 HTTPS → SSH + 设置全局规则
+        # SSH 通了，扫描仓库转 HTTPS → SSH
         if [[ -d "$HOME/git" ]]; then
             while IFS= read -r -d '' gitdir; do
                 local repo_dir=$(dirname "$gitdir")
@@ -510,20 +479,22 @@ SSHEOF
                 if [[ "$current_url" == https://github.com/* ]]; then
                     local repo_path="${current_url#https://github.com/}"
                     git -C "$repo_dir" remote set-url origin "git@github.com:${repo_path}"
-                    success "$(basename "$repo_dir"): HTTPS → SSH"
-                elif [[ "$current_url" == git@github.com:* ]]; then
-                    info "$(basename "$repo_dir"): 已是 SSH"
                 fi
             done < <(find "$HOME/git" -maxdepth 3 -name .git -type d -print0 2>/dev/null)
         fi
 
         if [[ "$(git config --global url.'git@github.com:'.insteadOf 2>/dev/null)" != "https://github.com/" ]]; then
             git config --global url."git@github.com:".insteadOf "https://github.com/"
-            success "全局 Git 已配置: HTTPS 自动替换为 SSH"
         fi
     else
-        warn "GitHub SSH 连接测试未通过（可能需先添加公钥到 github.com/settings/keys）"
-        warn "仓库保持 HTTPS，SSH 配好后运行 maintain.sh fix 自动转换"
+        echo ""
+        echo -e "  ${YELLOW}⚠ SSH 连接测试未通过${NC}"
+        echo -e "  ${GRAY}公钥需先添加到 GitHub: https://github.com/settings/keys${NC}"
+        echo ""
+        cat "$SSH_DIR/${KEY_NAME}.pub"
+        echo ""
+        echo -e "  ${GRAY}添加后验证: ssh -T git@github.com${NC}"
+        echo -e "  ${GRAY}然后转换仓库: bash maintain.sh fix${NC}"
     fi
 }
 
@@ -614,7 +585,7 @@ setup_hook() {
     # Claude Code 读取 ~/.claude.json，不是 settings.json
     # 所以 hooks 必须写入 ~/.claude.json
     CLAUDE_JSON="$HOME/.claude.json"
-    HOOK_CMD="bash $SCRIPT_DIR/status.sh"
+    HOOK_CMD="bash $CCCONFIG_ROOT/lib/status.sh"
 
     python3 << PYEOF
 import json
@@ -691,19 +662,21 @@ main() {
     ensure_pip
     setup_python_packages
     setup_claude_code || CLAUDE_CLI_NOT_READY=1
-    setup_symlinks
 
     # ccprivate 私有链接（MEMORY.md, CLAUDE.md, settings.json 等）
-    local ccprivate_setup="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/setup.sh"
-    if [[ -x "$ccprivate_setup" ]]; then
-        section "ccprivate 私有链接"
-        if bash "$ccprivate_setup" 2>/dev/null; then
-            success "ccprivate 链接已建立"
+    # init-base.sh all 流程中 maintain.sh finalize 统一处理，此处跳过避免重复
+    if [[ "${INIT_ALL_FLOW:-}" != "1" ]]; then
+        local ccprivate_setup="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/setup.sh"
+        if [[ -x "$ccprivate_setup" ]]; then
+            section "ccprivate 私有链接"
+            if bash "$ccprivate_setup" 2>/dev/null; then
+                success "ccprivate 链接已建立"
+            else
+                warn "ccprivate 链接部分失败（首次初始化正常，后续会自愈）"
+            fi
         else
-            warn "ccprivate 链接部分失败（首次初始化正常，后续会自愈）"
+            info "ccprivate/setup.sh 不可执行，跳过私有链接（ccprivate 就绪后重跑 init-ubuntu.sh）"
         fi
-    else
-        info "ccprivate/setup.sh 不可执行，跳过私有链接（ccprivate 就绪后重跑 init-ubuntu.sh）"
     fi
 
     setup_llm_backend

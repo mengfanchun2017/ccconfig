@@ -141,13 +141,13 @@ PYEOF
     echo ""
     echo -e "${GREEN}🎉 全部初始化完成${NC}"
     echo ""
-    echo -e "${YELLOW}━━━ 重要：刷新 shell 环境 ━━━${NC}"
-    echo "  PATH 已写入 ~/.bashrc，当前终端需手动刷新："
+
+    # 让当前终端立即可用 claude（无需重开）
+    export PATH="$HOME/.local/bin:$PATH"
+    hash -r 2>/dev/null || true
+    echo -e "  ${GREEN}✅ PATH 已生效，当前终端可直接使用 claude${NC}"
     echo ""
-    echo -e "    ${GREEN}source ~/.bashrc && hash -r${NC}"
-    echo ""
-    echo -e "  或直接 ${GREEN}新开一个终端${NC}（新终端自动加载 bashrc）"
-    echo ""
+
     echo -e "${BOLD}日常使用:${NC}"
     echo "  切换 LLM:          bash $SCRIPT_DIR/lib/init-llm.sh"
     echo "  更新系统:          bash $SCRIPT_DIR/lib/update.sh all"

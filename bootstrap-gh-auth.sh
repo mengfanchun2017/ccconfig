@@ -8,9 +8,8 @@
 #   Step 4: bash init-base.sh all                        ← 全量初始化
 #
 # 职责：
-#   - 系统环境准备（apt update/upgrade/autoremove，可选）
 #   - 装 GitHub CLI (gh)，apt 优先，二进制兜底
-#   - gh auth 登录（PAT 路径，向导生成 classic PAT）
+#   - gh auth 登录（Web OAuth / PAT / $GH_TOKEN）
 #   - 配置 git 用户身份（从 gh api 拿）
 #   - 配置 git credential helper（gh 接管）
 #   - 输出下一步引导
@@ -55,46 +54,8 @@ echo -e "${CYAN}═════════════════════�
 echo ""
 [[ -n "$NOSUDO" ]] && info "模式: NO-SUDO（用 binary 装 gh）"
 
-# ========== Step 0: 环境准备（可选）==========
-section "Step 0/6 环境准备（可选）"
-echo -e "  ${GRAY}做什么${NC}  apt update + upgrade + autoremove，升级系统包到最新"
-echo -e "  ${GRAY}为什么${NC}  新机器/久未更新的系统可能缺安全补丁和依赖"
-echo -e "  ${GRAY}预计${NC}    ~1-5 min（取决于待升级包数量）"
-
-_do_apt_prep() {
-    sudo apt update -qq 2>/dev/null || { warn "apt update 失败"; return 1; }
-    local upgrades
-    upgrades=$(apt list --upgradable 2>/dev/null | grep -c / || echo "0")
-    if [[ "$upgrades" -gt 0 ]]; then
-        info "$upgrades 个包可升级，执行 sudo apt upgrade -y..."
-        sudo apt upgrade -y && ok "系统包升级完成"
-    else
-        ok "系统包已是最新"
-    fi
-    info "清理冗余包（sudo apt autoremove -y）..."
-    sudo apt autoremove -y && ok "冗余包已清理"
-}
-
-if [[ -n "$NOSUDO" ]] || ! command -v sudo &>/dev/null; then
-    info "无 sudo / NOSUDO 模式，跳过系统升级"
-else
-    if sudo -n true 2>/dev/null; then
-        _do_apt_prep
-    else
-        echo -e "  ${YELLOW}即将 sudo apt update && sudo apt upgrade -y${NC}"
-        echo -e "  ${GRAY}按 Enter 执行，Ctrl-C 跳过${NC}"
-        if read -r _skip && [[ -z "$_skip" ]]; then
-            _do_apt_prep
-        else
-            echo ""
-            warn "已跳过环境准备"
-        fi
-    fi
-fi
-unset -f _do_apt_prep
-
 # ========== Step 1: 前置检查 ==========
-section "Step 1/6 前置检查"
+section "Step 1/5 前置检查"
 
 if ! command -v git &>/dev/null; then
     err "git 未装"
@@ -115,7 +76,7 @@ fi
 mkdir -p "$LOCAL_BIN"
 
 # ========== Step 2: 装 gh ==========
-section "Step 2/6 装 GitHub CLI (gh)"
+section "Step 2/5 装 GitHub CLI (gh)"
 echo -e "  ${GRAY}做什么${NC}  装 GitHub CLI（gh 命令），sudo apt 优先（稳），curl 二进制兜底（NOSUDO 模式）"
 echo -e "  ${GRAY}为什么${NC}  私仓交互全靠 gh；有了它才能做 Step 3 认证 + Step 4 配 git 身份"
 echo -e "  ${GRAY}预计${NC}    ~15 s（apt）/ ~30 s（curl 二进制）"
@@ -139,7 +100,7 @@ else
 fi
 
 # ========== Step 3: gh auth 登录 ==========
-section "Step 3/6 GitHub 认证"
+section "Step 3/5 GitHub 认证"
 echo -e "  ${GRAY}做什么${NC}  登录 GitHub"
 echo -e "  ${GRAY}为什么${NC}  gh 调用 API 全靠登录 token；没它 Step 4 拿不到 git 身份、后续 gh repo create 也不行"
 echo -e "  ${GRAY}预计${NC}    ~30 s（有代理）/ ~2 min（手动 fine-grained PAT）"
@@ -208,7 +169,7 @@ else
 fi
 
 # ========== Step 4: git 用户身份 + credential helper ==========
-section "Step 4/6 git 用户身份"
+section "Step 4/5 git 用户身份"
 echo -e "  ${GRAY}做什么${NC}  从 gh api 取 GitHub 用户名+邮箱 → 写入 git config --global；配 gh credential helper"
 echo -e "  ${GRAY}为什么${NC}  git commit 需要 user.name / user.email；gh credential helper 让 clone/push 免密"
 echo -e "  ${GRAY}预计${NC}    < 5 s"
@@ -232,7 +193,7 @@ else
 fi
 
 # ========== Step 5: 引导下一步 ==========
-section "Step 5/6 准备完成"
+section "Step 5/5 准备完成"
 
 echo ""
 echo -e "  ${GREEN}ccconfig 已就绪 🎉${NC}"
