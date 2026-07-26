@@ -49,7 +49,11 @@ do_finalize() {
 
     # 2. auto-sync 服务
     section "2. 启动 auto-sync"
-    bash "$LIB_DIR/init-autostart.sh" enable 2>/dev/null && ok "auto-sync 已启动" || warn "auto-sync 启动失败（可手动: bash $LIB_DIR/monitor.sh start）"
+    if bash "$LIB_DIR/init-autostart.sh" enable; then
+        ok "auto-sync 已启动"
+    else
+        warn "auto-sync 启动失败（可手动: bash $LIB_DIR/monitor.sh start）"
+    fi
 
     # 3. Example 模板自动同步（静默，只复制新增/更新，不覆盖用户编辑过的）
     if [ -x "$LIB_DIR/example-sync.sh" ]; then
