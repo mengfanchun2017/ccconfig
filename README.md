@@ -238,7 +238,7 @@ bash maintain.sh [status|monitor|sync|update|deps|fix|example]
 
 | 命令 | 用途 |
 |------|------|
-| `bash bootstrap-gh-auth.sh` | 装 gh CLI + GitHub 认证 |
+| `bash bootstrap-gh-auth.sh` | 系统升级 + 装 gh CLI + GitHub 认证 |
 | `bash init-ccprivate-repo.sh` | 创建/克隆 ccprivate |
 | `bash init-base.sh` | 交互式菜单 |
 | `bash init-base.sh all` | 一键全初始化（4 步：Ubuntu → LLM → MCP → 收尾） |
