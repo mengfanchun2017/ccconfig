@@ -121,10 +121,11 @@ show_menu() {
     echo "  6) 依赖检查         ─ 必需/核心/功能/可选依赖"
     echo "  7) 一键修复         ─ 重建链接 + 启用 auto-sync（= setup）"
     echo "  8) 模板同步         ─ .example 模板 → ccprivate"
+    echo "  9) ccprivate 升级    ─ 检测并修复 ccprivate 结构"
     echo ""
     echo "  0) 退出"
     echo ""
-    read -p "选择 [0-8]: " c
+    read -p "选择 [0-9]: " c
 
     case "$c" in
         1) bash "$LIB_DIR/status.sh" "$@" ;;
@@ -138,6 +139,10 @@ show_menu() {
            echo ""
            read -p "同步新增模板？[y/N]: " yn
            [[ "$yn" =~ ^[Yy] ]] && bash "$LIB_DIR/example-sync.sh" sync ;;
+        9) bash "$LIB_DIR/ccprivate-upgrade.sh"
+           echo ""
+           read -p "按回车返回菜单..." dummy
+           show_menu ;;
         0) echo ""; exit 0 ;;
         *) show_menu ;;
     esac
@@ -186,5 +191,7 @@ case "${1:-menu}" in
     deps)      bash "$LIB_DIR/deps-check.sh" ;;
     fix)       do_finalize ;;
     example)   shift; bash "$LIB_DIR/example-sync.sh" "$@" ;;
-    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|menu]"; exit 1 ;;
+    upgrade-ccprivate|upgrade-ccpriv|ccpriv-upgrade)
+        shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
+    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|menu]"; exit 1 ;;
 esac
