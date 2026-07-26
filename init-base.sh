@@ -142,10 +142,15 @@ PYEOF
     echo -e "${GREEN}🎉 全部初始化完成${NC}"
     echo ""
 
-    # 让当前终端立即可用 claude（无需重开）
+    # PATH 已在子 shell 中设置，退出后对外层终端不生效
     export PATH="$HOME/.local/bin:$PATH"
     hash -r 2>/dev/null || true
-    echo -e "  ${GREEN}✅ PATH 已生效，当前终端可直接使用 claude${NC}"
+    if command -v claude &>/dev/null; then
+        echo -e "  ${GREEN}✅ claude 已可用${NC}"
+    else
+        echo -e "  ${YELLOW}⚠ 当前终端 claude 未生效（init 在子 shell 中运行）${NC}"
+        echo -e "  ${GREEN}→ source ~/.bashrc${NC}  ${GRAY}或开新终端即可${NC}"
+    fi
     echo ""
 
     echo -e "${BOLD}日常使用:${NC}"
