@@ -215,7 +215,7 @@ setup_python_packages() {
 
     info "安装 Python 依赖..."
     local out
-    # Ubuntu 24.04+ PEP 668: try --user first, fall back to --break-system-packages
+    # Ubuntu 26.04+ PEP 668: try --user first, fall back to --break-system-packages
     out=$(pip3 install --user -r "$req_file" 2>&1) || true
     if echo "$out" | grep -q "externally-managed-environment"; then
         info "PEP 668 环境，使用 --break-system-packages..."
