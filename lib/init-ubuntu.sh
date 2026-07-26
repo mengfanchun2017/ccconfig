@@ -655,7 +655,13 @@ main() {
         echo '[ -f ~/.claude/shell_init.sh ] && source ~/.claude/shell_init.sh' >> "$HOME/.bashrc"
     fi
 
-    setup_ssh_github
+    # git 传输：gh auth + credential helper 已就绪则跳过 SSH
+    # bootstrap-gh-auth.sh 已配好，SSH 不是必须的
+    if gh auth status &>/dev/null 2>&1; then
+        info "git: HTTPS + gh credential helper（bootstrap-gh-auth.sh 已配好，跳过 SSH）"
+    else
+        setup_ssh_github
+    fi
     setup_ccprivate
     setup_nodejs
     setup_uv
