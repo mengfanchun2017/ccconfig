@@ -766,8 +766,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
     echo ""
     ok "ccprivate 创建完成"
     echo ""
-    echo -e "  ${YELLOW}⚠️  下一步必须先 cd 到 ccconfig 目录${NC}"
-    echo -e "    ${GREEN}cd $CCCONFIG_DIR && bash init-base.sh all${NC}"
+    echo -e "  ${GREEN}下一步: bash $CCCONFIG_DIR/init-base.sh all${NC}"
     echo -e "  ${GRAY}(Ubuntu → LLM → MCP → 收尾)${NC}"
     echo ""
 }
@@ -876,8 +875,7 @@ do_clone() {
 
     ok "ccprivate 就绪"
     echo ""
-    echo -e "  ${YELLOW}⚠️  下一步必须先 cd 到 ccconfig 目录${NC}"
-    echo -e "    ${GREEN}cd $CCCONFIG_DIR && bash init-base.sh all${NC}"
+    echo -e "  ${GREEN}下一步: bash $CCCONFIG_DIR/init-base.sh all${NC}"
     echo -e "  ${GRAY}(Ubuntu → LLM → MCP → 收尾)${NC}"
 }
 
