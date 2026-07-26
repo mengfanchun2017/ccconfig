@@ -66,7 +66,7 @@ bash init-base.sh all
 如果一行命令失败或你想完全控制每一步，按下面 7 阶段走。
 
 **适用**：
-- 新装的 WSL2 / Ubuntu 24.04+ / Debian 12+
+- 新装的 WSL2 / Ubuntu 26.04+ / Debian 12+
 - 重装系统后恢复
 - 公司新发的工作机
 
@@ -96,7 +96,7 @@ export ANTHROPIC_AUTH_TOKEN=sk-ant-...
 ```
 
 
-## 阶段 0 — Windows 前置：WSL2 + Ubuntu 24.04
+## 阶段 0 — Windows 前置：WSL2 + Ubuntu 26.04
 
 > 如果机器已经是 Linux，跳过本节直接到阶段 1。
 >
@@ -130,46 +130,46 @@ pwsh --version
 > PowerShell 7 和系统自带 5.1 共存，不会冲突。`pwsh.exe` = 新版，`powershell.exe` = 旧版。
 
 
-### 2. 安装 WSL2 + Ubuntu 24.04 LTS
+### 2. 安装 WSL2 + Ubuntu 26.04 LTS
 
 在 **PowerShell 7（管理员）** 中执行：
 
 ```powershell
-wsl --install -d Ubuntu-24.04
+wsl --install -d Ubuntu-26.04
 ```
 
-这会自动启用 WSL 功能、安装内核、安装 Ubuntu 24.04 LTS。发行版在 WSL 中的名称为 `Ubuntu-24.04`（`wsl --list` 可查）。
+这会自动启用 WSL 功能、安装内核、安装 Ubuntu 26.04 LTS。发行版在 WSL 中的名称为 `Ubuntu-26.04`（`wsl --list` 可查）。
 
 **重启 Windows** 后，Ubuntu 会自动启动，提示创建 Linux 用户名和密码（牢记，这就是你的 sudo 密码）。
 
-> `--install` 不带 `-d` 装默认版本。`-d Ubuntu-24.04` 锁定 24.04 LTS，apt 源成熟稳定。
+> `--install` 不带 `-d` 装默认版本。`-d Ubuntu-26.04` 锁定 26.04 LTS，apt 源成熟稳定。
 >
-> **国内用户**：下载慢用 `wsl --install -d Ubuntu-24.04 --web-download`。
+> **国内用户**：下载慢用 `wsl --install -d Ubuntu-26.04 --web-download`。
 
 
 ### 3. 验证安装
 
 ```powershell
 wsl --list --verbose
-# 应该看到: Ubuntu-24.04  Running  2
+# 应该看到: Ubuntu-26.04  Running  2
 ```
 
-> `Ubuntu-24.04` 是 WSL 发行版名称（`-d` 指定的），所有后续命令用它定位。新装 WSL 默认就是 V2，无需额外设置。
+> `Ubuntu-26.04` 是 WSL 发行版名称（`-d` 指定的），所有后续命令用它定位。新装 WSL 默认就是 V2，无需额外设置。
 
 ### 4. 进入 Ubuntu
 
 ```powershell
-wsl -d Ubuntu-24.04
+wsl -d Ubuntu-26.04
 ```
 
 进去后验证系统版本：
 
 ```bash
 lsb_release -a
-# 应该看到: Ubuntu 24.04.x LTS
+# 应该看到: Ubuntu 26.04.x LTS
 ```
 
-也可从开始菜单启动 **Ubuntu 24.04**。
+也可从开始菜单启动 **Ubuntu 26.04**。
 
 > **推荐 Windows Terminal**：[Microsoft Store 免费安装](https://aka.ms/terminal)——多标签、GPU 加速渲染、UTF-8 完善。WSL 发行版自动出现在下拉菜单。
 
@@ -199,7 +199,7 @@ memory=8GB
 wsl --shutdown
 ```
 
-然后重新 `wsl -d Ubuntu-24.04` 进入 Ubuntu。
+然后重新 `wsl -d Ubuntu-26.04` 进入 Ubuntu。
 
 
 ### 可选：WSL 备份 / 导出 / 导入
@@ -210,30 +210,30 @@ wsl --shutdown
 
 ```powershell
 # 导出到 D 盘（压缩成 tar.gz）
-wsl --export Ubuntu-24.04 D:\backup\ubuntu-24.04-backup.tar
+wsl --export Ubuntu-26.04 D:\backup\ubuntu-26.04-backup.tar
 
 # 检查备份文件大小
-ls D:\backup\ubuntu-24.04-backup.tar
+ls D:\backup\ubuntu-26.04-backup.tar
 ```
 
 **导入（恢复/迁移）**：
 
 ```powershell
 # 先注销原有发行版（谨慎！会删除原环境）
-wsl --unregister Ubuntu-24.04
+wsl --unregister Ubuntu-26.04
 
-# 从备份导入，可自定义发行版名称（如 u24claudec）
-wsl --import u24claudec D:\wsl\u24claudec D:\backup\ubuntu-24.04-backup.tar
+# 从备份导入，可自定义发行版名称（如 u26claudec）
+wsl --import u26claudec D:\wsl\u26claudec D:\backup\ubuntu-26.04-backup.tar
 
 # 设置默认用户（导入后 root 是默认用户）
-u24claudec config --default-user <你的用户名>
+u26claudec config --default-user <你的用户名>
 ```
 
 **快速重置**（不需要备份，直接删掉重装）：
 
 ```powershell
-wsl --unregister Ubuntu-24.04
-wsl --install -d Ubuntu-24.04
+wsl --unregister Ubuntu-26.04
+wsl --install -d Ubuntu-26.04
 ```
 
 > **日常使用**：备份文件放非系统盘（D:/E:），Windows 重装不会丢失。每月备份一次即可。
@@ -253,7 +253,7 @@ wsl --shutdown
 ```
 
 
-> **完成本节后**：WSL + Ubuntu 24.04 已就绪，PS7 已安装，网络已配置。进入 Ubuntu 继续阶段 1。
+> **完成本节后**：WSL + Ubuntu 26.04 已就绪，PS7 已安装，网络已配置。进入 Ubuntu 继续阶段 1。
 
 
 ## 阶段 1 — OS 基础（首次装的机器）
@@ -276,7 +276,7 @@ curl --version  # curl 7.81+ 即可
 
 ## 阶段 2 — 装 gh CLI
 
-**Ubuntu 24.04+ / Debian 12+（apt 源有）**：
+**Ubuntu 26.04+ / Debian 12+（apt 源有）**：
 
 ```bash
 # GitHub 官方 apt 源（一次性）
