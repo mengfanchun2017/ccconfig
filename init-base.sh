@@ -157,6 +157,7 @@ PYEOF
     echo "  切换 LLM:          bash $SCRIPT_DIR/lib/init-llm.sh"
     echo "  更新系统:          bash $SCRIPT_DIR/lib/update.sh all"
     echo "  状态检查:          bash maintain.sh status"
+    echo "  MCP 状态:          claude mcp list（/mcp 仅交互终端可用）"
     echo "  装 Skills:         bash option-skill/init.sh --install"
     echo "  装可选组件:        bash init-option.sh"
     echo ""
