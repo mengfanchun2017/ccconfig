@@ -50,7 +50,7 @@ setup_link() {
 }
 
 setup_symlinks() {
-    section "符号链接"
+    echo -e "\n${CYAN}符号链接${NC}"
 
     # 清理旧 shell_aliases.sh（已重命名为 shell_init.sh）
     [[ -L "$CLAUDE_DIR/shell_aliases.sh" ]] && rm -f "$CLAUDE_DIR/shell_aliases.sh"
