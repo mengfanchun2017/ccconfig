@@ -458,10 +458,10 @@ start_watch() {
 
     echo $monitor_pid > "$PID_FILE"
     do_log "Monitor started (monitor: $monitor_pid, events: $event_pid)"
-    echo -e "${GREEN}[SYNC]${NC} Started (monitor: $monitor_pid, events: $event_pid)"
-    echo -e "${GRAY}Use: status | log | tail${NC}"
-    echo -e "${GRAY}Watching: $WATCH_DIR → all git repos${NC}"
-    echo -e "${GRAY}Repos: $(list_repos | xargs -I{} basename {} | tr '\n' ' ')${NC}"
+    $QUIET_MODE || echo -e "${GREEN}[SYNC]${NC} Started (monitor: $monitor_pid, events: $event_pid)"
+    $QUIET_MODE || echo -e "${GRAY}Use: status | log | tail${NC}"
+    $QUIET_MODE || echo -e "${GRAY}Watching: $WATCH_DIR → all git repos${NC}"
+    $QUIET_MODE || echo -e "${GRAY}Repos: $(list_repos | xargs -I{} basename {} | tr '\n' ' ')${NC}"
 
     # 启动后 30s 扫描已有改动（不等 debounce）
     (
