@@ -772,7 +772,16 @@ esac
 
 echo ""
 title "✅ 完成"
-echo "提示: claude mcp list 查看注册状态, init-mcp.sh keys 填 Key"
+
+# 显示实际 MCP 连接状态（/mcp 命令仅交互终端可用，后台 session 用 claude mcp list）
+if command -v claude &> /dev/null; then
+    echo -e "${CYAN}── MCP 连接状态 ──${NC}"
+    claude mcp list 2>/dev/null || true
+    echo ""
+    echo -e "${GRAY}提示: /mcp 管理界面仅交互终端可用，日常用 claude mcp list 查看状态${NC}"
+else
+    echo "提示: claude mcp list 查看注册状态, init-mcp.sh keys 填 Key"
+fi
 
 # 确保脚本正常退出
 exit 0
