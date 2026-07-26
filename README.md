@@ -60,7 +60,7 @@ ccconfig/
 │   ├── sync.sh               # 多仓库智能同步（云端↔本地）
 │   ├── update.sh             # 月度组件升级
 │   ├── setup-links.sh        # 公开符号链接（shell_init + pre-commit）
-│   ├── example-sync.sh       # .example 模板与 ccprivate 同步管理
+│   ├── example-sync.sh       # .example 模板 ↔ ccprivate 双向同步（正向/反向/diff）
 │   ├── deps-check.sh         # 依赖完整性检查
 │   ├── path-helper.sh        # 动态路径解析 + CCCONFIG_HOME
 │   ├── git-conflict.sh       # Git 冲突解决公共库
@@ -181,7 +181,7 @@ bash lib/init-llm.sh deepseek     # 一条命令切
 
 > **运行时文件（rules/agents/commands）在 ccprivate**：ccconfig 仅提供 `.example` 模板。
 > `~/.claude/rules` → `ccprivate/rules`，`~/.claude/agents` → `ccprivate/agents`。
-> 用户改 ccprivate 文件，`git pull ccconfig` 不覆盖。新模板通过 `maintain.sh example promote` 手动合并。
+> 用户改 ccprivate 文件，`git pull ccconfig` 不覆盖。差异通过 `maintain.sh example` 查看；正向同步（ccconfig→ccprivate）用 `promote`，反向同步（ccprivate→ccconfig）用 `reverse`（需仓库写权限）。
 
 ### 🔄 Auto-Sync 守护进程
 
@@ -218,7 +218,7 @@ bash maintain.sh [status|monitor|sync|update|deps|fix|example]
 - `fix` — 自动修复断链、重建符号链接
 - `deps` — 依赖完整性检查（Node/uv/gh/lark-cli 等）
 - `monitor` — 启动/停止/查看 auto-sync 守护进程
-- `example` — .example 模板与 ccprivate 同步状态（status + promote）
+- `example` — .example 模板差异检测 + 双向同步（diff/promote/reverse）
 
 ### 🔌 可选组件生态
 
@@ -247,8 +247,10 @@ bash maintain.sh [status|monitor|sync|update|deps|fix|example]
 | `bash maintain.sh monitor start` | 启动 auto-sync |
 | `bash maintain.sh sync --pull` | 强拉远程（暗号 `pullff`） |
 | `bash maintain.sh self skill` | 更新 skills（git pull + relink） |
-| `bash maintain.sh example` | 检测 .example 模板与 ccprivate 差异 |
-| `bash maintain.sh example promote` | 推送 .example 变更到 ccprivate |
+| `bash maintain.sh example` | 检测 .example 模板差异（status） |
+| `bash maintain.sh example diff` | 查看差异内容 |
+| `bash maintain.sh example promote` | 正向同步: ccconfig → ccprivate |
+| `bash maintain.sh example reverse` | 反向同步: ccprivate → ccconfig（需写权限） |
 | `bash lib/init-llm.sh` | 切换 LLM 后端 |
 | `bash option-skill/init.sh --install` | 安装 Skills（可选组件） |
 | `bash option-skill/init.sh --update` | 更新 Skills |

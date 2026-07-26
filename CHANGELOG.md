@@ -4,6 +4,9 @@ All notable changes to ccconfig will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **`example-sync.sh` 双向同步** — 新增 `diff`、`reverse` 子命令。支持 ccprivate→ccconfig 反向 promote（需仓库写权限），conf 文件反向同步前展示 diff + 人工确认防密钥泄露。`maintain.sh` 菜单 8 增加 d/f/r 三选一。
+
 ### Changed
 - **`bootstrap.sh` → `bootstrap-gh-auth.sh`** — 改名明确 GitHub auth 定位。全仓库 18+ 引用同步更新
 - **`bin/init-ccprivate.sh` → `bin/init-ccprivate-repo.sh`** — 改名 + `cd` → `pushd/popd` cwd 安全修复
