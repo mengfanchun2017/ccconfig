@@ -51,12 +51,13 @@ cleanup_zombie_inotify() {
 
 enable_autostart() {
     if ! command -v systemctl &>/dev/null; then
-        error "systemd 不可用"
+        error "systemd 不可用（WSL1 或旧版 Linux？），跳过 auto-sync 服务安装"
         return 1
     fi
 
     if [ ! -f /proc/1/comm ] || ! grep -q "systemd" /proc/1/comm 2>/dev/null; then
-        error "systemd 非 PID 1，无法使用系统级 service"
+        error "systemd 非 PID 1（WSL 需 systemd 支持），跳过系统级 service"
+        info "手动启动: bash $SCRIPT_DIR/monitor.sh start"
         return 1
     fi
 

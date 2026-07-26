@@ -101,6 +101,35 @@ run_lark_cli() {
     install_lark_cli || return 1
     echo ""
 
+    # 预检：检查是否有占位符 App ID/Secret，引导用户先填写
+    local placeholder_apps
+    placeholder_apps=$(python3 - "$FEISHU_CONF" << 'PYEOF' 2>/dev/null
+import json, sys
+PLACEHOLDER = ['请填入', '请到', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-', 'your-app-name']
+def is_ph(val):
+    if not val or not isinstance(val, str): return True
+    for p in PLACEHOLDER:
+        if p.lower() in val.lower(): return True
+    return False
+with open(sys.argv[1], 'r') as f:
+    data = json.load(f)
+apps = data.get('apps', [])
+bad = [a.get('name','?') for a in apps if a.get('larkCli',{}).get('enabled') and (is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')))]
+if bad:
+    print('\n'.join(bad))
+PYEOF
+    )
+    if [ -n "$placeholder_apps" ]; then
+        warn "以下账号的 App ID/Secret 仍为占位符，需先填写:"
+        echo "$placeholder_apps" | while read -r name; do
+            echo -e "    ${YELLOW}→${NC} $name"
+        done
+        echo ""
+        info "编辑 feishu.json 填入真实值: vim $FEISHU_CONF"
+        info "获取地址: https://open.feishu.cn/app"
+        return 1
+    fi
+
     local apps=()
     while IFS= read -r line; do
         [ -z "$line" ] && continue
@@ -275,6 +304,35 @@ SERVICEOF
 }
 
 run_cconnect() {
+    # 预检：检查是否有占位符 App ID/Secret
+    local placeholder_apps
+    placeholder_apps=$(python3 - "$FEISHU_CONF" << 'PYEOF' 2>/dev/null
+import json, sys
+PLACEHOLDER = ['请填入', '请到', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-', 'your-app-name']
+def is_ph(val):
+    if not val or not isinstance(val, str): return True
+    for p in PLACEHOLDER:
+        if p.lower() in val.lower(): return True
+    return False
+with open(sys.argv[1], 'r') as f:
+    data = json.load(f)
+apps = data.get('apps', [])
+bad = [a.get('name','?') for a in apps if a.get('ccConnect',{}).get('enabled') and (is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')))]
+if bad:
+    print('\n'.join(bad))
+PYEOF
+    )
+    if [ -n "$placeholder_apps" ]; then
+        warn "以下 cc-connect 账号的 App ID/Secret 仍为占位符，需先填写:"
+        echo "$placeholder_apps" | while read -r name; do
+            echo -e "    ${YELLOW}→${NC} $name"
+        done
+        echo ""
+        info "编辑 feishu.json 填入真实值: vim $FEISHU_CONF"
+        info "获取地址: https://open.feishu.cn/app"
+        return 1
+    fi
+
     install_cconnect || return 1
     echo ""
     generate_toml
