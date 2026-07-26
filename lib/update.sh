@@ -238,10 +238,13 @@ update_nodejs() {
     local fallback_url="$FALLBACK_DOWNLOAD/v${target}/node-v${target}-linux-x64.tar.gz"
     info "下载: $url"
     if ! curl -fsSL --connect-timeout 10 --max-time 120 --retry 2 "$url" -o /tmp/node-update.tar.gz 2>&1; then
-        info "镜像下载失败，尝试 nodejs.org..."
-        if ! curl -fsSL --connect-timeout 10 --max-time 300 --retry 2 "$fallback_url" -o /tmp/node-update.tar.gz 2>&1; then
-            err "下载失败（镜像和官方源均不可用）"
-            return 1
+        info "镜像下载失败，尝试 HTTP/1.1..."
+        if ! curl -fsSL --connect-timeout 10 --max-time 120 --retry 2 --http1.1 "$url" -o /tmp/node-update.tar.gz 2>&1; then
+            info "镜像下载失败，尝试 nodejs.org..."
+            if ! curl -fsSL --connect-timeout 10 --max-time 300 --retry 2 "$fallback_url" -o /tmp/node-update.tar.gz 2>&1; then
+                err "下载失败（镜像和官方源均不可用）"
+                return 1
+            fi
         fi
     fi
     # 验证下载的是有效的 tar.gz（防止 CDN 返回 HTML 错误页）
@@ -496,7 +499,8 @@ update_cconnect() {
     local tmp="/tmp/cc-connect-update.$$"
     mkdir -p "$tmp"
 
-    if ! curl -fsSL --connect-timeout 10 --max-time 120 "$url" -o "$tmp/cc-connect.tar.gz"; then
+    if ! curl -fsSL --connect-timeout 10 --max-time 120 --retry 2 "$url" -o "$tmp/cc-connect.tar.gz" && \
+       ! curl -fsSL --connect-timeout 10 --max-time 120 --retry 2 --http1.1 "$url" -o "$tmp/cc-connect.tar.gz"; then
         err "下载失败: $url"
         rm -rf "$tmp"
         return 1
