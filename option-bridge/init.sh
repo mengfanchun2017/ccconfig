@@ -179,7 +179,8 @@ install_cconnect() {
     mkdir -p "$tmp" "$HOME/.local/bin"
 
     echo -n "  下载 ... "
-    if curl -fsSL --connect-timeout 10 --max-time 120 "$url" -o "$tmp/cc-connect.tar.gz" 2>/dev/null; then
+    if curl -fsSL --connect-timeout 10 --max-time 120 --retry 2 "$url" -o "$tmp/cc-connect.tar.gz" 2>/dev/null || \
+       curl -fsSL --connect-timeout 10 --max-time 120 --retry 2 --http1.1 "$url" -o "$tmp/cc-connect.tar.gz" 2>/dev/null; then
         tar -xzf "$tmp/cc-connect.tar.gz" -C "$tmp"
         local bin=$(find "$tmp" -name "cc-connect" -type f | head -1)
         [ -n "$bin" ] && { cp "$bin" "$CC_CONNECT_BIN"; chmod +x "$CC_CONNECT_BIN"; good "✅"; } || { bad "❌ 未找到二进制"; return 1; }
