@@ -577,10 +577,10 @@ setup_autosync() {
     fi
 
     # 启用 auto-sync 自启动
-    if bash "$CCCONFIG_ROOT/lib/init-autostart.sh" enable 2>/dev/null; then
+    if bash "$CCCONFIG_ROOT/lib/init-autostart.sh" enable; then
         success "auto-sync 自启动已启用"
     else
-        warn "auto-sync 自启动启用失败"
+        warn "auto-sync 自启动启用失败（非致命，可手动: sudo systemctl enable --now claude-auto-sync）"
     fi
 }
 
