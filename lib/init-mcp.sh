@@ -403,11 +403,11 @@ do_sync() {
     do_config_keys
     [[ "$quiet" != "1" ]] && echo ""
 
-    # 同步到 settings.json / .config.json
+    # 同步到所有 MCP 配置位置（/mcp 读 ~/.claude.json，工具发现读 settings.json）
     SETTINGS_FILE="$HOME/.claude/settings.json"
     CONFIG_FILE="$HOME/.claude/.config.json"
 
-    for f in "$SETTINGS_FILE" "$CONFIG_FILE"; do
+    for f in "$CLAUDE_JSON" "$SETTINGS_FILE" "$CONFIG_FILE"; do
         if [[ "$quiet" == "1" ]]; then
             result=$(sync_to_settings "$f" 2>/dev/null)
         else
@@ -676,7 +676,7 @@ PYEOF
 
         SETTINGS_FILE="$HOME/.claude/settings.json"
         CONFIG_FILE="$HOME/.claude/.config.json"
-        for f in "$SETTINGS_FILE" "$CONFIG_FILE"; do
+        for f in "$CLAUDE_JSON" "$SETTINGS_FILE" "$CONFIG_FILE"; do
             result=$(sync_to_settings "$f")
             if [[ "$result" == "ok" ]]; then
                 good "✅ 已同步到 $(basename "$f")"
@@ -772,16 +772,7 @@ esac
 
 echo ""
 title "✅ 完成"
-
-# 显示实际 MCP 连接状态（/mcp 命令仅交互终端可用，后台 session 用 claude mcp list）
-if command -v claude &> /dev/null; then
-    echo -e "${CYAN}── MCP 连接状态 ──${NC}"
-    claude mcp list 2>/dev/null || true
-    echo ""
-    echo -e "${GRAY}提示: /mcp 管理界面仅交互终端可用，日常用 claude mcp list 查看状态${NC}"
-else
-    echo "提示: claude mcp list 查看注册状态, init-mcp.sh keys 填 Key"
-fi
+echo "提示: claude mcp list 查看连接状态, /mcp 查看管理面板, init-mcp.sh keys 填 Key"
 
 # 确保脚本正常退出
 exit 0
