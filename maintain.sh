@@ -8,7 +8,7 @@
 #   bash maintain.sh self [cc|skill|all]  # 自我更新
 #   bash maintain.sh upgrade [comp]     # 升级组件
 #   bash maintain.sh sync [--pull|--push] [repo]  # Git 同步
-#   bash maintain.sh monitor [start|stop|status|log|tail]
+#   bash maintain.sh monitor [start|stop|status|tail]
 #   bash maintain.sh deps               # 依赖检查
 #   bash maintain.sh fix                # 自动修复（= setup）
 #
@@ -120,7 +120,7 @@ show_menu() {
     echo "  5) 组件升级         ─ Node.js / Claude / gh / uv / lark-cli ..."
     echo "  6) 依赖检查         ─ 必需/核心/功能/可选依赖"
     echo "  7) 一键修复         ─ 重建链接 + 启用 auto-sync（= setup）"
-    echo "  8) 模板同步         ─ .example 模板 → ccprivate"
+    echo "  8) 模板同步         ─ .example ↔ ccprivate（正向/反向/diff）"
     echo "  9) ccprivate 升级    ─ 检测并修复 ccprivate 结构"
     echo ""
     echo "  0) 退出"
@@ -137,8 +137,15 @@ show_menu() {
         7) do_finalize ;;
         8) bash "$LIB_DIR/example-sync.sh" status
            echo ""
-           read -p "同步新增模板？[y/N]: " yn
-           [[ "$yn" =~ ^[Yy] ]] && bash "$LIB_DIR/example-sync.sh" sync ;;
+           echo "  d) 查看差异   f) 正向同步   r) 反向同步   0) 返回"
+           read -p "选择 [d/f/r/0]: " choice
+           case "$choice" in
+             d) bash "$LIB_DIR/example-sync.sh" diff ;;
+             f) bash "$LIB_DIR/example-sync.sh" promote ;;
+             r) bash "$LIB_DIR/example-sync.sh" reverse ;;
+             0) ;;
+             *) ;;
+           esac ;;
         9) bash "$LIB_DIR/ccprivate-upgrade.sh"
            echo ""
            read -p "按回车返回菜单..." dummy
@@ -159,20 +166,18 @@ submenu_monitor() {
     echo "  1) 启动             ─ 后台启动文件监控 + 自动提交推送"
     echo "  2) 停止             ─ 停止监控进程"
     echo "  3) 看状态           ─ 进程状态 + 各仓库待提交文件数"
-    echo "  4) 看日志           ─ 最近 30 条提交/推送记录（彩色）"
-    echo "  5) 实时追踪 (tail)  ─ 持续输出推送结果（Ctrl+C 退出）"
-    echo "  6) 文件变更 (mon)   ─ 实时显示文件变更事件（Ctrl+C 退出）"
+    echo "  4) 实时追踪 (tail)  ─ 持续输出推送结果（Ctrl+C 退出）"
+    echo "  5) 文件变更 (mon)   ─ 实时显示文件变更事件（Ctrl+C 退出）"
     echo ""
     echo "  0) 返回"
     echo ""
-    read -p "选择 [0-6]: " c
+    read -p "选择 [0-5]: " c
     case "$c" in
         1) bash "$LIB_DIR/monitor.sh" start ;;
         2) bash "$LIB_DIR/monitor.sh" stop ;;
         3) bash "$LIB_DIR/monitor.sh" status ;;
-        4) bash "$LIB_DIR/monitor.sh" log 30 ;;
-        5) bash "$LIB_DIR/monitor.sh" tail ;;
-        6) bash "$LIB_DIR/monitor.sh" monitor ;;
+        4) bash "$LIB_DIR/monitor.sh" tail ;;
+        5) bash "$LIB_DIR/monitor.sh" monitor ;;
         0) return ;;
         *) submenu_monitor ;;
     esac
