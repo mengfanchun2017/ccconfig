@@ -83,11 +83,11 @@ else
     else
         echo -e "  ${YELLOW}即将 sudo apt update && sudo apt upgrade -y${NC}"
         echo -e "  ${GRAY}按 Enter 执行，Ctrl-C 跳过${NC}"
-        read -r _skip || { echo ""; warn "已跳过环境准备"; }
-        if [[ -z "${_skip+x}" ]] || [[ -n "$_skip" ]]; then
-            warn "已跳过环境准备"
-        else
+        if read -r _skip && [[ -z "$_skip" ]]; then
             _do_apt_prep
+        else
+            echo ""
+            warn "已跳过环境准备"
         fi
     fi
 fi
