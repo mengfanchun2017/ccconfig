@@ -25,7 +25,7 @@ unset _repo _project_id _central
 if [ -f "$CCCONFIG_HOME/lib/monitor.sh" ]; then
     _monitor_pid_file="$CCCONFIG_HOME/.monitor-sync.pid"
     if [ ! -f "$_monitor_pid_file" ] || ! kill -0 "$(cat "$_monitor_pid_file")" 2>/dev/null; then
-        bash "$CCCONFIG_HOME/lib/monitor.sh" start 2>/dev/null &
+        bash "$CCCONFIG_HOME/lib/monitor.sh" start >/dev/null 2>&1 & disown
     fi
     unset _monitor_pid_file
 fi
