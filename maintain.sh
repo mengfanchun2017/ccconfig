@@ -37,14 +37,30 @@ do_finalize() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
+    local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+
     # 1. 修复符号链接（ccprivate/setup.sh 统一处理公私链接）
     section "1. 修复符号链接"
-    local ccprivate_setup="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/setup.sh"
+    local ccprivate_setup="$ccpriv/setup.sh"
     if [[ -x "$ccprivate_setup" ]]; then
         bash "$ccprivate_setup" 2>/dev/null && ok "符号链接已修复" || warn "符号链接部分失败"
     else
         bash "$LIB_DIR/setup-links.sh"
         info "ccprivate/setup.sh 不可用，仅修复了公开链接"
+    fi
+
+    # 1b. 补齐 ccprivate 缺失目录（空目录 git 不跟踪，clone 后不存在）
+    local expected_dirs=("skill-config" "rules" "agents" "commands" "bin")
+    local created=false
+    for d in "${expected_dirs[@]}"; do
+        if [[ ! -d "$ccpriv/$d" ]]; then
+            mkdir -p "$ccpriv/$d"
+            touch "$ccpriv/$d/.gitkeep"
+            created=true
+        fi
+    done
+    if $created; then
+        ok "缺失 ccprivate 目录已补齐"
     fi
 
     # 2. auto-sync 服务
