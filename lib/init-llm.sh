@@ -363,15 +363,20 @@ _ensure_openai_bridge() {
     local port=8898
     local health=$(curl -s --max-time 2 "http://127.0.0.1:${port}/health" 2>/dev/null)
 
-    if [[ -n "$health" ]] && echo "$health" | grep -q "\"upstream\":\"$upstream\""; then
-        # bridge 已启且 upstream 匹配，复用
-        info "  [bridge] 已运行且 upstream 匹配"
-        return 0
-    fi
-
     if [[ -n "$health" ]]; then
-        # bridge 已启但 upstream 不对，杀掉重启
-        pkill -f "openai_bridge.py.*--port ${port}" 2>/dev/null || true
+        local cur_upstream=$(echo "$health" | python3 -c "
+import json, sys
+try: print(json.load(sys.stdin).get('upstream', ''))
+except: pass
+" 2>/dev/null || echo "")
+        if [[ "$cur_upstream" == "$upstream" ]]; then
+            # bridge 已启且 upstream 匹配，复用
+            info "  [bridge] 已运行且 upstream 匹配"
+            return 0
+        fi
+        # bridge 已启但 upstream 不对，杀掉全部 openai_bridge.py 再启
+        info "  [bridge] upstream 不匹配 ($cur_upstream → $upstream)，重启"
+        pkill -f "openai_bridge.py" 2>/dev/null || true
         sleep 1
     fi
 

@@ -106,7 +106,6 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
         "messages": messages,
         "stream": bool(anth_body.get("stream")),
         "max_tokens": max_tokens_val,
-        "max_completion_tokens": max_tokens_val,
     }
     for k in ("temperature", "top_p", "stop", "frequency_penalty", "presence_penalty", "n"):
         if k in anth_body:
