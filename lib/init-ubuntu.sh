@@ -591,7 +591,7 @@ setup_hook() {
     # Claude Code 读取 ~/.claude.json，不是 settings.json
     # 所以 hooks 必须写入 ~/.claude.json
     CLAUDE_JSON="$HOME/.claude.json"
-    HOOK_CMD="bash $CCCONFIG_ROOT/lib/status.sh"
+    HOOK_CMD="bash \$HOME/git/ccconfig/lib/status.sh"
 
     python3 << PYEOF
 import json
