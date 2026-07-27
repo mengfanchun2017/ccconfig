@@ -13,6 +13,7 @@
 | [0002](0002-merge-kr-and-task.md) | 合并 KR + Task 为单一交付实体 | 2026-06-08 | ✅ Accepted | Phase 0 |
 | [0003](0003-deprecate-tasks-and-kr-progress.md) | 废弃 Tasks + KR_Progress 表 | 2026-06-09 | ✅ Accepted | Phase 0 |
 | [0004](0004-officecli-skill-architecture.md) | OfficeCLI skill 架构：base + load_skill | 2026-07-07 | ✅ Accepted | — |
+| [0005](0005-remove-slash-mcp-runtime-command.md) | 废弃运行时 /mcp 命令，迁移至 CLI 子命令 | 2026-07-27 | ✅ Accepted | — |
 
 ## 强制 4 字段（每条 ADR 必含）
 

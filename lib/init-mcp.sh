@@ -780,7 +780,7 @@ esac
 
 echo ""
 title "✅ 完成"
-echo "提示: claude mcp list 查看连接状态, /mcp 查看管理面板, init-mcp.sh keys 填 Key"
+echo "提示: claude mcp list 查看连接状态, init-mcp.sh keys 填 Key"
 
 # 确保脚本正常退出
 exit 0
