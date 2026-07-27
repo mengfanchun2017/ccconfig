@@ -192,8 +192,8 @@ do_install() {
         info "配置已存在: $CONF_FILE"
     fi
 
-    pip3 install -q fastapi uvicorn --break-system-packages 2>/dev/null
-    good "Python 依赖已安装 (fastapi, uvicorn)"
+    pip3 install -q fastapi uvicorn httpx --break-system-packages 2>/dev/null
+    good "Python 依赖已安装 (fastapi, uvicorn, httpx)"
     echo ""
     info "LLM 网关默认未启动。需要时执行:"
     info "  bash $SCRIPT_DIR/init.sh --start"
