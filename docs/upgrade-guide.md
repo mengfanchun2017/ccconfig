@@ -200,6 +200,7 @@ ccprivate 的 conf/*.json 由 ccconfig 脚本 resolve_conf() 直接读取，改 
 |------|------|------|
 | `update.sh` 卡在 git pull | 本地有未提交改动 | 选 a) 远程覆盖 或 c) 手动处理 |
 | `/skills` 看不到新 skill | Claude Code 缓存 skill 列表 | 新开一个 session |
+| `/mcp` 提示无此命令 | v2.0+ 已移除运行时 /mcp | 改用 `claude mcp list / add / remove`（CLI 层操作）|
 | `init-skill.sh sync` 跳过已有 skill | `~/.claude/skills/<name>` 是真目录不是 symlink | `rm -rf ~/.claude/skills/<name>` 再跑 sync |
 | LLM 切了但 Claude 还是用旧的 | settings.json 没更新 | `bash init-llm.sh <backend>` 重写配置 |
 | Node 升级后 lark-cli 失效 | symlink 指向旧 Node 路径 | `bash update.sh npm` 重建 symlink |
