@@ -259,6 +259,14 @@ try:
         for hook_type, hook_list in claude_data['hooks'].items():
             if hook_type not in merged or not merged[hook_type]:
                 merged[hook_type] = hook_list
+        # 归一化命令路径：/home/<user>/ → $HOME/，硬编码路径在不同主机间断裂
+        import re
+        for entries in merged.values():
+            for entry in entries if isinstance(entries, list) else []:
+                for h in entry.get('hooks', []) if isinstance(entry, dict) else []:
+                    cmd = h.get('command', '')
+                    if cmd:
+                        h['command'] = re.sub(r'/home/[^/]+/', '$HOME/', cmd)
         settings_data['hooks'] = merged
 
     # 同步 env：merge（settings 已有 keys 优先 → init-llm 写入不被覆盖；
