@@ -70,7 +70,13 @@ enable_autostart() {
     fi
 
     info "安装系统级 systemd service..."
-    sudo cp "$SVC_TEMPLATE" "$SYS_SVC_FILE"
+    local _user="$USER"
+    local _group="$(id -gn)"
+    local _home="$HOME"
+    sed -e "s/<USER>/$_user/g" \
+        -e "s/<GROUP>/$_group/g" \
+        -e "s|<HOME>|$_home|g" \
+        "$SVC_TEMPLATE" | sudo tee "$SYS_SVC_FILE" > /dev/null
     sudo systemctl daemon-reload
     sudo systemctl enable --now "$SVC_NAME"
     info "auto-sync 已启用（开机自启 + 当前已运行）"

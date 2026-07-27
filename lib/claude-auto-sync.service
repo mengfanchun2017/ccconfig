@@ -4,18 +4,19 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-User=franc
-Group=franc
-WorkingDirectory=/home/franc/git/ccconfig
-Environment=PATH=/home/franc/.local/bin:/usr/local/bin:/usr/bin:/bin
+# 模板文件：User/Group/Home 路径在 init-autostart.sh enable 时动态替换
+User=<USER>
+Group=<GROUP>
+WorkingDirectory=<HOME>/git/ccconfig
+Environment=PATH=<HOME>/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=http_proxy=http://127.0.0.1:7897
 Environment=https_proxy=http://127.0.0.1:7897
 Environment=HTTP_PROXY=http://127.0.0.1:7897
 Environment=HTTPS_PROXY=http://127.0.0.1:7897
 Type=forking
-PIDFile=/home/franc/git/ccconfig/.monitor-sync.pid
-ExecStart=/home/franc/git/ccconfig/lib/monitor.sh start
-ExecStop=/home/franc/git/ccconfig/lib/monitor.sh stop
+PIDFile=<HOME>/git/ccconfig/.monitor-sync.pid
+ExecStart=<HOME>/git/ccconfig/lib/monitor.sh start
+ExecStop=<HOME>/git/ccconfig/lib/monitor.sh stop
 Restart=always
 RestartSec=10
 
