@@ -74,6 +74,43 @@ check_write_permission() {
     fi
 }
 
+# ── 方向说明 ──
+banner_forward() {
+    echo -e "  ${GREEN}正向同步（默认）${NC}: ccconfig/templates 模板 ${BOLD}→${NC} ccprivate 运行时"
+    echo -e "  ${GRAY}用途: 拿上游模板的更新覆盖本地。会丢失本地对该文件的编辑（含 API Key）。${NC}"
+}
+
+banner_reverse() {
+    echo -e "  ${YELLOW}反向同步（仅仓库所有者）${NC}: ccprivate 运行时 ${BOLD}→${NC} ccconfig/templates 模板"
+    echo -e "  ${GRAY}用途: 把本地改好的配置回灌为上游模板。conf 文件可能含密钥，务必先看 diff。${NC}"
+}
+
+# ── 同步前确认：展示差异 + 绝对路径 ──
+# $1=src 绝对路径  $2=dst 绝对路径  $3=方向标签
+confirm_sync() {
+    local src="$1" dst="$2" label="$3"
+
+    echo ""
+    echo -e "${CYAN}━━━ 待同步 ($label) ━━━${NC}"
+    echo -e "  ${GRAY}源  ${NC}${BOLD}$src${NC}"
+    echo -e "  ${GRAY}目标${NC}${BOLD}$dst${NC}"
+    echo ""
+
+    if [ -f "$dst" ]; then
+        echo -e "  ${GRAY}差异 (- 源 / + 目标现状):${NC}"
+        diff -u "$src" "$dst" || true
+        echo ""
+        warn "目标文件将被覆盖，以上 ${BOLD}+${NC}${YELLOW} 行内容会丢失${NC}"
+    else
+        echo -e "  ${CYAN}目标不存在，将新建${NC}"
+    fi
+
+    echo ""
+    read -p "确认执行？[y/N]: " confirm
+    [[ "$confirm" =~ ^[Yy] ]] || { info "已取消"; return 1; }
+    return 0
+}
+
 # ── 收集差异 ──
 collect_diffs() {
     local -n _outdated="$1" _new="$2"
@@ -134,7 +171,12 @@ do_status() {
     done
 
     echo ""
-    echo -e "  ${GRAY}操作: diff 查看 | promote 正向 | reverse 反向${NC}"
+    banner_forward
+    if check_write_permission; then
+        banner_reverse
+    else
+        echo -e "  ${GRAY}反向同步: 不可用（无 ccconfig push 权限，非仓库所有者）${NC}"
+    fi
 }
 
 # ── 单文件 diff ──
@@ -184,17 +226,23 @@ do_diff() {
 }
 
 # ── 正向 promote: ccconfig → ccprivate ──
+# $2=skip_confirm（"yes" 时跳过，仅供非交互 do_sync 新建文件用）
 promote_one() {
     local example="$1"
+    local skip_confirm="${2:-}"
     [ -f "$example" ] || { err "文件不存在: $example"; return 1; }
 
     local rel="${example#$CCCONFIG_ROOT/}"
     local dst; dst=$(derive_ccprivate "$example")
     [ -z "$dst" ] && { err "未知类别: $rel"; return 1; }
 
+    if [ "$skip_confirm" != "yes" ]; then
+        confirm_sync "$example" "$dst" "正向: 模板 → ccprivate" || return 0
+    fi
+
     mkdir -p "$(dirname "$dst")"
     cp "$example" "$dst"
-    ok "$rel → ${dst#$CCPRIVATE/}"
+    ok "$example → $dst"
 }
 
 do_promote_interactive() {
