@@ -331,7 +331,7 @@ All notable changes to ccconfig will be documented in this file.
 - `monitor.sh` — 多仓库文件监控 + 自动 Git 同步
 - `sync.sh` — 多仓库智能同步（合并原 gitforce.sh）
 - `setup-links.sh` — 符号链接重建
-- `option-bridge/` — 飞书消息 Bridge
+- `option-bridge/` — 飞书消息 Bridge（已拆分为 `option-larkcli/` + `option-cconnect/`）
 - `option-ppt-master/` — PPT 生成环境
 - `option-vessel/` — Vessel AI 浏览器（已于 2026-06-14 移除，全线迁移至 Playwright）
 - `option-remote/` — 远程连接（Tailscale + SSH + tmux）

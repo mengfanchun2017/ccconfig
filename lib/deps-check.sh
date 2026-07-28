@@ -63,8 +63,8 @@ FEATURE_DEPS=(
 
 # 可选依赖：option-* 组件使用
 OPTIONAL_DEPS=(
-    "lark-cli|lark-cli --version|lark-cli|飞书 CLI (option-bridge)"
-    "cc-connect|cc-connect --version 2>/dev/null|cc-connect|飞书 Bridge (option-bridge)"
+    "lark-cli|lark-cli --version|lark-cli|飞书 CLI (option-larkcli)"
+    "cc-connect|cc-connect --version 2>/dev/null|cc-connect|飞书 Bridge (option-cconnect)"
     "officecli|officecli --version 2>/dev/null|officecli|OfficeCLI (option-officecli)"
 )
 

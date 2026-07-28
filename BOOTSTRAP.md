@@ -612,7 +612,7 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 | `bash lib/init-skill.sh sync` 显示"本地已有，跳过" | `~/.claude/skills/<name>` 是真目录不是 symlink | `rm -rf ~/.claude/skills/<name>` 再跑 sync |
 | `./lib/monitor.sh status` 显示 stopped | systemd user service 没起来 | `systemctl --user status ccconfig-monitor.service` 看原因；`bash lib/init-autostart.sh` 重装 |
 | LLM 切了但 Claude 还是用旧的 | `conf/llm.json` 改了但 settings.json 没更新 | `bash lib/init-llm.sh <backend>` 重写 settings.json |
-| 飞书操作报 token 过期 | 跨账号 / 长效 token 过期 | 重新跑 `bash option-bridge/init.sh` |
+| 飞书操作报 token 过期 | 跨账号 / 长效 token 过期 | 重新跑 `bash option-larkcli/init.sh` |
 
 ### 状态检查发现问题的应对
 

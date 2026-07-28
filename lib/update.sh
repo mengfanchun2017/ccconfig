@@ -462,7 +462,7 @@ update_cconnect() {
     # 检查是否安装
     if [ ! -x "$bin" ]; then
         info "cc-connect 未安装，跳过"
-        info "如需安装: bash ccconfig/option-bridge/init.sh --cc-connect"
+        info "如需安装: bash ccconfig/option-cconnect/init.sh"
         return 0
     fi
 

@@ -102,7 +102,8 @@ ccconfig/
 │   ├── cloudflare-plugin.md  # Cloudflare 插件说明
 │   └── adr/                  # 架构决策记录（MADR 格式）
 │
-├── option-bridge/            # 可选：飞书消息 Bridge + 多机器人
+├── option-larkcli/           # 可选：飞书 lark-cli（编辑文档/日历/任务）
+├── option-cconnect/          # 可选：飞书 cc-connect（收消息 Bridge + 多机器人）
 ├── option-llmswitch/         # 可选：LLM 网关代理（按时段自动切后端）
 ├── option-officecli/         # 可选：AI-native Office 工具
 ├── option-cloudflare/        # 可选：Cloudflare Workers/Pages/D1/R2
@@ -225,7 +226,8 @@ bash maintain.sh [status|monitor|sync|update|deps|fix|example]
 | 组件 | 用途 | 安装 |
 |------|------|------|
 | `option-llmswitch` | LLM 网关代理，按时段自动切后端 | `bash option-llmswitch/init.sh` |
-| `option-bridge` | 飞书消息 Bridge + 多机器人 | `bash option-bridge/init.sh` |
+| `option-larkcli` | 飞书 lark-cli（编辑文档/日历/任务） | `bash option-larkcli/init.sh` |
+| `option-cconnect` | 飞书 cc-connect（收消息 Bridge + 多机器人） | `bash option-cconnect/init.sh` |
 | `option-officecli` | AI-native Office 工具（PPT/docx/xlsx 生成） | `bash option-officecli/init.sh` |
 | `option-cloudflare` | Cloudflare Workers/R2/D1/Pages 开发环境 | `bash option-cloudflare/init.sh` |
 | `option-remote` | Tailscale + SSH 远程连接桌面 tmux session | 见 `option-remote/readme.md` |
