@@ -309,25 +309,19 @@ reverse_one() {
     [ -z "$example" ] && { err "无法识别文件类别: $rel"; return 1; }
     [ ! -f "$example" ] && { err ".example 模板不存在: ${example#$CCCONFIG_ROOT/}（反向同步仅支持已有模板的更新，新建模板请手动创建 .example）"; return 1; }
 
-    # 权限检查
+    # 所有者门禁
     if ! check_write_permission; then
-        err "没有 ccconfig 仓库写权限，无法反向同步"
+        err "反向同步仅限 ccconfig 仓库所有者（无 push 权限）"
         info "→ 如已 fork，请提 PR 贡献改动"
         return 1
     fi
 
-    # conf 文件特殊处理：必须展示 diff + 人工确认
-    if [[ "$rel" == conf/* ]]; then
-        warn "conf 文件可能含密钥/token，请确认不会泄露敏感值"
-        echo ""
-        diff -u "$example" "$ccprivate_file" || true
-        echo ""
-        read -p "确认反向同步此 conf 文件？[y/N]: " confirm
-        [[ "$confirm" =~ ^[Yy] ]] || { info "已取消"; return 0; }
-    fi
+    [[ "$rel" == conf/* ]] && warn "conf 文件可能含密钥/token，确认 diff 中无敏感值再继续"
+
+    confirm_sync "$ccprivate_file" "$example" "反向: ccprivate → 模板" || return 0
 
     cp "$ccprivate_file" "$example"
-    ok "反向同步: ${rel} → ${example#$CCCONFIG_ROOT/}"
+    ok "$ccprivate_file → $example"
     info "记得 git add + commit + push"
 }
 
