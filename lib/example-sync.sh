@@ -252,7 +252,9 @@ do_promote_interactive() {
     [ ${#all[@]} -eq 0 ] && { ok "无待同步文件"; return 0; }
 
     echo ""
-    section "选择要 promote 的文件（ccconfig → ccprivate）"
+    section "正向同步：选择要覆盖的 ccprivate 文件"
+    echo ""
+    banner_forward
     echo ""
 
     local idx=1
