@@ -66,19 +66,43 @@ detect_env() {
 }
 
 # ========== lark-cli ==========
+# 探测真实 npm 包路径（不依赖 PATH），从 package.json bin 字段读真实入口
+# 旧探测找 bin/lark-cli.js 失败（实际是 scripts/run.js），导致包装好但 symlink 缺失
+_install_lark_cli_symlink() {
+    local pkg_dir="$1"
+    local pkg_json="$pkg_dir/package.json"
+    [ -f "$pkg_json" ] || return 1
+    local bin_target
+    bin_target=$(python3 -c "import json; d=json.load(open('$pkg_json')); b=d.get('bin', {}); print(b.get('lark-cli', '') if isinstance(b, dict) else b)" 2>/dev/null)
+    [ -n "$bin_target" ] || return 1
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$pkg_dir/$bin_target" "$HOME/.local/bin/lark-cli"
+    return 0
+}
+
 install_lark_cli() {
     echo -e "${CYAN}── lark-cli ──${NC}"
-    if command -v lark-cli &>/dev/null; then
-        good "  ✓ 已安装"
+    local npm_root pkg_dir
+    npm_root=$(npm root -g 2>/dev/null || echo "$(dirname "$(find_node_bin)")/lib/node_modules")
+    pkg_dir="$npm_root/@larksuite/cli"
+
+    if [ -d "$pkg_dir" ]; then
+        # 包已装 — 不重装，仅补 symlink（PATH 里可能没有）
+        if _install_lark_cli_symlink "$pkg_dir"; then
+            good "  ✓ 已安装（symlink 已建）"
+        else
+            good "  ✓ 已安装"
+        fi
         return 0
     fi
-    echo -n "  npm install @larksuite/cli ... "
-    npm install -g @larksuite/cli 2>&1 && good "✅" || { bad "❌"; return 1; }
 
-    local npm_root=$(npm root -g 2>/dev/null || echo "$(dirname "$(find_node_bin)")/lib/node_modules")
-    for src in "$npm_root/@larksuite/cli/bin/lark-cli.js" "$npm_root/@larksuite/cli/bin/cli.js" "$npm_root/@larksuite/cli/scripts/run.js"; do
-        [ -f "$src" ] && { mkdir -p "$HOME/.local/bin"; rm -f "$HOME/.local/bin/lark-cli"; ln -sf "$src" "$HOME/.local/bin/lark-cli"; break; }
-    done
+    echo -n "  npm install @larksuite/cli ... "
+    if npm install -g @larksuite/cli 2>&1 && good "✅"; then
+        _install_lark_cli_symlink "$npm_root/@larksuite/cli" || warn "    ⚠ symlink 未建（手动: ln -s $npm_root/@larksuite/cli/scripts/run.js ~/.local/bin/lark-cli）"
+    else
+        bad "❌"
+        return 1
+    fi
 }
 
 setup_lark_cli_account() {
