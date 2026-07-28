@@ -337,7 +337,7 @@ case "${1:-menu}" in
         shift 2>/dev/null || true
         for n in bat glow nano; do install_option "$n"; done
         for d in $(list_option_dirs); do
-            local bare="${d#option-}"
+            bare="${d#option-}"
             install_option "$bare"
         done
         echo -e "\n${GREEN}✅ 全部可选组件安装完成${NC}"
