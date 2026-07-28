@@ -64,6 +64,18 @@ enable_autostart() {
     cleanup_legacy_user_service
     cleanup_zombie_inotify
 
+    # 清理残留 PIDFile（init 阶段常见：手动跑过 monitor 或上次 systemd 启动失败留下）
+    # 防止 monitor.sh start 看到 "Already running" → exit 1 → systemd Type=forking 失败
+    local monitor_pid_file="${CCCONFIG_HOME}/.monitor-sync.pid"
+    if [ -f "$monitor_pid_file" ]; then
+        local stale_pid
+        stale_pid=$(cat "$monitor_pid_file" 2>/dev/null)
+        if [ -n "$stale_pid" ] && ! kill -0 "$stale_pid" 2>/dev/null; then
+            info "清理残留 PIDFile: PID $stale_pid 已退出"
+            rm -f "$monitor_pid_file"
+        fi
+    fi
+
     if [ ! -f "$SVC_TEMPLATE" ]; then
         error "service 模板不存在: $SVC_TEMPLATE"
         return 1
@@ -78,7 +90,12 @@ enable_autostart() {
         -e "s|<HOME>|$_home|g" \
         "$SVC_TEMPLATE" | sudo tee "$SYS_SVC_FILE" > /dev/null
     sudo systemctl daemon-reload
-    sudo systemctl enable --now "$SVC_NAME"
+    if ! sudo systemctl enable --now "$SVC_NAME" 2>&1; then
+        warn "systemd 启动失败，打印最近日志："
+        sudo journalctl -u "$SVC_NAME" --no-pager -n 10 2>&1 | sed 's/^/    /'
+        error "auto-sync 服务启动失败"
+        return 1
+    fi
     info "auto-sync 已启用（开机自启 + 当前已运行）"
     info "首次启动后 60s 内自动检测已有改动并推送"
 }
