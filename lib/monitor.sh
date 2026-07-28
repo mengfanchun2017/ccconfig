@@ -318,9 +318,20 @@ resurrect_pm2() {
 start_watch() {
     check_deps || return 1
 
+    # PIDFile 检查：活的 + 是 monitor.sh 自身 → service 已在跑，exit 0
+    # 防止 systemd Type=forking 看到 exit 1 → enable --now 失败
     if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-        warn "Already running (PID: $(cat "$PID_FILE"))"
-        return 1
+        local existing_pid
+        existing_pid=$(cat "$PID_FILE")
+        local existing_cmd
+        existing_cmd=$(cat "/proc/$existing_pid/cmdline" 2>/dev/null | tr '\0' ' ')
+        if [[ "$existing_cmd" == *"monitor.sh"* ]]; then
+            do_log "Already running (PID: $existing_pid) — keep alive"
+            return 0
+        fi
+        # PIDFile 残留指向无关进程（init 阶段常见），清理后重启
+        do_log "Stale PIDFile points to non-monitor process (PID: $existing_pid), cleaning"
+        rm -f "$PID_FILE"
     fi
 
     cd "$MONITOR_HOME"
