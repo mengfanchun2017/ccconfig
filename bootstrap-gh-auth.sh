@@ -36,6 +36,22 @@ source "${BASH_SOURCE[0]%/*}/lib/colors.sh" 2>/dev/null || {
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/dry-run.sh"
+
+# dry-run 模式：只打印将执行的步骤，不实际运行
+if _dry_run_enabled "$@"; then
+    echo ""
+    echo -e "${CYAN}ccconfig bootstrap — DRY-RUN${NC}"
+    echo -e "${CYAN}══════════════════════════════${NC}"
+    echo ""
+    echo "  would: Step 2/5 sudo apt-get install -y gh"
+    echo "  would: Step 3/5 gh auth login (interactive)"
+    echo "  would: Step 4/5 git config --global user.email/name"
+    echo "  would: Step 4/5 gh auth setup-git"
+    echo ""
+    echo "  === dry-run: no changes applied ==="
+    exit 0
+fi
 LOCAL_BIN="$HOME/.local/bin"
 NOSUDO="${BOOTSTRAP_NOSUDO:-}"
 

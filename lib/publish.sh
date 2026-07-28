@@ -16,6 +16,8 @@ set -euo pipefail
 CCCONFIG_DIR="${CCCONFIG_DIR:-${CCCONFIG_HOME:-$HOME/git/ccconfig}}"
 CLAUDE_SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/git/skill}"
 PLUGINS_DIR="$CLAUDE_SKILLS_DIR/plugins"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/dry-run.sh"
 
 DO_PUSH=false
 SKILLS=()
@@ -72,10 +74,10 @@ for skill in "${SKILLS[@]}"; do
   dst="$PLUGINS_DIR/$skill"
 
   if [[ -d "$dst" ]]; then
-    rm -rf "$dst"
+    run rm -rf "$dst"
     echo "  ⚠ 已删除旧版: $dst"
   fi
-  cp -r "$src" "$dst"
+  run cp -r "$src" "$dst"
   echo "  ✓ $skill → $dst"
 done
 
@@ -101,6 +103,11 @@ if git diff --cached --quiet; then
   exit 0
 fi
 
+if _dry_run_enabled "$@"; then
+  echo "=== dry-run: skipped commit + push ==="
+  exit 0
+fi
+
 # 生成 commit message
 SKILL_LIST=$(IFS=', '; echo "${SKILLS[*]}")
 COMMIT_MSG="sync: 发布 ${SKILL_LIST}
@@ -118,7 +125,7 @@ echo "  ✓ commit 完成"
 if $DO_PUSH; then
   echo ""
   echo "=== push ==="
-  git push origin main
+  run git push origin main
   echo "  ✓ push 完成"
 else
   echo ""

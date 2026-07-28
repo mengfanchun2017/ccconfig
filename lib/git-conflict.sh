@@ -66,10 +66,16 @@ git_force_pull() {
 
     local before
     before=$(git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null)
+    # 兜底：reset --hard 前 stash 一份（包括未跟踪文件 -u），万一出问题可手动恢复
+    local safety_stash="ccconfig-force-pull-safety-$(date +%s)"
+    git -C "$repo_dir" stash push -u -m "$safety_stash" 2>/dev/null || true
     echo "     fetching origin/$branch..."
     git -C "$repo_dir" fetch origin "$branch" --prune
     git -C "$repo_dir" reset --hard "origin/$branch"
     git -C "$repo_dir" clean -fd 2>/dev/null || true
+    if git -C "$repo_dir" stash list | grep -q "$safety_stash"; then
+        echo "     ⚠  本地改动已存到 $safety_stash（reset 不会丢）"
+    fi
 
     local after
     after=$(git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null)
@@ -166,8 +172,14 @@ git_conflict_menu() {
             if ! git -C "$repo_dir" diff --quiet 2>/dev/null || ! git -C "$repo_dir" diff --cached --quiet 2>/dev/null; then
                 git -C "$repo_dir" checkout -- . 2>/dev/null || true
             fi
+            # 兜底：reset --hard 前 stash 一份，包括未跟踪文件
+            local safety_stash="ccconfig-force-pull-safety-$(date +%s)"
+            git -C "$repo_dir" stash push -u -m "$safety_stash" 2>/dev/null || true
             git -C "$repo_dir" reset --hard "origin/$branch"
             git -C "$repo_dir" clean -fd 2>/dev/null || true
+            if git -C "$repo_dir" stash list | grep -q "$safety_stash"; then
+                echo -e "  ${YELLOW}⚠  本地改动已存到 $safety_stash（reset 不会丢）${NC}"
+            fi
             show_changed_since "$before" "$(git -C "$repo_dir" rev-parse --short HEAD)" "$repo_dir"
             echo -e "  ${GREEN}✅ 本地已与远程一致${NC}"
             return 0

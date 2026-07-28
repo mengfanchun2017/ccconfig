@@ -1,6 +1,6 @@
 # tests/ — ccconfig 自动化测试
 
-## test-init.sh
+## test-init-base.sh
 
 init 流程回归测试。在隔离的临时目录中模拟新机器环境，mock git/gh/npm/claude/curl 等外部命令，验证所有 init 路径不报错。
 
@@ -9,9 +9,9 @@ init 流程回归测试。在隔离的临时目录中模拟新机器环境，moc
 ### 用法
 
 ```bash
-bash ccconfig/tests/test-init.sh              # 全部测试
-bash ccconfig/tests/test-init.sh --verbose    # 详细输出
-bash ccconfig/tests/test-init.sh --list       # 仅列出测试用例
+bash ccconfig/tests/test-init-base.sh              # 全部测试
+bash ccconfig/tests/test-init-base.sh --verbose    # 详细输出
+bash ccconfig/tests/test-init-base.sh --list       # 仅列出测试用例
 ```
 
 ### 覆盖范围
@@ -37,6 +37,6 @@ bash ccconfig/tests/test-init.sh --list       # 仅列出测试用例
 
 ### 添加新测试
 
-1. 在 `test-init.sh` 写一个 `test_xxx()` 函数
+1. 在 `test-init-base.sh` 写一个 `test_xxx()` 函数
 2. 加入 `all_tests` 数组：`"描述文字" test_xxx`
-3. 跑 `bash ccconfig/tests/test-init.sh` 验证
+3. 跑 `bash ccconfig/tests/test-init-base.sh` 验证

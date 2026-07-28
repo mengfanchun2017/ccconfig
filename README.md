@@ -9,7 +9,7 @@ ccconfig 是 Claude Code 配置基础设施的公开部分。**三仓库模型**
 | 仓库 | 可见性 | 内容 |
 |------|--------|------|
 | **ccconfig** | 公开 | infra 脚本（init/bootstrap/sync/monitor）、.example 模板（rules/agents/commands/conf） |
-| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | Skill 插件市场（Anthropic marketplace 兼容），16 个自建 f-* skill |
+| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | Skill 插件市场（Anthropic marketplace 兼容），14 个 marketplace + 2 内部 f-* skill |
 | **ccprivate** | 私有 | API key / Token / 个人配置，通过 symlink 穿透访问 |
 
 ccconfig 本身不含任何密钥，可安全公开。Skill 插件独立发布为 skill 仓库，符合 Anthropic marketplace 规范，可被任何 Claude Code 用户 `/plugin marketplace add` 安装。
@@ -17,7 +17,7 @@ ccconfig 本身不含任何密钥，可安全公开。Skill 插件独立发布�
 - **环境**：Ubuntu/WSL 一键初始化
 - **配置**：LLM 后端、MCP 服务器、API key 单一真相源（真实值在 ccprivate）
 - **同步**：文件监听 + 自动 git commit/push，覆盖 `~/git/` 下所有仓库
-- **Skills**：16 自建（symlink）+ 第三方 npx skills 自管（conf 清单）
+- **Skills**：16 自建（14 marketplace + 2 内部，symlink）+ 第三方 npx skills 自管（conf 清单）
 - **Rules**：条件规则按路径加载（编码、git、python、搜索、飞书、godot）
 - **Agents**：意图路由 agent
 - **可选**：飞书 Bridge、OfficeCLI、LLM 网关、远程 SSH
@@ -67,7 +67,10 @@ ccconfig/
 │   ├── colors.sh             # 终端颜色定义
 │   ├── publish.sh            # 自建 skill 发布到 marketplace
 │   ├── update-third-party-skills.sh # 第三方 skill 批量更新
-│   └── merge_worklog.py      # Worklog 合并去重
+│   ├── merge_worklog.py      # Worklog 合并去重
+│   ├── start-openai-bridge.sh # OpenAI 协议桥启动器
+│   ├── shell_init.sh         # Shell 环境初始化片段
+│   └── ccprivate-upgrade.sh  # ccprivate 升级脚本
 │
 ├── templates/                # .example 模板目录（运行时文件在 ccprivate）
 │   ├── rules/*.md.example    # 条件规则模板（按路径加载）
@@ -85,7 +88,7 @@ ccconfig/
 │   └── session_end_aggregator.py  # Worklog 聚合逻辑
 │
 ├── tests/                    # 测试套件
-│   ├── test-init.sh          # init.sh 45 用例（mock 隔离）
+│   ├── test-init-base.sh     # init.sh 45 用例（mock 隔离）
 │   ├── test-init-llm.sh      # LLM 切换测试
 │   ├── test-bootstrap.sh     # bootstrap 24 用例
 │   ├── test-init-ccprivate-repo.sh # ccprivate 初始化测试
@@ -175,7 +178,7 @@ bash lib/init-llm.sh deepseek     # 一条命令切
 | 仓库 | 存什么 | 可公开？ |
 |------|--------|---------|
 | ccconfig | 脚本、.example 模板（rules/agents/commands/conf） | ✅ 开源可 fork |
-| skill | 16 个 f-* skill 插件 | ✅ marketplace 规范 |
+| skill | 14 marketplace + 2 内部 f-* skill 插件 | ✅ marketplace 规范 |
 | ccprivate | API key、token、个人 CLAUDE.md/settings.json | ❌ 私有 |
 
 符号链接桥接三仓库。公开仓库零 token。`hooks/pre-commit` 自动拦截私密文件提交。
@@ -199,8 +202,8 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 ### 🧪 完整测试套件
 
 ```bash
-bash tests/test-init.sh            # 45 个用例，mock 隔离，秒级完成
-bash tests/test-init.sh --verbose  # 详细输出
+bash tests/test-init-base.sh            # 45 个用例，mock 隔离，秒级完成
+bash tests/test-init-base.sh --verbose  # 详细输出
 ```
 
 覆盖配置校验、placeholder 检测、`$HOME` 展开、`init --dry-run`、sync 容错、MCP 路径修正。另有 bootstrap（24 用例）、init-llm（45 用例）、init-ccprivate 专项测试。
@@ -226,12 +229,12 @@ bash maintain.sh [status|monitor|sync|update|deps|fix|example]
 | 组件 | 用途 | 安装 |
 |------|------|------|
 | `option-llmswitch` | LLM 网关代理，按时段自动切后端 | `bash option-llmswitch/init.sh` |
-| `option-larkcli` | 飞书 lark-cli（编辑文档/日历/任务） | `bash option-larkcli/init.sh` |
-| `option-cconnect` | 飞书 cc-connect（收消息 Bridge + 多机器人） | `bash option-cconnect/init.sh` |
+| `option-larkcli` | 飞书 lark-cli（文档/Base/日历/任务） | `bash option-larkcli/init.sh` |
+| `option-cconnect` | 飞书消息 Bridge（多机器人接收转发） | `bash option-cconnect/init.sh` |
 | `option-officecli` | AI-native Office 工具（PPT/docx/xlsx 生成） | `bash option-officecli/init.sh` |
 | `option-cloudflare` | Cloudflare Workers/R2/D1/Pages 开发环境 | `bash option-cloudflare/init.sh` |
 | `option-remote` | Tailscale + SSH 远程连接桌面 tmux session | 见 `option-remote/readme.md` |
-| `option-skill` | Claude Code Skills（18 个 f-* 工作流） | `bash option-skill/init.sh --install` |
+| `option-skill` | Claude Code Skills（16 个 f-* 工作流） | `bash option-skill/init.sh --install` |
 | `windows-tools` | Windows/WSL 互操作工具（PowerShell 更新） | — |
 
 每个组件 `init-base.sh` 均支持 `--status`，自动被 `maintain.sh status` 发现。
@@ -257,6 +260,7 @@ bash maintain.sh [status|monitor|sync|update|deps|fix|example]
 | `bash option-skill/init.sh --install` | 安装 Skills（可选组件） |
 | `bash option-skill/init.sh --update` | 更新 Skills |
 | `bash lib/update.sh all` | 月度组件升级 |
+| `bash lib/init-autostart.sh` | 配置 auto-sync systemd 自启动 |
 
 ## 日常维护
 
@@ -272,25 +276,24 @@ cd ~/git/ccconfig && git pull
 
 ## 状态检查覆盖
 
-`maintain.sh status` 每次 Claude Code session 启动检查 14 项：
+`maintain.sh status` 每次 Claude Code session 启动检查 12+ 项：
 
 1. 配置文件链接（settings.json、.config.json、CLAUDE.md、MEMORY.md、rules → ccprivate）
 2. 核心依赖（git、bash、curl、node、python3、npm）
 3. auto-sync 守护进程
 4. GitHub 最后推送
 5. MEMORY 最后更新
-6. Git 项目状态（aiagt/bwater/cconfig/ccprivate/reelcut/skill）
+6. Git 项目状态（aiagt/bwater/ccconfig/ccprivate/reelcut/skill）
 7. 飞书 lark-cli 状态
 8. Playwright 浏览器测试
 9. MCP 服务器健康检查（并行，24h 缓存）
-10. 远程访问（SSH、Tailscale）
-11. option-* 可选组件自动发现
-12. Skills 安装状态
-13. Example 模板同步（ccconfig .example vs ccprivate 运行时文件）
+10. option-* 可选组件自动发现（含远程连接）
+11. Skills 安装状态
+12. Example 模板同步（ccconfig .example vs ccprivate 运行时文件）
 
 ## 自建 Skills
 
-全部 18 个自建 skill 发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
+全部 16 个自建 skill（14 marketplace + 2 内部）发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
 
 | Skill | 用途 | 需外部服务？ |
 |-------|------|-------------|
@@ -300,16 +303,15 @@ cd ~/git/ccconfig && git pull
 | `fdocx` | Word .docx 原生生成 | officecli |
 | `flibaudit` | 库审计报告生成 | 无 |
 | `fxlsx` | Excel .xlsx 原生生成 | officecli |
-| `fpdf` | PDF 内容提取（文字/图片/表格/元数据） | PyMuPDF |
 | `fsearch` | 多源搜索编排（Tavily + MiniMax + WebSearch） | Tavily + MiniMax MCP |
 | `fresearchframe` | 4 领域研究方法论 | 委托 fsearch |
 | `fresearchreport` | 报告生成（JSON/大纲/素材 → Markdown） | 委托 ffeishu + freportstd |
 | `freportstd` | 报告写作规范（4 套模板） | 无 |
 | `flaunch` | 项目启动脚手架 | flogme + ffeishu（可选） |
 | `flogme` | OKR/Worklog/Reflect/SUM 个人管理 | lark-cli + 飞书 Base |
-| `f-moocrec` | 慕课推荐 | 飞书 Base |
-| `f-skillcreat` | Skill 开发脚手架 | 无 |
-| `f-syncdoc` | 源码文档同步 + 产品页同步 | aiagt page |
+| `fmoocrec` | 慕课推荐 | 飞书 Base |
+| `fskillcreat` | Skill 开发脚手架 | 无 |
+| `fsyncdoc` | 源码文档同步 + 产品页同步 | aiagt page |
 | `f-sysarchi` | 系统分析师备考 | 无 |
 | `getnote` | 得到大脑集成 — MCP 驱动 | 得到 MCP |
 

@@ -11,7 +11,7 @@
 # ccconfig 额外执行: 重建链接 + skills + 依赖检查 + 新配置模板 + 摘要
 # 第三方依赖（_ext/）更新 → update.sh
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
