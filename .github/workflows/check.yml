@@ -9,27 +9,72 @@ on:
 
 jobs:
   syntax:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
       - name: bash syntax check (all .sh files)
         run: |
           find . -name "*.sh" -not -path "./.git/*" -not -path "./.claude/*" -print0 | xargs -0 -I{} bash -n {}
-      - name: shellcheck
+
+  lint:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: install linters
+        run: sudo apt-get install -y -qq shellcheck shfmt
+      - name: shellcheck (error severity fails)
         run: |
-          sudo apt-get install -y -qq shellcheck 2>/dev/null || true
-          find . -name "*.sh" -not -path "./.git/*" -not -path "./.claude/*" -print0 | xargs -0 shellcheck -S warning || true
+          find . -name "*.sh" -not -path "./.git/*" -not -path "./.claude/*" -print0 \
+            | xargs -0 shellcheck -S error
+      - name: shfmt format check
+        run: |
+          find . -name "*.sh" -not -path "./.git/*" -not -path "./.claude/*" -print0 \
+            | xargs -0 shfmt -d
+
+  json:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: install jsonschema
+        run: sudo apt-get install -y -qq python3-jsonschema
+      - name: validate conf/*.json
+        run: |
+          for f in conf/*.json; do
+            [ -f "$f" ] || continue
+            python3 -c "import json,sys; json.load(open('$f'))" || { echo "INVALID JSON: $f"; exit 1; }
+          done
+      - name: validate conf/*.json.example against schema
+        run: |
+          source lib/json-validate.sh
+          for f in conf/*.json.example; do
+            [ -f "$f" ] || continue
+            name=$(basename "$f" .example)
+            case "$name" in
+              claude) schema=mcp ;;
+              *) schema="$name" ;;
+            esac
+            try_assert_json "$f" "$schema"
+          done
+
+  python:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: py_compile all .py
+        run: |
+          find . -name "*.py" -not -path "./.git/*" -not -path "./.claude/*" -print0 \
+            | xargs -0 python3 -m py_compile
 
   unit:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
       - name: unit tests (mock isolated)
-        run: bash tests/test-init.sh --verbose
+        run: bash tests/test-init-base.sh --verbose
 
   deps:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
       - name: deps check
-        run: bash deps-check.sh --required
+        run: bash lib/deps-check.sh --required

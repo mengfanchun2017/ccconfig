@@ -12,6 +12,7 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/dry-run.sh"
 
 source "$SCRIPT_DIR/lib/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -47,6 +48,11 @@ has_init_script() {
 install_option() {
     local name="$1"
     shift
+
+    if _dry_run_enabled "$@"; then
+        printf 'would: bash option-%s/init.sh\n' "$name"
+        return 0
+    fi
 
     # 飞书 lark-cli（拆分前叫 option-bridge/init.sh --lark-cli）
     if [ "$name" = "lark-cli" ] && has_init_script "larkcli"; then
@@ -94,6 +100,10 @@ install_option() {
 
 # ── CLI 工具安装函数 ──
 install_bat() {
+    if _dry_run_enabled "$@"; then
+        printf 'would: install bat (apt or github binary)\n'
+        return 0
+    fi
     section "bat 安装 + alias cat=bat"
 
     if command -v batcat &>/dev/null || command -v bat &>/dev/null; then
@@ -129,6 +139,10 @@ install_bat() {
 }
 
 install_glow() {
+    if _dry_run_enabled "$@"; then
+        printf 'would: install glow (apt or github binary)\n'
+        return 0
+    fi
     section "glow Markdown 阅读器"
 
     if command -v glow &>/dev/null; then
@@ -161,6 +175,10 @@ install_glow() {
 }
 
 install_nano() {
+    if _dry_run_enabled "$@"; then
+        printf 'would: install nano\n'
+        return 0
+    fi
     section "nano 文本编辑器"
 
     if command -v nano &>/dev/null; then

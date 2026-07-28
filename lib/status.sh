@@ -2,7 +2,7 @@
 # Claude Config - 状态检查
 #
 # 检查项：
-# 1. 配置文件符号链接
+# 1. 配置文件符号链接 + ccprivate 结构
 # 2. 核心依赖
 # 3. auto-sync 状态
 # 4. GitHub 最后推送
@@ -17,7 +17,7 @@
 #
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
-set -uo pipefail
+set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/colors.sh"
