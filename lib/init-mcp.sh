@@ -169,7 +169,7 @@ sync_to_settings() {
     local settings_file="$1"
 
     python3 - "$CLAUDE_JSON" "$MCP_CONF_FILE" "$settings_file" << 'PYEOF'
-import json, sys
+import json, sys, os
 
 try:
     claude_json = sys.argv[1]
@@ -197,6 +197,29 @@ try:
     # 构建完整的 mcpServers 配置（从 conf/claude.json）
     mcp_servers = {}
     disabled_names = []
+
+    # 探测 ccprivate/conf/<name>.json 桥接 token（如 supabase.json 持有真实 ref + access_token）
+    ccpriv_dir = os.path.dirname(conf_json)
+    ccpriv_bridge = {}
+    for server in conf_data.get('mcp_servers', []):
+        sname = server.get('name', '')
+        bridge_path = os.path.join(ccpriv_dir, f'{sname}.json')
+        if os.path.exists(bridge_path):
+            try:
+                with open(bridge_path, 'r') as bf:
+                    bridge = json.load(bf)
+                tokens = bridge.get('tokens', {})
+                if tokens:
+                    # 默认取第一个 token，项目可扩展为多账号
+                    first_key = next(iter(tokens))
+                    t = tokens[first_key]
+                    ccpriv_bridge[sname] = {
+                        'project_ref': t.get('project_ref', ''),
+                        'access_token': t.get('access_token', ''),
+                    }
+            except Exception:
+                pass
+
     for server in conf_data.get('mcp_servers', []):
         name = server.get('name', '')
         if not name:
@@ -205,8 +228,8 @@ try:
         if mtype == 'stdio':
             entry = {
                 'command': server.get('command', ''),
-                'args': server.get('args', []),
-                'env': server.get('env', {})
+                'args': list(server.get('args', [])),
+                'env': dict(server.get('env', {}))
             }
         else:
             entry = {
@@ -214,8 +237,34 @@ try:
                 'url': server.get('url', ''),
                 'headers': server.get('headers', {})
             }
+        # ★ 桥接注入：supabase 等 server 从 ccprivate/conf/<name>.json 读真实 ref + token
+        # 替换 args 中 "--project-ref X --access-token Y" 的占位符
+        if name in ccpriv_bridge:
+            bridge = ccpriv_bridge[name]
+            new_args = []
+            skip_next = False
+            for i, a in enumerate(entry['args']):
+                if skip_next:
+                    new_args.append(bridge['project_ref'] if a == '请填入你的 Supabase project ref' else a)
+                    skip_next = False
+                    continue
+                if a in ('--project-ref', '--access-token'):
+                    new_args.append(a)
+                    skip_next = True
+                    continue
+                # 兜底：如果占位符直接是值（极少见），按值替换
+                if a == '请填入你的 Supabase project ref':
+                    new_args.append(bridge['project_ref'])
+                elif a == '请填入你的 Supabase access token':
+                    new_args.append(bridge['access_token'])
+                else:
+                    new_args.append(a)
+            entry['args'] = new_args
         if server.get('disabled'):
             disabled_names.append(name)
+            # ★ disabled 的 server 不写入 mcpServers（彻底不连接，不只是 session 跳过）
+            # claude mcp list 看 ~/.claude.json，list 不显示 = 不连
+            continue
         # 如果 ~/.claude.json 中有该 MCP 的额外配置，合并之
         if name in claude_data.get('mcpServers', {}):
             existing = claude_data['mcpServers'][name]
@@ -697,6 +746,166 @@ PYEOF
     fi
 }
 
+# ========== 启停单个 MCP（解决 disabled server 仍被注册的痛点）==========
+# 用法：
+#   bash init-mcp.sh toggle <name> on    # 启用：从 claude.json 移除 disabled，调 claude mcp add 注入真实 token
+#   bash init-mcp.sh toggle <name> off   # 禁用：调 claude mcp remove，加回 disabled 标记
+#   bash init-mcp.sh toggle <name> status # 当前状态
+do_toggle() {
+    local name="${1:-}" action="${2:-}"
+    if [[ -z "$name" ]] || [[ -z "$action" ]]; then
+        echo -e "${YELLOW}用法: bash init-mcp.sh toggle <name> {on|off|status}${NC}"
+        echo ""
+        echo -e "${CYAN}当前 MCP 配置（conf/claude.json）:${NC}"
+        while IFS='|' read -r n desc mtype command args_str env_str disabled how_to_get; do
+            [[ -z "$n" ]] && continue
+            local state="启用"
+            [[ "$disabled" == "true" ]] && state="${YELLOW}禁用${NC}"
+            echo -e "  $n ($state) — $desc"
+        done <<< "$(read_mcp_list)"
+        return 0
+    fi
+
+    # 找到 server 配置
+    local server_line
+    server_line=$(grep "^${name}|" <<< "$(read_mcp_list)" || true)
+    if [[ -z "$server_line" ]]; then
+        bad "❌ MCP '$name' 未在 conf/claude.json 定义"
+        return 1
+    fi
+    IFS='|' read -r sname desc mtype command args_str env_str disabled how_to_get <<< "$server_line"
+
+    case "$action" in
+        status)
+            if [[ "$disabled" == "true" ]]; then
+                echo -e "  $name: ${YELLOW}禁用${NC}（conf/claude.json）"
+            else
+                echo -e "  $name: ${GREEN}启用${NC}（conf/claude.json）"
+            fi
+            if claude mcp list 2>/dev/null | grep -q "^${name}:"; then
+                echo -e "  $name: ${GREEN}已注册${NC}（~/.claude.json）"
+            else
+                echo -e "  $name: ${GRAY}未注册${NC}（~/.claude.json）"
+            fi
+            ;;
+        on)
+            # 1) conf/claude.json 移除 disabled 标记
+            python3 - "$MCP_CONF_FILE" "$name" << 'PYEOF'
+import json, os, sys
+path, name = sys.argv[1], sys.argv[2]
+with open(path) as f: data = json.load(f)
+changed = False
+for s in data.get('mcp_servers', []):
+    if s.get('name') == name:
+        if s.pop('disabled', None):
+            changed = True
+            print(f'    ✅ conf/claude.json: 移除 {name} 的 disabled 标记')
+        break
+if changed:
+    tmp = path + '.tmp'
+    with open(tmp, 'w') as f: json.dump(data, f, indent=2, ensure_ascii=False); f.write('\n')
+    os.replace(tmp, path)
+PYEOF
+
+            # 2) claude mcp add -s user 注入（args 用 Python 桥接完整 placeholder 字符串）
+            #    bash 不能按字符串处理 placeholder（含空格/中文），统一 Python 处理
+            local bridge_dir
+            bridge_dir="$(dirname "$MCP_CONF_FILE")"
+            local resolved_args
+            resolved_args=$(BRIDGE_DIR="$bridge_dir" python3 - "$MCP_CONF_FILE" "$name" << 'PYEOF'
+import json, os, sys
+conf, name = sys.argv[1], sys.argv[2]
+bridge_dir = os.environ['BRIDGE_DIR']
+with open(conf) as f: data = json.load(f)
+server = next((s for s in data['mcp_servers'] if s['name'] == name), {})
+args = list(server.get('args', []))
+
+# 桥接：supabase 等 server 从 ccprivate/conf/<name>.json 读真实 ref + token
+bridge_path = os.path.join(bridge_dir, f'{name}.json')
+if os.path.exists(bridge_path):
+    try:
+        with open(bridge_path) as bf: bridge = json.load(bf)
+        tokens = bridge.get('tokens', {})
+        if tokens:
+            t = list(tokens.values())[0]
+            bridge_ref = t.get('project_ref', '')
+            bridge_token = t.get('access_token', '')
+            new_args = []
+            skip_next = False
+            for a in args:
+                if skip_next:
+                    # 占位符作为独立 arg 出现，紧跟在 --key 后面
+                    if '请填入' in a and 'project' in a:
+                        new_args.append(bridge_ref)
+                    elif '请填入' in a and 'token' in a:
+                        new_args.append(bridge_token)
+                    else:
+                        new_args.append(a)
+                    skip_next = False
+                    continue
+                if a in ('--project-ref', '--access-token'):
+                    new_args.append(a)
+                    skip_next = True
+                    continue
+                # 占位符直接作为值（兜底）
+                if '请填入' in a and 'project' in a:
+                    new_args.append(bridge_ref)
+                elif '请填入' in a and 'token' in a:
+                    new_args.append(bridge_token)
+                else:
+                    new_args.append(a)
+            args = new_args
+    except Exception as e:
+        print(f'BRIDGE_ERR:{e}', file=sys.stderr)
+
+print(' '.join(args))
+PYEOF
+)
+
+            echo "  注册 $name 到 ~/.claude.json..."
+            if claude mcp add -s user "$name" -- $command $resolved_args 2>&1 | sed 's/^/    /'; then
+                good "  ✅ 已注册"
+            else
+                bad "  ❌ claude mcp add 失败"
+                return 1
+            fi
+
+            # 3) env 写到 ~/.claude.json（如果是 stdio + 有 env）
+            if [[ "$mtype" == "stdio" ]] && [[ -n "$env_str" ]] && [[ "$env_str" != "{}" ]]; then
+                configure_mcp_env "$name" "$env_str" 2>&1 | sed 's/^/    /'
+            fi
+            ;;
+        off)
+            # 1) conf/claude.json 加回 disabled 标记
+            python3 - "$MCP_CONF_FILE" "$name" << 'PYEOF'
+import json, os, sys
+path, name = sys.argv[1], sys.argv[2]
+with open(path) as f: data = json.load(f)
+for s in data.get('mcp_servers', []):
+    if s.get('name') == name and not s.get('disabled'):
+        s['disabled'] = True
+        print(f'    ✅ conf/claude.json: 标记 {name} 为 disabled')
+        tmp = path + '.tmp'
+        with open(tmp, 'w') as f: json.dump(data, f, indent=2, ensure_ascii=False); f.write('\n')
+        os.replace(tmp, path)
+        break
+PYEOF
+
+            # 2) claude mcp remove
+            echo "  从 ~/.claude.json 移除 $name..."
+            if claude mcp remove -s user "$name" 2>&1 | sed 's/^/    /'; then
+                good "  ✅ 已移除"
+            else
+                info "  未注册或移除失败"
+            fi
+            ;;
+        *)
+            bad "❌ 未知 action: $action（用 on/off/status）"
+            return 1
+            ;;
+    esac
+}
+
 # 执行对应操作：优先用命令行参数，没有则用配置文件 default_action
 ACTION="${1:-$DEFAULT_ACTION}"
 case "$ACTION" in
@@ -717,6 +926,10 @@ case "$ACTION" in
         ;;
     keys)
         do_keys
+        ;;
+    toggle)
+        shift
+        do_toggle "$@"
         ;;
     interactive)
         section "操作选项"
