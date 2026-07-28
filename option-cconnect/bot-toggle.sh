@@ -1,5 +1,5 @@
 #!/bin/bash
-# ccconfig/option-bridge/bot-toggle.sh — 启用/禁用 cc-connect 机器人
+# ccconfig/option-cconnect/bot-toggle.sh — 启用/禁用 cc-connect 机器人
 # 配置源: ../conf/feishu.json
 set -euo pipefail
 
@@ -23,7 +23,7 @@ done
 
 if [ -z "$ACTION" ] && [ -n "$BOT_NAME" ]; then
     echo -e "${YELLOW}请指定 --enable 或 --disable${NC}"
-    echo "用法: bash ccconfig/option-bridge/bot-toggle.sh <name> --enable|--disable"
+    echo "用法: bash ccconfig/option-cconnect/bot-toggle.sh <name> --enable|--disable"
     exit 1
 fi
 
@@ -39,7 +39,7 @@ for app in data.get('apps', []):
     print(f"  {marker} {app['name']}: {app.get('description', '')}")
 PYEOF
     echo ""
-    echo "用法: bash ccconfig/option-bridge/bot-toggle.sh <name> --enable|--disable"
+    echo "用法: bash ccconfig/option-cconnect/bot-toggle.sh <name> --enable|--disable"
     exit 0
 fi
 

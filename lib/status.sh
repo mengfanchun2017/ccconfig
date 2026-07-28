@@ -632,8 +632,8 @@ PYEOF
             echo "$robot_info"
         fi
     fi
-    echo -e "  ${GRAY}切换账号: bash ccconfig/option-bridge/lark-switch.sh <name>${NC}"
-    echo -e "  ${GRAY}安装/启动: bash ccconfig/option-bridge/init.sh --cc-connect${NC}"
+    echo -e "  ${GRAY}切换账号: bash ccconfig/option-larkcli/lark-switch.sh <name>${NC}"
+    echo -e "  ${GRAY}安装/启动: bash ccconfig/option-cconnect/init.sh${NC}"
 }
 
 # ========== 2. 依赖检查 ==========

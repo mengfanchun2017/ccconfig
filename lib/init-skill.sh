@@ -662,18 +662,26 @@ do_remove() {
 
 do_status() {
     title "Skills 状态"
-    if [[ -d "$SKILLS_SRC" ]]; then
-        echo -e "${CYAN}skill/plugins/ (自建 $(ls "$SKILLS_SRC" 2>/dev/null | wc -l) 个)${NC}"
-        for d in "$SKILLS_SRC"/*; do
-            [[ -d "$d" ]] || continue
-            echo -e "  ${GREEN}✓${NC} $(basename "$d")"
-        done
+
+    # 源 / 视图一对，不重复罗列同一份实体
+    local src_count=0 view_count=0
+    [[ -d "$SKILLS_SRC" ]] && src_count=$(ls "$SKILLS_SRC" 2>/dev/null | wc -l)
+    [[ -d "$CLAUDE_SKILLS_DIR" ]] && view_count=$(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l)
+
+    if [[ $src_count -gt 0 && $view_count -eq 0 ]]; then
+        echo -e "${YELLOW}源 ${src_count} 个已 clone，但 ~/.claude/skills/ 未链接（运行 sync）${NC}"
+    elif [[ $src_count -eq 0 && $view_count -gt 0 ]]; then
+        echo -e "${YELLOW}~/.claude/skills/ 有 ${view_count} 项，但源目录不存在（drift）${NC}"
+    elif [[ $src_count -ne "$view_count" ]]; then
+        echo -e "${YELLOW}drift: 源 ${src_count} ≠ 视图 ${view_count}${NC}"
     else
-        echo -e "${YELLOW}skill/plugins/ 未找到${NC}"
+        echo -e "${GREEN}源 ${src_count} = 视图 ${view_count}（无 drift）${NC}"
     fi
+    info "  源:    ${SKILLS_SRC}"
+    info "  视图:  ${CLAUDE_SKILLS_DIR}"
 
     echo ""
-    echo -e "${CYAN}~/.claude/skills/ ($(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l) 项)${NC}"
+    echo -e "${CYAN}~/.claude/skills/ 明细 (${view_count} 项)${NC}"
     for d in "$CLAUDE_SKILLS_DIR"/*; do
         [[ -e "$d" ]] || continue
         local marker="✓"
@@ -681,19 +689,17 @@ do_status() {
         local src
         if [[ -L "$d" ]]; then
             local target=$(readlink -f "$d")
-            if [[ "$target" == *"/skill/plugins"* ]]; then
-                src="skill"
-            elif [[ "$target" == *"$SKILLS_SRC"* ]]; then
+            if [[ "$target" == *"/skill/plugins"* || "$target" == *"$SKILLS_SRC"* ]]; then
                 src="skill"
             elif [[ "$target" == *".agents/skills"* ]]; then
-                src="npx skills"
+                src="npx"
             else
                 src="user"
             fi
         else
-            src="(本地)"
+            src="local"
         fi
-        echo -e "  ${GREEN}$marker${NC} $(basename "$d") — $src"
+        echo -e "  ${GREEN}$marker${NC} $(basename "$d") [$src]"
     done
 
     echo ""

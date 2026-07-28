@@ -4,10 +4,10 @@
 # 配置：从 ../conf/feishu.json 读取 apps 数组
 #
 # 使用：
-#   bash ccconfig/option-bridge/lark-switch.sh <name>       # 切换到指定账号
-#   bash ccconfig/option-bridge/lark-switch.sh <name> -p    # 切换并持久化（写入 ~/.bashrc）
-#   bash ccconfig/option-bridge/lark-switch.sh               # 显示当前账号
-#   bash ccconfig/option-bridge/lark-switch.sh --list        # 列出所有账号
+#   bash ccconfig/option-larkcli/lark-switch.sh <name>       # 切换到指定账号
+#   bash ccconfig/option-larkcli/lark-switch.sh <name> -p    # 切换并持久化（写入 ~/.bashrc）
+#   bash ccconfig/option-larkcli/lark-switch.sh               # 显示当前账号
+#   bash ccconfig/option-larkcli/lark-switch.sh --list        # 列出所有账号
 
 set -e
 
@@ -170,8 +170,8 @@ show_current() {
     fi
 
     echo ""
-    echo -e "${GRAY}切换:  bash ccconfig/option-bridge/lark-switch.sh <name>${NC}"
-    echo -e "${GRAY}列表:  bash ccconfig/option-bridge/lark-switch.sh --list${NC}"
+    echo -e "${GRAY}切换:  bash ccconfig/option-larkcli/lark-switch.sh <name>${NC}"
+    echo -e "${GRAY}列表:  bash ccconfig/option-larkcli/lark-switch.sh --list${NC}"
     echo ""
 }
 
