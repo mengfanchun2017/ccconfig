@@ -391,7 +391,7 @@ do_sync() {
     fi
     for f in "${_new_arr[@]}"; do
         local rel="${f#$CCCONFIG_ROOT/}"
-        promote_one "$f" > /dev/null 2>&1
+        promote_one "$f" yes > /dev/null 2>&1
         info "新增: $rel"
     done
     [ ${#_out_arr[@]} -gt 0 ] && warn "${#_out_arr[@]} 个差异文件未覆盖（可能含用户编辑，手动 diff + promote 或 reverse）"
