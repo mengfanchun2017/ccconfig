@@ -38,7 +38,7 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 - `lib/path-helper.sh` 动态路径解析，Node 路径用 `find_node_bin` 4级回退
 
 ## 已安装插件
-- cloudflare@cloudflare — Cloudflare 开发者平台。详见 `docs/cloudflare-plugin.md`
+- （无）
 
 ## 约束
 - 本仓库不记录 memory（memory symlink → ccprivate/link/memory/，由 ccprivate/setup.sh 建立）
