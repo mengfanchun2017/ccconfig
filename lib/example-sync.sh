@@ -338,7 +338,9 @@ do_reverse() {
     [ ${#_out_arr[@]} -eq 0 ] && { ok "无差异文件，不需要反向同步"; return 0; }
 
     echo ""
-    section "反向同步（ccprivate → ccconfig .example）"
+    section "反向同步：选择要回灌为模板的 ccprivate 文件"
+    echo ""
+    banner_reverse
     echo ""
 
     local idx=1
