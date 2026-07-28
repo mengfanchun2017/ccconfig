@@ -140,7 +140,7 @@ show_menu() {
     echo "  5) 组件升级         ─ Node.js / Claude / gh / uv / lark-cli ..."
     echo "  6) 依赖检查         ─ 必需/核心/功能/可选依赖"
     echo "  7) 一键修复         ─ 重建链接 + 启用 auto-sync（= setup）"
-    echo "  8) 模板同步         ─ .example ↔ ccprivate（正向/反向/diff）"
+    echo "  8) 模板同步         ─ 默认正向（template → ccprivate），反向仅仓库所有者可用"
     echo "  9) ccprivate 升级    ─ 检测并修复 ccprivate 结构"
     echo ""
     echo "  0) 退出"
@@ -157,7 +157,7 @@ show_menu() {
         7) do_finalize ;;
         8) bash "$LIB_DIR/example-sync.sh" status
            echo ""
-           echo "  d) 查看差异   f) 正向同步   r) 反向同步   0) 返回"
+           echo "  d) 查看差异   f) 正向同步（默认）   r) 反向同步（需 push 权限）   0) 返回"
            read -p "选择 [d/f/r/0]: " choice
            case "$choice" in
              d) bash "$LIB_DIR/example-sync.sh" diff ;;
