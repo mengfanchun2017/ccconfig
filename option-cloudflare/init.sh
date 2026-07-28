@@ -6,11 +6,13 @@
 # 适用场景：Workers/R2/D1/Pages 等 CF 小项目开发。
 #
 # 用法：
-#   bash ccconfig/option-cloudflare/init.sh              # 交互式
-#   bash ccconfig/option-cloudflare/init.sh --install    # 安装 marketplace + plugin
+#   bash ccconfig/option-cloudflare/init.sh              # 交互式（按组件选择）
+#   bash ccconfig/option-cloudflare/init.sh --install    # 安装 marketplace + plugin（默认）
+#   bash ccconfig/option-cloudflare/init.sh --marketplace # 仅 marketplace（11 skills）
+#   bash ccconfig/option-cloudflare/init.sh --plugin     # 仅 plugin（commands + MCP，自动补 marketplace）
 #   bash ccconfig/option-cloudflare/init.sh --uninstall  # 卸载 plugin
 #   bash ccconfig/option-cloudflare/init.sh --status     # 状态检查
-#   bash ccconfig/option-cloudflare/init.sh --update     # git pull marketplace 更新
+#   bash ccconfig/option-cloudflare/init.sh --update     # git pull marketplace + 重装 plugin
 
 set -e
 
@@ -144,6 +146,72 @@ do_install() {
     echo -e "${GRAY}  建议从 wrangler.jsonc 所在目录启动 Claude Code。${NC}"
 }
 
+# 仅安装 marketplace（提供 11 skills，不含 plugin/MCP）
+do_install_marketplace_only() {
+    banner
+    local status
+    status=$(check_installed)
+    local mp_ok=$(echo "$status" | cut -d'|' -f1)
+
+    if [ "$mp_ok" = true ]; then
+        info "  marketplace 已添加，跳过"
+        echo ""
+        info "  如需添加 plugin：菜单选 a 或 g"
+        return 0
+    fi
+
+    echo -e "${CYAN}── 添加 marketplace ──${NC}"
+    if claude plugin marketplace add "$MARKETPLACE_REPO" 2>&1 | tail -3; then
+        good "  marketplace 已添加"
+    else
+        bad "  marketplace 添加失败（检查网络）"
+        return 1
+    fi
+
+    echo ""
+    good "marketplace 就绪。可在 Claude Code 中按需加载 skills。"
+    echo -e "${GRAY}  后续添加 plugin: bash ccconfig/option-cloudflare/init.sh --install${NC}"
+}
+
+# 仅安装 plugin（依赖 marketplace；marketplace 缺失时自动补加）
+do_install_plugin_only() {
+    banner
+    local status
+    status=$(check_installed)
+    local mp_ok=$(echo "$status" | cut -d'|' -f1)
+    local pl_ok=$(echo "$status" | cut -d'|' -f2)
+
+    if [ "$pl_ok" = true ]; then
+        info "  plugin 已安装，跳过"
+        return 0
+    fi
+
+    if [ "$mp_ok" != true ]; then
+        echo -e "${CYAN}── 先添加 marketplace（plugin 依赖）──${NC}"
+        if ! claude plugin marketplace add "$MARKETPLACE_REPO" 2>&1 | tail -3; then
+            bad "  marketplace 添加失败（检查网络）"
+            return 1
+        fi
+        good "  marketplace 已添加"
+        echo ""
+    else
+        info "  marketplace 已存在"
+        echo ""
+    fi
+
+    echo -e "${CYAN}── 安装 plugin ──${NC}"
+    if claude plugin install "$PLUGIN_NAME" 2>&1 | tail -3; then
+        good "  plugin 已安装"
+    else
+        bad "  plugin 安装失败"
+        return 1
+    fi
+
+    echo ""
+    good "plugin 就绪。重启 Claude Code 或 /reload-plugins 生效。"
+    echo -e "${GRAY}  MCP 首次使用需 OAuth 认证（浏览器弹窗）。${NC}"
+}
+
 # ========== 卸载 ==========
 do_uninstall() {
     banner
@@ -224,15 +292,29 @@ do_update() {
 do_interactive() {
     do_status
     echo ""
+    echo -e "  ${CYAN}组件说明:${NC}"
+    echo -e "    ${BOLD}marketplace${NC} (cloudflare/skills)"
+    echo "      11 个 skills（cloudflare/wrangler/agents-sdk/durable-objects 等）"
+    echo "      按需加载，~600-800 tokens"
+    echo ""
+    echo -e "    ${BOLD}plugin${NC} (cloudflare@cloudflare)"
+    echo "      2 commands (/cloudflare:build-agent, /cloudflare:build-mcp)"
+    echo "      5 MCP 服务器（api/docs/bindings/builds/observability，4/5 需 OAuth）"
+    echo "      ~2-3k tokens"
+    echo ""
     echo "  操作:"
-    echo "    i) 安装"
+    echo "    a) 全部安装（marketplace + plugin）[推荐]"
+    echo "    m) 仅 marketplace（只要 skills）"
+    echo "    g) 仅 plugin（依赖 marketplace）"
     echo "    u) 卸载"
-    echo "    p) 更新"
+    echo "    p) 更新到最新版"
     echo "    q) 退出"
     echo ""
-    read -p "选择 [i/u/p/q]: " choice
+    read -p "选择 [a/m/g/u/p/q]: " choice
     case "$choice" in
-        i) echo ""; do_install ;;
+        a) echo ""; do_install ;;
+        m) echo ""; do_install_marketplace_only ;;
+        g) echo ""; do_install_plugin_only ;;
         u) echo ""; do_uninstall ;;
         p) echo ""; do_update ;;
         q) exit 0 ;;
@@ -242,12 +324,14 @@ do_interactive() {
 
 case "${1:-}" in
     --install)   do_install ;;
+    --marketplace|--mp)   do_install_marketplace_only ;;
+    --plugin|--pl)        do_install_plugin_only ;;
     --uninstall) do_uninstall ;;
     --status)    do_status ;;
     --update)    do_update ;;
     "")          do_interactive ;;
     *)
-        echo "用法: $0 [--install|--uninstall|--status|--update]"
+        echo "用法: $0 [--install|--marketplace|--plugin|--uninstall|--status|--update]"
         exit 1
         ;;
 esac

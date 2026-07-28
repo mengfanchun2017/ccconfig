@@ -271,7 +271,8 @@ skill 的 `config.yaml` 实际是 symlink → `ccprivate/skill-config/<skill>.ya
 ### option-* 可选组件
 
 ```
-option-bridge/      飞书消息 Bridge（lark-cli + cc-connect）
+option-larkcli/     飞书 lark-cli（编辑文档/日历/任务）
+option-cconnect/    飞书 cc-connect（收消息 Bridge + 多机器人）
 option-officecli/   OfficeCLI（PPT/Office 原生 OpenXML 工具）
 option-llmswitch/   LLM 时间路由网关代理（DeepSeek ↔ MiniMax 自动切换）
 option-cloudflare/  Cloudflare Workers/Pages/D1/R2/AI 开发环境

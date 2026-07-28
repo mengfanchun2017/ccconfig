@@ -48,16 +48,23 @@ install_option() {
     local name="$1"
     shift
 
-    # bridge 子选项：lark-cli / cconnect
-    if [ "$name" = "lark-cli" ] && has_init_script "bridge"; then
+    # 飞书 lark-cli（拆分前叫 option-bridge/init.sh --lark-cli）
+    if [ "$name" = "lark-cli" ] && has_init_script "larkcli"; then
         section "安装 lark-cli（飞书文档工具）"
-        bash "$SCRIPT_DIR/option-bridge/init.sh" --lark-cli
+        bash "$SCRIPT_DIR/option-larkcli/init.sh"
         return $?
     fi
-    if [ "$name" = "cconnect" ] && has_init_script "bridge"; then
+    # 飞书 cc-connect（拆分前叫 option-bridge/init.sh --cc-connect）
+    if [ "$name" = "cconnect" ] && has_init_script "cconnect"; then
         section "安装 cc-connect（飞书消息 Bridge）"
-        bash "$SCRIPT_DIR/option-bridge/init.sh" --cc-connect
+        bash "$SCRIPT_DIR/option-cconnect/init.sh"
         return $?
+    fi
+    # 兼容旧名 "bridge"（已迁移为 larkcli + cconnect 目录）
+    if [ "$name" = "bridge" ]; then
+        warn "option-bridge 已迁移为 option-larkcli + option-cconnect"
+        warn "  直接选择 larkcli 或 cconnect 即可"
+        return 1
     fi
 
     # option-* 目录
@@ -274,19 +281,14 @@ list_all() {
 interactive_menu() {
     echo -e "${CYAN}Claude Code 可选组件安装${NC}"
 
-    # 收集所有选项（bridge 拆分为 lark-cli + cconnect）
+    # 收集所有选项（与 list_all 同一扫描逻辑，保证编号一致）
     local -a all_names
     for n in bat glow nano; do all_names+=("$n"); done
     local dirs
     dirs=$(list_option_dirs)
     for d in $dirs; do
         local bare="${d#option-}"
-        if [ "$bare" = "bridge" ]; then
-            all_names+=("lark-cli")
-            all_names+=("cconnect")
-        else
-            all_names+=("$bare")
-        fi
+        all_names+=("$bare")
     done
 
     while true; do
@@ -336,12 +338,7 @@ case "${1:-menu}" in
         for n in bat glow nano; do install_option "$n"; done
         for d in $(list_option_dirs); do
             local bare="${d#option-}"
-            if [ "$bare" = "bridge" ]; then
-                install_option "lark-cli"
-                install_option "cconnect"
-            else
-                install_option "$bare"
-            fi
+            install_option "$bare"
         done
         echo -e "\n${GREEN}✅ 全部可选组件安装完成${NC}"
         ;;
