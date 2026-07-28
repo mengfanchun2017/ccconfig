@@ -20,6 +20,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 CCPRIVATE="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+source "$SCRIPT_DIR/dry-run.sh"
 
 source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -241,7 +242,7 @@ promote_one() {
     fi
 
     mkdir -p "$(dirname "$dst")"
-    cp "$example" "$dst"
+    run cp "$example" "$dst"
     ok "$example → $dst"
 }
 
@@ -320,7 +321,7 @@ reverse_one() {
 
     confirm_sync "$ccprivate_file" "$example" "反向: ccprivate → 模板" || return 0
 
-    cp "$ccprivate_file" "$example"
+    run cp "$ccprivate_file" "$example"
     ok "$ccprivate_file → $example"
     info "记得 git add + commit + push"
 }

@@ -65,32 +65,44 @@ check_and_restart() {
     fi
 }
 
+start_watchdog_daemon() {
+    echo $$ > "$WATCHDOG_PID_FILE"
+    log "watchdog 启动 (PID: $$, interval: ${INTERVAL}s)"
+    while true; do
+        check_and_restart
+        sleep "$INTERVAL"
+    done
+}
+
+stop_watchdog() {
+    if [ -f "$WATCHDOG_PID_FILE" ]; then
+        local wd_stop_pid=$(cat "$WATCHDOG_PID_FILE")
+        if kill -0 "$wd_stop_pid" 2>/dev/null; then
+            kill "$wd_stop_pid" 2>/dev/null
+            echo -e "${GREEN}watchdog 已停止 (PID: $wd_stop_pid)${NC}"
+        fi
+        rm -f "$WATCHDOG_PID_FILE"
+    else
+        echo -e "${YELLOW}watchdog 未运行${NC}"
+    fi
+}
+
+run_watchdog_foreground() {
+    echo -e "${GRAY}watchdog 前台模式 (Ctrl+C 退出)${NC}"
+    while true; do
+        check_and_restart
+        sleep "$INTERVAL"
+    done
+}
+
 case "${1:-}" in
     --daemon)
-        echo $$ > "$WATCHDOG_PID_FILE"
-        log "watchdog 启动 (PID: $$, interval: ${INTERVAL}s)"
-        while true; do
-            check_and_restart
-            sleep "$INTERVAL"
-        done
+        start_watchdog_daemon
         ;;
     --stop)
-        if [ -f "$WATCHDOG_PID_FILE" ]; then
-            local wd_stop_pid=$(cat "$WATCHDOG_PID_FILE")
-            if kill -0 "$wd_stop_pid" 2>/dev/null; then
-                kill "$wd_stop_pid" 2>/dev/null
-                echo -e "${GREEN}watchdog 已停止 (PID: $wd_stop_pid)${NC}"
-            fi
-            rm -f "$WATCHDOG_PID_FILE"
-        else
-            echo -e "${YELLOW}watchdog 未运行${NC}"
-        fi
+        stop_watchdog
         ;;
     *)
-        echo -e "${GRAY}watchdog 前台模式 (Ctrl+C 退出)${NC}"
-        while true; do
-            check_and_restart
-            sleep "$INTERVAL"
-        done
+        run_watchdog_foreground
         ;;
 esac

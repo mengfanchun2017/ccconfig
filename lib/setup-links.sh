@@ -12,11 +12,12 @@
 #   （通常由 ccprivate/setup.sh 调用）
 # ==============================================
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 CLAUDE_DIR="$HOME/.claude"
+source "$SCRIPT_DIR/dry-run.sh"
 
 # 颜色
 GREEN='\033[0;32m'
@@ -33,7 +34,7 @@ setup_link() {
     local target="$2"
     local name="$3"
 
-    mkdir -p "$(dirname "$link")"
+    run mkdir -p "$(dirname "$link")"
     if [[ -L "$link" ]]; then
         local existing=$(readlink -f "$link")
         local expected=$(readlink -f "$target" 2>/dev/null)
@@ -41,11 +42,11 @@ setup_link() {
             info "$name: 已链接，跳过"
             return 0
         fi
-        rm -f "$link"
+        run rm -f "$link"
     elif [[ -e "$link" ]]; then
-        rm -f "$link"
+        run rm -f "$link"
     fi
-    ln -sf "$target" "$link"
+    run ln -sf "$target" "$link"
     success "$name: 已链接"
 }
 
@@ -75,11 +76,28 @@ setup_symlinks() {
         if [[ -L "$git_hook" ]] && [[ "$(readlink -f "$git_hook")" == "$(readlink -f "$hook_src")" ]]; then
             info "pre-commit hook: 已链接，跳过"
         else
-            [[ -e "$git_hook" ]] && rm -f "$git_hook"
-            ln -sf "$hook_src" "$git_hook"
+            [[ -e "$git_hook" ]] && run rm -f "$git_hook"
+            run ln -sf "$hook_src" "$git_hook"
             success "pre-commit hook: 已安装"
         fi
     fi
 }
 
-setup_symlinks
+dry_run_banner
+case "${1:-}" in
+    ""|--link|--run)
+        setup_symlinks
+        ;;
+    --dry-run)
+        setup_symlinks
+        ;;
+    --help|-h)
+        echo "用法: bash setup-links.sh [--dry-run]"
+        echo "  --dry-run  显示将执行的操作，不实际修改"
+        ;;
+    *)
+        echo "未知参数: $1" >&2
+        exit 1
+        ;;
+esac
+dry_run_footer

@@ -10,7 +10,7 @@
 #   bash ccconfig/lib/init-autostart.sh status   # 查看状态
 #
 
-set -e
+set -euo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

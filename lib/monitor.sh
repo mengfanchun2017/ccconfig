@@ -18,7 +18,7 @@
 #   curl -sLO http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/libinotifytools0_3.22.6.0-4_amd64.deb
 #   dpkg-deb -x libinotifytools0_*.deb . && cp usr/lib/x86_64-linux-gnu/libinotifytools.so.0 ~/.local/lib/
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -d "$SCRIPT_DIR/.git" ]; then
@@ -243,10 +243,16 @@ commit_and_push() {
                         error "[$repo] !! unrelated histories — skip push"
                         skip_push=true
                     elif echo "$pull_output" | grep -qi "CONFLICT\|conflict\|could not be applied"; then
+                        # 兜底：reset --hard 前先把本地工作存到 stash，万一 stash pop 失败也能恢复
+                        local safety_stash="ccconfig-monitor-safety-$(date +%s)"
+                        git -C "$repo_dir" stash push -m "$safety_stash" 2>/dev/null || true
                         git -C "$repo_dir" rebase --abort 2>/dev/null || true
-                        warn "[$repo] !! rebase 冲突 — reset to origin/$branch"
+                        warn "[$repo] !! rebase 冲突 — reset to origin/$branch (本地工作存到 $safety_stash)"
                         git -C "$repo_dir" reset --hard "origin/$branch" 2>&1 | head -1 >> "$LOG_FILE" || true
-                        git -C "$repo_dir" stash pop 2>/dev/null || true
+                        # 只在 stash 真的有内容时才 pop
+                        if git -C "$repo_dir" stash list | grep -q "$safety_stash"; then
+                            git -C "$repo_dir" stash pop 2>/dev/null || warn "[$repo] stash pop 失败，存于 $safety_stash（手动恢复）"
+                        fi
                         skip_push=true
                     else
                         warn "[$repo] pull failed: $(echo "$pull_output" | head -1)"
@@ -376,7 +382,9 @@ start_watch() {
     local event_pid=$!
 
     # Debounce loop → sync only repos that had changes
-    # Auto-restart inotifywait up to 3 times if it dies (WSL can drop watches)
+    # Auto-restart inotifywait with exponential backoff (WSL can drop watches)
+    # 退避序列: 2s → 4s → 8s → 16s → 32s → ... → 300s (5min cap)
+    # 连续 8 次失败 (累计 ~10min) 后放弃，避免 panic loop
     {
         trap 'kill $event_pid 2>/dev/null; pkill -P $event_pid 2>/dev/null; rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE" "$PID_FILE"; exit' EXIT
 
@@ -384,15 +392,28 @@ start_watch() {
         last_push_time=0
         idle_ticks=0
         local inotify_restarts=0
+        local inotify_backoff=2  # 初始退避秒数
+        local inotify_max_restarts=8
+        local inotify_max_backoff=300
+
+        # 健康状态文件：status.sh 可读
+        local STATUS_FILE="$MONITOR_HOME/.monitor-sync.status"
+        echo "ok" > "$STATUS_FILE"
 
         while true; do
             if ! kill -0 $event_pid 2>/dev/null; then
                 inotify_restarts=$((inotify_restarts + 1))
-                if [ $inotify_restarts -gt 3 ]; then
-                    do_log "inotifywait died 3 times, giving up"
+                if [ $inotify_restarts -gt $inotify_max_restarts ]; then
+                    do_log "inotifywait died $inotify_max_restarts times, giving up"
+                    echo "failed" > "$STATUS_FILE"
                     break
                 fi
-                do_log "inotifywait died, restarting (attempt $inotify_restarts/3)..."
+                do_log "inotifywait died, restarting (attempt $inotify_restarts/$inotify_max_restarts) after ${inotify_backoff}s backoff..."
+                echo "degraded:restart=$inotify_restarts/$inotify_max_restarts,backoff=${inotify_backoff}s" > "$STATUS_FILE"
+                sleep "$inotify_backoff"
+                # 下次退避翻倍，封顶 5min
+                inotify_backoff=$((inotify_backoff * 2))
+                [ "$inotify_backoff" -gt "$inotify_max_backoff" ] && inotify_backoff=$inotify_max_backoff
                 inotifywait -m -r -q                     --exclude '(\.git/|_ext/|\.snapshots/|node_modules/|\.tmp\.)'                     -e modify,create,delete,move                     "$WATCH_DIR" 2> >(tr -d '\000' >> "$LOG_FILE") | while IFS= read -r line; do
                         case "$line" in
                             *".monitor-sync"*) continue ;;
@@ -408,7 +429,15 @@ start_watch() {
                         echo "$repo_root" >> "$CHANGED_REPOS_FILE"
                     done &
                 event_pid=$!
-                sleep 2
+                # 启动成功 → 重置 backoff 计数（延迟 30s 确认 inotify 真正活下来）
+                (
+                    sleep 30
+                    if kill -0 $event_pid 2>/dev/null; then
+                        inotify_restarts=0
+                        inotify_backoff=2
+                        echo "ok" > "$STATUS_FILE"
+                    fi
+                ) &
             fi
             sleep 2
             if [ ! -f "$DEBOUNCE_FILE" ]; then

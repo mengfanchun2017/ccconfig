@@ -19,7 +19,7 @@
 #   虽然单价更高但因系统任务输出极短，省下的输入成本远超输出差价。
 # ==============================================
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"

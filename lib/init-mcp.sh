@@ -10,7 +10,7 @@
 # 使用 $HOME 而非硬编码路径，确保在新环境下也正确
 export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-set -e
+set -euo pipefail
 
 # 在 while read 循环内做交互输入时，stdin 已被重定向（<<< "$McpNames"）
 # read 必须显式从 /dev/tty 读，否则会读到空或 EOF
@@ -24,6 +24,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/path-helper.sh"
 MCP_CONF_FILE="$(resolve_conf claude.json)" || exit 1
+source "$SCRIPT_DIR/json-validate.sh"
+try_assert_json "$MCP_CONF_FILE" mcp || { echo "❌ conf/claude.json 不符合 mcp schema" >&2; exit 1; }
 
 # 颜色
 RED='\033[0;31m'
