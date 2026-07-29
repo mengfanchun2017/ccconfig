@@ -111,7 +111,7 @@ ccconfig/
 ├── option-officecli/         # 可选：AI-native Office 工具
 ├── option-cloudflare/        # 可选：Cloudflare Workers/Pages/D1/R2
 ├── option-remote/            # 可选：Tailscale + SSH 远程访问
-├── option-skill/             # 可选：Claude Code Skills（18 个 f-* 工作流）
+├── option-skill/             # 可选：Claude Code Skills（16 个 f-* 工作流）
 ├── windows-tools/            # Windows/WSL 互操作（PS 更新）
 │
 ├── .github/workflows/        # CI（check / sandbox-test / secrets-scan）
@@ -210,7 +210,7 @@ bash tests/test-init-base.sh --verbose  # 详细输出
 
 ### 📌 版本锁定
 
-`conf/versions.json` 单一真相源锁定每个工具版本 — Node、gh、Claude Code CLI、lark-cli、Python uv、第三方 skill 版本。`update.sh all` 按版本清单升级，不会意外炸掉。
+`conf/versions.json` 单一真相源锁定每个工具版本 — Node、gh、Claude Code CLI、lark-cli、Python uv、第三方 skill 版本。`bash lib/update.sh all` 按版本清单升级，不会意外炸掉。
 
 ### 🛠 统一运维入口
 
@@ -247,7 +247,7 @@ bash maintain.sh [status|monitor|sync|update|deps|fix|example]
 | `bash init-ccprivate-repo.sh` | 创建/克隆 ccprivate |
 | `bash init-base.sh` | 交互式菜单 |
 | `bash init-base.sh all` | 一键全初始化（4 步：Ubuntu → LLM → MCP → 收尾） |
-| `bash maintain.sh status` | 完整状态检查（13 项） |
+| `bash maintain.sh status` | 完整状态检查（14 项） |
 | `bash maintain.sh fix` | 自动修复断链 |
 | `bash maintain.sh monitor start` | 启动 auto-sync |
 | `bash maintain.sh sync --pull` | 强拉远程（暗号 `pullff`） |
@@ -276,7 +276,7 @@ cd ~/git/ccconfig && git pull
 
 ## 状态检查覆盖
 
-`maintain.sh status` 每次 Claude Code session 启动检查 12+ 项：
+`maintain.sh status` 每次 Claude Code session 启动检查 14 项：
 
 1. 配置文件链接（settings.json、.config.json、CLAUDE.md、MEMORY.md、rules → ccprivate）
 2. 核心依赖（git、bash、curl、node、python3、npm）
@@ -293,7 +293,7 @@ cd ~/git/ccconfig && git pull
 
 ## 自建 Skills
 
-全部 16 个自建 skill（14 marketplace + 2 内部）发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库（Anthropic marketplace 兼容），`init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
+全部 16 个自建 skill（14 marketplace + 2 内部）发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库（Anthropic marketplace 兼容），`bash lib/init-skill.sh sync` 自动 symlink 到 `~/.claude/skills/`。
 
 | Skill | 用途 | 需外部服务？ |
 |-------|------|-------------|
@@ -307,16 +307,15 @@ cd ~/git/ccconfig && git pull
 | `fresearchframe` | 4 领域研究方法论 | 委托 fsearch |
 | `fresearchreport` | 报告生成（JSON/大纲/素材 → Markdown） | 委托 ffeishu + freportstd |
 | `freportstd` | 报告写作规范（4 套模板） | 无 |
-| `flaunch` | 项目启动脚手架 | flogme + ffeishu（可选） |
 | `flogme` | OKR/Worklog/Reflect/SUM 个人管理 | lark-cli + 飞书 Base |
 | `fmoocrec` | 慕课推荐 | 飞书 Base |
 | `fskillcreat` | Skill 开发脚手架 | 无 |
 | `fsyncdoc` | 源码文档同步 + 产品页同步 | aiagt page |
-| `f-sysarchi` | 系统分析师备考 | 无 |
+| `fsysarchi` | 系统分析师备考 | 无 |
 | `getnote` | 得到大脑集成 — MCP 驱动 | 得到 MCP |
 
 > **独立使用**（不需 ccconfig）：`/plugin marketplace add <your-username>/skill` 然后 `/plugin install ffeishu@<your-username>-skills`。
-> **ccconfig 用户**：`init-skill.sh sync` 自动从 `~/git/skill/plugins/` symlink。完整生命周期 → [docs/skill-lifecycle.md](docs/skill-lifecycle.md)。
+> **ccconfig 用户**：`bash lib/init-skill.sh sync` 自动从 `~/git/skill/plugins/` symlink。完整生命周期 → [docs/skill-lifecycle.md](docs/skill-lifecycle.md)。
 
 ## 远程访问
 
