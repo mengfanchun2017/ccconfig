@@ -88,7 +88,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 ~/git/
 ├── ccconfig/                   # ← 用户 fork/clone 这个
 │   ├── bootstrap-gh-auth.sh    # Step 2: 装 gh + GitHub 认证
-│   ├── init.sh                 # 统一入口（交互式二级菜单）
+│   ├── init-base.sh                 # 统一入口（交互式二级菜单）
 │   ├── maintain.sh             # 统一运维入口
 │   ├── conf/               # 配置模板（*.example，不包含真实密钥）
 │   ├── lib/                    # 脚本库 + 子脚本
@@ -194,8 +194,8 @@ systemd user service 守护，开机自启。`monitor.sh status` 查看各仓库
 
 ```
 日常：monitor.sh 自动 push（不自动 pull）
-月度：update.sh all（Node/Claude/gh/uv/pip/MCP/skills 全升级）
-Skill：init-skill.sh sync（从 skill 拉最新）
+月度：bash lib/update.sh all（Node/Claude/gh/uv/pip/MCP/skills 全升级）
+Skill：bash lib/init-skill.sh sync（从 skill 拉最新）
 ccconfig 自身：git pull（update.sh 开头自动执行）
 大版本：git pull → 看 CHANGELOG → 可能需重跑 init
 ```
@@ -231,9 +231,7 @@ Tier 3: 领域方法论（领域知识 + 框架）
 Tier 4: 应用 Skill（最终用户工作流）
   fresearchreport   报告生成 → 委托 fresearchframe + freportstd + ffeishu
   flogme            个人管理系统（OKR/Worklog/Reflect/SUM）
-  f-launch           项目启动脚手架（8 种项目类型）
   f-moocrec          慕课推荐（QS 课程 + 学习路径）
-  f-vessel           AI 浏览器操控
   getnote            得到大脑集成（MCP 驱动）
 ```
 
@@ -241,7 +239,7 @@ Tier 4: 应用 Skill（最终用户工作流）
 
 | 来源 | 安装方式 | 管理 |
 |------|---------|------|
-| 自建 f-*（16 个） | `init-skill.sh sync` 从 skill symlink | ccconfig |
+| 自建 f-*（16 个） | `bash lib/init-skill.sh sync` 从 skill symlink | ccconfig |
 | 第三方（mattpocock） | `npx skills add` 从 GitHub | `conf/third-party-skills.txt` |
 | 私有覆盖 | `apply-config.sh` ln -s ccprivate/skill-config/*.yaml | ccprivate |
 
@@ -285,7 +283,7 @@ option-remote/      Tailscale + SSH 远程访问桌面 tmux session
 
 1. 在 `~/git/skill/plugins/<name>/` 创建 `SKILL.md` + 可选 `config.yaml.example`
 2. 在 `.claude-plugin/marketplace.json` 注册 plugin entry
-3. `bash init-skill.sh sync` 同步到 `~/.claude/skills/`
+3. `bash lib/init-skill.sh sync` 同步到 `~/.claude/skills/`
 4. 如有私有配置：`ccprivate/skill-config/<name>.yaml` → `apply-config.sh` 自动覆盖
 
 ### 添加新 Option

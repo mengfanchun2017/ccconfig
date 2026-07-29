@@ -136,7 +136,7 @@ pwsh --version
 在 **PowerShell 7（管理员）** 中执行：
 
 ```powershell
-wsl --install -d Ubuntu-26.04 --install-dir C:\wsl\u26claude --name u26claude
+wsl --install -d Ubuntu-26.04 --location C:\wsl\u26claude --name u26claude
 ```
 
 这会自动启用 WSL 功能、安装内核、安装 Ubuntu 26.04 LTS。WSL 发行版名称为 `u26claude`（`wsl --list` 可查），文件放在 `C:\wsl\u26claude`。
@@ -234,7 +234,7 @@ u26claudec config --default-user <你的用户名>
 
 ```powershell
 wsl --unregister u26claude
-wsl --install -d Ubuntu-26.04 --install-dir C:\wsl\u26claude --name u26claude
+wsl --install -d Ubuntu-26.04 --location C:\wsl\u26claude --name u26claude
 ```
 
 > **日常使用**：备份文件放非系统盘（D:/E:），Windows 重装不会丢失。每月备份一次即可。
