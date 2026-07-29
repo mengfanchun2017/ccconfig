@@ -180,18 +180,51 @@ if lc.get('enabled'):
 }
 
 show_status() {
-    echo -e "${CYAN}── lark-cli 状态 ──${NC}"
-    echo -n "  lark-cli ... "
+    # 第一行：无 ANSI 状态行（供 init-option.sh 解析）
+    if ! command -v lark-cli &>/dev/null; then
+        echo "MISSING lark-cli 未安装"
+        return 0
+    fi
+    local ver=$(lark-cli --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//')
+    local cf="$HOME/.lark-cli-account"
+    local acct="-"
+    [ -f "$cf" ] && acct=$(grep '^name=' "$cf" | cut -d'=' -f2)
+
+    # 检查 feishu.json 是否有占位符 key
+    local has_ph="false"
+    if [ -f "$FEISHU_CONF" ]; then
+        has_ph=$(python3 -c "
+import json, sys
+PLACEHOLDER = ['请填入','请到','请替换','your key','your_key','placeholder','changeme','<your-','your-app-name']
+def is_ph(v):
+    if not v or not isinstance(v, str): return True
+    return any(p in v.lower() for p in PLACEHOLDER)
+with open('$FEISHU_CONF') as f: d = json.load(f)
+print('true' if any(is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')) for a in d.get('apps',[]) if a.get('larkCli',{}).get('enabled')) else 'false')
+" 2>/dev/null || echo "false")
+    fi
+
+    if [ "$has_ph" = "true" ]; then
+        echo "WARN lark-cli v${ver:-?} (账号: ${acct}) — feishu.json 含占位符"
+    else
+        echo "OK lark-cli v${ver:-?} (账号: ${acct})"
+    fi
+
+    # 后续行：彩色详情（--status 直接展示用）
+    echo ""
+    echo -e "${CYAN}── lark-cli 详情 ──${NC}"
+    echo -n "  二进制 ... "
     if command -v lark-cli &>/dev/null; then
         echo -e "${GREEN}✅${NC} $(lark-cli --version 2>/dev/null | head -1)"
     else
         echo -e "${RED}❌${NC} 未安装"
-        return 1
     fi
-    local cf="$HOME/.lark-cli-account"
     if [ -f "$cf" ]; then
         local name=$(grep '^name=' "$cf" | cut -d'=' -f2)
         echo -e "  当前账号 ... ${GREEN}${name}${NC}"
+    fi
+    if [ "$has_ph" = "true" ]; then
+        echo -e "  ${YELLOW}!${NC} feishu.json 仍含占位符 → 编辑 ${GRAY}$FEISHU_CONF${NC}"
     fi
 }
 

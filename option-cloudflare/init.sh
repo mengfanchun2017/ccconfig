@@ -78,11 +78,11 @@ do_status() {
     local pl_ok=$(echo "$status" | cut -d'|' -f2)
     local ver=$(echo "$status" | cut -d'|' -f3)
 
-    # 第一行：给 status.sh check_option_components 解析
+    # 第一行：给 status.sh check_option_components 解析（规范: OK|WARN|MISSING <name> ...）
     if [ "$pl_ok" = true ]; then
-        echo "OK Cloudflare Plugin v$ver"
+        echo "OK cloudflare v$ver"
     else
-        echo "Cloudflare Plugin — 未安装（bash ccconfig/option-cloudflare/init.sh --install）"
+        echo "MISSING cloudflare Plugin 未安装（bash ccconfig/option-cloudflare/init.sh --install）"
     fi
 
     banner

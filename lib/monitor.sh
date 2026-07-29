@@ -33,7 +33,7 @@ CHANGED_REPOS_FILE="$MONITOR_HOME/.monitor-sync.changed-repos"
 WATCH_DIR="$HOME/git"
 
 export PATH="$HOME/.local/bin:$PATH"
-export LD_LIBRARY_PATH="$HOME/.local/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$HOME/.local/lib:$LD_LIBRARY_PATH}"
 
 # Colors
 RED='\033[0;31m'

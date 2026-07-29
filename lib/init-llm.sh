@@ -232,11 +232,16 @@ write_json(os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json')),
            lambda d: d.setdefault('env', {}).update(env_update))
 print("~/.claude.json 已更新")
 
-# ~/.claude/settings.json
+# ~/.claude/settings.json — 同步 env + 顶层 model 字段
 sf = os.path.expanduser("~/.claude/settings.json")
 if os.path.islink(sf) and not os.path.exists(sf):
     os.unlink(sf)
-write_json(sf, lambda d: d.setdefault('env', {}).update(env_update))
+model_name = os.environ.get('MODEL_NAME', '')
+def updater(d):
+    d.setdefault('env', {}).update(env_update)
+    if model_name:
+        d['model'] = model_name
+write_json(sf, updater)
 print("~/.claude/settings.json 已更新")
 PYEOF
 
@@ -476,6 +481,18 @@ except: pass
 switch_to_gateway() {
     info "切换到 Gateway 模式"
 
+    # 确保 llmswitch.json 存在，没有则从模板复制
+    if [ ! -f "$LLMSWITCH_CONF" ]; then
+        if [ -f "$LLMSWITCH_CONF.example" ]; then
+            info "配置不存在，从模板初始化..."
+            cp "$LLMSWITCH_CONF.example" "$LLMSWITCH_CONF"
+            success "配置文件已创建: $LLMSWITCH_CONF"
+        else
+            error "配置模板不存在: $LLMSWITCH_CONF.example"
+            return 1
+        fi
+    fi
+
     if ! is_proxy_running; then
         info "启动 LLM 网关代理..."
         bash "$LLMSWITCH_INIT" --start || { error "代理启动失败"; return 1; }
@@ -489,14 +506,109 @@ switch_to_gateway() {
         info "watchdog 已启动"
     fi
 
-    local config=$(get_llm_config "gateway") || { error "无法获取 Gateway 配置"; return 1; }
-    IFS='|' read -r base_url model_name _ small_model <<< "$config"
+    # 从 llmswitch.json 读取真实模型名（替换 llm.json 占位符）
+    local gw_model=$(python3 -c "import json; print(json.load(open('$LLMSWITCH_CONF')).get('model_name','llmgateway'))" 2>/dev/null || echo "llmgateway")
+    local gw_small=$(python3 -c "import json; print(json.load(open('$LLMSWITCH_CONF')).get('small_model_name',''))" 2>/dev/null || echo "")
+    [ -z "$gw_small" ] && gw_small="$gw_model"
 
-    info "  模型: $model_name → $(read_gateway_routes)"
-    _write_llm_config "gateway" "$base_url" "$model_name" "$small_model" ""
+    # 从 llm.json 读 base_url（gateway entry 存的就是本地 proxy URL）
+    local base_url=$(get_llm_config "gateway" | cut -d'|' -f1) || { error "无法获取 Gateway 配置"; return 1; }
+
+    # 用真实模型名写入 env
+    _write_llm_config "gateway" "$base_url" "$gw_model" "$gw_small" ""
 
     local summary=$(get_gateway_status_one_liner)
-    success "Gateway 已切换 $summary"
+    success "Gateway 已切换 ($gw_model) $summary"
+}
+
+# ========== 状态诊断 ==========
+# 一次性整合 llm.json / env / settings.json / 进程 四个数据源
+# 用途: 用户问"我现在到底用的哪个模型"时跑一次
+show_status() {
+    local llm_current=$(python3 -c "
+import json
+try:
+    with open('${CONFIG_FILE}') as f: d = json.load(f)
+    print(d.get('current',''))
+except: pass
+" 2>/dev/null)
+
+    local sett_env=$(python3 -c "
+import json, os
+p = os.path.expanduser('~/.claude/settings.json')
+try:
+    with open(p) as f: d = json.load(f)
+    e = d.get('env', {})
+    print(f\"{e.get('ANTHROPIC_BASE_URL','')}|{e.get('ANTHROPIC_MODEL','')}|{e.get('ANTHROPIC_AUTH_TOKEN','')}\")
+except: print('||')
+" 2>/dev/null)
+    local sett_model=$(python3 -c "
+import json, os
+p = os.path.expanduser('~/.claude/settings.json')
+try:
+    with open(p) as f: d = json.load(f)
+    print(d.get('model',''))
+except: pass
+" 2>/dev/null)
+
+    echo ""
+    info "── LLM 状态诊断 ──"
+    printf "  llm.json current          : %s\n" "${llm_current:-<未设置>}"
+    if [[ -n "$sett_env" ]]; then
+        IFS='|' read -r base model tok <<< "$sett_env"
+        printf "  env.ANTHROPIC_BASE_URL    : %s\n" "${base:-<未设置>}"
+        printf "  env.ANTHROPIC_MODEL       : %s   (下次请求实际生效)\n" "${model:-<未设置>}"
+        if [[ -n "$tok" ]]; then
+            printf "  env.ANTHROPIC_AUTH_TOKEN  : ...%s\n" "${tok: -4}"
+        fi
+    fi
+    printf "  settings 顶层 model       : %s   (session 启动时锁定, 只读参考)\n" "${sett_model:-<未设置>}"
+
+    # 桥接诊断
+    if [[ "$sett_env" == *"://127.0.0.1:8898"* ]]; then
+        local h=$(curl -s --max-time 2 "http://127.0.0.1:8898/health" 2>/dev/null)
+        if [[ -n "$h" ]]; then
+            local up=$(echo "$h" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream','?')+'|'+d.get('upstream_model','?'))" 2>/dev/null)
+            IFS='|' read -r up_base up_model <<< "$up"
+            info "  bridge (port 8898)       : ✓ upstream=$up_base model=$up_model"
+        else
+            error "  bridge (port 8898)       : ✗ 未响应 (env 指向 8898 但 bridge 没起)"
+        fi
+    elif is_proxy_running; then
+        info "  网关代理                  : $(get_gateway_status_one_liner)"
+    fi
+
+    # 一致性检查
+    echo ""
+    # 一致性: model 是 env 真值, base_url 在 OpenAI-only 端点下会被 bridge 改写属正常
+    local preset_state="N"
+    if [[ -n "$llm_current" && -n "$sett_env" ]]; then
+        IFS='|' read -r env_base env_model _ <<< "$sett_env"
+        preset_state=$(python3 - "$CONFIG_FILE" "$llm_current" "$env_base" "$env_model" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f: d = json.load(f)
+    llm = d.get('llms', {}).get(sys.argv[2], {})
+    if not llm or llm.get('model','') != sys.argv[4]:
+        print('N'); sys.exit(0)
+    pb, eb = llm.get('base_url',''), sys.argv[3]
+    # 直连: base_url 必须等; bridge: preset 是 OpenAI-only 端点, env 是 127.0.0.1:8898
+    if pb == eb:
+        print('Y')
+    elif pb and '/anthropic' not in pb and '127.0.0.1' not in pb and eb == 'http://127.0.0.1:8898':
+        print('B')  # bridge 改写后一致
+    else:
+        print('N')
+except: print('N')
+PYEOF
+)
+    fi
+    case "$preset_state" in
+        Y) success "  三处配置一致" ;;
+        B) info "  bridge 改写后一致 (preset=$llm_current → 127.0.0.1:8898)" ;;
+        N) warn "  注意: llm.json current=$llm_current 与 env 不一致, 建议重新跑一次 init-llm" ;;
+    esac
+    echo ""
 }
 
 # ========== 显示列表 ==========
@@ -744,6 +856,8 @@ main() {
 
     if [[ "$cmd" == "list" ]]; then
         show_list
+    elif [[ "$cmd" == "status" ]]; then
+        show_status
     elif [[ "$cmd" == "custom" ]] || [[ "$cmd" == "-c" ]]; then
         switch_custom
     elif [[ "$cmd" == "delete" ]] || [[ "$cmd" == "-d" ]]; then

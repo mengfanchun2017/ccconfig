@@ -38,9 +38,9 @@ do_status() {
     if [[ $count -gt 0 ]]; then
         echo "OK Skills ${count}个已安装（源: ${src_count}个）"
     elif [[ $src_count -gt 0 ]]; then
-        echo "FAIL Skills 源存在但未链接（运行 --install）"
+        echo "WARN Skills 源存在但未链接（运行 --install）"
     else
-        echo "Skills — 未安装（bash ccconfig/option-skill/init.sh --install）"
+        echo "MISSING Skills 源不存在（bash ccconfig/option-skill/init.sh --install）"
     fi
 }
 

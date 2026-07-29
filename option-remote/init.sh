@@ -50,13 +50,13 @@ do_status() {
         all_ok=false
     fi
 
-    # 第一行：给 status.sh check_option_components 解析
+    # 第一行：给 status.sh check_option_components 解析（规范: OK|WARN|MISSING <name> ...）
     if $all_ok; then
         echo "OK remote (SSH + Tailscale 就绪)"
     elif systemctl is-active ssh.socket &>/dev/null 2>&1; then
-        echo "OK remote (SSH 就绪, Tailscale 未登录)"
+        echo "WARN remote (SSH 就绪, Tailscale 未登录)"
     else
-        echo "remote: SSH $ssh_status"
+        echo "MISSING remote (SSH $ssh_status)"
     fi
 
     echo -e "  SSH Server ... ${ssh_status}"
