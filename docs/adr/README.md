@@ -14,6 +14,7 @@
 | [0003](0003-deprecate-tasks-and-kr-progress.md) | 废弃 Tasks + KR_Progress 表 | 2026-06-09 | ✅ Accepted | Phase 0 |
 | [0004](0004-officecli-skill-architecture.md) | OfficeCLI skill 架构：base + load_skill | 2026-07-07 | ✅ Accepted | — |
 | [0005](0005-remove-slash-mcp-runtime-command.md) | 废弃运行时 /mcp 命令，迁移至 CLI 子命令 | 2026-07-27 | ✅ Accepted | — |
+| [0006](0006-feishu-communication-strategy.md) | 飞书通信策略：cc-connect + lark-cli，不引入飞书 MCP | 2026-07-29 | ✅ Accepted | — |
 
 ## 强制 4 字段（每条 ADR 必含）
 
