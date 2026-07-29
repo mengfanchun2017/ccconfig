@@ -245,10 +245,13 @@ if cc.get('enabled'):
 
 show_status() {
     # 第一行：无 ANSI 状态行（供 init-option.sh 解析）
-    if ! command -v cc-connect &>/dev/null; then
+    local _cc_bin="$HOME/.local/bin/cc-connect"
+    if ! command -v cc-connect &>/dev/null && [ ! -x "$_cc_bin" ]; then
         echo "MISSING cc-connect 未安装"
         return 0
     fi
+    # 确保 PATH 包含 ~/.local/bin（init-option.sh 可能没加载完整 PATH）
+    case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac
     local ver=$(cc-connect --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//')
     local running="false"
     if systemctl --user is-active cc-connect.service &>/dev/null 2>&1 || pgrep -f "cc-connect" >/dev/null 2>&1; then
