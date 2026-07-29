@@ -116,7 +116,7 @@ do_install_cli_deps() {
                 local pkg=$(echo "$line" | awk '{print $1}')
                 local mgr=$(echo "$line" | awk '{print $2}' | cut -d: -f1)
                 local key="$pkg|$mgr"
-                if [[ -z "${seen_deps[$key]}" ]]; then
+                if [[ ! -v seen_deps["$key"] ]]; then
                     seen_deps[$key]="$skill_name"
                     self_deps=$((self_deps + 1))
                 else
@@ -142,7 +142,7 @@ do_install_cli_deps() {
     fi
     info "  扫描 $self_deps 个唯一依赖"
 
-    [[ ${#seen_deps[@]} -eq 0 ]] && info "  无 CLI 依赖" && return 0
+    [[ $self_deps -eq 0 ]] && info "  无 CLI 依赖" && return 0
 
     echo ""
 

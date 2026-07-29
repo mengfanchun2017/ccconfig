@@ -68,6 +68,12 @@
 **决策**: OKR + Worklog + Reflect 三层框架，PARA 方法融合 KR.PARA 字段
 **关联**: flogme skill / OKR Base v2
 
+## 2026-07-29 | ADR 0006 飞书通信策略 | cc-connect v1.4 + init-option 集成 | [查看](adr/0006-feishu-communication-strategy.md)
+
+**决策**: cc-connect + lark-cli 双组件，不引入飞书 MCP。cc-connect 升 1.4.0，init-option.sh 统一安装管理
+**核心判断**: lark-cli 已覆盖 MCP 主动操作功能，cc-connect 做了 MCP 做不了的事（双向对话/流式/session），飞书 MCP 不能替代
+**关联 ADR**: [docs/adr/0006-feishu-communication-strategy.md](adr/0006-feishu-communication-strategy.md)
+
 ## 2026-06-07 | ccconfig docs 框架：4层追踪
 
 **决策**: L1/L0 仓库 + L2/L3/L4 飞书 Base + ADR 决策层

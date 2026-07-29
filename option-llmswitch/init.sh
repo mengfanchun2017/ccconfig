@@ -86,12 +86,15 @@ try:
 except Exception:
     pconf = {}
 main_model = pconf.get("model_name", "llmswitch")
+small_model = pconf.get("small_model_name", main_model)
 
 env_update = {
     "ANTHROPIC_BASE_URL": proxy_url,
     "ANTHROPIC_MODEL": main_model,
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "ENABLE_PROMPT_CACHING_1H": "1",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": small_model,
 }
 
 settings_file = os.path.expanduser("~/.claude/settings.json")
@@ -317,7 +320,8 @@ do_stop() {
 # ========== 状态 ==========
 do_status() {
     if ! is_running; then
-        echo "llmswitch proxy not running"
+        # --status 规范：第一行给 init-option.sh 解析
+        echo "WARN llmswitch 代理未运行"
         echo -e "  ${YELLOW}○${NC} 代理未运行 → bash ccconfig/option-llmswitch/init.sh --start"
         return 0
     fi

@@ -66,7 +66,7 @@ install_cconnect() {
     if curl -fsSL --connect-timeout 10 --max-time 120 --retry 2 "$url" -o "$tmp/cc-connect.tar.gz" 2>/dev/null || \
        curl -fsSL --connect-timeout 10 --max-time 120 --retry 2 --http1.1 "$url" -o "$tmp/cc-connect.tar.gz" 2>/dev/null; then
         tar -xzf "$tmp/cc-connect.tar.gz" -C "$tmp"
-        local bin=$(find "$tmp" -name "cc-connect" -type f | head -1)
+        local bin=$(find "$tmp" -maxdepth 2 -type f -exec test -x {} \; -print | head -1)
         [ -n "$bin" ] && { cp "$bin" "$CC_CONNECT_BIN"; chmod +x "$CC_CONNECT_BIN"; good "✅"; } || { bad "❌ 未找到二进制"; return 1; }
     else
         bad "❌ 下载失败"
@@ -244,14 +244,58 @@ if cc.get('enabled'):
 }
 
 show_status() {
-    echo -e "${CYAN}── cc-connect 状态 ──${NC}"
-    echo -n "  cc-connect ... "
+    # 第一行：无 ANSI 状态行（供 init-option.sh 解析）
+    if ! command -v cc-connect &>/dev/null; then
+        echo "MISSING cc-connect 未安装"
+        return 0
+    fi
+    local ver=$(cc-connect --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//')
+    local running="false"
+    if systemctl --user is-active cc-connect.service &>/dev/null 2>&1 || pgrep -f "cc-connect" >/dev/null 2>&1; then
+        running="true"
+    fi
+
+    # 检查 feishu.json 是否有占位符 key
+    local has_ph="false"
+    if [ -f "$FEISHU_CONF" ]; then
+        has_ph=$(python3 -c "
+import json, sys
+PLACEHOLDER = ['请填入','请到','请替换','your key','your_key','placeholder','changeme','<your-','your-app-name']
+def is_ph(v):
+    if not v or not isinstance(v, str): return True
+    return any(p in v.lower() for p in PLACEHOLDER)
+with open('$FEISHU_CONF') as f: d = json.load(f)
+print('true' if any(is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')) for a in d.get('apps',[]) if a.get('ccConnect',{}).get('enabled')) else 'false')
+" 2>/dev/null || echo "false")
+    fi
+
+    if [ "$has_ph" = "true" ]; then
+        echo "WARN cc-connect v${ver:-?} (未运行) — feishu.json 含占位符"
+    elif [ "$running" = "true" ]; then
+        echo "OK cc-connect v${ver:-?} 运行中"
+    else
+        echo "WARN cc-connect v${ver:-?} (已装未运行)"
+    fi
+
+    # 后续行：彩色详情（--status 直接展示用）
+    echo ""
+    echo -e "${CYAN}── cc-connect 详情 ──${NC}"
+    echo -n "  二进制 ... "
     if command -v cc-connect &>/dev/null; then
         echo -e "${GREEN}✅${NC} $(cc-connect --version 2>/dev/null | head -1 || echo '已安装')"
     else
         echo -e "${RED}❌${NC} 未安装"
     fi
-    bash "$SCRIPT_DIR/bot-status.sh" 2>/dev/null || true
+    echo -n "  服务 ... "
+    if [ "$running" = "true" ]; then
+        echo -e "${GREEN}●${NC} 运行中"
+    else
+        echo -e "${YELLOW}○${NC} 未运行"
+    fi
+    if [ "$has_ph" = "true" ]; then
+        echo -e "  ${YELLOW}!${NC} feishu.json 仍含占位符 → 编辑 ${GRAY}$FEISHU_CONF${NC}"
+    fi
+    bash "$SCRIPT_DIR/bot-status.sh" 2>/dev/null | grep -v -E "^\[1mcc-connect 服务\[0m|^\[1m机器人列表\[0m|^$" | head -20
 }
 
 # ========== 主程序 ==========

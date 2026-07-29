@@ -1,13 +1,18 @@
 #!/bin/bash
-# 飞书 MCP Bridge 安装脚本（可选组件）
-# 用途: 给 Claude Code 安装 feishu MCP，用于 bot 消息收发
+# ⚠ 废弃: 飞书 MCP Bridge 安装脚本（保留为参考）
+#
+# 决策背景（ADR 0006）:
+#   cc-connect + lark-cli 覆盖全部飞书场景，不引入 MCP。
+#   飞书 MCP 不能被动接收消息、不能流式回复、无 session 管理。
+#
+# 用途: 给 Claude Code 安装 @china-mcp/feishu-mcp（已废弃，不再推荐）
 # 位置: ccconfig/option-cconnect/mcp-bridge/
 #
 # 使用:
 #   bash ccconfig/option-cconnect/mcp-bridge/install.sh          # 安装
 #   bash ccconfig/option-cconnect/mcp-bridge/install.sh --remove # 移除
 #
-# 注意: 如果只需要文档/日历/任务操作，用 lark-cli 即可，不需要安装此组件
+# 替代: 用 lark-cli 做文档操作，cc-connect 做 Bot 对话
 
 set -e
 

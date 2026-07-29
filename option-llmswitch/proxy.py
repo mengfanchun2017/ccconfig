@@ -20,6 +20,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import StreamingResponse
 
 CCCONFIG = Path(os.environ.get("CCCONFIG_HOME", Path.home() / "git" / "ccconfig"))
+CCPRIVATE = Path(os.environ.get("CCPRIVATE_HOME", Path.home() / "git" / "ccprivate"))
 
 
 def load_json(path):
@@ -288,7 +289,7 @@ def transform_body_for_provider(body_bytes, provider_key, rules):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global http_client
-    llm_config_path = CCCONFIG / "conf" / "llm.json"
+    llm_config_path = CCPRIVATE / "conf" / "llm.json"
     config_path = CCCONFIG / "option-llmswitch" / "conf" / "llmswitch.json"
     state.reload_if_changed(str(config_path), str(llm_config_path))
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0))
@@ -301,7 +302,7 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/health")
 async def health():
-    llm_config_path = CCCONFIG / "conf" / "llm.json"
+    llm_config_path = CCPRIVATE / "conf" / "llm.json"
     config_path = CCCONFIG / "option-llmswitch" / "conf" / "llmswitch.json"
     state.reload_if_changed(str(config_path), str(llm_config_path))
     return state.status()
@@ -325,7 +326,7 @@ async def admin_mode(request: Request):
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def proxy(path: str, request: Request):
-    llm_config_path = CCCONFIG / "conf" / "llm.json"
+    llm_config_path = CCPRIVATE / "conf" / "llm.json"
     config_path = CCCONFIG / "option-llmswitch" / "conf" / "llmswitch.json"
     state.reload_if_changed(str(config_path), str(llm_config_path))
 
