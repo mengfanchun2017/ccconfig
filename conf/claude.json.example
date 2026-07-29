@@ -26,7 +26,7 @@
       "how_to_get": "去 https://platform.minimax.io 注册",
       "type": "stdio",
       "command": "uvx",
-      "args": ["minimax-coding-plan-mcp", "-y"],
+      "args": ["--with", "fastmcp>=0.5.0", "minimax-coding-plan-mcp", "-y"],
       "env": {
         "MINIMAX_API_KEY": "请填入你的 MiniMax API Key",
         "MINIMAX_API_HOST": "https://api.minimax.chat"
@@ -38,7 +38,7 @@
       "how_to_get": "共用 Minimax Key，无需额外注册",
       "type": "stdio",
       "command": "uvx",
-      "args": ["minimax-mcp"],
+      "args": ["--with", "fastmcp>=0.5.0", "minimax-mcp"],
       "env": {
         "MINIMAX_API_KEY": "请填入你的 MiniMax API Key",
         "MINIMAX_API_HOST": "https://api.minimax.chat"
