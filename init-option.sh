@@ -283,13 +283,16 @@ PYEOF
             local appid=$(echo "$app_json" | python3 -c "import json,sys; a=json.load(sys.stdin)['appId']; print(a[:12]+'...' if len(a)>12 else a)")
             local lcen=$(echo "$app_json" | python3 -c "import json,sys; print('Y' if json.load(sys.stdin).get('larkCli',{}).get('enabled') else '.')")
             local ccen=$(echo "$app_json" | python3 -c "import json,sys; print('Y' if json.load(sys.stdin).get('ccConnect',{}).get('enabled') else '.')")
+            local lben=$(echo "$app_json" | python3 -c "import json,sys; d=json.load(sys.stdin).get('larkBridge',{}); print('Y' if d.get('enabled') else ('.' if d else ''))")
+            local lb_suffix=""
+            [ -n "$lben" ] && lb_suffix=" B=${lben}"
             local desc=$(echo "$app_json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('description',''))")
             local marker_str=""
             [ "$name" = "$current_name" ] && marker_str=" ${GREEN}← 当前${NC}"
             if [ -n "$marker_str" ]; then
                 echo -e "    ${i}) ${name}${GRAY}${NC} appId=${appid}  L=${lcen} C=${ccen} ${marker_str}"
             else
-                printf "    %d) %-12s appId=%s  L=%s C=%s\n" "$i" "$name" "$appid" "$lcen" "$ccen"
+                printf "    %d) %-12s appId=%s  L=%s C=%s%s\n" "$i" "$name" "$appid" "$lcen" "$ccen" "$lb_suffix"
             fi
             [ -n "$desc" ] && echo -e "       ${GRAY}${desc}${NC}"
             names+=("$name")
