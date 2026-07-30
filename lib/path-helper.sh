@@ -82,10 +82,6 @@ get_gh_version() {
     get_version "gh"
 }
 
-get_cconnect_version() {
-    get_version "cc_connect"
-}
-
 # ========== Node.js 路径发现（核心函数）==========
 
 # 多策略发现当前 Node.js 安装的 bin 目录

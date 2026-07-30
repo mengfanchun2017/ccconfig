@@ -8,4 +8,4 @@ export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-bash "$SCRIPT_DIR/../init-skill.sh" update
+bash "$SCRIPT_DIR/init-skill.sh" update

@@ -10,7 +10,7 @@
 #   [3] Claude Code     → claude install
 #   [4] uv             → curl | sh
 #   [5] MCP 缓存        → 刷新 npx/uvx 缓存
-#   [6] cc-connect     → GitHub Release [option]
+#   [6] lark-cli        → npm
 #   [7] systemd 服务    → 重建 + 重启 [option]
 #   [8] OfficeCLI      → GitHub Release [option]
 #   [9] Skills 同步     → skill + ccprivate [option]
@@ -28,7 +28,6 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/path-helper.sh"
-source "$SCRIPT_DIR/git-conflict.sh"
 
 LOCAL_BIN="$HOME/.local/bin"
 VERSION_FILE="$CCCONFIG_ROOT/conf/versions.json"  # 公开文件，不走 resolve_conf
@@ -101,7 +100,6 @@ snapshot = {
         'claude':    {'version': get_ver('claude --version')},
         'uv':        {'version': get_ver('uv --version')},
         'lark_cli':  {'version': get_ver('lark-cli version')},
-        'cc_connect':{'version': get_ver('cc-connect --version 2>/dev/null || echo not_installed')},
     }
 }
 
@@ -163,8 +161,10 @@ self_update() {
         return 0
     fi
 
-    # 拉取失败 — 冲突处理菜单 → lib/git-conflict.sh
-    git_conflict_menu "$SCRIPT_DIR" "main" "$local_commit" "$remote" || return 1
+    # 拉取失败 → 提示手动处理（git-conflict 已合并到 sync.sh）
+    warn "拉取失败，本地与远程可能已分叉"
+    warn "手动处理: cd $CCCONFIG_ROOT && git pull --rebase origin main"
+    return 1
 }
 
 # 从 Node.js index.json (stdin) 解析目标版本
@@ -452,78 +452,6 @@ version_ge() {
     return 1
 }
 
-# ========== 4. cc-connect ==========
-
-update_cconnect() {
-    section "cc-connect"
-
-    local bin="$LOCAL_BIN/cc-connect"
-
-    # 检查是否安装
-    if [ ! -x "$bin" ]; then
-        info "cc-connect 未安装，跳过"
-        info "如需安装: bash ccconfig/option-cconnect/init.sh"
-        return 0
-    fi
-
-    # 获取当前版本（完整输出，用于显示）
-    local current_full
-    current_full=$("$bin" --version 2>/dev/null | head -1 || echo "?")
-    # 提取主版本号（用于比较）
-    local current
-    current=$(echo "$current_full" | grep -oP 'v?\d+\.\d+\.\d+' | head -1 || echo "?")
-    info "当前版本: $current_full"
-
-    # 获取最新稳定版 release（过滤预发布版本）
-    local latest
-    latest=$(curl -s --connect-timeout 5 --max-time 10 \
-        'https://api.github.com/repos/chenhg5/cc-connect/releases?per_page=10' 2>/dev/null | \
-        python3 -c "import json,sys; releases=json.load(sys.stdin); stable=[r for r in releases if not r.get('prerelease',True)]; print(stable[0]['tag_name'] if stable else '')" 2>/dev/null || echo "")
-
-    if [ -z "$latest" ]; then
-        warn "无法获取最新 cc-connect 稳定版（可能被限流），跳过"
-        return 0
-    fi
-
-    # 去除 latest 的 v 前缀
-    latest="${latest#v}"
-
-    # 如果本地版本 >= 最新稳定版，则无需更新
-    if version_ge "$current" "$latest"; then
-        success "cc-connect 已是最新稳定版: $current"
-        return 0
-    fi
-
-    info "下载 v$latest..."
-    local url="https://github.com/chenhg5/cc-connect/releases/download/v${latest}/cc-connect-v${latest}-linux-amd64.tar.gz"
-    local tmp="/tmp/cc-connect-update.$$"
-    mkdir -p "$tmp"
-
-    if ! curl -fsSL --connect-timeout 10 --max-time 120 --retry 2 "$url" -o "$tmp/cc-connect.tar.gz" && \
-       ! curl -fsSL --connect-timeout 10 --max-time 120 --retry 2 --http1.1 "$url" -o "$tmp/cc-connect.tar.gz"; then
-        err "下载失败: $url"
-        rm -rf "$tmp"
-        return 1
-    fi
-
-    tar -xzf "$tmp/cc-connect.tar.gz" -C "$tmp"
-    local new_bin
-    new_bin=$(find "$tmp" -name "cc-connect" -type f | head -1)
-
-    if [ -n "$new_bin" ]; then
-        cp "$new_bin" "$bin"
-        chmod +x "$bin"
-        save_version "cc_connect" "${latest#v}"
-        success "cc-connect: $current → $latest"
-    else
-        err "未在压缩包中找到 cc-connect 二进制"
-        rm -rf "$tmp"
-        return 1
-    fi
-
-    rm -rf "$tmp"
-}
-
 # ========== 5. GitHub CLI ==========
 
 update_gh() {
@@ -800,16 +728,6 @@ fix_systemd_services() {
 
     info "Node bin 路径: $node_bin"
 
-    # 重建 cc-connect service
-    local service_file="$HOME/.config/systemd/user/cc-connect.service"
-    if [ -f "$service_file" ]; then
-        # 更新 PATH
-        sed -i "s|^Environment=PATH=.*|Environment=PATH=$node_bin:$LOCAL_BIN:/usr/local/bin:/usr/bin:/bin|" "$service_file" 2>/dev/null || true
-        systemctl --user daemon-reload 2>/dev/null || true
-        systemctl --user restart cc-connect 2>/dev/null && success "cc-connect 服务已重启" || warn "cc-connect 服务重启失败（可能未运行）"
-    else
-        info "cc-connect 服务文件不存在，跳过"
-    fi
 }
 
 # ========== 版本信息收集 ==========
@@ -819,7 +737,6 @@ get_live_version() {
     case "$comp" in
         node)       node --version 2>/dev/null | tr -d 'v' || echo "?" ;;
         lark-cli)   lark-cli --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
-        cconnect)   "$LOCAL_BIN/cc-connect" --version 2>/dev/null | grep -oP 'v?\d+\.\d+\.\d+' | head -1 || echo "?" ;;
         gh)         gh --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "?" ;;
         claude)     claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
         uv)         uv --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
@@ -865,14 +782,6 @@ compatibility_check() {
     fi
 
     # GitHub API 调用（有速率限制，加短超时）
-    # cc-connect: 检查新版本
-    local cc_current cc_latest
-    cc_current=$(get_live_version "cconnect")
-    cc_latest=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/chenhg5/cc-connect/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "")
-    if [ -n "$cc_current" ] && [ -n "$cc_latest" ] && [ "$cc_current" != "$cc_latest" ]; then
-        info "cc-connect: $cc_current → $cc_latest"
-    fi
-
     # gh: 检查新版本
     local gh_current gh_latest
     gh_current=$(get_live_version "gh")
@@ -949,14 +858,6 @@ do_dry_run() {
     uv_target=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/astral-sh/uv/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "?")
     check_component "uv" "$uv_current" "$uv_target"
 
-    # cc-connect
-    if command -v cc-connect &>/dev/null; then
-        local cc_current cc_target
-        cc_current=$(get_live_version "cconnect")
-        cc_target=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/chenhg5/cc-connect/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "?")
-        check_component "cc-connect" "$cc_current" "$cc_target"
-    fi
-
     # Python pip
     if command -v pip3 &>/dev/null; then
         local pip_outdated
@@ -985,7 +886,7 @@ update_all() {
 
     # 收集升级前版本
     declare -A before_ver after_ver
-    local components=( "node" "lark-cli" "cconnect" "gh" "claude" "uv" )
+    local components=( "node" "lark-cli" "gh" "claude" "uv" )
     for c in "${components[@]}"; do
         before_ver[$c]=$(get_live_version "$c")
     done
@@ -1015,7 +916,6 @@ update_all() {
     run_step ""         "Python pip 包"     update_python_packages
     run_step ""         "Skills 同步"       update_skills
     if [ "$include_option" = "true" ]; then
-        run_step "cconnect" "cc-connect"        update_cconnect
         run_step ""         "OfficeCLI"          update_officecli
         run_step ""         "Cloudflare 插件"    update_cloudflare_plugin
     fi
@@ -1037,8 +937,8 @@ update_all() {
 
     # 版本对比：只显示有变化的组件
     local changed=0
-    local labels=( "node" "lark-cli" "cconnect" "gh" "claude" "uv" )
-    local names=( "Node.js" "lark-cli" "cc-connect" "GitHub CLI" "Claude Code" "uv" )
+    local labels=( "node" "lark-cli" "gh" "claude" "uv" )
+    local names=( "Node.js" "lark-cli" "GitHub CLI" "Claude Code" "uv" )
     for i in "${!labels[@]}"; do
         local key="${labels[$i]}"
         local b="${before_ver[$key]:-?}"
@@ -1100,11 +1000,10 @@ show_menu() {
     echo "   5) MCP 缓存刷新"
     echo ""
     echo "   可选组件"
-    echo "   6) cc-connect（Bridge）"
-    echo "   7) systemd 服务重建"
-    echo "   8) OfficeCLI"
-    echo "   9) Skills 同步"
-    echo "   10) Cloudflare 插件"
+    echo "   6) systemd 服务重建"
+    echo "   7) OfficeCLI"
+    echo "   8) Skills 同步"
+    echo "   9) Cloudflare 插件"
     echo ""
     echo "   0) 退出"
     echo ""
@@ -1125,11 +1024,10 @@ show_menu() {
             3)  update_claude; did_something=1 ;;
             4)  update_uv; did_something=1 ;;
             5)  update_mcp; did_something=1 ;;
-            6)  update_cconnect; did_something=1 ;;
-            7)  fix_systemd_services; did_something=1 ;;
-            8)  update_officecli; did_something=1 ;;
-            9)  update_skills; did_something=1 ;;
-            10) update_cloudflare_plugin; did_something=1 ;;
+            6)  fix_systemd_services; did_something=1 ;;
+            7)  update_officecli; did_something=1 ;;
+            8)  update_skills; did_something=1 ;;
+            9)  update_cloudflare_plugin; did_something=1 ;;
             all)
                 take_snapshot "pre" > /dev/null
                 update_all false
@@ -1170,7 +1068,6 @@ case "${1:-menu}" in
     node)          update_nodejs ;;
     npm)           update_npm_globals ;;
     python)        update_python_packages ;;
-    cconnect)      update_cconnect ;;
     gh)            update_gh ;;
     claude)        update_claude ;;
     uv)            update_uv ;;
@@ -1185,7 +1082,7 @@ case "${1:-menu}" in
     --dry-run|--check|check)
         do_dry_run ;;
     *)
-        echo "用法: $0 [all|node|npm|python|cconnect|gh|claude|uv|mcp|services|menu]"
+        echo "用法: $0 [all|node|npm|python|gh|claude|uv|mcp|services|menu]"
         exit 1
         ;;
 esac

@@ -18,16 +18,14 @@
 | `setup-links.sh` | 公开部分符号链接 | ccprivate/setup.sh |
 | `deps-check.sh` | 依赖完整性检查 | status.sh |
 | `start-openai-bridge.sh` | OpenAI-only 端点协议桥 | init-llm.sh |
-| `publish.sh` | 自建 skill 发布到 marketplace | 手动 |
 | `update-third-party-skills.sh` | 第三方 skill 批量更新 | update.sh |
-| `merge_worklog.py` | Worklog 合并去重 | SessionEnd hook |
 
 ## 共享库
 
 | 文件 | 用途 |
 |------|------|
 | `path-helper.sh` | Node.js 路径发现（4 级回退）、版本文件读写、PATH 清理 |
-| `git-conflict.sh` | Git 冲突解决公共库 |
+| （已合并到 sync.sh） | Git 冲突解决（内联） |
 | `colors.sh` | 终端颜色定义 |
 
 ## 路径约定

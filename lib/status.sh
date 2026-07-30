@@ -590,48 +590,6 @@ PYEOF
         fi
     fi
 
-    # cc-connect Bridge 状态
-    echo -n "  Bridge ... "
-    if command -v cc-connect &> /dev/null; then
-        if systemctl --user is-active cc-connect.service &>/dev/null 2>&1; then
-            echo -e "${GREEN}✅${NC} (systemd 运行中)"
-        elif pgrep -f "cc-connect" > /dev/null 2>&1; then
-            echo -e "${GREEN}✅${NC} (进程运行中)"
-        else
-            echo -e "${YELLOW}○${NC} (未运行)"
-        fi
-    else
-        echo -e "${GRAY}－${NC} (未安装)"
-    fi
-    # cconnect 机器人数量（仅 cc-connect 已安装时才显示）
-    if [ -f "$feishu_json" ] && command -v cc-connect &>/dev/null; then
-        local robot_info
-        robot_info=$(python3 - "$feishu_json" << 'PYEOF' 2>/dev/null
-import json, sys
-PLACEHOLDER = ['请填入', '请到', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-']
-def is_ph(val):
-    if not val or not isinstance(val, str): return True
-    for p in PLACEHOLDER:
-        if p.lower() in val.lower(): return True
-    return False
-with open(sys.argv[1], 'r') as f:
-    data = json.load(f)
-apps = data.get('apps', [])
-total = enabled = 0
-for a in apps:
-    cc = a.get('ccConnect')
-    if cc is None: continue
-    if is_ph(a.get('appId', '')): continue
-    total += 1
-    if cc.get('enabled'): enabled += 1
-if total > 0:
-    print(f"  机器人: {enabled}/{total} 启用 (cconnect)")
-PYEOF
-        )
-        if [ -n "$robot_info" ]; then
-            echo "$robot_info"
-        fi
-    fi
     echo -e "  ${GRAY}切换账号: bash ccconfig/option-larkcli/lark-switch.sh <name>${NC}"
 
     # lark-channel-bridge 状态
