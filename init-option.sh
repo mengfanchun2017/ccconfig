@@ -26,24 +26,35 @@ source "$SCRIPT_DIR/lib/colors.sh" 2>/dev/null || {
     section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 }
 
-# ── 菜单顺序（cloudflare 排最后） ──
-# CLI 工具 + option-* 中按优先级排序，最后两个放末尾
-MENU_ORDER=(
-    "bat" "glow" "nano"           # 内置 CLI（最常用）
-    "larkcli"                      # 飞书文档
-    "larkbridge"                   # 飞书 ↔ Claude Code 双向通信
-    # "llmswitch"  由 lib/init-llm.sh 自动管理：切到 gateway 自动装启，切到其他自动停
-    "officecli"                    # OfficeCLI
-    "remote"                       # 远程连接
-    "skill"                        # Skills
-    "cloudflare"                   # CF 插件（重度）
-)
+# ── 分组定义 ──
+# 每个组：组标题 + 组内菜单项列表
+# 每一项: "name" 选项名
+# "---" 分隔行（仅展示，不可选）
 
-# ── 内置 CLI 选项（轻量，不建 option-* 目录） ──
+# 内置 CLI 描述
 declare -A CLI_DESC
-CLI_DESC["bat"]="cat 替代 (apt/binary)"
-CLI_DESC["glow"]="Markdown 阅读器"
-CLI_DESC["nano"]="文本编辑器"
+CLI_DESC["bat"]="bat 是 cat 替代，语法高亮+行号"
+CLI_DESC["glow"]="终端 Markdown 渲染阅读"
+CLI_DESC["nano"]="终端文本编辑器，简单直观"
+
+# Option 描述
+declare -A OPT_DESC
+OPT_DESC["mcp"]="Claude Code 工具箱：Tavily(搜索)/MiniMax(中文)/Supabase 等"
+OPT_DESC["skill"]="16 个 f-* 工作流：搜索/报告/飞书文档/PPT/excel 等"
+OPT_DESC["larkcli"]="飞书 CLI：编辑文档/Base/日历/任务"
+OPT_DESC["larkbridge"]="飞书 ↔ Claude Code 双向通信 Bridge"
+OPT_DESC["officecli"]="AI 原生 Office：生成 .pptx/.docx/.xlsx"
+OPT_DESC["remote"]="Tailscale + SSH 远程连接桌面 tmux"
+OPT_DESC["cloudflare"]="Cloudflare Workers/Pages/D1/R2 开发环境"
+
+# ── 分组列表 ──
+# 格式: "group_title|item1 item2 ..."
+MENU_GROUPS=(
+    "--os--|bat glow nano"
+    "--claude--|mcp skill"
+    "--lark--|larkcli larkbridge"
+    "--other--|officecli remote cloudflare"
+)
 
 # ── 检测 option-* 目录 ──
 list_option_dirs() {
@@ -181,7 +192,7 @@ else:
 PYEOF
 }
 
-# ── 列出所有 option（统一格式） ──
+# ── 列出所有 option（分组格式） ──
 list_all() {
     echo ""
     echo -e "${CYAN}可选组件状态${NC}"
@@ -190,24 +201,58 @@ list_all() {
     local idx=1
     local -a all_names
 
-    # 按 MENU_ORDER 顺序输出
-    for name in "${MENU_ORDER[@]}"; do
-        # 跳过不存在或不存在的 option-* 目录
-        case "$name" in
-            bat|glow|nano) ;;
-            *) has_init_script "$name" || continue ;;
-        esac
+    # 确保 mcp 在 group 中可被检测（作为内置选项，无 option-mcp 目录）
+    mcp_status() {
+        local conf="$CCPRIVATE_HOME/conf/claude.json"
+        if [ -f "$conf" ]; then
+            local count=$(python3 -c "import json; d=json.load(open('$conf')); print(len(d.get('mcp_servers',[])))" 2>/dev/null || echo "0")
+            if [ "$count" -gt 0 ]; then
+                echo "ok|OK|$count 个 MCP 服务器已注册"
+            else
+                echo "miss|MISSING|MCP 未配置（bash lib/init-mcp.sh sync）"
+            fi
+        else
+            echo "miss|MISSING|claude.json 未找到"
+        fi
+    }
 
-        all_names+=("$name")
-        local status
-        status=$(option_status "$name")
-        printf "  %2d) %-12s " "$idx" "$name"
-        render_status "$status"
+    for group_entry in "${MENU_GROUPS[@]}"; do
+        local group_title="${group_entry%%|*}"
+        local group_items="${group_entry#*|}"
+
+        echo -e "  ${BOLD}${group_title}${NC}"
+
+        for name in $group_items; do
+            # 检查是否存在
+            case "$name" in
+                mcp) ;;
+                bat|glow|nano) ;;
+                *) has_init_script "$name" || continue ;;
+            esac
+
+            all_names+=("$name")
+            local status
+            if [ "$name" = "mcp" ]; then
+                status=$(mcp_status)
+            else
+                status=$(option_status "$name")
+            fi
+
+            local desc="${OPT_DESC[$name]:-}"
+            printf "  %2d) %-12s " "$idx" "$name"
+            render_status "$status"
+            if [ -n "$desc" ]; then
+                echo -e ""
+                echo -e "     ${DIM}${desc}${NC}"
+            else
+                echo ""
+            fi
+            idx=$((idx + 1))
+        done
         echo ""
-        idx=$((idx + 1))
     done
 
-    # feishu key 行（如果需要）
+    # feishu key 行
     local feishu_state
     feishu_state=$(check_feishu_key 2>/dev/null || echo "no_conf|ccprivate 未初始化")
     local ftype="${feishu_state%%|*}"
@@ -383,6 +428,13 @@ install_option() {
         return $?
     fi
 
+    # MCP
+    if [ "$name" = "mcp" ]; then
+        section "MCP 服务器"
+        bash "$SCRIPT_DIR/lib/init-mcp.sh" sync
+        return $?
+    fi
+
     # 内置 CLI 选项
     case "$name" in
         bat)   install_bat ;;
@@ -487,18 +539,24 @@ install_nano() {
 interactive_menu() {
     echo -e "${CYAN}Claude Code 可选组件安装${NC}"
 
-    # 收集 all_names（与 list_all 一致）
-    local -a all_names
-    for n in "${MENU_ORDER[@]}"; do
-        case "$n" in
-            bat|glow|nano) all_names+=("$n") ;;
-            *) has_init_script "$n" && all_names+=("$n") ;;
-        esac
-    done
-
     while true; do
         list_all
-        read -p "选择安装 (1-${#all_names[@]}, k 配置 key, a 全部, 0 退出): " choice
+
+        # 运行时收集 all_names（与 list_all 一致）
+        local -a all_names
+        for group_entry in "${MENU_GROUPS[@]}"; do
+            local group_items="${group_entry#*|}"
+            for name in $group_items; do
+                case "$name" in
+                    mcp) all_names+=("$name") ;;
+                    bat|glow|nano) all_names+=("$name") ;;
+                    *) has_init_script "$name" && all_names+=("$name") ;;
+                esac
+            done
+        done
+
+        local max_idx=${#all_names[@]}
+        read -p "选择安装 (1-${max_idx}, k 配置 key, a 全部, 0 退出): " choice
 
         case "$choice" in
             0|q|exit) echo ""; exit 0 ;;
@@ -513,7 +571,7 @@ interactive_menu() {
             *)
                 local any_valid=false
                 for token in $choice; do
-                    if [[ "$token" =~ ^[0-9]+$ ]] && [ "$token" -ge 1 ] && [ "$token" -le ${#all_names[@]} ]; then
+                    if [[ "$token" =~ ^[0-9]+$ ]] && [ "$token" -ge 1 ] && [ "$token" -le $max_idx ]; then
                         install_option "${all_names[$((token - 1))]}"
                         any_valid=true
                     fi
@@ -613,23 +671,30 @@ case "${1:-menu}" in
         list_all
         ;;
     -l|list)
-        for n in "${MENU_ORDER[@]}"; do
-            case "$n" in
-                bat|glow|nano) echo "$n" ;;
-                *) has_init_script "$n" && echo "$n" ;;
-            esac
+        for group_entry in "${MENU_GROUPS[@]}"; do
+            local group_title="${group_entry%%|*}"
+            local group_items="${group_entry#*|}"
+            echo "$group_title"
+            for n in $group_items; do
+                case "$n" in
+                    mcp) echo "  mcp" ;;
+                    bat|glow|nano) echo "  $n" ;;
+                    *) has_init_script "$n" && echo "  $n" ;;
+                esac
+            done
         done
-        ;;
-    feishu-key)
-        feishu_key_wizard
         ;;
     all|--all|-a)
         shift 2>/dev/null || true
-        for n in "${MENU_ORDER[@]}"; do
-            case "$n" in
-                bat|glow|nano) install_option "$n" ;;
-                *) has_init_script "$n" && install_option "$n" ;;
-            esac
+        for group_entry in "${MENU_GROUPS[@]}"; do
+            local group_items="${group_entry#*|}"
+            for n in $group_items; do
+                case "$n" in
+                    mcp) install_option "mcp" ;;
+                    bat|glow|nano) install_option "$n" ;;
+                    *) has_init_script "$n" && install_option "$n" ;;
+                esac
+            done
         done
         echo ""
         ok "全部可选组件安装完成"

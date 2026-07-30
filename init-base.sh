@@ -288,12 +288,12 @@ case "${1:-menu}" in
         echo -e "${CYAN}━━━ 预览：将要执行的操作 ━━━${NC}"
         echo "  1) init-ubuntu.sh    → 系统包 + node/gh/claude/uv + symlink"
         echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
-        echo "  3) init-mcp.sh sync  → 注册 MCP 服务器"
-        echo "  4) maintain.sh       → 链接修复 + 状态 + 服务"
-        echo ""
-        echo "  运行 'bash init-base.sh all' 执行以上所有步骤"
-        echo "  运行 'bash init-base.sh' 进入交互式菜单"
-        echo "  Skills 可选: bash option-skill/init.sh --install"
+	echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
+	echo "  3) maintain.sh       → 链接修复 + 状态 + 服务"
+	echo ""
+	echo "  运行 'bash init-base.sh all' 执行以上所有步骤"
+	echo "  运行 'bash init-base.sh' 进入交互式菜单"
+	echo "  MCP/Skills 可选: bash init-option.sh"
         ;;
     status)
         bash "$SCRIPT_DIR/maintain.sh" status
