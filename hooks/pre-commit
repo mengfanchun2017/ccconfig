@@ -19,10 +19,11 @@ if [ -n "$conf_json" ]; then
     while IFS= read -r f; do
         case "$f" in
             conf/versions.json) ;;  # 允许
+            conf/schema/*.json) ;;    # 允许 schema 文件（不含私密信息）
             *.example) ;;            # 允许 .example 模板
             *)
                 echo -e "${RED}[pre-commit] BLOCKED: ${f}${NC}"
-                echo "  conf/ 下仅允许 versions.json 和 *.example 模板。"
+                echo "  conf/ 下仅允许 versions.json、conf/schema/*.json 和 *.example 模板。"
                 echo "  真实配置在 ccprivate/conf/，通过 symlink 覆盖。"
                 blocked=1
                 ;;
