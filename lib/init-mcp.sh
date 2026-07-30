@@ -1,884 +1,400 @@
 #!/bin/bash
-# Claude MCP 管理脚本
-# 功能：安装并配置 MCP 服务器
-# 配置：从 conf/claude.json 读取
-#
-# 使用：
-#   bash ccconfig/init-mcp.sh [sync|install|config_keys|keys]
+# init-mcp.sh — MCP 管理工具
+#   bash init-mcp.sh          # 交互菜单
+#   bash init-mcp.sh status   # 查看状态
+#   bash init-mcp.sh sync     # 同步到运行环境
+#   bash init-mcp.sh keys     # 交互填 Key
+#   bash init-mcp.sh toggle <name> on|off|status  # 启停单个
 
-# 清理可能被污染的 PATH（WSL/Windows 继承的 PATH 可能包含非法字符）
-# 使用 $HOME 而非硬编码路径，确保在新环境下也正确
 export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-
 set -euo pipefail
-
-# 在 while read 循环内做交互输入时，stdin 已被重定向（<<< "$McpNames"）
-# read 必须显式从 /dev/tty 读，否则会读到空或 EOF
-interactive_read() {
-    local prompt="$1" var_name="$2"
-    echo -n "$prompt"
-    read -r "$var_name" < /dev/tty
-}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/path-helper.sh"
 MCP_CONF_FILE="$(resolve_conf claude.json)" || exit 1
 source "$SCRIPT_DIR/json-validate.sh"
-try_assert_json "$MCP_CONF_FILE" mcp || { echo "❌ conf/claude.json 不符合 mcp schema" >&2; exit 1; }
+try_assert_json "$MCP_CONF_FILE" mcp 2>/dev/null || { echo "❌ conf/claude.json schema 校验失败" >&2; exit 1; }
 
-# 颜色
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-GRAY='\033[0;90m'
-NC='\033[0m'
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
+good() { echo -e "  ${GREEN}$1${NC}"; }
+bad()  { echo -e "  ${RED}$1${NC}"; }
+warn() { echo -e "  ${YELLOW}$1${NC}"; }
+info() { echo -e "  ${GRAY}$1${NC}"; }
+interactive_read() { echo -n "$1"; read -r "$2" < /dev/tty; }
 
-title() { echo -e "\n========================================\n$1\n========================================\n${CYAN}"; }
-section() { echo -e "\n【$1】${YELLOW}"; }
-good() { echo -e "$1${GREEN}"; }
-bad() { echo -e "$1${RED}"; }
-info() { echo -e "$1${GRAY}"; }
-warn() { echo -e "$1${YELLOW}"; }
-
-# ========== JSON 读取 ==========
-read_mcp_settings() {
-    python3 - "$MCP_CONF_FILE" << 'PYEOF'
-import json, sys
-try:
-    with open(sys.argv[1], 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    settings = data.get('settings', {})
-    action = settings.get('default_action', 'sync')
-    auto = 'true' if settings.get('auto_config_keys', False) else 'false'
-    print(f"{action}|{auto}")
-except:
-    print('sync|false')
-PYEOF
-}
-
+# ── JSON 读取 ──
 read_mcp_list() {
     python3 - "$MCP_CONF_FILE" << 'PYEOF'
 import json, sys
-try:
-    with open(sys.argv[1], 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    for m in data.get('mcp_servers', []):
-        name = m.get('name', '')
-        desc = m.get('description', '')
-        mtype = m.get('type', '')
-        command = m.get('command', '')
-        args = m.get('args', [])
-        env = m.get('env', {})
-        disabled = 'true' if m.get('disabled') else 'false'
-        how_to_get = m.get('how_to_get', '')
-        args_str = ' '.join(args) if isinstance(args, list) else str(args)
-        env_str = json.dumps(env, ensure_ascii=False) if env else '{}'
-        print(f"{name}|{desc}|{mtype}|{command}|{args_str}|{env_str}|{disabled}|{how_to_get}")
-except Exception as e:
-    print(f"Error: {e}", file=sys.stderr)
-    sys.exit(1)
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+for m in data.get('mcp_servers', []):
+    name = m.get('name', '')
+    desc = m.get('description', '')
+    mtype = m.get('type', '')
+    command = m.get('command', '')
+    args = m.get('args', [])
+    env = m.get('env', {})
+    disabled = 'true' if m.get('disabled') else 'false'
+    how_to_get = m.get('how_to_get', '')
+    args_str = ' '.join(args) if isinstance(args, list) else str(args)
+    env_str = json.dumps(env, ensure_ascii=False) if env else '{}'
+    print(f"{name}|{desc}|{mtype}|{command}|{args_str}|{env_str}|{disabled}|{how_to_get}")
 PYEOF
 }
 
-# ========== MCP 检查 ==========
-CLAUDE_JSON="$HOME/.claude.json"
+# ── 状态检查 ──
+do_status() {
+    echo ""
+    echo -e "${CYAN}── MCP 状态 ──${NC}"
 
-is_registered() {
-    python3 - "$CLAUDE_JSON" "$MCP_CONF_FILE" "$1" << 'PYEOF'
-import json, sys
-try:
-    claude_json = sys.argv[1]
-    conf_json = sys.argv[2]
-    mcp_name = sys.argv[3].lower()
+    # 读取运行时连接状态
+    local -A mcp_status=()
+    if command -v claude &>/dev/null; then
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            local name="${line%%:*}"
+            if [[ "$line" == *"✔ Connected"* ]]; then
+                mcp_status["$name"]="connected"
+            elif [[ "$line" == *"✘ Failed"* ]]; then
+                mcp_status["$name"]="failed"
+            else
+                mcp_status["$name"]="unknown"
+            fi
+        done <<< "$(claude mcp list 2>/dev/null || true)"
+    fi
 
-    # 检查 ~/.claude.json
-    with open(claude_json, 'r') as f:
-        data = json.load(f)
-    mcp_servers = data.get('mcpServers', {})
-    if mcp_name in mcp_servers:
-        print('true')
-        sys.exit(0)
+    # 读取配置文件信息
+    local ready=0 failed=0 dcnt=0
+    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get; do
+        [[ -z "$name" ]] && continue
+        if [[ "$is_disabled" == "true" ]]; then
+            dcnt=$((dcnt + 1)); continue
+        fi
+        local st="${mcp_status[$name]:-missing}"
+        case "$st" in
+            connected) ready=$((ready + 1)) ;;
+            failed)    failed=$((failed + 1)) ;;
+            *)         failed=$((failed + 1)) ;;
+        esac
+    done <<< "$(read_mcp_list)"
 
-    # 检查 conf/claude.json（配置源）
-    with open(conf_json, 'r') as f:
-        conf_data = json.load(f)
-    mcp_servers_conf = conf_data.get('mcp_servers', [])
-    for server in mcp_servers_conf:
-        if server.get('name', '').lower() == mcp_name:
-            print('true')
-            sys.exit(0)
-
-    print('false')
-except:
-    print('false')
-PYEOF
-}
-
-# ========== 注册 MCP ==========
-register_mcp() {
-    local name="$1"
-    local cmd="$2"
-    local args="$3"
-
-    echo -n "注册 $name ... "
-    if claude mcp add -s user "$name" -- $cmd $args 2>&1; then
-        good "✅"
-        return 0
+    local total=$((ready + failed + dcnt))
+    if [[ $failed -gt 0 ]]; then
+        echo -e "  ${GREEN}✓ $ready 已连${NC}  ${RED}✘ $failed 失败${NC}  ${GRAY}○ $dcnt 禁用${NC}  (共 $total)"
     else
-        if claude mcp list 2>/dev/null | grep -q "$name"; then
-            info "已注册"
-            return 0
-        fi
-        bad "❌"
-        return 1
+        echo -e "  ${GREEN}✓ $ready 已连${NC}  ${GRAY}○ $dcnt 禁用${NC}  (共 $total)"
     fi
-}
-
-# ========== 配置 MCP env ==========
-configure_mcp_env() {
-    local name="$1"
-    local env_json="$2"
-
-    python3 - "$CLAUDE_JSON" "$name" "$env_json" << 'PYEOF'
-import json, sys
-try:
-    with open(sys.argv[1], 'r') as f:
-        data = json.load(f)
-    mcp_name = sys.argv[2]
-    env_json = sys.argv[3]
-
-    if 'mcpServers' not in data:
-        data['mcpServers'] = {}
-    if mcp_name not in data['mcpServers']:
-        print('skip')
-        sys.exit(0)
-
-    env = json.loads(env_json) if env_json and env_json != '{}' else {}
-    data['mcpServers'][mcp_name]['env'] = env
-
-    with open(sys.argv[1], 'w') as f:
-        json.dump(data, f, indent=2)
-    print('ok')
-except Exception as e:
-    print(f'error: {e}')
-PYEOF
-}
-
-# ========== 同步到 settings.json ==========
-sync_to_settings() {
-    local settings_file="$1"
-
-    python3 - "$CLAUDE_JSON" "$MCP_CONF_FILE" "$settings_file" << 'PYEOF'
-import json, sys, os
-
-try:
-    claude_json = sys.argv[1]
-    conf_json = sys.argv[2]
-    settings_file = sys.argv[3]
-
-    # 读取 ~/.claude.json（可能不存在 — 新机器首次运行）
-    try:
-        with open(claude_json, 'r') as f:
-            claude_data = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        claude_data = {}
-
-    # 读取 conf/claude.json（完整配置源）
-    with open(conf_json, 'r') as f:
-        conf_data = json.load(f)
-
-    # 读取 settings.json（处理文件不存在/断链 — 新机器无 ccprivate 常见）
-    try:
-        with open(settings_file, 'r') as f:
-            settings_data = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        settings_data = {}
-
-    # 构建完整的 mcpServers 配置（从 conf/claude.json）
-    mcp_servers = {}
-    disabled_names = []
-
-    # 探测 ccprivate/conf/<name>.json 桥接 token（如 supabase.json 持有真实 ref + access_token）
-    ccpriv_dir = os.path.dirname(conf_json)
-    ccpriv_bridge = {}
-    for server in conf_data.get('mcp_servers', []):
-        sname = server.get('name', '')
-        bridge_path = os.path.join(ccpriv_dir, f'{sname}.json')
-        if os.path.exists(bridge_path):
-            try:
-                with open(bridge_path, 'r') as bf:
-                    bridge = json.load(bf)
-                tokens = bridge.get('tokens', {})
-                if tokens:
-                    # 默认取第一个 token，项目可扩展为多账号
-                    first_key = next(iter(tokens))
-                    t = tokens[first_key]
-                    ccpriv_bridge[sname] = {
-                        'project_ref': t.get('project_ref', ''),
-                        'access_token': t.get('access_token', ''),
-                    }
-            except Exception:
-                pass
-
-    for server in conf_data.get('mcp_servers', []):
-        name = server.get('name', '')
-        if not name:
-            continue
-        mtype = server.get('type', 'stdio')
-        if mtype == 'stdio':
-            entry = {
-                'command': server.get('command', ''),
-                'args': list(server.get('args', [])),
-                'env': dict(server.get('env', {}))
-            }
-        else:
-            entry = {
-                'type': mtype,
-                'url': server.get('url', ''),
-                'headers': server.get('headers', {})
-            }
-        # ★ 桥接注入：supabase 等 server 从 ccprivate/conf/<name>.json 读真实 ref + token
-        # 替换 args 中 "--project-ref X --access-token Y" 的占位符
-        if name in ccpriv_bridge:
-            bridge = ccpriv_bridge[name]
-            new_args = []
-            skip_next = False
-            for i, a in enumerate(entry['args']):
-                if skip_next:
-                    new_args.append(bridge['project_ref'] if a == '请填入你的 Supabase project ref' else a)
-                    skip_next = False
-                    continue
-                if a in ('--project-ref', '--access-token'):
-                    new_args.append(a)
-                    skip_next = True
-                    continue
-                # 兜底：如果占位符直接是值（极少见），按值替换
-                if a == '请填入你的 Supabase project ref':
-                    new_args.append(bridge['project_ref'])
-                elif a == '请填入你的 Supabase access token':
-                    new_args.append(bridge['access_token'])
-                else:
-                    new_args.append(a)
-            entry['args'] = new_args
-        if server.get('disabled'):
-            disabled_names.append(name)
-            # ★ disabled 的 server 不写入 mcpServers（彻底不连接，不只是 session 跳过）
-            # claude mcp list 看 ~/.claude.json，list 不显示 = 不连
-            continue
-        # 如果 ~/.claude.json 中有该 MCP 的额外配置，合并之
-        if name in claude_data.get('mcpServers', {}):
-            existing = claude_data['mcpServers'][name]
-            if existing.get('env'):
-                entry['env'] = {**entry.get('env', {}), **existing['env']}
-            if existing.get('args'):
-                entry['args'] = existing['args']
-            if existing.get('headers'):
-                entry['headers'].update(existing['headers'])
-        # ★ 保留 settings.json 中已有的 env（来自 ccprivate 的真 key，最高优先级）
-        if name in settings_data.get('mcpServers', {}):
-            saved_env = settings_data['mcpServers'][name].get('env', {})
-            # 只保留非占位符的 key
-            real_keys = {k: v for k, v in saved_env.items()
-                         if v and '请填入' not in str(v) and '请到' not in str(v)
-                         and 'your key' not in str(v).lower() and 'placeholder' not in str(v).lower()
-                         and '<your-' not in str(v)}
-            if real_keys:
-                entry['env'] = {**entry.get('env', {}), **real_keys}
-                import sys
-                print(f"  \033[0;32m{name}\033[0m: 保留已有 Key ({', '.join(real_keys.keys())})", file=sys.stderr)
-        mcp_servers[name] = entry
-
-    settings_data['mcpServers'] = mcp_servers
-    if disabled_names:
-        settings_data['disabledMcpServers'] = disabled_names
-
-    # 同步到项目级别 disabledMcpServers（/mcp 对话框 Disable 操作实际写入的位置）
-    # 顶层 disabledMcpServers 有 bug #11370 不生效，项目级别才真正禁用到 session
-    if 'projects' not in settings_data:
-        settings_data['projects'] = {}
-    for proj_path in list(settings_data['projects'].keys()):
-        if disabled_names:
-            settings_data['projects'][proj_path]['disabledMcpServers'] = disabled_names
-        elif 'disabledMcpServers' in settings_data['projects'][proj_path]:
-            del settings_data['projects'][proj_path]['disabledMcpServers']
-
-    # 同步 hooks：合并而非覆盖（保留 settings 中已有的 SessionEnd 等 hooks）
-    if 'hooks' in claude_data:
-        merged = settings_data.get('hooks', {})
-        for hook_type, hook_list in claude_data['hooks'].items():
-            if hook_type not in merged or not merged[hook_type]:
-                merged[hook_type] = hook_list
-        # 归一化命令路径：/home/<user>/ → $HOME/，硬编码路径在不同主机间断裂
-        import re
-        for entries in merged.values():
-            for entry in entries if isinstance(entries, list) else []:
-                for h in entry.get('hooks', []) if isinstance(entry, dict) else []:
-                    cmd = h.get('command', '')
-                    if cmd:
-                        h['command'] = re.sub(r'/home/[^/]+/', '$HOME/', cmd)
-        settings_data['hooks'] = merged
-
-    # 同步 env：merge（settings 已有 keys 优先 → init-llm 写入不被覆盖；
-    #              conf/claude.json 仅补缺失 keys → MCP API key 等）
-    conf_env = conf_data.get('env', {})
-    settings_data.setdefault('env', {})
-    for k, v in conf_env.items():
-        if k not in settings_data['env']:
-            settings_data['env'][k] = v
-
-    # 写回 settings.json
-    import os, shutil
-    actual = settings_file
-    if os.path.islink(settings_file):
-        actual = os.path.realpath(settings_file)
-        if not os.path.exists(os.path.dirname(actual)):
-            os.makedirs(os.path.dirname(actual), exist_ok=True)
-        if os.path.islink(settings_file) and not os.path.exists(settings_file):
-            os.unlink(settings_file)
-    bak = actual + '.bak'
-    if os.path.exists(actual):
-        shutil.copy2(actual, bak)
-    tmp = actual + '.tmp'
-    with open(tmp, 'w') as f:
-        json.dump(settings_data, f, indent=2)
-    os.replace(tmp, actual)
-    if os.path.islink(settings_file) and actual != settings_file:
-        pass  # already resolved to real path, written there
-
-    print('ok')
-except Exception as e:
-    print(f'error: {e}')
-PYEOF
-}
-
-# ========== 主程序 ==========
-if [ ! -f "$MCP_CONF_FILE" ]; then
-    bad "❌ 未找到 conf/claude.json"
-    exit 1
-fi
-
-if ! command -v claude &> /dev/null; then
-    warn "Claude Code 未安装，跳过 MCP 注册（先运行 init-ubuntu.sh）"
-    info "MCP 配置文件已就绪，Claude Code 安装后重跑: bash ccconfig/init-mcp.sh sync"
-    exit 0
-fi
-
-# 读取配置
-MCP_SETTINGS=$(read_mcp_settings)
-IFS='|' read -r DEFAULT_ACTION AUTO_CONFIG_KEYS <<< "$MCP_SETTINGS"
-
-# 概览：待注册 MCP
-section "MCP 服务器"
-pending=""
-McpNames=$(read_mcp_list)
-while IFS='|' read -r name desc mtype command args_str env_str disabled how_to_get; do
-    [[ -z "$name" ]] && continue
-    if [[ "$disabled" == "true" ]]; then
-        info "○ $name ($desc) — 已禁用"
-    elif [[ "$(is_registered "$name")" == "true" ]]; then
-        info "✓ $name (已注册)"
-    else
-        pending+="$name "
-    fi
-done <<< "$McpNames"
-if [[ -n "$pending" ]]; then
-    info "将注册: $pending"
-fi
-echo ""
-
-# 根据 default_action 执行对应操作
-do_install() {
-    local quiet="${INIT_ALL_FLOW:-0}"
-    [[ "$quiet" != "1" ]] && title "安装 MCP"
-
-    local installed=0 skipped=0 failed=0
-    while IFS='|' read -r name desc mtype command args_str env_str disabled how_to_get; do
-        [[ -z "$name" ]] && continue
-        if [[ "$(is_registered "$name")" == "true" ]]; then
-            [[ "$quiet" != "1" ]] && info "跳过 $name: 已注册"
-            skipped=$((skipped + 1))
-            continue
-        fi
-        if [[ "$disabled" == "true" ]]; then
-            [[ "$quiet" != "1" ]] && info "跳过 $name: 已禁用"
-            skipped=$((skipped + 1))
-            continue
-        fi
-
-        if [[ -n "$command" ]] && [[ -n "$args_str" ]]; then
-            if [[ "$quiet" == "1" ]]; then
-                register_mcp "$name" "$command" "$args_str" >/dev/null 2>&1 && installed=$((installed + 1)) || failed=$((failed + 1))
-                configure_mcp_env "$name" "$env_str" >/dev/null 2>&1 || true
-            else
-                echo -e "\n安装 $name ($desc)..."
-                register_mcp "$name" "$command" "$args_str"
-                configure_mcp_env "$name" "$env_str"
-            fi
-        else
-            [[ "$quiet" != "1" ]] && warn "跳过 $name: 配置不完整"
-            skipped=$((skipped + 1))
-        fi
-    done <<< "$McpNames"
-
-    if [[ "$quiet" == "1" ]]; then
-        echo -e "  MCP 注册: ${GREEN}${installed} 新装${NC}, ${GRAY}${skipped} 跳过${NC}, ${failed} 失败"
-    fi
-}
-
-do_config_keys() {
-    local quiet="${INIT_ALL_FLOW:-0}"
-    [[ "$quiet" != "1" ]] && title "配置 Key"
-
-    while IFS='|' read -r name desc mtype command args_str env_str disabled how_to_get; do
-        [[ -z "$name" ]] && continue
-        [[ "$(is_registered "$name")" != "true" ]] && continue
-
-        if [[ -n "$env_str" ]] && [[ "$env_str" != "{}" ]]; then
-            if [[ "$quiet" == "1" ]]; then
-                configure_mcp_env "$name" "$env_str" >/dev/null 2>&1 || true
-            else
-                echo -n "配置 $name env ... "
-                result=$(configure_mcp_env "$name" "$env_str")
-                if [[ "$result" == "ok" ]]; then
-                    good "✅"
-                elif [[ "$result" == "skip" ]]; then
-                    info "跳过"
-                else
-                    bad "❌"
-                fi
-            fi
-        fi
-    done <<< "$McpNames"
-}
-
-do_sync() {
-    local quiet="${INIT_ALL_FLOW:-0}"
-    [[ "$quiet" != "1" ]] && title "双向同步"
-
-    do_install
-    [[ "$quiet" != "1" ]] && echo ""
-    do_config_keys
-    [[ "$quiet" != "1" ]] && echo ""
-
-    # 同步到所有 MCP 配置位置（/mcp 读 ~/.claude.json，工具发现读 settings.json）
-    SETTINGS_FILE="$HOME/.claude/settings.json"
-    CONFIG_FILE="$HOME/.claude/.config.json"
-
-    for f in "$CLAUDE_JSON" "$SETTINGS_FILE" "$CONFIG_FILE"; do
-        if [[ "$quiet" == "1" ]]; then
-            result=$(sync_to_settings "$f" 2>/dev/null)
-        else
-            result=$(sync_to_settings "$f")
-        fi
-        if [[ "$result" == "ok" ]]; then
-            [[ "$quiet" != "1" ]] && good "✅ 已写入 $(basename "$f")"
-        else
-            bad "❌ 同步失败 ($(basename "$f")): $result"
-        fi
-    done
-
-    # 状态摘要
-    local ready=0 missing=0 disabled=0
-    while IFS='|' read -r name desc mtype command args_str env_str disabled how_to_get; do
-        [[ -z "$name" ]] && continue
-        if [[ "$disabled" == "true" ]]; then
-            disabled=$((disabled + 1))
-            continue
-        fi
-        local has_placeholder=false
-        if [[ "$env_str" =~ (请填入|请到|your.key|placeholder|<your-) ]]; then
-            has_placeholder=true
-        fi
-        if [[ "$args_str" =~ (请填入|请到|your.key|placeholder|<your-) ]]; then
-            has_placeholder=true
-        fi
-        if $has_placeholder; then
-            missing=$((missing + 1))
-        else
-            ready=$((ready + 1))
-        fi
-    done <<< "$McpNames"
-
-    local total=$((ready + missing + disabled))
-    echo -e "  MCP 状态: ${GREEN}${ready} 就绪${NC}, ${YELLOW}${missing} 缺 Key${NC}, ${GRAY}${disabled} 禁用${NC} (共 ${total})"
-
-    # 缺 Key 时提示（两种模式：verbose 单行列表 / quiet 统计）
-    if [[ $missing -gt 0 ]]; then
-        if [[ "$quiet" == "1" ]]; then
-            echo ""
-            echo -e "${YELLOW}⚠  检测到 ${missing} 个 MCP 缺失 API Key${NC}"
-            echo -e "  ${GRAY}跳过（后续手动补填: bash ccconfig/lib/init-mcp.sh keys）${NC}"
-        else
-            echo ""
-            while IFS='|' read -r name desc mtype command args_str env_str disabled how_to_get; do
-                [[ -z "$name" ]] && continue
-                [[ "$disabled" == "true" ]] && { info "  $name: ○ 已禁用"; continue; }
-                if [[ "$env_str" =~ (请填入|请到|your.key|placeholder|<your-) ]] || [[ "$args_str" =~ (请填入|请到|your.key|placeholder|<your-) ]]; then
-                    warn "  $name: ⚠ 缺少 Key → bash ccconfig/lib/init-mcp.sh keys"
-                else
-                    good "  $name: ✅ 就绪"
-                fi
-            done <<< "$McpNames"
-
-            echo ""
-            echo -e "${YELLOW}⚠  检测到缺失的 API Key${NC}"
-            echo "  1) 现在填写（交互式逐项输入）"
-            echo "  2) 跳过（后续 MCP 中自行认证或手动: bash ccconfig/lib/init-mcp.sh keys）"
-            echo ""
-            interactive_read "  选择 [1]: " key_choice
-            key_choice="${key_choice:-1}"
-            if [[ "$key_choice" == "1" ]]; then
-                do_keys
-            else
-                info "  跳过 Key 配置。补填: bash ccconfig/lib/init-mcp.sh keys"
-            fi
-        fi
-    fi
-}
-
-# 交互式 Key 引导
-do_keys() {
-    title "MCP Key 配置"
-    echo "逐个输入 API Key，回车跳过不配置的 MCP"
     echo ""
 
-    local updated=0
-    while IFS='|' read -r name desc mtype command args_str env_str disabled how_to_get; do
+    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get; do
         [[ -z "$name" ]] && continue
-
-        echo -e "${CYAN}── $name${NC} — $desc"
-        if [[ -n "$how_to_get" ]]; then
-            echo -e "  ${GRAY}$how_to_get${NC}"
+        local ico="" col=""
+        if [[ "$is_disabled" == "true" ]]; then
+            ico="○"; col="$GRAY"
+        else
+            local st="${mcp_status[$name]:-missing}"
+            case "$st" in
+                connected) ico="✓"; col="$GREEN" ;;
+                *)         ico="✘"; col="$RED" ;;
+            esac
         fi
+        echo -e "  ${col}${ico} ${name}${NC}  ${GRAY}$desc${NC}"
+    done <<< "$(read_mcp_list)"
+    echo ""
+}
 
-        local server_changed=false
+# ── 注册 MCP ──
+register_mcp() {
+    local name="$1" cmd="$2" args="$3"
+    echo -n "  注册 $name ... "
+    if claude mcp add -s user "$name" -- $cmd $args 2>&1; then
+        good "ok"; return 0
+    else
+        if claude mcp list 2>/dev/null | grep -q "$name"; then
+            info "已注册"; return 0
+        fi; bad "fail"; return 1
+    fi
+}
 
-        if [[ "$disabled" == "true" ]]; then
-            echo -e "  ${YELLOW}当前已禁用${NC}"
-            interactive_read "  启用并配置？[y/N]: " enable_choice
-            server_changed=true
-            if [[ ! "$enable_choice" =~ ^[Yy]$ ]]; then
-                echo "  跳过"
-                echo ""
-                continue
-            fi
+# ── 同步 ──
+do_sync() {
+    echo -e "\n${CYAN}── 同步 MCP 配置 ──${NC}"
+    local installed=0 skipped=0 failed=0
+    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get; do
+        [[ -z "$name" ]] && continue
+        [[ "$is_disabled" == "true" ]] && { skipped=$((skipped + 1)); continue; }
+        if ! command -v claude &>/dev/null; then
+            warn "  claude 未安装，跳过注册"; break
         fi
+        if claude mcp list 2>/dev/null | grep -q "^${name}:" 2>/dev/null; then
+            skipped=$((skipped + 1)); continue
+        fi
+        if [[ -n "$command" ]] && [[ -n "$args_str" ]]; then
+            register_mcp "$name" "$command" "$args_str" >/dev/null 2>&1 && installed=$((installed + 1)) || failed=$((failed + 1))
+        fi
+    done <<< "$(read_mcp_list)"
+    echo -e "  注册: ${GREEN}+$installed${NC} 跳过: ${GRAY}$skipped${NC} 失败: ${RED}$failed${NC}"
+    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get; do
+        [[ -z "$name" ]] && continue; [[ "$is_disabled" == "true" ]] && continue
+        if [[ -n "$env_str" ]] && [[ "$env_str" != "{}" ]]; then
+            configure_mcp_env "$name" "$env_str" >/dev/null 2>&1 || true
+        fi
+    done <<< "$(read_mcp_list)"
+    sync_to_settings "$HOME/.claude.json" >/dev/null 2>&1 && good "  ~/.claude.json 已同步" || warn "  ~/.claude.json 同步失败"
+    do_status
+    echo -e "  ${GRAY}填 Key: bash init-mcp.sh keys${NC}"
+    echo ""
+}
 
-        # 提取占位符 env keys（Python 只做检测，bash 做交互）
+# ── 同步到 settings.json ──
+sync_to_settings() {
+    local settings_file="$1"
+    python3 - "$HOME/.claude.json" "$MCP_CONF_FILE" "$settings_file" << 'PYEOF'
+import json, sys, os
+claude_json, conf_json, settings_file = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    with open(claude_json) as f: claude_data = json.load(f)
+except: claude_data = {}
+with open(conf_json) as f: conf_data = json.load(f)
+try:
+    with open(settings_file) as f: settings_data = json.load(f)
+except: settings_data = {}
+
+ccpriv_dir = os.path.dirname(conf_json)
+ccpriv_bridge = {}
+for server in conf_data.get('mcp_servers', []):
+    sname = server.get('name', '')
+    bridge_path = os.path.join(ccpriv_dir, f'{sname}.json')
+    if os.path.exists(bridge_path):
+        try:
+            with open(bridge_path) as bf: bridge = json.load(bf)
+            tokens = bridge.get('tokens', {})
+            if tokens:
+                t = list(tokens.values())[0]
+                ccpriv_bridge[sname] = {'project_ref': t.get('project_ref', ''), 'access_token': t.get('access_token', '')}
+        except: pass
+
+mcp_servers = {}
+disabled_names = []
+for server in conf_data.get('mcp_servers', []):
+    name = server.get('name', '')
+    if not name: continue
+    mtype = server.get('type', 'stdio')
+    entry = {'command': server.get('command', ''), 'args': list(server.get('args', [])), 'env': dict(server.get('env', {}))} if mtype == 'stdio' else {'type': mtype, 'url': server.get('url', ''), 'headers': server.get('headers', {})}
+    if name in ccpriv_bridge:
+        bridge = ccpriv_bridge[name]; new_args = []; skip_next = False
+        for a in entry['args']:
+            if skip_next:
+                new_args.append(bridge['project_ref'] if '请填入' in a and 'project' in a else bridge['access_token'] if '请填入' in a and 'token' in a else a)
+                skip_next = False; continue
+            if a in ('--project-ref', '--access-token'): new_args.append(a); skip_next = True; continue
+            new_args.append(bridge['access_token'] if '请填入' in a and 'token' in a else bridge['project_ref'] if '请填入' in a and 'project' in a else a)
+        entry['args'] = new_args
+    if server.get('disabled'):
+        disabled_names.append(name); continue
+    if name in claude_data.get('mcpServers', {}):
+        existing = claude_data['mcpServers'][name]
+        if existing.get('env'): entry['env'] = {**entry.get('env', {}), **existing['env']}
+    if name in settings_data.get('mcpServers', {}):
+        real_keys = {k: v for k, v in settings_data['mcpServers'][name].get('env', {}).items() if v and '请填入' not in str(v) and 'your key' not in str(v).lower() and '<your-' not in str(v)}
+        if real_keys: entry['env'] = {**entry.get('env', {}), **real_keys}
+    mcp_servers[name] = entry
+
+settings_data['mcpServers'] = mcp_servers
+if disabled_names: settings_data['disabledMcpServers'] = disabled_names
+elif 'disabledMcpServers' in settings_data: del settings_data['disabledMcpServers']
+if 'projects' not in settings_data: settings_data['projects'] = {}
+for proj_path in list(settings_data['projects'].keys()):
+    if disabled_names: settings_data['projects'][proj_path]['disabledMcpServers'] = disabled_names
+    elif 'disabledMcpServers' in settings_data['projects'][proj_path]: del settings_data['projects'][proj_path]['disabledMcpServers']
+if 'hooks' in claude_data:
+    merged = settings_data.get('hooks', {})
+    for ht, hl in claude_data['hooks'].items():
+        if ht not in merged or not merged[ht]: merged[ht] = hl
+    settings_data['hooks'] = merged
+for k, v in conf_data.get('env', {}).items():
+    settings_data.setdefault('env', {})
+    if k not in settings_data['env']: settings_data['env'][k] = v
+actual = settings_file
+if os.path.islink(settings_file):
+    actual = os.path.realpath(settings_file)
+    if not os.path.exists(os.path.dirname(actual)): os.makedirs(os.path.dirname(actual), exist_ok=True)
+tmp = actual + '.tmp'
+with open(tmp, 'w') as f: json.dump(settings_data, f, indent=2)
+os.replace(tmp, actual)
+print('ok')
+PYEOF
+}
+
+configure_mcp_env() {
+    local name="$1" env_json="$2"
+    # 写 ~/.claude.json
+    python3 - "$HOME/.claude.json" "$name" "$env_json" << 'PYEOF'
+import json, sys
+with open(sys.argv[1]) as f: data = json.load(f)
+mcp_name = sys.argv[2]
+env = json.loads(sys.argv[3]) if sys.argv[3] and sys.argv[3] != '{}' else {}
+if mcp_name in data.get('mcpServers', {}):
+    data['mcpServers'][mcp_name]['env'] = env
+    with open(sys.argv[1], 'w') as f: json.dump(data, f, indent=2)
+    print('ok')
+else: print('skip')
+PYEOF
+    # 同步 ~/.claude/.config.json（运行时 MCP env）
+    local config_file="$HOME/.claude/.config.json"
+    if [[ -f "$config_file" ]]; then
+        python3 -c "
+import json, sys
+path, name, env_str = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path) as f: data = json.load(f)
+env = json.loads(env_str) if env_str and env_str != '{}' else {}
+if name in data.get('mcpServers', {}):
+    data['mcpServers'][name]['env'] = env
+    tmp = path + '.tmp'
+    with open(tmp, 'w') as f: json.dump(data, f, indent=2)
+    os.replace(tmp, path)
+" "$config_file" "$name" "$env_json" 2>/dev/null || true
+    fi
+}
+
+# ── 交互填 Key ──
+do_keys() {
+    echo -e "\n${CYAN}── 配置 MCP Key ──${NC}"
+    echo "  回车跳过"
+    echo ""
+    local updated=0
+    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get; do
+        [[ -z "$name" ]] && continue
+        echo -e "  ${CYAN}$name${NC}  ${GRAY}$desc${NC}"
+        [[ -n "$how_to_get" ]] && echo -e "    ${GRAY}$how_to_get${NC}"
+        local changed=false
+        if [[ "$is_disabled" == "true" ]]; then
+            read -p "  当前禁用，启用？[y/N]: " yn < /dev/tty
+            if [[ "$yn" =~ ^[Yy]$ ]]; then changed=true; else echo "  跳过"; echo ""; continue; fi
+        fi
         local placeholder_env_keys
-        placeholder_env_keys=$(python3 - "$env_str" << 'PYEOF'
+        placeholder_env_keys=$(python3 -c "
 import json, sys
 env = json.loads(sys.argv[1])
 keys = [k for k, v in env.items() if any(x in str(v) for x in ['请填入', '请到', 'your key', 'placeholder', '<your-'])]
 print('\n'.join(keys))
-PYEOF
-)
-
+" "$env_str")
         local new_env_json="$env_str"
         if [[ -n "$placeholder_env_keys" ]]; then
-            while IFS= read -r key; do
-                [[ -z "$key" ]] && continue
-                echo -n "  $key [跳过]: "
-                read -r val < /dev/tty
-                if [[ -n "$val" ]]; then
-                    new_env_json=$(echo "$new_env_json" | python3 - "$key" "$val" << 'PYEOF'
+            read -p "  填 Key？[y/N]: " fill_key < /dev/tty
+            if [[ "$fill_key" =~ ^[Yy]$ ]]; then
+                while IFS= read -r key; do
+                    [[ -z "$key" ]] && continue
+                    read -p "    $key: " val < /dev/tty
+                    if [[ -n "$val" ]]; then
+                        new_env_json=$(echo "$new_env_json" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 d[sys.argv[1]] = sys.argv[2]
 print(json.dumps(d))
-PYEOF
-)
-                    echo "    ✅ $key"
-                    server_changed=true
-                fi
-            done <<< "$placeholder_env_keys"
+" "$key" "$val")
+                        changed=true
+                    fi
+                done <<< "$placeholder_env_keys"
+            fi
         fi
-
-        # 提取占位符 args（支持 --key=value 和 --key value 两种格式）
-        local placeholder_args
-        placeholder_args=$(python3 - "$args_str" << 'PYEOF'
-import sys
-
-def is_placeholder(val):
-    return any(x in str(val) for x in ['请填入', '请到', 'your key', 'placeholder', '<your-'])
-
-args = sys.argv[1]
-for part in args.split(' --'):
-    if '=' in part:
-        k, v = part.split('=', 1)
-        if is_placeholder(v):
-            print(k.strip())
-    else:
-        segs = part.split(None, 1)
-        k = segs[0]
-        v = segs[1] if len(segs) > 1 else ''
-        if is_placeholder(v):
-            print(k.strip())
-PYEOF
-)
-
-        local new_args_str="$args_str"
-        if [[ -n "$placeholder_args" ]]; then
-            while IFS= read -r key; do
-                [[ -z "$key" ]] && continue
-                echo -n "  $key [跳过]: "
-                read -r val < /dev/tty
-                if [[ -n "$val" ]]; then
-                    new_args_str=$(python3 - "$new_args_str" "$key" "$val" << 'PYEOF'
-import sys
-old = sys.argv[1]
-k = sys.argv[2]
-v = sys.argv[3]
-parts = old.split(' --')
-new = [parts[0]]
-for p in parts[1:]:
-    matched = False
-    if '=' in p:
-        pk, pv = p.split('=', 1)
-        if pk.strip() == k:
-            new.append(f' --{k}={v}')
-            matched = True
-    else:
-        segs = p.split(None, 1)
-        pk = segs[0]
-        if pk.strip() == k:
-            new.append(f' --{k} {v}')
-            matched = True
-    if not matched:
-        new.append(f' --{p}')
-print(' '.join(new))
-PYEOF
-)
-                    echo "    ✅ $key"
-                    server_changed=true
-                fi
-            done <<< "$placeholder_args"
-        fi
-
-        # minimax-mcp 复用 minimax Key
         if [[ "$name" == "minimax-mcp" ]]; then
-            local minimax_key
-            minimax_key=$(python3 - "$MCP_CONF_FILE" << 'PYEOF' 2>/dev/null
+            local mk
+            mk=$(python3 -c "
 import json, sys
-with open(sys.argv[1]) as f:
-    data = json.load(f)
+with open(sys.argv[1]) as f: data = json.load(f)
 for s in data['mcp_servers']:
-    if s['name'] == 'minimax':
-        print(s.get('env', {}).get('MINIMAX_API_KEY', ''))
-        break
-PYEOF
-)
-            if [[ -n "$minimax_key" ]] && ! echo "$minimax_key" | grep -qE '请填入|请到'; then
-                interactive_read "  共用 minimax 的 MINIMAX_API_KEY？[Y/n]: " reuse
+    if s['name'] == 'minimax': print(s.get('env', {}).get('MINIMAX_API_KEY', '')); break
+" "$MCP_CONF_FILE" 2>/dev/null)
+            if [[ -n "$mk" ]] && ! echo "$mk" | grep -qE '请填入|请到'; then
+                read -p "  共用 minimax 的 MINIMAX_API_KEY？[Y/n]: " reuse < /dev/tty
                 reuse="${reuse:-y}"
                 if [[ "$reuse" =~ ^[Yy]$ ]]; then
-                    new_env_json=$(echo "$new_env_json" | python3 - "$minimax_key" << 'PYEOF'
+                    new_env_json=$(echo "$new_env_json" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 d['MINIMAX_API_KEY'] = sys.argv[1]
 print(json.dumps(d))
-PYEOF
-)
-                    echo "    ✅ 复用 minimax Key"
-                    server_changed=true
+" "$mk")
+                    changed=true
                 fi
             fi
         fi
-
-        # 写回 claude.json（仅当有变更）
-        if ! $server_changed; then
-            echo "  无变更，跳过"
-            echo ""
-            continue
-        fi
-        local write_ok
-        write_ok=$(python3 - "$MCP_CONF_FILE" "$name" "$new_env_json" "$new_args_str" "$disabled" << 'PYEOF'
+        if ! $changed; then echo -e "  ${GRAY}无变更${NC}"; echo ""; continue; fi
+        python3 -c "
 import json, os, sys
-with open(sys.argv[1], 'r') as f:
-    data = json.load(f)
-name = sys.argv[2]
-new_env = json.loads(sys.argv[3])
-new_args_str = sys.argv[4]
-was_disabled = sys.argv[5]
-
+with open(sys.argv[1]) as f: data = json.load(f)
+name, new_env_str, disabled = sys.argv[2], sys.argv[3], sys.argv[4]
+new_env = json.loads(new_env_str) if new_env_str else {}
 for s in data['mcp_servers']:
     if s['name'] == name:
-        if new_env and new_env != {}:
-            s['env'] = {**s.get('env', {}), **new_env}
-        if new_args_str:
-            s['args'] = new_args_str.split()
-        if was_disabled == 'true':
-            s.pop('disabled', None)
-            print(f"    ✅ 已启用 {name}")
+        if new_env: s['env'] = {**s.get('env', {}), **new_env}
+        if disabled == 'true': s.pop('disabled', None)
         break
-
 tmp = sys.argv[1] + '.tmp'
-with open(tmp, 'w') as f:
-    json.dump(data, f, indent=2, ensure_ascii=False)
-    f.write('\n')
+with open(tmp, 'w') as f: json.dump(data, f, indent=2, ensure_ascii=False); f.write('\n')
 os.replace(tmp, sys.argv[1])
-print('ok')
-PYEOF
-)
-        if [[ "$write_ok" == *"ok"* ]]; then
-            updated=$((updated + 1))
-        fi
-
+" "$MCP_CONF_FILE" "$name" "$new_env_json" "$is_disabled"
+        good "  ✅ $name"
+        updated=$((updated + 1))
         echo ""
-    done <<< "$McpNames"
-
+    done <<< "$(read_mcp_list)"
     if [[ $updated -gt 0 ]]; then
-        good "✅ 已更新 $updated 个 MCP Key"
-        echo ""
-
-        SETTINGS_FILE="$HOME/.claude/settings.json"
-        CONFIG_FILE="$HOME/.claude/.config.json"
-        for f in "$CLAUDE_JSON" "$SETTINGS_FILE" "$CONFIG_FILE"; do
-            result=$(sync_to_settings "$f")
-            if [[ "$result" == "ok" ]]; then
-                good "✅ 已同步到 $(basename "$f")"
-            else
-                bad "❌ 同步失败 ($(basename "$f")): $result"
-            fi
-        done
-    else
-        info "未修改任何 Key"
+        echo ""; good "✅ 已更新 $updated 个 MCP Key"
+        do_sync
     fi
 }
 
-# ========== 启停单个 MCP（解决 disabled server 仍被注册的痛点）==========
-# 用法：
-#   bash init-mcp.sh toggle <name> on    # 启用：从 claude.json 移除 disabled，调 claude mcp add 注入真实 token
-#   bash init-mcp.sh toggle <name> off   # 禁用：调 claude mcp remove，加回 disabled 标记
-#   bash init-mcp.sh toggle <name> status # 当前状态
+# ── 启停单个 ──
 do_toggle() {
     local name="${1:-}" action="${2:-}"
     if [[ -z "$name" ]] || [[ -z "$action" ]]; then
-        echo -e "${YELLOW}用法: bash init-mcp.sh toggle <name> {on|off|status}${NC}"
+        echo "用法: bash init-mcp.sh toggle <name> {on|off|status}"
         echo ""
-        echo -e "${CYAN}当前 MCP 配置（conf/claude.json）:${NC}"
-        while IFS='|' read -r n desc mtype command args_str env_str disabled how_to_get; do
+        while IFS='|' read -r n desc mtype command args_str env_str is_disabled how_to_get; do
             [[ -z "$n" ]] && continue
-            local state="启用"
-            [[ "$disabled" == "true" ]] && state="${YELLOW}禁用${NC}"
-            echo -e "  $n ($state) — $desc"
+            local s="${GREEN}启用${NC}"; [[ "$is_disabled" == "true" ]] && s="${YELLOW}禁用${NC}"
+            echo -e "  $n ($s)  $desc"
         done <<< "$(read_mcp_list)"
         return 0
     fi
-
-    # 找到 server 配置
-    local server_line
-    server_line=$(grep "^${name}|" <<< "$(read_mcp_list)" || true)
-    if [[ -z "$server_line" ]]; then
-        bad "❌ MCP '$name' 未在 conf/claude.json 定义"
-        return 1
-    fi
-    IFS='|' read -r sname desc mtype command args_str env_str disabled how_to_get <<< "$server_line"
-
+    local line
+    line=$(read_mcp_list | grep "^${name}|" || true)
+    [[ -z "$line" ]] && { bad "❌ MCP '$name' 未定义"; return 1; }
+    IFS='|' read -r sname desc mtype command args_str env_str is_disabled how_to_get <<< "$line"
     case "$action" in
         status)
-            if [[ "$disabled" == "true" ]]; then
-                echo -e "  $name: ${YELLOW}禁用${NC}（conf/claude.json）"
-            else
-                echo -e "  $name: ${GREEN}启用${NC}（conf/claude.json）"
-            fi
-            if claude mcp list 2>/dev/null | grep -q "^${name}:"; then
-                echo -e "  $name: ${GREEN}已注册${NC}（~/.claude.json）"
-            else
-                echo -e "  $name: ${GRAY}未注册${NC}（~/.claude.json）"
-            fi
+            local s="${YELLOW}禁用${NC}"; [[ "$is_disabled" != "true" ]] && s="${GREEN}启用${NC}"
+            echo -e "  $name: $s (conf)"
+            local reg="${GRAY}未注册${NC}"
+            claude mcp list 2>/dev/null | grep -q "^${name}:" && reg="${GREEN}已注册${NC}"
+            echo -e "  $name: $reg (~/.claude.json)"
             ;;
         on)
-            # 1) conf/claude.json 移除 disabled 标记
-            python3 - "$MCP_CONF_FILE" "$name" << 'PYEOF'
+            python3 -c "
 import json, os, sys
 path, name = sys.argv[1], sys.argv[2]
 with open(path) as f: data = json.load(f)
-changed = False
+found = False
 for s in data.get('mcp_servers', []):
-    if s.get('name') == name:
-        if s.pop('disabled', None):
-            changed = True
-            print(f'    ✅ conf/claude.json: 移除 {name} 的 disabled 标记')
+    if s.get('name') == name and s.pop('disabled', None):
+        found = True
         break
-if changed:
-    tmp = path + '.tmp'
-    with open(tmp, 'w') as f: json.dump(data, f, indent=2, ensure_ascii=False); f.write('\n')
-    os.replace(tmp, path)
-PYEOF
-
-            # 2) claude mcp add -s user 注入（args 用 Python 桥接完整 placeholder 字符串）
-            #    bash 不能按字符串处理 placeholder（含空格/中文），统一 Python 处理
-            local bridge_dir
-            bridge_dir="$(dirname "$MCP_CONF_FILE")"
-            local resolved_args
-            resolved_args=$(BRIDGE_DIR="$bridge_dir" python3 - "$MCP_CONF_FILE" "$name" << 'PYEOF'
-import json, os, sys
-conf, name = sys.argv[1], sys.argv[2]
-bridge_dir = os.environ['BRIDGE_DIR']
-with open(conf) as f: data = json.load(f)
-server = next((s for s in data['mcp_servers'] if s['name'] == name), {})
-args = list(server.get('args', []))
-
-# 桥接：supabase 等 server 从 ccprivate/conf/<name>.json 读真实 ref + token
-bridge_path = os.path.join(bridge_dir, f'{name}.json')
-if os.path.exists(bridge_path):
-    try:
-        with open(bridge_path) as bf: bridge = json.load(bf)
-        tokens = bridge.get('tokens', {})
-        if tokens:
-            t = list(tokens.values())[0]
-            bridge_ref = t.get('project_ref', '')
-            bridge_token = t.get('access_token', '')
-            new_args = []
-            skip_next = False
-            for a in args:
-                if skip_next:
-                    # 占位符作为独立 arg 出现，紧跟在 --key 后面
-                    if '请填入' in a and 'project' in a:
-                        new_args.append(bridge_ref)
-                    elif '请填入' in a and 'token' in a:
-                        new_args.append(bridge_token)
-                    else:
-                        new_args.append(a)
-                    skip_next = False
-                    continue
-                if a in ('--project-ref', '--access-token'):
-                    new_args.append(a)
-                    skip_next = True
-                    continue
-                # 占位符直接作为值（兜底）
-                if '请填入' in a and 'project' in a:
-                    new_args.append(bridge_ref)
-                elif '请填入' in a and 'token' in a:
-                    new_args.append(bridge_token)
-                else:
-                    new_args.append(a)
-            args = new_args
-    except Exception as e:
-        print(f'BRIDGE_ERR:{e}', file=sys.stderr)
-
-print(' '.join(args))
-PYEOF
-)
-
-            echo "  注册 $name 到 ~/.claude.json..."
-            if claude mcp add -s user "$name" -- $command $resolved_args 2>&1 | sed 's/^/    /'; then
-                good "  ✅ 已注册"
-            else
-                bad "  ❌ claude mcp add 失败"
-                return 1
-            fi
-
-            # 3) env 写到 ~/.claude.json（如果是 stdio + 有 env）
+if not found:
+    exit(0)
+tmp = path + '.tmp'
+with open(tmp, 'w') as f: json.dump(data, f, indent=2, ensure_ascii=False); f.write('\n')
+os.replace(tmp, path)
+" "$MCP_CONF_FILE" "$name"
+            echo -n "  注册 $name ... "
+            if claude mcp add -s user "$name" -- $command $args_str 2>&1; then good "ok"; else bad "fail"; return 1; fi
             if [[ "$mtype" == "stdio" ]] && [[ -n "$env_str" ]] && [[ "$env_str" != "{}" ]]; then
-                configure_mcp_env "$name" "$env_str" 2>&1 | sed 's/^/    /'
+                configure_mcp_env "$name" "$env_str" >/dev/null 2>&1 || true
             fi
             ;;
         off)
-            # 1) conf/claude.json 加回 disabled 标记
             python3 - "$MCP_CONF_FILE" "$name" << 'PYEOF'
 import json, os, sys
 path, name = sys.argv[1], sys.argv[2]
@@ -886,116 +402,68 @@ with open(path) as f: data = json.load(f)
 for s in data.get('mcp_servers', []):
     if s.get('name') == name and not s.get('disabled'):
         s['disabled'] = True
-        print(f'    ✅ conf/claude.json: 标记 {name} 为 disabled')
         tmp = path + '.tmp'
         with open(tmp, 'w') as f: json.dump(data, f, indent=2, ensure_ascii=False); f.write('\n')
         os.replace(tmp, path)
         break
 PYEOF
-
-            # 2) claude mcp remove
-            echo "  从 ~/.claude.json 移除 $name..."
-            if claude mcp remove -s user "$name" 2>&1 | sed 's/^/    /'; then
-                good "  ✅ 已移除"
-            else
-                info "  未注册或移除失败"
-            fi
-            ;;
-        *)
-            bad "❌ 未知 action: $action（用 on/off/status）"
-            return 1
+            claude mcp remove -s user "$name" 2>/dev/null && good "  ✅ $name 已移除" || info "  未注册"
             ;;
     esac
 }
 
-# 执行对应操作：优先用命令行参数，没有则用配置文件 default_action
-ACTION="${1:-$DEFAULT_ACTION}"
-case "$ACTION" in
-    sync)
-        info "执行双向同步 (install + config_keys)..."
+# ── 交互菜单 ──
+do_menu() {
+    local cmd=""
+    while true; do
+        clear 2>/dev/null || true
+        do_status
+        echo -e "${CYAN}── MCP 配置 ──${NC}"
         echo ""
-        do_sync
-        ;;
-    install)
-        info "执行安装所有缺失的 MCP..."
+        echo "  1) 查看状态"
+        echo "  2) 同步到运行环境"
+        echo "  3) 配置 Key（交互）"
+        echo "  4) 启停单个 MCP"
         echo ""
-        do_install
-        ;;
-    config_keys)
-        info "执行配置所有 Key..."
+        echo "  0) 退出"
         echo ""
-        do_config_keys
-        ;;
-    keys)
-        do_keys
-        ;;
-    toggle)
-        shift
-        do_toggle "$@"
-        ;;
-    interactive)
-        section "操作选项"
-        echo "1) 安装所有缺失的 MCP"
-        echo "2) 配置所有 Key"
-        echo "3) 交互式安装"
-        echo "0) 退出"
-        echo ""
-
-        read -p "请输入 [1]: " choice || true
-        choice="${choice:-1}"
-
-        case "$choice" in
-            1) do_install ;;
-            2) do_config_keys ;;
-            3)
-                title "交互式安装"
-                idx=1
-                declare -a McpArr=()
-                while IFS='|' read -r name desc mtype command args_str env_str disabled how_to_get; do
-                    [[ -z "$name" ]] && continue
-                    if [[ "$disabled" == "true" ]]; then
-                        echo "$idx) $name [已禁用] - $desc"
-                    elif [[ "$(is_registered "$name")" == "true" ]]; then
-                        echo "$idx) $name [已注册] - $desc"
-                    else
-                        echo "$idx) $name [未注册] - $desc"
-                    fi
-                    McpArr+=("$name|$command|$args_str|$env_str")
-                    ((idx++))
-                done <<< "$McpNames"
-
+        read -p "  选择 [0-4]: " cmd
+        case "$cmd" in
+            1) do_status; read -p "  按回车继续..." dummy ;;
+            2) do_sync; read -p "  按回车继续..." dummy ;;
+            3) do_keys; read -p "  按回车继续..." dummy ;;
+            4)
+                echo ""; echo -e "${CYAN}── 启停 MCP ──${NC}"
+                while IFS='|' read -r n desc mtype command args_str env_str is_disabled how_to_get; do
+                    [[ -z "$n" ]] && continue
+                    local s="${GREEN}启用${NC}"; [[ "$is_disabled" == "true" ]] && s="${YELLOW}禁用${NC}"
+                    echo -e "  $n ($s)  $desc"
+                done <<< "$(read_mcp_list)"
                 echo ""
-                read -p "输入编号安装（空格分隔）: " sel || true
-                [[ -z "$sel" ]] && exit 0
-
-                for i in $sel; do
-                    idx=$((i-1))
-                    [[ $idx -lt 0 || $idx -ge ${#McpArr[@]} ]] && continue
-                    IFS='|' read -r name command args_str env_str <<< "${McpArr[$idx]}"
-                    [[ "$(is_registered "$name")" == "true" ]] && continue
-
-                    echo -e "\n安装 $name..."
-                    if [[ -n "$command" ]] && [[ -n "$args_str" ]]; then
-                        register_mcp "$name" "$command" "$args_str"
-                        configure_mcp_env "$name" "$env_str"
-                    fi
-                done
+                read -p "  MCP 名称: " tname < /dev/tty
+                read -p "  操作 (on/off): " tact < /dev/tty
+                do_toggle "$tname" "$tact"
+                read -p "  按回车继续..." dummy
                 ;;
-            *)
-                info "已退出"
-                exit 0
-                ;;
+            0) echo ""; exit 0 ;;
         esac
-        ;;
-    *)
-        info "未知操作: $ACTION，执行安装"
-        do_install
-        ;;
+    done
+}
+
+# ── 入口 ──
+if ! command -v claude &>/dev/null; then
+    if [[ "${1:-}" == "sync" ]]; then
+        warn "claude 未安装，仅同步配置文件"
+        sync_to_settings "$HOME/.claude.json" >/dev/null 2>&1 && good "  ~/.claude.json 已同步"
+        exit 0
+    fi
+fi
+
+case "${1:-}" in
+    status)   do_status ;;
+    sync)     do_sync ;;
+    keys)     do_keys ;;
+    toggle)   shift; do_toggle "$@" ;;
+    ""|menu)  do_menu ;;
+    *)        echo "用法: bash init-mcp.sh [status|sync|keys|toggle]; 无参数=交互菜单"; exit 1 ;;
 esac
-
-echo ""
-title "✅ 完成"
-echo "提示: claude mcp list 查看连接状态, init-mcp.sh keys 填 Key"
-
-# 确保脚本正常退出
-exit 0
