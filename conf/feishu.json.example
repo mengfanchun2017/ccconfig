@@ -47,6 +47,9 @@
           "groupOnly": false,
           "groupReplyAll": false
         }
+      },
+      "larkbridge": {
+        "enabled": false
       }
     }
   ]
