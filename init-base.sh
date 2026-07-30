@@ -127,12 +127,7 @@ PYEOF
         "Claude Code 通过 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_BASE_URL 调用 LLM；没配就跑不了" \
         "10 s"
 
-    run_step "3/4 MCP 服务器" "$SCRIPT_DIR/lib/init-mcp.sh" true \
-        "注册 Tavily（英文搜索）/ MiniMax（中文+多模态）/ Supabase（数据库）/ Cloudflare（开发者平台）到 ~/.claude/settings.json" \
-        "MCP 是 Claude Code 的'工具箱'：搜索/数据库/部署/可观测，skills 按需调用" \
-        "20 s"
-
-    # Step 4/4: maintain.sh finalize（链接修复 + 状态检查 + 服务启动）
+    # Step 3/4: maintain.sh finalize（链接修复 + 状态检查 + 服务启动）
     run_step "4/4 收尾（链接修复 + 状态检查 + 服务启动）" "$SCRIPT_DIR/maintain.sh" finalize \
         "修复符号链接 / 启动 auto-sync 服务 / 状态验证" \
         "确认所有组件就位，可以开始工作" \
@@ -158,7 +153,7 @@ PYEOF
     echo "  更新系统:          bash $SCRIPT_DIR/lib/update.sh all"
     echo "  状态检查:          bash maintain.sh status"
     echo "  装 Skills:         bash option-skill/init.sh --install"
-    echo "  装可选组件:        bash init-option.sh"
+    echo "  装 MCP/可选组件:    bash init-option.sh"
     echo ""
 }
 
@@ -206,7 +201,7 @@ submenu_env() {
     echo "  1) Ubuntu 全环境初始化 (init-ubuntu.sh)"
     echo "  2) LLM 后端切换       (init-llm.sh)"
     echo "  3) auto-sync 自启动    (init-autostart.sh)"
-    echo "  4) ★ 一键全部（ubuntu + LLM + MCP + 收尾）"
+    echo "  4) ★ 一键全部（ubuntu + LLM + 收尾）
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-4,0]: " c
@@ -243,42 +238,8 @@ submenu_remote() {
     esac
 }
 
-submenu_mcp() {
-    echo ""
-    echo -e "${CYAN}── MCP 管理 ──${NC}"
-    echo "  1) 安装并同步 MCP  (init-mcp.sh sync)"
-    echo "  2) 仅安装缺失 MCP  (init-mcp.sh install)"
-    echo "  3) 配置 API Key     (init-mcp.sh keys)"
-    echo "  0) 返回"
-    echo ""
-    read -p "选择 [1-3,0]: " c
-    case "$c" in
-        1) run_step "MCP 同步"   "$SCRIPT_DIR/lib/init-mcp.sh" true
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        2) echo ""; bash "$SCRIPT_DIR/lib/init-mcp.sh" install
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        3) echo ""; bash "$SCRIPT_DIR/lib/init-mcp.sh" keys
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        0) return ;;
-    esac
-}
-
-submenu_skills() {
-    echo ""
-    echo -e "${CYAN}── Skills 管理（可选组件）──${NC}"
-    echo "  1) 安装/同步 skills"
-    echo "  2) 查看 skills 状态"
-    echo "  0) 返回"
-    echo ""
-    read -p "选择 [1-2,0]: " c
-    case "$c" in
-        1) bash "$SCRIPT_DIR/option-skill/init.sh" --install
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        2) bash "$SCRIPT_DIR/option-skill/init.sh" --status
-           bash "$SCRIPT_DIR/lib/init-skill.sh" status
-           echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        0) return ;;
-    esac
+submenu_options() {
+    bash "$SCRIPT_DIR/init-option.sh"
 }
 
 # ========== 主菜单 ==========
