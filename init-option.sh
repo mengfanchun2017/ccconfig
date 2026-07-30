@@ -36,7 +36,6 @@ MENU_ORDER=(
     "officecli"                    # OfficeCLI
     "remote"                       # 远程连接
     "skill"                        # Skills
-    "cconnect"                     # 飞书消息（重度）
     "cloudflare"                   # CF 插件（重度）
 )
 
@@ -171,12 +170,9 @@ def is_ph(v):
 with open(sys.argv[1]) as f: d = json.load(f)
 apps = d.get('apps', [])
 ph_lc = [a['name'] for a in apps if a.get('larkCli',{}).get('enabled') and (is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')))]
-ph_cc = [a['name'] for a in apps if a.get('ccConnect',{}).get('enabled') and (is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')))]
 ph_unfilled = [a['name'] for a in apps if not a.get('appId') or not a.get('appSecret')]
-if ph_lc or ph_cc:
-    out = []
-    if ph_lc: out.append("larkcli:" + ",".join(ph_lc))
-    if ph_cc: out.append("cconnect:" + ",".join(ph_cc))
+if ph_lc:
+    out = ["larkcli:" + ",".join(ph_lc)]
     print("placeholder|" + ";".join(out))
 elif ph_unfilled:
     print("empty|" + ",".join(ph_unfilled))
@@ -282,7 +278,7 @@ PYEOF
             local name=$(echo "$app_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])")
             local appid=$(echo "$app_json" | python3 -c "import json,sys; a=json.load(sys.stdin)['appId']; print(a[:12]+'...' if len(a)>12 else a)")
             local lcen=$(echo "$app_json" | python3 -c "import json,sys; print('Y' if json.load(sys.stdin).get('larkCli',{}).get('enabled') else '.')")
-            local ccen=$(echo "$app_json" | python3 -c "import json,sys; print('Y' if json.load(sys.stdin).get('ccConnect',{}).get('enabled') else '.')")
+            local ccen="."
             local lben=$(echo "$app_json" | python3 -c "import json,sys; d=json.load(sys.stdin).get('larkBridge',{}); print('Y' if d.get('enabled') else ('.' if d else ''))")
             local lb_suffix=""
             [ -n "$lben" ] && lb_suffix=" B=${lben}"
@@ -556,7 +552,6 @@ d.setdefault('apps', []).append({
     'workDir': workdir,
     'claudeConfigDir': '/home/' + __import__('os').environ.get('USER','user') + '/.claude',
     'larkCli': {'enabled': True, 'configDir': f'~/.lark-cli-{name}'},
-    'ccConnect': {'enabled': False},
 })
 with open(conf, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
 print(f'✅ 已添加 {name}')
