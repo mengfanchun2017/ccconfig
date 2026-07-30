@@ -77,10 +77,11 @@ for a in d.get('apps', []):
 PYEOF
 }
 
-# ========== 交互选择 app 创建 profile ==========
-# 返回 profile 名称，或空串表示取消
+# ========== 读取 feishu.json 并初始化 larkbridge 配置 ==========
+# 交互选择已有 app 或扫码新建，结果写入 _PROFILE_RESULT
 _interactive_select_app() {
     local ws="${1:-$HOME/git}"
+    local result_file="$HOME/.lark-channel/.select_result"
 
     local feishu_conf=""
     if [ -f "$HOME/git/ccprivate/conf/feishu.json" ]; then
@@ -99,134 +100,118 @@ _interactive_select_app() {
         done < <(_list_larkbridge_apps "$feishu_conf")
     fi
 
-    # 收集已有 profile
     local -a existing_profiles=()
     if [ -f "$HOME/.lark-channel/config.json" ]; then
         while IFS= read -r p; do
             [ -n "$p" ] && existing_profiles+=("$p")
-        done < <(python3 -c "import json; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); [print(p) for p in d.get('profiles',{}).keys()]" 2>/dev/null || true)
+        done < <(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); [print(p) for p in d.get('profiles',{}).keys()]" 2>/dev/null || true)
     fi
 
-    echo -e "${CYAN}── 选择飞书应用 ──${NC}"
-    echo ""
+    echo -e "${CYAN}── 选择飞书应用 ──${NC}" >&2
 
     local idx=1
 
-    # 已有 profile（可直接启动）
     if [ ${#existing_profiles[@]} -gt 0 ]; then
-        echo -e "  ${GRAY}已有 profile:${NC}"
+        echo -e "  ${GRAY}已有 profile:${NC}" >&2
         for p in "${existing_profiles[@]}"; do
-            local active_mark=""
-            local active=$(python3 -c "import json; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
-            [ "$p" = "$active" ] && active_mark=" ${CYAN}← 当前${NC}"
-            echo -e "  ${idx}) ${p}${active_mark}"
+            local active=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
+            local am=""; [ "$p" = "$active" ] && am=" ${CYAN}← 当前${NC}"
             idx=$((idx + 1))
         done
-        echo ""
     fi
 
-    # feishu.json 中可用的 app
     if [ ${#app_names[@]} -gt 0 ]; then
-        echo -e "  ${GRAY}ccprivate 中已有配置:${NC}"
+        echo -e "  ${GRAY}ccprivate 配置:${NC}" >&2
         local i=0
         while [ $i -lt ${#app_names[@]} ]; do
             local name="${app_names[$i]}"
-            local id="${app_ids[$i]}"
-            local id_short="${id:0:12}..."
-            # 检查是否已有同名 profile
-            local exist_mark=""
-            local p2
-            for p2 in "${existing_profiles[@]}"; do
-                [ "$p2" = "$name" ] && exist_mark=" ${GRAY}(已创建)${NC}" && break
-            done
-            echo -e "  ${idx}) ${name} (${id_short})${exist_mark}"
+            local id_short="${app_ids[$i]:0:12}..."
+            local em=""
+            for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$name" ] && em=" ${GRAY}(已有)${NC}" && break; done
+            echo -e "  ${idx}) ${name} (${id_short})${em}" >&2
             idx=$((idx + 1))
             i=$((i + 1))
         done
-        echo ""
     fi
 
-    echo -e "  ${idx}) ${YELLOW}扫码新建 PersonalAgent 应用${NC}"
     local scan_idx=$idx
-    idx=$((idx + 1))
-    echo -e "  0) 返回"
-    echo ""
+    echo -e "  ${idx}) ${YELLOW}扫码新建${NC}" >&2
+    echo -e "  0) 返回" >&2
+    echo "" >&2
 
     read -p "  选择 [0-${scan_idx}]: " sel
     [ -z "$sel" ] && return 1
-    [ "$sel" = "0" ] && return 1
+    [ "$sel" = "0" ] && echo -n "" > "$result_file" && return 1
 
-    # 检查是否选了已有 profile
+    # 已有 profile
     if [ ${#existing_profiles[@]} -gt 0 ] && [ "$sel" -le ${#existing_profiles[@]} ]; then
-        local selected_profile="${existing_profiles[$((sel - 1))]}"
-        echo "$selected_profile"
+        echo "${existing_profiles[$((sel - 1))]}" > "$result_file"
         return 0
     fi
     local offset=${#existing_profiles[@]}
 
-    # 选了 feishu.json 中的 app
-    local feishu_idx=$((sel - 1 - offset))
-    if [ "$sel" -ge $((offset + 1)) ] && [ "$sel" -lt "$scan_idx" ] && [ $feishu_idx -ge 0 ] && [ $feishu_idx -lt ${#app_names[@]} ]; then
-        local name="${app_names[$feishu_idx]}"
-        local id="${app_ids[$feishu_idx]}"
-        local secret="${app_secrets[$feishu_idx]}"
-        info "  创建 profile: $name (${id:0:12}...)"
+    # feishu.json app
+    local fi=$((sel - 1 - offset))
+    if [ "$sel" -ge $((offset + 1)) ] && [ "$sel" -lt "$scan_idx" ] && [ $fi -ge 0 ] && [ $fi -lt ${#app_names[@]} ]; then
+        local name="${app_names[$fi]}"
+        local id="${app_ids[$fi]}"
+        local secret="${app_secrets[$fi]}"
+        echo -e "${GRAY}  创建 profile: $name ...${NC}" >&2
         lark-channel-bridge profile create "$name" \
             --agent claude \
             --workspace "$ws" \
             --app-id "$id" \
             --app-secret "$secret" 2>&1
-        echo "$name"
+        echo "$name" > "$result_file"
         return 0
     fi
 
-    # 选了扫码新建
+    # 扫码新建
     if [ "$sel" = "$scan_idx" ]; then
-        echo -e "${YELLOW}  扫码创建后建议手动保存凭据:${NC}"
-        echo -e "  ${GRAY}    1. 复制 App ID 和 App Secret${NC}"
-        echo -e "  ${GRAY}    2. 写入 ccprivate/conf/feishu.json 的对应 app${NC}"
-        echo -e "  ${GRAY}    3. 设置 larkbridge.enabled: true${NC}"
-        echo ""
+        echo -e "${YELLOW}  扫码后会保存到 ~/.lark-channel${NC}" >&2
+        echo -e "  ${GRAY}  如需持久化，创建后复制 appId/secret 到 ccprivate${NC}" >&2
         read -p "  按回车开始扫码..." dummy
-        echo ""
-        # lark-channel-bridge run 内部会创建 profile
-        # profile 名由 bridge 自动分配，完成后读取
         lark-channel-bridge run --workspace "$ws" &
         local pid=$!
         wait $pid 2>/dev/null || true
-        # 读取刚创建的 profile 名
-        local new_profile
-        new_profile=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
-        if [ -n "$new_profile" ]; then
-            echo "$new_profile"
-            return 0
-        fi
+        local np
+        np=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
+        echo "${np:-}" > "$result_file"
+        return 0
     fi
 
     return 1
 }
 
-# ========== 首次配置（交互选择 + 前台运行） ==========
+_get_profile_result() {
+    local f="$HOME/.lark-channel/.select_result"
+    if [ -f "$f" ]; then
+        cat "$f"
+        rm -f "$f"
+    fi
+}
+
+# ========== 前台运行（交互选择 + 启动） ==========
 run_foreground() {
     if ! command -v lark-channel-bridge &>/dev/null; then
-        bad "  lark-channel-bridge 未安装，先运行 $0"
+        bad "  lark-channel-bridge 未安装" >&2
         return 1
     fi
 
     local ws="${LARK_WORKSPACE:-$HOME/git}"
-    local profile_name
-    profile_name=$(_interactive_select_app "$ws")
+    _interactive_select_app "$ws"
+    local profile_name; profile_name=$(_get_profile_result)
     [ -z "$profile_name" ] && return 0
 
-    echo ""
-    good "  ✓ 启动 $profile_name"
+    echo "" >&2
+    good "  ✓ 启动 $profile_name" >&2
     lark-channel-bridge run --profile "$profile_name" --workspace "$ws"
 }
 
-# ========== 创建 profile（仅创建不启动，供 --start 调用） ==========
+# ========== 创建 profile（不启动，供 --start 调用） ==========
 run_foreground_create_only() {
     local ws="${1:-$HOME/git}"
-    _interactive_select_app "$ws" > /dev/null
+    _interactive_select_app "$ws"
 }
 
 # ========== systemd 服务 ==========
