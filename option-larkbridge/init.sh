@@ -306,7 +306,7 @@ case "${1:-}" in
     --config|-c)
         reconfigure
         ;;
-    --help|-h|*)
+    --help|-h)
         echo "用法: bash ccconfig/option-larkbridge/init.sh <command>"
         echo ""
         echo "  安装/运行:"
@@ -325,5 +325,14 @@ case "${1:-}" in
         echo "    bash ccconfig/option-larkbridge/init.sh --run     # 首次安装+扫码"
         echo "    bash ccconfig/option-larkbridge/init.sh --start   # 转为后台服务"
         echo "    bash ccconfig/option-larkbridge/init.sh --status  # 查看状态"
+        ;;
+    *)
+        # 无参数或未知参数：安装 + 提示下一步
+        install
+        echo ""
+        info "安装完成。下一步："
+        info "  1. bash ccconfig/option-larkbridge/init.sh --run    # 飞书扫码绑定"
+        info "  2. bash ccconfig/option-larkbridge/init.sh --start  # 转后台服务"
+        info "  3. 飞书私聊 PersonalAgent 即可收发消息"
         ;;
 esac
