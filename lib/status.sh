@@ -633,7 +633,22 @@ PYEOF
         fi
     fi
     echo -e "  ${GRAY}切换账号: bash ccconfig/option-larkcli/lark-switch.sh <name>${NC}"
-    echo -e "  ${GRAY}安装/启动: bash ccconfig/option-cconnect/init.sh${NC}"
+
+    # lark-channel-bridge 状态
+    echo -n "  lark-bridge ... "
+    if command -v lark-channel-bridge &> /dev/null; then
+        if systemctl --user is-active lark-channel-bridge.service &>/dev/null 2>&1; then
+            echo -e "${GREEN}✅${NC} (systemd 运行中)"
+        elif pgrep -f "lark-channel-bridge" > /dev/null 2>&1; then
+            echo -e "${GREEN}✅${NC} (进程运行中)"
+        else
+            echo -e "${YELLOW}○${NC} (已装未运行)"
+        fi
+    else
+        echo -e "${GRAY}－${NC} (未安装)"
+    fi
+    echo -e "  ${GRAY}安装/启动: bash ccconfig/option-larkbridge/init.sh --run${NC}"
+    echo -e "  ${GRAY}后台服务: bash ccconfig/option-larkbridge/init.sh --start${NC}"
 }
 
 # ========== 2. 依赖检查 ==========
