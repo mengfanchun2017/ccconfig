@@ -81,7 +81,8 @@ run_foreground() {
         return 1
     fi
 
-    lark-channel-bridge run
+    local ws="${LARK_WORKSPACE:-$HOME/git}"
+    lark-channel-bridge run --workspace "$ws"
 }
 
 # ========== systemd 服务 ==========

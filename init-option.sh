@@ -378,7 +378,12 @@ install_option() {
     # option-* 目录
     if has_init_script "$name"; then
         section "安装 $name"
-        bash "$SCRIPT_DIR/option-$name/init.sh" "$@"
+        # larkbridge：安装后立即进扫码流程
+        local args=("$@")
+        if [ "$name" = "larkbridge" ] && [ ${#args[@]} -eq 0 ]; then
+            args=("--run")
+        fi
+        bash "$SCRIPT_DIR/option-$name/init.sh" "${args[@]}"
         return $?
     fi
 
