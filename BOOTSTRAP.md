@@ -36,12 +36,14 @@ bash init-base.sh all
 1. 系统环境准备（apt update + upgrade + autoremove，可选跳过）
 2. 检测 git（必须已装）
 3. 装 GitHub CLI (gh)，apt 优先，二进制兜底
-4. gh auth 登录（PAT 路径，向导生成 classic PAT）
+4. gh auth 登录（双选项菜单）
+   - A) PAT 粘贴（默认）— No-Expiration 永久有效，仅存本地，不同步到远程
+   - B) Web OAuth — 浏览器授权，有过期时间
 5. 配置 git 用户身份（从 gh api 拿）和 credential helper
 6. 输出下一步命令
 
 `init-ccprivate-repo.sh` 自动：
-1. 询问 GitHub PAT（gh auth 没设时）
+1. gh auth 自动登录（与 bootstrap-gh-auth.sh 相同的双选项菜单）
 2. 在 GitHub 创建 ccprivate 私有仓库（用 gh api）
 3. clone 到 `~/git/ccprivate`
 4. 写 `conf/llm.json` / `conf/feishu.json` 等私有配置

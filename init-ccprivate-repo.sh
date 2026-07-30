@@ -95,8 +95,6 @@ PYEOF
 }
 
 # ── gh auth 预检 ──
-# 三级 fallback：web flow → PAT (stdin) → SSH key only
-# 任何方式成功后退出；都失败则返回非零
 check_gh_auth() {
     # 1. 已登录 → 直接通过
     if gh auth status &>/dev/null; then
@@ -133,7 +131,7 @@ check_gh_auth() {
         read -p "  现在补 gh 登录? [Y/n]: " do_login
         do_login="${do_login:-y}"
         if [[ ! "$do_login" =~ ^[Yy]$ ]]; then
-            return 0  # SSH 够用，让后续逻辑自己处理 gh API 失败
+            return 0  # SSH 够用
         fi
     else
         warn "GitHub 未认证，需要先登录"
@@ -143,65 +141,53 @@ check_gh_auth() {
         if [[ ! "$do_login" =~ ^[Yy]$ ]]; then
             echo ""
             echo "  没有认证将无法创建 GitHub 私有仓库。"
-            echo "  你可以: 1) 回退后跑 bash ccconfig/init-ubuntu.sh（它会自动引导 gh 登录）"
-            echo "          2) 或选 N 继续，用 SSH key 流程（见下面）"
             return 1
         fi
     fi
 
-    # 4. 三种登录方式（推荐顺序：PAT > Web > SSH only）
+    # --- 双选项：A) PAT 粘贴（默认） B) Web OAuth ---
     echo ""
-    echo "  选择登录方式:"
-    echo "  1) Personal Access Token（推荐，最稳）"
-    echo "  2) Web 浏览器 OAuth（首次登录，需浏览器）"
-    echo "  3) 跳过，只用 SSH key（git 操作可用，gh API 受限）"
+    echo -e "  ${BOLD}选择认证方式:${NC}"
     echo ""
-    read -p "  选择 [1]: " login_method
-    login_method="${login_method:-1}"
+    echo -e "  ${CYAN}A)${NC} ${BOLD}PAT 粘贴（推荐，默认）${NC}"
+    echo -e "     - 生成 No-Expiration PAT，一次配置永久有效"
+    echo -e "     - Token 仅存在本地 ~/.config/gh/hosts.yml（600 权限）"
+    echo -e "     - ${GRAY}不会同步到 ccprivate 或任何远程仓库${NC}"
+    echo -e "     - 其他终端/机器：GitHub 重新生成或从本机复制"
+    echo ""
+    echo -e "  ${CYAN}B)${NC} ${BOLD}Web OAuth one-time code${NC}"
+    echo -e "     - 浏览器授权，首次配置最简单"
+    echo -e "     - Token 有有效期，过期后需重新 ${YELLOW}gh auth login${NC}"
+    echo ""
+    read -p "  选择 [A]: " login_method
+    login_method="${login_method:-A}"
 
-    case "$login_method" in
-        1)
-            # PAT 引导：完整 URL + 4 步说明
+    case "${login_method^^}" in
+        B|2)
+            gh auth login --web --git-protocol https --hostname github.com
+            ;;
+        *)
             echo ""
-            echo -e "  ${CYAN}━━━ PAT 生成步骤 ━━━${NC}"
+            echo "  浏览器打开 → 生成 No-Expiration PAT:"
+            echo "    ${BOLD}https://github.com/settings/tokens/new${NC}"
             echo ""
-            echo "  1. 浏览器打开: https://github.com/settings/tokens/new"
-            echo "     (GitHub 登录后会自动跳到 New Personal Access Token 页面)"
+            echo "  Scopes 勾选:"
+            echo "    ${YELLOW}repo${NC}         (私有仓库读写，push 必需)"
+            echo "    ${YELLOW}read:org${NC}     (gh api user 拿身份)"
+            echo "    ${YELLOW}workflow${NC}     (gh workflow 命令)"
             echo ""
-            echo "  2. 填写:"
-            echo "     - Note:        ccconfig-wsl  (标识用，方便日后 revoke)"
-            echo "     - Expiration:  No expiration (classic 可选)"
-            echo "     - Select scopes: 勾选以下三项"
-            echo "         ✅ repo        (private repo 读写必需)"
-            echo "         ✅ read:org    (gh api 调用 org 信息需要)"
-            echo "         ✅ gist        (gh gist 命令需要)"
-            echo ""
-            echo "  3. 滚到底部点 Generate token"
-            echo "     ⚠️  立刻复制保存（页面关闭后 token 不会再显示）"
-            echo ""
-            echo "  4. 回到终端粘贴（不会回显）:"
+            echo -e "  ${GRAY}Token 存在本地 ~/.config/gh/hosts.yml，仅本机可用。${NC}"
+            echo -e "  ${GRAY}不会同步到 ccprivate。其他机器请 GitHub 重新生成或从本机复制。${NC}"
             echo ""
             local token=""
-            read -r -s -p "  Token (ghp_xxx 或 github_pat_xxx): " token
+            read -r -s -p "  PAT（粘贴，不回显）: " token
             echo ""
             if [[ -z "$token" ]]; then
                 err "Token 为空"
                 return 1
             fi
-            # 清理 Windows 剪贴板带进来的 CRLF
             token=$(printf '%s' "$token" | tr -d '\r\n')
-            # 简单格式校验（classic: ghp_...；fine-grained: github_pat_...）
-            if [[ ! "$token" =~ ^(ghp_|github_pat_) ]]; then
-                warn "Token 格式不像 GitHub PAT（应以 ghp_ 或 github_pat_ 开头），仍尝试..."
-            fi
             echo "$token" | gh auth login --with-token --hostname github.com
-            ;;
-        2)
-            gh auth login --web --hostname github.com
-            ;;
-        3)
-            warn "跳过 gh 认证，git push/clone 走 SSH"
-            return 0
             ;;
     esac
 

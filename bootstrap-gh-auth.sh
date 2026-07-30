@@ -127,61 +127,66 @@ elif [[ -f "$HOME/.ssh/id_ed25519" ]]; then
     info "gh 未登录，但 SSH 密钥已存在 → 跳过 gh 认证"
     info "（git 操作走 SSH，不需 gh token）"
 elif [[ -n "${GH_TOKEN:-}" ]]; then
-    # 最优雅：fine-grained PAT 已设为 env var，一次配置永久生效
     info "检测到 \$GH_TOKEN，自动登录..."
     echo "$GH_TOKEN" | gh auth login --hostname github.com --with-token
-    ok "GitHub 已登录（via fine-grained PAT / \$GH_TOKEN）"
+    ok "GitHub 已登录（via \$GH_TOKEN）"
 elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
     info "检测到 \$GITHUB_TOKEN，自动登录..."
     echo "$GITHUB_TOKEN" | gh auth login --hostname github.com --with-token
     ok "GitHub 已登录（via \$GITHUB_TOKEN）"
 else
-    # 检测代理（gh auth login --web 需要走代理才能连 github.com）
-    _has_proxy=false
-    [[ -n "${https_proxy:-}" || -n "${HTTPS_PROXY:-}" || -n "${all_proxy:-}" ]] && _has_proxy=true
+    # --- 双选项：A) PAT 粘贴（默认） B) Web OAuth ---
+    echo ""
+    echo -e "  ${BOLD}选择认证方式:${NC}"
+    echo ""
+    echo -e "  ${CYAN}A)${NC} ${BOLD}PAT 粘贴（推荐，默认）${NC}"
+    echo -e "     - 生成 No-Expiration PAT，一次配置永久有效"
+    echo -e "     - Token 仅存在本地 ~/.config/gh/hosts.yml（600 权限，等同于 SSH key 保护级别）"
+    echo -e "     - ${GRAY}不会同步到 ccprivate 或任何远程仓库${NC}"
+    echo -e "     - 其他终端/机器：GitHub 重新生成或从本机复制"
+    echo ""
+    echo -e "  ${CYAN}B)${NC} ${BOLD}Web OAuth one-time code${NC}"
+    echo -e "     - 浏览器授权，首次配置最简单"
+    echo -e "     - Token 有有效期，过期后需重新 ${YELLOW}gh auth login${NC}"
+    echo ""
+    read -p "  选择 [A]: " gh_auth_choice
+    gh_auth_choice="${gh_auth_choice:-A}"
 
-    if $_has_proxy; then
-        # 代理通 → Web OAuth 一键授权（30 s，零手动）
-        info "代理已配，浏览器打开 github.com → 点 Approve 即可（~30 s）"
-        if gh auth login --web --git-protocol https --hostname github.com; then
-            ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
-        else
-            warn "Web OAuth 失败，回退 fine-grained PAT..."
-            _has_proxy=false
-        fi
-    fi
-
-    if ! $_has_proxy && ! gh auth status &>/dev/null 2>&1; then
-        # Fine-grained PAT（官方推荐，比 classic PAT 更安全）
-        # 选 Read and Write 才能 push；多机器可用同一个 token（账户级，非机器级）
-        echo ""
-        echo -e "  ${BOLD}Fine-grained PAT（官方推荐）${NC}"
-        echo ""
-        echo -e "  ${CYAN}1)${NC} 浏览器打开: ${BOLD}https://github.com/settings/tokens?type=beta${NC}"
-        echo -e "     - Resource owner: 选自己"
-        echo -e "     - Repository access: All repositories"
-        echo -e "     - Permissions:"
-        echo -e "       ${YELLOW}Contents: Read and Write${NC}  (push / clone 私有仓库)"
-        echo -e "       ${YELLOW}Metadata: Read${NC}             (gh api user 拿身份)"
-        echo -e "     - 点 Generate token → 复制 ${RED}github_pat_xxx${NC} 开头的字符串"
-        echo -e "     ${GRAY}（Token 绑定账户，非机器；配置到多台机器都能用。建议写到 ~/.bashrc:${NC}"
-        echo -e "     ${GRAY}  export GH_TOKEN=github_pat_xxx${NC}"
-        echo ""
-        echo -e "  ${CYAN}2)${NC} 回到这里粘贴（输入隐藏）："
-        echo ""
-        read -rs -p "    PAT: " GH_TOKEN_INPUT
-        echo ""
-        if [[ -z "$GH_TOKEN_INPUT" ]]; then
+    case "${gh_auth_choice^^}" in
+        B|2)
+            info "浏览器打开 github.com → 点 Approve（~30 s）"
+            gh auth login --web --git-protocol https --hostname github.com
+            if ! gh auth status &>/dev/null 2>&1; then
+                err "Web OAuth 失败"
+                warn "可重试或选 A 方式: bash bootstrap-gh-auth.sh"
+            fi
+            ;;
+        *)
+            # PAT 粘贴（默认）
             echo ""
-            echo -e "  ${YELLOW}跳过认证。之后可重跑 bootstrap-gh-auth.sh 或手动:${NC}"
-            echo -e "  ${YELLOW}  export GH_TOKEN=<你的 fine-grained PAT>${NC}"
-            echo -e "  ${YELLOW}  gh auth login --with-token <<< \"\$GH_TOKEN\"${NC}"
-        else
-            GH_TOKEN_INPUT=$(echo "$GH_TOKEN_INPUT" | tr -d '\r\n')
-            echo "$GH_TOKEN_INPUT" | gh auth login --hostname github.com --with-token
-            ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
-        fi
-    fi
+            echo "  浏览器打开 → 生成 No-Expiration PAT:"
+            echo "    ${BOLD}https://github.com/settings/tokens/new${NC}"
+            echo ""
+            echo "  Scopes 勾选:"
+            echo "    ${YELLOW}repo${NC}         (私有仓库读写，push 必需)"
+            echo "    ${YELLOW}read:org${NC}     (gh api user 拿身份)"
+            echo "    ${YELLOW}workflow${NC}     (gh workflow 命令)"
+            echo ""
+            echo -e "  ${GRAY}Token 存在本地 ~/.config/gh/hosts.yml，仅本机可用。${NC}"
+            echo -e "  ${GRAY}不会同步到 ccprivate。其他机器请 GitHub 重新生成或从本机复制。${NC}"
+            echo ""
+            read -rs -p "  PAT（粘贴，不回显）: " GH_TOKEN_INPUT
+            echo ""
+            if [[ -z "$GH_TOKEN_INPUT" ]]; then
+                echo ""
+                warn "跳过认证。之后可手动:"
+                warn "  gh auth login"
+            else
+                GH_TOKEN_INPUT=$(echo "$GH_TOKEN_INPUT" | tr -d '\r\n')
+                echo "$GH_TOKEN_INPUT" | gh auth login --hostname github.com --with-token
+            fi
+            ;;
+    esac
 fi
 
 # ========== Step 4: git 用户身份 + credential helper ==========
