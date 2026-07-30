@@ -230,77 +230,113 @@ PYEOF
 
 configure_mcp_env() {
     local name="$1" env_json="$2"
-    # 写 ~/.claude.json
-    python3 - "$HOME/.claude.json" "$name" "$env_json" << 'PYEOF'
-import json, sys
-with open(sys.argv[1]) as f: data = json.load(f)
-mcp_name = sys.argv[2]
-env = json.loads(sys.argv[3]) if sys.argv[3] and sys.argv[3] != '{}' else {}
-if mcp_name in data.get('mcpServers', {}):
-    data['mcpServers'][mcp_name]['env'] = env
-    with open(sys.argv[1], 'w') as f: json.dump(data, f, indent=2)
-    print('ok')
-else: print('skip')
-PYEOF
-    # 同步 ~/.claude/.config.json（运行时 MCP env）
     local config_file="$HOME/.claude/.config.json"
+    local c_env_str="$env_json"
+    # 写 ~/.claude.json
+    python3 -c "
+import json, sys
+path, name, env_str = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path) as f: data = json.load(f)
+env = json.loads(env_str) if env_str and env_str != '{}' else {}
+if env and name in data.get('mcpServers', {}):
+    data['mcpServers'][name]['env'] = env
+    tmp = path + '.tmp'
+    with open(tmp, 'w') as f: json.dump(data, f, indent=2)
+    os.replace(tmp, path)
+" "$HOME/.claude.json" "$name" "$c_env_str" 2>/dev/null || true
+    # 同步 ~/.claude/.config.json（运行时 MCP env）
     if [[ -f "$config_file" ]]; then
         python3 -c "
 import json, sys
 path, name, env_str = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(path) as f: data = json.load(f)
 env = json.loads(env_str) if env_str and env_str != '{}' else {}
-if name in data.get('mcpServers', {}):
+if env and name in data.get('mcpServers', {}):
     data['mcpServers'][name]['env'] = env
     tmp = path + '.tmp'
     with open(tmp, 'w') as f: json.dump(data, f, indent=2)
     os.replace(tmp, path)
-" "$config_file" "$name" "$env_json" 2>/dev/null || true
+" "$config_file" "$name" "$c_env_str" 2>/dev/null || true
     fi
 }
 
 # ── 交互填 Key ──
 do_keys() {
     echo -e "\n${CYAN}── 配置 MCP Key ──${NC}"
-    echo "  回车跳过"
     echo ""
-    local updated=0
+
+    # 第一阶段：列出所有有占位符的 MCP
+    local idx=0 names=() descs=() env_strs=() how_tos=() disableds=()
     while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get; do
         [[ -z "$name" ]] && continue
-        echo -e "  ${CYAN}$name${NC}  ${GRAY}$desc${NC}"
+        local ph
+        ph=$(python3 -c "
+import json, sys
+env = json.loads(sys.argv[1])
+keys = [k for k, v in env.items() if any(x in str(v) for x in ['请填入', '请到', 'your key', 'placeholder', '<your-'])]
+print(' '.join(keys))
+" "$env_str")
+        [[ -z "$ph" ]] && continue
+        idx=$((idx + 1))
+        names+=("$name")
+        descs+=("$desc")
+        env_strs+=("$env_str")
+        how_tos+=("$how_to_get")
+        disableds+=("$is_disabled")
+        local st="${GREEN}启用${NC}"; [[ "$is_disabled" == "true" ]] && st="${YELLOW}禁用${NC}"
+        echo -e "  ${CYAN}$idx) $name${NC}  ${GRAY}$desc${NC}  ($st)"
+        [[ -n "$how_to_get" ]] && echo -e "     ${GRAY}$how_to_get${NC}"
+    done <<< "$(read_mcp_list)"
+
+    if [[ $idx -eq 0 ]]; then
+        echo "  没有需要配置的 MCP"
+        return
+    fi
+
+    echo ""
+    read -p "  选择序号（逗号分隔，回车跳过）: " selections < /dev/tty
+    [[ -z "$selections" ]] && { echo "  跳过"; return; }
+
+    # 第二阶段：逐个填选中的
+    local updated=0
+    for sel in ${selections//,/ }; do
+        sel="$((sel))" 2>/dev/null || continue
+        [[ $sel -lt 1 || $sel -gt $idx ]] && continue
+        local i=$((sel - 1))
+        local name="${names[$i]}" desc="${descs[$i]}" env_str="${env_strs[$i]}" how_to_get="${how_tos[$i]}" is_disabled="${disableds[$i]}"
+        echo -e "\n  ${CYAN}═ $name${NC}  ${GRAY}$desc${NC}"
         [[ -n "$how_to_get" ]] && echo -e "    ${GRAY}$how_to_get${NC}"
+
         local changed=false
         if [[ "$is_disabled" == "true" ]]; then
             read -p "  当前禁用，启用？[y/N]: " yn < /dev/tty
-            if [[ "$yn" =~ ^[Yy]$ ]]; then changed=true; else echo "  跳过"; echo ""; continue; fi
+            if [[ ! "$yn" =~ ^[Yy]$ ]]; then echo "  跳过"; continue; fi
+            changed=true; is_disabled="false"
         fi
-        local placeholder_env_keys
-        placeholder_env_keys=$(python3 -c "
+
+        local ph_keys
+        ph_keys=$(python3 -c "
 import json, sys
 env = json.loads(sys.argv[1])
 keys = [k for k, v in env.items() if any(x in str(v) for x in ['请填入', '请到', 'your key', 'placeholder', '<your-'])]
 print('\n'.join(keys))
 " "$env_str")
         local new_env_json="$env_str"
-        if [[ -n "$placeholder_env_keys" ]]; then
-            read -p "  填 Key？[y/N]: " fill_key < /dev/tty
-            if [[ "$fill_key" =~ ^[Yy]$ ]]; then
-                while IFS= read -r key; do
-                    [[ -z "$key" ]] && continue
-                    read -p "    $key: " val < /dev/tty
-                    if [[ -n "$val" ]]; then
-                        new_env_json=$(echo "$new_env_json" | python3 -c "
+        while IFS= read -r key; do
+            [[ -z "$key" ]] && continue
+            read -p "    $key: " val < /dev/tty
+            if [[ -n "$val" ]]; then
+                new_env_json=$(echo "$new_env_json" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 d[sys.argv[1]] = sys.argv[2]
 print(json.dumps(d))
 " "$key" "$val")
-                        changed=true
-                    fi
-                done <<< "$placeholder_env_keys"
+                changed=true
             fi
-        fi
-        if [[ "$name" == "minimax-mcp" ]]; then
+        done <<< "$ph_keys"
+
+        if [[ "$name" == "minimax-mcp" ]] && ! echo "$new_env_json" | grep -qE 'gk_live|sk-'; then
             local mk
             mk=$(python3 -c "
 import json, sys
@@ -309,20 +345,17 @@ for s in data['mcp_servers']:
     if s['name'] == 'minimax': print(s.get('env', {}).get('MINIMAX_API_KEY', '')); break
 " "$MCP_CONF_FILE" 2>/dev/null)
             if [[ -n "$mk" ]] && ! echo "$mk" | grep -qE '请填入|请到'; then
-                read -p "  共用 minimax 的 MINIMAX_API_KEY？[Y/n]: " reuse < /dev/tty
-                reuse="${reuse:-y}"
-                if [[ "$reuse" =~ ^[Yy]$ ]]; then
-                    new_env_json=$(echo "$new_env_json" | python3 -c "
+                new_env_json=$(echo "$new_env_json" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 d['MINIMAX_API_KEY'] = sys.argv[1]
 print(json.dumps(d))
 " "$mk")
-                    changed=true
-                fi
+                changed=true
             fi
         fi
-        if ! $changed; then echo -e "  ${GRAY}无变更${NC}"; echo ""; continue; fi
+
+        if ! $changed; then echo -e "  ${GRAY}无变更${NC}"; continue; fi
         python3 -c "
 import json, os, sys
 with open(sys.argv[1]) as f: data = json.load(f)
@@ -339,8 +372,8 @@ os.replace(tmp, sys.argv[1])
 " "$MCP_CONF_FILE" "$name" "$new_env_json" "$is_disabled"
         good "  ✅ $name"
         updated=$((updated + 1))
-        echo ""
-    done <<< "$(read_mcp_list)"
+    done
+
     if [[ $updated -gt 0 ]]; then
         echo ""; good "✅ 已更新 $updated 个 MCP Key"
         do_sync
