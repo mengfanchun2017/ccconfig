@@ -66,6 +66,7 @@ OPTIONAL_DEPS=(
     "lark-cli|lark-cli --version|lark-cli|飞书 CLI (option-larkcli)"
     "cc-connect|cc-connect --version 2>/dev/null|cc-connect|飞书 Bridge (option-cconnect)"
     "officecli|officecli --version 2>/dev/null|officecli|OfficeCLI (option-officecli)"
+    "lark-channel-bridge|lark-channel-bridge --version 2>/dev/null|lark-bridge|飞书 Bridge (option-larkbridge)"
 )
 
 # Python 包
