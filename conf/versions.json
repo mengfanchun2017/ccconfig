@@ -22,18 +22,11 @@
       "_note": "Token Plan 官方 CLI，全模态 (text/image/video/speech/music/vision/search)。认证：mmx auth login"
     },
     "claude_code": {
-      "version": "2.0.21",
+      "version": "2.1.212",
       "package": "@anthropic-ai/claude-code",
-      "install": "npm install -g @anthropic-ai/claude-code@2.0.21",
+      "install": "npm install -g @anthropic-ai/claude-code",
       "check_url": "https://registry.npmjs.org/@anthropic-ai/claude-code",
-      "_note": "Claude Code CLI，pin 版本防止上游 breaking change"
-    },
-    "cc_connect": {
-      "version": "1.4.0",
-      "repo": "chenhg5/cc-connect",
-      "download_url_template": "https://github.com/chenhg5/cc-connect/releases/download/v{VERSION}/cc-connect-v{VERSION}-linux-amd64.tar.gz",
-      "binary_name": "cc-connect-v{VERSION}-linux-amd64",
-      "_note": "GitHub release tarball 内文件名为 cc-connect-v{VER}-linux-amd64，不是 cc-connect"
+      "_note": "Claude Code CLI"
     },
     "lark_cli": {
       "package": "@larksuite/cli",
@@ -42,7 +35,7 @@
       "_note": "飞书 CLI，通过 npm 管理版本，update.sh 运行时检查最新版"
     },
     "claude": {
-      "version": "2.1.199"
+      "version": "2.1.212"
     }
   },
   "_note": "update.sh reads and writes this file. Other scripts read via path-helper.sh."

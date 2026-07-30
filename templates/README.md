@@ -10,7 +10,7 @@
 | `rules/*.md.example` | 编码规范模板 → 复制到 ccprivate/rules/ |
 | `agents/*.md.example` | Agent 定义模板 → 复制到 ccprivate/agents/ |
 | `settings.json.example` | Claude Code 配置模板（MCP、权限、hooks） |
-| `skills/` | skill 开发沙箱 → 发布用 `lib/publish.sh` |
+| `skills/` | skill 说明占位（skill 开发在独立 skill 仓进行） |
 
 ## 运行时部署一览
 
