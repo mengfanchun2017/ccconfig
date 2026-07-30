@@ -405,14 +405,59 @@ reconfigure() {
 case "${1:-}" in
     --start|-s)
         install
-        # 无 profile 时先创建（从 feishu.json 或扫码）
         if [ ! -f "$HOME/.lark-channel/config.json" ] || ! lark-channel-bridge profile list &>/dev/null; then
-            echo ""
-            run_foreground_create_only
+            echo ""; run_foreground_create_only
         fi
         echo ""
         setup_service
         ;;
+    --start-webui)
+        install
+        if [ ! -f "$HOME/.lark-channel/config.json" ] || ! lark-channel-bridge profile list &>/dev/null; then
+            echo ""; run_foreground_create_only
+        fi
+        echo -e "${CYAN}── systemd 服务 (web-ui 模式) ──${NC}"
+        mkdir -p "$HOME/.config/systemd/user"
+        cat > "$SERVICE_FILE" << EOF
+[Unit]
+Description=Lark Channel Bridge — Web UI (all profiles)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=${HOME}/.local/bin/lark-channel-bridge start --web-ui
+Restart=on-failure
+RestartSec=15
+Environment=PATH=${HOME}/.local/bin:${NODE_BIN}:/usr/local/bin:/usr/bin:/bin
+Environment=LARK_CHANNEL_HOME=${HOME}/.lark-channel
+
+[Install]
+WantedBy=default.target
+EOF
+        systemctl --user daemon-reload && systemctl --user enable --now "${SERVICE_NAME}" 2>&1 && good "  ✅ web-ui 服务 (多 profile)" || warn "  ⚠ 服务启动失败"
+        ;;
+    --switch)
+        if [ ! -f "$HOME/.lark-channel/config.json" ]; then
+            warn "尚未配置，先运行 $0 --run"; exit 1
+        fi
+        echo -e "${CYAN}── 切换 profile ──${NC}"
+        local -a plist=()
+        while IFS= read -r p; do [ -n "$p" ] && plist+=("$p"); done < <(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); [print(p) for p in d.get('profiles',{}).keys()]" 2>/dev/null || true)
+        if [ ${#plist[@]} -eq 0 ]; then warn "没有 profile"; exit 1; fi
+        local active=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
+        local i=1
+        for p in "${plist[@]}"; do
+            local am=""; [ "$p" = "$active" ] && am=" ← 当前"
+            echo "  $i) $p$am"; i=$((i + 1))
+        done
+        echo ""
+        read -p "  选择 [1-${#plist[@]}]: " sel
+        [ -z "$sel" ] && exit 0
+        local idx=$((sel - 1))
+        [ $idx -lt 0 ] || [ $idx -ge ${#plist[@]} ] && { warn "无效选择"; exit 1; }
+        lark-channel-bridge profile use "${plist[$idx]}" 2>&1
+        good "  ✓ 已切换，重启服务生效: systemctl --user restart ${SERVICE_NAME}"
     --stop)
         if [ -f "$SERVICE_FILE" ]; then
             systemctl --user stop "${SERVICE_NAME}" 2>/dev/null && good "✅ 已停止" || warn "⚠ 停止失败"
