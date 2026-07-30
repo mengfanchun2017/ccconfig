@@ -206,7 +206,6 @@ sync_one_repo() {
         return 0
     fi
 
-    # 冲突菜单 → lib/git-conflict.sh
     git_conflict_menu "$repo_dir" "$branch" "$before" "$after" --with-rebase || return 1
 }
 
