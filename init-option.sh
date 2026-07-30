@@ -26,7 +26,7 @@ source "$SCRIPT_DIR/lib/colors.sh" 2>/dev/null || {
     section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 }
 
-# ── 菜单顺序（cconnect/cloudflare 排最后） ──
+# ── 菜单顺序（cloudflare 排最后） ──
 # CLI 工具 + option-* 中按优先级排序，最后两个放末尾
 MENU_ORDER=(
     "bat" "glow" "nano"           # 内置 CLI（最常用）
