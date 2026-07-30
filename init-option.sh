@@ -31,6 +31,7 @@ source "$SCRIPT_DIR/lib/colors.sh" 2>/dev/null || {
 MENU_ORDER=(
     "bat" "glow" "nano"           # 内置 CLI（最常用）
     "larkcli"                      # 飞书文档
+    "larkbridge"                   # 飞书 ↔ Claude Code 双向通信
     # "llmswitch"  由 lib/init-llm.sh 自动管理：切到 gateway 自动装启，切到其他自动停
     "officecli"                    # OfficeCLI
     "remote"                       # 远程连接
