@@ -133,7 +133,23 @@ SERVICEOF
 
 # ========== 状态 ==========
 show_status() {
-    echo -e "${CYAN}── lark-channel-bridge 状态 ──${NC}"
+    # --status 规范：第一行给 init-option.sh 解析
+    # 机器可读行在前，人友好行在后
+    if command -v lark-channel-bridge &>/dev/null; then
+        local ver
+        ver=$(lark-channel-bridge --version 2>/dev/null | head -1)
+        if systemctl --user is-active "${SERVICE_NAME}" &>/dev/null 2>&1; then
+            echo "OK lark-channel-bridge $ver (systemd 运行中)"
+        elif pgrep -f "lark-channel-bridge" > /dev/null 2>&1; then
+            echo "OK lark-channel-bridge $ver (进程运行中)"
+        elif [ -f "$SERVICE_FILE" ]; then
+            echo "WARN lark-channel-bridge $ver (已装未运行)"
+        else
+            echo "OK lark-channel-bridge $ver (已安装)"
+        fi
+    else
+        echo "MISSING lark-channel-bridge 未安装"
+    fi
 
     echo -n "  安装 ... "
     if command -v lark-channel-bridge &>/dev/null; then
