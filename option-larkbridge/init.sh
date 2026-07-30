@@ -82,7 +82,54 @@ run_foreground() {
     fi
 
     local ws="${LARK_WORKSPACE:-$HOME/git}"
-    lark-channel-bridge run --workspace "$ws"
+    run_foreground_create_only "$ws"
+    echo ""
+    good "  ✓ profile 创建完成，启动监听"
+    local profile_name
+    profile_name=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.lark-channel/config.json'))).get('activeProfile','claude'))" 2>/dev/null || echo "claude")
+    lark-channel-bridge run --profile "$profile_name" --workspace "$ws"
+}
+
+# ========== 创建 profile（不启动监听，供 --start 调用） ==========
+run_foreground_create_only() {
+    local ws="${1:-$HOME/git}"
+
+    local feishu_conf=""
+    if [ -f "$HOME/git/ccprivate/conf/feishu.json" ]; then
+        feishu_conf="$HOME/git/ccprivate/conf/feishu.json"
+    elif command -v resolve_conf &>/dev/null; then
+        feishu_conf=$(resolve_conf feishu.json 2>/dev/null) || true
+    fi
+
+    local app_id app_secret
+    if [ -n "$feishu_conf" ]; then
+        read -r app_id app_secret <<< $(python3 - "$feishu_conf" << 'PYEOF'
+import json, sys
+with open(sys.argv[1]) as f:
+    d = json.load(f)
+for a in d.get('apps', []):
+    lb = a.get('larkbridge', {})
+    if lb.get('enabled', False) or (not lb and d.get('apps', []).index(a) == 0):
+        print(a.get('appId',''), a.get('appSecret',''))
+        sys.exit(0)
+print('','')
+PYEOF
+        )
+    fi
+
+    if [ -n "$app_id" ] && [ -n "$app_secret" ]; then
+        info "  使用已有飞书应用: $app_id"
+        lark-channel-bridge profile create claude \
+            --agent claude \
+            --workspace "$ws" \
+            --app-id "$app_id" \
+            --app-secret "$app_secret" 2>&1
+    else
+        info "  未找到已有凭据，进入扫码创建向导"
+        lark-channel-bridge run --workspace "$ws" &
+        local pid=$!
+        wait $pid 2>/dev/null || true
+    fi
 }
 
 # ========== systemd 服务 ==========
@@ -276,6 +323,11 @@ reconfigure() {
 case "${1:-}" in
     --start|-s)
         install
+        # 无 profile 时先创建（从 feishu.json 或扫码）
+        if [ ! -f "$HOME/.lark-channel/config.json" ] || ! lark-channel-bridge profile list &>/dev/null; then
+            echo ""
+            run_foreground_create_only
+        fi
         echo ""
         setup_service
         ;;
