@@ -201,7 +201,7 @@ submenu_env() {
     echo "  1) Ubuntu 全环境初始化 (init-ubuntu.sh)"
     echo "  2) LLM 后端切换       (init-llm.sh)"
     echo "  3) auto-sync 自启动    (init-autostart.sh)"
-    echo "  4) ★ 一键全部（ubuntu + LLM + 收尾）
+    echo "  4) ★ 一键全部（ubuntu + LLM + 收尾）"
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-4,0]: " c
@@ -246,35 +246,31 @@ submenu_options() {
 main_menu() {
     show_banner
     check_first_time
-    echo ""
-    echo "  ── 初始化 ──"
-    echo "  1) Ubuntu 环境  │ LLM切换 │ 自启动"
-    echo "  2) 远程连接    │ SSH │ tmux"
-    echo "  3) MCP 管理    │ 安装 │ 同步"
-    echo "  4) Skills      │ 同步 │ 状态"
-    echo "  5) ★ 一键全部初始化（Ubuntu → LLM → MCP → 收尾）"
-    echo "  ── 可选组件 ──"
-    echo "  6) 可选组件（bat / glow / nano / option-*）"
-    echo "  0) 退出"
-    echo ""
-    read -p "选择 [0-6]: " choice
+	echo ""
+	echo "  ── 初始化 ──"
+	echo "  1) Ubuntu 环境  │ LLM切换 │ 自启动"
+	echo "  2) 远程连接    │ SSH │ tmux"
+	echo "  3) ★ 一键全部初始化（Ubuntu → LLM → 收尾）"
+	echo "  ── 可选组件 ──"
+	echo "  4) 可选组件（MCP / Skills / CLI / option-*）"
+	echo "  0) 退出"
+	echo ""
+	read -p "选择 [0-4]: " choice
 
-    case "$choice" in
-        1) submenu_env ;;
-        2) submenu_remote ;;
-        3) submenu_mcp ;;
-        4) submenu_skills ;;
-        5) init_all_steps
-           exit 0 ;;
-        6) submenu_options
-           echo -e "${YELLOW}操作完成${NC}";;
-        0) echo ""; exit 0 ;;
-        *) echo "无效选择"; main_menu ;;
-    esac
+	case "$choice" in
+	    1) submenu_env ;;
+	    2) submenu_remote ;;
+	    3) init_all_steps
+	       exit 0 ;;
+	    4) submenu_options
+	       echo -e "${YELLOW}操作完成${NC}" ;;
+	    0) echo ""; exit 0 ;;
+	    *) echo "无效选择"; main_menu ;;
+	esac
 
-    echo ""
-    read -p "按回车返回主菜单..." dummy
-    main_menu
+	echo ""
+	read -p "按回车返回主菜单..." dummy
+	main_menu
 }
 
 # ========== 入口 ==========
