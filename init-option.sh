@@ -38,14 +38,6 @@ CLI_DESC["glow"]="终端 Markdown 渲染阅读"
 CLI_DESC["nano"]="终端文本编辑器，简单直观"
 
 # Option 描述
-declare -A OPT_DESC
-OPT_DESC["mcp"]="Claude Code 工具箱：Tavily(搜索)/MiniMax(中文)/Supabase 等"
-OPT_DESC["skill"]="16 个 f-* 工作流：搜索/报告/飞书文档/PPT/excel 等"
-OPT_DESC["larkcli"]="飞书 CLI：编辑文档/Base/日历/任务"
-OPT_DESC["larkbridge"]="飞书 ↔ Claude Code 双向通信 Bridge"
-OPT_DESC["officecli"]="AI 原生 Office：生成 .pptx/.docx/.xlsx"
-OPT_DESC["remote"]="Tailscale + SSH 远程连接桌面 tmux"
-OPT_DESC["cloudflare"]="Cloudflare Workers/Pages/D1/R2 开发环境"
 
 # ── 分组列表 ──
 # 格式: "group_title|item1 item2 ..."
@@ -54,6 +46,7 @@ MENU_GROUPS=(
     "--claude--|mcp skill"
     "--lark--|larkcli larkbridge"
     "--other--|officecli remote cloudflare"
+    "--key--|feishu_key"
 )
 
 # ── 检测 option-* 目录 ──
@@ -225,7 +218,7 @@ list_all() {
         for name in $group_items; do
             # 检查是否存在
             case "$name" in
-                mcp) ;;
+                mcp|feishu_key) ;;
                 bat|glow|nano) ;;
                 *) has_init_script "$name" || continue ;;
             esac
@@ -234,38 +227,18 @@ list_all() {
             local status
             if [ "$name" = "mcp" ]; then
                 status=$(mcp_status)
+            elif [ "$name" = "feishu_key" ]; then
+                status=$(check_feishu_key 2>/dev/null || echo "no_conf|ccprivate 未初始化")
             else
                 status=$(option_status "$name")
             fi
 
-            local desc="${OPT_DESC[$name]:-}"
             printf "  %2d) %-12s " "$idx" "$name"
             render_status "$status"
-            if [ -n "$desc" ]; then
-                echo -e ""
-                echo -e "     ${DIM}${desc}${NC}"
-            else
-                echo ""
-            fi
+            echo ""
             idx=$((idx + 1))
         done
-        echo ""
     done
-
-    # feishu key 行
-    local feishu_state
-    feishu_state=$(check_feishu_key 2>/dev/null || echo "no_conf|ccprivate 未初始化")
-    local ftype="${feishu_state%%|*}"
-    local fdetail="${feishu_state#*|}"
-    if [ "$ftype" = "placeholder" ]; then
-        echo -e "   k) ${YELLOW}feishu key${NC}    ${YELLOW}!${NC} $fdetail"
-        echo -e "      ${GRAY}→ 选 k 进入配置向导${NC}"
-    elif [ "$ftype" = "empty" ]; then
-        echo -e "   k) ${YELLOW}feishu key${NC}    ${YELLOW}!${NC} $fdetail (appId/secret 为空)"
-        echo -e "      ${GRAY}→ 选 k 进入配置向导${NC}"
-    else
-        echo -e "   k) ${GRAY}feishu key${NC}    ${GREEN}✓${NC} $fdetail"
-    fi
 
     echo ""
     echo -e "  ${DIM}a) 全部安装  0) 返回${NC}"
@@ -548,7 +521,7 @@ interactive_menu() {
             local group_items="${group_entry#*|}"
             for name in $group_items; do
                 case "$name" in
-                    mcp) all_names+=("$name") ;;
+                    mcp|feishu_key) all_names+=("$name") ;;
                     bat|glow|nano) all_names+=("$name") ;;
                     *) has_init_script "$name" && all_names+=("$name") ;;
                 esac
@@ -556,14 +529,17 @@ interactive_menu() {
         done
 
         local max_idx=${#all_names[@]}
-        read -p "选择安装 (1-${max_idx}, k 配置 key, a 全部, 0 退出): " choice
+        read -p "选择安装 (1-${max_idx}, a 全部, 0 退出): " choice
 
         case "$choice" in
             0|q|exit) echo ""; exit 0 ;;
-            k|K)      feishu_key_wizard ;;
             a|all)
                 for n in "${all_names[@]}"; do
-                    install_option "$n"
+                    if [ "$n" = "feishu_key" ]; then
+                        feishu_key_wizard
+                    else
+                        install_option "$n"
+                    fi
                 done
                 echo ""
                 ok "全部安装完成"
@@ -572,7 +548,12 @@ interactive_menu() {
                 local any_valid=false
                 for token in $choice; do
                     if [[ "$token" =~ ^[0-9]+$ ]] && [ "$token" -ge 1 ] && [ "$token" -le $max_idx ]; then
-                        install_option "${all_names[$((token - 1))]}"
+                        local selected="${all_names[$((token - 1))]}"
+                        if [ "$selected" = "feishu_key" ]; then
+                            feishu_key_wizard
+                        else
+                            install_option "$selected"
+                        fi
                         any_valid=true
                     fi
                 done
