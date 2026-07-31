@@ -21,6 +21,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/colors.sh"
+source "$SCRIPT_DIR/dry-run.sh"
 SKILLS_SRC="${SKILL_SRC:-$HOME/git/skill/plugins}"
 SKILL_REPO_DIR="$HOME/git/skill"
 CCPRIVATE_DIR="${CCPRIVATE_HOME:-${CCPRIVATE_DIR:-$HOME/git/ccprivate}}"
@@ -68,12 +69,12 @@ ensure_claude_skills() {
         # SSH 优先
         clone_url="git@github.com:${candidate}.git"
         info "skill 仓库未找到，尝试 clone: $candidate"
-        if git clone "$clone_url" "$SKILL_REPO_DIR" 2>/dev/null; then
+        if run git clone "$clone_url" "$SKILL_REPO_DIR" 2>/dev/null; then
             good "skill 已 clone (SSH): $SKILL_REPO_DIR"
             return 0
         fi
 
-        if git clone "https://github.com/${candidate}.git" "$SKILL_REPO_DIR" 2>/dev/null; then
+        if run git clone "https://github.com/${candidate}.git" "$SKILL_REPO_DIR" 2>/dev/null; then
             good "skill 已 clone (HTTPS): $SKILL_REPO_DIR"
             return 0
         fi
@@ -169,14 +170,14 @@ do_install_cli_deps() {
                     skipped=$((skipped + 1))
                 else
                     info "  $pkg: 安装中..."
-                    if npm install -g "$pkg" 2>&1 | tail -1; then
+                    if run npm install -g "$pkg" 2>&1 | tail -1; then
                         # symlink binary to ~/.local/bin
                         local bin_name="${pkg##*/}"  # strip @scope/ prefix
                         bin_name="${bin_name#@*/}"    # strip scope if still present
                         # handle npm binary name (may differ from package name)
                         if [[ -x "$npm_global_bin/$bin_name" ]]; then
                             mkdir -p "$HOME/.local/bin"
-                            ln -sf "$npm_global_bin/$bin_name" "$HOME/.local/bin/$bin_name"
+                            run ln -sf "$npm_global_bin/$bin_name" "$HOME/.local/bin/$bin_name"
                         fi
                         good "  $pkg: ✓ — $required_by"
                         installed=$((installed + 1))
@@ -251,8 +252,8 @@ do_link_self_built() {
             [[ "$quiet" != "1" ]] && info "  $name: 已链接"
             skipped=$((skipped + 1))
         elif [[ -L "$target" ]] && [[ ! -e "$target" ]]; then
-            rm -f "$target"
-            ln -s "$skill_dir" "$target"
+            run rm -f "$target"
+            run ln -s "$skill_dir" "$target"
             [[ "$quiet" != "1" ]] && good "  $name: ✓ 删断链 + 重新链接"
             cleaned=$((cleaned + 1))
             linked=$((linked + 1))
@@ -261,8 +262,8 @@ do_link_self_built() {
                 [[ "$quiet" != "1" ]] && info "  $name: user-managed (npx 等)，保留"
                 user_managed=$((user_managed + 1))
             else
-                rm -f "$target"
-                ln -s "$skill_dir" "$target"
+                run rm -f "$target"
+                run ln -s "$skill_dir" "$target"
                 [[ "$quiet" != "1" ]] && good "  $name: ✓ (修复链接)"
                 linked=$((linked + 1))
             fi
@@ -270,7 +271,7 @@ do_link_self_built() {
             [[ "$quiet" != "1" ]] && info "  $name: 本地已有（非链接），跳过"
             skipped=$((skipped + 1))
         else
-            ln -s "$skill_dir" "$target"
+            run ln -s "$skill_dir" "$target"
             [[ "$quiet" != "1" ]] && good "  $name: ✓"
             linked=$((linked + 1))
         fi
@@ -286,7 +287,7 @@ do_link_self_built() {
         tgt_dir="$(cd "$(dirname "$target")" 2>/dev/null && cd "$(dirname "$tgt_raw")" 2>/dev/null && pwd 2>/dev/null)/$(basename "$tgt_raw")"
         [[ "$tgt_dir" == "$SKILLS_SRC"/* ]] || continue
         if [[ ! -d "$SKILLS_SRC/$name" ]]; then
-            rm -f "$target"
+            run rm -f "$target"
             [[ "$quiet" != "1" ]] && good "  $name: ✓ 删孤儿（源已删除）"
             orphan=$((orphan + 1))
         fi
@@ -296,7 +297,7 @@ do_link_self_built() {
         [[ -L "$target" ]] || continue
         if [[ ! -e "$target" ]]; then
             local name=$(basename "$target")
-            rm -f "$target"
+            run rm -f "$target"
             [[ "$quiet" != "1" ]] && good "  $name: ✓ 删断链"
             orphan=$((orphan + 1))
         fi
@@ -462,11 +463,11 @@ do_update() {
         case "$mgr" in
             npm)
                 info "  npm update -g $pkg"
-                npm update -g "$pkg" 2>&1 | tail -1
+                run npm update -g "$pkg" 2>&1 | tail -1
                 ;;
             go)
                 info "  go install $pkg"
-                go install "$pkg" 2>&1 | tail -1
+                run go install "$pkg" 2>&1 | tail -1
                 ;;
         esac
     done
@@ -474,9 +475,9 @@ do_update() {
     echo ""
     title "更新 npx skills（按 upstream 拉最新）"
     if ! git config --global url."git@github.com:".insteadOf 2>/dev/null | grep -q "https://github.com/"; then
-        git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
+        run git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
     fi
-    npx --yes skills@latest update -g -y 2>&1 | tail -20
+    run npx --yes skills@latest update -g -y 2>&1 | tail -20
 
     echo ""
     good "更新完成。重启 Claude Code 加载新 skill 内容。"
@@ -490,7 +491,7 @@ do_cleanup() {
         [[ -L "$target" ]] || continue
         if [[ ! -e "$target" ]]; then
             local name=$(basename "$target")
-            rm -f "$target"
+            run rm -f "$target"
             good "  ✓ 删: $name"
             count=$((count + 1))
         fi
