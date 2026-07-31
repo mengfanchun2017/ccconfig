@@ -737,9 +737,6 @@ check_example_sync() {
 
     # rules 检查
     local rules_outdated=0 rules_new=0 rules_added=0
-    if [ -d "$ccpriv/rules" ]; then
-        for f in "$ccpriv/rules/"*.md; do [ -f "$f" ] || continue; done 2>/dev/null
-    fi
     for example in "$ccconfig_example/rules/"*.md.example; do
         [ -f "$example" ] || continue
         local base=$(basename "$example" .md.example)
