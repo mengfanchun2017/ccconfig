@@ -1,18 +1,22 @@
 #!/bin/bash
-# ccconfig/option-larkbridge/init.sh — 飞书 lark-channel-bridge 安装/配置/管理
+# ccconfig/option-larkbridge/init.sh — 飞书 lark-channel-bridge 管理
 #
-# lark-channel-bridge: 飞书 ↔ Claude Code 双向通信 Bridge
-# 安装: npm i -g lark-channel-bridge，首次启动扫码绑 PersonalAgent 应用
-# 配置源: ccprivate/conf/feishu.json（同一配置源）
+# 概念:
+#   profile = 一个飞书应用（Bot），有 appId/appSecret 和独立配置
+#   systemd template = lark-channel-bridge@<profile>.service，每个 profile 一个
+#   --run 前台调试 / --start 后台跑 / --profile 管理配置
 #
 # 用法:
-#   bash ccconfig/option-larkbridge/init.sh               # 安装 + 首次启动
-#   bash ccconfig/option-larkbridge/init.sh --start       # 后台服务（systemd）
-#   bash ccconfig/option-larkbridge/init.sh --stop        # 停止服务
-#   bash ccconfig/option-larkbridge/init.sh --restart      # 重启服务
-#   bash ccconfig/option-larkbridge/init.sh --status       # 状态
-#   bash ccconfig/option-larkbridge/init.sh --run          # 前台运行（首次配置）
-#   bash ccconfig/option-larkbridge/init.sh --logs         # 查看日志
+#   init.sh --run [profile]         前台运行（不传交互选）
+#   init.sh --start [profile]       后台 systemd 运行（不传交互选）
+#   init.sh --stop [profile]        停止（不传交互选）
+#   init.sh --restart [profile]     重启（不传交互选）
+#   init.sh --status                所有 profile + 运行状态
+#   init.sh --logs [profile]        查看日志（不传选一个）
+#   init.sh --profile list          列出 profile
+#   init.sh --profile add           新增（ccprivate / 扫码）
+#   init.sh --profile remove        删除
+#   init.sh --profile default       设默认
 
 set -euo pipefail
 
@@ -23,262 +27,192 @@ source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || true
 
 NODE_BIN="$(find_node_bin 2>/dev/null || echo "")"
 export PATH="$HOME/.local/bin:${NODE_BIN}:$PATH"
-SERVICE_NAME="lark-channel-bridge"
-SERVICE_FILE="$HOME/.config/systemd/user/${SERVICE_NAME}.service"
+SERVICE_PREFIX="lark-channel-bridge"
+LCONF="$HOME/.lark-channel/config.json"
 
-# fallback colors
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
+CYAN='\033[0;36m'; GRAY='\033[0;90m'; NC='\033[0m'
 
 good() { echo -e "${GREEN}$1${NC}"; }
 bad()  { echo -e "${RED}$1${NC}"; }
 warn() { echo -e "${YELLOW}$1${NC}"; }
 info() { echo -e "${GRAY}$1${NC}"; }
 
-# ========== 安装 ==========
-install() {
-    echo -e "${CYAN}── 安装 lark-channel-bridge ──${NC}"
+# ========== 辅助 ==========
 
-    if command -v lark-channel-bridge &>/dev/null; then
-        local ver
-        ver=$(lark-channel-bridge --version 2>/dev/null | head -1 || echo "?")
-        good "  ✓ 已安装: $ver"
-        return 0
-    fi
-
-    echo -n "  安装中 ... "
-    if npm install -g lark-channel-bridge 2>&1 | tail -1; then
-        # symlink
-        local npm_bin
-        npm_bin="$(npm prefix -g 2>/dev/null)/bin"
-        mkdir -p "$HOME/.local/bin"
-        if [ -x "$npm_bin/lark-channel-bridge" ]; then
-            ln -sf "$npm_bin/lark-channel-bridge" "$HOME/.local/bin/lark-channel-bridge"
-        fi
-        good "✅"
-    else
-        bad "❌ 安装失败"
-        return 1
-    fi
+_list_profiles() {
+  python3 -c "import json,os; d=json.load(open(os.path.expanduser('$LCONF'))); [print(p) for p in d.get('profiles',{}).keys()]" 2>/dev/null || true
 }
 
-# ========== 读取 feishu.json 中启用了 larkbridge 的 app 列表 ==========
-# 输出: name|appId|appSecret 每行一个
+_get_active() {
+  python3 -c "import json,os; print(json.load(open(os.path.expanduser('$LCONF'))).get('activeProfile',''))" 2>/dev/null || echo ""
+}
+
+_pick_profile() {
+  local prompt="${1:-选择 profile}"
+  local profiles; mapfile -t profiles < <(_list_profiles)
+  [ ${#profiles[@]} -eq 0 ] && { warn "没有 profile，先运行 --profile add" >&2; return 1; }
+  local active; active="$(_get_active)"
+  local running; running=$(_get_running_profiles)
+  echo -e "${CYAN}── ${prompt} ──${NC}" >&2
+  local i=0
+  while [ $i -lt ${#profiles[@]} ]; do
+    local p="${profiles[$i]}"
+    local am=""; [ "$p" = "$active" ] && am=" ${CYAN}← 当前${NC}"
+    local rm=""; echo "$running" | grep -qxF "$p" && rm=" ${GREEN}● 运行中${NC}"
+    echo -e "  $((i+1))) $p${am}${rm}" >&2
+    i=$((i+1))
+  done
+  echo -e "  0) 取消" >&2
+  read -p "  选择 [0-$i]: " sel
+  [ -z "$sel" ] || [ "$sel" = "0" ] && return 1
+  [ "$sel" -ge 1 ] 2>/dev/null && [ "$sel" -le "$i" ] 2>/dev/null || return 1
+  echo "${profiles[$((sel-1))]}"
+}
+
+_get_running_profiles() {
+  command -v lark-channel-bridge &>/dev/null || return
+  lark-channel-bridge profile list 2>/dev/null | awk 'NR>1{print $2}' || true
+}
+
 _list_larkbridge_apps() {
-    local conf="$1"
-    python3 - "$conf" << 'PYEOF' 2>/dev/null
+  local conf="$1"
+  python3 - "$conf" << 'PYEOF' 2>/dev/null
 import json, sys
 with open(sys.argv[1]) as f:
-    d = json.load(f)
+  d = json.load(f)
 for a in d.get('apps', []):
-    lb = a.get('larkbridge', {})
-    if lb.get('enabled', False):
-        print(f"{a.get('name','?')}|{a.get('appId','')}|{a.get('appSecret','')}")
+  lb = a.get('larkbridge', {})
+  if lb.get('enabled', False):
+    print(f"{a.get('name','?')}|{a.get('appId','')}|{a.get('appSecret','')}")
 PYEOF
 }
 
-# ========== 读取 feishu.json 并初始化 larkbridge 配置 ==========
-# 交互选择已有 app 或扫码新建，结果写入 _PROFILE_RESULT
-_interactive_select_app() {
-    local ws="${1:-$HOME/git}"
-    local result_file="$HOME/.lark-channel/.select_result"
+_run_select_app() {
+  local ws="${LARK_WORKSPACE:-$HOME/git}"
+  local feishu_conf=""
+  if [ -f "$HOME/git/ccprivate/conf/feishu.json" ]; then
+    feishu_conf="$HOME/git/ccprivate/conf/feishu.json"
+  elif command -v resolve_conf &>/dev/null; then
+    feishu_conf=$(resolve_conf feishu.json 2>/dev/null) || true
+  fi
 
-    local feishu_conf=""
-    if [ -f "$HOME/git/ccprivate/conf/feishu.json" ]; then
-        feishu_conf="$HOME/git/ccprivate/conf/feishu.json"
-    elif command -v resolve_conf &>/dev/null; then
-        feishu_conf=$(resolve_conf feishu.json 2>/dev/null) || true
-    fi
+  local -a app_names app_ids app_secrets
+  if [ -n "$feishu_conf" ]; then
+    while IFS='|' read -r name id secret; do
+      [ -z "$name" ] && continue
+      app_names+=("$name"); app_ids+=("$id"); app_secrets+=("$secret")
+    done < <(_list_larkbridge_apps "$feishu_conf")
+  fi
 
-    local -a app_names app_ids app_secrets
-    if [ -n "$feishu_conf" ]; then
-        while IFS='|' read -r name id secret; do
-            [ -z "$name" ] && continue
-            app_names+=("$name")
-            app_ids+=("$id")
-            app_secrets+=("$secret")
-        done < <(_list_larkbridge_apps "$feishu_conf")
-    fi
+  local -a profiles; mapfile -t profiles < <(_list_profiles)
+  local active; active="$(_get_active)"
+  local running; running=$(_get_running_profiles)
 
-    local -a existing_profiles=()
-    if [ -f "$HOME/.lark-channel/config.json" ]; then
-        while IFS= read -r p; do
-            [ -n "$p" ] && existing_profiles+=("$p")
-        done < <(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); [print(p) for p in d.get('profiles',{}).keys()]" 2>/dev/null || true)
-    fi
+  echo -e "${CYAN}── 选择飞书应用 ──${NC}" >&2
 
-    echo -e "${CYAN}── 选择飞书应用 ──${NC}" >&2
+  local idx=1; local -a menu_items=()
 
-    # 检测进程占用
-    local busy_profiles=""
-    if command -v lark-channel-bridge &>/dev/null; then
-        busy_profiles=$(lark-channel-bridge ps 2>/dev/null | grep -oP '(?<=Bot\s{3}).*?(?=\s{2,})' || true)
-    fi
+  if [ ${#profiles[@]} -gt 0 ]; then
+    echo -e "  ${GRAY}--已有 profile--${NC}" >&2
+    for p in "${profiles[@]}"; do
+      local am=""; [ "$p" = "$active" ] && am=" ${CYAN}← 当前${NC}"
+      local rm=""; echo "$running" | grep -qxF "$p" && rm=" ${GREEN}● 运行中${NC}"
+      echo -e "  ${idx}) ${p}${am}${rm}" >&2
+      menu_items+=("use:$p"); idx=$((idx+1))
+    done
+  fi
 
-    local idx=1
-    local -a menu_items=() # 存每项对应的指令：profile名 / scan(扫码) / restart(重启)
+  if [ ${#app_names[@]} -gt 0 ]; then
+    echo -e "  ${GRAY}--ccprivate 配置--${NC}" >&2
+    local i=0
+    while [ $i -lt ${#app_names[@]} ]; do
+      local name="${app_names[$i]}"; local id_short="${app_ids[$i]:0:12}..."
+      local em=""
+      for p2 in "${profiles[@]}"; do [ "$p2" = "$name" ] && em=" ${GRAY}(已存在)${NC}" && break; done
+      echo -e "  ${idx}) ${name} (${id_short})${em}" >&2
+      [ -z "$em" ] && menu_items+=("create:$name") || menu_items+=("use:$name")
+      idx=$((idx+1)); i=$((i+1))
+    done
+  fi
 
-    # ─── 生效 profile ───
-    if [ ${#existing_profiles[@]} -gt 0 ]; then
-        echo -e "  ${GRAY}--生效 profile--${NC}" >&2
-        for p in "${existing_profiles[@]}"; do
-            local active=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
-            local am=""
-            local busy_mark=""
-            [ "$p" = "$active" ] && am=" ${CYAN}← 当前${NC}"
-            echo "$busy_profiles" | grep -q "$p" && busy_mark=" ${GREEN}● 运行中${NC}"
-            echo -e "  ${idx}) ${p}${am}${busy_mark}" >&2
-            menu_items+=("profile:$p")
-            idx=$((idx + 1))
-        done
-    fi
+  echo -e "  ${GRAY}--扫码新建--${NC}" >&2
+  echo -e "  ${idx}) ${YELLOW}扫码新建 profile${NC}" >&2
+  menu_items+=("scan"); idx=$((idx+1))
 
-    # ─── ccprivate 配置 ───
-    if [ ${#app_names[@]} -gt 0 ]; then
-        echo -e "  ${GRAY}--ccprivate 配置--${NC}" >&2
-        local i=0
-        while [ $i -lt ${#app_names[@]} ]; do
-            local name="${app_names[$i]}"
-            local id_short="${app_ids[$i]:0:12}..."
-            local em=""
-            for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$name" ] && em=" ${GRAY}(profile 已存在)${NC}" && break; done
-            echo -e "  ${idx}) ${name} (${id_short})${em}" >&2
-            menu_items+=("create:$name")
-            idx=$((idx + 1))
-            i=$((i + 1))
-        done
-    fi
+  echo -e "  0) 返回" >&2
+  local max=$((idx-1))
+  read -p "  选择 [0-${max}]: " sel
+  [ -z "$sel" ] || [ "$sel" = "0" ] && return 1
+  [ "$sel" -ge 1 ] 2>/dev/null || return 1
+  [ $((sel-1)) -ge ${#menu_items[@]} ] && return 1
+  local chosen="${menu_items[$((sel-1))]}"
 
-    # ─── 扫码新建 ───
-    echo -e "  ${GRAY}--扫码新建配置--${NC}" >&2
-    echo -e "  ${idx}) ${YELLOW}扫码新建${NC}" >&2
-    menu_items+=("scan")
-    idx=$((idx + 1))
-
-    # ─── 服务重启 ───
-    if [ -f "$SERVICE_FILE" ]; then
-        local svc_status="${GRAY}未运行${NC}"
-        systemctl --user is-active "${SERVICE_NAME}" &>/dev/null && svc_status="${GREEN}运行中${NC}"
-        echo -e "  ${idx}) 重启系统服务 (${svc_status})" >&2
-        menu_items+=("restart")
-        idx=$((idx + 1))
-    fi
-
-    echo -e "  0) 返回" >&2
-
-    local max=$((idx - 1))
-    read -p "  选择 [0-${max}]: " sel
-    [ -z "$sel" ] && return 1
-    [ "$sel" = "0" ] && echo -n "" > "$result_file" && return 1
-
-    [ "$sel" -ge 1 ] 2>/dev/null || return 1
-    local menu_idx=$((sel - 1))
-    [ $menu_idx -lt 0 ] || [ $menu_idx -ge ${#menu_items[@]} ] && return 1
-    local chosen="${menu_items[$menu_idx]}"
-
-    # 服务重启
-    if [ "$chosen" = "restart" ] && [ -f "$SERVICE_FILE" ]; then
-        systemctl --user restart "${SERVICE_NAME}" 2>&1 && good "  ✅ 已重启" >&2 || bad "  ❌ 重启失败" >&2
-        return 0
-    fi
-
-    # 扫码新建
-    if [ "$chosen" = "scan" ]; then
-        echo -e "${YELLOW}  扫码后会自动创建新 profile，保存在 ~/.lark-channel${NC}" >&2
-        echo -e "  ${GRAY}  如需持久化到 ccprivate，创建后手动复制 appId/secret${NC}" >&2
-        read -p "  输入新 profile 名称: " scan_name
-        [ -z "$scan_name" ] && { warn "  名称不能为空"; return 1; }
-        lark-channel-bridge profile create "$scan_name" --agent claude --workspace "$ws"
-        local np
-        np=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
-        echo "${np:-}" > "$result_file"
-        return 0
-    fi
-
-    case "$chosen" in
-        profile:*)
-            local pname="${chosen#profile:}"
-            echo "$pname" > "$result_file"
-            return 0
-            ;;
-        create:*)
-            local cname="${chosen#create:}"
-            local fi=0
-            while [ $fi -lt ${#app_names[@]} ]; do
-                [ "${app_names[$fi]}" = "$cname" ] && break
-                fi=$((fi + 1))
-            done
-            local id="${app_ids[$fi]}"
-            local secret="${app_secrets[$fi]}"
-            local exists=0
-            for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$cname" ] && exists=1 && break; done
-            if [ "$exists" = "0" ]; then
-                lark-channel-bridge profile create "$cname" \
-                    --agent claude \
-                    --workspace "$ws" \
-                    --app-id "$id" \
-                    --app-secret "$secret" > /dev/null 2>&1
-            fi
-            echo "$cname" > "$result_file"
-            return 0
-            ;;
-    esac
-
-    return 1
+  case "$chosen" in
+    use:*) echo "${chosen#use:}"; return 0 ;;
+    create:*)
+      local cname="${chosen#create:}"
+      local fi=0; while [ $fi -lt ${#app_names[@]} ]; do [ "${app_names[$fi]}" = "$cname" ] && break; fi=$((fi+1)); done
+      lark-channel-bridge profile create "$cname" --agent claude --workspace "$ws" --app-id "${app_ids[$fi]}" --app-secret "${app_secrets[$fi]}" > /dev/null 2>&1
+      echo "$cname"; return 0 ;;
+    scan)
+      read -p "  输入新 profile 名称: " scan_name
+      [ -z "$scan_name" ] && { warn "  名称不能为空" >&2; return 1; }
+      lark-channel-bridge profile create "$scan_name" --agent claude --workspace "$ws"
+      echo "$scan_name"; return 0 ;;
+  esac
+  return 1
 }
 
-_get_profile_result() {
-    local f="$HOME/.lark-channel/.select_result"
-    if [ -f "$f" ]; then
-        cat "$f"
-        rm -f "$f"
-    fi
+install() {
+  echo -e "${CYAN}── 安装 lark-channel-bridge ──${NC}"
+  if command -v lark-channel-bridge &>/dev/null; then
+    local ver; ver=$(lark-channel-bridge --version 2>/dev/null | head -1 || echo "?")
+    good "  ✓ 已安装: $ver"; return 0
+  fi
+  echo -n "  安装中 ... "
+  if npm install -g lark-channel-bridge 2>&1 | tail -1; then
+    local npm_bin; npm_bin="$(npm prefix -g 2>/dev/null)/bin"
+    mkdir -p "$HOME/.local/bin"
+    [ -x "$npm_bin/lark-channel-bridge" ] && ln -sf "$npm_bin/lark-channel-bridge" "$HOME/.local/bin/lark-channel-bridge"
+    good "✅"
+  else
+    bad "❌ 安装失败"; return 1
+  fi
 }
 
-# ========== 前台运行（交互选择 + 启动） ==========
 run_foreground() {
-    if ! command -v lark-channel-bridge &>/dev/null; then
-        bad "  lark-channel-bridge 未安装" >&2
-        return 1
-    fi
-
-    local ws="${LARK_WORKSPACE:-$HOME/git}"
-    _interactive_select_app "$ws"
-    local profile_name; profile_name=$(_get_profile_result)
-    [ -z "$profile_name" ] && return 0
-
-    echo "" >&2
-    good "  ✓ profile「${profile_name}」已上线（前台运行，Ctrl-C 退出）" >&2
-    lark-channel-bridge run --profile "$profile_name" --workspace "$ws" 2>&1 | grep -v 'sdk.error\|owner_refresh_failed\|chats-fetch-failed\|\[lark-info' || true
+  local profile="${1:-}"
+  [ -z "$profile" ] && profile="$(_run_select_app)"
+  [ -z "$profile" ] && return 0
+  local ws="${LARK_WORKSPACE:-$HOME/git}"
+  echo "" >&2
+  good "  ✓ profile「${profile}」已上线（前台运行，Ctrl-C 退出）" >&2
+  lark-channel-bridge run --profile "$profile" --workspace "$ws" 2>&1 \
+    | grep -v 'sdk.error\|owner_refresh_failed\|chats-fetch-failed\|\[lark-info' || true
 }
 
-# ========== 创建 profile（不启动，供 --start 调用） ==========
-run_foreground_create_only() {
-    local ws="${1:-$HOME/git}"
-    _interactive_select_app "$ws"
-}
+_service_file() { echo "$HOME/.config/systemd/user/${SERVICE_PREFIX}@${1}.service"; }
 
-# ========== systemd 服务 ==========
-setup_service() {
-    echo -e "${CYAN}── systemd 服务 ──${NC}"
+_setup_service() {
+  local profile="$1"
+  [ -z "$profile" ] && return 1
+  if ! systemctl --user daemon-reload 2>/dev/null; then
+    warn "  systemd --user 不可用" >&2; return 1
+  fi
+  loginctl enable-linger "$USER" 2>/dev/null || true
+  mkdir -p "$HOME/.config/systemd/user"
 
-    if ! systemctl --user daemon-reload 2>/dev/null; then
-        warn "  systemd --user 不可用，跳过服务"
-        return 1
-    fi
-    loginctl enable-linger "$USER" 2>/dev/null || true
-
-    mkdir -p "$HOME/.config/systemd/user"
-
-    cat > "$SERVICE_FILE" << SERVICEOF
+  local svc="$(_service_file "$profile")"
+  cat > "$svc" << SERVICEOF
 [Unit]
-Description=Lark Channel Bridge — Feishu ↔ Claude Code
+Description=Lark Channel Bridge — ${profile}
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=${HOME}/.local/bin/lark-channel-bridge start
+ExecStart=${HOME}/.local/bin/lark-channel-bridge start --profile ${profile}
 Restart=on-failure
 RestartSec=15
 Environment=PATH=${HOME}/.local/bin:${NODE_BIN}:/usr/local/bin:/usr/bin:/bin
@@ -288,280 +222,221 @@ Environment=LARK_CHANNEL_HOME=${HOME}/.lark-channel
 WantedBy=default.target
 SERVICEOF
 
-    systemctl --user daemon-reload 2>/dev/null || true
-    systemctl --user enable "${SERVICE_NAME}" 2>/dev/null || true
+  systemctl --user daemon-reload 2>/dev/null || true
+  systemctl --user enable "${SERVICE_PREFIX}@${profile}" 2>/dev/null || true
 
-    if systemctl --user restart "${SERVICE_NAME}" 2>&1; then
-        good "  ✅ 服务运行中"
-        echo ""
-        info "  管理命令:"
-        info "    状态: systemctl --user status ${SERVICE_NAME}"
-        info "    日志: journalctl --user -u ${SERVICE_NAME} -f"
-        info "    重启: bash ccconfig/option-larkbridge/init.sh --restart"
-        info "    停止: bash ccconfig/option-larkbridge/init.sh --stop"
-    else
-        warn "  ⚠ 服务启动失败（检查 journalctl 日志）"
-        journalctl --user -u "${SERVICE_NAME}" --no-pager -n 20 2>/dev/null || true
-    fi
+  if systemctl --user restart "${SERVICE_PREFIX}@${profile}" 2>&1; then
+    good "  ✅ ${profile} 服务运行中"
+    echo ""
+    info "  管理 ${profile}:"
+    info "    状态: systemctl --user status ${SERVICE_PREFIX}@${profile}"
+    info "    日志: journalctl --user -u ${SERVICE_PREFIX}@${profile} -f"
+    info "    重启: $0 --restart ${profile}"
+    info "    停止: $0 --stop ${profile}"
+  else
+    warn "  ⚠ ${profile} 服务启动失败" >&2
+    journalctl --user -u "${SERVICE_PREFIX}@${profile}" --no-pager -n 20 2>/dev/null || true
+  fi
 }
 
-# ========== 状态 ==========
 show_status() {
-    # --status 规范：第一行给 init-option.sh 解析
-    # 机器可读行在前，人友好行在后
-    if command -v lark-channel-bridge &>/dev/null; then
-        local ver
-        ver=$(lark-channel-bridge --version 2>/dev/null | head -1)
-        if systemctl --user is-active "${SERVICE_NAME}" &>/dev/null 2>&1; then
-            echo "OK lark-channel-bridge $ver (systemd 运行中)"
-        elif pgrep -f "lark-channel-bridge" > /dev/null 2>&1; then
-            echo "OK lark-channel-bridge $ver (进程运行中)"
-        elif [ -f "$SERVICE_FILE" ]; then
-            echo "WARN lark-channel-bridge $ver (已装未运行)"
-        else
-            echo "OK lark-channel-bridge $ver (已安装)"
-        fi
-    else
-        echo "MISSING lark-channel-bridge 未安装"
-    fi
+  local running; running="$(_get_running_profiles)"
+  local -a profiles; mapfile -t profiles < <(_list_profiles)
+  local ver; ver=$(lark-channel-bridge --version 2>/dev/null | head -1 || echo "?")
 
-    echo -n "  安装 ... "
-    if command -v lark-channel-bridge &>/dev/null; then
-        good "✅ $(lark-channel-bridge --version 2>/dev/null | head -1)"
-    else
-        echo -e "${YELLOW}○${NC} 未安装"
-    fi
+  if [ ${#profiles[@]} -eq 0 ]; then
+    echo "MISSING lark-channel-bridge $ver (无 profile)"
+  elif [ -n "$running" ]; then
+    local cnt; cnt=$(echo "$running" | wc -l)
+    echo "OK lark-channel-bridge $ver (${cnt} profile(s) 运行中)"
+  elif ls "$HOME/.config/systemd/user/${SERVICE_PREFIX}@"*.service &>/dev/null 2>&1; then
+    echo "WARN lark-channel-bridge $ver (有 service 但未运行)"
+  else
+    echo "OK lark-channel-bridge $ver (已安装)"
+  fi
 
-    echo -n "  服务 ... "
-    if systemctl --user is-active "${SERVICE_NAME}" &>/dev/null 2>&1; then
-        good "● 运行中 (systemd)"
-    elif pgrep -f "lark-channel-bridge" > /dev/null 2>&1; then
-        good "● 运行中 (进程)"
-    elif [ -f "$SERVICE_FILE" ]; then
-        warn "○ 已装未运行"
-    else
-        echo -e "${GRAY}－${NC} 未安装"
-    fi
+  echo -n "  安装 ... "
+  command -v lark-channel-bridge &>/dev/null \
+    && good "✅ $ver" \
+    || echo -e "${YELLOW}○${NC} 未安装"
 
-    if [ -f "$HOME/.lark-channel/config.json" ]; then
-        local bot_name
-        bot_name=$(python3 -c "
-import json,sys
-try:
-    with open('$HOME/.lark-channel/config.json') as f:
-        d = json.load(f)
-    profiles = d.get('profiles', {})
-    active = d.get('activeProfile', list(profiles.keys())[0] if profiles else '')
-    p = profiles.get(active, {})
-    print(f'profile: {active}')
-    print(f'agent: {p.get(\"agentKind\", \"?\")}')
-    acc = p.get('access', {})
-    users = acc.get('allowedUsers', [])
-    groups = acc.get('allowedChats', [])
-    print(f'允许: {len(users)} 用户, {len(groups)} 群组')
-except Exception as e:
-    print(f'无法解析: {e}')
-" 2>/dev/null || echo "?")
-        echo ""
-        echo -e "${CYAN}── 配置 ──${NC}"
-        echo "$bot_name" | while IFS= read -r line; do
-            [ -n "$line" ] && echo "  $line"
-        done
+  echo ""
+  echo -e "${CYAN}── Profile 列表 ──${NC}"
+  if [ ${#profiles[@]} -eq 0 ]; then
+    echo "  无，运行 --profile add 添加"
+  else
+    printf "  %-20s %-10s %s\n" "PROFILE" "STATUS" "SERVICE"
+    for p in "${profiles[@]}"; do
+      local status="${GRAY}○ 未启动${NC}"
+      echo "$running" | grep -qxF "$p" && status="${GREEN}● 运行中${NC}"
+      local svc_indicator="${GRAY}-${NC}"
+      [ -f "$(_service_file "$p")" ] && svc_indicator="${GRAY}systemd${NC}"
+      echo -e "  $(printf '%-20s' "$p") $(printf '%-10b' "$status") $svc_indicator"
+    done
+  fi
 
-        local work_dir
-        work_dir=$(python3 -c "
-import json,sys
-try:
-    with open('$HOME/.lark-channel/config.json') as f:
-        d = json.load(f)
-    profiles = d.get('profiles', {})
-    active = d.get('activeProfile', list(profiles.keys())[0] if profiles else '')
-    p = profiles.get(active, {})
-    ws = p.get('workspaces', {}).get('default', '')
-    print(ws or '（未设置，用 /cd 切换）')
-except:
-    print('?')
-" 2>/dev/null)
-        echo "  工作目录: $work_dir"
-        echo ""
-        info "  飞书命令:"
-        info "    /help      — 帮助"
-        info "    /status    — 状态"
-        info "    /cd <dir>  — 切换工作目录"
-        info "    /ws save/list/use/remove — 工作区管理"
-        info "    /config    — 显示设置"
-        info "    /new       — 重置 session"
-    fi
+  if [ -f "$LCONF" ]; then
+    local active; active="$(_get_active)"
+    echo ""
+    echo -e "${CYAN}── 配置 ──${NC}"
+    echo "  默认 profile: ${CYAN}${active:-（无）}${NC}"
+    echo ""
+    info "  管理命令:"
+    info "    $0 --run <profile>          # 前台调试"
+    info "    $0 --start <profile>        # 后台 systemd"
+    info "    $0 --profile add            # 新增"
+    info "    $0 --profile remove         # 删除"
+  fi
 }
 
-# ========== 日志 ==========
 show_logs() {
-    if systemctl --user is-active "${SERVICE_NAME}" &>/dev/null 2>&1; then
-        journalctl --user -u "${SERVICE_NAME}" -f
-    else
-        local log_dir="$HOME/.lark-channel/profiles/"
-        if [ -d "$log_dir" ]; then
-            local latest
-            latest=$(find "$log_dir" -name '*.jsonl' -type f 2>/dev/null | sort -r | head -1)
-            if [ -n "$latest" ]; then
-                info "日志: $latest"
-                tail -f "$latest" | python3 -c "
+  local profile="${1:-}"
+  [ -z "$profile" ] && profile="$(_pick_profile "选择 profile 查看日志")" || return 0
+  [ -z "$profile" ] && return 0
+
+  if [ -f "$(_service_file "$profile")" ] && systemctl --user is-active "${SERVICE_PREFIX}@${profile}" &>/dev/null 2>&1; then
+    journalctl --user -u "${SERVICE_PREFIX}@${profile}" -f
+  else
+    local log_dir="$HOME/.lark-channel/profiles/"
+    if [ -d "$log_dir" ]; then
+      local latest; latest=$(find "$log_dir" -name "${profile}*.jsonl" -type f 2>/dev/null | sort -r | head -1)
+      if [ -n "$latest" ]; then
+        info "日志: $latest"
+        tail -f "$latest" | python3 -c "
 import json, sys
 for line in sys.stdin:
-    try:
-        d = json.loads(line)
-        time = d.get('time','')[:19]
-        event = d.get('event','')
-        msg = d.get('message','')
-        print(f'{time} [{event}] {msg}')
-    except:
-        print(line.rstrip())" 2>/dev/null || tail -f "$latest"
-            else
-                warn "暂无日志"
-            fi
-        else
-            warn "日志目录不存在"
-        fi
+  try:
+    d = json.loads(line)
+    time = d.get('time','')[:19]; event = d.get('event',''); msg = d.get('message','')
+    print(f'{time} [{event}] {msg}')
+  except: print(line.rstrip())" 2>/dev/null || tail -f "$latest"
+      else
+        warn "暂无日志" >&2
+      fi
+    else
+      warn "日志目录不存在" >&2
     fi
+  fi
 }
 
-# ========== 重新配置 / 修改配置 ==========
-reconfigure() {
-    echo -e "${CYAN}── 重新配置 lark-channel-bridge ──${NC}"
-    echo ""
-    echo "  1. 编辑 ~/.lark-channel/config.json 直接修改"
-    echo "  2. 或删除配置文件重新扫码绑定:"
-    echo ""
-    echo -e "  ${YELLOW}rm -rf ~/.lark-channel${NC}"
-    echo -e "  ${YELLOW}$0 --run${NC}"
-    echo ""
-    echo "  常用配置项:"
-    echo "    profiles.<name>.workspaces.default — 默认工作目录"
-    echo "    profiles.<name>.permissions.defaultAccess — full|workspace|read-only"
-    echo "    profiles.<name>.access.allowedUsers — 允许的用户 open_id 列表"
-    echo "    profiles.<name>.access.allowedChats — 允许的群组 chat_id 列表"
-    echo ""
-    info "  修改后执行 systemctl --user restart ${SERVICE_NAME} 生效"
-    info "  或在飞书内用 /config /invite 命令配置"
+profile_list() {
+  local running; running="$(_get_running_profiles)"
+  local -a profiles; mapfile -t profiles < <(_list_profiles)
+  local active; active="$(_get_active)"
+  echo -e "${CYAN}── Profile 列表 ──${NC}"
+  [ ${#profiles[@]} -eq 0 ] && { echo "  无"; return 0; }
+  local i=0
+  for p in "${profiles[@]}"; do
+    local status="${GRAY}○${NC}"
+    echo "$running" | grep -qxF "$p" && status="${GREEN}●${NC}"
+    local note=""; [ "$p" = "$active" ] && note="默认"
+    echo -e "  $((i+1))) $(printf '%-20s' "$p") $(printf '%-10b' "$status") ${GRAY}${note}${NC}"
+    i=$((i+1))
+  done
 }
 
-# ========== 主程序 ==========
-case "${1:-}" in
-    --start|-s)
-        install
-        if [ ! -f "$HOME/.lark-channel/config.json" ] || ! lark-channel-bridge profile list &>/dev/null; then
-            echo ""; run_foreground_create_only
-        fi
-        echo ""
-        setup_service
-        ;;
-    --start-webui)
-        install
-        if [ ! -f "$HOME/.lark-channel/config.json" ] || ! lark-channel-bridge profile list &>/dev/null; then
-            echo ""; run_foreground_create_only
-        fi
-        echo -e "${CYAN}── systemd 服务 (web-ui 模式) ──${NC}"
-        mkdir -p "$HOME/.config/systemd/user"
-        cat > "$SERVICE_FILE" << EOF
-[Unit]
-Description=Lark Channel Bridge — Web UI (all profiles)
-After=network-online.target
-Wants=network-online.target
+profile_add() {
+  local ws="${LARK_WORKSPACE:-$HOME/git}"
+  local name; name="$(_run_select_app)" || { warn "取消" >&2; return 0; }
+  [ -z "$name" ] && return 0
+  good "  ✓ profile「${name}」已就绪"
+}
 
-[Service]
-Type=simple
-ExecStart=${HOME}/.local/bin/lark-channel-bridge start --web-ui
-Restart=on-failure
-RestartSec=15
-Environment=PATH=${HOME}/.local/bin:${NODE_BIN}:/usr/local/bin:/usr/bin:/bin
-Environment=LARK_CHANNEL_HOME=${HOME}/.lark-channel
+profile_remove() {
+  local profile; profile="$(_pick_profile "选择要删除的 profile")" || return 0
+  [ -z "$profile" ] && return 0
+  read -p "  确认删除 profile「${profile}」? [y/N] " confirm
+  [ "$confirm" != "y" ] && [ "$confirm" != "Y" ] && { warn "取消" >&2; return 0; }
+  local svc="$(_service_file "$profile")"
+  [ -f "$svc" ] && { systemctl --user stop "${SERVICE_PREFIX}@${profile}" 2>/dev/null || true; systemctl --user disable "${SERVICE_PREFIX}@${profile}" 2>/dev/null || true; rm -f "$svc"; }
+  lark-channel-bridge profile remove "$profile" --yes 2>/dev/null || true
+  good "  ✓ 已删除"
+}
 
-[Install]
-WantedBy=default.target
-EOF
-        systemctl --user daemon-reload && systemctl --user enable --now "${SERVICE_NAME}" 2>&1 && good "  ✅ web-ui 服务 (多 profile)" || warn "  ⚠ 服务启动失败"
-        ;;
-    --switch)
-        if [ ! -f "$HOME/.lark-channel/config.json" ]; then
-            warn "尚未配置，先运行 $0 --run"; exit 1
-        fi
-        echo -e "${CYAN}── 切换 profile ──${NC}"
-        # 收集 profile 名到临时文件
-        python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); profs=list(d.get('profiles',{}).keys()); print(' '.join(profs))" 2>/dev/null > /tmp/.lb_plist.txt
-        plist_str=$(cat /tmp/.lb_plist.txt 2>/dev/null); rm -f /tmp/.lb_plist.txt
-        if [ -z "$plist_str" ]; then warn "没有 profile"; exit 1; fi
-        active=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.lark-channel/config.json'))).get('activeProfile',''))" 2>/dev/null)
-        i=1
-        for p in $plist_str; do
-            am=""; [ "$p" = "$active" ] && am=" ← 当前"
-            echo "  $i) $p$am"; i=$((i + 1))
-        done
-        count=$((i - 1))
-        echo ""
-        read -p "  选择 [1-$count]: " sel
-        [ -z "$sel" ] && exit 0
-        [ "$sel" -lt 1 ] || [ "$sel" -gt "$count" ] && { warn "无效选择"; exit 1; }
-        # 取第 sel 个 profile
-        target=$(echo "$plist_str" | cut -d' ' -f"$sel")
-        lark-channel-bridge profile use "$target" 2>&1
-        good "  ✓ 已切换，重启服务生效: systemctl --user restart ${SERVICE_NAME}"
-        ;;
-    --stop)
-        if [ -f "$SERVICE_FILE" ]; then
-            systemctl --user stop "${SERVICE_NAME}" 2>/dev/null && good "✅ 已停止" || warn "⚠ 停止失败"
-        else
-            pkill -f "lark-channel-bridge" 2>/dev/null && good "✅ 已停止" || warn "⚠ 未运行"
-        fi
-        ;;
-    --restart)
-        if [ -f "$SERVICE_FILE" ]; then
-            systemctl --user restart "${SERVICE_NAME}" 2>/dev/null && good "✅ 已重启" || warn "⚠ 重启失败"
-        else
-            warn "服务未安装，请先运行 $0 --start"
-        fi
-        ;;
-    --status)
-        show_status
-        ;;
+profile_default() {
+  local profile; profile="$(_pick_profile "设为默认（activeProfile）")" || return 0
+  [ -z "$profile" ] && return 0
+  lark-channel-bridge profile use "$profile" 2>&1
+  good "  ✓ 已切换默认 profile 为「${profile}」"
+  info "  重启 service 生效: systemctl --user restart ${SERVICE_PREFIX}@${profile}"
+}
+
+main() {
+  local cmd="${1:-}"; shift 2>/dev/null || true
+
+  case "$cmd" in
+    --run|--start|--status|--logs|--profile|--stop|--restart)
+      install ;;
+  esac
+
+  case "$cmd" in
     --run)
-        install
-        echo ""
-        run_foreground
-        ;;
+      run_foreground "${1:-}" ;;
+    --start|--start-webui)
+      local profile="${1:-}"
+      [ -z "$profile" ] && profile="$(_run_select_app)"
+      [ -z "$profile" ] && return 0
+      _setup_service "$profile" ;;
+    --stop)
+      local profile="${1:-}"
+      [ -z "$profile" ] && profile="$(_pick_profile "选择要停止的 profile")"
+      [ -z "$profile" ] && return 0
+      if [ -f "$(_service_file "$profile")" ]; then
+        systemctl --user stop "${SERVICE_PREFIX}@${profile}" 2>/dev/null \
+          && good "✅ ${profile} 已停止" || warn "⚠ ${profile} 停止失败" >&2
+      else
+        bad "  没有 ${profile} 的 service" >&2
+      fi ;;
+    --restart)
+      local profile="${1:-}"
+      [ -z "$profile" ] && profile="$(_pick_profile "选择要重启的 profile")"
+      [ -z "$profile" ] && return 0
+      if [ -f "$(_service_file "$profile")" ]; then
+        systemctl --user restart "${SERVICE_PREFIX}@${profile}" 2>/dev/null \
+          && good "✅ ${profile} 已重启" || warn "⚠ ${profile} 重启失败" >&2
+      else
+        warn "  没有 ${profile} 的 service，先用 --start 启动" >&2
+      fi ;;
+    --status)
+      show_status ;;
     --logs|-l)
-        show_logs
-        ;;
-    --config|-c)
-        reconfigure
-        ;;
-    --help|-h)
-        echo "用法: bash ccconfig/option-larkbridge/init.sh <command>"
-        echo ""
-        echo "  安装/运行:"
-        echo "    --run              交互选择 app + 前台运行"
-        echo "    --start            后台服务（当前 profile）"
-        echo "    --start-webui      后台服务（web-ui，管理所有 profile）"
-        echo ""
-        echo "  管理:"
-        echo "    --switch           切换活动 profile"
-        echo "    --stop             停止服务"
-        echo "    --restart          重启服务"
-        echo "    --status           查看状态"
-        echo "    --logs             查看日志"
-        echo "    --config           修改配置指南"
-        echo ""
-        echo "  示例:"
-        echo "    bash ccconfig/option-larkbridge/init.sh --run       # 交互选择 + 运行"
-        echo "    bash ccconfig/option-larkbridge/init.sh --start     # 后台运行"
-        echo "    bash ccconfig/option-larkbridge/init.sh --status    # 查看状态"
-        ;;
-    *)
-        # 无参数或未知参数：安装 + 提示下一步
-        install
-        echo ""
-        info "安装完成。下一步："
-        info "  1. bash ccconfig/option-larkbridge/init.sh --run    # 飞书扫码绑定"
-        info "  2. bash ccconfig/option-larkbridge/init.sh --start  # 转后台服务"
-        info "  3. 飞书私聊 PersonalAgent 即可收发消息"
-        ;;
-esac
+      show_logs "${1:-}" ;;
+    --profile)
+      local sub="${1:-}"; shift 2>/dev/null || true
+      case "$sub" in
+        list) profile_list ;;
+        add)  profile_add ;;
+        remove|rm) profile_remove ;;
+        default|use) profile_default ;;
+        *) echo "用法: $0 --profile {list|add|remove|default}"; exit 1 ;;
+      esac ;;
+    --help|-h|*)
+      echo "用法: bash ccconfig/option-larkbridge/init.sh <command> [args]"
+      echo ""
+      echo "  运行:"
+      echo "    --run [profile]        前台调试（不传交互选）"
+      echo "    --start [profile]      后台 systemd（不传交互选）"
+      echo ""
+      echo "  管理:"
+      echo "    --stop [profile]       停止 service"
+      echo "    --restart [profile]    重启 service"
+      echo "    --status               所有 profile + 状态"
+      echo "    --logs [profile]       查看日志"
+      echo ""
+      echo "  Profile 管理:"
+      echo "    --profile list         列表"
+      echo "    --profile add          新增（ccprivate / 扫码）"
+      echo "    --profile remove       删除"
+      echo "    --profile default      设为默认"
+      echo ""
+      echo "  示例:"
+      echo "    $0 --run               交互选 + 前台跑"
+      echo "    $0 --run ailab         直接前台跑 ailab"
+      echo "    $0 --start ailab       后台 ailab service"
+      echo "    $0 --start             交互选 + 后台"
+      echo "    $0 --status            看所有"
+      ;;
+  esac
+}
+
+main "$@"
