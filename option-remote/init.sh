@@ -90,19 +90,22 @@ is_mirrored_network() {
 
 # ── 服务器端安装 ──
 do_server() {
-    section "安装 SSH Server + tmux"
-    bash "$SCRIPT_DIR/server/tmux-sshd.sh"
+    # 预检：SSH 已就绪则跳过 tmux-sshd.sh（避免 sudo 提示）
+    local ssh_ok=false port=""
+    if systemctl is-active ssh.socket &>/dev/null 2>&1 || systemctl is-active ssh &>/dev/null 2>&1; then
+        port=$(grep -oP '^Port \K[0-9]+' /etc/ssh/sshd_config 2>/dev/null || echo "")
+        [ -n "$port" ] && ssh_ok=true
+    fi
+
+    if ! $ssh_ok; then
+        section "安装 SSH Server + tmux"
+        bash "$SCRIPT_DIR/server/tmux-sshd.sh"
+    else
+        ok "SSH Server 已就绪（端口 $port）"
+    fi
 
     if is_mirrored_network; then
-        echo ""
-        echo -e "${GREEN}━━━ Mirrored 网络模式：端口转发无需配置 ━━━${NC}"
-        echo ""
-        echo -e "  WSL 与 Windows 共享网络栈，SSH 直接可达。"
-        echo ""
-        echo -e "  远程连接命令："
-        echo -e "    ${GREEN}ssh $USER@<Tailscale IP> -p 2222${NC}"
-        echo ""
-        echo -e "  确认 Tailscale 已登录即可（${GREEN}tailscale status${NC}）"
+        echo -e "  Mirrored 模式：端口转发无需配置"
     else
         section "部署 Windows 脚本"
         bash "$SCRIPT_DIR/deploy.sh" server
