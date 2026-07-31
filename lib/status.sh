@@ -24,7 +24,7 @@ source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/path-helper.sh"
 REPO_DIR="$CCCONFIG_ROOT"
 
-# --quick: 跳过慢检查（Playwright、MCP、option 组件、模板对比）
+# --quick: 跳过慢检查（MCP、option 组件、模板对比）
 QUICK_MODE=false
 [[ "${1:-}" == "--quick" ]] && QUICK_MODE=true
 
@@ -44,8 +44,7 @@ git_pull() {
 
 # ========== 1. 检查符号链接 ==========
 check_symlinks() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[1] 配置文件链接${NC}"
+    echo -e "${CYAN}━━━ 配置文件链接━━━${NC}"
 
     local issues=0
 
@@ -128,8 +127,7 @@ check_symlinks() {
 # ========== 1b. ccprivate 结构 ==========
 check_ccprivate_structure() {
     local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[1b] ccprivate 结构${NC}"
+    echo -e "${CYAN}━━━ ccprivate 结构━━━${NC}"
 
     if [ ! -d "$ccpriv" ]; then
         echo -e "  ${RED}❌${NC} ccprivate 目录不存在: $ccpriv"
@@ -190,8 +188,8 @@ check_ccprivate_structure() {
 
 # ========== 3. 检查 auto-sync ==========
 check_autosync() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[3] auto-sync${NC}"
+    echo ""
+    echo -e "${CYAN}━━━ auto-sync━━━${NC}"
 
     if [ -x "$REPO_DIR/lib/monitor.sh" ]; then
         bash "$REPO_DIR/lib/monitor.sh" status 2>/dev/null || true
@@ -202,8 +200,7 @@ check_autosync() {
 
 # ========== 4. GitHub 最后推送 ==========
 check_last_push() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[4] 最后推送${NC}"
+    echo -e "${CYAN}━━━ 最后推送━━━${NC}"
 
     if [ ! -d "$REPO_DIR/.git" ]; then
         echo -e "  ${YELLOW}⚠️${NC} 非 Git 仓库"
@@ -224,8 +221,7 @@ check_last_push() {
 
 # ========== 5. MEMORY 最后更新 ==========
 check_memory() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[5] MEMORY${NC}"
+    echo -e "${CYAN}━━━ MEMORY━━━${NC}"
 
     local projects_dir="$HOME/.claude/projects"
     local found=0
@@ -274,8 +270,7 @@ check_memory() {
 
 # ========== 6. Git 项目状态 ==========
 check_git_projects() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[6] Git 项目状态${NC}"
+    echo -e "${CYAN}━━━ Git 项目━━━${NC}"
 
     local found=0
     for git_dir in "$HOME/git"/*/; do
@@ -347,175 +342,26 @@ check_git_projects() {
     fi
 }
 
-# ========== 8. Playwright 浏览器测试 ==========
-check_playwright() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[8] Playwright 浏览器测试${NC}"
 
-    echo -n "  npx playwright ... "
-    if timeout 10 npx playwright --version &>/dev/null; then
-        echo -e "${GREEN}✅${NC} $(timeout 10 npx playwright --version 2>/dev/null)"
-    else
-        echo -e "${GRAY}－${NC} 未安装"
-    fi
-
-    echo -n "  浏览器 ... "
-    if [ -d "$HOME/.cache/ms-playwright/chromium"* ] 2>/dev/null; then
-        echo -e "${GREEN}✅${NC} Chromium"
-    elif [ -d "$HOME/.cache/ms-playwright" ]; then
-        echo -e "${GREEN}✅${NC} 已安装"
-    else
-        echo -e "${YELLOW}○${NC} 未安装浏览器"
-    fi
-
-    echo -n "  MCP ... "
-    if timeout 10 npx @playwright/mcp@latest --version 2>/dev/null | grep -q .; then
-        echo -e "${GREEN}✅${NC} 可用"
-    else
-        echo -e "${YELLOW}○${NC} 未配置"
-    fi
-}
-
-# ========== 9. MCP 服务器状态 ==========
+# ========== MCP 服务器状态 ==========
 check_mcp() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[9] MCP 服务器${NC}"
+    echo ""
+    echo -e "${CYAN}━━━ MCP 服务器━━━${NC}"
 
-    local claude_json="$HOME/.claude/.config.json"
-
-    if [ ! -f "$claude_json" ]; then
-        echo -e "  ${RED}❌${NC} .config.json 不存在"
+    local list
+    list=$(claude mcp list 2>&1) || true
+    if [ -z "$list" ]; then
+        echo -e "  ${GRAY}claude mcp list 无返回${NC}"
         return
     fi
-
-    # 24h 内已检查过则跳过（避免每次 SessionStart 都测试 MCP 增加启动延迟）
-    local mcp_stamp="$HOME/.cache/ccconfig-mcp-check.stamp"
-    if [ -f "$mcp_stamp" ] && [ "$(find "$mcp_stamp" -mmin -1440 2>/dev/null)" ]; then
-        echo -e "  ${GRAY}... 24h 内已检查，跳过（删除 $mcp_stamp 强制刷新）${NC}"
-        return
-    fi
-
-    # 读取 MCP 配置并测试（并行，总超时约 5 秒）
-    local mcp_output
-    mcp_output=$(python3 - "$claude_json" << 'PYEOF' 2>/dev/null
-import json, sys, subprocess, os
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-PLACEHOLDER_PATTERNS = ['请填入', '请到', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-']
-
-def _is_placeholder(val):
-    if not val or not isinstance(val, str):
-        return False
-    v = val.lower()
-    for p in PLACEHOLDER_PATTERNS:
-        if p.lower() in v:
-            return True
-    return False
-
-def _missing_keys(config):
-    missing = []
-    env = config.get('env', {})
-    for k, v in env.items():
-        if _is_placeholder(v):
-            missing.append(k)
-    args = config.get('args', [])
-    for i, a in enumerate(args):
-        if _is_placeholder(a):
-            if i > 0:
-                missing.append(args[i-1])
-            else:
-                missing.append(f'args[{i}]')
-    return missing
-
-def test_mcp(name, config):
-    try:
-        if config.get('type') == 'http':
-            url = config.get('url', '?')
-            return name, f"✅ http ({url})", None
-        cmd = config.get('command')
-        args = config.get('args', [])
-        if not cmd:
-            return name, None, "无命令"
-
-        full_cmd = [cmd] + args if args else [cmd]
-        env = os.environ.copy()
-        env.update(config.get('env', {}))
-        init_req = json.dumps({
-            "jsonrpc": "2.0", "id": 1, "method": "initialize",
-            "params": {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0"}}
-        })
-        list_req = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
-        proc = subprocess.Popen(full_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, text=True)
-        stdout, _ = proc.communicate(input=f"{init_req}\n{list_req}\n", timeout=5)
-        for line in stdout.strip().split("\n"):
-            if line:
-                try:
-                    resp = json.loads(line)
-                    if resp.get("id") == 1 and "result" in resp:
-                        ver = resp["result"].get("serverInfo", {}).get("version", "?")
-                        return name, f"✅ {ver}", None
-                except: pass
-        # 连接失败，检查是否因缺 Key
-        missing = _missing_keys(config)
-        if missing:
-            return name, None, f"缺少 Key: {', '.join(missing[:3])}"
-        return name, "✅ (无版本)", None
-    except subprocess.TimeoutExpired:
-        missing = _missing_keys(config)
-        if missing:
-            return name, None, f"缺少 Key: {', '.join(missing[:3])}"
-        return name, None, "超时"
-    except FileNotFoundError:
-        return name, None, "命令未找到"
-    except Exception as e:
-        return name, None, str(e)[:50]
-
-with open(sys.argv[1], 'r') as f:
-    data = json.load(f)
-
-mcps = data.get('mcpServers', {})
-if not mcps:
-    print("  (无 MCP 配置)")
-    print("STATUS=ok")
-    sys.exit(0)
-
-# 并行测试所有 MCP 服务器
-results = {}
-with ThreadPoolExecutor(max_workers=len(mcps)) as ex:
-    futures = {ex.submit(test_mcp, name, config): name for name, config in mcps.items()}
-    for future in as_completed(futures):
-        name, result, error = future.result()
-        results[name] = (result, error)
-
-for name in sorted(results):
-    result, error = results[name]
-    if result:
-        print(f"  {name}: {result}")
-    else:
-        print(f"  {name}: ❌ {error}")
-
-# bash 端根据 STATUS= 决定是否写 24h 缓存 stamp
-if any(error for _, error in results.values()):
-    print("STATUS=fail")
-else:
-    print("STATUS=ok")
-PYEOF
-)
-    echo "$mcp_output" | grep -v "^STATUS="
-
-    mkdir -p "$HOME/.cache"
-    if echo "$mcp_output" | grep -q "^STATUS=fail"; then
-        rm -f "$mcp_stamp"
-        echo "⚠ MCP 检查有失败，24h 缓存禁用，下次 SessionStart 重试" >&2
-    else
-        touch "$mcp_stamp"
-    fi
+    echo "$list" | while IFS= read -r line; do
+        echo "  $line"
+    done
 }
 
 # ========== 7. 飞书 lark-cli 状态（可选） ==========
 check_feishu() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[7] 飞书 (lark-cli) [option]${NC}"
+    echo -e "${CYAN}━━━ 飞书 (lark-cli)━━━${NC}"
 
     export PATH="$HOME/.local/bin:$(find_node_bin):$PATH"
 
@@ -611,8 +457,7 @@ PYEOF
 
 # ========== 2. 依赖检查 ==========
 check_deps_quick() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[2] 核心依赖${NC}"
+    echo -e "${CYAN}━━━ 核心依赖━━━${NC}"
 
     local deps_script="$REPO_DIR/lib/deps-check.sh"
     if [ -x "$deps_script" ]; then
@@ -625,7 +470,7 @@ check_deps_quick() {
 # ========== 10. option-* 可选组件（含远程连接） ==========
 check_option_components() {
     echo ""
-    echo -e "${CYAN}━━━[10] option-* 可选组件━━━${NC}"
+    echo -e "${CYAN}━━━ 可选组件━━━${NC}"
     echo ""
 
     local found=0
@@ -789,8 +634,7 @@ check_example_sync() {
     local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 
     echo ""
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[12b] Example 模板同步${NC}"
+    echo -e "${CYAN}━━━ 模板同步━━━${NC}"
 
     # rules 检查
     local rules_outdated=0 rules_new=0 rules_added=0
@@ -882,10 +726,8 @@ check_git_projects
 check_feishu
 
 if ! $QUICK_MODE; then
-    check_playwright
     check_mcp
     check_option_components
-    check_skills
     check_example_sync
 fi
 
