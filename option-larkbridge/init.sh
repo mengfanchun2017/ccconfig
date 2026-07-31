@@ -131,7 +131,6 @@ _interactive_select_app() {
             menu_items+=("profile:$p")
             idx=$((idx + 1))
         done
-        echo "" >&2
     fi
 
     # ─── ccprivate 配置 ───
@@ -148,25 +147,20 @@ _interactive_select_app() {
             idx=$((idx + 1))
             i=$((i + 1))
         done
-        echo "" >&2
     fi
 
     # ─── 扫码新建 ───
     echo -e "  ${GRAY}--扫码新建配置--${NC}" >&2
-    echo -e "  s) ${YELLOW}扫码新建 PersonalAgent${NC}" >&2
-    echo "" >&2
+    echo -e "  s) ${YELLOW}扫码新建${NC}" >&2
 
     # ─── 服务重启 ───
     if [ -f "$SERVICE_FILE" ]; then
-        echo -e "  ${GRAY}--服务--${NC}" >&2
         local svc_status="${GRAY}未运行${NC}"
         systemctl --user is-active "${SERVICE_NAME}" &>/dev/null && svc_status="${GREEN}运行中${NC}"
         echo -e "  r) 重启系统服务 (${svc_status})" >&2
-        echo "" >&2
     fi
 
     echo -e "  0) 返回" >&2
-    echo "" >&2
 
     read -p "  选择 [0-${idx} / s / r]: " sel
     [ -z "$sel" ] && return 1
@@ -218,15 +212,12 @@ _interactive_select_app() {
             # 检查同名 profile 是否已存在
             local exists=0
             for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$cname" ] && exists=1 && break; done
-            if [ "$exists" = "1" ]; then
-                echo -e "${GRAY}  profile $cname 已存在，直接使用${NC}" >&2
-            else
-                echo -e "${GRAY}  创建 profile: $cname ...${NC}" >&2
+            if [ "$exists" = "0" ]; then
                 lark-channel-bridge profile create "$cname" \
                     --agent claude \
                     --workspace "$ws" \
                     --app-id "$id" \
-                    --app-secret "$secret" 2>&1
+                    --app-secret "$secret" > /dev/null 2>&1
             fi
             echo "$cname" > "$result_file"
             return 0
@@ -258,7 +249,7 @@ run_foreground() {
 
     echo "" >&2
     good "  ✓ 启动 $profile_name" >&2
-    lark-channel-bridge run --profile "$profile_name" --workspace "$ws"
+    lark-channel-bridge run --profile "$profile_name" --workspace "$ws" 2>&1 | grep -v 'sdk.error\|owner_refresh_failed\|chats-fetch-failed\|\[lark-info'
 }
 
 # ========== 创建 profile（不启动，供 --start 调用） ==========
