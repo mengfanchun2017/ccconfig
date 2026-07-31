@@ -116,6 +116,7 @@ _interactive_select_app() {
         for p in "${existing_profiles[@]}"; do
             local active=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
             local am=""; [ "$p" = "$active" ] && am=" ${CYAN}← 当前${NC}"
+            echo -e "  ${idx}) ${p}${am}" >&2
             idx=$((idx + 1))
         done
     fi
@@ -127,7 +128,7 @@ _interactive_select_app() {
             local name="${app_names[$i]}"
             local id_short="${app_ids[$i]:0:12}..."
             local em=""
-            for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$name" ] && em=" ${GRAY}(已有)${NC}" && break; done
+            for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$name" ] && em=" ${GRAY}← 已有${NC}" && break; done
             echo -e "  ${idx}) ${name} (${id_short})${em}" >&2
             idx=$((idx + 1))
             i=$((i + 1))
@@ -156,12 +157,19 @@ _interactive_select_app() {
         local name="${app_names[$fi]}"
         local id="${app_ids[$fi]}"
         local secret="${app_secrets[$fi]}"
-        echo -e "${GRAY}  创建 profile: $name ...${NC}" >&2
-        lark-channel-bridge profile create "$name" \
-            --agent claude \
-            --workspace "$ws" \
-            --app-id "$id" \
-            --app-secret "$secret" 2>&1
+        # 检查同名 profile 是否已存在
+        local exists=0
+        for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$name" ] && exists=1 && break; done
+        if [ "$exists" = "1" ]; then
+            echo -e "${GRAY}  profile $name 已存在，直接使用${NC}" >&2
+        else
+            echo -e "${GRAY}  创建 profile: $name ...${NC}" >&2
+            lark-channel-bridge profile create "$name" \
+                --agent claude \
+                --workspace "$ws" \
+                --app-id "$id" \
+                --app-secret "$secret" 2>&1
+        fi
         echo "$name" > "$result_file"
         return 0
     fi
