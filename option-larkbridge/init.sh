@@ -109,73 +109,77 @@ _interactive_select_app() {
 
     echo -e "${CYAN}── 选择飞书应用 ──${NC}" >&2
 
-    local idx=1
-
-    if [ ${#existing_profiles[@]} -gt 0 ]; then
-        echo -e "  ${GRAY}已有 profile:${NC}" >&2
-        for p in "${existing_profiles[@]}"; do
-            local active=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
-            local am=""; [ "$p" = "$active" ] && am=" ${CYAN}← 当前${NC}"
-            echo -e "  ${idx}) ${p}${am}" >&2
-            idx=$((idx + 1))
-        done
+    # 检测进程占用
+    local busy_profiles=""
+    if command -v lark-channel-bridge &>/dev/null; then
+        busy_profiles=$(lark-channel-bridge ps 2>/dev/null | grep -oP '(?<=Bot\s{3}).*?(?=\s{2,})' || true)
     fi
 
+    local idx=1
+    local -a menu_items=() # 存每项对应的指令：profile名 / s(s扫码) / r(重启)
+
+    # ─── 生效 profile ───
+    if [ ${#existing_profiles[@]} -gt 0 ]; then
+        echo -e "  ${GRAY}--生效 profile--${NC}" >&2
+        for p in "${existing_profiles[@]}"; do
+            local active=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
+            local am=""
+            local busy_mark=""
+            [ "$p" = "$active" ] && am=" ${CYAN}← 当前${NC}"
+            echo "$busy_profiles" | grep -q "$p" && busy_mark=" ${GREEN}● 运行中${NC}"
+            echo -e "  ${idx}) ${p}${am}${busy_mark}" >&2
+            menu_items+=("profile:$p")
+            idx=$((idx + 1))
+        done
+        echo "" >&2
+    fi
+
+    # ─── ccprivate 配置 ───
     if [ ${#app_names[@]} -gt 0 ]; then
-        echo -e "  ${GRAY}ccprivate 配置:${NC}" >&2
+        echo -e "  ${GRAY}--ccprivate 配置--${NC}" >&2
         local i=0
         while [ $i -lt ${#app_names[@]} ]; do
             local name="${app_names[$i]}"
             local id_short="${app_ids[$i]:0:12}..."
             local em=""
-            for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$name" ] && em=" ${GRAY}← 已有${NC}" && break; done
+            for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$name" ] && em=" ${GRAY}(profile 已存在)${NC}" && break; done
             echo -e "  ${idx}) ${name} (${id_short})${em}" >&2
+            menu_items+=("create:$name")
             idx=$((idx + 1))
             i=$((i + 1))
         done
+        echo "" >&2
     fi
 
-    local scan_idx=$idx
-    echo -e "  ${idx}) ${YELLOW}扫码新建${NC}" >&2
+    # ─── 扫码新建 ───
+    echo -e "  ${GRAY}--扫码新建配置--${NC}" >&2
+    echo -e "  s) ${YELLOW}扫码新建 PersonalAgent${NC}" >&2
+    echo "" >&2
+
+    # ─── 服务重启 ───
+    if [ -f "$SERVICE_FILE" ]; then
+        echo -e "  ${GRAY}--服务--${NC}" >&2
+        local svc_status="${GRAY}未运行${NC}"
+        systemctl --user is-active "${SERVICE_NAME}" &>/dev/null && svc_status="${GREEN}运行中${NC}"
+        echo -e "  r) 重启系统服务 (${svc_status})" >&2
+        echo "" >&2
+    fi
+
     echo -e "  0) 返回" >&2
     echo "" >&2
 
-    read -p "  选择 [0-${scan_idx}]: " sel
+    read -p "  选择 [0-${idx} / s / r]: " sel
     [ -z "$sel" ] && return 1
     [ "$sel" = "0" ] && echo -n "" > "$result_file" && return 1
 
-    # 已有 profile
-    if [ ${#existing_profiles[@]} -gt 0 ] && [ "$sel" -le ${#existing_profiles[@]} ]; then
-        echo "${existing_profiles[$((sel - 1))]}" > "$result_file"
-        return 0
-    fi
-    local offset=${#existing_profiles[@]}
-
-    # feishu.json app
-    local fi=$((sel - 1 - offset))
-    if [ "$sel" -ge $((offset + 1)) ] && [ "$sel" -lt "$scan_idx" ] && [ $fi -ge 0 ] && [ $fi -lt ${#app_names[@]} ]; then
-        local name="${app_names[$fi]}"
-        local id="${app_ids[$fi]}"
-        local secret="${app_secrets[$fi]}"
-        # 检查同名 profile 是否已存在
-        local exists=0
-        for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$name" ] && exists=1 && break; done
-        if [ "$exists" = "1" ]; then
-            echo -e "${GRAY}  profile $name 已存在，直接使用${NC}" >&2
-        else
-            echo -e "${GRAY}  创建 profile: $name ...${NC}" >&2
-            lark-channel-bridge profile create "$name" \
-                --agent claude \
-                --workspace "$ws" \
-                --app-id "$id" \
-                --app-secret "$secret" 2>&1
-        fi
-        echo "$name" > "$result_file"
-        return 0
+    # 服务重启
+    if [ "$sel" = "r" ] && [ -f "$SERVICE_FILE" ]; then
+        systemctl --user restart "${SERVICE_NAME}" 2>&1 && good "  ✅ 已重启" >&2 || bad "  ❌ 重启失败" >&2
+        return 1
     fi
 
     # 扫码新建
-    if [ "$sel" = "$scan_idx" ]; then
+    if [ "$sel" = "s" ]; then
         echo -e "${YELLOW}  扫码后会保存到 ~/.lark-channel${NC}" >&2
         echo -e "  ${GRAY}  如需持久化，创建后复制 appId/secret 到 ccprivate${NC}" >&2
         read -p "  按回车开始扫码..." dummy
@@ -187,6 +191,47 @@ _interactive_select_app() {
         echo "${np:-}" > "$result_file"
         return 0
     fi
+
+    # 数字选择
+    [ "$sel" -ge 1 ] 2>/dev/null || return 1
+    local menu_idx=$((sel - 1))
+    [ $menu_idx -lt 0 ] || [ $menu_idx -ge ${#menu_items[@]} ] && return 1
+    local chosen="${menu_items[$menu_idx]}"
+
+    case "$chosen" in
+        profile:*)
+            # 已有 profile
+            local pname="${chosen#profile:}"
+            echo "$pname" > "$result_file"
+            return 0
+            ;;
+        create:*)
+            # feishu.json app
+            local cname="${chosen#create:}"
+            local fi=0
+            while [ $fi -lt ${#app_names[@]} ]; do
+                [ "${app_names[$fi]}" = "$cname" ] && break
+                fi=$((fi + 1))
+            done
+            local id="${app_ids[$fi]}"
+            local secret="${app_secrets[$fi]}"
+            # 检查同名 profile 是否已存在
+            local exists=0
+            for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$cname" ] && exists=1 && break; done
+            if [ "$exists" = "1" ]; then
+                echo -e "${GRAY}  profile $cname 已存在，直接使用${NC}" >&2
+            else
+                echo -e "${GRAY}  创建 profile: $cname ...${NC}" >&2
+                lark-channel-bridge profile create "$cname" \
+                    --agent claude \
+                    --workspace "$ws" \
+                    --app-id "$id" \
+                    --app-secret "$secret" 2>&1
+            fi
+            echo "$cname" > "$result_file"
+            return 0
+            ;;
+    esac
 
     return 1
 }
