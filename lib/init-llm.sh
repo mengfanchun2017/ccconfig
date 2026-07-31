@@ -25,6 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/path-helper.sh"
 source "$SCRIPT_DIR/colors.sh"
+source "$SCRIPT_DIR/dry-run.sh"
 CONFIG_FILE="$(resolve_conf llm.json)" || exit 1
 LLMSWITCH_CONF="$CCCONFIG_ROOT/option-llmswitch/conf/llmswitch.json"
 LLMSWITCH_INIT="$CCCONFIG_ROOT/option-llmswitch/init.sh"
