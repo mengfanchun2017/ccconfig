@@ -125,7 +125,7 @@ git_push() {
         fi
         if echo "$output" | grep -qi "connection\|network\|Recv failure\|reset by peer\|timeout\|Could not resolve"; then
             if [ $attempt -lt $max_attempts ]; then
-                do_log "[$(repo_name "$repo_dir")] push attempt $attempt failed, retry in 10s..."
+                log "[$(repo_name "$repo_dir")] push attempt $attempt failed, retry in 10s..."
                 sleep 10
             fi
         else
@@ -234,7 +234,7 @@ commit_and_push() {
                 # Network/timeout error -> retry; non-network error -> don't retry
                 if [ $pull_rc -eq 124 ] || echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls\|Recv failure"; then
                     if [ $pull_attempt -lt $pull_max ]; then
-                        do_log "[$repo] pull attempt $pull_attempt failed, retry in 10s..."
+                        log "[$repo] pull attempt $pull_attempt failed, retry in 10s..."
                         sleep 10
                     fi
                 else
