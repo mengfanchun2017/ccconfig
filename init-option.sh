@@ -351,13 +351,23 @@ PYEOF
             2)
                 echo ""
                 bash "$SCRIPT_DIR/option-larkcli/lark-switch.sh" "$target_name"
+                # 切换后自动检测 auth
+                local cd="$HOME/.lark-cli-${target_name}"
+                if [ -f "${cd}/config.json" ]; then
+                    if ! LARKSUITE_CLI_CONFIG_DIR="$cd" lark-cli auth status 2>/dev/null | grep -q "tokenStatus.*valid"; then
+                        echo ""
+                        warn "  该账号尚未 OAuth 授权，自动拉起授权..."
+                        LARKSUITE_CLI_CONFIG_DIR="$cd" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1
+                    else
+                        info "  授权状态正常"
+                    fi
+                fi
                 ;;
             3)
                 echo ""
                 local cd="$HOME/.lark-cli-${target_name}"
                 if [ -f "${cd}/config.json" ]; then
-                    info "启动 OAuth 授权..."
-                    LARKSUITE_CLI_CONFIG_DIR="$cd" lark-cli auth login --scope "docx:document:create,docx:document:readonly,drive:drive:readonly,search:docs:read" --no-wait 2>&1 | grep -v "^\[lark-cli\]" | tail -10
+                    LARKSUITE_CLI_CONFIG_DIR="$cd" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1
                 else
                     warn "先选 1 编辑 App ID/Secret"
                 fi

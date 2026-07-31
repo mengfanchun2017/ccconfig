@@ -88,11 +88,57 @@ setup_lark_cli_account() {
     local cf="${config_dir}/config.json"
     if [ -f "$cf" ]; then
         good "  ✓ ${name}"
-        lark-cli auth status 2>/dev/null | grep -q "Authorized" || warn "    ○ 待授权: LARKSUITE_CLI_CONFIG_DIR=${config_dir} lark-cli auth login --recommend"
+        # 检测 auth，未授权则自动拉起
+        if ! lark-cli auth status 2>/dev/null | grep -q "tokenStatus.*valid"; then
+            warn "    ○ 待授权，自动发起 OAuth 授权..."
+            _do_auth_login "$config_dir" "$name"
+        fi
         return 0
     fi
     echo -n "  → ${name} ... "
     echo "$app_secret" | lark-cli config init --app-id "$app_id" --app-secret-stdin --brand "$brand" 2>&1 && good "✅" || bad "❌"
+    # 配置完成后检测 auth
+    if [ -f "$cf" ]; then
+        if ! lark-cli auth status 2>/dev/null | grep -q "tokenStatus.*valid"; then
+            echo ""
+            warn "  ○ 配置完成，需 OAuth 授权"
+            _do_auth_login "$config_dir" "$name"
+        fi
+    fi
+}
+
+# ── 自动 OAuth 授权 ──
+_do_auth_login() {
+    local config_dir="$1" name="$2"
+    export LARKSUITE_CLI_CONFIG_DIR="$config_dir"
+
+    # 请求 device code（--domain all 一次授权所有 scope）
+    local auth_out
+    auth_out=$(lark-cli auth login --domain all --no-wait --json 2>&1 | grep -v '^\[lark-cli\]')
+    local device_code url
+    device_code=$(echo "$auth_out" | python3 -c "import json,sys; print(json.load(sys.stdin).get('device_code',''))" 2>/dev/null || echo "")
+    url=$(echo "$auth_out" | python3 -c "import json,sys; print(json.load(sys.stdin).get('verification_url',''))" 2>/dev/null || echo "")
+
+    if [ -z "$device_code" ] || [ -z "$url" ]; then
+        warn "    授权请求失败，稍后可手动执行:"
+        warn "    LARKSUITE_CLI_CONFIG_DIR=$config_dir lark-cli auth login --domain all"
+        return 1
+    fi
+
+    echo ""
+    info "    授权链接:"
+    echo "    $url"
+    echo ""
+    info "    扫码后自动继续..."
+
+    lark-cli auth login --device-code "$device_code" 2>&1 | grep -v '^\[lark-cli\]' | grep -v 'AI agent' | grep -v '此命令最长' | grep -v '不要在同一轮' | grep -v '必须生成二维码' | grep -v '**MUST' | grep -v '**CRITICAL' | grep -v '**Display' | grep -v '**URL Output' | grep -v 'For agent' | grep -v '等待用户' | grep -v '必须调用' | grep -v '优先生成' | grep -v '生成后必须' | grep -v '仅生成文件'
+
+    if lark-cli auth status 2>/dev/null | grep -q "tokenStatus.*valid"; then
+        good "  ✅ ${name} OAuth 授权成功"
+    else
+        warn "  ○ 授权未完成，稍后可手动执行:"
+        warn "    LARKSUITE_CLI_CONFIG_DIR=$config_dir lark-cli auth login --domain all"
+    fi
 }
 
 run_lark_cli() {
