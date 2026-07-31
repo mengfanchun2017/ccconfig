@@ -801,6 +801,7 @@ check_example_sync() {
         [ -f "$ccpriv/conf/$base" ] || conf_new=$((conf_new + 1))
     done
     [ $conf_new -gt 0 ] && echo -e "  conf: ${CYAN}${conf_new} 新模板${NC}（自 sync.sh 处理）"
+    return 0
 }
 
 # ========== 执行所有检查 ==========
