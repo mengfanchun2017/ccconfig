@@ -624,62 +624,119 @@ check_deps_quick() {
 
 # ========== 10. option-* 可选组件（含远程连接） ==========
 check_option_components() {
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[10] option-* 可选组件（含远程连接）${NC}"
+    echo ""
+    echo -e "${CYAN}━━━[10] option-* 可选组件━━━${NC}"
+    echo ""
 
     local found=0
-    for opt_dir in "$REPO_DIR"/option-*/; do
-        [ -d "$opt_dir" ] || continue
-        local name=$(basename "$opt_dir")
-        local init_script="$opt_dir/init.sh"
 
-        found=$((found + 1))
-        echo -n "  $name ... "
-        if [ ! -f "$init_script" ]; then
-            echo -e "${GRAY}－${NC} (无 init.sh)"
-            continue
-        fi
+    # 分组：与 init-option.sh 保持一致
+    local groups=(
+        "--os--|bat glow nano"
+        "--claude--|mcp skill"
+        "--lark--|larkcli larkbridge"
+        "--other--|officecli remote cloudflare"
+        "--key--|feishu_key"
+    )
 
-        local out
-        out=$(bash "$init_script" --status 2>&1) || true
-        local esc=$'\033'
-        local first_line=$(echo "$out" | sed "s/${esc}\[[0-9;]*m//g" | grep -vE '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+    for group_entry in "${groups[@]}"; do
+        local group_title="${group_entry%%|*}"
+        local group_items="${group_entry#*|}"
 
-        if [ -z "$first_line" ]; then
-            echo -e "${GRAY}－${NC}"
-        elif echo "$first_line" | grep -qi "^OK"; then
-            echo -e "${GREEN}✅${NC} ${first_line#OK }"
-        elif echo "$first_line" | grep -qi "^ready"; then
-            echo -e "${GREEN}✅${NC} ${first_line#ready }"
-        elif echo "$first_line" | grep -qi "^FAIL\|^❌\|^error"; then
-            # 可选组件未运行不算错误，黄色提示
-            local msg="${first_line#FAIL }"
-            msg="${msg#❌ }"
-            echo -e "${YELLOW}○${NC} $msg"
-        else
-            # 检查是否有安装/配置标记（SSH ✅ 等）
-            if echo "$first_line" | grep -q '✅'; then
-                echo -e "${GREEN}✅${NC} ${first_line}"
-            elif echo "$first_line" | grep -qE '(未安装|未登录|not running|not installed)'; then
-                echo -e "${GRAY}－${NC} $first_line"
-            elif echo "$first_line" | grep -qiE '(cloudflare|plugin|workers)'; then
-                echo -e "${GRAY}－${NC} $first_line"
+        echo -e "  ${BOLD}${group_title}${NC}"
+
+        for name in $group_items; do
+            # 检测是否存在
+            case "$name" in
+                mcp|feishu_key) ;;
+                bat|glow|nano) ;;
+                *) [ -d "$REPO_DIR/option-$name" ] || continue ;;
+            esac
+            found=$((found + 1))
+
+            icon="" detail=""
+            if [ "$name" = "mcp" ]; then
+                local claude_json="$HOME/.claude/.config.json"
+                if [ -f "$claude_json" ]; then
+                    local count=$(python3 -c "import json; d=json.load(open('$claude_json')); print(len(d.get('mcp_servers',[])))" 2>/dev/null || echo "0")
+                    [ "$count" -gt 0 ] && { icon="ok"; detail="$count 个 MCP 服务器"; } || { icon="miss"; detail="MCP 未配置（bash lib/init-mcp.sh sync）"; }
+                else
+                    icon="miss"; detail="claude.json 未找到"
+                fi
+            elif [ "$name" = "feishu_key" ]; then
+                local feishu_conf
+                feishu_conf=$(resolve_conf feishu.json 2>/dev/null) || { icon="miss"; detail="ccprivate/conf/feishu.json 不存在"; }
+                if [ -z "$icon" ]; then
+                    local fk_out
+                    fk_out=$(python3 - "$feishu_conf" << 'PYEOF' 2>/dev/null
+import json, sys
+PLACEHOLDER = ['请填入','请到','请替换','your key','your_key','placeholder','changeme','<your-','your-app-name']
+def is_ph(v):
+    if not v or not isinstance(v, str): return True
+    return any(p in v.lower() for p in PLACEHOLDER)
+with open(sys.argv[1]) as f: d = json.load(f)
+apps = d.get('apps', [])
+ph_lc = [a['name'] for a in apps if a.get('larkCli',{}).get('enabled') and (is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')))]
+ph_unfilled = [a['name'] for a in apps if not a.get('appId') or not a.get('appSecret')]
+if ph_lc: print("placeholder|larkcli:" + ",".join(ph_lc))
+elif ph_unfilled: print("empty|" + ",".join(ph_unfilled))
+else: print("ok|所有 appId/appSecret 已配置")
+PYEOF
+)
+                    icon="${fk_out%%|*}"; detail="${fk_out#*|}"
+                fi
+            elif [ "$name" = "bat" ]; then
+                local ver=$(bat --version 2>/dev/null | head -1 || batcat --version 2>/dev/null | head -1 || echo "")
+                [ -n "$ver" ] && { icon="ok"; detail="bat 已安装 ($ver)"; } || { icon="miss"; detail="bat 未安装"; }
+            elif [ "$name" = "glow" ]; then
+                local ver=$(glow --version 2>/dev/null | head -1)
+                [ -n "$ver" ] && { icon="ok"; detail="glow 已安装 ($ver)"; } || { icon="miss"; detail="glow 未安装"; }
+            elif [ "$name" = "nano" ]; then
+                local ver=$(nano --version 2>/dev/null | head -1)
+                [ -n "$ver" ] && { icon="ok"; detail="nano 已安装 ($ver)"; } || { icon="miss"; detail="nano 未安装"; }
             else
-                echo -e "${GRAY}－${NC} $first_line"
+                # 从 option-* init.sh --status 取首行解析
+                local init_script="$REPO_DIR/option-$name/init.sh"
+                local out
+                out=$(bash "$init_script" --status 2>&1) || true
+                local line
+                line=$(echo "$out" | sed 's/\x1b\[[0-9;]*[mK]//g' | grep -vE '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+                if echo "$line" | grep -qi "^OK"; then icon="ok"; detail="${line#OK }"
+                elif echo "$line" | grep -qi "^WARN"; then icon="warn"; detail="${line#WARN }"
+                elif echo "$line" | grep -qiE "^(MISSING|FAIL)"; then icon="miss"; detail="${line#MISSING }"; detail="${detail#FAIL }"
+                else icon="?"; detail="$line"; fi
             fi
-        fi
 
-        # option-remote: 额外展开 SSH/Tailscale 详情
-        if [[ "$name" == "option-remote" ]]; then
-            echo "$out" | sed "s/${esc}\[[0-9;]*m//g" | grep -vE '^[[:space:]]*$' | tail -n +2 | while IFS= read -r line; do
-                echo "    $line"
-            done
-        fi
+            _print_option "$name" "$icon" "$detail"
+
+            # option-remote: 额外展开子行
+            if [ "$name" = "remote" ]; then
+                local init_script="$REPO_DIR/option-remote/init.sh"
+                local out
+                out=$(bash "$init_script" --status 2>&1) || true
+                echo "$out" | sed 's/\x1b\[[0-9;]*[mK]//g' | grep -vE '^[[:space:]]*$' | tail -n +2 | while IFS= read -r sub; do
+                    echo "      $sub"
+                done
+            fi
+        done
     done
 
     if [ $found -eq 0 ]; then
         echo -e "  ${GRAY}(无可选组件)${NC}"
     fi
+    echo ""
+}
+
+_print_option() {
+    local name="$1" icon="$2" detail="$3"
+    printf "    %-12s " "$name"
+    case "$icon" in
+        ok)   echo -e "${GREEN}✅${NC} $detail" ;;
+        warn) echo -e "${YELLOW}⚠${NC}  $detail" ;;
+        miss|no_conf|empty) echo -e "${GRAY}✗${NC}  ${GRAY}$detail${NC}" ;;
+        placeholder) echo -e "${YELLOW}⚠${NC}  ${GRAY}$detail${NC}" ;;
+        *)    echo -e "${GRAY}?${NC}  $detail" ;;
+    esac
 }
 
 # ========== 12. Skills 安装状态 ==========
