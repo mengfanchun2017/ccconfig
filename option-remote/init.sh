@@ -16,6 +16,7 @@ info()    { echo -e "  ${GRAY}$1${NC}"; }
 ok()      { echo -e "  ${GREEN}✅ $1${NC}"; }
 warn()    { echo -e "  ${YELLOW}⚠️  $1${NC}"; }
 err()     { echo -e "  ${RED}❌ $1${NC}"; }
+section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 
 # ── 状态查询 ──
 do_status() {
