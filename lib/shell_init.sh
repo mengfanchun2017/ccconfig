@@ -40,6 +40,11 @@ claude-ds() {
     bash "$CCCONFIG_HOME/lib/init-llm.sh" deepseek && claude "$@"
 }
 
+# lark-cli: 默认用 ailab 账号
+if [ -d "$HOME/.lark-cli-ailab" ]; then
+    export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-ailab"
+fi
+
 # bat: cat 替代
 if command -v batcat &>/dev/null; then
     alias cat=batcat
