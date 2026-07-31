@@ -283,20 +283,35 @@ case "${1:-}" in
         show_status
         ;;
     --help|-h)
-        echo "用法: $0 [--list|--status]"
+        echo "用法: $0 [--list|--status|--auth-login <name>]"
         echo ""
         echo "  (无参数)    配置所有启用的 lark-cli 账号"
         echo "  --list      列出可用账号"
         echo "  --status    状态检查"
+        echo "  --auth-login <name>  手动触发 OAuth 授权"
+        ;;
+    --auth-login)
+        _cl_auth_name="${2:-}"
+        if [ -z "$_cl_auth_name" ]; then
+            bad "用法: $0 --auth-login <name>"
+            exit 1
+        fi
+        _cl_conf_line=$(get_apps | while IFS= read -r line; do
+            n=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
+            [ "$n" = "$_cl_auth_name" ] && echo "$line"
+        done | head -1)
+        if [ -z "$_cl_conf_line" ]; then
+            bad "未找到 app: $_cl_auth_name"
+            exit 1
+        fi
+        _cl_config_dir=$(echo "$_cl_conf_line" | python3 -c "import json,sys; d=json.load(sys.stdin).get('larkCli',{}); print(d.get('configDir','~/.lark-cli'))" 2>/dev/null || echo "~/.lark-cli")
+        _cl_config_dir="${_cl_config_dir/#\~/$HOME}"
+        _do_auth_login "$_cl_config_dir" "$_cl_auth_name"
         ;;
     "")
         run_lark_cli
         echo ""
         good "✅ lark-cli 配置完成"
-        echo ""
-        echo "后续操作:"
-        echo "  切换账号:    bash ccconfig/option-larkcli/lark-switch.sh <name>"
-        echo "  首次授权:    LARKSUITE_CLI_CONFIG_DIR=\$HOME/.lark-cli-<name> lark-cli auth login --recommend"
         echo ""
         ;;
     *)
