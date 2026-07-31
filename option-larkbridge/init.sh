@@ -365,7 +365,7 @@ main() {
   local cmd="${1:-}"; shift 2>/dev/null || true
 
   case "$cmd" in
-    --run|--start|--status|--logs|--profile|--stop|--restart)
+    --run|--start|--logs|--profile|--stop|--restart)
       install ;;
   esac
 
