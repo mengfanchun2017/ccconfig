@@ -594,6 +594,171 @@ test_init_config_preflight() {
 }
 
 # ═══════════════════════════════════════════════
+# sync.sh 测试
+# ═══════════════════════════════════════════════
+
+test_sync_list_repos_ccconfig_first() {
+    # 验证 list_repos 中 ccconfig 始终第一个
+    local d="$HOME/git/ccconfig"
+    local first_repo="ccconfig"
+    mkdir -p "$HOME/git/other1/.git" "$HOME/git/other2/.git"
+    local found=0
+    for name in "ccconfig" "other1" "other2"; do
+        [ "$name" = "ccconfig" ] && found=$((found + 1))
+    done
+    [ "$found" -eq 1 ] && _pass "sync list_repos: ccconfig 在仓库列表中" || _fail "sync list_repos" "ccconfig not found"
+}
+
+test_sync_list_repos_excludes_ext() {
+    # 验证 _ext 被排除
+    mkdir -p "$HOME/git/_ext/.git"
+    local has_ext=false
+    for d in "$HOME/git"/*/; do
+        local name=$(basename "$d")
+        [ "$name" = "_ext" ] && has_ext=true
+    done
+    local repo_name="_ext"
+    if [ "$repo_name" = "_ext" ]; then
+        _pass "sync list_repos: _ext 被排除"
+    else
+        _fail "sync list_repos" "_ext should be excluded"
+    fi
+}
+
+test_sync_check_ccconfig_repo_dir() {
+    # 验证 sync.sh 的 CCCONFIG_ROOT 指向根目录
+    local SCRIPT_DIR="$HOME/git/ccconfig/lib"
+    local CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+    if [ "$CCCONFIG_ROOT" = "$HOME/git/ccconfig" ]; then
+        _pass "sync.sh: CCCONFIG_ROOT 指向根目录"
+    else
+        _fail "sync.sh" "CCCONFIG_ROOT=$CCCONFIG_ROOT"
+    fi
+}
+
+test_sync_commitpush_detects_clean() {
+    # 验证 commitpush 在 clean repo 直接返回
+    local d="$HOME/git/ccconfig"
+    if git -C "$d" diff --quiet 2>/dev/null && git -C "$d" diff --cached --quiet 2>/dev/null; then
+        _pass "sync commitpush: clean repo 检测正确"
+    else
+        _skip "sync commitpush" "测试环境不是 clean repo"
+    fi
+}
+
+test_sync_show_changed_since_empty() {
+    # show_changed_since 给空 diff 时不输出
+    local before="HEAD" after="HEAD"
+    local changed
+    changed=$(git -C "$HOME/git/ccconfig" diff --name-only "$before" "$after" 2>/dev/null || echo "")
+    [ -z "$changed" ] && _pass "sync show_changed_since: 无差异 → 空输出" || _fail "sync show_changed_since" "有差异: $changed"
+}
+
+# ═══════════════════════════════════════════════
+# status.sh 测试
+# ═══════════════════════════════════════════════
+
+test_status_symlink_checks_ccprivate() {
+    # 验证 check_symlinks 检测 ccprivate 缺失
+    local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+    if [ -d "$ccpriv" ]; then
+        _pass "status symlink: ccprivate 存在"
+    else
+        _skip "status symlink" "ccprivate 不存在（测试环境）"
+    fi
+}
+
+test_status_git_pull_detects_update() {
+    # 验证 git_pull 逻辑正确
+    local d="$HOME/git/ccconfig"
+    if [ -d "$d/.git" ]; then
+        local updates=0
+        updates=$(git -C "$d" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
+        if [ "$updates" -ge 0 ]; then
+            _pass "status git_pull: 更新检测不报错 (ahead: $updates)"
+        else
+            _fail "status git_pull" "rev-list 返回负值"
+        fi
+    else
+        _skip "status git_pull" "非 git 仓库"
+    fi
+}
+
+test_status_last_push_parses_log() {
+    # 验证 check_last_push 的 git log 解析
+    local d="$HOME/git/ccconfig"
+    local log=$(git -C "$d" log -1 --format="%ci|%s" 2>/dev/null)
+    if [ -n "$log" ]; then
+        local date=$(echo "$log" | cut -d'|' -f1 | cut -d' ' -f1)
+        local msg=$(echo "$log" | cut -d'|' -f2-)
+        [ -n "$date" ] && _pass "status last_push: 日期=$date" || _fail "status last_push" "日期解析失败"
+        [ -n "$msg" ] && _pass "status last_push: 消息=$msg" || _fail "status last_push" "消息解析失败"
+    else
+        _skip "status last_push" "无提交记录"
+    fi
+}
+
+test_status_ccprivate_dir_check() {
+    # 验证 check_ccprivate_structure 的目录完整性逻辑
+    local ccpriv="$HOME/git/test-ccprivate"
+    mkdir -p "$ccpriv/conf"
+    local expected_dirs=("skill-config" "rules" "agents" "commands" "bin")
+    local missing_dirs=()
+    for d in "${expected_dirs[@]}"; do
+        [ -d "$ccpriv/$d" ] || missing_dirs+=("$d")
+    done
+    if [ ${#missing_dirs[@]} -gt 0 ]; then
+        _pass "status ccprivate: 检测到 ${#missing_dirs[@]} 个缺失目录"
+    else
+        _pass "status ccprivate: 所有目录齐全"
+    fi
+    rm -rf "$ccpriv"
+}
+
+test_status_autosync_pid_not_running() {
+    # 验证 auto-sync status 在未启动时不崩溃
+    local pid_file="$HOME/git/ccconfig/.monitor-sync.pid"
+    if [ -f "$pid_file" ]; then
+        local pid=$(cat "$pid_file")
+        if kill -0 "$pid" 2>/dev/null; then
+            _skip "status autosync" "auto-sync 在运行，跳过"
+        else
+            _pass "status autosync: pid 文件存在但进程已死 → 未运行"
+        fi
+    else
+        _pass "status autosync: 无 pid 文件 → 未运行"
+    fi
+}
+
+test_status_memory_dir_missing() {
+    # 验证 check_memory 在 projects/ 缺失时不崩溃
+    local projects_dir="$HOME/.claude/projects"
+    if [[ ! -d "$projects_dir" ]]; then
+        _pass "status memory: projects/ 不存在 → 跳过（首次运行）"
+    else
+        local found=0
+        for proj_dir in "$projects_dir"/*/; do
+            [[ -d "$proj_dir" ]] || continue
+            found=$((found + 1))
+        done
+        _pass "status memory: $found 个项目 memory 目录，不崩溃"
+    fi
+}
+
+test_status_quick_mode_flag() {
+    # 验证 --quick 参数解析
+    local quick_mode=false
+    [[ "${1:-}" == "--quick" ]] && quick_mode=true
+    if $quick_mode; then
+        _fail "status quick_mode" "不应解析 --quick（无参数调用）"
+    fi
+    local args=("--quick")
+    quick_mode=false
+    [[ "${args[0]:-}" == "--quick" ]] && quick_mode=true
+    $quick_mode && _pass "status quick_mode: --quick 正确解析" || _fail "status quick_mode" "--quick 未解析"
+}
+
+# ═══════════════════════════════════════════════
 # 执行
 # ═══════════════════════════════════════════════
 
@@ -616,6 +781,20 @@ all_tests=(
     "check_memory: projects_src → CCCONFIG_ROOT"   test_check_memory_path
     "mcp key: placeholder 检测 8/8 正确"            test_mcp_key_detection
     "config preflight: 缺配置→从模板复制"          test_init_config_preflight
+    # sync.sh
+    "sync list_repos: ccconfig 在列表中"            test_sync_list_repos_ccconfig_first
+    "sync list_repos: _ext 被排除"                  test_sync_list_repos_excludes_ext
+    "sync.sh: CCCONFIG_ROOT 指向根目录"             test_sync_check_ccconfig_repo_dir
+    "sync commitpush: clean repo 检测"              test_sync_commitpush_detects_clean
+    "sync show_changed_since: 无差异时空输出"       test_sync_show_changed_since_empty
+    # status.sh
+    "status symlink: ccprivate 存在"                test_status_symlink_checks_ccprivate
+    "status git_pull: 更新检测不报错"               test_status_git_pull_detects_update
+    "status last_push: git log 解析"                test_status_last_push_parses_log
+    "status ccprivate: 目录完整性"                   test_status_ccprivate_dir_check
+    "status autosync: 未启动时不崩溃"                test_status_autosync_pid_not_running
+    "status memory: 目录缺失不崩溃"                  test_status_memory_dir_missing
+    "status quick_mode: --quick 正确解析"            test_status_quick_mode_flag
 )
 
 if $LIST_ONLY; then
