@@ -116,7 +116,7 @@ _interactive_select_app() {
     fi
 
     local idx=1
-    local -a menu_items=() # 存每项对应的指令：profile名 / s(s扫码) / r(重启)
+    local -a menu_items=() # 存每项对应的指令：profile名 / scan(扫码) / restart(重启)
 
     # ─── 生效 profile ───
     if [ ${#existing_profiles[@]} -gt 0 ]; then
@@ -151,56 +151,57 @@ _interactive_select_app() {
 
     # ─── 扫码新建 ───
     echo -e "  ${GRAY}--扫码新建配置--${NC}" >&2
-    echo -e "  s) ${YELLOW}扫码新建${NC}" >&2
+    echo -e "  ${idx}) ${YELLOW}扫码新建${NC}" >&2
+    menu_items+=("scan")
+    idx=$((idx + 1))
 
     # ─── 服务重启 ───
     if [ -f "$SERVICE_FILE" ]; then
         local svc_status="${GRAY}未运行${NC}"
         systemctl --user is-active "${SERVICE_NAME}" &>/dev/null && svc_status="${GREEN}运行中${NC}"
-        echo -e "  r) 重启系统服务 (${svc_status})" >&2
+        echo -e "  ${idx}) 重启系统服务 (${svc_status})" >&2
+        menu_items+=("restart")
+        idx=$((idx + 1))
     fi
 
     echo -e "  0) 返回" >&2
 
-    read -p "  选择 [0-${idx} / s / r]: " sel
+    local max=$((idx - 1))
+    read -p "  选择 [0-${max}]: " sel
     [ -z "$sel" ] && return 1
     [ "$sel" = "0" ] && echo -n "" > "$result_file" && return 1
 
+    [ "$sel" -ge 1 ] 2>/dev/null || return 1
+    local menu_idx=$((sel - 1))
+    [ $menu_idx -lt 0 ] || [ $menu_idx -ge ${#menu_items[@]} ] && return 1
+    local chosen="${menu_items[$menu_idx]}"
+
     # 服务重启
-    if [ "$sel" = "r" ] && [ -f "$SERVICE_FILE" ]; then
+    if [ "$chosen" = "restart" ] && [ -f "$SERVICE_FILE" ]; then
         systemctl --user restart "${SERVICE_NAME}" 2>&1 && good "  ✅ 已重启" >&2 || bad "  ❌ 重启失败" >&2
-        return 1
+        return 0
     fi
 
     # 扫码新建
-    if [ "$sel" = "s" ]; then
-        echo -e "${YELLOW}  扫码后会保存到 ~/.lark-channel${NC}" >&2
-        echo -e "  ${GRAY}  如需持久化，创建后复制 appId/secret 到 ccprivate${NC}" >&2
-        read -p "  按回车开始扫码..." dummy
-        lark-channel-bridge run --workspace "$ws" &
-        local pid=$!
-        wait $pid 2>/dev/null || true
+    if [ "$chosen" = "scan" ]; then
+        echo -e "${YELLOW}  扫码后会自动创建新 profile，保存在 ~/.lark-channel${NC}" >&2
+        echo -e "  ${GRAY}  如需持久化到 ccprivate，创建后手动复制 appId/secret${NC}" >&2
+        read -p "  输入新 profile 名称: " scan_name
+        [ -z "$scan_name" ] && { warn "  名称不能为空"; return 1; }
+        lark-channel-bridge profile create "$scan_name" --agent claude --workspace "$ws"
         local np
         np=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
         echo "${np:-}" > "$result_file"
         return 0
     fi
 
-    # 数字选择
-    [ "$sel" -ge 1 ] 2>/dev/null || return 1
-    local menu_idx=$((sel - 1))
-    [ $menu_idx -lt 0 ] || [ $menu_idx -ge ${#menu_items[@]} ] && return 1
-    local chosen="${menu_items[$menu_idx]}"
-
     case "$chosen" in
         profile:*)
-            # 已有 profile
             local pname="${chosen#profile:}"
             echo "$pname" > "$result_file"
             return 0
             ;;
         create:*)
-            # feishu.json app
             local cname="${chosen#create:}"
             local fi=0
             while [ $fi -lt ${#app_names[@]} ]; do
@@ -209,7 +210,6 @@ _interactive_select_app() {
             done
             local id="${app_ids[$fi]}"
             local secret="${app_secrets[$fi]}"
-            # 检查同名 profile 是否已存在
             local exists=0
             for p2 in "${existing_profiles[@]}"; do [ "$p2" = "$cname" ] && exists=1 && break; done
             if [ "$exists" = "0" ]; then
@@ -248,8 +248,8 @@ run_foreground() {
     [ -z "$profile_name" ] && return 0
 
     echo "" >&2
-    good "  ✓ 启动 $profile_name" >&2
-    lark-channel-bridge run --profile "$profile_name" --workspace "$ws" 2>&1 | grep -v 'sdk.error\|owner_refresh_failed\|chats-fetch-failed\|\[lark-info'
+    good "  ✓ profile「${profile_name}」已上线（前台运行，Ctrl-C 退出）" >&2
+    lark-channel-bridge run --profile "$profile_name" --workspace "$ws" 2>&1 | grep -v 'sdk.error\|owner_refresh_failed\|chats-fetch-failed\|\[lark-info' || true
 }
 
 # ========== 创建 profile（不启动，供 --start 调用） ==========
