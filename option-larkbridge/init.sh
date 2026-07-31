@@ -442,22 +442,26 @@ EOF
             warn "尚未配置，先运行 $0 --run"; exit 1
         fi
         echo -e "${CYAN}── 切换 profile ──${NC}"
-        local -a plist=()
-        while IFS= read -r p; do [ -n "$p" ] && plist+=("$p"); done < <(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); [print(p) for p in d.get('profiles',{}).keys()]" 2>/dev/null || true)
-        if [ ${#plist[@]} -eq 0 ]; then warn "没有 profile"; exit 1; fi
-        local active=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); print(d.get('activeProfile',''))" 2>/dev/null || echo "")
-        local i=1
-        for p in "${plist[@]}"; do
-            local am=""; [ "$p" = "$active" ] && am=" ← 当前"
+        # 收集 profile 名到临时文件
+        python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.lark-channel/config.json'))); profs=list(d.get('profiles',{}).keys()); print(' '.join(profs))" 2>/dev/null > /tmp/.lb_plist.txt
+        plist_str=$(cat /tmp/.lb_plist.txt 2>/dev/null); rm -f /tmp/.lb_plist.txt
+        if [ -z "$plist_str" ]; then warn "没有 profile"; exit 1; fi
+        active=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.lark-channel/config.json'))).get('activeProfile',''))" 2>/dev/null)
+        i=1
+        for p in $plist_str; do
+            am=""; [ "$p" = "$active" ] && am=" ← 当前"
             echo "  $i) $p$am"; i=$((i + 1))
         done
+        count=$((i - 1))
         echo ""
-        read -p "  选择 [1-${#plist[@]}]: " sel
+        read -p "  选择 [1-$count]: " sel
         [ -z "$sel" ] && exit 0
-        local idx=$((sel - 1))
-        [ $idx -lt 0 ] || [ $idx -ge ${#plist[@]} ] && { warn "无效选择"; exit 1; }
-        lark-channel-bridge profile use "${plist[$idx]}" 2>&1
+        [ "$sel" -lt 1 ] || [ "$sel" -gt "$count" ] && { warn "无效选择"; exit 1; }
+        # 取第 sel 个 profile
+        target=$(echo "$plist_str" | cut -d' ' -f"$sel")
+        lark-channel-bridge profile use "$target" 2>&1
         good "  ✓ 已切换，重启服务生效: systemctl --user restart ${SERVICE_NAME}"
+        ;;
     --stop)
         if [ -f "$SERVICE_FILE" ]; then
             systemctl --user stop "${SERVICE_NAME}" 2>/dev/null && good "✅ 已停止" || warn "⚠ 停止失败"
@@ -490,21 +494,22 @@ EOF
         echo "用法: bash ccconfig/option-larkbridge/init.sh <command>"
         echo ""
         echo "  安装/运行:"
-        echo "    (无参数)     安装 + 提示下一步"
-        echo "    --run        前台运行（首次扫码绑定）"
-        echo "    --start      后台服务（systemd）"
+        echo "    --run              交互选择 app + 前台运行"
+        echo "    --start            后台服务（当前 profile）"
+        echo "    --start-webui      后台服务（web-ui，管理所有 profile）"
         echo ""
         echo "  管理:"
-        echo "    --stop       停止服务"
-        echo "    --restart    重启服务"
-        echo "    --status     查看状态"
-        echo "    --logs       查看日志（tail -f）"
-        echo "    --config     修改配置指南"
+        echo "    --switch           切换活动 profile"
+        echo "    --stop             停止服务"
+        echo "    --restart          重启服务"
+        echo "    --status           查看状态"
+        echo "    --logs             查看日志"
+        echo "    --config           修改配置指南"
         echo ""
         echo "  示例:"
-        echo "    bash ccconfig/option-larkbridge/init.sh --run     # 首次安装+扫码"
-        echo "    bash ccconfig/option-larkbridge/init.sh --start   # 转为后台服务"
-        echo "    bash ccconfig/option-larkbridge/init.sh --status  # 查看状态"
+        echo "    bash ccconfig/option-larkbridge/init.sh --run       # 交互选择 + 运行"
+        echo "    bash ccconfig/option-larkbridge/init.sh --start     # 后台运行"
+        echo "    bash ccconfig/option-larkbridge/init.sh --status    # 查看状态"
         ;;
     *)
         # 无参数或未知参数：安装 + 提示下一步
