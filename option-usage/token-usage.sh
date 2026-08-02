@@ -304,7 +304,7 @@ write_csv() {
     mkdir -p "$OUTPUT_DIR"
     local out="$OUTPUT_DIR/${date_stamp}.csv"
     {
-        echo "session_id,project_path,route,session_name,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_activity,last_activity,cost_usd"
+        echo "session_id,project_path,route,session_name,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_activity,last_activity,cost_cny"
         while IFS= read -r row; do
             [[ -z "$row" ]] && continue
             python3 - "$row" "$pricing" << 'PYEOF' 2>/dev/null
@@ -378,7 +378,7 @@ for day, rows in new_by_day.items():
     is_new = not os.path.exists(path)
     with open(path, "a") as f:
         if is_new:
-            f.write("session_id,day,project_path,route,session_name,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_ts,last_ts,cost_usd\n")
+            f.write("session_id,day,project_path,route,session_name,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_ts,last_ts,cost_cny\n")
         for r in rows:
             pm = p.get(r["model"], {})
             cost = ((r["inputTokens"] * pm.get("input", 0))
@@ -467,7 +467,7 @@ PYEOF
 #   request_count (number)
 #   first_activity (datetime)
 #   last_activity (datetime)
-#   cost_usd (number)
+#   cost_cny (number)
 push_feishu() {
     local url="$1" rows_file="$2"
     local parsed

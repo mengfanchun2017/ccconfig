@@ -32,7 +32,7 @@ bash option-usage/token-usage.sh [args...]
 归档文件 `ccprivate/usage/2026-08-02.csv`：
 
 ```csv
-session_id,day,project_path,route,session_name,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_ts,last_ts,cost_usd
+session_id,day,project_path,route,session_name,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_ts,last_ts,cost_cny
 0e00f5e3,2026-07-30,-home-francis-git,deepseek-direct,<session_name>,deepseek-v4-flash,130727,292,0,0,131019,4,...
 ```
 
@@ -43,7 +43,7 @@ session_id,day,project_path,route,session_name,model,input_tokens,output_tokens,
 - `session_name`: session 首条 user 消息前 80 字
 - `cache_create_tokens`: 你的 deepseek/MiniMax 环境恒为 0（上游 API 不返回）
 - `cache_read_tokens`: 缓存命中 token（计费按 0.1× input）
-- `cost_usd`: 按 `pricing` 表估算的成本
+- `cost_cny`: 按 `pricing` 表估算的成本（CNY ¥）
 
 ## 价格配置
 
