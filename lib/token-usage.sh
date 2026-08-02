@@ -92,11 +92,11 @@ extract_sessions() {
 
     find "$CLAUDE_PROJECTS_DIR" -name "*.jsonl" -type f -print0 2>/dev/null | \
     while IFS= read -r -d '' f; do
-        python3 - "$f" "$since" "$until" "$project_filter" << 'PYEOF'
+        python3 - "$f" "$since" "$until" "$project_filter" "$1" << 'PYEOF'
 import json, sys, os
 from collections import defaultdict
 
-path, since, until, project_filter = sys.argv[1:5]
+path, since, until, project_filter, mode = sys.argv[1:6]
 
 # 顶层目录名即 projectPath
 project_path = os.path.basename(os.path.dirname(path))
@@ -111,7 +111,9 @@ if project_filter:
 sessions = defaultdict(lambda: {
     "input": 0, "output": 0, "cache_creation": 0, "cache_read": 0,
     "request_count": 0, "first": None, "last": None,
-    "models": defaultdict(lambda: {"input": 0, "output": 0, "cache_creation": 0, "cache_read": 0, "count": 0})
+    "models": defaultdict(lambda: {"input": 0, "output": 0, "cache_creation": 0, "cache_read": 0, "count": 0}),
+    # by-day 模式：按 (day, model) 聚合
+    "days": defaultdict(lambda: defaultdict(lambda: {"input":0,"output":0,"cache_creation":0,"cache_read":0,"count":0,"first_ts":"","last_ts":""})),
 })
 
 with open(path, encoding="utf-8") as fh:
@@ -147,6 +149,18 @@ with open(path, encoding="utf-8") as fh:
                 s["first"] = ts
             if not s["last"] or ts > s["last"]:
                 s["last"] = ts
+            # by-day 桶
+            day = ts[:10]
+            dm = s["days"][day][model]
+            dm["input"] += in_t
+            dm["output"] += out_t
+            dm["cache_creation"] += cc_t
+            dm["cache_read"] += cr_t
+            dm["count"] += 1
+            if not dm["first_ts"] or ts < dm["first_ts"]:
+                dm["first_ts"] = ts
+            if not dm["last_ts"] or ts > dm["last_ts"]:
+                dm["last_ts"] = ts
         mb = s["models"][model]
         mb["input"] += in_t
         mb["output"] += out_t
@@ -154,7 +168,33 @@ with open(path, encoding="utf-8") as fh:
         mb["cache_read"] += cr_t
         mb["count"] += 1
 
-# 输出 JSON 行
+if mode == "by-day":
+    # 每条 = (session, day, model) 一个记录
+    for sid, s in sessions.items():
+        for day in sorted(s["days"]):
+            if since and day < since:
+                continue
+            if until and day >= until:
+                continue
+            for model, dm in s["days"][day].items():
+                row = {
+                    "sessionId": sid,
+                    "day": day,
+                    "projectPath": project_path,
+                    "model": model,
+                    "inputTokens": dm["input"],
+                    "outputTokens": dm["output"],
+                    "cacheCreationTokens": dm["cache_creation"],
+                    "cacheReadTokens": dm["cache_read"],
+                    "totalTokens": dm["input"] + dm["output"] + dm["cache_creation"] + dm["cache_read"],
+                    "requestCount": dm["count"],
+                    "firstTs": dm["first_ts"],
+                    "lastTs": dm["last_ts"],
+                }
+                print(json.dumps(row, ensure_ascii=False))
+    sys.exit(0)
+
+# 默认 mode: 按 session 聚合
 for sid, s in sessions.items():
     first = (s["first"] or "")[:10]
     last = (s["last"] or "")[:10]
@@ -211,6 +251,120 @@ PYEOF
         done < "$rows_file"
     } > "$out"
     ok "CSV 写入 $out"
+}
+
+# by-day 归档：每行 = (session, day, model) → by-day/<day>.csv
+# 增量：state 记录 (sessionId, day, model) 组合，重复跳过
+write_by_day_csv() {
+    local rows_file="$1"
+    local by_day_dir="$OUTPUT_DIR/by-day"
+    mkdir -p "$by_day_dir"
+    local state_by_day="$OUTPUT_DIR/state.by-day.json"
+
+    # 读现有 state
+    local existing
+    if [[ -f "$state_by_day" ]]; then
+        existing=$(python3 -c "import json; print(json.dumps(json.load(open('$state_by_day')).get('keys',[])))")
+    else
+        existing='[]'
+    fi
+
+    # 生成新增行 + 更新 state
+    python3 - "$existing" "$rows_file" "$state_by_day" "$by_day_dir" "$pricing" << 'PYEOF' 2>/dev/null
+import json, sys, os
+from collections import defaultdict
+
+existing_json, rows_file, state_file, by_day_dir, pricing = sys.argv[1:6]
+seen = set(tuple(k) for k in json.loads(existing_json))
+
+# 按 day 分组新增行
+new_by_day = defaultdict(list)
+new_keys = []
+
+for line in open(rows_file):
+    line = line.strip()
+    if not line: continue
+    r = json.loads(line)
+    key = (r["sessionId"][:8], r["day"], r["model"])
+    if key in seen: continue
+    seen.add(key)
+    new_keys.append(list(key))
+    new_by_day[r["day"]].append(r)
+
+if not new_keys:
+    print("0")
+    sys.exit(0)
+
+p = json.loads(pricing) if pricing else {}
+
+# 写每个 day 文件（append；如果不存在则写 header）
+for day, rows in new_by_day.items():
+    path = os.path.join(by_day_dir, f"{day}.csv")
+    is_new = not os.path.exists(path)
+    with open(path, "a") as f:
+        if is_new:
+            f.write("session_id,day,project_path,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_ts,last_ts,cost_usd\n")
+        for r in rows:
+            pm = p.get(r["model"], {})
+            cost = ((r["inputTokens"] * pm.get("input", 0))
+                    + (r["outputTokens"] * pm.get("output", 0))
+                    + (r["cacheCreationTokens"] * pm.get("cache_creation", pm.get("input", 0)))
+                    + (r["cacheReadTokens"] * pm.get("cache_read", 0))) / 1_000_000
+            f.write(f'{r["sessionId"][:8]},{day},{r["projectPath"]},{r["model"]},{r["inputTokens"]},{r["outputTokens"]},{r["cacheCreationTokens"]},{r["cacheReadTokens"]},{r["totalTokens"]},{r["requestCount"]},{r["firstTs"]},{r["lastTs"]},{cost:.6f}\n')
+
+# 更新 state
+merged = sorted(seen)
+with open(state_file, "w") as f:
+    json.dump({"keys": merged, "version": 2}, f)
+
+print(len(new_keys))
+PYEOF
+
+    local added
+    added=$(python3 - "$existing" "$rows_file" "$state_by_day" "$by_day_dir" "$pricing" << 'PYEOF' 2>/dev/null
+import json, sys, os
+from collections import defaultdict
+
+existing_json, rows_file, state_file, by_day_dir, pricing = sys.argv[1:6]
+seen = set(tuple(k) for k in json.loads(existing_json))
+new_by_day = defaultdict(list)
+new_keys = []
+for line in open(rows_file):
+    line = line.strip()
+    if not line: continue
+    r = json.loads(line)
+    key = (r["sessionId"][:8], r["day"], r["model"])
+    if key in seen: continue
+    seen.add(key)
+    new_keys.append(list(key))
+    new_by_day[r["day"]].append(r)
+
+p = json.loads(pricing) if pricing else {}
+for day, rows in new_by_day.items():
+    path = os.path.join(by_day_dir, f"{day}.csv")
+    is_new = not os.path.exists(path)
+    with open(path, "a") as f:
+        if is_new:
+            f.write("session_id,day,project_path,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_ts,last_ts,cost_usd\n")
+        for r in rows:
+            pm = p.get(r["model"], {})
+            cost = ((r["inputTokens"] * pm.get("input", 0))
+                    + (r["outputTokens"] * pm.get("output", 0))
+                    + (r["cacheCreationTokens"] * pm.get("cache_creation", pm.get("input", 0)))
+                    + (r["cacheReadTokens"] * pm.get("cache_read", 0))) / 1_000_000
+            f.write(f'{r["sessionId"][:8]},{day},{r["projectPath"]},{r["model"]},{r["inputTokens"]},{r["outputTokens"]},{r["cacheCreationTokens"]},{r["cacheReadTokens"]},{r["totalTokens"]},{r["requestCount"]},{r["firstTs"]},{r["lastTs"]},{cost:.6f}\n')
+
+merged = sorted(seen)
+with open(state_file, "w") as f:
+    json.dump({"keys": merged, "version": 2}, f)
+print(len(new_keys))
+PYEOF
+)
+    if [[ "$added" == "0" || -z "$added" ]]; then
+        ok "by-day 无新增（state 已覆盖）"
+    else
+        ok "by-day 写入 $added 条 → $by_day_dir/"
+    fi
 }
 
 write_report() {
@@ -394,7 +548,7 @@ PYEOF
 # ========== CLI ==========
 main() {
     local since="" until="" project="" json_output=false incremental=false
-    local feishu_url="" report=false stats=false
+    local feishu_url="" report=false stats=false by_day=false
     # json 模式走 stdout，其他模式日志走 stderr
     if [[ "${QUIET:-0}" == "1" || -n "${JSON_OUTPUT_FORCE:-}" ]]; then
         : # 保留 ok/warn/err，info 也输出
@@ -409,6 +563,7 @@ main() {
             --incremental) incremental=true; shift ;;
             --feishu)   feishu_url="$2"; shift 2 ;;
             --report)   report=true; shift ;;
+            --by-day)   by_day=true; shift ;;
             --stats)    stats=true; shift ;;
             -h|--help)
                 sed -n '2,25p' "$0" | sed 's/^# *//'
@@ -426,7 +581,9 @@ main() {
     tmp=$(mktemp)
     trap "rm -f $tmp" EXIT
 
-    extract_sessions "$since" "$until" "$project" > "$tmp" || true
+    local mode="session"
+    [[ "$by_day" == true ]] && mode="by-day"
+    extract_sessions "$since" "$until" "$project" "$mode" > "$tmp" || true
 
     if [[ "$incremental" == true ]]; then
         local filtered
@@ -467,6 +624,16 @@ PYEOF
 
     if [[ "$report" == true ]]; then
         write_report "$tmp"
+        exit 0
+    fi
+
+    if [[ "$by_day" == true ]]; then
+        if [[ "$json_output" == true ]]; then
+            cat "$tmp"
+            exit 0
+        fi
+        # 归档到 by-day/<day>.csv（增量去重）
+        write_by_day_csv "$tmp"
         exit 0
     fi
 
