@@ -1,4 +1,6 @@
-# adr/ — Architecture Decision Records
+# docs/adr/ — Architecture Decision Records
+
+> ⚠️ **物理路径 `docs/adr/`**（不是 `adr/`）。新增 ADR 前先 `ls docs/adr/` 取最新编号。规范见 [0010-adr-directory-location](0010-adr-directory-location.md)。
 
 > 记录 ccconfig 正式化过程中的所有非可逆决策。
 > 模板: **MADR 4.0**（[madr/](https://adr.github.io/madr/)）极简版。
@@ -16,6 +18,9 @@
 | [0005](0005-remove-slash-mcp-runtime-command.md) | 废弃运行时 /mcp 命令，迁移至 CLI 子命令 | 2026-07-27 | ✅ Accepted | — |
 | [0006](0006-feishu-communication-strategy.md) | 飞书通信策略：cc-connect + lark-cli，不引入飞书 MCP | 2026-07-29 | ✅ Accepted | — |
 | [0007](0007-introduce-getnote-mcp.md) | 引入 @getnote/mcp — 得到笔记 MCP 集成 | 2026-07-30 | ✅ Accepted | getnote skill |
+| [0008](0008-remote-connection.md) | Remote 远程连接方案（自 `adr/001` 迁入） | 2026-07-31 | ✅ Accepted | option-remote |
+| [0009](0009-token-cost-reduction.md) | Token 成本优化：不装 caveman/rtk/headroom | 2026-08-02 | ✅ Accepted | — |
+| [0010](0010-adr-directory-location.md) | ADR 目录位置约定 | 2026-08-02 | ✅ Accepted | — |
 
 ## 强制 4 字段（每条 ADR 必含）
 

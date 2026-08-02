@@ -1,20 +1,16 @@
-# ADR-001: Remote 远程连接方案
+# 0008. Remote 远程连接方案
 
-**日期**: 2026-07-31
-**状态**: 已实施
-**关联**: `option-remote/`
+> **Status**: ✅ Accepted
+> **日期**: 2026-07-31
+> **关联**: `option-remote/`
+> **模板**: MADR 4.0 极简版
+> **备注**: 原 `adr/001-remote-connection.md`（3 位编号，误放仓库根 `adr/`），2026-08-02 迁回 `docs/adr/` 统一目录，编号改 4 位 0008。见 [[0010-adr-directory-location]](0010-adr-directory-location.md)。
 
-## 背景
+## Context and Problem Statement
 
 需要在笔记本/手机上远程连入台式机 WSL2 的 tmux `claude` 会话。台式机 Windows 已安装 Tailscale 并登录，WSL2 为 mirrored 网络模式。
 
-## 架构
-
-```
-客户端 ──SSH──▶ Tailscale VPN ──▶ Windows (mirrored) ──▶ WSL2 :2222 ──▶ tmux claude
-```
-
-## 决策
+## Decision
 
 ### 1. mirrord 网络模式自动检测
 
@@ -40,17 +36,20 @@ WSL2 `.wslconfig` 中 `networkingMode=mirrored` 下 WSL/Windows 共享网络栈�
 | Windows Terminal | ✅ 理论上行 | 需装 Tailscale |
 | 原生 SSH | ✅ 理论上行 | `ssh user@ts-ip -p 2222` |
 
-## 手机 Termius 实测
+## Consequences
 
-1. New host: `100.118.164.78:2222`, user=WSL 用户名
-2. Auth: SSH key（推荐）或密码
-3. 连接后自动进入 tmux `claude` 会话
-4. 断开: Ctrl+B → D（或直接关 app）
-5. 重连自动 attach 回同一 session
+### Positive
 
-**前提**: 手机装 Tailscale 并同一账号登录。
+- ✅ 手机 Termius 实测直连 tmux claude 会话
+- ✅ mirrored 模式自动跳过 portproxy 冲突
+- ✅ 无交互一键入口
 
-## 受影响文件
+### Negative / Risks
+
+- ❌ 非 mirrored 网络模式仍走 portproxy + 计划任务路径，`init.sh` 自动 fallback
+- ⚠️ Tailscale 未登录时 SSH 就绪但远程不可达（status 显 ⚠）
+
+## Implementation
 
 - `option-remote/init.sh` — 入口重写，新增 --run + mirrored 检测 + SSH 预检
 - `option-remote/server/tmux-sshd.sh` — SSH + tmux 安装（未改）
@@ -58,6 +57,6 @@ WSL2 `.wslconfig` 中 `networkingMode=mirrored` 下 WSL/Windows 共享网络栈�
 - `option-remote/server/ts-setup.ps1` — Tailscale 安装（未改）
 - `option-remote/deploy.sh` — 部署脚本（未改）
 
-## 回退选项
+## Related Decisions
 
-非 mirrored 网络模式仍走 portproxy + 计划任务路径，`init.sh` 自动 fallback。
+- [[0010-adr-directory-location]](0010-adr-directory-location.md) — ADR 目录位置约定
