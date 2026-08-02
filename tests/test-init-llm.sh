@@ -313,6 +313,7 @@ TESTS=(
 	"t_llmswitch_init_syntax:llmswitch init.sh bash 语法正确"
 
 	# ═══ 分组 11: 写文件测试 ═══
+	"t_test_mode_source:TEST_MODE=1 source 不执行 main"
 	"t_apply_settings_writes_env:写 settings.json 含 ANTHROPIC_AUTH_TOKEN"
 	"t_apply_settings_preserves_existing:写 settings.json 不覆盖已存在字段"
 	"t_apply_settings_atomic_write:tmp + os.replace 原子写入"
@@ -631,6 +632,26 @@ for name, cfg in d['llms'].items():
 			;;
 
 		# ═══ 分组 11: 写文件测试 (apply_settings) ═══
+		t_test_mode_source)
+			# TEST_MODE gate 存在 + source 可加载函数
+			if grep -q 'TEST_MODE' "$CCCONFIG_DIR/lib/init-llm.sh"; then
+				_pass "TEST_MODE: init-llm.sh 有 gate"
+			else
+				_fail "TEST_MODE" "init-llm.sh 缺少 TEST_MODE gate"
+			fi
+			# 验证 gate 逻辑：TEST_MODE=1 时跳过 main 调用
+			if grep -A1 'TEST_MODE' "$CCCONFIG_DIR/lib/init-llm.sh" | grep -q 'main'; then
+				_pass "TEST_MODE: gate 条件化 main 调用"
+			else
+				_fail "TEST_MODE" "gate 未条件化 main"
+			fi
+			# init-ubuntu.sh 同样有 gate
+			if grep -q 'TEST_MODE' "$CCCONFIG_DIR/lib/init-ubuntu.sh"; then
+				_pass "TEST_MODE: init-ubuntu.sh 有 gate"
+			else
+				_fail "TEST_MODE" "init-ubuntu.sh 缺少 gate"
+			fi
+			;;
 		t_apply_settings_writes_env)
 			# 模拟 init-llm.py 写 settings.json 的核心逻辑
 			local settings="$TEST_HOME/test_settings_$RANDOM.json"
