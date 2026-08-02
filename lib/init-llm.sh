@@ -272,6 +272,11 @@ PYEOF
 # 用法: switch_custom
 # 不写 llm.json，不持久化，只切当前会话；可选择后续保存为预设
 switch_custom() {
+    # dry-run gate: 写操作前必须先预览
+    if _dry_run_enabled; then
+        echo "  [DRY-RUN] switch_custom: would prompt for URL/model/key and write to llm.json + claude.json + settings.json"
+        return 0
+    fi
     # 切到直连前先停 watchdog + proxy（同 switch_llm 行为）
     if is_proxy_running; then
         info "停止网关代理..."
@@ -432,6 +437,10 @@ except: pass
 # ========== 切换 LLM ==========
 switch_llm() {
     local name="$1"
+    if _dry_run_enabled; then
+        echo "  [DRY-RUN] switch_llm: would switch to '$name' (write llm.json + claude.json + settings.json)"
+        return 0
+    fi
 
     case "$name" in
         gateway)
@@ -737,58 +746,126 @@ show_list() {
 }
 
 # ========== Delete (删除预设) ==========
-# ========== Pricing 配置 ==========
-# 配置每个模型的 token 单价（USD / 1M tokens）
+# ========== Bill (Pricing 配置) ==========
+# 从 llm.json 的 llms.* 自动读 model 名作为可选列表
 # 4 个独立字段：input / output / cache_read / cache_creation
 # cache_creation 缺省 = input × 1.25（Anthropic 标准）
 # deepseek/MiniMax 等 OpenAI 兼容端点没有 cache_creation，留空或 0
-# 用法: bill_config [model_name]   不带参：列出已有 + 提示添加
+# 用法: bill_config [model_name]   不带参：交互菜单
 bill_config() {
     local target="${1:-}"
-    local p
-    p="$(python3 - "$CONFIG_FILE" << 'PYEOF' 2>/dev/null
+
+    # 从 llm.json 读 llms.*.model 字段，去重保序
+    local models_json
+    models_json="$(python3 - "$CONFIG_FILE" << 'PYEOF' 2>/dev/null
 import json, sys
 try:
     d = json.load(open(sys.argv[1]))
 except: sys.exit(0)
-print(json.dumps(d.get("pricing", {}), ensure_ascii=False))
+seen = []
+for k, v in d.get('llms', {}).items():
+    m = v.get('model', '')
+    if m and m not in seen:
+        seen.append(m)
+# 加上已在 pricing 但不在 llms 的孤儿（删 model 后残留）
+for m in d.get('pricing', {}).keys():
+    if m and m not in seen:
+        seen.append(m)
+print(json.dumps(seen, ensure_ascii=False))
 PYEOF
 )"
 
     echo ""
-    echo "═══ Pricing 配置 (CNY ¥ / 1M tokens) ═══"
+    echo "═══ Bill (模型 token 单价, CNY ¥ / 1M tokens) ═══"
     echo ""
-    if [[ "$p" == "{}" || -z "$p" ]]; then
-        echo "  (无)"
-    else
-        echo "$p" | python3 -c "
+
+    # 展示已配价格 + 模型列表（标 ✓=已配）
+    python3 - "$CONFIG_FILE" "$models_json" << 'PYEOF'
 import json, sys
-d = json.load(sys.stdin)
-for m, v in d.items():
-    print(f'  {m}:')
-    print(f'    input:          ¥{v.get(\"input\", 0)}/1M')
-    print(f'    output:         ¥{v.get(\"output\", 0)}/1M')
-    print(f'    cache_read:     ¥{v.get(\"cache_read\", 0)}/1M')
-    cc = v.get('cache_creation')
-    print(f'    cache_creation: ' + (f'¥{cc}/1M' if cc is not None else '(未设，默认 = input × 1.25)'))
-"
-    fi
+d = json.load(open(sys.argv[1]))
+models = json.loads(sys.argv[2])
+pricing = d.get("pricing", {})
+print("  模型列表（✓=已配价格）:")
+for i, m in enumerate(models, 1):
+    mark = "✓" if m in pricing else " "
+    print(f"    {i:>2}) [{mark}] {m}")
+print()
+if pricing:
+    print("  ── 当前价格 ──")
+    for m, v in pricing.items():
+        print(f"    {m}:")
+        print(f"      input=¥{v.get('input', 0)}/1M  output=¥{v.get('output', 0)}/1M  cache_read=¥{v.get('cache_read', 0)}/1M", end="")
+        cc = v.get('cache_creation')
+        if cc is not None:
+            print(f"  cache_creation=¥{cc}/1M")
+        else:
+            print(f"  cache_creation=(默认=input×1.25)")
+PYEOF
 
     if [[ -n "$target" ]]; then
         _bill_set "$target"
-    else
-        echo ""
-        echo "操作："
-        echo "  1) 添加 / 修改模型价格"
-        echo "  2) 删除模型价格"
-        echo "  0) 返回"
-        read -p "选择 [0-2]: " op
-        case "$op" in
-            1) read -p "模型名 (e.g. deepseek-v4-flash): " m; _bill_set "$m" ;;
-            2) read -p "要删除的模型名: " m; _bill_del "$m" ;;
-            0) ;;
-        esac
+        return
     fi
+
+    echo ""
+    echo "  ── 操作 ──"
+    echo "    a) 添加 / 修改价格  （输入模型序号或名）"
+    echo "    d) 删除已配价格"
+    echo "    n) 新增自定义模型（不在 llm.json 里）"
+    echo "    0) 返回"
+    read -p "  选择 [a/d/n/0]: " op
+
+    case "$op" in
+        a|A)
+            read -p "  模型序号或名称: " sel
+            local model
+            model=$(python3 - "$models_json" "$sel" << 'PYEOF'
+import json, sys
+models = json.loads(sys.argv[1])
+sel = sys.argv[2].strip()
+if sel.isdigit() and 1 <= int(sel) <= len(models):
+    print(models[int(sel) - 1])
+elif sel in models:
+    print(sel)
+else:
+    sys.exit(1)
+PYEOF
+)
+            if [[ -z "$model" ]]; then
+                error "无效选择: $sel"
+                return 1
+            fi
+            _bill_set "$model"
+            ;;
+        d|D)
+            read -p "  模型序号或名称: " sel
+            local model
+            model=$(python3 - "$models_json" "$sel" << 'PYEOF'
+import json, sys
+models = json.loads(sys.argv[1])
+sel = sys.argv[2].strip()
+if sel.isdigit() and 1 <= int(sel) <= len(models):
+    print(models[int(sel) - 1])
+elif sel in models:
+    print(sel)
+else:
+    sys.exit(1)
+PYEOF
+)
+            if [[ -z "$model" ]]; then
+                error "无效选择: $sel"
+                return 1
+            fi
+            _bill_del "$model"
+            ;;
+        n|N)
+            read -p "  自定义模型名: " model
+            [[ -z "$model" ]] && { error "模型名不能为空"; return 1; }
+            _bill_set "$model"
+            ;;
+        0) ;;
+        *) error "无效选择"; return 1 ;;
+    esac
 }
 
 _bill_set() {

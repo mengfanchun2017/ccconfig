@@ -28,7 +28,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/path-helper.sh"
-
+source "$SCRIPT_DIR/dry-run.sh"
 LOCAL_BIN="$HOME/.local/bin"
 VERSION_FILE="$CCCONFIG_ROOT/conf/versions.json"  # 公开文件，不走 resolve_conf
 LOCK_FILE="/tmp/ccconfig-update.lock"
@@ -275,7 +275,7 @@ update_nodejs() {
     # 清理旧 Node
     if [ -n "$old_node_dir" ] && [ -d "$old_node_dir" ] && [ "$old_node_dir" != "$new_node_dir" ]; then
         info "清理旧 Node: $old_node_dir"
-        rm -rf "$old_node_dir" 2>/dev/null || warn "无法完全删除旧 Node 目录（可能在使用）"
+        run rm -rf "$old_node_dir" 2>/dev/null || warn "无法完全删除旧 Node 目录（可能在使用）"
     fi
 
     success "Node.js: v$current → v$target"
@@ -423,8 +423,8 @@ rebuild_larkcli_symlink() {
     done
 
     if [ -n "$lark_src" ]; then
-        rm -f "$LOCAL_BIN/lark-cli"
-        ln -sf "$lark_src" "$LOCAL_BIN/lark-cli"
+        run rm -f "$LOCAL_BIN/lark-cli"
+        run ln -sf "$lark_src" "$LOCAL_BIN/lark-cli"
         info "lark-cli 符号链接已更新"
     fi
 }
@@ -491,9 +491,9 @@ update_gh() {
     fi
 
     tar -xzf "$tmp/gh.tar.gz" -C "$tmp"
-    cp "$tmp/gh_${latest}_linux_amd64/bin/gh" "$LOCAL_BIN/gh"
+    run cp "$tmp/gh_${latest}_linux_amd64/bin/gh" "$LOCAL_BIN/gh"
     chmod +x "$LOCAL_BIN/gh"
-    rm -rf "$tmp"
+    run rm -rf "$tmp"
     save_version "gh" "$latest"
     success "GitHub CLI: $current → v$latest"
 }
@@ -561,11 +561,11 @@ install_claude_via_npm() {
 
     local install_dir="$HOME/.local/share/claude/versions/$latest"
     mkdir -p "$HOME/.local/share/claude/versions"
-    cp "$new_bin" "$install_dir"
+    run cp "$new_bin" "$install_dir"
     chmod +x "$install_dir"
-    rm -f "$LOCAL_BIN/claude"
-    ln -sf "$install_dir" "$LOCAL_BIN/claude"
-    rm -rf "$tmp"
+    run rm -f "$LOCAL_BIN/claude"
+    run ln -sf "$install_dir" "$LOCAL_BIN/claude"
+    run rm -rf "$tmp"
 
     save_version "claude" "$latest"
     success "Claude Code (npm): $before → v$latest"
