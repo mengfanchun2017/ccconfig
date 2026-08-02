@@ -631,6 +631,75 @@ PYEOF
     echo ""
 }
 
+# ========== 测试连接（非破坏性） ==========
+# 读 llm.json 预设的 base_url/model/key，curl 端点发最小请求验证 200
+# 不写 ~/.claude.json / settings.json，不影响全局
+test_llm() {
+    local target="${1:-}"
+    if [[ -z "$target" ]]; then
+        error "用法: bash init-llm.sh test <preset-name>"
+        return 1
+    fi
+
+    local config=$(get_llm_config "$target") || { error "无法获取 LLM 配置: $target"; return 1; }
+    IFS='|' read -r base_url model_name api_key small_model <<< "$config"
+
+    if [[ -z "$api_key" ]] || echo "$api_key" | grep -qE '请填入|请替换|your.key|placeholder|changeme|<your-'; then
+        error "预设 '$target' 无有效 API Key（占位符或空）"
+        return 1
+    fi
+
+    info "测试: $target"
+    info "  base_url: $base_url"
+    info "  model: $model_name"
+    info "  key: ...${api_key: -4}"
+
+    local body_file=$(mktemp)
+    local status
+
+    # OpenAI-only 端点用 /chat/completions 协议
+    if [[ "$base_url" != *"/anthropic"* ]] && [[ "$base_url" != *"://127.0.0.1"* ]]; then
+        info "  协议: OpenAI /chat/completions"
+        status=$(curl -s --max-time 30 -o "$body_file" -w "%{http_code}" \
+            -X POST "${base_url%/}/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $api_key" \
+            -d "{\"model\":\"$model_name\",\"max_tokens\":16,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}")
+    else
+        info "  协议: Anthropic /v1/messages"
+        status=$(curl -s --max-time 30 -o "$body_file" -w "%{http_code}" \
+            -X POST "${base_url%/}/v1/messages" \
+            -H "Content-Type: application/json" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "Authorization: Bearer $api_key" \
+            -d "{\"model\":\"$model_name\",\"max_tokens\":16,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}")
+    fi
+
+    echo ""
+    if [[ "$status" == "200" ]]; then
+        success "✓ HTTP 200 — 预设 '$target' 可用"
+        python3 -c "
+import json
+try:
+    d = json.load(open('$body_file'))
+    if 'model' in d:
+        print(f\"  返回 model: {d.get('model','?')} | stop: {d.get('stop_reason', d.get('choices',[{}])[0].get('finish_reason','?'))}\")
+    else:
+        print(f\"  响应: {str(d)[:200]}\")
+except: pass
+" 2>/dev/null || true
+        rm -f "$body_file"
+        return 0
+    else
+        error "✗ HTTP $status"
+        echo "  响应:"
+        head -5 "$body_file" | sed 's/^/    /'
+        rm -f "$body_file"
+        return 1
+    fi
+}
+
+
 # ========== 显示列表 ==========
 show_list() {
     echo ""
@@ -878,6 +947,9 @@ main() {
         show_list
     elif [[ "$cmd" == "status" ]]; then
         show_status
+    elif [[ "$cmd" == "test" ]] || [[ "$cmd" == "-t" ]]; then
+        # 第二参数：要测试的预设名
+        test_llm "${2:-}"
     elif [[ "$cmd" == "custom" ]] || [[ "$cmd" == "-c" ]]; then
         switch_custom
     elif [[ "$cmd" == "delete" ]] || [[ "$cmd" == "-d" ]]; then
