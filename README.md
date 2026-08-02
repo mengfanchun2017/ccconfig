@@ -244,6 +244,10 @@ bash lib/init-llm.sh gateway      # 切到网关（自动装启 option-llmswitch
 - **Gateway 自动切换** — LLM 代理网关按高峰/非高峰时段自动切后端
 - **OpenAI Bridge** — 遇到 OpenAI-only 端点自动启协议转换 proxy
 
+> **切换后旧 session 报 400 model not supported？** session 记住了上次的模型名，`/model`
+> 重选新模型即可（或 `claude -r <session-id> --model <模型>` 命令行覆盖）。详见
+> `option-llmswitch/README.md` 已知问题 #3。
+
 ### 🧩 可选组件（分组菜单）
 
 `init-option.sh` 按组展示，每项带一句话说明：
