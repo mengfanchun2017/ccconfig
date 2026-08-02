@@ -87,14 +87,27 @@ get_gateway_status_one_liner() {
 
 # ========== 读取配置 ==========
 list_llms() {
-    python3 - "$CONFIG_FILE" << 'PYEOF'
-import json, sys
+    python3 - "$CONFIG_FILE" "$LLMSWITCH_CONF" << 'PYEOF'
+import json, sys, os
 
 with open(sys.argv[1], 'r') as f:
     config = json.load(f)
 
 llms = config.get('llms', {})
 current = config.get('current', '')
+
+# 读 llmswitch.json 真实 model（gateway 显示用）
+sw_model = ''
+sw_small = ''
+sw_path = sys.argv[2]
+if sw_path and os.path.exists(sw_path):
+    try:
+        with open(sw_path) as f:
+            sw = json.load(f)
+        sw_model = sw.get('model_name', '')
+        sw_small = sw.get('small_model_name', '')
+    except Exception:
+        pass
 
 names = list(llms.keys())
 print(f"TOTAL:{len(names)}")
@@ -107,6 +120,12 @@ for name in names:
     base_url = llm.get('base_url', '')
     model = llm.get('model', '')
     display_name = llm.get('name', name)
+    # Gateway 占位符替换为 llmswitch.json 真实值
+    if name == 'gateway':
+        if sw_model:
+            model = sw_model
+        if sw_small:
+            small = sw_small
     # Format: marker|name|display_name|model|base_url|small
     # Parser uses IFS='|' so name (config key) is in field 2, display_name in field 3
     print(f"{marker}|{name}|{display_name}|{model}|{base_url}|{small}")
