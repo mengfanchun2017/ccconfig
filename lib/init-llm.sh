@@ -754,14 +754,15 @@ show_list() {
 # ========== Delete (删除预设) ==========
 # ========== Bill (Pricing 配置) ==========
 # 从 llm.json 的 llms.* 自动读 model 名作为可选列表
+# 排除 gateway 占位符（<your-gateway-model>）—— gateway 也路由到上面的模型
 # 4 个独立字段：input / output / cache_read / cache_creation
 # cache_creation 缺省 = input × 1.25（Anthropic 标准）
 # deepseek/MiniMax 等 OpenAI 兼容端点没有 cache_creation，留空或 0
-# 用法: bill_config [model_name]   不带参：交互菜单
+# 用法: bill_config [model_name]   不带参：交互菜单（循环直到 0 退出）
 bill_config() {
     local target="${1:-}"
 
-    # 从 llm.json 读 llms.*.model 字段，去重保序
+    # 从 llm.json 读 llms.*.model 字段，去重保序，排除 gateway 占位符
     local models_json
     models_json="$(python3 - "$CONFIG_FILE" << 'PYEOF' 2>/dev/null
 import json, sys
@@ -770,6 +771,8 @@ try:
 except: sys.exit(0)
 seen = []
 for k, v in d.get('llms', {}).items():
+    if k == 'gateway':
+        continue  # gateway 路由到上游模型，无独立价格
     m = v.get('model', '')
     if m and m not in seen:
         seen.append(m)
@@ -781,12 +784,14 @@ print(json.dumps(seen, ensure_ascii=False))
 PYEOF
 )"
 
-    echo ""
-    echo "═══ Bill (模型 token 单价, CNY ¥ / 1M tokens) ═══"
-    echo ""
+    # 循环直到用户输 0 返回
+    while true; do
+        echo ""
+        echo "═══ Bill (模型 token 单价, CNY ¥ / 1M tokens) ═══"
+        echo ""
 
-    # 展示已配价格 + 模型列表（标 ✓=已配）
-    python3 - "$CONFIG_FILE" "$models_json" << 'PYEOF'
+        # 展示已配价格 + 模型列表（标 ✓=已配）
+        python3 - "$CONFIG_FILE" "$models_json" << 'PYEOF'
 import json, sys
 d = json.load(open(sys.argv[1]))
 models = json.loads(sys.argv[2])
@@ -808,24 +813,25 @@ if pricing:
             print(f"  cache_creation=(默认=input×1.25)")
 PYEOF
 
-    if [[ -n "$target" ]]; then
-        _bill_set "$target"
-        return
-    fi
+        if [[ -n "$target" ]]; then
+            _bill_set "$target"
+            target=""
+            continue
+        fi
 
-    echo ""
-    echo "  ── 操作 ──"
-    echo "    a) 添加 / 修改价格  （输入模型序号或名）"
-    echo "    d) 删除已配价格"
-    echo "    n) 新增自定义模型（不在 llm.json 里）"
-    echo "    0) 返回"
-    read -p "  选择 [a/d/n/0]: " op
+        echo ""
+        echo "  ── 操作 ──"
+        echo "    a) 添加 / 修改价格  （输入模型序号或名）"
+        echo "    d) 删除已配价格"
+        echo "    n) 新增自定义模型（不在 llm.json 里）"
+        echo "    0) 返回"
+        read -p "  选择 [a/d/n/0]: " op
 
-    case "$op" in
-        a|A)
-            read -p "  模型序号或名称: " sel
-            local model
-            model=$(python3 - "$models_json" "$sel" << 'PYEOF'
+        case "$op" in
+            a|A)
+                read -p "  模型序号或名称: " sel
+                local model
+                model=$(python3 - "$models_json" "$sel" << 'PYEOF'
 import json, sys
 models = json.loads(sys.argv[1])
 sel = sys.argv[2].strip()
@@ -837,16 +843,16 @@ else:
     sys.exit(1)
 PYEOF
 )
-            if [[ -z "$model" ]]; then
-                error "无效选择: $sel"
-                return 1
-            fi
-            _bill_set "$model"
-            ;;
-        d|D)
-            read -p "  模型序号或名称: " sel
-            local model
-            model=$(python3 - "$models_json" "$sel" << 'PYEOF'
+                if [[ -z "$model" ]]; then
+                    error "无效选择: $sel"
+                    continue
+                fi
+                _bill_set "$model"
+                ;;
+            d|D)
+                read -p "  模型序号或名称: " sel
+                local model
+                model=$(python3 - "$models_json" "$sel" << 'PYEOF'
 import json, sys
 models = json.loads(sys.argv[1])
 sel = sys.argv[2].strip()
@@ -858,20 +864,21 @@ else:
     sys.exit(1)
 PYEOF
 )
-            if [[ -z "$model" ]]; then
-                error "无效选择: $sel"
-                return 1
-            fi
-            _bill_del "$model"
-            ;;
-        n|N)
-            read -p "  自定义模型名: " model
-            [[ -z "$model" ]] && { error "模型名不能为空"; return 1; }
-            _bill_set "$model"
-            ;;
-        0) ;;
-        *) error "无效选择"; return 1 ;;
-    esac
+                if [[ -z "$model" ]]; then
+                    error "无效选择: $sel"
+                    continue
+                fi
+                _bill_del "$model"
+                ;;
+            n|N)
+                read -p "  自定义模型名: " model
+                [[ -z "$model" ]] && { error "模型名不能为空"; continue; }
+                _bill_set "$model"
+                ;;
+            0) return 0 ;;
+            *) error "无效选择" ;;
+        esac
+    done
 }
 
 _bill_set() {
