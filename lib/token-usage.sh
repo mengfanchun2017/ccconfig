@@ -269,8 +269,9 @@ write_by_day_csv() {
         existing='[]'
     fi
 
-    # 生成新增行 + 更新 state
-    python3 - "$existing" "$rows_file" "$state_by_day" "$by_day_dir" "$pricing" << 'PYEOF' 2>/dev/null
+    # 一次性：按 day 分组新增行 + 写文件 + 更新 state
+    local added
+    added=$(python3 - "$existing" "$rows_file" "$state_by_day" "$by_day_dir" "$pricing" << 'PYEOF' 2>/dev/null
 import json, sys, os
 from collections import defaultdict
 
@@ -290,10 +291,6 @@ for line in open(rows_file):
     seen.add(key)
     new_keys.append(list(key))
     new_by_day[r["day"]].append(r)
-
-if not new_keys:
-    print("0")
-    sys.exit(0)
 
 p = json.loads(pricing) if pricing else {}
 
@@ -317,46 +314,6 @@ merged = sorted(seen)
 with open(state_file, "w") as f:
     json.dump({"keys": merged, "version": 2}, f)
 
-print(len(new_keys))
-PYEOF
-
-    local added
-    added=$(python3 - "$existing" "$rows_file" "$state_by_day" "$by_day_dir" "$pricing" << 'PYEOF' 2>/dev/null
-import json, sys, os
-from collections import defaultdict
-
-existing_json, rows_file, state_file, by_day_dir, pricing = sys.argv[1:6]
-seen = set(tuple(k) for k in json.loads(existing_json))
-new_by_day = defaultdict(list)
-new_keys = []
-for line in open(rows_file):
-    line = line.strip()
-    if not line: continue
-    r = json.loads(line)
-    key = (r["sessionId"][:8], r["day"], r["model"])
-    if key in seen: continue
-    seen.add(key)
-    new_keys.append(list(key))
-    new_by_day[r["day"]].append(r)
-
-p = json.loads(pricing) if pricing else {}
-for day, rows in new_by_day.items():
-    path = os.path.join(by_day_dir, f"{day}.csv")
-    is_new = not os.path.exists(path)
-    with open(path, "a") as f:
-        if is_new:
-            f.write("session_id,day,project_path,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_ts,last_ts,cost_usd\n")
-        for r in rows:
-            pm = p.get(r["model"], {})
-            cost = ((r["inputTokens"] * pm.get("input", 0))
-                    + (r["outputTokens"] * pm.get("output", 0))
-                    + (r["cacheCreationTokens"] * pm.get("cache_creation", pm.get("input", 0)))
-                    + (r["cacheReadTokens"] * pm.get("cache_read", 0))) / 1_000_000
-            f.write(f'{r["sessionId"][:8]},{day},{r["projectPath"]},{r["model"]},{r["inputTokens"]},{r["outputTokens"]},{r["cacheCreationTokens"]},{r["cacheReadTokens"]},{r["totalTokens"]},{r["requestCount"]},{r["firstTs"]},{r["lastTs"]},{cost:.6f}\n')
-
-merged = sorted(seen)
-with open(state_file, "w") as f:
-    json.dump({"keys": merged, "version": 2}, f)
 print(len(new_keys))
 PYEOF
 )
