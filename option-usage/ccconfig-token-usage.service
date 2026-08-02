@@ -1,0 +1,14 @@
+[Unit]
+Description=ccconfig token-usage daily archive
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=<USER>
+Group=<GROUP>
+WorkingDirectory=<HOME>/git/ccconfig
+Environment=PATH=<HOME>/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=CCPRIVATE_HOME=<HOME>/git/ccprivate
+ExecStart=<HOME>/git/ccconfig/option-usage/token-usage.sh --by-day
+Nice=10

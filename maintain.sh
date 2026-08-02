@@ -19,6 +19,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/lib"
+CCCONFIG_DIR="$SCRIPT_DIR"
 
 source "$LIB_DIR/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -171,15 +172,15 @@ show_menu() {
            echo ""
            read -p "按回车返回菜单..." dummy
            show_menu ;;
-        10) bash "$LIB_DIR/token-usage.sh" --stats
+        10) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats
            echo ""
-           echo "  r) 按日报告    f) 推飞书 (粘贴 URL)    i) 增量归档    0) 返回"
-           read -p "选择 [r/f/i/0]: " choice
+           echo "  r) 按日报告    d) 按天归档    f) 推飞书 (粘贴 URL)    0) 返回"
+           read -p "选择 [r/d/f/0]: " choice
            case "$choice" in
-             r) bash "$LIB_DIR/token-usage.sh" --report ;;
+             r) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
+             d) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day ;;
              f) read -p "飞书多维表格 URL: " url
-                bash "$LIB_DIR/token-usage.sh" --feishu "$url" ;;
-             i) bash "$LIB_DIR/token-usage.sh" --incremental ;;
+                bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --feishu "$url" ;;
              0) ;;
              *) ;;
            esac ;;
@@ -232,6 +233,6 @@ case "${1:-menu}" in
     upgrade-ccprivate|upgrade-ccpriv|ccpriv-upgrade)
         shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
     token|usage)
-        shift; bash "$LIB_DIR/token-usage.sh" "$@" ;;
+        shift; bash "$CCCONFIG_DIR/option-usage/token-usage.sh" "$@" ;;
     *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|menu]"; exit 1 ;;
 esac
