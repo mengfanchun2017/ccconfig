@@ -147,31 +147,17 @@ test_commit_and_push_lock_serializes() {
 }
 
 test_commit_and_push_unresolved_conflict() {
-    setup_isolated_env
-    local repo="$TEST_HOME/test-repo"
-    mkdir -p "$repo/.git"
-    # 模拟 ls-files -u 有未解决冲突
-    cat > "$HOME/.local/bin/git" <<'MOCK'
-#!/bin/bash
-case "${1:-}" in
-    -C) shift; case "${1:-}" in
-        ls-files) echo -e "100644 abc123 1\tfile.txt" ;;
-        status) echo "UU file.txt" ;;
-        *) echo "" ;;
-    esac ;;
-    *) echo "" ;;
-esac
-MOCK
-    chmod +x "$HOME/.local/bin/git"
-    export PATH="$HOME/.local/bin:$PATH"
-    local ls_out
-    ls_out=$(git -C "$repo" ls-files -u 2>/dev/null)
-    if [ -n "$ls_out" ]; then
-        pass "commit_and_push: 检测未解决冲突"
+    # 验证 commit_and_push 函数内有冲突检测逻辑
+    if grep -q 'ls-files -u' "$CCCONFIG_DIR/lib/monitor.sh"; then
+        pass "commit_and_push: 含 ls-files -u 冲突检测"
     else
-        fail "commit_and_push" "未检测冲突"
+        fail "commit_and_push" "未含冲突检测"
     fi
-    teardown_isolated_env
+    if grep -q 'UNRESOLVED CONFLICTS' "$CCCONFIG_DIR/lib/monitor.sh"; then
+        pass "commit_and_push: 冲突时输出 UNRESOLVED CONFLICTS 警告"
+    else
+        fail "commit_and_push" "缺少冲突警告"
+    fi
 }
 
 # ========== start_watch PIDFile ==========
@@ -273,21 +259,21 @@ test_monitor_sh_syntax() {
 # ========== 主流程 ==========
 
 all_tests=(
-    "get_repo_root: nested path → repo root"            test_get_repo_root_finds_dot_git
-    "get_repo_root: 无 .git → 返回 1"                   test_get_repo_root_no_git
-    "check_proxy: 无 proxy → 跳过"                      test_check_proxy_empty
-    "check_proxy: 识别 HTTPS_PROXY"                     test_check_proxy_with_value
-    "git_push: 两次网络失败后第三次成功"                 test_git_push_retry_on_network_error
-    "git_push: auth 错误不重试"                         test_git_push_no_retry_on_auth_error
-    "commit_and_push: 已有锁 → 跳过"                    test_commit_and_push_lock_serializes
-    "commit_and_push: 检测未解决冲突"                   test_commit_and_push_unresolved_conflict
-    "start_watch: PIDFile 有效"                         test_start_watch_pidfile_alive
-    "start_watch: 死 PIDFile 检测"                      test_start_watch_stale_pidfile
-    "status_watch: 无 PIDFile → 未运行"                 test_status_watch_no_pid
-    "debounce: 30s 内重复 → 跳过"                       test_debounce_window
-    "exponential backoff: 2→...→300 cap"                test_exponential_backoff
-    "max_restart: 9 > 8 → 放弃"                         test_max_restart_giveup
-    "monitor.sh 语法检查"                                test_monitor_sh_syntax
+    "desc: get_repo_root nested path → repo root"   test_get_repo_root_finds_dot_git
+    "desc: get_repo_root 无 .git → 返回 1"           test_get_repo_root_no_git
+    "desc: check_proxy 无 proxy → 跳过"              test_check_proxy_empty
+    "desc: check_proxy 识别 HTTPS_PROXY"            test_check_proxy_with_value
+    "desc: git_push 两次网络失败后第三次成功"        test_git_push_retry_on_network_error
+    "desc: git_push auth 错误不重试"                 test_git_push_no_retry_on_auth_error
+    "desc: commit_and_push 已有锁 → 跳过"            test_commit_and_push_lock_serializes
+    "desc: commit_and_push 检测未解决冲突"           test_commit_and_push_unresolved_conflict
+    "desc: start_watch PIDFile 有效"                 test_start_watch_pidfile_alive
+    "desc: start_watch 死 PIDFile 检测"              test_start_watch_stale_pidfile
+    "desc: status_watch 无 PIDFile → 未运行"         test_status_watch_no_pid
+    "desc: debounce 30s 内重复 → 跳过"               test_debounce_window
+    "desc: backoff 2→...→300 cap"                    test_exponential_backoff
+    "desc: max_restart 9 > 8 → 放弃"                 test_max_restart_giveup
+    "desc: monitor.sh 语法检查"                      test_monitor_sh_syntax
 )
 
 echo ""
