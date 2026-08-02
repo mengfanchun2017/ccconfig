@@ -417,7 +417,9 @@ for name, cfg in d.get('llms', {}).items():
     if name == 'gateway':
         continue
     model = cfg.get('model', '?')
-    print(f"{name}|{model}")
+    display = cfg.get('name', name)
+    # name (config key, 写入用) | display (展示用) | model
+    print(f"{name}|{display}|{model}")
 PYEOF
 }
 
@@ -438,10 +440,10 @@ _do_config_mode() {
             echo ""
             echo "  可用后端:"
             local provs=()
-            while IFS='|' read -r name model; do
+            while IFS='|' read -r name display model; do
                 [[ -z "$name" ]] && continue
                 provs+=("$name")
-                printf "    %d) %s (%s)\n" "${#provs[@]}" "$name" "$model"
+                printf "    %d) %s (%s)\n" "${#provs[@]}" "$display" "$model"
             done < <(_read_provider_list)
             echo ""
             read -p "  选择后端 [1-${#provs[@]}，回车取消]: " prov_choice
@@ -549,6 +551,8 @@ PYEOF
 _do_config_routes() {
     echo ""
     echo "  路由配置:"
+    info "  说明: 'llmgateway' = 主模型路由, 'llmgateway-s' = 小模型(haiku)路由"
+    info "        两个路由独立，都按 peak/off_peak 切换（高峰选同后端即固定）"
     local route_names=()
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
@@ -566,7 +570,7 @@ for name, rule in routes.items():
     if isinstance(rule, dict):
         print(f"{name}: 高峰→{rule.get('peak','?')}, 非高峰→{rule.get('off_peak','?')}")
     else:
-        print(f"{name}: →{rule}")
+        print(f"{name}: 固定→{rule}")
 PYEOF
     )
     echo ""
@@ -581,26 +585,11 @@ PYEOF
     echo ""
     echo "  可用后端:"
     local route_provs=()
-    while IFS='|' read -r name model; do
+    while IFS='|' read -r name display model; do
         [[ -z "$name" ]] && continue
         route_provs+=("$name")
-        printf "      %d) %s (%s)\n" "${#route_provs[@]}" "$name" "$model"
+        printf "      %d) %s (%s)\n" "${#route_provs[@]}" "$display" "$model"
     done < <(_read_provider_list)
-
-    local route_type=$(python3 - "$CONF_FILE" "$route_name" << 'PYEOF'
-import json, sys
-try:
-    with open(sys.argv[1]) as f:
-        d = json.load(f)
-    r = d.get('routes', {}).get(sys.argv[2], {})
-    if isinstance(r, dict) and 'peak' in r:
-        print("dict")
-    else:
-        print("str")
-except:
-    print("str")
-PYEOF
-    )
 
     _pick_route_provider() {
         local prompt="$1" prov_name
@@ -611,10 +600,14 @@ PYEOF
         echo "${prov_name:-}"
     }
 
-    if [[ "$route_type" == "dict" ]]; then
-        peak_p=$(_pick_route_provider "高峰后端")
-        offpeak_p=$(_pick_route_provider "非高峰后端")
-        python3 - "$CONF_FILE" "$route_name" "${peak_p:-}" "${offpeak_p:-}" << 'PYEOF'
+    # 统一强制 dict 模式（让主/小模型路由配置对称）
+    peak_p=$(_pick_route_provider "高峰后端")
+    offpeak_p=$(_pick_route_provider "非高峰后端")
+    if [[ -z "$peak_p" || -z "$offpeak_p" ]]; then
+        warn "  未选完整后端，已取消"
+        return
+    fi
+    python3 - "$CONF_FILE" "$route_name" "$peak_p" "$offpeak_p" << 'PYEOF'
 import json, sys
 conf_file = sys.argv[1]; route_name = sys.argv[2]; peak = sys.argv[3]; off_peak = sys.argv[4]
 try:
@@ -624,19 +617,6 @@ d.setdefault('routes', {})[route_name] = {"peak": peak, "off_peak": off_peak}
 with open(conf_file, 'w') as f: json.dump(d, f, indent=2)
 print(f"  已更新 {route_name}: 高峰→{peak}, 非高峰→{off_peak}")
 PYEOF
-    else
-        fixed_p=$(_pick_route_provider "固定后端")
-        python3 - "$CONF_FILE" "$route_name" "${fixed_p:-}" << 'PYEOF'
-import json, sys
-conf_file = sys.argv[1]; route_name = sys.argv[2]; provider = sys.argv[3]
-try:
-    with open(conf_file) as f: d = json.load(f)
-except: d = {}
-d.setdefault('routes', {})[route_name] = provider
-with open(conf_file, 'w') as f: json.dump(d, f, indent=2)
-print(f"  已更新 {route_name}: →{provider}")
-PYEOF
-    fi
 
     # 热切换通知
     if is_running; then
@@ -648,10 +628,10 @@ _do_config_manual_provider() {
     echo ""
     echo "  可用后端:"
     local provs=()
-    while IFS='|' read -r name model; do
+    while IFS='|' read -r name display model; do
         [[ -z "$name" ]] && continue
         provs+=("$name")
-        printf "    %d) %s (%s)\n" "${#provs[@]}" "$name" "$model"
+        printf "    %d) %s (%s)\n" "${#provs[@]}" "$display" "$model"
     done < <(_read_provider_list)
     echo ""
     read -p "  选择后端 [1-${#provs[@]}，回车取消]: " prov_choice
