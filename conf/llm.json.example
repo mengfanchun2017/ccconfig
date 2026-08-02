@@ -10,11 +10,18 @@
             "small_model": "MiniMax-M3"
         },
         "deepseek": {
-            "name": "DeepSeek",
+            "name": "DeepSeek4 pro",
             "base_url": "https://api.deepseek.com/anthropic",
             "model": "deepseek-v4-pro",
             "key": "请填入你的 DeepSeek API Key",
             "small_model": "deepseek-v4-pro"
+        },
+        "deepseek_flash": {
+            "name": "DeepSeek4 flash",
+            "base_url": "https://api.deepseek.com/anthropic",
+            "model": "deepseek-v4-flash",
+            "key": "请填入你的 DeepSeek API Key",
+            "small_model": "deepseek-v4-flash"
         },
         "openaialt": {
             "_comment": "可选：OpenAI-compatible 端点，自动启用 Anthropic↔OpenAI bridge",
