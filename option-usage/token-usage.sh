@@ -41,12 +41,12 @@ CLAUDE_PROJECTS_DIR="${CLAUDE_PROJECTS_DIR:-$HOME/.claude/projects}"
 
 # 归档根目录优先级：
 #   1) TOKEN_USAGE_OUTPUT 环境变量（用户临时指定）
-#   2) ccprivate/token-usage/（永久记录，跟随 ccprivate 同步到云端）
+#   2) ccprivate/usage/（永久记录，跟随 ccprivate 同步）
 #   3) ~/.cache/token-usage/（fallback，本地缓存）
 if [[ -n "${TOKEN_USAGE_OUTPUT:-}" ]]; then
     OUTPUT_DIR="$TOKEN_USAGE_OUTPUT"
 elif [[ -d "${CCPRIVATE_HOME:-$HOME/git/ccprivate}" ]]; then
-    OUTPUT_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/token-usage"
+    OUTPUT_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/usage"
 else
     OUTPUT_DIR="$HOME/.cache/token-usage"
 fi
@@ -335,8 +335,7 @@ PYEOF
 # 增量：state 记录 (sessionId, day, model) 组合，重复跳过
 write_by_day_csv() {
     local rows_file="$1"
-    local by_day_dir="$OUTPUT_DIR/by-day"
-    mkdir -p "$by_day_dir"
+    mkdir -p "$OUTPUT_DIR"
     local state_by_day="$OUTPUT_DIR/state.by-day.json"
 
     # 读现有 state
@@ -349,11 +348,11 @@ write_by_day_csv() {
 
     # 一次性：按 day 分组新增行 + 写文件 + 更新 state
     local added
-    added=$(python3 - "$existing" "$rows_file" "$state_by_day" "$by_day_dir" "$pricing" << 'PYEOF' 2>/dev/null
+    added=$(python3 - "$existing" "$rows_file" "$state_by_day" "$OUTPUT_DIR" "$pricing" << 'PYEOF' 2>/dev/null
 import json, sys, os
 from collections import defaultdict
 
-existing_json, rows_file, state_file, by_day_dir, pricing = sys.argv[1:6]
+existing_json, rows_file, state_file, out_dir, pricing = sys.argv[1:6]
 seen = set(tuple(k) for k in json.loads(existing_json))
 
 # 按 day 分组新增行
@@ -372,9 +371,9 @@ for line in open(rows_file):
 
 p = json.loads(pricing) if pricing else {}
 
-# 写每个 day 文件（append；如果不存在则写 header）
+# 直接平铺写到 OUTPUT_DIR/<day>.csv
 for day, rows in new_by_day.items():
-    path = os.path.join(by_day_dir, f"{day}.csv")
+    path = os.path.join(out_dir, f"{day}.csv")
     is_new = not os.path.exists(path)
     with open(path, "a") as f:
         if is_new:
@@ -400,7 +399,7 @@ PYEOF
     if [[ "$added" == "0" || -z "$added" ]]; then
         ok "by-day 无新增（state 已覆盖）"
     else
-        ok "by-day 写入 $added 条 → $by_day_dir/"
+        ok "by-day 写入 $added 条 → $OUTPUT_DIR/"
     fi
 }
 
