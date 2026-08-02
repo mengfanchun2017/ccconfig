@@ -39,14 +39,16 @@
             "small_model": "<your-gateway-small-model>"
         }
     },
-    "_pricing_note": "按 model 名查 USD/1M tokens。token-usage.sh 读取计算成本。cache_creation 缺省 = input × 1.25。",
+    "_pricing_note": "按 model 名查 CNY/1M tokens（人民币）。token-usage.sh 读取算成本。cache_creation 缺省 = input × 1.25。",
+    "_fx_note": "fx 字段定义 USD→CNY 汇率（如 7.20），仅作显示用。token-usage.sh 直接用 CNY 计费。",
     "pricing": {
-        "MiniMax-M3":           {"input": 0.80, "output": 2.40, "cache_read": 0.08},
-        "deepseek-v4-pro":      {"input": 0.28, "output": 0.42, "cache_read": 0.028},
-        "deepseek-v4-flash":    {"input": 0.028, "output": 0.042, "cache_read": 0.003},
-        "claude-opus-4-7":      {"input": 5.00, "output": 25.00, "cache_read": 0.50},
-        "claude-sonnet-4-5":    {"input": 3.00, "output": 15.00, "cache_read": 0.30},
-        "claude-haiku-4-5":     {"input": 1.00, "output": 5.00, "cache_read": 0.10}
+        "MiniMax-M3":           {"input": 6.00, "output": 17.00, "cache_read": 0.60},
+        "deepseek-v4-pro":      {"input": 2.00, "output": 3.00, "cache_read": 0.20},
+        "deepseek-v4-flash":    {"input": 0.20, "output": 0.30, "cache_read": 0.02},
+        "claude-opus-4-7":      {"input": 35.00, "output": 175.00, "cache_read": 3.50},
+        "claude-sonnet-4-5":    {"input": 21.00, "output": 105.00, "cache_read": 2.10},
+        "claude-haiku-4-5":     {"input": 7.00, "output": 35.00, "cache_read": 0.70}
     },
+    "fx": {"usd_to_cny": 7.20},
     "current": ""
 }

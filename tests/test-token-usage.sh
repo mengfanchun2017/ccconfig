@@ -196,7 +196,7 @@ test_csv_header() {
     bash "$TOKEN" 2>/dev/null >/dev/null
     csv="$TOKEN_USAGE_OUTPUT/$(date +%Y-%m-%d).csv"
     [[ -f "$csv" ]] || { _log "csv not created"; return 1; }
-    head -1 "$csv" | grep -q "session_id,project_path,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_activity,last_activity,cost_usd"
+    head -1 "$csv" | grep -q "session_id,project_path,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_activity,last_activity,cost_cny"
     return 0
 }
 

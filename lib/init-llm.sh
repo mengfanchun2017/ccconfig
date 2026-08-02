@@ -756,7 +756,7 @@ PYEOF
 )"
 
     echo ""
-    echo "═══ Pricing 配置 (USD / 1M tokens) ═══"
+    echo "═══ Pricing 配置 (CNY ¥ / 1M tokens) ═══"
     echo ""
     if [[ "$p" == "{}" || -z "$p" ]]; then
         echo "  (无)"
@@ -766,11 +766,11 @@ import json, sys
 d = json.load(sys.stdin)
 for m, v in d.items():
     print(f'  {m}:')
-    print(f'    input:          \${v.get(\"input\", 0)}/1M')
-    print(f'    output:         \${v.get(\"output\", 0)}/1M')
-    print(f'    cache_read:     \${v.get(\"cache_read\", 0)}/1M')
+    print(f'    input:          ¥{v.get(\"input\", 0)}/1M')
+    print(f'    output:         ¥{v.get(\"output\", 0)}/1M')
+    print(f'    cache_read:     ¥{v.get(\"cache_read\", 0)}/1M')
     cc = v.get('cache_creation')
-    print(f'    cache_creation: ' + (f'\${cc}/1M' if cc is not None else '(未设，默认 = input × 1.25)'))
+    print(f'    cache_creation: ' + (f'¥{cc}/1M' if cc is not None else '(未设，默认 = input × 1.25)'))
 "
     fi
 
@@ -795,7 +795,7 @@ _pricing_set() {
     local model="$1"
     [[ -z "$model" ]] && { warn "模型名不能为空"; return 1; }
     echo ""
-    echo "为 '$model' 输入价格 (USD / 1M tokens)，留空跳过："
+    echo "为 '$model' 输入价格 (CNY ¥ / 1M tokens)，留空跳过："
     read -p "  input  单价 (回车 = 0): " in_v
     read -p "  output 单价 (回车 = 0): " out_v
     read -p "  cache_read 单价 (回车 = 0): " cr_v
