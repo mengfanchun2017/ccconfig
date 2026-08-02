@@ -38,7 +38,18 @@ err()   { echo -e "  ${RED:-}❌ $1${NC:-}" >&2; }
 section() { echo -e "\n${CYAN:-}━━━ $1 ━━━${NC:-}" >&2; }
 
 CLAUDE_PROJECTS_DIR="${CLAUDE_PROJECTS_DIR:-$HOME/.claude/projects}"
-OUTPUT_DIR="${TOKEN_USAGE_OUTPUT:-$HOME/.cache/token-usage}"
+
+# 归档根目录优先级：
+#   1) TOKEN_USAGE_OUTPUT 环境变量（用户临时指定）
+#   2) ccprivate/token-usage/（永久记录，跟随 ccprivate 同步到云端）
+#   3) ~/.cache/token-usage/（fallback，本地缓存）
+if [[ -n "${TOKEN_USAGE_OUTPUT:-}" ]]; then
+    OUTPUT_DIR="$TOKEN_USAGE_OUTPUT"
+elif [[ -d "${CCPRIVATE_HOME:-$HOME/git/ccprivate}" ]]; then
+    OUTPUT_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/token-usage"
+else
+    OUTPUT_DIR="$HOME/.cache/token-usage"
+fi
 STATE_FILE="$OUTPUT_DIR/state.json"
 LLM_CONF="$(resolve_conf llm.json 2>/dev/null || echo "")"
 
@@ -107,14 +118,68 @@ if project_filter:
     if project_filter not in project_path and not fname.startswith(project_filter):
         sys.exit(0)
 
+def detect_route(model, endpoint_id):
+    """根据 model 名 + endpoint ID 格式判断 route"""
+    if not endpoint_id or endpoint_id.startswith("<"):
+        return "synthetic"
+    if endpoint_id.startswith("chatcmpl-"):
+        return "bridge-openaialt"  # OpenAI 协议（bridge 转）
+    if endpoint_id.startswith("msg_") and len(endpoint_id) == 24:
+        return "anthropic-direct"  # 标准 Anthropic 直连
+    # 32 hex = MiniMax 兼容 / deepseek 直连（也走 anthropic 协议）
+    if len(endpoint_id) == 32 and all(c in "0123456789abcdef" for c in endpoint_id):
+        if "deepseek" in model:
+            return "deepseek-direct"  # api.deepseek.com/anthropic
+        if "MiniMax" in model or "minimax" in model:
+            return "minimax-direct"  # api.minimaxi.com/anthropic
+        return "anthropic-compatible"
+    # 36 字符 UUID
+    if len(endpoint_id) == 36 and endpoint_id.count("-") == 4:
+        return "anthropic-direct"  # 标准 UUID（Anthropic 协议）
+    return "unknown"
+
 # 聚合: session_id -> { model: { in, out, cc, cr, count }, first, last }
 sessions = defaultdict(lambda: {
     "input": 0, "output": 0, "cache_creation": 0, "cache_read": 0,
     "request_count": 0, "first": None, "last": None,
+    "session_name": "", "route": "",
     "models": defaultdict(lambda: {"input": 0, "output": 0, "cache_creation": 0, "cache_read": 0, "count": 0}),
     # by-day 模式：按 (day, model) 聚合
-    "days": defaultdict(lambda: defaultdict(lambda: {"input":0,"output":0,"cache_creation":0,"cache_read":0,"count":0,"first_ts":"","last_ts":""})),
+    "days": defaultdict(lambda: defaultdict(lambda: {"input":0,"output":0,"cache_creation":0,"cache_read":0,"count":0,"route":"","first_ts":"","last_ts":""})),
 })
+
+# 先扫一遍找每 session 的首条 user 消息（用作 session_name）+ 首个 endpoint（route）
+session_first_user = {}
+session_route = {}
+with open(path, encoding="utf-8") as fh:
+    for line in fh:
+        line = line.strip()
+        if not line: continue
+        try: rec = json.loads(line)
+        except: continue
+        sid = rec.get("sessionId") or rec.get("session_id")
+        if not sid: continue
+        if rec.get("type") == "user" and sid not in session_first_user:
+            msg = rec.get("message") or {}
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                text_parts = []
+                for blk in content:
+                    if isinstance(blk, dict):
+                        text_parts.append(blk.get("text", ""))
+                    elif isinstance(blk, str):
+                        text_parts.append(blk)
+                content = " ".join(text_parts)
+            if isinstance(content, str):
+                # 过滤系统/工具消息
+                content = content.strip()
+                if content and not content.startswith("<") and "command-message" not in content[:30]:
+                    session_first_user[sid] = content[:80].replace("\n", " ").replace(",", " ").strip()
+        elif rec.get("type") == "assistant" and sid not in session_route:
+            msg = rec.get("message") or {}
+            model = msg.get("model", "")
+            eid = msg.get("id", "")
+            session_route[sid] = detect_route(model, eid)
 
 with open(path, encoding="utf-8") as fh:
     for line in fh:
@@ -139,6 +204,11 @@ with open(path, encoding="utf-8") as fh:
         if not sid:
             continue
         s = sessions[sid]
+        # 注入 session_name 和 route（首次设置）
+        if not s["session_name"]:
+            s["session_name"] = session_first_user.get(sid, "")
+        if not s["route"]:
+            s["route"] = session_route.get(sid, "unknown")
         s["input"] += in_t
         s["output"] += out_t
         s["cache_creation"] += cc_t
@@ -157,6 +227,9 @@ with open(path, encoding="utf-8") as fh:
             dm["cache_creation"] += cc_t
             dm["cache_read"] += cr_t
             dm["count"] += 1
+            if not dm["route"]:
+                eid = msg.get("id", "")
+                dm["route"] = detect_route(model, eid)
             if not dm["first_ts"] or ts < dm["first_ts"]:
                 dm["first_ts"] = ts
             if not dm["last_ts"] or ts > dm["last_ts"]:
@@ -182,6 +255,8 @@ if mode == "by-day":
                     "day": day,
                     "projectPath": project_path,
                     "model": model,
+                    "route": dm["route"] or s["route"],
+                    "sessionName": s["session_name"],
                     "inputTokens": dm["input"],
                     "outputTokens": dm["output"],
                     "cacheCreationTokens": dm["cache_creation"],
@@ -205,6 +280,8 @@ for sid, s in sessions.items():
     out = {
         "sessionId": sid,
         "projectPath": project_path,
+        "route": s["route"],
+        "sessionName": s["session_name"],
         "inputTokens": s["input"],
         "outputTokens": s["output"],
         "cacheCreationTokens": s["cache_creation"],
@@ -226,7 +303,7 @@ write_csv() {
     mkdir -p "$OUTPUT_DIR"
     local out="$OUTPUT_DIR/${date_stamp}.csv"
     {
-        echo "session_id,project_path,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_activity,last_activity,cost_usd"
+        echo "session_id,project_path,route,session_name,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_activity,last_activity,cost_usd"
         while IFS= read -r row; do
             [[ -z "$row" ]] && continue
             python3 - "$row" "$pricing" << 'PYEOF' 2>/dev/null
@@ -235,7 +312,8 @@ row = json.loads(sys.argv[1])
 pricing = json.loads(sys.argv[2]) if sys.argv[2] else {}
 sid = row["sessionId"][:8]
 project = row["projectPath"]
-# 主模型 = 用量最大的模型
+route = row.get("route", "unknown")
+session_name = row.get("sessionName", "").replace(",", " ").replace("\n", " ")[:80]
 models = row.get("models", {})
 if models:
     main_model = max(models.items(), key=lambda x: sum(x[1][k] for k in ("input","output","cache_creation","cache_read")))[0]
@@ -246,7 +324,7 @@ cost = ((row["inputTokens"] * p.get("input", 0))
         + (row["outputTokens"] * p.get("output", 0))
         + (row["cacheCreationTokens"] * p.get("cache_creation", p.get("input", 0)))
         + (row["cacheReadTokens"] * p.get("cache_read", 0))) / 1_000_000
-print(f'{sid},{project},{main_model},{row["inputTokens"]},{row["outputTokens"]},{row["cacheCreationTokens"]},{row["cacheReadTokens"]},{row["totalTokens"]},{row["requestCount"]},{row["firstActivity"]},{row["lastActivity"]},{cost:.6f}')
+print(f'{sid},{project},{route},{session_name},{main_model},{row["inputTokens"]},{row["outputTokens"]},{row["cacheCreationTokens"]},{row["cacheReadTokens"]},{row["totalTokens"]},{row["requestCount"]},{row["firstActivity"]},{row["lastActivity"]},{cost:.6f}')
 PYEOF
         done < "$rows_file"
     } > "$out"
@@ -300,14 +378,16 @@ for day, rows in new_by_day.items():
     is_new = not os.path.exists(path)
     with open(path, "a") as f:
         if is_new:
-            f.write("session_id,day,project_path,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_ts,last_ts,cost_usd\n")
+            f.write("session_id,day,project_path,route,session_name,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_ts,last_ts,cost_usd\n")
         for r in rows:
             pm = p.get(r["model"], {})
             cost = ((r["inputTokens"] * pm.get("input", 0))
                     + (r["outputTokens"] * pm.get("output", 0))
                     + (r["cacheCreationTokens"] * pm.get("cache_creation", pm.get("input", 0)))
                     + (r["cacheReadTokens"] * pm.get("cache_read", 0))) / 1_000_000
-            f.write(f'{r["sessionId"][:8]},{day},{r["projectPath"]},{r["model"]},{r["inputTokens"]},{r["outputTokens"]},{r["cacheCreationTokens"]},{r["cacheReadTokens"]},{r["totalTokens"]},{r["requestCount"]},{r["firstTs"]},{r["lastTs"]},{cost:.6f}\n')
+            sn = (r.get("sessionName","") or "").replace(",", " ").replace("\n", " ")[:80]
+            route = r.get("route", "unknown")
+            f.write(f'{r["sessionId"][:8]},{day},{r["projectPath"]},{route},{sn},{r["model"]},{r["inputTokens"]},{r["outputTokens"]},{r["cacheCreationTokens"]},{r["cacheReadTokens"]},{r["totalTokens"]},{r["requestCount"]},{r["firstTs"]},{r["lastTs"]},{cost:.6f}\n')
 
 # 更新 state
 merged = sorted(seen)
