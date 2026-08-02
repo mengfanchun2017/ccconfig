@@ -718,4 +718,5 @@ main() {
     echo ""
 }
 
-main "$@"
+# TEST_MODE=1 时 source 不执行 main（供单元测试加载函数）
+[[ "${TEST_MODE:-0}" == "1" ]] || main "$@"
