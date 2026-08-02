@@ -12,6 +12,6 @@
     ],
     "routes": {
         "llmgateway": {"off_peak": "deepseek", "peak": "minimax"},
-        "llmgateway-s": "minimax"
+        "llmgateway-s": {"off_peak": "minimax", "peak": "minimax"}
     }
 }
