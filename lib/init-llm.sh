@@ -823,9 +823,8 @@ PYEOF
         echo "  ── 操作 ──"
         echo "    a) 添加 / 修改价格  （输入模型序号或名）"
         echo "    d) 删除已配价格"
-        echo "    n) 新增自定义模型（不在 llm.json 里）"
         echo "    0) 返回"
-        read -p "  选择 [a/d/n/0]: " op
+        read -p "  选择 [a/d/0]: " op
 
         case "$op" in
             a|A)
@@ -869,11 +868,6 @@ PYEOF
                     continue
                 fi
                 _bill_del "$model"
-                ;;
-            n|N)
-                read -p "  自定义模型名: " model
-                [[ -z "$model" ]] && { error "模型名不能为空"; continue; }
-                _bill_set "$model"
                 ;;
             0) return 0 ;;
             *) error "无效选择" ;;
