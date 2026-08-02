@@ -477,6 +477,12 @@ switch_llm() {
             error "  bridge 启动失败，请检查 ~/.cache/openai_bridge.log"
             return 1
         fi
+    else
+        # 切到直连/本地端点，bridge 无需求 → 关残留进程
+        if pgrep -f "openai_bridge.py" >/dev/null 2>&1; then
+            info "  切换目标不需要 bridge，关闭残留 openai_bridge 进程..."
+            pkill -f "openai_bridge.py" 2>/dev/null || true
+        fi
     fi
 
     # 占位符 key → 尝试从已有配置读取，都没有就交互输入
