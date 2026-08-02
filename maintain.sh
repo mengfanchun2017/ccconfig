@@ -175,19 +175,19 @@ show_menu() {
         10) while true; do
            echo ""
            echo "  ─ Bill & Token ─"
-           echo "  b) Bill (配置模型 token 单价)"
-           echo "  s) 用量统计 (总览)"
-           echo "  r) 按日报告"
-           echo "  d) 按天归档 (增量 → ccprivate/usage/)"
-           echo "  f) 推飞书 (粘贴多维表格 URL)"
+           echo "  1) Bill (配置模型 token 单价)"
+           echo "  2) 用量统计 (总览)"
+           echo "  3) 按日报告"
+           echo "  4) 按天归档 (增量 → ccprivate/usage/)"
+           echo "  5) 推飞书 (粘贴多维表格 URL)"
            echo "  0) 返回"
-           read -p "  选择 [b/s/r/d/f/0]: " choice
+           read -p "  选择 [0-5]: " choice
            case "$choice" in
-             b|B) bash "$LIB_DIR/init-llm.sh" bill ;;
-             s|S) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
-             r|R) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
-             d|D) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day ;;
-             f|F)
+             1) bash "$LIB_DIR/init-llm.sh" bill ;;
+             2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
+             3) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
+             4) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day ;;
+             5)
                 read -p "  飞书多维表格 URL (https://<tenant>.feishu.cn/base/<base>?table=<tbl>): " url
                 [[ -z "$url" ]] && { warn "URL 不能为空"; continue; }
                 bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --feishu "$url"

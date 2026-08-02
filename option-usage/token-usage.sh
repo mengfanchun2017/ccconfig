@@ -304,7 +304,7 @@ write_csv() {
     mkdir -p "$OUTPUT_DIR"
     local out="$OUTPUT_DIR/${date_stamp}.csv"
     {
-        echo "session_id,project_path,route,session_name,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_activity,last_activity,cost_cny"
+        echo "session_id,project_path,route,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,first_activity,last_activity,cost_cny"
         while IFS= read -r row; do
             [[ -z "$row" ]] && continue
             python3 - "$row" "$pricing" << 'PYEOF' 2>/dev/null
@@ -323,9 +323,8 @@ else:
 p = pricing.get(main_model, {})
 cost = ((row["inputTokens"] * p.get("input", 0))
         + (row["outputTokens"] * p.get("output", 0))
-        + (row["cacheCreationTokens"] * p.get("cache_creation", p.get("input", 0)))
         + (row["cacheReadTokens"] * p.get("cache_read", 0))) / 1_000_000
-print(f'{sid},{project},{route},{session_name},{main_model},{row["inputTokens"]},{row["outputTokens"]},{row["cacheCreationTokens"]},{row["cacheReadTokens"]},{row["totalTokens"]},{row["requestCount"]},{row["firstActivity"]},{row["lastActivity"]},{cost:.6f}')
+print(f'{sid},{project},{route},{session_name},{main_model},{row["inputTokens"]},{row["cacheReadTokens"]},{row["outputTokens"]},{row["totalTokens"]},{row["requestCount"]},{row["firstActivity"]},{row["lastActivity"]},{cost:.6f}')
 PYEOF
         done < "$rows_file"
     } > "$out"
@@ -378,16 +377,15 @@ for day, rows in new_by_day.items():
     is_new = not os.path.exists(path)
     with open(path, "a") as f:
         if is_new:
-            f.write("session_id,day,project_path,route,session_name,model,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,total_tokens,request_count,first_ts,last_ts,cost_cny\n")
+            f.write("session_id,day,project_path,route,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,first_ts,last_ts,cost_cny\n")
         for r in rows:
             pm = p.get(r["model"], {})
             cost = ((r["inputTokens"] * pm.get("input", 0))
                     + (r["outputTokens"] * pm.get("output", 0))
-                    + (r["cacheCreationTokens"] * pm.get("cache_creation", pm.get("input", 0)))
                     + (r["cacheReadTokens"] * pm.get("cache_read", 0))) / 1_000_000
             sn = (r.get("sessionName","") or "").replace(",", " ").replace("\n", " ")[:80]
             route = r.get("route", "unknown")
-            f.write(f'{r["sessionId"][:8]},{day},{r["projectPath"]},{route},{sn},{r["model"]},{r["inputTokens"]},{r["outputTokens"]},{r["cacheCreationTokens"]},{r["cacheReadTokens"]},{r["totalTokens"]},{r["requestCount"]},{r["firstTs"]},{r["lastTs"]},{cost:.6f}\n')
+            f.write(f'{r["sessionId"][:8]},{day},{r["projectPath"]},{route},{sn},{r["model"]},{r["inputTokens"]},{r["cacheReadTokens"]},{r["outputTokens"]},{r["totalTokens"]},{r["requestCount"]},{r["firstTs"]},{r["lastTs"]},{cost:.6f}\n')
 
 # 更新 state
 merged = sorted(seen)
@@ -502,9 +500,8 @@ for line in open(sys.argv[1]):
         "project": r["projectPath"],
         "model": main_model,
         "input_tokens": int(r["inputTokens"]),
-        "output_tokens": int(r["outputTokens"]),
-        "cache_create": int(r["cacheCreationTokens"]),
         "cache_read": int(r["cacheReadTokens"]),
+        "output_tokens": int(r["outputTokens"]),
         "total_tokens": int(r["totalTokens"]),
         "request_count": int(r["requestCount"]),
         "first_activity": (r["firstActivity"] or "").replace("T", " ").rstrip("Z")[:19],
@@ -651,10 +648,11 @@ for line in open(sys.argv[1]):
 print(f"Sessions:        {len(open(sys.argv[1]).readlines())}")
 print(f"覆盖天数:        {len(days)}")
 print(f"Input tokens:    {total_in:,}")
+print(f"Cache read:      {total_cr:,}  (命中)")
 print(f"Output tokens:   {total_out:,}")
-print(f"Cache create:    {total_cc:,}")
-print(f"Cache read:      {total_cr:,}")
 print(f"Request count:   {total_req:,}")
+if total_cc > 0:
+    print(f"Cache create:    {total_cc:,}  (异常，你的环境应为 0)")
 PYEOF
         exit 0
     fi
