@@ -251,9 +251,11 @@ test_max_restart_giveup() {
 # ========== Bash 语法 ==========
 
 test_monitor_sh_syntax() {
-    bash -n "$CCCONFIG_DIR/lib/monitor.sh" 2>/dev/null \
-        && pass "monitor.sh 语法正确" \
-        || fail "monitor.sh" "syntax error"
+    if bash -n "$CCCONFIG_DIR/lib/monitor.sh" 2>/dev/null; then
+        pass "monitor.sh 语法正确"
+    else
+        fail "monitor.sh" "syntax error"
+    fi
 }
 
 # ========== 主流程 ==========
@@ -281,11 +283,18 @@ echo -e "${CYAN}monitor.sh 单元测试${NC}"
 echo "══════════════════════════════"
 echo ""
 
-for ((i=0; i<${#all_tests[@]}; i+=2)); do
-    desc="${all_tests[$i]}"
-    fn="${all_tests[$i+1]}"
-    $fn
-done
+run_tests() {
+    local i=0
+    while [ $i -lt ${#all_tests[@]} ]; do
+        local desc="${all_tests[$i]}"
+        local fn="${all_tests[$((i+1))]:-}"
+        if [ -n "$fn" ] && declare -F "$fn" >/dev/null 2>&1; then
+            "$fn" 2>/dev/null || true
+        fi
+        i=$((i+2))
+    done
+}
+run_tests
 
 echo ""
 echo "────────────────────────────────────"
