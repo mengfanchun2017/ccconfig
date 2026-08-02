@@ -125,3 +125,17 @@ proxy 只改写两条：
 2. **Authorization header**：替换为对应 provider 的 API key
 
 其他所有内容（thinking 参数、tool definitions、SSE 流）完整透传，不做任何修改。
+
+### 3. 切换后端后旧 session 报 400 model not supported
+
+**现象**：`init-llm.sh` 切换后端后，新 session 正常，但旧 session 继续/resume 报
+`400 ... supported API model names are <新后端模型>, but you passed <旧模型名>`。
+
+**根因**：session 记录自己最后使用的模型名，resume 时恢复该名字；而 base URL 从进程 env
+（settings.json）取。切换只改 env，旧 session 恢复的旧模型名发到新后端 → 400。
+
+**修复**（二选一，保留 session 上下文）：
+- session 内 `/model` 重选为新后端模型（本地命令，报错不影响输入）
+- 命令行覆盖：`claude -r <session-id> --model <新模型>`
+
+**记录日期**：2026-08-02
