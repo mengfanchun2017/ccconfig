@@ -87,12 +87,12 @@ PYEOF
 # 从单个 jsonl 文件抽取每个 session 的 token 统计
 # 输出: 每行一个 session（JSON）
 extract_sessions() {
-    local since="$1" until="$2" project_filter="$3"
+    local since="$1" until="$2" project_filter="$3" mode="${4:-session}"
     [[ -d "$CLAUDE_PROJECTS_DIR" ]] || return 0
 
     find "$CLAUDE_PROJECTS_DIR" -name "*.jsonl" -type f -print0 2>/dev/null | \
     while IFS= read -r -d '' f; do
-        python3 - "$f" "$since" "$until" "$project_filter" "$1" << 'PYEOF'
+        python3 - "$f" "$since" "$until" "$project_filter" "$mode" << 'PYEOF'
 import json, sys, os
 from collections import defaultdict
 
