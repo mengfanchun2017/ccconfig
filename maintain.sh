@@ -143,7 +143,7 @@ show_menu() {
     echo "  7) 一键修复         ─ 重建链接 + 启用 auto-sync（= setup）"
     echo "  8) 模板同步         ─ 默认正向（template → ccprivate），反向仅仓库所有者可用"
     echo "  9) ccprivate 升级    ─ 检测并修复 ccprivate 结构"
-    echo "  10) Token 用量       ─ Claude Code 本地会话聚合（CSV / 飞书）"
+    echo "  10) Bill & Token     ─ 模型单价配置 + Claude Code 用量聚合（CSV / 飞书）"
     echo ""
     echo "  0) 退出"
     echo ""
@@ -174,13 +174,22 @@ show_menu() {
            show_menu ;;
         10) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats
            echo ""
-           echo "  r) 按日报告    d) 按天归档    f) 推飞书 (粘贴 URL)    0) 返回"
-           read -p "选择 [r/d/f/0]: " choice
+           echo "  ─ Bill & Token ─"
+           echo "  b) Bill (配置模型 token 单价)"
+           echo "  r) 按日报告"
+           echo "  d) 按天归档 (增量 → ccprivate/usage/)"
+           echo "  f) 推飞书 (粘贴多维表格 URL)"
+           echo "  0) 返回"
+           read -p "  选择 [b/r/d/f/0]: " choice
            case "$choice" in
-             r) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
-             d) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day ;;
-             f) read -p "飞书多维表格 URL: " url
-                bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --feishu "$url" ;;
+             b|B) bash "$LIB_DIR/init-llm.sh" bill ;;
+             r|R) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
+             d|D) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day ;;
+             f|F)
+                read -p "  飞书多维表格 URL (https://<tenant>.feishu.cn/base/<base>?table=<tbl>): " url
+                [[ -z "$url" ]] && { warn "URL 不能为空"; continue; }
+                bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --feishu "$url"
+                ;;
              0) ;;
              *) ;;
            esac ;;

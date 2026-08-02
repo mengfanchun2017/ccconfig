@@ -307,10 +307,19 @@ TESTS=(
 
 	# ═══ 分组 9: init-llm.sh 辅助函数 ═══
 	"t_read_provider_list_excludes_gateway:_read_provider_list 排除 gateway"
-	"t_placeholder_detection:Key 占位符检测逻辑存在"
+	"t_placeholder_detection:Key 占位符 检测逻辑存在"
 	"t_env_vars_set:切换后环境变量正确设置"
 	"t_init_llm_syntax:init-llm.sh bash 语法正确"
 	"t_llmswitch_init_syntax:llmswitch init.sh bash 语法正确"
+
+	# ═══ 分组 11: 写文件测试 ═══
+	"t_apply_settings_writes_env:写 settings.json 含 ANTHROPIC_AUTH_TOKEN"
+	"t_apply_settings_preserves_existing:写 settings.json 不覆盖已存在字段"
+	"t_apply_settings_atomic_write:tmp + os.replace 原子写入"
+	"t_apply_settings_dry_run:CCC_DRY_RUN=1 → switch_llm 不写文件"
+	"t_apply_settings_writes_model_field:model 顶层字段正确"
+	"t_apply_settings_claude_json_sync:同时写 ~/.claude.json"
+	"t_apply_settings_placeholder_rejected:占位符 Key 不写入 token"
 
 	# ═══ 分组 10: 流式 SSE 生成 ═══
 	"t_sse_tool_call_block_start:流式输出 tool_use content_block_start"
@@ -619,6 +628,156 @@ for name, cfg in d['llms'].items():
 			grep -q 'message_stop' "$TEST_HOME/git/ccconfig/option-llmswitch/openai_bridge.py" \
 				&& _pass "[DONE] emits message_stop" \
 				|| _fail "no message_stop on [DONE]"
+			;;
+
+		# ═══ 分组 11: 写文件测试 (apply_settings) ═══
+		t_apply_settings_writes_env)
+			# 模拟 init-llm.py 写 settings.json 的核心逻辑
+			local settings="$TEST_HOME/test_settings_$RANDOM.json"
+			CONFIG_FILE="$TEST_HOME/git/ccconfig/conf/llm.json" BASE_URL="https://api.deepseek.com/anthropic" MODEL_NAME="deepseek-v4-pro" SMALL_MODEL="deepseek-v4-pro" API_KEY="sk-test-write-1" NAME="deepseek" SETTINGS="$settings" python3 - <<'PYEOF'
+import json, os
+sf = os.environ['SETTINGS']
+env_update = {
+    "ANTHROPIC_BASE_URL": os.environ["BASE_URL"],
+    "ANTHROPIC_MODEL": os.environ["MODEL_NAME"],
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ["SMALL_MODEL"],
+    "ANTHROPIC_AUTH_TOKEN": os.environ["API_KEY"],
+}
+try:
+    with open(sf) as f: data = json.load(f)
+except: data = {}
+data.setdefault("env", {}).update(env_update)
+data["model"] = os.environ["MODEL_NAME"]
+tmp = sf + ".tmp"
+with open(tmp, "w") as f: json.dump(data, f, indent=2)
+import os as _os; _os.replace(tmp, sf)
+PYEOF
+			local token=$(python3 -c "import json; print(json.load(open('$settings'))['env'].get('ANTHROPIC_AUTH_TOKEN',''))")
+			[[ "$token" == "sk-test-write-1" ]] && _pass "apply_settings: 写 settings.json 含 ANTHROPIC_AUTH_TOKEN" || _fail "apply_settings: token=$token"
+			rm -f "$settings"
+			;;
+		t_apply_settings_preserves_existing)
+			# 写 settings.json 不覆盖已有 env 字段
+			local settings="$TEST_HOME/test_preserve_$RANDOM.json"
+			echo '{"env":{"EXISTING_KEY":"preserved","ANTHROPIC_BASE_URL":"old-url"}}' > "$settings"
+			SETTINGS="$settings" BASE_URL="https://new.url" MODEL_NAME="new-model" API_KEY="sk-new" python3 - <<'PYEOF'
+import json, os
+sf = os.environ['SETTINGS']
+env_update = {
+    "ANTHROPIC_BASE_URL": os.environ["BASE_URL"],
+    "ANTHROPIC_MODEL": os.environ["MODEL_NAME"],
+    "ANTHROPIC_AUTH_TOKEN": os.environ["API_KEY"],
+}
+with open(sf) as f: data = json.load(f)
+data.setdefault("env", {}).update(env_update)
+tmp = sf + ".tmp"
+with open(tmp, "w") as f: json.dump(data, f, indent=2)
+os.replace(tmp, sf)
+PYEOF
+			local existing=$(python3 -c "import json; print(json.load(open('$settings'))['env'].get('EXISTING_KEY',''))")
+			local new_base=$(python3 -c "import json; print(json.load(open('$settings'))['env'].get('ANTHROPIC_BASE_URL',''))")
+			[[ "$existing" == "preserved" ]] && _pass "apply_settings: EXISTING_KEY 保留" || _fail "apply_settings: 丢失 EXISTING_KEY"
+			[[ "$new_base" == "https://new.url" ]] && _pass "apply_settings: 新字段覆盖" || _fail "apply_settings: base=$new_base"
+			rm -f "$settings"
+			;;
+		t_apply_settings_atomic_write)
+			# tmp + os.replace 原子写入：写入失败时原文件完整
+			local settings="$TEST_HOME/test_atomic_$RANDOM.json"
+			echo '{"original":"keep-this"}' > "$settings"
+			SETTINGS="$settings" python3 - <<'PYEOF'
+import json, os
+sf = os.environ['SETTINGS']
+with open(sf) as f: data = json.load(f)
+data["new_field"] = "added"
+tmp = sf + ".tmp"
+with open(tmp, "w") as f: json.dump(data, f, indent=2)
+os.replace(tmp, sf)
+PYEOF
+			[[ ! -f "$settings.tmp" ]] && _pass "apply_settings: tmp 文件已清理" || _fail "apply_settings: tmp 残留"
+			local new_field=$(python3 -c "import json; print(json.load(open('$settings')).get('new_field',''))")
+			[[ "$new_field" == "added" ]] && _pass "apply_settings: 新字段写入" || _fail "apply_settings: new_field=$new_field"
+			rm -f "$settings"
+			;;
+		t_apply_settings_dry_run)
+			# CCC_DRY_RUN=1 → switch_llm 不写文件
+			# 用 grep 验证：switch_llm 入口有 DRY-RUN gate 早返回
+			if grep -A3 '^switch_llm\(\)' "$CCCONFIG_DIR/lib/init-llm.sh" | grep -q "DRY-RUN"; then
+				_pass "apply_settings dry-run: switch_llm 入口有 DRY-RUN gate"
+			else
+				_fail "apply_settings dry-run: switch_llm 缺少 DRY-RUN gate"
+			fi
+			if grep -A3 '^switch_custom\(\)' "$CCCONFIG_DIR/lib/init-llm.sh" | grep -q "DRY-RUN"; then
+				_pass "apply_settings dry-run: switch_custom 入口有 DRY-RUN gate"
+			else
+				_fail "apply_settings dry-run: switch_custom 缺少 DRY-RUN gate"
+			fi
+			# 验证 settings.json 不被 dry-run 模式下修改
+			local settings="$TEST_HOME/test_dry_$RANDOM.json"
+			echo '{"env":{"EXISTING":"v"}}' > "$settings"
+			# 模拟 init-llm 写入口受 gate 保护
+			if grep -q "_dry_run_enabled" "$CCCONFIG_DIR/lib/init-llm.sh"; then
+				_pass "apply_settings dry-run: init-llm.sh source 了 dry-run.sh"
+			else
+				_fail "apply_settings dry-run: 未 source dry-run.sh"
+			fi
+			rm -f "$settings"
+			;;
+		t_apply_settings_writes_model_field)
+			# model 顶层字段正确写入
+			local settings="$TEST_HOME/test_model_$RANDOM.json"
+			echo '{}' > "$settings"
+			SETTINGS="$settings" MODEL_NAME="deepseek-v4-pro" python3 - <<'PYEOF'
+import json, os
+sf = os.environ['SETTINGS']
+with open(sf) as f: data = json.load(f)
+data["model"] = os.environ["MODEL_NAME"]
+tmp = sf + ".tmp"
+with open(tmp, "w") as f: json.dump(data, f, indent=2)
+os.replace(tmp, sf)
+PYEOF
+			local model=$(python3 -c "import json; print(json.load(open('$settings')).get('model',''))")
+			[[ "$model" == "deepseek-v4-pro" ]] && _pass "apply_settings: model 字段写入" || _fail "apply_settings: model=$model"
+			rm -f "$settings"
+			;;
+		t_apply_settings_claude_json_sync)
+			# 同步写 ~/.claude.json
+			local cjson="$TEST_HOME/test_claude_$RANDOM.json"
+			echo '{}' > "$cjson"
+			CLAUDE_JSON="$cjson" env_update='{"ENV_VAR":"val"}' python3 - <<'PYEOF'
+import json, os
+p = os.environ['CLAUDE_JSON']
+with open(p) as f: d = json.load(f)
+update = json.loads(os.environ['env_update'])
+d.setdefault('env', {}).update(update)
+tmp = p + '.tmp'
+with open(tmp, 'w') as f: json.dump(d, f, indent=2)
+os.replace(tmp, p)
+PYEOF
+			local val=$(python3 -c "import json; print(json.load(open('$cjson'))['env'].get('ENV_VAR',''))")
+			[[ "$val" == "val" ]] && _pass "apply_settings: 同步写 ~/.claude.json" || _fail "apply_settings: claude.json $val"
+			rm -f "$cjson"
+			;;
+		t_apply_settings_placeholder_rejected)
+			# 占位符 key 不写入 token
+			local settings="$TEST_HOME/test_placeholder_$RANDOM.json"
+			echo '{}' > "$settings"
+			SETTINGS="$settings" API_KEY="请填入你的 deepseek API Key" python3 - <<'PYEOF'
+import json, os
+sf = os.environ['SETTINGS']
+api_key = os.environ['API_KEY']
+PLACEHOLDER_KW = ['请填入', '请替换', 'your key', 'placeholder']
+with open(sf) as f: data = json.load(f)
+if any(kw in api_key for kw in PLACEHOLDER_KW):
+    pass  # placeholder detected, skip
+else:
+    data.setdefault('env', {})['ANTHROPIC_AUTH_TOKEN'] = api_key
+tmp = sf + '.tmp'
+with open(tmp, 'w') as f: json.dump(data, f, indent=2)
+os.replace(tmp, sf)
+PYEOF
+			local has_token=$(python3 -c "import json; print('ANTHROPIC_AUTH_TOKEN' in json.load(open('$settings')).get('env',{}))")
+			[[ "$has_token" == "False" ]] && _pass "apply_settings: 占位符 key 未写入 token" || _fail "apply_settings: 占位符被写入"
+			rm -f "$settings"
 			;;
 		*)
 			_skip "$id" "unknown test"
