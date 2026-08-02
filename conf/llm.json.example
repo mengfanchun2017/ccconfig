@@ -39,5 +39,14 @@
             "small_model": "<your-gateway-small-model>"
         }
     },
+    "_pricing_note": "按 model 名查 USD/1M tokens。token-usage.sh 读取计算成本。cache_creation 缺省同 input。",
+    "pricing": {
+        "MiniMax-M3":           {"input": 0.80, "output": 2.40, "cache_read": 0.08},
+        "deepseek-v4-pro":      {"input": 0.28, "output": 0.42, "cache_read": 0.028},
+        "deepseek-v4-flash":    {"input": 0.028, "output": 0.042, "cache_read": 0.003},
+        "claude-opus-4-7":      {"input": 5.00, "output": 25.00, "cache_read": 0.50},
+        "claude-sonnet-4-5":    {"input": 3.00, "output": 15.00, "cache_read": 0.30},
+        "claude-haiku-4-5":     {"input": 1.00, "output": 5.00, "cache_read": 0.10}
+    },
     "current": ""
 }
