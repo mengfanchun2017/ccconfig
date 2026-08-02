@@ -14,4 +14,4 @@
 | `upgrade-guide.md` | 升级策略与指南 |
 | `ccprivate-guide.md` | ccprivate 私有配置仓库详细指南 |
 | `cloudflare-plugin.md` | Cloudflare 插件使用说明 |
-| `adr/` | 架构决策记录（MADR 格式） |
+| `docs/adr/` | 架构决策记录（MADR 格式） |
