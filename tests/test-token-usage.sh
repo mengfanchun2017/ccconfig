@@ -99,6 +99,8 @@ run_test() {
         t_10_incremental)       test_incremental ;;
         t_11_pricing)           test_pricing ;;
         t_12_url_parse)         test_url_parse ;;
+        t_13_by_day)            test_by_day ;;
+        t_14_by_day_incremental) test_by_day_incremental ;;
         *) _fail "$id" "unknown test"; return ;;
     esac
 }
@@ -265,6 +267,47 @@ PYEOF
     return 0
 }
 
+# ── T13: by-day 跨日拆分 ──
+test_by_day() {
+    setup_test_env
+    # 同一 session 跨 2 天：day1 请求 1 次，day2 请求 2 次
+    make_jsonl "$CLAUDE_PROJECTS_DIR/-x/cross.jsonl" "cross-1" "2026-07-30T01:00:00Z" "m" 100 10 0 0
+    make_jsonl "$CLAUDE_PROJECTS_DIR/-x/cross.jsonl" "cross-1" "2026-07-30T05:00:00Z" "m" 200 20 0 0
+    make_jsonl "$CLAUDE_PROJECTS_DIR/-x/cross.jsonl" "cross-1" "2026-07-31T03:00:00Z" "m" 300 30 0 0
+    out=$(bash "$TOKEN" --by-day --json 2>/dev/null)
+    count=$(echo "$out" | wc -l)
+    # 期望：cross × 2 day = 2 条（同一 model）
+    [[ "$count" == "2" ]] || { _log "got $count, expected 2 (跨日拆 2)"; return 1; }
+    # day1 行：input=300 (100+200), req=2
+    day1=$(echo "$out" | python3 -c "
+import json, sys
+for l in sys.stdin:
+    r = json.loads(l)
+    if r['day'] == '2026-07-30':
+        print(f\"{r['inputTokens']},{r['requestCount']}\")
+        break
+")
+    [[ "$day1" == "300,2" ]] || { _log "day1 got $day1, expected 300,2"; return 1; }
+    return 0
+}
+
+# ── T14: by-day 增量去重 ──
+test_by_day_incremental() {
+    setup_test_env
+    make_jsonl "$CLAUDE_PROJECTS_DIR/-x/s.jsonl" "inc-1" "2026-07-30T01:00:00Z" "m" 100 10 0 0
+    # 第一次跑，写入 1 条
+    bash "$TOKEN" --by-day 2>/dev/null >/dev/null
+    by_day_file="$TOKEN_USAGE_OUTPUT/by-day/2026-07-30.csv"
+    [[ -f "$by_day_file" ]] || { _log "by-day file not created"; return 1; }
+    first_count=$(($(wc -l < "$by_day_file") - 1))  # 减 header
+    [[ "$first_count" == "1" ]] || { _log "first: $first_count rows"; return 1; }
+    # 第二次跑（应无新增）
+    bash "$TOKEN" --by-day 2>/dev/null >/dev/null
+    second_count=$(($(wc -l < "$by_day_file") - 1))
+    [[ "$second_count" == "1" ]] || { _log "second: $second_count rows (应仍 1)"; return 1; }
+    return 0
+}
+
 TESTS=(
     "t_01_syntax:语法检查"
     "t_02_help:--help"
@@ -278,6 +321,8 @@ TESTS=(
     "t_10_incremental:--incremental"
     "t_11_pricing:pricing"
     "t_12_url_parse:飞书 URL 解析"
+    "t_13_by_day:--by-day 拆分"
+    "t_14_by_day_incremental:--by-day 增量"
 )
 
 if $LIST_ONLY; then
