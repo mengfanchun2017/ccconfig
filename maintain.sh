@@ -172,17 +172,19 @@ show_menu() {
            echo ""
            read -p "按回车返回菜单..." dummy
            show_menu ;;
-        10) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats
+        10) while true; do
            echo ""
            echo "  ─ Bill & Token ─"
            echo "  b) Bill (配置模型 token 单价)"
+           echo "  s) 用量统计 (总览)"
            echo "  r) 按日报告"
            echo "  d) 按天归档 (增量 → ccprivate/usage/)"
            echo "  f) 推飞书 (粘贴多维表格 URL)"
            echo "  0) 返回"
-           read -p "  选择 [b/r/d/f/0]: " choice
+           read -p "  选择 [b/s/r/d/f/0]: " choice
            case "$choice" in
              b|B) bash "$LIB_DIR/init-llm.sh" bill ;;
+             s|S) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
              r|R) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
              d|D) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day ;;
              f|F)
@@ -190,9 +192,13 @@ show_menu() {
                 [[ -z "$url" ]] && { warn "URL 不能为空"; continue; }
                 bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --feishu "$url"
                 ;;
-             0) ;;
+             0) break ;;
              *) ;;
-           esac ;;
+           esac
+           echo ""
+           echo "  按回车继续..."
+           read -r dummy
+           done ;;
         0) echo ""; exit 0 ;;
         *) show_menu ;;
     esac
