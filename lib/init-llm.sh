@@ -737,6 +737,97 @@ show_list() {
 }
 
 # ========== Delete (删除预设) ==========
+# ========== Pricing 配置 ==========
+# 配置每个模型的 token 单价（USD / 1M tokens）
+# 4 个独立字段：input / output / cache_read / cache_creation
+# cache_creation 缺省 = input × 1.25（Anthropic 标准）
+# deepseek/MiniMax 等 OpenAI 兼容端点没有 cache_creation，留空或 0
+# 用法: pricing_config [model_name]   不带参：列出已有 + 提示添加
+pricing_config() {
+    local target="${1:-}"
+    local p
+    p="$(python3 - "$CONFIG_FILE" << 'PYEOF' 2>/dev/null
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except: sys.exit(0)
+print(json.dumps(d.get("pricing", {}), ensure_ascii=False))
+PYEOF
+)"
+
+    echo ""
+    echo "═══ Pricing 配置 (USD / 1M tokens) ═══"
+    echo ""
+    if [[ "$p" == "{}" || -z "$p" ]]; then
+        echo "  (无)"
+    else
+        echo "$p" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for m, v in d.items():
+    print(f'  {m}:')
+    print(f'    input:          \${v.get(\"input\", 0)}/1M')
+    print(f'    output:         \${v.get(\"output\", 0)}/1M')
+    print(f'    cache_read:     \${v.get(\"cache_read\", 0)}/1M')
+    cc = v.get('cache_creation')
+    print(f'    cache_creation: ' + (f'\${cc}/1M' if cc is not None else '(未设，默认 = input × 1.25)'))
+"
+    fi
+
+    if [[ -n "$target" ]]; then
+        _pricing_set "$target"
+    else
+        echo ""
+        echo "操作："
+        echo "  1) 添加 / 修改模型价格"
+        echo "  2) 删除模型价格"
+        echo "  0) 返回"
+        read -p "选择 [0-2]: " op
+        case "$op" in
+            1) read -p "模型名 (e.g. deepseek-v4-flash): " m; _pricing_set "$m" ;;
+            2) read -p "要删除的模型名: " m; _pricing_del "$m" ;;
+            0) ;;
+        esac
+    fi
+}
+
+_pricing_set() {
+    local model="$1"
+    [[ -z "$model" ]] && { warn "模型名不能为空"; return 1; }
+    echo ""
+    echo "为 '$model' 输入价格 (USD / 1M tokens)，留空跳过："
+    read -p "  input  单价 (回车 = 0): " in_v
+    read -p "  output 单价 (回车 = 0): " out_v
+    read -p "  cache_read 单价 (回车 = 0): " cr_v
+    read -p "  cache_creation 单价 (回车 = 跳过，默认 = input × 1.25): " cc_v
+    in_v="${in_v:-0}"; out_v="${out_v:-0}"; cr_v="${cr_v:-0}"
+    python3 - "$CONFIG_FILE" "$model" "$in_v" "$out_v" "$cr_v" "$cc_v" << 'PYEOF'
+import json, sys
+path, model, in_v, out_v, cr_v, cc_v = sys.argv[1:7]
+with open(path) as f: d = json.load(f)
+if "pricing" not in d: d["pricing"] = {}
+entry = {"input": float(in_v), "output": float(out_v), "cache_read": float(cr_v)}
+if cc_v.strip(): entry["cache_creation"] = float(cc_v)
+d["pricing"][model] = entry
+with open(path, "w") as f: json.dump(d, f, indent=4, ensure_ascii=False)
+print(f"OK: {model} 已保存")
+PYEOF
+}
+
+_pricing_del() {
+    local model="$1"
+    python3 - "$CONFIG_FILE" "$model" << 'PYEOF'
+import json, sys
+path, model = sys.argv[1:3]
+with open(path) as f: d = json.load(f)
+if d.get("pricing", {}).pop(model, None) is not None:
+    with open(path, "w") as f: json.dump(d, f, indent=4, ensure_ascii=False)
+    print(f"OK: {model} 已删除")
+else:
+    print(f"NOT_FOUND: {model}")
+PYEOF
+}
+
 # 用法: delete_preset [name]
 # - 不带参数时交互式选
 # - 内置 provider (minimax/deepseek/gateway) 拒绝删
@@ -955,6 +1046,9 @@ main() {
     elif [[ "$cmd" == "delete" ]] || [[ "$cmd" == "-d" ]]; then
         # 可选第二参数：要删的预设名
         delete_preset "${2:-}"
+    elif [[ "$cmd" == "pricing" ]] || [[ "$cmd" == "-p" ]]; then
+        # 配置模型价格（option-usage 计费用）
+        pricing_config "${2:-}"
     elif [[ -z "$cmd" ]]; then
         # 无参数：交互式选择
         interactive_select

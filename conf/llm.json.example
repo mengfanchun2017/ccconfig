@@ -39,7 +39,7 @@
             "small_model": "<your-gateway-small-model>"
         }
     },
-    "_pricing_note": "按 model 名查 USD/1M tokens。token-usage.sh 读取计算成本。cache_creation 缺省同 input。",
+    "_pricing_note": "按 model 名查 USD/1M tokens。token-usage.sh 读取计算成本。cache_creation 缺省 = input × 1.25。",
     "pricing": {
         "MiniMax-M3":           {"input": 0.80, "output": 2.40, "cache_read": 0.08},
         "deepseek-v4-pro":      {"input": 0.28, "output": 0.42, "cache_read": 0.028},
