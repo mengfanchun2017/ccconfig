@@ -742,8 +742,8 @@ show_list() {
 # 4 个独立字段：input / output / cache_read / cache_creation
 # cache_creation 缺省 = input × 1.25（Anthropic 标准）
 # deepseek/MiniMax 等 OpenAI 兼容端点没有 cache_creation，留空或 0
-# 用法: pricing_config [model_name]   不带参：列出已有 + 提示添加
-pricing_config() {
+# 用法: bill_config [model_name]   不带参：列出已有 + 提示添加
+bill_config() {
     local target="${1:-}"
     local p
     p="$(python3 - "$CONFIG_FILE" << 'PYEOF' 2>/dev/null
@@ -775,7 +775,7 @@ for m, v in d.items():
     fi
 
     if [[ -n "$target" ]]; then
-        _pricing_set "$target"
+        _bill_set "$target"
     else
         echo ""
         echo "操作："
@@ -784,14 +784,14 @@ for m, v in d.items():
         echo "  0) 返回"
         read -p "选择 [0-2]: " op
         case "$op" in
-            1) read -p "模型名 (e.g. deepseek-v4-flash): " m; _pricing_set "$m" ;;
-            2) read -p "要删除的模型名: " m; _pricing_del "$m" ;;
+            1) read -p "模型名 (e.g. deepseek-v4-flash): " m; _bill_set "$m" ;;
+            2) read -p "要删除的模型名: " m; _bill_del "$m" ;;
             0) ;;
         esac
     fi
 }
 
-_pricing_set() {
+_bill_set() {
     local model="$1"
     [[ -z "$model" ]] && { warn "模型名不能为空"; return 1; }
     echo ""
@@ -814,7 +814,7 @@ print(f"OK: {model} 已保存")
 PYEOF
 }
 
-_pricing_del() {
+_bill_del() {
     local model="$1"
     python3 - "$CONFIG_FILE" "$model" << 'PYEOF'
 import json, sys
@@ -989,16 +989,18 @@ interactive_select() {
         idx=$((idx + 1))
     done < <(echo "$lines")
 
-    # Custom + Delete + Configure Gateway 是固定选项
+    # Custom + Delete + Configure Gateway + Bill 是固定选项
     local custom_idx=$((selectable + 1))
     local delete_idx=$((selectable + 2))
     local gateway_conf_idx=$((selectable + 3))
+    local bill_idx=$((selectable + 4))
     printf "  %d) %s\n" "$custom_idx" "Custom (输入任意 base_url + model + key)"
     printf "  %d) %s\n" "$delete_idx" "Delete (删除已保存的自定义预设)"
     printf "  %d) %s\n" "$gateway_conf_idx" "Configure Gateway (peak_hours / routes / mode)"
+    printf "  %d) %s\n" "$bill_idx" "Bill (配置模型 token 单价，用于 token-usage 计费)"
 
     echo ""
-    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$gateway_conf_idx" "$current"
+    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$bill_idx" "$current"
     read -r choice
 
     if [[ -z "$choice" ]] || [[ "$choice" == "0" ]]; then
@@ -1018,6 +1020,11 @@ interactive_select() {
 
     if [[ "$choice" == "$gateway_conf_idx" ]]; then
         bash "$LLMSWITCH_INIT" --config
+        return $?
+    fi
+
+    if [[ "$choice" == "$bill_idx" ]]; then
+        bill_config
         return $?
     fi
 
@@ -1046,14 +1053,19 @@ main() {
     elif [[ "$cmd" == "delete" ]] || [[ "$cmd" == "-d" ]]; then
         # 可选第二参数：要删的预设名
         delete_preset "${2:-}"
-    elif [[ "$cmd" == "pricing" ]] || [[ "$cmd" == "-p" ]]; then
+    elif [[ "$cmd" == "bill" ]] || [[ "$cmd" == "pricing" ]] || [[ "$cmd" == "-p" ]]; then
         # 配置模型价格（option-usage 计费用）
-        pricing_config "${2:-}"
+        bill_config "${2:-}"
     elif [[ -z "$cmd" ]]; then
         # 无参数：交互式选择
         interactive_select
     else
         # 直接指定 LLM 名称（或从 INIT_LLM_NAME env 读取）
+        # 拼写保护：接近 "bill"/"pricing" 的拼错字提示而不是切 LLM
+        if [[ "$cmd" =~ ^b[i1]l[1l]?$ ]] || [[ "$cmd" =~ ^pr[i1]c[i1]ng$ ]]; then
+            error "猜你想用 'bill'（账单/计费配置）？运行: bash init-llm.sh bill"
+            return 1
+        fi
         switch_llm "$cmd"
     fi
 }
