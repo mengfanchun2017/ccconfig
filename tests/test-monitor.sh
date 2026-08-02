@@ -284,14 +284,14 @@ echo "════════════════════════�
 echo ""
 
 run_tests() {
-    local i=0
-    while [ $i -lt ${#all_tests[@]} ]; do
-        local desc="${all_tests[$i]}"
-        local fn="${all_tests[$((i+1))]:-}"
+    local idx=0
+    local n=${#all_tests[@]}
+    while [ $idx -lt $n ]; do
+        local fn="${all_tests[$((idx+1))]:-}"
         if [ -n "$fn" ] && declare -F "$fn" >/dev/null 2>&1; then
             "$fn" 2>/dev/null || true
         fi
-        i=$((i+2))
+        idx=$((idx + 2))
     done
 }
 run_tests
