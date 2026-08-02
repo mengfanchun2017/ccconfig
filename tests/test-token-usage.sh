@@ -24,7 +24,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-TOKEN="$CCCONFIG_DIR/lib/token-usage.sh"
+TOKEN="$CCCONFIG_DIR/option-usage/token-usage.sh"
 
 PASS=0; FAIL=0; SKIP=0
 VERBOSE=false; LIST_ONLY=false
@@ -77,7 +77,7 @@ setup_test_env() {
         TEST_ROOT=$(mktemp -d)
         trap "rm -rf $TEST_ROOT" EXIT
         export CLAUDE_PROJECTS_DIR="$TEST_ROOT/claude/projects"
-        export TOKEN_USAGE_OUTPUT="$TEST_ROOT/cache/token-usage"
+        export TOKEN_USAGE_OUTPUT="$TEST_ROOT/usage"
         mkdir -p "$TOKEN_USAGE_OUTPUT"
     fi
     # 清空测试数据，保留 env（保证 incremental state 文件跨测试可见）
@@ -297,7 +297,7 @@ test_by_day_incremental() {
     make_jsonl "$CLAUDE_PROJECTS_DIR/-x/s.jsonl" "inc-1" "2026-07-30T01:00:00Z" "m" 100 10 0 0
     # 第一次跑，写入 1 条
     bash "$TOKEN" --by-day 2>/dev/null >/dev/null
-    by_day_file="$TOKEN_USAGE_OUTPUT/by-day/2026-07-30.csv"
+    by_day_file="$TOKEN_USAGE_OUTPUT/2026-07-30.csv"
     [[ -f "$by_day_file" ]] || { _log "by-day file not created"; return 1; }
     first_count=$(($(wc -l < "$by_day_file") - 1))  # 减 header
     [[ "$first_count" == "1" ]] || { _log "first: $first_count rows"; return 1; }

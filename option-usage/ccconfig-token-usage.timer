@@ -1,0 +1,10 @@
+[Unit]
+Description=ccconfig token-usage daily timer
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
