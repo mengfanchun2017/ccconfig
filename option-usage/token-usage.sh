@@ -242,6 +242,8 @@ with open(path, encoding="utf-8") as fh:
                 dm["first_ts"] = ts
             if not dm["last_ts"] or ts > dm["last_ts"]:
                 dm["last_ts"] = ts
+            # 按 day 累计 user_request_count
+        s["user_request_count"] = sum(session_user_counts.get(sid, {}).values())
         mb = s["models"][model]
         mb["input"] += in_t
         mb["output"] += out_t
@@ -271,6 +273,7 @@ if mode == "by-day":
                     "cacheReadTokens": dm["cache_read"],
                     "totalTokens": dm["input"] + dm["output"] + dm["cache_creation"] + dm["cache_read"],
                     "requestCount": dm["count"],
+                    "userRequestCount": session_user_counts.get(sid, {}).get(day, 0),
                     "firstTs": dm["first_ts"],
                     "lastTs": dm["last_ts"],
                 }
@@ -296,6 +299,7 @@ for sid, s in sessions.items():
         "cacheReadTokens": s["cache_read"],
         "totalTokens": s["input"] + s["output"] + s["cache_creation"] + s["cache_read"],
         "requestCount": s["request_count"],
+        "userRequestCount": s["user_request_count"],
         "firstActivity": s["first"],
         "lastActivity": s["last"],
         "models": dict(s["models"]),
@@ -526,8 +530,8 @@ for line in open(sys.argv[1]):
         "input_cache": int(r["cacheReadTokens"]),
         "output_tokens": int(r["outputTokens"]),
         "total_tokens": int(r["totalTokens"]),
-        "user_request": int(user_req),
-        "agent_request": int(agent_req),
+        "user_request": int(r.get("userRequestCount", 0)),
+        "agent_request": int(r["requestCount"]),
         "first_activity": (r.get("firstActivity") or r.get("firstTs") or "").replace("T", " ").rstrip("Z")[:19],
         "last_activity": (r.get("lastActivity") or r.get("lastTs") or "").replace("T", " ").rstrip("Z")[:19],
     })
