@@ -458,14 +458,12 @@ PYEOF
 #   project (text)
 #   model (text)
 #   input_tokens (number)
-#   output_tokens (number)
-#   cache_create (number)
 #   cache_read (number)
+#   output_tokens (number)
 #   total_tokens (number)
 #   request_count (number)
 #   first_activity (datetime)
 #   last_activity (datetime)
-#   cost_cny (number)
 push_feishu() {
     local url="$1" rows_file="$2"
     local parsed
@@ -504,8 +502,8 @@ for line in open(sys.argv[1]):
         "output_tokens": int(r["outputTokens"]),
         "total_tokens": int(r["totalTokens"]),
         "request_count": int(r["requestCount"]),
-        "first_activity": (r["firstActivity"] or "").replace("T", " ").rstrip("Z")[:19],
-        "last_activity": (r["lastActivity"] or "").replace("T", " ").rstrip("Z")[:19],
+        "first_activity": (r.get("firstActivity") or r.get("firstTs") or "").replace("T", " ").rstrip("Z")[:19],
+        "last_activity": (r.get("lastActivity") or r.get("lastTs") or "").replace("T", " ").rstrip("Z")[:19],
     })
 print(json.dumps({"create_records": records}, ensure_ascii=False))
 PYEOF
