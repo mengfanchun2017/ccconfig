@@ -164,22 +164,25 @@ with open(path, encoding="utf-8") as fh:
         except: continue
         sid = rec.get("sessionId") or rec.get("session_id")
         if not sid: continue
-        if rec.get("type") == "user" and sid not in session_first_user:
-            msg = rec.get("message") or {}
-            content = msg.get("content", "")
-            if isinstance(content, list):
-                text_parts = []
-                for blk in content:
-                    if isinstance(blk, dict):
-                        text_parts.append(blk.get("text", ""))
-                    elif isinstance(blk, str):
-                        text_parts.append(blk)
-                content = " ".join(text_parts)
-            if isinstance(content, str):
-                # 过滤系统/工具消息
-                content = content.strip()
-                if content and not content.startswith("<") and "command-message" not in content[:30]:
-                    session_first_user[sid] = content[:80].replace("\n", " ").replace(",", " ").strip()
+        ts = rec.get("timestamp", "")
+        day = ts[:10] if ts else ""
+        if rec.get("type") == "user":
+            session_user_counts[sid][day] += 1
+            if sid not in session_first_user:
+                msg = rec.get("message") or {}
+                content = msg.get("content", "")
+                if isinstance(content, list):
+                    text_parts = []
+                    for blk in content:
+                        if isinstance(blk, dict):
+                            text_parts.append(blk.get("text", ""))
+                        elif isinstance(blk, str):
+                            text_parts.append(blk)
+                    content = " ".join(text_parts)
+                if isinstance(content, str):
+                    content = content.strip()
+                    if content and not content.startswith("<") and "command-message" not in content[:30]:
+                        session_first_user[sid] = content[:80].replace("\n", " ").replace(",", " ").strip()
         elif rec.get("type") == "assistant" and sid not in session_route:
             msg = rec.get("message") or {}
             model = msg.get("model", "")
