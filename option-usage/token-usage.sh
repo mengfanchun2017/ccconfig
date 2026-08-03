@@ -523,8 +523,7 @@ for line in open(sys.argv[1]):
     sid = r["sessionId"][:8]
 
     records.append({
-        "文本": sid,  # 默认索引列，写入 session_id 副本
-        "session_id": sid,
+        "sessionid": sid,  # 用户重命名后作为主标识列
         "project": r["projectPath"],
         "route": r.get("route", "unknown"),
         "model": main_model,
