@@ -168,20 +168,23 @@ with open(path, encoding="utf-8") as fh:
         day = ts[:10] if ts else ""
         if rec.get("type") == "user":
             session_user_counts[sid][day] += 1
-            if sid not in session_first_user:
-                msg = rec.get("message") or {}
-                content = msg.get("content", "")
-                if isinstance(content, list):
-                    text_parts = []
-                    for blk in content:
-                        if isinstance(blk, dict):
-                            text_parts.append(blk.get("text", ""))
-                        elif isinstance(blk, str):
-                            text_parts.append(blk)
-                    content = " ".join(text_parts)
-                if isinstance(content, str):
-                    content = content.strip()
-                    if content and not content.startswith("<") and "command-message" not in content[:30]:
+            msg = rec.get("message") or {}
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                text_parts = []
+                for blk in content:
+                    if isinstance(blk, dict):
+                        text_parts.append(blk.get("text", ""))
+                    elif isinstance(blk, str):
+                        text_parts.append(blk)
+                content = " ".join(text_parts)
+            if isinstance(content, str):
+                content = content.strip()
+                # 跳过 <bridge_context> 等系统消息；如果之前已设但内容为空/系统消息，覆盖
+                if not content or content.startswith("<") or "command-message" in content[:30]:
+                    pass
+                else:
+                    if sid not in session_first_user or not session_first_user[sid]:
                         session_first_user[sid] = content[:80].replace("\n", " ").replace(",", " ").strip()
         elif rec.get("type") == "assistant" and sid not in session_route:
             msg = rec.get("message") or {}
