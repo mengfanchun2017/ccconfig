@@ -304,7 +304,7 @@ write_csv() {
     mkdir -p "$OUTPUT_DIR"
     local out="$OUTPUT_DIR/${date_stamp}.csv"
     {
-        echo "session_id,project_path,route,session_name,model,input_tokens,input_cache,output_tokens,total_tokens,request_count,first_activity,last_activity,cost_cny"
+        echo "session_id,project_path,route,session_name,model,input_tokens,input_cache,output_tokens,total_tokens,request_count,first_activity,last_activity"
         while IFS= read -r row; do
             [[ -z "$row" ]] && continue
             python3 - "$row" "$pricing" << 'PYEOF' 2>/dev/null
@@ -320,11 +320,7 @@ if models:
     main_model = max(models.items(), key=lambda x: sum(x[1][k] for k in ("input","output","cache_creation","cache_read")))[0]
 else:
     main_model = "unknown"
-p = pricing.get(main_model, {})
-cost = ((row["inputTokens"] * p.get("input", 0))
-        + (row["outputTokens"] * p.get("output", 0))
-        + (row["cacheReadTokens"] * p.get("cache_read", 0))) / 1_000_000
-print(f'{sid},{project},{route},{session_name},{main_model},{row["inputTokens"]},{row["cacheReadTokens"]},{row["outputTokens"]},{row["totalTokens"]},{row["requestCount"]},{row["firstActivity"]},{row["lastActivity"]},{cost:.6f}')
+print(f'{sid},{project},{route},{session_name},{main_model},{row["inputTokens"]},{row["cacheReadTokens"]},{row["outputTokens"]},{row["totalTokens"]},{row["requestCount"]},{row["firstActivity"]},{row["lastActivity"]}')
 PYEOF
         done < "$rows_file"
     } > "$out"
@@ -454,15 +450,18 @@ PYEOF
 }
 
 # 多维表格字段名约定（用户提前在 base 里建好同名列）：
+#   文本 (text) — 默认索引列，不可删，写入 session_id 副本
 #   session_id (text)
 #   project (text)
+#   route (text)
 #   model (text)
 #   session_name (text)
-#   input_tokens (number)
-#   input_cache (number)
-#   output_tokens (number)
-#   total_tokens (number)
-#   request_count (number)
+#   input_tokens (int)
+#   input_cache (int)
+#   output_tokens (int)
+#   total_tokens (int)
+#   user_request (int) — user 类型计数
+#   agent_request (int) — assistant 类型计数
 #   first_activity (datetime)
 #   last_activity (datetime)
 push_feishu() {
@@ -484,6 +483,7 @@ push_feishu() {
     export LARKSUITE_CLI_CONFIG_DIR="$config_dir"
 
     # 把 JSON 行转成 base 字段 map（每行 1 个 record）
+    # 过滤：交互 <=2 的测试 session 跳过；synthetic 跳过
     local payload
     payload=$(python3 - "$rows_file" << 'PYEOF'
 import json, sys
@@ -492,18 +492,35 @@ for line in open(sys.argv[1]):
     line = line.strip()
     if not line: continue
     r = json.loads(line)
+
+    # 过滤：测试 session（请求 <= 2 或 model=<synthetic>）
+    if r["requestCount"] <= 2 or r.get("model","") == "<synthetic>":
+        continue
+
     models = r.get("models", {})
     main_model = max(models.items(), key=lambda x: sum(x[1].get(k, 0) for k in ("input","output","cache_creation","cache_read")))[0] if models else "unknown"
+
+    # user/agent 请求计数：从 models 下各 model 的 count 求和
+    agent_req = r["requestCount"]
+    # user 请求 = models 里各 model 的 count 之和（即 agent 回复次数 ≈ user 请求数，略少）
+    # 更精确：user 请求数 = agent_req（每发一条 assistant 就对应一次 user 触发）
+    user_req = agent_req
+
+    sid = r["sessionId"][:8]
+
     records.append({
-        "session_id": r["sessionId"][:8],
+        "文本": sid,  # 默认索引列，写入 session_id 副本
+        "session_id": sid,
         "project": r["projectPath"],
+        "route": r.get("route", "unknown"),
         "model": main_model,
         "session_name": (r.get("sessionName","") or "")[:80],
         "input_tokens": int(r["inputTokens"]),
         "input_cache": int(r["cacheReadTokens"]),
         "output_tokens": int(r["outputTokens"]),
         "total_tokens": int(r["totalTokens"]),
-        "request_count": int(r["requestCount"]),
+        "user_request": int(user_req),
+        "agent_request": int(agent_req),
         "first_activity": (r.get("firstActivity") or r.get("firstTs") or "").replace("T", " ").rstrip("Z")[:19],
         "last_activity": (r.get("lastActivity") or r.get("lastTs") or "").replace("T", " ").rstrip("Z")[:19],
     })
@@ -513,8 +530,12 @@ PYEOF
 
     # 分批（每批 ≤200）
     local total
-    total=$(echo "$payload" | python3 -c "import json,sys; print(len(json.load(sys.stdin)['create_records']))")
-    info "共 $total 条记录，分批写入..."
+    total=$(echo "$payload" | python3 -c "import json,sys; print(len(json.load(sys.stdin)['create_records']))" 2>/dev/null || echo "0")
+    if [[ "$total" == "0" || -z "$total" ]]; then
+        warn "没有符合条件的记录（过滤测试 session 后为空）"
+        return 1
+    fi
+    info "共 $total 条记录（已过滤测试 session），分批写入..."
 
     local batch_size=200
     python3 - "$payload" "$batch_size" << 'PYEOF' | while IFS= read -r batch_json; do
