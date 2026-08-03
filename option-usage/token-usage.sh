@@ -304,7 +304,7 @@ write_csv() {
     mkdir -p "$OUTPUT_DIR"
     local out="$OUTPUT_DIR/${date_stamp}.csv"
     {
-        echo "session_id,project_path,route,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,first_activity,last_activity,cost_cny"
+        echo "session_id,project_path,route,session_name,model,input_tokens,input_cache,output_tokens,total_tokens,request_count,first_activity,last_activity,cost_cny"
         while IFS= read -r row; do
             [[ -z "$row" ]] && continue
             python3 - "$row" "$pricing" << 'PYEOF' 2>/dev/null
@@ -377,7 +377,7 @@ for day, rows in new_by_day.items():
     is_new = not os.path.exists(path)
     with open(path, "a") as f:
         if is_new:
-            f.write("session_id,day,project_path,route,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,first_ts,last_ts,cost_cny\n")
+            f.write("session_id,day,project_path,route,session_name,model,input_tokens,input_cache,output_tokens,total_tokens,request_count,first_ts,last_ts,cost_cny\n")
         for r in rows:
             pm = p.get(r["model"], {})
             cost = ((r["inputTokens"] * pm.get("input", 0))
@@ -457,8 +457,9 @@ PYEOF
 #   session_id (text)
 #   project (text)
 #   model (text)
+#   session_name (text)
 #   input_tokens (number)
-#   cache_read (number)
+#   input_cache (number)
 #   output_tokens (number)
 #   total_tokens (number)
 #   request_count (number)
@@ -497,8 +498,9 @@ for line in open(sys.argv[1]):
         "session_id": r["sessionId"][:8],
         "project": r["projectPath"],
         "model": main_model,
+        "session_name": (r.get("sessionName","") or "")[:80],
         "input_tokens": int(r["inputTokens"]),
-        "cache_read": int(r["cacheReadTokens"]),
+        "input_cache": int(r["cacheReadTokens"]),
         "output_tokens": int(r["outputTokens"]),
         "total_tokens": int(r["totalTokens"]),
         "request_count": int(r["requestCount"]),
