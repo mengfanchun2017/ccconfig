@@ -182,10 +182,13 @@ with open(path, encoding="utf-8") as fh:
                 content = content.strip()
                 # 跳过 <bridge_context> 等系统消息；如果之前已设但内容为空/系统消息，覆盖
                 if not content or content.startswith("<") or "command-message" in content[:30]:
+                    # bridge 回放 session 没有真实用户文本，跳过
                     pass
                 else:
                     if sid not in session_first_user or not session_first_user[sid]:
                         session_first_user[sid] = content[:80].replace("\n", " ").replace(",", " ").strip()
+                    elif len(content) < len(session_first_user.get(sid, "")):
+                        pass  # 保留更长的首条消息
         elif rec.get("type") == "assistant" and sid not in session_route:
             msg = rec.get("message") or {}
             model = msg.get("model", "")
@@ -527,7 +530,7 @@ for line in open(sys.argv[1]):
         "project": r["projectPath"],
         "route": r.get("route", "unknown"),
         "model": main_model,
-        "session_name": (r.get("sessionName","") or "")[:80],
+        "session_name": (r.get("sessionName","") or "")[:80] or sid,
         "input_tokens": int(r["inputTokens"]),
         "input_cache": int(r["cacheReadTokens"]),
         "output_tokens": int(r["outputTokens"]),
