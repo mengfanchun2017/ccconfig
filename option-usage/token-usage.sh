@@ -142,12 +142,16 @@ def detect_route(model, endpoint_id):
 # 聚合: session_id -> { model: { in, out, cc, cr, count }, first, last }
 sessions = defaultdict(lambda: {
     "input": 0, "output": 0, "cache_creation": 0, "cache_read": 0,
-    "request_count": 0, "first": None, "last": None,
+    "request_count": 0, "user_request_count": 0,
+    "first": None, "last": None,
     "session_name": "", "route": "",
     "models": defaultdict(lambda: {"input": 0, "output": 0, "cache_creation": 0, "cache_read": 0, "count": 0}),
     # by-day 模式：按 (day, model) 聚合
     "days": defaultdict(lambda: defaultdict(lambda: {"input":0,"output":0,"cache_creation":0,"cache_read":0,"count":0,"route":"","first_ts":"","last_ts":""})),
 })
+
+# 先扫一遍 count user/assistant 按 session+day
+session_user_counts = defaultdict(lambda: defaultdict(int))
 
 # 先扫一遍找每 session 的首条 user 消息（用作 session_name）+ 首个 endpoint（route）
 session_first_user = {}
