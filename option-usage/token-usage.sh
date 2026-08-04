@@ -519,12 +519,16 @@ for line in open(sys.argv[1]):
     # by-day 模式有 day 字段；session 模式没 day，用 firstActivity 日期
     day = r.get("day") or (r.get("firstActivity") or r.get("firstTs") or "")[:10]
 
+    # by-day 模式 row 直接有 model 字段（按天按 model 聚合）；
+    # session 模式用 models 里用量最大的 model
+    row_model = r.get("model") or main_model
+
     records.append({
         "sessionid": sid,
         "session_day": day,
         "project": r["projectPath"],
         "route": r.get("route", "unknown"),
-        "model": main_model,
+        "model": row_model,
         "session_name": (r.get("sessionName","") or "")[:80] or sid,
         "input_tokens": int(r["inputTokens"]),
         "input_cache": int(r["cacheReadTokens"]),
