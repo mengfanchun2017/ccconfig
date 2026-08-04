@@ -678,6 +678,21 @@ main() {
         : # 保留 ok/warn/err，info 也输出
     fi
 
+    # 默认从 ccprivate/conf/token-usage.json 读 feishu_url
+    if [[ -z "${TOKEN_USAGE_CONFIG:-}" && -n "$CCPRIVATE_HOME" && -f "$CCPRIVATE_HOME/conf/token-usage.json" ]]; then
+        TOKEN_USAGE_CONFIG="$CCPRIVATE_HOME/conf/token-usage.json"
+    fi
+    if [[ -z "${TOKEN_USAGE_CONFIG:-}" && -f "$HOME/git/ccprivate/conf/token-usage.json" ]]; then
+        TOKEN_USAGE_CONFIG="$HOME/git/ccprivate/conf/token-usage.json"
+    fi
+    if [[ -n "${TOKEN_USAGE_CONFIG:-}" && -f "$TOKEN_USAGE_CONFIG" ]]; then
+        local cfg_url cfg_today
+        cfg_url=$(python3 -c "import json;d=json.load(open('$TOKEN_USAGE_CONFIG'));print(d.get('feishu_url',''))" 2>/dev/null)
+        cfg_today=$(python3 -c "import json;d=json.load(open('$TOKEN_USAGE_CONFIG'));print(d.get('include_today',False))" 2>/dev/null)
+        [[ -n "$cfg_url" && -z "$feishu_url" ]] && feishu_url="$cfg_url"
+        [[ "$cfg_today" == "True" ]] && include_today=true
+    fi
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --since)    since="$2"; shift 2 ;;
@@ -686,6 +701,7 @@ main() {
             --json)     json_output=true; shift ;;
             --incremental) incremental=true; shift ;;
             --feishu)   feishu_url="$2"; shift 2 ;;
+            --config)   TOKEN_USAGE_CONFIG="$2"; shift 2 ;;
             --report)   report=true; shift ;;
             --by-day)   by_day=true; shift ;;
             --include-today) include_today=true; shift ;;

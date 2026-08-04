@@ -179,18 +179,36 @@ show_menu() {
            echo "  2) 用量统计 (总览)"
            echo "  3) 按日报告"
            echo "  4) 按天归档 (增量 → ccprivate/usage/)"
-           echo "  5) 推飞书 (粘贴多维表格 URL)"
+           echo "  5) 推飞书 (用配置 URL，弹提示输可临时覆盖)"
+           echo "  6) timer 管理 (装/卸/状态/配置)"
            echo "  0) 返回"
-           read -p "  选择 [0-5]: " choice
+           read -p "  选择 [0-6]: " choice
            case "$choice" in
              1) bash "$LIB_DIR/init-llm.sh" bill ;;
              2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
              3) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
-             4) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day ;;
+             4) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ;;
              5)
-                read -p "  飞书多维表格 URL (https://<tenant>.feishu.cn/base/<base>?table=<tbl>): " url
-                [[ -z "$url" ]] && { warn "URL 不能为空"; continue; }
-                bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --feishu "$url"
+                read -p "  飞书 URL (回车 = 用 config 默认): " url
+                if [[ -n "$url" ]]; then
+                   bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --feishu "$url"
+                else
+                   bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental
+                fi
+                ;;
+             6) bash "$CCCONFIG_DIR/option-usage/init.sh" status
+                echo ""
+                echo "  ─ 操作 ─"
+                echo "    i) 装 systemd timer"
+                echo "    u) 卸 systemd timer"
+                echo "    c) 配置 feishu_url / schedule / include_today"
+                echo "    b) 返回"
+                read -p "  选择 [i/u/c/b]: " sub
+                case "$sub" in
+                  i) bash "$CCCONFIG_DIR/option-usage/init.sh" install ;;
+                  u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall ;;
+                  c) bash "$CCCONFIG_DIR/option-usage/init.sh" config ;;
+                esac
                 ;;
              0) break ;;
              *) ;;

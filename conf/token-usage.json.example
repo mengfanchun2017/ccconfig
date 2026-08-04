@@ -1,0 +1,17 @@
+{
+    "description": "Token 用量归档配置 — 持久数据（feishu 链接 + timer 开关）",
+    "_guide": [
+        "修改此文件后，token-usage.sh 自动加载；systemd timer 装/卸由 maintain.sh / option-usage/init.sh 管理",
+        "",
+        "feishu_url: 飞书多维表格 URL（标准格式 https://<tenant>.feishu.cn/base/<token>?table=<tbl>）",
+        "          留空则不推送飞书（只归档 CSV 到 ccprivate/usage/）",
+        "",
+        "enabled: 是否启用每日定时归档（systemd timer）",
+        "schedule: 启动时间（systemd 格式，如 '12:01:00' 或 '*:00:00'）",
+        "include_today: 推送时是否包含当天（默认 false，避免进行中 session 数据漂移）"
+    ],
+    "feishu_url": "https://rcnejwuhyp41.feishu.cn/base/K2dqb6366akDHrstfgWcxm1OnUh?table=tblcdUoM4FfnHkQf",
+    "enabled": true,
+    "schedule": "12:01:00",
+    "include_today": false
+}
