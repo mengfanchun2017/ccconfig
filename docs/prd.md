@@ -1,7 +1,14 @@
-# ccconfig 产品需求文档（PRD）
+# ccconfig 产品需求文档（PRD / SRS）
 
 > 文档版本: v1.0 | 日期: 2026-07-07 | 作者: mengfanchun2017
 > 对应软考考点: 系统分析师 — 需求工程（需求获取→分析→规格说明→验证）
+>
+> **文档定位**: 内容覆盖 **PRD**（产品需求：愿景/用户画像/场景）+ **SRS**（Software Requirements Specification：功能/非功能/约束）。
+> PRD 回答 "做什么、为什么、给谁"，SRS 回答 "软件要满足什么条件"。本文件是单一来源，免维护双份。
+>
+> **术语表**:
+> - **PRD** = Product Requirements Document — 产品经理写，市场视角
+> - **SRS** = Software Requirements Specification — 系统分析师写（IEEE 830/29148），工程视角
 
 ## 1. 产品愿景
 
