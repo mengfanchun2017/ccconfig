@@ -1,9 +1,8 @@
 [Unit]
-Description=ccconfig token-usage daily timer
+Description=ccconfig token-usage daily timer (12:01)
 
 [Timer]
-OnCalendar=daily
-RandomizedDelaySec=15min
+OnCalendar=*-*-* 12:01:00
 Persistent=true
 
 [Install]
