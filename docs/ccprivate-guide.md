@@ -1,7 +1,24 @@
 # ccprivate 个人仓库搭建指南
 
-> ccconfig 是公开仓库，不含任何 API key / Token / 个人配置。
-> 你需要一个**私有仓库 ccprivate** 存放个人敏感数据，通过 symlink 让 ccconfig 读取。
+> **⚠️ 本文件为手动参考**。权威自动化版本是 [`init-ccprivate-repo.sh`](../init-ccprivate-repo.sh) — 该脚本会自动创建 GitHub 私有仓、写入 `conf/*.json`、生成 `setup.sh`、建立所有 symlink。本指南内容如与脚本行为不一致，**以脚本实际行为为准**。
+>
+> **何时用本指南**：
+> - 想要理解每一步在做什么（脚本透明化读本）
+> - 脚本不适用场景（如企业内 GitLab、SSO 限制、网络不通等）
+> - 排查脚本失败时的手动 recovery
+>
+> **默认路径（99% 用户适用）**：
+> ```bash
+> bash ~/git/ccconfig/init-ccprivate-repo.sh   # 一条命令搞定
+> ```
+>
+> **最后人工核对日期**：2026-08-04
+> **核对方法**：对照 `init-ccprivate-repo.sh` 实际行为校对 7 步叙述，发现漂移即修订
+
+---
+
+ccconfig 是公开仓库，不含任何 API key / Token / 个人配置。
+你需要一个**私有仓库 ccprivate** 存放个人敏感数据，通过 symlink 让 ccconfig 读取。
 
 ## 概述
 
