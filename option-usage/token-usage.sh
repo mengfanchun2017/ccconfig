@@ -467,8 +467,8 @@ PYEOF
 }
 
 # 多维表格字段名约定（用户提前在 base 里建好同名列）：
-#   文本 (text) — 默认索引列，不可删，写入 session_id 副本
-#   session_id (text)
+#   sessionid (text) — 主标识
+#   session_day (date) — 日期（YYYY-MM-DD）
 #   project (text)
 #   route (text)
 #   model (text)
@@ -477,10 +477,8 @@ PYEOF
 #   input_cache (int)
 #   output_tokens (int)
 #   total_tokens (int)
-#   user_request (int) — user 类型计数
-#   agent_request (int) — assistant 类型计数
-#   first_activity (datetime)
-#   last_activity (datetime)
+#   user_request (int)
+#   agent_request (int)
 push_feishu() {
     local url="$1" rows_file="$2"
     local parsed
@@ -511,22 +509,19 @@ for line in open(sys.argv[1]):
     r = json.loads(line)
 
     # 过滤：测试 session（请求 <= 2 或 model=<synthetic>）
-    if r["requestCount"] <= 2 or r.get("model","") == "<synthetic>":
+    if r.get("requestCount", 0) <= 2 or r.get("model","") == "<synthetic>":
         continue
 
     models = r.get("models", {})
     main_model = max(models.items(), key=lambda x: sum(x[1].get(k, 0) for k in ("input","output","cache_creation","cache_read")))[0] if models else "unknown"
 
-    # user/agent 请求计数：从 models 下各 model 的 count 求和
-    agent_req = r["requestCount"]
-    # user 请求 = models 里各 model 的 count 之和（即 agent 回复次数 ≈ user 请求数，略少）
-    # 更精确：user 请求数 = agent_req（每发一条 assistant 就对应一次 user 触发）
-    user_req = agent_req
-
     sid = r["sessionId"][:8]
+    # by-day 模式有 day 字段；session 模式没 day，用 firstActivity 日期
+    day = r.get("day") or (r.get("firstActivity") or r.get("firstTs") or "")[:10]
 
     records.append({
-        "sessionid": sid,  # 用户重命名后作为主标识列
+        "sessionid": sid,
+        "session_day": day,
         "project": r["projectPath"],
         "route": r.get("route", "unknown"),
         "model": main_model,
@@ -536,9 +531,7 @@ for line in open(sys.argv[1]):
         "output_tokens": int(r["outputTokens"]),
         "total_tokens": int(r["totalTokens"]),
         "user_request": int(r.get("userRequestCount", 0)),
-        "agent_request": int(r["requestCount"]),
-        "first_activity": (r.get("firstActivity") or r.get("firstTs") or "").replace("T", " ").rstrip("Z")[:19],
-        "last_activity": (r.get("lastActivity") or r.get("lastTs") or "").replace("T", " ").rstrip("Z")[:19],
+        "agent_request": int(r.get("requestCount", 0)),
     })
 print(json.dumps({"create_records": records}, ensure_ascii=False))
 PYEOF
@@ -619,7 +612,7 @@ PYEOF
 # ========== CLI ==========
 main() {
     local since="" until="" project="" json_output=false incremental=false
-    local feishu_url="" report=false stats=false by_day=false
+    local feishu_url="" report=false stats=false by_day=false include_today=false
     # json 模式走 stdout，其他模式日志走 stderr
     if [[ "${QUIET:-0}" == "1" || -n "${JSON_OUTPUT_FORCE:-}" ]]; then
         : # 保留 ok/warn/err，info 也输出
@@ -635,6 +628,7 @@ main() {
             --feishu)   feishu_url="$2"; shift 2 ;;
             --report)   report=true; shift ;;
             --by-day)   by_day=true; shift ;;
+            --include-today) include_today=true; shift ;;
             --stats)    stats=true; shift ;;
             -h|--help)
                 sed -n '2,25p' "$0" | sed 's/^# *//'
@@ -654,6 +648,13 @@ main() {
 
     local mode="session"
     [[ "$by_day" == true ]] && mode="by-day"
+
+    # 默认截止到昨天（避免当天的进行中 session 数据不稳定）
+    if [[ -z "$until" && "$include_today" != true ]]; then
+        until=$(date -d 'yesterday' +%Y-%m-%d)
+        info "默认截止到昨天 ($until)，加 --include-today 包含今日"
+    fi
+
     extract_sessions "$since" "$until" "$project" "$mode" > "$tmp" || true
 
     if [[ "$incremental" == true ]]; then
@@ -706,6 +707,10 @@ PYEOF
         fi
         # 归档到 by-day/<day>.csv（增量去重）
         write_by_day_csv "$tmp"
+        # 顺便推飞书（如果有 URL）
+        if [[ -n "$feishu_url" ]]; then
+            push_feishu "$feishu_url" "$tmp"
+        fi
         exit 0
     fi
 
