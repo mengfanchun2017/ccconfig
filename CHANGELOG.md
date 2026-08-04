@@ -53,8 +53,6 @@ All notable changes to ccconfig will be documented in this file.
 - **CCPRIVATE 变量统一** — `init-skill.sh`/`init-ubuntu.sh` 改用 `CCPRIVATE_HOME`
 - **`deps-check.sh`** — 修复建议路径 `ccconfig/…`→`$SCRIPT_DIR/…`
 
-## [Unreleased]
-
 ## [1.4.7] — 2026-07-11
 
 ### Added

@@ -1,0 +1,33 @@
+name: Feature Request
+description: 提议新功能或对现有功能的改进
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提出前请先在 [docs/adr/](docs/adr/) 看现有决策，
+        并在 [ROADMAP.md](ROADMAP.md) 找到对应阶段。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 痛点
+      description: 当前缺什么 / 不便之处
+      placeholder: |
+        我希望...但目前需要手动...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 提议方案
+      description: 怎么解？是否有替代方案？
+      validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 替代方案 / 上下文
+      description: 调研过的其他方案、相关 issue 链接
+    validations:
+      required: false
