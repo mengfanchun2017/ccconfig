@@ -517,7 +517,10 @@ for line in open(sys.argv[1]):
 
     sid = r["sessionId"][:8]
     # by-day 模式有 day 字段；session 模式没 day，用 firstActivity 日期
-    day = r.get("day") or (r.get("firstActivity") or r.get("firstTs") or "")[:10]
+    day_str = r.get("day") or (r.get("firstActivity") or r.get("firstTs") or "")[:10]
+    # 飞书 datetime 字段需毫秒时间戳
+    import time
+    day_ms = int(time.mktime(time.strptime(day_str, "%Y-%m-%d")) * 1000) if day_str else 0
 
     # by-day 模式 row 直接有 model 字段（按天按 model 聚合）；
     # session 模式用 models 里用量最大的 model
@@ -525,7 +528,7 @@ for line in open(sys.argv[1]):
 
     records.append({
         "sessionid": sid,
-        "session_day": day,
+        "session_day": day_ms,
         "project": r["projectPath"],
         "route": r.get("route", "unknown"),
         "model": row_model,
@@ -613,10 +616,63 @@ PYEOF
     } > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
 }
 
+# ========== Backfill 补跑 ==========
+# 自动检测归档缺失的日期，补跑（不含今天）
+# 找 csv 文件：从 $OUTPUT_DIR 找所有 YYYY-MM-DD.csv，按日期排序
+# 输出缺失日期列表到 stdout
+backfill_missing_days() {
+    local today
+    today=$(date +%Y-%m-%d)
+    local existing_days
+    existing_days=$(ls "$OUTPUT_DIR"/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].csv 2>/dev/null | sed 's/.*\///;s/\.csv$//' | sort -u)
+    local all_days
+    # 最早日期 = state.by-day.json 第一条记录的 day；最晚 = 昨天
+    local first_day
+    first_day=$(ls ~/.claude/projects/*/*.jsonl 2>/dev/null | head -1)
+    if [[ -z "$first_day" ]]; then
+        echo "$(date +%Y-%m-%d)"
+        return
+    fi
+    # 用最早 session 的 firstTs 当起始日期
+    first_day=$(python3 -c "
+import json, os, glob
+files = glob.glob(os.path.expanduser('~/.claude/projects/*/*.jsonl'))
+files.sort(key=lambda f: os.path.getmtime(f))
+for f in files:
+    for line in open(f):
+        try: r = json.loads(line)
+        except: continue
+        if r.get('type') == 'assistant':
+            ts = r.get('timestamp', '')
+            if ts: print(ts[:10])
+            break
+    else: continue
+    break
+" 2>/dev/null)
+    if [[ -z "$first_day" ]]; then first_day=$(date +%Y-%m-%d); fi
+
+    # 生成 [first_day, today) 范围
+    python3 - "$first_day" "$today" "$existing_days" << 'PYEOF'
+import sys, datetime
+start, end, existing_str = sys.argv[1:4]
+existing = set(existing_str.split()) if existing_str.strip() else set()
+start_d = datetime.date.fromisoformat(start)
+end_d = datetime.date.fromisoformat(end)
+missing = []
+d = start_d
+while d < end_d:
+    ds = d.isoformat()
+    if ds not in existing:
+        missing.append(ds)
+    d += datetime.timedelta(days=1)
+print(" ".join(missing))
+PYEOF
+}
+
 # ========== CLI ==========
 main() {
     local since="" until="" project="" json_output=false incremental=false
-    local feishu_url="" report=false stats=false by_day=false include_today=false
+    local feishu_url="" report=false stats=false by_day=false include_today=false auto_backfill=false
     # json 模式走 stdout，其他模式日志走 stderr
     if [[ "${QUIET:-0}" == "1" || -n "${JSON_OUTPUT_FORCE:-}" ]]; then
         : # 保留 ok/warn/err，info 也输出
@@ -633,6 +689,7 @@ main() {
             --report)   report=true; shift ;;
             --by-day)   by_day=true; shift ;;
             --include-today) include_today=true; shift ;;
+            --auto-backfill) auto_backfill=true; shift ;;
             --stats)    stats=true; shift ;;
             -h|--help)
                 sed -n '2,25p' "$0" | sed 's/^# *//'
@@ -657,6 +714,27 @@ main() {
     if [[ -z "$until" && "$include_today" != true ]]; then
         until=$(date -d 'yesterday' +%Y-%m-%d)
         info "默认截止到昨天 ($until)，加 --include-today 包含今日"
+    fi
+
+    # 自动补跑：检测缺失日期，每天单独跑一次（incremental 自然去重）
+    if [[ "$auto_backfill" == true ]]; then
+        local missing
+        missing=$(backfill_missing_days)
+        if [[ -n "$missing" ]]; then
+            info "backfill 缺失日期: $missing"
+            for day in $missing; do
+                info "补跑 $day ..."
+                local day_tmp
+                day_tmp=$(mktemp)
+                extract_sessions "$day" "$day" "$project" "by-day" > "$day_tmp" 2>/dev/null || true
+                if [[ -s "$day_tmp" ]]; then
+                    write_by_day_csv "$day_tmp"
+                fi
+                rm -f "$day_tmp"
+            done
+        else
+            info "无缺失日期"
+        fi
     fi
 
     extract_sessions "$since" "$until" "$project" "$mode" > "$tmp" || true
