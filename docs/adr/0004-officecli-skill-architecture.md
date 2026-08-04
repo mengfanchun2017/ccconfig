@@ -2,7 +2,7 @@
 
 > **Status**: ✅ Accepted
 > **日期**: 2026-07-07
-> **关联**: [tech-decisions.md](../tech-decisions.md)
+> **关联**: [决策时间线 § 2026-07-07](../adr/README.md#决策时间线worklog-提取按日期倒序)
 > **模板**: MADR 4.0 极简版
 
 ## Context and Problem Statement
