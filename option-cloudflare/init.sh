@@ -99,7 +99,7 @@ do_status() {
             echo "  $status_mark $name"
         done
         echo ""
-        echo -e "${GRAY}  4/5 需 OAuth（首次调用自动触发），详见 docs/cloudflare-plugin.md${NC}"
+        echo -e "${GRAY}  4/5 需 OAuth（首次调用自动触发），详见 README.md${NC}"
     fi
 }
 

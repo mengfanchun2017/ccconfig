@@ -12,6 +12,8 @@
 | `settings.json.example` | Claude Code 配置模板（MCP、权限、hooks） |
 | `skills/` | skill 说明占位（skill 开发在独立 skill 仓进行） |
 
+> 规则目录索引（`rules/*.md.example` 每个文件的加载模式、大小、内容）见 [CATALOG.md](CATALOG.md)。
+
 ## 运行时部署一览
 
 ```

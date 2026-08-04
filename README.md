@@ -2,6 +2,17 @@
 
 > 统一管理 Claude Code 配置。三仓库公私分离。一键恢复到新终端。
 
+> **Name origin**: `ccconfig = CC + config` — `CC` = **Claude Code**，`config` = **configuration**。本仓库是 Claude Code 配置管理基础设施。
+
+[![CI](https://github.com/mengfanchun2017/ccconfig/actions/workflows/check.yml/badge.svg)](https://github.com/mengfanchun2017/ccconfig/actions/workflows/check.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/mengfanchun2017/ccconfig.svg)](https://github.com/mengfanchun2017/ccconfig/commits/main)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Code style: shellcheck+shfmt](https://img.shields.io/badge/code%20style-shellcheck%2Bshfmt-blue.svg)](.github/workflows/check.yml)
+[![Security policy](https://img.shields.io/badge/security-policy-brightgreen.svg)](SECURITY.md)
+
+[English](../README.md) · [中文](README.md)
+
 ## 概述
 
 ccconfig 是 Claude Code 配置基础设施的公开部分。**三仓库模型**各司其职：
