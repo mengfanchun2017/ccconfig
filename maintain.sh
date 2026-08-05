@@ -267,5 +267,6 @@ case "${1:-menu}" in
         shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
     token|usage)
         shift; bash "$CCCONFIG_DIR/option-usage/token-usage.sh" "$@" ;;
-    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|menu]"; exit 1 ;;
+    mcp)     shift; bash "$LIB_DIR/mcp-manager.sh" "$@" ;;
+    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|mcp|menu]"; exit 1 ;;
 esac
