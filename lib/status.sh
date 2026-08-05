@@ -346,17 +346,8 @@ check_git_projects() {
 # ========== MCP 服务器状态 ==========
 check_mcp() {
     echo ""
-    echo -e "${CYAN}━━━ MCP 服务器━━━${NC}"
-
-    local list
-    list=$(claude mcp list 2>&1) || true
-    if [ -z "$list" ]; then
-        echo -e "  ${GRAY}claude mcp list 无返回${NC}"
-        return
-    fi
-    echo "$list" | while IFS= read -r line; do
-        echo "  $line"
-    done
+    local lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    bash "$lib_dir/mcp-manager.sh" status
 }
 
 # ========== 7. 飞书 lark-cli 状态（可选） ==========
