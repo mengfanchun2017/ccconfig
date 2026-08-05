@@ -220,6 +220,7 @@ list_all() {
             case "$name" in
                 mcp|feishu_key) ;;
                 bat|glow|nano) ;;
+                usage) ;;
                 *) has_init_script "$name" || continue ;;
             esac
 
@@ -531,7 +532,7 @@ interactive_menu() {
             local group_items="${group_entry#*|}"
             for name in $group_items; do
                 case "$name" in
-                    mcp|feishu_key) all_names+=("$name") ;;
+                    mcp|feishu_key|usage) all_names+=("$name") ;;
                     bat|glow|nano) all_names+=("$name") ;;
                     *) has_init_script "$name" && all_names+=("$name") ;;
                 esac
