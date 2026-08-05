@@ -231,7 +231,8 @@ list_all() {
             elif [ "$name" = "feishu_key" ]; then
                 status=$(check_feishu_key 2>/dev/null || echo "no_conf|ccprivate 未初始化")
             elif [ "$name" = "usage" ]; then
-                if [[ -f "${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/token-usage.json" ]]; then
+                local ccpriv_conf="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/token-usage.json"
+                if [ -f "$ccpriv_conf" ]; then
                     if systemctl is-active ccconfig-token-usage.timer 2>/dev/null | grep -q "active"; then
                         echo "ok|OK|timer 运行中"
                     else
