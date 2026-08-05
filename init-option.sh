@@ -230,6 +230,16 @@ list_all() {
                 status=$(mcp_status)
             elif [ "$name" = "feishu_key" ]; then
                 status=$(check_feishu_key 2>/dev/null || echo "no_conf|ccprivate 未初始化")
+            elif [ "$name" = "usage" ]; then
+                if [[ -f "${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/token-usage.json" ]]; then
+                    if systemctl is-active ccconfig-token-usage.timer 2>/dev/null | grep -q "active"; then
+                        echo "ok|OK|timer 运行中"
+                    else
+                        echo "ok|OK|已配置，timer 未启用"
+                    fi
+                else
+                    echo "miss|MISSING|未配置（bash option-usage/init.sh）"
+                fi
             else
                 status=$(option_status "$name")
             fi
@@ -419,11 +429,12 @@ install_option() {
         return $?
     fi
 
-    # 内置 CLI 选项
+    # 内置 CLI / option 选项
     case "$name" in
         bat)   install_bat ;;
         glow)  install_glow ;;
         nano)  install_nano ;;
+        usage) bash "$SCRIPT_DIR/option-usage/init.sh" install ;;
         *)
         err "未知选项: $name"
         return 1
