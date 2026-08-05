@@ -45,7 +45,7 @@ MENU_GROUPS=(
     "--os--|bat glow nano"
     "--claude--|mcp skill"
     "--lark--|larkcli larkbridge"
-    "--other--|officecli remote cloudflare"
+    "--other--|officecli remote cloudflare usage"
     "--key--|feishu_key"
 )
 
