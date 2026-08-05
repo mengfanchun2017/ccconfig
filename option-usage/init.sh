@@ -214,7 +214,7 @@ case "${1:-}" in
     config|configure)
         config_interactive
         ;;
-    status)
+    status|--status)
         status
         ;;
     set-feishu)
