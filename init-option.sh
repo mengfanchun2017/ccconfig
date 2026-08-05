@@ -234,12 +234,12 @@ list_all() {
                 local ccpriv_conf="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/token-usage.json"
                 if [ -f "$ccpriv_conf" ]; then
                     if systemctl is-active ccconfig-token-usage.timer 2>/dev/null | grep -q "active"; then
-                        echo "ok|OK|timer 运行中"
+                        status="ok|OK|timer 运行中"
                     else
-                        echo "ok|OK|已配置，timer 未启用"
+                        status="ok|OK|已配置，timer 未启用"
                     fi
                 else
-                    echo "miss|MISSING|未配置（bash option-usage/init.sh）"
+                    status="miss|MISSING|未配置（bash option-usage/init.sh）"
                 fi
             else
                 status=$(option_status "$name")
