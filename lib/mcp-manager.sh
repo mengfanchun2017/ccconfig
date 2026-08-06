@@ -17,12 +17,10 @@ source "$SCRIPT_DIR/colors.sh"
 
 CONFIG_JSON="$HOME/.claude/.config.json"
 SETTINGS_JSON="$HOME/.claude/settings.json"
+CONF_TEMPLATE="$(find /home/francis/git -maxdepth 3 -path '*/conf/claude.json' 2>/dev/null | head -1)"
+[ -z "$CONF_TEMPLATE" ] && CONF_TEMPLATE="/home/francis/git/ccprivate/conf/claude.json"
 
 # ── 辅助函数 ──
-
-py() {
-  python3 -c "import json,sys; d=json.load(open('$CONFIG_JSON')); $1" 2>/dev/null || echo "ERR"
-}
 
 py_write() {
   python3 -c "
@@ -31,6 +29,37 @@ d = json.load(open('$CONFIG_JSON'))
 $1
 json.dump(d, open('$CONFIG_JSON', 'w'), indent=2, ensure_ascii=False)
 " 2>&1 || err "写入 .config.json 失败"
+}
+
+# 同步 projects 配置到 settings.json
+sync_projects_to_settings() {
+  python3 -c "
+import json
+cfg = json.load(open('$CONFIG_JSON'))
+try:
+    stg = json.load(open('$SETTINGS_JSON'))
+except:
+    stg = {}
+
+stg['disabledMcpServers'] = cfg.get('disabledMcpServers', [])
+
+projects = cfg.get('projects', {})
+sync = {}
+for path, p in projects.items():
+    if not path.startswith('/home/francis/git/'): continue
+    sp = {}
+    if p.get('enabledMcpjsonServers'):
+        sp['enabledMcpjsonServers'] = p['enabledMcpjsonServers']
+    sp['disabledMcpServers'] = p.get('disabledMcpServers', [])
+    sync[path] = sp
+stg['projects'] = stg.get('projects', {}) | sync
+
+import os
+tmp = '$SETTINGS_JSON' + '.tmp'
+with open(tmp, 'w') as f: json.dump(stg, f, indent=2)
+os.replace(tmp, '$SETTINGS_JSON')
+print('ok')
+" 2>/dev/null && return 0 || return 1
 }
 
 # 获取当前项目路径（从 CWD 找最近的 git 仓库）
@@ -229,7 +258,28 @@ for r in data:
 " 2>/dev/null
   echo ""
 
-  echo -e "  ${GRAY}用法: bash maintain.sh mcp config → 交互式配置${NC}"
+  # 对比模板看差异
+  if [ -f "$CONF_TEMPLATE" ]; then
+    local missing
+    missing=$(python3 -c "
+import json
+cfg = json.load(open('$CONFIG_JSON'))
+conf = json.load(open('$CONF_TEMPLATE'))
+cfg_names = {s['name'] for s in cfg.get('mcp_servers', [])}
+conf_names = {s['name'] for s in conf.get('mcp_servers', [])}
+diff = conf_names - cfg_names
+if diff: print(' '.join(sorted(diff)))
+" 2>/dev/null)
+    if [ -n "$missing" ]; then
+      echo ""
+      echo -e "  ${GRAY}模板有但未注册:${NC}"
+      for m in $missing; do
+        echo -e "    ${YELLOW}○${NC} $m ${DIM}(bash init-mcp.sh sync)${NC}"
+      done
+    fi
+  fi
+  echo ""
+  echo -e "  ${GRAY}入口: maintain.sh mcp config → 配置 | init-mcp.sh keys → 填 Key${NC}"
 }
 
 # ── config 子命令 ──
@@ -275,18 +325,37 @@ config_register() {
   read -r name
   [ -z "$name" ] && { warn "名称不能为空"; return; }
 
-  echo -n -e "  命令 (如 npx): "
+  echo -n -e "  启动命令 (如 npx): "
   read -r cmd
   [ -z "$cmd" ] && { warn "命令不能为空"; return; }
 
-  echo -n -e "  参数 (如 -y \@supabase/mcp-server-supabase): "
-  read -r args
+  echo -n -e "  参数 (如 -y @supabase/mcp-server-supabase --project-ref xxx --access-token xxx): "
+  read -r args_raw
 
-  py_write "
-new = {'name': '$name', 'type': 'stdio', 'command': '$cmd', 'args': '$args'.split(), 'env': {}, 'description': ''}
-d.setdefault('mcp_servers', []).append(new)
+  echo -n -e "  描述 (可选): "
+  read -r desc
+
+  if ! command -v claude &>/dev/null; then
+    warn "claude 命令未安装"
+    return
+  fi
+
+  # 用 claude mcp add 写入（保证 .config.json 格式正确）
+  if claude mcp add -s user "$name" -- $cmd $args_raw 2>&1; then
+    [ -n "$desc" ] && py_write "
+for s in d.get('mcp_servers', []):
+    if s.get('name') == '$name':
+        s['description'] = '$desc'
+        break
 "
-  echo -e "  ${GREEN}已注册: $name${NC}"
+    echo -e "  ${GREEN}✅ $name 已注册${NC}"
+  else
+    if claude mcp list 2>/dev/null | grep -q "^${name}:"; then
+      info "  $name 已存在，跳过"
+    else
+      err "注册 $name 失败"
+    fi
+  fi
 }
 
 config_toggle_global() {
@@ -335,6 +404,7 @@ if '$target' not in d['disabledMcpServers']:
 "
     echo -e "  ${YELLOW}已关闭 $target (加入全局禁用)${NC}"
   fi
+  sync_projects_to_settings && info "  settings.json 已同步"
 }
 
 config_project() {
@@ -422,6 +492,7 @@ p.setdefault('disabledMcpServers', []).append('$target')
       *) return ;;
     esac
   fi
+  sync_projects_to_settings && info "  settings.json 已同步"
 }
 
 # ── 主入口 ──
@@ -429,5 +500,6 @@ p.setdefault('disabledMcpServers', []).append('$target')
 case "${1:-status}" in
   status|st) cmd_status ;;
   config|cfg|c|conf) cmd_config ;;
-  *) echo -e "  ${YELLOW}用法: bash maintain.sh mcp {status|config}${NC}" ;;
+  sync) sync_projects_to_settings && echo -e "  ${GREEN}settings.json 已同步${NC}" || err "同步失败" ;;
+  *) echo -e "  ${YELLOW}用法: bash maintain.sh mcp {status|config|sync}${NC}" ;;
 esac
