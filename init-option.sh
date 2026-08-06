@@ -427,6 +427,9 @@ install_option() {
     if [ "$name" = "mcp" ]; then
         section "MCP 服务器"
         bash "$SCRIPT_DIR/lib/init-mcp.sh" sync
+        echo ""
+        echo -e "  ${GRAY}Key 配置: bash init-mcp.sh keys${NC}"  # init-option 框架不自动接 stdin
+        echo -e "  ${GRAY}状态/管理: bash maintain.sh mcp status${NC}"
         return $?
     fi
 
