@@ -442,13 +442,13 @@ start_watch() {
             sleep 2
             if [ ! -f "$DEBOUNCE_FILE" ]; then
                 idle_ticks=$((idle_ticks + 1))
-                # Periodic full sync every 30 min idle (900 ticks × 2s)
-                if [ $idle_ticks -ge 900 ]; then
+                # Periodic full sync every 12h idle (21600 ticks × 2s)
+                if [ $idle_ticks -ge 21600 ]; then
                     idle_ticks=0
                     now=$(date +%s)
                     gap=$((now - last_push_time))
                     if [ "$last_push_time" -eq 0 ] || [ "$gap" -ge "$min_push_gap" ]; then
-                        do_log "Periodic sync (30min idle)"
+                        do_log "Periodic sync (12h idle)"
                         sync_repos
                         last_push_time=$(date +%s)
                     fi
