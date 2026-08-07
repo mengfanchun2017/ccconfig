@@ -420,8 +420,6 @@ install_option() {
         bash "$SCRIPT_DIR/option-usage/init.sh" 2>&1 | sed 's/^/  /'
         bash "$SCRIPT_DIR/option-usage/init.sh" install 2>&1 | sed 's/^/  /'
       else
-        bash "$SCRIPT_DIR/option-usage/init.sh"
-        echo ""
         while true; do
           echo "  ─ usage 管理 ─"
           echo "    1) 安装 timer (每天 12:01 自动归档+推飞书)"
