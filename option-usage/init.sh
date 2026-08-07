@@ -236,6 +236,9 @@ case "${1:-}" in
     status|--status)
         status
         ;;
+    run|trigger)
+        bash "$SCRIPT_DIR/token-usage.sh" --by-day --incremental --auto-backfill
+        ;;
     set-feishu)
         shift
         set_feishu "${1:-}"
@@ -253,7 +256,7 @@ case "${1:-}" in
         status
         ;;
     *)
-        echo "用法: $0 [install|uninstall|config|status|set-feishu <url>|set-time <HH:MM:SS>|set-today <t/f>]"
+        echo "用法: $0 [install|uninstall|config|status|run|set-feishu <url>|set-time <HH:MM:SS>|set-today <t/f>]"
         exit 1
         ;;
 esac
