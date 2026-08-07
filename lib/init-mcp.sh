@@ -11,6 +11,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/path-helper.sh"
 MCP_CONF_FILE="$(resolve_conf claude.json)" || exit 1
 source "$SCRIPT_DIR/json-validate.sh"

@@ -9,6 +9,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../../lib/dry-run.sh"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 PID_FILE="$HOME/.cache/llmswitch.pid"
 WATCHDOG_PID_FILE="$HOME/.cache/llmswitch-watchdog.pid"

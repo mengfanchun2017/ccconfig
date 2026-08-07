@@ -15,6 +15,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
+source "$REPO_DIR/lib/dry-run.sh"
 source "$REPO_DIR/lib/colors.sh"
 source "$REPO_DIR/lib/path-helper.sh"
 

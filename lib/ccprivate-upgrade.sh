@@ -11,6 +11,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/path-helper.sh" 2>/dev/null || true
 
