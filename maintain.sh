@@ -144,10 +144,11 @@ show_menu() {
     echo "  8) 模板同步         ─ 默认正向（template → ccprivate），反向仅仓库所有者可用"
     echo "  9) ccprivate 升级    ─ 检测并修复 ccprivate 结构"
     echo "  10) Bill & Token     ─ 模型单价配置 + Claude Code 用量聚合（CSV / 飞书）"
+	echo "  11) MCP 管理         ─ 注册/启停/状态/Key/项目配置"
     echo ""
     echo "  0) 退出"
     echo ""
-    read -p "选择 [0-10]: " c
+    read -p "选择 [0-11]: " c
 
     case "$c" in
         1) bash "$LIB_DIR/status.sh" "$@" ;;
@@ -172,6 +173,9 @@ show_menu() {
            echo ""
            read -p "按回车返回菜单..." dummy
            show_menu ;;
+        11) bash "$LIB_DIR/mcp-manager.sh" config
+            read -p "按回车返回菜单..." dummy
+            show_menu ;;
         10) while true; do
            echo ""
            echo "  ─ Bill & Token ─"
