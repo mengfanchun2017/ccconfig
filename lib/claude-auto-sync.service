@@ -13,6 +13,7 @@ Environment=http_proxy=http://127.0.0.1:7897
 Environment=https_proxy=http://127.0.0.1:7897
 Environment=HTTP_PROXY=http://127.0.0.1:7897
 Environment=HTTPS_PROXY=http://127.0.0.1:7897
+StandardOutput=null
 Type=forking
 PIDFile=<HOME>/git/ccconfig/.monitor-sync.pid
 ExecStart=<HOME>/git/ccconfig/lib/monitor.sh start
