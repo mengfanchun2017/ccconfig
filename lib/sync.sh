@@ -350,6 +350,7 @@ menu_mode() {
                 echo "  0) 返回"
                 echo ""
                 read -p "  选择: " sub
+                sub=$(menu_num "$sub")
 
                 case "$sub" in
                     1)
