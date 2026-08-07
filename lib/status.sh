@@ -198,154 +198,72 @@ check_autosync() {
     fi
 }
 
-# ========== 4. GitHub 最后推送 ==========
-check_last_push() {
-    echo -e "${CYAN}━━━ 最后推送━━━${NC}"
+# ========== 4+5+6. 仓库概况（合并最后推送 + MEMORY + Git 项目）==========
+# auto-sync monitor 已提供 git dirty 信息，这里只补充 CLI 需要的信息
+check_repos() {
+    echo -e "${CYAN}━━━ 仓库━━━${NC}"
 
-    if [ ! -d "$REPO_DIR/.git" ]; then
-        echo -e "  ${YELLOW}⚠️${NC} 非 Git 仓库"
-        return
-    fi
-
-    # 获取最后一次提交的日期和消息
+    # ccconfig 最后推送
     local log=$(git -C "$REPO_DIR" log -1 --format="%ci|%s" 2>/dev/null)
     if [ -n "$log" ]; then
         local date=$(echo "$log" | cut -d'|' -f1 | cut -d' ' -f1)
-        local msg=$(echo "$log" | cut -d'|' -f2-)
-        echo -e "  📅 $date"
-        echo -e "  📝 $msg"
-    else
-        echo -e "  ${YELLOW}⚠️${NC} 无提交记录"
+        local msg=$(echo "$log" | cut -d'|' -f2- | head -c 60)
+        echo -e "  ${GRAY}ccconfig 最后推送: $date —${NC} $msg"
     fi
-}
-
-# ========== 5. MEMORY 最后更新 ==========
-check_memory() {
-    echo -e "${CYAN}━━━ MEMORY━━━${NC}"
-
-    local projects_dir="$HOME/.claude/projects"
-    local found=0
-
-    if [[ ! -d "$projects_dir" ]]; then
-        echo -e "  ${YELLOW}⚠️${NC} ~/.claude/projects/ 不存在（Claude Code 首次运行后自动创建）"
-        return
-    fi
-
-    for proj_dir in "$projects_dir"/*/; do
-        [[ -d "$proj_dir" ]] || continue
-        local proj_name=$(basename "$proj_dir")
-        [[ "$proj_name" == *"--claude-worktrees-"* ]] && continue
-
-        local mem_dir="${proj_dir}memory"
-        local display_name=$(echo "$proj_name" | sed 's/^-home-[^-]*-//' | tr '-' '/')
-
-        # symlink 检查
-        local link_info=""
-        if [[ -L "$mem_dir" ]]; then
-            local target=$(readlink "$mem_dir" 2>/dev/null)
-            if [[ -d "$mem_dir" ]]; then
-                link_info=" → $target"
-            else
-                echo -e "  ${RED}❌${NC} $display_name — symlink 断链: $target"
-                found=$((found + 1))
-                continue
-            fi
-        fi
-
-        if [[ -f "$mem_dir/MEMORY.md" ]]; then
-            local mtime=$(stat -L -c %y "$mem_dir/MEMORY.md" 2>/dev/null | cut -d'.' -f1)
-            local count=$(ls -1 "$mem_dir"/*.md 2>/dev/null | grep -v MEMORY | wc -l)
-            echo -e "  ${GREEN}✅${NC} $display_name — $mtime — ${count} 条记忆${link_info}"
-            found=$((found + 1))
-        elif [[ -d "$mem_dir" ]]; then
-            echo -e "  ${GRAY}○${NC} $display_name — 无 MEMORY.md${link_info}"
-            found=$((found + 1))
-        fi
-    done
-
-    if [[ $found -eq 0 ]]; then
-        echo -e "  ${GRAY}(尚无项目 memory，Claude Code 运行后自动创建)${NC}"
-    fi
-}
-
-# ========== 6. Git 项目状态 ==========
-check_git_projects() {
-    echo -e "${CYAN}━━━ Git 项目━━━${NC}"
 
     local found=0
     for git_dir in "$HOME/git"/*/; do
         [ -d "${git_dir}.git" ] || continue
         local name=$(basename "$git_dir")
-        # ccprivate 是私有数据层，不作为开发项目展示
-        if [ "$name" = "ccprivate" ]; then
-            continue
-        fi
+        [ "$name" = "ccprivate" ] && continue
         found=$((found + 1))
 
-        # CLAUDE.md 状态
-        local claude_status=""
-        if [ -L "${git_dir}CLAUDE.md" ]; then
-            local target=$(readlink "${git_dir}CLAUDE.md" 2>/dev/null)
-            if [ -e "${git_dir}CLAUDE.md" ]; then
-                if echo "$target" | grep -q "ccprivate"; then
-                    claude_status="${GREEN}✅ ccprivate${NC}"
-                else
-                    claude_status="${YELLOW}⚠️  ${target}${NC}"
-                fi
-            else
-                claude_status="${RED}❌ 断链${NC}"
-            fi
-        elif [ -f "${git_dir}CLAUDE.md" ]; then
-            claude_status="${YELLOW}📄 项目文件${NC}"
-        else
-            claude_status="${GRAY}－${NC}"
+        local issues=""
+
+        # CLAUDE.md 异常
+        if [ -L "${git_dir}CLAUDE.md" ] && [ ! -e "${git_dir}CLAUDE.md" ]; then
+            issues="${issues}CLAUDE.md断链 "
         fi
 
-        # Memory 状态
-        # /home/user/git/<project-name> → -home-user-git-<project-name>
+        # Memory 问题
         local rel_path="${git_dir#/}"
         rel_path="${rel_path%/}"
         local proj_id="-${rel_path//\//-}"
-        local mem_status=""
         local mem_path="$HOME/.claude/projects/$proj_id/memory"
-        if [ -L "$mem_path" ] && [ -d "$mem_path" ]; then
-            local mem_target=$(readlink "$mem_path" 2>/dev/null)
-            if [ -d "$mem_target" ]; then
-                mem_status="${GREEN}✅${NC}"
-            else
-                mem_status="${RED}❌ 断链${NC}"
-            fi
-        elif [ -d "$mem_path" ] && [ -f "$mem_path/MEMORY.md" ]; then
-            mem_status="${GREEN}✅ 本地${NC}"
-        else
-            mem_status="${GRAY}－${NC}"
+        if [ -L "$mem_path" ] && [ ! -d "$mem_path" ]; then
+            issues="${issues}memory断链 "
         fi
 
-        # Git 状态
-        local git_status=""
-        local dirty=$(git -C "$git_dir" status --porcelain 2>/dev/null | wc -l)
-        local branch=$(git -C "$git_dir" branch --show-current 2>/dev/null)
-        local remote=$(git -C "$git_dir" remote get-url origin 2>/dev/null || echo "")
-        if [ -z "$remote" ]; then
-            git_status="${YELLOW}无 remote${NC}"
-        elif [ "$dirty" -gt 0 ]; then
-            git_status="${YELLOW}${branch} (${dirty} 改动)${NC}"
-        else
-            git_status="${GREEN}${branch} 干净${NC}"
+        if [ -n "$issues" ]; then
+            echo -e "  ${YELLOW}⚠${NC} $name — $issues"
         fi
-
-        printf "  %-20s CLAUDE: %b  Mem: %b  Git: %b\n" "$name" "$claude_status" "$mem_status" "$git_status"
     done
 
-    if [ $found -eq 0 ]; then
-        echo -e "  ${GRAY}(~/git/ 下无项目)${NC}"
+    [ $found -eq 0 ] && echo -e "  ${GRAY}(~/git/ 下无项目)${NC}"
+
+    # memory 概览（只算有 memory 的项目）
+    local projects_dir="$HOME/.claude/projects"
+    if [[ -d "$projects_dir" ]]; then
+        local any=false
+        for proj_dir in "$projects_dir"/*/; do
+            [[ -d "$proj_dir" ]] || continue
+            local pname=$(basename "$proj_dir")
+            [[ "$pname" == *"--claude-worktrees-"* ]] && continue
+            local mem_dir="${proj_dir}memory"
+            if [[ -f "$mem_dir/MEMORY.md" ]]; then
+                local count=$(ls -1 "$mem_dir"/*.md 2>/dev/null | grep -v MEMORY | wc -l)
+                local display=$(echo "$pname" | sed 's/^-home-[^-]*-//' | tr '-' '/')
+                [[ $any == false ]] && { echo -e "  ${GRAY}memory:${NC}"; any=true; }
+                echo -e "    $display — ${count} 条"
+            fi
+        done
+        $any || echo -e "  ${GRAY}memory: 无项目有记忆${NC}"
     fi
 }
 
 
 # ========== MCP 服务器状态 ==========
 check_mcp() {
-    echo ""
     local lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     bash "$lib_dir/mcp-manager.sh" status
 }
@@ -711,9 +629,7 @@ check_symlinks
 check_ccprivate_structure
 check_deps_quick
 check_autosync
-check_last_push
-check_memory
-check_git_projects
+check_repos
 check_feishu
 
 if ! $QUICK_MODE; then
