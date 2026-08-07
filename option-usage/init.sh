@@ -96,8 +96,21 @@ disable_timer() {
 
 # ============ 状态 ============
 status() {
+    # 首行供 init-option 解析：OK/WARN/MISSING（无 ANSI）
+    local has_conf=false has_timer=false
+    [[ -f "$CONFIG" ]] && has_conf=true
+    systemctl is-active "$TIMER" 2>/dev/null | grep -q "active" && has_timer=true
+
+    if $has_conf && $has_timer; then
+        echo "OK usage — token 用量组件：timer 运行中"
+    elif $has_conf && ! $has_timer; then
+        echo "WARN usage — 已配置，timer 未启用（bash init-option.sh usage 或 init.sh install）"
+    else
+        echo "MISSING usage — 未配置（bash init-option.sh usage）"
+    fi
+
     echo "── 配置 ──"
-    if [[ -f "$CONFIG" ]]; then
+    if $has_conf; then
         python3 -c "
 import json
 d = json.load(open('$CONFIG'))
@@ -113,7 +126,7 @@ print(f'  include_today:   {d.get(\"include_today\", False)}')
 
     echo ""
     echo "── systemd timer ──"
-    if systemctl is-active "$TIMER" 2>/dev/null | grep -q "active"; then
+    if $has_timer; then
         ok "$TIMER 运行中"
         systemctl status "$TIMER" --no-pager -l 2>/dev/null | head -5
         echo ""
