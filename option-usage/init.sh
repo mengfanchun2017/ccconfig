@@ -26,10 +26,12 @@ TIMER="ccconfig-token-usage.timer"
 CONFIG="$CCPRIVATE/conf/token-usage.json"
 EXAMPLE_CONFIG="$CCCONFIG_DIR/conf/token-usage.json.example"
 
-ok()   { echo "  ✅ $1"; }
-warn() { echo "  ⚠  $1"; }
-err()  { echo "  ❌ $1"; }
-info() { echo "  ℹ  $1"; }
+source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
+    ok()   { echo "  ✅ $1"; }
+    warn() { echo "  ⚠  $1"; }
+    err()  { echo "  ❌ $1"; }
+    info() { echo "  ℹ  $1"; }
+}
 
 # ============ 初始化 ============
 setup_archive() {

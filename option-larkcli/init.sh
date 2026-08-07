@@ -13,22 +13,16 @@
 #   bash ccconfig/option-larkcli/lark-switch.sh <name>
 #   bash ccconfig/option-larkcli/lark-switch.sh ailab -p   # 持久化
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$CCCONFIG_DIR/lib/colors.sh"
 source "$CCCONFIG_DIR/lib/path-helper.sh"
 FEISHU_CONF="$(resolve_conf feishu.json)" || exit 1
 export PATH="$(find_node_bin):${HOME}/.local/bin:$PATH"
 export LARK_CLI_NO_PROXY=1
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
-
-good() { echo -e "${GREEN}$1${NC}"; }
-bad()  { echo -e "${RED}$1${NC}"; }
-warn() { echo -e "${YELLOW}$1${NC}"; }
-info() { echo -e "${GRAY}$1${NC}"; }
 
 # ========== JSON 读取 ==========
 get_apps() {

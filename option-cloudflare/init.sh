@@ -14,18 +14,11 @@
 #   bash ccconfig/option-cloudflare/init.sh --status     # 状态检查
 #   bash ccconfig/option-cloudflare/init.sh --update     # git pull marketplace + 重装 plugin
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
-
-good() { echo -e "${GREEN}$1${NC}"; }
-bad()  { echo -e "${RED}$1${NC}"; }
-warn() { echo -e "${YELLOW}$1${NC}"; }
-info() { echo -e "${GRAY}$1${NC}"; }
+source "$CCCONFIG_DIR/lib/colors.sh"
 
 MARKETPLACE_REPO="cloudflare/skills"
 PLUGIN_NAME="cloudflare@cloudflare"

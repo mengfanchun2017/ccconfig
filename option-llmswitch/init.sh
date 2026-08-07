@@ -11,10 +11,11 @@
 #   bash option-llmswitch/init.sh --mode auto    # 切换模式
 # ==============================================
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
+source "$REPO_DIR/lib/colors.sh"
 source "$REPO_DIR/lib/path-helper.sh"
 
 CONF_FILE="$SCRIPT_DIR/conf/llmswitch.json"
@@ -28,13 +29,6 @@ MONITOR_LOG="$REPO_DIR/.monitor-sync.log"
 PROXY_PORT="${LLMSWITCH_PORT:-8899}"
 PROXY_URL="http://127.0.0.1:$PROXY_PORT"
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
-
-good() { echo -e "${GREEN}$1${NC}"; }
-bad()  { echo -e "${RED}$1${NC}"; }
-warn() { echo -e "${YELLOW}$1${NC}"; }
-info() { echo -e "${GRAY}$1${NC}"; }
 hdr()  { echo -e "${BOLD}${CYAN}$1${NC}"; }
 
 # ========== 代理是否存活 ==========
