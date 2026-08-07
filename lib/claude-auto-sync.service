@@ -4,18 +4,21 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-# 模板文件：User/Group/Home 路径在 init-autostart.sh enable 时动态替换
+# 模板文件：User/Group/Home/RuntimeDir 路径在 init-autostart.sh enable 时动态替换
 User=<USER>
 Group=<GROUP>
 WorkingDirectory=<HOME>/git/ccconfig
+RuntimeDirectory=claude-auto-sync
+RuntimeDirectoryMode=1777
 Environment=PATH=<HOME>/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=http_proxy=http://127.0.0.1:7897
 Environment=https_proxy=http://127.0.0.1:7897
 Environment=HTTP_PROXY=http://127.0.0.1:7897
 Environment=HTTPS_PROXY=http://127.0.0.1:7897
+Environment=MONITOR_PID_FILE=/run/claude-auto-sync/monitor.pid
 StandardOutput=null
 Type=forking
-PIDFile=<HOME>/git/ccconfig/.monitor-sync.pid
+PIDFile=/run/claude-auto-sync/monitor.pid
 ExecStart=<HOME>/git/ccconfig/lib/monitor.sh start
 ExecStop=<HOME>/git/ccconfig/lib/monitor.sh stop
 Restart=always
