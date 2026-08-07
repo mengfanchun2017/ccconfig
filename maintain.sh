@@ -10,6 +10,7 @@
 #   bash maintain.sh sync [--pull|--push] [repo]  # Git 同步
 #   bash maintain.sh monitor [start|stop|status|tail]
 #   bash maintain.sh deps               # 依赖检查
+#   bash maintain.sh llmswitch [start|stop|restart|status]   # LLM 网关代理
 #   bash maintain.sh fix                # 自动修复（= setup）
 #
 # 暗号：
@@ -145,10 +146,11 @@ show_menu() {
     echo "  9) ccprivate 升级    ─ 检测并修复 ccprivate 结构"
     echo "  10) Bill & Token     ─ 模型单价配置 + Claude Code 用量聚合（CSV / 飞书）"
 	echo "  11) MCP 管理         ─ 注册/启停/状态/Key/项目配置"
+    echo "  12) llmswitch        ─ LLM 网关代理（init-llm 自动管理，手动可看下面板）"
     echo ""
     echo "  0) 退出"
     echo ""
-    read -p "选择 [0-11]: " c
+    read -p "选择 [0-12]: " c
     c=$(menu_num "$c")
 
     case "$c" in
@@ -175,6 +177,9 @@ show_menu() {
            read -p "按回车返回菜单..." dummy
            show_menu ;;
         11) bash "$LIB_DIR/mcp-manager.sh" config
+            read -p "按回车返回菜单..." dummy
+            show_menu ;;
+        12) submenu_llmswitch
             read -p "按回车返回菜单..." dummy
             show_menu ;;
         10) while true; do
@@ -259,6 +264,32 @@ submenu_monitor() {
     esac
 }
 
+submenu_llmswitch() {
+    echo ""
+    echo -e "${CYAN}── llmswitch 网关代理 ──${NC}"
+    echo -e "${GRAY}  由 init-llm 自动管理（按 provider 自动启/停）${NC}"
+    echo ""
+    echo "  1) 启动代理        ─ bash option-llmswitch/init.sh --start"
+    echo "  2) 停止代理        ─ bash option-llmswitch/init.sh --stop"
+    echo "  3) 重启代理        ─ bash option-llmswitch/init.sh --restart"
+    echo "  4) 查看状态        ─ bash option-llmswitch/init.sh --status"
+    echo "  5) 切换 LLM (推荐) ─ 自动按 provider 启/停（gate/minimax/...）"
+    echo ""
+    echo "  0) 返回"
+    echo ""
+    read -p "选择 [0-5]: " c
+    c=$(menu_num "$c")
+    case "$c" in
+        1) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --start ;;
+        2) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --stop ;;
+        3) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --restart ;;
+        4) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --status ;;
+        5) bash "$LIB_DIR/init-llm.sh" ;;
+        0) return ;;
+        *) submenu_llmswitch ;;
+    esac
+}
+
 # ── 入口 ──
 case "${1:-menu}" in
     menu|"")   show_menu ;;
@@ -279,5 +310,7 @@ case "${1:-menu}" in
     token-run)
         bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill --include-today ;;
     mcp)     shift; bash "$LIB_DIR/mcp-manager.sh" "$@" ;;
-    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|mcp|menu]"; exit 1 ;;
+    llmswitch|llm-switch|gate)
+        shift; bash "$CCCONFIG_DIR/option-llmswitch/init.sh" "$@" ;;
+    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|mcp|llmswitch|menu]"; exit 1 ;;
 esac
