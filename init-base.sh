@@ -201,6 +201,7 @@ submenu_env() {
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-4,0]: " c
+    c=$(menu_num "$c")
     case "$c" in
         1) run_step "Ubuntu 初始化"    "$SCRIPT_DIR/lib/init-ubuntu.sh"    false
            echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
@@ -223,10 +224,13 @@ submenu_remote() {
     echo "  0) 返回"
     echo ""
     read -p "选择 [1-3,0]: " c
+    c=$(menu_num "$c")
     case "$c" in
         1) run_step "SSH Server" "$SCRIPT_DIR/option-remote/server/tmux-sshd.sh" false ;;
         2) bash "$SCRIPT_DIR/option-remote/deploy.sh" server ;;
         3) echo ""; cat "$SCRIPT_DIR/option-remote/readme.md" 2>/dev/null || echo -e "  ${YELLOW}readme.md 不存在${NC}" ;;
+        0) return ;;
+        *) echo "无效选择"; submenu_remote ;;
     esac
 }
 
@@ -244,6 +248,7 @@ main_menu() {
     echo "  0) 退出"
     echo ""
     read -p "选择 [0-4]: " choice
+    choice=$(menu_num "$choice")
 
     case "$choice" in
         1) submenu_env ;;

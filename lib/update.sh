@@ -1017,6 +1017,8 @@ show_menu() {
     echo -e "   ${YELLOW}1 3 5${NC} = 多选（如升级 1、3、5 项）"
     echo ""
     read -p "选择 [1-9, all, 0]: " choice
+    # 多选格式: 数字/逗号/空格 + 可选 all
+    [[ ! "$choice" =~ ^([0-9 ,]+|all)$ ]] && { echo "无效选择: $choice"; show_menu; return; }
 
     # 多选支持：空格/逗号分隔如 "1 3 4" 或 "1,3,4"
     local selections

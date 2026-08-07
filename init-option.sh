@@ -429,6 +429,7 @@ install_option() {
           echo "    5) 手动触发归档+推飞书（按配置跑，不含今天）"
           echo "    0) 返回"
           read -p "  选择 [0-5]: " sub
+          sub=$(menu_num "$sub")
           case "$sub" in
             1) bash "$SCRIPT_DIR/option-usage/init.sh" install ;;
             2) bash "$SCRIPT_DIR/option-usage/init.sh" uninstall ;;
