@@ -274,7 +274,7 @@ case "${1:-menu}" in
     token|usage)
         shift; bash "$CCCONFIG_DIR/option-usage/token-usage.sh" "$@" ;;
     token-run)
-        bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
+        bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill --include-today ;;
     mcp)     shift; bash "$LIB_DIR/mcp-manager.sh" "$@" ;;
     *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|mcp|menu]"; exit 1 ;;
 esac
