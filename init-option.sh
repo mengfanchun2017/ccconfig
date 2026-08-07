@@ -45,9 +45,14 @@ MENU_GROUPS=(
     "--os--|bat glow nano"
     "--claude--|mcp skill"
     "--lark--|larkcli larkbridge"
-    "--other--|officecli remote cloudflare usage llmswitch"
+    "--other--|officecli remote cloudflare usage"
+    "--auto--|llmswitch"
     "--key--|feishu_key"
 )
+
+# 自动管理的项：状态展示但不可 toggle
+declare -A AUTO_MANAGED
+AUTO_MANAGED["llmswitch"]="由 init-llm 自动启停（按 provider 切换）|bash init-llm.sh|bash maintain.sh llmswitch {start|stop|status|restart}"
 
 # ── 检测 option-* 目录 ──
 list_option_dirs() {
@@ -246,6 +251,10 @@ list_all() {
             fi
 
             printf "  %2d) %-12s " "$idx" "$name"
+            # 自动管理的项：加 [auto] 标签，可观测但不可 toggle
+            if [ -n "${AUTO_MANAGED[$name]:-}" ]; then
+                printf "${GRAY}[auto]${NC} "
+            fi
             render_status "$status"
             echo ""
             idx=$((idx + 1))
@@ -610,6 +619,10 @@ interactive_menu() {
                         local selected="${all_names[$((token - 1))]}"
                         if [ "$selected" = "feishu_key" ]; then
                             feishu_key_wizard
+                        elif [ -n "${AUTO_MANAGED[$selected]:-}" ]; then
+                            info "[auto] ${selected}: ${AUTO_MANAGED[$selected]%%|*}"
+                            info "  切换 LLM: ${AUTO_MANAGED[$selected]#*|}"
+                            info "  手动管理: ${AUTO_MANAGED[$selected]##*|}"
                         else
                             install_option "$selected"
                         fi
@@ -705,40 +718,50 @@ print(f'✅ 已删除 {n}')
 PYEOF
 }
 
+list_names_compact() {
+    for group_entry in "${MENU_GROUPS[@]}"; do
+        local group_title="${group_entry%%|*}"
+        local group_items="${group_entry#*|}"
+        echo "$group_title"
+        for n in $group_items; do
+            case "$n" in
+                mcp) echo "  mcp" ;;
+                bat|glow|nano) echo "  $n" ;;
+                *) [ -n "${AUTO_MANAGED[$n]:-}" ] || has_init_script "$n" && echo "  $n" ;;
+            esac
+        done
+    done
+}
+
+install_all() {
+    for group_entry in "${MENU_GROUPS[@]}"; do
+        local group_items="${group_entry#*|}"
+        for n in $group_items; do
+            # 自动管理的项：批量跳过（init-llm 按需拉起）
+            [ -n "${AUTO_MANAGED[$n]:-}" ] && continue
+            case "$n" in
+                mcp) install_option "mcp" --batch ;;
+                bat|glow|nano) install_option "$n" --batch ;;
+                usage) install_option "$n" --batch --yes ;;
+                *) has_init_script "$n" && install_option "$n" --batch ;;
+            esac
+        done
+    done
+    echo ""
+    ok "全部可选组件安装完成"
+}
+
 # ── 入口 ──
 case "${1:-menu}" in
     --status|status|-s)
         list_all
         ;;
     -l|list)
-        for group_entry in "${MENU_GROUPS[@]}"; do
-            local group_title="${group_entry%%|*}"
-            local group_items="${group_entry#*|}"
-            echo "$group_title"
-            for n in $group_items; do
-                case "$n" in
-                    mcp) echo "  mcp" ;;
-                    bat|glow|nano) echo "  $n" ;;
-                    *) has_init_script "$n" && echo "  $n" ;;
-                esac
-            done
-        done
+        list_names_compact
         ;;
     all|--all|-a)
         shift 2>/dev/null || true
-        for group_entry in "${MENU_GROUPS[@]}"; do
-            local group_items="${group_entry#*|}"
-            for n in $group_items; do
-                case "$n" in
-                    mcp) install_option "mcp" --batch ;;
-                    bat|glow|nano) install_option "$n" --batch ;;
-                    usage) install_option "$n" --batch --yes ;;
-                    *) has_init_script "$n" && install_option "$n" --batch ;;
-                esac
-            done
-        done
-        echo ""
-        ok "全部可选组件安装完成"
+        install_all
         ;;
     menu|--menu|"")
         interactive_menu
