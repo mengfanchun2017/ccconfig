@@ -9,7 +9,7 @@
 # 前置条件：SSH key 已添加到 GitHub（推荐），或 gh auth login 已完成（HTTPS 备选）
 # 输出：~/git/ccprivate/ 完整目录结构 + GitHub 私有仓库 + symlink 已建立
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$SCRIPT_DIR"

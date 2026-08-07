@@ -9,7 +9,7 @@
 #   bash ccconfig/option-larkcli/lark-switch.sh               # 显示当前账号
 #   bash ccconfig/option-larkcli/lark-switch.sh --list        # 列出所有账号
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -17,13 +17,15 @@ source "$CCCONFIG_DIR/lib/path-helper.sh"
 FEISHU_CONF="$(resolve_conf feishu.json)" || exit 1
 MARKER_FILE="$HOME/.lark-cli-account"
 
-# 颜色
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-GRAY='\033[0;90m'
-NC='\033[0m'
+# 颜色（colors.sh 可选 source，缺失时 fallback）
+source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    CYAN='\033[0;36m'
+    GRAY='\033[0;90m'
+    NC='\033[0m'
+}
 
 # ========== 从 feishu.json apps[] 读取账号列表 ==========
 get_apps() {

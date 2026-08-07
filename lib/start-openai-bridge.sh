@@ -3,8 +3,8 @@
 # 适用：OpenAI-only 端点（不含 /anthropic 的路由，如自部署网关、部分第三方 API）
 # 只启动 bridge，不切 LLM。切 LLM 用 init-llm.sh <provider>
 
-set -e
-SCRIPT_DIR="$(cd "$(dirname "$BASH_SOURCE")" && pwd)"
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/path-helper.sh"
 LLM_CONF="$(resolve_conf llm.json)" || exit 1

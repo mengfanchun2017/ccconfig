@@ -23,7 +23,7 @@
 #   bash ccconfig/update.sh --dry-run    # 只检查不升级，输出版本差异
 # ==============================================
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -33,13 +33,15 @@ LOCAL_BIN="$HOME/.local/bin"
 VERSION_FILE="$CCCONFIG_ROOT/conf/versions.json"  # 公开文件，不走 resolve_conf
 LOCK_FILE="/tmp/ccconfig-update.lock"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-BLUE='\033[0;34m'
-DIM='\033[2m'
-NC='\033[0m'
+source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    CYAN='\033[0;36m'
+    BLUE='\033[0;34m'
+    DIM='\033[2m'
+    NC='\033[0m'
+}
 
 info()  { echo -e "${CYAN}ℹ   $1${NC}"; }
 success() { echo -e "${GREEN}✅ $1${NC}"; }
@@ -628,19 +630,23 @@ update_uv() {
         info "uv 未安装，正在安装..."
     fi
 
-    if curl --connect-timeout 10 --max-time 30 -LsSf https://astral.sh/uv/install.sh | sh 2>&1 | tail -3; then
-        local after
-        after=$(uv --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
-        if command -v uv &>/dev/null; then
-            mkdir -p "$HOME/.local/state"
-            touch "$HOME/.local/state/uv-update-stamp"
-            success "uv 已更新: $after"
-        else
-            warn "uv 更新失败"
-            return 1
-        fi
+    if curl --connect-timeout 10 --max-time 30 -LsSf -o /tmp/uv-install.sh https://astral.sh/uv/install.sh; then
+        bash /tmp/uv-install.sh 2>&1 | tail -3
+        rm -f /tmp/uv-install.sh
     else
-        warn "uv 更新失败（不影响使用）"
+        rm -f /tmp/uv-install.sh
+        warn "uv 安装脚本下载失败"
+        return 1
+    fi
+
+    local after
+    after=$(uv --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+    if command -v uv &>/dev/null; then
+        mkdir -p "$HOME/.local/state"
+        touch "$HOME/.local/state/uv-update-stamp"
+        success "uv 已更新: $after"
+    else
+        warn "uv 更新失败"
         return 1
     fi
 }
