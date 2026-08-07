@@ -5,7 +5,7 @@
 #   台式机: bash ccconfig/option-remote/deploy.sh server
 #   笔记本: bash ccconfig/option-remote/deploy.sh client
 # ============================================================
-set -e
+set -euo pipefail
 
 TYPE="${1:-}"
 if [ "$TYPE" != "server" ] && [ "$TYPE" != "client" ]; then
@@ -16,7 +16,7 @@ if [ "$TYPE" != "server" ] && [ "$TYPE" != "client" ]; then
     exit 1
 fi
 
-REMOTE_DIR="$(cd "$(dirname "$0")" && pwd)"
+REMOTE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WIN_DIR="/mnt/c/git/winremote"
 
 if [ ! -d "/mnt/c" ]; then

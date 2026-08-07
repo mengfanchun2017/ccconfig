@@ -32,13 +32,15 @@ CONFIG_FILE="$(resolve_conf ubuntu.json)" || exit 1
 # CONFIG_FILE resolved via resolve_conf() above
 # llm.json 由 init-llm.sh 管理，此处无需检查
 
-# 颜色
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+# 颜色（colors.sh 可选 source，缺失时 fallback）
+source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+}
 
 info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 success() { echo -e "${GREEN}✅ $1${NC}"; }
@@ -165,10 +167,11 @@ setup_uv() {
         success "uv 已安装: $(uv --version 2>/dev/null || uvx --version 2>/dev/null)"
     else
         warn "uv 未安装，正在安装..."
-        if curl -LsSf https://astral.sh/uv/install.sh | sh; then
-            success "uv 安装完成"
+        if curl -LsSf -o /tmp/uv-install.sh https://astral.sh/uv/install.sh; then
+            bash /tmp/uv-install.sh && success "uv 安装完成" || warn "uv 安装失败（不影响 MCP 使用）"
+            rm -f /tmp/uv-install.sh
         else
-            warn "uv 安装失败（不影响 MCP 使用）"
+            warn "uv 安装脚本下载失败"
         fi
     fi
 }
