@@ -121,14 +121,19 @@ if project_filter:
 
 def detect_route(model, endpoint_id):
     """根据 model 名 + endpoint ID 格式判断 route"""
+    import os
     if not endpoint_id or endpoint_id.startswith("<"):
         return "synthetic"
     if endpoint_id.startswith("chatcmpl-"):
         return "bridge-openaialt"  # OpenAI 协议（bridge 转）
     if endpoint_id.startswith("msg_") and len(endpoint_id) == 24:
         return "anthropic-direct"  # 标准 Anthropic 直连
-    # 32 hex = MiniMax 兼容 / deepseek 直连（也走 anthropic 协议）
+    # 32 hex = MiniMax 兼容 / deepseek 直连 / openaialt 网关转发
     if len(endpoint_id) == 32 and all(c in "0123456789abcdef" for c in endpoint_id):
+        # 当前 LLM 配置如果是 openaialt，32 hex ID 应归 bridge-openaialt
+        cur = os.environ.get("CCCURRENT_LLM", "")
+        if cur == "openaialt":
+            return "bridge-openaialt"
         if "deepseek" in model:
             return "deepseek-direct"  # api.deepseek.com/anthropic
         if "MiniMax" in model or "minimax" in model:
@@ -713,6 +718,11 @@ main() {
             *) err "未知参数: $1"; exit 1 ;;
         esac
     done
+
+    # 传当前 LLM 名给 detect_route（区分 deepseek-direct 和 bridge-openaialt）
+    local cur_llm
+    cur_llm=$(python3 -c "import json; d=json.load(open('$LLM_CONF')); print(d.get('current',''))" 2>/dev/null || echo "")
+    export CCCURRENT_LLM="$cur_llm"
 
     local pricing
     pricing=$(load_pricing) || pricing="{}"
