@@ -303,7 +303,8 @@ cmd_config() {
     echo -e "  ${CYAN}1${NC}) 注册新的 MCP (全局)"
     echo -e "  ${CYAN}2${NC}) 开启/关闭 用户级 MCP (全局禁用)"
     echo -e "  ${CYAN}3${NC}) 管理项目 MCP (当前项目开/关)"
-    echo -e "  ${CYAN}4${NC}) 查看状态"
+    echo -e "  ${CYAN}4${NC}) 配置 Key (交互填占位符)"
+    echo -e "  ${CYAN}5${NC}) 查看状态"
     echo -e "  ${CYAN}q${NC}) 退出"
     echo -ne "\n  ${BOLD}>${NC} "
     read -r choice
@@ -313,7 +314,8 @@ cmd_config() {
       1) config_register ;;
       2) config_toggle_global "$state" ;;
       3) config_project "$curr" ;;
-      4) cmd_status ;;
+      4) bash "$(dirname "$SCRIPT_DIR")/lib/init-mcp.sh" keys ;;
+      5) cmd_status ;;
       q|Q) break ;;
       *) warn "无效选项" ;;
     esac
