@@ -15,6 +15,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+source "$CCCONFIG_DIR/lib/dry-run.sh"
 source "$CCCONFIG_DIR/lib/path-helper.sh"
 export PATH="${HOME}/.local/bin:$(find_node_bin):$PATH"
 
@@ -131,7 +132,7 @@ update_officecli() {
 show_status() {
     local ok=true
     [ -x "$OFFICECLI_BIN" ] || ok=false
-    if $ok; then echo "OK OfficeCLI 已安装"; else echo "FAIL OfficeCLI 未安装"; fi
+    if $ok; then echo "OK OfficeCLI 已安装"; else echo "MISSING OfficeCLI 未安装"; fi
 
     echo -e "${CYAN}── OfficeCLI 状态 ──${NC}"
 

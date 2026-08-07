@@ -25,6 +25,7 @@ LOCAL_BIN="$HOME/.local/bin"
 
 # 动态路径解析（resolve_conf 在其中定义，必须优先 source）
 source "$SCRIPT_DIR/path-helper.sh"
+source "$SCRIPT_DIR/dry-run.sh"
 
 CONFIG_FILE="$(resolve_conf ubuntu.json)" || exit 1
 

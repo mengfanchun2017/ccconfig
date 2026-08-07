@@ -192,7 +192,6 @@ PYEOF
 
 # ── 列出所有 option（分组格式） ──
 list_all() {
-    echo ""
     echo -e "${CYAN}可选组件状态${NC}"
     echo ""
 
