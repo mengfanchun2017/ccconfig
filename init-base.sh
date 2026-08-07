@@ -3,10 +3,10 @@
 #
 # 使用：
 #   bash init-base.sh                  # 交互式菜单（默认）
-#   bash init-base.sh all              # 一键全部（跳过交互，全自动）
-#   bash init-base.sh status           # 状态检查
+#   bash init-base.sh all              # 一键全部（跳过交互全自动）
 #   bash init-base.sh --dry-run        # 预览将要执行的操作（不实际执行）
-#   bash init-base.sh option           # 可选组件安装（跳转到 init-option.sh）
+#
+# 子命令输出指引让用户手动执行，不直接调其他根脚本。
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,9 +17,8 @@ show_banner() {
     echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
 }
 
-# 首次初始化检查：仅检查 ccprivate（skill 由 init-skill.sh 自动 clone）
-# init_all_steps 假定 ccprivate 已存在（4 步流程的 Step 3 已创建）
-check_first_time() {
+# 首次初始化检查：仅检查 ccprivate
+check_prereqs() {
     if [[ -d "$HOME/git/ccprivate" ]]; then
         return 0
     fi
@@ -36,18 +35,15 @@ check_first_time() {
     read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
     create_ccp="${create_ccp:-y}"
     if [[ "$create_ccp" =~ ^[Yy]$ ]]; then
-        bash "$SCRIPT_DIR/init-ccprivate-repo.sh"
-        echo ""
-        echo -e "${GREEN}✅ ccprivate 已创建${NC}"
-        echo -e "${YELLOW}请重新运行 bash init-base.sh 继续初始化${NC}"
-        echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0
+        echo -e "  ${GRAY}请执行: bash ccconfig/init-ccprivate-repo.sh${NC}"
+        echo -e "  ${YELLOW}创建完成后重新运行 bash init-base.sh${NC}"
+        exit 0
     fi
 
     return 0
 }
 
-# 一键全部初始化的标准 5 步。
-# 假定 ccprivate 已存在（4 步流程的 Step 3 已创建）
+# 一键全部初始化。假定 ccprivate 已存在。
 init_all_steps() {
     show_banner
     export INIT_ALL_FLOW=1
@@ -118,26 +114,28 @@ PYEOF
     export INIT_LLM_NAME="$current_llm"
 
     run_step "1/4 Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true \
-        "装 Node / Claude Code / Claude 原生二进制 / uv / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
-        "Claude Code 需要 Node 运行时；uv 装 Python 工具；auto-sync 让配置变更自动 push 到 GitHub" \
+        "装 Node / Claude Code / uv / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
+        "Claude Code 需要 Node 运行时；uv 装 Python 工具；auto-sync 让配置变更自动 push" \
         "3 min（含 apt 下载）"
 
     run_step "2/4 LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true \
-        "把当前 LLM（DeepSeek/MiniMax/Claude 等）的 API key 写入 ~/.claude/settings.json" \
-        "Claude Code 通过 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_BASE_URL 调用 LLM；没配就跑不了" \
+        "把当前 LLM 的 API key 写入 ~/.claude/settings.json" \
+        "Claude Code 通过 ANTHROPIC_AUTH_TOKEN 调用 LLM；没配就跑不了" \
         "10 s"
 
-    # Step 3/4: maintain.sh finalize（链接修复 + 状态检查 + 服务启动）
-    run_step "4/4 收尾（链接修复 + 状态检查 + 服务启动）" "$SCRIPT_DIR/maintain.sh" finalize \
-        "修复符号链接 / 启动 auto-sync 服务 / 状态验证" \
-        "确认所有组件就位，可以开始工作" \
-        "10 s"
-
+    # 步骤 3/4: 收尾指引
     echo ""
+    echo -e "${CYAN}━━━ 3/4 收尾 ━━━${NC}"
+    echo -e "  ${GRAY}链接修复 + 启动 auto-sync 服务 + 状态验证${NC}"
+    echo ""
+    echo -e "  ${GREEN}✅ Ubuntu 环境 + LLM 配置完成${NC}"
+    echo -e "  ${GRAY}请执行以下命令完成收尾:${NC}"
+    echo -e "    ${CYAN}bash maintain.sh setup${NC}"
+    echo ""
+
     echo -e "${GREEN}🎉 全部初始化完成${NC}"
     echo ""
 
-    # PATH 已在子 shell 中设置，退出后对外层终端不生效
     export PATH="$HOME/.local/bin:$PATH"
     hash -r 2>/dev/null || true
     if command -v claude &>/dev/null; then
@@ -150,7 +148,7 @@ PYEOF
 
     echo -e "${BOLD}日常使用:${NC}"
     echo "  切换 LLM:          bash $SCRIPT_DIR/lib/init-llm.sh"
-    echo "  更新系统:          bash $SCRIPT_DIR/lib/update.sh all"
+    echo "  系统升级:          bash $SCRIPT_DIR/lib/update.sh all"
     echo "  状态检查:          bash maintain.sh status"
     echo "  装 Skills:         bash option-skill/init.sh --install"
     echo "  装 MCP/可选组件:    bash init-option.sh"
@@ -160,7 +158,7 @@ PYEOF
 run_step() {
     local label="$1" script="$2" auto="$3"
     local what="${4:-}" why="${5:-}" eta="${6:-}"
-    shift 6 2>/dev/null || true  # remaining args passed to script
+    shift 6 2>/dev/null || true
 
     echo ""
     echo -e "${CYAN}━━━ ${label} ━━━${NC}"
@@ -176,8 +174,6 @@ run_step() {
         else
             echo -e "${RED}❌ ${label} 失败（继续）${NC}"
         fi
-    elif [ "$auto" = "finalize" ]; then
-        bash "$script" finalize && echo -e "${GREEN}✅ ${label} 完成${NC}" || echo -e "${RED}❌ ${label} 失败${NC}"
     else
         read -p "运行？[Y/n]: " confirm || true
         confirm="${confirm:-y}"
@@ -218,10 +214,6 @@ submenu_env() {
     esac
 }
 
-submenu_options() {
-    bash "$SCRIPT_DIR/init-option.sh"
-}
-
 submenu_remote() {
     echo ""
     echo -e "${CYAN}── 远程连接 ──${NC}"
@@ -238,14 +230,10 @@ submenu_remote() {
     esac
 }
 
-submenu_options() {
-    bash "$SCRIPT_DIR/init-option.sh"
-}
-
 # ========== 主菜单 ==========
 main_menu() {
     show_banner
-    check_first_time
+    check_prereqs
     echo ""
     echo "  ── 初始化 ──"
     echo "  1) Ubuntu 环境  │ LLM切换 │ 自启动"
@@ -262,8 +250,8 @@ main_menu() {
         2) submenu_remote ;;
         3) init_all_steps
            exit 0 ;;
-        4) submenu_options
-           echo -e "${YELLOW}操作完成${NC}" ;;
+        4) echo -e "  ${GRAY}请执行: bash init-option.sh${NC}"
+           echo -e "  ${YELLOW}操作完成${NC}" ;;
         0) echo ""; exit 0 ;;
         *) echo "无效选择"; main_menu ;;
     esac
@@ -280,7 +268,7 @@ case "${1:-menu}" in
         exit 0
         ;;
     option|options)
-        bash "$SCRIPT_DIR/init-option.sh"
+        echo -e "  ${GRAY}请执行: bash init-option.sh${NC}"
         ;;
     --dry-run|--preview|--what)
         show_banner
@@ -288,21 +276,16 @@ case "${1:-menu}" in
         echo -e "${CYAN}━━━ 预览：将要执行的操作 ━━━${NC}"
         echo "  1) init-ubuntu.sh    → 系统包 + node/gh/claude/uv + symlink"
         echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
-    echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
-    echo "  3) maintain.sh       → 链接修复 + 状态 + 服务"
-    echo ""
-    echo "  运行 'bash init-base.sh all' 执行以上所有步骤"
-    echo "  运行 'bash init-base.sh' 进入交互式菜单"
-    echo "  MCP/Skills 可选: bash init-option.sh"
-        ;;
-    status)
-        bash "$SCRIPT_DIR/maintain.sh" status
+        echo "  3) maintain.sh       → 链接修复 + 状态 + 服务"
+        echo ""
+        echo "  运行 'bash init-base.sh all' 执行以上所有步骤"
+        echo "  运行 'bash init-base.sh' 进入交互式菜单"
+        echo "  MCP/Skills 可选: bash init-option.sh"
         ;;
     menu|"")
         main_menu
         ;;
     *)
-        echo "用法: bash init-base.sh [all|option|--dry-run|status|menu]"
+        echo "用法: bash init-base.sh [all|option|--dry-run|menu]"
         ;;
 esac
-
