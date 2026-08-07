@@ -17,6 +17,7 @@ if [ "$TYPE" != "server" ] && [ "$TYPE" != "client" ]; then
 fi
 
 REMOTE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$REMOTE_DIR/../lib/dry-run.sh"
 WIN_DIR="/mnt/c/git/winremote"
 
 if [ ! -d "/mnt/c" ]; then

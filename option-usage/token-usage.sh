@@ -22,6 +22,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$CCCONFIG_ROOT/lib/dry-run.sh"
 source "$CCCONFIG_ROOT/lib/path-helper.sh" 2>/dev/null || true
 source "$CCCONFIG_ROOT/lib/colors.sh" 2>/dev/null || {
     RED=''; GREEN=''; YELLOW=''; CYAN=''; GRAY=''; NC=''

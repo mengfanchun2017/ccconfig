@@ -21,6 +21,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/dry-run.sh"
 if [ -d "$SCRIPT_DIR/.git" ]; then
     MONITOR_HOME="$SCRIPT_DIR"
 else
