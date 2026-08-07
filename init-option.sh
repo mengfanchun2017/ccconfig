@@ -477,12 +477,6 @@ install_option() {
         *) err "未知选项: $name" ; return 1 ;;
     esac
 }
-        *)
-        err "未知选项: $name"
-        return 1
-        ;;
-    esac
-}
 
 # ── CLI 工具安装函数 ──
 install_bat() {
