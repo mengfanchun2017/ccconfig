@@ -57,6 +57,7 @@ show_menu() {
     echo "  0) 返回"
     echo ""
     read -p "选择 [0-4]: " c
+    c=$(menu_num "$c")
     case "$c" in
         1) do_install ;;
         2) do_update ;;

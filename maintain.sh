@@ -149,6 +149,7 @@ show_menu() {
     echo "  0) 退出"
     echo ""
     read -p "选择 [0-11]: " c
+    c=$(menu_num "$c")
 
     case "$c" in
         1) bash "$LIB_DIR/status.sh" "$@" ;;
@@ -188,6 +189,7 @@ show_menu() {
            echo "  7) 手动触发归档+推飞书 (按配置跑，不含今天)"
            echo "  0) 返回"
            read -p "  选择 [0-7]: " choice
+           choice=$(menu_num "$choice")
            case "$choice" in
              1) bash "$LIB_DIR/init-llm.sh" bill ;;
              2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
@@ -245,6 +247,7 @@ submenu_monitor() {
     echo "  0) 返回"
     echo ""
     read -p "选择 [0-5]: " c
+    c=$(menu_num "$c")
     case "$c" in
         1) bash "$LIB_DIR/monitor.sh" start ;;
         2) bash "$LIB_DIR/monitor.sh" stop ;;

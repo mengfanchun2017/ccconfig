@@ -463,6 +463,7 @@ do_menu() {
         echo "  0) 退出"
         echo ""
         read -p "  选择 [0-4]: " cmd
+        cmd=$(menu_num "$cmd")
         case "$cmd" in
             1) do_status; read -p "  按回车继续..." dummy ;;
             2) do_sync; read -p "  按回车继续..." dummy ;;

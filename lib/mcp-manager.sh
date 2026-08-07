@@ -309,6 +309,7 @@ cmd_config() {
     echo -ne "\n  ${BOLD}>${NC} "
     read -r choice
     echo ""
+    choice=$(menu_num "$choice")
 
     case "$choice" in
       1) config_register ;;
@@ -477,6 +478,7 @@ p['disabledMcpServers'] = [m for m in p.get('disabledMcpServers', []) if m != '$
     echo -e "  ${CYAN}3${NC}) 取消"
     echo -ne "  ${BOLD}>${NC} "
     read -r mode
+    mode=$(menu_num "$mode")
     case "$mode" in
       1)
         py_write "

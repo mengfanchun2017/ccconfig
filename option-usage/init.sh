@@ -175,6 +175,7 @@ config_interactive() {
     echo "  0) 返回"
 
     read -p "  选择 [0-3]: " opt
+    opt=$(menu_num "$opt")
     case "$opt" in
         1) read -p "  feishu_url: " v; set_feishu "$v" ;;
         2) read -p "  schedule (HH:MM:SS): " v; set_schedule "$v" ;;

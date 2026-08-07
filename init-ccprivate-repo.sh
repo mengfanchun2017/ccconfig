@@ -49,6 +49,7 @@ ensure_gh_cli() {
     echo ""
     read -p "  选择 [1]: " install_choice
     install_choice="${install_choice:-1}"
+    install_choice=$(menu_num "$install_choice")
 
     case "$install_choice" in
         1)
@@ -358,6 +359,7 @@ collect_info() {
     echo ""
     read -p "  选择默认后端 [1]: " LLM_CHOICE
     LLM_CHOICE="${LLM_CHOICE:-1}"
+    LLM_CHOICE=$(menu_num "$LLM_CHOICE")
 
     case "$LLM_CHOICE" in
         1)

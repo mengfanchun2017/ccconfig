@@ -427,6 +427,7 @@ _do_config_mode() {
     echo "  3) off    — 禁用路由（直通 current）"
     echo ""
     read -p "  选模式 (1-3, 回车取消): " mode_choice
+    mode_choice=$(menu_num "$mode_choice")
 
     case "$mode_choice" in
         1) do_mode "auto" ;;
@@ -697,6 +698,7 @@ PYEOF
         echo -e "  ${GRAY}0)${NC} 返回"
         echo ""
         read -p "  选择 [0-4]: " config_choice
+        config_choice=$(menu_num "$config_choice")
 
         case "$config_choice" in
             1) _do_config_mode ;;
@@ -759,6 +761,7 @@ echo -e "${CYAN}LLM Gateway Manager${NC}"
     echo ""
 
     read -rp "  选择 [0-7]: " choice
+    choice=$(menu_num "$choice")
 
     case "$choice" in
         1) do_start ;;
