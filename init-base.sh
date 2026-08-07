@@ -246,31 +246,31 @@ submenu_options() {
 main_menu() {
     show_banner
     check_first_time
-	echo ""
-	echo "  ── 初始化 ──"
-	echo "  1) Ubuntu 环境  │ LLM切换 │ 自启动"
-	echo "  2) 远程连接    │ SSH │ tmux"
-	echo "  3) ★ 一键全部初始化（Ubuntu → LLM → 收尾）"
-	echo "  ── 可选组件 ──"
-	echo "  4) 可选组件（MCP / Skills / CLI / option-*）"
-	echo "  0) 退出"
-	echo ""
-	read -p "选择 [0-4]: " choice
+    echo ""
+    echo "  ── 初始化 ──"
+    echo "  1) Ubuntu 环境  │ LLM切换 │ 自启动"
+    echo "  2) 远程连接    │ SSH │ tmux"
+    echo "  3) ★ 一键全部初始化（Ubuntu → LLM → 收尾）"
+    echo "  ── 可选组件 ──"
+    echo "  4) 可选组件（MCP / Skills / CLI / option-*）"
+    echo "  0) 退出"
+    echo ""
+    read -p "选择 [0-4]: " choice
 
-	case "$choice" in
-	    1) submenu_env ;;
-	    2) submenu_remote ;;
-	    3) init_all_steps
-	       exit 0 ;;
-	    4) submenu_options
-	       echo -e "${YELLOW}操作完成${NC}" ;;
-	    0) echo ""; exit 0 ;;
-	    *) echo "无效选择"; main_menu ;;
-	esac
+    case "$choice" in
+        1) submenu_env ;;
+        2) submenu_remote ;;
+        3) init_all_steps
+           exit 0 ;;
+        4) submenu_options
+           echo -e "${YELLOW}操作完成${NC}" ;;
+        0) echo ""; exit 0 ;;
+        *) echo "无效选择"; main_menu ;;
+    esac
 
-	echo ""
-	read -p "按回车返回主菜单..." dummy
-	main_menu
+    echo ""
+    read -p "按回车返回主菜单..." dummy
+    main_menu
 }
 
 # ========== 入口 ==========
@@ -288,12 +288,12 @@ case "${1:-menu}" in
         echo -e "${CYAN}━━━ 预览：将要执行的操作 ━━━${NC}"
         echo "  1) init-ubuntu.sh    → 系统包 + node/gh/claude/uv + symlink"
         echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
-	echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
-	echo "  3) maintain.sh       → 链接修复 + 状态 + 服务"
-	echo ""
-	echo "  运行 'bash init-base.sh all' 执行以上所有步骤"
-	echo "  运行 'bash init-base.sh' 进入交互式菜单"
-	echo "  MCP/Skills 可选: bash init-option.sh"
+    echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
+    echo "  3) maintain.sh       → 链接修复 + 状态 + 服务"
+    echo ""
+    echo "  运行 'bash init-base.sh all' 执行以上所有步骤"
+    echo "  运行 'bash init-base.sh' 进入交互式菜单"
+    echo "  MCP/Skills 可选: bash init-option.sh"
         ;;
     status)
         bash "$SCRIPT_DIR/maintain.sh" status
@@ -305,3 +305,4 @@ case "${1:-menu}" in
         echo "用法: bash init-base.sh [all|option|--dry-run|status|menu]"
         ;;
 esac
+
