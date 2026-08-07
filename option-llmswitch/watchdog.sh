@@ -6,7 +6,7 @@
 #   bash watchdog.sh --daemon # 后台跑一次健康检查后退出
 #   bash watchdog.sh --stop   # 停止后台 watchdog
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
@@ -18,7 +18,10 @@ ROUTE_CACHE="$HOME/.cache/llmswitch-route-cache"
 HEALTH_URL="http://127.0.0.1:8899/health"
 INTERVAL=30
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; GRAY='\033[0;90m'; NC='\033[0m'
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../../lib/colors.sh" 2>/dev/null || {
+    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; GRAY='\033[0;90m'; NC='\033[0m'
+}
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$WATCHDOG_LOG"; }
 

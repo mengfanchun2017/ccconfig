@@ -15,8 +15,10 @@ source "$SCRIPT_DIR/path-helper.sh"
 MCP_CONF_FILE="$(resolve_conf claude.json)" || exit 1
 source "$SCRIPT_DIR/json-validate.sh"
 try_assert_json "$MCP_CONF_FILE" mcp 2>/dev/null || { echo "❌ conf/claude.json schema 校验失败" >&2; exit 1; }
-
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
+source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
+    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+    CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
+}
 good() { echo -e "  ${GREEN}$1${NC}"; }
 bad()  { echo -e "  ${RED}$1${NC}"; }
 warn() { echo -e "  ${YELLOW}$1${NC}"; }
