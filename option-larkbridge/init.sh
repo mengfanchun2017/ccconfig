@@ -190,9 +190,68 @@ run_foreground() {
   good "  ✓ profile「${profile}」已上线（前台运行，Ctrl-C 退出）" >&2
   lark-channel-bridge run --profile "$profile" --workspace "$ws" 2>&1 \
     | grep -v 'sdk.error\|owner_refresh_failed\|chats-fetch-failed\|\[lark-info' || true
+  local rc=${PIPESTATUS[0]}
+  if [ "$rc" -ne 0 ] && [ "$rc" -ne 130 ]; then
+    local app_id; app_id="$(_get_profile_app_id "$profile")"
+    if _check_scope_errors "$profile" >/dev/null && [ -n "$app_id" ]; then
+      _print_scope_hint "$profile" "$app_id"
+    fi
+  fi
 }
 
 _service_file() { echo "$HOME/.config/systemd/user/${SERVICE_PREFIX}@${1}.service"; }
+
+# 飞书 app scope 检测 + 修复提示
+# 触发: bridge 日志里出现 "Access denied" + scope list
+# 输出: 直跳权限管理链接 + 可粘贴 JSON + 步骤
+# JSON 已过滤 2024-09-30 废弃的 im:chat.group_info:readonly / im:message.p2p_msg / im:message.group_at_msg / im:message.groups
+
+_scope_required_json() {
+  cat << 'JSONEOF'
+{"scopes":{"tenant":["im:message","im:message:send_as_bot","im:message.p2p_msg:readonly","im:message.group_at_msg:readonly","im:message:readonly","im:chat","im:chat:readonly","im:chat:read","im:chat.members:read"],"user":[]}}
+JSONEOF
+}
+
+_get_profile_app_id() {
+  local profile="$1"
+  python3 -c "
+import json
+d=json.load(open('$LCONF'))
+p=d.get('profiles',{}).get('$profile',{})
+print(p.get('accounts',{}).get('app',{}).get('id',''))
+" 2>/dev/null || true
+}
+
+_check_scope_errors() {
+  local profile="$1"
+  local log="$HOME/.lark-channel/profiles/${profile}/logs/"
+  [ -d "$log" ] || return 1
+  local latest; latest=$(find "$log" -name "*.jsonl" -type f -mtime -1 2>/dev/null | sort -r | head -1)
+  [ -z "$latest" ] && return 1
+  # 找最近的 Access denied 错误
+  grep -E "Access denied|scopes is required|scope_required" "$latest" 2>/dev/null | tail -3 || true
+}
+
+_print_scope_hint() {
+  local profile="$1"
+  local app_id="$2"
+  [ -z "$app_id" ] && return 0
+  echo "" >&2
+  warn "  ⚠ 检测到飞书 app 缺 scope（${profile}）" >&2
+  echo "" >&2
+  info "  1. 点链接直跳 ${profile} app 权限管理：" >&2
+  info "     https://open.feishu.cn/app/${app_id}/permission" >&2
+  echo "" >&2
+  info "  2. 「批量导入/导出权限」→ 导入 → 粘贴：" >&2
+  echo "" >&2
+  _scope_required_json | sed 's/^/     /' >&2
+  echo "" >&2
+  info "  3. 下一步 → 确认开通 → 顶部「创建版本」→ 提交" >&2
+  info "  4. 等管理员审批通过 → 重启 bridge：" >&2
+  info "     bash ccconfig/option-larkbridge/init.sh --restart ${profile}" >&2
+  echo "" >&2
+  warn "  ⚠ im:chat.group_info:readonly 等 2024-09-30 已废弃——JSON 已用 im:chat:read 替代" >&2
+}
 
 _setup_service() {
   local profile="$1"
@@ -271,7 +330,11 @@ show_status() {
       echo "$running" | grep -qxF "$p" && status="${GREEN}● 运行中${NC}"
       local svc_indicator="${GRAY}-${NC}"
       [ -f "$(_service_file "$p")" ] && svc_indicator="${GRAY}systemd${NC}"
-      echo -e "  $(printf '%-20s' "$p") $(printf '%-10b' "$status") $svc_indicator"
+      local warn_marker=""
+      if _check_scope_errors "$p" >/dev/null; then
+        warn_marker=" ${YELLOW}⚠ 缺 scope（运行 $0 --run ${p} 看修复提示）${NC}"
+      fi
+      echo -e "  $(printf '%-20s' "$p") $(printf '%-10b' "$status") $svc_indicator$warn_marker"
     done
   fi
 
