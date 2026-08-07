@@ -144,7 +144,7 @@ do_sync() {
     done <<< "$(read_mcp_list)"
     sync_to_settings "$HOME/.claude.json" >/dev/null 2>&1 && good "  ~/.claude.json 已同步" || warn "  ~/.claude.json 同步失败"
     do_status
-    echo -e "  ${GRAY}填 Key: bash init-mcp.sh keys${NC}"
+    echo -e "  ${GRAY}配置 Key: bash lib/init-mcp.sh keys  管理: maintain.sh mcp config${NC}"
     echo ""
 }
 

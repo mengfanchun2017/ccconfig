@@ -5,6 +5,7 @@
 # 子命令：
 #   bash maintain.sh mcp status    查看 MCP 配置状态
 #   bash maintain.sh mcp config    交互式配置 MCP
+#   bash maintain.sh mcp keys      交互填 Key（串联 init-mcp.sh keys）
 #
 # 依赖：~/.claude/.config.json（读写）
 # ==============================================
@@ -500,6 +501,7 @@ p.setdefault('disabledMcpServers', []).append('$target')
 case "${1:-status}" in
   status|st) cmd_status ;;
   config|cfg|c|conf) cmd_config ;;
+  keys) bash "$(dirname "$SCRIPT_DIR")/lib/init-mcp.sh" keys ;;
   sync) sync_projects_to_settings && echo -e "  ${GREEN}settings.json 已同步${NC}" || err "同步失败" ;;
-  *) echo -e "  ${YELLOW}用法: bash maintain.sh mcp {status|config|sync}${NC}" ;;
+  *) echo -e "  ${YELLOW}用法: bash maintain.sh mcp {status|config|keys|sync}${NC}" ;;
 esac
