@@ -184,8 +184,8 @@ ccconfig/
 │   ├── setup-links.sh        # 公开符号链接
 │   ├── path-helper.sh        # 路径解析 + 版本文件读写
 │   ├── ~~update-third-party-skills.sh~~  # 已废弃
-│   ├── colors.sh / log.sh / lock.sh  # 共享库
-│   ├── dry-run.sh            # 预览模式
+│   ├── colors.sh              # 颜色变量
+│   ├── dry-run.sh             # 预览模式
 │   ├── json-validate.sh      # JSON Schema 校验
 │   ├── shell_init.sh         # Shell 环境初始化片段
 │   └── claude-auto-sync.service # systemd service 模板（被 init-autostart.sh 使用）
