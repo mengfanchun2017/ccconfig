@@ -185,8 +185,9 @@ show_menu() {
            echo "  4) 按天归档 (增量 → ccprivate/usage/)"
            echo "  5) 推飞书 (用配置 URL，弹提示输可临时覆盖)"
            echo "  6) timer 管理 (装/卸/状态/配置)"
+           echo "  7) 手动触发归档+推飞书 (按配置跑，不含今天)"
            echo "  0) 返回"
-           read -p "  选择 [0-6]: " choice
+           read -p "  选择 [0-7]: " choice
            case "$choice" in
              1) bash "$LIB_DIR/init-llm.sh" bill ;;
              2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
@@ -214,6 +215,7 @@ show_menu() {
                   c) bash "$CCCONFIG_DIR/option-usage/init.sh" config ;;
                 esac
                 ;;
+             7) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
              0) break ;;
              *) ;;
            esac
@@ -271,6 +273,8 @@ case "${1:-menu}" in
         shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
     token|usage)
         shift; bash "$CCCONFIG_DIR/option-usage/token-usage.sh" "$@" ;;
+    token-run)
+        bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
     mcp)     shift; bash "$LIB_DIR/mcp-manager.sh" "$@" ;;
     *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|mcp|menu]"; exit 1 ;;
 esac
