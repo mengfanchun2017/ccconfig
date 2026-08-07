@@ -26,7 +26,7 @@ if [ -d "$SCRIPT_DIR/.git" ]; then
 else
     MONITOR_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
 fi
-PID_FILE="$MONITOR_HOME/.monitor-sync.pid"
+PID_FILE="${MONITOR_PID_FILE:-$MONITOR_HOME/.monitor-sync.pid}"
 LOG_FILE="$MONITOR_HOME/.monitor-sync.log"
 DEBOUNCE_FILE="$MONITOR_HOME/.monitor-sync.debounce"
 CHANGED_REPOS_FILE="$MONITOR_HOME/.monitor-sync.changed-repos"
