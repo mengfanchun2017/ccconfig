@@ -437,26 +437,35 @@ install_option() {
         bat)   install_bat ;;
         glow)  install_glow ;;
         nano)  install_nano ;;
-        usage) bash "$SCRIPT_DIR/option-usage/init.sh"
-               echo ""
-               while true; do
-                 echo "  ─ usage 管理 ─"
-                 echo "    1) 安装 timer (每天 12:01 自动归档+推飞书)"
-                 echo "    2) 卸载 timer"
-                 echo "    3) 配置 (feishu_url / schedule / include_today)"
-                 echo "    4) 查看状态"
-                 echo "    0) 返回"
-                 read -p "  选择 [0-4]: " sub
-                 case "$sub" in
-                   1) bash "$SCRIPT_DIR/option-usage/init.sh" install ;;
-                   2) bash "$SCRIPT_DIR/option-usage/init.sh" uninstall ;;
-                   3) bash "$SCRIPT_DIR/option-usage/init.sh" config ;;
-                   4) bash "$SCRIPT_DIR/option-usage/init.sh" status ;;
-                   0) break ;;
-                 esac
+        usage) # all 模式自动装 timer；菜单模式交互
+               local is_batch=false
+               for a in "$@"; do [[ "$a" == "--batch" || "$a" == "--yes" || "$a" == "-y" ]] && is_batch=true; done
+               if $is_batch; then
+                 section "安装 usage → timer"
+                 bash "$SCRIPT_DIR/option-usage/init.sh" 2>&1 | sed 's/^/  /'
+                 bash "$SCRIPT_DIR/option-usage/init.sh" install 2>&1 | sed 's/^/  /'
+               else
+                 bash "$SCRIPT_DIR/option-usage/init.sh"
                  echo ""
-                 read -p "  按回车继续..." dummy
-               done ;;
+                 while true; do
+                   echo "  ─ usage 管理 ─"
+                   echo "    1) 安装 timer (每天 12:01 自动归档+推飞书)"
+                   echo "    2) 卸载 timer"
+                   echo "    3) 配置 (feishu_url / schedule / include_today)"
+                   echo "    4) 查看状态"
+                   echo "    0) 返回"
+                   read -p "  选择 [0-4]: " sub
+                   case "$sub" in
+                     1) bash "$SCRIPT_DIR/option-usage/init.sh" install ;;
+                     2) bash "$SCRIPT_DIR/option-usage/init.sh" uninstall ;;
+                     3) bash "$SCRIPT_DIR/option-usage/init.sh" config ;;
+                     4) bash "$SCRIPT_DIR/option-usage/init.sh" status ;;
+                     0) break ;;
+                   esac
+                   echo ""
+                   read -p "  按回车继续..." dummy
+                 done
+               fi ;;
         *)
         err "未知选项: $name"
         return 1
@@ -715,9 +724,10 @@ case "${1:-menu}" in
             local group_items="${group_entry#*|}"
             for n in $group_items; do
                 case "$n" in
-                    mcp) install_option "mcp" ;;
-                    bat|glow|nano) install_option "$n" ;;
-                    *) has_init_script "$n" && install_option "$n" ;;
+                    mcp) install_option "mcp" --batch ;;
+                    bat|glow|nano) install_option "$n" --batch ;;
+                    usage) install_option "$n" --batch --yes ;;
+                    *) has_init_script "$n" && install_option "$n" --batch ;;
                 esac
             done
         done
