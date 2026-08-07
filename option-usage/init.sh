@@ -73,14 +73,20 @@ enable_timer() {
     fi
 
     # 生成最终 timer 文件（替换 OnCalendar）
-    local tmp_timer
+    local tmp_timer tmp_service
     tmp_timer=$(mktemp)
+    tmp_service=$(mktemp)
     sed "s|OnCalendar=.*|OnCalendar=*-*-* $schedule|" "$timer_file" > "$tmp_timer"
+    # 替换 service 模板占位符
+    sed -e "s|<USER>|$(whoami)|g" \
+        -e "s|<GROUP>|$(id -gn)|g" \
+        -e "s|<HOME>|$HOME|g" \
+        "$service_file" > "$tmp_service"
     info "timer 启动时间: $schedule"
 
-    sudo cp "$service_file" /etc/systemd/system/
+    sudo cp "$tmp_service" /etc/systemd/system/$SERVICE
     sudo cp "$tmp_timer" /etc/systemd/system/$TIMER
-    rm -f "$tmp_timer"
+    rm -f "$tmp_timer" "$tmp_service"
     sudo systemctl daemon-reload
     sudo systemctl enable --now "$TIMER"
     ok "timer 已启用"
