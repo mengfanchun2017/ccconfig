@@ -552,6 +552,70 @@ tail -f ~/git/ccconfig/.monitor-sync.log
 
 > ccconfig 不记录项目级 memory。架构决策在用户级 memory。
 
+## CI / 自动化模式（可选）
+
+> 每次 ccconfig 更新后，无需人工跑 7 阶段。一行 PowerShell 自动建 WSL distro + 跑 bootstrap 全流程 + 写报告。
+
+### 一次性准备（每台测试机）
+
+```powershell
+# 1. 备份一个干净 Ubuntu tar（只装 git + curl）
+#    从刚跑完 `apt install git curl` 的 Ubuntu 导出：
+wsl --export u26claude D:\backup\u26claudet-base.tar
+
+# 2. 复制 env 模板
+cp bin\.ccconfig-test.env.ps1.example bin\.ccconfig-test.env.ps1
+# 用编辑器填 GH_TOKEN / CCP_GH_USER / CCP_GIT_EMAIL / CCP_LLM_*_KEY
+# 注意 .ccconfig-test.env.ps1 已在 bin/.gitignore（不会进 git）
+```
+
+### 每次跑测试
+
+```powershell
+# 管理员 PowerShell
+cd C:\path\to\ccconfig
+.\bin\test-bootstrap.ps1
+```
+
+脚本行为：
+
+| 步骤 | 做什么 | 阻塞？ |
+|------|--------|--------|
+| 1 | `wsl --import cc-20260808` 新建 distro（**绝不 `--unregister`**） | 否 |
+| 2-4 | 注入 env + 跑 bootstrap-gh-auth + init-ccprivate（`--non-interactive`）+ init-base.sh all | 否 |
+| 5 | `maintain.sh status` | 否 |
+
+**输出**：`logs/test-bootstrap-YYYYMMDD-HHMMSS.txt`
+
+**关键 env 变量**（在 `.ccconfig-test.env.ps1` 里设）：
+
+| 变量 | 用途 |
+|------|------|
+| `GH_TOKEN` | GitHub PAT（自动注入，替代 gh auth 交互） |
+| `CCP_GH_USER` | GitHub 用户名（替代交互输入） |
+| `CCP_GIT_EMAIL` | Git 注册邮箱 |
+| `CCP_DEFAULT_LLM` | `deepseek` / `minimax` / `claude` |
+| `CCP_LLM_DEEPSEEK_KEY` | DeepSeek API key |
+| `CCP_LLM_MINIMAX_KEY` | MiniMax API key |
+| `CCP_LLM_ANTHROPIC_KEY` | Anthropic API key |
+| `CCP_SKIP_FEISHU=1` | 跳过飞书占位符引导 |
+| `BOOTSTRAP_NOSUDO=1` | 用 binary 装 gh（避免 sudo 阻塞） |
+
+### WSL distro 命名规则
+
+- 每天跑 = 新 distro：`cc-20260808`、`cc-20260809`...
+- 路径：`C:\wsl\cc-<日期>\`
+- **脚本从不删 distro**，保留全部历史（出问题可对比）
+- 手动清理：`Remove-Item C:\wsl\cc-20260808 -Recurse -Force`
+
+### 在 WSL 内单跑（已建好 distro 时）
+
+```bash
+bash ~/git/ccconfig/bin/test-bootstrap.sh
+# 或
+bash maintain.sh test
+```
+
 ## 完成 — 接下来干嘛
 
 > **⚠️ `claude: command not found`？** 运行 `source ~/.bashrc` 即可，不需要开新终端。
