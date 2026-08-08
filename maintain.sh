@@ -342,14 +342,15 @@ submenu_feishu() {
         echo -e "  ${GRAY}lark-channel-bridge: v${lcb_ver}    活跃 profile: ${cur_prof:-无}${NC}"
         echo ""
         echo "  1) 飞书账号          ─ feishu.json apps 列表 + 切换 lark-cli 活跃账号"
-        echo "  2) lark-cli          ─ OAuth 授权 / 看授权状态 / 装包"
+        echo "  2) lark-cli          ─ OAuth 授权 / 看授权状态"
         echo "  3) larkbridge        ─ profile 列表 / 启停 / 日志 / 新增 / 删除"
-        echo "  4) 发测试消息        ─ 给 open_id 发一条 text（验证 app 凭证）"
-        echo "  5) 一键升级飞书      ─ lark-cli + lark-channel-bridge (npm 最新)"
+        echo "  4) 发测试消息        ─ 给活跃 profile 的允许用户发 text"
+        echo "  5) lark-cli 装包/升级    ─ 没装就装，已装就升 npm latest"
+        echo "  6) larkbridge 装包/升级  ─ 没装就装，已装就升 npm latest"
         echo ""
         echo "  0) 返回主菜单"
         echo ""
-        read -p "选择 [0-5]: " c
+        read -p "选择 [0-6]: " c
         c=$(menu_num "$c")
 
         case "$c" in
@@ -359,11 +360,23 @@ submenu_feishu() {
             4) _feishu_send_test_message ;;
             5)
                 echo ""
-                echo -e "${CYAN}── 一键升级飞书 ──${NC}"
-                bash "$LIB_DIR/update.sh" lark
+                if ! command -v lark-cli &>/dev/null; then
+                    info "lark-cli 未安装，正在装..."
+                    bash "$CCCONFIG_DIR/option-larkcli/init.sh"
+                else
+                    bash "$LIB_DIR/update.sh" lark
+                fi
+                read -p "  按回车返回飞书菜单..." dummy
+                ;;
+            6)
                 echo ""
-                bash "$LIB_DIR/update.sh" larkbridge
-                echo ""
+                if ! command -v lark-channel-bridge &>/dev/null; then
+                    info "lark-channel-bridge 未安装，正在装..."
+                    bash "$CCCONFIG_DIR/option-larkbridge/init.sh" --run 2>&1 | head -5 || true
+                    info "（前台命令已退出，转后台请走 3) larkbridge）"
+                else
+                    bash "$LIB_DIR/update.sh" larkbridge
+                fi
                 read -p "  按回车返回飞书菜单..." dummy
                 ;;
             0) return 0 ;;
@@ -437,7 +450,8 @@ if users: print(users[0])
 PYEOF
 }
 
-# 选 app + 输入 open_id，用 appId/appSecret 发一条 text 消息
+# 选 app，直接用活跃 profile 的 allowedUsers[0] 作为收件人
+# （用户多次反馈「ailab 已经有了自己的 open_id」，不再让用户输入）
 _feishu_send_test_message() {
     local conf; conf="$(resolve_conf feishu.json 2>/dev/null)" || { warn "找不到 feishu.json"; return 0; }
     [ -f "$conf" ] || { warn "feishu.json 不存在"; return 0; }
@@ -466,7 +480,6 @@ _feishu_send_test_message() {
     [ "$sel" -ge 1 ] && [ "$sel" -le ${#names[@]} ] || return 0
     local target="${names[$((sel - 1))]}"
 
-    # 读 appId/appSecret
     local app_json
     app_json=$(python3 - "$conf" "$target" << 'PYEOF' 2>/dev/null
 import json, sys
@@ -487,20 +500,18 @@ PYEOF
         return 0
     fi
 
-    local default_oid; default_oid="$(_feishu_default_openid)"
-    local oid
-    if [ -n "$default_oid" ]; then
-        read -p "  收件人 open_id (默认: $default_oid): " oid
-        [ -z "$oid" ] && oid="$default_oid"
-    else
-        read -p "  收件人 open_id: " oid
+    # 直接读默认收件人，不再问用户输入
+    local oid; oid="$(_feishu_default_openid)"
+    if [ -z "$oid" ]; then
+        warn "活跃 profile 没有 allowedUsers，没法自动选收件人"
+        info "  手动配置: ~/.lark-channel/profiles/<name>/config.json → access.allowedUsers[]"
+        return 0
     fi
-    [ -z "$oid" ] && { warn "需要 open_id"; return 0; }
 
     local msg_text="ccconfig 飞书测试消息 ✅ from $target"
     echo ""
-    info "  → 目标: $target"
-    info "  → open_id: $oid"
+    info "  → 目标 app: $target"
+    info "  → 收件人 (profile 默认): $oid"
     info "  → 内容: $msg_text"
     echo ""
     read -p "  发送? [Y/n]: " cf
@@ -575,13 +586,13 @@ submenu_feishu_accounts() {
             local name; name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
             local appid; appid=$(echo "$line" | python3 -c "import json,sys; a=json.load(sys.stdin)['appId']; print((a[:14]+'...') if len(a)>14 else a)" 2>/dev/null)
             local desc; desc=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('description',''))" 2>/dev/null)
-            local lcen; lcen=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); print('cli' if d.get('larkCli',{}).get('enabled') else '—')" 2>/dev/null)
-            local lben; lben=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin).get('larkBridge',{}); print('bdg' if d.get('enabled') else '—')" 2>/dev/null)
+            local lc_on; lc_on=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Y' if d.get('larkCli',{}).get('enabled') else 'N')" 2>/dev/null)
+            local lb_on; lb_on=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Y' if d.get('larkBridge',{}).get('enabled') else 'N')" 2>/dev/null)
             local marker="  "
             [ "$name" = "$cur_acct" ] && marker="${GREEN}← 活跃${NC}"
-            local lc_disp="${GRAY}${lcen}${NC}"; [ "$lcen" = "cli" ] && lc_disp="${GREEN}cli${NC}"
-            local lb_disp="${GRAY}${lben}${NC}"; [ "$lben" = "bdg" ] && lb_disp="${GREEN}bdg${NC}"
-            printf "  ${YELLOW}%d)${NC} %-14s appId=${GRAY}%-18s${NC} [CLI:%b] [Bdg:%b]  ${marker}\n" "$i" "$name" "$appid" "$lc_disp" "$lb_disp"
+            local lc_disp="${GRAY}✗ lark-cli${NC}"; [ "$lc_on" = "Y" ] && lc_disp="${GREEN}✓ lark-cli${NC}"
+            local lb_disp="${GRAY}✗ larkbridge${NC}"; [ "$lb_on" = "Y" ] && lb_disp="${GREEN}✓ larkbridge${NC}"
+            printf "  ${YELLOW}%d)${NC} %-14s appId=${GRAY}%-18s${NC} %b  %b  ${marker}\n" "$i" "$name" "$appid" "$lc_disp" "$lb_disp"
             [ -n "$desc" ] && printf "       ${GRAY}%s${NC}\n" "$desc"
             names+=("$name")
             i=$((i + 1))
@@ -684,20 +695,16 @@ PYEOF
         return 0
     fi
 
-    local default_oid; default_oid="$(_feishu_default_openid)"
-    local oid
-    if [ -n "$default_oid" ]; then
-        read -p "  收件人 open_id (默认: $default_oid): " oid
-        [ -z "$oid" ] && oid="$default_oid"
-    else
-        read -p "  收件人 open_id: " oid
+    local oid; oid="$(_feishu_default_openid)"
+    if [ -z "$oid" ]; then
+        warn "活跃 profile 没有 allowedUsers，没法自动选收件人"
+        return 0
     fi
-    [ -z "$oid" ] && { warn "需要 open_id"; return 0; }
 
     local msg_text="ccconfig 飞书测试消息 ✅ from $target"
     echo ""
-    info "  → 目标: $target"
-    info "  → open_id: $oid"
+    info "  → 目标 app: $target"
+    info "  → 收件人 (profile 默认): $oid"
     info "  → 内容: $msg_text"
     read -p "  发送? [Y/n]: " cf
     [[ "$cf" =~ ^[Nn]$ ]] && { info "  取消"; return 0; }
