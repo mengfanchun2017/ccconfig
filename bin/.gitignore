@@ -1,0 +1,6 @@
+# test-bootstrap.ps1 用的 env 文件（含真实 API key）
+# 真实文件从 .ccconfig-test.env.ps1.example 复制
+.ccconfig-test.env.ps1
+
+# 回归测试报告
+logs/

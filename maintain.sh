@@ -151,10 +151,11 @@ show_menu() {
 	echo "  11) MCP 管理         ─ 注册/启停/状态/Key/项目配置"
     echo "  12) llmswitch        ─ LLM 网关代理（init-llm 自动管理，手动可看下面板）"
     echo "  13) 飞书管理         ─ 账号 / lark-cli / larkbridge（多账号多机器人）"
+    echo "  14) 回归测试         ─ WSL 新建 distro + bootstrap 全流程（CI/自动化）"
     echo ""
     echo "  0) 退出"
     echo ""
-    read -p "选择 [0-13]: " c
+    read -p "选择 [0-14]: " c
     c=$(menu_num "$c")
 
     case "$c" in
@@ -187,6 +188,9 @@ show_menu() {
             read -p "按回车返回菜单..." dummy
             show_menu ;;
         13) submenu_feishu
+            read -p "按回车返回菜单..." dummy
+            show_menu ;;
+        14) bash "$CCCONFIG_DIR/bin/test-bootstrap.sh" "$@"
             read -p "按回车返回菜单..." dummy
             show_menu ;;
         10) while true; do
@@ -918,5 +922,7 @@ case "${1:-menu}" in
     mcp)     shift; bash "$LIB_DIR/mcp-manager.sh" "$@" ;;
     llmswitch|llm-switch|gate)
         shift; bash "$CCCONFIG_DIR/option-llmswitch/init.sh" "$@" ;;
-    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|mcp|llmswitch|menu]"; exit 1 ;;
+    test|bootstrap|regression)
+        shift; bash "$CCCONFIG_DIR/bin/test-bootstrap.sh" "$@" ;;
+    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|mcp|llmswitch|test|menu]"; exit 1 ;;
 esac
