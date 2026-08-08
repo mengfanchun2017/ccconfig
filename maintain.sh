@@ -751,44 +751,46 @@ PYEOF
     [ -n "$oid" ] || return 0
 
     local msg_text="ccconfig 飞书测试消息 ✅ from $target"
-    echo ""
-    info "  → 目标 app: $target"
-    info "  → 收件人 (profile 默认): $oid"
-    info "  → 内容: $msg_text"
-    read -p "  发送? [Y/n]: " cf
-    [[ "$cf" =~ ^[Nn]$ ]] && { info "  取消"; return 0; }
+    {
+        echo ""
+        info "  → 目标 app: $target"
+        info "  → 收件人 (profile 默认): $oid"
+        info "  → 内容: $msg_text"
+        read -p "  发送? [Y/n]: " cf
+        [[ "$cf" =~ ^[Nn]$ ]] && { info "  取消"; return 0; }
 
-    info "  拿 tenant_access_token..."
-    local token
-    token=$(curl -s --connect-timeout 5 --max-time 10 -X POST \
-        "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
-        -H "Content-Type: application/json" \
-        -d "{\"app_id\":\"$app_id\",\"app_secret\":\"$app_secret\"}" \
-        | python3 -c "import json,sys; print(json.load(sys.stdin).get('tenant_access_token',''))" 2>/dev/null)
-    [ -z "$token" ] && { bad "  拿 access_token 失败（appId/appSecret 不对？）"; return 0; }
+        info "  拿 tenant_access_token..."
+        local token
+        token=$(curl -s --connect-timeout 5 --max-time 10 -X POST \
+            "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
+            -H "Content-Type: application/json" \
+            -d "{\"app_id\":\"$app_id\",\"app_secret\":\"$app_secret\"}" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin).get('tenant_access_token',''))" 2>/dev/null)
+        [ -z "$token" ] && { bad "  拿 access_token 失败（appId/appSecret 不对？）"; return 0; }
 
-    info "  发消息..."
-    local body
-    body=$(python3 -c "
+        info "  发消息..."
+        local body
+        body=$(python3 -c "
 import json, sys
 print(json.dumps({'receive_id': sys.argv[1], 'msg_type':'text', 'content': json.dumps({'text': sys.argv[2]})}, ensure_ascii=False))
 " "$oid" "$msg_text")
-    local resp
-    resp=$(curl -s --connect-timeout 5 --max-time 15 -X POST \
-        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id" \
-        -H "Authorization: Bearer $token" \
-        -H "Content-Type: application/json" \
-        -d "$body" 2>/dev/null)
-    local code msg_id
-    code=$(echo "$resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('code',-1))" 2>/dev/null)
-    msg_id=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('message_id',''))" 2>/dev/null)
-    if [ "$code" = "0" ]; then
-        good "  ✅ 已发送（message_id: ${msg_id:-?}）"
-        info "  在飞书查收"
-    else
-        warn "  发送失败 (code=$code):"
-        echo "$resp" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' || echo "$resp"
-    fi
+        local resp
+        resp=$(curl -s --connect-timeout 5 --max-time 15 -X POST \
+            "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id" \
+            -H "Authorization: Bearer $token" \
+            -H "Content-Type: application/json" \
+            -d "$body" 2>/dev/null)
+        local code msg_id
+        code=$(echo "$resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('code',-1))" 2>/dev/null)
+        msg_id=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('message_id',''))" 2>/dev/null)
+        if [ "$code" = "0" ]; then
+            good "  ✅ 已发送（message_id: ${msg_id:-?}）"
+            info "  在飞书查收"
+        else
+            warn "  发送失败 (code=$code):"
+            echo "$resp" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' || echo "$resp"
+        fi
+    } >&2
 }
 
 # ── 入口 ──
