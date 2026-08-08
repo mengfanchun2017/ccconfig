@@ -38,6 +38,60 @@ export PATH="$HOME/.local/bin:${NODE_BIN}:$PATH"
 SERVICE_PREFIX="lark-channel-bridge"
 LCONF="$HOME/.lark-channel/config.json"
 
+# 共享权限申请 + 检测
+source "$CCCONFIG_DIR/lib/feishu-perms.sh" 2>/dev/null || true
+
+# install() 后自动权限检测 + 缺则引导申请
+# 用法: _ensure_larkbridge_perms <app_name>
+_ensure_larkbridge_perms() {
+    local target="$1"
+    local feishu_conf
+    feishu_conf="$(resolve_conf feishu.json 2>/dev/null)" || true
+    [ -n "$feishu_conf" ] && [ -f "$feishu_conf" ] || { warn "找不到 feishu.json"; return 0; }
+
+    local app_id app_secret
+    app_id=$(python3 - "$feishu_conf" "$target" << 'PYEOF' 2>/dev/null
+import json, sys
+with open(sys.argv[1]) as f: d = json.load(f)
+for a in d.get('apps', []):
+    if a.get('name') == sys.argv[2] and a.get('larkbridge',{}).get('enabled'):
+        print(a.get('appId','')); break
+PYEOF
+)
+    app_secret=$(python3 - "$feishu_conf" "$target" << 'PYEOF' 2>/dev/null
+import json, sys
+with open(sys.argv[1]) as f: d = json.load(f)
+for a in d.get('apps', []):
+    if a.get('name') == sys.argv[2] and a.get('larkbridge',{}).get('enabled'):
+        print(a.get('appSecret','')); break
+PYEOF
+)
+    [[ "$app_id" == *"请填入"* ]] && app_id=""
+    [ -z "$app_id" ] || [ -z "$app_secret" ] && {
+        warn "  $target appId/appSecret 未配置，跳过权限检测"
+        warn "  编辑 ccprivate/conf/feishu.json 后重试"
+        return 0
+    }
+
+    info "  检测 $target 当前权限..."
+    local result; result="$(_feishu_check_perms "$app_id" "$app_secret" 2>&1)"
+    if [ $? -eq 0 ]; then
+        good "  ✓ 权限齐全"
+        return 0
+    fi
+    echo "$result" | grep -q "^ERR:" && { warn "  $result"; return 0; }
+
+    warn "  ⚠ 缺权限"
+    echo "$result" | sed 's/^/    /'
+    echo ""
+    info "  浏览器将打开飞书开放平台（已预选 larkbridge 必备 12 个 scope）"
+    info "  → 在浏览器勾选 → 申请开通 → 创建版本 → 发布到线上"
+    info "  → 5 分钟后重跑本命令验证"
+    read -p "  现在打开浏览器? [Y/n]: " cf
+    [[ "$cf" =~ ^[Nn]$ ]] && return 0
+    _feishu_open_perms_for_app "$target" "$app_id"
+}
+
 # ========== 辅助 ==========
 
 _list_profiles() {
@@ -284,6 +338,10 @@ run_foreground() {
   local ws="${LARK_WORKSPACE:-$HOME/git}"
   echo "" >&2
   good "  ✓ profile「${profile}」已上线（前台运行，Ctrl-C 退出）" >&2
+
+  # 前台启动前主动检测权限（首次配置常见问题）
+  _ensure_larkbridge_perms "$profile"
+
   lark-channel-bridge run --profile "$profile" --workspace "$ws" 2>&1 \
     | grep -v 'sdk.error\|owner_refresh_failed\|chats-fetch-failed\|\[lark-info' || true
   local rc=${PIPESTATUS[0]}
@@ -388,9 +446,16 @@ SERVICEOF
     info "    日志: journalctl --user -u ${SERVICE_PREFIX}@${profile} -f"
     info "    重启: $0 --restart ${profile}"
     info "    停止: $0 --stop ${profile}"
+
+    # 启动后立即检测权限（飞书 app 必须开通 tenant scope 才能收发消息）
+    sleep 2
+    _ensure_larkbridge_perms "$profile"
   else
     warn "  ⚠ ${profile} 服务启动失败" >&2
     journalctl --user -u "${SERVICE_PREFIX}@${profile}" --no-pager -n 20 2>/dev/null || true
+    echo ""
+    # 启动失败也试一下权限检测 + 引导开通（首次配置常见原因）
+    _ensure_larkbridge_perms "$profile"
   fi
 }
 
