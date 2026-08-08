@@ -100,8 +100,8 @@ resolve_mcp_state() {
 import json
 d = json.load(open('$CONFIG_JSON'))
 
-# 全局注册
-all_mcps = [s['name'] for s in d.get('mcp_servers', [])]
+# 全局注册 — mcpServers 是 Claude Code 的注册表；mcp_servers 是 ccconfig 自有元数据，会滞后
+all_mcps = list(d.get('mcpServers', {}))
 global_disabled = d.get('disabledMcpServers', [])
 
 # 用户级激活 = 全局注册 - 全局禁用
@@ -142,14 +142,14 @@ all_projects_status() {
 import json
 d = json.load(open('$CONFIG_JSON'))
 
-all_mcps = [s['name'] for s in d.get('mcp_servers', [])]
+all_mcps = list(d.get('mcpServers', {}))
 global_disabled = d.get('disabledMcpServers', [])
 user_active = [m for m in all_mcps if m not in global_disabled]
 
 results = []
 seen = set()
 for path, p in d.get('projects', {}).items():
-    if not path.startswith('/home/francis/git/'): continue
+    if not path.startswith('$HOME/git/'): continue
     if path in seen: continue
     seen.add(path)
     name = path.rsplit('/', 1)[-1]
@@ -267,8 +267,8 @@ for r in data:
 import json
 cfg = json.load(open('$CONFIG_JSON'))
 conf = json.load(open('$CONF_TEMPLATE'))
-cfg_names = {s['name'] for s in cfg.get('mcp_servers', [])}
-conf_names = {s['name'] for s in conf.get('mcp_servers', [])}
+cfg_names = set(cfg.get('mcpServers', {}))
+conf_names = {s['name'] for s in conf.get('mcp_servers', []) if not s.get('disabled')}
 diff = conf_names - cfg_names
 if diff: print(' '.join(sorted(diff)))
 " 2>/dev/null)
