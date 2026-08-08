@@ -10,11 +10,12 @@
 #   [3] Claude Code     → claude install
 #   [4] uv             → curl | sh
 #   [5] MCP 缓存        → 刷新 npx/uvx 缓存
-#   [6] lark-cli        → npm
-#   [7] systemd 服务    → 重建 + 重启 [option]
-#   [8] OfficeCLI      → GitHub Release [option]
-#   [9] Skills 同步     → skill + ccprivate [option]
-#   [10] Cloudflare 插件 → claude plugin [option]
+#   [6] lark-cli        → npm install -g @larksuite/cli
+#   [7] lark-channel-bridge → 停所有 profile 后 npm install -g lark-channel-bridge 再重启
+#   [8] systemd 服务    → 重建 + 重启 [option]
+#   [9] OfficeCLI      → GitHub Release [option]
+#   [10] Skills 同步     → skill + ccprivate [option]
+#   [11] Cloudflare 插件 → claude plugin [option]
 #
 # 使用：
 #   bash ccconfig/update.sh               # 交互式菜单（支持多选，如 "1 3 4"）
@@ -102,6 +103,7 @@ snapshot = {
         'claude':    {'version': get_ver('claude --version')},
         'uv':        {'version': get_ver('uv --version')},
         'lark_cli':  {'version': get_ver('lark-cli version')},
+        'lark_channel_bridge': {'version': get_ver('lark-channel-bridge --version')},
     }
 }
 
@@ -431,6 +433,96 @@ rebuild_larkcli_symlink() {
     fi
 }
 
+rebuild_larkbridge_symlink() {
+    local npm_root
+    npm_root=$(npm root -g 2>/dev/null || echo "")
+    [ -n "$npm_root" ] || return 0
+
+    local bridge_src="$npm_root/lark-channel-bridge/dist/cli.js"
+    [ -f "$bridge_src" ] || bridge_src=$(find "$npm_root/lark-channel-bridge" -maxdepth 3 -name '*.js' -path '*bin*' 2>/dev/null | head -1)
+    [ -n "$bridge_src" ] || return 0
+
+    run rm -f "$LOCAL_BIN/lark-channel-bridge"
+    run ln -sf "$bridge_src" "$LOCAL_BIN/lark-channel-bridge"
+    info "lark-channel-bridge 符号链接已更新"
+}
+
+# 列出 systemd 中所有 lark-channel-bridge@<profile> service
+_list_larkbridge_services() {
+    systemctl --user list-unit-files 'lark-channel-bridge@*.service' 2>/dev/null \
+        | awk 'NR>1 && $1 ~ /^lark-channel-bridge@/ {print $1}' || true
+}
+
+# 升级 lark-channel-bridge：
+#   1. 停所有 systemd profile（防止运行中进程占文件）
+#   2. npm install -g @latest
+#   3. 重建 ~/.local/bin 符号链接
+#   4. 升级前已 enable 的 service 全部 restart
+#   5. 失败回滚到升级前版本
+update_lark_channel_bridge() {
+    section "lark-channel-bridge (飞书 bridge)"
+
+    if ! command -v lark-channel-bridge &>/dev/null; then
+        info "lark-channel-bridge 未安装，跳过（如需安装: npm install -g lark-channel-bridge）"
+        return 0
+    fi
+
+    local before latest after
+    before=$(lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+    info "当前版本: $before"
+
+    latest=$(npm view lark-channel-bridge version 2>/dev/null || echo "")
+    if [ -z "$latest" ]; then
+        warn "无法从 npm registry 获取最新版本，跳过"
+        return 0
+    fi
+    info "npm latest: $latest"
+
+    if [ "$before" = "$latest" ]; then
+        success "lark-channel-bridge 已是最新: $latest"
+        rebuild_larkbridge_symlink
+        return 0
+    fi
+
+    # 收集升级前已 enable 的 services，升级后按原样恢复
+    local -a services
+    mapfile -t services < <(_list_larkbridge_services)
+
+    info "升级前停 service: ${#services[@]} 个"
+    for svc in "${services[@]}"; do
+        local prof="${svc#lark-channel-bridge@}"
+        prof="${prof%.service}"
+        run systemctl --user stop "$svc" 2>/dev/null || true
+        info "  停 $prof"
+    done
+
+    if ! npm install -g "lark-channel-bridge@latest" 2>&1 | tail -3; then
+        warn "npm install 失败，回滚到 $before"
+        npm install -g "lark-channel-bridge@$before" 2>&1 | tail -1 || true
+        rebuild_larkbridge_symlink
+        return 1
+    fi
+
+    rebuild_larkbridge_symlink
+
+    after=$(lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+    if [ "$before" != "$after" ]; then
+        success "lark-channel-bridge: $before → $after"
+    else
+        success "lark-channel-bridge 已是最新: $after"
+    fi
+
+    # 重启所有原 enable 的 service
+    info "重启 service: ${#services[@]} 个"
+    for svc in "${services[@]}"; do
+        local prof="${svc#lark-channel-bridge@}"
+        prof="${prof%.service}"
+        run systemctl --user restart "$svc" 2>/dev/null \
+            && info "  重启 $prof" \
+            || warn "  重启 $prof 失败"
+    done
+}
+
 # ========== 版本比较 ==========
 # 比较两个语义版本，返回 0 如果 v1 >= v2
 version_ge() {
@@ -743,6 +835,7 @@ get_live_version() {
     case "$comp" in
         node)       node --version 2>/dev/null | tr -d 'v' || echo "?" ;;
         lark-cli)   lark-cli --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
+        lark-channel-bridge) lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
         gh)         gh --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "?" ;;
         claude)     claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
         uv)         uv --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
@@ -845,6 +938,12 @@ do_dry_run() {
     lark_target=$(npm view @larksuite/cli version 2>/dev/null || echo "?")
     check_component "lark-cli" "$lark_current" "$lark_target"
 
+    # lark-channel-bridge
+    local lcb_current lcb_target
+    lcb_current=$(get_live_version "lark-channel-bridge")
+    lcb_target=$(npm view lark-channel-bridge version 2>/dev/null || echo "?")
+    check_component "lark-channel-bridge" "$lcb_current" "$lcb_target"
+
     # gh
     local gh_current gh_target
     gh_current=$(get_live_version "gh")
@@ -892,7 +991,7 @@ update_all() {
 
     # 收集升级前版本
     declare -A before_ver after_ver
-    local components=( "node" "lark-cli" "gh" "claude" "uv" )
+    local components=( "node" "lark-cli" "lark-channel-bridge" "gh" "claude" "uv" )
     for c in "${components[@]}"; do
         before_ver[$c]=$(get_live_version "$c")
     done
@@ -918,7 +1017,8 @@ update_all() {
     }
 
     run_step "node"     "Node.js"           update_nodejs
-    run_step "lark-cli" "npm 全局包"        update_npm_globals
+    run_step "lark-cli" "lark-cli (npm)"    update_npm_globals
+    run_step "lark-channel-bridge" "lark-channel-bridge (npm)" update_lark_channel_bridge
     run_step ""         "Python pip 包"     update_python_packages
     run_step ""         "Skills 同步"       update_skills
     if [ "$include_option" = "true" ]; then
@@ -943,8 +1043,8 @@ update_all() {
 
     # 版本对比：只显示有变化的组件
     local changed=0
-    local labels=( "node" "lark-cli" "gh" "claude" "uv" )
-    local names=( "Node.js" "lark-cli" "GitHub CLI" "Claude Code" "uv" )
+    local labels=( "node" "lark-cli" "lark-channel-bridge" "gh" "claude" "uv" )
+    local names=( "Node.js" "lark-cli" "lark-channel-bridge" "GitHub CLI" "Claude Code" "uv" )
     for i in "${!labels[@]}"; do
         local key="${labels[$i]}"
         local b="${before_ver[$key]:-?}"
@@ -999,43 +1099,49 @@ show_menu() {
     echo "   1) Node.js + lark-cli + pip 包"
     echo -e "      ${DIM}(自动触发 systemd 服务重建)${NC}"
     echo ""
+    echo "   飞书相关（升级 npm 包）"
+    echo "   2) lark-cli           ─ @larksuite/cli 升级到最新"
+    echo "   3) lark-channel-bridge ─ 停 profile → 升级 → 重启所有 profile"
+    echo ""
     echo "   扩展组件"
-    echo "   2) GitHub CLI"
-    echo "   3) Claude Code"
-    echo "   4) uv"
-    echo "   5) MCP 缓存刷新"
+    echo "   4) GitHub CLI"
+    echo "   5) Claude Code"
+    echo "   6) uv"
+    echo "   7) MCP 缓存刷新"
     echo ""
     echo "   可选组件"
-    echo "   6) systemd 服务重建"
-    echo "   7) OfficeCLI"
-    echo "   8) Skills 同步"
-    echo "   9) Cloudflare 插件"
+    echo "   8) systemd 服务重建"
+    echo "   9) OfficeCLI"
+    echo "   10) Skills 同步"
+    echo "   11) Cloudflare 插件"
     echo ""
     echo "   0) 退出"
     echo ""
     echo -e "   ${YELLOW}all${NC} = 升级基础+扩展（不含可选）"
-    echo -e "   ${YELLOW}1 3 5${NC} = 多选（如升级 1、3、5 项）"
+    echo -e "   ${YELLOW}1 3 4${NC} = 多选（如升级 1、3、4 项）"
     echo ""
-    read -p "选择 [1-9, all, 0]: " choice
+    read -p "选择 [1-11, all, 0]: " choice
     # 多选格式: 数字/逗号/空格 + 可选 all
     [[ ! "$choice" =~ ^([0-9 ,]+|all)$ ]] && { echo "无效选择: $choice"; show_menu; return; }
 
     # 多选支持：空格/逗号分隔如 "1 3 4" 或 "1,3,4"
     local selections
-    selections=$(echo "$choice" | tr ',' ' ' | tr '[:space:]' '\n' | grep -E '^[1-9]$|^10$|^all$' | sort -u | tr '\n' ' ')
+    selections=$(echo "$choice" | tr ',' ' ' | tr '[:space:]' '\n' | grep -E '^[1-9]$|^1[0-9]$|^all$' | sort -u | tr '\n' ' ')
 
     local did_something=0
     for sel in $selections; do
         case "$sel" in
             1)  update_nodejs; update_npm_globals; update_python_packages; fix_systemd_services; did_something=1 ;;
-            2)  update_gh; did_something=1 ;;
-            3)  update_claude; did_something=1 ;;
-            4)  update_uv; did_something=1 ;;
-            5)  update_mcp; did_something=1 ;;
-            6)  fix_systemd_services; did_something=1 ;;
-            7)  update_officecli; did_something=1 ;;
-            8)  update_skills; did_something=1 ;;
-            9)  update_cloudflare_plugin; did_something=1 ;;
+            2)  update_npm_globals; did_something=1 ;;
+            3)  update_lark_channel_bridge; did_something=1 ;;
+            4)  update_gh; did_something=1 ;;
+            5)  update_claude; did_something=1 ;;
+            6)  update_uv; did_something=1 ;;
+            7)  update_mcp; did_something=1 ;;
+            8)  fix_systemd_services; did_something=1 ;;
+            9)  update_officecli; did_something=1 ;;
+            10) update_skills; did_something=1 ;;
+            11) update_cloudflare_plugin; did_something=1 ;;
             all)
                 take_snapshot "pre" > /dev/null
                 update_all false
@@ -1080,6 +1186,8 @@ case "${1:-menu}" in
     claude)        update_claude ;;
     uv)            update_uv ;;
     mcp)           update_mcp ;;
+    lark|lark-cli) update_npm_globals ;;
+    larkbridge|lark-channel-bridge) update_lark_channel_bridge ;;
     services)      fix_systemd_services ;;
     officecli)     update_officecli ;;
     skills)        update_skills ;;
@@ -1090,7 +1198,7 @@ case "${1:-menu}" in
     --dry-run|--check|check)
         do_dry_run ;;
     *)
-        echo "用法: $0 [all|node|npm|python|gh|claude|uv|mcp|services|menu]"
+        echo "用法: $0 [all|node|npm|python|gh|claude|uv|mcp|lark|larkbridge|services|menu]"
         exit 1
         ;;
 esac
