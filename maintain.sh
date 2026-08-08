@@ -440,14 +440,68 @@ submenu_feishu_larkbridge() {
 _feishu_default_openid() {
     local prof; prof="$(_feishu_current_profile)"
     [ -z "$prof" ] && return 0
-    local prof_cfg="$HOME/.lark-channel/profiles/${prof}/config.json"
-    [ -f "$prof_cfg" ] || return 0
-    python3 - "$prof_cfg" << 'PYEOF' 2>/dev/null
+    local root_cfg="$HOME/.lark-channel/config.json"
+    [ -f "$root_cfg" ] || return 0
+    python3 - "$root_cfg" "$prof" << 'PYEOF' 2>/dev/null
 import json, sys
 d = json.load(open(sys.argv[1]))
-users = d.get('access', {}).get('allowedUsers', [])
+prof = d.get('profiles', {}).get(sys.argv[2], {})
+users = prof.get('access', {}).get('allowedUsers', [])
 if users: print(users[0])
 PYEOF
+}
+
+# 测试消息路径：allowedUsers 空时让用户输一次 open_id，自动 patch 进 ~/.lark-channel/config.json
+# 同时回写 feishu.json 的 apps[].larkBridge.adminOpenIds 防止下次新建 profile 再问
+# 注意：所有 info/warn/good 必须走 stderr，否则被 $(...) 当 oid 捕获
+_feishu_resolve_recipient() {
+    local target="$1"
+    local oid; oid="$(_feishu_default_openid)"
+    [ -n "$oid" ] && { echo "$oid"; return 0; }
+
+    {
+      warn "  活跃 profile 没有 allowedUsers，没法自动选收件人"
+      echo ""
+      info "  这个 open_id 是你自己飞书的 ID（bot 会拒绝其他人发消息，所以必须配）"
+      info "  怎么找：飞书打开 bot → 给 bot 发任意消息 → 看 ~/.lark-channel/profiles/<active>/logs/*.jsonl 里 receive_id 字段"
+      echo ""
+    } >&2
+    read -p "  输入你的 open_id (回车跳过): " input_oid
+    [ -z "$input_oid" ] && { warn "  跳过" >&2; return 1; }
+
+    local root_cfg="$HOME/.lark-channel/config.json"
+    local prof; prof="$(_feishu_current_profile)"
+    python3 - "$root_cfg" "$prof" "$input_oid" << 'PYEOF' 2>/dev/null
+import json, sys
+p, prof, oid = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(p) as f: d = json.load(f)
+pr = d.setdefault('profiles', {}).setdefault(prof, {})
+acc = pr.setdefault('access', {})
+users = acc.setdefault('allowedUsers', [])
+if oid not in users: users.append(oid)
+with open(p,'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
+PYEOF
+    good "  ✓ 已写入 $root_cfg profiles.${prof}.access.allowedUsers" >&2
+
+    # 同步到 feishu.json larkBridge.adminOpenIds（如果 target 在 apps 里）
+    local feishu_conf; feishu_conf="$(resolve_conf feishu.json 2>/dev/null)" || true
+    if [ -n "$feishu_conf" ] && [ -f "$feishu_conf" ]; then
+        python3 - "$feishu_conf" "$target" "$input_oid" << 'PYEOF' 2>/dev/null
+import json, sys
+p, name, oid = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(p) as f: d = json.load(f)
+for a in d.get('apps', []):
+    if a.get('name') == name:
+        lb = a.setdefault('larkbridge', {})
+        ids = lb.setdefault('adminOpenIds', [])
+        if oid not in ids: ids.append(oid)
+        break
+with open(p,'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
+PYEOF
+        good "  ✓ 已回写 $feishu_conf apps[${target}].larkBridge.adminOpenIds" >&2
+    fi
+
+    echo "$input_oid"
 }
 
 # 选 app，直接用活跃 profile 的 allowedUsers[0] 作为收件人
@@ -500,33 +554,31 @@ PYEOF
         return 0
     fi
 
-    # 直接读默认收件人，不再问用户输入
-    local oid; oid="$(_feishu_default_openid)"
-    if [ -z "$oid" ]; then
-        warn "活跃 profile 没有 allowedUsers，没法自动选收件人"
-        info "  手动配置: ~/.lark-channel/profiles/<name>/config.json → access.allowedUsers[]"
-        return 0
-    fi
+    # 直接读默认收件人，没有就引导用户输一次后自动注入
+    local oid; oid="$(_feishu_resolve_recipient "$target")"
+    [ -n "$oid" ] || return 0
 
     local msg_text="ccconfig 飞书测试消息 ✅ from $target"
-    echo ""
-    info "  → 目标 app: $target"
-    info "  → 收件人 (profile 默认): $oid"
-    info "  → 内容: $msg_text"
-    echo ""
+    {
+      echo ""
+      info "  → 目标 app: $target"
+      info "  → 收件人 (profile 默认): $oid"
+      info "  → 内容: $msg_text"
+      echo ""
+    } >&2
     read -p "  发送? [Y/n]: " cf
-    [[ "$cf" =~ ^[Nn]$ ]] && { info "  取消"; return 0; }
+    [[ "$cf" =~ ^[Nn]$ ]] && { info "  取消" >&2; return 0; }
 
-    info "  拿 tenant_access_token..."
+    info "  拿 tenant_access_token..." >&2
     local token
     token=$(curl -s --connect-timeout 5 --max-time 10 -X POST \
         "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
         -H "Content-Type: application/json" \
         -d "{\"app_id\":\"$app_id\",\"app_secret\":\"$app_secret\"}" \
         | python3 -c "import json,sys; print(json.load(sys.stdin).get('tenant_access_token',''))" 2>/dev/null)
-    [ -z "$token" ] && { bad "  拿 access_token 失败（appId/appSecret 不对？）"; return 0; }
+    [ -z "$token" ] && { bad "  拿 access_token 失败（appId/appSecret 不对？）" >&2; return 0; }
 
-    info "  发消息..."
+    info "  发消息..." >&2
     local body
     body=$(python3 -c "
 import json, sys
@@ -542,11 +594,11 @@ print(json.dumps({'receive_id': sys.argv[1], 'msg_type':'text', 'content': json.
     code=$(echo "$resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('code',-1))" 2>/dev/null)
     msg_id=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('message_id',''))" 2>/dev/null)
     if [ "$code" = "0" ]; then
-        good "  ✅ 已发送（message_id: ${msg_id:-?}）"
-        info "  在飞书查收"
+        good "  ✅ 已发送（message_id: ${msg_id:-?}）" >&2
+        info "  在飞书查收" >&2
     else
-        warn "  发送失败 (code=$code):"
-        echo "$resp" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' || echo "$resp"
+        warn "  发送失败 (code=$code):" >&2
+        echo "$resp" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' >&2 || echo "$resp" >&2
     fi
 }
 
@@ -695,11 +747,8 @@ PYEOF
         return 0
     fi
 
-    local oid; oid="$(_feishu_default_openid)"
-    if [ -z "$oid" ]; then
-        warn "活跃 profile 没有 allowedUsers，没法自动选收件人"
-        return 0
-    fi
+    local oid; oid="$(_feishu_resolve_recipient "$target")"
+    [ -n "$oid" ] || return 0
 
     local msg_text="ccconfig 飞书测试消息 ✅ from $target"
     echo ""

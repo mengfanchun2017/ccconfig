@@ -88,6 +88,100 @@ for a in d.get('apps', []):
 PYEOF
 }
 
+# 从 ccprivate app 读 admin open_id 列表（空字符串 = 无）
+_app_admin_openids() {
+  local feishu_conf="$1" app_name="$2"
+  [ -f "$feishu_conf" ] || return 0
+  python3 - "$feishu_conf" "$app_name" << 'PYEOF' 2>/dev/null
+import json, sys
+p, name = sys.argv[1], sys.argv[2]
+with open(p) as f: d = json.load(f)
+for a in d.get('apps', []):
+    if a.get('name') == name:
+        ids = a.get('larkbridge', {}).get('adminOpenIds', []) or []
+        print('\n'.join(ids))
+        break
+PYEOF
+}
+
+# 把 admin open_id 注入到 ~/.lark-channel/config.json profiles[name].access.allowedUsers
+# 流程: 读 ccprivate adminOpenIds + 已有 allowedUsers → 去重 → 写回
+_inject_admin_users() {
+  local profile="$1" feishu_conf="$2"
+  local root_cfg="$HOME/.lark-channel/config.json"
+  [ -f "$root_cfg" ] || return 0
+  [ -n "$profile" ] || return 0
+
+  local -a admins
+  if [ -n "$feishu_conf" ] && [ -f "$feishu_conf" ]; then
+    while IFS= read -r oid; do
+      [ -n "$oid" ] && admins+=("$oid")
+    done < <(_app_admin_openids "$feishu_conf" "$profile")
+  fi
+
+  local existing
+  existing=$(python3 - "$root_cfg" "$profile" << 'PYEOF' 2>/dev/null
+import json, sys
+d = json.load(open(sys.argv[1]))
+p = d.get('profiles', {}).get(sys.argv[2], {})
+print('\n'.join(p.get('access', {}).get('allowedUsers', [])))
+PYEOF
+)
+
+  local need_prompt=0
+  [ ${#admins[@]} -eq 0 ] && [ -z "$existing" ] && need_prompt=1
+
+  if [ $need_prompt -eq 1 ]; then
+    warn "  ⚠ ${profile} 没有 admin open_id（ccprivate + profile 都为空）" >&2
+    info "  不知道谁能用这个 bot。问用户要一个 open_id：" >&2
+    read -p "    请输入你自己的 open_id (留空跳过): " input_oid
+    if [ -n "$input_oid" ]; then
+      admins+=("$input_oid")
+      info "    → 已记下 $input_oid" >&2
+      # 同步回 ccprivate（用户下次新建/重装不用再输）
+      if [ -n "$feishu_conf" ] && [ -f "$feishu_conf" ]; then
+        python3 - "$feishu_conf" "$profile" "$input_oid" << 'PYEOF' 2>/dev/null
+import json, sys
+p, name, oid = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(p) as f: d = json.load(f)
+for a in d.get('apps', []):
+    if a.get('name') == name:
+        lb = a.setdefault('larkbridge', {})
+        ids = lb.setdefault('adminOpenIds', [])
+        if oid not in ids:
+            ids.append(oid)
+        break
+with open(p,'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
+PYEOF
+        info "    → 已写回 ccprivate/conf/feishu.json" >&2
+      fi
+    else
+      warn "    跳过 — profile 创建后没 admin，bot 拒绝任何人发消息" >&2
+      return 0
+    fi
+  fi
+
+  # 合并 + 写回
+  python3 - "$root_cfg" "$profile" "$(printf '%s\n' "${admins[@]}")" << 'PYEOF' 2>/dev/null
+import json, sys
+root_cfg, profile, admins_blob = sys.argv[1], sys.argv[2], sys.argv[3]
+new_admins = [x for x in admins_blob.split('\n') if x]
+with open(root_cfg) as f: d = json.load(f)
+p = d.setdefault('profiles', {}).setdefault(profile, {})
+acc = p.setdefault('access', {})
+existing = acc.get('allowedUsers', []) or []
+seen = set(existing)
+merged = list(existing)
+for a in new_admins:
+    if a not in seen:
+        merged.append(a); seen.add(a)
+acc['allowedUsers'] = merged
+with open(root_cfg,'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
+if merged:
+    print(' | '.join(merged))
+PYEOF
+}
+
 _run_select_app() {
   local ws="${LARK_WORKSPACE:-$HOME/git}"
   local feishu_conf=""
@@ -154,11 +248,13 @@ _run_select_app() {
       local cname="${chosen#create:}"
       local fi=0; while [ $fi -lt ${#app_names[@]} ]; do [ "${app_names[$fi]}" = "$cname" ] && break; fi=$((fi+1)); done
       lark-channel-bridge profile create "$cname" --agent claude --workspace "$ws" --app-id "${app_ids[$fi]}" --app-secret "${app_secrets[$fi]}" > /dev/null 2>&1
+      _inject_admin_users "$cname" "$feishu_conf"
       echo "$cname"; return 0 ;;
     scan)
       read -p "  输入新 profile 名称: " scan_name
       [ -z "$scan_name" ] && { warn "  名称不能为空" >&2; return 1; }
       lark-channel-bridge profile create "$scan_name" --agent claude --workspace "$ws"
+      _inject_admin_users "$scan_name" "$feishu_conf"
       echo "$scan_name"; return 0 ;;
   esac
   return 1
