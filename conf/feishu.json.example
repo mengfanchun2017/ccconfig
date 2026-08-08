@@ -24,7 +24,7 @@
   "_requiredScopes": {
     "_comment": "应用身份权限必须在飞书开放平台开通后发布版本才生效。一键申请 URL：bash maintain.sh → 13 → 7",
     "larkbridge": {
-      "_note": "tenant 权限 — bot 收发消息 + 读群 + 读 app 信息",
+      "_note": "tenant 权限 — bot 收发消息 + 读群 + 读 app 信息 + 卡片 + scopes 自查",
       "scopes": [
         "im:message",
         "im:message:send",
@@ -33,8 +33,11 @@
         "im:message:send_multi_users",
         "im:message:send_sys_msg",
         "im:message.p2p_msg:readonly",
+        "im:message.reactions:write_only",
         "im:chat:readonly",
-        "admin:app.info:readonly"
+        "admin:app.info:readonly",
+        "application:application:self_manage",
+        "cardkit:card:write"
       ]
     },
     "larkCli": {

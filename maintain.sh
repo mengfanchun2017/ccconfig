@@ -331,7 +331,7 @@ _feishu_current_profile() {
 # larkbridge 必备权限清单 + 一键申请 URL
 _feishu_open_perms_url() {
     local app_id="$1"
-    local scopes="im:message,im:message:send,im:message:send_as_bot,im:message:send_multi_depts,im:message:send_multi_users,im:message:send_sys_msg,im:message.p2p_msg:readonly,im:chat:readonly,admin:app.info:readonly"
+    local scopes="im:message,im:message:send,im:message:send_as_bot,im:message:send_multi_depts,im:message:send_multi_users,im:message:send_sys_msg,im:message.p2p_msg:readonly,im:message.reactions:write_only,im:chat:readonly,admin:app.info:readonly,application:application:self_manage,cardkit:card:write"
     echo "https://open.feishu.cn/app/${app_id}/auth?q=${scopes}&op_from=openapi&token_type=tenant"
 }
 
@@ -375,9 +375,13 @@ _feishu_open_perms_for_app() {
     echo "    • im:message:send_multi_users  — 多用户批量发"
     echo "    • im:message:send_sys_msg      — 系统消息"
     echo "    • im:message.p2p_msg:readonly  — p2p 消息读取"
+    echo "  消息功能:"
+    echo "    • im:message.reactions:write_only — 写消息表情回应"
+    echo "    • cardkit:card:write              — 写消息卡片"
     echo "  资源访问:"
-    echo "    • im:chat:readonly        — 读群列表"
-    echo "    • admin:app.info:readonly — 读 app 自身信息"
+    echo "    • im:chat:readonly                — 读群列表"
+    echo "    • admin:app.info:readonly         — 读 app 自身信息"
+    echo "    • application:application:self_manage — 列 scopes"
     echo ""
     info "申请 URL（飞书开放平台已预选权限）："
     echo -e "  ${CYAN}${url}${NC}"
@@ -392,14 +396,23 @@ _feishu_open_perms_for_app() {
         opener="wslview"
     elif command -v open &>/dev/null; then
         opener="open"
+    elif command -v cmd.exe &>/dev/null; then
+        opener="wsl_cmd"
+    elif command -v powershell.exe &>/dev/null; then
+        opener="wsl_powershell"
     else
-        warn "找不到浏览器命令（xdg-open/wslview/open）"
+        warn "找不到浏览器命令（xdg-open/wslview/open/cmd.exe）"
         warn "手动复制上面的 URL 到浏览器"
         return 0
     fi
-    if "$opener" "$url" &>/dev/null; then
+    case "$opener" in
+        wsl_cmd)       cmd.exe /c start "" "$url" &>/dev/null ;;
+        wsl_powershell) powershell.exe /c "Start-Process '$url'" &>/dev/null ;;
+        *)             "$opener" "$url" &>/dev/null ;;
+    esac
+    if [ $? -eq 0 ]; then
         good "✓ 浏览器已打开（${opener}）"
-        info "在浏览器里点「申请开通」→「创建版本」→「发布到线上」"
+        info "勾选权限 → 「申请开通」→ 创建版本 → 发布到线上"
     else
         warn "${opener} 打开失败，手动复制 URL"
     fi
