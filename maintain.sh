@@ -24,6 +24,7 @@ CCCONFIG_DIR="$SCRIPT_DIR"
 
 source "$LIB_DIR/dry-run.sh"
 source "$LIB_DIR/path-helper.sh" 2>/dev/null || true
+export PATH="$HOME/.local/bin:$(find_node_bin 2>/dev/null || echo ""):$PATH"
 source "$LIB_DIR/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
@@ -327,82 +328,215 @@ submenu_feishu() {
     local feishu_lb="$CCCONFIG_DIR/option-larkbridge/init.sh"
     local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
     local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
-    local lcb_ver; lcb_ver=$(lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
-    local lcc_ver; lcc_ver=$(lark-cli --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' || echo "?")
 
-    local cur_acct; cur_acct="$(_feishu_current_account)"
-    local cur_prof; cur_prof="$(_feishu_current_profile)"
+    while true; do
+        local lcb_ver; lcb_ver=$(lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+        local lcc_ver; lcc_ver=$(lark-cli --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' || echo "?")
+        local cur_acct; cur_acct="$(_feishu_current_account)"
+        local cur_prof; cur_prof="$(_feishu_current_profile)"
 
+        echo ""
+        echo -e "${CYAN}── 飞书统一管理 ──${NC}"
+        echo ""
+        echo -e "  ${GRAY}lark-cli: v${lcc_ver}    活跃账号: ${cur_acct:-无}${NC}"
+        echo -e "  ${GRAY}lark-channel-bridge: v${lcb_ver}    活跃 profile: ${cur_prof:-无}${NC}"
+        echo ""
+        echo "  1) 飞书账号          ─ feishu.json apps 列表 + 切换 lark-cli 活跃账号"
+        echo "  2) lark-cli          ─ OAuth 授权 / 看授权状态 / 装包"
+        echo "  3) larkbridge        ─ profile 列表 / 启停 / 日志 / 新增 / 删除"
+        echo "  4) 发测试消息        ─ 给 open_id 发一条 text（验证 app 凭证）"
+        echo "  5) 一键升级飞书      ─ lark-cli + lark-channel-bridge (npm 最新)"
+        echo ""
+        echo "  0) 返回主菜单"
+        echo ""
+        read -p "选择 [0-5]: " c
+        c=$(menu_num "$c")
+
+        case "$c" in
+            1) submenu_feishu_accounts ;;
+            2) submenu_feishu_larkcli ;;
+            3) submenu_feishu_larkbridge ;;
+            4) _feishu_send_test_message ;;
+            5)
+                echo ""
+                echo -e "${CYAN}── 一键升级飞书 ──${NC}"
+                bash "$LIB_DIR/update.sh" lark
+                echo ""
+                bash "$LIB_DIR/update.sh" larkbridge
+                echo ""
+                read -p "  按回车返回飞书菜单..." dummy
+                ;;
+            0) return 0 ;;
+            *) continue ;;
+        esac
+    done
+}
+
+submenu_feishu_larkcli() {
+    local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
+    local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
+
+    while true; do
+        echo ""
+        echo -e "${CYAN}── lark-cli ──${NC}"
+        bash "$feishu_lc" --status
+        echo ""
+        echo "  a) 重置全部账号配置 (re-run init)"
+        echo "  k) 看当前账号的 OAuth 状态"
+        echo "  l) 列出全部账号"
+        echo "  0) 返回飞书菜单"
+        read -p "  选择 [a/k/l/0]: " sub
+        case "$sub" in
+            a|A) bash "$feishu_lc" ;;
+            k|K) bash "$feishu_switch" ;;
+            l|L) bash "$feishu_switch" --list ;;
+            0) return 0 ;;
+            *) continue ;;
+        esac
+    done
+}
+
+submenu_feishu_larkbridge() {
+    local feishu_lb="$CCCONFIG_DIR/option-larkbridge/init.sh"
+
+    while true; do
+        echo ""
+        bash "$feishu_lb" --status
+        echo ""
+        echo "  ─ 操作 ─"
+        echo "    s) 启停/重启 profile  ─ select"
+        echo "    n) 新增 profile       ─ add（ccprivate 配置 or 扫码）"
+        echo "    r) 删除 profile       ─ remove"
+        echo "    l) 实时日志           ─ logs <profile>"
+        echo "    d) 设为默认           ─ default"
+        echo "    0) 返回飞书菜单"
+        read -p "  选择 [s/n/r/l/d/0]: " sub
+        case "$sub" in
+            s|S) bash "$feishu_lb" --start ;;
+            n|N) bash "$feishu_lb" --profile add ;;
+            r|R) bash "$feishu_lb" --profile remove ;;
+            l|L) bash "$feishu_lb" --logs ;;
+            d|D) bash "$feishu_lb" --profile default ;;
+            0) return 0 ;;
+            *) continue ;;
+        esac
+    done
+}
+
+# 从活跃 profile 读第一个允许用户的 open_id 作为默认收件人
+_feishu_default_openid() {
+    local prof; prof="$(_feishu_current_profile)"
+    [ -z "$prof" ] && return 0
+    local prof_cfg="$HOME/.lark-channel/profiles/${prof}/config.json"
+    [ -f "$prof_cfg" ] || return 0
+    python3 - "$prof_cfg" << 'PYEOF' 2>/dev/null
+import json, sys
+d = json.load(open(sys.argv[1]))
+users = d.get('access', {}).get('allowedUsers', [])
+if users: print(users[0])
+PYEOF
+}
+
+# 选 app + 输入 open_id，用 appId/appSecret 发一条 text 消息
+_feishu_send_test_message() {
+    local conf; conf="$(resolve_conf feishu.json 2>/dev/null)" || { warn "找不到 feishu.json"; return 0; }
+    [ -f "$conf" ] || { warn "feishu.json 不存在"; return 0; }
+
+    local -a names
+    local i=1
     echo ""
-    echo -e "${CYAN}── 飞书统一管理 ──${NC}"
+    echo -e "${CYAN}── 发测试消息 ──${NC}"
     echo ""
-    echo -e "  ${GRAY}lark-cli: v${lcc_ver}    活跃账号: ${cur_acct:-无}${NC}"
-    echo -e "  ${GRAY}lark-channel-bridge: v${lcb_ver}    活跃 profile: ${cur_prof:-无}${NC}"
-    echo ""
-    echo "  1) 飞书账号          ─ feishu.json apps 列表 + 切换 lark-cli 活跃账号"
-    echo "  2) lark-cli          ─ OAuth 授权 / 看授权状态 / 装包"
-    echo "  3) larkbridge        ─ profile 列表 / 启停 / 日志 / 新增 / 删除"
-    echo "  4) 一键升级飞书      ─ lark-cli + lark-channel-bridge (npm 最新)"
-    echo ""
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        local n; n=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
+        [ -z "$n" ] && continue
+        printf "  ${YELLOW}%d)${NC} %s\n" "$i" "$n"
+        names+=("$n")
+        i=$((i + 1))
+    done < <(_feishu_list_apps)
+
+    if [ ${#names[@]} -eq 0 ]; then
+        warn "feishu.json 中无 app 配置"
+        return 0
+    fi
     echo "  0) 返回"
+    read -p "  选择 app [0-${#names[@]}]: " sel
+    [[ "$sel" =~ ^[0-9]+$ ]] || return 0
+    [ "$sel" -ge 1 ] && [ "$sel" -le ${#names[@]} ] || return 0
+    local target="${names[$((sel - 1))]}"
+
+    # 读 appId/appSecret
+    local app_json
+    app_json=$(python3 - "$conf" "$target" << 'PYEOF' 2>/dev/null
+import json, sys
+p, name = sys.argv[1], sys.argv[2]
+with open(p) as f: d = json.load(f)
+for a in d.get('apps', []):
+    if a.get('name') == name:
+        print(json.dumps(a, ensure_ascii=False))
+        break
+PYEOF
+)
+    [ -z "$app_json" ] && { bad "找不到 app: $target"; return 0; }
+    local app_id; app_id=$(echo "$app_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['appId'])" 2>/dev/null)
+    local app_secret; app_secret=$(echo "$app_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['appSecret'])" 2>/dev/null)
+
+    if [[ "$app_id" == *"请填入"* ]] || [[ "$app_secret" == *"请填入"* ]] || [ -z "$app_id" ] || [ -z "$app_secret" ]; then
+        warn "appId/appSecret 未配置，先去选项 1 编辑"
+        return 0
+    fi
+
+    local default_oid; default_oid="$(_feishu_default_openid)"
+    local oid
+    if [ -n "$default_oid" ]; then
+        read -p "  收件人 open_id (默认: $default_oid): " oid
+        [ -z "$oid" ] && oid="$default_oid"
+    else
+        read -p "  收件人 open_id: " oid
+    fi
+    [ -z "$oid" ] && { warn "需要 open_id"; return 0; }
+
+    local msg_text="ccconfig 飞书测试消息 ✅ from $target"
     echo ""
-    read -p "选择 [0-4]: " c
-    c=$(menu_num "$c")
-    case "$c" in
-        1) submenu_feishu_accounts ;;
-        2)
-            echo ""
-            echo -e "${CYAN}── lark-cli ──${NC}"
-            bash "$feishu_lc" --status
-            echo ""
-            echo "  a) 重置全部账号配置 (re-run init)"
-            echo "  k) 看当前账号的 OAuth 状态"
-            echo "  l) 列出全部账号"
-            echo "  0) 返回"
-            read -p "  选择 [a/k/l/0]: " sub
-            case "$sub" in
-                a|A) bash "$feishu_lc" ;;
-                k|K) bash "$feishu_switch" ;;
-                l|L) bash "$feishu_switch" --list ;;
-                0) ;;
-                *) ;;
-            esac
-            ;;
-        3)
-            echo ""
-            bash "$feishu_lb" --status
-            echo ""
-            echo "  ─ 操作 ─"
-            echo "    s) 启停/重启 profile  ─ select"
-            echo "    n) 新增 profile       ─ add（ccprivate 配置 or 扫码）"
-            echo "    r) 删除 profile       ─ remove"
-            echo "    l) 实时日志           ─ logs <profile>"
-            echo "    d) 设为默认           ─ default"
-            echo "    0) 返回"
-            read -p "  选择 [s/n/r/l/d/0]: " sub
-            case "$sub" in
-                s|S) bash "$feishu_lb" --start ;;
-                n|N) bash "$feishu_lb" --profile add ;;
-                r|R) bash "$feishu_lb" --profile remove ;;
-                l|L) bash "$feishu_lb" --logs ;;
-                d|D) bash "$feishu_lb" --profile default ;;
-                0) ;;
-                *) ;;
-            esac
-            ;;
-        4)
-            echo ""
-            echo -e "${CYAN}── 一键升级飞书 ──${NC}"
-            bash "$LIB_DIR/update.sh" lark
-            echo ""
-            bash "$LIB_DIR/update.sh" larkbridge
-            echo ""
-            echo "按回车继续..."
-            read -r dummy
-            ;;
-        0) return ;;
-        *) submenu_feishu ;;
-    esac
+    info "  → 目标: $target"
+    info "  → open_id: $oid"
+    info "  → 内容: $msg_text"
+    echo ""
+    read -p "  发送? [Y/n]: " cf
+    [[ "$cf" =~ ^[Nn]$ ]] && { info "  取消"; return 0; }
+
+    info "  拿 tenant_access_token..."
+    local token
+    token=$(curl -s --connect-timeout 5 --max-time 10 -X POST \
+        "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
+        -H "Content-Type: application/json" \
+        -d "{\"app_id\":\"$app_id\",\"app_secret\":\"$app_secret\"}" \
+        | python3 -c "import json,sys; print(json.load(sys.stdin).get('tenant_access_token',''))" 2>/dev/null)
+    [ -z "$token" ] && { bad "  拿 access_token 失败（appId/appSecret 不对？）"; return 0; }
+
+    info "  发消息..."
+    local body
+    body=$(python3 -c "
+import json, sys
+print(json.dumps({'receive_id': sys.argv[1], 'msg_type':'text', 'content': json.dumps({'text': sys.argv[2]})}, ensure_ascii=False))
+" "$oid" "$msg_text")
+    local resp
+    resp=$(curl -s --connect-timeout 5 --max-time 15 -X POST \
+        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id" \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type: application/json" \
+        -d "$body" 2>/dev/null)
+    local code msg_id
+    code=$(echo "$resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('code',-1))" 2>/dev/null)
+    msg_id=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('message_id',''))" 2>/dev/null)
+    if [ "$code" = "0" ]; then
+        good "  ✅ 已发送（message_id: ${msg_id:-?}）"
+        info "  在飞书查收"
+    else
+        warn "  发送失败 (code=$code):"
+        echo "$resp" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' || echo "$resp"
+    fi
 }
 
 submenu_feishu_accounts() {
@@ -426,7 +560,7 @@ submenu_feishu_accounts() {
         if [ ${#lines[@]} -eq 0 ]; then
             warn "feishu.json 中无 app 配置"
             echo "  a) 添加新 app"
-            echo "  0) 返回"
+            echo "  0) 返回飞书菜单"
             read -p "  选择 [a/0]: " sel
             case "$sel" in
                 a|A) bash "$feishu_lc" ;;
@@ -441,11 +575,13 @@ submenu_feishu_accounts() {
             local name; name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
             local appid; appid=$(echo "$line" | python3 -c "import json,sys; a=json.load(sys.stdin)['appId']; print((a[:14]+'...') if len(a)>14 else a)" 2>/dev/null)
             local desc; desc=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('description',''))" 2>/dev/null)
-            local lcen; lcen=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Y' if d.get('larkCli',{}).get('enabled') else '.')" 2>/dev/null)
-            local lben; lben=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin).get('larkBridge',{}); print('Y' if d.get('enabled') else '.')" 2>/dev/null)
+            local lcen; lcen=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); print('cli' if d.get('larkCli',{}).get('enabled') else '—')" 2>/dev/null)
+            local lben; lben=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin).get('larkBridge',{}); print('bdg' if d.get('enabled') else '—')" 2>/dev/null)
             local marker="  "
             [ "$name" = "$cur_acct" ] && marker="${GREEN}← 活跃${NC}"
-            printf "  ${YELLOW}%d)${NC} %-14s appId=${GRAY}%-18s${NC} L=${lcen} B=${lben}  ${marker}\n" "$i" "$name" "$appid"
+            local lc_disp="${GRAY}${lcen}${NC}"; [ "$lcen" = "cli" ] && lc_disp="${GREEN}cli${NC}"
+            local lb_disp="${GRAY}${lben}${NC}"; [ "$lben" = "bdg" ] && lb_disp="${GREEN}bdg${NC}"
+            printf "  ${YELLOW}%d)${NC} %-14s appId=${GRAY}%-18s${NC} [CLI:%b] [Bdg:%b]  ${marker}\n" "$i" "$name" "$appid" "$lc_disp" "$lb_disp"
             [ -n "$desc" ] && printf "       ${GRAY}%s${NC}\n" "$desc"
             names+=("$name")
             i=$((i + 1))
@@ -453,7 +589,7 @@ submenu_feishu_accounts() {
         echo ""
         echo "  a) 添加新 app"
         echo "  d) 删除 app"
-        echo "  0) 返回"
+        echo "  0) 返回飞书菜单"
         echo ""
         read -p "  选择 [0-${#lines[@]}/a/d]: " sel
 
@@ -494,8 +630,9 @@ PYEOF
         echo "  2) OAuth 授权 (lark-cli auth login)"
         echo "  3) 看授权状态"
         echo "  4) 编辑 App ID / Secret"
-        echo "  0) 返回"
-        read -p "  选择 [0-4]: " sub
+        echo "  5) 发测试消息 (到此 app)"
+        echo "  0) 返回账号列表"
+        read -p "  选择 [0-5]: " sub
         case "$sub" in
             1) bash "$feishu_switch" "$target" ;;
             2)
@@ -515,13 +652,87 @@ PYEOF
                     warn "config.json 不存在"
                 fi
                 ;;
-            4) bash "$feishu_lc" --auth-login "$target" 2>&1 || true
-               warn "手动编辑: vim $conf"
-               ;;
+            4) warn "手动编辑: vim $conf" ;;
+            5) _feishu_send_test_message_for "$target" ;;
             0) ;;
             *) ;;
         esac
     done
+}
+
+# 单 app 发测试消息（账号子菜单调用）：跳过选 app，直接发
+_feishu_send_test_message_for() {
+    local target="$1"
+    local conf; conf="$(resolve_conf feishu.json 2>/dev/null)" || return 0
+    local app_json
+    app_json=$(python3 - "$conf" "$target" << 'PYEOF' 2>/dev/null
+import json, sys
+p, name = sys.argv[1], sys.argv[2]
+with open(p) as f: d = json.load(f)
+for a in d.get('apps', []):
+    if a.get('name') == name:
+        print(json.dumps(a, ensure_ascii=False))
+        break
+PYEOF
+)
+    [ -z "$app_json" ] && { bad "找不到 app: $target"; return 0; }
+    local app_id; app_id=$(echo "$app_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['appId'])" 2>/dev/null)
+    local app_secret; app_secret=$(echo "$app_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['appSecret'])" 2>/dev/null)
+
+    if [[ "$app_id" == *"请填入"* ]] || [[ "$app_secret" == *"请填入"* ]] || [ -z "$app_id" ] || [ -z "$app_secret" ]; then
+        warn "appId/appSecret 未配置"
+        return 0
+    fi
+
+    local default_oid; default_oid="$(_feishu_default_openid)"
+    local oid
+    if [ -n "$default_oid" ]; then
+        read -p "  收件人 open_id (默认: $default_oid): " oid
+        [ -z "$oid" ] && oid="$default_oid"
+    else
+        read -p "  收件人 open_id: " oid
+    fi
+    [ -z "$oid" ] && { warn "需要 open_id"; return 0; }
+
+    local msg_text="ccconfig 飞书测试消息 ✅ from $target"
+    echo ""
+    info "  → 目标: $target"
+    info "  → open_id: $oid"
+    info "  → 内容: $msg_text"
+    read -p "  发送? [Y/n]: " cf
+    [[ "$cf" =~ ^[Nn]$ ]] && { info "  取消"; return 0; }
+
+    info "  拿 tenant_access_token..."
+    local token
+    token=$(curl -s --connect-timeout 5 --max-time 10 -X POST \
+        "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
+        -H "Content-Type: application/json" \
+        -d "{\"app_id\":\"$app_id\",\"app_secret\":\"$app_secret\"}" \
+        | python3 -c "import json,sys; print(json.load(sys.stdin).get('tenant_access_token',''))" 2>/dev/null)
+    [ -z "$token" ] && { bad "  拿 access_token 失败（appId/appSecret 不对？）"; return 0; }
+
+    info "  发消息..."
+    local body
+    body=$(python3 -c "
+import json, sys
+print(json.dumps({'receive_id': sys.argv[1], 'msg_type':'text', 'content': json.dumps({'text': sys.argv[2]})}, ensure_ascii=False))
+" "$oid" "$msg_text")
+    local resp
+    resp=$(curl -s --connect-timeout 5 --max-time 15 -X POST \
+        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id" \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type: application/json" \
+        -d "$body" 2>/dev/null)
+    local code msg_id
+    code=$(echo "$resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('code',-1))" 2>/dev/null)
+    msg_id=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('message_id',''))" 2>/dev/null)
+    if [ "$code" = "0" ]; then
+        good "  ✅ 已发送（message_id: ${msg_id:-?}）"
+        info "  在飞书查收"
+    else
+        warn "  发送失败 (code=$code):"
+        echo "$resp" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' || echo "$resp"
+    fi
 }
 
 # ── 入口 ──
