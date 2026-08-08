@@ -24,8 +24,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # 颜色/日志函数 — 优先 source 公共定义，兜底自包含
-source "${BASH_SOURCE[0]%/*}/lib/colors.sh" 2>/dev/null || {
+source "$SCRIPT_DIR/lib/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
     ok()    { echo -e "  ${GREEN}✅ $1${NC}"; }
@@ -35,7 +37,7 @@ source "${BASH_SOURCE[0]%/*}/lib/colors.sh" 2>/dev/null || {
     section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 }
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export SCRIPT_DIR
 source "$SCRIPT_DIR/lib/dry-run.sh"
 
 # dry-run 模式：只打印将执行的步骤，不实际运行
