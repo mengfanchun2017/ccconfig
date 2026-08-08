@@ -324,6 +324,107 @@ _feishu_current_profile() {
         && python3 -c "import json; print(json.load(open('$HOME/.lark-channel/config.json')).get('activeProfile',''))" 2>/dev/null
 }
 
+# larkbridge 必备权限清单 + 一键申请 URL
+_feishu_open_perms_url() {
+    local app_id="$1"
+    local scopes="im:message,im:message.send_as_bot,im:chat:readonly,admin:app.info:readonly"
+    echo "https://open.feishu.cn/app/${app_id}/auth?q=${scopes}&op_from=openapi&token_type=tenant"
+}
+
+_feishu_open_perms_for_app() {
+    local target="${1:-}"
+    if [ -z "$target" ]; then
+        target="$(_feishu_current_account)"
+        [ -z "$target" ] && target="$(grep -l '"larkbridge"' "$HOME/.lark-cli-account" 2>/dev/null || true)"
+    fi
+    if [ -z "$target" ]; then
+        warn "未指定 app 名，也没活跃账号"
+        info "用法: _feishu_open_perms_for_app <app_name>"
+        return 1
+    fi
+
+    local app_json
+    app_json="$(_feishu_list_apps | while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        local n; n=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
+        [ "$n" = "$target" ] && echo "$line"
+    done | head -1)"
+    [ -n "$app_json" ] || { warn "找不到 app: $target"; return 1; }
+
+    local app_id
+    app_id=$(echo "$app_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['appId'])" 2>/dev/null)
+    if [[ "$app_id" == *"请填入"* ]] || [ -z "$app_id" ]; then
+        warn "appId 未配置: $target"
+        return 1
+    fi
+
+    local url; url="$(_feishu_open_perms_url "$app_id")"
+    echo ""
+    info "app: $target (appId=$app_id)"
+    info "必备权限 (lark-channel-bridge):"
+    echo "  • im:message            — 接收用户消息事件"
+    echo "  • im:message.send_as_bot — bot 主动发消息（关键）"
+    echo "  • im:chat:readonly      — 读群列表"
+    echo "  • admin:app.info:readonly — 读 app 自身信息"
+    echo ""
+    info "申请 URL（飞书开放平台已预选权限）："
+    echo -e "  ${CYAN}${url}${NC}"
+    echo ""
+    info "提醒：开通后必须创建版本并发布，否则线上不生效"
+
+    # 自动打开浏览器
+    local opener
+    if command -v xdg-open &>/dev/null; then
+        opener="xdg-open"
+    elif command -v wslview &>/dev/null; then
+        opener="wslview"
+    elif command -v open &>/dev/null; then
+        opener="open"
+    else
+        warn "找不到浏览器命令（xdg-open/wslview/open）"
+        warn "手动复制上面的 URL 到浏览器"
+        return 0
+    fi
+    if "$opener" "$url" &>/dev/null; then
+        good "✓ 浏览器已打开（${opener}）"
+        info "在浏览器里点「申请开通」→「创建版本」→「发布到线上」"
+    else
+        warn "${opener} 打开失败，手动复制 URL"
+    fi
+}
+
+_feishu_perms_menu() {
+    local apps; apps="$(_feishu_list_apps)"
+    local i=1
+    local labels=()
+    echo ""
+    echo -e "${CYAN}── 申请 larkbridge 权限 ──${NC}"
+    echo ""
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        local n lb
+        n=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
+        lb=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('larkbridge',{}).get('enabled',False))" 2>/dev/null)
+        if [ "$lb" = "True" ]; then
+            echo "  $i) $n"
+            labels+=("$n")
+            i=$((i+1))
+        fi
+    done < <(echo "$apps")
+    if [ ${#labels[@]} -eq 0 ]; then
+        warn "没有启用 larkbridge 的 app"
+        return 0
+    fi
+    echo "  0) 返回"
+    read -p "  选择 app [0-${#labels[@]}]: " c
+    c=$(menu_num "$c")
+    [ "$c" = "0" ] && return 0
+    if [ -n "$c" ] && [ "$c" -ge 1 ] && [ "$c" -le "${#labels[@]}" ] 2>/dev/null; then
+        _feishu_open_perms_for_app "${labels[$((c-1))]}"
+    fi
+    read -p "  按回车返回飞书菜单..." dummy
+}
+
 submenu_feishu() {
     local feishu_lb="$CCCONFIG_DIR/option-larkbridge/init.sh"
     local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
@@ -347,10 +448,11 @@ submenu_feishu() {
         echo "  4) 发测试消息        ─ 给活跃 profile 的允许用户发 text"
         echo "  5) lark-cli 装包/升级    ─ 没装就装，已装就升 npm latest"
         echo "  6) larkbridge 装包/升级  ─ 没装就装，已装就升 npm latest"
+        echo "  7) 申请权限         ─ 一键跳转飞书开放平台，开通 larkbridge 必备权限"
         echo ""
         echo "  0) 返回主菜单"
         echo ""
-        read -p "选择 [0-6]: " c
+        read -p "选择 [0-7]: " c
         c=$(menu_num "$c")
 
         case "$c" in
@@ -379,6 +481,7 @@ submenu_feishu() {
                 fi
                 read -p "  按回车返回飞书菜单..." dummy
                 ;;
+            7) _feishu_perms_menu ;;
             0) return 0 ;;
             *) continue ;;
         esac
