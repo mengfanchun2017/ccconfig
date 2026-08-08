@@ -237,28 +237,30 @@ configure_mcp_env() {
     local c_env_str="$env_json"
     # 写 ~/.claude.json
     python3 -c "
-import json, sys
+import json, sys, os
 path, name, env_str = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(path) as f: data = json.load(f)
 env = json.loads(env_str) if env_str and env_str != '{}' else {}
 if env and name in data.get('mcpServers', {}):
     data['mcpServers'][name]['env'] = env
-    tmp = path + '.tmp'
+    real = os.path.realpath(path)
+    tmp = real + '.tmp'
     with open(tmp, 'w') as f: json.dump(data, f, indent=2)
-    os.replace(tmp, path)
+    os.replace(tmp, real)
 " "$HOME/.claude.json" "$name" "$c_env_str" 2>/dev/null || true
     # 同步 ~/.claude/.config.json（运行时 MCP env）
     if [[ -f "$config_file" ]]; then
         python3 -c "
-import json, sys
+import json, sys, os
 path, name, env_str = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(path) as f: data = json.load(f)
 env = json.loads(env_str) if env_str and env_str != '{}' else {}
 if env and name in data.get('mcpServers', {}):
     data['mcpServers'][name]['env'] = env
-    tmp = path + '.tmp'
+    real = os.path.realpath(path)
+    tmp = real + '.tmp'
     with open(tmp, 'w') as f: json.dump(data, f, indent=2)
-    os.replace(tmp, path)
+    os.replace(tmp, real)
 " "$config_file" "$name" "$c_env_str" 2>/dev/null || true
     fi
 }
