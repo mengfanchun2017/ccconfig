@@ -413,7 +413,7 @@ check_option_components() {
             if [ "$name" = "mcp" ]; then
                 local claude_json="$HOME/.claude/.config.json"
                 if [ -f "$claude_json" ]; then
-                    local count=$(python3 -c "import json; d=json.load(open('$claude_json')); print(len(d.get('mcp_servers',[])))" 2>/dev/null || echo "0")
+                    local count=$(python3 -c "import json; d=json.load(open('$claude_json')); print(len(d.get('mcpServers',{})))" 2>/dev/null || echo "0")
                     [ "$count" -gt 0 ] && { icon="ok"; detail="$count 个 MCP 服务器"; } || { icon="miss"; detail="MCP 未配置（bash lib/init-mcp.sh sync）"; }
                 else
                     icon="miss"; detail="claude.json 未找到"
