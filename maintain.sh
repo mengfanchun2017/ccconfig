@@ -331,7 +331,7 @@ _feishu_current_profile() {
 # larkbridge 必备权限清单 + 一键申请 URL
 _feishu_open_perms_url() {
     local app_id="$1"
-    local scopes="im:message,im:message.send_as_bot,im:chat:readonly,admin:app.info:readonly"
+    local scopes="im:message,im:message:send,im:message:send_as_bot,im:chat:readonly,admin:app.info:readonly"
     echo "https://open.feishu.cn/app/${app_id}/auth?q=${scopes}&op_from=openapi&token_type=tenant"
 }
 
@@ -366,9 +366,10 @@ _feishu_open_perms_for_app() {
     echo ""
     info "app: $target (appId=$app_id)"
     info "必备权限 (lark-channel-bridge):"
-    echo "  • im:message            — 接收用户消息事件"
-    echo "  • im:message.send_as_bot — bot 主动发消息（关键）"
-    echo "  • im:chat:readonly      — 读群列表"
+    echo "  • im:message              — 接收用户消息事件"
+    echo "  • im:message:send         — 发送消息（app 身份）"
+    echo "  • im:message:send_as_bot  — bot 主动发消息（关键）"
+    echo "  • im:chat:readonly        — 读群列表"
     echo "  • admin:app.info:readonly — 读 app 自身信息"
     echo ""
     info "申请 URL（飞书开放平台已预选权限）："
@@ -896,6 +897,11 @@ print(json.dumps({'receive_id': sys.argv[1], 'msg_type':'text', 'content': json.
         else
             warn "  发送失败 (code=$code):"
             echo "$resp" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' || echo "$resp"
+            if [ "$code" = "99991672" ]; then
+                echo ""
+                warn "  → 应用未开通 im:message:send / send_as_bot 权限"
+                info "  → 走飞书子菜单 7) 申请权限 一键跳转开通（要发布版本才生效）"
+            fi
         fi
     } >&2
 }
