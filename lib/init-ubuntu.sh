@@ -517,61 +517,9 @@ setup_symlinks() {
 setup_autosync() {
     section "auto-sync"
 
-    # 安装 inotifywait（apt 优先，失败则免 sudo deb 提取）
-    if ! command -v inotifywait &>/dev/null; then
-        local installed=false
-
-        # 方式 1：apt（有 sudo 且非 NOSUDO 模式）
-        if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
-            info "安装 inotify-tools（apt）..."
-            if sudo apt-get install -y inotify-tools 2>/dev/null; then
-                success "inotify-tools (apt) 安装成功"
-                installed=true
-            fi
-        fi
-
-        # 方式 2：免 sudo deb 提取
-        if ! $installed; then
-            info "安装 inotify-tools（免 sudo deb 提取）..."
-            local arch
-            arch=$(uname -m 2>/dev/null || echo "x86_64")
-            [[ "$arch" == "x86_64" ]] && arch="amd64"
-            [[ "$arch" == "aarch64" ]] && arch="arm64"
-
-            local tmp_dir="/tmp/inotify-install-$$"
-            mkdir -p "$tmp_dir"
-
-            (
-                cd "$tmp_dir" || exit 1
-                local base="http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools"
-                curl -sL "$base/inotify-tools_3.22.6.0-4_${arch}.deb" -o pkg.deb
-                curl -sL "$base/libinotifytools0_3.22.6.0-4_${arch}.deb" -o lib.deb
-                dpkg-deb -x pkg.deb . 2>/dev/null
-                dpkg-deb -x lib.deb . 2>/dev/null
-
-                mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
-                cp usr/bin/inotify* "$HOME/.local/bin/" 2>/dev/null || true
-                chmod +x "$HOME/.local/bin/inotify"* 2>/dev/null || true
-                # lib 路径按架构来
-                local libdir
-                libdir=$(find usr/lib -name "libinotifytools.so.0" 2>/dev/null | head -1)
-                [[ -n "$libdir" ]] && cp "$libdir" "$HOME/.local/lib/"
-            ) || warn "inotify-tools 解包失败"
-
-            rm -rf "$tmp_dir"
-
-            if command -v inotifywait &>/dev/null; then
-                success "inotify-tools 安装成功"
-                installed=true
-            fi
-        fi
-
-        if ! $installed; then
-            warn "inotify-tools 安装失败"
-            warn "  auto-sync 将无法工作"
-            warn "  手动: sudo apt install inotify-tools"
-        fi
-    fi
+    # 安装 inotifywait（apt 优先 / 免 sudo deb 提取 — lib/install-inotify.sh）
+    source "$SCRIPT_DIR/install-inotify.sh"
+    install_inotify || warn "auto-sync 将无法工作 — 手动: sudo apt install inotify-tools"
 
     # 启动 auto-sync
     if bash "$SCRIPT_DIR/monitor.sh" start 2>/dev/null; then
