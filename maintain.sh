@@ -12,6 +12,7 @@
 #   bash maintain.sh deps               # 依赖检查
 #   bash maintain.sh llmswitch [start|stop|restart|status]   # LLM 网关代理
 #   bash maintain.sh fix                # 自动修复（= setup）
+#   bash maintain.sh fix monitor         # 修 monitor：装 inotify-tools + 重启
 #
 # 暗号：
 #   hookstatus → bash maintain.sh status
@@ -100,6 +101,35 @@ do_finalize() {
     echo -e "  ${CYAN}bash maintain.sh self all${NC}       # 更新 ccconfig + skill"
     echo -e "  ${CYAN}bash maintain.sh upgrade all${NC}     # 升级系统组件"
     echo ""
+}
+
+# ── Monitor 修复（inotify-tools 死了就重新装 + 重启 monitor） ──
+fix_monitor() {
+    echo -e "${CYAN}━━━ Monitor 修复（inotify-tools + 重启）━━━${NC}"
+    echo ""
+
+    # 1. inotify-tools 装/补
+    source "$LIB_DIR/install-inotify.sh"
+    if ! install_inotify; then
+        err "inotify-tools 装不上 — 手动: sudo apt install inotify-tools"
+        return 1
+    fi
+
+    # 2. 停旧 monitor（PIDFile + 僵尸 inotifywait 一起清）
+    if bash "$LIB_DIR/monitor.sh" stop 2>/dev/null; then
+        info "旧 monitor 已停止"
+    fi
+    pkill -f "inotifywait.*$HOME/git" 2>/dev/null || true
+
+    # 3. 重启
+    if bash "$LIB_DIR/monitor.sh" start; then
+        echo ""
+        ok "Monitor 已修复并重启"
+        bash "$LIB_DIR/monitor.sh" status
+    else
+        err "Monitor 启动失败"
+        return 1
+    fi
 }
 
 # ── 自我更新（ccconfig + skill）──
@@ -259,10 +289,11 @@ submenu_monitor() {
     echo "  3) 看状态           ─ 进程状态 + 各仓库待提交文件数"
     echo "  4) 实时追踪 (tail)  ─ 持续输出推送结果（Ctrl+C 退出）"
     echo "  5) 文件变更 (mon)   ─ 实时显示文件变更事件（Ctrl+C 退出）"
+    echo "  6) 修复             ─ inotify-tools 死掉时: 重装 + 重启 monitor"
     echo ""
     echo "  0) 返回"
     echo ""
-    read -p "选择 [0-5]: " c
+    read -p "选择 [0-6]: " c
     c=$(menu_num "$c")
     case "$c" in
         1) bash "$LIB_DIR/monitor.sh" start ;;
@@ -270,6 +301,7 @@ submenu_monitor() {
         3) bash "$LIB_DIR/monitor.sh" status ;;
         4) bash "$LIB_DIR/monitor.sh" tail ;;
         5) bash "$LIB_DIR/monitor.sh" monitor ;;
+        6) fix_monitor ;;
         0) return ;;
         *) submenu_monitor ;;
     esac
@@ -850,7 +882,14 @@ case "${1:-menu}" in
     sync)      shift; bash "$LIB_DIR/sync.sh" "$@" ;;
     monitor)   shift; bash "$LIB_DIR/monitor.sh" "${1:-}" ;;
     deps)      bash "$LIB_DIR/deps-check.sh" ;;
-    fix)       do_finalize ;;
+    fix)
+        shift
+        case "${1:-all}" in
+            monitor) fix_monitor ;;
+            all|"")  do_finalize ;;
+            *)       err "未知 fix 子命令: $1（可用: monitor）"; exit 1 ;;
+        esac
+        ;;
     example)   shift; bash "$LIB_DIR/example-sync.sh" "$@" ;;
     upgrade-ccprivate|upgrade-ccpriv|ccpriv-upgrade)
         shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
