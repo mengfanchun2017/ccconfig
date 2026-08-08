@@ -24,6 +24,11 @@ check_prereqs() {
         return 0
     fi
 
+    # 自动化 / CI 旁路：不阻塞 read，直接 return 让上层 hard-exit 接管
+    if [[ "${CCP_SKIP_PREREQ_PROMPT:-}" == "1" ]] || [[ "${INIT_ALL_FLOW:-}" == "1" ]]; then
+        return 1
+    fi
+
     echo ""
     echo -e "${YELLOW}━━━ 首次初始化引导 ━━━${NC}"
     echo ""
