@@ -541,33 +541,42 @@ status_watch() {
     if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
         local mon_pid=$(cat "$PID_FILE")
         echo -e "  ${GREEN}✓${NC} Monitor loop (PID: $mon_pid)"
-
-        local evt_pid=$(pgrep -f "inotifywait.*$WATCH_DIR" 2>/dev/null)
-        if [ -n "$evt_pid" ]; then
-            echo -e "  ${GREEN}✓${NC} inotifywait (PID: $evt_pid)"
-        else
-            echo -e "  ${RED}✗${NC} inotifywait (dead — restart needed)"
-        fi
-
-        echo ""
-        echo -e "  ${GRAY}Tracked repos:${NC}"
-        for repo_dir in $(list_repos); do
-            local name=$(repo_name "$repo_dir")
-            local branch=$(git -C "$repo_dir" branch --show-current 2>/dev/null)
-            local status=$(git -C "$repo_dir" status --porcelain 2>/dev/null | wc -l)
-            if [ "$status" -gt 0 ]; then
-                echo -e "    ${YELLOW}$name${NC} ($branch) — $status file(s) pending"
-            else
-                echo -e "    ${GREEN}$name${NC} ($branch) — clean"
-            fi
-        done
-
-        if [ -f "$LOG_FILE" ]; then
-            local last_line=$(tail -1 "$LOG_FILE" 2>/dev/null | sed 's/^\[[0-9:]\+\] //')
-            [ -n "$last_line" ] && echo -e "\n  ${GRAY}Last: $last_line${NC}"
-        fi
+    elif [ -f /run/claude-auto-sync/monitor.pid ] && kill -0 "$(cat /run/claude-auto-sync/monitor.pid)" 2>/dev/null; then
+        # systemd 启动时把 PID 写到 /run/claude-auto-sync/monitor.pid
+        local mon_pid=$(cat /run/claude-auto-sync/monitor.pid)
+        echo -e "  ${GREEN}✓${NC} Monitor loop (PID: $mon_pid, via systemd PIDFile)"
+    elif pgrep -f 'monitor.sh start' &>/dev/null; then
+        # 最后兜底：直接 pgrep
+        local mon_pid=$(pgrep -f 'monitor.sh start' | head -1)
+        echo -e "  ${GREEN}✓${NC} Monitor loop (PID: $mon_pid, pgrep fallback)"
     else
         echo -e "  ${RED}✗${NC} Not running"
+        return
+    fi
+
+    local evt_pid=$(pgrep -f "inotifywait.*$WATCH_DIR" 2>/dev/null)
+    if [ -n "$evt_pid" ]; then
+        echo -e "  ${GREEN}✓${NC} inotifywait (PID: $evt_pid)"
+    else
+        echo -e "  ${RED}✗${NC} inotifywait (dead — restart needed)"
+    fi
+
+    echo ""
+    echo -e "  ${GRAY}Tracked repos:${NC}"
+    for repo_dir in $(list_repos); do
+        local name=$(repo_name "$repo_dir")
+        local branch=$(git -C "$repo_dir" branch --show-current 2>/dev/null)
+        local status=$(git -C "$repo_dir" status --porcelain 2>/dev/null | wc -l)
+        if [ "$status" -gt 0 ]; then
+            echo -e "    ${YELLOW}$name${NC} ($branch) — $status file(s) pending"
+        else
+            echo -e "    ${GREEN}$name${NC} ($branch) — clean"
+        fi
+    done
+
+    if [ -f "$LOG_FILE" ]; then
+        local last_line=$(tail -1 "$LOG_FILE" 2>/dev/null | sed 's/^\[[0-9:]\+\] //')
+        [ -n "$last_line" ] && echo -e "\n  ${GRAY}Last: $last_line${NC}"
     fi
 
     # 飞书账号
@@ -610,8 +619,13 @@ status_watch() {
     local sys_svc="/etc/systemd/system/claude-auto-sync.service"
     echo -n "  systemd 自启动 ... "
     if [ -f "$sys_svc" ]; then
-        if systemctl is-active --quiet claude-auto-sync.service 2>/dev/null; then
-            echo -e "${GREEN}✅${NC} (system-level)"
+        if systemctl is-active --quiet claude-auto-sync.service 2>/dev/null || pgrep -f 'monitor.sh start' &>/dev/null; then
+            # WSL2 systemd 偶发 is-active 报 deactivating，但 monitor 进程实际在跑
+            if systemctl is-active --quiet claude-auto-sync.service 2>/dev/null; then
+                echo -e "${GREEN}✅${NC} (system-level)"
+            else
+                echo -e "${GREEN}✅${NC} (system-level, process active via pgrep)"
+            fi
         else
             echo -e "${YELLOW}⚠ ${NC}system service 存在但未运行 → sudo systemctl enable --now claude-auto-sync"
         fi
