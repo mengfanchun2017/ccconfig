@@ -331,7 +331,7 @@ _feishu_current_profile() {
 # larkbridge 必备权限清单 + 一键申请 URL
 _feishu_open_perms_url() {
     local app_id="$1"
-    local scopes="im:message,im:message:send,im:message:send_as_bot,im:chat:readonly,admin:app.info:readonly"
+    local scopes="im:message,im:message:send,im:message:send_as_bot,im:message:send_multi_depts,im:message:send_multi_users,im:message:send_sys_msg,im:message.p2p_msg:readonly,im:chat:readonly,admin:app.info:readonly"
     echo "https://open.feishu.cn/app/${app_id}/auth?q=${scopes}&op_from=openapi&token_type=tenant"
 }
 
@@ -366,11 +366,18 @@ _feishu_open_perms_for_app() {
     echo ""
     info "app: $target (appId=$app_id)"
     info "必备权限 (lark-channel-bridge):"
-    echo "  • im:message              — 接收用户消息事件"
-    echo "  • im:message:send         — 发送消息（app 身份）"
-    echo "  • im:message:send_as_bot  — bot 主动发消息（关键）"
-    echo "  • im:chat:readonly        — 读群列表"
-    echo "  • admin:app.info:readonly — 读 app 自身信息"
+    echo "  接收事件:"
+    echo "    • im:message              — 接收用户消息事件"
+    echo "  发送消息 (任一即可):"
+    echo "    • im:message:send              — app 身份发消息"
+    echo "    • im:message:send_as_bot       — bot 主动发消息"
+    echo "    • im:message:send_multi_depts  — 多部门批量发"
+    echo "    • im:message:send_multi_users  — 多用户批量发"
+    echo "    • im:message:send_sys_msg      — 系统消息"
+    echo "    • im:message.p2p_msg:readonly  — p2p 消息读取"
+    echo "  资源访问:"
+    echo "    • im:chat:readonly        — 读群列表"
+    echo "    • admin:app.info:readonly — 读 app 自身信息"
     echo ""
     info "申请 URL（飞书开放平台已预选权限）："
     echo -e "  ${CYAN}${url}${NC}"
