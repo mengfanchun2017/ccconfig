@@ -23,6 +23,7 @@ LIB_DIR="$SCRIPT_DIR/lib"
 CCCONFIG_DIR="$SCRIPT_DIR"
 
 source "$LIB_DIR/dry-run.sh"
+source "$LIB_DIR/path-helper.sh" 2>/dev/null || true
 source "$LIB_DIR/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
@@ -140,7 +141,7 @@ show_menu() {
     echo "  2) Monitor 管理     ─ 启停/状态/日志/实时监控"
     echo "  3) 自我更新         ─ 拉取 ccconfig + skill 最新"
     echo "  4) Git 同步         ─ 多仓库菜单式同步"
-    echo "  5) 组件升级         ─ Node.js / Claude / gh / uv / lark-cli ..."
+    echo "  5) 组件升级         ─ Node.js / Claude / gh / uv / lark-cli / lark-channel-bridge ..."
     echo "  6) 依赖检查         ─ 必需/核心/功能/可选依赖"
     echo "  7) 一键修复         ─ 重建链接 + 启用 auto-sync（= setup）"
     echo "  8) 模板同步         ─ 默认正向（template → ccprivate），反向仅仓库所有者可用"
@@ -148,10 +149,11 @@ show_menu() {
     echo "  10) Bill & Token     ─ 模型单价配置 + Claude Code 用量聚合（CSV / 飞书）"
 	echo "  11) MCP 管理         ─ 注册/启停/状态/Key/项目配置"
     echo "  12) llmswitch        ─ LLM 网关代理（init-llm 自动管理，手动可看下面板）"
+    echo "  13) 飞书管理         ─ 账号 / lark-cli / larkbridge（多账号多机器人）"
     echo ""
     echo "  0) 退出"
     echo ""
-    read -p "选择 [0-12]: " c
+    read -p "选择 [0-13]: " c
     c=$(menu_num "$c")
 
     case "$c" in
@@ -181,6 +183,9 @@ show_menu() {
             read -p "按回车返回菜单..." dummy
             show_menu ;;
         12) submenu_llmswitch
+            read -p "按回车返回菜单..." dummy
+            show_menu ;;
+        13) submenu_feishu
             read -p "按回车返回菜单..." dummy
             show_menu ;;
         10) while true; do
@@ -289,6 +294,234 @@ submenu_llmswitch() {
         0) return ;;
         *) submenu_llmswitch ;;
     esac
+}
+
+# 读取 feishu.json 账号列表（一行一 JSON）
+_feishu_list_apps() {
+    local conf
+    conf="$(resolve_conf feishu.json 2>/dev/null)" || true
+    if [ -z "$conf" ] || [ ! -f "$conf" ]; then
+        echo ""
+        return 0
+    fi
+    python3 - "$conf" << 'PYEOF' 2>/dev/null
+import json, sys
+with open(sys.argv[1]) as f:
+    d = json.load(f)
+for a in d.get('apps', []):
+    print(json.dumps(a, ensure_ascii=False))
+PYEOF
+}
+
+_feishu_current_account() {
+    local marker="$HOME/.lark-cli-account"
+    [ -f "$marker" ] && grep '^name=' "$marker" | cut -d'=' -f2
+}
+
+_feishu_current_profile() {
+    [ -f "$HOME/.lark-channel/config.json" ] \
+        && python3 -c "import json; print(json.load(open('$HOME/.lark-channel/config.json')).get('activeProfile',''))" 2>/dev/null
+}
+
+submenu_feishu() {
+    local feishu_lb="$CCCONFIG_DIR/option-larkbridge/init.sh"
+    local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
+    local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
+    local lcb_ver; lcb_ver=$(lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+    local lcc_ver; lcc_ver=$(lark-cli --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' || echo "?")
+
+    local cur_acct; cur_acct="$(_feishu_current_account)"
+    local cur_prof; cur_prof="$(_feishu_current_profile)"
+
+    echo ""
+    echo -e "${CYAN}── 飞书统一管理 ──${NC}"
+    echo ""
+    echo -e "  ${GRAY}lark-cli: v${lcc_ver}    活跃账号: ${cur_acct:-无}${NC}"
+    echo -e "  ${GRAY}lark-channel-bridge: v${lcb_ver}    活跃 profile: ${cur_prof:-无}${NC}"
+    echo ""
+    echo "  1) 飞书账号          ─ feishu.json apps 列表 + 切换 lark-cli 活跃账号"
+    echo "  2) lark-cli          ─ OAuth 授权 / 看授权状态 / 装包"
+    echo "  3) larkbridge        ─ profile 列表 / 启停 / 日志 / 新增 / 删除"
+    echo "  4) 一键升级飞书      ─ lark-cli + lark-channel-bridge (npm 最新)"
+    echo ""
+    echo "  0) 返回"
+    echo ""
+    read -p "选择 [0-4]: " c
+    c=$(menu_num "$c")
+    case "$c" in
+        1) submenu_feishu_accounts ;;
+        2)
+            echo ""
+            echo -e "${CYAN}── lark-cli ──${NC}"
+            bash "$feishu_lc" --status
+            echo ""
+            echo "  a) 重置全部账号配置 (re-run init)"
+            echo "  k) 看当前账号的 OAuth 状态"
+            echo "  l) 列出全部账号"
+            echo "  0) 返回"
+            read -p "  选择 [a/k/l/0]: " sub
+            case "$sub" in
+                a|A) bash "$feishu_lc" ;;
+                k|K) bash "$feishu_switch" ;;
+                l|L) bash "$feishu_switch" --list ;;
+                0) ;;
+                *) ;;
+            esac
+            ;;
+        3)
+            echo ""
+            bash "$feishu_lb" --status
+            echo ""
+            echo "  ─ 操作 ─"
+            echo "    s) 启停/重启 profile  ─ select"
+            echo "    n) 新增 profile       ─ add（ccprivate 配置 or 扫码）"
+            echo "    r) 删除 profile       ─ remove"
+            echo "    l) 实时日志           ─ logs <profile>"
+            echo "    d) 设为默认           ─ default"
+            echo "    0) 返回"
+            read -p "  选择 [s/n/r/l/d/0]: " sub
+            case "$sub" in
+                s|S) bash "$feishu_lb" --start ;;
+                n|N) bash "$feishu_lb" --profile add ;;
+                r|R) bash "$feishu_lb" --profile remove ;;
+                l|L) bash "$feishu_lb" --logs ;;
+                d|D) bash "$feishu_lb" --profile default ;;
+                0) ;;
+                *) ;;
+            esac
+            ;;
+        4)
+            echo ""
+            echo -e "${CYAN}── 一键升级飞书 ──${NC}"
+            bash "$LIB_DIR/update.sh" lark
+            echo ""
+            bash "$LIB_DIR/update.sh" larkbridge
+            echo ""
+            echo "按回车继续..."
+            read -r dummy
+            ;;
+        0) return ;;
+        *) submenu_feishu ;;
+    esac
+}
+
+submenu_feishu_accounts() {
+    local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
+    local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
+    local conf
+    conf="$(resolve_conf feishu.json 2>/dev/null)" || { warn "找不到 feishu.json"; return 0; }
+
+    while true; do
+        local cur_acct; cur_acct="$(_feishu_current_account)"
+        local -a lines names
+        while IFS= read -r line; do
+            [ -n "$line" ] && lines+=("$line")
+        done < <(_feishu_list_apps)
+
+        echo ""
+        echo -e "${CYAN}── 飞书账号 (feishu.json apps[]) ──${NC}"
+        echo -e "  ${GRAY}活跃账号: ${cur_acct:-无}    配置文件: ${conf}${NC}"
+        echo ""
+
+        if [ ${#lines[@]} -eq 0 ]; then
+            warn "feishu.json 中无 app 配置"
+            echo "  a) 添加新 app"
+            echo "  0) 返回"
+            read -p "  选择 [a/0]: " sel
+            case "$sel" in
+                a|A) bash "$feishu_lc" ;;
+                0) return 0 ;;
+            esac
+            continue
+        fi
+
+        local i=1
+        names=()
+        for line in "${lines[@]}"; do
+            local name; name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
+            local appid; appid=$(echo "$line" | python3 -c "import json,sys; a=json.load(sys.stdin)['appId']; print((a[:14]+'...') if len(a)>14 else a)" 2>/dev/null)
+            local desc; desc=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('description',''))" 2>/dev/null)
+            local lcen; lcen=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Y' if d.get('larkCli',{}).get('enabled') else '.')" 2>/dev/null)
+            local lben; lben=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin).get('larkBridge',{}); print('Y' if d.get('enabled') else '.')" 2>/dev/null)
+            local marker="  "
+            [ "$name" = "$cur_acct" ] && marker="${GREEN}← 活跃${NC}"
+            printf "  ${YELLOW}%d)${NC} %-14s appId=${GRAY}%-18s${NC} L=${lcen} B=${lben}  ${marker}\n" "$i" "$name" "$appid"
+            [ -n "$desc" ] && printf "       ${GRAY}%s${NC}\n" "$desc"
+            names+=("$name")
+            i=$((i + 1))
+        done
+        echo ""
+        echo "  a) 添加新 app"
+        echo "  d) 删除 app"
+        echo "  0) 返回"
+        echo ""
+        read -p "  选择 [0-${#lines[@]}/a/d]: " sel
+
+        case "$sel" in
+            0|q) return 0 ;;
+            a|A) bash "$feishu_lc" ;;
+            d|D)
+                if [ ${#names[@]} -eq 0 ]; then continue; fi
+                read -p "  输入要删除的 app 名: " dn
+                local found=0
+                for n in "${names[@]}"; do [ "$n" = "$dn" ] && found=1 && break; done
+                [ "$found" -eq 1 ] && {
+                    read -p "  确认从 feishu.json 删 '${dn}'? [y/N] " cf
+                    if [[ "$cf" =~ ^[Yy]$ ]]; then
+                        python3 - "$conf" "$dn" << 'PYEOF'
+import json, sys
+p, name = sys.argv[1], sys.argv[2]
+with open(p) as f: d = json.load(f)
+d['apps'] = [a for a in d.get('apps',[]) if a.get('name') != name]
+with open(p,'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
+PYEOF
+                        info "已删除"
+                    fi
+                } || warn "未找到: $dn"
+                continue
+                ;;
+        esac
+
+        if ! [[ "$sel" =~ ^[0-9]+$ ]] || [ "$sel" -lt 1 ] || [ "$sel" -gt ${#lines[@]} ]; then
+            continue
+        fi
+
+        local target="${names[$((sel - 1))]}"
+        echo ""
+        echo -e "${CYAN}── 应用: ${target} ──${NC}"
+        echo ""
+        echo "  1) 切到此账号 (lark-cli 活跃)"
+        echo "  2) OAuth 授权 (lark-cli auth login)"
+        echo "  3) 看授权状态"
+        echo "  4) 编辑 App ID / Secret"
+        echo "  0) 返回"
+        read -p "  选择 [0-4]: " sub
+        case "$sub" in
+            1) bash "$feishu_switch" "$target" ;;
+            2)
+                local cd="$HOME/.lark-cli-${target}"
+                if [ -f "${cd}/config.json" ]; then
+                    LARKSUITE_CLI_CONFIG_DIR="$cd" bash "$feishu_lc" --auth-login "$target"
+                else
+                    warn "先选 4 编辑 App ID/Secret，再走 lark-cli init"
+                fi
+                ;;
+            3)
+                local cd="$HOME/.lark-cli-${target}"
+                if [ -f "${cd}/config.json" ]; then
+                    LARKSUITE_CLI_CONFIG_DIR="$cd" lark-cli auth status 2>&1 \
+                        | grep -v '^\[lark-cli\]' | sed 's/^/  /'
+                else
+                    warn "config.json 不存在"
+                fi
+                ;;
+            4) bash "$feishu_lc" --auth-login "$target" 2>&1 || true
+               warn "手动编辑: vim $conf"
+               ;;
+            0) ;;
+            *) ;;
+        esac
+    done
 }
 
 # ── 入口 ──
