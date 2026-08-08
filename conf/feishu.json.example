@@ -25,7 +25,8 @@
     "_comment": "lark-channel-bridge 必备权限。在飞书开放平台开通后必须发布新版本才生效。URL 模板：https://open.feishu.cn/app/<APP_ID>/auth?q=<SCOPES>&op_from=openapi&token_type=tenant",
     "larkbridge": [
       "im:message",
-      "im:message.send_as_bot",
+      "im:message:send",
+      "im:message:send_as_bot",
       "im:chat:readonly",
       "admin:app.info:readonly"
     ]

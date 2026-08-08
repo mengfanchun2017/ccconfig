@@ -2,14 +2,30 @@
 # init-ccprivate-repo.sh — 一键创建 ccprivate 私有配置仓库
 #
 # 用法：
-#   bash ccconfig/init-ccprivate-repo.sh           # 交互式新建
-#   bash ccconfig/init-ccprivate-repo.sh --clone    # 从已有 GitHub 仓库克隆
-#   bash ccconfig/init-ccprivate-repo.sh --update   # 更新已有 ccprivate（pull + setup + 刷新配置）
+#   bash ccconfig/init-ccprivate-repo.sh                    # 交互式新建
+#   bash ccconfig/init-ccprivate-repo.sh --clone            # 从已有 GitHub 仓库克隆
+#   bash ccconfig/init-ccprivate-repo.sh --update           # 更新已有 ccprivate（pull + setup + 刷新配置）
+#   bash ccconfig/init-ccprivate-repo.sh --non-interactive  # CI/自动化模式（env 旁路所有 read）
 #
 # 前置条件：SSH key 已添加到 GitHub（推荐），或 gh auth login 已完成（HTTPS 备选）
 # 输出：~/git/ccprivate/ 完整目录结构 + GitHub 私有仓库 + symlink 已建立
+#
+# 非交互模式 env（任一必填，否则脚本退出）：
+#   CCP_GH_USER            GitHub 用户名（自动从 gh api 取）
+#   CCP_GIT_EMAIL          git 邮箱（自动从 gh/git config 取）
+#   CCP_DEFAULT_LLM        deepseek | minimax | claude（默认 deepseek）
+#   CCP_LLM_DEEPSEEK_KEY   DeepSeek API key（可选）
+#   CCP_LLM_MINIMAX_KEY    MiniMax API key（可选）
+#   CCP_LLM_ANTHROPIC_KEY  Anthropic API key（可选）
+#   CCP_SKIP_FEISHU=1      跳过飞书占位符引导
 
 set -euo pipefail
+
+# 非交互模式开关（CLI flag 优先，env 兜底）
+NONINTERACTIVE=false
+[[ "${1:-}" =~ ^(--non-interactive|--ni|-y|--yes)$ ]] && NONINTERACTIVE=true
+[[ "${CCP_NONINTERACTIVE:-}" == "1" ]] && NONINTERACTIVE=true
+export NONINTERACTIVE
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$SCRIPT_DIR"
@@ -44,13 +60,20 @@ ensure_gh_cli() {
 
     warn "gh 命令未找到，需要先安装 GitHub CLI"
     echo ""
-    echo "  方式 1) apt 装（需要 sudo，最简单）"
-    echo "  方式 2) 下载 binary 到 ~/.local/bin/gh（无需 sudo）"
-    echo "  0) 跳过（手动安装后重跑）"
-    echo ""
-    read -p "  选择 [1]: " install_choice
-    install_choice="${install_choice:-1}"
-    install_choice=$(menu_num "$install_choice")
+
+    # 非交互模式：默认走 binary（无需 sudo），设 BOOTSTRAP_NOSUDO=1 也走 binary
+    if $NONINTERACTIVE || [[ "${BOOTSTRAP_NOSUDO:-}" == "1" ]]; then
+        info "非交互模式：默认方式 2（binary 到 ~/.local/bin/gh）"
+        install_choice=2
+    else
+        echo "  方式 1) apt 装（需要 sudo，最简单）"
+        echo "  方式 2) 下载 binary 到 ~/.local/bin/gh（无需 sudo）"
+        echo "  0) 跳过（手动安装后重跑）"
+        echo ""
+        read -p "  选择 [1]: " install_choice
+        install_choice="${install_choice:-1}"
+        install_choice=$(menu_num "$install_choice")
+    fi
 
     case "$install_choice" in
         1)
@@ -118,12 +141,22 @@ check_gh_auth() {
             return 0
         fi
         warn "env token 注入失败，落到交互流程"
+        if $NONINTERACTIVE; then
+            err "非交互模式：env token 注入失败，终止（PAT/Web OAuth 都不可用）"
+            return 1
+        fi
     fi
 
     # 3. 检测 SSH key
     local has_ssh=false
     if [[ -f "$HOME/.ssh/id_ed25519" ]] || [[ -f "$HOME/.ssh/id_rsa" ]]; then
         has_ssh=true
+    fi
+
+    # 非交互模式：gh 未登录且 GH_TOKEN 也失败 → 直接退出（不走 do_login/A/B/PAT read）
+    if $NONINTERACTIVE; then
+        err "非交互模式：gh 未登录且 GH_TOKEN 未设或注入失败（必填 GH_TOKEN 或提前跑 gh auth login）"
+        return 1
     fi
 
     if $has_ssh; then
@@ -223,6 +256,12 @@ ensure_git_ident() {
         return 0
     fi
 
+    # 非交互模式：拒绝走 read，直接 fail
+    if $NONINTERACTIVE; then
+        err "非交互模式：git 身份缺失（设 CCP_GH_USER + CCP_GIT_EMAIL，或 git config --global user.{name,email}）"
+        return 1
+    fi
+
     # 缺哪个问哪个
     if [[ -z "$cur_name" ]]; then
         read -p "  Git user.name（GitHub 用户名）: " cur_name
@@ -245,6 +284,12 @@ ensure_git_ident() {
 prompt_feishu_config() {
     local f="$CCPRIVATE_DIR/conf/feishu.json"
     [[ -f "$f" ]] || return 0
+
+    # 非交互模式 / CCP_SKIP_FEISHU=1 → 跳过整个引导
+    if $NONINTERACTIVE || [[ "${CCP_SKIP_FEISHU:-}" == "1" ]]; then
+        info "非交互模式：跳过飞书占位符引导（保留模板，晚点手动 vim $f）"
+        return 0
+    fi
 
     if ! grep -qE '请填入|your-app-name|你的应用' "$f" 2>/dev/null; then
         return 0  # 已填好
@@ -331,9 +376,13 @@ detect_git_email() {
 collect_info() {
     section "GitHub 信息"
 
-    GH_USER=$(detect_gh_user)
+    # GH_USER: env > gh api 自动检测 > 交互
+    GH_USER="${CCP_GH_USER:-$(detect_gh_user)}"
     if [ -n "$GH_USER" ]; then
-        info "GitHub 账号: ${GREEN}$GH_USER${NC}（从 gh 自动检测）"
+        info "GitHub 账号: ${GREEN}$GH_USER${NC}（CCP_GH_USER 或 gh 自动检测）"
+    elif $NONINTERACTIVE; then
+        err "GH_USER 缺失（非交互模式：设 CCP_GH_USER 或保持 gh 已登录）"
+        return 1
     else
         while [ -z "$GH_USER" ]; do
             read -p "  GitHub 用户名: " GH_USER
@@ -341,9 +390,13 @@ collect_info() {
         done
     fi
 
-    GIT_EMAIL=$(detect_git_email)
+    # GIT_EMAIL: env > git config 自动检测 > 交互
+    GIT_EMAIL="${CCP_GIT_EMAIL:-$(detect_git_email)}"
     if [ -n "$GIT_EMAIL" ]; then
-        info "Git 邮箱: ${GREEN}$GIT_EMAIL${NC}（从 gh/git config 自动检测）"
+        info "Git 邮箱: ${GREEN}$GIT_EMAIL${NC}（CCP_GIT_EMAIL 或 git config 自动检测）"
+    elif $NONINTERACTIVE; then
+        err "GIT_EMAIL 缺失（非交互模式：设 CCP_GIT_EMAIL 或 git config --global user.email）"
+        return 1
     else
         while [ -z "$GIT_EMAIL" ]; do
             read -p "  Git 邮箱: " GIT_EMAIL
@@ -353,41 +406,73 @@ collect_info() {
 
     section "LLM API Key（至少填一个）"
 
-    echo ""
-    echo "  1) DeepSeek"
-    echo "  2) MiniMax"
-    echo "  3) Claude (Anthropic 官方)"
-    echo ""
-    read -p "  选择默认后端 [1]: " LLM_CHOICE
-    LLM_CHOICE="${LLM_CHOICE:-1}"
-    LLM_CHOICE=$(menu_num "$LLM_CHOICE")
+    # 从 env 预填 LLM key（非交互模式必需）
+    DEEPSEEK_KEY="${CCP_LLM_DEEPSEEK_KEY:-${DEEPSEEK_KEY:-}}"
+    MINIMAX_KEY="${CCP_LLM_MINIMAX_KEY:-${MINIMAX_KEY:-}}"
+    CLAUDE_KEY="${CCP_LLM_ANTHROPIC_KEY:-${CLAUDE_KEY:-}}"
 
-    case "$LLM_CHOICE" in
-        1)
-            DEFAULT_LLM="deepseek"
-            read -p "  DeepSeek API Key: " DEEPSEEK_KEY
-            ;;
-        2)
-            DEFAULT_LLM="minimax"
-            read -p "  MiniMax API Key: " MINIMAX_KEY
-            ;;
-        3)
-            DEFAULT_LLM="claude"
-            read -p "  Anthropic API Key: " CLAUDE_KEY
-            ;;
-    esac
+    if $NONINTERACTIVE; then
+        # 非交互模式：从 CCP_DEFAULT_LLM 选后端（默认 deepseek）
+        local llm_choice
+        case "${CCP_DEFAULT_LLM:-deepseek}" in
+            deepseek|1) llm_choice=1; DEFAULT_LLM="deepseek" ;;
+            minimax|2)  llm_choice=2; DEFAULT_LLM="minimax" ;;
+            claude|3)   llm_choice=3; DEFAULT_LLM="claude" ;;
+            *) err "CCP_DEFAULT_LLM 必须是 deepseek | minimax | claude"; return 1 ;;
+        esac
+        info "默认 LLM: ${GREEN}$DEFAULT_LLM${NC}（CCP_DEFAULT_LLM）"
+        if [ "$llm_choice" = "1" ] && [ -z "$DEEPSEEK_KEY" ]; then
+            err "DEFAULT_LLM=deepseek 但 CCP_LLM_DEEPSEEK_KEY 未设"
+            return 1
+        fi
+        if [ "$llm_choice" = "2" ] && [ -z "$MINIMAX_KEY" ]; then
+            err "DEFAULT_LLM=minimax 但 CCP_LLM_MINIMAX_KEY 未设"
+            return 1
+        fi
+        if [ "$llm_choice" = "3" ] && [ -z "$CLAUDE_KEY" ]; then
+            err "DEFAULT_LLM=claude 但 CCP_LLM_ANTHROPIC_KEY 未设"
+            return 1
+        fi
+    else
+        # 交互模式：原菜单
+        echo ""
+        echo "  1) DeepSeek"
+        echo "  2) MiniMax"
+        echo "  3) Claude (Anthropic 官方)"
+        echo ""
+        read -p "  选择默认后端 [1]: " LLM_CHOICE
+        LLM_CHOICE="${LLM_CHOICE:-1}"
+        LLM_CHOICE=$(menu_num "$LLM_CHOICE")
 
-    # 如果用户有多个 key，问要不要填其他的
-    echo ""
-    if [ "$LLM_CHOICE" != "1" ]; then
-        read -p "  还有 DeepSeek Key? 直接回车跳过: " DEEPSEEK_KEY
+        case "$LLM_CHOICE" in
+            1)
+                DEFAULT_LLM="deepseek"
+                [ -z "$DEEPSEEK_KEY" ] && read -p "  DeepSeek API Key: " DEEPSEEK_KEY
+                ;;
+            2)
+                DEFAULT_LLM="minimax"
+                [ -z "$MINIMAX_KEY" ] && read -p "  MiniMax API Key: " MINIMAX_KEY
+                ;;
+            3)
+                DEFAULT_LLM="claude"
+                [ -z "$CLAUDE_KEY" ] && read -p "  Anthropic API Key: " CLAUDE_KEY
+                ;;
+        esac
+
+        # 如果用户有多个 key，问要不要填其他的
+        echo ""
+        if [ "$LLM_CHOICE" != "1" ] && [ -z "$DEEPSEEK_KEY" ]; then
+            read -p "  还有 DeepSeek Key? 直接回车跳过: " DEEPSEEK_KEY
+        fi
+        if [ "$LLM_CHOICE" != "2" ] && [ -z "$MINIMAX_KEY" ]; then
+            read -p "  还有 MiniMax Key? 直接回车跳过: " MINIMAX_KEY
+        fi
+        if [ "$LLM_CHOICE" != "3" ] && [ -z "$CLAUDE_KEY" ]; then
+            read -p "  还有 Anthropic Key? 直接回车跳过: " CLAUDE_KEY
+        fi
     fi
-    if [ "$LLM_CHOICE" != "2" ]; then
-        read -p "  还有 MiniMax Key? 直接回车跳过: " MINIMAX_KEY
-    fi
-    if [ "$LLM_CHOICE" != "3" ]; then
-        read -p "  还有 Anthropic Key? 直接回车跳过: " CLAUDE_KEY
-    fi
+
+    export DEEPSEEK_KEY MINIMAX_KEY CLAUDE_KEY DEFAULT_LLM
 }
 
 # ── 生成 conf/llm.json ──
@@ -875,6 +960,14 @@ case "${1:-}" in
         ;;
     --update|-u)
         do_update
+        ;;
+    --non-interactive|--ni|-y|--yes)
+        NONINTERACTIVE=true
+        do_create
+        ;;
+    --help|-h)
+        sed -n '2,21p' "$0"
+        exit 0
         ;;
     *)
         do_create
