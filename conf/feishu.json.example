@@ -22,14 +22,25 @@
     "   bash maintain.sh → 13 → 7"
   ],
   "_requiredScopes": {
-    "_comment": "lark-channel-bridge 必备权限。在飞书开放平台开通后必须发布新版本才生效。URL 模板：https://open.feishu.cn/app/<APP_ID>/auth?q=<SCOPES>&op_from=openapi&token_type=tenant",
-    "larkbridge": [
-      "im:message",
-      "im:message:send",
-      "im:message:send_as_bot",
-      "im:chat:readonly",
-      "admin:app.info:readonly"
-    ]
+    "_comment": "应用身份权限必须在飞书开放平台开通后发布版本才生效。一键申请 URL：bash maintain.sh → 13 → 7",
+    "larkbridge": {
+      "_note": "tenant 权限 — bot 收发消息 + 读群 + 读 app 信息",
+      "scopes": [
+        "im:message",
+        "im:message:send",
+        "im:message:send_as_bot",
+        "im:message:send_multi_depts",
+        "im:message:send_multi_users",
+        "im:message:send_sys_msg",
+        "im:message.p2p_msg:readonly",
+        "im:chat:readonly",
+        "admin:app.info:readonly"
+      ]
+    },
+    "larkCli": {
+      "_note": "user 权限 — lark-cli OAuth 走 --domain all 时一次性弹出所有 scope 让用户同意，无需手动逐个开通",
+      "categories": ["docs", "docx", "drive", "base", "bitable", "calendar", "contact", "sheets", "slides", "task", "wiki", "mail", "vc", "minutes", "okr", "search"]
+    }
   },
   "apps": [
     {
