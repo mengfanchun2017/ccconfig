@@ -37,14 +37,14 @@ bash init-base.sh all
 2. 检测 git（必须已装）
 3. 装 GitHub CLI (gh)，apt 优先，二进制兜底
 4. gh auth 登录（双选项菜单）
-   - A) PAT 粘贴（默认）— No-Expiration 永久有效，仅存本地，不同步到远程
+   - A) Fine-grained PAT 粘贴（推荐）— Contents R/W + Metadata R，90 天过期，仅存本地
    - B) Web OAuth — 浏览器授权，有过期时间
 5. 配置 git 用户身份（从 gh api 拿）和 credential helper
 6. 输出下一步命令
 
 `init-ccprivate-repo.sh` 自动：
 1. gh auth 自动登录（与 bootstrap-gh-auth.sh 相同的双选项菜单）
-2. 在 GitHub 创建 ccprivate 私有仓库（用 gh api）
+2. **手动建仓引导**（fine-grained PAT 不能建仓库，deep link 一键填好 name/visibility）
 3. clone 到 `~/git/ccprivate`
 4. 写 `conf/llm.json` / `conf/feishu.json` 等私有配置
 5. 建立符号链接 `~/.claude/CLAUDE.md` → ccprivate/CLAUDE.md 等
@@ -313,28 +313,74 @@ gh --version
 
 ## 阶段 3 — GitHub 认证
 
-> 两个认证都需要：gh auth 用于 `gh repo create` 和 `gh api` 调用（阶段 4c 创建 ccprivate 仓库必需），SSH key 用于 git clone/push/pull（更快更稳定）。
+> **核心思路**：一个 fine-grained PAT 覆盖所有场景（gh API + git 传输），SSH key 是可选加速。
+> 阶段 3a 必做，3b 视情况，3c 续期流程记住即可。
 
-### 3a. gh auth login（必需）
+### 3a. Fine-grained PAT（必做，主路径）
 
-`init-ccprivate-repo.sh` 用 `gh repo create` 创建私有仓库、`gh api user` 获取用户名，**必须先完成 gh 登录**：
+**gh auth 和 git 传输都靠这一个 token**。`bootstrap-gh-auth.sh` 脚本会引导你完成，跑：
 
 ```bash
-gh auth login --web --hostname github.com
+bash bootstrap-gh-auth.sh
+# 选 A (PAT 粘贴, 推荐)
+# 按提示生成 fine-grained PAT，粘贴即可
 ```
 
-操作流程：选 GitHub.com → 选 HTTPS → 选 Login with a web browser → 粘贴 one-time code。
+**手动生成 fine-grained PAT**：
+
+1. 打开 https://github.com/settings/personal-access-tokens/new
+2. 按以下配置（其他默认）：
+
+   | 字段 | 值 |
+   |------|-----|
+   | Token name | `ccconfig-push` |
+   | Expiration | `90 days` |
+   | Resource owner | 你的 GitHub 用户名 |
+   | Repository access | `All repositories` |
+   | Repository permissions → Contents | `Read and write` |
+   | Repository permissions → Metadata | `Read-only`（默认勾选） |
+   | Account permissions | 全部 `No access` |
+
+3. 生成后复制 token string（一次性显示，关闭页面就看不到）
+4. 粘到 bootstrap-gh-auth.sh 的 prompt
+
+> **为什么不选 classic PAT 的 `repo` scope？**
+> classic `repo` scope 等同所有私有仓全权，泄露影响范围大。fine-grained 限定到具体仓库 + 具体权限，更安全。
+> 建仓已改为手动（`init-ccprivate-repo.sh` 引导网页建仓），不需要 classic 的 repo 创建能力。
+
+**Token 存哪？**
+- `~/.config/gh/hosts.yml`（600 权限，本机）
+- **不**同步到 ccprivate（明文 secret 风险）
+- 新终端：手动 paste 同一个 PAT 到 bootstrap 脚本
+
+**验证**：
 
 ```bash
 gh auth status
 # 应该看到: ✓ Logged in to github.com as <你的账号>
+
+gh api user --jq '.login'
+# 应该输出你的 GitHub 用户名
+
+git ls-remote https://github.com/<你的用户名>/ccconfig.git
+# 应该看到 remote refs（push 凭证通过 gh credential helper 自动给）
 ```
 
-> gh auth token 保存在 `~/.config/gh/hosts.yml`，**不能跨机器复制**，每台机器独立登录。
+### 3b. SSH Key（可选加速）
 
-### 3b. SSH Key（推荐，替代 HTTPS git 传输）
+> PAT 能用就不强制。SSH 只在你想 push 更快时配。
+> 优势：push 2-3s vs 5-15s；劣势：多机器要复制 private key 或各加公钥。
 
-> SSH 比 HTTPS 更稳定，push 更快（2-3s vs 5-15s）。阶段 3a 的 gh login 和本节的 SSH key 各司其职：gh 管 API 调用，SSH 管 git 传输。
+**自动配**（init-ubuntu.sh 自动检测）：
+
+```bash
+bash lib/init-ubuntu.sh
+# gh auth 未配 → 自动 setup_ssh_github
+# gh auth 已配 → 跳过 SSH（提示用 SETUP_SSH=1 强制配）
+SETUP_SSH=1 bash lib/init-ubuntu.sh
+```
+
+**手动配**：
 
 ```bash
 # 1. 生成 ED25519 密钥
@@ -342,17 +388,15 @@ ssh-keygen -t ed25519 -C "your-email@example.com" -f ~/.ssh/id_ed25519 -N ""
 
 # 2. 查看公钥（复制整行）
 cat ~/.ssh/id_ed25519.pub
-```
 
-3. 打开 https://github.com/settings/ssh/new ，Title 填 `WSL-cconfig`，粘贴公钥
-4. 测试连接：
+# 3. 打开 https://github.com/settings/ssh/new ，Title 填 `WSL-cconfig`，粘贴公钥
 
-```bash
+# 4. 测试连接
 ssh -T git@github.com
 # 应该看到: Hi <你的账号>! You've successfully authenticated
 ```
 
-5. （可选）配置 SSH 保活：
+**配置 SSH 保活**（可选）：
 
 ```bash
 cat >> ~/.ssh/config << 'EOF'
@@ -360,6 +404,7 @@ Host github.com
     HostName github.com
     User git
     IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
     ServerAliveInterval 60
     ServerAliveCountMax 3
     ConnectTimeout 10
@@ -367,6 +412,34 @@ EOF
 ```
 
 > **同台机器新建 WSL？** `lib/init-ubuntu.sh` 的 `setup_ssh_github()` 会自动从 Windows 宿主目录（`/mnt/c/Users/<用户名>/.ssh/`）复制已有 key，不需要再生成。**换机器**才需要重新走一遍。
+
+### 3c. PAT 续期流程（90 天到期前 30 天可 Regenerate）
+
+> fine-grained PAT 强制 90 天过期，**不是自动续期**，必须手动去 GitHub 网页 Regenerate。
+> ccconfig 会在以下场景提醒你：
+> - `bash maintain.sh status` 启动 Claude Code 自动跑，显示 "剩余 X 天"
+> - `lib/monitor.sh` push 时检测到 401/bad credentials 触发警告
+> - 状态文件 `~/.local/share/ccconfig/pat-warn` 被 monitor 写入
+
+**续期步骤（30 秒）**：
+
+```bash
+# 1. 打开 https://github.com/settings/tokens
+# 2. 找到 ccconfig-push，点 Regenerate token（继承原权限）
+# 3. 复制新 token，然后跑：
+
+bash ~/git/ccconfig/bin/refresh-gh-auth.sh
+# 引导粘新 token → gh auth login → 验证 → 清过期 flag
+```
+
+**手动续期**（不想跑脚本）：
+
+```bash
+echo "<new-token>" | gh auth login --with-token --hostname github.com
+gh auth setup-git
+```
+
+**GitHub 自动提醒**：到期前 7 天 GitHub 邮件通知。
 
 
 ## 阶段 4 — 克隆三仓库 + 初始化 ccprivate

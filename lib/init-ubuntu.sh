@@ -406,14 +406,19 @@ setup_mmx_cli() {
 }
 
 
-# ========== 6. GitHub SSH 密钥（多 WSL 共享） ==========
+# ========== 6. GitHub SSH 密钥（多 WSL 共享） — 可选加速 ==========
 # 策略：
-#   - gh auth（bootstrap-gh-auth.sh 已做）= GitHub API/CLI 认证
-#   - SSH 密钥（本段）= git push/pull 传输层认证，两者独立
+#   - gh auth（bootstrap-gh-auth.sh 已做）= 认证主路径，PAT 已够 push/clone
+#   - SSH 密钥（本段）= 可选加速，push 更快（2-3s vs 5-15s）
 #   - 同机多 WSL：密钥放 Windows 宿主目录，各 WSL 复制到本地
 #   - 不同机器：各自生成独立密钥，公钥都加到 github.com/settings/keys
+#   - caller 逻辑：gh auth 已配 → 跳过 SSH；gh 未配 → 跑 SSH 作为 fallback
 setup_ssh_github() {
-    section "GitHub SSH 密钥"
+    section "GitHub SSH 密钥（可选加速）"
+
+    echo -e "  ${GRAY}PAT 已够用, 这是可选的 push 加速。${NC}"
+    echo -e "  ${GRAY}不配 SSH 也能正常 push, 只是慢一点。${NC}"
+    echo ""
 
     local SSH_DIR="$HOME/.ssh"
     local WIN_USER
@@ -614,9 +619,13 @@ main() {
     fi
 
     # git 传输：gh auth + credential helper 已就绪则跳过 SSH
-    # bootstrap-gh-auth.sh 已配好，SSH 不是必须的
+    # bootstrap-gh-auth.sh 已配好，SSH 是可选加速（push 2-3s vs 5-15s）
     if gh auth status &>/dev/null 2>&1; then
-        info "git: HTTPS + gh credential helper（bootstrap-gh-auth.sh 已配好，跳过 SSH）"
+        info "git: HTTPS + gh credential helper（PAT 已配，SSH 跳过）"
+        info "  可选加速: 重跑本脚本 + 设 SETUP_SSH=1 强制配 SSH"
+    elif [[ "${SETUP_SSH:-}" == "1" ]]; then
+        info "SETUP_SSH=1 强制配 SSH（即使 PAT 已配）"
+        setup_ssh_github
     else
         setup_ssh_github
     fi
