@@ -61,6 +61,80 @@ warn()   { do_log "WARN: $1"; $QUIET_MODE && return; echo -e "${YELLOW}[SYNC]${N
 info()   { do_log "$1"; $QUIET_MODE && return; echo -e "${CYAN}[SYNC]${NC} $1"; }
 error()  { do_log "ERROR: $1"; $QUIET_MODE && return; echo -e "${RED}[SYNC]${NC} $1"; }
 
+# ========== PAT 过期检查 ==========
+# 三个触发点：monitor start / commit_and_push 末尾 / git_push auth error
+# 缓存 6h 避免每次 commit 都 curl（auth error 时强制刷新）
+PAT_CACHE_FILE="$HOME/.local/share/ccconfig/pat-status"
+PAT_WARN_FILE="$HOME/.local/share/ccconfig/pat-warn"
+PAT_CACHE_TTL=21600  # 6h
+
+check_pat_status() {
+    local force="${1:-false}"
+
+    # 缓存检查（force=true 跳过）
+    if [[ "$force" != "true" ]] && [[ -f "$PAT_CACHE_FILE" ]]; then
+        local cache_mtime=$(stat -c %Y "$PAT_CACHE_FILE" 2>/dev/null || echo 0)
+        local now=$(date +%s)
+        [[ $((now - cache_mtime)) -lt $PAT_CACHE_TTL ]] && return 0
+    fi
+
+    # gh 未登录 → 跳过（让其他 check 报告）
+    local token=$(gh auth token 2>/dev/null) || return 0
+
+    # curl 拿 expiration header（5s timeout，不阻塞 monitor）
+    local exp=$(curl -s --max-time 5 -H "Authorization: Bearer $token" \
+        -D - https://api.github.com/user -o /dev/null 2>/dev/null | \
+        grep -i 'github-authentication-token-expiration:' | \
+        awk '{print $2}' | tr -d '\r')
+    [[ -z "$exp" ]] && { rm -f "$PAT_CACHE_FILE" "$PAT_WARN_FILE"; return 0; }
+
+    local exp_epoch=$(date -d "$exp UTC" +%s 2>/dev/null) || return 0
+    local now=$(date +%s)
+    local days_left=$(( (exp_epoch - now) / 86400 ))
+
+    mkdir -p "$(dirname "$PAT_CACHE_FILE")"
+    echo "${days_left}|${exp}" > "$PAT_CACHE_FILE"
+    chmod 600 "$PAT_CACHE_FILE"
+
+    # 根据剩余天数告警
+    if [[ $days_left -lt 10 ]]; then
+        log_pat_warn "$days_left" "$exp" "critical"
+    elif [[ $days_left -lt 30 ]]; then
+        log_pat_warn "$days_left" "$exp" "warn"
+    else
+        # 健康：清除旧 warn flag
+        rm -f "$PAT_WARN_FILE"
+    fi
+}
+
+log_pat_warn() {
+    local days="$1" exp="$2" level="$3"
+    local sym="⚠ "
+    [[ "$level" == "critical" ]] && sym="❌"
+
+    do_log ""
+    do_log "═══════════════════════════════════════════════════════════════"
+    do_log "${sym} GitHub PAT 即将过期（剩余 ${days} 天，过期 ${exp} UTC）"
+    do_log "───────────────────────────────────────────────────────────────"
+    do_log "续期（30 秒）："
+    do_log "  1. 打开 https://github.com/settings/tokens"
+    do_log "  2. 找到 ccconfig-push，点 Regenerate token"
+    do_log "  3. 复制新 token，然后跑："
+    do_log ""
+    do_log "       bash ~/git/ccconfig/bin/refresh-gh-auth.sh"
+    do_log ""
+    do_log "  或手动："
+    do_log "       gh auth login --with-token <<< \"<new-token>\""
+    do_log "       gh auth setup-git"
+    do_log "═══════════════════════════════════════════════════════════════"
+    do_log ""
+
+    # 写 flag 文件给 status.sh / SessionStart hook 读
+    mkdir -p "$(dirname "$PAT_WARN_FILE")"
+    echo "${days}|${exp}|${level}" > "$PAT_WARN_FILE"
+    chmod 600 "$PAT_WARN_FILE"
+}
+
 # ========== Git helpers ==========
 
 # Given a file path, find the nearest parent with .git/
@@ -126,13 +200,18 @@ git_push() {
             echo "$output"
             return 0
         fi
-        if echo "$output" | grep -qi "connection\|network\|Recv failure\|reset by peer\|timeout\|Could not resolve"; then
+        if echo "$output" | grep -qiE "bad credentials|401|token.*expired|invalid_token|authentication failed|unauthorized"; then
+            # Auth error → 强制检查 PAT 状态 + 写醒目 warn（不重试，续期后才能 push）
+            check_pat_status "true"
+            echo "$output" >&2
+            return $rc
+        elif echo "$output" | grep -qi "connection\|network\|Recv failure\|reset by peer\|timeout\|Could not resolve"; then
             if [ $attempt -lt $max_attempts ]; then
                 log "[$(repo_name "$repo_dir")] push attempt $attempt failed, retry in 10s..."
                 sleep 10
             fi
         else
-            # Non-network error (conflict, auth, etc.) — don't retry
+            # Non-network error (conflict, etc.) — don't retry
             echo "$output" >&2
             return $rc
         fi
@@ -303,6 +382,9 @@ commit_and_push() {
             warn "[$repo] commit failed: $(echo "$commit_output" | head -1)"
         fi
     fi
+
+    # 每次 commit_and_push 完后检查 PAT（cache 6h，不频繁）
+    check_pat_status
 }
 
 # Sync a list of repos (one per line). Empty arg = sync all.
@@ -351,6 +433,8 @@ start_watch() {
     cd "$MONITOR_HOME"
     QUIET_MODE=true
     resurrect_pm2 &
+    # PAT 过期检查：后台异步跑一次，6h 内 cache，不阻塞 monitor 启动
+    check_pat_status &
 
     # 清理上次崩溃残留的僵尸 inotifywait
     pkill -f "inotifywait.*$WATCH_DIR" 2>/dev/null || true
