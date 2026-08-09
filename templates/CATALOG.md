@@ -27,4 +27,4 @@
 
 **始终加载: 6.6KB / 15KB budget（44%）\| 路径加载: 4.2KB \| 合计: 10.8KB**
 
-> 已移除：`README.md` → docs/rules-catalog.md（给人类看的目录）。`feedback_cwd_drift.md` → memory。`ffeishu.md`（rules.d 断链）。`feishu-cli-cheatsheet.md` 命令表 → ffeishu/references/lark-cli-cheatsheet.md。
+> 已移除：`rules/README.md`（CATALOG.md 已承担目录索引职责）。`feedback_cwd_drift.md` → memory。`ffeishu.md`（rules.d 断链）。`feishu-cli-cheatsheet.md` 命令表 → ffeishu/references/lark-cli-cheatsheet.md。

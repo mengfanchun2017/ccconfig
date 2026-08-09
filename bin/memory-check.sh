@@ -2,6 +2,7 @@
 # memory-check.sh — 检查 memory 文件新鲜度，标记 stale 候选
 # 用法: bash ccconfig/bin/memory-check.sh [--stale-only]
 
+set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MEMORY_DIR="$HOME/.claude/projects/-$(echo "$HOME/git" | sed 's|^/||; s|/|-|g')/memory"
 INDEX="$MEMORY_DIR/MEMORY.md"

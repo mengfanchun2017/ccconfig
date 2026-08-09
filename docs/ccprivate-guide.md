@@ -189,7 +189,7 @@ cp ~/git/ccconfig/conf/ubuntu.json.example ~/git/ccprivate/conf/ubuntu.json
 | `conf/fpptx.json`   | PPT 生成工具路径 | 用 PPT 功能才需要 |
 | `conf/cloudflare.json` | Cloudflare API token | 用 Cloudflare 才需要 |
 | `conf/supabase.json` | Supabase 数据库 token | 用 Supabase 才需要 |
-| `conf/f-moocrec.json` | 慕课推荐配置 | 用课程推荐才需要 |
+| `conf/f-moocrec.yaml` | 慕课推荐配置（已迁到 ccprivate/skill-config/fmoocrec.yaml） | 用课程推荐才需要 |
 
 每个都有对应的 `.example` 模板在 `ccconfig/conf/` 下，复制后编辑即可。
 

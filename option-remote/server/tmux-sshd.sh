@@ -3,7 +3,7 @@
 # WSL2 SSH Server 初始化脚本
 # 在台式机 WSL2 内执行一次即可
 # ============================================================
-set -e
+set -euo pipefail
 
 SSH_PORT=2222
 
@@ -89,7 +89,6 @@ if [ -f "$wslconfig" ] && grep -q "networkingMode=mirrored" "$wslconfig" 2>/dev/
     echo ""
 
     # 检查是否有冲突的端口转发规则
-    local proxy_rules
     proxy_rules=$(/mnt/c/Windows/System32/netsh.exe interface portproxy show all 2>/dev/null | grep ":$SSH_PORT" || echo "")
     if [ -n "$proxy_rules" ]; then
         echo "⚠  检测到残留的端口转发规则："

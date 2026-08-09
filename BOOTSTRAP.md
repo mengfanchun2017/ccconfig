@@ -64,7 +64,7 @@ bash init-base.sh all
 
 ---
 
-## 手动 8 阶段（Reference）
+## 手动 7 阶段（Reference）
 
 如果一行命令失败或你想完全控制每一步，按下面 7 阶段走。
 
@@ -722,8 +722,6 @@ ccconfig 的 `windows-tools/` 目录提供 Windows 工具脚本，在 PowerShell
 | 工具 | 用途 | 命令 |
 |------|------|------|
 | `psupdate/` | PowerShell 7 升级（绕过 winget bug） | 管理员 PowerShell 执行 `psupdate.ps1` |
-| `music-convert/` | 网易云 NCM 解密 | `powershell -File .\windows-tools\music-convert\convert.ps1` |
-
 
 ## macOS 备注
 

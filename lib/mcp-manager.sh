@@ -19,8 +19,8 @@ source "$SCRIPT_DIR/colors.sh"
 
 CONFIG_JSON="$HOME/.claude/.config.json"
 SETTINGS_JSON="$HOME/.claude/settings.json"
-CONF_TEMPLATE="$(find /home/francis/git -maxdepth 3 -path '*/conf/claude.json' 2>/dev/null | head -1)"
-[ -z "$CONF_TEMPLATE" ] && CONF_TEMPLATE="/home/francis/git/ccprivate/conf/claude.json"
+CONF_TEMPLATE="$(find "$HOME/git" -maxdepth 3 -path '*/conf/claude.json' 2>/dev/null | head -1)"
+[ -z "$CONF_TEMPLATE" ] && CONF_TEMPLATE="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/claude.json"
 
 # ── 辅助函数 ──
 
@@ -36,7 +36,7 @@ json.dump(d, open('$CONFIG_JSON', 'w'), indent=2, ensure_ascii=False)
 # 同步 projects 配置到 settings.json
 sync_projects_to_settings() {
   python3 -c "
-import json
+import json, os
 cfg = json.load(open('$CONFIG_JSON'))
 try:
     stg = json.load(open('$SETTINGS_JSON'))
@@ -48,7 +48,7 @@ stg['disabledMcpServers'] = cfg.get('disabledMcpServers', [])
 projects = cfg.get('projects', {})
 sync = {}
 for path, p in projects.items():
-    if not path.startswith('/home/francis/git/'): continue
+    if not path.startswith(os.path.expanduser('~/git/')): continue
     sp = {}
     if p.get('enabledMcpjsonServers'):
         sp['enabledMcpjsonServers'] = p['enabledMcpjsonServers']
@@ -80,12 +80,12 @@ current_project() {
 # 获取有项目配置的所有 git 仓库路径（去重，只取 ~/git/ 下的）
 list_git_repos() {
   python3 -c "
-import json
+import json, os
 d = json.load(open('$CONFIG_JSON'))
 projects = d.get('projects', {})
 seen = set()
 for path in projects:
-    if not path.startswith('/home/francis/git/'): continue
+    if not path.startswith(os.path.expanduser('~/git/')): continue
     if path in seen: continue
     seen.add(path)
     print(path)

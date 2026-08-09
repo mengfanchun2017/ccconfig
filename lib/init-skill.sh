@@ -350,48 +350,6 @@ do_ensure_marketplace() {
 do_install_third_party() {
     info "阶段 3/4 (npx skills) 已废弃，所有 skill 在 ~/git/skill/plugins/ 统一管理"
     return 0
-
-    title "阶段 3/4: npx skills 装第三方 skill（conf/third-party-skills.txt）"
-
-    if [[ ! -f "$THIRD_PARTY_CONF" ]]; then
-        warn "  conf 清单不存在: $THIRD_PARTY_CONF — 跳过"
-        return 0
-    fi
-
-    # 防御：git clone 走 HTTPS（若未配 SSH 则避免 git@ 协议失败）
-    # 注意：不要与 init-ubuntu.sh 的 url."git@github.com:".insteadOf "https://github.com/" 冲突
-    if ! git config --global url."git@github.com:".insteadOf 2>/dev/null | grep -q "https://github.com/"; then
-        git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
-    fi
-
-    local installed=0 already=0 failed=0
-    while IFS= read -r line; do
-        # 跳过空行/注释
-        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-
-        # 解析 `<source>  <skill-name>`（两个空格或 tab 分隔）
-        local source=$(echo "$line" | awk '{print $1}')
-        local skill=$(echo "$line" | awk '{print $2}')
-
-        # 检查 ~/.claude/skills/<skill> 是否已存在（npx 装过会有 symlink）
-        if [[ -e "$CLAUDE_SKILLS_DIR/$skill" ]]; then
-            info "  $skill ($source): 已装"
-            already=$((already + 1))
-            continue
-        fi
-
-        # 调 npx skills add
-        if npx --yes skills@latest add "$source" --skill "$skill" -g -y 2>&1 | grep -qE "Installed 1 skill|✓.*$skill"; then
-            good "  $skill ($source): ✓"
-            installed=$((installed + 1))
-        else
-            warn "  $skill ($source): 失败（重试或检网络）"
-            failed=$((failed + 1))
-        fi
-    done < "$THIRD_PARTY_CONF"
-
-    echo ""
-    good "  第三方 skill: $installed 新装, $already 已装, $failed 失败"
 }
 
 # 阶段 2.5：ccprivate 配置覆盖（委托 ccprivate/bin/apply-config.sh）
