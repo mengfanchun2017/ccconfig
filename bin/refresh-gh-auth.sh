@@ -63,15 +63,14 @@ echo ""
 echo -e "  ${GRAY}提示：fine-grained PAT 过期前 30 天可点 Regenerate，继承原权限${NC}"
 echo ""
 
-# 读新 token
+# 读新 token（空输入 = 保持现状退出）
 NEW_TOKEN=""
-while [[ -z "$NEW_TOKEN" ]]; do
-    read -rs -p "  新 PAT（不回显）: " NEW_TOKEN
-    echo ""
-    if [[ -z "$NEW_TOKEN" ]]; then
-        echo -e "  ${YELLOW}⚠${NC}  token 为空，重试（或 Ctrl+C 取消）"
-    fi
-done
+read -rs -p "  新 PAT（不回显，直接回车 = 保持现状退出）: " NEW_TOKEN
+echo ""
+if [[ -z "$NEW_TOKEN" ]]; then
+    echo -e "  ${GRAY}未输入，保持现有 token，退出${NC}"
+    exit 0
+fi
 
 # 应用：gh auth login --with-token
 echo ""
