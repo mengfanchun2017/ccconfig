@@ -32,6 +32,9 @@ LLMSWITCH_INIT="$CCCONFIG_ROOT/option-llmswitch/init.sh"
 LLMSWITCH_WATCHDOG="$CCCONFIG_ROOT/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
+# 内置预设 key（不可删除），须与 conf/llm.json.example 顶层 llms key 一致
+BUILTIN_LLMS="minimax deepseek deepseek_flash gateway"
+
 # CONFIG_FILE already resolved via resolve_conf() above
 
 # ========== Gateway 辅助 ==========
@@ -931,7 +934,7 @@ delete_preset() {
     while IFS='|' read -r name display_name model base_url; do
         if [[ -z "$name" ]]; then continue; fi
         # 跳过内置
-        if [[ "$name" == "minimax" || "$name" == "deepseek" || "$name" == "gateway" ]]; then
+        if [[ " $BUILTIN_LLMS " == *" $name "* ]]; then
             continue
         fi
         printf "  %d) %s (%s)\n" "$idx" "$display_name" "$model"
@@ -974,7 +977,7 @@ _delete_preset_confirm() {
     local target="$1"
 
     # 守卫 1: 内置
-    if [[ "$target" == "minimax" || "$target" == "deepseek" || "$target" == "gateway" ]]; then
+    if [[ " $BUILTIN_LLMS " == *" $target "* ]]; then
         error "内置预设 '$target' 不可删除"
         return 1
     fi
