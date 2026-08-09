@@ -49,22 +49,32 @@ get_proxy_health() {
 }
 
 read_gateway_routes() {
-    # 返回 "高峰→MiniMax / 非高峰→DeepSeek" 格式的路由摘要
-    python3 - "$LLMSWITCH_CONF" << 'PYEOF'
+    # 返回 "高峰 09:00-12:00 → model ｜ 非高峰 → model" 格式的路由摘要
+    # $1: llmswitch.json 路径；$2: llm.json 路径（用于路由 key → model 名映射）
+    python3 - "${1:-$LLMSWITCH_CONF}" "${2:-$CONFIG_FILE}" << 'PYEOF'
 import json, sys
 try:
     with open(sys.argv[1]) as f:
-        config = json.load(f)
+        sw = json.load(f)
 except Exception:
     sys.exit(0)
 
-routes = config.get('routes', {}).get('llmgateway', {})
-peak = routes.get('peak', '?')
-off_peak = routes.get('off_peak', '?')
-peak_hours = config.get('peak_hours', [])
-blocks = []
-for b in peak_hours:
-    blocks.append(f"{b['start']}-{b['end']}")
+key_to_model = {}
+try:
+    with open(sys.argv[2]) as f:
+        llm_cfg = json.load(f)
+    for k, v in llm_cfg.get('llms', {}).items():
+        key_to_model[k] = v.get('model', k)
+except Exception:
+    pass
+
+routes = sw.get('routes', {}).get('llmgateway', {})
+peak_key = routes.get('peak', '?')
+off_peak_key = routes.get('off_peak', '?')
+peak = key_to_model.get(peak_key, peak_key)
+off_peak = key_to_model.get(off_peak_key, off_peak_key)
+peak_hours = sw.get('peak_hours', [])
+blocks = [f"{b['start']}-{b['end']}" for b in peak_hours]
 print(f"高峰 {','.join(blocks)} → {peak} ｜ 非高峰 → {off_peak}")
 PYEOF
 }
@@ -737,7 +747,7 @@ show_list() {
         fi
         local route_info=""
         if [[ "$name" == "gateway" ]]; then
-            route_info="  — $(read_gateway_routes)"
+            route_info="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE")"
         fi
         printf "  %s %-10s %-20s%s%s\n" "$marker" "$display_name" "$model" "$small_info" "$route_info"
     done
@@ -1064,7 +1074,7 @@ interactive_select() {
         fi
         local route_str=""
         if [[ "$name" == "gateway" ]]; then
-            route_str="  — $(read_gateway_routes)"
+            route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE")"
         fi
         names+=("$name")
         selectable=$((selectable + 1))
