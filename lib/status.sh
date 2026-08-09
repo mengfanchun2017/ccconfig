@@ -238,6 +238,8 @@ check_pat_expiry() {
     echo -e "  ${color}${icon} 剩余 ${days_left} 天${NC}（过期 ${exp} UTC，${status}）"
 
     if [[ $days_left -lt 30 ]]; then
+        echo -e "  ${YELLOW}续期: bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
+    else
         echo -e "  ${GRAY}续期: bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
     fi
 }
