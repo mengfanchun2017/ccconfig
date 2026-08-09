@@ -166,7 +166,7 @@ _inject_admin_users() {
   [ -f "$root_cfg" ] || return 0
   [ -n "$profile" ] || return 0
 
-  local -a admins
+  local -a admins=()
   if [ -n "$feishu_conf" ] && [ -f "$feishu_conf" ]; then
     while IFS= read -r oid; do
       [ -n "$oid" ] && admins+=("$oid")
