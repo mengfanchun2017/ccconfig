@@ -125,7 +125,7 @@ _pick_profile() {
 }
 
 _get_running_profiles() {
-  command -v lark-channel-bridge &>/dev/null || return
+  command -v lark-channel-bridge &>/dev/null || return 0
   lark-channel-bridge profile list 2>/dev/null | awk 'NR>1{print $2}' || true
 }
 
@@ -462,7 +462,7 @@ SERVICEOF
 show_status() {
   local running; running="$(_get_running_profiles)"
   local -a profiles; mapfile -t profiles < <(_list_profiles)
-  local ver; ver=$(lark-channel-bridge --version 2>/dev/null | head -1 || echo "?")
+  local ver; ver="$(lark-channel-bridge --version 2>/dev/null | head -1 || true)"; [ -n "$ver" ] || ver="?"
 
   if [ ${#profiles[@]} -eq 0 ]; then
     echo "MISSING lark-channel-bridge $ver (无 profile)"
