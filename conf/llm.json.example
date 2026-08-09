@@ -50,5 +50,5 @@
         "claude-haiku-4-5":     {"input": 7.00, "output": 35.00, "cache_read": 0.70}
     },
     "fx": {"usd_to_cny": 7.20},
-    "current": ""
+    "current": "deepseek_flash"
 }

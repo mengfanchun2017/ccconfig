@@ -58,6 +58,18 @@
         "--access-token", "请填入你的 Supabase access token"
       ],
       "env": {}
+    },
+    {
+      "name": "getnote",
+      "description": "得到大脑(Get笔记) - 笔记 CRUD、语义搜索、知识库管理",
+      "how_to_get": "打开 https://www.biji.com/openapi → 创建应用 → 获取 API Key(gk_live_xxx) 和 Client ID(cli_xxx)",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@getnote/mcp"],
+      "env": {
+        "GETNOTE_API_KEY": "请到 https://www.biji.com/openapi 获取 API Key（格式：gk_live_xxx）",
+        "GETNOTE_CLIENT_ID": "请到 https://www.biji.com/openapi 获取 Client ID（格式：cli_xxx）"
+      }
     }
   ]
 }

@@ -183,10 +183,11 @@ show_menu() {
     echo "  13) 飞书管理         ─ 账号 / lark-cli / larkbridge（多账号多机器人）"
     echo "  14) 回归测试         ─ WSL 新建 distro + bootstrap 全流程（CI/自动化）"
     echo "  15) GitHub PAT       ─ 查看剩余天数 + 一键续期（fine-grained）"
+    echo "  16) LLM 切换         ─ 交互选择/切换后端 LLM（MiniMax / DeepSeek / Gateway）"
     echo ""
     echo "  0) 退出"
     echo ""
-    read -p "选择 [0-15]: " c
+    read -p "选择 [0-16]: " c
     c=$(menu_num "$c")
 
     case "$c" in
@@ -225,6 +226,9 @@ show_menu() {
             read -p "按回车返回菜单..." dummy
             show_menu ;;
         15) bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh"
+            read -p "按回车返回菜单..." dummy
+            show_menu ;;
+        16) bash "$LIB_DIR/init-llm.sh"
             read -p "按回车返回菜单..." dummy
             show_menu ;;
         10) while true; do
@@ -903,9 +907,11 @@ case "${1:-menu}" in
     mcp)     shift; bash "$LIB_DIR/mcp-manager.sh" "$@" ;;
     llmswitch|llm-switch|gate)
         shift; bash "$CCCONFIG_DIR/option-llmswitch/init.sh" "$@" ;;
+    llm|llm-init|switch-llm)
+        shift; bash "$LIB_DIR/init-llm.sh" "$@" ;;
     pat|pat-refresh|gh-auth)
         bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh" ;;
     test|bootstrap|regression)
         shift; bash "$CCCONFIG_DIR/bin/test-bootstrap.sh" "$@" ;;
-    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|pat|mcp|llmswitch|test|menu]"; exit 1 ;;
+    *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|pat|mcp|llmswitch|llm|test|menu]"; exit 1 ;;
 esac
