@@ -104,12 +104,11 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │   │   ├── setup-links.sh      # 公开部分符号链接
 │   │   ├── deps-check.sh       # 依赖完整性检查
 │   │   ├── path-helper.sh      # 动态路径解析库
-│   │   ├── git-conflict.sh     # Git 冲突解决公共库
 │   │   └── colors.sh           # 终端颜色定义
 │   ├── templates/              # .example 模板目录（运行时在 ccprivate）
 │   │   ├── rules/              # 条件规则模板（9 个，.md.example）
 │   │   ├── agents/             # 意图路由 agent 模板（.md.example）
-│   │   └── skills/             # skill 开发沙箱
+│   │   └── settings.json.example
 │   ├── init-ccprivate-repo.sh   # ccprivate 一键创建向导
 │   ├── hooks/                  # git pre-commit hook
 │   ├── option-*/               # 可选组件（bridge/officecli/llmswitch/remote/cloudflare）
@@ -117,8 +116,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │
 ├── skill/              # ← 用户 clone 这个（或 /plugin marketplace add）
 │   ├── .claude-plugin/marketplace.json
-│   ├── plugins/                # 16 个 plugin
-│   └── option-vessel/          # f-vessel 配套安装器
+│   └── plugins/                # 16 个 plugin
 │
 └── ccprivate/                  # ← 用户运行 init-ccprivate-repo.sh 自建
     ├── conf/*.json             # API key / token 真实值
@@ -136,7 +134,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 新机器从零到全功能：7 个阶段（详见 [BOOTSTRAP.md](../BOOTSTRAP.md)）
 
 ```
-阶段 0: Windows 前置（WSL2 + Ubuntu 24.04 + PowerShell 7）
+阶段 0: Windows 前置（WSL2 + Ubuntu 26.04 LTS + PowerShell 7）
 阶段 1: OS 基础（apt update + git/curl/wget）
 阶段 2: gh CLI（GitHub 命令行）
 阶段 3: SSH Key + GitHub 认证
@@ -231,7 +229,7 @@ Tier 3: 领域方法论（领域知识 + 框架）
 Tier 4: 应用 Skill（最终用户工作流）
   fresearchreport   报告生成 → 委托 fresearchframe + freportstd + ffeishu
   flogme            个人管理系统（OKR/Worklog/Reflect/SUM）
-  f-moocrec          慕课推荐（QS 课程 + 学习路径）
+  fmoocrec           慕课推荐（QS 课程 + 学习路径）
   getnote            得到大脑集成（MCP 驱动）
 ```
 

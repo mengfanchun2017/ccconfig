@@ -86,18 +86,18 @@ ensure_gh_cli() {
             ;;
         2)
             local gh_ver
-            gh_ver=$(CCCONFIG_DIR="$CCCONFIG_DIR" python3 - << 'PYEOF' 2>/dev/null || echo "2.96.0"
+            gh_ver=$(CCCONFIG_DIR="$CCCONFIG_DIR" python3 - << 'PYEOF' 2>/dev/null || echo "2.97.0"
 import json, os
 try:
     with open(os.path.join(os.environ["CCCONFIG_DIR"], "conf", "versions.json")) as f:
-        print(json.load(f).get("components", {}).get("gh", {}).get("version", "2.96.0"))
+        print(json.load(f).get("components", {}).get("gh", {}).get("version", "2.97.0"))
 except Exception:
-    print("2.96.0")
+    print("2.97.0")
 PYEOF
 )
             mkdir -p "$LOCAL_BIN"
             local tmp="/tmp/gh-install-$$"
-            curl -fsSL "https://github.com/cli/releases/download/v${gh_ver}/gh_${gh_ver}_linux_amd64.tar.gz" \
+            curl -fsSL "https://github.com/cli/cli/releases/download/v${gh_ver}/gh_${gh_ver}_linux_amd64.tar.gz" \
                 -o "$tmp/gh.tar.gz" || { err "下载失败"; return 1; }
             tar -xzf "$tmp/gh.tar.gz" -C "$tmp"
             mv "$tmp/gh_${gh_ver}_linux_amd64/bin/gh" "$LOCAL_BIN/gh"

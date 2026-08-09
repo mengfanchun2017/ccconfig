@@ -878,7 +878,6 @@ case "${1:-menu}" in
     status)    shift; bash "$LIB_DIR/status.sh" "$@" ;;
     self)      shift; do_self "${1:-all}" ;;
     upgrade)   shift; bash "$LIB_DIR/update.sh" "$@" ;;
-    update)    shift; bash "$LIB_DIR/update.sh" "$@" ;;        # alias（旧名保留）
     sync)      shift; bash "$LIB_DIR/sync.sh" "$@" ;;
     monitor)   shift; bash "$LIB_DIR/monitor.sh" "${1:-}" ;;
     deps)      bash "$LIB_DIR/deps-check.sh" ;;

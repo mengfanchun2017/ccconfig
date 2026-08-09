@@ -55,7 +55,7 @@
 ### UC-1: 新机器初始化
 ```
 角色: 开发者
-前置: 新装 WSL2 Ubuntu 24.04，无任何开发环境
+前置: 新装 WSL2 Ubuntu 26.04 LTS，无任何开发环境
 流程:
   1. 安装 gh CLI → 登录 GitHub
   2. 生成 SSH key → 添加到 GitHub
@@ -194,7 +194,7 @@
 ### NFR-3: 可移植性
 | ID | 需求 | 指标 |
 |----|------|------|
-| NFR-3.1 | 操作系统 | Ubuntu 24.04+ / Debian 12+（WSL2 全支持） |
+| NFR-3.1 | 操作系统 | Ubuntu 26.04 LTS / Debian 12+（WSL2 全支持） |
 | NFR-3.2 | macOS 兼容 | 部分支持（BOOTSTRAP 有备注） |
 | NFR-3.3 | 架构 | x86_64, aarch64 |
 
@@ -215,7 +215,7 @@
 ## 6. 约束与假设
 
 ### 6.1 技术约束
-- 运行环境: WSL2 Ubuntu 24.04 LTS（主力），Debian 12+（兼容）
+- 运行环境: WSL2 Ubuntu 26.04 LTS（主力），Debian 12+（兼容）
 - 依赖: git, bash, curl, python3, gh CLI, Node.js
 - 需要 GitHub 账号（SSH key 认证）
 - 需要至少一个 LLM API Key（DeepSeek / MiniMax / Anthropic）
