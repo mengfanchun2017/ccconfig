@@ -16,6 +16,7 @@
 #   init.sh --profile list          列出 profile
 #   init.sh --profile add           新增（ccprivate / 扫码）
 #   init.sh --profile remove        删除
+#   init.sh --profile update [name] 更新凭据（appId/appSecret 变化时）
 #   init.sh --profile default       设默认
 
 set -euo pipefail
@@ -276,10 +277,23 @@ _run_select_app() {
     local i=0
     while [ $i -lt ${#app_names[@]} ]; do
       local name="${app_names[$i]}"; local id_short="${app_ids[$i]:0:12}..."
-      local em=""
-      for p2 in "${profiles[@]}"; do [ "$p2" = "$name" ] && em=" ${GRAY}(已存在)${NC}" && break; done
-      echo -e "  ${idx}) ${name} (${id_short})${em}" >&2
-      [ -z "$em" ] && menu_items+=("create:$name") || menu_items+=("use:$name")
+      local existing_appid=""
+      for p2 in "${profiles[@]}"; do
+        [ "$p2" = "$name" ] && existing_appid="$(_get_profile_app_id "$p2")" && break
+      done
+      if [ -n "$existing_appid" ] && [ "$existing_appid" = "${app_ids[$i]}" ]; then
+        # name + appId 都一致 → 已在「已有 profile」段展示，跳过避免重复
+        i=$((i+1)); continue
+      fi
+      if [ -n "$existing_appid" ]; then
+        # name 匹配但 appId 变化 → 警告 + 引导 update
+        echo -e "  ${idx}) ${name} (${id_short}) ${YELLOW}(appId 变化: ${existing_appid:0:8}... → ${id_short})${NC}" >&2
+        echo -e "      ${GRAY}↳ 凭据不一致，跑: $0 --profile update ${name}${NC}" >&2
+        menu_items+=("warn:$name")
+      else
+        echo -e "  ${idx}) ${name} (${id_short}) ${GRAY}(新建)${NC}" >&2
+        menu_items+=("create:$name")
+      fi
       idx=$((idx+1)); i=$((i+1))
     done
   fi
@@ -298,6 +312,10 @@ _run_select_app() {
 
   case "$chosen" in
     use:*) echo "${chosen#use:}"; return 0 ;;
+    warn:*)
+      warn "  appId 变化，菜单里跳过该选项" >&2
+      info "  跑更新: $0 --profile update ${chosen#warn:}" >&2
+      return 1 ;;
     create:*)
       local cname="${chosen#create:}"
       local fi=0; while [ $fi -lt ${#app_names[@]} ]; do [ "${app_names[$fi]}" = "$cname" ] && break; fi=$((fi+1)); done
@@ -510,6 +528,7 @@ show_status() {
     info "    $0 --start <profile>        # 后台 systemd"
     info "    $0 --profile add            # 新增"
     info "    $0 --profile remove         # 删除"
+    info "    $0 --profile update [name]  # 更新凭据"
   fi
 }
 
@@ -585,6 +604,116 @@ profile_default() {
   info "  重启 service 生效: systemctl --user restart ${SERVICE_PREFIX}@${profile}"
 }
 
+# 更新已有 profile 的 appId/appSecret（凭据变更场景）
+# 流程: 备份 allowedUsers → stop/disable service → profile remove → profile create → 恢复 allowedUsers
+profile_update() {
+  local profile="${1:-}"
+  if [ -z "$profile" ]; then
+    # 仅当 ccprivate 与已有 profile appId 不一致时才列入
+    local -a profiles; mapfile -t profiles < <(_list_profiles)
+    local feishu_conf=""
+    if [ -f "$HOME/git/ccprivate/conf/feishu.json" ]; then
+      feishu_conf="$HOME/git/ccprivate/conf/feishu.json"
+    elif command -v resolve_conf &>/dev/null; then
+      feishu_conf=$(resolve_conf feishu.json 2>/dev/null) || true
+    fi
+    if [ -z "$feishu_conf" ] || [ ! -f "$feishu_conf" ]; then
+      warn "  找不到 feishu.json"; return 1
+    fi
+    echo -e "${CYAN}── 检测 appId 不一致的 profile ──${NC}" >&2
+    local -a candidates=()
+    local -a cand_ids=()
+    local -a cand_secrets=()
+    while IFS='|' read -r n id sec; do
+      [ -z "$n" ] && continue
+      local existing_appid; existing_appid="$(_get_profile_app_id "$n")"
+      if [ -n "$existing_appid" ] && [ "$existing_appid" != "$id" ]; then
+        echo -e "  ${YELLOW}$n${NC}: ${existing_appid:0:12}... → ${id:0:12}..." >&2
+        candidates+=("$n"); cand_ids+=("$id"); cand_secrets+=("$sec")
+      fi
+    done < <(_list_larkbridge_apps "$feishu_conf")
+    [ ${#candidates[@]} -eq 0 ] && { info "  无需更新"; return 0; }
+    read -p "  选 profile 更新 [1-${#candidates[@]}]: " sel
+    [ "$sel" -ge 1 ] 2>/dev/null && [ "$sel" -le "${#candidates[@]}" ] 2>/dev/null || { warn "  取消"; return 1; }
+    profile="${candidates[$((sel-1))]}"
+    # 把新凭据写入临时变量，给下面统一逻辑用
+    __update_id="${cand_ids[$((sel-1))]}"
+    __update_secret="${cand_secrets[$((sel-1))]}"
+    __update_feishu_conf="$feishu_conf"
+  else
+    # 显式传了 profile 名 → 从 ccprivate 找匹配 app
+    local feishu_conf=""
+    if [ -f "$HOME/git/ccprivate/conf/feishu.json" ]; then
+      feishu_conf="$HOME/git/ccprivate/conf/feishu.json"
+    elif command -v resolve_conf &>/dev/null; then
+      feishu_conf=$(resolve_conf feishu.json 2>/dev/null) || true
+    fi
+    [ -z "$feishu_conf" ] || [ ! -f "$feishu_conf" ] && { warn "  找不到 feishu.json"; return 1; }
+    local found=0
+    while IFS='|' read -r n id sec; do
+      if [ "$n" = "$profile" ]; then
+        __update_id="$id"; __update_secret="$sec"; __update_feishu_conf="$feishu_conf"
+        found=1; break
+      fi
+    done < <(_list_larkbridge_apps "$feishu_conf")
+    [ "$found" -eq 1 ] || { warn "  ccprivate/conf/feishu.json 找不到 $profile（larkbridge.enabled）"; return 1; }
+  fi
+
+  local ws="${LARK_WORKSPACE:-$HOME/git}"
+  local existing_appid; existing_appid="$(_get_profile_app_id "$profile")"
+  echo "" >&2
+  info "  当前 appId: ${existing_appid:-（无）}" >&2
+  info "  新 appId:   ${__update_id}" >&2
+  read -p "  确认更新? [y/N]: " cf
+  [[ "$cf" =~ ^[Yy]$ ]] || { warn "  取消"; return 0; }
+
+  # 1. 备份 allowedUsers
+  local backup
+  backup=$(python3 - "$LCONF" "$profile" << 'PYEOF' 2>/dev/null
+import json, sys
+d = json.load(open(sys.argv[1]))
+p = d.get('profiles', {}).get(sys.argv[2], {})
+print('\n'.join(p.get('access', {}).get('allowedUsers', [])))
+PYEOF
+)
+
+  # 2. stop+disable service
+  local svc="$(_service_file "$profile")"
+  if [ -f "$svc" ]; then
+    systemctl --user stop "${SERVICE_PREFIX}@${profile}" 2>/dev/null || true
+    systemctl --user disable "${SERVICE_PREFIX}@${profile}" 2>/dev/null || true
+    rm -f "$svc"
+  fi
+
+  # 3. remove + create
+  lark-channel-bridge profile remove "$profile" --yes 2>/dev/null || true
+  if ! lark-channel-bridge profile create "$profile" --agent claude --workspace "$ws" --app-id "$__update_id" --app-secret "$__update_secret" > /dev/null 2>&1; then
+    bad "  ❌ profile create 失败"; return 1
+  fi
+
+  # 4. 恢复 allowedUsers
+  if [ -n "$backup" ]; then
+    python3 - "$LCONF" "$profile" "$backup" << 'PYEOF' 2>/dev/null
+import json, sys
+root_cfg, profile, blob = sys.argv[1], sys.argv[2], sys.argv[3]
+new_users = [x for x in blob.split('\n') if x]
+with open(root_cfg) as f: d = json.load(f)
+p = d.setdefault('profiles', {}).setdefault(profile, {})
+acc = p.setdefault('access', {})
+acc['allowedUsers'] = list(dict.fromkeys(acc.get('allowedUsers', []) + new_users))
+with open(root_cfg,'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
+PYEOF
+  fi
+
+  # 5. 注入 ccprivate adminOpenIds（如果有）
+  [ -n "$__update_feishu_conf" ] && _inject_admin_users "$profile" "$__update_feishu_conf"
+
+  systemctl --user daemon-reload 2>/dev/null || true
+  unset __update_id __update_secret __update_feishu_conf
+  good "  ✓ profile「${profile}」凭据已更新（保留了 allowedUsers）"
+  info "  重启 service: $0 --start ${profile}"
+}
+
 main() {
   local cmd="${1:-}"; shift 2>/dev/null || true
 
@@ -631,8 +760,9 @@ main() {
         list) profile_list ;;
         add)  profile_add ;;
         remove|rm) profile_remove ;;
+        update) profile_update "${1:-}" ;;
         default|use) profile_default ;;
-        *) echo "用法: $0 --profile {list|add|remove|default}"; exit 1 ;;
+        *) echo "用法: $0 --profile {list|add|remove|update|default}"; exit 1 ;;
       esac ;;
     --help|-h|*)
       echo "用法: bash ccconfig/option-larkbridge/init.sh <command> [args]"
@@ -651,6 +781,7 @@ main() {
       echo "    --profile list         列表"
       echo "    --profile add          新增（ccprivate / 扫码）"
       echo "    --profile remove       删除"
+      echo "    --profile update [name] 更新凭据（appId/appSecret 变化时）"
       echo "    --profile default      设为默认"
       echo ""
       echo "  示例:"
