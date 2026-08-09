@@ -203,16 +203,17 @@ check_gh_auth() {
             ;;
         *)
             echo ""
-            echo "  浏览器打开 → 生成 No-Expiration PAT:"
-            echo "    ${BOLD}https://github.com/settings/tokens/new${NC}"
+            echo "  浏览器打开 → 生成 Fine-grained PAT:"
+            echo "    ${BOLD}https://github.com/settings/personal-access-tokens/new${NC}"
             echo ""
-            echo "  Scopes 勾选:"
-            echo "    ${YELLOW}repo${NC}         (私有仓库读写，push 必需)"
-            echo "    ${YELLOW}read:org${NC}     (gh api user 拿身份)"
-            echo "    ${YELLOW}workflow${NC}     (gh workflow 命令)"
+            echo "  按以下配置（其他默认）："
+            echo "    ${YELLOW}Token name${NC}       : ccconfig-push"
+            echo "    ${YELLOW}Expiration${NC}       : 90 days"
+            echo "    ${YELLOW}Repository access${NC}: All repositories"
+            echo "    ${YELLOW}Contents${NC}        : Read and write"
+            echo "    ${YELLOW}Metadata${NC}        : Read-only（默认）"
             echo ""
-            echo -e "  ${GRAY}Token 存在本地 ~/.config/gh/hosts.yml，仅本机可用。${NC}"
-            echo -e "  ${GRAY}不会同步到 ccprivate。其他机器请 GitHub 重新生成或从本机复制。${NC}"
+            echo -e "  ${GRAY}续期：bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
             echo ""
             local token=""
             read -r -s -p "  PAT（粘贴，不回显）: " token
@@ -723,10 +724,11 @@ create_and_push() {
         git push -u origin main 2>&1 | tail -2
         ok "已推送"
     else
-        info "创建私有仓库: $GH_USER/ccprivate"
-        gh repo create "$GH_USER/ccprivate" --private --source=. --remote=origin --push 2>&1 | tail -3
-        # SSH 转换由 init-ubuntu.sh 处理
-        ok "仓库已创建并推送（SSH）"
+        # 仓库不存在 — do_create 已引导用户手动建仓；这里兜底提示
+        err "GitHub 仓库 $GH_USER/ccprivate 不存在"
+        err "  请手动建仓: https://github.com/new?name=ccprivate&visibility=private"
+        err "  然后重跑: bash init-ccprivate-repo.sh"
+        _rc=1
     fi
 
     popd >/dev/null
@@ -760,6 +762,31 @@ do_create() {
 
     # 完全新建
     collect_info
+
+    # 建仓前检测 — fine-grained PAT 不能 gh repo create，改为手动建仓
+    if [[ -n "$GH_USER" ]] && ! gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
+        section "需要先建 GitHub 私有仓库"
+        cat <<'EOF'
+  ccprivate 仓库不存在。请手动建仓（30 秒）：
+
+    打开: https://github.com/new?name=ccprivate&visibility=private&description=Personal+Claude+Code+config
+    • Repository name : ccprivate（已预填）
+    • Description     : Personal Claude Code config（已预填）
+    • Visibility      : Private（已预选）
+    • ❌ Add README / .gitignore / license 都不要勾（本脚本会创建）
+    • 点 Create repository
+
+  建好后按回车继续（或 Ctrl+C 取消，之后手动重跑本脚本）。
+EOF
+        read -p "  建好了? [回车继续] " _
+        # 再确认一次（防用户跳过）
+        if ! gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
+            err "GitHub 仍未检测到 ccprivate 仓库"
+            err "  请确认仓库名: $GH_USER/ccprivate, 可见性: Private"
+            return 1
+        fi
+        ok "GitHub 仓库已就绪: $GH_USER/ccprivate"
+    fi
 
     section "创建目录结构"
     mkdir -p "$CCPRIVATE_DIR/conf"

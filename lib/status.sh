@@ -199,6 +199,69 @@ check_autosync() {
     fi
 }
 
+# ========== 3b. PAT 过期检查（现场 curl，Layer 1） ==========
+check_pat_expiry() {
+    echo -e "${CYAN}━━━ GitHub PAT━━━${NC}"
+
+    local token=$(gh auth token 2>/dev/null)
+    if [[ -z "$token" ]]; then
+        echo -e "  ${YELLOW}○${NC}  gh 未登录（PAT 检查跳过）"
+        return 0
+    fi
+
+    local exp=$(curl -s --max-time 5 -H "Authorization: Bearer $token" \
+        -D - https://api.github.com/user -o /dev/null 2>/dev/null | \
+        grep -i 'github-authentication-token-expiration:' | \
+        awk '{print $2}' | tr -d '\r')
+
+    if [[ -z "$exp" ]]; then
+        echo -e "  ${GREEN}✅${NC} classic PAT（无过期）或 token 无 expiration header"
+        return 0
+    fi
+
+    local exp_epoch=$(date -d "$exp UTC" +%s 2>/dev/null)
+    if [[ -z "$exp_epoch" ]]; then
+        echo -e "  ${YELLOW}⚠${NC}  无法解析过期时间: $exp"
+        return 0
+    fi
+
+    local now=$(date +%s)
+    local days_left=$(( (exp_epoch - now) / 86400 ))
+
+    local color=$GREEN icon="✅" status="健康"
+    if [[ $days_left -lt 10 ]]; then
+        color=$RED; icon="❌"; status="即将/已过期"
+    elif [[ $days_left -lt 30 ]]; then
+        color=$YELLOW; icon="⚠ "; status="即将过期"
+    fi
+
+    echo -e "  ${color}${icon} 剩余 ${days_left} 天${NC}（过期 ${exp} UTC，${status}）"
+
+    if [[ $days_left -lt 30 ]]; then
+        echo -e "  ${GRAY}续期: bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
+    fi
+}
+
+# ========== 顶部醒目提示（读 monitor 写的 flag 文件） ==========
+check_pat_warn() {
+    local flag="$HOME/.local/share/ccconfig/pat-warn"
+    [[ -f "$flag" ]] || return 0
+
+    local content=$(cat "$flag" 2>/dev/null)
+    local days=$(echo "$content" | cut -d'|' -f1)
+    local exp=$(echo "$content" | cut -d'|' -f2)
+    local level=$(echo "$content" | cut -d'|' -f3)
+
+    if [[ "$level" == "critical" ]]; then
+        echo -e "${RED}❌ GitHub PAT 即将过期（剩余 ${days} 天，过期 ${exp} UTC）${NC}"
+        echo -e "${RED}   续期: bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
+    else
+        echo -e "${YELLOW}⚠  GitHub PAT 即将过期（剩余 ${days} 天） — 30 天内续期${NC}"
+        echo -e "${YELLOW}   续期: bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
+    fi
+    echo ""
+}
+
 # ========== 4+5+6. 仓库概况（合并最后推送 + MEMORY + Git 项目）==========
 # auto-sync monitor 已提供 git dirty 信息，这里只补充 CLI 需要的信息
 check_repos() {
@@ -625,11 +688,15 @@ else
 fi
 echo ""
 
+# 顶部醒目提示（PAT 过期等 monitor 标记的告警）
+check_pat_warn
+
 git_pull
 check_symlinks
 check_ccprivate_structure
 check_deps_quick
 check_autosync
+check_pat_expiry
 check_repos
 check_feishu
 
