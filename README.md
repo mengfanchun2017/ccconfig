@@ -183,7 +183,6 @@ ccconfig/
 │   ├── deps-check.sh         # 依赖检查
 │   ├── setup-links.sh        # 公开符号链接
 │   ├── path-helper.sh        # 路径解析 + 版本文件读写
-│   ├── ~~update-third-party-skills.sh~~  # 已废弃
 │   ├── colors.sh              # 颜色变量
 │   ├── dry-run.sh             # 预览模式
 │   ├── json-validate.sh      # JSON Schema 校验

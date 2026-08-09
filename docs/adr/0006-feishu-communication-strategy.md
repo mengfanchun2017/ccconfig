@@ -143,12 +143,22 @@ cc-connect 已升级至 1.4.0，下载 URL 模板和 binary 名均已在 `conf/v
 
 ## Implementation
 
-### 当前实现状态
+### 当前实现状态（2026-08 更新）
 
-- `conf/versions.json` → `cc_connect.version = "1.4.0"`
-- `option-cconnect/init.sh` → 读取 `get_cconnect_version`，下载对应 release
-- `option-cconnect/mcp-bridge/install.sh` → `@china-mcp/feishu-mcp` 可选（标记已废弃，不再推荐）
-- `init-option.sh` → MENU_ORDER 包含 `cconnect`，`larkcli`
+> **重要**: `option-cconnect/` / `cconnect` 二进制在本 ADR 起草后**未实际落地**。Bridge 实际由 `option-larkbridge/`（lark-channel-bridge，npm 包 `@larksuiteoapi/lark-channel-bridge`）承担。本 ADR 的决策结论（双组件策略：lark-cli + bridge）仍正确，但实现路径与原文不同。
+
+实际代码：
+
+- `option-larkbridge/init.sh` → npm install -g @larksuiteoapi/lark-channel-bridge + systemd profile 管理
+- `option-larkcli/init.sh` + `option-larkcli/lark-switch.sh` → 多账号 lark-cli
+- `conf/versions.json` → `lark_cli` 走 npm，`lark_channel_bridge` 由 init.sh 内置
+- `init-option.sh` → AUTO_MANAGED 包含 `llmswitch`，可选项含 `larkcli` / `larkbridge` / `larkcli` / `officecli` / `cloudflare` / `remote` / `skill` / `usage`
+
+### ADR-0006 历史结论保留
+
+- ✅ 双组件策略（lark-cli + bridge）
+- ✅ 不引入飞书 MCP（评估仍正确：缺被动接收 / 流式回复 / session 管理）
+- ⚠️ 具体实现是 larkbridge，非 cc-connect
 
 ## Related Decisions
 

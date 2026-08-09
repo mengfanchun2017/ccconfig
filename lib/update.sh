@@ -42,13 +42,13 @@ source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
     BLUE='\033[0;34m'
     DIM='\033[2m'
     NC='\033[0m'
-}
 
-info()  { echo -e "${CYAN}ℹ   $1${NC}"; }
-success() { echo -e "${GREEN}✅ $1${NC}"; }
-warn()  { echo -e "${YELLOW}⚠  $1${NC}"; }
-err()   { echo -e "${RED}❌ $1${NC}"; }
-section() { echo -e "\n${BLUE}━━━ $1 ━━━${NC}"; }
+    info()  { echo -e "${CYAN}ℹ   $1${NC}"; }
+    success() { echo -e "${GREEN}✅ $1${NC}"; }
+    warn()  { echo -e "${YELLOW}⚠  $1${NC}"; }
+    err()   { echo -e "${RED}❌ $1${NC}"; }
+    section() { echo -e "\n${BLUE}━━━ $1 ━━━${NC}"; }
+}
 
 # ========== 锁 ==========
 

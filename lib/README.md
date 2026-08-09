@@ -1,13 +1,13 @@
 # lib/ — 子脚本 + 共享库
 
-> init.sh / maintain.sh 调用的所有子脚本和公共函数。
+> init-base.sh / maintain.sh 调用的所有子脚本和公共函数。
 
 ## 子脚本
 
 | 文件 | 用途 | 调用者 |
 |------|------|--------|
 | `init-ubuntu.sh` | Ubuntu/WSL 全环境初始化 | init-base.sh all |
-| `init-llm.sh` | LLM 后端切换 | init.sh / init-ubuntu.sh |
+| `init-llm.sh` | LLM 后端切换 | init-base.sh / init-ubuntu.sh |
 | `init-mcp.sh` | MCP 服务器管理 | init-base.sh all |
 | `init-skill.sh` | Skills 同步管理 | init-base.sh all |
 | `init-autostart.sh` | auto-sync systemd 服务 | init-ubuntu.sh |

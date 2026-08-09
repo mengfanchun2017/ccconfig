@@ -52,7 +52,7 @@ MENU_GROUPS=(
 
 # 自动管理的项：状态展示但不可 toggle
 declare -A AUTO_MANAGED
-AUTO_MANAGED["llmswitch"]="由 init-llm 自动启停（按 provider 切换）|bash init-llm.sh|bash maintain.sh llmswitch {start|stop|status|restart}"
+AUTO_MANAGED["llmswitch"]="由 init-llm 自动启停（按 provider 切换）|bash init-llm.sh|bash maintain.sh llmswitch {start,stop,status,restart}"
 
 # ── 检测 option-* 目录 ──
 list_option_dirs() {
@@ -451,11 +451,6 @@ install_option() {
         done
       fi
       return 0
-    fi
-
-    if _dry_run_enabled "$@"; then
-        printf 'would: bash option-%s/init.sh\n' "$name"
-        return 0
     fi
 
     # option-* 目录

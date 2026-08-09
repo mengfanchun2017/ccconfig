@@ -4,6 +4,38 @@ All notable changes to ccconfig will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **`mcp-manager.sh` 硬编码用户路径** — 4 处 `/home/francis/git/` → `${HOME}/git/` + `os.path.expanduser('~/git/')`，跨用户移植性
+- **`tmux-sshd.sh` `local` 在函数外** — bash5.x 运行时报语法错误，删 `local` 关键字
+- **`init-option.sh` `AUTO_MANAGED` 分隔符冲突** — llmswitch 第 3 段 `{start|stop|status|restart}` 内嵌 `|` 被外层 `|` 切错位；改为 `,` 分隔
+- **`init-option.sh` 重复 `_dry_run_enabled`** — `install_option` 函数体内同一检查调用两次，删第二次
+- **`init-skill.sh` `do_install_third_party` 死代码** — `return 0` 后 ~40 行残留 npx skills 逻辑永远不执行；删除
+- **`update.sh` 自定义函数覆盖 colors.sh** — `info/success/warn/err/section` 定义挪入 fallback `||` 块，避免覆盖库函数
+- **`watchdog.sh` 重复 SCRIPT_DIR + 硬编码 ANSI** — 删第二次定义，统一 source colors.sh
+- **`apply-config.sh` / `tmux-sshd.sh` / `memory-check.sh`** — `set -e` → `set -euo pipefail`
+- **`README.md` 引用已删除的 `update-third-party-skills.sh`** — 删除该行
+- **`docs/architecture.md` 引用不存在的 `lib/git-conflict.sh`、`option-vessel/`、`templates/skills/`、`f-moocrec`** — 全部删除/改 `fmoocrec`
+- **`docs/ccprivate-guide.md` 引用 `conf/f-moocrec.json`** — 已删除，改为 `ccprivate/skill-config/fmoocrec.yaml`
+- **`BOOTSTRAP.md` 引用 `windows-tools/music-convert/`** — 已删除，删该行
+- **`conf/feishu.json.example` + `ccprivate/conf/feishu.json`** — `cc-connect` / `option-cconnect` → `larkbridge` / `option-larkbridge`
+- **`docs/adr/0006` Implementation Status** — 补实现状态段：`option-cconnect/` 未落地，实际由 `option-larkbridge/` 承担
+- **`lib/README.md` 引用 `init.sh`** — 已重命名 `init-base.sh`
+- **`maintain.sh` 冗余 `update)` alias** — 与 `upgrade)` 完全相同，删除
+- **`BOOTSTRAP.md` 8/7 阶段不一致** — 标题改 "手动 7 阶段"
+- **`option-skill/README.md` 引用不存在的 `lib/publish.sh`** — 改为在 skill 仓库直接编辑 + PR
+- **`templates/CATALOG.md` 引用不存在的 `docs/rules-catalog.md`** — 改为说明 CATALOG.md 自身承担目录索引
+- **`init-ccprivate-repo.sh` gh 安装 URL 错误** — `github.com/cli/releases/...` → `github.com/cli/cli/releases/...`；fallback 版本 2.96.0 → 2.97.0
+- **`docs/architecture.md` + `docs/prd.md` Ubuntu 24.04** — 改为 26.04 LTS
+- **`CHANGELOG.md` [1.0] 段 `option-cconnect` 错引** — 改为 `option-larkbridge`
+- **`option-larkcli/README.md` + `option-larkbridge/README.md`** — 新建（之前缺）
+- **删除 dead files** — `templates/skills/`（空目录）、`ccprivate/link/.config.json.bak`、`ccprivate/link/settings.json.bak`
+
+### Audit Summary
+- 3 个并行 Agent（安全/质量/SH）共发现 P0 12 项 + P1 16 项 + P2 14 项
+- 本次修复 23 项 P0/P1，含 2 处硬编码、2 处 bash 语法 bug、3 处 stale 文件、7 处失效文档引用、4 处 SH 标准违反
+
+## [1.5.0] — 2026-07-12
+
 ### Added
 - **`example-sync.sh` 双向同步** — 新增 `diff`、`reverse` 子命令。支持 ccprivate→ccconfig 反向 promote（需仓库写权限），conf 文件反向同步前展示 diff + 人工确认防密钥泄露。`maintain.sh` 菜单 8 增加 d/f/r 三选一。
 
@@ -329,7 +361,7 @@ All notable changes to ccconfig will be documented in this file.
 - `monitor.sh` — 多仓库文件监控 + 自动 Git 同步
 - `sync.sh` — 多仓库智能同步（合并原 gitforce.sh）
 - `setup-links.sh` — 符号链接重建
-- `option-bridge/` — 飞书消息 Bridge（已拆分为 `option-larkcli/` + `option-cconnect/`）
+- `option-bridge/` — 飞书消息 Bridge（已拆分为 `option-larkcli/` + `option-larkbridge/`）
 - `option-ppt-master/` — PPT 生成环境
 - `option-vessel/` — Vessel AI 浏览器（已于 2026-06-14 移除，全线迁移至 Playwright）
 - `option-remote/` — 远程连接（Tailscale + SSH + tmux）

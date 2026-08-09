@@ -10,6 +10,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../../lib/dry-run.sh"
+source "$SCRIPT_DIR/../../lib/colors.sh" 2>/dev/null || {
+    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; GRAY='\033[0;90m'; NC='\033[0m'
+}
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 PID_FILE="$HOME/.cache/llmswitch.pid"
 WATCHDOG_PID_FILE="$HOME/.cache/llmswitch-watchdog.pid"
@@ -18,11 +21,6 @@ MONITOR_LOG="$REPO_DIR/.monitor-sync.log"
 ROUTE_CACHE="$HOME/.cache/llmswitch-route-cache"
 HEALTH_URL="http://127.0.0.1:8899/health"
 INTERVAL=30
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../../lib/colors.sh" 2>/dev/null || {
-    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; GRAY='\033[0;90m'; NC='\033[0m'
-}
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$WATCHDOG_LOG"; }
 
