@@ -520,7 +520,7 @@ PYEOF
                 local out
                 out=$(bash "$init_script" --status 2>&1) || true
                 local line
-                line=$(echo "$out" | sed 's/\x1b\[[0-9;]*[mK]//g' | grep -vE '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+                line=$(echo "$out" | sed 's/\x1b\[[0-9;]*[mK]//g' | grep -vE '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//; s/[[:space:]]*$//') || true
                 if echo "$line" | grep -qi "^OK"; then icon="ok"; detail="${line#OK }"
                 elif echo "$line" | grep -qi "^WARN"; then icon="warn"; detail="${line#WARN }"
                 elif echo "$line" | grep -qiE "^(MISSING|FAIL)"; then icon="miss"; detail="${line#MISSING }"; detail="${detail#FAIL }"
