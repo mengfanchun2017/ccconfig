@@ -143,7 +143,7 @@ wsl --install -d Ubuntu-26.04 --name u26claude
 
 这会自动启用 WSL 功能、安装内核、安装 Ubuntu 26.04 LTS。WSL 发行版名称为 `u26claude`（`wsl --list` 可查），文件放在默认位置 `C:\Users\<you>\AppData\Local\Packages\...`。
 
-> **自定义安装路径**：`wsl --install` 不支持 `--location`。先按上面装好，然后 `wsl --export u26claude D:\temp\u26claude.tar` → `wsl --unregister u26claude` → `wsl --import u26claude D:\wsl\u26claude D:\temp\u26claude.tar --version 2`。
+> **自定义安装路径**（WSL 2.5+）：直接加 `--location`。例：`wsl --install -d Ubuntu-26.04 --location D:\wsl\u26claude --name u26claude`（目录需提前 `mkdir`）。旧版 WSL（< 2.5）不支持 `--location`，需先默认装好，再 `wsl --export` → `wsl --unregister` → `wsl --import` 三步走：`wsl --import u26claude D:\wsl\u26claude D:\temp\u26claude.tar --version 2`。
 
 **重启 Windows** 后，Ubuntu 会自动启动，提示创建 Linux 用户名和密码（牢记，这就是你的 sudo 密码）。
 
