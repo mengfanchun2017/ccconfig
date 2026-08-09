@@ -157,12 +157,13 @@ render_status() {
     local detail="${rest#*|}"
 
     case "$icon" in
-        ok)       printf "  ${GREEN}✓${NC} %s" "$detail" ;;
-        warn)     printf "  ${YELLOW}!${NC} %s" "$detail" ;;
-        running)  printf "  ${GREEN}●${NC} %s" "$detail" ;;
-        stopped)  printf "  ${YELLOW}○${NC} %s" "$detail" ;;
-        miss)     printf "  ${GRAY}✗${NC} ${GRAY}%s${NC}" "$detail" ;;
-        *)        printf "  ${GRAY}?${NC} %s" "$detail" ;;
+        ok)         printf "  ${GREEN}✓${NC} %s" "$detail" ;;
+        warn)       printf "  ${YELLOW}!${NC} %s" "$detail" ;;
+        placeholder) printf "  ${YELLOW}!${NC} %s" "$detail" ;;
+        running)    printf "  ${GREEN}●${NC} %s" "$detail" ;;
+        stopped)    printf "  ${YELLOW}○${NC} %s" "$detail" ;;
+        miss|empty) printf "  ${GRAY}✗${NC} ${GRAY}%s${NC}" "$detail" ;;
+        *)          printf "  ${GRAY}?${NC} %s" "$detail" ;;
     esac
 }
 
@@ -178,15 +179,20 @@ def is_ph(v):
     return any(p in v.lower() for p in PLACEHOLDER)
 with open(sys.argv[1]) as f: d = json.load(f)
 apps = d.get('apps', [])
+real = [a['name'] for a in apps if a.get('larkCli',{}).get('enabled') and not is_ph(a.get('appId','')) and not is_ph(a.get('appSecret',''))]
 ph_lc = [a['name'] for a in apps if a.get('larkCli',{}).get('enabled') and (is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')))]
 ph_unfilled = [a['name'] for a in apps if not a.get('appId') or not a.get('appSecret')]
-if ph_lc:
-    out = ["larkcli:" + ",".join(ph_lc)]
-    print("placeholder|" + ";".join(out))
+if real:
+    note = "（另有占位符: " + ",".join(ph_lc) + "）" if ph_lc else ""
+    print("ok|所有 appId/appSecret 已配置" + note)
+elif ph_lc:
+    print("placeholder|larkcli:" + ",".join(ph_lc))
 elif ph_unfilled:
     print("empty|" + ",".join(ph_unfilled))
+elif apps:
+    print("empty|无启用的飞书应用")
 else:
-    print("ok|所有 appId/appSecret 已配置")
+    print("empty|无飞书应用")
 PYEOF
 }
 

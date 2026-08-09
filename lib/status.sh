@@ -496,11 +496,14 @@ def is_ph(v):
     return any(p in v.lower() for p in PLACEHOLDER)
 with open(sys.argv[1]) as f: d = json.load(f)
 apps = d.get('apps', [])
+real = [a['name'] for a in apps if a.get('larkCli',{}).get('enabled') and not is_ph(a.get('appId','')) and not is_ph(a.get('appSecret',''))]
 ph_lc = [a['name'] for a in apps if a.get('larkCli',{}).get('enabled') and (is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')))]
 ph_unfilled = [a['name'] for a in apps if not a.get('appId') or not a.get('appSecret')]
-if ph_lc: print("placeholder|larkcli:" + ",".join(ph_lc))
+if real: print("ok|所有 appId/appSecret 已配置")
+elif ph_lc: print("placeholder|larkcli:" + ",".join(ph_lc))
 elif ph_unfilled: print("empty|" + ",".join(ph_unfilled))
-else: print("ok|所有 appId/appSecret 已配置")
+elif apps: print("empty|无启用的飞书应用")
+else: print("empty|无飞书应用")
 PYEOF
 )
                     icon="${fk_out%%|*}"; detail="${fk_out#*|}"

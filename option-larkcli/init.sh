@@ -36,6 +36,19 @@ for app in data.get('apps', []):
 PYEOF
 }
 
+# 判断 app JSON 的 App ID/Secret 是否仍为占位符
+_is_ph_app() {
+    echo "$1" | python3 -c "
+import json,sys
+PLACEHOLDER = ['请填入','请到','请替换','your key','your_key','placeholder','changeme','<your-','your-app-name']
+def is_ph(v):
+    if not v or not isinstance(v, str): return True
+    return any(p in v.lower() for p in PLACEHOLDER)
+a=json.load(sys.stdin)
+sys.exit(0 if (is_ph(a.get('appId','')) or is_ph(a.get('appSecret',''))) else 1)
+" 2>/dev/null
+}
+
 # ========== lark-cli 安装 ==========
 # 探测真实 npm 包路径（不依赖 PATH），从 package.json bin 字段读真实入口
 _install_lark_cli_symlink() {
@@ -140,51 +153,47 @@ run_lark_cli() {
     install_lark_cli || return 1
     echo ""
 
-    # 预检：检查是否有占位符 App ID/Secret
-    local placeholder_apps
-    placeholder_apps=$(python3 - "$FEISHU_CONF" << 'PYEOF' 2>/dev/null
-import json, sys
-PLACEHOLDER = ['请填入', '请到', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-', 'your-app-name']
-def is_ph(val):
-    if not val or not isinstance(val, str): return True
-    for p in PLACEHOLDER:
-        if p.lower() in val.lower(): return True
-    return False
-with open(sys.argv[1], 'r') as f:
-    data = json.load(f)
-apps = data.get('apps', [])
-bad = [a.get('name','?') for a in apps if a.get('larkCli',{}).get('enabled') and (is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')))]
-if bad:
-    print('\n'.join(bad))
-PYEOF
-    )
-    if [ -n "$placeholder_apps" ]; then
-        warn "以下账号的 App ID/Secret 仍为占位符，需先填写:"
-        echo "$placeholder_apps" | while read -r name; do
-            echo -e "    ${YELLOW}→${NC} $name"
-        done
-        echo ""
-        info "编辑 feishu.json 填入真实值: vim $FEISHU_CONF"
-        info "获取地址: https://open.feishu.cn/app"
-        return 1
-    fi
-
-    local apps=()
+    # 分类启用账号：真实 key vs 占位符（占位符跳过，不阻塞真实账号配置）
+    local real_apps=() ph_apps=()
     while IFS= read -r line; do
         [ -z "$line" ] && continue
-        local name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
         local lc_enabled=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('larkCli',{}).get('enabled',False))" 2>/dev/null)
-        [ "$lc_enabled" = "True" ] && apps+=("$line")
+        [ "$lc_enabled" = "True" ] || continue
+        if _is_ph_app "$line"; then
+            ph_apps+=("$line")
+        else
+            real_apps+=("$line")
+        fi
     done < <(get_apps)
 
-    if [ ${#apps[@]} -eq 0 ]; then
+    if [ ${#real_apps[@]} -eq 0 ]; then
+        if [ ${#ph_apps[@]} -gt 0 ]; then
+            warn "以下账号的 App ID/Secret 仍为占位符，需先填写:"
+            for line in "${ph_apps[@]}"; do
+                local name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
+                echo -e "    ${YELLOW}→${NC} $name"
+            done
+            echo ""
+            info "编辑 feishu.json 填入真实值: vim $FEISHU_CONF"
+            info "获取地址: https://open.feishu.cn/app"
+            return 1
+        fi
         info "  无启用的 lark-cli 账号"
         return 0
     fi
 
-    echo -e "${CYAN}配置 lark-cli 账号 (${#apps[@]} 个):${NC}"
+    if [ ${#ph_apps[@]} -gt 0 ]; then
+        warn "跳过 ${#ph_apps[@]} 个占位符账号（App ID/Secret 未填写）:"
+        for line in "${ph_apps[@]}"; do
+            local name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
+            echo -e "    ${YELLOW}→${NC} $name"
+        done
+        echo ""
+    fi
+
+    echo -e "${CYAN}配置 lark-cli 账号 (${#real_apps[@]} 个):${NC}"
     local first_name=""
-    for line in "${apps[@]}"; do
+    for line in "${real_apps[@]}"; do
         local name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
         local brand=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('brand','feishu'))" 2>/dev/null)
         local app_id=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['appId'])" 2>/dev/null)
@@ -231,19 +240,19 @@ show_status() {
     local acct="-"
     [ -f "$cf" ] && acct=$(grep '^name=' "$cf" | cut -d'=' -f2)
 
-    # 检查 feishu.json 是否有占位符 key
-    local has_ph="false"
-    if [ -f "$FEISHU_CONF" ]; then
-        has_ph=$(python3 -c "
-import json, sys
-PLACEHOLDER = ['请填入','请到','请替换','your key','your_key','placeholder','changeme','<your-','your-app-name']
-def is_ph(v):
-    if not v or not isinstance(v, str): return True
-    return any(p in v.lower() for p in PLACEHOLDER)
-with open('$FEISHU_CONF') as f: d = json.load(f)
-print('true' if any(is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')) for a in d.get('apps',[]) if a.get('larkCli',{}).get('enabled')) else 'false')
-" 2>/dev/null || echo "false")
-    fi
+    # 检查 feishu.json 是否有占位符 key（已有真实启用账号则不告警）
+    local has_ph="false" real_found="false"
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        local lc_enabled=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('larkCli',{}).get('enabled',False))" 2>/dev/null)
+        [ "$lc_enabled" = "True" ] || continue
+        if _is_ph_app "$line"; then
+            has_ph="true"
+        else
+            real_found="true"
+        fi
+    done < <(get_apps)
+    [ "$real_found" = "true" ] && has_ph="false"
 
     if [ "$has_ph" = "true" ]; then
         echo "WARN lark-cli v${ver:-?} (账号: ${acct}) — feishu.json 含占位符"
