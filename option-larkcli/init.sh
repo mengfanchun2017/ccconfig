@@ -195,12 +195,30 @@ PYEOF
         [ -z "$first_name" ] && first_name="$name"
     done
 
-    # 激活第一个账号（写入 marker 文件，status.sh 可检测）
-    if [ -n "$first_name" ]; then
+    # 激活账号：ccprivate 默认文件 > feishu.json 第一个
+    local active_name="$first_name"
+    local default_file="$HOME/.lark-default-account"
+    if [ -f "$default_file" ]; then
+        local preferred
+        preferred=$(head -n1 "$default_file" 2>/dev/null | tr -d '[:space:]')
+        if [ -n "$preferred" ]; then
+            # 验证 preferred 是已启用账号之一
+            for line in "${apps[@]}"; do
+                local n
+                n=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
+                if [ "$n" = "$preferred" ]; then
+                    active_name="$preferred"
+                    break
+                fi
+            done
+        fi
+    fi
+
+    if [ -n "$active_name" ]; then
         echo ""
-        echo -e "${CYAN}激活默认账号: ${GREEN}${first_name}${NC}"
-        bash "$SCRIPT_DIR/lark-switch.sh" "$first_name"
-        echo -e "${GRAY}后续切换: bash ccconfig/option-larkcli/lark-switch.sh <name>${NC}"
+        echo -e "${CYAN}激活默认账号: ${GREEN}${active_name}${NC}"
+        bash "$SCRIPT_DIR/lark-switch.sh" "$active_name"
+        echo -e "${GRAY}后续切换: bash ccconfig/option-larkcli/lark-switch.sh <name> [-p 持久化到 ccprivate]${NC}"
     fi
 }
 

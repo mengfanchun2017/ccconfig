@@ -1,11 +1,11 @@
 #!/bin/bash
 # 飞书账号切换脚本
-# 功能：切换 lark-cli 使用的飞书账号，支持持久化
+# 功能：切换 lark-cli 使用的飞书账号，支持持久化到 ccprivate
 # 配置：从 ../conf/feishu.json 读取 apps 数组
 #
 # 使用：
-#   bash ccconfig/option-larkcli/lark-switch.sh <name>       # 切换到指定账号
-#   bash ccconfig/option-larkcli/lark-switch.sh <name> -p    # 切换并持久化（写入 ~/.bashrc）
+#   bash ccconfig/option-larkcli/lark-switch.sh <name>       # 切换到指定账号（仅本 session）
+#   bash ccconfig/option-larkcli/lark-switch.sh <name> -p    # 切换并持久化（写入 ccprivate/link/.lark-default-account，跨机器生效）
 #   bash ccconfig/option-larkcli/lark-switch.sh               # 显示当前账号
 #   bash ccconfig/option-larkcli/lark-switch.sh --list        # 列出所有账号
 
@@ -17,6 +17,8 @@ source "$CCCONFIG_DIR/lib/dry-run.sh"
 source "$CCCONFIG_DIR/lib/path-helper.sh"
 FEISHU_CONF="$(resolve_conf feishu.json)" || exit 1
 MARKER_FILE="$HOME/.lark-cli-account"
+# 跨机器默认账号 → symlink 到 ccprivate/link/.lark-default-account
+DEFAULT_FILE="$HOME/.lark-default-account"
 
 # 颜色（colors.sh 可选 source，缺失时 fallback）
 source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
@@ -165,15 +167,26 @@ show_current() {
         fi
     fi
 
-    # 持久化状态
-    if grep -q "LARKSUITE_CLI_CONFIG_DIR" "$HOME/.bashrc" 2>/dev/null; then
-        echo -e "  持久化: ${GREEN}已写入 ~/.bashrc${NC}"
+    # 持久化状态：~/.lark-default-account 是 ccprivate link 文件
+    if [ -f "$DEFAULT_FILE" ]; then
+        local persisted
+        persisted=$(head -n1 "$DEFAULT_FILE" 2>/dev/null | tr -d '[:space:]')
+        if [ -n "$persisted" ]; then
+            echo -e "  ccprivate 默认: ${GREEN}${persisted}${NC}"
+            if [ "$persisted" = "$current_name" ]; then
+                echo -e "  持久化:         ${GREEN}已写入 ccprivate（与当前一致）${NC}"
+            else
+                echo -e "  持久化:         ${YELLOW}ccprivate=${persisted}，当前=${current_name}（不同步？）${NC}"
+            fi
+        else
+            echo -e "  持久化:         ${GRAY}仅当前 session（加 -p 写入 ccprivate）${NC}"
+        fi
     else
-        echo -e "  持久化: ${GRAY}仅当前 session${NC}"
+        echo -e "  持久化:         ${GRAY}仅当前 session（加 -p 写入 ccprivate）${NC}"
     fi
 
     echo ""
-    echo -e "${GRAY}切换:  bash ccconfig/option-larkcli/lark-switch.sh <name>${NC}"
+    echo -e "${GRAY}切换:  bash ccconfig/option-larkcli/lark-switch.sh <name> [-p]${NC}"
     echo -e "${GRAY}列表:  bash ccconfig/option-larkcli/lark-switch.sh --list${NC}"
     echo ""
 }
@@ -296,19 +309,11 @@ configDir=$config_dir
 switchedAt=$(date '+%Y-%m-%d %H:%M:%S')
 EOF
 
-    # 持久化到 ~/.bashrc
+    # 持久化到 ccprivate：写 ~/.lark-default-account（symlink → ccprivate/link/）
     if $do_persist; then
-        local bashrc="$HOME/.bashrc"
-        local export_line="export LARKSUITE_CLI_CONFIG_DIR=$config_dir"
-
-        if grep -q "^export LARKSUITE_CLI_CONFIG_DIR=" "$bashrc" 2>/dev/null; then
-            sed -i "s|^export LARKSUITE_CLI_CONFIG_DIR=.*|$export_line|" "$bashrc"
-        else
-            echo "" >> "$bashrc"
-            echo "# lark-cli 飞书账号（由 lark-switch.sh 管理）" >> "$bashrc"
-            echo "$export_line" >> "$bashrc"
-        fi
-        echo -e "${GREEN}✓ 已持久化到 ~/.bashrc${NC}"
+        mkdir -p "$(dirname "$DEFAULT_FILE")"
+        printf '%s\n' "$target_name" > "$DEFAULT_FILE"
+        echo -e "${GREEN}✓ 已持久化到 ccprivate（~/.lark-default-account → auto-sync 上传）${NC}"
     fi
 
     echo ""
@@ -333,9 +338,9 @@ EOF
     fi
 
     if $do_persist; then
-        echo -e "  持久化:   ${GREEN}新终端自动生效${NC}"
+        echo -e "  ccprivate: ${GREEN}已写入 ~/.lark-default-account${NC}"
     else
-        echo -e "  持久化:   ${YELLOW}仅当前 session（加 -p 持久化）${NC}"
+        echo -e "  ccprivate: ${GRAY}未持久化（加 -p 写入 ccprivate 跨机器生效）${NC}"
     fi
     echo ""
 }
@@ -351,8 +356,8 @@ main() {
         --help|-h)
             echo "用法: lark-switch.sh [name] [-p] [--list]"
             echo ""
-            echo "  name        切换到指定账号"
-            echo "  name -p     切换并持久化到 ~/.bashrc"
+            echo "  name        切换到指定账号（仅当前 session）"
+            echo "  name -p     切换并持久化到 ccprivate/link/.lark-default-account"
             echo "  --list      列出所有账号"
             echo "  (无参数)    显示当前账号"
             ;;
