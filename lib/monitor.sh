@@ -416,19 +416,27 @@ start_watch() {
 
     # PIDFile 检查：活的 + 是 monitor.sh 自身 → service 已在跑，exit 0
     # 防止 systemd Type=forking 看到 exit 1 → enable --now 失败
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-        local existing_pid
-        existing_pid=$(cat "$PID_FILE")
-        local existing_cmd
-        existing_cmd=$(cat "/proc/$existing_pid/cmdline" 2>/dev/null | tr '\0' ' ')
-        if [[ "$existing_cmd" == *"monitor.sh"* ]]; then
-            do_log "Already running (PID: $existing_pid) — keep alive"
-            return 0
+    # 幂等：任一 PIDFile 指向存活 monitor → 已有实例，直接返回
+    # systemd 实例写 /run/...，手动实例写默认路径，两个都查，避免重复 start 互不知情
+    local pid_candidate=""
+    for pf in "$PID_FILE" /run/claude-auto-sync/monitor.pid; do
+        if [ -f "$pf" ] && kill -0 "$(cat "$pf" 2>/dev/null)" 2>/dev/null; then
+            local existing_cmd
+            existing_cmd=$(cat "/proc/$(cat "$pf" 2>/dev/null)/cmdline" 2>/dev/null | tr '\0' ' ')
+            if [[ "$existing_cmd" == *"monitor.sh"* ]]; then
+                pid_candidate="$(cat "$pf" 2>/dev/null)"
+                break
+            fi
         fi
-        # PIDFile 残留指向无关进程（init 阶段常见），清理后重启
-        do_log "Stale PIDFile points to non-monitor process (PID: $existing_pid), cleaning"
-        rm -f "$PID_FILE"
+    done
+    if [ -n "$pid_candidate" ]; then
+        do_log "Already running (PID: $pid_candidate) — keep alive"
+        return 0
     fi
+    # PIDFile 残留（指向无关进程或死进程），清理后重启
+    for pf in "$PID_FILE" /run/claude-auto-sync/monitor.pid; do
+        [ -f "$pf" ] && rm -f "$pf"
+    done
 
     cd "$MONITOR_HOME"
     QUIET_MODE=true
@@ -436,8 +444,11 @@ start_watch() {
     # PAT 过期检查：后台异步跑一次，6h 内 cache，不阻塞 monitor 启动
     check_pat_status &
 
-    # 清理上次崩溃残留的僵尸 inotifywait
-    pkill -f "inotifywait.*$WATCH_DIR" 2>/dev/null || true
+    # 清理上次崩溃残留的僵尸 inotifywait：只杀孤儿（PPID=1），不误杀运行中实例
+    # pkill -f 匹配太宽，会杀掉同目录所有 inotifywait（含健康实例）→ 触发 restart 风暴
+    for p in $(pgrep -f "inotifywait.*$WATCH_DIR" 2>/dev/null); do
+        [ "$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')" = "1" ] && kill "$p" 2>/dev/null || true
+    done
     sleep 1
 
     rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
@@ -479,6 +490,10 @@ start_watch() {
     # 连续 8 次失败 (累计 ~10min) 后放弃，避免 panic loop
     {
         trap 'kill $event_pid 2>/dev/null; pkill -P $event_pid 2>/dev/null; rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE" "$PID_FILE"; exit' EXIT
+        # systemd stop / Ctrl+C：快速干净退出，避免 stop-sigterm 90s 超时被 KILL
+        trap 'exit 0' TERM INT
+        # sync 里 git 命令偶发非零，不能 let set -e 终止整个 loop → systemd 疯狂 restart
+        set +e
 
         pending=0
         last_push_time=0
@@ -487,6 +502,7 @@ start_watch() {
         local inotify_backoff=2  # 初始退避秒数
         local inotify_max_restarts=8
         local inotify_max_backoff=300
+        local confirm_after=0    # restart 后存活确认时间戳（epoch）
 
         # 健康状态文件：status.sh 可读
         local STATUS_FILE="$MONITOR_HOME/.monitor-sync.status"
@@ -521,17 +537,18 @@ start_watch() {
                         echo "$repo_root" >> "$CHANGED_REPOS_FILE"
                     done &
                 event_pid=$!
-                # 启动成功 → 重置 backoff 计数（延迟 30s 确认 inotify 真正活下来）
-                (
-                    sleep 30
-                    if kill -0 $event_pid 2>/dev/null; then
-                        inotify_restarts=0
-                        inotify_backoff=2
-                        echo "ok" > "$STATUS_FILE"
-                    fi
-                ) &
+                # 启动成功 → 30s 后确认存活再重置 backoff 计数
+                # （原 subshell 写法改不到父 loop 的变量，计数永不重置 → 8 次后 giving up）
+                confirm_after=$(( $(date +%s) + 30 ))
             fi
             sleep 2
+            # restart 后 inotifywait 存活满 30s → 确认真活下来，重置退避计数
+            if [ "$confirm_after" -gt 0 ] && [ "$(date +%s)" -ge "$confirm_after" ] && kill -0 $event_pid 2>/dev/null; then
+                confirm_after=0
+                inotify_restarts=0
+                inotify_backoff=2
+                echo "ok" > "$STATUS_FILE"
+            fi
             if [ ! -f "$DEBOUNCE_FILE" ]; then
                 idle_ticks=$((idle_ticks + 1))
                 # Periodic full sync every 12h idle (21600 ticks × 2s)

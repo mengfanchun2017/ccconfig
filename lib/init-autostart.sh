@@ -46,7 +46,11 @@ cleanup_legacy_user_service() {
 # ── 清理僵尸 inotifywait ──
 
 cleanup_zombie_inotify() {
-    sudo pkill -f "inotifywait.*$HOME/git" 2>/dev/null || true
+    # 只杀孤儿 inotifywait（PPID=1 残留），不误杀运行中实例
+    # sudo pkill -f 会连健康实例一起杀，触发 restart 风暴
+    for p in $(pgrep -f "inotifywait.*$HOME/git" 2>/dev/null); do
+        [ "$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')" = "1" ] && kill "$p" 2>/dev/null || true
+    done
 }
 
 # ── enable/disable ──
