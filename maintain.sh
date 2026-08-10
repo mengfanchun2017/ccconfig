@@ -823,6 +823,10 @@ submenu_getnote() {
 
     while true; do
         echo ""
+        echo -e "${CYAN}── getnote 账号列表 ──${NC}"
+        bash "$sw" --list 2>/dev/null || echo -e "  ${YELLOW}无 getnote 账号${NC}"
+        echo ""
+        echo -e "${CYAN}── 配置调整 ──${NC}"
         echo "  1) 添加新账号"
         echo "  2) 删除账号"
         echo "  3) 切换账号（仅当前 session）"
