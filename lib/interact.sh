@@ -46,12 +46,14 @@ menu_select() {
     local items=("$@")
     [[ ${#items[@]} -eq 0 ]] && { warn "menu_select: items 为空"; return 1; }
 
-    printf '\n'; section "$title"
+    # 菜单输出走 stderr — 避开 `c=$(...)` 把 stdout 截走/buffer 导致菜单不显示
+    printf '\n' >&2
+    section "$title" >&2
     local i sel
     for i in "${!items[@]}"; do
-        printf '  %2d) %s\n' "$((i+1))" "${items[$i]}"
+        printf '  %2d) %s\n' "$((i+1))" "${items[$i]}" >&2
     done
-    printf '\n'
+    printf '\n' >&2
     # 从 /dev/tty 读，避开 stdin 被管道/重定向导致的 read 阻塞/失败
     if [[ -r /dev/tty ]]; then
         read -p "  选择 [1-${#items[@]}, 0=返回]: " sel < /dev/tty
