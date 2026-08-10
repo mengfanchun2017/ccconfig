@@ -40,9 +40,14 @@ claude-ds() {
     bash "$CCCONFIG_HOME/lib/init-llm.sh" deepseek && claude "$@"
 }
 
-# lark-cli: 默认用 ailab 账号
-if [ -d "$HOME/.lark-cli-ailab" ]; then
-    export LARKSUITE_CLI_CONFIG_DIR="$HOME/.lark-cli-ailab"
+# lark-cli: 从 ~/.lark-cli-account 读上次切换的账号（lark-switch.sh 写入）
+# 跨机器持久化靠 ccprivate/link/.lark-default-account symlink（auto-sync 上推）
+if [ -f "$HOME/.lark-cli-account" ]; then
+    _lark_dir=$(grep '^configDir=' "$HOME/.lark-cli-account" 2>/dev/null | cut -d'=' -f2)
+    if [ -n "$_lark_dir" ] && [ -d "$_lark_dir" ]; then
+        export LARKSUITE_CLI_CONFIG_DIR="$_lark_dir"
+    fi
+    unset _lark_dir
 fi
 
 # bat: cat 替代
