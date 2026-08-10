@@ -52,19 +52,15 @@ show_menu() {
     echo ""
     bash "$LIB_DIR/init-skill.sh" status
     echo ""
-    echo "  1) 安装/同步 skills"
-    echo "  2) 更新 skills"
-    echo "  3) 查看详细列表"
-    echo "  4) 检测 drift"
     local c; c=$(menu_select "Skills 管理" \
-        "1) 安装/同步" "2) 更新" "3) 详细列表" "4) 检测 drift" "0) 返回")
+        "安装/同步" "更新" "详细列表" "检测 drift" "返回")
     [[ -z "$c" ]] && return
-    case "${c:0:1}" in
+    case "$c" in
         1) do_install ;;
         2) do_update ;;
         3) bash "$LIB_DIR/init-skill.sh" list ;;
         4) bash "$LIB_DIR/init-skill.sh" diff ;;
-        0) return ;;
+        5) return ;;
     esac
     echo ""; read -p "按回车返回..." dummy < /dev/tty || true
     show_menu
