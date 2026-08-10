@@ -35,6 +35,8 @@ confirm() {
 
 # ========== 单选菜单 ==========
 # 调用方传纯文本 items（不带数字前缀），本函数自动加 "1) 2) 3)" 序号。
+# 返回: 选中项的序号字符串（如 "5"），0 表示返回/取消（非选中任何项）。
+# 用法: c=$(menu_select "title" "item1" "item2" ...); case "$c" in 1) ... ;; 0) return ;; esac
 menu_select() {
     local title="${1:-选择}"; shift
     local items=("$@")
@@ -45,10 +47,10 @@ menu_select() {
     for i in "${!items[@]}"; do
         printf "  %2d) %s\n" $((i+1)) "${items[$i]}"
     done; echo ""
-    read -p "  选择 [1-${#items[@]}]: " sel
-    [[ "$sel" =~ ^[0-9]+$ ]] || sel=""
-    [[ -z "$sel" ]] || (( sel < 1 || sel > ${#items[@]} )) && return 1
-    echo "${items[$((sel-1))]}"
+    read -p "  选择 [1-${#items[@]}, 0=返回]: " sel
+    [[ "$sel" =~ ^[0-9]+$ ]] || { echo "0"; return 0; }
+    (( sel < 0 || sel > ${#items[@]} )) && { echo "0"; return 0; }
+    echo "$sel"
 }
 
 # ========== 文本输入 ==========
