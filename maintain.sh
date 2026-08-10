@@ -823,30 +823,25 @@ submenu_getnote() {
 
     while true; do
         echo ""
-        echo -e "${CYAN}── getnote 账号管理 ──${NC}"
-        bash "$sw" --list
-        echo ""
-        echo "  a) 添加新账号"
-        echo "  d) 删除账号"
-        echo "  p) 切换账号（仅 session env）"
-        echo "  P) 切换账号并持久化到 ccprivate"
-        echo "  s) 同步到运行时（bash init-mcp.sh sync）"
+        echo "  1) 添加新账号"
+        echo "  2) 删除账号"
+        echo "  3) 切换账号（仅当前 session）"
+        echo "  4) 切换账号并持久化到 ccprivate"
         echo "  0) 返回主菜单"
         echo ""
-        read -p "  选择 [a/d/p/P/s/0]: " c
+        read -p "  选择 [0-4]: " c
 
         case "$c" in
-            a|A) bash "$init" add ;;
-            d|D) bash "$init" remove ;;
-            p)
+            1) bash "$init" add ;;
+            2) bash "$init" remove ;;
+            3)
                 read -p "  输入账号名（回车取消）: " target < /dev/tty
                 [ -n "$target" ] && bash "$sw" "$target"
                 ;;
-            P)
+            4)
                 read -p "  输入账号名（回车取消）: " target < /dev/tty
                 [ -n "$target" ] && bash "$sw" "$target" -p
                 ;;
-            s|S) bash "$LIB_DIR/init-mcp.sh" sync ;;
             0|q|"") return 0 ;;
             *) warn "无效选项" ;;
         esac
