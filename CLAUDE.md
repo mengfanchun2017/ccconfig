@@ -42,3 +42,10 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 - 本仓库不记录 memory（memory symlink → ccprivate/link/memory/，由 ccprivate/setup.sh 建立）
 - 私有数据（conf 真实值、CLAUDE.md 内容）通过 symlink 引用 ccprivate，不在本仓库提交
 - ccconfig 最终目标是可公开
+
+## SH 交互规范
+- 颜色/日志函数只用 `lib/colors.sh`（ok/err/warn/info/section/menu_num）
+- 交互菜单只用 `lib/interact.sh`（confirm/menu_select/prompt/table/spinner/menu_multi）
+- 不自行定义颜色变量或手写菜单循环
+- `lib/interact.sh` 自动检测 gum 并降级，脚本调用方不感知
+- 写操作类脚本 source `lib/dry-run.sh` 加 `--dry-run` 支持
