@@ -579,7 +579,7 @@ PYEOF
     info "  → 收件人: $oid"
     info "  → 内容: $msg_text"
     echo ""
-    read -p "  发送? [Y/n]: " cf
+    confirm "发送？" y >&2 || { info "取消" >&2; return 0; }
     [[ "$cf" =~ ^[Nn]$ ]] && { info "取消"; return 0; }
 
     info "  拿 tenant_access_token..." >&2
@@ -639,7 +639,7 @@ submenu_feishu_accounts() {
             warn "feishu.json 中无 app 配置"
             echo "  a) 添加新 app"
             echo "  0) 返回飞书菜单"
-            read -p "  选择 [a/0]: " sel
+            sel=$(menu_select "选择" "a) 现在" "0) 返回")
             case "$sel" in
                 a|A) bash "$feishu_lc" ;;
                 0) return 0 ;;
@@ -677,18 +677,18 @@ print('\t'.join([
         echo "  d) 删除 app"
         echo "  0) 返回飞书菜单"
         echo ""
-        read -p "  选择 [0-${#lines[@]}/a/d]: " sel
+        sel=$(menu_select "飞书账号" "${names[@]}" "a) 添加" "d) 删除" "0) 返回")
 
         case "$sel" in
             0|q) return 0 ;;
             a|A) bash "$feishu_lc" ;;
             d|D)
                 if [ ${#names[@]} -eq 0 ]; then continue; fi
-                read -p "  输入要删除的 app 名: " dn
+                local dn; dn=$(prompt "要删除的 app 名")
                 local found=0
                 for n in "${names[@]}"; do [ "$n" = "$dn" ] && found=1 && break; done
                 [ "$found" -eq 1 ] && {
-                    read -p "  确认从 feishu.json 删 '${dn}'? [y/N] " cf
+                    if confirm "确认删除 ${dn}？" n; then
                     if [[ "$cf" =~ ^[Yy]$ ]]; then
                         python3 - "$conf" "$dn" << 'PYEOF'
 import json, sys
@@ -699,14 +699,6 @@ with open(p,'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
 PYEOF
                         info "已删除"
                     fi
-                } || warn "未找到: $dn"
-                continue
-                ;;
-        esac
-
-        if ! [[ "$sel" =~ ^[0-9]+$ ]] || [ "$sel" -lt 1 ] || [ "$sel" -gt ${#lines[@]} ]; then
-            continue
-        fi
 
         local target="${names[$((sel - 1))]}"
         echo ""
@@ -718,7 +710,7 @@ PYEOF
         echo "  4) 编辑 App ID / Secret"
         echo "  5) 发测试消息 (到此 app)"
         echo "  0) 返回账号列表"
-        read -p "  选择 [0-5]: " sub
+        sub=$(menu_select "应用: $target" \
         case "$sub" in
             1) bash "$feishu_switch" "$target" ;;
             2)
@@ -803,7 +795,7 @@ PYEOF
     info "  → 目标 app: $target"
     info "  → 收件人: $oid"
     info "  → 内容: $msg_text"
-    read -p "  发送? [Y/n]: " cf
+    confirm "发送？" y || { info "取消"; return 0; }
     [[ "$cf" =~ ^[Nn]$ ]] && { info "取消"; return 0; }
 
     info "  拿 tenant_access_token..." >&2
