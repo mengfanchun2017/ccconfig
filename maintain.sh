@@ -698,17 +698,16 @@ PYEOF
                         info "已删除"
                     fi
                 }
+                ;;
+        esac
 
+        # 匹配选中的 app
         local target="${sel}"
+        for ((ni=0; ni<${#names[@]}; ni++)); do
+            [[ "${names[$ni]}" == "$sel" ]] && { target="${names[$ni]}"; break; }
+        done
         echo ""
         echo -e "${CYAN}── 应用: ${target} ──${NC}"
-        echo ""
-        echo "  1) 切到此账号 (lark-cli 活跃)"
-        echo "  2) OAuth 授权 (lark-cli auth login)"
-        echo "  3) 看授权状态"
-        echo "  4) 编辑 App ID / Secret"
-        echo "  5) 发测试消息 (到此 app)"
-        echo "  0) 返回账号列表"
         local sub; sub=$(menu_select "应用: $target" \
             "1) 切换" "2) OAuth" "3) 看授权" "4) 编辑" "5) 发测试" "0) 返回")
         [[ -z "$sub" ]] && continue
