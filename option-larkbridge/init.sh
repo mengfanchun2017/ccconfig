@@ -767,13 +767,30 @@ main() {
   local cmd="${1:-}"; shift 2>/dev/null || true
 
   case "$cmd" in
-    --run|--start|--logs|--profile|--stop|--restart)
+    --run|--bg|--start|--log|--profile|--stop|--restart)
       install ;;
   esac
 
   case "$cmd" in
     --run)
       run_foreground "${1:-}" ;;
+    --bg)
+      local bg_profile="${1:-}"
+      [ -z "$bg_profile" ] && bg_profile="$(_run_select_app)"
+      [ -z "$bg_profile" ] && return 0
+      local bg_log="$HOME/.lark-channel/profiles/${bg_profile}/logs/bridge-$(date +%Y%m%d).jsonl"
+      mkdir -p "$(dirname "$bg_log")"
+      nohup lark-channel-bridge run --profile "$bg_profile" --workspace "${LARK_WORKSPACE:-$HOME/git}" >> "$bg_log" 2>&1 &
+      local bg_pid=$!
+      sleep 2
+      if kill -0 "$bg_pid" 2>/dev/null; then
+        good "  ✅ ${bg_profile} 已后台启动 (pid=$bg_pid)"
+        info "    日志: $bg_log"
+        info "    停止: kill $bg_pid"
+      else
+        warn "  ⚠ ${bg_profile} 后台启动失败"
+        info "    看日志: $bg_log"
+      fi ;;
     --start|--start-webui)
       local profile="${1:-}"
       [ -z "$profile" ] && profile="$(_run_select_app)"
