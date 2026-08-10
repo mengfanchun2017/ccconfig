@@ -1,8 +1,8 @@
 #!/bin/bash
-# interact.sh — 统一交互菜单/选择/输入/表格/进度库
+# interact.sh — 统一交互菜单/选择/输入/表格函数库
 #
 # 依赖: colors.sh（已 source）
-# 可选: gum 命令（自动检测，降级为纯 sh 实现）
+# 纯 sh 实现，零外部依赖。
 #
 # 来源:
 #   source "$SCRIPT_DIR/lib/interact.sh"
@@ -13,20 +13,12 @@
 #   prompt         [msg] [default]     文本输入
 #   prompt_password [msg]              密码输入
 #   table          [title] [header_csv] [rows_csv...]  表格
-#   spinner        [msg] [cmd...]      等待动画
 #   menu_multi     [title] [items...]  多选 checklist
-
-# ========== 检测外部工具 ==========
-_has_gum() { command -v gum &>/dev/null; }
 
 # ========== 确认 (y/n) ==========
 confirm() {
     local msg="${1:-确定？}"
     local default="${2:-n}"
-
-    if _has_gum; then
-        gum confirm "$msg" 2>/dev/null && return 0 || return 1
-    fi
 
     local prompt_str
     case "$default" in
@@ -48,11 +40,6 @@ menu_select() {
     local items=("$@")
     [[ ${#items[@]} -eq 0 ]] && { warn "menu_select: items 为空"; return 1; }
 
-    if _has_gum; then
-        gum choose --header "$title" "${items[@]}" 2>/dev/null
-        return $?
-    fi
-
     echo ""; section "$title"
     local i sel
     for i in "${!items[@]}"; do
@@ -69,11 +56,6 @@ prompt() {
     local msg="${1:-输入}"
     local default="${2:-}"
 
-    if _has_gum; then
-        gum input --placeholder "$msg" --value "$default" 2>/dev/null
-        return $?
-    fi
-
     local ans
     if [[ -n "$default" ]]; then
         read -p "  $msg [$default]: " ans
@@ -86,10 +68,6 @@ prompt() {
 # ========== 密码输入 ==========
 prompt_password() {
     local msg="${1:-输入密码}"
-    if _has_gum; then
-        gum input --password --placeholder "$msg" 2>/dev/null
-        return $?
-    fi
     local ans
     read -s -p "  $msg: "; echo; echo "$ans"
 }
@@ -100,14 +78,6 @@ table() {
     local header_csv="${1:-}"; shift
     local rows=("$@")
     local min_col_width=10
-
-    if _has_gum; then
-        local data="$header_csv"
-        local row; for row in "${rows[@]}"; do data+="\n$row"; done
-        echo -e "$data" | gum table --separator "," 2>/dev/null && return 0 || true
-    fi
-
-    # 纯 sh fallback
     local cols; IFS=',' read -ra cols <<< "$header_csv"
     local col_count=${#cols[@]} widths=() i val
 
@@ -134,11 +104,6 @@ spinner() {
     local msg="${1:-处理中...}"; shift
     [[ $# -eq 0 ]] && { warn "spinner: 无命令"; return 1; }
 
-    if _has_gum; then
-        gum spin --title "$msg" -- "$@" 2>/dev/null
-        return $?
-    fi
-
     local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
     ( "$@" & local pid=$! i=0
       while kill -0 $pid 2>/dev/null; do
@@ -153,11 +118,6 @@ menu_multi() {
     local title="${1:-选择}"; shift
     local items=("$@")
     [[ ${#items[@]} -eq 0 ]] && { warn "menu_multi: items 为空"; return 1; }
-
-    if _has_gum; then
-        gum choose --no-limit --header "$title" "${items[@]}" 2>/dev/null | tr '\n' ' '
-        return $?
-    fi
 
     echo ""; section "$title（输入序号切换，回车确认）"
     local selected=() i choice
