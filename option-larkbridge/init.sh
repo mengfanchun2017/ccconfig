@@ -143,14 +143,13 @@ _is_profile_running() {
   status=$(lark-channel-bridge profile list 2>/dev/null \
     | awk -v p="$profile" 'NR>1 && $2==p { $1=""; $2=""; sub(/^  */,""); print }' || true)
   if [ -n "$status" ] && [ "$status" != "-" ]; then
-    # 抽 STATUS 文本里的 pid=N，pgrep 验证进程真活着
     local pid; pid=$(echo "$status" | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2)
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-      echo "pid=$pid"
-      return 0
+      __holder="pid=$pid"
+      return
     fi
   fi
-  return 1 2>/dev/null || true
+  __holder=""
 }
 
 _list_larkbridge_apps() {
@@ -373,12 +372,14 @@ install() {
 }
 
 run_foreground() {
+  echo "DEBUG run_foreground entered" >&2
   local profile="${1:-}"
   [ -z "$profile" ] && profile="$(_run_select_app)"
   [ -z "$profile" ] && return 0
 
   # 真有进程才拦截；STATUS column 过滤避免 active profile 误报
-  local holder; holder=$(_is_profile_running "$profile")
+  _is_profile_running "$profile"
+  local holder="${__holder:-}"
   if [ -n "$holder" ]; then
     local pid="${holder#pid=}"
     warn "  ⚠ ${profile} 已在跑（${holder}）" >&2
@@ -398,12 +399,14 @@ run_foreground() {
   fi
 
   local ws="${LARK_WORKSPACE:-$HOME/git}"
+  echo "DEBUG: about to start lark-channel-bridge" >&2
   echo "" >&2
   good "  ✓ profile「${profile}」已上线（前台运行，Ctrl-C 退出）" >&2
 
   # 前台启动前主动检测权限（首次配置常见问题）
   _ensure_larkbridge_perms "$profile"
 
+  echo "DEBUG: calling lark-channel-bridge run" >&2
   lark-channel-bridge run --profile "$profile" --workspace "$ws" 2>&1 \
     | grep -v 'sdk.error\|owner_refresh_failed\|chats-fetch-failed\|\[lark-info' || true
   local rc=${PIPESTATUS[0]}
