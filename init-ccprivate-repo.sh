@@ -189,7 +189,6 @@ check_gh_auth() {
     echo -e "     - Token 有有效期，过期后需重新 ${YELLOW}gh auth login${NC}"
     echo ""
     login_method=$(menu_select "认证方式" "A) PAT 粘贴" "B) Web OAuth")
-    login_method=$(menu_select "认证方式" "A) PAT 粘贴" "B) Web OAuth")
     case "${login_method^^}" in
         B|2)
             gh auth login --web --git-protocol https --hostname github.com
@@ -435,28 +434,27 @@ collect_info() {
 
         case "$LLM_CHOICE" in
             1)
-                [ -z "$DEEPSEEK_KEY" ]                 DEFAULT_LLM="deepseek"                DEFAULT_LLM="deepseek" DEEPSEEK_KEY=$(prompt_password "DeepSeek API Key")
+                DEFAULT_LLM="deepseek"
                 [ -z "$DEEPSEEK_KEY" ] && DEEPSEEK_KEY=$(prompt_password "DeepSeek API Key")
                 ;;
             2)
-                [ -z "$MINIMAX_KEY" ]                 DEFAULT_LLM="minimax"                DEFAULT_LLM="minimax" MINIMAX_KEY=$(prompt_password "MiniMax API Key")
+                DEFAULT_LLM="minimax"
                 [ -z "$MINIMAX_KEY" ] && MINIMAX_KEY=$(prompt_password "MiniMax API Key")
                 ;;
             3)
-                [ -z "$CLAUDE_KEY" ]                 DEFAULT_LLM="claude"                DEFAULT_LLM="claude" CLAUDE_KEY=$(prompt_password "Anthropic API Key")
+                DEFAULT_LLM="claude"
                 [ -z "$CLAUDE_KEY" ] && CLAUDE_KEY=$(prompt_password "Anthropic API Key")
                 ;;
         esac
 
-                        DEEPSEEK_KEY=$(prompt "还有 DeepSeek Key?（回车跳过）")
         echo ""
         if [ "$LLM_CHOICE" != "1" ] && [ -z "$DEEPSEEK_KEY" ]; then
             DEEPSEEK_KEY=$(prompt "还有 DeepSeek Key？(回车跳过)")
-                        MINIMAX_KEY=$(prompt "还有 MiniMax Key?（回车跳过）")
+        fi
         if [ "$LLM_CHOICE" != "2" ] && [ -z "$MINIMAX_KEY" ]; then
             MINIMAX_KEY=$(prompt "还有 MiniMax Key？(回车跳过)")
         fi
-                        CLAUDE_KEY=$(prompt "还有 Claude Key?（回车跳过）")
+        if [ "$LLM_CHOICE" != "3" ] && [ -z "$CLAUDE_KEY" ]; then
             CLAUDE_KEY=$(prompt "还有 Anthropic Key？(回车跳过)")
         fi
     fi
