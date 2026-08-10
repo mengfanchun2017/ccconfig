@@ -66,7 +66,7 @@ show_menu() {
         4) bash "$LIB_DIR/init-skill.sh" diff ;;
         0) return ;;
     esac
-    echo ""; read -p "按回车返回..." dummy
+    echo ""; read -p "按回车返回..." dummy < /dev/tty || true
     show_menu
 }
 

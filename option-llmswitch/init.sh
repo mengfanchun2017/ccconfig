@@ -425,10 +425,10 @@ _do_config_mode() {
     echo ""
     echo "  当前模式: $current_mode"
     local mode_choice
-    mode_choice=$(menu_select "模式选择" "1) auto" "2) manual" "3) 取消")
+    mode_choice=$(menu_select "模式选择" "auto" "manual" "取消")
     [[ -z "$mode_choice" ]] && return
 
-    case "${mode_choice:0:1}" in
+    case "$mode_choice" in
         1) do_mode "auto" ;;
         2)
             echo ""
@@ -481,10 +481,10 @@ else:
 PYEOF
         echo ""
         local action
-        action=$(menu_select "操作" "a) 添加" "d) 删除" "q) 返回")
+        action=$(menu_select "操作" "添加" "删除" "返回")
         [[ -z "$action" ]] && continue
-        case "${action:0:1}" in
-            a|A)
+        case "$action" in
+            1)
                 local days_input; days_input=$(prompt "星期几 (0=一..6=日, 逗号分隔)")
                 local start_input; start_input=$(prompt "开始时间 (HH:MM)")
                 local end_input; end_input=$(prompt "结束时间 (HH:MM)")
@@ -702,11 +702,10 @@ PYEOF
         echo ""
         local config_choice
         config_choice=$(menu_select "配置" \
-            "1) 切换模式" "2) 高峰时段" "3) 路由" "4) 手动 provider"
-            "0) 返回")
+            "切换模式" "高峰时段" "路由" "手动 provider" "返回")
         [[ -z "$config_choice" ]] && continue
 
-        case "${config_choice:0:1}" in
+        case "$config_choice" in
             1) _do_config_mode ;;
             2) _do_config_peak_hours ;;
             3) _do_config_routes ;;
