@@ -277,104 +277,71 @@ menu_mode() {
     echo -e "${CYAN}━━━ ccconfig 多仓库同步 ━━━${NC}"
     echo ""
 
-    # ---- 仓库列表 ----
-    echo "  仓库同步"
+    # ---- 构造菜单 ----
     local repos_data
     repos_data=$(list_repos)
-    local idx=1
-    local -a dirs names modes
-    local repo_count=0
-
+    local -a dirs names modes menu_items
     while IFS='|' read -r name dir mode; do
         [ -z "$name" ] && continue
-        names+=("$name")
-        dirs+=("$dir")
-        modes+=("$mode")
-        repo_count=$((repo_count + 1))
-        echo -e "  ${BOLD}$idx)${NC} ${name}"
-        repo_status "$dir"
-        idx=$((idx + 1))
+        names+=("$name"); dirs+=("$dir"); modes+=("$mode")
+        local status; status=$(repo_status "$dir" 2>/dev/null)
+        menu_items+=("$name  $status")
     done <<< "$repos_data"
 
-    local all_id=$idx
-    echo -e "  ${BOLD}$all_id)${NC} ★ 全部同步（ff-only）"
+    menu_items+=("★ 全部同步（ff-only）")
+    menu_items+=("ccconfig 完整检查（deps + 摘要）")
+    menu_items+=("0) 退出")
 
-    echo ""
-    echo "  检查维护"
-    local check_id=$((idx + 1))
-    echo -e "  ${BOLD}$check_id)${NC} ccconfig 完整检查（deps + 摘要）"
+    local choice
+    choice=$(menu_select "多仓库同步" "${menu_items[@]}")
+    [[ -z "$choice" ]] && continue
 
-    echo ""
-    echo "  0) 退出"
-    echo ""
-    read -p "  选择: " choice
-
-    case "$choice" in
-        0|"")
-            break
-            ;;
-        $check_id)
-            check_mode
-            ;;
-        $all_id)
+    case "${choice:0:1}" in
+        0) break ;;
+        ★)  # 全部同步
             echo ""
             echo -e "${CYAN}── 全部仓库同步 ──${NC}"
             local all_ok=true
             for ((i=0; i<${#dirs[@]}; i++)); do
                 echo ""
                 echo -e "${BOLD}[$((i+1))/${#dirs[@]}] ${names[$i]}${NC}"
-                if ! sync_one_repo "${dirs[$i]}" "${names[$i]}" "${modes[$i]}"; then
-                    all_ok=false
-                fi
+                sync_one_repo "${dirs[$i]}" "${names[$i]}" "${modes[$i]}" || all_ok=false
             done
             echo ""
             echo -e "${CYAN}── ccconfig 额外检查 ──${NC}"
             do_cconfig_post
-            echo ""
-            if $all_ok; then
-                echo -e "${GREEN}✅ 全部同步完成${NC}"
-            else
-                echo -e "${YELLOW}⚠️ 部分仓库同步失败${NC}"
-            fi
+            $all_ok && echo -e "${GREEN}✅ 全部同步完成${NC}" || echo -e "${YELLOW}⚠️ 部分失败${NC}"
             ;;
+        c)  # ccconfig 完整检查
+            check_mode ;;
         *)
-            if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#dirs[@]} ]; then
-                local i=$((choice - 1))
-                local name="${names[$i]}" dir="${dirs[$i]}" mode="${modes[$i]}"
-
-                # 子菜单（具体仓库）
-                echo ""
-                echo -e "${CYAN}── sync: ${BOLD}$name${NC} ──${NC}"
-                echo ""
-                echo "  1) 智能同步（推荐）"
-                echo "  2) 强制拉取远程（丢弃本地改动）"
-                echo "  3) 本地覆盖远程"
-                echo "  0) 返回"
-                echo ""
-                read -p "  选择: " sub
-                sub=$(menu_num "$sub")
-
-                case "$sub" in
-                    1)
-                        sync_one_repo "$dir" "$name" "$mode"
-                        [ "$name" = "cconfig" ] && { do_cconfig_post; echo -e "${GREEN}✅ 同步完成${NC}"; }
-                        ;;
-                    2)
-                        git_force_pull "$dir" "" "$name"
-                        [ "$name" = "cconfig" ] && do_cconfig_post
-                        ;;
-                    3)
-                        git_force_push "$dir" "" "$name"
-                        ;;
-                    0|"") ;;
-                    *) echo -e "  ${RED}无效选择${NC}" ;;
+            # 找到了仓库索引
+            local found=-1
+            for ((i=0; i<${#names[@]}; i++)); do
+                if echo "${menu_items[$i]}" | grep -q "^${names[$i]}" && echo "$choice" | grep -q "^${names[$i]}"; then
+                    found=$i; break
+                fi
+            done
+            if [ "$found" -ge 0 ]; then
+                local name="${names[$found]}" dir="${dirs[$found]}" mode="${modes[$found]}"
+                local sub
+                sub=$(menu_select "sync: $name" \
+                    "1) 智能同步（推荐）" \
+                    "2) 强制拉取远程" \
+                    "3) 本地覆盖远程" \
+                    "0) 返回")
+                [[ -z "$sub" ]] && continue
+                case "${sub:0:1}" in
+                    1) sync_one_repo "$dir" "$name" "$mode"
+                       [ "$name" = "ccconfig" ] && { do_cconfig_post; echo -e "${GREEN}✅ 同步完成${NC}"; } ;;
+                    2) git_force_pull "$dir" "" "$name"
+                       [ "$name" = "ccconfig" ] && do_cconfig_post ;;
+                    3) git_force_push "$dir" "" "$name" ;;
                 esac
-            else
-                echo -e "  ${RED}无效选择${NC}"
             fi
             ;;
     esac
-    done  # while true — loop back to main menu
+    done  # while true
 }
 
 # ========== 帮助 ==========
@@ -525,8 +492,7 @@ git_force_pull() {
     fi
     echo -e "  ${RED}此操作不可逆！${NC}"
     echo ""
-    read -p "  确认？输入仓库名 \"$repo_name\" 确认: " confirm
-    if [ "$confirm" != "$repo_name" ]; then
+    if ! confirm "确认强制拉取？（高危）" n; then
         echo -e "  ${YELLOW}已取消${NC}"; return 1
     fi
     echo ""
@@ -582,8 +548,7 @@ git_force_push() {
     fi
     echo -e "  ${RED}此操作不可逆！${NC}"
     echo ""
-    read -p "  确认？输入仓库名 \"$repo_name\" 确认: " confirm
-    if [ "$confirm" != "$repo_name" ]; then
+    if ! confirm "确认强制推送？（高危）" n; then
         echo -e "  ${YELLOW}已取消${NC}"; return 1
     fi
     echo ""
@@ -621,8 +586,12 @@ git_conflict_menu() {
     fi
     echo -e "  ${BOLD}c)${NC} 取消，手动处理"
     echo ""
-    read -p "  选择 [a/b/${with_rebase:+r/}c]: " choice
-    case "$choice" in
+    local conflict_items=("a) 远程覆盖本地" "b) 本地覆盖远程")
+    $with_rebase && conflict_items+=("r) Rebase（推荐）")
+    conflict_items+=("c) 取消")
+    choice=$(menu_select "冲突处理" "${conflict_items[@]}")
+    [[ -z "$choice" ]] && { echo -e "  ${YELLOW}已取消${NC}"; return 1; }
+    case "${choice:0:1}" in
         a|A)
             echo ""
             echo -e "${CYAN}  🔃 远程 → 本地${NC}"
