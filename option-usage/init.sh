@@ -33,6 +33,7 @@ source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
     err()  { echo "  ❌ $1"; }
     info() { echo "  ℹ  $1"; }
 }
+source "$CCCONFIG_DIR/lib/interact.sh"
 
 # ============ 初始化 ============
 setup_archive() {
@@ -170,18 +171,16 @@ config_interactive() {
     echo "  schedule:       $current_schedule"
     echo "  include_today:  $current_today"
     echo ""
-    echo "  1) 设置 feishu_url"
-    echo "  2) 设置 schedule (启动时间 HH:MM:SS)"
-    echo "  3) 设置 include_today (true/false)"
-    echo "  0) 返回"
-
-    read -p "  选择 [0-3]: " opt
-    opt=$(menu_num "$opt")
-    case "$opt" in
-        1) read -p "  feishu_url: " v; set_feishu "$v" ;;
-        2) read -p "  schedule (HH:MM:SS): " v; set_schedule "$v" ;;
-        3) read -p "  include_today (true/false): " v; set_include_today "$v" ;;
-        0) ;;
+    local opt; opt=$(menu_select "配置" \
+        "1) 设置 feishu_url" \
+        "2) 设置 schedule" \
+        "3) 设置 include_today" \
+        "0) 返回")
+    [[ -z "$opt" ]] && return
+    case "${opt:0:1}" in
+        1) v=$(prompt "feishu_url"); [ -n "$v" ] && set_feishu "$v" ;;
+        2) v=$(prompt "schedule (HH:MM:SS)"); [ -n "$v" ] && set_schedule "$v" ;;
+        3) v=$(prompt "include_today (true/false)"); [ -n "$v" ] && set_include_today "$v" ;;
     esac
 }
 

@@ -20,6 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$CCCONFIG_DIR/lib/dry-run.sh"
 source "$CCCONFIG_DIR/lib/colors.sh"
+source "$CCCONFIG_DIR/lib/interact.sh"
 
 MARKETPLACE_REPO="cloudflare/skills"
 PLUGIN_NAME="cloudflare@cloudflare"
@@ -302,10 +303,10 @@ do_interactive() {
     echo "    g) 仅 plugin（依赖 marketplace）"
     echo "    u) 卸载"
     echo "    p) 更新到最新版"
-    echo "    q) 退出"
-    echo ""
-    read -p "选择 [a/m/g/u/p/q]: " choice
-    case "$choice" in
+    local choice; choice=$(menu_select "Cloudflare" \
+        "a) 全部安装" "m) 仅 marketplace" "g) 仅 plugin" "u) 卸载" "p) 更新" "q) 退出")
+    [[ -z "$choice" ]] && return
+    case "${choice:0:1}" in
         a) echo ""; do_install ;;
         m) echo ""; do_install_marketplace_only ;;
         g) echo ""; do_install_plugin_only ;;

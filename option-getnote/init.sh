@@ -18,13 +18,9 @@ source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; GRAY='\033[0;90m'; NC='\033[0m'
 }
+source "$CCCONFIG_DIR/lib/interact.sh"
 
 CONF_FILE="$(resolve_conf claude.json)" || exit 1
-
-ok()   { echo -e "  ${GREEN}✅ $1${NC}"; }
-err()  { echo -e "  ${RED}❌ $1${NC}"; }
-warn() { echo -e "  ${YELLOW}⚠  $1${NC}"; }
-info() { echo -e "  ${GRAY}$1${NC}"; }
 
 # ── 添加账号 ──
 do_add() {
@@ -34,78 +30,32 @@ do_add() {
     info "获取凭证: https://www.biji.com/openapi → 创建应用 → API Key(gk_live_xxx) + Client ID(cli_xxx)"
     echo ""
 
-    # 账号名
-    local name
-    while true; do
-        read -p "  账号名（如 personal/work/test）: " name < /dev/tty
-        if [ -z "$name" ]; then
-            err "账号名不能为空"; continue
-        fi
-        if echo "$name" | grep -qE '[^a-zA-Z0-9_-]'; then
-            err "账号名仅允许字母数字下划线连字符"; continue
-        fi
-        # 检查重名
-        local exists
-        exists=$(python3 - "$CONF_FILE" "$name" << 'PYEOF'
-import json, sys
-with open(sys.argv[1]) as f: d = json.load(f)
-for a in d.get('getnote_accounts', []):
-    if a.get('name') == sys.argv[2]:
-        print('yes'); break
-else:
-    print('no')
-PYEOF
-        )
-        if [ "$exists" = "yes" ]; then
-            err "账号名 $name 已存在"; continue
-        fi
-        break
+    local name; while true; do
+        name=$(prompt "账号名 (personal/work/test)") || true
+        [ -z "$name" ] && { err "账号名不能为空"; continue; }
+        echo "$name" | grep -qE '[^a-zA-Z0-9_-]' && { err "仅允许字母数字_-_"; continue; }
+        python3 - "$CONF_FILE" "$name" 2>/dev/null | grep -q '"name":' || break
+        err "账号 $name 已存在"
     done
 
-    # API Key
-    local api_key
-    while true; do
-        read -p "  GETNOTE_API_KEY (gk_live_xxx): " api_key < /dev/tty
-        if [ -z "$api_key" ]; then
-            err "API Key 不能为空"; continue
-        fi
-        if ! echo "$api_key" | grep -qE '^gk_live_[a-f0-9]+$'; then
-            warn "格式不像 gk_live_<hex>（仍接受）"
-        fi
-        break
-    done
+    local api_key; while true; do
+        api_key=$(prompt "GETNOTE_API_KEY (gk_live_xxx)") || true
+        [ -z "$api_key" ] && { err "不能为空"; continue; }
+        break; done
 
-    # Client ID
-    local client_id
-    while true; do
-        read -p "  GETNOTE_CLIENT_ID (cli_xxx): " client_id < /dev/tty
-        if [ -z "$client_id" ]; then
-            err "Client ID 不能为空"; continue
-        fi
-        if ! echo "$client_id" | grep -qE '^cli_[a-f0-9]+$'; then
-            warn "格式不像 cli_<hex>（仍接受）"
-        fi
-        break
-    done
+    local client_id; while true; do
+        client_id=$(prompt "GETNOTE_CLIENT_ID (cli_xxx)") || true
+        [ -z "$client_id" ] && { err "不能为空"; continue; }
+        break; done
 
-    # 描述（可选）
-    local desc
-    read -p "  说明（可选）: " desc < /dev/tty
+    local desc; desc=$(prompt "说明（可选）") || true
 
-    # 是否设为默认
     local as_default=false
-    local cnt
-    cnt=$(python3 -c "
-import json
-with open('$CONF_FILE') as f: d = json.load(f)
-print(len(d.get('getnote_accounts', [])))" 2>/dev/null || echo "0")
+    local cnt; cnt=$(python3 -c "import json; print(len(json.load(open('$CONF_FILE')).get('getnote_accounts',[])))" 2>/dev/null || echo "0")
     if [ "$cnt" = "0" ]; then
-        as_default=true
-        info "首个账号，自动设为 ccprivate 默认"
-    else
-        read -p "  设为 ccprivate 默认账号？[y/N]: " yn < /dev/tty
-        if [[ "$yn" =~ ^[Yy]$ ]]; then as_default=true; fi
-    fi
+        as_default=true; info "首个账号，自动设为默认"
+    elif confirm "设为 ccprivate 默认账号？" n; then
+        as_default=true; fi
 
     # 写 ccprivate/conf/claude.json
     python3 - "$CONF_FILE" "$name" "$api_key" "$client_id" "$desc" "$as_default" << 'PYEOF'
@@ -175,12 +125,9 @@ print(d.get('getnote_default', ''))")
 
     if [ "$target" = "$default_name" ]; then
         warn "该账号是 ccprivate 默认，删除后需要重新指定默认"
-        read -p "  仍要删除？[y/N]: " yn < /dev/tty
-        [[ ! "$yn" =~ ^[Yy]$ ]] && { info "取消"; return 0; }
+        if ! confirm "仍要删除？" n; then info "取消"; return 0; fi
     fi
-
-    read -p "  确认删除 $target？[y/N]: " yn < /dev/tty
-    [[ ! "$yn" =~ ^[Yy]$ ]] && { info "取消"; return 0; }
+    if ! confirm "确认删除 $target？" n; then info "取消"; return 0; fi
 
     python3 - "$CONF_FILE" "$target" "$default_name" << 'PYEOF'
 import json, os, sys
@@ -218,26 +165,18 @@ case "${1:-}" in
     list|ls|l) bash "$SCRIPT_DIR/getnote-switch.sh" --list ;;
     ""|menu)
         while true; do
-            echo ""
-            echo -e "${CYAN}── getnote 账号管理 ──${NC}"
-            echo ""
-            echo "  1) 添加账号"
-            echo "  2) 删除账号"
-            echo "  3) 列出账号"
-            echo "  4) 切换账号"
-            echo "  0) 退出"
-            echo ""
-            read -p "  选择 [0-4]: " c < /dev/tty
-            case "$c" in
+            local c; c=$(menu_select "getnote 账号管理" \
+                "1) 添加账号" "2) 删除账号" "3) 列出账号" "4) 切换账号" "0) 退出")
+            [[ -z "$c" ]] && continue
+            case "${c:0:1}" in
                 1) do_add ;;
                 2) do_remove ;;
                 3) bash "$SCRIPT_DIR/getnote-switch.sh" --list ;;
                 4)
                     bash "$SCRIPT_DIR/getnote-switch.sh" --list
-                    read -p "  输入账号名（回车取消）: " target < /dev/tty
+                    local target; target=$(prompt "账号名") || continue
                     if [ -n "$target" ]; then
-                        read -p "  持久化到 ccprivate？[y/N]: " yn < /dev/tty
-                        if [[ "$yn" =~ ^[Yy]$ ]]; then
+                        if confirm "持久化到 ccprivate？" n; then
                             bash "$SCRIPT_DIR/getnote-switch.sh" "$target" -p
                         else
                             bash "$SCRIPT_DIR/getnote-switch.sh" "$target"
