@@ -18,6 +18,7 @@ REPO_DIR="$(dirname "$SCRIPT_DIR")"
 source "$REPO_DIR/lib/dry-run.sh"
 source "$REPO_DIR/lib/colors.sh"
 source "$REPO_DIR/lib/path-helper.sh"
+source "$REPO_DIR/lib/interact.sh"
 
 CONF_FILE="$SCRIPT_DIR/conf/llmswitch.json"
 CONF_EXAMPLE="$SCRIPT_DIR/conf/llmswitch.json.example"
@@ -423,28 +424,29 @@ _do_config_mode() {
 
     echo ""
     echo "  当前模式: $current_mode"
-    echo "  1) auto   — 按时段自动切换"
-    echo "  2) manual — 固定后端"
-    echo "  3) off    — 禁用路由（直通 current）"
-    echo ""
-    read -p "  选模式 (1-3, 回车取消): " mode_choice
-    mode_choice=$(menu_num "$mode_choice")
+    local mode_choice
+    mode_choice=$(menu_select "模式选择" "1) auto" "2) manual" "3) 取消")
+    [[ -z "$mode_choice" ]] && return
 
-    case "$mode_choice" in
+    case "${mode_choice:0:1}" in
         1) do_mode "auto" ;;
         2)
             echo ""
-            echo "  可用后端:"
-            local provs=()
+            local provs=() prov_items=()
             while IFS='|' read -r name display model; do
                 [[ -z "$name" ]] && continue
                 provs+=("$name")
-                printf "    %d) %s (%s)\n" "${#provs[@]}" "$display" "$model"
+                prov_items+=("$display ($model)")
             done < <(_read_provider_list)
-            echo ""
-            read -p "  选择后端 [1-${#provs[@]}，回车取消]: " prov_choice
-            if [[ "$prov_choice" =~ ^[0-9]+$ ]] && (( prov_choice >= 1 && prov_choice <= ${#provs[@]} )); then
-                do_mode "manual" "${provs[$((prov_choice-1))]}"
+            local prov_choice
+            prov_choice=$(menu_select "选择后端" "${prov_items[@]}")
+            [[ -z "$prov_choice" ]] && return
+            local idx=-1
+            for ((i=0; i<${#prov_items[@]}; i++)); do
+                [[ "${prov_items[$i]}" == "$prov_choice" ]] && { idx=$i; break; }
+            done
+            if [ "$idx" -ge 0 ]; then
+                do_mode "manual" "${provs[$idx]}"
             elif [[ -n "$prov_choice" ]]; then
                 warn "  无效选择: $prov_choice"
             fi
@@ -478,13 +480,14 @@ else:
         print(f"  {i}) 星期{day_str} {start}-{end}")
 PYEOF
         echo ""
-        echo "  操作: a) 添加  d) 删除(编号)  q) 返回"
-        read -p "  选择: " action
-        case "$action" in
+        local action
+        action=$(menu_select "操作" "a) 添加" "d) 删除" "q) 返回")
+        [[ -z "$action" ]] && continue
+        case "${action:0:1}" in
             a|A)
-                read -p "  星期几 (0=一,1=二,...,6=日, 工作日如 0,1,2,3,4): " days_input
-                read -p "  开始时间 (HH:MM): " start_input
-                read -p "  结束时间 (HH:MM): " end_input
+                local days_input; days_input=$(prompt "星期几 (0=一..6=日, 逗号分隔)")
+                local start_input; start_input=$(prompt "开始时间 (HH:MM)")
+                local end_input; end_input=$(prompt "结束时间 (HH:MM)")
                 [[ -z "$days_input" || -z "$start_input" || -z "$end_input" ]] && { warn "  输入不完整"; continue; }
                 python3 - "$CONF_FILE" "$days_input" "$start_input" "$end_input" << 'PYEOF'
 import json, sys
@@ -517,7 +520,7 @@ print(f"  已添加: 星期{','.join(map(str,sorted(set(days))))} {start}-{end}"
 PYEOF
                 ;;
             d|D)
-                read -p "  要删除的编号: " del_idx
+                del_idx=$(prompt "要删除的编号")
                 python3 - "$CONF_FILE" "$del_idx" << 'PYEOF'
 import json, sys
 conf_file = sys.argv[1]
@@ -549,11 +552,11 @@ _do_config_routes() {
     echo "  路由配置:"
     info "  说明: 'llmgateway' = 主模型路由, 'llmgateway-s' = 小模型(haiku)路由"
     info "        两个路由独立，都按 peak/off_peak 切换（高峰选同后端即固定）"
-    local route_names=()
+    local route_items=() route_names=()
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
-        route_names+=("$line")
-        printf "    %d) %s\n" "${#route_names[@]}" "$line"
+        route_items+=("$line")
+        route_names+=("$(echo "$line" | cut -d: -f1)")
     done < <(python3 - "$CONF_FILE" << 'PYEOF'
 import json, sys
 try:
@@ -569,31 +572,31 @@ for name, rule in routes.items():
         print(f"{name}: 固定→{rule}")
 PYEOF
     )
-    echo ""
-    read -p "  选择路由 [1-${#route_names[@]}，回车取消]: " route_sel
-    if [[ ! "$route_sel" =~ ^[0-9]+$ ]] || (( route_sel < 1 || route_sel > ${#route_names[@]} )); then
-        [[ -n "$route_sel" ]] && warn "  无效选择: $route_sel"
-        return
-    fi
-    local route_name=$(echo "${route_names[$((route_sel-1))]}" | cut -d: -f1)
-    [[ -z "$route_name" ]] && return
+    local route_sel
+    route_sel=$(menu_select "选择路由" "${route_items[@]}")
+    [[ -z "$route_sel" ]] && return
+    local route_name="" idx=-1
+    for ((i=0; i<${#route_items[@]}; i++)); do
+        [[ "${route_items[$i]}" == "$route_sel" ]] && { idx=$i; break; }
+    done
+    [ "$idx" -ge 0 ] && route_name="${route_names[$idx]}" || return
 
     echo ""
-    echo "  可用后端:"
-    local route_provs=()
+    local prov_items=() route_provs=()
     while IFS='|' read -r name display model; do
         [[ -z "$name" ]] && continue
         route_provs+=("$name")
-        printf "      %d) %s (%s)\n" "${#route_provs[@]}" "$display" "$model"
+        prov_items+=("$display ($model)")
     done < <(_read_provider_list)
 
     _pick_route_provider() {
-        local prompt="$1" prov_name
-        read -p "  $prompt [1-${#route_provs[@]}]: " prov_choice
-        if [[ "$prov_choice" =~ ^[0-9]+$ ]] && (( prov_choice >= 1 && prov_choice <= ${#route_provs[@]} )); then
-            prov_name="${route_provs[$((prov_choice-1))]}"
-        fi
-        echo "${prov_name:-}"
+        local prompt="$1"
+        local selected; selected=$(menu_select "$prompt" "${prov_items[@]}")
+        [[ -z "$selected" ]] && return 1
+        for ((pi=0; pi<${#prov_items[@]}; pi++)); do
+            [[ "${prov_items[$pi]}" == "$selected" ]] && { echo "${route_provs[$pi]}"; return 0; }
+        done
+        return 1
     }
 
     # 统一强制 dict 模式（让主/小模型路由配置对称）
@@ -622,20 +625,19 @@ PYEOF
 
 _do_config_manual_provider() {
     echo ""
-    echo "  可用后端:"
-    local provs=()
+    local prov_items=() route_provs=()
     while IFS='|' read -r name display model; do
         [[ -z "$name" ]] && continue
-        provs+=("$name")
-        printf "    %d) %s (%s)\n" "${#provs[@]}" "$display" "$model"
+        route_provs+=("$name")
+        prov_items+=("$display ($model)")
     done < <(_read_provider_list)
-    echo ""
-    read -p "  选择后端 [1-${#provs[@]}，回车取消]: " prov_choice
-    if [[ ! "$prov_choice" =~ ^[0-9]+$ ]] || (( prov_choice < 1 || prov_choice > ${#provs[@]} )); then
-        [[ -n "$prov_choice" ]] && warn "  无效选择: $prov_choice"
-        return
-    fi
-    local manual_p="${provs[$((prov_choice-1))]}"
+    local prov_choice; prov_choice=$(menu_select "选择后端" "${prov_items[@]}")
+    [[ -z "$prov_choice" ]] && return
+    local manual_p=""
+    for ((pi=0; pi<${#prov_items[@]}; pi++)); do
+        [[ "${prov_items[$pi]}" == "$prov_choice" ]] && { manual_p="${route_provs[$pi]}"; break; }
+    done
+    [[ -z "$manual_p" ]] && { warn "无效选择"; return; }
 
     if is_running; then
         do_mode "manual" "$manual_p"
@@ -698,10 +700,13 @@ PYEOF
         echo -e "  ${GREEN}4)${NC} 配置手动 provider"
         echo -e "  ${GRAY}0)${NC} 返回"
         echo ""
-        read -p "  选择 [0-4]: " config_choice
-        config_choice=$(menu_num "$config_choice")
+        local config_choice
+        config_choice=$(menu_select "配置" \
+            "1) 切换模式" "2) 高峰时段" "3) 路由" "4) 手动 provider"
+            "0) 返回")
+        [[ -z "$config_choice" ]] && continue
 
-        case "$config_choice" in
+        case "${config_choice:0:1}" in
             1) _do_config_mode ;;
             2) _do_config_peak_hours ;;
             3) _do_config_routes ;;

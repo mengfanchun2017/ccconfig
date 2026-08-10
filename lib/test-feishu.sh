@@ -42,23 +42,7 @@ _get_active_config() {
 
 cleanup_resources() {
   echo -e "${CYAN}── 清理测试资源 ──${NC}"
-  echo -e "  ${YELLOW}⚠ 测试资源无法通过 API 自动清理，请在飞书中手动删除：${NC}"
-  echo ""
-  for doc_id in "${CLEANUP_DOCS[@]}"; do
-    if [ -n "$TEST_DOC_URL" ]; then
-      echo "  📄 [ccconfig-e2e 测试文档]($TEST_DOC_URL)"
-    else
-      echo -e "  📄 文档 ID: ${doc_id}（URL 未知）"
-    fi
-  done
-  for entry in "${CLEANUP_RECORDS[@]}"; do
-    local rid bt tb td
-    IFS='|' read -r rid bt tb td <<< "$entry"
-    echo "  📊 [Worklog 测试记录](https://${td:-rcnejwuhyp41.feishu.cn}/base/${bt}/table/${tb}/record/${rid})"
-  done
-  echo ""
-  echo -e "  ${GRAY}文档: 打开链接 → 删除${NC}"
-  echo -e "  ${GRAY}Base: 打开链接 → 删除该行${NC}"
+  echo -e "  ${YELLOW}⚠ 上方测试资源请在飞书中手动删除${NC}"
   echo ""
 }
 
