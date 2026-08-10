@@ -80,17 +80,19 @@ PYEOF
         good "  ✓ 权限齐全"
         return 0
     fi
-    echo "$result" | grep -q "^ERR:" && { warn "  $result"; return 0; }
+
+    local missing; missing="$(echo "$result" | sed -n 's/^MISSING://p' | head -1)"
+    [ -z "$missing" ] && { warn "  权限检测跳过: $(echo "$result" | head -1)"; return 0; }
 
     warn "  ⚠ 缺权限"
-    echo "$result" | sed 's/^/    /'
+    echo "$result" | grep -v '^MISSING:' | sed 's/^/    /'
     echo ""
-    info "  浏览器将打开飞书开放平台（已预选 larkbridge 必备 12 个 scope）"
+    info "  浏览器将打开飞书开放平台（URL 已预选缺的 scope）"
     info "  → 在浏览器勾选 → 申请开通 → 创建版本 → 发布到线上"
     info "  → 5 分钟后重跑本命令验证"
     read -p "  现在打开浏览器? [Y/n]: " cf
     [[ "$cf" =~ ^[Nn]$ ]] && return 0
-    _feishu_open_perms_for_app "$target" "$app_id"
+    _feishu_open_perms_for_app "$target" "$app_id" "$missing"
 }
 
 # ========== 辅助 ==========

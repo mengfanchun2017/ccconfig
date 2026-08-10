@@ -309,25 +309,30 @@ PYEOF
         fi
 
         echo -e "  当前 apps:  ${GRAY}(当前活跃: ${current_name:-无})${NC}"
+        echo -e "  ${GRAY}cli=lark-cli 命令行账号   bridge=飞书↔Claude 机器人（决定是否出现在 larkbridge 选单）${NC}"
         echo ""
         local i=1
         names=()
         for app_json in "${apps_json[@]}"; do
-            local name=$(echo "$app_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])")
-            local appid=$(echo "$app_json" | python3 -c "import json,sys; a=json.load(sys.stdin)['appId']; print(a[:12]+'...' if len(a)>12 else a)")
-            local lcen=$(echo "$app_json" | python3 -c "import json,sys; print('Y' if json.load(sys.stdin).get('larkCli',{}).get('enabled') else '.')")
-            local ccen="."
-            local lben=$(echo "$app_json" | python3 -c "import json,sys; d=json.load(sys.stdin).get('larkBridge',{}); print('Y' if d.get('enabled') else ('.' if d else ''))")
-            local lb_suffix=""
-            [ -n "$lben" ] && lb_suffix=" B=${lben}"
-            local desc=$(echo "$app_json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('description',''))")
+            local name appid desc lc lb
+            IFS=$'\t' read -r name appid desc lc lb < <(echo "$app_json" | python3 -c "
+import json, sys
+a = json.load(sys.stdin)
+i = a.get('appId','')
+# larkbridge 历史上写过 larkBridge 驼峰，两种都认
+lb = a.get('larkbridge') or a.get('larkBridge') or {}
+print('\t'.join([
+    a.get('name','?'),
+    (i[:12] + '…') if len(i) > 12 else i,
+    a.get('description',''),
+    'Y' if a.get('larkCli',{}).get('enabled') else 'N',
+    'Y' if lb.get('enabled') else 'N',
+]))")
+            local lc_disp="${GRAY}✗ cli${NC}"; [ "$lc" = "Y" ] && lc_disp="${GREEN}✓ cli${NC}"
+            local lb_disp="${GRAY}✗ bridge${NC}"; [ "$lb" = "Y" ] && lb_disp="${GREEN}✓ bridge${NC}"
             local marker_str=""
-            [ "$name" = "$current_name" ] && marker_str=" ${GREEN}← 当前${NC}"
-            if [ -n "$marker_str" ]; then
-                echo -e "    ${i}) ${name}${GRAY}${NC} appId=${appid}  L=${lcen} C=${ccen} ${marker_str}"
-            else
-                printf "    %d) %-12s appId=%s  L=%s C=%s%s\n" "$i" "$name" "$appid" "$lcen" "$ccen" "$lb_suffix"
-            fi
+            [ "$name" = "$current_name" ] && marker_str="  ${GREEN}← 当前${NC}"
+            printf "    %d) %-12s appId=%-14s %b  %b%b\n" "$i" "$name" "$appid" "$lc_disp" "$lb_disp" "$marker_str"
             [ -n "$desc" ] && echo -e "       ${GRAY}${desc}${NC}"
             names+=("$name")
             i=$((i + 1))
@@ -642,25 +647,34 @@ _feishu_add_app() {
     [ -z "$new_name" ] && { err "名称不能为空"; return 1; }
     read -p "  App ID: " new_appid
     read -p "  App Secret: " new_secret
+    read -p "  描述 (回车跳过): " new_desc
     read -p "  workDir (回车=~/git): " new_workdir
     new_workdir="${new_workdir:-/home/$USER/git}"
-    python3 - "$conf" "$new_name" "$new_appid" "$new_secret" "$new_workdir" << 'PYEOF'
-import json, sys
-conf, name, appid, secret, workdir = sys.argv[1:6]
+    read -p "  启用 larkbridge（飞书↔Claude 机器人）? [Y/n]: " new_lb
+    [[ "$new_lb" =~ ^[Nn]$ ]] && new_lb=false || new_lb=true
+    python3 - "$conf" "$new_name" "$new_appid" "$new_secret" "$new_workdir" "$new_desc" "$new_lb" << 'PYEOF'
+import json, os, sys
+conf, name, appid, secret, workdir, desc, lb = sys.argv[1:8]
 with open(conf) as f: d = json.load(f)
 d.setdefault('apps', []).append({
     'name': name,
     'appId': appid,
     'appSecret': secret,
-    'description': '',
+    'description': desc,
     'brand': 'feishu',
     'workDir': workdir,
-    'claudeConfigDir': '/home/' + __import__('os').environ.get('USER','user') + '/.claude',
+    'claudeConfigDir': os.path.expanduser('~/.claude'),
     'larkCli': {'enabled': True, 'configDir': f'~/.lark-cli-{name}'},
+    'larkbridge': {'enabled': lb == 'true', 'adminOpenIds': []},
 })
 with open(conf, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
-print(f'✅ 已添加 {name}')
+print(f'✅ 已添加 {name}（larkbridge={"开" if lb == "true" else "关"}）')
 PYEOF
+    if [ "$new_lb" = true ]; then
+        echo ""
+        info "  下一步建 bridge profile: bash ccconfig/option-larkbridge/init.sh --run"
+        info "  （选单的「ccprivate 配置」段会出现 ${new_name}，选它即自动建 profile）"
+    fi
 }
 
 _feishu_edit_key() {

@@ -716,11 +716,19 @@ submenu_feishu_accounts() {
         local i=1
         names=()
         for line in "${lines[@]}"; do
-            local name; name=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
-            local appid; appid=$(echo "$line" | python3 -c "import json,sys; a=json.load(sys.stdin)['appId']; print((a[:14]+'...') if len(a)>14 else a)" 2>/dev/null)
-            local desc; desc=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('description',''))" 2>/dev/null)
-            local lc_on; lc_on=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Y' if d.get('larkCli',{}).get('enabled') else 'N')" 2>/dev/null)
-            local lb_on; lb_on=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); print('Y' if d.get('larkBridge',{}).get('enabled') else 'N')" 2>/dev/null)
+            local name appid desc lc_on lb_on
+            IFS=$'\t' read -r name appid desc lc_on lb_on < <(echo "$line" | python3 -c "
+import json, sys
+a = json.load(sys.stdin)
+i = a.get('appId','')
+lb = a.get('larkbridge') or a.get('larkBridge') or {}
+print('\t'.join([
+    a.get('name','?'),
+    (i[:14] + '…') if len(i) > 14 else i,
+    a.get('description',''),
+    'Y' if a.get('larkCli',{}).get('enabled') else 'N',
+    'Y' if lb.get('enabled') else 'N',
+]))" 2>/dev/null)
             local marker="  "
             [ "$name" = "$cur_acct" ] && marker="${GREEN}← 活跃${NC}"
             local lc_disp="${GRAY}✗ lark-cli${NC}"; [ "$lc_on" = "Y" ] && lc_disp="${GREEN}✓ lark-cli${NC}"
