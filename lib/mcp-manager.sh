@@ -16,6 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/colors.sh"
+source "$SCRIPT_DIR/interact.sh"
 
 CONFIG_JSON="$HOME/.claude/.config.json"
 SETTINGS_JSON="$HOME/.claude/settings.json"
@@ -300,17 +301,13 @@ cmd_config() {
     echo -e "  ${GRAY}当前项目:${NC} ${BOLD}${curr##*/}${NC}"
     echo -e "  当前用户级激活: $user_active"
     echo ""
-    echo -e "  ${BOLD}选择操作:${NC}"
-    echo -e "  ${CYAN}1${NC}) 注册新的 MCP (全局)"
-    echo -e "  ${CYAN}2${NC}) 开启/关闭 用户级 MCP (全局禁用)"
-    echo -e "  ${CYAN}3${NC}) 管理项目 MCP (当前项目开/关)"
-    echo -e "  ${CYAN}4${NC}) 配置 Key (交互填占位符)"
-    echo -e "  ${CYAN}5${NC}) 查看状态"
-    echo -e "  ${CYAN}q${NC}) 退出"
-    echo -ne "\n  ${BOLD}>${NC} "
-    read -r choice
-    echo ""
-    choice=$(menu_num "$choice")
+    local choice; choice=$(menu_select "MCP 配置" \
+        "注册新的 MCP (全局)" \
+        "开启/关闭 用户级 MCP (全局禁用)" \
+        "管理项目 MCP (当前项目开/关)" \
+        "配置 Key (交互填占位符)" \
+        "查看状态" \
+        "退出")
 
     case "$choice" in
       1) config_register ;;
@@ -318,7 +315,7 @@ cmd_config() {
       3) config_project "$curr" ;;
       4) bash "$(dirname "$SCRIPT_DIR")/lib/init-mcp.sh" keys ;;
       5) cmd_status ;;
-      q|Q) break ;;
+      6) break ;;
       *) warn "无效选项" ;;
     esac
   done
@@ -474,12 +471,7 @@ p['disabledMcpServers'] = [m for m in p.get('disabledMcpServers', []) if m != '$
   else
     # 继承用户级 → 循环：选项目特开还是项目特关
     echo -e "  $target 当前继承用户级"
-    echo -e "  ${CYAN}1${NC}) 项目特开 (强制启用)"
-    echo -e "  ${CYAN}2${NC}) 项目特关 (强制关闭)"
-    echo -e "  ${CYAN}3${NC}) 取消"
-    echo -ne "  ${BOLD}>${NC} "
-    read -r mode
-    mode=$(menu_num "$mode")
+    local mode; mode=$(menu_select "选择" "项目特开 (强制启用)" "项目特关 (强制关闭)" "取消")
     case "$mode" in
       1)
         py_write "

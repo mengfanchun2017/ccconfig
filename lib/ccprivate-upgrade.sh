@@ -13,6 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/colors.sh"
+source "$SCRIPT_DIR/interact.sh"
 source "$SCRIPT_DIR/path-helper.sh" 2>/dev/null || true
 
 CCPRIVATE="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
@@ -449,11 +450,7 @@ if ! $AUTO_YES; then
     [ "${check_results[link]}" = "fix" ] && echo "  • 创建缺失的 link/ 文件"
     echo "  • 重建所有符号链接"
     echo ""
-    read -p "是否修复？[Y/n]: " yn
-    if [ "$yn" = "n" ] || [ "$yn" = "N" ]; then
-        info "已取消"
-        exit 0
-    fi
+    confirm "是否修复？" y || { info "已取消"; exit 0; }
 fi
 
 echo ""
