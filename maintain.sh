@@ -164,186 +164,6 @@ do_self() {
 }
 
 # ── 交互菜单 ──
-show_menu() {
-    echo ""
-    echo -e "${CYAN}━━━ ccconfig 运维中心 ━━━${NC}"
-    echo ""
-    echo "  1) 状态检查         ─ 全量状态（链接/依赖/同步/Git/飞书/Playwright/MCP）"
-    echo "  2) Monitor 管理     ─ 启停/状态/日志/实时监控"
-    echo "  3) 自我更新         ─ 拉取 ccconfig + skill 最新"
-    echo "  4) Git 同步         ─ 多仓库菜单式同步"
-    echo "  5) 组件升级         ─ Node.js / Claude / gh / uv / lark-cli / lark-channel-bridge ..."
-    echo "  6) 依赖检查         ─ 必需/核心/功能/可选依赖"
-    echo "  7) 一键修复         ─ 重建链接 + 启用 auto-sync（= setup）"
-    echo "  8) 模板同步         ─ 默认正向（template → ccprivate），反向仅仓库所有者可用"
-    echo "  9) ccprivate 升级    ─ 检测并修复 ccprivate 结构"
-    echo "  10) Bill & Token     ─ 模型单价配置 + Claude Code 用量聚合（CSV / 飞书）"
-	echo "  11) MCP 管理         ─ 注册/启停/状态/Key/项目配置"
-    echo "  12) llmswitch        ─ LLM 网关代理（init-llm 自动管理，手动可看下面板）"
-    echo "  13) 飞书管理         ─ 账号 / lark-cli / larkbridge（多账号多机器人）"
-    echo "  14) 回归测试         ─ WSL 新建 distro + bootstrap 全流程（CI/自动化）"
-    echo "  15) GitHub PAT       ─ 查看剩余天数 + 一键续期（fine-grained）"
-    echo "  16) LLM 切换         ─ 交互选择/切换后端 LLM（MiniMax / DeepSeek / Gateway）"
-    echo "  17) getnote 账号     ─ getnote MCP 多账号管理（添加/删除/切换）"
-    echo ""
-    echo "  0) 退出"
-    echo ""
-    read -p "选择 [0-17]: " c
-    c=$(menu_num "$c")
-
-    case "$c" in
-        1) bash "$LIB_DIR/status.sh" "$@" ;;
-        2) submenu_monitor ;;
-        3) do_self all ;;
-        4) bash "$LIB_DIR/sync.sh" ;;
-        5) bash "$LIB_DIR/update.sh" menu ;;
-        6) bash "$LIB_DIR/deps-check.sh" ;;
-        7) do_finalize ;;
-        8) bash "$LIB_DIR/example-sync.sh" status
-           echo ""
-           echo "  d) 查看差异   f) 正向同步（默认）   r) 反向同步（需 push 权限）   0) 返回"
-           read -p "选择 [d/f/r/0]: " choice
-           case "$choice" in
-             d) bash "$LIB_DIR/example-sync.sh" diff ;;
-             f) bash "$LIB_DIR/example-sync.sh" promote ;;
-             r) bash "$LIB_DIR/example-sync.sh" reverse ;;
-             0) ;;
-             *) ;;
-           esac ;;
-        9) bash "$LIB_DIR/ccprivate-upgrade.sh"
-           echo ""
-           read -p "按回车返回菜单..." dummy
-           show_menu ;;
-        11) bash "$LIB_DIR/mcp-manager.sh" config
-            read -p "按回车返回菜单..." dummy
-            show_menu ;;
-        12) submenu_llmswitch
-            read -p "按回车返回菜单..." dummy
-            show_menu ;;
-        13) submenu_feishu
-            read -p "按回车返回菜单..." dummy
-            show_menu ;;
-        14) bash "$CCCONFIG_DIR/bin/test-bootstrap.sh" "$@"
-            read -p "按回车返回菜单..." dummy
-            show_menu ;;
-        15) bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh"
-            read -p "按回车返回菜单..." dummy
-            show_menu ;;
-        16) bash "$LIB_DIR/init-llm.sh"
-            read -p "按回车返回菜单..." dummy
-            show_menu ;;
-        17) submenu_getnote
-            read -p "按回车返回菜单..." dummy
-            show_menu ;;
-        10) while true; do
-           echo ""
-           echo "  ─ Bill & Token ─"
-           echo "  1) Bill (配置模型 token 单价)"
-           echo "  2) 用量统计 (总览)"
-           echo "  3) 按日报告"
-           echo "  4) 按天归档 (增量 → ccprivate/usage/)"
-           echo "  5) 推飞书 (用配置 URL，弹提示输可临时覆盖)"
-           echo "  6) timer 管理 (装/卸/状态/配置)"
-           echo "  7) 手动触发归档+推飞书 (按配置跑，不含今天)"
-           echo "  0) 返回"
-           read -p "  选择 [0-7]: " choice
-           choice=$(menu_num "$choice")
-           case "$choice" in
-             1) bash "$LIB_DIR/init-llm.sh" bill ;;
-             2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
-             3) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
-             4) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ;;
-             5)
-                read -p "  飞书 URL (回车 = 用 config 默认): " url
-                if [[ -n "$url" ]]; then
-                   bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --feishu "$url"
-                else
-                   bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental
-                fi
-                ;;
-             6) bash "$CCCONFIG_DIR/option-usage/init.sh" status
-                echo ""
-                echo "  ─ 操作 ─"
-                echo "    i) 装 systemd timer"
-                echo "    u) 卸 systemd timer"
-                echo "    c) 配置 feishu_url / schedule / include_today"
-                echo "    b) 返回"
-                read -p "  选择 [i/u/c/b]: " sub
-                case "$sub" in
-                  i) bash "$CCCONFIG_DIR/option-usage/init.sh" install ;;
-                  u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall ;;
-                  c) bash "$CCCONFIG_DIR/option-usage/init.sh" config ;;
-                esac
-                ;;
-             7) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
-             0) break ;;
-             *) ;;
-           esac
-           echo ""
-           echo "  按回车继续..."
-           read -r dummy
-           done ;;
-        0) echo ""; exit 0 ;;
-        *) show_menu ;;
-    esac
-
-    echo ""
-    read -p "按回车返回菜单..." dummy
-    show_menu
-}
-
-submenu_monitor() {
-    echo ""
-    echo -e "${CYAN}── Monitor 管理 ──${NC}"
-    echo ""
-    echo "  1) 启动             ─ 后台启动文件监控 + 自动提交推送"
-    echo "  2) 停止             ─ 停止监控进程"
-    echo "  3) 看状态           ─ 进程状态 + 各仓库待提交文件数"
-    echo "  4) 实时追踪 (tail)  ─ 持续输出推送结果（Ctrl+C 退出）"
-    echo "  5) 文件变更 (mon)   ─ 实时显示文件变更事件（Ctrl+C 退出）"
-    echo "  6) 修复             ─ inotify-tools 死掉时: 重装 + 重启 monitor"
-    echo ""
-    echo "  0) 返回"
-    echo ""
-    read -p "选择 [0-6]: " c
-    c=$(menu_num "$c")
-    case "$c" in
-        1) bash "$LIB_DIR/monitor.sh" start ;;
-        2) bash "$LIB_DIR/monitor.sh" stop ;;
-        3) bash "$LIB_DIR/monitor.sh" status ;;
-        4) bash "$LIB_DIR/monitor.sh" tail ;;
-        5) bash "$LIB_DIR/monitor.sh" monitor ;;
-        6) fix_monitor ;;
-        0) return ;;
-        *) submenu_monitor ;;
-    esac
-}
-
-submenu_llmswitch() {
-    echo ""
-    echo -e "${CYAN}── llmswitch 网关代理 ──${NC}"
-    echo -e "${GRAY}  由 init-llm 自动管理（按 provider 自动启/停）${NC}"
-    echo ""
-    echo "  1) 启动代理        ─ bash option-llmswitch/init.sh --start"
-    echo "  2) 停止代理        ─ bash option-llmswitch/init.sh --stop"
-    echo "  3) 重启代理        ─ bash option-llmswitch/init.sh --restart"
-    echo "  4) 查看状态        ─ bash option-llmswitch/init.sh --status"
-    echo "  5) 切换 LLM (推荐) ─ 自动按 provider 启/停（gate/minimax/...）"
-    echo ""
-    echo "  0) 返回"
-    echo ""
-    read -p "选择 [0-5]: " c
-    c=$(menu_num "$c")
-    case "$c" in
-        1) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --start ;;
-        2) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --stop ;;
-        3) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --restart ;;
-        4) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --status ;;
-        5) bash "$LIB_DIR/init-llm.sh" ;;
-        0) return ;;
-        *) submenu_llmswitch ;;
-    esac
-}
 
 # 读取 feishu.json 账号列表（一行一 JSON）
 _feishu_list_apps() {
@@ -856,35 +676,20 @@ submenu_getnote() {
     local init="$CCCONFIG_DIR/option-getnote/init.sh"
 
     while true; do
-        echo ""
-        echo -e "${CYAN}── getnote 账号列表 ──${NC}"
+        echo ""; section "getnote 账号"
         bash "$sw" --list 2>/dev/null || echo -e "  ${YELLOW}无 getnote 账号${NC}"
         echo ""
-        echo -e "${CYAN}── 配置调整 ──${NC}"
-        echo "  1) 添加新账号"
-        echo "  2) 删除账号"
-        echo "  3) 切换账号（仅当前 session）"
-        echo "  4) 切换账号并持久化到 ccprivate"
-        echo "  0) 返回主菜单"
-        echo ""
-        read -p "  选择 [0-4]: " c
-
-        case "$c" in
+        local c; c=$(menu_select "配置调整" \
+            "1) 添加" "2) 删除" "3) 切换(session)" "4) 切换(持久化)" "0) 返回")
+        [[ -z "$c" ]] && continue
+        case "${c:0:1}" in
             1) bash "$init" add ;;
             2) bash "$init" remove ;;
-            3)
-                read -p "  输入账号名（回车取消）: " target < /dev/tty
-                [ -n "$target" ] && bash "$sw" "$target"
-                ;;
-            4)
-                read -p "  输入账号名（回车取消）: " target < /dev/tty
-                [ -n "$target" ] && bash "$sw" "$target" -p
-                ;;
-            0|q|"") return 0 ;;
-            *) warn "无效选项" ;;
+            3) target=$(prompt "账号名"); [ -n "$target" ] && bash "$sw" "$target" ;;
+            4) target=$(prompt "账号名"); [ -n "$target" ] && bash "$sw" "$target" -p ;;
+            0) return 0 ;;
         esac
-        echo ""
-        read -p "  按回车返回 getnote 菜单..." dummy
+        echo ""; read -p "按回车返回..." dummy
     done
 }
 
