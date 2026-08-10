@@ -20,9 +20,7 @@ source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
 }
-good() { echo -e "  ${GREEN}$1${NC}"; }
-bad()  { echo -e "  ${RED}$1${NC}"; }
-warn() { echo -e "  ${YELLOW}$1${NC}"; }
+source "$SCRIPT_DIR/interact.sh"
 info() { echo -e "  ${GRAY}$1${NC}"; }
 interactive_read() { echo -n "$1"; read -r "$2" < /dev/tty; }
 
@@ -313,25 +311,32 @@ print(' '.join(keys))
         return
     fi
 
-    echo ""
-    read -p "  选择序号（逗号分隔，回车跳过）: " selections < /dev/tty
-    [[ -z "$selections" ]] && { echo "  跳过"; return; }
+    # 多选
+    local selected_items
+    selected_items=$(menu_multi "选择要填入的 MCP" "${names[@]}")
+    [[ -z "$selected_items" ]] && { echo "  跳过"; return; }
 
-    # 第二阶段：逐个填选中的
+    # 解析选中项到 names 的索引
+    local selected_indices=()
+    for sel_name in $selected_items; do
+        for ((si=0; si<${#names[@]}; si++)); do
+            [[ "${names[$si]}" == "$sel_name" ]] && { selected_indices+=("$si"); break; }
+        done
+    done
+
     local updated=0
-    for sel in ${selections//,/ }; do
-        sel="$((sel))" 2>/dev/null || continue
-        [[ $sel -lt 1 || $sel -gt $idx ]] && continue
-        local i=$((sel - 1))
+    for i in "${selected_indices[@]}"; do
         local name="${names[$i]}" desc="${descs[$i]}" env_str="${env_strs[$i]}" how_to_get="${how_tos[$i]}" is_disabled="${disableds[$i]}"
         echo -e "\n  ${CYAN}═ $name${NC}  ${GRAY}$desc${NC}"
         [[ -n "$how_to_get" ]] && echo -e "    ${GRAY}$how_to_get${NC}"
 
         local changed=false
         if [[ "$is_disabled" == "true" ]]; then
-            read -p "  当前禁用，启用？[y/N]: " yn < /dev/tty
-            if [[ ! "$yn" =~ ^[Yy]$ ]]; then echo "  跳过"; continue; fi
-            changed=true; is_disabled="false"
+            if confirm "$name 当前禁用，启用？" n; then
+                changed=true; is_disabled="false"
+            else
+                echo "  跳过"; continue
+            fi
         fi
 
         local ph_keys
@@ -344,7 +349,7 @@ print('\n'.join(keys))
         local new_env_json="$env_str"
         while IFS= read -r key; do
             [[ -z "$key" ]] && continue
-            read -p "    $key: " val < /dev/tty
+            local val; val=$(prompt "$key")
             if [[ -n "$val" ]]; then
                 new_env_json=$(echo "$new_env_json" | python3 -c "
 import json, sys
@@ -469,33 +474,33 @@ PYEOF
 do_menu() {
     local cmd=""
     while true; do
-        clear 2>/dev/null || true
         do_status
-        echo -e "${CYAN}── MCP 配置 ──${NC}"
         echo ""
-        echo "  1) 查看状态"
-        echo "  2) 同步到运行环境"
-        echo "  3) 配置 Key（交互）"
-        echo "  4) 启停单个 MCP"
-        echo ""
-        echo "  0) 退出"
-        echo ""
-        read -p "  选择 [0-4]: " cmd
-        cmd=$(menu_num "$cmd")
-        case "$cmd" in
-            1) do_status; read -p "  按回车继续..." dummy ;;
-            2) do_sync; read -p "  按回车继续..." dummy ;;
-            3) do_keys; read -p "  按回车继续..." dummy ;;
+        local cmd
+        cmd=$(menu_select "MCP 配置" "1) 状态" "2) 同步" "3) 配置 Key" "4) 启停 MCP" "0) 退出")
+        [[ -z "$cmd" ]] && continue
+        case "${cmd:0:1}" in
+            1) do_status ;;
+            2) do_sync ;;
+            3) do_keys ;;
             4)
-                echo ""; echo -e "${CYAN}── 启停 MCP ──${NC}"
+                echo ""; section "启停 MCP"
+                local mcp_items=() mcp_names=()
                 while IFS='|' read -r n desc mtype command args_str env_str is_disabled how_to_get; do
                     [[ -z "$n" ]] && continue
-                    local s="${GREEN}启用${NC}"; [[ "$is_disabled" == "true" ]] && s="${YELLOW}禁用${NC}"
-                    echo -e "  $n ($s)  $desc"
+                    mcp_names+=("$n")
+                    local s="启用"; [[ "$is_disabled" == "true" ]] && s="禁用"
+                    mcp_items+=("$n ($s)")
                 done <<< "$(read_mcp_list)"
-                echo ""
-                read -p "  MCP 名称: " tname < /dev/tty
-                read -p "  操作 (on/off): " tact < /dev/tty
+                local sel; sel=$(menu_select "选择 MCP" "${mcp_items[@]}")
+                [[ -z "$sel" ]] && continue
+                local tname=""
+                for ((mi=0; mi<${#mcp_items[@]}; mi++)); do
+                    [[ "${mcp_items[$mi]}" == "$sel" ]] && { tname="${mcp_names[$mi]}"; break; }
+                done
+                [ -z "$tname" ] && continue
+                local tact; tact=$(menu_select "操作" "on" "off")
+                [ -z "$tact" ] && continue
                 do_toggle "$tname" "$tact"
                 read -p "  按回车继续..." dummy
                 ;;
