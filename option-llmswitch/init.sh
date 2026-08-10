@@ -425,7 +425,7 @@ _do_config_mode() {
     echo ""
     echo "  当前模式: $current_mode"
     local mode_choice
-    mode_choice=$(menu_select "模式选择" "auto" "manual" "取消")
+    mode_choice=$(menu_select "模式选择" "auto" "manual" "off")
     [[ -z "$mode_choice" ]] && return
 
     case "$mode_choice" in
@@ -519,7 +519,7 @@ with open(conf_file, 'w') as f:
 print(f"  已添加: 星期{','.join(map(str,sorted(set(days))))} {start}-{end}")
 PYEOF
                 ;;
-            d|D)
+            2)
                 del_idx=$(prompt "要删除的编号")
                 python3 - "$CONF_FILE" "$del_idx" << 'PYEOF'
 import json, sys
@@ -541,7 +541,7 @@ with open(conf_file, 'w') as f:
 print(f"  已删除: 星期{','.join(map(str,removed.get('days',[])))} {removed.get('start','')}-{removed.get('end','')}")
 PYEOF
                 ;;
-            q|Q|"") break ;;
+            3) break ;;
             *) warn "无效选择" ;;
         esac
     done
@@ -710,7 +710,7 @@ PYEOF
             2) _do_config_peak_hours ;;
             3) _do_config_routes ;;
             4) _do_config_manual_provider ;;
-            0) return 0 ;;
+            5) return 0 ;;
             *) bad "无效选择" ;;
         esac
     done
