@@ -128,6 +128,11 @@ out=$(prompt "msg" "default-val" </dev/null 2>/dev/null)
 out=$(prompt "msg" </dev/null 2>/dev/null)
 [[ -z "$out" ]] && pass "prompt no-default EOF returns empty" || fail "got: '$out'"
 
+# ── Test 9.5: menu_select EOF 返回 "0"（cancel 哨值）──
+echo "=== Test 9.5: EOF returns '0' as cancel sentinel ==="
+out=$(menu_select "t" "a" "b" </dev/null 2>/dev/null)
+[[ "$out" == "0" ]] && pass "EOF returns '0' (callers guard with [[ \$c == 0 ]])" || fail "got: '$out'"
+
 # ── Test 10: prompt stdin 喂值 ──
 echo "=== Test 10: prompt stdin ==="
 out=$(printf "user-input\n" | prompt "msg" "default" 2>/dev/null)
