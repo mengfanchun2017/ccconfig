@@ -34,6 +34,7 @@ LOCAL_BIN="$HOME/.local/bin"
 export PATH="$LOCAL_BIN:$PATH"
 
 source "$SCRIPT_DIR/lib/dry-run.sh"
+source "$SCRIPT_DIR/lib/colors.sh" 2>/dev/null || {
 source "$SCRIPT_DIR/lib/interact.sh"
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
@@ -160,17 +161,13 @@ check_gh_auth() {
         info "GitHub 认证: ${GREEN}SSH key 已配置${NC}（git push/clone 可用）"
         warn "但 gh CLI 未登录，部分操作（创建仓库、API 查询）会失败"
         echo ""
-        read -p "  现在补 gh 登录? [Y/n]: " do_login
-        do_login="${do_login:-y}"
-        if [[ ! "$do_login" =~ ^[Yy]$ ]]; then
+        if confirm "现在补 gh 登录？" y; then
             return 0  # SSH 够用
         fi
     else
         warn "GitHub 未认证，需要先登录"
         echo ""
-        read -p "  现在登录? [Y/n]: " do_login
-        do_login="${do_login:-y}"
-        if [[ ! "$do_login" =~ ^[Yy]$ ]]; then
+        if confirm "现在登录？" y; then
             echo ""
             echo "  没有认证将无法创建 GitHub 私有仓库。"
             return 1
@@ -192,8 +189,7 @@ check_gh_auth() {
     echo -e "     - Token 有有效期，过期后需重新 ${YELLOW}gh auth login${NC}"
     echo ""
     read -p "  选择 [A]: " login_method
-    login_method="${login_method:-A}"
-
+    login_method=$(menu_select "认证方式" "A) PAT 粘贴" "B) Web OAuth")
     case "${login_method^^}" in
         B|2)
             gh auth login --web --git-protocol https --hostname github.com
@@ -262,12 +258,13 @@ ensure_git_ident() {
 
     # 缺哪个问哪个
     if [[ -z "$cur_name" ]]; then
-        read -p "  Git user.name（GitHub 用户名）: " cur_name
+        cur_name=$(prompt "Git user.name（GitHub 用户名）")
         [[ -z "$cur_name" ]] && { err "user.name 不能为空"; return 1; }
         git config --global user.name "$cur_name"
     fi
+
     if [[ -z "$cur_email" ]]; then
-        read -p "  Git user.email（GitHub 注册邮箱）: " cur_email
+        cur_email=$(prompt "Git user.email（GitHub 注册邮箱）")
         [[ -z "$cur_email" ]] && { err "user.email 不能为空"; return 1; }
         git config --global user.email "$cur_email"
     fi
@@ -438,34 +435,33 @@ collect_info() {
         echo "  2) MiniMax"
         echo "  3) Claude (Anthropic 官方)"
         echo ""
-        read -p "  选择默认后端 [1]: " LLM_CHOICE
-        LLM_CHOICE="${LLM_CHOICE:-1}"
+        local LLM_CHOICE; LLM_CHOICE=$(menu_select "默认 LLM" "1) DeepSeek" "2) MiniMax" "3) Claude"); LLM_CHOICE="${LLM_CHOICE:0:1}"
         LLM_CHOICE=$(menu_num "$LLM_CHOICE")
 
         case "$LLM_CHOICE" in
             1)
-                DEFAULT_LLM="deepseek"
+                [ -z "$DEEPSEEK_KEY" ]                 DEFAULT_LLM="deepseek"                DEFAULT_LLM="deepseek" DEEPSEEK_KEY=$(prompt_password "DeepSeek API Key")
                 [ -z "$DEEPSEEK_KEY" ] && read -p "  DeepSeek API Key: " DEEPSEEK_KEY
                 ;;
             2)
-                DEFAULT_LLM="minimax"
+                [ -z "$MINIMAX_KEY" ]                 DEFAULT_LLM="minimax"                DEFAULT_LLM="minimax" MINIMAX_KEY=$(prompt_password "MiniMax API Key")
                 [ -z "$MINIMAX_KEY" ] && read -p "  MiniMax API Key: " MINIMAX_KEY
                 ;;
             3)
-                DEFAULT_LLM="claude"
+                [ -z "$CLAUDE_KEY" ]                 DEFAULT_LLM="claude"                DEFAULT_LLM="claude" CLAUDE_KEY=$(prompt_password "Anthropic API Key")
                 [ -z "$CLAUDE_KEY" ] && read -p "  Anthropic API Key: " CLAUDE_KEY
                 ;;
         esac
 
-        # 如果用户有多个 key，问要不要填其他的
+                        DEEPSEEK_KEY=$(prompt "还有 DeepSeek Key?（回车跳过）")
         echo ""
         if [ "$LLM_CHOICE" != "1" ] && [ -z "$DEEPSEEK_KEY" ]; then
             read -p "  还有 DeepSeek Key? 直接回车跳过: " DEEPSEEK_KEY
-        fi
+                        MINIMAX_KEY=$(prompt "还有 MiniMax Key?（回车跳过）")
         if [ "$LLM_CHOICE" != "2" ] && [ -z "$MINIMAX_KEY" ]; then
             read -p "  还有 MiniMax Key? 直接回车跳过: " MINIMAX_KEY
         fi
-        if [ "$LLM_CHOICE" != "3" ] && [ -z "$CLAUDE_KEY" ]; then
+                        CLAUDE_KEY=$(prompt "还有 Claude Key?（回车跳过）")
             read -p "  还有 Anthropic Key? 直接回车跳过: " CLAUDE_KEY
         fi
     fi
@@ -775,7 +771,7 @@ do_create() {
 
   建好后按回车继续（或 Ctrl+C 取消，之后手动重跑本脚本）。
 EOF
-        read -p "  建好了? [回车继续] " _
+        read -p "建好了？按回车继续..." _
         # 再确认一次（防用户跳过）
         if ! gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
             err "GitHub 仍未检测到 ccprivate 仓库"
@@ -949,7 +945,7 @@ do_clone() {
 
     GH_USER=$(detect_gh_user)
     if [ -z "$GH_USER" ]; then
-        read -p "  GitHub 用户名: " GH_USER
+        GH_USER=$(prompt "GitHub 用户名")
     fi
 
     check_gh_auth || return 1
