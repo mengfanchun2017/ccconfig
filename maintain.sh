@@ -689,7 +689,6 @@ print('\t'.join([
                 for n in "${names[@]}"; do [ "$n" = "$dn" ] && found=1 && break; done
                 [ "$found" -eq 1 ] && {
                     if confirm "确认删除 ${dn}？" n; then
-                    if [[ "$cf" =~ ^[Yy]$ ]]; then
                         python3 - "$conf" "$dn" << 'PYEOF'
 import json, sys
 p, name = sys.argv[1], sys.argv[2]
