@@ -470,7 +470,6 @@ def _is_placeholder(val):
 
 # 测试用例
 tests = [
-    ("请填入你的 MiniMax API Key", True),
     ("请到 https://tavily.com 注册获取 API Key", True),
     ("sk-real-key-12345", False),
     ("your_key_here", True),

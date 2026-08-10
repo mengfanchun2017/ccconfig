@@ -209,13 +209,7 @@ for server in conf_data.get('mcp_servers', []):
                     }
                     getnote_overridden = True
                     break
-    if not getnote_overridden:
-        if name in claude_data.get('mcpServers', {}):
-            existing = claude_data['mcpServers'][name]
-            if existing.get('env'): entry['env'] = {**entry.get('env', {}), **existing['env']}
-        if name in settings_data.get('mcpServers', {}):
-            real_keys = {k: v for k, v in settings_data['mcpServers'][name].get('env', {}).items() if v and '请填入' not in str(v) and 'your key' not in str(v).lower() and '<your-' not in str(v)}
-            if real_keys: entry['env'] = {**entry.get('env', {}), **real_keys}
+    # conf 是 env 的真相源，直接写入 settings
     mcp_servers[name] = entry
 
 settings_data['mcpServers'] = mcp_servers
@@ -360,25 +354,6 @@ print(json.dumps(d))
                 changed=true
             fi
         done <<< "$ph_keys"
-
-        if [[ "$name" == "minimax-mcp" ]] && ! echo "$new_env_json" | grep -qE 'gk_live|sk-'; then
-            local mk
-            mk=$(python3 -c "
-import json, sys
-with open(sys.argv[1]) as f: data = json.load(f)
-for s in data['mcp_servers']:
-    if s['name'] == 'minimax': print(s.get('env', {}).get('MINIMAX_API_KEY', '')); break
-" "$MCP_CONF_FILE" 2>/dev/null)
-            if [[ -n "$mk" ]] && ! echo "$mk" | grep -qE '请填入|请到'; then
-                new_env_json=$(echo "$new_env_json" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-d['MINIMAX_API_KEY'] = sys.argv[1]
-print(json.dumps(d))
-" "$mk")
-                changed=true
-            fi
-        fi
 
         if ! $changed; then echo -e "  ${GRAY}无变更${NC}"; continue; fi
         python3 -c "
