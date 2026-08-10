@@ -26,15 +26,8 @@ CCCONFIG_DIR="$SCRIPT_DIR"
 source "$LIB_DIR/dry-run.sh"
 source "$LIB_DIR/path-helper.sh" 2>/dev/null || true
 export PATH="$HOME/.local/bin:$(find_node_bin 2>/dev/null || echo ""):$PATH"
-source "$LIB_DIR/colors.sh" 2>/dev/null || {
-    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
-    ok()    { echo -e "  ${GREEN}✅ $1${NC}"; }
-    err()   { echo -e "  ${RED}❌ $1${NC}"; }
-    warn()  { echo -e "  ${YELLOW}⚠  $1${NC}"; }
-    info()  { echo -e "  ${GRAY}$1${NC}"; }
-    section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
-}
+# colors.sh / interact.sh 是基础库，缺失立刻暴露（不再 silent fallback）
+source "$LIB_DIR/colors.sh"
 source "$LIB_DIR/interact.sh"
 
 # ── Step 5: 收尾 ──
