@@ -175,11 +175,6 @@ list_accounts() {
     default_name=$(python3 -c "import json,sys; print(json.loads(sys.argv[1]).get('default',''))" "$accounts_json" 2>/dev/null)
 
     echo ""
-    echo -e "${CYAN}═══════════════════════════════════════════${NC}"
-    echo -e "${CYAN}  getnote 账号列表${NC}"
-    echo -e "${CYAN}═══════════════════════════════════════════${NC}"
-    echo ""
-
     local cnt
     cnt=$(python3 -c "import json,sys; print(len(json.loads(sys.argv[1]).get('accounts',[])))" "$accounts_json")
     if [ "$cnt" -eq 0 ]; then
