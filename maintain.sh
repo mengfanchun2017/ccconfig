@@ -710,8 +710,10 @@ PYEOF
         echo "  4) 编辑 App ID / Secret"
         echo "  5) 发测试消息 (到此 app)"
         echo "  0) 返回账号列表"
-        sub=$(menu_select "应用: $target" \
-        case "$sub" in
+        local sub; sub=$(menu_select "应用: $target" \
+            "1) 切换" "2) OAuth" "3) 看授权" "4) 编辑" "5) 发测试" "0) 返回")
+        [[ -z "$sub" ]] && continue
+        case "${sub:0:1}" in
             1) bash "$feishu_switch" "$target" ;;
             2)
                 local cd="$HOME/.lark-cli-${target}"
