@@ -634,37 +634,22 @@ submenu_feishu_accounts() {
     local conf
     conf="$(resolve_conf feishu.json 2>/dev/null)" || { warn "找不到 feishu.json"; return 0; }
 
-    while true; do
-        local cur_acct; cur_acct="$(_feishu_current_account)"
-        local -a lines names
-        while IFS= read -r line; do
-            [ -n "$line" ] && lines+=("$line")
-        done < <(_feishu_list_apps)
+    local cur_acct; cur_acct="$(_feishu_current_account)"
+    local -a lines names
+    while IFS= read -r line; do
+        [ -n "$line" ] && lines+=("$line")
+    done < <(_feishu_list_apps)
 
-        echo ""
-        echo -e "${CYAN}── 飞书账号 (feishu.json apps[]) ──${NC}"
-        echo -e "  ${GRAY}活跃账号: ${cur_acct:-无}    配置文件: ${conf}${NC}"
-        echo ""
+    echo ""
+    echo -e "${CYAN}── 飞书账号 (feishu.json apps[]) ──${NC}"
+    echo -e "  ${GRAY}活跃账号: ${cur_acct:-无}    配置文件: ${conf}${NC}"
+    echo ""
 
-        if [ ${#lines[@]} -eq 0 ]; then
-            warn "feishu.json 中无 app 配置"
-            echo "  a) 添加新 app"
-            echo "  0) 返回飞书菜单"
-            sel=$(menu_select "选择" \
- "现在" \
- "返回")
-            case "$sel" in
-                a|A) bash "$feishu_lc" ;;
-                0) return 0 ;;
-            esac
-            continue
-        fi
-
-        local i=1
-        names=()
-        for line in "${lines[@]}"; do
-            local name appid desc lc_on lb_on
-            IFS=$'\t' read -r name appid desc lc_on lb_on < <(echo "$line" | python3 -c "
+    local i=1
+    names=()
+    for line in "${lines[@]}"; do
+        local name appid desc lc_on lb_on
+        IFS=$'\t' read -r name appid desc lc_on lb_on < <(echo "$line" | python3 -c "
 import json, sys
 a = json.load(sys.stdin)
 i = a.get('appId','')
@@ -676,89 +661,103 @@ print('\t'.join([
     'Y' if a.get('larkCli',{}).get('enabled') else 'N',
     'Y' if lb.get('enabled') else 'N',
 ]))" 2>/dev/null)
-            local marker="  "
-            [ "$name" = "$cur_acct" ] && marker="${GREEN}← 活跃${NC}"
-            local lc_disp="${GRAY}✗ lark-cli${NC}"; [ "$lc_on" = "Y" ] && lc_disp="${GREEN}✓ lark-cli${NC}"
-            local lb_disp="${GRAY}✗ larkbridge${NC}"; [ "$lb_on" = "Y" ] && lb_disp="${GREEN}✓ larkbridge${NC}"
-            printf "  ${YELLOW}%d)${NC} %-14s appId=${GRAY}%-18s${NC} %b  %b  ${marker}\n" "$i" "$name" "$appid" "$lc_disp" "$lb_disp"
-            [ -n "$desc" ] && printf "       ${GRAY}%s${NC}\n" "$desc"
-            names+=("$name")
-            i=$((i + 1))
-        done
-        echo ""
-        echo "  a) 添加新 app"
-        echo "  d) 删除 app"
-        echo "  0) 返回飞书菜单"
-        echo ""
-        sel=$(menu_select "飞书账号" \
- "${names[@]}" \
- "添加" \
- "删除" \
- "返回")
-
+        local marker="  "
+        [ "$name" = "$cur_acct" ] && marker="${GREEN}← 活跃${NC}"
+        local lc_disp="${GRAY}✗ lark-cli${NC}"; [ "$lc_on" = "Y" ] && lc_disp="${GREEN}✓ lark-cli${NC}"
+        local lb_disp="${GRAY}✗ larkbridge${NC}"; [ "$lb_on" = "Y" ] && lb_disp="${GREEN}✓ larkbridge${NC}"
+        printf "  ${YELLOW}%d)${NC} %-14s appId=${GRAY}%-18s${NC} %b  %b  ${marker}\n" "$i" "$name" "$appid" "$lc_disp" "$lb_disp"
+        [ -n "$desc" ] && printf "       ${GRAY}%s${NC}\n" "$desc"
+        names+=("$name")
+        i=$((i + 1))
+    done
+    local sel
+    if [ ${#names[@]} -eq 0 ]; then
+        warn "feishu.json 中无 app 配置"
+        sel=$(menu_select "选择" "添加新 app" "返回飞书菜单")
         case "$sel" in
-            0|q) return 0 ;;
-            a|A) bash "$feishu_lc" ;;
-            d|D)
-                if [ ${#names[@]} -eq 0 ]; then continue; fi
-                local dn; dn=$(prompt "要删除的 app 名")
-                local found=0
-                for n in "${names[@]}"; do [ "$n" = "$dn" ] && found=1 && break; done
-                [ "$found" -eq 1 ] && {
-                    if confirm "确认删除 ${dn}？" n; then
-                        python3 - "$conf" "$dn" << 'PYEOF'
+            1) bash "$feishu_lc" ;;
+            *) return 0 ;;
+        esac
+        return 0
+    fi
+
+    sel=$(menu_select "飞书账号" "${names[@]}" "添加" "删除" "返回")
+
+    case "$sel" in
+        # N) return 0 — 「返回」项，最后一项
+        $((${#names[@]} + 3)))
+            return 0 ;;
+        # N+1) 添加
+        $((${#names[@]} + 1)))
+            bash "$feishu_lc" ;;
+        # N+2) 删除
+        $((${#names[@]} + 2)))
+            local dn; dn=$(prompt "要删除的 app 名")
+            local found=0
+            for n in "${names[@]}"; do [ "$n" = "$dn" ] && found=1 && break; done
+            if [ "$found" -eq 1 ] && confirm "确认删除 ${dn}？" n; then
+                python3 - "$conf" "$dn" << 'PYEOF'
 import json, sys
 p, name = sys.argv[1], sys.argv[2]
 with open(p) as f: d = json.load(f)
 d['apps'] = [a for a in d.get('apps',[]) if a.get('name') != name]
 with open(p,'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
 PYEOF
-                        info "已删除"
-                    fi
-                }
-                ;;
-        esac
+                info "已删除"
+            fi
+            ;;
+        # 1..N) 选中某个 app，跳到子菜单
+        *)
+            # 验证 sel 在 1..N 范围
+            if [[ "$sel" =~ ^[0-9]+$ ]] && (( sel >= 1 && sel <= ${#names[@]} )); then
+                local target="${names[$((sel - 1))]}"
+                _feishu_account_app_menu "$target"
+            fi
+            ;;
+    esac
+}
 
-        # 匹配选中的 app
-        local target="${sel}"
-        for ((ni=0; ni<${#names[@]}; ni++)); do
-            [[ "${names[$ni]}" == "$sel" ]] && { target="${names[$ni]}"; break; }
-        done
-        echo ""
-        echo -e "${CYAN}── 应用: ${target} ──${NC}"
-        local sub; sub=$(menu_select "应用: $target" \
-            "切换" \
-            "OAuth" \
-            "看授权" \
-            "编辑" \
-            "发测试" \
-            "返回")
-        [[ -z "$sub" ]] && continue
-        case "$sub" in
-            1) bash "$feishu_switch" "$target" ;;
-            2)
-                local cd="$HOME/.lark-cli-${target}"
-                if [ -f "${cd}/config.json" ]; then
-                    LARKSUITE_CLI_CONFIG_DIR="$cd" bash "$feishu_lc" --auth-login "$target"
-                else
-                    warn "先选 4 编辑 App ID/Secret，再走 lark-cli init"
-                fi
-                ;;
-            3)
-                local cd="$HOME/.lark-cli-${target}"
-                if [ -f "${cd}/config.json" ]; then
-                    LARKSUITE_CLI_CONFIG_DIR="$cd" lark-cli auth status 2>&1 \
-                        | grep -v '^\[lark-cli\]' | sed 's/^/  /'
-                else
-                    warn "config.json 不存在"
-                fi
-                ;;
-            4) warn "手动编辑: vim $conf" ;;
-            5) _feishu_send_test_message_for "$target" ;;
-            0) ;;
-            *) ;;
-        esac
-    done
+# 单 app 的子菜单（submenu_feishu_accounts 调用）
+_feishu_account_app_menu() {
+    local target="$1"
+    local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
+    local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
+    local conf
+    conf="$(resolve_conf feishu.json 2>/dev/null)" || return 0
+
+    echo ""
+    echo -e "${CYAN}── 应用: ${target} ──${NC}"
+    local sub; sub=$(menu_select "应用: $target" \
+        "切换" \
+        "OAuth" \
+        "看授权" \
+        "编辑" \
+        "发测试" \
+        "返回")
+    case "$sub" in
+        1) bash "$feishu_switch" "$target" ;;
+        2)
+            local cd="$HOME/.lark-cli-${target}"
+            if [ -f "${cd}/config.json" ]; then
+                LARKSUITE_CLI_CONFIG_DIR="$cd" bash "$feishu_lc" --auth-login "$target"
+            else
+                warn "先选 4 编辑 App ID/Secret，再走 lark-cli init"
+            fi
+            ;;
+        3)
+            local cd="$HOME/.lark-cli-${target}"
+            if [ -f "${cd}/config.json" ]; then
+                LARKSUITE_CLI_CONFIG_DIR="$cd" lark-cli auth status 2>&1 \
+                    | grep -v '^\[lark-cli\]' | sed 's/^/  /'
+            else
+                warn "config.json 不存在"
+            fi
+            ;;
+        4) warn "手动编辑: vim $conf" ;;
+        5) _feishu_send_test_message_for "$target" ;;
+        6) return 0 ;;
+        *) return 0 ;;
+    esac
 }
 
 # ── getnote MCP 账号管理子菜单 ──
