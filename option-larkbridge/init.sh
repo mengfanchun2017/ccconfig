@@ -526,6 +526,11 @@ SERVICEOF
   fi
 }
 
+_nohup_pid_for() {
+  local pf="$HOME/.lark-channel/profiles/${1}/nohup.pid"
+  [ -f "$pf" ] && cat "$pf" 2>/dev/null || echo ""
+}
+
 show_status() {
   local running; running="$(_get_running_profiles)"
   local -a profiles; mapfile -t profiles < <(_list_profiles)
@@ -552,17 +557,40 @@ show_status() {
   if [ ${#profiles[@]} -eq 0 ]; then
     echo "  无，运行 --profile add 添加"
   else
-    printf "  %-20s %-10s %s\n" "PROFILE" "STATUS" "SERVICE"
+    printf "  %-20s  %-7s  %-10s  %s\n" "PROFILE" "STATUS" "PID" "启动方式"
     for p in "${profiles[@]}"; do
-      local status="${GRAY}○ 未启动${NC}"
-      echo "$running" | grep -qxF "$p" && status="${GREEN}● 运行中${NC}"
-      local svc_indicator="${GRAY}-${NC}"
-      [ -f "$(_service_file "$p")" ] && svc_indicator="${GRAY}systemd${NC}"
+      local status="${GRAY}○${NC}"
+      local pid_str="-"
+      local launch_way="${GRAY}-${NC}"
+
+      # registry 进程（lark-channel-bridge profile list 显示在跑）
+      _is_profile_running "$p"
+      if [ -n "${__holder:-}" ]; then
+        status="${GREEN}●${NC}"
+        pid_str="${__holder#pid=}"
+        launch_way="${GRAY}registry${NC}"
+      fi
+
+      # nohup.pid 覆盖
+      local np; np=$(_nohup_pid_for "$p")
+      if [ -n "$np" ] && kill -0 "$np" 2>/dev/null; then
+        status="${GREEN}●${NC}"
+        pid_str="$np"
+        launch_way="${YELLOW}nohup${NC}"
+      fi
+
+      # systemd service 覆盖
+      if [ -f "$(_service_file "$p")" ] && systemctl --user is-active "${SERVICE_PREFIX}.bot.${p}" &>/dev/null 2>&1; then
+        status="${GREEN}●${NC}"
+        pid_str="$(systemctl --user show -P MainPID "${SERVICE_PREFIX}.bot.${p}" 2>/dev/null || echo "-")"
+        launch_way="${GRAY}systemd${NC}"
+      fi
+
       local warn_marker=""
       if _check_scope_errors "$p" >/dev/null; then
-        warn_marker=" ${YELLOW}⚠ 缺 scope（运行 $0 --run ${p} 看修复提示）${NC}"
+        warn_marker=" ${YELLOW}⚠ 缺 scope${NC}"
       fi
-      echo -e "  $(printf '%-20s' "$p") $(printf '%-10b' "$status") $svc_indicator$warn_marker"
+      echo -e "  $(printf '%-20s' "$p")  $(printf '%-7b' "$status")  $(printf '%-10s' "$pid_str")  $launch_way$warn_marker"
     done
   fi
 
@@ -574,7 +602,9 @@ show_status() {
     echo ""
     info "  管理命令:"
     info "    $0 --run <profile>          # 前台调试"
-    info "    $0 --start <profile>        # 后台 systemd"
+    info "    $0 --bg <profile>           # 后台 nohup"
+    info "    $0 --stop <profile>         # 停止（nohup + systemd 三路全杀）"
+    info "    $0 --logs <profile>         # 看日志"
     info "    $0 --profile add            # 新增"
     info "    $0 --profile remove         # 删除"
     info "    $0 --profile update [name]  # 更新凭据"
@@ -627,6 +657,50 @@ profile_list() {
   done
 }
 
+# 停止一个 profile（nohup + systemd + registry 三路全杀）
+_stop_profile() {
+  local profile="$1"
+  [ -z "$profile" ] && return 1
+  local killed=0
+
+  # 1) nohup.pid
+  local nohup_pid_file="$HOME/.lark-channel/profiles/${profile}/nohup.pid"
+  if [ -f "$nohup_pid_file" ]; then
+    local pid; pid=$(cat "$nohup_pid_file" 2>/dev/null || true)
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null || true
+      info "  → nohup pid=$pid killed" >&2
+      killed=1
+    fi
+    rm -f "$nohup_pid_file"
+  fi
+
+  # 2) registry（lark-channel-bridge profile list STATUS 显示在跑）
+  _is_profile_running "$profile"
+  if [ -n "${__holder:-}" ]; then
+    local reg_pid="${__holder#pid=}"
+    if [ -n "$reg_pid" ] && kill -0 "$reg_pid" 2>/dev/null; then
+      kill "$reg_pid" 2>/dev/null || true
+      info "  → registry pid=$reg_pid killed" >&2
+      killed=1
+    fi
+  fi
+
+  # 3) systemd service
+  if [ -f "$(_service_file "$profile")" ]; then
+    if systemctl --user stop "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null; then
+      info "  → systemd service stopped" >&2
+      killed=1
+    fi
+  fi
+
+  if [ "$killed" -eq 1 ]; then
+    good "✅ ${profile} 已停止"
+  else
+    warn "⚠ ${profile} 没有运行中的实例" >&2
+  fi
+}
+
 profile_add() {
   local ws="${LARK_WORKSPACE:-$HOME/git}"
   local name; name="$(_run_select_app)" || { warn "取消" >&2; return 0; }
@@ -639,8 +713,9 @@ profile_remove() {
   [ -z "$profile" ] && return 0
   read -p "  确认删除 profile「${profile}」? [y/N] " confirm
   [ "$confirm" != "y" ] && [ "$confirm" != "Y" ] && { warn "取消" >&2; return 0; }
+  _stop_profile "$profile"
   local svc="$(_service_file "$profile")"
-  [ -f "$svc" ] && { systemctl --user stop "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null || true; systemctl --user disable "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null || true; rm -f "$svc"; }
+  [ -f "$svc" ] && { systemctl --user disable "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null || true; rm -f "$svc"; }
   lark-channel-bridge profile remove "$profile" --yes 2>/dev/null || true
   good "  ✓ 已删除"
 }
@@ -778,17 +853,31 @@ main() {
       local bg_profile="${1:-}"
       [ -z "$bg_profile" ] && bg_profile="$(_run_select_app)"
       [ -z "$bg_profile" ] && return 0
+      # 防重：已有实例则强杀
+      _is_profile_running "$bg_profile"
+      if [ -n "${__holder:-}" ]; then
+        local old_pid="${__holder#pid=}"
+        warn "  ⚠ ${bg_profile} 已有实例 (pid=$old_pid)，强杀重启" >&2
+        kill "$old_pid" 2>/dev/null || true
+        sleep 1
+        kill -0 "$old_pid" 2>/dev/null && kill -9 "$old_pid" 2>/dev/null || true
+      fi
+      # 清理旧 nohup.pid
+      local nohup_pid_file="$HOME/.lark-channel/profiles/${bg_profile}/nohup.pid"
+      rm -f "$nohup_pid_file"
       local bg_log="$HOME/.lark-channel/profiles/${bg_profile}/logs/bridge-$(date +%Y%m%d).jsonl"
       mkdir -p "$(dirname "$bg_log")"
       nohup lark-channel-bridge run --profile "$bg_profile" --workspace "${LARK_WORKSPACE:-$HOME/git}" >> "$bg_log" 2>&1 &
       local bg_pid=$!
+      echo "$bg_pid" > "$nohup_pid_file"
       sleep 2
       if kill -0 "$bg_pid" 2>/dev/null; then
         good "  ✅ ${bg_profile} 已后台启动 (pid=$bg_pid)"
         info "    日志: $bg_log"
-        info "    停止: kill $bg_pid"
+        info "    停止: $0 --stop ${bg_profile}"
       else
         warn "  ⚠ ${bg_profile} 后台启动失败"
+        rm -f "$nohup_pid_file"
         info "    看日志: $bg_log"
       fi ;;
     --start|--start-webui)
@@ -797,15 +886,10 @@ main() {
       [ -z "$profile" ] && return 0
       _setup_service "$profile" ;;
     --stop)
-      local profile="${1:-}"
-      [ -z "$profile" ] && profile="$(_pick_profile "选择要停止的 profile")"
-      [ -z "$profile" ] && return 0
-      if [ -f "$(_service_file "$profile")" ]; then
-        systemctl --user stop "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null \
-          && good "✅ ${profile} 已停止" || warn "⚠ ${profile} 停止失败" >&2
-      else
-        bad "  没有 ${profile} 的 service" >&2
-      fi ;;
+      local stop_profile="${1:-}"
+      [ -z "$stop_profile" ] && stop_profile="$(_pick_profile "选择要停止的 profile")"
+      [ -z "$stop_profile" ] && return 0
+      _stop_profile "$stop_profile" ;;
     --restart)
       local profile="${1:-}"
       [ -z "$profile" ] && profile="$(_pick_profile "选择要重启的 profile")"
