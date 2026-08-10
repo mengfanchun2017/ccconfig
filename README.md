@@ -210,7 +210,6 @@ ccconfig/
 ├── bin/memory-check.sh       # Memory 过期检查
 ├── hooks/pre-commit          # 防私密文件误提交
 ├── tests/                    # 自动化测试（mock 隔离，零网络）
-├── windows-tools/            # Windows/WSL PowerShell 工具
 ├── docs/                     # 设计文档 + ADR（docs/adr/）
 ├── .github/workflows/        # CI（shellcheck + shfmt）
 ├── .claude/settings.json     # 本仓库 Claude Code 设置

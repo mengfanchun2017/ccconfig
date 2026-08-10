@@ -4,6 +4,9 @@ All notable changes to ccconfig will be documented in this file.
 
 ## [Unreleased]
 
+### Removed
+- **`windows-tools/`** — 已拆出到独立仓库 [fancypowershell](https://github.com/mengfanchun2017/fancypowershell)。当前仅 `psupdate/` 一项，git rm 后内容无丢失
+
 ### Fixed
 - **`mcp-manager.sh` 硬编码用户路径** — 4 处 `/home/francis/git/` → `${HOME}/git/` + `os.path.expanduser('~/git/')`，跨用户移植性
 - **`tmux-sshd.sh` `local` 在函数外** — bash5.x 运行时报语法错误，删 `local` 关键字

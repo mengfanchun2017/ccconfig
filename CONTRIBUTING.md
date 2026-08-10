@@ -17,8 +17,9 @@ ccconfig/
 ├── lib/              # 子脚本 + 共享库
 ├── templates/        # .example 模板目录
 ├── option-*/         # 可选组件（option- 前缀）
-└── windows-tools/    # Windows/WSL 互操作
 ```
+
+> 注: Windows/WSL PowerShell 工具已拆出到独立仓库 [fancypowershell](https://github.com/mengfanchun2017/fancypowershell)。
 
 ## 提交规范
 
