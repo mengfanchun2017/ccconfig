@@ -129,7 +129,10 @@ self_update() {
     section "ccconfig 自更新"
 
     info "fetching origin/main..."
-    timeout 10 git -C "$CCCONFIG_ROOT" fetch origin main 2>/dev/null || { warn "无法连接远程（超时 10s），跳过自更新"; return 0; }
+    if ! timeout 5 bash -c 'echo > /dev/tcp/github.com/443' 2>/dev/null; then
+        warn "无法连接远程（网络不通），跳过自更新"; return 0
+    fi
+    timeout 10 git -C "$CCCONFIG_ROOT" fetch origin main 2>/dev/null || { warn "git fetch 失败，跳过自更新"; return 0; }
 
     local remote=$(git -C "$CCCONFIG_ROOT" rev-parse --short origin/main 2>/dev/null)
     local local_commit=$(git -C "$CCCONFIG_ROOT" rev-parse --short HEAD 2>/dev/null)
