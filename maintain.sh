@@ -613,6 +613,15 @@ PYEOF
 # 选 app，直接用活跃 profile 的 allowedUsers[0] 作为收件人
 # （用户多次反馈「ailab 已经有了自己的 open_id」，不再让用户输入）
 _feishu_send_test_message() {
+    # 发消息前先确认 larkbridge 在运行
+    local lb_running=false
+    if command -v lark-channel-bridge &>/dev/null; then
+        if systemctl --user is-active lark-channel-bridge.service &>/dev/null 2>&1 || pgrep -f "lark-channel-bridge" &>/dev/null; then
+            lb_running=true
+        fi
+    fi
+    $lb_running || warn "  larkbridge 未运行，消息可能收不到（先启动再试）"
+
     local conf; conf="$(resolve_conf feishu.json 2>/dev/null)" || { warn "找不到 feishu.json"; return 0; }
     [ -f "$conf" ] || { warn "feishu.json 不存在"; return 0; }
 
@@ -661,19 +670,19 @@ PYEOF
     fi
 
     # 直接读默认收件人，没有就引导用户输一次后自动注入
-    local oid; oid="$(_feishu_resolve_recipient "$target")"
-    [ -n "$oid" ] || return 0
+    local oid rc
+    oid="$(_feishu_resolve_recipient "$target")"; rc=$?
+    [ "$rc" -ne 0 ] && { warn "取消（未设置收件人）"; return 0; }
+    [ -n "$oid" ] || { warn "取消（未设置收件人）"; return 0; }
 
     local msg_text="ccconfig 飞书测试消息 ✅ from $target"
-    {
-      echo ""
-      info "  → 目标 app: $target"
-      info "  → 收件人 (profile 默认): $oid"
-      info "  → 内容: $msg_text"
-      echo ""
-    } >&2
+    echo ""
+    info "  → 目标 app: $target"
+    info "  → 收件人: $oid"
+    info "  → 内容: $msg_text"
+    echo ""
     read -p "  发送? [Y/n]: " cf
-    [[ "$cf" =~ ^[Nn]$ ]] && { info "  取消" >&2; return 0; }
+    [[ "$cf" =~ ^[Nn]$ ]] && { info "取消"; return 0; }
 
     info "  拿 tenant_access_token..." >&2
     local token
@@ -682,7 +691,7 @@ PYEOF
         -H "Content-Type: application/json" \
         -d "{\"app_id\":\"$app_id\",\"app_secret\":\"$app_secret\"}" \
         | python3 -c "import json,sys; print(json.load(sys.stdin).get('tenant_access_token',''))" 2>/dev/null)
-    [ -z "$token" ] && { bad "  拿 access_token 失败（appId/appSecret 不对？）" >&2; return 0; }
+    [ -z "$token" ] && { warn "  拿 access_token 失败（appId/appSecret 不对？）"; return 0; }
 
     info "  发消息..." >&2
     local body
@@ -700,11 +709,13 @@ print(json.dumps({'receive_id': sys.argv[1], 'msg_type':'text', 'content': json.
     code=$(echo "$resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('code',-1))" 2>/dev/null)
     msg_id=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('message_id',''))" 2>/dev/null)
     if [ "$code" = "0" ]; then
-        good "  ✅ 已发送（message_id: ${msg_id:-?}）" >&2
-        info "  在飞书查收" >&2
+        good "  ✅ 已发送（message_id: ${msg_id:-?}）"
+        info "  在飞书查收"
     else
-        warn "  发送失败 (code=$code):" >&2
-        echo "$resp" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' >&2 || echo "$resp" >&2
+        warn "  发送失败:"
+        local err_msg; err_msg=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('msg',''))" 2>/dev/null || echo "")
+        [ -n "$err_msg" ] && echo "    $err_msg"
+        info "  常见原因: app 未开通 im:message 权限，或收件人 open_id 不对"
     fi
 }
 
@@ -899,55 +910,56 @@ PYEOF
         return 0
     fi
 
-    local oid; oid="$(_feishu_resolve_recipient "$target")"
-    [ -n "$oid" ] || return 0
+    local oid rc
+    oid="$(_feishu_resolve_recipient "$target")"; rc=$?
+    [ "$rc" -ne 0 ] && { warn "取消（未设置收件人）"; return 0; }
+    [ -n "$oid" ] || { warn "取消（未设置收件人）"; return 0; }
 
     local msg_text="ccconfig 飞书测试消息 ✅ from $target"
-    {
-        echo ""
-        info "  → 目标 app: $target"
-        info "  → 收件人 (profile 默认): $oid"
-        info "  → 内容: $msg_text"
-        read -p "  发送? [Y/n]: " cf
-        [[ "$cf" =~ ^[Nn]$ ]] && { info "  取消"; return 0; }
+    echo ""
+    info "  → 目标 app: $target"
+    info "  → 收件人: $oid"
+    info "  → 内容: $msg_text"
+    read -p "  发送? [Y/n]: " cf
+    [[ "$cf" =~ ^[Nn]$ ]] && { info "取消"; return 0; }
 
-        info "  拿 tenant_access_token..."
-        local token
-        token=$(curl -s --connect-timeout 5 --max-time 10 -X POST \
-            "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
-            -H "Content-Type: application/json" \
-            -d "{\"app_id\":\"$app_id\",\"app_secret\":\"$app_secret\"}" \
-            | python3 -c "import json,sys; print(json.load(sys.stdin).get('tenant_access_token',''))" 2>/dev/null)
-        [ -z "$token" ] && { bad "  拿 access_token 失败（appId/appSecret 不对？）"; return 0; }
+    info "  拿 tenant_access_token..." >&2
+    local token
+    token=$(curl -s --connect-timeout 5 --max-time 10 -X POST \
+        "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
+        -H "Content-Type: application/json" \
+        -d "{\"app_id\":\"$app_id\",\"app_secret\":\"$app_secret\"}" \
+        | python3 -c "import json,sys; print(json.load(sys.stdin).get('tenant_access_token',''))" 2>/dev/null)
+    [ -z "$token" ] && { warn "  拿 access_token 失败（appId/appSecret 不对？）"; return 0; }
 
-        info "  发消息..."
-        local body
-        body=$(python3 -c "
+    info "  发消息..." >&2
+    local body
+    body=$(python3 -c "
 import json, sys
 print(json.dumps({'receive_id': sys.argv[1], 'msg_type':'text', 'content': json.dumps({'text': sys.argv[2]})}, ensure_ascii=False))
 " "$oid" "$msg_text")
-        local resp
-        resp=$(curl -s --connect-timeout 5 --max-time 15 -X POST \
-            "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id" \
-            -H "Authorization: Bearer $token" \
-            -H "Content-Type: application/json" \
-            -d "$body" 2>/dev/null)
-        local code msg_id
-        code=$(echo "$resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('code',-1))" 2>/dev/null)
-        msg_id=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('message_id',''))" 2>/dev/null)
-        if [ "$code" = "0" ]; then
-            good "  ✅ 已发送（message_id: ${msg_id:-?}）"
-            info "  在飞书查收"
-        else
-            warn "  发送失败 (code=$code):"
-            echo "$resp" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' || echo "$resp"
-            if [ "$code" = "99991672" ]; then
-                echo ""
-                warn "  → 应用未开通 im:message:send / send_as_bot 权限"
-                info "  → 走飞书子菜单 7) 申请权限 一键跳转开通（要发布版本才生效）"
-            fi
+    local resp
+    resp=$(curl -s --connect-timeout 5 --max-time 15 -X POST \
+        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id" \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type: application/json" \
+        -d "$body" 2>/dev/null)
+    local code msg_id
+    code=$(echo "$resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('code',-1))" 2>/dev/null)
+    msg_id=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('message_id',''))" 2>/dev/null)
+    if [ "$code" = "0" ]; then
+        good "  ✅ 已发送（message_id: ${msg_id:-?}）"
+        info "  在飞书查收"
+    else
+        warn "  发送失败:"
+        local err_msg; err_msg=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('msg',''))" 2>/dev/null || echo "")
+        [ -n "$err_msg" ] && echo "    $err_msg"
+        if [ "$code" = "99991672" ]; then
+            echo ""
+            warn "  → 应用未开通 im:message:send / send_as_bot 权限"
+            info "  → 走飞书子菜单 7) 申请权限 一键跳转开通（要发布版本才生效）"
         fi
-    } >&2
+    fi
 }
 
 # ── 入口 ──
