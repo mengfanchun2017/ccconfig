@@ -24,6 +24,7 @@ source "$SCRIPT_DIR/../lib/colors.sh" 2>/dev/null || {
 # ── 状态查询 ──
 do_status() {
     local all_ok=true
+    local ssh_ok=false
 
     # SSH
     local ssh_status="未安装"
@@ -31,6 +32,7 @@ do_status() {
         local port
         port=$(grep -oP '^Port \K[0-9]+' /etc/ssh/sshd_config 2>/dev/null || echo "22")
         ssh_status="✓ 端口 $port"
+        ssh_ok=true
     elif command -v sshd &>/dev/null; then
         ssh_status="○ 已安装未启动"
         all_ok=false

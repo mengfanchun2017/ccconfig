@@ -143,7 +143,7 @@ _is_profile_running() {
   status=$(lark-channel-bridge profile list 2>/dev/null \
     | awk -v p="$profile" 'NR>1 && $2==p { $1=""; $2=""; sub(/^  */,""); print }' || true)
   if [ -n "$status" ] && [ "$status" != "-" ]; then
-    local pid; pid=$(echo "$status" | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2)
+    local pid; pid=$(echo "$status" | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2 || true)
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
       __holder="pid=$pid"
       return
@@ -372,7 +372,6 @@ install() {
 }
 
 run_foreground() {
-  echo "DEBUG run_foreground entered" >&2
   local profile="${1:-}"
   [ -z "$profile" ] && profile="$(_run_select_app)"
   [ -z "$profile" ] && return 0
@@ -399,14 +398,12 @@ run_foreground() {
   fi
 
   local ws="${LARK_WORKSPACE:-$HOME/git}"
-  echo "DEBUG: about to start lark-channel-bridge" >&2
   echo "" >&2
   good "  ✓ profile「${profile}」已上线（前台运行，Ctrl-C 退出）" >&2
 
   # 前台启动前主动检测权限（首次配置常见问题）
   _ensure_larkbridge_perms "$profile"
 
-  echo "DEBUG: calling lark-channel-bridge run" >&2
   lark-channel-bridge run --profile "$profile" --workspace "$ws" 2>&1 \
     | grep -v 'sdk.error\|owner_refresh_failed\|chats-fetch-failed\|\[lark-info' || true
   local rc=${PIPESTATUS[0]}
