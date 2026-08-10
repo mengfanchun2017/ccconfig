@@ -174,8 +174,8 @@ show_menu() {
         "13) 飞书管理" "14) 回归测试" "15) GitHub PAT" \
         "16) LLM 切换" "17) getnote" "0) 退出")
     [[ -z "$c" ]] && { show_menu; return; }
-    c="${c:0:1}"
-    [[ ! "$c" =~ ^[0-9]+$ ]] && { show_menu; return; }
+    c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
+    [[ -z "$c" ]] && { show_menu; return; }
 
     case "$c" in
         1) bash "$LIB_DIR/status.sh" "$@" ;;
@@ -209,7 +209,7 @@ submenu_bill_token() {
         "4) 按天归档" "5) 推飞书" "6) timer 管理" \
         "7) 手动触发" "0) 返回")
     [[ -z "$c" ]] && { submenu_bill_token; return; }
-    c="${c:0:1}"
+    c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
     case "$c" in
         1) bash "$LIB_DIR/init-llm.sh" bill ;;
         2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
@@ -229,7 +229,7 @@ submenu_monitor() {
     local c; c=$(menu_select "Monitor" \
         "1) 启动" "2) 停止" "3) 看状态" "4) 追踪" "5) 文件变更" "6) 修复" "0) 返回")
     [[ -z "$c" ]] && return
-    c="${c:0:1}"
+    c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
     case "$c" in
         1) bash "$LIB_DIR/monitor.sh" start ;;
         2) bash "$LIB_DIR/monitor.sh" stop ;;
@@ -244,7 +244,7 @@ submenu_llmswitch() {
     local c; c=$(menu_select "llmswitch" \
         "1) 启动" "2) 停止" "3) 重启" "4) 状态" "5) 切换 LLM" "0) 返回")
     [[ -z "$c" ]] && return
-    c="${c:0:1}"
+    c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
     case "$c" in
         1) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --start ;;
         2) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --stop ;;
@@ -328,7 +328,7 @@ submenu_feishu() {
         echo ""
         echo -e "${CYAN}── 飞书统一管理 ──${NC}"
         [[ -z "$c" ]] && return 0
-        c="${c:0:1}"
+        c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
         echo -e "  ${GRAY}lark-cli: v${lcc_ver}    活跃账号: ${cur_acct:-无}${NC}"
         echo -e "  ${GRAY}lark-channel-bridge: v${lcb_ver}    活跃 profile: ${cur_prof:-无}${NC}"
         echo ""
