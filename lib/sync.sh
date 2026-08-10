@@ -19,6 +19,7 @@ CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/colors.sh"
+source "$SCRIPT_DIR/interact.sh"
 
 # ========== 仓库列表 ==========
 list_repos() {
