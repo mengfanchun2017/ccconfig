@@ -185,27 +185,24 @@ list_accounts() {
         return
     fi
 
-    python3 - "$accounts_json" "$cur" "$default_name" << 'PYEOF'
+    idx=0
+    python3 - "$accounts_json" "$cur" << 'PYEOF'
 import json, sys
 d = json.loads(sys.argv[1])
 cur = sys.argv[2]
-default = sys.argv[3]
 accounts = d.get('accounts', [])
-max_name = max(len(a.get('name','')) for a in accounts) if accounts else 10
-for a in accounts:
+for i, a in enumerate(accounts, 1):
     name = a.get('name', '?')
-    enabled = a.get('enabled', True)
     desc = a.get('description', '')
-    client_id = a.get('client_id', '')
-    markers = []
-    if name == cur: markers.append('运行时活跃')
-    if name == default: markers.append('ccprivate 默认')
-    if not enabled: markers.append('禁用')
-    marker_str = ' '.join(f'[{m}]' for m in markers)
-    suffix = f"  \033[1;33m{marker_str}\033[0m" if markers else ''
-    print(f"  \033[0;36m{name.ljust(max_name)}\033[0m  {desc}{suffix}")
-    if client_id:
-        print(f"  {'':>{max_name}}  \033[0;90mclient_id: {client_id[:16]}…\033[0m")
+    enabled = a.get('enabled', True)
+    cid = a.get('client_id', '')
+    key = a.get('api_key', '')
+    cid_tail = cid[-4:] if len(cid) >= 4 else cid
+    key_tail = key[-4:] if len(key) >= 4 else ''
+    suffix = '  \033[1;32m[当前]\033[0m' if name == cur else ''
+    n_suffix = '  \033[0;90m(禁用)\033[0m' if not enabled else ''
+    info = f'  clientid {cid_tail}  key *{key_tail}' if cid_tail else ''
+    print(f'  {i}) {name}  {info}{n_suffix}{suffix}')
 PYEOF
     echo ""
     echo -e "  ${GRAY}切换: bash ccconfig/option-getnote/getnote-switch.sh <name> [-p]${NC}"
