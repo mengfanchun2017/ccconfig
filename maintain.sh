@@ -499,21 +499,39 @@ submenu_feishu_larkbridge() {
 
     while true; do
         echo ""
-        bash "$feishu_lb" --status
+        bash "$feishu_lb" --status 2>&1 | grep -v '^$'
         echo ""
-        echo "  ─ 操作 ─"
-        echo "    s) 启停/重启 profile  ─ select"
+        echo "  ─ 启动 ─"
+        echo "    1) 前台启动（调试用，Ctrl+C 退出）"
+        echo "    2) 后台启动（systemd service，需 systemd --user 可用）"
+        echo "    3) 停止 profile"
+        echo "    4) 重启 profile"
+        echo ""
+        echo "  ─ 日志 ─"
+        echo "    5) 看最新日志（tail -f，Ctrl+C 退出）"
+        echo "    6) 看日志目录（选文件看）"
+        echo ""
+        echo "  ─ 配置 ─"
         echo "    n) 新增 profile       ─ add（ccprivate 配置 or 扫码）"
         echo "    r) 删除 profile       ─ remove"
-        echo "    l) 实时日志           ─ logs <profile>"
         echo "    d) 设为默认           ─ default"
+        echo ""
         echo "    0) 返回飞书菜单"
-        read -p "  选择 [s/n/r/l/d/0]: " sub
+        read -p "  选择 [1-6/n/r/d/0]: " sub
         case "$sub" in
-            s|S) bash "$feishu_lb" --start ;;
+            1) bash "$feishu_lb" --run ;;
+            2) bash "$feishu_lb" --start ;;
+            3) bash "$feishu_lb" --stop ;;
+            4) bash "$feishu_lb" --restart ;;
+            5) bash "$feishu_lb" --logs ;;
+            6)
+                echo ""
+                info "日志目录: $HOME/.lark-channel/profiles/"
+                ls -lt "$HOME/.lark-channel/profiles/"*/logs/*.jsonl 2>/dev/null || warn "暂无日志文件"
+                read -p "  按回车返回..." dummy
+                ;;
             n|N) bash "$feishu_lb" --profile add ;;
             r|R) bash "$feishu_lb" --profile remove ;;
-            l|L) bash "$feishu_lb" --logs ;;
             d|D) bash "$feishu_lb" --profile default ;;
             0) return 0 ;;
             *) continue ;;
