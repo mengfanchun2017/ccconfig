@@ -754,40 +754,34 @@ echo -e "${CYAN}LLM Gateway Manager${NC}"
     fi
 
     echo ""
-    echo -e "  ${BOLD}操作:${NC}"
-    echo -e "  ${GREEN}1)${NC} 启动代理"
-    echo -e "  ${RED}2)${NC} 停止代理"
-    echo -e "  ${YELLOW}3)${NC} 重启代理"
-    echo -e "  ${CYAN}4)${NC} 切换模式"
-    echo ""
-    echo -e "  ${BOLD}5)${NC} 配置向导 (peak_hours / routes / mode)"
-    echo -e "  ${GRAY}6)${NC} 查看日志"
-    echo -e "  ${GRAY}7)${NC} 安装/重新安装"
-    echo -e "  ${GRAY}0)${NC} 退出"
-    echo ""
-
-    read -rp "  选择 [0-7]: " choice
-    choice=$(menu_num "$choice")
-
-    case "$choice" in
+    local c; c=$(menu_select "LLM Gateway Manager" \
+        "启动代理" \
+        "停止代理" \
+        "重启代理" \
+        "切换模式" \
+        "配置向导 (peak_hours / routes / mode)" \
+        "查看日志" \
+        "安装/重新安装" \
+        "退出")
+    case "$c" in
         1) do_start ;;
         2) do_stop ;;
         3) do_stop; sleep 1; do_start ;;
         4)
             echo ""
             echo -e "  模式: ${GREEN}auto${NC} | ${YELLOW}manual${NC} | ${GRAY}off${NC}"
-            read -rp "  输入模式: " m
+            read -rp "  输入模式: " m < /dev/tty || m=""
             if [ "$m" = "manual" ]; then
-                read -rp "  后端 (deepseek/minimax): " p
+                read -rp "  后端 (deepseek/minimax): " p < /dev/tty || p=""
                 do_mode "$m" "$p"
             else
                 do_mode "$m"
             fi
             ;;
-		5) do_configure ;;
-		6) do_log ;;
-		7) do_install ;;
-        0) return 0 ;;
+        5) do_configure ;;
+        6) do_log ;;
+        7) do_install ;;
+        8) return 0 ;;
         *) bad "无效选择" ;;
     esac
 }

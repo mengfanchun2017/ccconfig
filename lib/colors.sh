@@ -22,6 +22,5 @@ bad()   { err "$@"; }
 success() { ok "$@"; }
 error()   { err "$@"; }
 
-# 菜单输入校验：数字菜单读入时筛除非数字字符
-# 用法: read -p "..." c; c=$(menu_num "$c")
-menu_num() { [[ "$1" =~ ^[0-9]+$ ]] && echo "$1" || echo ""; }
+# 菜单输入校验函数已迁移到 lib/interact.sh（不依赖 colors.sh）
+# 旧 menu_num 已删除：使用 [[ "$x" =~ ^[0-9]+$ ]] 或 menu_select 即可。
