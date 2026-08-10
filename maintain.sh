@@ -306,13 +306,11 @@ _feishu_perms_menu() {
         return 0
     fi
     echo "  0) 返回"
-    read -p "  选择 app [0-${#labels[@]}]: " c
-    c=$(menu_num "$c")
-    [ "$c" = "0" ] && return 0
-    if [ -n "$c" ] && [ "$c" -ge 1 ] && [ "$c" -le "${#labels[@]}" ] 2>/dev/null; then
-        _feishu_open_perms_for_app "${labels[$((c-1))]}"
-    fi
-    read -p "  按回车返回飞书菜单..." dummy
+    pc=$(menu_select "选择 app" "${labels[@]}")
+    [[ -z "$pc" ]] && return 0
+    for ((pi=0; pi<${#labels[@]}; pi++)); do
+        [[ "${labels[$pi]}" == "$pc" ]] && { _feishu_open_perms_for_app "$pc"; break; }
+    done
 }
 
 submenu_feishu() {
@@ -328,7 +326,8 @@ submenu_feishu() {
 
         echo ""
         echo -e "${CYAN}── 飞书统一管理 ──${NC}"
-        echo ""
+        [[ -z "$c" ]] && return 0
+        c="${c:0:1}"
         echo -e "  ${GRAY}lark-cli: v${lcc_ver}    活跃账号: ${cur_acct:-无}${NC}"
         echo -e "  ${GRAY}lark-channel-bridge: v${lcb_ver}    活跃 profile: ${cur_prof:-无}${NC}"
         echo ""
@@ -339,12 +338,9 @@ submenu_feishu() {
         echo "  5) lark-cli 装包/升级    ─ 没装就装，已装就升 npm latest"
         echo "  6) larkbridge 装包/升级  ─ 没装就装，已装就升 npm latest"
         echo "  7) 申请权限         ─ 一键跳转飞书开放平台，开通 larkbridge 必备权限"
-        echo "  8) 飞书测试         ─ E2E 集成测试（安装/授权/文档/Base/权限/API 兼容）"
-        echo ""
-        echo "  0) 返回主菜单"
-        echo ""
         c=$(menu_select "飞书管理" \
-        c=$(menu_num "$c")
+            "1) 飞书账号" "2) lark-cli" "3) larkbridge" "4) 发测试消息" \
+            "5) 装 lark-cli" "6) 装 larkbridge" "7) 申请权限" "8) 集成测试" "0) 返回")
 
         case "$c" in
             1) submenu_feishu_accounts ;;
@@ -476,8 +472,8 @@ _feishu_resolve_recipient() {
       info "  怎么找：飞书打开 bot → 给 bot 发任意消息 → 看 ~/.lark-channel/profiles/<active>/logs/*.jsonl 里 receive_id 字段"
       echo ""
     } >&2
-    read -p "  输入你的 open_id (回车跳过): " input_oid
-    [ -z "$input_oid" ] && { warn "  跳过" >&2; return 1; }
+    local input_oid; input_oid=$(prompt "输入你的 open_id") >&2
+    [ -z "$input_oid" ] && { warn "跳过" >&2; return 1; }
 
     local root_cfg="$HOME/.lark-channel/config.json"
     local prof; prof="$(_feishu_current_profile)"
@@ -547,11 +543,9 @@ _feishu_send_test_message() {
         warn "feishu.json 中无 app 配置"
         return 0
     fi
-    echo "  0) 返回"
-    read -p "  选择 app [0-${#names[@]}]: " sel
-    [[ "$sel" =~ ^[0-9]+$ ]] || return 0
-    [ "$sel" -ge 1 ] && [ "$sel" -le ${#names[@]} ] || return 0
-    local target="${names[$((sel - 1))]}"
+    sel=$(menu_select "选择 app" "${names[@]}")
+    [[ -z "$sel" ]] && return 0
+    local target="$sel"
 
     local app_json
     app_json=$(python3 - "$conf" "$target" << 'PYEOF' 2>/dev/null
