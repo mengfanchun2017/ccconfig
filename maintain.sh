@@ -167,12 +167,24 @@ do_self() {
 # ── 交互菜单 ──
 show_menu() {
     local c; c=$(menu_select "ccconfig 运维中心" \
-        "1) 状态检查" "2) Monitor" "3) 自我更新" \
-        "4) Git 同步" "5) 组件升级" "6) 依赖检查" \
-        "7) 一键修复" "8) 模板同步" "9) ccprivate 升级" \
-        "10) Bill\\&Token" "11) MCP" "12) llmswitch" \
-        "13) 飞书管理" "14) 回归测试" "15) GitHub PAT" \
-        "16) LLM 切换" "17) getnote" "0) 退出")
+        "状态检查" \
+        "Monitor" \
+        "自我更新" \
+        "Git 同步" \
+        "组件升级" \
+        "依赖检查" \
+        "一键修复" \
+        "模板同步" \
+        "ccprivate 升级" \
+        "Bill\\&Token" \
+        "MCP" \
+        "llmswitch" \
+        "飞书管理" \
+        "回归测试" \
+        "GitHub PAT" \
+        "LLM 切换" \
+        "getnote" \
+        "退出")
     [[ -z "$c" ]] && { show_menu; return; }
     c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
     [[ -z "$c" ]] && { show_menu; return; }
@@ -186,8 +198,12 @@ show_menu() {
         6) bash "$LIB_DIR/deps-check.sh" ;;
         7) do_finalize ;;
         8) bash "$LIB_DIR/example-sync.sh" status
-           ex_sel=$(menu_select "模板同步" "d) 查看差异" "f) 正向" "r) 反向" "0) 返回")
-           case "${ex_sel:0:1}" in d) bash "$LIB_DIR/example-sync.sh" diff;; f) bash "$LIB_DIR/example-sync.sh" promote;; r) bash "$LIB_DIR/example-sync.sh" reverse;; esac ;;
+           ex_sel=$(menu_select "模板同步" \
+ "查看差异" \
+ "正向" \
+ "反向" \
+ "返回")
+           case "$(echo "$ex_sel" | grep -oE \'^[0-9]+\' | head -1)" in d) bash "$LIB_DIR/example-sync.sh" diff;; f) bash "$LIB_DIR/example-sync.sh" promote;; r) bash "$LIB_DIR/example-sync.sh" reverse;; esac ;;
         9) bash "$LIB_DIR/ccprivate-upgrade.sh" ;;
         10) submenu_bill_token ;;
         11) bash "$LIB_DIR/mcp-manager.sh" config ;;
@@ -205,9 +221,14 @@ show_menu() {
 
 submenu_bill_token() {
     local c; c=$(menu_select "Bill\\&Token" \
-        "1) Bill(模型单价)" "2) 用量统计" "3) 按日报告" \
-        "4) 按天归档" "5) 推飞书" "6) timer 管理" \
-        "7) 手动触发" "0) 返回")
+        "Bill(模型单价)" \
+        "用量统计" \
+        "按日报告" \
+        "按天归档" \
+        "推飞书" \
+        "timer 管理" \
+        "手动触发" \
+        "返回")
     [[ -z "$c" ]] && { submenu_bill_token; return; }
     c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
     case "$c" in
@@ -217,8 +238,12 @@ submenu_bill_token() {
         4) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ;;
         5) url=$(prompt "飞书 URL"); bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ${url:+--feishu \"$url\"} ;;
         6) bash "$CCCONFIG_DIR/option-usage/init.sh" status
-           ts=$(menu_select "timer" "i) 安装" "u) 卸载" "c) 配置" "b) 返回")
-           case "${ts:0:1}" in i) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; c) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; esac ;;
+           ts=$(menu_select "timer" \
+ "安装" \
+ "卸载" \
+ "配置" \
+ "返回")
+           case "$(echo "$ts" | grep -oE \'^[0-9]+\' | head -1)" in i) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; c) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; esac ;;
         7) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
     esac
     echo ""; read -p "按回车返回..." dummy
@@ -227,7 +252,13 @@ submenu_bill_token() {
 
 submenu_monitor() {
     local c; c=$(menu_select "Monitor" \
-        "1) 启动" "2) 停止" "3) 看状态" "4) 追踪" "5) 文件变更" "6) 修复" "0) 返回")
+        "启动" \
+        "停止" \
+        "看状态" \
+        "追踪" \
+        "文件变更" \
+        "修复" \
+        "返回")
     [[ -z "$c" ]] && return
     c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
     case "$c" in
@@ -242,7 +273,12 @@ submenu_monitor() {
 
 submenu_llmswitch() {
     local c; c=$(menu_select "llmswitch" \
-        "1) 启动" "2) 停止" "3) 重启" "4) 状态" "5) 切换 LLM" "0) 返回")
+        "启动" \
+        "停止" \
+        "重启" \
+        "状态" \
+        "切换 LLM" \
+        "返回")
     [[ -z "$c" ]] && return
     c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
     case "$c" in
@@ -307,7 +343,8 @@ _feishu_perms_menu() {
         return 0
     fi
     echo "  0) 返回"
-    pc=$(menu_select "选择 app" "${labels[@]}")
+    pc=$(menu_select "选择 app" \
+ "${labels[@]}")
     [[ -z "$pc" ]] && return 0
     for ((pi=0; pi<${#labels[@]}; pi++)); do
         [[ "${labels[$pi]}" == "$pc" ]] && { _feishu_open_perms_for_app "$pc"; break; }
@@ -340,8 +377,15 @@ submenu_feishu() {
         echo "  6) larkbridge 装包/升级  ─ 没装就装，已装就升 npm latest"
         echo "  7) 申请权限         ─ 一键跳转飞书开放平台，开通 larkbridge 必备权限"
         c=$(menu_select "飞书管理" \
-            "1) 飞书账号" "2) lark-cli" "3) larkbridge" "4) 发测试消息" \
-            "5) 装 lark-cli" "6) 装 larkbridge" "7) 申请权限" "8) 集成测试" "0) 返回")
+            "飞书账号" \
+            "lark-cli" \
+            "larkbridge" \
+            "发测试消息" \
+            "装 lark-cli" \
+            "装 larkbridge" \
+            "申请权限" \
+            "集成测试" \
+            "返回")
 
         case "$c" in
             1) submenu_feishu_accounts ;;
@@ -390,9 +434,12 @@ submenu_feishu_larkcli() {
         echo "  a) 重置全部账号配置 (re-run init)"
         echo "  k) 看当前账号的 OAuth 状态"
         local sub; sub=$(menu_select "lark-cli" \
-            "a) 重置配置" "k) OAuth 状态" "l) 列出账号" "0) 返回")
+            "重置配置" \
+            "OAuth 状态" \
+            "列出账号" \
+            "返回")
         [[ -z "$sub" ]] && return 0
-        case "${sub:0:1}" in
+        case "$(echo "$sub" | grep -oE \'^[0-9]+\' | head -1)" in
             a) bash "$feishu_lc" ;;
             k) bash "$feishu_switch" ;;
             l) bash "$feishu_switch" --list ;;
@@ -424,11 +471,18 @@ submenu_feishu_larkbridge() {
         echo "    d) 设为默认           ─ default"
         echo ""
         local sub; sub=$(menu_select "larkbridge" \
-            "1) 前台启动" "2) 后台启动" "3) 停止" "4) 重启" \
-            "5) 看日志" "6) 日志目录" \
-            "n) 新增 profile" "r) 删除" "d) 设为默认" "0) 返回")
+            "前台启动" \
+            "后台启动" \
+            "停止" \
+            "重启" \
+            "看日志" \
+            "日志目录" \
+            "新增 profile" \
+            "删除" \
+            "设为默认" \
+            "返回")
         [[ -z "$sub" ]] && continue
-        case "${sub:0:1}" in
+        case "$(echo "$sub" | grep -oE \'^[0-9]+\' | head -1)" in
             1) bash "$feishu_lb" --run ;;
             2) bash "$feishu_lb" --bg ;;
             3) bash "$feishu_lb" --stop ;;
@@ -544,7 +598,8 @@ _feishu_send_test_message() {
         warn "feishu.json 中无 app 配置"
         return 0
     fi
-    sel=$(menu_select "选择 app" "${names[@]}")
+    sel=$(menu_select "选择 app" \
+ "${names[@]}")
     [[ -z "$sel" ]] && return 0
     local target="$sel"
 
@@ -639,7 +694,9 @@ submenu_feishu_accounts() {
             warn "feishu.json 中无 app 配置"
             echo "  a) 添加新 app"
             echo "  0) 返回飞书菜单"
-            sel=$(menu_select "选择" "a) 现在" "0) 返回")
+            sel=$(menu_select "选择" \
+ "现在" \
+ "返回")
             case "$sel" in
                 a|A) bash "$feishu_lc" ;;
                 0) return 0 ;;
@@ -677,7 +734,11 @@ print('\t'.join([
         echo "  d) 删除 app"
         echo "  0) 返回飞书菜单"
         echo ""
-        sel=$(menu_select "飞书账号" "${names[@]}" "a) 添加" "d) 删除" "0) 返回")
+        sel=$(menu_select "飞书账号" \
+ "${names[@]}" \
+ "添加" \
+ "删除" \
+ "返回")
 
         case "$sel" in
             0|q) return 0 ;;
@@ -710,9 +771,14 @@ PYEOF
         echo ""
         echo -e "${CYAN}── 应用: ${target} ──${NC}"
         local sub; sub=$(menu_select "应用: $target" \
-            "1) 切换" "2) OAuth" "3) 看授权" "4) 编辑" "5) 发测试" "0) 返回")
+            "切换" \
+            "OAuth" \
+            "看授权" \
+            "编辑" \
+            "发测试" \
+            "返回")
         [[ -z "$sub" ]] && continue
-        case "${sub:0:1}" in
+        case "$(echo "$sub" | grep -oE \'^[0-9]+\' | head -1)" in
             1) bash "$feishu_switch" "$target" ;;
             2)
                 local cd="$HOME/.lark-cli-${target}"
@@ -749,9 +815,13 @@ submenu_getnote() {
         bash "$sw" --list 2>/dev/null || echo -e "  ${YELLOW}无 getnote 账号${NC}"
         echo ""
         local c; c=$(menu_select "配置调整" \
-            "1) 添加" "2) 删除" "3) 切换(session)" "4) 切换(持久化)" "0) 返回")
+            "添加" \
+            "删除" \
+            "切换(session)" \
+            "切换(持久化)" \
+            "返回")
         [[ -z "$c" ]] && continue
-        case "${c:0:1}" in
+        case "$(echo "$c" | grep -oE \'^[0-9]+\' | head -1)" in
             1) bash "$init" add ;;
             2) bash "$init" remove ;;
             3) target=$(prompt "账号名"); [ -n "$target" ] && bash "$sw" "$target" ;;

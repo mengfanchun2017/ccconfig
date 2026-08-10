@@ -34,6 +34,7 @@ confirm() {
 }
 
 # ========== 单选菜单 ==========
+# 调用方传纯文本 items（不带数字前缀），本函数自动加 "1) 2) 3)" 序号。
 menu_select() {
     local title="${1:-选择}"; shift
     local items=("$@")
