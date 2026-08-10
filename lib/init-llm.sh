@@ -810,17 +810,14 @@ PYEOF
         fi
 
         echo ""
-        echo "  ── 操作 ──"
-        echo "    a) 添加 / 修改价格  （输入模型序号或名）"
-        echo "    d) 删除已配价格"
-        echo "    0) 返回"
-        read -p "  选择 [a/d/0]: " op
+        local op; op=$(menu_select "操作" \
+            "a) 添加/修改" "d) 删除" "0) 返回")
+        [[ -z "$op" ]] && continue
 
-        case "$op" in
+        case "${op:0:1}" in
             a|A)
-                read -p "  模型序号或名称: " sel
-                local model
-                model=$(python3 - "$models_json" "$sel" << 'PYEOF'
+                local sel; sel=$(prompt "模型序号或名称")
+                local model; model=$(python3 - "$models_json" "$sel" << 'PYEOF'
 import json, sys
 models = json.loads(sys.argv[1])
 sel = sys.argv[2].strip()
@@ -839,9 +836,8 @@ PYEOF
                 _bill_set "$model"
                 ;;
             d|D)
-                read -p "  模型序号或名称: " sel
-                local model
-                model=$(python3 - "$models_json" "$sel" << 'PYEOF'
+                local sel; sel=$(prompt "模型序号或名称")
+                local model; model=$(python3 - "$models_json" "$sel" << 'PYEOF'
 import json, sys
 models = json.loads(sys.argv[1])
 sel = sys.argv[2].strip()
@@ -870,11 +866,10 @@ _bill_set() {
     [[ -z "$model" ]] && { warn "模型名不能为空"; return 1; }
     echo ""
     echo "为 '$model' 输入价格 (CNY ¥ / 1M tokens)，留空跳过："
-    read -p "  input  单价 (回车 = 0): " in_v
-    read -p "  output 单价 (回车 = 0): " out_v
-    read -p "  cache_read 单价 (回车 = 0): " cr_v
-    read -p "  cache_creation 单价 (回车 = 跳过，默认 = input × 1.25): " cc_v
-    in_v="${in_v:-0}"; out_v="${out_v:-0}"; cr_v="${cr_v:-0}"
+    local in_v; in_v=$(prompt "input  单价"); in_v="${in_v:-0}"
+    local out_v; out_v=$(prompt "output 单价"); out_v="${out_v:-0}"
+    local cr_v; cr_v=$(prompt "cache_read 单价"); cr_v="${cr_v:-0}"
+    local cc_v; cc_v=$(prompt "cache_creation 单价（默认 = input×1.25）")
     python3 - "$CONFIG_FILE" "$model" "$in_v" "$out_v" "$cr_v" "$cc_v" << 'PYEOF'
 import json, sys
 path, model, in_v, out_v, cr_v, cc_v = sys.argv[1:7]
@@ -947,16 +942,12 @@ PYEOF
     fi
 
     echo ""
-    read -p "输入编号 [1-$((idx-1))] 删除（留空取消）: " choice
-    if [[ -z "$choice" ]]; then
-        info "已取消"
-        return 0
-    fi
-    if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 )) || (( choice > ${#deletable_names[@]} )); then
-        error "无效编号: $choice"
-        return 1
-    fi
-    target="${deletable_names[$((choice-1))]}"
+    local choice; choice=$(menu_select "选择要删除的预设" "${deletable_names[@]}")
+    [[ -z "$choice" ]] && { info "已取消"; return 0; }
+    target="$choice"
+    for ((di=0; di<${#deletable_names[@]}; di++)); do
+        [[ "${deletable_names[$di]}" == "$choice" ]] && { target="$choice"; break; }
+    done
     _delete_preset_confirm "$target"
 }
 
@@ -995,12 +986,7 @@ except: pass
         return 1
     fi
 
-    # 二次确认
-    read -p "确认删除预设 '$target'？(y/N): " ans
-    case "$ans" in
-        [Yy]|[Yy][Ee][Ss]) ;;
-        *) info "已取消"; return 0 ;;
-    esac
+    confirm "确认删除预设 '$target'？" n || { info "已取消"; return 0; }
 
     # 删除
     python3 - <<PYEOF
