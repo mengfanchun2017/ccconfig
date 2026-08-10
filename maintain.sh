@@ -327,13 +327,10 @@ _feishu_perms_menu() {
         warn "没有启用 larkbridge 的 app"
         return 0
     fi
-    echo "  0) 返回"
-    pc=$(menu_select "选择 app" \
- "${labels[@]}")
-    [[ -z "$pc" ]] && return 0
-    for ((pi=0; pi<${#labels[@]}; pi++)); do
-        [[ "${labels[$pi]}" == "$pc" ]] && { _feishu_open_perms_for_app "$pc"; break; }
-    done
+    pc=$(menu_select "选择 app" "${labels[@]}" "返回")
+    [[ "$pc" == "0" || -z "$pc" ]] && return 0
+    local app="${labels[$((pc-1))]}"
+    _feishu_open_perms_for_app "$app"
 }
 
 submenu_feishu() {

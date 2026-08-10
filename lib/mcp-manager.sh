@@ -324,19 +324,15 @@ cmd_config() {
 
 config_register() {
   echo -e "${CYAN}━━━ 注册新 MCP━━━${NC}"
-  echo -n -e "  MCP 名称: "
-  read -r name
+  local name cmd args_raw desc
+  name=$(prompt "MCP 名称")
   [ -z "$name" ] && { warn "名称不能为空"; return; }
 
-  echo -n -e "  启动命令 (如 npx): "
-  read -r cmd
+  cmd=$(prompt "启动命令 (如 npx)")
   [ -z "$cmd" ] && { warn "命令不能为空"; return; }
 
-  echo -n -e "  参数 (如 -y @supabase/mcp-server-supabase --project-ref xxx --access-token xxx): "
-  read -r args_raw
-
-  echo -n -e "  描述 (可选): "
-  read -r desc
+  args_raw=$(prompt "参数 (如 -y @supabase/...)")
+  desc=$(prompt "描述 (可选)")
 
   if ! command -v claude &>/dev/null; then
     warn "claude 命令未安装"
