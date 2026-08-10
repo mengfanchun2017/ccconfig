@@ -214,8 +214,6 @@ show_menu() {
         17) submenu_getnote ;;
         0) echo ""; exit 0 ;;
     esac
-    echo ""; read -p "按回车返回菜单..." dummy
-    show_menu
 }
 
 submenu_bill_token() {
@@ -244,8 +242,6 @@ submenu_bill_token() {
            case "$ts" in i) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; c) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; esac ;;
         7) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
     esac
-    echo ""; read -p "按回车返回..." dummy
-    submenu_bill_token
 }
 
 submenu_monitor() {
@@ -352,144 +348,109 @@ submenu_feishu() {
     local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
     local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
 
-    while true; do
-        local lcb_ver; lcb_ver=$(lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
-        local lcc_ver; lcc_ver=$(lark-cli --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' || echo "?")
-        local cur_acct; cur_acct="$(_feishu_current_account)"
-        local cur_prof; cur_prof="$(_feishu_current_profile)"
+    local lcb_ver; lcb_ver=$(lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+    local lcc_ver; lcc_ver=$(lark-cli --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' || echo "?")
+    local cur_acct; cur_acct="$(_feishu_current_account)"
+    local cur_prof; cur_prof="$(_feishu_current_profile)"
 
-        echo ""
-        echo -e "${CYAN}── 飞书统一管理 ──${NC}"
-        [[ -z "$c" ]] && return 0
-        echo -e "  ${GRAY}lark-cli: v${lcc_ver}    活跃账号: ${cur_acct:-无}${NC}"
-        echo -e "  ${GRAY}lark-channel-bridge: v${lcb_ver}    活跃 profile: ${cur_prof:-无}${NC}"
-        echo ""
-        echo "  1) 飞书账号          ─ feishu.json apps 列表 + 切换 lark-cli 活跃账号"
-        echo "  2) lark-cli          ─ OAuth 授权 / 看授权状态"
-        echo "  3) larkbridge        ─ profile 列表 / 启停 / 日志 / 新增 / 删除"
-        echo "  4) 发测试消息        ─ 给活跃 profile 的允许用户发 text"
-        echo "  5) lark-cli 装包/升级    ─ 没装就装，已装就升 npm latest"
-        echo "  6) larkbridge 装包/升级  ─ 没装就装，已装就升 npm latest"
-        echo "  7) 申请权限         ─ 一键跳转飞书开放平台，开通 larkbridge 必备权限"
-        c=$(menu_select "飞书管理" \
-            "飞书账号" \
-            "lark-cli" \
-            "larkbridge" \
-            "发测试消息" \
-            "装 lark-cli" \
-            "装 larkbridge" \
-            "申请权限" \
-            "集成测试" \
-            "返回")
+    echo ""
+    echo -e "${CYAN}── 飞书统一管理 ──${NC}"
+    echo -e "  ${GRAY}lark-cli: v${lcc_ver}    活跃账号: ${cur_acct:-无}${NC}"
+    echo -e "  ${GRAY}lark-channel-bridge: v${lcb_ver}    活跃 profile: ${cur_prof:-无}${NC}"
+    local c; c=$(menu_select "飞书管理" \
+        "飞书账号" \
+        "lark-cli" \
+        "larkbridge" \
+        "发测试消息" \
+        "装 lark-cli" \
+        "装 larkbridge" \
+        "申请权限" \
+        "集成测试" \
+        "返回")
 
-        case "$c" in
-            1) submenu_feishu_accounts ;;
-            2) submenu_feishu_larkcli ;;
-            3) submenu_feishu_larkbridge ;;
-            4) _feishu_send_test_message ;;
-            5)
-                echo ""
-                if ! command -v lark-cli &>/dev/null; then
-                    info "lark-cli 未安装，正在装..."
-                    bash "$CCCONFIG_DIR/option-larkcli/init.sh"
-                else
-                    bash "$LIB_DIR/update.sh" lark
-                fi
-                read -p "  按回车返回飞书菜单..." dummy
-                ;;
-            6)
-                echo ""
-                if ! command -v lark-channel-bridge &>/dev/null; then
-                    info "lark-channel-bridge 未安装，正在装..."
-                    bash "$CCCONFIG_DIR/option-larkbridge/init.sh" --run 2>&1 | head -5 || true
-                    info "（前台命令已退出，转后台请走 3) larkbridge）"
-                else
-                    bash "$LIB_DIR/update.sh" larkbridge
-                fi
-                read -p "  按回车返回飞书菜单..." dummy
-                ;;
-            7) _feishu_perms_menu ;;
-            8) bash "$LIB_DIR/test-feishu.sh"
-               read -p "  按回车返回飞书菜单..." dummy ;;
-            0) return 0 ;;
-            *) continue ;;
-        esac
-    done
+    case "$c" in
+        1) submenu_feishu_accounts ;;
+        2) submenu_feishu_larkcli ;;
+        3) submenu_feishu_larkbridge ;;
+        4) _feishu_send_test_message ;;
+        5)
+            echo ""
+            if ! command -v lark-cli &>/dev/null; then
+                info "lark-cli 未安装，正在装..."
+                bash "$CCCONFIG_DIR/option-larkcli/init.sh"
+            else
+                bash "$LIB_DIR/update.sh" lark
+            fi
+            ;;
+        6)
+            echo ""
+            if ! command -v lark-channel-bridge &>/dev/null; then
+                info "lark-channel-bridge 未安装，正在装..."
+                bash "$CCCONFIG_DIR/option-larkbridge/init.sh" --run 2>&1 | head -5 || true
+                info "（前台命令已退出，转后台请走 3) larkbridge）"
+            else
+                bash "$LIB_DIR/update.sh" larkbridge
+            fi
+            ;;
+        7) _feishu_perms_menu ;;
+        8) bash "$LIB_DIR/test-feishu.sh" ;;
+        9) return 0 ;;
+        *) return 0 ;;
+    esac
 }
 
 submenu_feishu_larkcli() {
     local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
     local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
 
-    while true; do
-        echo ""
-        echo -e "${CYAN}── lark-cli ──${NC}"
-        bash "$feishu_lc" --status
-        echo ""
-        echo "  a) 重置全部账号配置 (re-run init)"
-        echo "  k) 看当前账号的 OAuth 状态"
-        local sub; sub=$(menu_select "lark-cli" \
-            "重置配置" \
-            "OAuth 状态" \
-            "列出账号" \
-            "返回")
-        [[ -z "$sub" ]] && return 0
-        case "$sub" in
-            a) bash "$feishu_lc" ;;
-            k) bash "$feishu_switch" ;;
-            l) bash "$feishu_switch" --list ;;
-            0) return 0 ;;
-        esac
-    done
+    echo ""
+    echo -e "${CYAN}── lark-cli ──${NC}"
+    bash "$feishu_lc" --status
+    echo ""
+    local sub; sub=$(menu_select "lark-cli" \
+        "重置配置" \
+        "OAuth 状态" \
+        "列出账号" \
+        "返回")
+    case "$sub" in
+        1) bash "$feishu_lc" ;;
+        2) bash "$feishu_switch" ;;
+        3) bash "$feishu_switch" --list ;;
+        4) return 0 ;;
+        *) return 0 ;;
+    esac
 }
 
 submenu_feishu_larkbridge() {
     local feishu_lb="$CCCONFIG_DIR/option-larkbridge/init.sh"
 
-    while true; do
-        echo ""
-        bash "$feishu_lb" --status 2>&1 | grep -v '^$'
-        echo ""
-        echo "  ─ 启动 ─"
-        echo "    1) 前台启动（调试用，Ctrl+C 退出）"
-        echo "    2) 后台启动（nohup）"
-        echo "    3) 停止 profile"
-        echo "    4) 重启 profile"
-        echo ""
-        echo "  ─ 日志 ─"
-        echo "    5) 看最新日志（tail -f，Ctrl+C 退出）"
-        echo "    6) 看日志目录（选文件看）"
-        echo ""
-        echo "  ─ 配置 ─"
-        echo "    n) 新增 profile       ─ add（ccprivate 配置 or 扫码）"
-        echo "    r) 删除 profile       ─ remove"
-        echo "    d) 设为默认           ─ default"
-        echo ""
-        local sub; sub=$(menu_select "larkbridge" \
-            "前台启动" \
-            "后台启动" \
-            "停止" \
-            "重启" \
-            "看日志" \
-            "日志目录" \
-            "新增 profile" \
-            "删除" \
-            "设为默认" \
-            "返回")
-        [[ -z "$sub" ]] && continue
-        case "$sub" in
-            1) bash "$feishu_lb" --run ;;
-            2) bash "$feishu_lb" --bg ;;
-            3) bash "$feishu_lb" --stop ;;
-            4) bash "$feishu_lb" --restart ;;
-            5) bash "$feishu_lb" --logs ;;
-            6) info "日志目录: $HOME/.lark-channel/profiles/"; ls -lt "$HOME/.lark-channel/profiles/"*/logs/*.jsonl 2>/dev/null || warn "暂无" ;;
-            n|N) bash "$feishu_lb" --profile add ;;
-            r|R) bash "$feishu_lb" --profile remove ;;
-            d|D) bash "$feishu_lb" --profile default ;;
-            0) return 0 ;;
-        esac
-    done
+    echo ""
+    bash "$feishu_lb" --status 2>&1 | grep -v '^$'
+    echo ""
+    local sub; sub=$(menu_select "larkbridge" \
+        "前台启动" \
+        "后台启动" \
+        "停止" \
+        "重启" \
+        "看日志" \
+        "日志目录" \
+        "新增 profile" \
+        "删除" \
+        "设为默认" \
+        "返回")
+    case "$sub" in
+        1) bash "$feishu_lb" --run ;;
+        2) bash "$feishu_lb" --bg ;;
+        3) bash "$feishu_lb" --stop ;;
+        4) bash "$feishu_lb" --restart ;;
+        5) bash "$feishu_lb" --logs ;;
+        6) info "日志目录: $HOME/.lark-channel/profiles/"; ls -lt "$HOME/.lark-channel/profiles/"*/logs/*.jsonl 2>/dev/null || warn "暂无" ;;
+        7) bash "$feishu_lb" --profile add ;;
+        8) bash "$feishu_lb" --profile remove ;;
+        9) bash "$feishu_lb" --profile default ;;
+        10) return 0 ;;
+        *) return 0 ;;
+    esac
 }
 
 # 从活跃 profile 读第一个允许用户的 open_id 作为默认收件人
@@ -805,26 +766,22 @@ submenu_getnote() {
     local sw="$CCCONFIG_DIR/option-getnote/getnote-switch.sh"
     local init="$CCCONFIG_DIR/option-getnote/init.sh"
 
-    while true; do
-        echo ""; section "getnote 账号"
-        bash "$sw" --list 2>/dev/null || echo -e "  ${YELLOW}无 getnote 账号${NC}"
-        echo ""
-        local c; c=$(menu_select "配置调整" \
-            "添加" \
-            "删除" \
-            "切换(session)" \
-            "切换(持久化)" \
-            "返回")
-        [[ -z "$c" ]] && continue
-        case "$c" in
-            1) bash "$init" add ;;
-            2) bash "$init" remove ;;
-            3) target=$(prompt "账号名"); [ -n "$target" ] && bash "$sw" "$target" ;;
-            4) target=$(prompt "账号名"); [ -n "$target" ] && bash "$sw" "$target" -p ;;
-            0) return 0 ;;
-        esac
-        echo ""; read -p "按回车返回..." dummy
-    done
+    echo ""; section "getnote 账号"
+    bash "$sw" --list 2>/dev/null || echo -e "  ${YELLOW}无 getnote 账号${NC}"
+    echo ""
+    local c; c=$(menu_select "配置调整" \
+        "添加" \
+        "删除" \
+        "切换(session)" \
+        "切换(持久化)" \
+        "返回")
+    case "$c" in
+        1) bash "$init" add ;;
+        2) bash "$init" remove ;;
+        3) target=$(prompt "账号名"); [ -n "$target" ] && bash "$sw" "$target" ;;
+        4) target=$(prompt "账号名"); [ -n "$target" ] && bash "$sw" "$target" -p ;;
+        0) return 0 ;;
+    esac
 }
 
 # 单 app 发测试消息（账号子菜单调用）：跳过选 app，直接发
