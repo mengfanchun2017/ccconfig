@@ -16,7 +16,6 @@
 #
 # 环境变量：
 #   CCCONFIG_REPO=myuser/ccconfig  指定仓库（fork 用，默认从 clone URL 自动检测）
-#   CCCONFIG_BRANCH=release        指定分支（默认 main）
 #   BOOTSTRAP_NOSUDO=1  跳过 sudo apt，用二进制装 gh（适合受限环境）
 #   GH_TOKEN            直接用此 PAT 登录（CI 友好，跳过交互）
 #

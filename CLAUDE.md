@@ -28,7 +28,6 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 
 支持环境变量：
 - `CCCONFIG_REPO=myuser/ccconfig` — fork 用
-- `CCCONFIG_BRANCH=release` — 生产用稳定版
 - `BOOTSTRAP_NOSUDO=1` — 跳过 sudo（git 必须已装）
 
 ## 版本管理

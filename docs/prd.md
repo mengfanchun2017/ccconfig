@@ -223,7 +223,7 @@
 ### 6.2 业务约束
 - ccconfig + skill 为 MIT 开源
 - ccprivate 为个人私有仓库（每人自建）
-- 发布分支: main（开发）/ release（稳定）
+- 发布分支: main（main 即稳定，commit 后自动 sync 到远程，无需 release 分支）
 
 ### 6.3 假设
 - 用户有基本的命令行操作能力

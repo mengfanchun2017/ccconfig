@@ -304,15 +304,15 @@ do_interactive() {
     echo "    u) 卸载"
     echo "    p) 更新到最新版"
     local choice; choice=$(menu_select "Cloudflare" \
-        "a) 全部安装" "m) 仅 marketplace" "g) 仅 plugin" "u) 卸载" "p) 更新" "q) 退出")
+        "全部安装" "仅 marketplace" "仅 plugin" "卸载" "更新" "退出")
     [[ -z "$choice" ]] && return
-    case "${choice:0:1}" in
-        a) echo ""; do_install ;;
-        m) echo ""; do_install_marketplace_only ;;
-        g) echo ""; do_install_plugin_only ;;
-        u) echo ""; do_uninstall ;;
-        p) echo ""; do_update ;;
-        q) exit 0 ;;
+    case "$choice" in
+        1) echo ""; do_install ;;
+        2) echo ""; do_install_marketplace_only ;;
+        3) echo ""; do_install_plugin_only ;;
+        4) echo ""; do_uninstall ;;
+        5) echo ""; do_update ;;
+        6) exit 0 ;;
         *) warn "无效选择" ;;
     esac
 }
