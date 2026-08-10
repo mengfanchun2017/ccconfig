@@ -38,26 +38,27 @@ do_status() {
         all_ok=false
     fi
 
-    # Tailscale
+    # Tailscale: 先查 WSL 网口
     local ts_status="未安装"
-    local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
-    if [ -f "$ts_exe" ]; then
-        local ts_ip
-        ts_ip=$("$ts_exe" ip -4 2>/dev/null || echo "")
-        if [ -n "$ts_ip" ]; then
-            ts_status="✓ $ts_ip"
+    local ts_ip=""
+    local ts_iface=$(ip addr show tailscale0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
+    if [ -n "$ts_iface" ]; then
+        ts_ip="$ts_iface"
+        ts_status="✓ $ts_ip"
+    else
+        local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
+        if [ -f "$ts_exe" ]; then
+            ts_status="○ 检测到安装，是否已登录?"
+            all_ok=false
         else
-            ts_status="○ 未登录"
             all_ok=false
         fi
-    else
-        all_ok=false
     fi
 
     # 第一行：给 status.sh check_option_components 解析（规范: OK|WARN|MISSING <name> ...）
-    if $all_ok; then
+    if $all_ok && [ -n "$ts_ip" ]; then
         echo "OK remote (SSH + Tailscale 就绪)"
-    elif systemctl is-active ssh.socket &>/dev/null 2>&1; then
+    elif systemctl is-active ssh.socket &>/dev/null 2>&1 || systemctl is-active ssh &>/dev/null 2>&1; then
         echo "WARN remote (SSH 就绪, Tailscale 未登录)"
     else
         echo "MISSING remote (SSH $ssh_status)"
@@ -66,11 +67,9 @@ do_status() {
     echo -e "  SSH Server ... ${ssh_status}"
     echo -e "  Tailscale ... ${ts_status}"
     echo -n "  远程可用 ... "
-    if systemctl is-active ssh.socket &>/dev/null 2>&1 && [ -f "$ts_exe" ]; then
+    if systemctl is-active ssh.socket &>/dev/null 2>&1 || systemctl is-active ssh &>/dev/null 2>&1; then
         local port
         port=$(grep -oP '^Port \K[0-9]+' /etc/ssh/sshd_config 2>/dev/null || echo "22")
-        local ts_ip
-        ts_ip=$("$ts_exe" ip -4 2>/dev/null || echo "")
         if [ -n "$ts_ip" ]; then
             echo -e "${GREEN}✓${NC} ssh $USER@$ts_ip -p $port"
         else
@@ -147,23 +146,24 @@ do_all() {
         bash "$SCRIPT_DIR/deploy.sh" server 2>/dev/null || warn "deploy 跳过（/mnt/c 不可用）"
     fi
 
-    # Tailscale 登录检查
+# Tailscale 登录检查
+    local ts_ip=""
+    local ts_iface=$(ip addr show tailscale0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
+    if [ -n "$ts_iface" ]; then
+        ts_ip="$ts_iface"
+    fi
     local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
-    if [ -f "$ts_exe" ]; then
-        local ts_ip
-        ts_ip=$("$ts_exe" ip -4 2>/dev/null || echo "")
-        if [ -n "$ts_ip" ]; then
-            ok "Tailscale 已连接: $ts_ip"
-            echo ""
-            echo -e "  ${GREEN}✓ 远程连接命令${NC}"
-            echo -e "    ssh $USER@$ts_ip -p 2222"
-            echo ""
-            echo "  客户端（笔记本）安装 Tailscale 后运行此命令即可连入。"
-            echo "  断开: Ctrl+B D（进程保持）"
-            echo "  重连: ssh ...（自动 attach tmux）"
-        else
-            warn "Tailscale 未登录，请在 Windows 中执行: tailscale up"
-        fi
+    if [ -n "$ts_ip" ]; then
+        ok "Tailscale 已连接: $ts_ip"
+        echo ""
+        echo -e "  ${GREEN}✓ 远程连接命令${NC}"
+        echo -e "    ssh $USER@$ts_ip -p 2222"
+        echo ""
+        echo "  客户端（笔记本）安装 Tailscale 后运行此命令即可连入。"
+        echo "  断开: Ctrl+B D（进程保持）"
+        echo "  重连: ssh ...（自动 attach tmux）"
+    elif [ -f "$ts_exe" ]; then
+        warn "Tailscale 已安装，请在 Windows 确认已登录 (tailscale up)"
     else
         warn "Tailscale 未安装"
     fi
