@@ -1,8 +1,7 @@
 #!/bin/bash
 # interact.sh — 统一交互菜单/选择/输入/表格函数库
 #
-# 依赖: colors.sh（已 source）
-# 纯 sh 实现，零外部依赖。
+# 纯 sh 实现，零外部依赖。只调用 section/warn/ok 等颜色函数（colors.sh），不依赖 menu_num。
 #
 # 来源:
 #   source "$SCRIPT_DIR/lib/interact.sh"
@@ -46,7 +45,7 @@ menu_select() {
         printf "  %2d) %s\n" $((i+1)) "${items[$i]}"
     done; echo ""
     read -p "  选择 [1-${#items[@]}]: " sel
-    sel=$(menu_num "$sel")
+    [[ "$sel" =~ ^[0-9]+$ ]] || sel=""
     [[ -z "$sel" ]] || (( sel < 1 || sel > ${#items[@]} )) && return 1
     echo "${items[$((sel-1))]}"
 }
@@ -126,7 +125,7 @@ menu_multi() {
     while true; do
         read -p "  输入序号（留空确认）: " choice
         [[ -z "$choice" ]] && break
-        choice=$(menu_num "$choice")
+        [[ "$choice" =~ ^[0-9]+$ ]] || choice=""
         if [[ -n "$choice" ]] && (( choice >= 1 && choice <= ${#items[@]} )); then
             local idx=$((choice-1))
             if [[ " ${selected[*]} " == *" $idx "* ]]; then
