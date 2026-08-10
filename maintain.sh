@@ -35,6 +35,7 @@ source "$LIB_DIR/colors.sh" 2>/dev/null || {
     info()  { echo -e "  ${GRAY}$1${NC}"; }
     section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 }
+source "$LIB_DIR/interact.sh"
 
 # ── Step 5: 收尾 ──
 do_finalize() {
