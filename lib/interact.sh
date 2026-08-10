@@ -25,7 +25,11 @@ confirm() {
         *)   prompt_str="[y/N]" ;;
     esac
     local ans
-    read -p "  $msg $prompt_str: " ans
+    if [[ -r /dev/tty ]]; then
+        read -p "  $msg $prompt_str: " ans < /dev/tty
+    else
+        read -p "  $msg $prompt_str: " ans
+    fi
     case "$ans" in
         [Yy]|[Yy][Ee][Ss]) return 0 ;;
         "") [[ "$default" =~ ^[Yy]$ ]] && return 0 || return 1 ;;
@@ -42,15 +46,21 @@ menu_select() {
     local items=("$@")
     [[ ${#items[@]} -eq 0 ]] && { warn "menu_select: items 为空"; return 1; }
 
-    echo ""; section "$title"
+    printf '\n'; section "$title"
     local i sel
     for i in "${!items[@]}"; do
-        printf "  %2d) %s\n" $((i+1)) "${items[$i]}"
-    done; echo ""
-    read -p "  选择 [1-${#items[@]}, 0=返回]: " sel
-    [[ "$sel" =~ ^[0-9]+$ ]] || { echo "0"; return 0; }
-    (( sel < 0 || sel > ${#items[@]} )) && { echo "0"; return 0; }
-    echo "$sel"
+        printf '  %2d) %s\n' "$((i+1))" "${items[$i]}"
+    done
+    printf '\n'
+    # 从 /dev/tty 读，避开 stdin 被管道/重定向导致的 read 阻塞/失败
+    if [[ -r /dev/tty ]]; then
+        read -p "  选择 [1-${#items[@]}, 0=返回]: " sel < /dev/tty
+    else
+        read -p "  选择 [1-${#items[@]}, 0=返回]: " sel
+    fi
+    [[ "$sel" =~ ^[0-9]+$ ]] || { printf '0\n'; return 0; }
+    (( sel < 0 || sel > ${#items[@]} )) && { printf '0\n'; return 0; }
+    printf '%s\n' "$sel"
 }
 
 # ========== 文本输入 ==========
@@ -60,10 +70,19 @@ prompt() {
 
     local ans
     if [[ -n "$default" ]]; then
-        read -p "  $msg [$default]: " ans
+        if [[ -r /dev/tty ]]; then
+            read -p "  $msg [$default]: " ans < /dev/tty
+        else
+            read -p "  $msg [$default]: " ans
+        fi
         echo "${ans:-$default}"
     else
-        read -p "  $msg: " ans; echo "$ans"
+        if [[ -r /dev/tty ]]; then
+            read -p "  $msg: " ans < /dev/tty
+        else
+            read -p "  $msg: " ans
+        fi
+        echo "$ans"
     fi
 }
 
@@ -71,7 +90,13 @@ prompt() {
 prompt_password() {
     local msg="${1:-输入密码}"
     local ans
-    read -s -p "  $msg: "; echo; echo "$ans"
+    if [[ -r /dev/tty ]]; then
+        read -s -p "  $msg: " ans < /dev/tty
+    else
+        read -s -p "  $msg: " ans
+    fi
+    printf '\n'
+    echo "$ans"
 }
 
 # ========== 表格 ==========
