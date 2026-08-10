@@ -16,6 +16,7 @@
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "tavily-mcp"],
+      "timeout": 30,
       "env": {
         "TAVILY_API_KEY": "请到 https://tavily.com 注册获取 API Key"
       }
@@ -27,6 +28,7 @@
       "type": "stdio",
       "command": "uvx",
       "args": ["--with", "fastmcp>=0.5.0", "minimax-coding-plan-mcp", "-y"],
+      "timeout": 30,
       "env": {
         "MINIMAX_API_KEY": "请填入你的 MiniMax API Key",
         "MINIMAX_API_HOST": "https://api.minimax.chat"
@@ -39,6 +41,7 @@
       "type": "stdio",
       "command": "uvx",
       "args": ["--with", "fastmcp>=0.5.0", "minimax-mcp"],
+      "timeout": 120,
       "env": {
         "MINIMAX_API_KEY": "请填入你的 MiniMax API Key",
         "MINIMAX_API_HOST": "https://api.minimax.chat"
