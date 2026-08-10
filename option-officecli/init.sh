@@ -21,13 +21,9 @@ export PATH="${HOME}/.local/bin:$(find_node_bin):$PATH"
 
 source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
+    CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
 }
-
-good() { echo -e "${GREEN}$1${NC}"; }
-bad()  { echo -e "${RED}$1${NC}"; }
-warn() { echo -e "${YELLOW}$1${NC}"; }
-info() { echo -e "${GRAY}$1${NC}"; }
+source "$CCCONFIG_DIR/lib/interact.sh"
 
 OFFICECLI_BIN="$HOME/.local/bin/officecli"
 GITHUB_REPO="iOfficeAI/OfficeCLI"
@@ -179,19 +175,15 @@ interactive_mode() {
     [ -x "$OFFICECLI_BIN" ] || need_install=true
 
     if $need_install; then
-        read -p "  安装 OfficeCLI? [Y/n]: " confirm
-        confirm="${confirm:-y}"
-        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-            info "  跳过"
-            return 0
+        if confirm "安装 OfficeCLI？" y; then
+            echo ""; install_officecli
+        else
+            info "跳过"; return 0
         fi
-        echo ""
-        install_officecli
     else
-        good "  已安装"
+        ok "已安装"
         echo ""
-        read -p "  更新到最新? [y/N]: " confirm
-        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        if confirm "更新到最新？" n; then
             update_officecli
         fi
     fi
