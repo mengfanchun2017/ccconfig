@@ -25,8 +25,8 @@ confirm() {
         *)   prompt_str="[y/N]" ;;
     esac
     local ans
-    if [[ -r /dev/tty ]]; then
-        read -p "  $msg $prompt_str: " ans < /dev/tty
+    if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
+        read -p "  $msg $prompt_str: " ans < /dev/tty || true
     else
         read -p "  $msg $prompt_str: " ans
     fi
@@ -39,14 +39,14 @@ confirm() {
 
 # ========== 单选菜单 ==========
 # 调用方传纯文本 items（不带数字前缀），本函数自动加 "1) 2) 3)" 序号。
-# 返回: 选中项的序号字符串（如 "5"），0 表示返回/取消（非选中任何项）。
-# 用法: c=$(menu_select "title" "item1" "item2" ...); case "$c" in 1) ... ;; 0) return ;; esac
+# 返回: 选中项的序号字符串（如 "5"）；0 表示「返回/取消」（用户输入空、非法、越界）。
+# 用法: c=$(menu_select "title" "item1" "item2" "返回"); case "$c" in 1) ... ;; 0) return ;; esac
 menu_select() {
     local title="${1:-选择}"; shift
     local items=("$@")
     [[ ${#items[@]} -eq 0 ]] && { warn "menu_select: items 为空"; return 1; }
 
-    # 菜单输出走 stderr — 避开 `c=$(...)` 把 stdout 截走/buffer 导致菜单不显示
+    # 菜单输出走 stderr — 避开 `c=$(...)` 把 stdout 截走后菜单列表不显示
     printf '\n' >&2
     section "$title" >&2
     local i sel
@@ -55,13 +55,13 @@ menu_select() {
     done
     printf '\n' >&2
     # 从 /dev/tty 读，避开 stdin 被管道/重定向导致的 read 阻塞/失败
-    if [[ -r /dev/tty ]]; then
-        read -p "  选择 [1-${#items[@]}, 0=返回]: " sel < /dev/tty
+    if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
+        read -p "  选择 [1-${#items[@]}]: " sel < /dev/tty || true
     else
-        read -p "  选择 [1-${#items[@]}, 0=返回]: " sel
+        read -p "  选择 [1-${#items[@]}]: " sel
     fi
     [[ "$sel" =~ ^[0-9]+$ ]] || { printf '0\n'; return 0; }
-    (( sel < 0 || sel > ${#items[@]} )) && { printf '0\n'; return 0; }
+    (( sel < 1 || sel > ${#items[@]} )) && { printf '0\n'; return 0; }
     printf '%s\n' "$sel"
 }
 
@@ -72,15 +72,15 @@ prompt() {
 
     local ans
     if [[ -n "$default" ]]; then
-        if [[ -r /dev/tty ]]; then
-            read -p "  $msg [$default]: " ans < /dev/tty
+        if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
+            read -p "  $msg [$default]: " ans < /dev/tty || true
         else
             read -p "  $msg [$default]: " ans
         fi
         echo "${ans:-$default}"
     else
-        if [[ -r /dev/tty ]]; then
-            read -p "  $msg: " ans < /dev/tty
+        if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
+            read -p "  $msg: " ans < /dev/tty || true
         else
             read -p "  $msg: " ans
         fi
@@ -92,10 +92,10 @@ prompt() {
 prompt_password() {
     local msg="${1:-输入密码}"
     local ans
-    if [[ -r /dev/tty ]]; then
-        read -s -p "  $msg: " ans < /dev/tty
+    if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
+        read -s -p "  $msg: " ans < /dev/tty || ans=""
     else
-        read -s -p "  $msg: " ans
+        read -s -p "  $msg: " ans || ans=""
     fi
     printf '\n'
     echo "$ans"
