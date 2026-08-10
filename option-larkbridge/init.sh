@@ -818,6 +818,7 @@ main() {
       echo ""
       echo "  运行:"
       echo "    --run [profile]        前台调试（不传交互选）"
+      echo "    --bg [profile]         后台 nohup（systemd 不可用时）"
       echo "    --start [profile]      后台 systemd（不传交互选）"
       echo ""
       echo "  管理:"

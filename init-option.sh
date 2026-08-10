@@ -460,12 +460,25 @@ install_option() {
 
     # option-* 目录
     if has_init_script "$name"; then
-        section "安装 $name"
-        local args=("$@")
-        if [ "$name" = "larkbridge" ] && [ ${#args[@]} -eq 0 ]; then
-            args=("--run")
+        if [ "$name" = "larkbridge" ] && [ ${#@} -eq 0 ]; then
+            section "larkbridge"
+            echo ""
+            echo "  1) 前台启动（调试用，Ctrl+C 退出）"
+            echo "  2) 后台启动（systemd service，需 systemd --user 可用）"
+            echo "  3) 查看状态 + 配置管理（进飞书管理菜单）"
+            echo "  0) 跳过"
+            echo ""
+            read -p "选择 [1-3/0]: " lb_sub
+            case "$lb_sub" in
+                1) bash "$SCRIPT_DIR/option-$name/init.sh" --run ;;
+                2) bash "$SCRIPT_DIR/option-$name/init.sh" --start ;;
+                3) bash "$CCCONFIG_DIR/maintain.sh" 13 ;;
+                *) info "跳过" ; return 0 ;;
+            esac
+            return $?
         fi
-        bash "$SCRIPT_DIR/option-$name/init.sh" "${args[@]}"
+        section "安装 $name"
+        bash "$SCRIPT_DIR/option-$name/init.sh" "$@"
         return $?
     fi
 
