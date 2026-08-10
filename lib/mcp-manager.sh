@@ -308,6 +308,7 @@ cmd_config() {
         "配置 Key (交互填占位符)" \
         "查看状态" \
         "退出")
+    [[ "$choice" == "0" || -z "$choice" ]] && break  # EOF → 直接退出 submenu
 
     case "$choice" in
       1) config_register ;;

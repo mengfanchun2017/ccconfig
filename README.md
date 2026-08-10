@@ -337,6 +337,34 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | `CCCONFIG_HOME` | `$HOME/git/ccconfig` | ccconfig 仓库路径 |
 | `CCPRIVATE_HOME` | `$HOME/git/ccprivate` | ccprivate 仓库路径 |
 
+## 版本里程碑
+
+### v3.x — 交互菜单 API 收口（2026-08-10）
+
+ccconfig 历史上每个脚本各自写 `read -p "选择 [1-N]: "` + 数字校验 + `menu_num` 兜底，散落在 8+ 文件。新版统一收口到 `lib/interact.sh` 单一 API：
+
+```bash
+source lib/interact.sh
+c=$(menu_select "标题" "项1" "项2" "返回")  # 返回序号字符串
+case "$c" in 1) ... ;; 2) ... ;; 3) return ;; esac
+
+confirm "是否继续？" n
+name=$(prompt "用户名")
+pwd=$(prompt_password "Token")
+```
+
+**4 个核心坑**（详见 [ADR-0012](docs/adr/0012-interact-p0-no-gum.md)）：
+1. 菜单显示走 stderr（避开 `c=$(...)` 命令替换截走列表）
+2. `read -p` 从 `/dev/tty` 读（避开管道阻塞/EOF）
+3. `while+case` 不能 `*) continue` 重入菜单（每次重入重新打印列表）
+4. items 必须纯文本，函数自动加 "1) 2) 3)"——禁止 caller 传 "1) xxx"
+
+**单元测试**：`bash tests/test-interact.sh`（22 case，覆盖 EOF/OOR/非法字符/双前缀回归/stdout-stderr 分离）。
+
+**回归 tag**：`interact-api-unify-20260810`（如需回滚：`git checkout interact-api-unify-20260810`）。
+
+caller 总代码量 -184 行，新增测试 171 行。
+
 ## 开发
 
 ```bash
