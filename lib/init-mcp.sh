@@ -501,7 +501,7 @@ do_menu() {
                 local tact; tact=$(menu_select "操作" "on" "off")
                 [ -z "$tact" ] && continue
                 do_toggle "$tname" "$tact"
-                read -p "  按回车继续..." dummy
+                read -p "  按回车继续..." dummy < /dev/tty || true
                 ;;
             0) echo ""; exit 0 ;;
         esac

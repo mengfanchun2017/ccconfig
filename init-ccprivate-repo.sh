@@ -69,7 +69,6 @@ ensure_gh_cli() {
     else
         install_choice=$(menu_select "安装 gh" \
             "1) apt 装" "2) binary 装" "0) 跳过")
-        install_choice="${install_choice:0:1}"
         [[ "$install_choice" == "" ]] && install_choice="1"
     fi
 
@@ -294,8 +293,7 @@ prompt_feishu_config() {
     echo "  1) 现在填（需要飞书开放平台的 App ID + App Secret）"
     echo "  2) 跳过（晚点手动编辑: vim $f）"
     echo ""
-    feishu_choice=$(menu_select "配置飞书" "1) 现在配置" "2) 跳过")
-    feishu_choice="${feishu_choice:0:1}"
+    feishu_choice=$(menu_select "配置飞书" "现在配置" "跳过")
 
     if [[ "$feishu_choice" != "1" ]]; then
         info "跳过飞书配置。后续填法: vim $f"
