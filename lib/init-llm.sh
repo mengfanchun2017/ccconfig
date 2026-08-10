@@ -26,6 +26,7 @@ CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/path-helper.sh"
 source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/dry-run.sh"
+source "$SCRIPT_DIR/interact.sh"
 CONFIG_FILE="$(resolve_conf llm.json)" || exit 1
 LLMSWITCH_CONF="$CCCONFIG_ROOT/option-llmswitch/conf/llmswitch.json"
 LLMSWITCH_INIT="$CCCONFIG_ROOT/option-llmswitch/init.sh"
@@ -303,47 +304,23 @@ switch_custom() {
 
     echo ""
     echo "  ── 自定义 Anthropic-compatible 端点 ──"
-    echo "  示例: OpenRouter https://openrouter.ai/api/v1"
-    echo "        自部署网关 https://your-llm.example.com/anthropic"
+    echo "  示例: OpenRouter / 自部署网关"
     echo ""
-    read -p "  Base URL: " custom_url
-    if [[ -z "$custom_url" ]]; then
-        error "Base URL 不能为空"
-        return 1
-    fi
+    local custom_url; custom_url=$(prompt "Base URL")
+    [[ -z "$custom_url" ]] && { error "Base URL 不能为空"; return 1; }
+    local custom_model; custom_model=$(prompt "Model 名称")
+    [[ -z "$custom_model" ]] && { error "Model 名称不能为空"; return 1; }
+    local custom_key; custom_key=$(prompt_password "API Key（留空复用当前）")
 
-    read -p "  Model 名称: " custom_model
-    if [[ -z "$custom_model" ]]; then
-        error "Model 名称不能为空"
-        return 1
-    fi
-
-    read -p "  API Key (留空 = 复用当前 key): " custom_key
-
-    # 复用逻辑：用户留空就从 settings.json 取
+    # 复用逻辑
     if [[ -z "$custom_key" ]]; then
-        custom_key=$(python3 -c "
-import json, os
-try:
-    with open(os.path.expanduser('~/.claude/settings.json')) as f:
-        d = json.load(f)
-    tok = d.get('env', {}).get('ANTHROPIC_AUTH_TOKEN', '')
-    print(tok)
-except: pass
-" 2>/dev/null || echo "")
+        custom_key=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json'))).get('env',{}).get('ANTHROPIC_AUTH_TOKEN',''))" 2>/dev/null || echo "")
     fi
 
     echo ""
-    read -p "  是否保存为预设 (Y/n): " save_choice
-    local save_preset="n"
-    case "$save_choice" in
-        [Yy]|"") save_preset="y" ;;
-    esac
-
-    if [[ "$save_preset" == "y" ]]; then
-        # 用户想持久化：写 llm.json + 切到新预设
-        local preset_name
-        read -p "  预设名称 (英文, 如 my-llm): " preset_name
+    if confirm "保存为预设？" y; then
+        local save_preset="y"
+        local preset_name; preset_name=$(prompt "预设名称")
         preset_name=$(echo "$preset_name" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
         if [[ -z "$preset_name" ]]; then
             error "预设名称不能为空，跳过保存"
