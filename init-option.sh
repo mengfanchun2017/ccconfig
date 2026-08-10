@@ -477,6 +477,12 @@ install_option() {
             esac
             return $?
         fi
+        # remote: 无参数默认执行 --run（一键安装）
+        if [ "$name" = "remote" ] && [ ${#@} -eq 0 ]; then
+            section "安装 remote"
+            bash "$SCRIPT_DIR/option-$name/init.sh" --run
+            return $?
+        fi
         section "安装 $name"
         bash "$SCRIPT_DIR/option-$name/init.sh" "$@"
         return $?
