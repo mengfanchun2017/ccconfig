@@ -399,10 +399,11 @@ check_feishu() {
         echo -e "  当前账号: ${YELLOW}未匹配${NC} ${GRAY}(${current_dir})${NC}"
     fi
 
-    # 检查配置
+    # 检查配置（先设有效 config dir，避免默认目录误报未配置）
+    local _lark_config_dir="${current_dir:-${LARKSUITE_CLI_CONFIG_DIR:-$HOME/.lark-cli}}"
     if command -v lark-cli &> /dev/null; then
         echo -n "  配置 ... "
-        if lark-cli config show 2>/dev/null | grep -q "appId"; then
+        if LARKSUITE_CLI_CONFIG_DIR="$_lark_config_dir" lark-cli config show 2>/dev/null | grep -q "appId"; then
             echo -e "${GREEN}✅${NC}"
         else
             echo -e "${YELLOW}○${NC} 未配置"
@@ -410,7 +411,7 @@ check_feishu() {
 
         # 检查授权
         echo -n "  授权 ... "
-        if lark-cli config show 2>/dev/null | grep -q "users"; then
+        if LARKSUITE_CLI_CONFIG_DIR="$_lark_config_dir" lark-cli config show 2>/dev/null | grep -q "users"; then
             echo -e "${GREEN}✅${NC}"
         else
             echo -e "${YELLOW}○${NC} 未授权"
