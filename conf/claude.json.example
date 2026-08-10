@@ -71,5 +71,8 @@
         "GETNOTE_CLIENT_ID": "请到 https://www.biji.com/openapi 获取 Client ID（格式：cli_xxx）"
       }
     }
-  ]
+  ],
+  "_getnote_accounts_note": "getnote 多账号（可选）。如配置此项，sync 时以 getnote_accounts[getnote_default] 为权威 env 覆盖上面 inline env。命令行: bash ccconfig/option-getnote/{init,getnote-switch}.sh",
+  "getnote_accounts": [],
+  "getnote_default": ""
 }

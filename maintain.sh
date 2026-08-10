@@ -184,10 +184,11 @@ show_menu() {
     echo "  14) 回归测试         ─ WSL 新建 distro + bootstrap 全流程（CI/自动化）"
     echo "  15) GitHub PAT       ─ 查看剩余天数 + 一键续期（fine-grained）"
     echo "  16) LLM 切换         ─ 交互选择/切换后端 LLM（MiniMax / DeepSeek / Gateway）"
+    echo "  17) getnote 账号     ─ getnote MCP 多账号管理（添加/删除/切换）"
     echo ""
     echo "  0) 退出"
     echo ""
-    read -p "选择 [0-16]: " c
+    read -p "选择 [0-17]: " c
     c=$(menu_num "$c")
 
     case "$c" in
@@ -229,6 +230,9 @@ show_menu() {
             read -p "按回车返回菜单..." dummy
             show_menu ;;
         16) bash "$LIB_DIR/init-llm.sh"
+            read -p "按回车返回菜单..." dummy
+            show_menu ;;
+        17) submenu_getnote
             read -p "按回车返回菜单..." dummy
             show_menu ;;
         10) while true; do
@@ -809,6 +813,45 @@ PYEOF
             0) ;;
             *) ;;
         esac
+    done
+}
+
+# ── getnote MCP 账号管理子菜单 ──
+submenu_getnote() {
+    local sw="$CCCONFIG_DIR/option-getnote/getnote-switch.sh"
+    local init="$CCCONFIG_DIR/option-getnote/init.sh"
+
+    while true; do
+        echo ""
+        echo -e "${CYAN}── getnote 账号管理 ──${NC}"
+        bash "$sw" --list
+        echo ""
+        echo "  a) 添加新账号"
+        echo "  d) 删除账号"
+        echo "  p) 切换账号（仅 session env）"
+        echo "  P) 切换账号并持久化到 ccprivate"
+        echo "  s) 同步到运行时（bash init-mcp.sh sync）"
+        echo "  0) 返回主菜单"
+        echo ""
+        read -p "  选择 [a/d/p/P/s/0]: " c
+
+        case "$c" in
+            a|A) bash "$init" add ;;
+            d|D) bash "$init" remove ;;
+            p)
+                read -p "  输入账号名（回车取消）: " target < /dev/tty
+                [ -n "$target" ] && bash "$sw" "$target"
+                ;;
+            P)
+                read -p "  输入账号名（回车取消）: " target < /dev/tty
+                [ -n "$target" ] && bash "$sw" "$target" -p
+                ;;
+            s|S) bash "$LIB_DIR/init-mcp.sh" sync ;;
+            0|q|"") return 0 ;;
+            *) warn "无效选项" ;;
+        esac
+        echo ""
+        read -p "  按回车返回 getnote 菜单..." dummy
     done
 }
 

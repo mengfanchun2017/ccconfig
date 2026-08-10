@@ -52,6 +52,7 @@
             }
         },
         "getnote": {
+            "_comment": "单实例 fallback。如 ccprivate/conf/claude.json 配置了 getnote_accounts + getnote_default，sync 时会覆盖此 env",
             "command": "npx",
             "args": ["-y", "@getnote/mcp"],
             "env": {

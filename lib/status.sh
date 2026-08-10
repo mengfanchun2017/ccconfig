@@ -332,6 +332,39 @@ check_repos() {
 check_mcp() {
     local lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     bash "$lib_dir/mcp-manager.sh" status
+
+    # ── getnote 多账号检查 ──
+    local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+    local conf="$ccpriv/conf/claude.json"
+    if [ -f "$conf" ]; then
+        local multi
+        multi=$(python3 - "$conf" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f: d = json.load(f)
+except: sys.exit(0)
+accounts = d.get('getnote_accounts') or []
+default = d.get('getnote_default', '')
+enabled_cnt = sum(1 for a in accounts if a.get('enabled', True))
+out = []
+if accounts:
+    out.append(f"{enabled_cnt}/{len(accounts)} enabled")
+if default:
+    out.append(f"default={default}")
+elif enabled_cnt > 1:
+    out.append("WARN: 多账号无 default")
+print(' | '.join(out))
+PYEOF
+        )
+        if [ -n "$multi" ]; then
+            echo "  getnote 账号: $multi"
+            if echo "$multi" | grep -q "WARN"; then
+                echo -e "  ${YELLOW}⚠ 多个 getnote 账号 enabled 但未设置 default：${NC}"
+                echo -e "  ${CYAN}bash ccconfig/option-getnote/getnote-switch.sh --list${NC}"
+                echo -e "  ${CYAN}bash ccconfig/option-getnote/getnote-switch.sh <name> -p${NC}"
+            fi
+        fi
+    fi
 }
 
 # ========== 7. 飞书 lark-cli 状态（可选） ==========

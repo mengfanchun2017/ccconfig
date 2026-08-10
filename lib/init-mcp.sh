@@ -197,12 +197,27 @@ for server in conf_data.get('mcp_servers', []):
         entry['args'] = new_args
     if server.get('disabled'):
         disabled_names.append(name); continue
-    if name in claude_data.get('mcpServers', {}):
-        existing = claude_data['mcpServers'][name]
-        if existing.get('env'): entry['env'] = {**entry.get('env', {}), **existing['env']}
-    if name in settings_data.get('mcpServers', {}):
-        real_keys = {k: v for k, v in settings_data['mcpServers'][name].get('env', {}).items() if v and '请填入' not in str(v) and 'your key' not in str(v).lower() and '<your-' not in str(v)}
-        if real_keys: entry['env'] = {**entry.get('env', {}), **real_keys}
+    # getnote 多账号：以 getnote_accounts[getnote_default] 为权威 env，跳过下方 claude_data/settings_data merge
+    getnote_overridden = False
+    if name == 'getnote':
+        accounts = conf_data.get('getnote_accounts') or []
+        default_name = conf_data.get('getnote_default') or ''
+        if accounts and default_name:
+            for a in accounts:
+                if a.get('name') == default_name and a.get('enabled', True):
+                    entry['env'] = {
+                        'GETNOTE_API_KEY': a.get('api_key', ''),
+                        'GETNOTE_CLIENT_ID': a.get('client_id', ''),
+                    }
+                    getnote_overridden = True
+                    break
+    if not getnote_overridden:
+        if name in claude_data.get('mcpServers', {}):
+            existing = claude_data['mcpServers'][name]
+            if existing.get('env'): entry['env'] = {**entry.get('env', {}), **existing['env']}
+        if name in settings_data.get('mcpServers', {}):
+            real_keys = {k: v for k, v in settings_data['mcpServers'][name].get('env', {}).items() if v and '请填入' not in str(v) and 'your key' not in str(v).lower() and '<your-' not in str(v)}
+            if real_keys: entry['env'] = {**entry.get('env', {}), **real_keys}
     mcp_servers[name] = entry
 
 settings_data['mcpServers'] = mcp_servers
