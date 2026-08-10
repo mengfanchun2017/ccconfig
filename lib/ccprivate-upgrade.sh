@@ -49,17 +49,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="${CCCONFIG_DIR:-$HOME/git/ccconfig}"
 CLAUDE_DIR="$HOME/.claude"
 
-GREEN='\''\033[0;32m'\''
-BLUE='\''\033[0;34m'\''
-CYAN='\''\033[0;36m'\''
-YELLOW='\''\033[0;33m'\''
-NC='\''\033[0m'\''
-
-section() { echo -e "\n${CYAN}=== $1 ===${NC}"; }
-info()    { echo -e "${BLUE}ℹ️  $1${NC}"; }
-ok()      { echo -e "${GREEN}✅ $1${NC}"; }
-warn()    { echo -e "${YELLOW}⚠️  $1${NC}"; }
-
 setup_link() {
     local link="$1"
     local target="$2"
