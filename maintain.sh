@@ -431,10 +431,11 @@ submenu_feishu() {
         echo "  5) lark-cli 装包/升级    ─ 没装就装，已装就升 npm latest"
         echo "  6) larkbridge 装包/升级  ─ 没装就装，已装就升 npm latest"
         echo "  7) 申请权限         ─ 一键跳转飞书开放平台，开通 larkbridge 必备权限"
+        echo "  8) 飞书测试         ─ E2E 集成测试（安装/授权/文档/Base/权限/API 兼容）"
         echo ""
         echo "  0) 返回主菜单"
         echo ""
-        read -p "选择 [0-7]: " c
+        read -p "选择 [0-8]: " c
         c=$(menu_num "$c")
 
         case "$c" in
@@ -464,6 +465,8 @@ submenu_feishu() {
                 read -p "  按回车返回飞书菜单..." dummy
                 ;;
             7) _feishu_perms_menu ;;
+            8) bash "$LIB_DIR/test-feishu.sh"
+               read -p "  按回车返回飞书菜单..." dummy ;;
             0) return 0 ;;
             *) continue ;;
         esac
@@ -981,5 +984,11 @@ case "${1:-menu}" in
         bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh" ;;
     test|bootstrap|regression)
         shift; bash "$CCCONFIG_DIR/bin/test-bootstrap.sh" "$@" ;;
+    feishu)
+        shift
+        case "${1:-test}" in
+            test) bash "$LIB_DIR/test-feishu.sh" "$@" ;;
+            *) echo "用法: bash maintain.sh feishu [test]" ;;
+        esac ;;
     *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|pat|mcp|llmswitch|llm|test|menu]"; exit 1 ;;
 esac
