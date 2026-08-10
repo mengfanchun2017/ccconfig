@@ -206,7 +206,8 @@ for dep in "${CORE_DEPS[@]}"; do
 done
 
 # pip: 特殊检查 — Ubuntu 24.04 默认无 pip3 命令，python3 -m pip 也可用
-local pip_ok=false pip_ver=""
+pip_ok=false
+pip_ver=""
 if command -v pip3 &>/dev/null; then
     pip_ver=$(pip3 --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 || echo "?")
     pip_ok=true

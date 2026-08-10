@@ -21,6 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 CCPRIVATE="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 source "$SCRIPT_DIR/dry-run.sh"
+source "$SCRIPT_DIR/interact.sh"
 
 source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -107,8 +108,7 @@ confirm_sync() {
     fi
 
     echo ""
-    read -p "确认执行？[y/N]: " confirm
-    [[ "$confirm" =~ ^[Yy] ]] || { info "已取消"; return 1; }
+    confirm "确认执行？" n || { info "已取消"; return 1; }
     return 0
 }
 
@@ -277,7 +277,7 @@ do_promote_interactive() {
     echo "  0) 取消"
     echo ""
 
-    read -p "选择: " sel
+    read -p "选择: " sel < /dev/tty || sel=""
     [ "$sel" = "0" ] && { echo ""; info "已取消"; return 0; }
 
     if [ "$sel" = "a" ]; then
@@ -357,7 +357,7 @@ do_reverse() {
     echo "  0) 取消"
     echo ""
 
-    read -p "选择: " sel
+    read -p "选择: " sel < /dev/tty || sel=""
     [ "$sel" = "0" ] && { echo ""; info "已取消"; return 0; }
 
     if [ "$sel" = "a" ]; then

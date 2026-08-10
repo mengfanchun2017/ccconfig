@@ -431,12 +431,7 @@ collect_info() {
     else
         # 交互模式：原菜单
         echo ""
-        echo "  1) DeepSeek"
-        echo "  2) MiniMax"
-        echo "  3) Claude (Anthropic 官方)"
-        echo ""
-        local LLM_CHOICE; LLM_CHOICE=$(menu_select "默认 LLM" "1) DeepSeek" "2) MiniMax" "3) Claude"); LLM_CHOICE="${LLM_CHOICE:0:1}"
-        LLM_CHOICE=$(menu_num "$LLM_CHOICE")
+        local LLM_CHOICE; LLM_CHOICE=$(menu_select "默认 LLM" "DeepSeek" "MiniMax" "Claude (Anthropic 官方)")
 
         case "$LLM_CHOICE" in
             1)
