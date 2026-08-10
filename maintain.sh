@@ -523,7 +523,9 @@ submenu_feishu_larkbridge() {
         read -p "  选择 [1-6/n/r/d/0]: " sub
         case "$sub" in
             1) bash "$feishu_lb" --run ;;
-            2) bash "$feishu_lb" --bg ;;
+            2) bash "$feishu_lb" --bg
+               echo ""
+               read -p "  按回车返回..." dummy ;;
             3) bash "$feishu_lb" --stop ;;
             4) bash "$feishu_lb" --restart ;;
             5) bash "$feishu_lb" --logs ;;
