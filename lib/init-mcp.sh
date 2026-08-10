@@ -108,14 +108,27 @@ do_status() {
 
 # ── 注册 MCP ──
 register_mcp() {
-    local name="$1" cmd="$2" args="$3"
+    local name="$1" mtype="$2" cmd="$3" args="$4"
     echo -n "  注册 $name ... "
-    if claude mcp add -s user "$name" -- $cmd $args 2>&1; then
-        good "ok"; return 0
+    if [[ "$mtype" == "http" ]]; then
+        # http 类型：claude mcp add --transport http <name> <url> -H header
+        local url="$cmd"
+        local headers="$args"
+        if claude mcp add --transport http "$name" "$url" $headers -s user 2>&1; then
+            good "ok"; return 0
+        else
+            if claude mcp list 2>/dev/null | grep -q "$name"; then
+                info "已注册"; return 0
+            fi; bad "fail"; return 1
+        fi
     else
-        if claude mcp list 2>/dev/null | grep -q "$name"; then
-            info "已注册"; return 0
-        fi; bad "fail"; return 1
+        if claude mcp add -s user "$name" -- $cmd $args 2>&1; then
+            good "ok"; return 0
+        else
+            if claude mcp list 2>/dev/null | grep -q "$name"; then
+                info "已注册"; return 0
+            fi; bad "fail"; return 1
+        fi
     fi
 }
 
@@ -132,8 +145,19 @@ do_sync() {
         if claude mcp list 2>/dev/null | grep -q "^${name}:" 2>/dev/null; then
             skipped=$((skipped + 1)); continue
         fi
-        if [[ -n "$command" ]] && [[ -n "$args_str" ]]; then
-            register_mcp "$name" "$command" "$args_str" >/dev/null 2>&1 && installed=$((installed + 1)) || failed=$((failed + 1))
+        if [[ -n "$command" ]]; then
+            local reg_args="$args_str"
+            if [[ "$mtype" == "http" ]] && [[ "$env_str" != "{}" ]]; then
+                # http 类型的 headers 转为 -H 参数
+                reg_args=$(echo "$env_str" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+for k,v in d.items():
+    if '请填入' not in str(v) and 'your key' not in str(v).lower():
+        print(f'-H {json.dumps(k)}:{json.dumps(v)}')
+" 2>/dev/null)
+            fi
+            register_mcp "$name" "$mtype" "$command" "$reg_args" >/dev/null 2>&1 && installed=$((installed + 1)) || failed=$((failed + 1))
         fi
     done <<< "$(read_mcp_list)"
     echo -e "  注册: ${GREEN}+$installed${NC} 跳过: ${GRAY}$skipped${NC} 失败: ${RED}$failed${NC}"

@@ -22,29 +22,13 @@
       }
     },
     {
-      "name": "minimax",
-      "description": "MiniMax AI - 中文搜索和图片理解",
-      "how_to_get": "去 https://platform.minimax.io 注册",
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["--with", "fastmcp>=0.5.0", "minimax-coding-plan-mcp", "-y"],
-      "timeout": 30,
-      "env": {
-        "MINIMAX_API_KEY": "请填入你的 MiniMax API Key",
-        "MINIMAX_API_HOST": "https://api.minimax.chat"
-      }
-    },
-    {
-      "name": "minimax-mcp",
-      "description": "MiniMax 多模态 - 语音/视频/图像/音乐生成",
-      "how_to_get": "共用 Minimax Key，无需额外注册",
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["--with", "fastmcp>=0.5.0", "minimax-mcp"],
-      "timeout": 120,
-      "env": {
-        "MINIMAX_API_KEY": "请填入你的 MiniMax API Key",
-        "MINIMAX_API_HOST": "https://api.minimax.chat"
+      "name": "exa",
+      "description": "Exa AI - 语义搜索和网页内容提取",
+      "how_to_get": "去 https://dashboard.exa.ai/api-keys 注册获取 API Key",
+      "type": "http",
+      "url": "https://mcp.exa.ai/mcp",
+      "headers": {
+        "x-api-key": "请填入你的 Exa API Key"
       }
     },
     {
