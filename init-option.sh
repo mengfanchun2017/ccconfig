@@ -25,6 +25,7 @@ source "$SCRIPT_DIR/lib/colors.sh" 2>/dev/null || {
     info()  { echo -e "  ${GRAY}$1${NC}"; }
     section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 }
+source "$SCRIPT_DIR/lib/interact.sh"
 
 # ── 分组定义 ──
 # 每个组：组标题 + 组内菜单项列表
@@ -337,78 +338,54 @@ print('\t'.join([
             names+=("$name")
             i=$((i + 1))
         done
-        echo "    a) 添加新 app"
-        echo "    0) 返回主菜单"
-        echo ""
-
-        read -p "  选择 [0-${#apps_json[@]}/a]: " sel
-
-        case "$sel" in
-            0|q) return 0 ;;
-            a|A) _feishu_add_app "$conf" ;;
+        local sel; sel=$(menu_select "选择 app" "${names[@]}" "a) 添加新 app" "0) 返回")
+        [[ -z "$sel" ]] && continue
+        case "${sel:0:1}" in
+            0) return 0 ;;
+            a|A) _feishu_add_app "$conf"; continue ;;
         esac
 
-        if ! [[ "$sel" =~ ^[0-9]+$ ]] || [ "$sel" -lt 1 ] || [ "$sel" -gt ${#apps_json[@]} ]; then
-            continue
-        fi
-
-        local target_name="${names[$((sel - 1))]}"
-        echo ""
+        local target_name=""
+        for ((ni=0; ni<${#names[@]}; ni++)); do
+            [[ "${names[$ni]}" == "$sel" ]] && { target_name="$sel"; break; }
+        done
+        [[ -z "$target_name" ]] && continue
 
         # app 二级菜单
-        echo -e "${CYAN}── 应用: ${target_name}${NC}"
-        echo ""
-        echo -e "  ${GREEN}1)${NC} 编辑 App ID / Secret"
-        echo -e "  ${YELLOW}2)${NC} 切换到此账号 (lark-cli)"
-        echo -e "  ${CYAN}3)${NC} OAuth 授权 (lark-cli auth login)"
-        echo -e "  ${GRAY}4)${NC} 查看当前授权状态"
-        if [ "$target_name" != "$current_name" ]; then
-            echo -e "     ${DIM}(当前活跃: ${current_name:-无})${NC}"
-        fi
-        echo ""
-        printf "  ${DIM}d) 删除  0) 返回${NC}"
-        echo ""
-        read -p "  选择 [0-4/d]: " sub
+        local sub; sub=$(menu_select "应用: $target_name" \
+            "1) 编辑 App ID/Secret" \
+            "2) 切换账号" \
+            "3) OAuth 授权" \
+            "4) 查看授权" \
+            "d) 删除" \
+            "0) 返回")
+        [[ -z "$sub" ]] && continue
 
-        case "$sub" in
+        case "${sub:0:1}" in
             0) break ;;
             1) _feishu_edit_key "$conf" "$target_name" ;;
             2)
                 echo ""
                 bash "$SCRIPT_DIR/option-larkcli/lark-switch.sh" "$target_name"
-                # 切换后自动检测 auth
                 local cd="$HOME/.lark-cli-${target_name}"
                 if [ -f "${cd}/config.json" ]; then
                     if ! LARKSUITE_CLI_CONFIG_DIR="$cd" lark-cli auth status 2>/dev/null | grep -q "tokenStatus.*valid"; then
-                        echo ""
-                        warn "  该账号尚未 OAuth 授权，自动拉起授权..."
+                        echo ""; warn "未授权，自动拉起..."
                         LARKSUITE_CLI_CONFIG_DIR="$cd" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1
                     else
-                        info "  授权状态正常"
+                        info "授权状态正常"
                     fi
                 fi
                 ;;
             3)
-                echo ""
                 local cd="$HOME/.lark-cli-${target_name}"
-                if [ -f "${cd}/config.json" ]; then
-                    LARKSUITE_CLI_CONFIG_DIR="$cd" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1
-                else
-                    warn "先选 1 编辑 App ID/Secret"
-                fi
+                [ -f "${cd}/config.json" ] && LARKSUITE_CLI_CONFIG_DIR="$cd" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1 || warn "先编辑 App ID/Secret"
                 ;;
             4)
-                echo ""
                 local cd="$HOME/.lark-cli-${target_name}"
-                if [ -f "${cd}/config.json" ]; then
-                    LARKSUITE_CLI_CONFIG_DIR="$cd" lark-cli auth status 2>&1 | grep -v "^\[lark-cli\]" | sed 's/^/  /'
-                else
-                    warn "初始化中，暂无授权状态"
-                fi
+                [ -f "${cd}/config.json" ] && LARKSUITE_CLI_CONFIG_DIR="$cd" lark-cli auth status 2>&1 | grep -v "^\[lark-cli\]" | sed 's/^/  /' || warn "config.json 不存在"
                 ;;
-            d|D)
-                _feishu_delete_app "$conf" "$target_name"
-                ;;
+            d|D) _feishu_delete_app "$conf" "$target_name" ;;
         esac
         echo ""
     done
@@ -666,15 +643,13 @@ interactive_menu() {
 _feishu_add_app() {
     local conf="$1"
     echo ""
-    read -p "  新 app 名称 (如 personal): " new_name
+    local new_name; new_name=$(prompt "新 app 名称 (如 personal)")
     [ -z "$new_name" ] && { err "名称不能为空"; return 1; }
-    read -p "  App ID: " new_appid
-    read -p "  App Secret: " new_secret
-    read -p "  描述 (回车跳过): " new_desc
-    read -p "  workDir (回车=~/git): " new_workdir
-    new_workdir="${new_workdir:-/home/$USER/git}"
-    read -p "  启用 larkbridge（飞书↔Claude 机器人）? [Y/n]: " new_lb
-    [[ "$new_lb" =~ ^[Nn]$ ]] && new_lb=false || new_lb=true
+    local new_appid; new_appid=$(prompt "App ID")
+    local new_secret; new_secret=$(prompt "App Secret")
+    local new_desc; new_desc=$(prompt "描述")
+    local new_workdir; new_workdir=$(prompt "workDir" "$HOME/git")
+    local new_lb; if confirm "启用 larkbridge？" y; then new_lb=true; else new_lb=false; fi
     python3 - "$conf" "$new_name" "$new_appid" "$new_secret" "$new_workdir" "$new_desc" "$new_lb" << 'PYEOF'
 import json, os, sys
 conf, name, appid, secret, workdir, desc, lb = sys.argv[1:8]
@@ -703,8 +678,8 @@ PYEOF
 _feishu_edit_key() {
     local conf="$1" name="$2"
     echo ""
-    read -p "  新 App ID (回车跳过): " new_appid
-    read -p "  新 App Secret (回车跳过): " new_secret
+    local new_appid; new_appid=$(prompt "新 App ID")
+    local new_secret; new_secret=$(prompt "新 App Secret")
     if [ -z "$new_appid" ] && [ -z "$new_secret" ]; then
         info "未修改"
         return 0
@@ -729,11 +704,7 @@ PYEOF
 _feishu_delete_app() {
     local conf="$1" name="$2"
     echo ""
-    read -p "  确认删除 app「${name}」? [y/N]: " confirm
-    if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
-        info "已取消"
-        return 0
-    fi
+    if ! confirm "确认删除 app「${name}」？" n; then info "已取消"; return 0; fi
     python3 - "$conf" "$name" << 'PYEOF'
 import json, sys
 conf, n = sys.argv[1:3]
