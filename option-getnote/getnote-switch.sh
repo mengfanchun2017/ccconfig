@@ -209,7 +209,6 @@ for a in accounts:
 PYEOF
     echo ""
     echo -e "  ${GRAY}切换: bash ccconfig/option-getnote/getnote-switch.sh <name> [-p]${NC}"
-    echo -e "  ${GRAY}添加: bash ccconfig/option-getnote/init.sh${NC}"
     echo ""
 }
 
