@@ -456,6 +456,27 @@ _do_config_mode() {
     esac
 }
 
+# 通用 helper：从 items[] 数组选 display 项，返回对应 values[] 项。
+# 取消返回空。用法: _menu_pick <title> <display_array> <value_array> [<return_var>]
+_menu_pick() {
+    local title="$1" disp="$2" vals="$4"
+    local -n disp_ref="$disp" val_ref="$vals" out="${3-}"
+    local sel; sel=$(menu_select "$title" "${disp_ref[@]}")
+    [[ -z "$sel" ]] && return 1
+    local i
+    for ((i=0; i<${#disp_ref[@]}; i++)); do
+        if [[ "${disp_ref[$i]}" == "$sel" ]]; then
+            if [[ -n "${3-}" ]]; then
+                printf -v "$out" '%s' "${val_ref[$i]}"
+            else
+                echo "${val_ref[$i]}"
+            fi
+            return 0
+        fi
+    done
+    return 1
+}
+
 _do_config_peak_hours() {
     while true; do
         echo ""
