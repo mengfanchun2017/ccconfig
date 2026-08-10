@@ -44,8 +44,9 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 - ccconfig 最终目标是可公开
 
 ## SH 交互规范
-- 颜色/日志函数只用 `lib/colors.sh`（ok/err/warn/info/section/menu_num）
-- 交互菜单只用 `lib/interact.sh`（confirm/menu_select/prompt/table/spinner/menu_multi）
+- 颜色/日志函数只用 `lib/colors.sh`（ok/err/warn/info/section）
+- 交互菜单只用 `lib/interact.sh`（confirm/menu_select/prompt/prompt_password/table/spinner/menu_multi）
 - 不自行定义颜色变量或手写菜单循环
-- `lib/interact.sh` 自动检测 gum 并降级，脚本调用方不感知
 - 写操作类脚本 source `lib/dry-run.sh` 加 `--dry-run` 支持
+- **菜单 API 约定**: menu_select items 传纯文本（不带数字），自动加 "1) 2) 3)"；返回选中**序号字符串**（"5"），末项是"返回"项返回 N（${#items[@]}）
+- **避坑**: menu_select 显示走 stderr（避开 `c=$(...)` 截走）；read 从 /dev/tty（避开管道阻塞）；while+case 不能 continue 重入菜单。详见 memory `menu-migration-pitfalls-20260810`
