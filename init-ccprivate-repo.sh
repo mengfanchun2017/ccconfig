@@ -188,7 +188,7 @@ check_gh_auth() {
     echo -e "     - 浏览器授权，首次配置最简单"
     echo -e "     - Token 有有效期，过期后需重新 ${YELLOW}gh auth login${NC}"
     echo ""
-    read -p "  选择 [A]: " login_method
+    login_method=$(menu_select "认证方式" "A) PAT 粘贴" "B) Web OAuth")
     login_method=$(menu_select "认证方式" "A) PAT 粘贴" "B) Web OAuth")
     case "${login_method^^}" in
         B|2)
@@ -295,8 +295,8 @@ prompt_feishu_config() {
     echo "  1) 现在填（需要飞书开放平台的 App ID + App Secret）"
     echo "  2) 跳过（晚点手动编辑: vim $f）"
     echo ""
-    read -p "  选择 [2]: " feishu_choice
-    feishu_choice="${feishu_choice:-2}"
+    feishu_choice=$(menu_select "配置飞书" "1) 现在配置" "2) 跳过")
+    feishu_choice="${feishu_choice:0:1}"
 
     if [[ "$feishu_choice" != "1" ]]; then
         info "跳过飞书配置。后续填法: vim $f"
@@ -309,13 +309,13 @@ prompt_feishu_config() {
 
     local app_id app_secret app_name
     while [[ -z "$app_id" ]]; do
-        read -p "  App ID (cli_xxxxx): " app_id
+        app_id=$(prompt "App ID (cli_xxxxx)")
     done
     while [[ -z "$app_secret" ]]; do
         read -r -s -p "  App Secret: " app_secret
         echo ""
     done
-    read -p "  应用名称（用于 lark-switch 切换）: " app_name
+    app_name=$(prompt "应用名称" "default")
     app_name="${app_name:-default}"
 
     # 替换占位符（用 python 避免 sed 转义陷阱）
@@ -380,7 +380,7 @@ collect_info() {
         return 1
     else
         while [ -z "$GH_USER" ]; do
-            read -p "  GitHub 用户名: " GH_USER
+            GH_USER=$(prompt "GitHub 用户名")
             [ -z "$GH_USER" ] && err "GitHub 用户名不能为空"
         done
     fi
@@ -394,7 +394,7 @@ collect_info() {
         return 1
     else
         while [ -z "$GIT_EMAIL" ]; do
-            read -p "  Git 邮箱: " GIT_EMAIL
+            GIT_EMAIL=$(prompt "Git 邮箱")
             [ -z "$GIT_EMAIL" ] && err "Git 邮箱不能为空"
         done
     fi
@@ -441,28 +441,28 @@ collect_info() {
         case "$LLM_CHOICE" in
             1)
                 [ -z "$DEEPSEEK_KEY" ]                 DEFAULT_LLM="deepseek"                DEFAULT_LLM="deepseek" DEEPSEEK_KEY=$(prompt_password "DeepSeek API Key")
-                [ -z "$DEEPSEEK_KEY" ] && read -p "  DeepSeek API Key: " DEEPSEEK_KEY
+                [ -z "$DEEPSEEK_KEY" ] && DEEPSEEK_KEY=$(prompt_password "DeepSeek API Key")
                 ;;
             2)
                 [ -z "$MINIMAX_KEY" ]                 DEFAULT_LLM="minimax"                DEFAULT_LLM="minimax" MINIMAX_KEY=$(prompt_password "MiniMax API Key")
-                [ -z "$MINIMAX_KEY" ] && read -p "  MiniMax API Key: " MINIMAX_KEY
+                [ -z "$MINIMAX_KEY" ] && MINIMAX_KEY=$(prompt_password "MiniMax API Key")
                 ;;
             3)
                 [ -z "$CLAUDE_KEY" ]                 DEFAULT_LLM="claude"                DEFAULT_LLM="claude" CLAUDE_KEY=$(prompt_password "Anthropic API Key")
-                [ -z "$CLAUDE_KEY" ] && read -p "  Anthropic API Key: " CLAUDE_KEY
+                [ -z "$CLAUDE_KEY" ] && CLAUDE_KEY=$(prompt_password "Anthropic API Key")
                 ;;
         esac
 
                         DEEPSEEK_KEY=$(prompt "还有 DeepSeek Key?（回车跳过）")
         echo ""
         if [ "$LLM_CHOICE" != "1" ] && [ -z "$DEEPSEEK_KEY" ]; then
-            read -p "  还有 DeepSeek Key? 直接回车跳过: " DEEPSEEK_KEY
+            DEEPSEEK_KEY=$(prompt "还有 DeepSeek Key？(回车跳过)")
                         MINIMAX_KEY=$(prompt "还有 MiniMax Key?（回车跳过）")
         if [ "$LLM_CHOICE" != "2" ] && [ -z "$MINIMAX_KEY" ]; then
-            read -p "  还有 MiniMax Key? 直接回车跳过: " MINIMAX_KEY
+            MINIMAX_KEY=$(prompt "还有 MiniMax Key？(回车跳过)")
         fi
                         CLAUDE_KEY=$(prompt "还有 Claude Key?（回车跳过）")
-            read -p "  还有 Anthropic Key? 直接回车跳过: " CLAUDE_KEY
+            CLAUDE_KEY=$(prompt "还有 Anthropic Key？(回车跳过)")
         fi
     fi
 
