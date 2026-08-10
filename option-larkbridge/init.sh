@@ -88,7 +88,8 @@ PYEOF
     echo "$result" | grep -v '^MISSING:' | sed 's/^/    /'
     echo ""
     info "  浏览器将打开飞书开放平台（URL 已预选缺的 scope）"
-    info "  → 在浏览器勾选 → 申请开通 → 创建版本 → 发布到线上"
+    info "  → 在浏览器勾选 → 申请开通"
+    warn "  ⚠ 关键：必须「创建版本 → 发布到线上」之后权限才生效"
     info "  → 5 分钟后重跑本命令验证"
     read -p "  现在打开浏览器? [Y/n]: " cf
     [[ "$cf" =~ ^[Nn]$ ]] && return 0
@@ -463,8 +464,11 @@ _print_scope_hint() {
   echo "" >&2
   _scope_required_json | sed 's/^/     /' >&2
   echo "" >&2
-  info "  3. 下一步 → 确认开通 → 顶部「创建版本」→ 提交" >&2
-  info "  4. 等管理员审批通过 → 重启 bridge：" >&2
+  info "  3. 下一步 → 确认开通" >&2
+  warn "  ⚠ 关键：顶部「创建版本」→ 填版本号 → 保存 → 提交审核 → 发布到线上" >&2
+  warn "     权限在「发布到线上」之后才生效，仅勾选不发布 = 无效" >&2
+  echo "" >&2
+  info "  4. 等管理员/审批通过 → 重启 bridge：" >&2
   info "     bash ccconfig/option-larkbridge/init.sh --restart ${profile}" >&2
   echo "" >&2
   warn "  ⚠ im:chat.group_info:readonly 等 2024-09-30 已废弃——JSON 已用 im:chat:read 替代" >&2
