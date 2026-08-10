@@ -425,7 +425,7 @@ install_option() {
             0) break ;;
           esac
           echo ""
-          read -p "按回车继续..." dummy
+          read -p "按回车继续..." dummy < /dev/tty || true
         done
       fi
       return 0
@@ -633,7 +633,7 @@ interactive_menu() {
                 ;;
         esac
 
-        echo ""; read -p "按回车继续..." dummy
+        echo ""; read -p "按回车继续..." dummy < /dev/tty || true
     done
 }
 

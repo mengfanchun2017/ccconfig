@@ -200,9 +200,9 @@ submenu_env() {
         "1) Ubuntu 全环境初始化" "2) LLM 切换" "3) auto-sync" "4) ★ 一键全部" "0) 返回")
     [[ -z "$c" ]] && return
     case "${c:0:1}" in
-        1) run_step "Ubuntu" "$SCRIPT_DIR/lib/init-ubuntu.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        2) run_step "LLM" "$SCRIPT_DIR/lib/init-llm.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
-        3) run_step "auto-sync" "$SCRIPT_DIR/lib/init-autostart.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r; exit 0 ;;
+        1) run_step "Ubuntu" "$SCRIPT_DIR/lib/init-ubuntu.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r < /dev/tty || true; exit 0 ;;
+        2) run_step "LLM" "$SCRIPT_DIR/lib/init-llm.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r < /dev/tty || true; exit 0 ;;
+        3) run_step "auto-sync" "$SCRIPT_DIR/lib/init-autostart.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r < /dev/tty || true; exit 0 ;;
         4) init_all_steps; exit 0 ;;
     esac
 }
@@ -237,7 +237,7 @@ main_menu() {
         4) echo -e "  ${GRAY}请执行: bash init-option.sh${NC}" ;;
         0) echo ""; exit 0 ;;
     esac
-    echo ""; read -p "按回车返回主菜单..." dummy
+    echo ""; read -p "按回车返回主菜单..." dummy < /dev/tty || true
     main_menu
 }
 
