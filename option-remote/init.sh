@@ -38,30 +38,32 @@ do_status() {
         all_ok=false
     fi
 
-    # Tailscale: 先查 WSL 网口
+# Tailscale: 查 WSL 网口，无则看 Windows exe
     local ts_status="未安装"
     local ts_ip=""
+    local ts_ok=false
     local ts_iface=$(ip addr show tailscale0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
     if [ -n "$ts_iface" ]; then
         ts_ip="$ts_iface"
         ts_status="✓ $ts_ip"
+        ts_ok=true
     else
         local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
         if [ -f "$ts_exe" ]; then
-            ts_status="○ 检测到安装，是否已登录?"
-            all_ok=false
-        else
-            all_ok=false
+            ts_status="✓ Windows 已安装"
+            ts_ok=true
         fi
     fi
 
     # 第一行：给 status.sh check_option_components 解析（规范: OK|WARN|MISSING <name> ...）
-    if $all_ok && [ -n "$ts_ip" ]; then
+    if $ssh_ok && $ts_ok; then
         echo "OK remote (SSH + Tailscale 就绪)"
-    elif systemctl is-active ssh.socket &>/dev/null 2>&1 || systemctl is-active ssh &>/dev/null 2>&1; then
-        echo "WARN remote (SSH 就绪, Tailscale 未登录)"
+    elif $ssh_ok && ! $ts_ok; then
+        echo "WARN remote (SSH 就绪, Tailscale 未安装)"
+    elif ! $ssh_ok && $ts_ok; then
+        echo "WARN remote (SSH 未安装, Tailscale 就绪)"
     else
-        echo "MISSING remote (SSH $ssh_status)"
+        echo "MISSING remote (SSH + Tailscale 未安装)"
     fi
 
     echo -e "  SSH Server ... ${ssh_status}"
@@ -152,20 +154,23 @@ do_all() {
     if [ -n "$ts_iface" ]; then
         ts_ip="$ts_iface"
     fi
-    local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
+local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
     if [ -n "$ts_ip" ]; then
         ok "Tailscale 已连接: $ts_ip"
+    elif [ -f "$ts_exe" ]; then
+        ok "Tailscale 已在 Windows 安装"
+    else
+        warn "Tailscale 未安装"
+    fi
+
+    if [ -f "$ts_exe" ]; then
         echo ""
         echo -e "  ${GREEN}✓ 远程连接命令${NC}"
-        echo -e "    ssh $USER@$ts_ip -p 2222"
+        echo -e "    ssh <USER>@<Windows_Tailscale_IP> -p 2222"
         echo ""
         echo "  客户端（笔记本）安装 Tailscale 后运行此命令即可连入。"
         echo "  断开: Ctrl+B D（进程保持）"
         echo "  重连: ssh ...（自动 attach tmux）"
-    elif [ -f "$ts_exe" ]; then
-        warn "Tailscale 已安装，请在 Windows 确认已登录 (tailscale up)"
-    else
-        warn "Tailscale 未安装"
     fi
 }
 
