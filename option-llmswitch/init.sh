@@ -439,16 +439,9 @@ _do_config_mode() {
                 prov_items+=("$display ($model)")
             done < <(_read_provider_list)
             local prov_choice
-            prov_choice=$(menu_select "选择后端" "${prov_items[@]}")
-            [[ -z "$prov_choice" ]] && return
-            local idx=-1
-            for ((i=0; i<${#prov_items[@]}; i++)); do
-                [[ "${prov_items[$i]}" == "$prov_choice" ]] && { idx=$i; break; }
-            done
-            if [ "$idx" -ge 0 ]; then
-                do_mode "manual" "${provs[$idx]}"
-            elif [[ -n "$prov_choice" ]]; then
-                warn "  无效选择: $prov_choice"
+            local prov_p=""
+            if _menu_pick "选择后端" prov_items provs prov_p; then
+                do_mode "manual" "$prov_p"
             fi
             ;;
         3) do_mode "off" ;;
@@ -456,20 +449,20 @@ _do_config_mode() {
     esac
 }
 
-# 通用 helper：从 items[] 数组选 display 项，返回对应 values[] 项。
-# 取消返回空。用法: _menu_pick <title> <display_array> <value_array> [<return_var>]
+# 通用 helper：从 disp[] 数组选 display 项，返回对应 vals[] 项。
+# 取消返回 1。用法: _menu_pick <title> <disp_array_name> <vals_array_name> [<out_var>]
 _menu_pick() {
-    local title="$1" disp="$2" vals="$4"
-    local -n disp_ref="$disp" val_ref="$vals" out="${3-}"
-    local sel; sel=$(menu_select "$title" "${disp_ref[@]}")
+    local title="$1" disp_name="$2" vals_name="$3" out_var="${4-}"
+    local -n disp_arr="$disp_name" vals_arr="$vals_name"
+    local sel; sel=$(menu_select "$title" "${disp_arr[@]}")
     [[ -z "$sel" ]] && return 1
     local i
-    for ((i=0; i<${#disp_ref[@]}; i++)); do
-        if [[ "${disp_ref[$i]}" == "$sel" ]]; then
-            if [[ -n "${3-}" ]]; then
-                printf -v "$out" '%s' "${val_ref[$i]}"
+    for ((i=0; i<${#disp_arr[@]}; i++)); do
+        if [[ "${disp_arr[$i]}" == "$sel" ]]; then
+            if [[ -n "$out_var" ]]; then
+                printf -v "$out_var" '%s' "${vals_arr[$i]}"
             else
-                echo "${val_ref[$i]}"
+                echo "${vals_arr[$i]}"
             fi
             return 0
         fi
@@ -593,14 +586,8 @@ for name, rule in routes.items():
         print(f"{name}: 固定→{rule}")
 PYEOF
     )
-    local route_sel
-    route_sel=$(menu_select "选择路由" "${route_items[@]}")
-    [[ -z "$route_sel" ]] && return
-    local route_name="" idx=-1
-    for ((i=0; i<${#route_items[@]}; i++)); do
-        [[ "${route_items[$i]}" == "$route_sel" ]] && { idx=$i; break; }
-    done
-    [ "$idx" -ge 0 ] && route_name="${route_names[$idx]}" || return
+    local route_name=""
+    _menu_pick "选择路由" route_items route_names route_name || return
 
     echo ""
     local prov_items=() route_provs=()
@@ -610,19 +597,10 @@ PYEOF
         prov_items+=("$display ($model)")
     done < <(_read_provider_list)
 
-    _pick_route_provider() {
-        local prompt="$1"
-        local selected; selected=$(menu_select "$prompt" "${prov_items[@]}")
-        [[ -z "$selected" ]] && return 1
-        for ((pi=0; pi<${#prov_items[@]}; pi++)); do
-            [[ "${prov_items[$pi]}" == "$selected" ]] && { echo "${route_provs[$pi]}"; return 0; }
-        done
-        return 1
-    }
-
     # 统一强制 dict 模式（让主/小模型路由配置对称）
-    peak_p=$(_pick_route_provider "高峰后端")
-    offpeak_p=$(_pick_route_provider "非高峰后端")
+    local peak_p offpeak_p
+    peak_p=$(_menu_pick "高峰后端" prov_items route_provs) || { warn "  已取消"; return; }
+    offpeak_p=$(_menu_pick "非高峰后端" prov_items route_provs) || { warn "  已取消"; return; }
     if [[ -z "$peak_p" || -z "$offpeak_p" ]]; then
         warn "  未选完整后端，已取消"
         return
@@ -652,13 +630,8 @@ _do_config_manual_provider() {
         route_provs+=("$name")
         prov_items+=("$display ($model)")
     done < <(_read_provider_list)
-    local prov_choice; prov_choice=$(menu_select "选择后端" "${prov_items[@]}")
-    [[ -z "$prov_choice" ]] && return
     local manual_p=""
-    for ((pi=0; pi<${#prov_items[@]}; pi++)); do
-        [[ "${prov_items[$pi]}" == "$prov_choice" ]] && { manual_p="${route_provs[$pi]}"; break; }
-    done
-    [[ -z "$manual_p" ]] && { warn "无效选择"; return; }
+    _menu_pick "选择后端" prov_items route_provs manual_p || { warn "无效选择"; return; }
 
     if is_running; then
         do_mode "manual" "$manual_p"
@@ -783,6 +756,7 @@ echo -e "${CYAN}LLM Gateway Manager${NC}"
         "查看日志" \
         "安装/重新安装" \
         "退出")
+    [[ "$c" == "0" || -z "$c" ]] && return 0  # EOF → 退出 manager
     case "$c" in
         1) do_start ;;
         2) do_stop ;;
