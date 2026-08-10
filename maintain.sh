@@ -698,8 +698,9 @@ with open(p,'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
 PYEOF
                         info "已删除"
                     fi
+                }
 
-        local target="${names[$((sel - 1))]}"
+        local target="${sel}"
         echo ""
         echo -e "${CYAN}── 应用: ${target} ──${NC}"
         echo ""
