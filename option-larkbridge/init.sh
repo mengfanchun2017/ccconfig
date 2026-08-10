@@ -3,7 +3,7 @@
 #
 # 概念:
 #   profile = 一个飞书应用（Bot），有 appId/appSecret 和独立配置
-#   systemd template = lark-channel-bridge@<profile>.service，每个 profile 一个
+#   systemd unit = lark-channel-bridge.bot.<profile>.service（上游约定，见 lark-channel-bridge README）
 #   --run 前台调试 / --start 后台跑 / --profile 管理配置
 #
 # 用法:
@@ -355,6 +355,16 @@ run_foreground() {
   local profile="${1:-}"
   [ -z "$profile" ] && profile="$(_run_select_app)"
   [ -z "$profile" ] && return 0
+
+  # 已在跑（systemd 或 profile list）→ 拒绝重复起前台实例，否则两个实例并发抢消息
+  local running; running=$(_get_running_profiles)
+  if echo "$running" | grep -qxF "$profile"; then
+    warn "  ⚠ ${profile} 已在运行（systemd service 或其他前台实例）" >&2
+    info "    看日志: $0 --logs ${profile}" >&2
+    info "    停止:    $0 --stop ${profile}" >&2
+    return 0
+  fi
+
   local ws="${LARK_WORKSPACE:-$HOME/git}"
   echo "" >&2
   good "  ✓ profile「${profile}」已上线（前台运行，Ctrl-C 退出）" >&2
@@ -373,7 +383,9 @@ run_foreground() {
   fi
 }
 
-_service_file() { echo "$HOME/.config/systemd/user/${SERVICE_PREFIX}@${1}.service"; }
+# 官方约定：lark-channel-bridge.bot.<profile>.service（lark-channel-bridge npm 包 README）
+# 早期 ccconfig 误写成 lark-channel-bridge@<profile>.service，跟上游对不上 → --stop/--restart 不生效
+_service_file() { echo "$HOME/.config/systemd/user/${SERVICE_PREFIX}.bot.${1}.service"; }
 
 # 飞书 app scope 检测 + 修复提示
 # 触发: bridge 日志里出现 "Access denied" + scope list
@@ -456,14 +468,14 @@ WantedBy=default.target
 SERVICEOF
 
   systemctl --user daemon-reload 2>/dev/null || true
-  systemctl --user enable "${SERVICE_PREFIX}@${profile}" 2>/dev/null || true
+  systemctl --user enable "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null || true
 
-  if systemctl --user restart "${SERVICE_PREFIX}@${profile}" 2>&1; then
+  if systemctl --user restart "${SERVICE_PREFIX}.bot.${profile}" 2>&1; then
     good "  ✅ ${profile} 服务运行中"
     echo ""
     info "  管理 ${profile}:"
-    info "    状态: systemctl --user status ${SERVICE_PREFIX}@${profile}"
-    info "    日志: journalctl --user -u ${SERVICE_PREFIX}@${profile} -f"
+    info "    状态: systemctl --user status ${SERVICE_PREFIX}.bot.${profile}"
+    info "    日志: journalctl --user -u ${SERVICE_PREFIX}.bot.${profile} -f"
     info "    重启: $0 --restart ${profile}"
     info "    停止: $0 --stop ${profile}"
 
@@ -472,7 +484,7 @@ SERVICEOF
     _ensure_larkbridge_perms "$profile"
   else
     warn "  ⚠ ${profile} 服务启动失败" >&2
-    journalctl --user -u "${SERVICE_PREFIX}@${profile}" --no-pager -n 20 2>/dev/null || true
+    journalctl --user -u "${SERVICE_PREFIX}.bot.${profile}" --no-pager -n 20 2>/dev/null || true
     echo ""
     # 启动失败也试一下权限检测 + 引导开通（首次配置常见原因）
     _ensure_larkbridge_perms "$profile"
@@ -489,7 +501,7 @@ show_status() {
   elif [ -n "$running" ]; then
     local cnt; cnt=$(echo "$running" | wc -l)
     echo "OK lark-channel-bridge $ver (${cnt} profile(s) 运行中)"
-  elif ls "$HOME/.config/systemd/user/${SERVICE_PREFIX}@"*.service &>/dev/null 2>&1; then
+  elif ls "$HOME/.config/systemd/user/${SERVICE_PREFIX}.bot."*.service &>/dev/null 2>&1; then
     echo "WARN lark-channel-bridge $ver (有 service 但未运行)"
   else
     echo "OK lark-channel-bridge $ver (已安装)"
@@ -539,8 +551,8 @@ show_logs() {
   [ -z "$profile" ] && profile="$(_pick_profile "选择 profile 查看日志")" || return 0
   [ -z "$profile" ] && return 0
 
-  if [ -f "$(_service_file "$profile")" ] && systemctl --user is-active "${SERVICE_PREFIX}@${profile}" &>/dev/null 2>&1; then
-    journalctl --user -u "${SERVICE_PREFIX}@${profile}" -f
+  if [ -f "$(_service_file "$profile")" ] && systemctl --user is-active "${SERVICE_PREFIX}.bot.${profile}" &>/dev/null 2>&1; then
+    journalctl --user -u "${SERVICE_PREFIX}.bot.${profile}" -f
   else
     local log_dir="$HOME/.lark-channel/profiles/"
     if [ -d "$log_dir" ]; then
@@ -593,7 +605,7 @@ profile_remove() {
   read -p "  确认删除 profile「${profile}」? [y/N] " confirm
   [ "$confirm" != "y" ] && [ "$confirm" != "Y" ] && { warn "取消" >&2; return 0; }
   local svc="$(_service_file "$profile")"
-  [ -f "$svc" ] && { systemctl --user stop "${SERVICE_PREFIX}@${profile}" 2>/dev/null || true; systemctl --user disable "${SERVICE_PREFIX}@${profile}" 2>/dev/null || true; rm -f "$svc"; }
+  [ -f "$svc" ] && { systemctl --user stop "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null || true; systemctl --user disable "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null || true; rm -f "$svc"; }
   lark-channel-bridge profile remove "$profile" --yes 2>/dev/null || true
   good "  ✓ 已删除"
 }
@@ -603,7 +615,7 @@ profile_default() {
   [ -z "$profile" ] && return 0
   lark-channel-bridge profile use "$profile" 2>&1
   good "  ✓ 已切换默认 profile 为「${profile}」"
-  info "  重启 service 生效: systemctl --user restart ${SERVICE_PREFIX}@${profile}"
+  info "  重启 service 生效: systemctl --user restart ${SERVICE_PREFIX}.bot.${profile}"
 }
 
 # 更新已有 profile 的 appId/appSecret（凭据变更场景）
@@ -682,8 +694,8 @@ PYEOF
   # 2. stop+disable service
   local svc="$(_service_file "$profile")"
   if [ -f "$svc" ]; then
-    systemctl --user stop "${SERVICE_PREFIX}@${profile}" 2>/dev/null || true
-    systemctl --user disable "${SERVICE_PREFIX}@${profile}" 2>/dev/null || true
+    systemctl --user stop "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null || true
+    systemctl --user disable "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null || true
     rm -f "$svc"
   fi
 
@@ -737,7 +749,7 @@ main() {
       [ -z "$profile" ] && profile="$(_pick_profile "选择要停止的 profile")"
       [ -z "$profile" ] && return 0
       if [ -f "$(_service_file "$profile")" ]; then
-        systemctl --user stop "${SERVICE_PREFIX}@${profile}" 2>/dev/null \
+        systemctl --user stop "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null \
           && good "✅ ${profile} 已停止" || warn "⚠ ${profile} 停止失败" >&2
       else
         bad "  没有 ${profile} 的 service" >&2
@@ -747,7 +759,7 @@ main() {
       [ -z "$profile" ] && profile="$(_pick_profile "选择要重启的 profile")"
       [ -z "$profile" ] && return 0
       if [ -f "$(_service_file "$profile")" ]; then
-        systemctl --user restart "${SERVICE_PREFIX}@${profile}" 2>/dev/null \
+        systemctl --user restart "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null \
           && good "✅ ${profile} 已重启" || warn "⚠ ${profile} 重启失败" >&2
       else
         warn "  没有 ${profile} 的 service，先用 --start 启动" >&2
