@@ -16,6 +16,7 @@ source "$LIB_DIR/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; NC='\033[0m'
 }
+source "$LIB_DIR/interact.sh"
 SKILLS_SRC="${SKILL_SRC:-$HOME/git/skill/plugins}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 
@@ -55,20 +56,17 @@ show_menu() {
     echo "  2) 更新 skills"
     echo "  3) 查看详细列表"
     echo "  4) 检测 drift"
-    echo "  0) 返回"
-    echo ""
-    read -p "选择 [0-4]: " c
-    c=$(menu_num "$c")
-    case "$c" in
+    local c; c=$(menu_select "Skills 管理" \
+        "1) 安装/同步" "2) 更新" "3) 详细列表" "4) 检测 drift" "0) 返回")
+    [[ -z "$c" ]] && return
+    case "${c:0:1}" in
         1) do_install ;;
         2) do_update ;;
         3) bash "$LIB_DIR/init-skill.sh" list ;;
         4) bash "$LIB_DIR/init-skill.sh" diff ;;
         0) return ;;
-        *) show_menu ;;
     esac
-    echo ""
-    read -p "按回车返回..." dummy
+    echo ""; read -p "按回车返回..." dummy
     show_menu
 }
 
