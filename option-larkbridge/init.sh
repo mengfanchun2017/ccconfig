@@ -378,7 +378,7 @@ run_foreground() {
   [ -z "$profile" ] && return 0
 
   # 真有进程才拦截；STATUS column 过滤避免 active profile 误报
-  local holder; holder=$(_is_profile_running "$profile") || true
+  local holder; holder=$(_is_profile_running "$profile")
   if [ -n "$holder" ]; then
     local pid="${holder#pid=}"
     warn "  ⚠ ${profile} 已在跑（${holder}）" >&2
