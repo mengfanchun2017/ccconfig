@@ -185,7 +185,7 @@ show_menu() {
         6) bash "$LIB_DIR/deps-check.sh" ;;
         7) do_finalize ;;
         8) bash "$LIB_DIR/example-sync.sh" status
-           local ex_sel; ex_sel=$(menu_select "模板同步" "d) 查看差异" "f) 正向" "r) 反向" "0) 返回")
+           ex_sel=$(menu_select "模板同步" "d) 查看差异" "f) 正向" "r) 反向" "0) 返回")
            case "${ex_sel:0:1}" in d) bash "$LIB_DIR/example-sync.sh" diff;; f) bash "$LIB_DIR/example-sync.sh" promote;; r) bash "$LIB_DIR/example-sync.sh" reverse;; esac ;;
         9) bash "$LIB_DIR/ccprivate-upgrade.sh" ;;
         10) submenu_bill_token ;;
@@ -216,7 +216,7 @@ submenu_bill_token() {
         4) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ;;
         5) url=$(prompt "飞书 URL"); bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ${url:+--feishu \"$url\"} ;;
         6) bash "$CCCONFIG_DIR/option-usage/init.sh" status
-           local ts; ts=$(menu_select "timer" "i) 安装" "u) 卸载" "c) 配置" "b) 返回")
+           ts=$(menu_select "timer" "i) 安装" "u) 卸载" "c) 配置" "b) 返回")
            case "${ts:0:1}" in i) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; c) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; esac ;;
         7) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
     esac
