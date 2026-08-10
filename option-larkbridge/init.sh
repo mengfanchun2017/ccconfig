@@ -27,12 +27,9 @@ source "$CCCONFIG_DIR/lib/dry-run.sh"
 source "$CCCONFIG_DIR/lib/path-helper.sh" 2>/dev/null || true
 source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'; GRAY='\033[0;90m'; NC='\033[0m'
-    good() { echo -e "${GREEN}$1${NC}"; }
-    bad()  { echo -e "${RED}$1${NC}"; }
-    warn() { echo -e "${YELLOW}$1${NC}"; }
-    info() { echo -e "${GRAY}$1${NC}"; }
+    CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
 }
+source "$CCCONFIG_DIR/lib/interact.sh"
 
 NODE_BIN="$(find_node_bin 2>/dev/null || echo "")"
 export PATH="$HOME/.local/bin:${NODE_BIN}:$PATH"
@@ -91,8 +88,7 @@ PYEOF
     info "  → 在浏览器勾选 → 申请开通"
     warn "  ⚠ 关键：必须「创建版本 → 发布到线上」之后权限才生效"
     info "  → 5 分钟后重跑本命令验证"
-    read -p "  现在打开浏览器? [Y/n]: " cf
-    [[ "$cf" =~ ^[Nn]$ ]] && return 0
+    confirm "打开浏览器申请权限？" y || return 0
     _feishu_open_perms_for_app "$target" "$app_id" "$missing"
 }
 
@@ -112,20 +108,19 @@ _pick_profile() {
   [ ${#profiles[@]} -eq 0 ] && { warn "没有 profile，先运行 --profile add" >&2; return 1; }
   local active; active="$(_get_active)"
   local running; running=$(_get_running_profiles)
-  echo -e "${CYAN}── ${prompt} ──${NC}" >&2
-  local i=0
-  while [ $i -lt ${#profiles[@]} ]; do
-    local p="${profiles[$i]}"
-    local am=""; [ "$p" = "$active" ] && am=" ${CYAN}← 当前${NC}"
-    local rm=""; echo "$running" | grep -qxF "$p" && rm=" ${GREEN}● 运行中${NC}"
-    echo -e "  $((i+1))) $p${am}${rm}" >&2
-    i=$((i+1))
+  local items=()
+  for p in "${profiles[@]}"; do
+    local lbl="$p"
+    [ "$p" = "$active" ] && lbl="$lbl (当前)"
+    echo "$running" | grep -qxF "$p" && lbl="$lbl (运行中)"
+    items+=("$lbl")
   done
-  echo -e "  0) 取消" >&2
-  read -p "  选择 [0-$i]: " sel
-  [ -z "$sel" ] || [ "$sel" = "0" ] && return 1
-  [ "$sel" -ge 1 ] 2>/dev/null && [ "$sel" -le "$i" ] 2>/dev/null || return 1
-  echo "${profiles[$((sel-1))]}"
+  local sel; sel=$(menu_select "$prompt" "${items[@]}") || return 1
+  [ -z "$sel" ] && return 1
+  for ((i=0; i<${#items[@]}; i++)); do
+    [[ "${items[$i]}" == "$sel" ]] && { echo "${profiles[$i]}"; return 0; }
+  done
+  return 1
 }
 
 # STATUS 列：`-` 表示无 holder；运行时显示 `pid=<n> agent=<kind>`
@@ -211,7 +206,7 @@ PYEOF
   if [ $need_prompt -eq 1 ]; then
     warn "  ⚠ ${profile} 没有 admin open_id（ccprivate + profile 都为空）" >&2
     info "  不知道谁能用这个 bot。问用户要一个 open_id：" >&2
-    read -p "    请输入你自己的 open_id (留空跳过): " input_oid
+    local input_oid; input_oid=$(prompt "输入 open_id（留空跳过）")
     if [ -n "$input_oid" ]; then
       admins+=("$input_oid")
       info "    → 已记下 $input_oid" >&2
@@ -324,13 +319,14 @@ _run_select_app() {
   echo -e "  ${idx}) ${YELLOW}扫码新建 profile${NC}" >&2
   menu_items+=("scan"); idx=$((idx+1))
 
-  echo -e "  0) 返回" >&2
-  local max=$((idx-1))
-  read -p "  选择 [0-${max}]: " sel
-  [ -z "$sel" ] || [ "$sel" = "0" ] && return 1
-  [ "$sel" -ge 1 ] 2>/dev/null || return 1
-  [ $((sel-1)) -ge ${#menu_items[@]} ] && return 1
-  local chosen="${menu_items[$((sel-1))]}"
+  local display_items=(); for item in "${menu_items[@]}"; do
+    case "$item" in scan) display_items+=("扫码新建") ;; use:*) display_items+=("${item#use:}") ;; create:*) display_items+=("${item#create:} (新建)") ;; warn:*) display_items+=("${item#warn:} (需更新)") ;; *) display_items+=("$item") ;;
+  esac; done
+  local sel; sel=$(menu_select "选择" "${display_items[@]}") || return 1
+  [ -z "$sel" ] && return 1
+  local chosen=""; for ((i=0; i<${#display_items[@]}; i++)); do
+    [[ "${display_items[$i]}" == "$sel" ]] && { chosen="${menu_items[$i]}"; break; }
+  done; [ -z "$chosen" ] && return 1
 
   case "$chosen" in
     use:*) echo "${chosen#use:}"; return 0 ;;
@@ -345,7 +341,7 @@ _run_select_app() {
       _inject_admin_users "$cname" "$feishu_conf"
       echo "$cname"; return 0 ;;
     scan)
-      read -p "  输入新 profile 名称: " scan_name
+      local scan_name; scan_name=$(prompt "新 profile 名称")
       [ -z "$scan_name" ] && { warn "  名称不能为空" >&2; return 1; }
       lark-channel-bridge profile create "$scan_name" --agent claude --workspace "$ws"
       _inject_admin_users "$scan_name" "$feishu_conf"
@@ -385,8 +381,7 @@ run_foreground() {
     info "    看日志: $0 --logs ${profile}" >&2
     info "    systemd 停: $0 --stop ${profile}" >&2
     info "    强杀接管:   kill ${pid} 之后再前台启动（推荐关闭旧终端后用）" >&2
-    read -p "    强杀旧进程然后前台启动? [y/N]: " takeover
-    if [[ "$takeover" =~ ^[Yy]$ ]]; then
+    if confirm "强杀旧进程然后前台启动？" n; then
       kill "$pid" 2>/dev/null || true
       sleep 1
       kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
@@ -586,11 +581,7 @@ show_status() {
         launch_way="${GRAY}systemd${NC}"
       fi
 
-      local warn_marker=""
-      if _check_scope_errors "$p" >/dev/null; then
-        warn_marker=" ${YELLOW}⚠ 缺 scope${NC}"
-      fi
-      echo -e "  $(printf '%-20s' "$p")  $(printf '%-7b' "$status")  $(printf '%-10s' "$pid_str")  $launch_way$warn_marker"
+      echo -e "  $(printf '%-20s' "$p")  $(printf '%-7b' "$status")  $(printf '%-10s' "$pid_str")  $launch_way"
     done
   fi
 
@@ -598,7 +589,7 @@ show_status() {
     local active; active="$(_get_active)"
     echo ""
     echo -e "${CYAN}── 配置 ──${NC}"
-    echo "  默认 profile: ${CYAN}${active:-（无）}${NC}"
+    echo -e "  默认 profile: ${CYAN}${active:-（无）}${NC}"
     echo ""
     info "  管理命令:"
     info "    $0 --run <profile>          # 前台调试"
@@ -711,8 +702,7 @@ profile_add() {
 profile_remove() {
   local profile; profile="$(_pick_profile "选择要删除的 profile")" || return 0
   [ -z "$profile" ] && return 0
-  read -p "  确认删除 profile「${profile}」? [y/N] " confirm
-  [ "$confirm" != "y" ] && [ "$confirm" != "Y" ] && { warn "取消" >&2; return 0; }
+  confirm "确认删除 profile「${profile}」？" n || { warn "取消" >&2; return 0; }
   _stop_profile "$profile"
   local svc="$(_service_file "$profile")"
   [ -f "$svc" ] && { systemctl --user disable "${SERVICE_PREFIX}.bot.${profile}" 2>/dev/null || true; rm -f "$svc"; }
@@ -757,9 +747,9 @@ profile_update() {
       fi
     done < <(_list_larkbridge_apps "$feishu_conf")
     [ ${#candidates[@]} -eq 0 ] && { info "  无需更新"; return 0; }
-    read -p "  选 profile 更新 [1-${#candidates[@]}]: " sel
-    [ "$sel" -ge 1 ] 2>/dev/null && [ "$sel" -le "${#candidates[@]}" ] 2>/dev/null || { warn "  取消"; return 1; }
-    profile="${candidates[$((sel-1))]}"
+    local sel; sel=$(menu_select "选择要更新的 profile" "${candidates[@]}")
+    [ -z "$sel" ] && { warn "  取消"; return 1; }
+    profile="$sel"
     # 把新凭据写入临时变量，给下面统一逻辑用
     __update_id="${cand_ids[$((sel-1))]}"
     __update_secret="${cand_secrets[$((sel-1))]}"
@@ -788,8 +778,7 @@ profile_update() {
   echo "" >&2
   info "  当前 appId: ${existing_appid:-（无）}" >&2
   info "  新 appId:   ${__update_id}" >&2
-  read -p "  确认更新? [y/N]: " cf
-  [[ "$cf" =~ ^[Yy]$ ]] || { warn "  取消"; return 0; }
+  confirm "确认更新？" n || { warn "  取消"; return 0; }
 
   # 1. 备份 allowedUsers
   local backup
