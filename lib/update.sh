@@ -30,24 +30,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/path-helper.sh"
 source "$SCRIPT_DIR/dry-run.sh"
+source "$SCRIPT_DIR/interact.sh"
 LOCAL_BIN="$HOME/.local/bin"
 VERSION_FILE="$CCCONFIG_ROOT/conf/versions.json"  # 公开文件，不走 resolve_conf
 LOCK_FILE="/tmp/ccconfig-update.lock"
 
 source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'
-    BLUE='\033[0;34m'
-    DIM='\033[2m'
-    NC='\033[0m'
-
-    info()  { echo -e "${CYAN}ℹ   $1${NC}"; }
-    success() { echo -e "${GREEN}✅ $1${NC}"; }
-    warn()  { echo -e "${YELLOW}⚠  $1${NC}"; }
-    err()   { echo -e "${RED}❌ $1${NC}"; }
-    section() { echo -e "\n${BLUE}━━━ $1 ━━━${NC}"; }
+    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+    CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
+    ok()    { echo -e "  ${GREEN}✅ $1${NC}"; }
+    err()   { echo -e "  ${RED}❌ $1${NC}"; }
+    warn()  { echo -e "  ${YELLOW}⚠  $1${NC}"; }
+    info()  { echo -e "  ${GRAY}$1${NC}"; }
+    section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
 }
 
 # ========== 锁 ==========
@@ -134,7 +129,7 @@ self_update() {
     section "ccconfig 自更新"
 
     info "fetching origin/main..."
-    git -C "$CCCONFIG_ROOT" fetch origin main 2>/dev/null || { warn "无法连接远程，跳过自更新"; return 0; }
+    timeout 10 git -C "$CCCONFIG_ROOT" fetch origin main 2>/dev/null || { warn "无法连接远程（超时 10s），跳过自更新"; return 0; }
 
     local remote=$(git -C "$CCCONFIG_ROOT" rev-parse --short origin/main 2>/dev/null)
     local local_commit=$(git -C "$CCCONFIG_ROOT" rev-parse --short HEAD 2>/dev/null)
@@ -1120,13 +1115,30 @@ show_menu() {
     echo -e "   ${YELLOW}all${NC} = 升级基础+扩展（不含可选）"
     echo -e "   ${YELLOW}1 3 4${NC} = 多选（如升级 1、3、4 项）"
     echo ""
-    read -p "选择 [1-11, all, 0]: " choice
-    # 多选格式: 数字/逗号/空格 + 可选 all
-    [[ ! "$choice" =~ ^([0-9 ,]+|all)$ ]] && { echo "无效选择: $choice"; show_menu; return; }
 
-    # 多选支持：空格/逗号分隔如 "1 3 4" 或 "1,3,4"
-    local selections
-    selections=$(echo "$choice" | tr ',' ' ' | tr '[:space:]' '\n' | grep -E '^[1-9]$|^1[0-9]$|^all$' | sort -u | tr '\n' ' ')
+    # 构造菜单项
+    local menu_items=(
+        "1) Node.js + lark-cli + pip 包"
+        "2) lark-cli"
+        "3) lark-channel-bridge"
+        "4) GitHub CLI"
+        "5) Claude Code"
+        "6) uv"
+        "7) MCP 缓存刷新"
+        "8) systemd 服务重建"
+        "9) OfficeCLI"
+        "10) Skills 同步"
+        "11) Cloudflare 插件"
+        "0) 退出"
+    )
+    local choice
+    choice=$(menu_select "ccconfig 组件升级 $today" "${menu_items[@]}")
+    [[ -z "$choice" ]] && { show_menu; return; }
+    # 从 "1) xxx" 中提取数字
+    local sel
+    sel=$(echo "$choice" | grep -oE '^[0-9]+' | head -1)
+    [[ -z "$sel" ]] && { show_menu; return; }
+    selections="$sel"
 
     local did_something=0
     for sel in $selections; do

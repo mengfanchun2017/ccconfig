@@ -18,6 +18,7 @@ MARKER_FILE="$HOME/.lark-cli-account"
 
 TESTS_PASSED=0; TESTS_FAILED=0; TESTS_SKIPPED=0
 CLEANUP_DOCS=(); CLEANUP_RECORDS=()
+TEST_DOC_URL=""
 
 _ok()   { echo -e "  ${GREEN}✅${NC} $1"; TESTS_PASSED=$((TESTS_PASSED + 1)); }
 _fail() { echo -e "  ${RED}❌${NC} $1"; TESTS_FAILED=$((TESTS_FAILED + 1)); }
@@ -40,38 +41,24 @@ _get_active_config() {
 }
 
 cleanup_resources() {
-  local d="$1"
   echo -e "${CYAN}── 清理测试资源 ──${NC}"
+  echo -e "  ${YELLOW}⚠ 测试资源无法通过 API 自动清理，请在飞书中手动删除：${NC}"
+  echo ""
   for doc_id in "${CLEANUP_DOCS[@]}"; do
-    local token
-    token=$(_lark "$d" auth status 2>/dev/null | python3 -c "
-import json,sys
-try:
-    d=json.load(sys.stdin)
-    t=d.get('identities',{}).get('bot',{}).get('token','') or d.get('identities',{}).get('user',{}).get('token','')
-    print(t)
-except: pass" 2>/dev/null || true)
-    if [ -n "$token" ]; then
-      local rc
-      rc=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -X DELETE \
-        "https://open.feishu.cn/open-apis/docx/v1/documents/${doc_id}" \
-        -H "Authorization: Bearer $token" 2>/dev/null) || rc="000"
-      if [ "$rc" = "200" ]; then _ok "已删文档: $doc_id"
-      else _skip "文档 $doc_id 清理 HTTP $rc"
-      fi
-    else _skip "文档 $doc_id 清理跳过（拿不到 token）"
+    if [ -n "$TEST_DOC_URL" ]; then
+      echo "  📄 [ccconfig-e2e 测试文档]($TEST_DOC_URL)"
+    else
+      echo -e "  📄 文档 ID: ${doc_id}（URL 未知）"
     fi
   done
   for entry in "${CLEANUP_RECORDS[@]}"; do
-    local rid bt tb
-    IFS='|' read -r rid bt tb <<< "$entry"
-    local code
-    code=$(_lark "$d" api DELETE "/open-apis/bitable/v1/apps/${bt}/tables/${tb}/records/${rid}" 2>/dev/null \
-      | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('code',-1))" 2>/dev/null || echo "?")
-    if [ "$code" = "0" ]; then _ok "已删 record: $rid"
-    else _skip "record $rid 清理 code=$code"
-    fi
+    local rid bt tb td
+    IFS='|' read -r rid bt tb td <<< "$entry"
+    echo "  📊 [Worklog 测试记录](https://${td:-rcnejwuhyp41.feishu.cn}/base/${bt}/table/${tb}/record/${rid})"
   done
+  echo ""
+  echo -e "  ${GRAY}文档: 打开链接 → 删除${NC}"
+  echo -e "  ${GRAY}Base: 打开链接 → 删除该行${NC}"
   echo ""
 }
 
@@ -118,8 +105,11 @@ print(u.get('userName','?')+' ('+u.get('openId','?')+')')" 2>/dev/null)
   local doc_ok; doc_ok=$(echo "$doc_out" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('ok','false'))" 2>/dev/null || echo "false")
   if [ "$doc_ok" = "True" ]; then
     local did; did=$(echo "$doc_out" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('document',{}).get('document_id',''))" 2>/dev/null)
-    _ok "文档已创建 — $did"
+    doc_url=$(echo "$doc_out" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('document',{}).get('url',''))" 2>/dev/null)
+    _ok "文档已创建"
+    TEST_DOC_URL="$doc_url"
     CLEANUP_DOCS+=("$did")
+    echo "    $doc_url"
   else
     local em; em=$(echo "$doc_out" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('error',{}).get('message','?'))" 2>/dev/null)
     _fail "创建失败: $em"
@@ -149,8 +139,13 @@ print(json.dumps({'token': b['token'], 'table': b['tables']['Worklog']}))
       local bok; bok=$(echo "$bo" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('ok','false'))" 2>/dev/null || echo "false")
       if [ "$bok" = "True" ]; then
         local rid; rid=$(echo "$bo" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('record_id_list',['?'])[0])" 2>/dev/null)
-        _ok "Worklog 已写入 — $rid"
-        CLEANUP_RECORDS+=("$rid|$bt|$tb")
+        local tenant_domain; tenant_domain="rcnejwuhyp41.feishu.cn"  # 从 flogme config 取
+        if [ -f "$fc" ]; then
+          tenant_domain=$(python3 -c "import yaml; print(yaml.safe_load(open('${fc}')).get('tenant_domain','rcnejwuhyp41.feishu.cn'))" 2>/dev/null || echo "rcnejwuhyp41.feishu.cn")
+        fi
+        _ok "Worklog 已写入"
+        echo "    https://${tenant_domain}/base/${bt}/table/${tb}/record/${rid}"
+        CLEANUP_RECORDS+=("$rid|$bt|$tb|$tenant_domain")
       else
         local em; em=$(echo "$bo" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('error',{}).get('message','?'))" 2>/dev/null)
         _fail "Base 写入失败: $em"
