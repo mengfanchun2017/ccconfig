@@ -580,7 +580,6 @@ PYEOF
     info "  → 内容: $msg_text"
     echo ""
     confirm "发送？" y >&2 || { info "取消" >&2; return 0; }
-    [[ "$cf" =~ ^[Nn]$ ]] && { info "取消"; return 0; }
 
     info "  拿 tenant_access_token..." >&2
     local token
@@ -798,7 +797,6 @@ PYEOF
     info "  → 收件人: $oid"
     info "  → 内容: $msg_text"
     confirm "发送？" y || { info "取消"; return 0; }
-    [[ "$cf" =~ ^[Nn]$ ]] && { info "取消"; return 0; }
 
     info "  拿 tenant_access_token..." >&2
     local token
