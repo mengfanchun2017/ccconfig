@@ -461,18 +461,22 @@ install_option() {
     # option-* 目录
     if has_init_script "$name"; then
         if [ "$name" = "larkbridge" ] && [ ${#@} -eq 0 ]; then
-            section "larkbridge"
+            # 先显示状态
+            echo ""
+            bash "$SCRIPT_DIR/option-$name/init.sh" --status 2>&1 | grep -v '^$'
             echo ""
             echo "  1) 前台启动（调试用，Ctrl+C 退出）"
-            echo "  2) 后台启动（nohup，不用 systemd）"
-            echo "  3) 查看状态 + 配置管理（进飞书管理菜单）"
-            echo "  0) 跳过"
+            echo "  2) 后台启动（nohup）"
+            echo "  3) 停止 profile"
+            echo "  4) 看实时日志（tail -f，Ctrl+C 退出）"
             echo ""
-            read -p "选择 [1-3/0]: " lb_sub
+            echo "  0) 返回"
+            read -p "选择 [1-4/0]: " lb_sub
             case "$lb_sub" in
                 1) bash "$SCRIPT_DIR/option-$name/init.sh" --run ;;
                 2) bash "$SCRIPT_DIR/option-$name/init.sh" --bg ;;
-                3) bash "$SCRIPT_DIR/maintain.sh" 13 ;;
+                3) bash "$SCRIPT_DIR/option-$name/init.sh" --stop ;;
+                4) bash "$SCRIPT_DIR/option-$name/init.sh" --logs ;;
                 *) info "跳过" ; return 0 ;;
             esac
             return $?
