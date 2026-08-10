@@ -493,9 +493,7 @@ except: pass
         elif [[ -t 0 ]]; then
             # 交互式终端 → 提示输入
             echo ""
-            echo -e "  ${YELLOW}未找到 ${name} 的 API Key${NC}"
-            echo -e "  ${GRAY}（新终端首次需输入，之后存到 ccprivate 供其他终端复用）${NC}"
-            read -p "  输入 ${name} API Key: " api_key
+            echo ""; api_key=$(prompt_password "输入 ${name} API Key")
         fi
     fi
 

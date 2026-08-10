@@ -34,7 +34,7 @@ LOCAL_BIN="$HOME/.local/bin"
 export PATH="$LOCAL_BIN:$PATH"
 
 source "$SCRIPT_DIR/lib/dry-run.sh"
-source "$SCRIPT_DIR/lib/colors.sh" 2>/dev/null || {
+source "$SCRIPT_DIR/lib/interact.sh"
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
     ok()    { echo -e "  ${GREEN}✅ $1${NC}"; }
@@ -66,13 +66,10 @@ ensure_gh_cli() {
         info "非交互模式：默认方式 2（binary 到 ~/.local/bin/gh）"
         install_choice=2
     else
-        echo "  方式 1) apt 装（需要 sudo，最简单）"
-        echo "  方式 2) 下载 binary 到 ~/.local/bin/gh（无需 sudo）"
-        echo "  0) 跳过（手动安装后重跑）"
-        echo ""
-        read -p "  选择 [1]: " install_choice
-        install_choice="${install_choice:-1}"
-        install_choice=$(menu_num "$install_choice")
+        install_choice=$(menu_select "安装 gh" \
+            "1) apt 装" "2) binary 装" "0) 跳过")
+        install_choice="${install_choice:0:1}"
+        [[ "$install_choice" == "" ]] && install_choice="1"
     fi
 
     case "$install_choice" in
