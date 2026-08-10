@@ -13,6 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$SCRIPT_DIR"
 source "$SCRIPT_DIR/lib/dry-run.sh"
 source "$SCRIPT_DIR/lib/colors.sh"
+source "$SCRIPT_DIR/lib/interact.sh"
 
 show_banner() {
     echo -e "${CYAN}Claude Code 配置中枢 · ccconfig${NC}"
@@ -38,9 +39,7 @@ check_prereqs() {
     echo -e "  ${GRAY}（完整流程：clone → bootstrap-gh-auth.sh → init-ccprivate-repo.sh → init-base.sh all → 可选 init-option.sh/option-skill/init.sh → maintain.sh status）${NC}"
     echo ""
 
-    read -p "是否现在创建 ccprivate？[Y/n]: " create_ccp
-    create_ccp="${create_ccp:-y}"
-    if [[ "$create_ccp" =~ ^[Yy]$ ]]; then
+    if confirm "现在创建 ccprivate？" y; then
         echo -e "  ${GRAY}请执行: bash ccconfig/init-ccprivate-repo.sh${NC}"
         echo -e "  ${YELLOW}创建完成后重新运行 bash init-base.sh${NC}"
         exit 0
@@ -181,9 +180,7 @@ run_step() {
             echo -e "${RED}❌ ${label} 失败（继续）${NC}"
         fi
     else
-        read -p "运行？[Y/n]: " confirm || true
-        confirm="${confirm:-y}"
-        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        if confirm "运行？" y; then
             if bash "$script" "$@"; then
                 echo -e "${GREEN}✅ ${label} 完成${NC}"
             else

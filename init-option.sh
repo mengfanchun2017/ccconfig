@@ -302,9 +302,7 @@ PYEOF
         if [ ${#apps_json[@]} -eq 0 ]; then
             err "feishu.json 中没有 apps 配置"
             echo ""
-            read -p "  添加新 app? [Y/n]: " confirm
-            confirm="${confirm:-y}"
-            [[ "$confirm" =~ ^[Yy]$ ]] || return 0
+            confirm "添加新 app？" y || return 0
             _feishu_add_app "$conf"
             continue
         fi
@@ -415,12 +413,10 @@ install_option() {
           echo "    1) 安装 timer (每天 12:01 自动归档+推飞书)"
           echo "    2) 卸载 timer"
           echo "    3) 配置 (feishu_url / schedule / include_today)"
-          echo "    4) 查看状态"
-          echo "    5) 手动触发归档+推飞书（按配置跑，不含今天）"
-          echo "    0) 返回"
-          read -p "  选择 [0-5]: " sub
-          sub=$(menu_num "$sub")
-          case "$sub" in
+          local sub; sub=$(menu_select "usage 管理" \
+            "1) 安装 timer" "2) 卸载 timer" "3) 配置" "4) 状态" "5) 手动触发" "0) 返回")
+          [[ -z "$sub" ]] && continue
+          case "${sub:0:1}" in
             1) bash "$SCRIPT_DIR/option-usage/init.sh" install ;;
             2) bash "$SCRIPT_DIR/option-usage/init.sh" uninstall ;;
             3) bash "$SCRIPT_DIR/option-usage/init.sh" config ;;
@@ -429,7 +425,7 @@ install_option() {
             0) break ;;
           esac
           echo ""
-          read -p "  按回车继续..." dummy
+          read -p "按回车继续..." dummy
         done
       fi
       return 0
@@ -442,19 +438,15 @@ install_option() {
             echo ""
             bash "$SCRIPT_DIR/option-$name/init.sh" --status 2>&1 | grep -v '^$'
             echo ""
-            echo "  1) 前台启动（调试用，Ctrl+C 退出）"
-            echo "  2) 后台启动（nohup）"
-            echo "  3) 停止 profile"
-            echo "  4) 看实时日志（tail -f，Ctrl+C 退出）"
-            echo ""
-            echo "  0) 返回"
-            read -p "选择 [1-4/0]: " lb_sub
-            case "$lb_sub" in
+            local lb_sub; lb_sub=$(menu_select "larkbridge" \
+                "1) 前台启动" "2) 后台启动" "3) 停止" "4) 看日志" "0) 返回")
+            [[ -z "$lb_sub" ]] && return 0
+            case "${lb_sub:0:1}" in
                 1) bash "$SCRIPT_DIR/option-$name/init.sh" --run ;;
                 2) bash "$SCRIPT_DIR/option-$name/init.sh" --bg ;;
                 3) bash "$SCRIPT_DIR/option-$name/init.sh" --stop ;;
                 4) bash "$SCRIPT_DIR/option-$name/init.sh" --logs ;;
-                *) info "跳过" ; return 0 ;;
+                *) return 0 ;;
             esac
             return $?
         fi
@@ -595,47 +587,53 @@ interactive_menu() {
             done
         done
 
-        local max_idx=${#all_names[@]}
-        read -p "选择安装 (输入对应数字, a 全部, 0 退出): " choice
+        # 构造 menu_select 的 items（编号列表）
+        local menu_items=()
+        for n in "${all_names[@]}"; do
+            local desc=""
+            case "$n" in
+                mcp) desc="MCP 服务" ;;
+                feishu_key) desc="飞书 Key" ;;
+                usage) desc="Token 用量" ;;
+                bat|glow|nano) ;;
+                *) [ -n "${AUTO_MANAGED[$n]:-}" ] && desc="[auto]" ;;
+            esac
+            menu_items+=("$n${desc:+ ($desc)}")
+        done
+        menu_items+=("a) 全部安装")
+        menu_items+=("0) 退出")
 
-        case "$choice" in
-            0|q|exit) echo ""; exit 0 ;;
-            a|all)
+        local choice; choice=$(menu_select "可选组件" "${menu_items[@]}")
+        [[ -z "$choice" ]] && continue
+        local c="${choice:0:1}"
+
+        case "$c" in
+            0) echo ""; exit 0 ;;
+            a)
                 for n in "${all_names[@]}"; do
-                    if [ "$n" = "feishu_key" ]; then
-                        feishu_key_wizard
-                    else
-                        install_option "$n"
-                    fi
+                    [ "$n" = "feishu_key" ] && feishu_key_wizard || install_option "$n"
                 done
-                echo ""
                 ok "全部安装完成"
                 ;;
             *)
-                local any_valid=false
-                for token in $choice; do
-                    if [[ "$token" =~ ^[0-9]+$ ]] && [ "$token" -ge 1 ] && [ "$token" -le $max_idx ]; then
-                        local selected="${all_names[$((token - 1))]}"
-                        if [ "$selected" = "feishu_key" ]; then
-                            feishu_key_wizard
-                        elif [ -n "${AUTO_MANAGED[$selected]:-}" ]; then
-                            info "[auto] ${selected}: ${AUTO_MANAGED[$selected]%%|*}"
-                            info "  切换 LLM: ${AUTO_MANAGED[$selected]#*|}"
-                            info "  手动管理: ${AUTO_MANAGED[$selected]##*|}"
-                        else
-                            install_option "$selected"
-                        fi
-                        any_valid=true
-                    fi
+                local selected=""
+                for ((ni=0; ni<${#all_names[@]}; ni++)); do
+                    [[ "${menu_items[$ni]%% (*}" == "$c" || "${all_names[$ni]}" == "$choice" ]] && { selected="${all_names[$ni]}"; break; }
                 done
-                if ! $any_valid; then
+                # 尝试直接匹配 choice 到 all_names
+                for n in "${all_names[@]}"; do
+                    [[ "$n" == "$choice" ]] && { selected="$n"; break; }
+                done
+                [ -z "$selected" ] && [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#all_names[@]} ]] && selected="${all_names[$((choice-1))]}"
+                if [ -n "$selected" ]; then
+                    [ "$selected" = "feishu_key" ] && feishu_key_wizard || install_option "$selected"
+                else
                     warn "无效选择"
                 fi
                 ;;
         esac
 
-        echo ""
-        read -p "操作完成，按回车继续..." dummy
+        echo ""; read -p "按回车继续..." dummy
     done
 }
 
