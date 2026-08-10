@@ -615,7 +615,7 @@ interactive_menu() {
         done
 
         local max_idx=${#all_names[@]}
-        read -p "选择安装 (1-${max_idx}, a 全部, 0 退出): " choice
+        read -p "选择安装 (输入对应数字, a 全部, 0 退出): " choice
 
         case "$choice" in
             0|q|exit) echo ""; exit 0 ;;
