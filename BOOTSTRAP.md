@@ -116,8 +116,8 @@ Windows 自带 PowerShell 5.1 功能老旧。PowerShell 7 有更好的 JSON/HTTP
 # 用 winget 一键安装（Windows 11 自带 winget）
 winget install --id Microsoft.PowerShell --source winget
 
-# 如果 winget 报错 MSI 缓存丢失（Error 1612/1714/1603），用 ccconfig 自带脚本：
-# 先下载脚本：Invoke-WebRequest -Uri "https://raw.githubusercontent.com/<your-github-username>/ccconfig/main/windows-tools/psupdate/psupdate.ps1" -OutFile "$env:TEMP\psupdate.ps1"
+# 如果 winget 报错 MSI 缓存丢失（Error 1612/1714/1603），用 fancypowershell 仓库的脚本：
+# 先下载脚本：Invoke-WebRequest -Uri "https://raw.githubusercontent.com/mengfanchun2017/fancypowershell/main/psupdate/psupdate.ps1" -OutFile "$env:TEMP\psupdate.ps1"
 # 再安装：powershell -ExecutionPolicy Bypass -File "$env:TEMP\psupdate.ps1"
 ```
 
@@ -790,11 +790,17 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 
 ## Windows 工具
 
-ccconfig 的 `windows-tools/` 目录提供 Windows 工具脚本，在 PowerShell 中运行：
+Windows PowerShell 工具已拆出到独立仓库 [fancypowershell](https://github.com/mengfanchun2017/fancypowershell)：
 
-| 工具 | 用途 | 命令 |
+| 工具 | 用途 | 仓库 |
 |------|------|------|
-| `psupdate/` | PowerShell 7 升级（绕过 winget bug） | 管理员 PowerShell 执行 `psupdate.ps1` |
+| `psupdate/` | PowerShell 7 升级（绕过 winget bug） | [fancypowershell/psupdate](https://github.com/mengfanchun2017/fancypowershell/tree/main/psupdate) |
+
+```powershell
+# 克隆 fancypowershell 后执行
+git clone https://github.com/mengfanchun2017/fancypowershell.git ~/git/fancypowershell
+powershell -ExecutionPolicy Bypass -File "$HOME\git\fancypowershell\psupdate\psupdate.ps1"
+```
 
 ## macOS 备注
 
