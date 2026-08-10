@@ -127,9 +127,29 @@ _pick_profile() {
   echo "${profiles[$((sel-1))]}"
 }
 
+# STATUS 列：`-` 表示无 holder；运行时显示 `pid=<n> agent=<kind>`
+# 早期版本误读第 2 列(PROFILE) 当成 running 名单，导致 active profile 永远被当 running 拒绝前台
 _get_running_profiles() {
   command -v lark-channel-bridge &>/dev/null || return 0
-  lark-channel-bridge profile list 2>/dev/null | awk 'NR>1{print $2}' || true
+  # $NF 是 STATUS 列（永远最后一列），非 "-" 才算真在跑
+  lark-channel-bridge profile list 2>/dev/null | awk 'NR>1 && $NF != "-"{print $2}' || true
+}
+
+# 检查某 profile 是否真有进程在跑（pgrep + STATUS 双验证，避免 registry 残留误报）
+_is_profile_running() {
+  local profile="$1"
+  local status
+  status=$(lark-channel-bridge profile list 2>/dev/null \
+    | awk -v p="$profile" 'NR>1 && $2==p { $1=""; $2=""; sub(/^  */,""); print }' || true)
+  if [ -n "$status" ] && [ "$status" != "-" ]; then
+    # 抽 STATUS 文本里的 pid=N，pgrep 验证进程真活着
+    local pid; pid=$(echo "$status" | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2)
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      echo "pid=$pid"
+      return 0
+    fi
+  fi
+  return 1
 }
 
 _list_larkbridge_apps() {
@@ -356,13 +376,24 @@ run_foreground() {
   [ -z "$profile" ] && profile="$(_run_select_app)"
   [ -z "$profile" ] && return 0
 
-  # 已在跑（systemd 或 profile list）→ 拒绝重复起前台实例，否则两个实例并发抢消息
-  local running; running=$(_get_running_profiles)
-  if echo "$running" | grep -qxF "$profile"; then
-    warn "  ⚠ ${profile} 已在运行（systemd service 或其他前台实例）" >&2
+  # 真有进程才拦截；STATUS column 过滤避免 active profile 误报
+  local holder; holder=$(_is_profile_running "$profile")
+  if [ -n "$holder" ]; then
+    local pid="${holder#pid=}"
+    warn "  ⚠ ${profile} 已在跑（${holder}）" >&2
     info "    看日志: $0 --logs ${profile}" >&2
-    info "    停止:    $0 --stop ${profile}" >&2
-    return 0
+    info "    systemd 停: $0 --stop ${profile}" >&2
+    info "    强杀接管:   kill ${pid} 之后再前台启动（推荐关闭旧终端后用）" >&2
+    read -p "    强杀旧进程然后前台启动? [y/N]: " takeover
+    if [[ "$takeover" =~ ^[Yy]$ ]]; then
+      kill "$pid" 2>/dev/null || true
+      sleep 1
+      kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+      info "    → 旧进程已 kill，重新启动前台" >&2
+    else
+      info "    跳过 — 不启动前台" >&2
+      return 0
+    fi
   fi
 
   local ws="${LARK_WORKSPACE:-$HOME/git}"
