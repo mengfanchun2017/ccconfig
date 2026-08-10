@@ -164,6 +164,94 @@ do_self() {
 }
 
 # ── 交互菜单 ──
+show_menu() {
+    local c; c=$(menu_select "ccconfig 运维中心" \
+        "1) 状态检查" "2) Monitor" "3) 自我更新" \
+        "4) Git 同步" "5) 组件升级" "6) 依赖检查" \
+        "7) 一键修复" "8) 模板同步" "9) ccprivate 升级" \
+        "10) Bill\\&Token" "11) MCP" "12) llmswitch" \
+        "13) 飞书管理" "14) 回归测试" "15) GitHub PAT" \
+        "16) LLM 切换" "17) getnote" "0) 退出")
+    [[ -z "$c" ]] && { show_menu; return; }
+    c="${c:0:1}"
+    [[ ! "$c" =~ ^[0-9]+$ ]] && { show_menu; return; }
+
+    case "$c" in
+        1) bash "$LIB_DIR/status.sh" "$@" ;;
+        2) submenu_monitor ;;
+        3) do_self all ;;
+        4) bash "$LIB_DIR/sync.sh" ;;
+        5) bash "$LIB_DIR/update.sh" menu ;;
+        6) bash "$LIB_DIR/deps-check.sh" ;;
+        7) do_finalize ;;
+        8) bash "$LIB_DIR/example-sync.sh" status
+           local ex_sel; ex_sel=$(menu_select "模板同步" "d) 查看差异" "f) 正向" "r) 反向" "0) 返回")
+           case "${ex_sel:0:1}" in d) bash "$LIB_DIR/example-sync.sh" diff;; f) bash "$LIB_DIR/example-sync.sh" promote;; r) bash "$LIB_DIR/example-sync.sh" reverse;; esac ;;
+        9) bash "$LIB_DIR/ccprivate-upgrade.sh" ;;
+        10) submenu_bill_token ;;
+        11) bash "$LIB_DIR/mcp-manager.sh" config ;;
+        12) submenu_llmswitch ;;
+        13) submenu_feishu ;;
+        14) bash "$CCCONFIG_DIR/bin/test-bootstrap.sh" "$@" ;;
+        15) bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh" ;;
+        16) bash "$LIB_DIR/init-llm.sh" ;;
+        17) submenu_getnote ;;
+        0) echo ""; exit 0 ;;
+    esac
+    echo ""; read -p "按回车返回菜单..." dummy
+    show_menu
+}
+
+submenu_bill_token() {
+    local c; c=$(menu_select "Bill\\&Token" \
+        "1) Bill(模型单价)" "2) 用量统计" "3) 按日报告" \
+        "4) 按天归档" "5) 推飞书" "6) timer 管理" \
+        "7) 手动触发" "0) 返回")
+    [[ -z "$c" ]] && { submenu_bill_token; return; }
+    c="${c:0:1}"
+    case "$c" in
+        1) bash "$LIB_DIR/init-llm.sh" bill ;;
+        2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
+        3) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
+        4) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ;;
+        5) url=$(prompt "飞书 URL"); bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ${url:+--feishu \"$url\"} ;;
+        6) bash "$CCCONFIG_DIR/option-usage/init.sh" status
+           local ts; ts=$(menu_select "timer" "i) 安装" "u) 卸载" "c) 配置" "b) 返回")
+           case "${ts:0:1}" in i) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; c) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; esac ;;
+        7) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
+    esac
+    echo ""; read -p "按回车返回..." dummy
+    submenu_bill_token
+}
+
+submenu_monitor() {
+    local c; c=$(menu_select "Monitor" \
+        "1) 启动" "2) 停止" "3) 看状态" "4) 追踪" "5) 文件变更" "6) 修复" "0) 返回")
+    [[ -z "$c" ]] && return
+    c="${c:0:1}"
+    case "$c" in
+        1) bash "$LIB_DIR/monitor.sh" start ;;
+        2) bash "$LIB_DIR/monitor.sh" stop ;;
+        3) bash "$LIB_DIR/monitor.sh" status ;;
+        4) bash "$LIB_DIR/monitor.sh" tail ;;
+        5) bash "$LIB_DIR/monitor.sh" monitor ;;
+        6) fix_monitor ;;
+    esac
+}
+
+submenu_llmswitch() {
+    local c; c=$(menu_select "llmswitch" \
+        "1) 启动" "2) 停止" "3) 重启" "4) 状态" "5) 切换 LLM" "0) 返回")
+    [[ -z "$c" ]] && return
+    c="${c:0:1}"
+    case "$c" in
+        1) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --start ;;
+        2) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --stop ;;
+        3) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --restart ;;
+        4) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --status ;;
+        5) bash "$LIB_DIR/init-llm.sh" ;;
+    esac
+}
 
 # 读取 feishu.json 账号列表（一行一 JSON）
 _feishu_list_apps() {
@@ -255,7 +343,7 @@ submenu_feishu() {
         echo ""
         echo "  0) 返回主菜单"
         echo ""
-        read -p "选择 [0-8]: " c
+        c=$(menu_select "飞书管理" \
         c=$(menu_num "$c")
 
         case "$c" in
@@ -304,15 +392,14 @@ submenu_feishu_larkcli() {
         echo ""
         echo "  a) 重置全部账号配置 (re-run init)"
         echo "  k) 看当前账号的 OAuth 状态"
-        echo "  l) 列出全部账号"
-        echo "  0) 返回飞书菜单"
-        read -p "  选择 [a/k/l/0]: " sub
-        case "$sub" in
-            a|A) bash "$feishu_lc" ;;
-            k|K) bash "$feishu_switch" ;;
-            l|L) bash "$feishu_switch" --list ;;
+        local sub; sub=$(menu_select "lark-cli" \
+            "a) 重置配置" "k) OAuth 状态" "l) 列出账号" "0) 返回")
+        [[ -z "$sub" ]] && return 0
+        case "${sub:0:1}" in
+            a) bash "$feishu_lc" ;;
+            k) bash "$feishu_switch" ;;
+            l) bash "$feishu_switch" --list ;;
             0) return 0 ;;
-            *) continue ;;
         esac
     done
 }
@@ -339,27 +426,22 @@ submenu_feishu_larkbridge() {
         echo "    r) 删除 profile       ─ remove"
         echo "    d) 设为默认           ─ default"
         echo ""
-        echo "    0) 返回飞书菜单"
-        read -p "  选择 [1-6/n/r/d/0]: " sub
-        case "$sub" in
+        local sub; sub=$(menu_select "larkbridge" \
+            "1) 前台启动" "2) 后台启动" "3) 停止" "4) 重启" \
+            "5) 看日志" "6) 日志目录" \
+            "n) 新增 profile" "r) 删除" "d) 设为默认" "0) 返回")
+        [[ -z "$sub" ]] && continue
+        case "${sub:0:1}" in
             1) bash "$feishu_lb" --run ;;
-            2) bash "$feishu_lb" --bg
-               echo ""
-               read -p "  按回车返回..." dummy ;;
+            2) bash "$feishu_lb" --bg ;;
             3) bash "$feishu_lb" --stop ;;
             4) bash "$feishu_lb" --restart ;;
             5) bash "$feishu_lb" --logs ;;
-            6)
-                echo ""
-                info "日志目录: $HOME/.lark-channel/profiles/"
-                ls -lt "$HOME/.lark-channel/profiles/"*/logs/*.jsonl 2>/dev/null || warn "暂无日志文件"
-                read -p "  按回车返回..." dummy
-                ;;
+            6) info "日志目录: $HOME/.lark-channel/profiles/"; ls -lt "$HOME/.lark-channel/profiles/"*/logs/*.jsonl 2>/dev/null || warn "暂无" ;;
             n|N) bash "$feishu_lb" --profile add ;;
             r|R) bash "$feishu_lb" --profile remove ;;
             d|D) bash "$feishu_lb" --profile default ;;
             0) return 0 ;;
-            *) continue ;;
         esac
     done
 }
