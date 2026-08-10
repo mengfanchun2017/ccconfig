@@ -2,17 +2,69 @@
 # interact.sh — 统一交互菜单/选择/输入/表格函数库
 #
 # 纯 sh 实现，零外部依赖。只调用 section/warn/ok 等颜色函数（colors.sh），不依赖 menu_num。
+# 菜单显示全部走 stderr，避开 `c=$(menu_select ...)` 把 stdout 截走后菜单不显示的问题。
+# read -p 自动从 /dev/tty 读，避开 stdin 被管道/重定向导致的 read 阻塞/失败。
 #
 # 来源:
 #   source "$SCRIPT_DIR/lib/interact.sh"
+#   source "$SCRIPT_DIR/colors.sh"  # 必须先 source
 #
-# 函数:
-#   confirm        [msg] [default=n]  确认提示 (y/n)
-#   menu_select    [title] [items...]  单选菜单
-#   prompt         [msg] [default]     文本输入
-#   prompt_password [msg]              密码输入
-#   table          [title] [header_csv] [rows_csv...]  表格
-#   menu_multi     [title] [items...]  多选 checklist
+# ========== API ==========
+#
+# confirm [msg] [default]
+#   询问 y/n。default=n 默认拒绝，default=y 默认接受。
+#   用法:
+#     confirm "继续？" && echo yes || echo no
+#     confirm "删除？" n && rm file
+#
+# menu_select [title] [item1] [item2] ... [itemN]
+#   单选菜单。items 必须是纯文本（不带数字前缀），菜单自动加 "1) 2) 3)"。
+#   返回选中项的**序号字符串**（"5"），选中最后一项返回 "${#items[@]}"。
+#   0 表示「返回/取消」（用户输入空、非法、越界，或末项是"返回"被选中）。
+#   菜单显示走 stderr，返回值走 stdout（`c=$(menu_select ...)` 接）。
+#   用法:
+#     c=$(menu_select "ccconfig 运维" "状态" "Monitor" "更新" "返回")
+#     case "$c" in
+#         1) bash status.sh ;;
+#         2) bash monitor.sh ;;
+#         3) bash update.sh ;;
+#         4) return 0 ;;  # 末项"返回"
+#         *) return 0 ;;  # 0 或越界
+#     esac
+#   **坑**: bash case pattern 不支持动态表达式，"返回"项序号需硬算：
+#     case "$c" in
+#         $((${#names[@]} + 3))) return 0 ;;   # 末项
+#         ...
+#     esac
+#
+# prompt [msg] [default]
+#   文本输入。default 可选，留空时无默认值。
+#   用法:
+#     name=$(prompt "输入名字" "default")
+#
+# prompt_password [msg]
+#   密码输入（不回显）。用法:
+#     pwd=$(prompt_password "Token")
+#
+# table [title] [header_csv] [row_csv] ...
+#   ASCII 表格。header 是 "Col1,Col2,Col3"，每行 row 是 "v1,v2,v3"。
+#   用法:
+#     table "MCP 状态" "name,status,ver" "tavily,✅,1.0" "getnote,✅,2.1"
+#
+# menu_multi [title] [item1] [item2] ... [itemN]
+#   多选 checklist。返回空格分隔的多个 items（不带数字）。
+#   用法:
+#     sel=$(menu_multi "选择 MCP" "tavily" "getnote" "exa")
+#     for s in $sel; do echo "选了 $s"; done
+#
+# spinner [msg] [cmd] [args...]
+#   跑命令时显示 spinner，完成后打 ✓。用法:
+#     spinner "装包中..." npm install
+#
+# ========== 已知踩坑 ==========
+#   1. menu_select 显示走 stderr — 不要 `>` 重定向整个函数输出（会丢菜单）
+#   2. read 走 /dev/tty — 非 tty 环境（管道/CI）会 fallback，EOF 时返空字符串
+#   3. while+case 不能 continue 重入菜单 — 每次都重新打印列表，状态丢失
 
 # ========== 确认 (y/n) ==========
 confirm() {
