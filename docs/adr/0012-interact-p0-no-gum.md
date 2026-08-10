@@ -53,6 +53,24 @@ API 决策补充：
 - **返回选中序号**（"5"）而非文本（"组件升级"），让 caller `case "$c" in 1) ... ;; 5) ... ;; esac` 直接用，省一层文本→数字解析。
 - **「返回」项必须在 items 末尾**，caller 用动态 `${#items[@]} + N` 算 case 分支。**不要混用 0 + 字母**（a/k/l/n/r/d）+ 数字序号，混乱必出 bug。
 
+## P0 教训：Edit replace 后必跑 bash -n（2026-08-10 review 发现）
+
+review 时发现 `init-ccprivate-repo.sh` collect_info 重构中三处 case 分支首行被合并：
+```bash
+# 错（Edit 后实际写入）
+[ -z "$DEEPSEEK_KEY" ]                 DEFAULT_LLM="deepseek"                DEFAULT_LLM="deepseek" DEEPSEEK_KEY=$(prompt_password ...)
+```
+运行时报 `[: missing ']'`——bash `-n` 不报（语法合法），但语义崩溃。
+
+**根因**：Edit tool replace 时 old/new 字符串包含换行，user/repo 文件实际存的是单行含大量空格的合并结果。
+
+**预防**：
+1. 每次 Edit 后立即 `bash -n <file>` 跑语法检查（语法能过但语义仍可能崩，所以**还要读文件确认**）
+2. 涉及多行替换时，优先用 Read 看当前实际内容再 Edit，不要凭记忆里的"应该是几行"
+3. 测试覆盖：每个改动文件跑一遍 `tests/test-syntax.sh`（58 个 sh 全检，0.3s）
+
+**已修**：详见 commit `init-ccprivate-repo.sh` 三 case 分支行合并 bug修复 + tests/test-interact.sh 新增 EOF/OOR/双前缀回归用例。
+
 ## Related
 
 - [colors.sh](../lib/colors.sh)
