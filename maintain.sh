@@ -186,7 +186,6 @@ show_menu() {
         "getnote" \
         "退出")
     [[ -z "$c" ]] && { show_menu; return; }
-    c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
     [[ -z "$c" ]] && { show_menu; return; }
 
     case "$c" in
@@ -203,7 +202,7 @@ show_menu() {
  "正向" \
  "反向" \
  "返回")
-           case "$(echo "$ex_sel" | grep -oE \'^[0-9]+\' | head -1)" in d) bash "$LIB_DIR/example-sync.sh" diff;; f) bash "$LIB_DIR/example-sync.sh" promote;; r) bash "$LIB_DIR/example-sync.sh" reverse;; esac ;;
+           case "$ex_sel" in d) bash "$LIB_DIR/example-sync.sh" diff;; f) bash "$LIB_DIR/example-sync.sh" promote;; r) bash "$LIB_DIR/example-sync.sh" reverse;; esac ;;
         9) bash "$LIB_DIR/ccprivate-upgrade.sh" ;;
         10) submenu_bill_token ;;
         11) bash "$LIB_DIR/mcp-manager.sh" config ;;
@@ -230,7 +229,6 @@ submenu_bill_token() {
         "手动触发" \
         "返回")
     [[ -z "$c" ]] && { submenu_bill_token; return; }
-    c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
     case "$c" in
         1) bash "$LIB_DIR/init-llm.sh" bill ;;
         2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
@@ -243,7 +241,7 @@ submenu_bill_token() {
  "卸载" \
  "配置" \
  "返回")
-           case "$(echo "$ts" | grep -oE \'^[0-9]+\' | head -1)" in i) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; c) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; esac ;;
+           case "$ts" in i) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; c) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; esac ;;
         7) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
     esac
     echo ""; read -p "按回车返回..." dummy
@@ -260,7 +258,6 @@ submenu_monitor() {
         "修复" \
         "返回")
     [[ -z "$c" ]] && return
-    c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
     case "$c" in
         1) bash "$LIB_DIR/monitor.sh" start ;;
         2) bash "$LIB_DIR/monitor.sh" stop ;;
@@ -280,7 +277,6 @@ submenu_llmswitch() {
         "切换 LLM" \
         "返回")
     [[ -z "$c" ]] && return
-    c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
     case "$c" in
         1) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --start ;;
         2) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --stop ;;
@@ -365,7 +361,6 @@ submenu_feishu() {
         echo ""
         echo -e "${CYAN}── 飞书统一管理 ──${NC}"
         [[ -z "$c" ]] && return 0
-        c=$(echo "$c" | grep -oE '^[0-9]+' | head -1)
         echo -e "  ${GRAY}lark-cli: v${lcc_ver}    活跃账号: ${cur_acct:-无}${NC}"
         echo -e "  ${GRAY}lark-channel-bridge: v${lcb_ver}    活跃 profile: ${cur_prof:-无}${NC}"
         echo ""
@@ -439,7 +434,7 @@ submenu_feishu_larkcli() {
             "列出账号" \
             "返回")
         [[ -z "$sub" ]] && return 0
-        case "$(echo "$sub" | grep -oE \'^[0-9]+\' | head -1)" in
+        case "$sub" in
             a) bash "$feishu_lc" ;;
             k) bash "$feishu_switch" ;;
             l) bash "$feishu_switch" --list ;;
@@ -482,7 +477,7 @@ submenu_feishu_larkbridge() {
             "设为默认" \
             "返回")
         [[ -z "$sub" ]] && continue
-        case "$(echo "$sub" | grep -oE \'^[0-9]+\' | head -1)" in
+        case "$sub" in
             1) bash "$feishu_lb" --run ;;
             2) bash "$feishu_lb" --bg ;;
             3) bash "$feishu_lb" --stop ;;
@@ -778,7 +773,7 @@ PYEOF
             "发测试" \
             "返回")
         [[ -z "$sub" ]] && continue
-        case "$(echo "$sub" | grep -oE \'^[0-9]+\' | head -1)" in
+        case "$sub" in
             1) bash "$feishu_switch" "$target" ;;
             2)
                 local cd="$HOME/.lark-cli-${target}"
@@ -821,7 +816,7 @@ submenu_getnote() {
             "切换(持久化)" \
             "返回")
         [[ -z "$c" ]] && continue
-        case "$(echo "$c" | grep -oE \'^[0-9]+\' | head -1)" in
+        case "$c" in
             1) bash "$init" add ;;
             2) bash "$init" remove ;;
             3) target=$(prompt "账号名"); [ -n "$target" ] && bash "$sw" "$target" ;;
