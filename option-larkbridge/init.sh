@@ -150,7 +150,7 @@ _is_profile_running() {
       return 0
     fi
   fi
-  return 1
+  return 1 2>/dev/null || true
 }
 
 _list_larkbridge_apps() {
@@ -378,7 +378,7 @@ run_foreground() {
   [ -z "$profile" ] && return 0
 
   # 真有进程才拦截；STATUS column 过滤避免 active profile 误报
-  local holder; holder=$(_is_profile_running "$profile")
+  local holder; holder=$(_is_profile_running "$profile") || true
   if [ -n "$holder" ]; then
     local pid="${holder#pid=}"
     warn "  ⚠ ${profile} 已在跑（${holder}）" >&2
