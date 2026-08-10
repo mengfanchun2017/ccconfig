@@ -476,9 +476,9 @@ do_menu() {
         do_status
         echo ""
         local cmd
-        cmd=$(menu_select "MCP 配置" "1) 状态" "2) 同步" "3) 配置 Key" "4) 启停 MCP" "0) 退出")
+        cmd=$(menu_select "MCP 配置" "状态" "同步" "配置 Key" "启停 MCP" "退出")
         [[ -z "$cmd" ]] && continue
-        case "${cmd:0:1}" in
+        case "$cmd" in
             1) do_status ;;
             2) do_sync ;;
             3) do_keys ;;
@@ -503,7 +503,7 @@ do_menu() {
                 do_toggle "$tname" "$tact"
                 read -p "  按回车继续..." dummy < /dev/tty || true
                 ;;
-            0) echo ""; exit 0 ;;
+            5) echo ""; exit 0 ;;
         esac
     done
 }
