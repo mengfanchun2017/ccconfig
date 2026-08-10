@@ -503,7 +503,7 @@ submenu_feishu_larkbridge() {
         echo ""
         echo "  ─ 启动 ─"
         echo "    1) 前台启动（调试用，Ctrl+C 退出）"
-        echo "    2) 后台启动（systemd service，需 systemd --user 可用）"
+        echo "    2) 后台启动（nohup）"
         echo "    3) 停止 profile"
         echo "    4) 重启 profile"
         echo ""
@@ -520,7 +520,7 @@ submenu_feishu_larkbridge() {
         read -p "  选择 [1-6/n/r/d/0]: " sub
         case "$sub" in
             1) bash "$feishu_lb" --run ;;
-            2) bash "$feishu_lb" --start ;;
+            2) bash "$feishu_lb" --bg ;;
             3) bash "$feishu_lb" --stop ;;
             4) bash "$feishu_lb" --restart ;;
             5) bash "$feishu_lb" --logs ;;

@@ -464,14 +464,14 @@ install_option() {
             section "larkbridge"
             echo ""
             echo "  1) 前台启动（调试用，Ctrl+C 退出）"
-            echo "  2) 后台启动（systemd service，需 systemd --user 可用）"
+            echo "  2) 后台启动（nohup，不用 systemd）"
             echo "  3) 查看状态 + 配置管理（进飞书管理菜单）"
             echo "  0) 跳过"
             echo ""
             read -p "选择 [1-3/0]: " lb_sub
             case "$lb_sub" in
                 1) bash "$SCRIPT_DIR/option-$name/init.sh" --run ;;
-                2) bash "$SCRIPT_DIR/option-$name/init.sh" --start ;;
+                2) bash "$SCRIPT_DIR/option-$name/init.sh" --bg ;;
                 3) bash "$CCCONFIG_DIR/maintain.sh" 13 ;;
                 *) info "跳过" ; return 0 ;;
             esac
