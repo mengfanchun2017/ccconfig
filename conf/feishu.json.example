@@ -16,28 +16,12 @@
     "4. 一键开通 larkbridge 权限（浏览器跳转）：",
     "   bash maintain.sh → 13 → 7"
   ],
-  "_requiredScopes": {
-    "_comment": "应用身份权限必须在飞书开放平台开通后发布版本才生效。一键申请 URL：bash maintain.sh → 13 → 7",
-    "larkbridge": {
-      "_note": "tenant 权限 — bot 收发消息 + 读群 + 读 app 信息 + 卡片 + scopes 自查",
-      "scopes": [
-        "im:message",
-        "im:message:send",
-        "im:message:send_as_bot",
-        "im:message:send_multi_depts",
-        "im:message:send_multi_users",
-        "im:message:send_sys_msg",
-        "im:message.p2p_msg:readonly",
-        "im:message.reactions:write_only",
-        "im:chat:readonly",
-        "admin:app.info:readonly",
-        "application:application:self_manage",
-        "cardkit:card:write"
-      ]
-    },
+  "_scopes": {
+    "_comment": "larkbridge 必备 tenant scopes（真相源：lib/feishu-perms.sh 的 _LCB_TENANT_SCOPES）。一键申请：bash maintain.sh → 13 → 7",
+    "larkbridge": ["im:message","im:message:send","im:message:send_as_bot","im:message:send_multi_depts","im:message:send_multi_users","im:message:send_sys_msg","im:message.p2p_msg:readonly","im:message.reactions:write_only","im:chat:readonly","admin:app.info:readonly","application:application:self_manage","cardkit:card:write"],
     "larkCli": {
       "_note": "user 权限 — lark-cli OAuth 走 --domain all 时一次性弹出所有 scope 让用户同意，无需手动逐个开通",
-      "categories": ["docs", "docx", "drive", "base", "bitable", "calendar", "contact", "sheets", "slides", "task", "wiki", "mail", "vc", "minutes", "okr", "search"]
+      "categories": ["docs","docx","drive","base","bitable","calendar","contact","sheets","slides","task","wiki","mail","vc","minutes","okr","search"]
     }
   },
   "apps": [
@@ -53,22 +37,6 @@
         "enabled": true,
         "configDir": "~/.lark-cli",
         "description": "你的账号"
-      },
-      "ccConnect": {
-        "enabled": false,
-        "timeoutMs": 3600000,
-        "permissions": {
-          "adminOpenIds": [],
-          "allowFrom": "*",
-          "disabledCommands": [],
-          "rateLimit": { "maxMessages": 100, "windowSecs": 60 }
-        },
-        "options": {
-          "mode": "default",
-          "threadIsolation": true,
-          "groupOnly": false,
-          "groupReplyAll": false
-        }
       },
       "larkbridge": {
         "enabled": false,
