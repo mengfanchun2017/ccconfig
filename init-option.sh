@@ -472,7 +472,7 @@ install_option() {
             case "$lb_sub" in
                 1) bash "$SCRIPT_DIR/option-$name/init.sh" --run ;;
                 2) bash "$SCRIPT_DIR/option-$name/init.sh" --bg ;;
-                3) bash "$CCCONFIG_DIR/maintain.sh" 13 ;;
+                3) bash "$SCRIPT_DIR/maintain.sh" 13 ;;
                 *) info "跳过" ; return 0 ;;
             esac
             return $?
