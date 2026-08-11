@@ -68,7 +68,7 @@ ensure_gh_cli() {
         install_choice=2
     else
         install_choice=$(menu_select "安装 gh" \
-            "1) apt 装" "2) binary 装" "0) 跳过")
+            "apt 装" "binary 装" "跳过")
         [[ "$install_choice" == "" ]] && install_choice="1"
     fi
 

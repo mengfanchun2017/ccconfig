@@ -5,15 +5,15 @@
 # 每月一键升级所有组件，可靠、幂等、可恢复。
 #
 # 升级组件：
-#   [1] 基础组件        → Node.js 最新 LTS + pip 包
-#   [2] GitHub CLI      → GitHub Release
-#   [3] Claude Code     → claude install
-#   [4] MCP 缓存        → 刷新 npx 缓存
-#   [5] lark-cli        → npm install -g @larksuite/cli
-#   [6] systemd 服务    → 重建 + 重启 [option]
-#   [7] OfficeCLI      → GitHub Release [option]
-#   [8] Skills 同步     → skill + ccprivate [option]
-#   [9] Cloudflare 插件 → claude plugin [option]
+#   1] Node.js + pip 包      → Node.js 最新 LTS + pip 包
+#   2] lark-cli              → npm install -g @larksuite/cli
+#   3] GitHub CLI            → GitHub Release
+#   4] Claude Code           → claude install
+#   5] MCP 缓存              → 刷新 npx 缓存
+#   6] systemd 服务          → 重建 + 重启 [option]
+#   7] OfficeCLI            → GitHub Release [option]
+#   8] Skills 同步           → skill + ccprivate [option]
+#   9] Cloudflare 插件       → claude plugin [option]
 #
 # 使用：
 #   bash ccconfig/update.sh               # 交互式菜单（支持多选，如 "1 3 4"）
@@ -154,6 +154,7 @@ self_update() {
         update_files=$(git -C "$CCCONFIG_ROOT" diff --name-only "$local_commit..$after" 2>/dev/null || echo "")
         if echo "$update_files" | grep -qE "update.sh|lib/path-helper.sh|conf/versions.json"; then
             warn "关键文件已更新，重新加载..."
+            release_lock
             exec bash "$SCRIPT_DIR/update.sh" "${1:-menu}"
         fi
         return 0
@@ -937,7 +938,7 @@ show_menu() {
     echo ""
     echo -e "${CYAN}━━━ ccconfig 组件升级 $today ━━━${NC}"
     echo ""
-    echo "   1) Node.js + lark-cli + pip 包"
+    echo "   1) Node.js + pip 包"
     echo "   2) lark-cli"
     echo "   3) GitHub CLI"
     echo "   4) Claude Code"
@@ -969,7 +970,7 @@ show_menu() {
     local did_something=0
     for sel in $choice; do
         case "$sel" in
-            1)  update_nodejs; update_npm_globals; update_python_packages; fix_systemd_services; did_something=1 ;;
+            1)  update_nodejs; update_python_packages; fix_systemd_services; did_something=1 ;;
             2)  update_npm_globals; did_something=1 ;;
             3)  update_gh; did_something=1 ;;
             4)  update_claude; did_something=1 ;;
