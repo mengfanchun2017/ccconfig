@@ -730,10 +730,11 @@ case "${1:-menu}" in
     test|bootstrap|regression)
         shift; bash "$CCCONFIG_DIR/bin/test-bootstrap.sh" "$@" ;;
     feishu)
-        shift
-        case "${1:-test}" in
-            test) bash "$LIB_DIR/test-feishu.sh" "$@" ;;
-            *) echo "用法: bash maintain.sh feishu [test]" ;;
-        esac ;;
+        local ccbridge_test="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/tests/test-feishu.sh"
+        if [ -f "$ccbridge_test" ]; then
+            bash "$ccbridge_test" "$@"
+        else
+            info "ccbridge 未安装，测试跳过（git clone ~/git/ccbridge）"
+        fi ;;
     *)  echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|example|setup|upgrade-ccprivate|token|pat|mcp|llmswitch|llm|test|menu]"; exit 1 ;;
 esac
