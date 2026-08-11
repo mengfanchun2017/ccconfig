@@ -37,7 +37,7 @@ bash init-base.sh all
 2. 检测 git（必须已装）
 3. 装 GitHub CLI (gh)，apt 优先，二进制兜底
 4. gh auth 登录（双选项菜单）
-   - A) Fine-grained PAT 粘贴（推荐）— Contents R/W + Metadata R，90 天过期，仅存本地
+   - A) Fine-grained PAT 粘贴（推荐）— Contents R/W + Metadata R + SSH Keys R/W，No expiration，仅存本地
    - B) Web OAuth — 浏览器授权，有过期时间
 5. 配置 git 用户身份（从 gh api 拿）和 credential helper
 6. 输出下一步命令
@@ -313,7 +313,8 @@ gh --version
 
 ## 阶段 3 — GitHub 认证
 
-> **核心思路**：一个 fine-grained PAT 覆盖所有场景（gh API + git 传输），SSH key 是可选加速。
+> **核心思路**：一个 fine-grained PAT 覆盖所有场景（gh API + git 传输 + SSH key 添加）。
+> SSH key 用于 git 传输加速（push 2-3s vs 5-15s），PAT 自动配 SSH key 到 GitHub 无需手动操作。
 > 阶段 3a 必做，3b 视情况，3c 续期流程记住即可。
 
 ### 3a. Fine-grained PAT（必做，主路径）
@@ -334,16 +335,19 @@ bash bootstrap-gh-auth.sh
    | 字段 | 值 |
    |------|-----|
    | Token name | `ccconfig-push` |
-   | Expiration | `90 days` |
+   | Expiration | `No expiration` 或 `90 days` |
    | Resource owner | 你的 GitHub 用户名 |
    | Repository access | `All repositories` |
    | Repository permissions → Contents | `Read and write` |
    | Repository permissions → Metadata | `Read-only`（默认勾选） |
-   | Account permissions | 全部 `No access` |
+   | Account permissions → SSH Keys | `Read and write` |
 
 3. 生成后复制 token string（一次性显示，关闭页面就看不到）
 4. 粘到 bootstrap-gh-auth.sh 的 prompt
 
+> **为什么需要 SSH Keys Read and write？**
+> `bootstrap-gh-auth.sh` 自动生成 SSH key 并通过 gh API 注册到 GitHub，后续 git 操作走 SSH 协议（国内环境 HTTPS 443 端口被 GFW 阻隔）。
+>
 > **为什么不选 classic PAT 的 `repo` scope？**
 > classic `repo` scope 等同所有私有仓全权，泄露影响范围大。fine-grained 限定到具体仓库 + 具体权限，更安全。
 > 建仓已改为手动（`init-ccprivate-repo.sh` 引导网页建仓），不需要 classic 的 repo 创建能力。

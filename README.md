@@ -183,6 +183,9 @@ ccconfig/
 │   ├── path-helper.sh        # 路径解析 + 版本文件读写
 │   ├── colors.sh              # 颜色变量
 │   ├── dry-run.sh             # 预览模式
+│   ├── interact.sh           # 统一交互菜单库（confirm/menu_select/prompt）
+│   ├── install-inotify.sh    # inotify-tools 安装
+│   ├── mcp-manager.sh        # MCP 配置管理器
 │   ├── json-validate.sh      # JSON Schema 校验
 │   ├── shell_init.sh         # Shell 环境初始化片段
 │   └── claude-auto-sync.service # systemd service 模板（被 init-autostart.sh 使用）

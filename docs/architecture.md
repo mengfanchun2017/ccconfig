@@ -104,7 +104,11 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │   │   ├── setup-links.sh      # 公开部分符号链接
 │   │   ├── deps-check.sh       # 依赖完整性检查
 │   │   ├── path-helper.sh      # 动态路径解析库
-│   │   └── colors.sh           # 终端颜色定义
+│   │   ├── colors.sh           # 终端颜色定义
+│   │   ├── interact.sh         # 统一交互菜单库
+│   │   ├── install-inotify.sh  # inotify-tools 安装
+│   │   ├── mcp-manager.sh      # MCP 配置管理器
+│   │   └── shell_init.sh       # Shell 环境初始化片段
 │   ├── templates/              # .example 模板目录（运行时在 ccprivate）
 │   │   ├── rules/              # 条件规则模板（9 个，.md.example）
 │   │   ├── agents/             # 意图路由 agent 模板（.md.example）
@@ -137,7 +141,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 阶段 0: Windows 前置（WSL2 + Ubuntu 26.04 LTS + PowerShell 7）
 阶段 1: OS 基础（apt update + git/curl/wget）
 阶段 2: gh CLI（GitHub 命令行）
-阶段 3: SSH Key + GitHub 认证
+阶段 3: GitHub 认证（Fine-grained PAT 主路径 → 自动配 SSH key）
 阶段 4: 克隆三仓库 + init-ccprivate-repo.sh
 阶段 5: init-base.sh all（Ubuntu + LLM + MCP）
 阶段 6: 克隆所有项目
@@ -271,6 +275,8 @@ option-larkcli/     飞书 lark-cli（编辑文档/日历/任务）
 option-officecli/   OfficeCLI（PPT/Office 原生 OpenXML 工具）
 option-cloudflare/  Cloudflare Workers/Pages/D1/R2/AI 开发环境
 option-remote/      Tailscale + SSH 远程访问桌面 tmux session
+option-getnote/     得到大脑 MCP 笔记集成
+option-usage/       Token 用量归档 + 配额监控
 ```
 
 每个组件含 `init.sh`（安装）和 `init.sh --status`（状态检查）。`maintain.sh status` 自动发现所有 `option-*/` 并报告状态。

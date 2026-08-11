@@ -36,7 +36,7 @@ ccprivate/                         ccconfig/
 │   ├── llm.json        ──symlink──→ llm.json       (API Key)
 │   ├── claude.json     ──symlink──→ claude.json    (MCP env)
 │   ├── feishu.json     ──symlink──→ feishu.json    (飞书 App ID/Secret)
-│   ├── ubuntu.json     ──symlink──→ ubuntu.json    (Git 用户信息)
+│   ├── ubuntu.json     ──symlink──→ ubuntu.json    (Git 用户信息，v3+ 不再需要，gh api 自动获取)
 │   ├── flogme.json    ──symlink──→ flogme.json   (飞书 Base token)
 │   ├── ffeishu.json    ──symlink──→ ffeishu.json   (飞书 wiki node)
 │   └── ...
@@ -160,24 +160,10 @@ cp ~/git/ccconfig/conf/claude.json.example ~/git/ccprivate/conf/claude.json
 - `MINIMAX_API_KEY` — MiniMax API Key（和 llm.json 用的是同一个）
 - Supabase 相关（可选）
 
-### 3.3 conf/ubuntu.json — Git 用户信息
+### 3.3 conf/ubuntu.json — Git 用户信息（已废弃）
 
-```bash
-cp ~/git/ccconfig/conf/ubuntu.json.example ~/git/ccprivate/conf/ubuntu.json
-```
-
-编辑填入：
-
-```json
-{
-    "git": {
-        "repo": "你的GitHub用户名/ccconfig",
-        "target_dir": "$HOME/git/ccconfig",
-        "email": "you@example.com",
-        "username": "你的GitHub用户名"
-    }
-}
-```
+> **v3+ 不再需要**。Git 用户信息改为从 `git config --global` + `gh api user` 自动获取。
+> `ubuntu.json` 模板保留兼容，新机器无需创建此文件。
 
 ### 3.4 其他 conf（按需）
 
