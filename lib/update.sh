@@ -934,37 +934,40 @@ update_all() {
 show_menu() {
     local today
     today=$(date +%Y-%m)
-
-    # 构造菜单项（menu_select 自动渲染）
-    # menu_select 自动加 "1) 2) 3)"，传入纯文本
-    local menu_items=(
-        "Node.js + lark-cli + pip 包"
-        "lark-cli"
-        "GitHub CLI"
-        "Claude Code"
-        "MCP 缓存刷新"
-        "systemd 服务重建"
-        "OfficeCLI"
-        "Skills 同步"
-        "Cloudflare 插件"
-        "退出"
-    )
+    echo ""
+    echo -e "${CYAN}━━━ ccconfig 组件升级 $today ━━━${NC}"
+    echo ""
+    echo "   1) Node.js + lark-cli + pip 包"
+    echo "   2) lark-cli"
+    echo "   3) GitHub CLI"
+    echo "   4) Claude Code"
+    echo "   5) MCP 缓存刷新"
+    echo "   6) systemd 服务重建"
+    echo "   7) OfficeCLI"
+    echo "   8) Skills 同步"
+    echo "   9) Cloudflare 插件"
+    echo "   0) 退出"
     echo ""
     echo -e "   ${YELLOW}all${NC} = 升级基础+扩展（不含可选）"
+    echo -e "   ${YELLOW}1 3 4${NC} = 多选（如升级 1、3、4 项）"
     echo ""
 
     local choice
-    choice=$(menu_select "ccconfig 组件升级 $today" "${menu_items[@]}")
+    read -p "  选择 [0-9]: " choice </dev/tty || true
     [[ -z "$choice" ]] && { show_menu; return; }
 
-    # 支持输入 all（menu_select 只返回数字）
-    local sel_candidates=("$choice")
-    if [[ "$choice" == "10" ]]; then
-        return  # 退出
+    if [[ "$choice" == "0" ]]; then
+        return
+    fi
+    if [[ "$choice" == "all" ]]; then
+        take_snapshot "pre" > /dev/null
+        update_all false
+        show_menu
+        return
     fi
 
     local did_something=0
-    for sel in "${sel_candidates[@]}"; do
+    for sel in $choice; do
         case "$sel" in
             1)  update_nodejs; update_npm_globals; update_python_packages; fix_systemd_services; did_something=1 ;;
             2)  update_npm_globals; did_something=1 ;;
@@ -975,12 +978,10 @@ show_menu() {
             7)  update_officecli; did_something=1 ;;
             8)  update_skills; did_something=1 ;;
             9)  update_cloudflare_plugin; did_something=1 ;;
+            *)  echo "无效: $sel" ;;
         esac
     done
 
-    if [ $did_something -eq 0 ]; then
-        echo "无效选择: $choice"
-    fi
     show_menu
 }
 
