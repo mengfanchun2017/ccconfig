@@ -95,7 +95,6 @@ snapshot = {
         'gh':        {'version': get_ver('gh --version')},
         'claude':    {'version': get_ver('claude --version')},
         'lark_cli':  {'version': get_ver('lark-cli version')},
-        'lark_channel_bridge': {'version': get_ver('lark-channel-bridge --version')},
     }
 }
 
@@ -428,17 +427,6 @@ rebuild_larkcli_symlink() {
     fi
 }
 
-# 升级 lark-channel-bridge（委托 ccbridge/init.sh --update）
-# 旧逻辑 (rebuild_larkbridge_symlink + _list_larkbridge_services) 已迁至 ccbridge
-update_lark_channel_bridge() {
-    section "ccbridge (飞书 bridge)"
-    local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
-    if [ -f "$ccbridge_init" ]; then
-        bash "$ccbridge_init" --update
-    else
-        info "ccbridge 未安装，跳过（git clone ~/git/ccbridge）"
-    fi
-}
 
 # ========== 版本比较 ==========
 # 比较两个语义版本，返回 0 如果 v1 >= v2
@@ -712,7 +700,6 @@ get_live_version() {
     case "$comp" in
         node)       node --version 2>/dev/null | tr -d 'v' || echo "?" ;;
         lark-cli)   lark-cli --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
-        lark-channel-bridge) lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
         gh)         gh --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "?" ;;
         claude)     claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
         *)          echo "?" ;;
@@ -814,12 +801,6 @@ do_dry_run() {
     lark_target=$(npm view @larksuite/cli version 2>/dev/null || echo "?")
     check_component "lark-cli" "$lark_current" "$lark_target"
 
-    # lark-channel-bridge
-    local lcb_current lcb_target
-    lcb_current=$(get_live_version "lark-channel-bridge")
-    lcb_target=$(npm view lark-channel-bridge version 2>/dev/null || echo "?")
-    check_component "lark-channel-bridge" "$lcb_current" "$lcb_target"
-
     # gh
     local gh_current gh_target
     gh_current=$(get_live_version "gh")
@@ -889,7 +870,6 @@ update_all() {
 
     run_step "node"     "Node.js"           update_nodejs
     run_step "lark-cli" "lark-cli (npm)"    update_npm_globals
-    run_step "lark-channel-bridge" "ccbridge (飞书 bridge)" update_lark_channel_bridge
     run_step ""         "Python pip 包"     update_python_packages
     run_step ""         "Skills 同步"       update_skills
     if [ "$include_option" = "true" ]; then
