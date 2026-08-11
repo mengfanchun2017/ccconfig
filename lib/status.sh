@@ -488,7 +488,8 @@ check_option_components() {
     local groups=(
         "--os--|bat glow nano"
         "--claude--|mcp skill"
-        "--lark--|larkcli larkbridge"
+        "--lark--|larkcli ccbridge"
+        "--other--|officecli remote cloudflare"
         "--other--|officecli remote cloudflare"
         "--key--|feishu_key"
     )
@@ -502,7 +503,7 @@ check_option_components() {
         for name in $group_items; do
             # 检测是否存在
             case "$name" in
-                mcp|feishu_key) ;;
+                mcp|feishu_key|ccbridge) ;;
                 bat|glow|nano) ;;
                 *) [ -d "$REPO_DIR/option-$name" ] || continue ;;
             esac
@@ -516,6 +517,25 @@ check_option_components() {
                     [ "$count" -gt 0 ] && { icon="ok"; detail="$count 个 MCP 服务器"; } || { icon="miss"; detail="MCP 未配置（bash lib/init-mcp.sh sync）"; }
                 else
                     icon="miss"; detail="claude.json 未找到"
+                fi
+            elif [ "$name" = "ccbridge" ]; then
+                local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
+                if [ -f "$ccbridge_init" ]; then
+                    local jout; jout=$(bash "$ccbridge_init" --status --json 2>/dev/null) || true
+                    if [ -n "$jout" ]; then
+                        local installed=$(echo "$jout" | python3 -c "import json,sys; print(json.load(sys.stdin).get('installed',False))" 2>/dev/null || echo "False")
+                        local v=$(echo "$jout" | python3 -c "import json,sys; print(json.load(sys.stdin).get('version',''))" 2>/dev/null || echo "?")
+                        local pc=$(echo "$jout" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('profiles',[])))" 2>/dev/null || echo "0")
+                        if [ "$installed" = "True" ]; then
+                            icon="ok"; detail="[$v] $pc profile(s)"
+                        else
+                            icon="warn"; detail="[$v] 未启动"
+                        fi
+                    else
+                        icon="?"; detail="ccbridge 已安装"
+                    fi
+                else
+                    icon="miss"; detail="ccbridge 未安装（git clone ~/git/ccbridge）"
                 fi
             elif [ "$name" = "feishu_key" ]; then
                 local feishu_conf

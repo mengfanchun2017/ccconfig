@@ -434,18 +434,22 @@ install_option() {
     # option-* 目录
     if has_init_script "$name"; then
         if [ "$name" = "larkbridge" ] && [ ${#@} -eq 0 ]; then
-            # 先显示状态
+            local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
+            if [ ! -f "$ccbridge_init" ]; then
+                warn "ccbridge 未安装（git clone ~/git/ccbridge）"
+                return 1
+            fi
             echo ""
-            bash "$SCRIPT_DIR/option-$name/init.sh" --status 2>&1 | grep -v '^$'
+            bash "$ccbridge_init" --status 2>&1 | grep -v '^$'
             echo ""
             local lb_sub; lb_sub=$(menu_select "larkbridge" \
                 "1) 前台启动" "2) 后台启动" "3) 停止" "4) 看日志" "0) 返回")
             [[ -z "$lb_sub" ]] && return 0
             case "${lb_sub:0:1}" in
-                1) bash "$SCRIPT_DIR/option-$name/init.sh" --run ;;
-                2) bash "$SCRIPT_DIR/option-$name/init.sh" --bg ;;
-                3) bash "$SCRIPT_DIR/option-$name/init.sh" --stop ;;
-                4) bash "$SCRIPT_DIR/option-$name/init.sh" --logs ;;
+                1) bash "$ccbridge_init" --run ;;
+                2) bash "$ccbridge_init" --bg ;;
+                3) bash "$ccbridge_init" --stop ;;
+                4) bash "$ccbridge_init" --logs ;;
                 *) return 0 ;;
             esac
             return $?
@@ -668,7 +672,7 @@ print(f'✅ 已添加 {name}（larkbridge={"开" if lb == "true" else "关"}）'
 PYEOF
     if [ "$new_lb" = true ]; then
         echo ""
-        info "  下一步建 bridge profile: bash ccconfig/option-larkbridge/init.sh --run"
+        info "  下一步建 bridge profile: bash ~/git/ccbridge/init.sh --run"
         info "  （选单的「ccprivate 配置」段会出现 ${new_name}，选它即自动建 profile）"
     fi
 }

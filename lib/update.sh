@@ -11,7 +11,7 @@
 #   [4] uv             → curl | sh
 #   [5] MCP 缓存        → 刷新 npx/uvx 缓存
 #   [6] lark-cli        → npm install -g @larksuite/cli
-#   [7] lark-channel-bridge → 停所有 profile 后 npm install -g lark-channel-bridge 再重启
+#   [7] ccbridge → bash ~/git/ccbridge/init.sh --update
 #   [8] systemd 服务    → 重建 + 重启 [option]
 #   [9] OfficeCLI      → GitHub Release [option]
 #   [10] Skills 同步     → skill + ccprivate [option]
@@ -458,64 +458,14 @@ _list_larkbridge_services() {
 #   4. 升级前已 enable 的 service 全部 restart
 #   5. 失败回滚到升级前版本
 update_lark_channel_bridge() {
-    section "lark-channel-bridge (飞书 bridge)"
-
-    if ! command -v lark-channel-bridge &>/dev/null; then
-        info "lark-channel-bridge 未安装，跳过（如需安装: npm install -g lark-channel-bridge）"
-        return 0
-    fi
-
-    local before latest after
-    before=$(lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
-    info "当前版本: $before"
-
-    latest=$(npm view lark-channel-bridge version 2>/dev/null || echo "")
-    if [ -z "$latest" ]; then
-        warn "无法从 npm registry 获取最新版本，跳过"
-        return 0
-    fi
-    info "npm latest: $latest"
-
-    if [ "$before" = "$latest" ]; then
-        success "lark-channel-bridge 已是最新: $latest"
-        rebuild_larkbridge_symlink
-        return 0
-    fi
-
-    # 收集升级前已 enable 的 services，升级后按原样恢复
-    local -a services
-    mapfile -t services < <(_list_larkbridge_services)
-
-    info "升级前停 service: ${#services[@]} 个"
-    for svc in "${services[@]}"; do
-        local prof="${svc#lark-channel-bridge@}"
-        prof="${prof%.service}"
-        run systemctl --user stop "$svc" 2>/dev/null || true
-        info "  停 $prof"
-    done
-
-    if ! npm install -g "lark-channel-bridge@latest" 2>&1 | tail -3; then
-        warn "npm install 失败，回滚到 $before"
-        npm install -g "lark-channel-bridge@$before" 2>&1 | tail -1 || true
-        rebuild_larkbridge_symlink
-        return 1
-    fi
-
-    rebuild_larkbridge_symlink
-
-    after=$(lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
-    if [ "$before" != "$after" ]; then
-        success "lark-channel-bridge: $before → $after"
+    section "ccbridge (飞书 bridge)"
+    local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
+    if [ -f "$ccbridge_init" ]; then
+        bash "$ccbridge_init" --update
     else
-        success "lark-channel-bridge 已是最新: $after"
+        info "ccbridge 未安装，跳过（git clone ~/git/ccbridge）"
     fi
-
-    # 重启所有原 enable 的 service
-    info "重启 service: ${#services[@]} 个"
-    for svc in "${services[@]}"; do
-        local prof="${svc#lark-channel-bridge@}"
-        prof="${prof%.service}"
-        run systemctl --user restart "$svc" 2>/dev/null \
+}
             && info "  重启 $prof" \
             || warn "  重启 $prof 失败"
     done
@@ -1016,7 +966,7 @@ update_all() {
 
     run_step "node"     "Node.js"           update_nodejs
     run_step "lark-cli" "lark-cli (npm)"    update_npm_globals
-    run_step "lark-channel-bridge" "lark-channel-bridge (npm)" update_lark_channel_bridge
+    run_step "ccbridge" "ccbridge (飞书 bridge)" update_lark_channel_bridge
     run_step ""         "Python pip 包"     update_python_packages
     run_step ""         "Skills 同步"       update_skills
     if [ "$include_option" = "true" ]; then
@@ -1149,6 +1099,8 @@ show_menu() {
             1)  update_nodejs; update_npm_globals; update_python_packages; fix_systemd_services; did_something=1 ;;
             2)  update_npm_globals; did_something=1 ;;
             3)  update_lark_channel_bridge; did_something=1 ;;
+    lark-channel-bridge|ccbridge) update_lark_channel_bridge ;;
+}
             4)  update_gh; did_something=1 ;;
             5)  update_claude; did_something=1 ;;
             6)  update_uv; did_something=1 ;;
@@ -1202,7 +1154,7 @@ case "${1:-menu}" in
     uv)            update_uv ;;
     mcp)           update_mcp ;;
     lark|lark-cli) update_npm_globals ;;
-    larkbridge|lark-channel-bridge) update_lark_channel_bridge ;;
+    larkbridge|lark-channel-bridge|ccbridge) update_lark_channel_bridge ;;
     services)      fix_systemd_services ;;
     officecli)     update_officecli ;;
     skills)        update_skills ;;
