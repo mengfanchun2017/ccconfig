@@ -418,53 +418,6 @@ PYEOF
     echo "$input_oid"
 }
 
-# 选 app，直接用活跃 profile 的 allowedUsers[0] 作为收件人
-# （用户多次反馈「ailab 已经有了自己的 open_id」，不再让用户输入）
-    [ -n "$oid" ] || { warn "取消（未设置收件人）"; return 0; }
-
-    local msg_text="ccconfig 飞书测试消息 ✅ from $target"
-    echo ""
-    info "  → 目标 app: $target"
-    info "  → 收件人: $oid"
-    info "  → 内容: $msg_text"
-    echo ""
-    confirm "发送？" y >&2 || { info "取消" >&2; return 0; }
-
-    info "  拿 tenant_access_token..." >&2
-    local token
-    token=$(curl -s --connect-timeout 5 --max-time 10 -X POST \
-        "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
-        -H "Content-Type: application/json" \
-        -d "{\"app_id\":\"$app_id\",\"app_secret\":\"$app_secret\"}" \
-        | python3 -c "import json,sys; print(json.load(sys.stdin).get('tenant_access_token',''))" 2>/dev/null)
-    [ -z "$token" ] && { warn "  拿 access_token 失败（appId/appSecret 不对？）"; return 0; }
-
-    info "  发消息..." >&2
-    local body
-    body=$(python3 -c "
-import json, sys
-print(json.dumps({'receive_id': sys.argv[1], 'msg_type':'text', 'content': json.dumps({'text': sys.argv[2]})}, ensure_ascii=False))
-" "$oid" "$msg_text")
-    local resp
-    resp=$(curl -s --connect-timeout 5 --max-time 15 -X POST \
-        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id" \
-        -H "Authorization: Bearer $token" \
-        -H "Content-Type: application/json" \
-        -d "$body" 2>/dev/null)
-    local code msg_id
-    code=$(echo "$resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('code',-1))" 2>/dev/null)
-    msg_id=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('data',{}).get('message_id',''))" 2>/dev/null)
-    if [ "$code" = "0" ]; then
-        good "  ✅ 已发送（message_id: ${msg_id:-?}）"
-        info "  在飞书查收"
-    else
-        warn "  发送失败:"
-        local err_msg; err_msg=$(echo "$resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('msg',''))" 2>/dev/null || echo "")
-        [ -n "$err_msg" ] && echo "    $err_msg"
-        info "  常见原因: app 未开通 im:message 权限，或收件人 open_id 不对"
-    fi
-}
-
 submenu_feishu_accounts() {
     local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
     local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
