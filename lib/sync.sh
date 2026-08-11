@@ -593,8 +593,9 @@ git_conflict_menu() {
     local conflict_items=("远程覆盖本地" "本地覆盖远程")
     $with_rebase && conflict_items+=("Rebase（推荐）")
     conflict_items+=("取消")
+    local cancel_idx=${#conflict_items[@]}  # 取消的序号（末项）
     choice=$(menu_select "冲突处理" "${conflict_items[@]}")
-    [[ -z "$choice" ]] && { echo -e "  ${YELLOW}已取消${NC}"; return 1; }
+    [[ -z "$choice" || "$choice" == "$cancel_idx" ]] && { echo -e "  ${YELLOW}已取消${NC}"; return 1; }
     case "$choice" in
         1)  # 远程覆盖本地
             echo ""
@@ -612,14 +613,13 @@ git_conflict_menu() {
             show_changed_since "$before" "$(git -C "$repo_dir" rev-parse --short HEAD)" "$repo_dir"
             echo -e "  ${GREEN}✅ 本地已与远程一致${NC}"; return 0
             ;;
-        "2")  # 本地覆盖远程
+        2)  # 本地覆盖远程
             echo ""
             echo -e "${CYAN}  🔃 本地 → 远程${NC}"
             git -C "$repo_dir" push --force origin "$branch"
             echo -e "  ${GREEN}✅ 远程已强制覆盖${NC}"; return 0
             ;;
-        "3")  # Rebase
-            if ! $with_rebase; then return 1; fi
+        3)  # Rebase — 仅 $with_rebase=true 时才出现
             echo ""
             echo -e "${CYAN}  🔃 Rebase: 本地提交重放到远程之上${NC}"
             if ! git -C "$repo_dir" diff --quiet 2>/dev/null || ! git -C "$repo_dir" diff --cached --quiet 2>/dev/null; then
@@ -638,9 +638,6 @@ git_conflict_menu() {
                 echo -e "  ${GREEN}✅ 已推送至 GitHub${NC}" ||
                 echo -e "  ${YELLOW}⚠️ 推送失败，请手动推送${NC}"
             return 0
-            ;;
-        4|*)
-            echo -e "  ${YELLOW}已取消${NC}"; return 1
             ;;
     esac
 }
