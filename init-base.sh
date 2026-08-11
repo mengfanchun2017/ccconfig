@@ -61,7 +61,7 @@ init_all_steps() {
     fi
 
     # 配置预检：缺失的配置从 .example 复制（全自动，不交互）
-    local configs=("ubuntu.json" "llm.json" "claude.json")
+    local configs=("llm.json" "mcp-servers.json")
     local missing_configs=()
     for name in "${configs[@]}"; do
         if [[ -f "$ccpriv/conf/$name" ]]; then
@@ -84,26 +84,6 @@ init_all_steps() {
         done
         echo ""
 
-        # Git 信息：从 git config 自动读
-        local git_user git_email
-        git_user="$(git config --global user.name 2>/dev/null || echo '')"
-        git_email="$(git config --global user.email 2>/dev/null || echo '')"
-        if [[ -n "$git_user" ]] || [[ -n "$git_email" ]]; then
-            python3 - "$ccpriv/conf/ubuntu.json" "$git_user" "$git_email" << 'PYEOF'
-import json, sys
-with open(sys.argv[1], 'r') as f:
-    d = json.load(f)
-if sys.argv[2]:
-    d.setdefault('git', {})['username'] = sys.argv[2]
-if sys.argv[3]:
-    d.setdefault('git', {})['email'] = sys.argv[3]
-with open(sys.argv[1], 'w') as f:
-    json.dump(d, f, indent=2, ensure_ascii=False)
-PYEOF
-            echo -e "  ${GREEN}✅${NC} Git 信息已从 git config 写入 ccprivate/conf/ubuntu.json"
-        fi
-
-        echo ""
         echo -e "  ${GRAY}📝 配置文件已创建，请手动编辑填入 API Key：${NC}"
         for name in "${missing_configs[@]}"; do
             echo "     vim $ccpriv/conf/$name"

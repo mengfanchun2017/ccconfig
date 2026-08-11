@@ -20,8 +20,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$CCCONFIG_DIR/lib/path-helper.sh"
 source "$CCCONFIG_DIR/lib/dry-run.sh"
-CONF_FILE="$(resolve_conf claude.json)" || exit 1
-RUNTIME_JSON="$HOME/.claude.json"
+CONF_FILE="$(resolve_conf getnote-accounts.json)" || exit 1
+RUNTIME_JSON="$HOME/.claude/settings.json"
 MARKER_FILE="$HOME/.getnote-account"
 
 source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
@@ -30,7 +30,7 @@ source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
 }
 
 # ── 解析所有 getnote 账号 ──
-# 优先 getnote_accounts[]，否则从 mcp_servers[getnote].env 推断一个 fallback 账号
+# 数据源: ccprivate/conf/getnote-accounts.json
 parse_accounts() {
     python3 - "$CONF_FILE" << 'PYEOF'
 import json, sys
@@ -44,29 +44,9 @@ except Exception as e:
 accounts = data.get('getnote_accounts')
 default_name = data.get('getnote_default', '')
 
-if not accounts:
-    # Fallback: 从 mcp_servers[getnote].env 推断一个账号
-    for s in data.get('mcp_servers', []):
-        if s.get('name') == 'getnote':
-            env = s.get('env', {})
-            ak = env.get('GETNOTE_API_KEY', '')
-            cid = env.get('GETNOTE_CLIENT_ID', '')
-            if ak and '请' not in ak and '<your' not in ak:
-                # 单 entry inline → 包装为 accounts[]
-                accounts = [{
-                    'name': default_name or 'default',
-                    'description': s.get('description', '默认账号（mcp_servers[getnote].env）'),
-                    'api_key': ak,
-                    'client_id': cid,
-                    'enabled': True,
-                    'source': 'inline',
-                }]
-                default_name = default_name or 'default'
-            break
-
 print(json.dumps({
     'accounts': accounts or [],
-    'default': default_name,
+    'default': default_name or '',
 }, ensure_ascii=False))
 PYEOF
 }

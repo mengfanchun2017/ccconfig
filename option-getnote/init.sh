@@ -1,6 +1,6 @@
 #!/bin/bash
 # option-getnote/init.sh — 引导添加/删除 getnote 账号
-# 数据写 ccprivate/conf/claude.json (getnote_accounts[] + getnote_default)
+# 数据写 ccprivate/conf/getnote-accounts.json
 #
 # 使用：
 #   bash init.sh                  # 交互菜单
@@ -20,7 +20,7 @@ source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
 }
 source "$CCCONFIG_DIR/lib/interact.sh"
 
-CONF_FILE="$(resolve_conf claude.json)" || exit 1
+CONF_FILE="$(resolve_conf getnote-accounts.json)" || exit 1
 
 # ── 添加账号 ──
 do_add() {
@@ -73,14 +73,6 @@ d['getnote_accounts'].append({
 })
 if as_default == 'true' or not d.get('getnote_default'):
     d['getnote_default'] = name
-
-# 同时把 inline env 占位符更新（向后兼容 — 让 init-mcp.sh keys 检测到不需要重填）
-for s in d.get('mcp_servers', []):
-    if s.get('name') == 'getnote':
-        s.setdefault('env', {})
-        s['env']['GETNOTE_API_KEY'] = api_key
-        s['env']['GETNOTE_CLIENT_ID'] = client_id
-        break
 
 tmp = real + '.tmp'
 with open(tmp, 'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
