@@ -8,14 +8,12 @@
 #   [1] 基础组件        → Node.js 最新 LTS + pip 包
 #   [2] GitHub CLI      → GitHub Release
 #   [3] Claude Code     → claude install
-#   [4] uv             → curl | sh
-#   [5] MCP 缓存        → 刷新 npx/uvx 缓存
-#   [6] lark-cli        → npm install -g @larksuite/cli
-#   [7] ccbridge → 委托 ~/git/ccbridge/init.sh --update
-#   [8] systemd 服务    → 重建 + 重启 [option]
-#   [9] OfficeCLI      → GitHub Release [option]
-#   [10] Skills 同步     → skill + ccprivate [option]
-#   [11] Cloudflare 插件 → claude plugin [option]
+#   [4] MCP 缓存        → 刷新 npx 缓存
+#   [5] lark-cli        → npm install -g @larksuite/cli
+#   [6] systemd 服务    → 重建 + 重启 [option]
+#   [7] OfficeCLI      → GitHub Release [option]
+#   [8] Skills 同步     → skill + ccprivate [option]
+#   [9] Cloudflare 插件 → claude plugin [option]
 #
 # 使用：
 #   bash ccconfig/update.sh               # 交互式菜单（支持多选，如 "1 3 4"）
@@ -96,7 +94,6 @@ snapshot = {
         'npm':       {'version': get_ver('npm --version')},
         'gh':        {'version': get_ver('gh --version')},
         'claude':    {'version': get_ver('claude --version')},
-        'uv':        {'version': get_ver('uv --version')},
         'lark_cli':  {'version': get_ver('lark-cli version')},
         'lark_channel_bridge': {'version': get_ver('lark-channel-bridge --version')},
     }
@@ -622,46 +619,6 @@ update_claude() {
     install_claude_via_npm "$before"
 }
 
-# ========== 7. uv ==========
-
-update_uv() {
-    section "uv"
-
-    if command -v uv &>/dev/null; then
-        local before
-        before=$(uv --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
-        info "当前版本: $before"
-
-        # 30 天内已检查过则跳过（uv 更新不频繁）
-        local uv_stamp="$HOME/.local/state/uv-update-stamp"
-        if [ -f "$uv_stamp" ] && [ "$(find "$uv_stamp" -mmin -43200 2>/dev/null)" ]; then
-            info "30 天内已检查过 uv 更新，跳过（删除 $uv_stamp 强制刷新）"
-            return 0
-        fi
-    else
-        info "uv 未安装，正在安装..."
-    fi
-
-    if curl --connect-timeout 10 --max-time 30 -LsSf -o /tmp/uv-install.sh https://astral.sh/uv/install.sh; then
-        bash /tmp/uv-install.sh 2>&1 | tail -3
-        rm -f /tmp/uv-install.sh
-    else
-        rm -f /tmp/uv-install.sh
-        warn "uv 安装脚本下载失败"
-        return 1
-    fi
-
-    local after
-    after=$(uv --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
-    if command -v uv &>/dev/null; then
-        mkdir -p "$HOME/.local/state"
-        touch "$HOME/.local/state/uv-update-stamp"
-        success "uv 已更新: $after"
-    else
-        warn "uv 更新失败"
-        return 1
-    fi
-}
 
 # ========== 8. MCP 缓存刷新 ==========
 
@@ -758,7 +715,6 @@ get_live_version() {
         lark-channel-bridge) lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
         gh)         gh --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "?" ;;
         claude)     claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
-        uv)         uv --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?" ;;
         *)          echo "?" ;;
     esac
 }
@@ -877,11 +833,6 @@ do_dry_run() {
     claude_target=$(npm view "$npm_pkg" version 2>/dev/null || echo "?")
     check_component "Claude Code" "$claude_current" "$claude_target"
 
-    # uv
-    local uv_current uv_target
-    uv_current=$(get_live_version "uv")
-    uv_target=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/astral-sh/uv/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "?")
-    check_component "uv" "$uv_current" "$uv_target"
 
     # Python pip
     if command -v pip3 &>/dev/null; then
@@ -911,7 +862,7 @@ update_all() {
 
     # 收集升级前版本
     declare -A before_ver after_ver
-    local components=( "node" "lark-cli" "lark-channel-bridge" "gh" "claude" "uv" )
+    local components=( "node" "lark-cli" "gh" "claude" )
     for c in "${components[@]}"; do
         before_ver[$c]=$(get_live_version "$c")
     done
@@ -947,7 +898,6 @@ update_all() {
     fi
     run_step "gh"       "GitHub CLI"        update_gh
     run_step "claude"   "Claude Code"       update_claude
-    run_step "uv"       "uv"                update_uv
     run_step ""         "MCP 缓存"          update_mcp
     if [ "$include_option" = "true" ]; then
         run_step ""         "systemd 服务"      fix_systemd_services
@@ -963,8 +913,8 @@ update_all() {
 
     # 版本对比：只显示有变化的组件
     local changed=0
-    local labels=( "node" "lark-cli" "lark-channel-bridge" "gh" "claude" "uv" )
-    local names=( "Node.js" "lark-cli" "lark-channel-bridge" "GitHub CLI" "Claude Code" "uv" )
+    local labels=( "node" "lark-cli" "gh" "claude" )
+    local names=( "Node.js" "lark-cli" "GitHub CLI" "Claude Code" )
     for i in "${!labels[@]}"; do
         local key="${labels[$i]}"
         local b="${before_ver[$key]:-?}"
@@ -1121,7 +1071,6 @@ case "${1:-menu}" in
     python)        update_python_packages ;;
     gh)            update_gh ;;
     claude)        update_claude ;;
-    uv)            update_uv ;;
     mcp)           update_mcp ;;
     lark|lark-cli) update_npm_globals ;;
     larkbridge|lark-channel-bridge|ccbridge) update_lark_channel_bridge ;;
@@ -1135,7 +1084,7 @@ case "${1:-menu}" in
     --dry-run|--check|check)
         do_dry_run ;;
     *)
-        echo "用法: $0 [all|node|npm|python|gh|claude|uv|mcp|lark|larkbridge|services|menu]"
+        echo "用法: $0 [all|node|npm|python|gh|claude|mcp|lark|services|menu]"
         exit 1
         ;;
 esac
