@@ -34,16 +34,16 @@ source "$SCRIPT_DIR/lib/interact.sh"
 
 # 内置 CLI 描述
 declare -A CLI_DESC
-CLI_DESC["bat"]="bat 是 cat 替代，语法高亮+行号"
+CLI_DESC["bat"]="bat 是 cat 替代，语法高亮+行号（命令: batcat）"
 CLI_DESC["glow"]="终端 Markdown 渲染阅读"
-CLI_DESC["nano"]="终端文本编辑器，简单直观"
+# nano: Ubuntu 26 自带，仅展示提示不出现在安装列表
 
 # Option 描述
 
 # ── 分组列表 ──
 # 格式: "group_title|item1 item2 ..."
 MENU_GROUPS=(
-    "--os--|bat glow nano"
+    "--os--|bat glow"
     "--claude--|mcp skill"
     "--lark--|larkcli"
     "--other--|officecli remote cloudflare usage"
