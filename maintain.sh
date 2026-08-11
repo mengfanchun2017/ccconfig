@@ -349,41 +349,6 @@ submenu_feishu_larkcli() {
     esac
 }
 
-submenu_feishu_larkbridge() {
-    local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
-    if [ ! -f "$ccbridge_init" ]; then
-        warn "ccbridge 未安装（git clone ~/git/ccbridge）"
-        return 1
-    fi
-
-    echo ""
-    bash "$ccbridge_init" --status 2>&1 | grep -v '^$'
-    echo ""
-    local sub; sub=$(menu_select "larkbridge" \
-        "前台启动" \
-        "后台启动" \
-        "停止" \
-        "重启" \
-        "看日志" \
-        "日志目录" \
-        "新增 profile" \
-        "删除" \
-        "设为默认" \
-        "返回")
-    case "$sub" in
-        1) bash "$ccbridge_init" --run ;;
-        2) bash "$ccbridge_init" --bg ;;
-        3) bash "$ccbridge_init" --stop ;;
-        4) bash "$ccbridge_init" --restart ;;
-        5) bash "$ccbridge_init" --logs ;;
-        6) info "日志目录: $HOME/.lark-channel/profiles/"; ls -lt "$HOME/.lark-channel/profiles/"*/logs/*.jsonl 2>/dev/null || warn "暂无" ;;
-        7) bash "$ccbridge_init" --profile add ;;
-        8) bash "$ccbridge_init" --profile remove ;;
-        9) bash "$ccbridge_init" --profile default ;;
-        10) return 0 ;;
-        *) return 0 ;;
-    esac
-}
 
 # 从活跃 profile 读第一个允许用户的 open_id 作为默认收件人
 _feishu_default_openid() {
@@ -455,66 +420,6 @@ PYEOF
 
 # 选 app，直接用活跃 profile 的 allowedUsers[0] 作为收件人
 # （用户多次反馈「ailab 已经有了自己的 open_id」，不再让用户输入）
-_feishu_send_test_message() {
-    # 发消息前先确认 larkbridge 在运行
-    local lb_running=false
-    if command -v lark-channel-bridge &>/dev/null; then
-        if systemctl --user is-active lark-channel-bridge.service &>/dev/null 2>&1 || pgrep -f "lark-channel-bridge" &>/dev/null; then
-            lb_running=true
-        fi
-    fi
-    $lb_running || warn "  larkbridge 未运行，消息可能收不到（先启动再试）"
-
-    local conf; conf="$(resolve_conf feishu.json 2>/dev/null)" || { warn "找不到 feishu.json"; return 0; }
-    [ -f "$conf" ] || { warn "feishu.json 不存在"; return 0; }
-
-    local -a names
-    local i=1
-    echo ""
-    echo -e "${CYAN}── 发测试消息 ──${NC}"
-    echo ""
-    while IFS= read -r line; do
-        [ -z "$line" ] && continue
-        local n; n=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
-        [ -z "$n" ] && continue
-        printf "  ${YELLOW}%d)${NC} %s\n" "$i" "$n"
-        names+=("$n")
-        i=$((i + 1))
-    done < <(_feishu_list_apps)
-
-    if [ ${#names[@]} -eq 0 ]; then
-        warn "feishu.json 中无 app 配置"
-        return 0
-    fi
-    sel=$(menu_select "选择 app" \
- "${names[@]}")
-    [[ -z "$sel" ]] && return 0
-    local target="$sel"
-
-    local app_json
-    app_json=$(python3 - "$conf" "$target" << 'PYEOF' 2>/dev/null
-import json, sys
-p, name = sys.argv[1], sys.argv[2]
-with open(p) as f: d = json.load(f)
-for a in d.get('apps', []):
-    if a.get('name') == name:
-        print(json.dumps(a, ensure_ascii=False))
-        break
-PYEOF
-)
-    [ -z "$app_json" ] && { bad "找不到 app: $target"; return 0; }
-    local app_id; app_id=$(echo "$app_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['appId'])" 2>/dev/null)
-    local app_secret; app_secret=$(echo "$app_json" | python3 -c "import json,sys; print(json.load(sys.stdin)['appSecret'])" 2>/dev/null)
-
-    if [[ "$app_id" == *"请填入"* ]] || [[ "$app_secret" == *"请填入"* ]] || [ -z "$app_id" ] || [ -z "$app_secret" ]; then
-        warn "appId/appSecret 未配置，先去选项 1 编辑"
-        return 0
-    fi
-
-    # 直接读默认收件人，没有就引导用户输一次后自动注入
-    local oid rc
-    oid="$(_feishu_resolve_recipient "$target")"; rc=$?
-    [ "$rc" -ne 0 ] && { warn "取消（未设置收件人）"; return 0; }
     [ -n "$oid" ] || { warn "取消（未设置收件人）"; return 0; }
 
     local msg_text="ccconfig 飞书测试消息 ✅ from $target"

@@ -11,7 +11,7 @@
 #   [4] uv             → curl | sh
 #   [5] MCP 缓存        → 刷新 npx/uvx 缓存
 #   [6] lark-cli        → npm install -g @larksuite/cli
-#   [7] ccbridge → bash ~/git/ccbridge/init.sh --update
+#   [7] ccbridge → 委托 ~/git/ccbridge/init.sh --update
 #   [8] systemd 服务    → 重建 + 重启 [option]
 #   [9] OfficeCLI      → GitHub Release [option]
 #   [10] Skills 同步     → skill + ccprivate [option]
