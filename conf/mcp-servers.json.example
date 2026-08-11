@@ -1,0 +1,65 @@
+{
+  "description": "MCP 配置 — 整合 MCP 服务器列表和 env 配置",
+  "_note": "MCP Key 为占位符，运行 bash ccconfig/lib/init-mcp.sh keys 交互式填写",
+  "env": {
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  },
+  "settings": {
+    "default_action": "sync",
+    "auto_config_keys": true
+  },
+  "mcp_servers": [
+    {
+      "name": "tavily",
+      "description": "Web 搜索（英文）",
+      "how_to_get": "去 https://tavily.com 注册，免费额度 1000 次/月",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "tavily-mcp"],
+      "timeout": 30,
+      "env": {
+        "TAVILY_API_KEY": "请到 https://tavily.com 注册获取 API Key"
+      }
+    },
+    {
+      "name": "exa",
+      "description": "Exa AI - 语义搜索和网页内容提取",
+      "how_to_get": "去 https://dashboard.exa.ai/api-keys 注册获取 API Key",
+      "type": "http",
+      "url": "https://mcp.exa.ai/mcp",
+      "headers": {
+        "x-api-key": "请填入你的 Exa API Key"
+      }
+    },
+    {
+      "name": "supabase",
+      "description": "Supabase 数据库",
+      "disabled": true,
+      "how_to_get": "去 https://supabase.com 创建项目 → Project Settings 获取 project-ref 和 access-token",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase",
+        "--project-ref", "请填入你的 Supabase project ref",
+        "--access-token", "请填入你的 Supabase access token"
+      ],
+      "env": {}
+    },
+    {
+      "name": "getnote",
+      "description": "得到大脑(Get笔记) - 笔记 CRUD、语义搜索、知识库管理",
+      "how_to_get": "打开 https://www.biji.com/openapi → 创建应用 → 获取 API Key(gk_live_xxx) 和 Client ID(cli_xxx)",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@getnote/mcp"],
+      "env": {
+        "GETNOTE_API_KEY": "请到 https://www.biji.com/openapi 获取 API Key（格式：gk_live_xxx）",
+        "GETNOTE_CLIENT_ID": "请到 https://www.biji.com/openapi 获取 Client ID（格式：cli_xxx）"
+      }
+    }
+  ],
+  "_getnote_accounts_note": "getnote 多账号（可选）。如配置此项，sync 时以 getnote_accounts[getnote_default] 为权威 env 覆盖上面 inline env。命令行: bash ccconfig/option-getnote/{init,getnote-switch}.sh",
+  "getnote_accounts": [],
+  "getnote_default": ""
+}

@@ -13,9 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/path-helper.sh"
-MCP_CONF_FILE="$(resolve_conf claude.json)" || exit 1
-source "$SCRIPT_DIR/json-validate.sh"
-try_assert_json "$MCP_CONF_FILE" mcp 2>/dev/null || { echo "❌ conf/claude.json schema 校验失败" >&2; exit 1; }
+MCP_CONF_FILE="$(resolve_conf mcp-servers.json)" || exit 1
 source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
@@ -167,7 +165,7 @@ for k,v in d.items():
             configure_mcp_env "$name" "$env_str" >/dev/null 2>&1 || true
         fi
     done <<< "$(read_mcp_list)"
-    sync_to_settings "$HOME/.claude.json" >/dev/null 2>&1 && good "  ~/.claude.json 已同步" || warn "  ~/.claude.json 同步失败"
+    sync_to_settings "$HOME/.claude/settings.json" >/dev/null 2>&1 && good "  settings.json 已同步" || warn "  settings.json 同步失败"
     do_status
     echo -e "  ${GRAY}配置 Key: bash lib/init-mcp.sh keys  管理: maintain.sh mcp config${NC}"
     echo ""
@@ -176,18 +174,26 @@ for k,v in d.items():
 # ── 同步到 settings.json ──
 sync_to_settings() {
     local settings_file="$1"
-    python3 - "$HOME/.claude.json" "$MCP_CONF_FILE" "$settings_file" << 'PYEOF'
+    python3 - "$MCP_CONF_FILE" "$settings_file" << 'PYEOF'
 import json, sys, os
-claude_json, conf_json, settings_file = sys.argv[1], sys.argv[2], sys.argv[3]
-try:
-    with open(claude_json) as f: claude_data = json.load(f)
-except: claude_data = {}
+conf_json, settings_file = sys.argv[1], sys.argv[2]
 with open(conf_json) as f: conf_data = json.load(f)
 try:
     with open(settings_file) as f: settings_data = json.load(f)
 except: settings_data = {}
 
 ccpriv_dir = os.path.dirname(conf_json)
+
+# getnote 多账号从独立文件读取
+getnote_path = os.path.join(ccpriv_dir, 'getnote-accounts.json')
+if os.path.exists(getnote_path):
+    try:
+        with open(getnote_path) as gf: gd = json.load(gf)
+        conf_data['getnote_accounts'] = gd.get('getnote_accounts', [])
+        conf_data['getnote_default'] = gd.get('getnote_default', '')
+    except: pass
+
+# supabase 等外部 token 从独立文件读取
 ccpriv_bridge = {}
 for server in conf_data.get('mcp_servers', []):
     sname = server.get('name', '')
@@ -243,11 +249,7 @@ if 'projects' not in settings_data: settings_data['projects'] = {}
 for proj_path in list(settings_data['projects'].keys()):
     if disabled_names: settings_data['projects'][proj_path]['disabledMcpServers'] = disabled_names
     elif 'disabledMcpServers' in settings_data['projects'][proj_path]: del settings_data['projects'][proj_path]['disabledMcpServers']
-if 'hooks' in claude_data:
-    merged = settings_data.get('hooks', {})
-    for ht, hl in claude_data['hooks'].items():
-        if ht not in merged or not merged[ht]: merged[ht] = hl
-    settings_data['hooks'] = merged
+# hooks 由 settings.json 独立管理（claude.json 已移除）
 for k, v in conf_data.get('env', {}).items():
     settings_data.setdefault('env', {})
     if k not in settings_data['env']: settings_data['env'][k] = v
@@ -264,9 +266,8 @@ PYEOF
 
 configure_mcp_env() {
     local name="$1" env_json="$2"
-    local config_file="$HOME/.claude/.config.json"
     local c_env_str="$env_json"
-    # 写 ~/.claude.json
+    # 写 settings.json（运行时 MCP env）
     python3 -c "
 import json, sys, os
 path, name, env_str = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -278,22 +279,7 @@ if env and name in data.get('mcpServers', {}):
     tmp = real + '.tmp'
     with open(tmp, 'w') as f: json.dump(data, f, indent=2)
     os.replace(tmp, real)
-" "$HOME/.claude.json" "$name" "$c_env_str" 2>/dev/null || true
-    # 同步 ~/.claude/.config.json（运行时 MCP env）
-    if [[ -f "$config_file" ]]; then
-        python3 -c "
-import json, sys, os
-path, name, env_str = sys.argv[1], sys.argv[2], sys.argv[3]
-with open(path) as f: data = json.load(f)
-env = json.loads(env_str) if env_str and env_str != '{}' else {}
-if env and name in data.get('mcpServers', {}):
-    data['mcpServers'][name]['env'] = env
-    real = os.path.realpath(path)
-    tmp = real + '.tmp'
-    with open(tmp, 'w') as f: json.dump(data, f, indent=2)
-    os.replace(tmp, real)
-" "$config_file" "$name" "$c_env_str" 2>/dev/null || true
-    fi
+" "$HOME/.claude/settings.json" "$name" "$c_env_str" 2>/dev/null || true
 }
 
 # ── 交互填 Key ──
@@ -427,7 +413,7 @@ do_toggle() {
             echo -e "  $name: $s (conf)"
             local reg="${GRAY}未注册${NC}"
             claude mcp list 2>/dev/null | grep -q "^${name}:" && reg="${GREEN}已注册${NC}"
-            echo -e "  $name: $reg (~/.claude.json)"
+            echo -e "  $name: $reg (settings.json)"
             ;;
         on)
             python3 -c "
@@ -512,7 +498,7 @@ do_menu() {
 if ! command -v claude &>/dev/null; then
     if [[ "${1:-}" == "sync" ]]; then
         warn "claude 未安装，仅同步配置文件"
-        sync_to_settings "$HOME/.claude.json" >/dev/null 2>&1 && good "  ~/.claude.json 已同步"
+        sync_to_settings "$HOME/.claude/settings.json" >/dev/null 2>&1 && good "  settings.json 已同步"
         exit 0
     fi
 fi
