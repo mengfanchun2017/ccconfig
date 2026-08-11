@@ -98,8 +98,6 @@ flowchart TB
   subgraph optDir["option-*/ — 可选组件"]
     optLarkcli["option-larkcli/
     飞书 CLI"]
-    optLarkbridge["option-larkbridge/
-    飞书 Bridge"]
     optOfficecli["option-officecli/
     Office 工具"]
     optCloudflare["option-cloudflare/
@@ -201,7 +199,6 @@ ccconfig/
 │   └── settings.json.example # Claude Code 配置模板
 │
 ├── option-larkcli/           # 可选：飞书 lark-cli
-├── option-larkbridge/        # 可选：飞书 ↔ CC 双向通信 Bridge
 ├── option-officecli/         # 可选：Office CLI（PPT/docx/xlsx）
 ├── option-cloudflare/        # 可选：Cloudflare 开发环境
 ├── option-remote/            # 可选：Tailscale + SSH 远程
@@ -275,8 +272,8 @@ bash lib/init-llm.sh gateway      # 切到网关（自动装启 option-llmswitch
 --lark--
  4) larkcli     ✓ lark-cli v1.0.79
                   飞书 CLI：编辑文档/Base/日历/任务
- 5) larkbridge  ✓ lark-channel-bridge 0.6.4
-                  飞书 ↔ Claude Code 双向通信 Bridge
+ 5) ccbridge    ✓ lark-channel-bridge 0.6.4
+                  飞书 ↔ Claude Code 双向通信（独立仓 ccbridge）
 
 --other--
  6) officecli    ✓ OfficeCLI 已安装

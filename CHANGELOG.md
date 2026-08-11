@@ -6,6 +6,7 @@ All notable changes to ccconfig will be documented in this file.
 
 ### Removed
 - **`windows-tools/`** — 已拆出到独立仓库 [fancypowershell](https://github.com/mengfanchun2017/fancypowershell)。当前仅 `psupdate/` 一项，git rm 后内容无丢失
+- **`option-larkbridge/`** + **`lib/feishu-perms.sh`** + **`lib/test-feishu.sh`** — 已整体迁出到独立仓库 [ccbridge](https://github.com/mengfanchun2017/ccbridge)。ccconfig 端改为调 `${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh`
 
 ### Fixed
 - **`mcp-manager.sh` 硬编码用户路径** — 4 处 `/home/francis/git/` → `${HOME}/git/` + `os.path.expanduser('~/git/')`，跨用户移植性

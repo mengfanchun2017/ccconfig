@@ -8,7 +8,7 @@
     "   bash ccconfig/option-larkcli/init.sh",
     "",
     "2. 初始化 Bridge（飞书↔Claude Code 双向通信）：",
-    "   lark-channel-bridge: bash ccconfig/option-larkbridge/init.sh --run",
+    "   lark-channel-bridge: bash ~/git/ccbridge/init.sh --run",
     "",
     "3. 切换 lark-cli 账号（当前 session）：",
     "   bash ccconfig/option-larkcli/lark-switch.sh <name>",
