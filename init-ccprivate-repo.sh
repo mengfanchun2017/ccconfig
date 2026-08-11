@@ -187,9 +187,9 @@ check_gh_auth() {
     echo -e "     - 浏览器授权，首次配置最简单"
     echo -e "     - Token 有有效期，过期后需重新 ${YELLOW}gh auth login${NC}"
     echo ""
-    login_method=$(menu_select "认证方式" "A) PAT 粘贴" "B) Web OAuth")
-    case "${login_method^^}" in
-        B|2)
+    login_method=$(menu_select "认证方式" "PAT 粘贴" "Web OAuth")
+    case "$login_method" in
+        2)
             gh auth login --web --git-protocol https --hostname github.com
             ;;
         *)
