@@ -347,33 +347,32 @@ print('\t'.join([
             names+=("$name")
             i=$((i + 1))
         done
-        local sel; sel=$(menu_select "选择 app" "${names[@]}" "a) 添加新 app" "0) 返回")
+        local sel; sel=$(menu_select "选择 app" "${names[@]}" "添加新 app" "返回")
         [[ -z "$sel" ]] && continue
-        case "${sel:0:1}" in
-            0) return 0 ;;
-            a|A) _feishu_add_app "$conf"; continue ;;
-        esac
+        local names_count=${#names[@]}
+        if [[ "$sel" == "$((names_count + 2))" ]]; then  # 返回
+            return 0
+        elif [[ "$sel" == "$((names_count + 1))" ]]; then  # 添加新 app
+            _feishu_add_app "$conf"; continue
+        fi
 
         local target_name=""
-        for ((ni=0; ni<${#names[@]}; ni++)); do
-            [[ "${names[$ni]}" == "$sel" ]] && { target_name="$sel"; break; }
-        done
+        [[ "$sel" =~ ^[0-9]+$ ]] && [ "$sel" -ge 1 ] && [ "$sel" -le "$names_count" ]] && target_name="${names[$((sel-1))]}"
         [[ -z "$target_name" ]] && continue
 
-        # app 二级菜单
+        # app 二级菜单（纯文本，menu_select 自动编号）
         local sub; sub=$(menu_select "应用: $target_name" \
-            "1) 编辑 App ID/Secret" \
-            "2) 切换账号" \
-            "3) OAuth 授权" \
-            "4) 查看授权" \
-            "d) 删除" \
-            "0) 返回")
+            "编辑 App ID/Secret" \
+            "切换账号" \
+            "OAuth 授权" \
+            "查看授权" \
+            "删除" \
+            "返回")
         [[ -z "$sub" ]] && continue
 
-        case "${sub:0:1}" in
-            0) break ;;
-            1) _feishu_edit_key "$conf" "$target_name" ;;
-            2)
+        case "$sub" in
+            "1") _feishu_edit_key "$conf" "$target_name" ;;
+            "2")
                 echo ""
                 bash "$SCRIPT_DIR/option-larkcli/lark-switch.sh" "$target_name"
                 local cd="$HOME/.lark-cli-${target_name}"
@@ -386,15 +385,16 @@ print('\t'.join([
                     fi
                 fi
                 ;;
-            3)
+            "3")
                 local cd="$HOME/.lark-cli-${target_name}"
                 [ -f "${cd}/config.json" ] && LARKSUITE_CLI_CONFIG_DIR="$cd" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1 || warn "先编辑 App ID/Secret"
                 ;;
-            4)
+            "4")
                 local cd="$HOME/.lark-cli-${target_name}"
                 [ -f "${cd}/config.json" ] && LARKSUITE_CLI_CONFIG_DIR="$cd" lark-cli auth status 2>&1 | grep -v "^\[lark-cli\]" | sed 's/^/  /' || warn "config.json 不存在"
                 ;;
-            d|D) _feishu_delete_app "$conf" "$target_name" ;;
+            "5") _feishu_delete_app "$conf" "$target_name" ;;
+            *) break ;;
         esac
         echo ""
     done
@@ -425,15 +425,15 @@ install_option() {
           echo "    2) 卸载 timer"
           echo "    3) 配置 (feishu_url / schedule / include_today)"
           local sub; sub=$(menu_select "usage 管理" \
-            "1) 安装 timer" "2) 卸载 timer" "3) 配置" "4) 状态" "5) 手动触发" "0) 返回")
+            "安装 timer" "卸载 timer" "配置" "状态" "手动触发" "返回")
           [[ -z "$sub" ]] && continue
-          case "${sub:0:1}" in
-            1) bash "$SCRIPT_DIR/option-usage/init.sh" install ;;
-            2) bash "$SCRIPT_DIR/option-usage/init.sh" uninstall ;;
-            3) bash "$SCRIPT_DIR/option-usage/init.sh" config ;;
-            4) bash "$SCRIPT_DIR/option-usage/init.sh" status ;;
-            5) bash "$SCRIPT_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
-            0) break ;;
+          case "$sub" in
+            "1") bash "$SCRIPT_DIR/option-usage/init.sh" install ;;
+            "2") bash "$SCRIPT_DIR/option-usage/init.sh" uninstall ;;
+            "3") bash "$SCRIPT_DIR/option-usage/init.sh" config ;;
+            "4") bash "$SCRIPT_DIR/option-usage/init.sh" status ;;
+            "5") bash "$SCRIPT_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
+            "6") break ;;
           esac
           echo ""
           read -p "按回车继续..." dummy < /dev/tty || true
@@ -454,13 +454,13 @@ install_option() {
             bash "$ccbridge_init" --status 2>&1 | grep -v '^$'
             echo ""
             local lb_sub; lb_sub=$(menu_select "larkbridge" \
-                "1) 前台启动" "2) 后台启动" "3) 停止" "4) 看日志" "0) 返回")
+                "前台启动" "后台启动" "停止" "看日志" "返回")
             [[ -z "$lb_sub" ]] && return 0
-            case "${lb_sub:0:1}" in
-                1) bash "$ccbridge_init" --run ;;
-                2) bash "$ccbridge_init" --bg ;;
-                3) bash "$ccbridge_init" --stop ;;
-                4) bash "$ccbridge_init" --logs ;;
+            case "$lb_sub" in
+                "1") bash "$ccbridge_init" --run ;;
+                "2") bash "$ccbridge_init" --bg ;;
+                "3") bash "$ccbridge_init" --stop ;;
+                "4") bash "$ccbridge_init" --logs ;;
                 *) return 0 ;;
             esac
             return $?
