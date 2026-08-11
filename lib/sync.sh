@@ -296,9 +296,13 @@ menu_mode() {
     choice=$(menu_select "多仓库同步" "${menu_items[@]}")
     [[ -z "$choice" ]] && continue
 
-    case "${choice:0:1}" in
+    local repo_count="${#names[@]}"
+    local all_idx=$((repo_count + 1))        # "★ 全部同步" 选项序号
+    local check_idx=$((repo_count + 2))       # "ccconfig 完整检查" 选项序号
+
+    case "$choice" in
         0) break ;;
-        ★)  # 全部同步
+        $all_idx)  # 全部同步
             echo ""
             echo -e "${CYAN}── 全部仓库同步 ──${NC}"
             local all_ok=true
@@ -312,7 +316,7 @@ menu_mode() {
             do_cconfig_post
             $all_ok && echo -e "${GREEN}✅ 全部同步完成${NC}" || echo -e "${YELLOW}⚠️ 部分失败${NC}"
             ;;
-        c)  # ccconfig 完整检查
+        $check_idx)  # ccconfig 完整检查
             check_mode ;;
         *)
             # 找到了仓库索引
