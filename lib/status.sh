@@ -335,7 +335,7 @@ check_mcp() {
 
     # ── getnote 多账号检查 ──
     local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
-    local conf="$ccpriv/conf/claude.json"
+    local conf="$ccpriv/conf/mcp-servers.json"
     if [ -f "$conf" ]; then
         local multi
         multi=$(python3 - "$conf" << 'PYEOF'
@@ -515,7 +515,7 @@ check_option_components() {
                     local count=$(python3 -c "import json; d=json.load(open('$claude_json')); print(len(d.get('mcpServers',{})))" 2>/dev/null || echo "0")
                     [ "$count" -gt 0 ] && { icon="ok"; detail="$count 个 MCP 服务器"; } || { icon="miss"; detail="MCP 未配置（bash lib/init-mcp.sh sync）"; }
                 else
-                    icon="miss"; detail="claude.json 未找到"
+                    icon="miss"; detail="mcp-servers.json 未找到"
                 fi
             elif [ "$name" = "ccbridge" ]; then
                 local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
