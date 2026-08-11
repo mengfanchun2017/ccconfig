@@ -45,7 +45,7 @@ CLI_DESC["nano"]="终端文本编辑器，简单直观"
 MENU_GROUPS=(
     "--os--|bat glow nano"
     "--claude--|mcp skill"
-    "--lark--|larkcli larkbridge"
+    "--lark--|larkcli"
     "--other--|officecli remote cloudflare usage"
     "--auto--|llmswitch"
     "--key--|feishu_key"
@@ -431,14 +431,14 @@ install_option() {
       return 0
     fi
 
-    # option-* 目录
-    if has_init_script "$name"; then
-        if [ "$name" = "larkbridge" ] && [ ${#@} -eq 0 ]; then
-            local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
-            if [ ! -f "$ccbridge_init" ]; then
-                warn "ccbridge 未安装（git clone ~/git/ccbridge）"
-                return 1
-            fi
+    # option-* 目录 + ccbridge 兼容
+    if [ "$name" = "larkbridge" ]; then
+        local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
+        if [ ! -f "$ccbridge_init" ]; then
+            warn "ccbridge 未安装（git clone ~/git/ccbridge）"
+            return 1
+        fi
+        if [ ${#@} -eq 0 ]; then
             echo ""
             bash "$ccbridge_init" --status 2>&1 | grep -v '^$'
             echo ""
@@ -454,6 +454,11 @@ install_option() {
             esac
             return $?
         fi
+        bash "$ccbridge_init" "$@"
+        return $?
+    fi
+
+    if has_init_script "$name"; then
         # remote: 无参数默认执行 --run（一键安装）
         if [ "$name" = "remote" ] && [ ${#@} -eq 0 ]; then
             section "安装 remote"

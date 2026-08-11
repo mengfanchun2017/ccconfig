@@ -431,32 +431,8 @@ rebuild_larkcli_symlink() {
     fi
 }
 
-rebuild_larkbridge_symlink() {
-    local npm_root
-    npm_root=$(npm root -g 2>/dev/null || echo "")
-    [ -n "$npm_root" ] || return 0
-
-    local bridge_src="$npm_root/lark-channel-bridge/dist/cli.js"
-    [ -f "$bridge_src" ] || bridge_src=$(find "$npm_root/lark-channel-bridge" -maxdepth 3 -name '*.js' -path '*bin*' 2>/dev/null | head -1)
-    [ -n "$bridge_src" ] || return 0
-
-    run rm -f "$LOCAL_BIN/lark-channel-bridge"
-    run ln -sf "$bridge_src" "$LOCAL_BIN/lark-channel-bridge"
-    info "lark-channel-bridge 符号链接已更新"
-}
-
-# 列出 systemd 中所有 lark-channel-bridge@<profile> service
-_list_larkbridge_services() {
-    systemctl --user list-unit-files 'lark-channel-bridge@*.service' 2>/dev/null \
-        | awk 'NR>1 && $1 ~ /^lark-channel-bridge@/ {print $1}' || true
-}
-
-# 升级 lark-channel-bridge：
-#   1. 停所有 systemd profile（防止运行中进程占文件）
-#   2. npm install -g @latest
-#   3. 重建 ~/.local/bin 符号链接
-#   4. 升级前已 enable 的 service 全部 restart
-#   5. 失败回滚到升级前版本
+# 升级 lark-channel-bridge（委托 ccbridge/init.sh --update）
+# 旧逻辑 (rebuild_larkbridge_symlink + _list_larkbridge_services) 已迁至 ccbridge
 update_lark_channel_bridge() {
     section "ccbridge (飞书 bridge)"
     local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
@@ -962,7 +938,7 @@ update_all() {
 
     run_step "node"     "Node.js"           update_nodejs
     run_step "lark-cli" "lark-cli (npm)"    update_npm_globals
-    run_step "ccbridge" "ccbridge (飞书 bridge)" update_lark_channel_bridge
+    run_step "lark-channel-bridge" "ccbridge (飞书 bridge)" update_lark_channel_bridge
     run_step ""         "Python pip 包"     update_python_packages
     run_step ""         "Skills 同步"       update_skills
     if [ "$include_option" = "true" ]; then
