@@ -199,7 +199,7 @@ check_gh_auth() {
             echo ""
             echo "  按以下配置（其他默认）："
             echo "    ${YELLOW}Token name${NC}       : ccconfig-push"
-            echo "    ${YELLOW}Expiration${NC}       : 90 days"
+            echo "    ${YELLOW}Expiration${NC}       : No expiration 或 90 days（建议 No expiration 免续期）"
             echo "    ${YELLOW}Repository access${NC}: All repositories"
             echo "    ${YELLOW}Contents${NC}        : Read and write"
             echo "    ${YELLOW}Metadata${NC}        : Read-only（默认）"

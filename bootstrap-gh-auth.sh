@@ -170,7 +170,7 @@ else
             echo ""
             echo -e "  ${BOLD}按以下配置（其他默认）：${NC}"
             echo -e "    ${YELLOW}Token name${NC}       : ${BOLD}ccconfig-push${NC}"
-            echo -e "    ${YELLOW}Expiration${NC}       : ${BOLD}90 days${NC}（到期前 30 天可 Regenerate 续期）"
+            echo -e "    ${YELLOW}Expiration${NC}       : ${BOLD}No expiration${NC} 或 90 days（建议 No expiration 免续期）"
             echo -e "    ${YELLOW}Resource owner${NC}   : 你的 GitHub 用户名"
             echo -e "    ${YELLOW}Repository access${NC}: ${BOLD}All repositories${NC}（或 Public + 你需要的私有）"
             echo ""
