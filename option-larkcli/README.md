@@ -37,6 +37,6 @@ docs, docx, drive, base, bitable, calendar, contact, sheets, slides, task, wiki,
 ## 与 larkbridge 关系
 
 - `option-larkcli/` — user 身份，OAuth 手动授权（自己手动操作文档）
-- `option-larkbridge/` — tenant 身份，bot 收发消息（飞书↔Claude Code 通信）
+- [ccbridge](https://github.com/mengfanchun2017/ccbridge)（独立仓库） — tenant 身份，bot 收发消息（飞书↔Claude Code 通信）
 
 两者共用 `conf/feishu.json` 单一配置源，互不冲突。

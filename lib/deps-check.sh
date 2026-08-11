@@ -66,7 +66,7 @@ FEATURE_DEPS=(
 OPTIONAL_DEPS=(
     "lark-cli|lark-cli --version|lark-cli|飞书 CLI (option-larkcli)"
     "officecli|officecli --version 2>/dev/null|officecli|OfficeCLI (option-officecli)"
-    "lark-channel-bridge|lark-channel-bridge --version 2>/dev/null|lark-bridge|飞书 Bridge (option-larkbridge)"
+    "lark-channel-bridge|lark-channel-bridge --version 2>/dev/null|lark-bridge|飞书 Bridge (ccbridge)"
 )
 
 # Python 包

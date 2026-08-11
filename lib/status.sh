@@ -460,8 +460,8 @@ PYEOF
     else
         echo -e "${GRAY}－${NC} (未安装)"
     fi
-    echo -e "  ${GRAY}安装/启动: bash ccconfig/option-larkbridge/init.sh --run${NC}"
-    echo -e "  ${GRAY}后台服务: bash ccconfig/option-larkbridge/init.sh --start${NC}"
+    echo -e "  ${GRAY}安装/启动: bash ~/git/ccbridge/init.sh --run${NC}"
+    echo -e "  ${GRAY}后台服务: bash ~/git/ccbridge/init.sh --start${NC}"
 }
 
 # ========== 2. 依赖检查 ==========
@@ -489,7 +489,6 @@ check_option_components() {
         "--os--|bat glow nano"
         "--claude--|mcp skill"
         "--lark--|larkcli ccbridge"
-        "--other--|officecli remote cloudflare"
         "--other--|officecli remote cloudflare"
         "--key--|feishu_key"
     )
