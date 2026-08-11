@@ -13,11 +13,11 @@
     "3. 切换 lark-cli 账号（当前 session）：",
     "   bash ccconfig/option-larkcli/lark-switch.sh <name>",
     "",
-    "4. 一键开通 larkbridge 权限（浏览器跳转）：",
-    "   bash maintain.sh → 13 → 7"
+    "4. 一键开通飞书权限：",
+    "   bash maintain.sh → feishu → 飞书账号 → [app name] → OAuth"
   ],
   "_scopes": {
-    "_comment": "larkbridge 必备 tenant scopes（真相源：lib/feishu-perms.sh 的 _LCB_TENANT_SCOPES）。一键申请：bash maintain.sh → 13 → 7",
+    "_comment": "larkbridge 必备 tenant scopes。开通：bash ccconfig/option-larkcli/init.sh --auth-login <name> 时 --domain all 一次性弹出",
     "larkbridge": ["im:message","im:message:send","im:message:send_as_bot","im:message:send_multi_depts","im:message:send_multi_users","im:message:send_sys_msg","im:message.p2p_msg:readonly","im:message.reactions:write_only","im:chat:readonly","admin:app.info:readonly","application:application:self_manage","cardkit:card:write"],
     "larkCli": {
       "_note": "user 权限 — lark-cli OAuth 走 --domain all 时一次性弹出所有 scope 让用户同意，无需手动逐个开通",
