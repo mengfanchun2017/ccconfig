@@ -177,25 +177,27 @@ run_step() {
 submenu_env() {
     echo ""; section "环境初始化"
     local c; c=$(menu_select "选择" \
-        "1) Ubuntu 全环境初始化" "2) LLM 切换" "3) auto-sync" "4) ★ 一键全部" "0) 返回")
+        "Ubuntu 全环境初始化" "LLM 切换" "auto-sync" "★ 一键全部" "返回")
     [[ -z "$c" ]] && return
-    case "${c:0:1}" in
-        1) run_step "Ubuntu" "$SCRIPT_DIR/lib/init-ubuntu.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r < /dev/tty || true; exit 0 ;;
-        2) run_step "LLM" "$SCRIPT_DIR/lib/init-llm.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r < /dev/tty || true; exit 0 ;;
-        3) run_step "auto-sync" "$SCRIPT_DIR/lib/init-autostart.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r < /dev/tty || true; exit 0 ;;
-        4) init_all_steps; exit 0 ;;
+    case "$c" in
+        "1") run_step "Ubuntu" "$SCRIPT_DIR/lib/init-ubuntu.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r < /dev/tty || true; exit 0 ;;
+        "2") run_step "LLM" "$SCRIPT_DIR/lib/init-llm.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r < /dev/tty || true; exit 0 ;;
+        "3") run_step "auto-sync" "$SCRIPT_DIR/lib/init-autostart.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r < /dev/tty || true; exit 0 ;;
+        "4") init_all_steps; exit 0 ;;
+        *) return ;;
     esac
 }
 
 submenu_remote() {
     echo ""; section "远程连接"
     local c; c=$(menu_select "选择" \
-        "1) SSH Server + tmux" "2) 部署到 Windows" "3) 查看说明" "0) 返回")
+        "SSH Server + tmux" "部署到 Windows" "查看说明" "返回")
     [[ -z "$c" ]] && return
-    case "${c:0:1}" in
-        1) run_step "SSH Server" "$SCRIPT_DIR/option-remote/server/tmux-sshd.sh" false ;;
-        2) bash "$SCRIPT_DIR/option-remote/deploy.sh" server ;;
-        3) cat "$SCRIPT_DIR/option-remote/readme.md" 2>/dev/null || warn "readme.md 不存在" ;;
+    case "$c" in
+        "1") run_step "SSH Server" "$SCRIPT_DIR/option-remote/server/tmux-sshd.sh" false ;;
+        "2") bash "$SCRIPT_DIR/option-remote/deploy.sh" server ;;
+        "3") cat "$SCRIPT_DIR/option-remote/readme.md" 2>/dev/null || warn "readme.md 不存在" ;;
+        *) return ;;
     esac
 }
 
@@ -204,13 +206,13 @@ main_menu() {
     show_banner
     check_prereqs
     local choice; choice=$(menu_select "ccconfig 初始化" \
-        "1) Ubuntu 环境/LLM/自启动" \
-        "2) 远程连接/SSH/tmux" \
-        "3) ★ 一键全部初始化" \
-        "4) 可选组件(MCP/Skills/CLI)" \
-        "0) 退出")
+        "Ubuntu 环境/LLM/自启动" \
+        "远程连接/SSH/tmux" \
+        "★ 一键全部初始化" \
+        "可选组件(MCP/Skills/CLI)" \
+        "退出")
     [[ -z "$choice" ]] && { main_menu; return; }
-    case "${choice:0:1}" in
+    case "$choice" in
         1) submenu_env ;;
         2) submenu_remote ;;
         3) init_all_steps; exit 0 ;;
