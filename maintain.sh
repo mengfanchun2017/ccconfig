@@ -302,44 +302,17 @@ _feishu_current_profile() {
         && python3 -c "import json; print(json.load(open('$HOME/.lark-channel/config.json')).get('activeProfile',''))" 2>/dev/null
 }
 
-# larkbridge 必备权限清单 + 一键申请 URL（共享自 lib/feishu-perms.sh）
-source "$LIB_DIR/feishu-perms.sh" 2>/dev/null || true
-
-_feishu_perms_menu() {
-    local apps; apps="$(_feishu_list_apps)"
-    local i=1
-    local labels=()
-    echo ""
-    echo -e "${CYAN}── 申请 larkbridge 权限 ──${NC}"
-    echo ""
-    while IFS= read -r line; do
-        [ -z "$line" ] && continue
-        local n lb
-        n=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['name'])" 2>/dev/null)
-        lb=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('larkbridge',{}).get('enabled',False))" 2>/dev/null)
-        if [ "$lb" = "True" ]; then
-            echo "  $i) $n"
-            labels+=("$n")
-            i=$((i+1))
-        fi
-    done < <(echo "$apps")
-    if [ ${#labels[@]} -eq 0 ]; then
-        warn "没有启用 larkbridge 的 app"
-        return 0
-    fi
-    pc=$(menu_select "选择 app" "${labels[@]}" "返回")
-    [[ "$pc" == "0" || -z "$pc" ]] && return 0
-    local app="${labels[$((pc-1))]}"
-    _feishu_open_perms_for_app "$app"
-}
+# larkbridge 必备权限清单 + 一键申请 URL（共享自 ccbridge）
+CCBRIDGE_PERMS="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/feishu-perms.sh"
+[ -f "$CCBRIDGE_PERMS" ] && source "$CCBRIDGE_PERMS" 2>/dev/null || true
 
 submenu_feishu() {
-    local feishu_lb="$CCCONFIG_DIR/option-larkbridge/init.sh"
+    local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
     local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
     local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
 
-    local lcb_ver; lcb_ver=$(lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
-    local lcc_ver; lcc_ver=$(lark-cli --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' || echo "?")
+    local lcb_ver="?"; command -v lark-channel-bridge &>/dev/null && lcb_ver=$(lark-channel-bridge --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+    local lcc_ver="?"; command -v lark-cli &>/dev/null && lcc_ver=$(lark-cli --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' || echo "?")
     local cur_acct; cur_acct="$(_feishu_current_account)"
     local cur_prof; cur_prof="$(_feishu_current_profile)"
 
@@ -367,23 +340,39 @@ submenu_feishu() {
             echo ""
             if ! command -v lark-cli &>/dev/null; then
                 info "lark-cli 未安装，正在装..."
-                bash "$CCCONFIG_DIR/option-larkcli/init.sh"
+                bash "$feishu_lc"
             else
                 bash "$LIB_DIR/update.sh" lark
             fi
             ;;
         6)
             echo ""
-            if ! command -v lark-channel-bridge &>/dev/null; then
+            if [ ! -f "$ccbridge_init" ]; then
+                info "ccbridge 未安装，正在装..."
+                info "请先: git clone https://github.com/mengfanchun2017/ccbridge.git $HOME/git/ccbridge"
+            elif ! command -v lark-channel-bridge &>/dev/null; then
                 info "lark-channel-bridge 未安装，正在装..."
-                bash "$CCCONFIG_DIR/option-larkbridge/init.sh" --run 2>&1 | head -5 || true
+                bash "$ccbridge_init" --run 2>&1 | head -5 || true
                 info "（前台命令已退出，转后台请走 3) larkbridge）"
             else
-                bash "$LIB_DIR/update.sh" larkbridge
+                bash "$LIB_DIR/update.sh" ccbridge
             fi
             ;;
-        7) _feishu_perms_menu ;;
-        8) bash "$LIB_DIR/test-feishu.sh" ;;
+        7)
+            if [ -f "$ccbridge_init" ]; then
+                bash "$ccbridge_init" --apply-perms
+            else
+                warn "ccbridge 未安装"
+            fi
+            ;;
+        8)
+            local ccbridge_test="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/tests/test-feishu.sh"
+            if [ -f "$ccbridge_test" ]; then
+                bash "$ccbridge_test"
+            else
+                warn "ccbridge 测试脚本不存在"
+            fi
+            ;;
         9) return 0 ;;
         *) return 0 ;;
     esac
@@ -412,10 +401,14 @@ submenu_feishu_larkcli() {
 }
 
 submenu_feishu_larkbridge() {
-    local feishu_lb="$CCCONFIG_DIR/option-larkbridge/init.sh"
+    local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
+    if [ ! -f "$ccbridge_init" ]; then
+        warn "ccbridge 未安装（git clone ~/git/ccbridge）"
+        return 1
+    fi
 
     echo ""
-    bash "$feishu_lb" --status 2>&1 | grep -v '^$'
+    bash "$ccbridge_init" --status 2>&1 | grep -v '^$'
     echo ""
     local sub; sub=$(menu_select "larkbridge" \
         "前台启动" \
@@ -429,15 +422,15 @@ submenu_feishu_larkbridge() {
         "设为默认" \
         "返回")
     case "$sub" in
-        1) bash "$feishu_lb" --run ;;
-        2) bash "$feishu_lb" --bg ;;
-        3) bash "$feishu_lb" --stop ;;
-        4) bash "$feishu_lb" --restart ;;
-        5) bash "$feishu_lb" --logs ;;
+        1) bash "$ccbridge_init" --run ;;
+        2) bash "$ccbridge_init" --bg ;;
+        3) bash "$ccbridge_init" --stop ;;
+        4) bash "$ccbridge_init" --restart ;;
+        5) bash "$ccbridge_init" --logs ;;
         6) info "日志目录: $HOME/.lark-channel/profiles/"; ls -lt "$HOME/.lark-channel/profiles/"*/logs/*.jsonl 2>/dev/null || warn "暂无" ;;
-        7) bash "$feishu_lb" --profile add ;;
-        8) bash "$feishu_lb" --profile remove ;;
-        9) bash "$feishu_lb" --profile default ;;
+        7) bash "$ccbridge_init" --profile add ;;
+        8) bash "$ccbridge_init" --profile remove ;;
+        9) bash "$ccbridge_init" --profile default ;;
         10) return 0 ;;
         *) return 0 ;;
     esac
