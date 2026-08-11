@@ -27,11 +27,8 @@ LOCAL_BIN="$HOME/.local/bin"
 source "$SCRIPT_DIR/path-helper.sh"
 source "$SCRIPT_DIR/dry-run.sh"
 
-CONFIG_FILE="$(resolve_conf ubuntu.json)" || exit 1
-
-# 检查配置文件（首次使用时从 .example 复制）
-# CONFIG_FILE resolved via resolve_conf() above
-# llm.json 由 init-llm.sh 管理，此处无需检查
+# ubuntu.json 已移除（git config + gh api 替代）
+# llm.json 由 init-llm.sh 管理
 
 # 颜色（colors.sh 可选 source，缺失时 fallback）
 source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
@@ -50,17 +47,13 @@ error() { echo -e "${RED}❌ $1${NC}"; }
 section() { echo -e "\n${CYAN}=== $1 ===${NC}"; }
 
 # ========== 读取 git 配置 ==========
+# 从 git config / gh api 读取（不再依赖 ubuntu.json）
 read_git_config() {
-    python3 - "$CONFIG_FILE" << 'PYEOF'
-import json, sys
-try:
-    with open(sys.argv[1], 'r') as f:
-        config = json.load(f)
-    git = config.get('git', {})
-    print(f"{git.get('repo', '')}|{git.get('target_dir', '')}|{git.get('email', '')}|{git.get('username', '')}")
-except:
-    print("|||")
-PYEOF
+    local email
+    email=$(git config --global user.email 2>/dev/null || echo "")
+    local username
+    username=$(gh api user --jq '.login' 2>/dev/null || echo "")
+    echo "|||${email}|${username}"  # 兼容原格式：repo|target_dir|email|username
 }
 
 # ========== 1. ccprivate 私有仓库 clone ==========
@@ -86,19 +79,11 @@ setup_ccprivate() {
         exit 1
     fi
 
-    # 从 conf/ubuntu.json 读 GitHub 用户名，推导 ccprivate 仓库名
     local REPO_USERNAME
-    REPO_USERNAME=$(python3 -c "
-import json, sys
-try:
-    with open('$CONFIG_FILE') as f:
-        d = json.load(f)
-    print(d.get('git', {}).get('username', ''))
-except: pass
-" 2>/dev/null)
-    local CCPRIVATE_REPO="${REPO_USERNAME:-$(gh api user --jq '.login' 2>/dev/null || echo '')}/ccprivate"
+    REPO_USERNAME=$(gh api user --jq '.login' 2>/dev/null || echo "")
+    local CCPRIVATE_REPO="${REPO_USERNAME}/ccprivate"
 
-    if [[ -z "${REPO_USERNAME:-}" ]] || [[ "$CCPRIVATE_REPO" == "/ccprivate" ]]; then
+    if [[ -z "$REPO_USERNAME" ]] || [[ "$CCPRIVATE_REPO" == "/ccprivate" ]]; then
         warn "无法确定 ccprivate 仓库名，跳过 clone"
         warn "  手动: gh repo clone <your-username>/ccprivate $CCPRIVATE_DIR"
         return 0
@@ -384,10 +369,6 @@ setup_ssh_github() {
     local KEY_NAME="id_ed25519"
     local GITHUB_EMAIL
     GITHUB_EMAIL=$(git config --global user.email 2>/dev/null || echo "")
-    if [[ -z "$GITHUB_EMAIL" ]]; then
-        local ubuntu_json="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/ubuntu.json"
-        GITHUB_EMAIL=$(python3 -c "import json; print(json.load(open('$ubuntu_json')).get('git',{}).get('email',''))" 2>/dev/null || echo "")
-    fi
     GITHUB_EMAIL="${GITHUB_EMAIL:-you@example.com}"
 
     mkdir -p "$SSH_DIR"
