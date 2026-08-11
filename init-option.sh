@@ -220,11 +220,19 @@ list_all() {
 
         echo -e "  ${BOLD}${group_title}${NC}"
 
+        # 系统自带提示：nano
+        if [ "$group_title" = "--os--" ]; then
+            if command -v nano &>/dev/null; then
+                local nano_ver=$(nano --version 2>/dev/null | head -1)
+                echo -e "     ${GRAY}• nano         Ubuntu 26 已自带${nano_ver:+ ($nano_ver)}，无需安装${NC}"
+            fi
+        fi
+
         for name in $group_items; do
             # 检查是否存在
             case "$name" in
                 mcp|feishu_key) ;;
-                bat|glow|nano) ;;
+                bat|glow) ;;
                 usage) ;;
                 *) has_init_script "$name" || continue ;;
             esac
@@ -256,6 +264,9 @@ list_all() {
                 printf "${GRAY}[auto]${NC} "
             fi
             render_status "$status"
+            # 内置 CLI 描述
+            local desc="${CLI_DESC[$name]:-}"
+            [ -n "$desc" ] && printf "  ${DIM}- ${desc}${NC}"
             echo ""
             idx=$((idx + 1))
         done
@@ -483,7 +494,6 @@ install_option() {
     case "$name" in
         bat)   install_bat ;;
         glow)  install_glow ;;
-        nano)  install_nano ;;
         *) err "未知选项: $name" ; return 1 ;;
     esac
 }
@@ -528,7 +538,8 @@ install_glow() {
     section "glow Markdown 阅读器"
 
     if command -v glow &>/dev/null; then
-        ok "glow 已安装: $(glow --version 2>/dev/null | head -1)"
+        local gver=$(glow --version 2>/dev/null | head -1); gver=${gver:-glow}
+        ok "glow 已安装 ($gver)"
         return 0
     fi
 
@@ -555,26 +566,6 @@ install_glow() {
     fi
 }
 
-install_nano() {
-    section "nano 文本编辑器"
-
-    if command -v nano &>/dev/null; then
-        ok "nano 已安装: $(nano --version 2>/dev/null | head -1)"
-        return 0
-    fi
-
-    info "安装 nano..."
-    if command -v apt-get &>/dev/null; then
-        sudo apt-get install -y nano
-    else
-        err "无法安装 nano（非 apt 系统）"
-        return 1
-    fi
-
-    if command -v nano &>/dev/null; then
-        ok "nano 已安装"
-    fi
-}
 
 # ── 交互菜单 ──
 interactive_menu() {
@@ -590,13 +581,13 @@ interactive_menu() {
             for name in $group_items; do
                 case "$name" in
                     mcp|feishu_key|usage) all_names+=("$name") ;;
-                    bat|glow|nano) all_names+=("$name") ;;
+                    bat|glow) all_names+=("$name") ;;
                     *) has_init_script "$name" && all_names+=("$name") ;;
                 esac
             done
         done
 
-        # 构造 menu_select 的 items（编号列表）
+        # menu_select 自动编号，传入纯文本
         local menu_items=()
         for n in "${all_names[@]}"; do
             local desc=""
@@ -604,43 +595,32 @@ interactive_menu() {
                 mcp) desc="MCP 服务" ;;
                 feishu_key) desc="飞书 Key" ;;
                 usage) desc="Token 用量" ;;
-                bat|glow|nano) ;;
+                bat|glow) ;;
                 *) [ -n "${AUTO_MANAGED[$n]:-}" ] && desc="[auto]" ;;
             esac
             menu_items+=("$n${desc:+ ($desc)}")
         done
-        menu_items+=("a) 全部安装")
-        menu_items+=("0) 退出")
+        menu_items+=("全部安装")
+        menu_items+=("退出")
+
+        local total_items=${#menu_items[@]}          # = all_names + 2
+        local all_idx=$((total_items - 1))            # 全部安装序号
+        local exit_idx=$total_items                   # 退出序号
 
         local choice; choice=$(menu_select "可选组件" "${menu_items[@]}")
-        [[ -z "$choice" ]] && continue
-        local c="${choice:0:1}"
+        [[ -z "$choice" || "$choice" == "$exit_idx" ]] && continue
 
-        case "$c" in
-            0) echo ""; exit 0 ;;
-            a)
-                for n in "${all_names[@]}"; do
-                    [ "$n" = "feishu_key" ] && feishu_key_wizard || install_option "$n"
-                done
-                ok "全部安装完成"
-                ;;
-            *)
-                local selected=""
-                for ((ni=0; ni<${#all_names[@]}; ni++)); do
-                    [[ "${menu_items[$ni]%% (*}" == "$c" || "${all_names[$ni]}" == "$choice" ]] && { selected="${all_names[$ni]}"; break; }
-                done
-                # 尝试直接匹配 choice 到 all_names
-                for n in "${all_names[@]}"; do
-                    [[ "$n" == "$choice" ]] && { selected="$n"; break; }
-                done
-                [ -z "$selected" ] && [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#all_names[@]} ]] && selected="${all_names[$((choice-1))]}"
-                if [ -n "$selected" ]; then
-                    [ "$selected" = "feishu_key" ] && feishu_key_wizard || install_option "$selected"
-                else
-                    warn "无效选择"
-                fi
-                ;;
-        esac
+        if [[ "$choice" == "$all_idx" ]]; then
+            for n in "${all_names[@]}"; do
+                [ "$n" = "feishu_key" ] && feishu_key_wizard || install_option "$n"
+            done
+            ok "全部安装完成"
+        elif [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#all_names[@]} ]]; then
+            local selected="${all_names[$((choice-1))]}"
+            [ "$selected" = "feishu_key" ] && feishu_key_wizard || install_option "$selected"
+        else
+            warn "无效选择"
+        fi
 
         echo ""; read -p "按回车继续..." dummy < /dev/tty || true
     done
@@ -734,8 +714,8 @@ list_names_compact() {
         echo "$group_title"
         for n in $group_items; do
             case "$n" in
-                mcp) echo "  mcp" ;;
-                bat|glow|nano) echo "  $n" ;;
+                mcp|feishu_key) echo "  $n" ;;
+                bat|glow) echo "  $n" ;;
                 *) [ -n "${AUTO_MANAGED[$n]:-}" ] || has_init_script "$n" && echo "  $n" ;;
             esac
         done
@@ -750,7 +730,7 @@ install_all() {
             [ -n "${AUTO_MANAGED[$n]:-}" ] && continue
             case "$n" in
                 mcp) install_option "mcp" --batch ;;
-                bat|glow|nano) install_option "$n" --batch ;;
+                bat|glow) install_option "$n" --batch ;;
                 usage) install_option "$n" --batch --yes ;;
                 *) has_init_script "$n" && install_option "$n" --batch ;;
             esac
