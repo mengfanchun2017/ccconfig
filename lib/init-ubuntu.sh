@@ -502,16 +502,15 @@ setup_autosync() {
 setup_hook() {
     section "SessionStart Hook"
 
-    # Claude Code 读取 ~/.claude.json，不是 settings.json
-    # 所以 hooks 必须写入 ~/.claude.json
-    CLAUDE_JSON="$HOME/.claude.json"
+    # Claude Code 读取 settings.json（.claude.json 已移除，由 settings.json 统一承载）
+    CLAUDE_JSON="$HOME/.claude/settings.json"
     HOOK_CMD="bash \$HOME/git/ccconfig/lib/status.sh"
 
     python3 << PYEOF
 import json
 import os
 
-# Claude Code 实际读取的是 ~/.claude.json
+# Claude Code 实际读取的是 settings.json
 config_file = os.path.expanduser("$CLAUDE_JSON")
 try:
     with open(config_file, 'r') as f:
