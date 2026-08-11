@@ -108,16 +108,7 @@ config.setdefault("env", {}).update(env_update)
 with open(settings_file, "w") as f:
     json.dump(config, f, indent=4)
 
-claude_json = os.path.expanduser("~/.claude.json")
-try:
-    with open(claude_json) as f:
-        cconfig = json.load(f)
-except Exception:
-    cconfig = {}
-cconfig.setdefault("env", {}).update(env_update)
-with open(claude_json, "w") as f:
-    json.dump(cconfig, f, indent=4)
-
+# .claude.json 已移除，仅写 settings.json
 # sync llm.json current → gateway
 try:
     with open(llm_conf_path) as f:
@@ -144,8 +135,7 @@ env_update = {"ANTHROPIC_BASE_URL": orig_url}
 if orig_model:
     env_update["ANTHROPIC_MODEL"] = orig_model
 
-for fpath in [os.path.expanduser("~/.claude/settings.json"),
-              os.path.expanduser("~/.claude.json")]:
+for fpath in [os.path.expanduser("~/.claude/settings.json")]:
     try:
         with open(fpath) as f:
             config = json.load(f)

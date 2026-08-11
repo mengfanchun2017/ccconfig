@@ -385,20 +385,20 @@ with open(f, 'w') as fh:
 }
 
 test_mcp_missing_config_json() {
-    # 验证 ~/.claude.json 不存在时 sync_to_settings 不崩溃
-    rm -f "$HOME/.claude.json"
+    # 验证 settings.json 不存在时 sync_to_settings 不崩溃
+    rm -f "$HOME/.claude/settings.json"
     local result
     result=$(python3 -c "
 import json
 try:
-    with open('$HOME/.claude.json', 'r') as f:
+    with open('$HOME/.claude/settings.json', 'r') as f:
         d = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError):
     d = {}
 print('ok-' + str(len(d)))
 " 2>/dev/null) || true
     if echo "$result" | grep -q "ok-0"; then
-        _pass "mcp sync: ~/.claude.json 不存在 → 回退空 dict，不崩溃"
+        _pass "mcp sync: settings.json 不存在 → 回退空 dict，不崩溃"
     else
         _fail "mcp sync" "expected ok-0, got: $result"
     fi
@@ -524,7 +524,7 @@ def _check_missing_keys(config):
                 missing.append(f'args[{i}]')
     return missing
 
-# 模拟 claude.json.example 中的 tavily 配置
+# 模拟 mcp-servers.json.example 中的 tavily 配置
 tavily = {"env": {"TAVILY_API_KEY": "请到 https://tavily.com 注册获取 API Key"}}
 m1 = _check_missing_keys(tavily)
 assert "TAVILY_API_KEY" in m1, f"tavily key not detected: {m1}"
@@ -559,7 +559,7 @@ test_init_config_preflight() {
     local configs=(
         "$d/conf/ubuntu.json"
         "$d/conf/llm.json"
-        "$d/conf/claude.json"
+        "$d/conf/mcp-servers.json"
     )
     for cfg in "${configs[@]}"; do
         if [[ -f "$cfg" ]]; then

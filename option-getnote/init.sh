@@ -57,7 +57,7 @@ do_add() {
     elif confirm "设为 ccprivate 默认账号？" n; then
         as_default=true; fi
 
-    # 写 ccprivate/conf/claude.json
+    # 写 ccprivate/conf/getnote-accounts.json
     python3 - "$CONF_FILE" "$name" "$api_key" "$client_id" "$desc" "$as_default" << 'PYEOF'
 import json, os, sys
 path, name, api_key, client_id, desc, as_default = sys.argv[1:7]

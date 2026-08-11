@@ -679,7 +679,7 @@ update_mcp() {
     rm -rf "$HOME/.npm/_npx" 2>/dev/null || true
 
     # 预拉取 MCP 包
-    local mcp_conf="$(resolve_conf claude.json)"
+    local mcp_conf="$(resolve_conf mcp-servers.json)"
     if [ -f "$mcp_conf" ]; then
         python3 - "$mcp_conf" << 'PYEOF'
 import json, sys, subprocess
