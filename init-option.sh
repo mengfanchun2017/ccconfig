@@ -201,7 +201,7 @@ list_all() {
 
     # 确保 mcp 在 group 中可被检测（作为内置选项，无 option-mcp 目录）
     mcp_status() {
-        local conf="$CCPRIVATE_HOME/conf/claude.json"
+        local conf="$CCPRIVATE_HOME/conf/mcp-servers.json"
         if [ -f "$conf" ]; then
             local count=$(python3 -c "import json; d=json.load(open('$conf')); print(len(d.get('mcp_servers',[])))" 2>/dev/null || echo "0")
             if [ "$count" -gt 0 ]; then
@@ -210,7 +210,7 @@ list_all() {
                 echo "miss|MISSING|MCP 未配置（bash lib/init-mcp.sh sync）"
             fi
         else
-            echo "miss|MISSING|claude.json 未找到"
+            echo "miss|MISSING|mcp-servers.json 未找到"
         fi
     }
 

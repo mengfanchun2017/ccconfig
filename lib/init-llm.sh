@@ -261,12 +261,8 @@ env_update = {
 if final_token:
     env_update["ANTHROPIC_AUTH_TOKEN"] = final_token
 
-# ~/.claude.json
-write_json(os.path.expanduser(os.environ.get('CLAUDE_JSON', '~/.claude.json')),
-           lambda d: d.setdefault('env', {}).update(env_update))
-print("~/.claude.json 已更新")
-
-# ~/.claude/settings.json — 同步 env + 顶层 model 字段
+# ~/.claude/settings.json — 写入 env + 顶层 model 字段
+# .claude.json 已移除，配置全部由 settings.json 承载
 sf = os.path.expanduser("~/.claude/settings.json")
 if os.path.islink(sf) and not os.path.exists(sf):
     os.unlink(sf)

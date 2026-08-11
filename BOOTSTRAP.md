@@ -495,7 +495,7 @@ bash init-ccprivate-repo.sh
 
 脚本交互式收集信息（GitHub 账号、邮箱、LLM API Key），自动：
 - 创建 `~/git/ccprivate/` 完整目录结构
-- 生成 `conf/llm.json` + `conf/claude.json` + `conf/ubuntu.json`
+- 生成 `conf/llm.json` + `conf/mcp-servers.json`
 - 生成 `link/CLAUDE.md` + `link/settings.json` + `setup.sh`
 - 创建 GitHub 私有仓库并推送
 - 建立所有 symlink（私有 + 公开）

@@ -3,7 +3,7 @@
 #
 # 覆盖：
 #   - llm.json: current + llms.{name}.key/base_url/model 必含
-#   - claude.json: mcp_servers[].name/command/args/env
+#   - mcp-servers.json: mcp_servers[].name/command/args/env
 #   - llmswitch.json: listen/mode/routes/peak_hours
 #   - .example 模板占位符检测
 #
@@ -84,10 +84,10 @@ PYEOF
     [ $? -eq 0 ] && pass "llm.json: 无占位符 key（真配置）" || fail "llm.json" "含占位符 key（可能仍是 .example）"
 }
 
-# ═══ claude.json ═══
-test_claude_json_mcp_servers() {
-    local f=$(find_json "claude.json")
-    [ -z "$f" ] && { skip "claude.json" "未找到"; return; }
+# ═══ mcp-servers.json ═══
+test_mcp-servers.json_mcp_servers() {
+    local f=$(find_json "mcp-servers.json")
+    [ -z "$f" ] && { skip "mcp-servers.json" "未找到"; return; }
     python3 - "$f" << 'PYEOF' >/dev/null 2>&1
 import json, sys
 with open(sys.argv[1]) as f: d = json.load(f)
@@ -100,7 +100,7 @@ for s in servers:
     assert 'env' in s and isinstance(s['env'], dict), f"{s.get('name')} env not dict"
 print("OK")
 PYEOF
-    [ $? -eq 0 ] && pass "claude.json: mcp_servers[] 结构完整" || fail "claude.json" "mcp_servers 结构错误"
+    [ $? -eq 0 ] && pass "mcp-servers.json: mcp_servers[] 结构完整" || fail "mcp-servers.json" "mcp_servers 结构错误"
 }
 
 # ═══ llmswitch.json ═══
@@ -197,7 +197,7 @@ all_tests=(
     "desc: llm.json 结构" test_llm_json_structure
     "desc: llm.json current 指向" test_llm_json_current_in_llms
     "desc: llm.json 无占位符 key" test_llm_json_key_not_placeholder
-    "desc: claude.json mcp_servers" test_claude_json_mcp_servers
+    "desc: mcp-servers.json mcp_servers" test_mcp-servers.json_mcp_servers
     "desc: llmswitch.json 结构" test_llmswitch_json_structure
     "desc: llmswitch.json peak_hours 格式" test_llmswitch_peak_hours_format
     "desc: settings.json env 合并" test_settings_json_env_merge

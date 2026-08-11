@@ -235,10 +235,6 @@ LLMJSON
 }
 SWJSON
 
-	# ~/.claude.json
-	cat > "$TEST_HOME/.claude.json" << 'CJSON'
-{"env": {}}
-CJSON
 
 	# ~/.claude/settings.json
 	cat > "$TEST_HOME/.claude/settings.json" << 'SJSON'
@@ -319,7 +315,7 @@ TESTS=(
 	"t_apply_settings_atomic_write:tmp + os.replace 原子写入"
 	"t_apply_settings_dry_run:CCC_DRY_RUN=1 → switch_llm 不写文件"
 	"t_apply_settings_writes_model_field:model 顶层字段正确"
-	"t_apply_settings_claude_json_sync:同时写 ~/.claude.json"
+	"t_apply_settings_claude_json_sync:写 settings.json"
 	"t_apply_settings_placeholder_rejected:占位符 Key 不写入 token"
 
 	# ═══ 分组 10: 流式 SSE 生成 ═══
@@ -761,7 +757,7 @@ PYEOF
 			rm -f "$settings"
 			;;
 		t_apply_settings_claude_json_sync)
-			# 同步写 ~/.claude.json
+			# 写 settings.json
 			local cjson="$TEST_HOME/test_claude_$RANDOM.json"
 			echo '{}' > "$cjson"
 			CLAUDE_JSON="$cjson" env_update='{"ENV_VAR":"val"}' python3 - <<'PYEOF'
@@ -775,7 +771,7 @@ with open(tmp, 'w') as f: json.dump(d, f, indent=2)
 os.replace(tmp, p)
 PYEOF
 			local val=$(python3 -c "import json; print(json.load(open('$cjson'))['env'].get('ENV_VAR',''))")
-			[[ "$val" == "val" ]] && _pass "apply_settings: 同步写 ~/.claude.json" || _fail "apply_settings: claude.json $val"
+			[[ "$val" == "val" ]] && _pass "apply_settings: 写 settings.json" || _fail "apply_settings: settings.json $val"
 			rm -f "$cjson"
 			;;
 		t_apply_settings_placeholder_rejected)

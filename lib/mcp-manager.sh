@@ -20,8 +20,8 @@ source "$SCRIPT_DIR/interact.sh"
 
 CONFIG_JSON="$HOME/.claude/.config.json"
 SETTINGS_JSON="$HOME/.claude/settings.json"
-CONF_TEMPLATE="$(find "$HOME/git" -maxdepth 3 -path '*/conf/claude.json' 2>/dev/null | head -1)"
-[ -z "$CONF_TEMPLATE" ] && CONF_TEMPLATE="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/claude.json"
+CONF_TEMPLATE="$(find "$HOME/git" -maxdepth 3 -path '*/conf/mcp-servers.json' 2>/dev/null | head -1)"
+[ -z "$CONF_TEMPLATE" ] && CONF_TEMPLATE="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/mcp-servers.json"
 
 # ── 辅助函数 ──
 

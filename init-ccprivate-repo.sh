@@ -503,24 +503,24 @@ PYEOF
     ok "conf/llm.json"
 }
 
-# ── 生成 conf/claude.json ──
-# 从 .example 模板复制（含完整 MCP 定义和占位 Key），LLM env 由 init-llm.sh 独占管理
-gen_claude_json() {
-    local f="$CCPRIVATE_DIR/conf/claude.json"
-    local template="$CCCONFIG_DIR/conf/claude.json.example"
+# ── 生成 conf/mcp-servers.json ──
+# 从 .example 模板复制（含完整 MCP 定义和占位 Key）
+gen_mcp_servers_json() {
+    local f="$CCPRIVATE_DIR/conf/mcp-servers.json"
+    local template="$CCCONFIG_DIR/conf/mcp-servers.json.example"
 
     if [[ -f "$template" ]]; then
         cp "$template" "$f"
     else
         python3 - <<PYEOF
 import json
-d = {"env": {"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}, "settings": {"default_action": "sync", "auto_config_keys": True}, "mcp_servers": []}
+d = {"env": {"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}, "mcp_servers": []}
 with open("$f", "w") as fh:
     json.dump(d, fh, indent=2, ensure_ascii=False)
     fh.write("\n")
 PYEOF
     fi
-    ok "conf/claude.json（从模板生成，MCP Key 为占位符，后续用 init-mcp.sh keys 填写）"
+    ok "conf/mcp-servers.json（从模板生成，MCP Key 为占位符，后续用 init-mcp.sh keys 填写）"
 }
 
 # ubuntu.json 已移除（信息存 git config + 环境变量）
@@ -763,7 +763,7 @@ EOF
 
     section "生成配置文件"
     gen_llm_json
-    gen_claude_json
+    gen_mcp_servers_json
     gen_claude_md
     gen_settings_json
     gen_dot_config_json
@@ -873,7 +873,7 @@ PYEOF
         )"
         if [ -n "$DEEPSEEK_KEY" ] || [ -n "$MINIMAX_KEY" ] || [ -n "$CLAUDE_KEY" ]; then
             gen_llm_json
-            gen_claude_json
+            gen_mcp_servers_json
         fi
     fi
 

@@ -87,7 +87,7 @@ validate_all_conf() {
     local conf_dir="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/conf}"
     local rc=0
     local mapping=(
-        "claude.json:mcp"
+        "mcp-servers.json:mcp"
         "llm.json:llm"
         "feishu.json:feishu"
         "versions.json:versions"

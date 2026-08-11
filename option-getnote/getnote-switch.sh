@@ -1,11 +1,11 @@
 #!/bin/bash
 # getnote-switch.sh — getnote MCP 账号切换
-# 数据源: ccprivate/conf/claude.json
+# 数据源: ccprivate/conf/getnote-accounts.json
 #   getnote_accounts[]    账号列表（每项含 name/api_key/client_id/description/enabled）
 #   getnote_default       当前活跃账号名
 #   mcp_servers[getnote].env  单实例 fallback（向后兼容无 getnote_accounts 时的旧部署）
 #
-# 切换 = 改 ~/.claude.json mcpServers.getnote.env → 提示重启 claude session 让新 env 生效
+# 切换 = 改 settings.json mcpServers.getnote.env → 提示重启 claude session 让新 env 生效
 # 持久化 = -p 写 ccprivate getnote_default 字段
 #
 # 使用：
@@ -51,7 +51,7 @@ print(json.dumps({
 PYEOF
 }
 
-# ── 检测当前活跃账号（从 ~/.claude.json mcpServers.getnote.env 的 api_key 反查 name） ──
+# ── 检测当前活跃账号（从 settings.json mcpServers.getnote.env 的 api_key 反查 name） ──
 detect_current() {
     local runtime_json="$RUNTIME_JSON"
     [ -f "$runtime_json" ] || { echo ""; return; }
@@ -106,7 +106,7 @@ show_current() {
     fi
 
     if [ -n "$cur" ]; then
-        echo -e "  运行时活跃:  ${GREEN}${cur}${NC}  ${GRAY}(~/.claude.json env)${NC}"
+        echo -e "  运行时活跃:  ${GREEN}${cur}${NC}  ${GRAY}(settings.json env)${NC}"
     else
         echo -e "  运行时活跃:  ${YELLOW}未匹配${NC}"
     fi
@@ -236,7 +236,7 @@ PYEOF
     client_id=$(python3 -c "import json,sys; print(json.load(sys.stdin).get('client_id',''))" <<< "$target_line")
     desc=$(python3 -c "import json,sys; print(json.load(sys.stdin).get('description',''))" <<< "$target_line")
 
-    # 写 ~/.claude.json mcpServers.getnote.env（如果 mcpServers 还没有 getnote entry，先注入 stub）
+    # 写 settings.json mcpServers.getnote.env（如果 mcpServers 还没有 getnote entry，先注入 stub）
     if [ ! -f "$RUNTIME_JSON" ]; then
         echo -e "${RED}✗ $RUNTIME_JSON 不存在，请先跑: bash init-mcp.sh sync${NC}"
         return 1
