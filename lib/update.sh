@@ -466,10 +466,6 @@ update_lark_channel_bridge() {
         info "ccbridge 未安装，跳过（git clone ~/git/ccbridge）"
     fi
 }
-            && info "  重启 $prof" \
-            || warn "  重启 $prof 失败"
-    done
-}
 
 # ========== 版本比较 ==========
 # 比较两个语义版本，返回 0 如果 v1 >= v2
@@ -1099,8 +1095,6 @@ show_menu() {
             1)  update_nodejs; update_npm_globals; update_python_packages; fix_systemd_services; did_something=1 ;;
             2)  update_npm_globals; did_something=1 ;;
             3)  update_lark_channel_bridge; did_something=1 ;;
-    lark-channel-bridge|ccbridge) update_lark_channel_bridge ;;
-}
             4)  update_gh; did_something=1 ;;
             5)  update_claude; did_something=1 ;;
             6)  update_uv; did_something=1 ;;
