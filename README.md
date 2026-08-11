@@ -289,6 +289,8 @@ bash lib/init-llm.sh gateway      # 切到网关（自动装启 option-llmswitch
 | 仓库 | 存什么 | 公开？ |
 |------|--------|--------|
 | ccconfig | 脚本、.example 模板 | ✅ 开源 |
+| ccbridge | 飞书 lark-channel-bridge 管理 ([mengfanchun2017/ccbridge](https://github.com/mengfanchun2017/ccbridge)) | ✅ 开源 |
+| fancypowershell | Windows PowerShell 工具集 | ✅ 开源 |
 | skill | 16 个 f-* skill 插件 | ✅ marketplace |
 | ccprivate | API key、token、个人配置 | ❌ 私有 |
 
