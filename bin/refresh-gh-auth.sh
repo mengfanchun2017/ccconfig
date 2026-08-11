@@ -60,7 +60,7 @@ echo -e "    1. 打开 ${CYAN}https://github.com/settings/tokens${NC}"
 echo -e "    2. 找到 ccconfig-push，点 ${BOLD}Regenerate token${NC}"
 echo -e "    3. 复制新 token，粘贴到下面（不回显）"
 echo ""
-echo -e "  ${GRAY}提示：fine-grained PAT 过期前 30 天可点 Regenerate，继承原权限${NC}"
+echo -e "  ${GRAY}提示：如 token 选的是 No expiration 则无需续期；过期前 30 天可点 Regenerate，继承原权限${NC}"
 echo ""
 
 # 读新 token（空输入 = 保持现状退出）
