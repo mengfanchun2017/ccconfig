@@ -99,8 +99,8 @@ init_all_steps() {
     export INIT_LLM_NAME="$current_llm"
 
     run_step "1/4 Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true \
-        "装 Node / Claude Code / uv / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
-        "Claude Code 需要 Node 运行时；uv 装 Python 工具；auto-sync 让配置变更自动 push" \
+        "装 Node / Claude Code / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
+        "Claude Code 需要 Node 运行时；auto-sync 让配置变更自动 push" \
         "3 min（含 apt 下载）"
 
     run_step "2/4 LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true \
@@ -234,7 +234,7 @@ case "${1:-menu}" in
         show_banner
         echo ""
         echo -e "${CYAN}━━━ 预览：将要执行的操作 ━━━${NC}"
-        echo "  1) init-ubuntu.sh    → 系统包 + node/gh/claude/uv + symlink"
+        echo "  1) init-ubuntu.sh    → 系统包 + node/gh/claude + symlink"
         echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
         echo "  3) maintain.sh       → 链接修复 + 状态 + 服务"
         echo ""
