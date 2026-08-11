@@ -523,26 +523,7 @@ PYEOF
     ok "conf/claude.json（从模板生成，MCP Key 为占位符，后续用 init-mcp.sh keys 填写）"
 }
 
-# ── 生成 conf/ubuntu.json ──
-gen_ubuntu_json() {
-    local f="$CCPRIVATE_DIR/conf/ubuntu.json"
-    GH_USER="$GH_USER" GIT_EMAIL="$GIT_EMAIL" CCCONFIG_DIR="${CCCONFIG_DIR:-$HOME/git/ccconfig}" OUT="$f" python3 << 'PYEOF'
-import json, os
-ccconfig_dir = os.environ.get("CCCONFIG_DIR", os.path.expanduser("~/git/ccconfig"))
-d = {
-    "git": {
-        "repo": os.environ["GH_USER"] + "/ccconfig",
-        "target_dir": ccconfig_dir,
-        "email": os.environ["GIT_EMAIL"],
-        "username": os.environ["GH_USER"]
-    }
-}
-with open(os.environ["OUT"], "w") as fh:
-    json.dump(d, fh, indent=2, ensure_ascii=False)
-    fh.write("\n")
-PYEOF
-    ok "conf/ubuntu.json"
-}
+# ubuntu.json 已移除（信息存 git config + 环境变量）
 
 # ── 生成 link/CLAUDE.md ──
 gen_claude_md() {
@@ -783,7 +764,6 @@ EOF
     section "生成配置文件"
     gen_llm_json
     gen_claude_json
-    gen_ubuntu_json
     gen_claude_md
     gen_settings_json
     gen_dot_config_json
@@ -897,26 +877,7 @@ PYEOF
         fi
     fi
 
-    local ubuntu_src=""
-    if [ -f "$CCPRIVATE_DIR/conf/ubuntu.json" ]; then
-        ubuntu_src="$CCPRIVATE_DIR/conf/ubuntu.json"
-    elif [ -f "$CCPRIVATE_DIR/conf/.generated/ubuntu.json" ]; then
-        ubuntu_src="$CCPRIVATE_DIR/conf/.generated/ubuntu.json"
-        info "从旧路径迁移: conf/.generated/ → conf/"
-    fi
-    if [ -n "$ubuntu_src" ]; then
-        eval "$(UBUNTU_SRC="$ubuntu_src" python3 << 'PYEOF'
-import json, os
-d = json.load(open(os.environ["UBUNTU_SRC"]))
-g = d.get("git", {})
-print(f'GH_USER={g.get("username","")}')
-print(f'GIT_EMAIL={g.get("email","")}')
-PYEOF
-        )"
-        if [ -n "$GH_USER" ]; then
-            gen_ubuntu_json
-        fi
-    fi
+    # ubuntu.json 已移除（git config 和环境变量已承载）
 
     popd >/dev/null
 
