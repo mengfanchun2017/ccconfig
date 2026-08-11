@@ -6,7 +6,7 @@
 # 合并了：
 #   - init01git.sh (git/gh + 克隆仓库)
 #   - init02claude.sh (Claude Code + API 配置 + Hook)
-#   - init03env.sh (Node.js/uv/字体/符号链接/auto-sync)
+#   - init03env.sh (Node.js/字体/符号链接/auto-sync)
 #   - OfficeCLI (curl 安装)
 #
 # 使用：
@@ -143,24 +143,6 @@ setup_nodejs() {
     fi
 }
 
-# ========== 3. uv ==========
-setup_uv() {
-    section "uv (Python)"
-
-    export PATH="$LOCAL_BIN:$PATH"
-
-    if command -v uv &>/dev/null || command -v uvx &>/dev/null; then
-        success "uv 已安装: $(uv --version 2>/dev/null || uvx --version 2>/dev/null)"
-    else
-        warn "uv 未安装，正在安装..."
-        if curl -LsSf -o /tmp/uv-install.sh https://astral.sh/uv/install.sh; then
-            bash /tmp/uv-install.sh && success "uv 安装完成" || warn "uv 安装失败（不影响 MCP 使用）"
-            rm -f /tmp/uv-install.sh
-        else
-            warn "uv 安装脚本下载失败"
-        fi
-    fi
-}
 
 # ========== 3.5 Python pip（Ubuntu 24 默认无 pip3） ==========
 ensure_pip() {
@@ -568,7 +550,6 @@ main() {
     fi
     setup_ccprivate
     setup_nodejs
-    setup_uv
     ensure_pip
     setup_python_packages
     setup_claude_code || CLAUDE_CLI_NOT_READY=1

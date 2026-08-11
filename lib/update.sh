@@ -645,14 +645,6 @@ for s in data.get('mcp_servers', []):
             print("OK")
         except Exception:
             print("跳过")
-    elif cmd == 'uvx' and args:
-        pkg = args[0]
-        print(f"拉取 {name} ({pkg}) ... ", end='', flush=True)
-        try:
-            subprocess.run(['uvx', pkg, '--version'], capture_output=True, timeout=60)
-            print("OK")
-        except Exception:
-            print("跳过")
 PYEOF
     fi
 
@@ -942,89 +934,51 @@ update_all() {
 show_menu() {
     local today
     today=$(date +%Y-%m)
-    echo ""
-    echo -e "${CYAN}━━━ ccconfig 组件升级 $today ━━━${NC}"
-    echo ""
-    echo "   基础组件"
-    echo "   1) Node.js + lark-cli + pip 包"
-    echo -e "      ${DIM}(自动触发 systemd 服务重建)${NC}"
-    echo ""
-    echo "   飞书相关（升级 npm 包）"
-    echo "   2) lark-cli           ─ @larksuite/cli 升级到最新"
-    echo "   3) lark-channel-bridge ─ 停 profile → 升级 → 重启所有 profile"
-    echo ""
-    echo "   扩展组件"
-    echo "   4) GitHub CLI"
-    echo "   5) Claude Code"
-    echo "   6) uv"
-    echo "   7) MCP 缓存刷新"
-    echo ""
-    echo "   可选组件"
-    echo "   8) systemd 服务重建"
-    echo "   9) OfficeCLI"
-    echo "   10) Skills 同步"
-    echo "   11) Cloudflare 插件"
-    echo ""
-    echo "   0) 退出"
-    echo ""
-    echo -e "   ${YELLOW}all${NC} = 升级基础+扩展（不含可选）"
-    echo -e "   ${YELLOW}1 3 4${NC} = 多选（如升级 1、3、4 项）"
-    echo ""
 
-    # 构造菜单项
+    # 构造菜单项（menu_select 自动渲染）
+    # menu_select 自动加 "1) 2) 3)"，传入纯文本
     local menu_items=(
-        "1) Node.js + lark-cli + pip 包"
-        "2) lark-cli"
-        "3) lark-channel-bridge"
-        "4) GitHub CLI"
-        "5) Claude Code"
-        "6) uv"
-        "7) MCP 缓存刷新"
-        "8) systemd 服务重建"
-        "9) OfficeCLI"
-        "10) Skills 同步"
-        "11) Cloudflare 插件"
-        "0) 退出"
+        "Node.js + lark-cli + pip 包"
+        "lark-cli"
+        "GitHub CLI"
+        "Claude Code"
+        "MCP 缓存刷新"
+        "systemd 服务重建"
+        "OfficeCLI"
+        "Skills 同步"
+        "Cloudflare 插件"
+        "退出"
     )
     local choice
     choice=$(menu_select "ccconfig 组件升级 $today" "${menu_items[@]}")
     [[ -z "$choice" ]] && { show_menu; return; }
-    # 从 "1) xxx" 中提取数字
-    local sel
-    sel=$(echo "$choice" | grep -oE '^[0-9]+' | head -1)
-    [[ -z "$sel" ]] && { show_menu; return; }
-    selections="$sel"
+    local sel="$choice"
+    [[ "$sel" == "10" ]] && return  # 退出
+    if [[ "$sel" == "all" ]]; then
+        take_snapshot "pre" > /dev/null
+        update_all false
+        show_menu
+        return
+    fi
+    [[ ! "$sel" =~ ^[0-9]+$ ]] && { show_menu; return; }
 
     local did_something=0
-    for sel in $selections; do
-        case "$sel" in
-            1)  update_nodejs; update_npm_globals; update_python_packages; fix_systemd_services; did_something=1 ;;
-            2)  update_npm_globals; did_something=1 ;;
-            3)  update_lark_channel_bridge; did_something=1 ;;
-            4)  update_gh; did_something=1 ;;
-            5)  update_claude; did_something=1 ;;
-            6)  update_uv; did_something=1 ;;
-            7)  update_mcp; did_something=1 ;;
-            8)  fix_systemd_services; did_something=1 ;;
-            9)  update_officecli; did_something=1 ;;
-            10) update_skills; did_something=1 ;;
-            11) update_cloudflare_plugin; did_something=1 ;;
-            all)
-                take_snapshot "pre" > /dev/null
-                update_all false
-                did_something=1
-                break
-                ;;
-        esac
-    done
+    case "$sel" in
+        1)  update_nodejs; update_npm_globals; update_python_packages; fix_systemd_services; did_something=1 ;;
+        2)  update_npm_globals; did_something=1 ;;
+        3)  update_gh; did_something=1 ;;
+        4)  update_claude; did_something=1 ;;
+        5)  update_mcp; did_something=1 ;;
+        6)  fix_systemd_services; did_something=1 ;;
+        7)  update_officecli; did_something=1 ;;
+        8)  update_skills; did_something=1 ;;
+        9)  update_cloudflare_plugin; did_something=1 ;;
+    esac
 
-    if [ $did_something -eq 0 ] && [ "$choice" != "0" ]; then
+    if [ $did_something -eq 0 ]; then
         echo "无效选择: $choice"
     fi
-
-    if [ "$choice" != "0" ]; then
-        show_menu
-    fi
+    show_menu
 }
 
 # ========== 主程序 ==========
@@ -1053,7 +1007,6 @@ case "${1:-menu}" in
     claude)        update_claude ;;
     mcp)           update_mcp ;;
     lark|lark-cli) update_npm_globals ;;
-    larkbridge|lark-channel-bridge|ccbridge) update_lark_channel_bridge ;;
     services)      fix_systemd_services ;;
     officecli)     update_officecli ;;
     skills)        update_skills ;;
