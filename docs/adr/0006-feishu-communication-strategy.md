@@ -164,6 +164,10 @@ cc-connect 已升级至 1.4.0，下载 URL 模板和 binary 名均已在 `conf/v
 
 - **ADR 0001**：真实配置文件不入 git 仓 → feishu.json 走 ccprivate symlink
 
+## Implementation Status Update (2026-08-11)
+
+- **`option-larkbridge/` 已拆出为独立仓库 `ccbridge`**: 参见 [ccbridge](https://github.com/mengfanchun2017/ccbridge)。ccconfig 端所有 larkbridge 操作改为调用 `${CCBRIDGE_HOME}/init.sh`。凭据仍通过 ccprivate `feishu.json` fallback 读取。
+
 ## Notes
 
 - 2026-07 重新评估飞书 MCP：飞书官方 MCP（`@larksuiteoapi/lark-mcp`）比第三方 `@china-mcp/feishu-mcp` 功能更全面（18+ 工具 vs 8 个），但核心缺陷不变：无被动消息接收、无流式回复、无 session 管理。这些是对话场景的硬需求，不是 API 层面能解决的
