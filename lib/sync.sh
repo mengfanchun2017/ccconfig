@@ -330,17 +330,17 @@ menu_mode() {
                 local name="${names[$found]}" dir="${dirs[$found]}" mode="${modes[$found]}"
                 local sub
                 sub=$(menu_select "sync: $name" \
-                    "1) 智能同步（推荐）" \
-                    "2) 强制拉取远程" \
-                    "3) 本地覆盖远程" \
-                    "0) 返回")
+                    "智能同步（推荐）" \
+                    "强制拉取远程" \
+                    "本地覆盖远程" \
+                    "返回")
                 [[ -z "$sub" ]] && continue
-                case "${sub:0:1}" in
-                    1) sync_one_repo "$dir" "$name" "$mode"
+                case "$sub" in
+                    "1") sync_one_repo "$dir" "$name" "$mode"
                        [ "$name" = "ccconfig" ] && { do_cconfig_post; echo -e "${GREEN}✅ 同步完成${NC}"; } ;;
-                    2) git_force_pull "$dir" "" "$name"
+                    "2") git_force_pull "$dir" "" "$name"
                        [ "$name" = "ccconfig" ] && do_cconfig_post ;;
-                    3) git_force_push "$dir" "" "$name" ;;
+                    "3") git_force_push "$dir" "" "$name" ;;
                 esac
             fi
             ;;

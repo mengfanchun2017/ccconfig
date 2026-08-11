@@ -34,7 +34,7 @@ source "$SCRIPT_DIR/lib/interact.sh"
 
 # 内置 CLI 描述
 declare -A CLI_DESC
-CLI_DESC["bat"]="bat 是 cat 替代，语法高亮+行号（命令: batcat）"
+CLI_DESC["bat"]="cat 替代，语法高亮+行号"
 CLI_DESC["glow"]="终端 Markdown 渲染阅读"
 # nano: Ubuntu 26 自带，仅展示提示不出现在安装列表
 
@@ -43,7 +43,7 @@ CLI_DESC["glow"]="终端 Markdown 渲染阅读"
 # ── 分组列表 ──
 # 格式: "group_title|item1 item2 ..."
 MENU_GROUPS=(
-    "--os--|bat glow"
+    "--os--|batcat glow"
     "--claude--|mcp skill"
     "--lark--|larkcli"
     "--other--|officecli remote cloudflare usage"
@@ -106,12 +106,12 @@ option_status() {
 
     # 内置 CLI
     case "$name" in
-        bat)
+        batcat|bat)
             if command -v batcat &>/dev/null || command -v bat &>/dev/null; then
                 local ver=$(bat --version 2>/dev/null | head -1 || batcat --version 2>/dev/null | head -1 || echo "")
-                echo "ok|OK|bat 已安装${ver:+ ($ver)}"
+                echo "ok|OK|batcat 已安装${ver:+ ($ver)}"
             else
-                echo "miss|MISSING|bat 未安装"
+                echo "miss|MISSING|batcat 未安装"
             fi
             return
             ;;
@@ -220,19 +220,11 @@ list_all() {
 
         echo -e "  ${BOLD}${group_title}${NC}"
 
-        # 系统自带提示：nano
-        if [ "$group_title" = "--os--" ]; then
-            if command -v nano &>/dev/null; then
-                local nano_ver=$(nano --version 2>/dev/null | head -1)
-                echo -e "     ${GRAY}• nano         Ubuntu 26 已自带${nano_ver:+ ($nano_ver)}，无需安装${NC}"
-            fi
-        fi
-
         for name in $group_items; do
             # 检查是否存在
             case "$name" in
                 mcp|feishu_key) ;;
-                bat|glow) ;;
+                batcat|glow) ;;
                 usage) ;;
                 *) has_init_script "$name" || continue ;;
             esac
@@ -270,6 +262,14 @@ list_all() {
             echo ""
             idx=$((idx + 1))
         done
+
+        # nano: Ubuntu 26 自带，仅提示
+        if [ "$group_title" = "--os--" ]; then
+            if command -v nano &>/dev/null; then
+                local nano_ver=$(nano --version 2>/dev/null | head -1)
+                echo -e "     ${GRAY}• nano         Ubuntu 26 已自带${nano_ver:+ ($nano_ver)} - 终端文本编辑器，简单直观${NC}"
+            fi
+        fi
     done
 
     echo ""
@@ -492,7 +492,7 @@ install_option() {
 
     # 内置 CLI / option 选项
     case "$name" in
-        bat)   install_bat ;;
+        batcat|bat)   install_bat ;;
         glow)  install_glow ;;
         *) err "未知选项: $name" ; return 1 ;;
     esac
@@ -581,7 +581,7 @@ interactive_menu() {
             for name in $group_items; do
                 case "$name" in
                     mcp|feishu_key|usage) all_names+=("$name") ;;
-                    bat|glow) all_names+=("$name") ;;
+                    batcat|glow) all_names+=("$name") ;;
                     *) has_init_script "$name" && all_names+=("$name") ;;
                 esac
             done
@@ -595,7 +595,7 @@ interactive_menu() {
                 mcp) desc="MCP 服务" ;;
                 feishu_key) desc="飞书 Key" ;;
                 usage) desc="Token 用量" ;;
-                bat|glow) ;;
+                batcat|glow) ;;
                 *) [ -n "${AUTO_MANAGED[$n]:-}" ] && desc="[auto]" ;;
             esac
             menu_items+=("$n${desc:+ ($desc)}")
@@ -715,7 +715,7 @@ list_names_compact() {
         for n in $group_items; do
             case "$n" in
                 mcp|feishu_key) echo "  $n" ;;
-                bat|glow) echo "  $n" ;;
+                batcat|glow) echo "  $n" ;;
                 *) [ -n "${AUTO_MANAGED[$n]:-}" ] || has_init_script "$n" && echo "  $n" ;;
             esac
         done
@@ -730,7 +730,7 @@ install_all() {
             [ -n "${AUTO_MANAGED[$n]:-}" ] && continue
             case "$n" in
                 mcp) install_option "mcp" --batch ;;
-                bat|glow) install_option "$n" --batch ;;
+                batcat|glow) install_option "$n" --batch ;;
                 usage) install_option "$n" --batch --yes ;;
                 *) has_init_script "$n" && install_option "$n" --batch ;;
             esac
