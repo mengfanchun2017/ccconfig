@@ -21,14 +21,7 @@ MARKER_FILE="$HOME/.lark-cli-account"
 DEFAULT_FILE="$HOME/.lark-default-account"
 
 # 颜色（colors.sh 可选 source，缺失时 fallback）
-source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'
-    GRAY='\033[0;90m'
-    NC='\033[0m'
-}
+source "$CCCONFIG_DIR/lib/colors.sh"
 
 # ========== 从 feishu.json apps[] 读取账号列表 ==========
 get_apps() {

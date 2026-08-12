@@ -11,15 +11,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$SCRIPT_DIR/../lib/dry-run.sh"
-source "$SCRIPT_DIR/../lib/colors.sh" 2>/dev/null || {
-    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'; GRAY='\033[0;90m'; NC='\033[0m'
-    ok()    { echo -e "  ${GREEN}✓ $1${NC}"; }
-    err()   { echo -e "  ${RED}✗ $1${NC}"; }
-    warn()  { echo -e "  ${YELLOW}⚠ $1${NC}"; }
-    info()  { echo -e "  ${GRAY}$1${NC}"; }
-    section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
-}
+source "$SCRIPT_DIR/../lib/colors.sh"
 
 # ── 状态查询 ──
 do_status() {

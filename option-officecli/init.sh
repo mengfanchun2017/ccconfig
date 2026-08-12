@@ -19,10 +19,7 @@ source "$CCCONFIG_DIR/lib/dry-run.sh"
 source "$CCCONFIG_DIR/lib/path-helper.sh"
 export PATH="${HOME}/.local/bin:$(find_node_bin):$PATH"
 
-source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
-    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
-}
+source "$CCCONFIG_DIR/lib/colors.sh"
 source "$CCCONFIG_DIR/lib/interact.sh"
 
 OFFICECLI_BIN="$HOME/.local/bin/officecli"

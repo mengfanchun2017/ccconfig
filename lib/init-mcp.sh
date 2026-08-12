@@ -14,12 +14,8 @@ CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/path-helper.sh"
 MCP_CONF_FILE="$(resolve_conf mcp-servers.json)" || exit 1
-source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
-    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; NC='\033[0m'
-}
+source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/interact.sh"
-info() { echo -e "  ${GRAY}$1${NC}"; }
 interactive_read() { echo -n "$1"; read -r "$2" < /dev/tty; }
 
 # ── JSON 读取 ──

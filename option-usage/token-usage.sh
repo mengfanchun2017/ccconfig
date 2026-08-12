@@ -24,13 +24,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$CCCONFIG_ROOT/lib/dry-run.sh"
 source "$CCCONFIG_ROOT/lib/path-helper.sh" 2>/dev/null || true
-source "$CCCONFIG_ROOT/lib/colors.sh" 2>/dev/null || {
-    RED=''; GREEN=''; YELLOW=''; CYAN=''; GRAY=''; NC=''
-    info()  { echo -e "  $1" >&2; }
-    ok()    { echo -e "  ✓ $1" >&2; }
-    warn()  { echo -e "  ⚠ $1" >&2; }
-    err()   { echo -e "  ✗ $1" >&2; }
-}
+source "$CCCONFIG_ROOT/lib/colors.sh"
 
 # 重定向日志函数到 stderr（保护 --json stdout 管道）
 info()  { echo -e "  ${GRAY:-}$1${NC:-}" >&2; }

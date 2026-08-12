@@ -27,12 +27,7 @@ CONFIG="$CCPRIVATE/conf/token-usage.json"
 EXAMPLE_CONFIG="$CCCONFIG_DIR/conf/token-usage.json.example"
 
 source "$CCCONFIG_DIR/lib/dry-run.sh"
-source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
-    ok()   { echo "  ✅ $1"; }
-    warn() { echo "  ⚠  $1"; }
-    err()  { echo "  ❌ $1"; }
-    info() { echo "  ℹ  $1"; }
-}
+source "$CCCONFIG_DIR/lib/colors.sh"
 source "$CCCONFIG_DIR/lib/interact.sh"
 
 # ============ 初始化 ============

@@ -21,15 +21,7 @@ set -euo pipefail
 
 CCCONFIG_DIR="${CCCONFIG_DIR:-$HOME/git/ccconfig}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../lib/colors.sh" 2>/dev/null || {
-    CYAN='\033[0;36m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-    RED='\033[0;31m'; GRAY='\033[0;90m'; NC='\033[0m'
-    section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
-    ok()  { echo -e "  ${GREEN}✅ $1${NC}"; }
-    err() { echo -e "  ${RED}❌ $1${NC}"; }
-    warn(){ echo -e "  ${YELLOW}⚠  $1${NC}"; }
-    info() { echo -e "  ${GRAY}$1${NC}"; }
-}
+source "$SCRIPT_DIR/../lib/colors.sh"
 
 [[ -d "$CCCONFIG_DIR" ]] || { err "ccconfig 目录不存在: $CCCONFIG_DIR"; exit 1; }
 
