@@ -33,12 +33,6 @@ source "$SCRIPT_DIR/dry-run.sh"
 # 颜色（colors.sh 可选 source，缺失时 fallback）
 source "$SCRIPT_DIR/colors.sh"
 
-info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
-success() { echo -e "${GREEN}✅ $1${NC}"; }
-warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
-error() { echo -e "${RED}❌ $1${NC}"; }
-section() { echo -e "\n${CYAN}=== $1 ===${NC}"; }
-
 # ========== 读取 git 配置 ==========
 # 从 git config / gh api 读取（不再依赖 ubuntu.json）
 read_git_config() {
