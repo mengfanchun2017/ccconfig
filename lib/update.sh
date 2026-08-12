@@ -933,10 +933,8 @@ update_all() {
 # ========== 交互式菜单 ==========
 
 show_menu() {
-    local today
-    today=$(date +%Y-%m)
     echo ""
-    echo -e "${CYAN}━━━ ccconfig 组件升级 $today ━━━${NC}"
+    echo -e "${CYAN}━━━ ccconfig 组件升级 ━━━${NC}"
     echo ""
     echo "   1) Node.js + pip 包"
     echo "   2) lark-cli"
@@ -993,15 +991,13 @@ trap release_lock EXIT
 case "${1:-menu}" in
     all)
         self_update "${1:-menu}"
-        today=$(date +%Y-%m-%d)
-        echo -e "${CYAN}ccconfig 组件升级 $today（基础+扩展）${NC}"
+        echo -e "${CYAN}ccconfig 组件升级（基础+扩展）${NC}"
         take_snapshot "pre" > /dev/null
         update_all false
         ;;
     --no-option)
         self_update "${1:-menu}"
-        today=$(date +%Y-%m-%d)
-        echo -e "${CYAN}ccconfig 组件升级 $today（不含可选）${NC}"
+        echo -e "${CYAN}ccconfig 组件升级（不含可选）${NC}"
         take_snapshot "pre" > /dev/null
         update_all false
         ;;
