@@ -10,9 +10,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../../lib/dry-run.sh"
-source "$SCRIPT_DIR/../../lib/colors.sh" 2>/dev/null || {
-    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; GRAY='\033[0;90m'; NC='\033[0m'
-}
+source "$SCRIPT_DIR/../../lib/colors.sh"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 PID_FILE="$HOME/.cache/llmswitch.pid"
 WATCHDOG_PID_FILE="$HOME/.cache/llmswitch-watchdog.pid"

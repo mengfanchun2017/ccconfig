@@ -18,16 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 CLAUDE_DIR="$HOME/.claude"
 source "$SCRIPT_DIR/dry-run.sh"
-source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
-    GREEN='\033[0;32m'
-    BLUE='\033[0;34m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
-}
-
-info()    { echo -e "${BLUE}ℹ️  $1${NC}"; }
-success() { echo -e "${GREEN}✅ $1${NC}"; }
-section() { echo -e "\n${CYAN}=== $1 ===${NC}"; }
+source "$SCRIPT_DIR/colors.sh"
 
 setup_link() {
     local link="$1"
@@ -47,7 +38,7 @@ setup_link() {
         run rm -f "$link"
     fi
     run ln -sf "$target" "$link"
-    success "$name: 已链接"
+    ok"$name: 已链接"
 }
 
 setup_symlinks() {
@@ -78,7 +69,7 @@ setup_symlinks() {
         else
             [[ -e "$git_hook" ]] && run rm -f "$git_hook"
             run ln -sf "$hook_src" "$git_hook"
-            success "pre-commit hook: 已安装"
+            ok"pre-commit hook: 已安装"
         fi
     fi
 }
