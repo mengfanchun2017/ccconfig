@@ -3,19 +3,15 @@
 #
 # 用法：bash ~/git/ccconfig/bin/refresh-gh-auth.sh
 #
-# 适用场景：monitor / maintain status 检测到 PAT 即将过期或已失效
-# 流程：引导粘新 token → gh auth login → 验证 push 通 → 清过期 flag
-#
-# 前置：用户在 GitHub 网页 https://github.com/settings/tokens
+# 前置：GitHub 网页 https://github.com/settings/tokens
 #       找到旧 token → 点 Regenerate token → 复制新 token string
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PATH="$HOME/.local/bin:$PATH"
-
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; NC='\033[0m'
+source "$SCRIPT_DIR/../lib/colors.sh"
+source "$SCRIPT_DIR/../lib/interact.sh"
 
 echo ""
 echo -e "${CYAN}GitHub PAT 续期${NC}"
@@ -65,10 +61,9 @@ echo ""
 
 # 读新 token（空输入 = 保持现状退出）
 NEW_TOKEN=""
-read -rs -p "  新 PAT（不回显，直接回车 = 保持现状退出）: " NEW_TOKEN
-echo ""
+NEW_TOKEN=$(prompt_password "新 PAT（不回显，直接回车 = 保持现状退出）")
 if [[ -z "$NEW_TOKEN" ]]; then
-    echo -e "  ${GRAY}未输入，保持现有 token，退出${NC}"
+    info "未输入，保持现有 token，退出"
     exit 0
 fi
 
