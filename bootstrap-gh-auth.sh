@@ -25,16 +25,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 颜色/日志函数 — 优先 source 公共定义，兜底自包含
-source "$SCRIPT_DIR/lib/colors.sh" 2>/dev/null || {
-    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'; BOLD='\033[1m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
-    ok()    { echo -e "  ${GREEN}✅ $1${NC}"; }
-    err()   { echo -e "  ${RED}❌ $1${NC}"; }
-    warn()  { echo -e "  ${YELLOW}⚠  $1${NC}"; }
-    info()  { echo -e "  ${GRAY}$1${NC}"; }
-    section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
-}
+source "$SCRIPT_DIR/lib/colors.sh"
+source "$SCRIPT_DIR/lib/interact.sh"
 
 export SCRIPT_DIR
 source "$SCRIPT_DIR/lib/dry-run.sh"
@@ -136,25 +128,14 @@ elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
     echo "$GITHUB_TOKEN" | gh auth login --hostname github.com --with-token
     ok "GitHub 已登录（via \$GITHUB_TOKEN）"
 else
-    # --- 双选项：A) PAT 粘贴（默认） B) Web OAuth ---
+    echo -e "\n  ${BOLD}选择认证方式:${NC}"
+    echo -e "  ${GRAY}PAT 粘贴（推荐）${NC} — 无过期，仅本地存储"
+    echo -e "  ${GRAY}Web OAuth${NC}         — 浏览器授权，有有效期"
     echo ""
-    echo -e "  ${BOLD}选择认证方式:${NC}"
-    echo ""
-    echo -e "  ${CYAN}A)${NC} ${BOLD}PAT 粘贴（推荐，默认）${NC}"
-    echo -e "     - 生成 No-Expiration PAT，一次配置永久有效"
-    echo -e "     - Token 仅存在本地 ~/.config/gh/hosts.yml（600 权限，等同于 SSH key 保护级别）"
-    echo -e "     - ${GRAY}不会同步到 ccprivate 或任何远程仓库${NC}"
-    echo -e "     - 其他终端/机器：GitHub 重新生成或从本机复制"
-    echo ""
-    echo -e "  ${CYAN}B)${NC} ${BOLD}Web OAuth one-time code${NC}"
-    echo -e "     - 浏览器授权，首次配置最简单"
-    echo -e "     - Token 有有效期，过期后需重新 ${YELLOW}gh auth login${NC}"
-    echo ""
-    read -p "  选择 [A]: " gh_auth_choice
-    gh_auth_choice="${gh_auth_choice:-A}"
+    gh_auth_choice=$(menu_select "" "PAT 粘贴（推荐）" "Web OAuth")
 
-    case "${gh_auth_choice^^}" in
-        B|2)
+    case "$gh_auth_choice" in
+        1)
             info "浏览器打开 github.com → 点 Approve（~30 s）"
             gh auth login --web --git-protocol https --hostname github.com
             if ! gh auth status &>/dev/null 2>&1; then
@@ -190,14 +171,12 @@ else
             echo -e "  ${GRAY}不会同步到 ccprivate。其他机器请 GitHub 重新生成或从本机复制。${NC}"
             echo -e "  ${GRAY}续期：bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
             echo ""
-            read -rs -p "  PAT（粘贴，不回显）: " GH_TOKEN_INPUT
-            echo ""
+            GH_TOKEN_INPUT=$(prompt_password "PAT（粘贴，不回显）")
             if [[ -z "$GH_TOKEN_INPUT" ]]; then
                 echo ""
                 warn "跳过认证。之后可手动:"
                 warn "  gh auth login"
             else
-                GH_TOKEN_INPUT=$(echo "$GH_TOKEN_INPUT" | tr -d '\r\n')
                 echo "$GH_TOKEN_INPUT" | gh auth login --hostname github.com --with-token
             fi
             ;;
