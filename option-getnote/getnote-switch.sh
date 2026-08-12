@@ -24,10 +24,7 @@ CONF_FILE="$(resolve_conf getnote-accounts.json)" || exit 1
 RUNTIME_JSON="$HOME/.claude/settings.json"
 MARKER_FILE="$HOME/.getnote-account"
 
-source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
-    RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'; GRAY='\033[0;90m'; NC='\033[0m'
-}
+source "$CCCONFIG_DIR/lib/colors.sh"
 
 # ── 解析所有 getnote 账号 ──
 # 数据源: ccprivate/conf/getnote-accounts.json

@@ -31,14 +31,7 @@ source "$SCRIPT_DIR/dry-run.sh"
 # llm.json 由 init-llm.sh 管理
 
 # 颜色（colors.sh 可选 source，缺失时 fallback）
-source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[0;34m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
-}
+source "$SCRIPT_DIR/colors.sh"
 
 info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 success() { echo -e "${GREEN}✅ $1${NC}"; }
