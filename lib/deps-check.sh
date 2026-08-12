@@ -13,10 +13,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/path-helper.sh" 2>/dev/null || true
-source "$SCRIPT_DIR/colors.sh" 2>/dev/null || {
-    RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[1;33m'
-    CYAN=$'\033[0;36m'; GRAY=$'\033[0;90m'; NC=$'\033[0m'
-}
+source "$SCRIPT_DIR/colors.sh"
 
 export PATH="$HOME/.local/bin:$(find_node_bin 2>/dev/null || echo ""):$PATH"
 

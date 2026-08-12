@@ -132,7 +132,10 @@ do_self() {
     case "$target" in
         cc|ccconfig)
             echo -e "${CYAN}── ccconfig 自更新 ──${NC}"
-            git -C "$SCRIPT_DIR" fetch origin main 2>/dev/null || { warn "无法连接远程"; return 1; }
+            if ! git -C "$SCRIPT_DIR" fetch origin main 2>/dev/null; then
+                warn "无法连接远程（网络不通），跳过自更新"
+                return 1
+            fi
             local local_commit=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null)
             git -C "$SCRIPT_DIR" pull --ff-only origin main 2>/dev/null && {
                 local after=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)
