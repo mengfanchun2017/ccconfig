@@ -11,9 +11,8 @@
 #   4] Claude Code           → claude install
 #   5] MCP 缓存              → 刷新 npx 缓存
 #   6] Skills 同步           → skill + ccprivate [option]
-#   7] Skills 同步           → skill + ccprivate [option]
-#   8] OfficeCLI            → GitHub Release [option]
-#   9] Cloudflare 插件       → claude plugin [option]
+#   7] OfficeCLI            → GitHub Release [option]
+#   8] Cloudflare 插件       → claude plugin [option]
 #
 # 使用：
 #   bash ccconfig/update.sh               # 交互式菜单（支持多选，如 "1 3 4"）
