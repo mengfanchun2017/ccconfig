@@ -54,9 +54,31 @@ get_latest_version() {
         python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || echo ""
 }
 
+# ========== libicu 依赖 ==========
+# officecli 是 .NET 单文件应用，缺 libicu 启动即报 "Couldn't find a valid ICU package"。
+# 包名 Ubuntu 26.04 为 libicu78，其他版本 `apt-cache search libicu` 查对应名。
+ensure_libicu() {
+    if ldconfig -p 2>/dev/null | grep -q "libicuuc\.so"; then
+        return 0
+    fi
+    warn "缺少 libicu（.NET 运行时必需，officecli 无法启动）"
+    if sudo apt-get install -y libicu78 2>&1 | tail -3; then
+        if ldconfig -p 2>/dev/null | grep -q "libicuuc\.so"; then
+            ok "libicu78 已装"
+        else
+            warn "libicu 仍未就绪，officecli 可能无法运行"
+        fi
+    else
+        warn "libicu78 安装失败，手动: sudo apt-get install -y libicu78"
+        return 1
+    fi
+}
+
 # ========== 安装 ==========
 install_officecli() {
     echo -e "${CYAN}── 安装 OfficeCLI ──${NC}"
+
+    ensure_libicu || true
 
     if [ -x "$OFFICECLI_BIN" ]; then
         local ver=$("$OFFICECLI_BIN" --version 2>/dev/null || true)
@@ -106,6 +128,8 @@ update_officecli() {
         return 0
     fi
 
+    ensure_libicu || true
+
     local current=""
     if [ -x "$OFFICECLI_BIN" ]; then
         current=$("$OFFICECLI_BIN" --version 2>/dev/null || true)
@@ -145,6 +169,14 @@ show_status() {
         bad "❌ 未安装"
     fi
 
+    echo -n "  libicu ... "
+    if ldconfig -p 2>/dev/null | grep -q "libicuuc\.so"; then
+        good "✅"
+    else
+        bad "❌ 缺 libicu（officecli 无法启动）"
+        warn "  安装: sudo apt-get install -y libicu78"
+    fi
+
     echo -n "  MCP 注册 ... "
     if "$OFFICECLI_BIN" mcp list 2>/dev/null | grep -q "Claude Code.*registered"; then
         good "✅"
@@ -171,7 +203,7 @@ interactive_mode() {
     echo ""
     echo "  ┌─ 安装内容 ─────────────────────────────┐"
     echo "  │ • 单二进制文件 (~33MB)                   │"
-    echo "  │ • 零依赖，无需 Office/LibreOffice       │"
+    echo "  │ • 依赖 libicu（.NET 必需，自动安装）    │"
     echo "  │ • 可选: MCP 注册到 Claude Code          │"
     echo "  └─────────────────────────────────────────┘"
     echo ""
