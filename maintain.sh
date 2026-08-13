@@ -3,7 +3,7 @@
 #
 # 用法：
 #   bash maintain.sh                    # 交互菜单（推荐）
-#   bash maintain.sh setup              # 一键收尾（首次安装/修复）
+#   bash maintain.sh setup              # 一键修复：符号链接 + 缺失目录 + auto-sync + 模板同步（= fix）
 #   bash maintain.sh status [--quick]   # 状态检查（--quick 跳过慢检查）
 #   bash maintain.sh self [cc|skill|all]  # 自我更新
 #   bash maintain.sh upgrade [comp]     # 升级组件
@@ -11,7 +11,7 @@
 #   bash maintain.sh monitor [start|stop|status|tail]
 #   bash maintain.sh deps               # 依赖检查
 #   bash maintain.sh llmswitch [start|stop|restart|status]   # LLM 网关代理
-#   bash maintain.sh fix                # 自动修复（= setup）
+#   bash maintain.sh fix                # 自动修复：符号链接 + 缺失目录 + auto-sync + 模板同步（= setup）
 #   bash maintain.sh fix monitor         # 修 monitor：装 inotify-tools + 重启
 #
 # 暗号：
@@ -30,10 +30,10 @@ export PATH="$HOME/.local/bin:$(find_node_bin 2>/dev/null || echo ""):$PATH"
 source "$LIB_DIR/colors.sh"
 source "$LIB_DIR/interact.sh"
 
-# ── Step 5: 收尾 ──
+# ── 一键修复: 符号链接 + 缺失目录 + auto-sync + 模板同步 ──
 do_finalize() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}  ccconfig 收尾 — 链接修复 + 状态检查 + 服务启动${NC}"
+    echo -e "${CYAN}  ccconfig 一键修复 — 符号链接 + 缺失目录 + auto-sync + 模板同步${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
@@ -169,7 +169,7 @@ show_menu() {
         "Git 同步" \
         "组件升级" \
         "依赖检查" \
-        "一键修复" \
+        "一键修复(链接/目录/auto-sync/模板)" \
         "模板同步" \
         "ccprivate 升级" \
         "Bill\\&Token" \

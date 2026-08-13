@@ -108,11 +108,11 @@ check_symlinks() {
     if [ $issues -eq 0 ]; then
         echo -e "  ${GREEN}配置链接就绪${NC}"
     else
-        echo -e "  ${GRAY}自动修复中...${NC}"
+        echo -e "  ${GRAY}自动修复 symlink 中 (ccprivate/setup.sh)...${NC}"
         local fixed=false
         if [ -x "$CCPRIVATE_HOME/setup.sh" ]; then
             if bash "$CCPRIVATE_HOME/setup.sh" 2>/dev/null; then
-                echo -e "  ${GREEN}✅ 配置链接已自动修复 (ccprivate/setup.sh)${NC}"
+                echo -e "  ${GREEN}✅ symlink 已修复 (ccprivate/setup.sh)${NC}"
                 fixed=true
             fi
         fi
