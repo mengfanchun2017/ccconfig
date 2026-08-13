@@ -30,6 +30,7 @@ CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/path-helper.sh"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/interact.sh"
+source "$SCRIPT_DIR/net.sh"
 LOCAL_BIN="$HOME/.local/bin"
 VERSION_FILE="$CCCONFIG_ROOT/conf/versions.json"  # 公开文件，不走 resolve_conf
 LOCK_FILE="/tmp/ccconfig-update.lock"
@@ -118,7 +119,7 @@ self_update() {
     section "ccconfig 自更新"
 
     info "fetching origin/main..."
-    if ! timeout 5 bash -c 'echo > /dev/tcp/github.com/443' 2>/dev/null; then
+    if ! github_reachable; then
         warn "无法连接远程（网络不通），跳过自更新"; return 0
     fi
     timeout 10 git -C "$CCCONFIG_ROOT" fetch origin main 2>/dev/null || { warn "git fetch 失败，跳过自更新"; return 0; }
@@ -473,11 +474,13 @@ update_gh() {
     fi
 
     info "下载 gh v$latest..."
-    local url="https://github.com/cli/cli/releases/download/v${latest}/gh_${latest}_linux_amd64.tar.gz"
-    local tmp="/tmp/gh-update.$$"
+    local proxy url tmp
+    proxy=$(net_gh_proxy)
+    url="https://github.com/cli/cli/releases/download/v${latest}/gh_${latest}_linux_amd64.tar.gz"
+    tmp="/tmp/gh-update.$$"
     mkdir -p "$tmp"
 
-    if ! curl -fsSL --connect-timeout 10 --max-time 120 "$url" -o "$tmp/gh.tar.gz"; then
+    if ! curl -fsSL ${proxy:+-x "$proxy"} --connect-timeout 10 --max-time 120 "$url" -o "$tmp/gh.tar.gz"; then
         err "下载失败: $url"
         rm -rf "$tmp"
         return 1

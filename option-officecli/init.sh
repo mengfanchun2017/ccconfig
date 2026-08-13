@@ -17,6 +17,7 @@ CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 source "$CCCONFIG_DIR/lib/dry-run.sh"
 source "$CCCONFIG_DIR/lib/path-helper.sh"
+source "$CCCONFIG_DIR/lib/net.sh"
 export PATH="${HOME}/.local/bin:$(find_node_bin):$PATH"
 
 source "$CCCONFIG_DIR/lib/colors.sh"
@@ -69,7 +70,8 @@ install_officecli() {
 
     echo -n "  下载 ... "
     local tmp="/tmp/officecli-$(date +%s)"
-    if curl -L --connect-timeout 10 --max-time 300 --progress-bar -o "$tmp" "$DOWNLOAD_URL" 2>&1; then
+    local proxy; proxy=$(net_gh_proxy)
+    if curl -L ${proxy:+-x "$proxy"} --connect-timeout 10 --max-time 300 --progress-bar -o "$tmp" "$DOWNLOAD_URL" 2>&1; then
         local size=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
         if [ "$size" -lt 1000000 ]; then
             bad "❌ 下载文件异常小 ($size bytes)"
@@ -98,8 +100,8 @@ install_officecli() {
 update_officecli() {
     echo -e "${CYAN}── 更新 OfficeCLI ──${NC}"
 
-    # 网络预检
-    if ! timeout 5 bash -c 'echo > /dev/tcp/github.com/443' 2>/dev/null; then
+    # 网络预检（直连被 GFW 阻断时自动走本机 Clash 代理）
+    if ! github_reachable; then
         warn "GitHub 不可达，跳过=="
         return 0
     fi
