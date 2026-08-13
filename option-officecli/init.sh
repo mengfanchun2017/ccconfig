@@ -59,7 +59,7 @@ install_officecli() {
     echo -e "${CYAN}── 安装 OfficeCLI ──${NC}"
 
     if [ -x "$OFFICECLI_BIN" ]; then
-        local ver=$("$OFFICECLI_BIN" --version 2>/dev/null)
+        local ver=$("$OFFICECLI_BIN" --version 2>/dev/null || true)
         echo -n "  OfficeCLI ... "
         good "✅ $ver"
         return 0
@@ -92,7 +92,7 @@ install_officecli() {
     chmod +x "$OFFICECLI_BIN"
     good "✅"
 
-    local ver=$("$OFFICECLI_BIN" --version 2>/dev/null)
+    local ver=$("$OFFICECLI_BIN" --version 2>/dev/null || true)
     info "  版本: $ver"
 }
 
@@ -108,7 +108,7 @@ update_officecli() {
 
     local current=""
     if [ -x "$OFFICECLI_BIN" ]; then
-        current=$("$OFFICECLI_BIN" --version 2>/dev/null)
+        current=$("$OFFICECLI_BIN" --version 2>/dev/null || true)
     fi
     info "  当前版本: ${current:-未安装}"
 
@@ -139,7 +139,7 @@ show_status() {
 
     echo -n "  二进制 ... "
     if [ -x "$OFFICECLI_BIN" ]; then
-        local ver=$("$OFFICECLI_BIN" --version 2>/dev/null)
+        local ver=$("$OFFICECLI_BIN" --version 2>/dev/null || true)
         good "✅ $ver"
     else
         bad "❌ 未安装"
