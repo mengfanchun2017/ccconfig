@@ -815,7 +815,6 @@ do_dry_run() {
 }
 
 update_all() {
-    local include_option="${1:-true}"
     local overall_status=0
     local results=()
 
@@ -840,12 +839,13 @@ update_all() {
             results+=("${RED}❌${NC} $desc")
             overall_status=1
         fi
-        # 只对有 comp_key 的步骤记录版本（MCP/systemd 没有版本号）
+        # 只对有 comp_key 的步骤记录版本（MCP 没有版本号）
         if [ -n "$comp_key" ]; then
             after_ver[$comp_key]=$(get_live_version "$comp_key")
         fi
     }
 
+    run_step ""         "ccconfig 自更新"   self_update
     run_step "node"     "Node.js"           update_nodejs
     run_step "lark-cli" "lark-cli (npm)"    update_npm_globals
     run_step ""         "Python pip 包"     update_python_packages
@@ -853,10 +853,8 @@ update_all() {
     run_step "claude"   "Claude Code"       update_claude
     run_step ""         "Skills 同步"       update_skills
     run_step ""         "MCP 缓存"          update_mcp
-    if [ "$include_option" = "true" ]; then
-        run_step ""         "OfficeCLI"          update_officecli
-        run_step ""         "Cloudflare 插件"    update_cloudflare_plugin
-    fi
+    run_step ""         "OfficeCLI"          update_officecli
+    run_step ""         "Cloudflare 插件"    update_cloudflare_plugin
 
     # 后快照
     take_snapshot "after" > /dev/null
@@ -929,7 +927,7 @@ show_menu() {
     echo "   9) Cloudflare 插件"
     echo "   0) 退出"
     echo ""
-    echo -e "   ${YELLOW}all${NC} = 升级基础+扩展（不含可选）"
+    echo -e "   ${YELLOW}all${NC} = 升级全部组件"
     echo -e "   ${YELLOW}2 4 5${NC} = 多选（如升级 2、4、5 项）"
     echo ""
 
@@ -942,7 +940,7 @@ show_menu() {
     fi
     if [[ "$choice" == "all" ]]; then
         take_snapshot "pre" > /dev/null
-        update_all false
+        update_all
         show_menu
         return
     fi
@@ -972,16 +970,9 @@ trap release_lock EXIT
 
 case "${1:-menu}" in
     all)
-        self_update "${1:-menu}"
-        echo -e "${CYAN}ccconfig 组件升级（基础+扩展）${NC}"
+        echo -e "${CYAN}ccconfig 组件升级（全部）${NC}"
         take_snapshot "pre" > /dev/null
-        update_all false
-        ;;
-    --no-option)
-        self_update "${1:-menu}"
-        echo -e "${CYAN}ccconfig 组件升级（不含可选）${NC}"
-        take_snapshot "pre" > /dev/null
-        update_all false
+        update_all
         ;;
     node)          update_nodejs ;;
     npm)           update_npm_globals ;;
