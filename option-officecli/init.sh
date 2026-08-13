@@ -98,6 +98,12 @@ install_officecli() {
 update_officecli() {
     echo -e "${CYAN}── 更新 OfficeCLI ──${NC}"
 
+    # 网络预检
+    if ! timeout 5 bash -c 'echo > /dev/tcp/github.com/443' 2>/dev/null; then
+        warn "GitHub 不可达，跳过=="
+        return 0
+    fi
+
     local current=""
     if [ -x "$OFFICECLI_BIN" ]; then
         current=$("$OFFICECLI_BIN" --version 2>/dev/null)
@@ -105,7 +111,7 @@ update_officecli() {
     info "  当前版本: ${current:-未安装}"
 
     local latest=$(get_latest_version)
-    [ -z "$latest" ] && { bad "❌ 无法获取最新版本"; return 1; }
+    [ -z "$latest" ] && { bad "无法获取最新版本"; return 1; }
     info "  最新版本: $latest"
 
     if [ "$current" = "$latest" ]; then
