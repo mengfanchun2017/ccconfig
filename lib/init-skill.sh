@@ -203,6 +203,21 @@ do_install_cli_deps() {
                     fi
                 fi
                 ;;
+            apt)
+                if dpkg -s "$pkg" &>/dev/null; then
+                    info "  $pkg (apt): 已装 — $required_by"
+                    skipped=$((skipped + 1))
+                else
+                    info "  $pkg (apt): 安装中..."
+                    if sudo apt-get install -y "$pkg" 2>&1 | tail -1; then
+                        good "  $pkg (apt): ✓ — $required_by"
+                        installed=$((installed + 1))
+                    else
+                        bad "  $pkg (apt): 失败"
+                        failed=$((failed + 1))
+                    fi
+                fi
+                ;;
             *)
                 warn "  $pkg: 未知管理器 $mgr — 跳过"
                 skipped=$((skipped + 1))
@@ -426,6 +441,9 @@ do_update() {
             go)
                 info "  go install $pkg"
                 run go install "$pkg" 2>&1 | tail -1
+                ;;
+            apt)
+                dpkg -s "$pkg" &>/dev/null || sudo apt-get install -y "$pkg" 2>&1 | tail -1
                 ;;
         esac
     done
