@@ -733,6 +733,29 @@ check_example_sync() {
     return 0
 }
 
+# ========== bridge 自愈（仅 bridge 用户生效） ==========
+# openaialt 等 OpenAI-only 端点切到 127.0.0.1:8898 后，重启时 bridge 进程不在。
+# 检测 env 指向 8898 但无响应 → 从 llm.json 当前预设拉起。未配置 bridge 的用户 grep 短路，零开销。
+check_bridge_selfheal() {
+    grep -q '127.0.0.1:8898' "$HOME/.claude/settings.json" 2>/dev/null || return 0
+    if curl -s --max-time 2 http://127.0.0.1:8898/health >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # bridge 无响应 → 延迟加载共享库，只影响 bridge 用户
+    source "$SCRIPT_DIR/ensure-bridge.sh" 2>/dev/null || return 0
+    local cfg; cfg="$(resolve_conf llm.json 2>/dev/null)" || return 0
+    local cur; cur="$(python3 -c "import json; print(json.load(open('$cfg')).get('current',''))" 2>/dev/null)" || return 0
+    [[ -n "$cur" ]] || return 0
+    local bc; bc="$(read_bridge_config "$cfg" "$cur")" || return 0
+    IFS='|' read -r base_url model key <<< "$bc"
+    if ensure_bridge "$base_url" "$model" "$key"; then
+        warn "  [bridge] 已自动拉起 ($cur) → 127.0.0.1:8898"
+    else
+        warn "  [bridge] 自动拉起失败，运行 bash init-llm.sh 重切 $cur"
+    fi
+}
+
 # ========== 执行所有检查 ==========
 
 echo ""
@@ -754,6 +777,7 @@ check_autosync
 check_pat_expiry
 check_repos
 check_feishu
+check_bridge_selfheal
 
 if ! $QUICK_MODE; then
     check_mcp
