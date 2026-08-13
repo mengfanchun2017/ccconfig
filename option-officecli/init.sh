@@ -140,7 +140,8 @@ update_officecli() {
     [ -z "$latest" ] && { bad "无法获取最新版本"; return 1; }
     info "  最新版本: $latest"
 
-    if [ "$current" = "$latest" ]; then
+    # tag_name 带 v 前缀（v1.0.143），本地版本不带 → 统一去 v 比较
+    if [ "${current#v}" = "${latest#v}" ]; then
         good "  已是最新"
         return 0
     fi
