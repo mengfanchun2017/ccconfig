@@ -5,14 +5,15 @@
 # 每月一键升级所有组件，可靠、幂等、可恢复。
 #
 # 升级组件：
-#   1] Node.js + pip 包      → Node.js 最新 LTS + pip 包
-#   2] lark-cli              → npm install -g @larksuite/cli
-#   3] GitHub CLI            → GitHub Release
-#   4] Claude Code           → claude install
-#   5] MCP 缓存              → 刷新 npx 缓存
-#   6] Skills 同步           → skill + ccprivate [option]
-#   7] OfficeCLI            → GitHub Release [option]
-#   8] Cloudflare 插件       → claude plugin [option]
+#   1] ccconfig 自更新       → git fetch + pull --ff-only
+#   2] Node.js + pip 包      → Node.js 最新 LTS + pip 包
+#   3] lark-cli              → npm install -g @larksuite/cli
+#   4] GitHub CLI            → GitHub Release
+#   5] Claude Code           → claude install
+#   6] MCP 缓存              → 刷新 npx 缓存
+#   7] Skills 同步           → skill + ccprivate [option]
+#   8] OfficeCLI            → GitHub Release [option]
+#   9] Cloudflare 插件       → claude plugin [option]
 #
 # 使用：
 #   bash ccconfig/update.sh               # 交互式菜单（支持多选，如 "1 3 4"）
@@ -914,22 +915,23 @@ show_menu() {
     echo ""
     echo -e "${CYAN}━━━ ccconfig 组件升级 ━━━${NC}"
     echo ""
-    echo "   1) Node.js + pip 包"
-    echo "   2) lark-cli"
-    echo "   3) GitHub CLI"
-    echo "   4) Claude Code"
-    echo "   5) MCP 缓存刷新"
-    echo "   6) Skills 同步"
-    echo "   7) OfficeCLI"
-    echo "   8) Cloudflare 插件"
+    echo "   1) ccconfig 自更新"
+    echo "   2) Node.js + pip 包"
+    echo "   3) lark-cli"
+    echo "   4) GitHub CLI"
+    echo "   5) Claude Code"
+    echo "   6) MCP 缓存刷新"
+    echo "   7) Skills 同步"
+    echo "   8) OfficeCLI"
+    echo "   9) Cloudflare 插件"
     echo "   0) 退出"
     echo ""
     echo -e "   ${YELLOW}all${NC} = 升级基础+扩展（不含可选）"
-    echo -e "   ${YELLOW}1 3 4${NC} = 多选（如升级 1、3、4 项）"
+    echo -e "   ${YELLOW}2 4 5${NC} = 多选（如升级 2、4、5 项）"
     echo ""
 
     local choice
-    read -p "  选择 [0-8]: " choice </dev/tty || true
+    read -p "  选择 [0-9]: " choice </dev/tty || true
     [[ -z "$choice" ]] && { show_menu; return; }
 
     if [[ "$choice" == "0" ]]; then
@@ -945,14 +947,15 @@ show_menu() {
     local did_something=0
     for sel in $choice; do
         case "$sel" in
-            1)  update_nodejs; update_python_packages; did_something=1 ;;
-            2)  update_npm_globals; did_something=1 ;;
-            3)  update_gh; did_something=1 ;;
-            4)  update_claude; did_something=1 ;;
-            5)  update_mcp; did_something=1 ;;
-            6)  update_skills; did_something=1 ;;
-            7)  update_officecli; did_something=1 ;;
-            8)  update_cloudflare_plugin; did_something=1 ;;
+            1)  self_update; did_something=1 ;;
+            2)  update_nodejs; update_python_packages; did_something=1 ;;
+            3)  update_npm_globals; did_something=1 ;;
+            4)  update_gh; did_something=1 ;;
+            5)  update_claude; did_something=1 ;;
+            6)  update_mcp; did_something=1 ;;
+            7)  update_skills; did_something=1 ;;
+            8)  update_officecli; did_something=1 ;;
+            9)  update_cloudflare_plugin; did_something=1 ;;
             *)  echo "无效: $sel" ;;
         esac
     done
@@ -988,7 +991,6 @@ case "${1:-menu}" in
     skills)        update_skills ;;
     cloudflare)    update_cloudflare_plugin ;;
     menu|"")
-        self_update "menu" || true
         show_menu ;;
     --dry-run|--check|check)
         do_dry_run ;;
