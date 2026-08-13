@@ -10,9 +10,9 @@
 #   3] GitHub CLI            → GitHub Release
 #   4] Claude Code           → claude install
 #   5] MCP 缓存              → 刷新 npx 缓存
-#   6] systemd 服务          → 重建 + 重启 [option]
-#   7] OfficeCLI            → GitHub Release [option]
-#   8] Skills 同步           → skill + ccprivate [option]
+#   6] Skills 同步           → skill + ccprivate [option]
+#   7] Skills 同步           → skill + ccprivate [option]
+#   8] OfficeCLI            → GitHub Release [option]
 #   9] Cloudflare 插件       → claude plugin [option]
 #
 # 使用：
@@ -20,6 +20,7 @@
 #   bash ccconfig/update.sh all          # 升级基础+升级（不含 option）
 #   bash ccconfig/update.sh <component>  # 升级单个组件
 #   bash ccconfig/update.sh --dry-run    # 只检查不升级，输出版本差异
+#   bash ccconfig/update.sh menu        # 交互菜单
 # ==============================================
 
 set -euo pipefail
@@ -666,17 +667,6 @@ update_skills() {
     bash "$CCCONFIG_ROOT/lib/init-skill.sh" sync
 }
 
-# ========== 12. systemd 服务重建 ==========
-
-fix_systemd_services() {
-    section "systemd 服务"
-
-    local node_bin
-    node_bin=$(find_node_bin)
-
-    info "Node bin 路径: $node_bin"
-
-}
 
 # ========== 版本信息收集 ==========
 
@@ -856,16 +846,13 @@ update_all() {
     run_step "node"     "Node.js"           update_nodejs
     run_step "lark-cli" "lark-cli (npm)"    update_npm_globals
     run_step ""         "Python pip 包"     update_python_packages
+    run_step "gh"       "GitHub CLI"        update_gh
+    run_step "claude"   "Claude Code"       update_claude
     run_step ""         "Skills 同步"       update_skills
+    run_step ""         "MCP 缓存"          update_mcp
     if [ "$include_option" = "true" ]; then
         run_step ""         "OfficeCLI"          update_officecli
         run_step ""         "Cloudflare 插件"    update_cloudflare_plugin
-    fi
-    run_step "gh"       "GitHub CLI"        update_gh
-    run_step "claude"   "Claude Code"       update_claude
-    run_step ""         "MCP 缓存"          update_mcp
-    if [ "$include_option" = "true" ]; then
-        run_step ""         "systemd 服务"      fix_systemd_services
     fi
 
     # 后快照
@@ -933,10 +920,9 @@ show_menu() {
     echo "   3) GitHub CLI"
     echo "   4) Claude Code"
     echo "   5) MCP 缓存刷新"
-    echo "   6) systemd 服务重建"
+    echo "   6) Skills 同步"
     echo "   7) OfficeCLI"
-    echo "   8) Skills 同步"
-    echo "   9) Cloudflare 插件"
+    echo "   8) Cloudflare 插件"
     echo "   0) 退出"
     echo ""
     echo -e "   ${YELLOW}all${NC} = 升级基础+扩展（不含可选）"
@@ -944,7 +930,7 @@ show_menu() {
     echo ""
 
     local choice
-    read -p "  选择 [0-9]: " choice </dev/tty || true
+    read -p "  选择 [0-8]: " choice </dev/tty || true
     [[ -z "$choice" ]] && { show_menu; return; }
 
     if [[ "$choice" == "0" ]]; then
@@ -960,15 +946,14 @@ show_menu() {
     local did_something=0
     for sel in $choice; do
         case "$sel" in
-            1)  update_nodejs; update_python_packages; fix_systemd_services; did_something=1 ;;
+            1)  update_nodejs; update_python_packages; did_something=1 ;;
             2)  update_npm_globals; did_something=1 ;;
             3)  update_gh; did_something=1 ;;
             4)  update_claude; did_something=1 ;;
             5)  update_mcp; did_something=1 ;;
-            6)  fix_systemd_services; did_something=1 ;;
+            6)  update_skills; did_something=1 ;;
             7)  update_officecli; did_something=1 ;;
-            8)  update_skills; did_something=1 ;;
-            9)  update_cloudflare_plugin; did_something=1 ;;
+            8)  update_cloudflare_plugin; did_something=1 ;;
             *)  echo "无效: $sel" ;;
         esac
     done
@@ -1000,17 +985,16 @@ case "${1:-menu}" in
     claude)        update_claude ;;
     mcp)           update_mcp ;;
     lark|lark-cli) update_npm_globals ;;
-    services)      fix_systemd_services ;;
     officecli)     update_officecli ;;
     skills)        update_skills ;;
     cloudflare)    update_cloudflare_plugin ;;
     menu|"")
-        self_update "menu"
+        self_update "menu" || true
         show_menu ;;
     --dry-run|--check|check)
         do_dry_run ;;
     *)
-        echo "用法: $0 [all|node|npm|python|gh|claude|mcp|lark|services|menu]"
+        echo "用法: $0 [all|node|npm|python|gh|claude|mcp|lark|menu]"
         exit 1
         ;;
 esac
