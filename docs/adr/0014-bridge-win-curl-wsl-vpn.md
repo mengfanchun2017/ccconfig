@@ -7,14 +7,14 @@
 
 ## Context and Problem Statement
 
-用户在办公室内网使用 `AltDeepSeekV4Flash`（openaialt preset）正常。回家后：
+用户通过 OpenAI bridge 调用公司内部 LLM API 端点（`openaialt` preset），办公室内网正常。回家后：
 1. 开零信任 VPN 连接到公司内网
 2. 同时开翻墙 VPN（Clash）
 3. 切到 openaialt → bridge 启动 → Claude 报 500 Internal Server Error / ECONNRESET
 
 ### 测试数据
 
-- **Windows PowerShell** `Test-NetConnection aiplus.airchina.com.cn -port 18080` → TCP 通（`RemoteAddress: 100.12.0.1`）
+- **Windows PowerShell** `Test-NetConnection <公司API域名> -port 18080` → TCP 通（Windows 侧可路由到 VPN 分配的虚拟 IP）
 - **WSL curl** → 超时（WSL 网络栈看不到 VPN 路由）
 - **Windows curl.exe** → 200 OK
 
@@ -22,9 +22,9 @@
 
 | 层 | 问题 | 现象 |
 |---|---|---|
-| DNS 污染 | WSL `socket.getaddrinfo` 被翻墙 VPN Clash fake-ip 劫持，`aiplus.airchina.com.cn` 返回错误 IP | bridge 连到错误 IP → SSL 失败 |
-| WSL 网络栈隔离 | WSL2 网络栈与 Windows 分离，VPN 分配的 IP 路由在 WSL 看不到 | WSL 到 `100.12.0.1` 超时，Windows 到 `100.12.0.1` 正常 |
-| ARG_MAX 溢出 | `curl.exe -d <body>` argv 传递 body，Claude 真实请求 600KB+ 超 Linux 128KB 限制 | `OSError: Argument list too long` → bridge 500 |
+| DNS 污染 | WSL `socket.getaddrinfo` 被翻墙 VPN Clash fake-ip 劫持，返回错误 IP | bridge 连到错误 IP → SSL 失败 |
+| WSL 网络栈隔离 | WSL2 网络栈与 Windows 分离，VPN 分配的 IP 路由在 WSL 看不到 | WSL 直连超时，Windows 侧正常 |
+| ARG_MAX 溢出 | `curl.exe -d <body>` argv 传 body，Claude 真实请求 600KB+ 超 Linux 128KB 限制 | `OSError: Argument list too long` → bridge 500 |
 
 ### 设计目标
 
@@ -80,9 +80,10 @@ curl.exe -d @- ...
 
 ### 隐私设计
 
-- **无硬编码域名/IP**：`aiplus.airchina.com.cn:18080` 和 API key 来自 `ccprivate/conf/llm.json`，不在 ccconfig 公开仓库
-- **无硬编码 DNS 服务器**：`10.255.255.254` 改为环境变量 `OPENAI_BRIDGE_WIN_DNS`，由 ccprivate 配置
-- 脚本通用：别人 fork ccconfig 只需要配自己的 llm.json 即可使用
+- **无硬编码域名/IP/Key**：公司 API 域名、端口、API Key 全部来自 `ccprivate/conf/llm.json`，ccconfig 脚本无感知
+- **无硬编码 DNS 服务器**：通过 `OPENAI_BRIDGE_WIN_DNS` 环境变量指定（可选），由 ccprivate 配置，兜底 Windows 默认 DNS
+- **流程中的公司 VPN IP 不做硬编码**：DNS 预解析返回的是运行时值，不写死到脚本中
+- 脚本通用：别人 fork ccconfig 只需要配自己的 llm.json + 环境变量即可复用
 
 ## Consequences
 
@@ -140,7 +141,7 @@ Claude 请求流程（win-curl 模式）：
   → _post_via_win_curl / _stream_via_win_curl
     → asyncio.create_subprocess_exec("curl.exe", "-d", "@-", ...)
     → stdin.write(body_bytes) → stdin.close()
-    → Windows 侧 curl.exe → 100.12.0.1:18080 → DeepSeek API
+    → Windows 侧 curl.exe → VPN IP:port → 上游 API
   → 响应回传给 Claude
 ```
 
