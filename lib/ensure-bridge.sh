@@ -133,7 +133,11 @@ print(p.hostname or '')
 " 2>/dev/null)
         if [[ -n "$win_domain" ]]; then
             local win_ip
-            win_ip=$(powershell.exe -NoProfile -Command "Resolve-DnsName $win_domain -Type A -Server 10.255.255.254 2>&1 | Select-Object -First 1 -ExpandProperty IPAddress" 2>/dev/null | tr -d '\r' || echo "")
+            # 优先用环境变量指定的 DNS 服务器（公司 VPN DNS），兜底 Windows 默认 DNS
+            local dns_server="${OPENAI_BRIDGE_WIN_DNS:-}"
+            if [[ -n "$dns_server" ]]; then
+                win_ip=$(powershell.exe -NoProfile -Command "Resolve-DnsName $win_domain -Type A -Server $dns_server 2>&1 | Select-Object -First 1 -ExpandProperty IPAddress" 2>/dev/null | tr -d '\r' || echo "")
+            fi
             if [[ -z "$win_ip" ]]; then
                 # 兜底：不加 DNS 服务器参数，用 Windows 默认 DNS
                 win_ip=$(powershell.exe -NoProfile -Command "Resolve-DnsName $win_domain -Type A 2>&1 | Select-Object -First 1 -ExpandProperty IPAddress" 2>/dev/null | tr -d '\r' || echo "")
