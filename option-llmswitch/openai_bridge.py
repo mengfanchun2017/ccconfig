@@ -349,6 +349,19 @@ async def on_startup():
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0), trust_env=False)
 
 
+# 当 upstream URL 用 IP 代替了域名（DNS 预解析后），ssl 握手的 SNI 仍要用域名
+# 否则服务端证书验证失败: certificate is not valid for IP
+# httpx 0.27+ 支持在 request 的 extensions 里指定 sni_hostname
+_SNI_KEY = "sni_hostname"
+
+
+def _inject_sni(headers: dict, host: str) -> dict:
+    """添加 Host header（IP 直连场景下保 SNI/路由）。"""
+    if host:
+        headers["Host"] = host
+    return headers
+
+
 @app.on_event("shutdown")
 async def on_shutdown():
     global http_client
@@ -374,22 +387,36 @@ async def messages(request: Request):
 
     # 如果 upstream 用 IP 代替了域名，加 Host header 保 SNI 和路由
     host_header = state.get("upstream_host")
+    extra_ext = {}
     if host_header:
         headers["Host"] = host_header
+        # SSL 握手时 SNI 用域名（让服务端证书验证通过）
+        extra_ext["sni_hostname"] = host_header
 
     client = http_client
     if stream:
         sse_state = {"started": False, "block_open": False, "finished": False}
 
         async def gen():
-            async with client.stream("POST", target_url, headers=headers, json=upstream_body) as r:
+            async with client.stream(
+                "POST",
+                target_url,
+                headers=headers,
+                json=upstream_body,
+                extensions=extra_ext or None,
+            ) as r:
                 async for chunk in r.aiter_text():
                     sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
                     if sse_out:
                         yield sse_out
         return StreamingResponse(gen(), media_type="text/event-stream")
     else:
-        r = await client.post(target_url, headers=headers, json=upstream_body)
+        r = await client.post(
+            target_url,
+            headers=headers,
+            json=upstream_body,
+            extensions=extra_ext or None,
+        )
         try:
             openai_json = r.json()
         except Exception:
