@@ -111,11 +111,41 @@ else:
 
     # 启新 bridge（unset 代理 env 直连上游）
     cd "$CCCONFIG_ROOT"
-    nohup env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
-        OPENAI_BRIDGE_UPSTREAM="$resolved_upstream" \
-        OPENAI_BRIDGE_KEY="$key" \
-        OPENAI_BRIDGE_MODEL="$model" \
-        OPENAI_BRIDGE_HOST="$resolved_host" \
+
+    # 检测 WSL 网络是否可达 upstream IP（WSL2 网络栈与 Windows 分离，
+    # VPN 在 Windows 上分配的 IP 路由在 WSL 看不到）。
+    # 不通 → 启用 win-curl 模式（通过 Windows 侧 curl.exe 转发）
+    local use_win_curl=0
+    if command -v curl.exe &>/dev/null && [[ -n "$resolved_host" ]]; then
+        if ! python3 -c "
+import socket, sys
+from urllib.parse import urlparse
+p = urlparse('$resolved_upstream')
+host = p.hostname
+port = p.port or 443
+try:
+    s = socket.create_connection((host, port), timeout=5)
+    s.close()
+    sys.exit(0)
+except Exception:
+    sys.exit(1)
+" 2>/dev/null; then
+            use_win_curl=1
+            info "  WSL 网络不可达 upstream → 启用 Windows 侧 curl.exe 转发"
+        fi
+    fi
+
+    local env_args="-u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy"
+    local bridge_env="env $env_args \
+        OPENAI_BRIDGE_UPSTREAM=$resolved_upstream \
+        OPENAI_BRIDGE_KEY=$key \
+        OPENAI_BRIDGE_MODEL=$model \
+        OPENAI_BRIDGE_HOST=$resolved_host"
+    if [[ "$use_win_curl" -eq 1 ]]; then
+        bridge_env="$bridge_env OPENAI_BRIDGE_USE_WIN_CURL=1"
+    fi
+
+    nohup $bridge_env \
         python3 option-llmswitch/openai_bridge.py --port "$port" \
         > "$HOME/.cache/openai_bridge.log" 2>&1 &
     disown
