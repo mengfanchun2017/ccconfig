@@ -552,34 +552,6 @@ PYEOF
 }
 
 _do_config_routes() {
-    echo ""
-    echo "  路由配置:"
-    info "  说明: 'llmgateway' = 主模型路由, 'llmgateway-s' = 小模型(haiku)路由"
-    info "        两个路由独立，都按 peak/off_peak 切换（高峰选同后端即固定）"
-    local route_items=() route_names=()
-    while IFS= read -r line; do
-        [[ -z "$line" ]] && continue
-        route_items+=("$line")
-        route_names+=("$(echo "$line" | cut -d: -f1)")
-    done < <(python3 - "$CONF_FILE" << 'PYEOF'
-import json, sys
-try:
-    with open(sys.argv[1]) as f:
-        d = json.load(f)
-except:
-    d = {}
-routes = d.get('routes', {})
-for name, rule in routes.items():
-    if isinstance(rule, dict):
-        print(f"{name}: 高峰→{rule.get('peak','?')}, 非高峰→{rule.get('off_peak','?')}")
-    else:
-        print(f"{name}: 固定→{rule}")
-PYEOF
-    )
-    local route_name=""
-    _menu_pick "选择路由" route_items route_names route_name || return
-
-    echo ""
     local prov_items=() route_provs=()
     while IFS='|' read -r name display model; do
         [[ -z "$name" ]] && continue
@@ -587,29 +559,66 @@ PYEOF
         prov_items+=("$display ($model)")
     done < <(_read_provider_list)
 
-    # 统一强制 dict 模式（让主/小模型路由配置对称）
-    local peak_p offpeak_p
-    peak_p=$(_menu_pick "高峰后端" prov_items route_provs) || { warn "  已取消"; return; }
-    offpeak_p=$(_menu_pick "非高峰后端" prov_items route_provs) || { warn "  已取消"; return; }
-    if [[ -z "$peak_p" || -z "$offpeak_p" ]]; then
-        warn "  未选完整后端，已取消"
-        return
-    fi
-    python3 - "$CONF_FILE" "$route_name" "$peak_p" "$offpeak_p" << 'PYEOF'
+    local choices=(
+        "llmgateway 高峰"
+        "llmgateway 非高峰"
+        "llmgateway-s 高峰"
+        "llmgateway-s 非高峰"
+    )
+    local route_confs=("llmgateway" "llmgateway" "llmgateway-s" "llmgateway-s")
+    local route_slots=("peak" "off_peak" "peak" "off_peak")
+
+    while true; do
+        echo ""
+        echo "  路由配置:"
+        # 显示当前值
+        python3 - "$CONF_FILE" << 'PYEOF'
 import json, sys
-conf_file = sys.argv[1]; route_name = sys.argv[2]; peak = sys.argv[3]; off_peak = sys.argv[4]
+try:
+    with open(sys.argv[1]) as f: d = json.load(f)
+except: d = {}
+routes = d.get('routes', {})
+if not routes:
+    print("    (无)")
+else:
+    for name in ['llmgateway','llmgateway-s']:
+        rule = routes.get(name, {})
+        pk = rule.get('peak','?')
+        op = rule.get('off_peak','?')
+        print(f"    llmgateway: 高峰→{pk}")
+        print(f"    llmgateway: 非高峰→{op}")
+        print(f"    llmgateway-s: 高峰→{pk}")
+        print(f"    llmgateway-s: 非高峰→{op}")
+PYEOF
+        echo ""
+        local c; c=$(menu_select "选择路由" "${choices[@]}" "返回")
+        [[ -z "$c" ]] && continue
+        if [[ "$c" == "5" ]]; then break; fi
+        local idx=$((c - 1))
+        local rname="${route_confs[$idx]}"
+        local slot="${route_slots[$idx]}"
+        local slot_label
+        [[ "$slot" == "peak" ]] && slot_label="高峰" || slot_label="非高峰"
+
+        echo ""
+        local sel_prov=""
+        _menu_pick "$rname $slot_label 后端" prov_items route_provs sel_prov || { warn "  已取消"; continue; }
+
+        python3 - "$CONF_FILE" "$rname" "$slot" "$sel_prov" << 'PYEOF'
+import json, sys
+conf_file, rname, slot, prov = sys.argv[1:5]
 try:
     with open(conf_file) as f: d = json.load(f)
 except: d = {}
-d.setdefault('routes', {})[route_name] = {"peak": peak, "off_peak": off_peak}
+d.setdefault('routes', {}).setdefault(rname, {})[slot] = prov
 with open(conf_file, 'w') as f: json.dump(d, f, indent=2)
-print(f"  已更新 {route_name}: 高峰→{peak}, 非高峰→{off_peak}")
+print(f"  已更新 {rname} {slot} → {prov}")
 PYEOF
 
-    # 热切换通知
-    if is_running; then
-        info "  路由已更新，代理运行时实时生效（下次请求自动读取新配置）"
-    fi
+        if is_running; then
+            info "  路由已更新，代理运行时实时生效"
+        fi
+    done
 }
 
 _do_config_manual_provider() {
@@ -649,13 +658,14 @@ do_configure() {
         echo ""
         echo "  当前模式: $current_mode"
         echo "  手动 provider: $current_mp"
-        python3 - "$CONF_FILE" << 'PYEOF'
+        python3 - "$CONF_FILE" "$LLM_CONF" << 'PYEOF'
 import json, sys
 try:
     with open(sys.argv[1]) as f: d = json.load(f)
 except: d = {}
 blocks = d.get('peak_hours', [])
 routes = d.get('routes', {})
+lconf = sys.argv[2] if len(sys.argv) > 2 else ''
 print("  高峰时段:")
 if blocks:
     for i, b in enumerate(blocks, 1):
@@ -668,12 +678,22 @@ else:
 print("  路由:")
 if routes:
     for name, rule in routes.items():
-        if isinstance(rule, dict):
-            print(f"    {name}: 高峰→{rule.get('peak','?')}, 非高峰→{rule.get('off_peak','?')}")
-        else:
-            print(f"    {name}: →{rule}")
+        peak_k = rule.get('peak','?')
+        off_k = rule.get('off_peak','?')
+        print(f"    {name}: 高峰→{peak_k}, 非高峰→{off_k}")
 else:
     print("    (无)")
+
+if lconf:
+    try:
+        with open(lconf) as _f: llm_d = json.load(_f)
+        llms_j = llm_d.get('llms', {}) or {}
+        if llms_j:
+            print("  映射:")
+            for key, cfg in llms_j.items():
+                if key == 'gateway': continue
+                print(f"    {key} → {cfg.get('model','?')}")
+    except: pass
 PYEOF
 
         echo ""
