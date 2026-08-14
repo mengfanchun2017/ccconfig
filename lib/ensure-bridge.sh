@@ -79,7 +79,9 @@ except Exception:
 import json, sys
 try:
     d = json.load(sys.stdin)
-    print(f\"{d.get('upstream','')}|{d.get('use_win_curl',False)}\")
+    # upstream_original 是 IP 预解析前的域名 URL，用于和调用方传入的 upstream 匹配
+    orig = d.get('upstream_original', d.get('upstream',''))
+    print(f\"{orig}|{d.get('use_win_curl',False)}\")
 except: pass
 " 2>/dev/null)
         local cur_upstream="${cur_state%|*}"
@@ -167,6 +169,7 @@ else:
     local env_args="-u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy"
     local bridge_env="env $env_args \
         OPENAI_BRIDGE_UPSTREAM=$resolved_upstream \
+        OPENAI_BRIDGE_UPSTREAM_ORIGINAL=$upstream \
         OPENAI_BRIDGE_KEY=$key \
         OPENAI_BRIDGE_MODEL=$model \
         OPENAI_BRIDGE_HOST=$resolved_host"
