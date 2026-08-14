@@ -35,7 +35,7 @@ LLMSWITCH_WATCHDOG="$CCCONFIG_ROOT/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
 # 内置预设 key（不可删除），须与 conf/llm.json.example 顶层 llms key 一致
-BUILTIN_LLMS="minimax deepseek deepseek_flash gateway"
+BUILTIN_LLMS="minimax deepseek_flash gateway"
 
 # CONFIG_FILE already resolved via resolve_conf() above
 
