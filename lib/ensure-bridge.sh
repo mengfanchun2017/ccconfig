@@ -48,18 +48,74 @@ try: print(json.load(sys.stdin).get('upstream', ''))
 except: pass
 " 2>/dev/null)
         if [[ "$cur_upstream" == "$upstream" ]]; then
-            return 0
+            # bridge 进程存活 + upstream 匹配 → 做一次快速可达性测试
+            # 检测 bridge 是否真能转发到 upstream（跨网络切换后可能桥接失效）
+            local probe
+            probe=$(curl -s --max-time 5 -X POST "http://127.0.0.1:${port}/v1/messages" \
+                -H "Content-Type: application/json" \
+                -d '{"model":"test","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}' \
+                -o /dev/null -w "%{http_code}" 2>/dev/null || echo "000")
+            if [[ "$probe" != "000" ]] && [[ "$probe" != "502" ]]; then
+                return 0
+            fi
+            # 桥接已死，重启
+            warn "  bridge 可达性检测失败 (HTTP $probe)，正在重启..."
+            pkill -f "openai_bridge.py" 2>/dev/null || true
+            sleep 1
+        else
+            pkill -f "openai_bridge.py" 2>/dev/null || true
+            sleep 1
         fi
-        pkill -f "openai_bridge.py" 2>/dev/null || true
-        sleep 1
+    fi
+
+    # 预解析 upstream 域名→IP，绕过 Clash fake-ip DNS 干扰
+    # 用 python3 socket.getaddrinfo（受系统 DNS 影响）；作为补充，
+    # 尝试用 Windows 侧 DNS（Resolve-DnsName）绕开 WSL 的 Clash fake-ip 污染
+    local resolved_upstream="$upstream"
+    local resolved_host=""
+    if command -v powershell.exe &>/dev/null; then
+        # 从 Windows 侧解析 DNS（绕过 WSL Clash fake-ip）
+        local win_domain
+        win_domain=$(echo "$upstream" | python3 -c "
+import sys, urllib.parse
+p = urllib.parse.urlparse(sys.stdin.read().strip())
+print(p.hostname or '')
+" 2>/dev/null)
+        if [[ -n "$win_domain" ]]; then
+            local win_ip
+            win_ip=$(powershell.exe -NoProfile -Command "Resolve-DnsName $win_domain -Type A -Server 10.255.255.254 2>&1 | Select-Object -First 1 -ExpandProperty IPAddress" 2>/dev/null | tr -d '\r' || echo "")
+            if [[ -z "$win_ip" ]]; then
+                # 兜底：不加 DNS 服务器参数，用 Windows 默认 DNS
+                win_ip=$(powershell.exe -NoProfile -Command "Resolve-DnsName $win_domain -Type A 2>&1 | Select-Object -First 1 -ExpandProperty IPAddress" 2>/dev/null | tr -d '\r' || echo "")
+            fi
+            if [[ -n "$win_ip" ]]; then
+                # 用 IP 替换 URL 中的域名
+                resolved_upstream=$(echo "$upstream" | python3 -c "
+import sys, urllib.parse
+domain = '$win_domain'
+ip = '$win_ip'
+url = sys.stdin.read().strip()
+p = urllib.parse.urlparse(url)
+if p.hostname == domain:
+    netloc = f'{ip}:{p.port}' if p.port else ip
+    resolved = p._replace(netloc=netloc).geturl()
+    print(resolved)
+else:
+    print(url)
+" 2>/dev/null)
+                resolved_host="$win_domain"
+                info "  DNS 预解析: $win_domain → $win_ip (Windows DNS)"
+            fi
+        fi
     fi
 
     # 启新 bridge（unset 代理 env 直连上游）
     cd "$CCCONFIG_ROOT"
     nohup env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
-        OPENAI_BRIDGE_UPSTREAM="$upstream" \
+        OPENAI_BRIDGE_UPSTREAM="$resolved_upstream" \
         OPENAI_BRIDGE_KEY="$key" \
         OPENAI_BRIDGE_MODEL="$model" \
+        OPENAI_BRIDGE_HOST="$resolved_host" \
         python3 option-llmswitch/openai_bridge.py --port "$port" \
         > "$HOME/.cache/openai_bridge.log" 2>&1 &
     disown
