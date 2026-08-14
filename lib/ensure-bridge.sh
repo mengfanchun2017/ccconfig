@@ -38,30 +38,78 @@ ensure_bridge() {
     local port=8898
     _bridge_supported "$upstream" || return 1
 
+    # 决策：是否需要 win-curl 模式（WSL 网络可达性）
+    # 提前决策，因为 bridge 进程内是不是 win-curl 模式取决于启动时的环境
+    local need_win_curl=0
+    if command -v curl.exe &>/dev/null; then
+        # 拿上游的 hostname 探测（如果不是 IP）
+        local probe_host
+        probe_host=$(echo "$upstream" | python3 -c "
+import sys, urllib.parse
+p = urllib.parse.urlparse(sys.stdin.read().strip())
+try:
+    socket.inet_aton(p.hostname)
+    print('')  # 已经是 IP
+except:
+    print(p.hostname or '')
+" 2>/dev/null)
+        if [[ -n "$probe_host" ]]; then
+            # 域名 → 先 DNS 预解析再测
+            local resolved_ip
+            resolved_ip=$(powershell.exe -NoProfile -Command "Resolve-DnsName $probe_host -Type A 2>&1 | Select-Object -First 1 -ExpandProperty IPAddress" 2>/dev/null | tr -d '\r' || echo "")
+            if [[ -n "$resolved_ip" ]] && ! python3 -c "
+import socket, sys
+try:
+    s = socket.create_connection(('$resolved_ip', 18080), timeout=5)
+    s.close()
+    sys.exit(0)
+except Exception:
+    sys.exit(1)
+" 2>/dev/null; then
+                need_win_curl=1
+            fi
+        fi
+    fi
+
     local health
     health=$(curl -s --max-time 2 "http://127.0.0.1:${port}/health" 2>/dev/null)
     if [[ -n "$health" ]]; then
-        local cur_upstream
-        cur_upstream=$(echo "$health" | python3 -c "
+        local cur_state
+        cur_state=$(echo "$health" | python3 -c "
 import json, sys
-try: print(json.load(sys.stdin).get('upstream', ''))
+try:
+    d = json.load(sys.stdin)
+    print(f\"{d.get('upstream','')}|{d.get('use_win_curl',False)}\")
 except: pass
 " 2>/dev/null)
+        local cur_upstream="${cur_state%|*}"
+        local cur_win_curl="${cur_state#*|}"
+
         if [[ "$cur_upstream" == "$upstream" ]]; then
-            # bridge 进程存活 + upstream 匹配 → 做一次快速可达性测试
-            # 检测 bridge 是否真能转发到 upstream（跨网络切换后可能桥接失效）
-            local probe
-            probe=$(curl -s --max-time 5 -X POST "http://127.0.0.1:${port}/v1/messages" \
-                -H "Content-Type: application/json" \
-                -d '{"model":"test","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}' \
-                -o /dev/null -w "%{http_code}" 2>/dev/null || echo "000")
-            if [[ "$probe" != "000" ]] && [[ "$probe" != "502" ]]; then
-                return 0
+            # 转 win-curl 状态变化检测：从直连切到 win-curl (回家) 或反之（到公司）
+            if [[ "$cur_win_curl" == "True" && "$need_win_curl" -eq 0 ]]; then
+                info "  网络已切回直连（WSL 可达 upstream），重启 bridge 关闭 win-curl..."
+                pkill -f "openai_bridge.py" 2>/dev/null || true
+                sleep 1
+            elif [[ "$cur_win_curl" == "False" && "$need_win_curl" -eq 1 ]]; then
+                info "  网络已切到 win-curl（WSL 不可达 upstream），重启 bridge 启用 win-curl..."
+                pkill -f "openai_bridge.py" 2>/dev/null || true
+                sleep 1
+            else
+                # upstream 匹配 + win-curl 状态正确 → 做一次快速可达性测试
+                local probe
+                probe=$(curl -s --max-time 5 -X POST "http://127.0.0.1:${port}/v1/messages" \
+                    -H "Content-Type: application/json" \
+                    -d '{"model":"test","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}' \
+                    -o /dev/null -w "%{http_code}" 2>/dev/null || echo "000")
+                if [[ "$probe" != "000" ]] && [[ "$probe" != "502" ]]; then
+                    return 0
+                fi
+                # 桥接已死，重启
+                warn "  bridge 可达性检测失败 (HTTP $probe)，正在重启..."
+                pkill -f "openai_bridge.py" 2>/dev/null || true
+                sleep 1
             fi
-            # 桥接已死，重启
-            warn "  bridge 可达性检测失败 (HTTP $probe)，正在重启..."
-            pkill -f "openai_bridge.py" 2>/dev/null || true
-            sleep 1
         else
             pkill -f "openai_bridge.py" 2>/dev/null || true
             sleep 1
@@ -112,27 +160,8 @@ else:
     # 启新 bridge（unset 代理 env 直连上游）
     cd "$CCCONFIG_ROOT"
 
-    # 检测 WSL 网络是否可达 upstream IP（WSL2 网络栈与 Windows 分离，
-    # VPN 在 Windows 上分配的 IP 路由在 WSL 看不到）。
-    # 不通 → 启用 win-curl 模式（通过 Windows 侧 curl.exe 转发）
-    local use_win_curl=0
-    if command -v curl.exe &>/dev/null && [[ -n "$resolved_host" ]]; then
-        if ! python3 -c "
-import socket, sys
-from urllib.parse import urlparse
-p = urlparse('$resolved_upstream')
-host = p.hostname
-port = p.port or 443
-try:
-    s = socket.create_connection((host, port), timeout=5)
-    s.close()
-    sys.exit(0)
-except Exception:
-    sys.exit(1)
-" 2>/dev/null; then
-            use_win_curl=1
-            info "  WSL 网络不可达 upstream → 启用 Windows 侧 curl.exe 转发"
-        fi
+    if [[ "$need_win_curl" -eq 1 ]]; then
+        info "  WSL 网络不可达 upstream → 启用 Windows 侧 curl.exe 转发"
     fi
 
     local env_args="-u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy"
@@ -141,7 +170,7 @@ except Exception:
         OPENAI_BRIDGE_KEY=$key \
         OPENAI_BRIDGE_MODEL=$model \
         OPENAI_BRIDGE_HOST=$resolved_host"
-    if [[ "$use_win_curl" -eq 1 ]]; then
+    if [[ "$need_win_curl" -eq 1 ]]; then
         bridge_env="$bridge_env OPENAI_BRIDGE_USE_WIN_CURL=1"
     fi
 
