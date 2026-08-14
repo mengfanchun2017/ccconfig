@@ -362,6 +362,79 @@ def _inject_sni(headers: dict, host: str) -> dict:
     return headers
 
 
+# ========== Windows 侧 curl.exe 转发（WSL 网络受限场景） ==========
+# WSL2 网络栈与 Windows 分离，VPN 在 Windows 上分配的 IP 路由在 WSL 看不到。
+# 让 curl.exe（Windows 子系统）转发 HTTP 请求，由 Windows 走 VPN 网络栈。
+# curl.exe 的 -k 跳过 cert verify（IP 直连场景下证书主体不匹配 IP），配合 --resolve 解决 SNI
+
+async def _post_via_win_curl(url: str, headers: dict, body: dict, host_header: str) -> tuple:
+    """通过 Windows 侧 curl.exe 发起 POST 请求，返回 (status, text)。"""
+    import asyncio
+
+    cmd = ["curl.exe", "-s", "-k", "--max-time", "300", "-X", "POST", url]
+    for hk, hv in headers.items():
+        cmd += ["-H", f"{hk}: {hv}"]
+    if host_header:
+        # curl.exe 没有 --resolve，但 -H "Host:" 保上游路由
+        cmd += ["-H", f"Host: {host_header}"]
+    cmd += ["-d", json.dumps(body, ensure_ascii=False), "-w", "\n__HTTP_STATUS__:%{http_code}"]
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        text = stdout.decode("utf-8", errors="replace")
+        # 解析 status (最后一行 __HTTP_STATUS__:xxx)
+        status = 0
+        if "__HTTP_STATUS__:" in text:
+            parts = text.rsplit("__HTTP_STATUS__:", 1)
+            text = parts[0].rstrip("\n")
+            try:
+                status = int(parts[1].strip())
+            except ValueError:
+                status = 0
+        return status, text
+    except Exception as e:
+        return 0, f"curl.exe failed: {e}"
+
+
+async def _stream_via_win_curl(url: str, headers: dict, body: dict, host_header: str):
+    """通过 Windows 侧 curl.exe 流式 POST，逐 chunk yield 原始文本。
+
+    curl.exe -N 关闭缓冲，stdout 流式可读。
+    """
+    import asyncio
+
+    cmd = ["curl.exe", "-s", "-k", "-N", "--max-time", "300", "-X", "POST", url]
+    for hk, hv in headers.items():
+        cmd += ["-H", f"{hk}: {hv}"]
+    if host_header:
+        cmd += ["-H", f"Host: {host_header}"]
+    cmd += ["-d", json.dumps(body, ensure_ascii=False)]
+
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        while True:
+            chunk = await proc.stdout.read(4096)
+            if not chunk:
+                break
+            yield chunk.decode("utf-8", errors="replace")
+    finally:
+        if proc.returncode is None:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        await proc.wait()
+
+
 @app.on_event("shutdown")
 async def on_shutdown():
     global http_client
@@ -394,23 +467,42 @@ async def messages(request: Request):
         extra_ext["sni_hostname"] = host_header
 
     client = http_client
+    use_win_curl = state.get("use_win_curl", False)
+
     if stream:
         sse_state = {"started": False, "block_open": False, "finished": False}
 
         async def gen():
-            async with client.stream(
-                "POST",
-                target_url,
-                headers=headers,
-                json=upstream_body,
-                extensions=extra_ext or None,
-            ) as r:
-                async for chunk in r.aiter_text():
+            if use_win_curl:
+                # WSL 内网限制：流式通过 Windows 侧 curl.exe 转发
+                async for chunk in _stream_via_win_curl(target_url, headers, upstream_body, host_header):
                     sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
                     if sse_out:
                         yield sse_out
+            else:
+                async with client.stream(
+                    "POST",
+                    target_url,
+                    headers=headers,
+                    json=upstream_body,
+                    extensions=extra_ext or None,
+                ) as r:
+                    async for chunk in r.aiter_text():
+                        sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
+                        if sse_out:
+                            yield sse_out
         return StreamingResponse(gen(), media_type="text/event-stream")
     else:
+        if use_win_curl:
+            r_status, r_text = await _post_via_win_curl(target_url, headers, upstream_body, host_header)
+            if r_status >= 400:
+                return JSONResponse({"error": "upstream error", "body": r_text[:500]}, status_code=r_status)
+            try:
+                openai_json = json.loads(r_text)
+            except Exception:
+                return JSONResponse({"error": "upstream non-json", "body": r_text[:500]}, status_code=502)
+            anth = openai_to_anthropic_resp(openai_json)
+            return JSONResponse(anth)
         r = await client.post(
             target_url,
             headers=headers,
@@ -452,6 +544,9 @@ def main():
     parser.add_argument("--upstream-key", default=os.environ.get("OPENAI_BRIDGE_KEY", ""))
     parser.add_argument("--upstream-model", default=os.environ.get("OPENAI_BRIDGE_MODEL", ""))
     parser.add_argument("--upstream-host", default=os.environ.get("OPENAI_BRIDGE_HOST", ""))
+    parser.add_argument("--use-win-curl", action="store_true",
+                        default=os.environ.get("OPENAI_BRIDGE_USE_WIN_CURL", "").lower() in ("1", "true", "yes"),
+                        help="通过 Windows 侧 curl.exe 转发请求（WSL 网络受限场景）")
     args = parser.parse_args()
 
     if not args.upstream:
@@ -464,8 +559,9 @@ def main():
     state["upstream_key"] = args.upstream_key
     state["upstream_model"] = args.upstream_model
     state["upstream_host"] = args.upstream_host or ""
+    state["use_win_curl"] = args.use_win_curl
 
-    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} host_header={args.upstream_host or '(none)'}", flush=True)
+    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl}", flush=True)
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
