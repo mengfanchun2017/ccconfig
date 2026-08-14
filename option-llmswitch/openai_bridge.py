@@ -368,7 +368,11 @@ def _inject_sni(headers: dict, host: str) -> dict:
 # curl.exe 的 -k 跳过 cert verify（IP 直连场景下证书主体不匹配 IP），配合 --resolve 解决 SNI
 
 async def _post_via_win_curl(url: str, headers: dict, body: dict, host_header: str) -> tuple:
-    """通过 Windows 侧 curl.exe 发起 POST 请求，返回 (status, text)。"""
+    """通过 Windows 侧 curl.exe 发起 POST 请求，返回 (status, text)。
+
+    关键设计：body 通过 stdin pipe 喂给 curl.exe（不是 argv），避免 ARG_MAX 128KB 限制
+    （Claude 实际请求可达几百 KB，含 tools / system prompt / skills）。
+    """
     import asyncio
 
     cmd = ["curl.exe", "-s", "-k", "--max-time", "300", "-X", "POST", url]
@@ -377,15 +381,17 @@ async def _post_via_win_curl(url: str, headers: dict, body: dict, host_header: s
     if host_header:
         # curl.exe 没有 --resolve，但 -H "Host:" 保上游路由
         cmd += ["-H", f"Host: {host_header}"]
-    cmd += ["-d", json.dumps(body, ensure_ascii=False), "-w", "\n__HTTP_STATUS__:%{http_code}"]
+    cmd += ["-d", "@-", "-w", "\n__HTTP_STATUS__:%{http_code}"]
 
+    body_bytes = json.dumps(body, ensure_ascii=False).encode("utf-8")
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
+            stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await proc.communicate()
+        stdout, stderr = await proc.communicate(input=body_bytes)
         text = stdout.decode("utf-8", errors="replace")
         # 解析 status (最后一行 __HTTP_STATUS__:xxx)
         status = 0
@@ -404,6 +410,7 @@ async def _post_via_win_curl(url: str, headers: dict, body: dict, host_header: s
 async def _stream_via_win_curl(url: str, headers: dict, body: dict, host_header: str):
     """通过 Windows 侧 curl.exe 流式 POST，逐 chunk yield 原始文本。
 
+    关键：body 通过 stdin pipe 喂（不是 argv），避免 ARG_MAX 限制。
     curl.exe -N 关闭缓冲，stdout 流式可读。
     """
     import asyncio
@@ -413,13 +420,23 @@ async def _stream_via_win_curl(url: str, headers: dict, body: dict, host_header:
         cmd += ["-H", f"{hk}: {hv}"]
     if host_header:
         cmd += ["-H", f"Host: {host_header}"]
-    cmd += ["-d", json.dumps(body, ensure_ascii=False)]
+    cmd += ["-d", "@-"]
 
+    body_bytes = json.dumps(body, ensure_ascii=False).encode("utf-8")
     proc = await asyncio.create_subprocess_exec(
         *cmd,
+        stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
+    # 喂 body 后关闭 stdin（curl.exe 收到 EOF 即开始 send）
+    try:
+        proc.stdin.write(body_bytes)
+        await proc.stdin.drain()
+        proc.stdin.close()
+    except Exception:
+        pass
+
     try:
         while True:
             chunk = await proc.stdout.read(4096)
