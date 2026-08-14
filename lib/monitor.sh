@@ -357,11 +357,7 @@ commit_and_push() {
             push_rc=$?
             if [ $push_rc -eq 0 ]; then
                 log "[$repo] OK pushed → GitHub ($commit_hash)"
-                # Post-push hook: ccconfig push → aiagt deploy（inject commit hash to product pages）
-                if [ "$repo" = "ccconfig" ] && [ -x "$HOME/git/aiagt/deploy.sh" ]; then
-                    info "[ccconfig→aiagt] triggering aiagt/deploy.sh"
-                    bash "$HOME/git/aiagt/deploy.sh" 2>&1 | while IFS= read -r hline; do do_log "[ccconfig→aiagt] $hline"; done
-                fi
+                # NOTE: aiagt deploy 已迁至 fsyncdoc skill，不再 auto-sync 触发
             else
                 echo "$push_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
                 warn "[$repo] !! push failed — check network"
