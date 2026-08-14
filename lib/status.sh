@@ -146,7 +146,7 @@ check_ccprivate_structure() {
     fi
 
     # --- 目录完整性 ---
-    local expected_dirs=("skill-config" "rules" "agents" "commands" "bin")
+    local expected_dirs=("skill" "rules" "agents" "commands" "bin")
     local missing_dirs=()
     for d in "${expected_dirs[@]}"; do
         [ -d "$ccpriv/$d" ] || missing_dirs+=("$d")

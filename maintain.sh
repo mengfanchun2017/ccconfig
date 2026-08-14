@@ -50,7 +50,7 @@ do_finalize() {
     fi
 
     # 1b. 补齐 ccprivate 缺失目录（空目录 git 不跟踪，clone 后不存在）
-    local expected_dirs=("skill-config" "rules" "agents" "commands" "bin")
+    local expected_dirs=("skill" "rules" "agents" "commands" "bin")
     local created=false
     for d in "${expected_dirs[@]}"; do
         if [[ ! -d "$ccpriv/$d" ]]; then
