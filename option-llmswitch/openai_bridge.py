@@ -560,6 +560,8 @@ def main():
     state["upstream_model"] = args.upstream_model
     state["upstream_host"] = args.upstream_host or ""
     state["use_win_curl"] = args.use_win_curl
+    # 原始 upstream URL（IP 预解析前的），便于 ensure_bridge 字符串匹配
+    state["upstream_original"] = os.environ.get("OPENAI_BRIDGE_UPSTREAM_ORIGINAL", args.upstream)
 
     print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl}", flush=True)
     import uvicorn
