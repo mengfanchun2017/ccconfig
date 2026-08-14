@@ -585,10 +585,8 @@ else:
         rule = routes.get(name, {})
         pk = rule.get('peak','?')
         op = rule.get('off_peak','?')
-        print(f"    llmgateway: 高峰→{pk}")
-        print(f"    llmgateway: 非高峰→{op}")
-        print(f"    llmgateway-s: 高峰→{pk}")
-        print(f"    llmgateway-s: 非高峰→{op}")
+        print(f"    {name}: 高峰→{pk}")
+        print(f"    {name}: 非高峰→{op}")
 PYEOF
         echo ""
         local c; c=$(menu_select "选择路由" "${choices[@]}" "返回")
@@ -701,20 +699,18 @@ PYEOF
         echo -e "  ${GREEN}1)${NC} 切换模式 (auto/manual/off)"
         echo -e "  ${CYAN}2)${NC} 配置高峰时段"
         echo -e "  ${YELLOW}3)${NC} 配置路由"
-        echo -e "  ${GREEN}4)${NC} 配置手动 provider"
         echo -e "  ${GRAY}0)${NC} 返回"
         echo ""
         local config_choice
         config_choice=$(menu_select "配置" \
-            "切换模式" "高峰时段" "路由" "手动 provider" "返回")
+            "切换模式" "高峰时段" "路由" "返回")
         [[ -z "$config_choice" ]] && continue
 
         case "$config_choice" in
             1) _do_config_mode ;;
             2) _do_config_peak_hours ;;
             3) _do_config_routes ;;
-            4) _do_config_manual_provider ;;
-            5) return 0 ;;
+            4) return 0 ;;
             *) bad "无效选择" ;;
         esac
     done
