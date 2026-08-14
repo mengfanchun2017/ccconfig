@@ -1005,10 +1005,10 @@ interactive_select() {
     printf "  %d) %s\n" "$bill_idx" "Bill (配置模型 token 单价，用于 token-usage 计费)"
 
     echo ""
-    printf "输入数字 [1-%d] 选择，0 保持当前 (%s): " "$bill_idx" "$current"
+    printf "输入数字 [1-%d] 选择（直接回车保持当前 (%s)): " "$bill_idx" "$current"
     read -r choice
 
-    if [[ -z "$choice" ]] || [[ "$choice" == "0" ]]; then
+    if [[ -z "$choice" ]]; then
         info "保持当前: $current"
         return 0
     fi
