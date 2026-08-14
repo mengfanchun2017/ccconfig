@@ -5,12 +5,14 @@
 让 Claude Code 通过本 bridge 间接调用。
 
 Usage:
-    python3 openai_bridge.py --listen-port 8898 --upstream https://upstream/v1 \\
+    python3 openai_bridge.py --listen-port 8898 --upstream https://upstream/v1 \
         --upstream-key sk-xxx --upstream-model deepseek-v4-flash
 """
 import argparse
 import json
 import os
+import socket
+import urllib.parse
 from pathlib import Path
 
 import httpx
@@ -33,6 +35,33 @@ def load_upstream_config():
     except Exception:
         cfg = {}
     return cfg.get("openai_bridge", {})
+
+
+def _resolve_upstream(url: str) -> str:
+    """解析 upstream URL 中的域名→IP，绕过 Clash fake-ip DNS 干扰。
+
+    用 socket.getaddrinfo 解析域名，再用 IP 替换 URL 中的域名，
+    同时返回 (resolved_url, host_header) 供 httpx 使用。
+    返回 None 表示解析失败（保持原 URL）。
+    """
+    parsed = urllib.parse.urlparse(url)
+    if not parsed.hostname:
+        return None, None
+    # 已经是 IP 的不处理
+    try:
+        socket.inet_aton(parsed.hostname)
+        return None, None  # 已经是 IP
+    except OSError:
+        pass
+    try:
+        ips = socket.getaddrinfo(parsed.hostname, parsed.port or 443)
+        if ips:
+            ip = ips[0][4][0]
+            resolved = parsed._replace(netloc=f"{ip}:{parsed.port}" if parsed.port else ip)
+            return resolved.geturl(), parsed.hostname
+    except Exception:
+        pass
+    return None, None
 
 
 def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
@@ -65,7 +94,6 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
                 if t == "text":
                     text_parts.append(blk.get("text", ""))
                 elif t == "image" or t == "image_url":
-                    # OpenAI image_url form
                     if t == "image":
                         src = blk.get("source", {})
                         if src.get("type") == "base64":
@@ -85,14 +113,12 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
                         },
                     })
                 elif t == "tool_result":
-                    # 合并进下一条 message 用 role=tool
                     tool_id = blk.get("tool_use_id", "")
                     out = blk.get("content")
                     if isinstance(out, list):
                         out = next((b.get("text", "") for b in out if isinstance(b, dict) and b.get("type") == "text"), "")
                     messages.append({"role": "tool", "tool_call_id": tool_id, "content": out or ""})
                 elif t in ("thinking", "redacted_thinking"):
-                    # OpenAI 没有 thinking content，跳过（deepseek 也已拿到 reasoning_content）
                     continue
             if text_parts or tool_calls:
                 m = {"role": role, "content": "".join(p for p in text_parts if isinstance(p, str)) or None}
@@ -165,11 +191,7 @@ def _close_tool_blocks(state, out):
 
 
 def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, state=None):
-    """OpenAI stream chunk (可能含多行 data:...) → Anthropic SSE 事件集。
-
-    state: dict 跟踪 message_start / text block / tool blocks 是否已发出。
-    state["block_idx"]: 下一个可用的 Anthropic content_block index
-    state["tool_N"]: {index, id, name, args} per OpenAI tool_call index N"""
+    """OpenAI stream chunk (可能含多行 data:...) → Anthropic SSE 事件集。"""
     if state is None:
         state = {"started": False, "finished": False, "block_idx": 0}
     if not chunk_text:
@@ -223,7 +245,6 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                 }
                 out.append(f"event: content_block_delta\ndata: {json.dumps(block_delta, separators=(',', ':'))}\n\n")
 
-            # tool_call deltas
             for tc in delta.get("tool_calls", []):
                 tc_idx = tc.get("index", 0)
                 tc_key = f"tool_{tc_idx}"
@@ -246,7 +267,6 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                 if "arguments" in fn:
                     tc_info["args"] += fn["arguments"]
 
-                # emit content_block_start on first encounter
                 if not state.get(f"{tc_key}_open"):
                     state[f"{tc_key}_open"] = True
                     block_start = {
@@ -256,7 +276,6 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                     }
                     out.append(f"event: content_block_start\ndata: {json.dumps(block_start, separators=(',', ':'))}\n\n")
 
-                # emit args delta (accumulated so far)
                 if fn.get("arguments"):
                     args_delta = {
                         "type": "content_block_delta",
@@ -353,6 +372,11 @@ async def messages(request: Request):
     else:
         target_url = upstream_base + "/v1/chat/completions"
 
+    # 如果 upstream 用 IP 代替了域名，加 Host header 保 SNI 和路由
+    host_header = state.get("upstream_host")
+    if host_header:
+        headers["Host"] = host_header
+
     client = http_client
     if stream:
         sse_state = {"started": False, "block_open": False, "finished": False}
@@ -383,6 +407,8 @@ async def reload(request: Request):
         state["upstream_key"] = data["upstream_key"]
     if "upstream_model" in data:
         state["upstream_model"] = data["upstream_model"]
+    if "upstream_host" in data:
+        state["upstream_host"] = data["upstream_host"]
     return {"ok": True, "state": dict(state)}
 
 
@@ -398,6 +424,7 @@ def main():
     parser.add_argument("--upstream", default=os.environ.get("OPENAI_BRIDGE_UPSTREAM", ""))
     parser.add_argument("--upstream-key", default=os.environ.get("OPENAI_BRIDGE_KEY", ""))
     parser.add_argument("--upstream-model", default=os.environ.get("OPENAI_BRIDGE_MODEL", ""))
+    parser.add_argument("--upstream-host", default=os.environ.get("OPENAI_BRIDGE_HOST", ""))
     args = parser.parse_args()
 
     if not args.upstream:
@@ -409,8 +436,9 @@ def main():
     state["upstream"] = args.upstream
     state["upstream_key"] = args.upstream_key
     state["upstream_model"] = args.upstream_model
+    state["upstream_host"] = args.upstream_host or ""
 
-    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model}", flush=True)
+    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} host_header={args.upstream_host or '(none)'}", flush=True)
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
