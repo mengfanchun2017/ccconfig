@@ -357,7 +357,7 @@ commit_and_push() {
             push_rc=$?
             if [ $push_rc -eq 0 ]; then
                 log "[$repo] OK pushed → GitHub ($commit_hash)"
-                # NOTE: aiagt deploy 已迁至 fsyncdoc skill，不再 auto-sync 触发
+                # 已迁移：aiagt deploy → fsyncdoc skill，不再 auto-sync 触发
             else
                 echo "$push_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
                 warn "[$repo] !! push failed — check network"
