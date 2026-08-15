@@ -1,26 +1,21 @@
 {
-  "description": "飞书统一配置 - lark-cli + larkbridge 单一配置源",
-  "_note": "复制此文件为 feishu.json 并填入你的飞书应用信息。修改后运行相应 init.sh 使配置生效",
+  "description": "飞书统一配置 - lark-cli + ccbridge 单一配置源",
+  "_note": "复制此文件为 feishu.json 并填入你的飞书应用信息。修改后运行 bash ~/git/ccbridge/init.sh 使配置生效",
   "_guide": [
     "多账号使用说明：",
     "",
     "1. 初始化 lark-cli（每台机都需要）：",
     "   bash ccconfig/option-larkcli/init.sh",
     "",
-    "2. 初始化 Bridge（飞书↔Claude Code 双向通信）：",
-    "   lark-channel-bridge: bash ~/git/ccbridge/init.sh --run",
-    "",
-    "3. 切换 lark-cli 账号（当前 session）：",
-    "   bash ccconfig/option-larkcli/lark-switch.sh <name>",
-    "",
-    "4. 一键开通飞书权限：",
-    "   bash maintain.sh → feishu → 飞书账号 → [app name] → OAuth"
+    "2. 初始化 lark-channel-bridge（飞书↔Claude Code 双向通信，已拆至独立仓库 ccbridge）：",
+    "   bash ~/git/ccbridge/init.sh --run",
+    ""
   ],
   "_scopes": {
     "_comment": "larkbridge 必备 tenant scopes。开通：bash ccconfig/option-larkcli/init.sh --auth-login <name> 时 --domain all 一次性弹出",
     "larkbridge": ["im:message","im:message:send","im:message:send_as_bot","im:message:send_multi_depts","im:message:send_multi_users","im:message:send_sys_msg","im:message.p2p_msg:readonly","im:message.reactions:write_only","im:chat:readonly","admin:app.info:readonly","application:application:self_manage","cardkit:card:write"],
     "larkCli": {
-      "_note": "user 权限 — lark-cli OAuth 走 --domain all 时一次性弹出所有 scope 让用户同意，无需手动逐个开通",
+      "_note": "user 权限— lark-cli OAuth 走 --domain all 时一次性弹出所有 scope 让用户同意，无需手动逐个开通",
       "categories": ["docs","docx","drive","base","bitable","calendar","contact","sheets","slides","task","wiki","mail","vc","minutes","okr","search"]
     }
   },
