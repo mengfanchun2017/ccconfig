@@ -9,13 +9,6 @@
             "key": "请填入你的 MiniMax API Key",
             "small_model": "MiniMax-M3"
         },
-        "deepseek": {
-            "name": "DeepSeek4 pro",
-            "base_url": "https://api.deepseek.com/anthropic",
-            "model": "deepseek-v4-pro",
-            "key": "请填入你的 DeepSeek API Key",
-            "small_model": "deepseek-v4-pro"
-        },
         "deepseek_flash": {
             "name": "DeepSeek4 flash",
             "base_url": "https://api.deepseek.com/anthropic",
@@ -23,20 +16,20 @@
             "key": "请填入你的 DeepSeek API Key",
             "small_model": "deepseek-v4-flash"
         },
-        "openaialt": {
-            "_comment": "可选：OpenAI-compatible 端点，自动启用 Anthropic↔OpenAI bridge",
-            "name": "OpenAIAlt",
-            "base_url": "https://api.example.com/v1",
+        "altllm": {
+            "_comment": "OpenAI-compatible 端点，自动启用 Anthropic↔OpenAI bridge",
+            "name": "altLLM",
+            "base_url": "https://your-endpoint/v1",
             "model": "<your-model>",
             "key": "请填入你的 API Key",
             "small_model": "<your-model>"
         },
         "gateway": {
             "_comment": "可选：本地 LLM 路由网关（需安装 option-llmswitch）",
-            "name": "Gateway",
+            "name": "gateLLM",
             "base_url": "http://127.0.0.1:8899",
-            "model": "<your-gateway-model>",
-            "small_model": "<your-gateway-small-model>"
+            "model": "llmgateway",
+            "small_model": "llmgateway-s"
         }
     },
     "_pricing_note": "按 model 名查 CNY/1M tokens（人民币）。token-usage.sh 读取算成本。cache_creation 缺省 = input × 1.25。",

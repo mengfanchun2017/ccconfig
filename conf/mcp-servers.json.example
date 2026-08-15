@@ -15,7 +15,10 @@
       "how_to_get": "去 https://tavily.com 注册，免费额度 1000 次/月",
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "tavily-mcp"],
+      "args": [
+        "-y",
+        "tavily-mcp"
+      ],
       "timeout": 30,
       "env": {
         "TAVILY_API_KEY": "请到 https://tavily.com 注册获取 API Key"
@@ -41,8 +44,10 @@
       "args": [
         "-y",
         "@supabase/mcp-server-supabase",
-        "--project-ref", "请填入你的 Supabase project ref",
-        "--access-token", "请填入你的 Supabase access token"
+        "--project-ref",
+        "请填入你的 Supabase project ref",
+        "--access-token",
+        "请填入你的 Supabase access token"
       ],
       "env": {}
     },
@@ -52,7 +57,10 @@
       "how_to_get": "打开 https://www.biji.com/openapi → 创建应用 → 获取 API Key(gk_live_xxx) 和 Client ID(cli_xxx)",
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@getnote/mcp"],
+      "args": [
+        "-y",
+        "@getnote/mcp"
+      ],
       "env": {
         "GETNOTE_API_KEY": "请到 https://www.biji.com/openapi 获取 API Key（格式：gk_live_xxx）",
         "GETNOTE_CLIENT_ID": "请到 https://www.biji.com/openapi 获取 Client ID（格式：cli_xxx）"
