@@ -43,7 +43,7 @@ ensure_bridge() {
     local need_win_curl=0
     if command -v curl.exe &>/dev/null; then
         # 拿上游的 hostname 探测（如果不是 IP）
-        local probe_host
+        local probe_host=""
         probe_host=$(echo "$upstream" | python3 -c "
 import sys, urllib.parse
 p = urllib.parse.urlparse(sys.stdin.read().strip())
@@ -55,7 +55,7 @@ except:
 " 2>/dev/null)
         if [[ -n "$probe_host" ]]; then
             # 域名 → 先 DNS 预解析再测
-            local resolved_ip
+            local resolved_ip=""
             resolved_ip=$(powershell.exe -NoProfile -Command "Resolve-DnsName $probe_host -Type A 2>&1 | Select-Object -First 1 -ExpandProperty IPAddress" 2>/dev/null | tr -d '\r' || echo "")
             if [[ -n "$resolved_ip" ]] && ! python3 -c "
 import socket, sys
@@ -71,10 +71,10 @@ except Exception:
         fi
     fi
 
-    local health
+    local health=""
     health=$(curl -s --max-time 2 "http://127.0.0.1:${port}/health" 2>/dev/null)
     if [[ -n "$health" ]]; then
-        local cur_state
+        local cur_state=""
         cur_state=$(echo "$health" | python3 -c "
 import json, sys
 try:
@@ -99,7 +99,7 @@ except: pass
                 sleep 1
             else
                 # upstream 匹配 + win-curl 状态正确 → 做一次快速可达性测试
-                local probe
+                local probe=""
                 probe=$(curl -s --max-time 5 -X POST "http://127.0.0.1:${port}/v1/messages" \
                     -H "Content-Type: application/json" \
                     -d '{"model":"test","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}' \
@@ -125,14 +125,14 @@ except: pass
     local resolved_host=""
     if command -v powershell.exe &>/dev/null; then
         # 从 Windows 侧解析 DNS（绕过 WSL Clash fake-ip）
-        local win_domain
+        local win_domain=""
         win_domain=$(echo "$upstream" | python3 -c "
 import sys, urllib.parse
 p = urllib.parse.urlparse(sys.stdin.read().strip())
 print(p.hostname or '')
 " 2>/dev/null)
         if [[ -n "$win_domain" ]]; then
-            local win_ip
+            local win_ip=""
             # 优先用环境变量指定的 DNS 服务器（公司 VPN DNS），兜底 Windows 默认 DNS
             local dns_server="${OPENAI_BRIDGE_WIN_DNS:-}"
             if [[ -n "$dns_server" ]]; then
