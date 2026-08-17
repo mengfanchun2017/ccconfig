@@ -102,7 +102,10 @@ import json
 d = json.load(open('$CONFIG_JSON'))
 
 # 全局注册 — mcpServers 是 Claude Code 的注册表；mcp_servers 是 ccconfig 自有元数据，会滞后
-all_mcps = list(d.get('mcpServers', {}))
+# 合并已注册的 + 元数据中的，去重
+registry = list(d.get('mcpServers', {}))
+meta = [s['name'] for s in d.get('mcp_servers', []) if 'name' in s]
+all_mcps = list(dict.fromkeys(registry + meta))  # 去重，保留顺序
 global_disabled = d.get('disabledMcpServers', [])
 
 # 用户级激活 = 全局注册 - 全局禁用
@@ -143,7 +146,10 @@ all_projects_status() {
 import json
 d = json.load(open('$CONFIG_JSON'))
 
-all_mcps = list(d.get('mcpServers', {}))
+# 合并已注册的 + 元数据中的，去重
+registry = list(d.get('mcpServers', {}))
+meta = [s['name'] for s in d.get('mcp_servers', []) if 'name' in s]
+all_mcps = list(dict.fromkeys(registry + meta))  # 去重，保留顺序
 global_disabled = d.get('disabledMcpServers', [])
 user_active = [m for m in all_mcps if m not in global_disabled]
 
@@ -319,8 +325,8 @@ cmd_config() {
   done
 }
 
-# ── 显示 MCP 状态一览表 ──
-# 可选参数 $1 = 要高亮的项目名，传空则不高亮
+# ── 显示 MCP 状态一览 ──
+# 参数 $1 = 要高亮的项目名
 
 show_mcp_overview() {
   local highlight_name="${1:-}"
@@ -330,7 +336,10 @@ import json, os
 config = os.path.expanduser('$CONFIG_JSON')
 d = json.load(open(config))
 
-all_mcps = list(d.get('mcpServers', {}))
+# 合并已注册的 + 元数据中的，去重
+registry = list(d.get('mcpServers', {}))
+meta = [s['name'] for s in d.get('mcp_servers', []) if 'name' in s]
+all_mcps = list(dict.fromkeys(registry + meta))  # 去重，保留顺序
 global_disabled = d.get('disabledMcpServers', [])
 
 # 项目
@@ -346,33 +355,30 @@ for path, cfg in sorted(d.get('projects', {}).items()):
 proj_names = sorted(projects.keys())
 highlight = '$highlight_name'
 
-# 表头
-print(f"{'MCP':<12s} {'全局':<6s}", end='')
-for pn in proj_names:
-    label = pn[:10]
-    if pn == highlight:
-        label = '→' + label[:9]
-    print(f" {label:>10s}", end='')
-print()
-print('-' * (18 + 12 * len(proj_names)))
-
+# 全局
+print('全局:')
 for m in all_mcps:
-    global_s = '✗' if m in global_disabled else '✓'
-    print(f"{m:<12s} {global_s:<6s}", end='')
-    for pn in proj_names:
+    s = '✗' if m in global_disabled else '✓'
+    print(f'  {s} {m}')
+
+# 各项目逐行
+print()
+print('项目:')
+for pn in proj_names:
+    marker = '*' if pn == highlight else ' '
+    parts = []
+    for m in all_mcps:
         proj_enabled, proj_disabled = projects[pn]
         if m in proj_enabled:
-            s = '✓'
+            parts.append(f'+{m}')
         elif m in proj_disabled:
-            s = '✗'
+            parts.append(f'-{m}')
+        elif m in global_disabled:
+            pass  # 全局已关，项目继承，不显示
         else:
-            s = '-' if m in global_disabled else '✓'
-        print(f" {s:>10s}", end='')
-    print()
-
-# 图例
-print()
-print("全局: ✓=启用  ✗=禁用 | 项目: ✓=启用  ✗=关闭  -=继承全局   →=当前操作项目")
+            parts.append(m)
+    line = ', '.join(parts) if parts else '(无)'
+    print(f'  {marker} {pn}: {line}')
 PYEOF
 }
 
