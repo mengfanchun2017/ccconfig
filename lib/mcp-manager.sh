@@ -178,7 +178,9 @@ EOF
 # ── status 子命令 ──
 
 cmd_status() {
+  local target="${1:-}"  # 可选参数：指定项目路径
   local curr="$(current_project)"
+  [ -z "$target" ] && target="$curr"
   local cur_name="${curr##*/}"
   [ -z "$curr" ] && cur_name="(非 git 目录)"
 
@@ -289,37 +291,132 @@ if diff: print(' '.join(sorted(diff)))
 
 cmd_config() {
   local curr="$(current_project)"
+  local target="$curr"  # 默认操作当前项目
 
   while true; do
     local state
-    state=$(resolve_mcp_state "$curr")
+    state=$(resolve_mcp_state "$target")
     local all_mcps=$(echo "$state" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)['all']))")
     local global_disabled=$(echo "$state" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)['global_disabled']))")
     local user_active=$(echo "$state" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)['user_active']))")
+    local target_name="${target##*/}"
+    local is_current=false
+    [ "$target" = "$curr" ] && is_current=true
 
     echo -e "\n${CYAN}━━━ MCP 配置━━━${NC}"
-    echo -e "  ${GRAY}当前项目:${NC} ${BOLD}${curr##*/}${NC}"
-    echo -e "  当前用户级激活: $user_active"
+    echo -e "  ${GRAY}操作项目:${NC} ${BOLD}$target_name${NC} $($is_current && echo "${DIM}(当前目录)${NC}" || echo "${YELLOW}(非当前目录)${NC}")"
+    echo ""
+    show_mcp_overview
     echo ""
     local choice; choice=$(menu_select "MCP 配置" \
         "注册新的 MCP (全局)" \
         "开启/关闭 用户级 MCP (全局禁用)" \
-        "管理项目 MCP (当前项目开/关)" \
+        "管理项目 MCP" \
+        "切换目标项目" \
         "配置 Key (交互填占位符)" \
         "查看状态" \
         "退出")
-    [[ "$choice" == "0" || -z "$choice" ]] && break  # EOF → 直接退出 submenu
+    [[ "$choice" == "0" || -z "$choice" ]] && break
 
     case "$choice" in
       1) config_register ;;
       2) config_toggle_global "$state" ;;
-      3) config_project "$curr" ;;
-      4) bash "$(dirname "$SCRIPT_DIR")/lib/init-mcp.sh" keys ;;
-      5) cmd_status ;;
-      6) break ;;
+      3) config_project "$target" ;;
+      4) target=$(select_project) || target="$curr" ;;
+      5) bash "$(dirname "$SCRIPT_DIR")/lib/init-mcp.sh" keys ;;
+      6) cmd_status "$target" ;;
+      7) break ;;
       *) warn "无效选项" ;;
     esac
   done
+}
+
+# ── 显示 MCP 状态一览表 ──
+# 可选参数 $1 = 要高亮的项目名，传空则不高亮
+
+show_mcp_overview() {
+  local highlight_name="${1:-}"
+  python3 << PYEOF
+import json, os
+
+config = os.path.expanduser('$CONFIG_JSON')
+d = json.load(open(config))
+
+all_mcps = list(d.get('mcpServers', {}))
+global_disabled = d.get('disabledMcpServers', [])
+
+# 项目
+projects = {}
+for path, cfg in sorted(d.get('projects', {}).items()):
+    if not path.startswith(os.path.expanduser('~/git/')): continue
+    if not isinstance(cfg, dict): continue
+    name = path.rsplit('/', 1)[-1]
+    proj_enabled = cfg.get('enabledMcpjsonServers', [])
+    proj_disabled = cfg.get('disabledMcpjsonServers', [])
+    projects[name] = (proj_enabled, proj_disabled)
+
+proj_names = sorted(projects.keys())
+highlight = '$highlight_name'
+
+# 表头
+print(f"{'MCP':<12s} {'全局':<6s}", end='')
+for pn in proj_names:
+    label = pn[:10]
+    if pn == highlight:
+        label = '→' + label[:9]
+    print(f" {label:>10s}", end='')
+print()
+print('-' * (18 + 12 * len(proj_names)))
+
+for m in all_mcps:
+    global_s = '✗' if m in global_disabled else '✓'
+    print(f"{m:<12s} {global_s:<6s}", end='')
+    for pn in proj_names:
+        proj_enabled, proj_disabled = projects[pn]
+        if m in proj_enabled:
+            s = '✓'
+        elif m in proj_disabled:
+            s = '✗'
+        else:
+            s = '-' if m in global_disabled else '✓'
+        print(f" {s:>10s}", end='')
+    print()
+
+# 图例
+print()
+print("全局: ✓=启用  ✗=禁用 | 项目: ✓=启用  ✗=关闭  -=继承全局   →=当前操作项目")
+PYEOF
+}
+
+# ── 项目选择器 ──
+# 返回用户选中的项目路径，选取消返回空
+select_project() {
+  local items=() paths=()
+  while IFS='|' read -r name path; do
+    items+=("$name")
+    paths+=("$path")
+  done < <(python3 << PYEOF
+import json, os
+d = json.load(open(os.path.expanduser('$CONFIG_JSON')))
+seen = set()
+for path, cfg in sorted(d.get('projects', {}).items()):
+    if not path.startswith(os.path.expanduser('~/git/')): continue
+    if not isinstance(cfg, dict): continue
+    if path in seen: continue
+    seen.add(path)
+    name = path.rsplit('/', 1)[-1]
+    print(f"{name}|{path}")
+PYEOF
+)
+  [ "${#items[@]}" -eq 0 ] && { warn "没有找到项目配置"; return 1; }
+
+  local choice
+  choice=$(menu_select "选择目标项目" "${items[@]}")
+  [ -z "$choice" ] || [ "$choice" = "0" ] && return 1
+
+  # menu_select 返回 1-based 序号
+  local idx=$((choice - 1))
+  echo "${paths[$idx]}"
 }
 
 config_register() {
