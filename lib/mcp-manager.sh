@@ -181,11 +181,11 @@ cmd_status() {
   local target="${1:-}"  # 可选参数：指定项目路径
   local curr="$(current_project)"
   [ -z "$target" ] && target="$curr"
-  local cur_name="${curr##*/}"
-  [ -z "$curr" ] && cur_name="(非 git 目录)"
+  local target_name="${target##*/}"
+  [ -z "$target" ] && target_name="(非 git 目录)"
 
   local state
-  state=$(resolve_mcp_state "$curr")
+  state=$(resolve_mcp_state "$target")
   local all_mcps=$(echo "$state" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)['all']))")
   local global_disabled=$(echo "$state" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)['global_disabled']))")
   local user_active=$(echo "$state" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)['user_active']))")
@@ -194,8 +194,9 @@ cmd_status() {
   local project_active=$(echo "$state" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)['project_active']))")
   local final_active=$(echo "$state" | python3 -c "import json,sys; print(' '.join(json.load(sys.stdin)['final_active']))")
 
-  echo -e "\n${CYAN}━━━ MCP 状态━━━${NC}"
-  echo -e "  ${GRAY}当前项目:${NC} ${BOLD}${cur_name}${NC} ${GRAY}(${curr:-$PWD})${NC}"
+  echo -e "\n${CYAN}━━━ MCP 状态: $target_name━━━${NC}"
+  [ "$target" != "$curr" ] && echo -e "  ${YELLOW}(非当前目录项目: $target)${NC}" && echo ""
+  show_mcp_overview "$target_name"
   echo ""
 
   echo -e "  ${BOLD}用户级注册 MCP:${NC}"
@@ -248,19 +249,6 @@ cmd_status() {
   echo ""
 
   # ── 其他项目一览 ──
-  echo -e "  ${BOLD}其他项目一览:${NC}"
-  local all_status
-  all_status=$(all_projects_status "$curr")
-  echo "$all_status" | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-max_name = max(len(r['name']) for r in data) if data else 10
-for r in data:
-    active = ' '.join(r['active'])
-    marker = '▸' if r['current'] else ' '
-    suffix = '  ← 当前' if r['current'] else ''
-    print(f'    {marker} {r[\"name\"].ljust(max_name)} │ {active}{suffix}')
-" 2>/dev/null
   echo ""
 
   # 对比模板看差异
@@ -306,7 +294,7 @@ cmd_config() {
     echo -e "\n${CYAN}━━━ MCP 配置━━━${NC}"
     echo -e "  ${GRAY}操作项目:${NC} ${BOLD}$target_name${NC} $($is_current && echo "${DIM}(当前目录)${NC}" || echo "${YELLOW}(非当前目录)${NC}")"
     echo ""
-    show_mcp_overview
+    show_mcp_overview "$target_name"
     echo ""
     local choice; choice=$(menu_select "MCP 配置" \
         "注册新的 MCP (全局)" \
