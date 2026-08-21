@@ -293,12 +293,12 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                 _fr_map = {"stop": "end_turn", "tool_calls": "tool_use", "length": "max_tokens", "content_filter": "content_filtered"}
                 anth_reason = _fr_map.get(_fr, "end_turn")
                 stop_delta = {"type": "message_delta", "delta": {"stop_reason": anth_reason, "stop_sequence": None, "stop_details": {"type": "stop", "reason": anth_reason}}}
-                # 把同 chunk 的 usage 合并到这条 message_delta，避免多发一条只有 usage 的 message_delta
-                # Claude Code 客户端遍历 message_delta 时遇到无 delta 的会报 rn.delta.stop_details undefined
-                usage = obj.get("usage")
-                if usage:
-                    stop_delta["usage"] = {"output_tokens": usage.get("completion_tokens", 0)}
                 out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
+
+        usage = obj.get("usage")
+        if usage:
+            msg_delta_usage = {"type": "message_delta", "usage": {"output_tokens": usage.get("completion_tokens", 0)}}
+            out.append(f"event: message_delta\ndata: {json.dumps(msg_delta_usage, separators=(',', ':'))}\n\n")
 
     return "".join(out) if out else None
 
