@@ -1,12 +1,19 @@
 #!/bin/bash
 # lib/tail-llm.sh — altllm_tail 专用：Tailscale → SSH 隧道 → bridge
 # 走独立文件，不修改 init-llm.sh 现有逻辑
-#
-# 依赖: 调用方已 source lib/colors.sh（info/warn/error）
+# 可独立运行：bash lib/tail-llm.sh {start|stop|status}
+# 也可被 source（init-llm.sh 已 source colors.sh，此处防御性再 source 一次）
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/colors.sh" 2>/dev/null || {
+    info() { echo -e "  $*"; }
+    ok() { echo -e "  ✅ $*"; }
+    warn() { echo -e "  ⚠  $*"; }
+    error() { echo -e "  ❌ $*"; }
+}
 
 # 常量
 TAIL_TMUX_SESSION="altllm-tail-tunnel"
