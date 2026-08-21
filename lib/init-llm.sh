@@ -178,6 +178,41 @@ get_ssh_tunnel_status_one_liner() {
     echo "PID:$pid port:$listen_port"
 }
 
+# SSH 隧道场景的 bridge 启动——绕开 _bridge_supported 对 127.0.0.1 的排除
+# $1: tunnel_listen_port  $2: model_name  $3: api_key
+start_tunnel_bridge() {
+    local listen_port="$1" model="$2" key="$3"
+    local port=8898
+
+    # 关残留 bridge 进程
+    if pgrep -f "openai_bridge.py" >/dev/null 2>&1; then
+        pkill -f "openai_bridge.py" 2>/dev/null || true
+        sleep 1
+    fi
+
+    local env_args="-u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy"
+    local bridge_env="env $env_args \\
+        OPENAI_BRIDGE_UPSTREAM=http://127.0.0.1:${listen_port} \\
+        OPENAI_BRIDGE_UPSTREAM_ORIGINAL=http://127.0.0.1:${listen_port} \\
+        OPENAI_BRIDGE_KEY=$key \\
+        OPENAI_BRIDGE_MODEL=$model"
+
+    cd "$CCCONFIG_ROOT"
+    nohup $bridge_env \
+        python3 option-llmswitch/openai_bridge.py --port "$port" \
+        > "$HOME/.cache/openai_bridge.log" 2>&1 &
+    disown
+
+    local health=""
+    for i in 1 2 3 4 5; do
+        sleep 1
+        health=$(curl -s --max-time 2 "http://127.0.0.1:${port}/health" 2>/dev/null)
+        [[ -n "$health" ]] && break
+    done
+
+    [[ -n "$health" ]]
+}
+
 # ========== 读取配置 ==========
 list_llms() {
     python3 - "$CONFIG_FILE" "$LLMSWITCH_CONF" << 'PYEOF'
