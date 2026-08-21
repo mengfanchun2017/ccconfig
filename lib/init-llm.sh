@@ -101,11 +101,13 @@ get_gateway_status_one_liner() {
 }
 
 # ========== SSH 隧道管理（Tailscale → 跳板机 → 内网 LLM）==========
-SSH_TUNNEL_PID_FILE="$HOME/.cache/ssh-tunnel.pid"
+# tmux 持久化：Claude 退出后 SSH 隧道 + bridge 继续运行
+TUNNEL_TMUX_SESSION="altllm-tunnel"
+BRIDGE_TMUX_SESSION="altllm-bridge"
 SSH_TUNNEL_LOG_FILE="$HOME/.cache/ssh-tunnel.log"
 
 is_ssh_tunnel_running() {
-    [ -f "$SSH_TUNNEL_PID_FILE" ] && kill -0 "$(cat "$SSH_TUNNEL_PID_FILE")" 2>/dev/null
+    tmux has-session -t "$TUNNEL_TMUX_SESSION" 2>/dev/null
 }
 
 # $1: host (Tailscale IP)  $2: port (SSH 端口)  $3: user (SSH 用户)  $4: remote (host:port)  $5: listen_port (local)
@@ -123,18 +125,25 @@ start_ssh_tunnel() {
         info "  Windows Tailscale: Running"
     fi
 
-    # 确保 ssh-agent 运行 + key 已加载（避免无密码 ssh 时 key 找不到）
-    # 先清残留 ssh-agent（之前修复会让 socket 文件积累，新 agent socket 名随机不冲突，但旧进程可能 hang）
-    if pgrep -f 'ssh-agent -s' &>/dev/null; then
-        local agent_count=$(pgrep -f 'ssh-agent -s' | wc -l)
-        if (( agent_count > 1 )); then
-            warn "检测到 $agent_count 个 ssh-agent 残留，先清理..."
-            pkill -9 -f 'ssh-agent -s' 2>/dev/null || true
-            rm -f "$HOME/.ssh/agent/s."* 2>/dev/null || true
-            sleep 1
-            unset SSH_AUTH_SOCK SSH_AGENT_PID
-        fi
+    if is_ssh_tunnel_running; then
+        local listen_port_display=$(tmux capture-pane -t "$TUNNEL_TMUX_SESSION" -p 2>/dev/null | tail -3 | grep -oP 'localhost:\K\d+' | head -1 || echo "$listen_port")
+        info "SSH 隧道已在运行 (tmux: $TUNNEL_TMUX_SESSION, port: $listen_port_display)"
+        return 0
     fi
+
+    # 构建 SSH 连接串
+    local ssh_target="$host"
+    [[ -n "$user" ]] && ssh_target="${user}@${host}"
+    local port_opt=""
+    [[ -n "$port" && "$port" != "22" ]] && port_opt="-p $port"
+
+    info "启动 SSH 隧道: ${user}@${host}:${port} → localhost:${listen_port} → ${remote}"
+
+    # 先清可能残留的 stderr 日志
+    : > "$SSH_TUNNEL_LOG_FILE"
+
+    # 确保 ssh-agent 运行 + key 已加载
+    # tmux 内 ssh 需要访问 agent socket。让 tmux 继承当前 shell 的 SSH_AUTH_SOCK
     if ! ssh-add -l &>/dev/null; then
         if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
             info "  ssh-agent 未运行，自动启动并加载 key..."
@@ -149,87 +158,61 @@ start_ssh_tunnel() {
             error "未找到 ~/.ssh/id_ed25519，无法建立 SSH 隧道"
             return 1
         fi
-    else
-        # 已有 agent，但子进程可能看不到 SSH_AUTH_SOCK（之前 bash 已 export 过则保留；否则补 export）
-        [[ -n "$SSH_AUTH_SOCK" ]] && export SSH_AUTH_SOCK SSH_AGENT_PID
     fi
 
-    # 显式记下当前 agent socket，setsid 子进程必须用它
-    local auth_sock="$SSH_AUTH_SOCK"
-
-    if is_ssh_tunnel_running; then
-        local pid=$(cat "$SSH_TUNNEL_PID_FILE")
-        info "SSH 隧道已在运行 (PID: $pid)"
-        return 0
-    fi
-
-    # 构建 SSH 连接串
-    local ssh_target="$host"
-    [[ -n "$user" ]] && ssh_target="${user}@${host}"
-    local port_opt=""
-    [[ -n "$port" && "$port" != "22" ]] && port_opt="-p $port"
-
-    info "启动 SSH 隧道: ${user}@${host}:${port} → localhost:${listen_port} → ${remote}"
-
-    setsid nohup env SSH_AUTH_SOCK="$auth_sock" ssh -NL "${listen_port}:${remote}" $port_opt "$ssh_target" \
-        -o ExitOnForwardFailure=yes \
-        -o ServerAliveInterval=30 \
-        -o ServerAliveCountMax=3 \
-        -o TCPKeepAlive=yes \
-        -o StrictHostKeyChecking=accept-new \
-        -o UserKnownHostsFile=/dev/null \
-        < /dev/null >> "$SSH_TUNNEL_LOG_FILE" 2>&1 &
-    local pid=$!
-    echo "$pid" > "$SSH_TUNNEL_PID_FILE"
+    # 在 tmux 中启动 SSH 隧道，继承当前 SSH_AUTH_SOCK
+    # detached + pipe stderr to log so we can diagnose failures
+    tmux new-session -d -s "$TUNNEL_TMUX_SESSION" \
+        "env SSH_AUTH_SOCK='${SSH_AUTH_SOCK:-}' \
+         ssh -NL '${listen_port}:${remote}' ${port_opt} '${ssh_target}' \
+            -o ExitOnForwardFailure=yes \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=3 \
+            -o TCPKeepAlive=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile=/dev/null \
+            2>> '$SSH_TUNNEL_LOG_FILE'" 2>&1
 
     sleep 2
-    if ! kill -0 "$pid" 2>/dev/null; then
-        error "SSH 隧道进程已退出，查看日志: $SSH_TUNNEL_LOG_FILE"
-        rm -f "$SSH_TUNNEL_PID_FILE"
+    if ! is_ssh_tunnel_running; then
+        error "SSH 隧道 tmux session 已退出，查看日志: $SSH_TUNNEL_LOG_FILE"
         return 1
     fi
 
     local retries=10
     while (( retries > 0 )); do
-        # 严格验证：端口被 ssh 持有（避免误判其他进程占端口）
-        if ss -tlnp 2>/dev/null | grep -q ":$listen_port .*pid=$pid,"; then
-            info "  SSH 隧道就绪: localhost:$listen_port → $remote ($host) PID=$pid"
+        # 用 ss 验证端口监听（不依赖 pid，tmux 下 ssh 进程可能不在当前 session 可见）
+        if ss -tlnp 2>/dev/null | grep -q ":$listen_port "; then
+            info "  SSH 隧道就绪: localhost:$listen_port → $remote ($host) [tmux: $TUNNEL_TMUX_SESSION]"
             return 0
         fi
         sleep 1
         retries=$((retries - 1))
     done
 
-    error "端口 $listen_port 未被 ssh (PID=$pid) 监听，SSH 隧道未就绪"
-    kill "$pid" 2>/dev/null || true
-    rm -f "$SSH_TUNNEL_PID_FILE"
+    error "端口 $listen_port 未被监听，SSH 隧道未就绪"
+    tmux send-keys -t "$TUNNEL_TMUX_SESSION" "C-c" 2>/dev/null || true
+    tmux kill-session -t "$TUNNEL_TMUX_SESSION" 2>/dev/null || true
     return 1
 }
 
 stop_ssh_tunnel() {
     if ! is_ssh_tunnel_running; then
-        rm -f "$SSH_TUNNEL_PID_FILE"
+        info "SSH 隧道未运行"
         return 0
     fi
-    local pid=$(cat "$SSH_TUNNEL_PID_FILE")
-    info "停止 SSH 隧道 (PID: $pid)..."
-    kill "$pid" 2>/dev/null || true
+    info "停止 SSH 隧道 (tmux: $TUNNEL_TMUX_SESSION)..."
+    # 发 Ctrl-C 让 ssh 正常关闭（释放端口）
+    tmux send-keys -t "$TUNNEL_TMUX_SESSION" "C-c" 2>/dev/null || true
     sleep 1
-    if kill -0 "$pid" 2>/dev/null; then
-        kill -9 "$pid" 2>/dev/null || true
+    tmux kill-session -t "$TUNNEL_TMUX_SESSION" 2>/dev/null || true
+    # 等端口释放
+    local retries=5
+    while (( retries > 0 )); do
+        ss -tlnp 2>/dev/null | grep -q ":$1 " || break
         sleep 1
-    fi
-    # 等端口彻底释放（避免后续起 bridge 时端口冲突）
-    local listen_port=$(ss -tlnp 2>/dev/null | grep "ssh" | grep -oP ':\K\d+(?= .*pid='"$pid"')' | head -1)
-    if [[ -n "$listen_port" ]]; then
-        local retries=5
-        while (( retries > 0 )); do
-            ss -tlnp 2>/dev/null | grep -q ":$listen_port .*pid=$pid," || break
-            sleep 1
-            retries=$((retries - 1))
-        done
-    fi
-    rm -f "$SSH_TUNNEL_PID_FILE"
+        retries=$((retries - 1))
+    done
     info "SSH 隧道已停止"
 }
 
@@ -238,34 +221,48 @@ get_ssh_tunnel_status_one_liner() {
         echo "未运行"
         return
     fi
-    local pid=$(cat "$SSH_TUNNEL_PID_FILE")
-    local listen_port=$(ss -tlnp 2>/dev/null | grep "ssh" | grep -oP ':\K\d+(?= .*pid='"$pid"')' | head -1 || echo "?")
-    echo "PID:$pid port:$listen_port"
+    local listen_port=$(ss -tlnp 2>/dev/null | grep "127.0.0.1:" | awk '{print $4}' | cut -d: -f2 | head -1 || echo "?")
+    echo "tmux:$TUNNEL_TMUX_SESSION port:$listen_port"
+}
+
+# 隧道场景也停 bridge（tmux session 方式）
+stop_tmux_bridge() {
+    if tmux has-session -t "$BRIDGE_TMUX_SESSION" 2>/dev/null; then
+        info "停止 bridge (tmux: $BRIDGE_TMUX_SESSION)..."
+        tmux send-keys -t "$BRIDGE_TMUX_SESSION" "C-c" 2>/dev/null || true
+        sleep 1
+        tmux kill-session -t "$BRIDGE_TMUX_SESSION" 2>/dev/null || true
+    fi
+    # 也清可能残留的 direct bridge 进程
+    if pgrep -f "openai_bridge.py" >/dev/null 2>&1; then
+        pkill -f "openai_bridge.py" 2>/dev/null || true
+        sleep 1
+    fi
 }
 
 # SSH 隧道场景的 bridge 启动——绕开 _bridge_supported 对 127.0.0.1 的排除
+# tmux 持久化：独立于 Claude 进程
 # $1: tunnel_listen_port  $2: model_name  $3: api_key
 start_tunnel_bridge() {
     local listen_port="$1" model="$2" key="$3"
     local port=8898
 
-    # 关残留 bridge 进程
-    if pgrep -f "openai_bridge.py" >/dev/null 2>&1; then
-        pkill -f "openai_bridge.py" 2>/dev/null || true
-        sleep 1
-    fi
+    # 关残留 bridge（tmux 或 direct 都清）
+    stop_tmux_bridge
 
     local env_args="-u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy"
     cd "$CCCONFIG_ROOT"
-    env $env_args \
-        OPENAI_BRIDGE_UPSTREAM="https://127.0.0.1:${listen_port}" \
-        OPENAI_BRIDGE_UPSTREAM_ORIGINAL="https://127.0.0.1:${listen_port}" \
-        OPENAI_BRIDGE_KEY="$key" \
-        OPENAI_BRIDGE_MODEL="$model" \
-        OPENAI_BRIDGE_SKIP_TLS_VERIFY=1 \
-        nohup python3 option-llmswitch/openai_bridge.py --port "$port" \
-        > "$HOME/.cache/openai_bridge.log" 2>&1 &
-    disown
+
+    tmux new-session -d -s "$BRIDGE_TMUX_SESSION" \
+        "cd '$CCCONFIG_ROOT' && \
+         env $env_args \
+            OPENAI_BRIDGE_UPSTREAM='https://127.0.0.1:${listen_port}' \
+            OPENAI_BRIDGE_UPSTREAM_ORIGINAL='https://127.0.0.1:${listen_port}' \
+            OPENAI_BRIDGE_KEY='$key' \
+            OPENAI_BRIDGE_MODEL='$model' \
+            OPENAI_BRIDGE_SKIP_TLS_VERIFY=1 \
+            python3 option-llmswitch/openai_bridge.py --port '$port' \
+         2>&1 | tee '$HOME/.cache/openai_bridge.log'" 2>&1
 
     local health=""
     for i in 1 2 3 4 5; do
@@ -594,10 +591,12 @@ PYEOF
         has_tunnel=true
     fi
 
-    # 切到直连前先停 watchdog + proxy + ssh 隧道（如果之前是隧道模式）
+    # 切到直连前先停 watchdog + proxy + ssh 隧道 + tmux bridge（如果之前是隧道模式）
     if is_ssh_tunnel_running; then
         stop_ssh_tunnel
     fi
+    # 也停可能残留的 tmux bridge session
+    stop_tmux_bridge
     if is_proxy_running; then
         info "停止网关代理..."
         local watchdog_pid_file="$HOME/.cache/llmswitch-watchdog.pid"
