@@ -124,6 +124,17 @@ start_ssh_tunnel() {
     fi
 
     # 确保 ssh-agent 运行 + key 已加载（避免无密码 ssh 时 key 找不到）
+    # 先清残留 ssh-agent（之前修复会让 socket 文件积累，新 agent socket 名随机不冲突，但旧进程可能 hang）
+    if pgrep -f 'ssh-agent -s' &>/dev/null; then
+        local agent_count=$(pgrep -f 'ssh-agent -s' | wc -l)
+        if (( agent_count > 1 )); then
+            warn "检测到 $agent_count 个 ssh-agent 残留，先清理..."
+            pkill -9 -f 'ssh-agent -s' 2>/dev/null || true
+            rm -f "$HOME/.ssh/agent/s."* 2>/dev/null || true
+            sleep 1
+            unset SSH_AUTH_SOCK SSH_AGENT_PID
+        fi
+    fi
     if ! ssh-add -l &>/dev/null; then
         if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
             info "  ssh-agent 未运行，自动启动并加载 key..."
