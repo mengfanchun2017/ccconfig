@@ -210,7 +210,7 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                 continue
             _close_text_block(state, out, 0)
             _close_tool_blocks(state, out)
-            stop_delta = {"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None}}
+            stop_delta = {"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None, "stop_details": {"type": "stop", "reason": "end_turn"}}}
             out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
             out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
             state["finished"] = True
@@ -284,10 +284,13 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                     }
                     out.append(f"event: content_block_delta\ndata: {json.dumps(args_delta, separators=(',', ':'))}\n\n")
 
-            if choice.get("finish_reason"):
+            _fr = choice.get("finish_reason")
+            if _fr:
                 _close_text_block(state, out, 0)
                 _close_tool_blocks(state, out)
-                stop_delta = {"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None}}
+                _fr_map = {"stop": "end_turn", "tool_calls": "tool_use", "length": "max_tokens", "content_filter": "content_filtered"}
+                anth_reason = _fr_map.get(_fr, "end_turn")
+                stop_delta = {"type": "message_delta", "delta": {"stop_reason": anth_reason, "stop_sequence": None, "stop_details": {"type": "stop", "reason": anth_reason}}}
                 out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
 
         usage = obj.get("usage")
