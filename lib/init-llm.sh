@@ -137,13 +137,14 @@ start_ssh_tunnel() {
 
     info "启动 SSH 隧道: ${user}@${host}:${port} → localhost:${listen_port} → ${remote}"
 
-    nohup ssh -NL "${listen_port}:${remote}" $port_opt "$ssh_target" \
+    setsid nohup ssh -NL "${listen_port}:${remote}" $port_opt "$ssh_target" \
         -o ExitOnForwardFailure=yes \
         -o ServerAliveInterval=30 \
         -o ServerAliveCountMax=3 \
+        -o TCPKeepAlive=yes \
         -o StrictHostKeyChecking=accept-new \
         -o UserKnownHostsFile=/dev/null \
-        >> "$SSH_TUNNEL_LOG_FILE" 2>&1 &
+        < /dev/null >> "$SSH_TUNNEL_LOG_FILE" 2>&1 &
     local pid=$!
     echo "$pid" > "$SSH_TUNNEL_PID_FILE"
 
@@ -154,17 +155,18 @@ start_ssh_tunnel() {
         return 1
     fi
 
-    local retries=5
+    local retries=10
     while (( retries > 0 )); do
-        if ss -tlnp 2>/dev/null | grep -q ":$listen_port "; then
-            info "  SSH 隧道就绪: localhost:$listen_port → $remote ($host)"
+        # 严格验证：端口被 ssh 持有（避免误判其他进程占端口）
+        if ss -tlnp 2>/dev/null | grep -q ":$listen_port .*pid=$pid,"; then
+            info "  SSH 隧道就绪: localhost:$listen_port → $remote ($host) PID=$pid"
             return 0
         fi
         sleep 1
-        (( retries-- ))
+        retries=$((retries - 1))
     done
 
-    error "端口 $listen_port 未监听，SSH 隧道可能未就绪"
+    error "端口 $listen_port 未被 ssh (PID=$pid) 监听，SSH 隧道未就绪"
     kill "$pid" 2>/dev/null || true
     rm -f "$SSH_TUNNEL_PID_FILE"
     return 1
@@ -181,6 +183,17 @@ stop_ssh_tunnel() {
     sleep 1
     if kill -0 "$pid" 2>/dev/null; then
         kill -9 "$pid" 2>/dev/null || true
+        sleep 1
+    fi
+    # 等端口彻底释放（避免后续起 bridge 时端口冲突）
+    local listen_port=$(ss -tlnp 2>/dev/null | grep "ssh" | grep -oP ':\K\d+(?= .*pid='"$pid"')' | head -1)
+    if [[ -n "$listen_port" ]]; then
+        local retries=5
+        while (( retries > 0 )); do
+            ss -tlnp 2>/dev/null | grep -q ":$listen_port .*pid=$pid," || break
+            sleep 1
+            retries=$((retries - 1))
+        done
     fi
     rm -f "$SSH_TUNNEL_PID_FILE"
     info "SSH 隧道已停止"
