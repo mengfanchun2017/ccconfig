@@ -184,9 +184,11 @@ def _close_text_block(state, out, idx):
 
 def _close_tool_blocks(state, out):
     for key in list(state.keys()):
-        if key.startswith("tool_") and state.get(key):
-            tc_info = state[key]
-            out.append(f'event: content_block_stop\ndata: {{"type":"content_block_stop","index":{tc_info["index"]}}}\n\n')
+        if key.endswith("_open") and state.get(key):
+            tc_idx = key.replace("_open", "").replace("tool_", "", 1)
+            tc_info = state.get(f"tool_{tc_idx}")
+            if isinstance(tc_info, dict):
+                out.append(f'event: content_block_stop\ndata: {{"type":"content_block_stop","index":{tc_info["index"]}}}\n\n')
             state[key] = False
 
 
