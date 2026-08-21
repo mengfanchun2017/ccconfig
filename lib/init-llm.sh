@@ -610,6 +610,35 @@ switch_llm() {
             switch_custom
             return $?
             ;;
+        altllm_tail)
+            local tconfig=$(get_llm_config "$name") || { error "无法获取 altllm_tail 配置"; return 1; }
+            IFS='|' read -r _ tmodel tkey tsmall <<< "$tconfig"
+            # SSH 隧道配置从 llm.json 解析
+            local tail_cfg
+            tail_cfg=$(python3 - "$CONFIG_FILE" << 'TAILPY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+t = d.get('llms',{}).get('altllm_tail',{}).get('ssh_tunnel',{})
+host = t.get('host') or t.get('ssh_host','')
+if host and t.get('remote'):
+    print(f"{host}|{t.get('port',22)}|{t.get('user','')}|{t['remote']}")
+else:
+    sys.exit(1)
+TAILPY
+            ) || { error "altllm_tail SSH 隧道配置不完整"; return 1; }
+            IFS='|' read -r thost tport tuser tremote <<< "$tail_cfg"
+            # altllm_tail 走独立链路脚本（Tailscale → SSH 隧道 → tail bridge）
+            source "$SCRIPT_DIR/lib/tail-llm.sh"
+            if tail_start "$thost" "$tport" "$tuser" "$tremote" "$tmodel" "$tkey"; then
+                info "altllm_tail 链路就绪，写入配置..."
+                _write_llm_config "$name" "http://127.0.0.1:8895" "$tmodel" "$tsmall" "$tkey"
+                success "LLM 已切换为: $name"
+                return 0
+            else
+                error "altllm_tail 链路启动失败"
+                return 1
+            fi
+            ;;
     esac
 
     local config=$(get_llm_config "$name") || { error "无法获取 LLM 配置: $name"; return 1; }
