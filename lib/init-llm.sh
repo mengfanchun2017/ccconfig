@@ -138,7 +138,13 @@ start_ssh_tunnel() {
             error "未找到 ~/.ssh/id_ed25519，无法建立 SSH 隧道"
             return 1
         fi
+    else
+        # 已有 agent，但子进程可能看不到 SSH_AUTH_SOCK（之前 bash 已 export 过则保留；否则补 export）
+        [[ -n "$SSH_AUTH_SOCK" ]] && export SSH_AUTH_SOCK SSH_AGENT_PID
     fi
+
+    # 显式记下当前 agent socket，setsid 子进程必须用它
+    local auth_sock="$SSH_AUTH_SOCK"
 
     if is_ssh_tunnel_running; then
         local pid=$(cat "$SSH_TUNNEL_PID_FILE")
@@ -154,7 +160,7 @@ start_ssh_tunnel() {
 
     info "启动 SSH 隧道: ${user}@${host}:${port} → localhost:${listen_port} → ${remote}"
 
-    setsid nohup ssh -NL "${listen_port}:${remote}" $port_opt "$ssh_target" \
+    setsid nohup env SSH_AUTH_SOCK="$auth_sock" ssh -NL "${listen_port}:${remote}" $port_opt "$ssh_target" \
         -o ExitOnForwardFailure=yes \
         -o ServerAliveInterval=30 \
         -o ServerAliveCountMax=3 \
