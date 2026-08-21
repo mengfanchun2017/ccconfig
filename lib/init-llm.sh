@@ -552,7 +552,7 @@ PYEOF
         }
         # SSH 隧道转发到远程端点，bridge 指向本地隧道端口做 Anthropic↔OpenAI 转换
         info "  启用 Anthropic↔OpenAI bridge (upstream: http://127.0.0.1:$tunnel_listen_port)"
-        if ensure_bridge "http://127.0.0.1:${tunnel_listen_port}" "$model_name" "$api_key"; then
+        if start_tunnel_bridge "$tunnel_listen_port" "$model_name" "$api_key"; then
             base_url="http://127.0.0.1:8898"
             info "  Bridge 已就绪，base_url → $base_url"
         else
