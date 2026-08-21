@@ -100,6 +100,84 @@ get_gateway_status_one_liner() {
     echo "→ $route$peak_str | mode:$mode | auto-switch:$auto_str | watchdog:$watchdog_str"
 }
 
+# ========== SSH 隧道管理（Tailscale → 跳板机 → 内网 LLM）==========
+SSH_TUNNEL_PID_FILE="$HOME/.cache/ssh-tunnel.pid"
+SSH_TUNNEL_LOG_FILE="$HOME/.cache/ssh-tunnel.log"
+
+is_ssh_tunnel_running() {
+    [ -f "$SSH_TUNNEL_PID_FILE" ] && kill -0 "$(cat "$SSH_TUNNEL_PID_FILE")" 2>/dev/null
+}
+
+# $1: ssh_host (SSH config Host 别名)  $2: remote (host:port)  $3: listen_port (local)
+start_ssh_tunnel() {
+    local ssh_host="$1" remote="$2" listen_port="$3"
+    [[ -z "$ssh_host" || -z "$remote" ]] && { error "SSH 隧道参数缺失: ssh_host=$ssh_host remote=$remote"; return 1; }
+
+    if is_ssh_tunnel_running; then
+        local pid=$(cat "$SSH_TUNNEL_PID_FILE")
+        info "SSH 隧道已在运行 (PID: $pid)"
+        return 0
+    fi
+
+    info "启动 SSH 隧道: $ssh_host → localhost:$listen_port → $remote"
+
+    nohup ssh -NL "${listen_port}:${remote}" "$ssh_host" \
+        -o ExitOnForwardFailure=yes \
+        -o ServerAliveInterval=30 \
+        -o ServerAliveCountMax=3 \
+        >> "$SSH_TUNNEL_LOG_FILE" 2>&1 &
+    local pid=$!
+    echo "$pid" > "$SSH_TUNNEL_PID_FILE"
+
+    sleep 2
+    if ! kill -0 "$pid" 2>/dev/null; then
+        error "SSH 隧道进程已退出，查看日志: $SSH_TUNNEL_LOG_FILE"
+        rm -f "$SSH_TUNNEL_PID_FILE"
+        return 1
+    fi
+
+    local retries=5
+    while (( retries > 0 )); do
+        if ss -tlnp 2>/dev/null | grep -q ":$listen_port "; then
+            info "  SSH 隧道就绪: localhost:$listen_port → $remote ($ssh_host)"
+            return 0
+        fi
+        sleep 1
+        (( retries-- ))
+    done
+
+    error "端口 $listen_port 未监听，SSH 隧道可能未就绪"
+    kill "$pid" 2>/dev/null || true
+    rm -f "$SSH_TUNNEL_PID_FILE"
+    return 1
+}
+
+stop_ssh_tunnel() {
+    if ! is_ssh_tunnel_running; then
+        rm -f "$SSH_TUNNEL_PID_FILE"
+        return 0
+    fi
+    local pid=$(cat "$SSH_TUNNEL_PID_FILE")
+    info "停止 SSH 隧道 (PID: $pid)..."
+    kill "$pid" 2>/dev/null || true
+    sleep 1
+    if kill -0 "$pid" 2>/dev/null; then
+        kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$SSH_TUNNEL_PID_FILE"
+    info "SSH 隧道已停止"
+}
+
+get_ssh_tunnel_status_one_liner() {
+    if ! is_ssh_tunnel_running; then
+        echo "未运行"
+        return
+    fi
+    local pid=$(cat "$SSH_TUNNEL_PID_FILE")
+    local listen_port=$(ss -tlnp 2>/dev/null | grep "ssh" | grep -oP ':\K\d+(?= .*pid='"$pid"')' | head -1 || echo "?")
+    echo "PID:$pid port:$listen_port"
+}
+
 # ========== 读取配置 ==========
 list_llms() {
     python3 - "$CONFIG_FILE" "$LLMSWITCH_CONF" << 'PYEOF'
@@ -591,6 +669,13 @@ except: pass
         info "  网关代理                  : $(get_gateway_status_one_liner)"
     fi
 
+    # SSH 隧道诊断
+    if is_ssh_tunnel_running; then
+        local tun_pid=$(cat "$SSH_TUNNEL_PID_FILE" 2>/dev/null || echo "?")
+        local tun_info=$(get_ssh_tunnel_status_one_liner)
+        info "  SSH 隧道 (PID:$tun_pid)    : $tun_info"
+    fi
+
     # 一致性检查
     echo ""
     # 一致性: model 是 env 真值, base_url 在 OpenAI-only 端点下会被 bridge 改写属正常
@@ -714,7 +799,12 @@ show_list() {
         if [[ "$name" == "gateway" ]]; then
             route_info="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE")"
         fi
-        printf "  %s %-10s %-20s%s%s\n" "$marker" "$display_name" "$model" "$small_info" "$route_info"
+        # SSH 隧道标记
+        local tunnel_mark=""
+        if [[ -n "$(python3 - "$CONFIG_FILE" "$name" 2>/dev/null <<< 'import json,sys;d=json.load(open(sys.argv[1]));t=d.get("llms",{}).get(sys.argv[2],{}).get("ssh_tunnel",{});print("🔒" if t.get("ssh_host") else "")' 2>/dev/null)" ]]; then
+            tunnel_mark=" 🔒"
+        fi
+        printf "  %s %-10s %-20s%s%s%s\n" "$marker" "$display_name" "$model" "$small_info" "$route_info" "$tunnel_mark"
     done
     echo ""
 
@@ -1027,12 +1117,16 @@ interactive_select() {
         if [[ "$name" == "gateway" ]]; then
             route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE")"
         fi
+        local tunnel_mark=""
+        if [[ -n "$(python3 - "$CONFIG_FILE" "$name" 2>/dev/null <<< 'import json,sys;d=json.load(open(sys.argv[1]));t=d.get("llms",{}).get(sys.argv[2],{}).get("ssh_tunnel",{});print("🔒" if t.get("ssh_host") else "")' 2>/dev/null)" ]]; then
+            tunnel_mark=" 🔒"
+        fi
         names+=("$name")
         selectable=$((selectable + 1))
         if [[ "$marker" == "◀" ]]; then
-            printf "  %d) %s (%s)%s%s ◀ 当前\n" "$idx" "$display_name" "$model" "$small_str" "$route_str"
+            printf "  %d) %s (%s)%s%s%s ◀ 当前\n" "$idx" "$display_name" "$model" "$small_str" "$route_str" "$tunnel_mark"
         else
-            printf "  %d) %s (%s)%s%s\n" "$idx" "$display_name" "$model" "$small_str" "$route_str"
+            printf "  %d) %s (%s)%s%s%s\n" "$idx" "$display_name" "$model" "$small_str" "$route_str" "$tunnel_mark"
         fi
         idx=$((idx + 1))
     done < <(echo "$lines")

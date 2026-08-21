@@ -7,12 +7,13 @@
 
 CCCONFIG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# 只服务 OpenAI-only 端点（非 /anthropic、非本地）
+# 检测是否需要 bridge
+# 返回 0=需要 bridge（OpenAI-only 端点，包括通过 SSH 隧道转发的内网端点）
+# 返回 1=不需要（Anthropic 原生端点或直连本地）
 _bridge_supported() {
     local upstream="$1"
     [[ -z "$upstream" ]] && return 1
     [[ "$upstream" == *"/anthropic"* ]] && return 1
-    [[ "$upstream" == *"://127.0.0.1"* ]] && return 1
     return 0
 }
 
