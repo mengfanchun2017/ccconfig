@@ -628,7 +628,7 @@ TAILPY
             ) || { error "altllm_tail SSH 隧道配置不完整"; return 1; }
             IFS='|' read -r thost tport tuser tremote <<< "$tail_cfg"
             # altllm_tail 走独立链路脚本（Tailscale → SSH 隧道 → tail bridge）
-            source "$SCRIPT_DIR/lib/tail-llm.sh"
+            source "$CCCONFIG_ROOT/lib/tail-llm.sh"
             if tail_start "$thost" "$tport" "$tuser" "$tremote" "$tmodel" "$tkey"; then
                 info "altllm_tail 链路就绪，写入配置..."
                 _write_llm_config "$name" "http://127.0.0.1:8895" "$tmodel" "$tsmall" "$tkey"
