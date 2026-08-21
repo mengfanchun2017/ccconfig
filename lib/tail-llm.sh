@@ -169,19 +169,20 @@ tail_start() {
             return 1
         fi
         local cfg=""
-        cfg=$(python3 - "$llm_json" << 'PYEOF' 2>/dev/null) || return 1
+        cfg=$(python3 -c "
 import json, sys
-p = sys.argv[1]
 try:
-    d = json.load(open(p))
+    d = json.load(open('$llm_json'))
     t = d.get('llms', {}).get('altllm_tail', {}).get('ssh_tunnel', {})
-    host = t.get('host') or t.get('ssh_host', '')
-    if not host:
+    h = t.get('host') or t.get('ssh_host', '')
+    if not h:
         sys.exit(1)
-    print(f"{host}|{t.get('port',22)}|{t.get('user','')}|{t['remote']}|{d['llms']['altllm_tail'].get('model','')}|{d['llms']['altllm_tail'].get('key','')}")
+    print(h, t.get('port',22), t.get('user',''), t['remote'],
+          d['llms']['altllm_tail'].get('model',''),
+          d['llms']['altllm_tail'].get('key',''), sep='|')
 except Exception:
     sys.exit(1)
-PYEOF
+" 2>/dev/null) || return 1
         if [[ -z "$cfg" ]]; then
             error "  altllm_tail 配置读取失败"
             return 1
