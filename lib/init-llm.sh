@@ -215,6 +215,7 @@ start_tunnel_bridge() {
         OPENAI_BRIDGE_UPSTREAM_ORIGINAL="https://127.0.0.1:${listen_port}" \
         OPENAI_BRIDGE_KEY="$key" \
         OPENAI_BRIDGE_MODEL="$model" \
+        OPENAI_BRIDGE_SKIP_TLS_VERIFY=1 \
         nohup python3 option-llmswitch/openai_bridge.py --port "$port" \
         > "$HOME/.cache/openai_bridge.log" 2>&1 &
     disown
