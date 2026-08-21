@@ -123,6 +123,22 @@ start_ssh_tunnel() {
         info "  Windows Tailscale: Running"
     fi
 
+    # 确保 ssh-agent 运行 + key 已加载（避免无密码 ssh 时 key 找不到）
+    if ! ssh-add -l &>/dev/null; then
+        if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+            info "  ssh-agent 未运行，自动启动并加载 key..."
+            eval $(ssh-agent -s) &>/dev/null || { error "ssh-agent 启动失败"; return 1; }
+            ssh-add "$HOME/.ssh/id_ed25519" &>/dev/null || {
+                error "ssh key 加载失败，检查 ~/.ssh/id_ed25519 权限"
+                return 1
+            }
+            info "  ssh-agent: PID=$SSH_AGENT_PID, key 已加载"
+        else
+            error "未找到 ~/.ssh/id_ed25519，无法建立 SSH 隧道"
+            return 1
+        fi
+    fi
+
     if is_ssh_tunnel_running; then
         local pid=$(cat "$SSH_TUNNEL_PID_FILE")
         info "SSH 隧道已在运行 (PID: $pid)"
@@ -1256,6 +1272,9 @@ main() {
     elif [[ "$cmd" == "test" ]] || [[ "$cmd" == "-t" ]]; then
         # 第二参数：要测试的预设名
         test_llm "${2:-}"
+    elif [[ "$cmd" == "switch" ]]; then
+        # 直接切指定预设: bash init-llm.sh switch <name>
+        switch_llm "${2:-}"
     elif [[ "$cmd" == "custom" ]] || [[ "$cmd" == "-c" ]]; then
         switch_custom
     elif [[ "$cmd" == "delete" ]] || [[ "$cmd" == "-d" ]]; then
