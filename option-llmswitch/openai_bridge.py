@@ -346,7 +346,8 @@ http_client = None
 @app.on_event("startup")
 async def on_startup():
     global http_client
-    http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0), trust_env=False)
+    verify = not state.get("skip_tls_verify", False)
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0), trust_env=False, verify=verify)
 
 
 # 当 upstream URL 用 IP 代替了域名（DNS 预解析后），ssl 握手的 SNI 仍要用域名
@@ -564,6 +565,9 @@ def main():
     parser.add_argument("--use-win-curl", action="store_true",
                         default=os.environ.get("OPENAI_BRIDGE_USE_WIN_CURL", "").lower() in ("1", "true", "yes"),
                         help="通过 Windows 侧 curl.exe 转发请求（WSL 网络受限场景）")
+    parser.add_argument("--skip-tls-verify", action="store_true",
+                        default=os.environ.get("OPENAI_BRIDGE_SKIP_TLS_VERIFY", "").lower() in ("1", "true", "yes"),
+                        help="跳过 upstream TLS 证书验证（SSH 隧道场景，hostname 是 127.0.0.1 但证书签给域名）")
     args = parser.parse_args()
 
     if not args.upstream:
@@ -579,8 +583,9 @@ def main():
     state["use_win_curl"] = args.use_win_curl
     # 原始 upstream URL（IP 预解析前的），便于 ensure_bridge 字符串匹配
     state["upstream_original"] = os.environ.get("OPENAI_BRIDGE_UPSTREAM_ORIGINAL", args.upstream)
+    state["skip_tls_verify"] = args.skip_tls_verify
 
-    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl}", flush=True)
+    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl} skip_tls_verify={args.skip_tls_verify}", flush=True)
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
