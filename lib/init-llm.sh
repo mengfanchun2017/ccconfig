@@ -390,7 +390,36 @@ switch_llm() {
             ;;
     esac
 
-    # 切到直连前先停 watchdog + proxy
+    local config=$(get_llm_config "$name") || { error "无法获取 LLM 配置: $name"; return 1; }
+    IFS='|' read -r base_url model_name api_key small_model <<< "$config"
+
+    # 检查是否有 SSH 隧道配置（内网 LLM 通过跳板机访问）
+    local has_tunnel=false
+    local tunnel_ssh_host="" tunnel_remote="" tunnel_listen_port=""
+    local tunnel_info
+    tunnel_info=$(python3 - "$CONFIG_FILE" "$name" << 'PYEOF'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+    llm = d.get('llms', {}).get(sys.argv[2], {})
+    t = llm.get('ssh_tunnel', {})
+    if t.get('ssh_host') and t.get('remote'):
+        print(f"{t['ssh_host']}|{t['remote']}|{t.get('listen_port',8890)}")
+    else:
+        sys.exit(1)
+except:
+    sys.exit(1)
+PYEOF
+) || true
+    if [[ -n "$tunnel_info" ]]; then
+        IFS='|' read -r tunnel_ssh_host tunnel_remote tunnel_listen_port <<< "$tunnel_info"
+        has_tunnel=true
+    fi
+
+    # 切到直连前先停 watchdog + proxy + ssh 隧道（如果之前是隧道模式）
+    if is_ssh_tunnel_running; then
+        stop_ssh_tunnel
+    fi
     if is_proxy_running; then
         info "停止网关代理..."
         local watchdog_pid_file="$HOME/.cache/llmswitch-watchdog.pid"
@@ -401,11 +430,25 @@ switch_llm() {
         bash "$LLMSWITCH_INIT" --stop 2>/dev/null || true
     fi
 
-    local config=$(get_llm_config "$name") || { error "无法获取 LLM 配置: $name"; return 1; }
-    IFS='|' read -r base_url model_name api_key small_model <<< "$config"
-
+    # SSH 隧道模式：先启隧道，再启 bridge 转发到本地端口
+    if $has_tunnel; then
+        info "检测到 SSH 隧道配置: $tunnel_ssh_host → $tunnel_remote"
+        start_ssh_tunnel "$tunnel_ssh_host" "$tunnel_remote" "$tunnel_listen_port" || {
+            error "SSH 隧道启动失败"
+            return 1
+        }
+        # SSH 隧道转发到远程端点，bridge 指向本地隧道端口做 Anthropic↔OpenAI 转换
+        info "  启用 Anthropic↔OpenAI bridge (upstream: http://127.0.0.1:$tunnel_listen_port)"
+        if ensure_bridge "http://127.0.0.1:${tunnel_listen_port}" "$model_name" "$api_key"; then
+            base_url="http://127.0.0.1:8898"
+            info "  Bridge 已就绪，base_url → $base_url"
+        else
+            error "  bridge 启动失败"
+            stop_ssh_tunnel
+            return 1
+        fi
     # 检测 OpenAI-only 端点（不是 Anthropic compatible），自动启 bridge + 改写 base_url
-    if [[ "$base_url" != *"/anthropic"* ]] && [[ "$base_url" != *"://127.0.0.1"* ]]; then
+    elif [[ "$base_url" != *"/anthropic"* ]] && [[ "$base_url" != *"://127.0.0.1"* ]]; then
         info "  检测到 OpenAI-only 端点，自动启用 Anthropic↔OpenAI bridge..."
         if ensure_bridge "$base_url" "$model_name" "$api_key"; then
             base_url="http://127.0.0.1:8898"
