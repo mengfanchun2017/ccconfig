@@ -128,6 +128,7 @@ start_ssh_tunnel() {
         if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
             info "  ssh-agent 未运行，自动启动并加载 key..."
             eval $(ssh-agent -s) &>/dev/null || { error "ssh-agent 启动失败"; return 1; }
+            export SSH_AUTH_SOCK SSH_AGENT_PID
             ssh-add "$HOME/.ssh/id_ed25519" &>/dev/null || {
                 error "ssh key 加载失败，检查 ~/.ssh/id_ed25519 权限"
                 return 1
