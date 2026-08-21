@@ -266,6 +266,41 @@ start_tunnel_bridge() {
     [[ -n "$health" ]]
 }
 
+# 0731 模型独立 bridge（port 8897，openai_bridge_0731.py）
+# $1: upstream  $2: model_name  $3: api_key
+_ensure_bridge_0731() {
+    local upstream="$1" model="$2" key="$3"
+    local port=8897
+
+    # 先杀原版 bridge（port 8898）——0731 独享，原版 bridge 不冲突，但仍要清 8897 残留
+    pkill -f "openai_bridge_0731.py" 2>/dev/null || true
+    sleep 1
+
+    local cd="$CCCONFIG_ROOT"
+    local env_args="-u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy"
+    nohup env $env_args \
+        OPENAI_BRIDGE_UPSTREAM="$upstream" \
+        OPENAI_BRIDGE_UPSTREAM_ORIGINAL="$upstream" \
+        OPENAI_BRIDGE_KEY="$key" \
+        OPENAI_BRIDGE_MODEL="$model" \
+        python3 "$CCCONFIG_ROOT/option-llmswitch/openai_bridge_0731.py" --port "$port" \
+        > "$HOME/.cache/openai_bridge_0731.log" 2>&1 &
+    disown
+
+    local health=""
+    for i in 1 2 3 4 5; do
+        sleep 1
+        health=$(curl -s --max-time 2 "http://127.0.0.1:${port}/health" 2>/dev/null)
+        [[ -n "$health" ]] && break
+    done
+
+    if [[ -z "$health" ]]; then
+        error "0731 bridge 启动失败，查看 ~/.cache/openai_bridge_0731.log"
+        return 1
+    fi
+    info "  0731 bridge 已就绪 (port $port)"
+}
+
 # ========== 读取配置 ==========
 list_llms() {
     python3 - "$CONFIG_FILE" "$LLMSWITCH_CONF" << 'PYEOF'
