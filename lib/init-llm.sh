@@ -618,13 +618,20 @@ PYEOF
         fi
     # 检测 OpenAI-only 端点（不是 Anthropic compatible），自动启 bridge + 改写 base_url
     elif [[ "$base_url" != *"/anthropic"* ]] && [[ "$base_url" != *"://127.0.0.1"* ]]; then
-        info "  检测到 OpenAI-only 端点，自动启用 Anthropic↔OpenAI bridge..."
-        if ensure_bridge "$base_url" "$model_name" "$api_key"; then
-            base_url="http://127.0.0.1:8898"
-            info "  Bridge 已就绪，base_url → $base_url"
+        if [[ "$name" == "altllm0731" ]]; then
+            # 0731 模型走独立 bridge 文件 + 8897 端口，避免 SSE 格式差异影响原版
+            info "  altllm0731: 启动独立 bridge (openai_bridge_0731.py port 8897)..."
+            _ensure_bridge_0731 "$base_url" "$model_name" "$api_key" || return 1
+            base_url="http://127.0.0.1:8897"
         else
-            error "  bridge 启动失败，请检查 ~/.cache/openai_bridge.log"
-            return 1
+            info "  检测到 OpenAI-only 端点，自动启用 Anthropic↔OpenAI bridge..."
+            if ensure_bridge "$base_url" "$model_name" "$api_key"; then
+                base_url="http://127.0.0.1:8898"
+                info "  Bridge 已就绪，base_url → $base_url"
+            else
+                error "  bridge 启动失败，请检查 ~/.cache/openai_bridge.log"
+                return 1
+            fi
         fi
     else
         # 切到直连/本地端点，bridge 无需求 → 关残留进程
