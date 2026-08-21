@@ -105,10 +105,10 @@ _tail_start_bridge() {
     pkill -f "openai_bridge_tail.py" 2>/dev/null || true
     sleep 1
 
-    local env_args="-u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy"
-    nohup env $env_args \
-        OPENAI_BRIDGE_UPSTREAM='http://127.0.0.1:${TAIL_TUNNEL_PORT}/v1' \
-        OPENAI_BRIDGE_UPSTREAM_ORIGINAL='http://127.0.0.1:${TAIL_TUNNEL_PORT}/v1' \
+    local upstream="http://127.0.0.1:${TAIL_TUNNEL_PORT}/v1"
+    nohup env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
+        OPENAI_BRIDGE_UPSTREAM="$upstream" \
+        OPENAI_BRIDGE_UPSTREAM_ORIGINAL="$upstream" \
         OPENAI_BRIDGE_KEY="$key" \
         OPENAI_BRIDGE_MODEL="$model" \
         OPENAI_BRIDGE_SKIP_TLS_VERIFY=1 \
@@ -154,6 +154,8 @@ tail_start() {
     if [[ -z "$host" || -z "$remote" || -z "$model" || -z "$key" ]]; then
         # 从 llm.json 读 altllm_tail 配置
         local llm_json="$HOME/.config/ccconfig/llm.json"
+        [[ -f "$HOME/git/ccprivate/conf/llm.json" ]] && llm_json="$HOME/git/ccprivate/conf/llm.json"
+        # 兼容 ccconfig 仓库内 ccprivate symlink
         [[ -f "$SCRIPT_DIR/../ccprivate/conf/llm.json" ]] && llm_json="$SCRIPT_DIR/../ccprivate/conf/llm.json"
         python3 - "$llm_json" << 'PYEOF' || return 1
 import json, sys
