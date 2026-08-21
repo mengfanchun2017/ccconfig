@@ -768,11 +768,16 @@ except: pass
         info "  网关代理                  : $(get_gateway_status_one_liner)"
     fi
 
-    # SSH 隧道诊断
+    # SSH 隧道诊断（tmux 持久化）
     if is_ssh_tunnel_running; then
-        local tun_pid=$(cat "$SSH_TUNNEL_PID_FILE" 2>/dev/null || echo "?")
         local tun_info=$(get_ssh_tunnel_status_one_liner)
-        info "  SSH 隧道 (PID:$tun_pid)    : $tun_info"
+        local bridge_info=""
+        if tmux has-session -t "altllm-bridge" 2>/dev/null; then
+            bridge_info="bridge=✓"
+        else
+            bridge_info="bridge=✗"
+        fi
+        info "  SSH 隧道 (tmux:$TUNNEL_TMUX_SESSION)    : $tun_info | $bridge_info"
     fi
 
     # 一致性检查
