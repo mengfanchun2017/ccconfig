@@ -733,9 +733,10 @@ check_example_sync() {
     return 0
 }
 
-# ========== bridge 自愈（仅 bridge 用户生效） ==========
-# openaialt 等 OpenAI-only 端点切到 127.0.0.1:8898 后，重启时 bridge 进程不在。
-# 检测 env 指向 8898 但无响应 → 从 llm.json 当前预设拉起。未配置 bridge 的用户 grep 短路，零开销。
+# ========== SSH 隧道 + bridge 自愈（会话启动时自动恢复） ==========
+# openaialt/altllm_tail 等隧道/bridge 依赖场景。Claude 重启后，tmux 里的进程可能还在，
+# 也可能因系统重启或手动清理而消失。自动检测并拉起。
+# 未配置 bridge/隧道预设的用户 grep 短路，零开销。
 check_bridge_selfheal() {
     grep -q '127.0.0.1:8898' "$HOME/.claude/settings.json" 2>/dev/null || return 0
     if curl -s --max-time 2 http://127.0.0.1:8898/health >/dev/null 2>&1; then
