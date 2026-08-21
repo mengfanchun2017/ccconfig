@@ -157,7 +157,12 @@ tail_start() {
         [[ -f "$HOME/git/ccprivate/conf/llm.json" ]] && llm_json="$HOME/git/ccprivate/conf/llm.json"
         # 兼容 ccconfig 仓库内 ccprivate symlink
         [[ -f "$SCRIPT_DIR/../ccprivate/conf/llm.json" ]] && llm_json="$SCRIPT_DIR/../ccprivate/conf/llm.json"
-        python3 - "$llm_json" << 'PYEOF' || return 1
+        if ! [[ -f "$llm_json" ]]; then
+            error "  llm.json 未找到: $llm_json"
+            return 1
+        fi
+        local cfg=""
+        cfg=$(python3 - "$llm_json" << 'PYEOF' 2>/dev/null) || return 1
 import json, sys
 p = sys.argv[1]
 try:
@@ -167,10 +172,13 @@ try:
     if not host:
         sys.exit(1)
     print(f"{host}|{t.get('port',22)}|{t.get('user','')}|{t['remote']}|{d['llms']['altllm_tail'].get('model','')}|{d['llms']['altllm_tail'].get('key','')}")
-except:
+except Exception:
     sys.exit(1)
 PYEOF
-        local cfg; cfg=$(cat)
+        if [[ -z "$cfg" ]]; then
+            error "  altllm_tail 配置读取失败"
+            return 1
+        fi
         IFS='|' read -r host port user remote model key <<< "$cfg"
     fi
 
