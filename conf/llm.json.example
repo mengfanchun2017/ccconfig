@@ -16,37 +16,6 @@
             "key": "请填入你的 DeepSeek API Key",
             "small_model": "deepseek-v4-flash"
         },
-        "altllm": {
-            "_comment": "OpenAI-compatible 端点，自动启用 Anthropic↔OpenAI bridge",
-            "name": "altLLM",
-            "base_url": "https://your-endpoint/v1",
-            "model": "<your-model>",
-            "key": "请填入你的 API Key",
-            "small_model": "<your-model>"
-        },
-        "altllm0731": {
-            "_comment": "OpenAI-compatible 端点，同 altllm 但新模型版本",
-            "name": "altLLM-0731",
-            "base_url": "https://your-endpoint/v1",
-            "model": "DeepSeek-V4-Flash-0731",
-            "key": "请填入你的 API Key",
-            "small_model": "DeepSeek-V4-Flash-0731"
-        },
-        "altllm_tail": {
-            "_comment": "通过 SSH 隧道（Tailscale → 跳板机 → 内网）连接 LLM。host=跳板机 Tailscale IP，port=SSH 端口，user=SSH 用户名，remote=内网 LLM 端点，listen_port=本地监听端口",
-            "name": "altLLM-tail",
-            "base_url": "http://127.0.0.1:8890/v1",
-            "model": "<your-model>",
-            "key": "请填入你的 API Key",
-            "small_model": "<your-model>",
-            "ssh_tunnel": {
-                "host": "100.x.x.x",
-                "port": 22,
-                "user": "username",
-                "remote": "your-internal-endpoint:18080",
-                "listen_port": 8890
-            }
-        },
         "gateway": {
             "_comment": "可选：本地 LLM 路由网关（需安装 option-llmswitch）",
             "name": "gateLLM",
