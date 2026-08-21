@@ -209,15 +209,13 @@ start_tunnel_bridge() {
     fi
 
     local env_args="-u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy"
-    local bridge_env="env $env_args \\
-        OPENAI_BRIDGE_UPSTREAM=http://127.0.0.1:${listen_port} \\
-        OPENAI_BRIDGE_UPSTREAM_ORIGINAL=http://127.0.0.1:${listen_port} \\
-        OPENAI_BRIDGE_KEY=$key \\
-        OPENAI_BRIDGE_MODEL=$model"
-
     cd "$CCCONFIG_ROOT"
-    nohup $bridge_env \
-        python3 option-llmswitch/openai_bridge.py --port "$port" \
+    env $env_args \
+        OPENAI_BRIDGE_UPSTREAM="http://127.0.0.1:${listen_port}" \
+        OPENAI_BRIDGE_UPSTREAM_ORIGINAL="http://127.0.0.1:${listen_port}" \
+        OPENAI_BRIDGE_KEY="$key" \
+        OPENAI_BRIDGE_MODEL="$model" \
+        nohup python3 option-llmswitch/openai_bridge.py --port "$port" \
         > "$HOME/.cache/openai_bridge.log" 2>&1 &
     disown
 
