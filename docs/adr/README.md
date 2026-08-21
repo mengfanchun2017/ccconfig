@@ -23,6 +23,7 @@
 | [0010](0010-adr-directory-location.md) | ADR 目录位置约定 | 2026-08-02 | ✅ Accepted | — |
 | [0012](0012-interact-p0-no-gum.md) | SH 交互规范化：lib/interact.sh P0 + 弃用 gum | 2026-08-10 | ✅ Accepted | Phase 1-3 |
 | [0013](0013-bridge-selfheal-sessionstart.md) | OpenAI bridge 自愈：SessionStart hook + env guard | 2026-08-13 | ✅ Accepted | — |
+| [0014](0014-tailscale-jump-server.md) | Tailscale 跳板机部署方案 | 2026-08-21 | ✅ Accepted | — |
 
 > ADR 收录门槛见 [「何时写 ADR」](#何时写-adr)。轻量变更（bug fix / 单文件重构 / 样式调整）只在下方「决策时间线」一行记录。
 
