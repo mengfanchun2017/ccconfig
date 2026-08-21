@@ -34,17 +34,17 @@ _load_config() {
     [[ -f "$HOME/git/ccprivate/conf/llm.json" ]] || llm_json="$HOME/.config/ccconfig/llm.json"
     [[ -f "$llm_json" ]] || return 0
     local cfg
-    cfg=$(python3 - "$llm_json" << 'PYEOF' 2>/dev/null) || return 0
+    cfg=$(python3 -c "
 import json, sys
 try:
-    d = json.load(open(sys.argv[1]))
+    d = json.load(open('$llm_json'))
     t = d.get('llms', {}).get('altllm_tail', {}).get('ssh_tunnel', {})
     if not t:
         sys.exit(0)
-    print(f"{t.get('host','')}|{t.get('port',22)}|{t.get('user','')}|{t.get('remote','')}|{t.get('listen_port',8890)}")
+    print(t.get('host',''), t.get('port',22), t.get('user',''), t.get('remote',''), t.get('listen_port',8890), sep='|')
 except Exception:
     sys.exit(0)
-PYEOF
+" 2>/dev/null) || return 0
     [[ -z "$cfg" ]] && return 0
     IFS='|' read -r host port user remote listen_port <<< "$cfg"
     [[ -n "$host" ]] && SSH_TARGET="${user}@${host}"
@@ -65,12 +65,13 @@ _ensure_agent() {
     fi
     # 新建专属 agent
     eval "$(ssh-agent -s -a "$AGENT_SOCK")" >/dev/null 2>&1
-    export AGENT_PID_TAIL SSH_AUTH_SOCK
+    export SSH_AUTH_SOCK="$AGENT_SOCK"
     ssh-add "$HOME/.ssh/id_ed25519" >/dev/null 2>&1 || {
         err "SSH key 加载失败: ~/.ssh/id_ed25519"
         return 1
     }
-    echo "$AGENT_PID_TAIL" > "$PIDFILE.agent"
+    # ssh-agent -s 输出 SSH_AGENT_PID；记录以便 stop 时清理
+    echo "${SSH_AGENT_PID:-}" > "$PIDFILE.agent"
     return 0
 }
 
