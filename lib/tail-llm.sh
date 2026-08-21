@@ -105,7 +105,7 @@ _tail_start_bridge() {
     pkill -f "openai_bridge_tail.py" 2>/dev/null || true
     sleep 1
 
-    local upstream="http://127.0.0.1:${TAIL_TUNNEL_PORT}/v1"
+    local upstream="https://127.0.0.1:${TAIL_TUNNEL_PORT}/v1"
     nohup env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
         OPENAI_BRIDGE_UPSTREAM="$upstream" \
         OPENAI_BRIDGE_UPSTREAM_ORIGINAL="$upstream" \
