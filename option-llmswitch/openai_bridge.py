@@ -297,7 +297,7 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
 
         usage = obj.get("usage")
         if usage:
-            msg_delta_usage = {"type": "message_delta", "delta": {}, "usage": {"output_tokens": usage.get("completion_tokens", 0)}}
+            msg_delta_usage = {"type": "message_delta", "usage": {"output_tokens": usage.get("completion_tokens", 0)}}
             out.append(f"event: message_delta\ndata: {json.dumps(msg_delta_usage, separators=(',', ':'))}\n\n")
 
     return "".join(out) if out else None
