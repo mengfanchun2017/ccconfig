@@ -108,10 +108,20 @@ is_ssh_tunnel_running() {
     [ -f "$SSH_TUNNEL_PID_FILE" ] && kill -0 "$(cat "$SSH_TUNNEL_PID_FILE")" 2>/dev/null
 }
 
-# $1: ssh_host (SSH config Host 别名)  $2: remote (host:port)  $3: listen_port (local)
+# $1: host (Tailscale IP)  $2: port (SSH 端口)  $3: user (SSH 用户)  $4: remote (host:port)  $5: listen_port (local)
 start_ssh_tunnel() {
-    local ssh_host="$1" remote="$2" listen_port="$3"
-    [[ -z "$ssh_host" || -z "$remote" ]] && { error "SSH 隧道参数缺失: ssh_host=$ssh_host remote=$remote"; return 1; }
+    local host="$1" port="$2" user="$3" remote="$4" listen_port="$5"
+    [[ -z "$host" || -z "$remote" ]] && { error "SSH 隧道参数缺失: host=$host remote=$remote"; return 1; }
+
+    # 检测 Windows Tailscale 服务是否运行
+    if command -v powershell.exe &>/dev/null; then
+        local ts_status=$(powershell.exe -NoProfile -Command "(Get-Service -Name Tailscale -ErrorAction SilentlyContinue).Status" 2>/dev/null | tr -d '\r' || echo "Stopped")
+        if [[ "$ts_status" != "Running" ]]; then
+            error "Windows Tailscale 服务未运行 ($ts_status)，请启动 Tailscale 客户端"
+            return 1
+        fi
+        info "  Windows Tailscale: Running"
+    fi
 
     if is_ssh_tunnel_running; then
         local pid=$(cat "$SSH_TUNNEL_PID_FILE")
@@ -119,12 +129,20 @@ start_ssh_tunnel() {
         return 0
     fi
 
-    info "启动 SSH 隧道: $ssh_host → localhost:$listen_port → $remote"
+    # 构建 SSH 连接串
+    local ssh_target="$host"
+    [[ -n "$user" ]] && ssh_target="${user}@${host}"
+    local port_opt=""
+    [[ -n "$port" && "$port" != "22" ]] && port_opt="-p $port"
 
-    nohup ssh -NL "${listen_port}:${remote}" "$ssh_host" \
+    info "启动 SSH 隧道: ${user}@${host}:${port} → localhost:${listen_port} → ${remote}"
+
+    nohup ssh -NL "${listen_port}:${remote}" $port_opt "$ssh_target" \
         -o ExitOnForwardFailure=yes \
         -o ServerAliveInterval=30 \
         -o ServerAliveCountMax=3 \
+        -o StrictHostKeyChecking=accept-new \
+        -o UserKnownHostsFile=/dev/null \
         >> "$SSH_TUNNEL_LOG_FILE" 2>&1 &
     local pid=$!
     echo "$pid" > "$SSH_TUNNEL_PID_FILE"
@@ -139,7 +157,7 @@ start_ssh_tunnel() {
     local retries=5
     while (( retries > 0 )); do
         if ss -tlnp 2>/dev/null | grep -q ":$listen_port "; then
-            info "  SSH 隧道就绪: localhost:$listen_port → $remote ($ssh_host)"
+            info "  SSH 隧道就绪: localhost:$listen_port → $remote ($host)"
             return 0
         fi
         sleep 1
@@ -506,9 +524,9 @@ switch_llm() {
     local config=$(get_llm_config "$name") || { error "无法获取 LLM 配置: $name"; return 1; }
     IFS='|' read -r base_url model_name api_key small_model <<< "$config"
 
-    # 检查是否有 SSH 隧道配置（内网 LLM 通过跳板机访问）
+    # 检查是否有 SSH 隧道配置（Tailscale → 跳板机 → 内网 LLM）
     local has_tunnel=false
-    local tunnel_ssh_host="" tunnel_remote="" tunnel_listen_port=""
+    local tunnel_host="" tunnel_port="" tunnel_user="" tunnel_remote="" tunnel_listen_port=""
     local tunnel_info
     tunnel_info=$(python3 - "$CONFIG_FILE" "$name" << 'PYEOF'
 import json, sys
@@ -516,8 +534,9 @@ try:
     d = json.load(open(sys.argv[1]))
     llm = d.get('llms', {}).get(sys.argv[2], {})
     t = llm.get('ssh_tunnel', {})
-    if t.get('ssh_host') and t.get('remote'):
-        print(f"{t['ssh_host']}|{t['remote']}|{t.get('listen_port',8890)}")
+    host = t.get('host') or t.get('ssh_host', '')
+    if host and t.get('remote'):
+        print(f"{host}|{t.get('port',22)}|{t.get('user','')}|{t['remote']}|{t.get('listen_port',8890)}")
     else:
         sys.exit(1)
 except:
@@ -525,7 +544,7 @@ except:
 PYEOF
 ) || true
     if [[ -n "$tunnel_info" ]]; then
-        IFS='|' read -r tunnel_ssh_host tunnel_remote tunnel_listen_port <<< "$tunnel_info"
+        IFS='|' read -r tunnel_host tunnel_port tunnel_user tunnel_remote tunnel_listen_port <<< "$tunnel_info"
         has_tunnel=true
     fi
 
@@ -545,8 +564,8 @@ PYEOF
 
     # SSH 隧道模式：先启隧道，再启 bridge 转发到本地端口
     if $has_tunnel; then
-        info "检测到 SSH 隧道配置: $tunnel_ssh_host → $tunnel_remote"
-        start_ssh_tunnel "$tunnel_ssh_host" "$tunnel_remote" "$tunnel_listen_port" || {
+        info "检测到 SSH 隧道配置: ${tunnel_user}@${tunnel_host}:${tunnel_port} → ${tunnel_remote}"
+        start_ssh_tunnel "$tunnel_host" "$tunnel_port" "$tunnel_user" "$tunnel_remote" "$tunnel_listen_port" || {
             error "SSH 隧道启动失败"
             return 1
         }
