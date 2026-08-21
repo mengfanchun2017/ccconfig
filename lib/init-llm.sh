@@ -276,14 +276,34 @@ _ensure_bridge_0731() {
     pkill -f "openai_bridge_0731.py" 2>/dev/null || true
     sleep 1
 
-    local cd="$CCCONFIG_ROOT"
+    # 检测是否需 win-curl（WSL 网络受限场景，同 ensure_bridge 逻辑简化版）
+    local use_win_curl=0
+    if command -v curl.exe &>/dev/null; then
+        local probe_host
+        probe_host=$(echo "$upstream" | python3 -c "
+import sys, urllib.parse
+p = urllib.parse.urlparse(sys.stdin.read().strip())
+print(p.hostname or '')" 2>/dev/null)
+        if [[ -n "$probe_host" ]]; then
+            timeout 3 bash -c "echo > /dev/tcp/$probe_host/18080" 2>/dev/null || use_win_curl=1
+        fi
+    fi
+
     local env_args="-u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy"
-    nohup env $env_args \
-        OPENAI_BRIDGE_UPSTREAM="$upstream" \
-        OPENAI_BRIDGE_UPSTREAM_ORIGINAL="$upstream" \
-        OPENAI_BRIDGE_KEY="$key" \
-        OPENAI_BRIDGE_MODEL="$model" \
-        python3 "$CCCONFIG_ROOT/option-llmswitch/openai_bridge_0731.py" --port "$port" \
+    local bridge_env="env $env_args \
+        OPENAI_BRIDGE_UPSTREAM=$upstream \
+        OPENAI_BRIDGE_UPSTREAM_ORIGINAL=$upstream \
+        OPENAI_BRIDGE_KEY=$key \
+        OPENAI_BRIDGE_MODEL=$model"
+    local extra_args=""
+    if [[ "$use_win_curl" -eq 1 ]]; then
+        bridge_env="$bridge_env OPENAI_BRIDGE_USE_WIN_CURL=1"
+        extra_args="--use-win-curl"
+        info "  WSL 网络不可达 upstream → 启用 Windows 侧 curl.exe 转发"
+    fi
+
+    nohup $bridge_env \
+        python3 "$CCCONFIG_ROOT/option-llmswitch/openai_bridge_0731.py" --port "$port" $extra_args \
         > "$HOME/.cache/openai_bridge_0731.log" 2>&1 &
     disown
 
@@ -296,6 +316,7 @@ _ensure_bridge_0731() {
 
     if [[ -z "$health" ]]; then
         error "0731 bridge 启动失败，查看 ~/.cache/openai_bridge_0731.log"
+        head -20 "$HOME/.cache/openai_bridge_0731.log"
         return 1
     fi
     info "  0731 bridge 已就绪 (port $port)"
