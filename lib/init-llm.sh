@@ -202,17 +202,9 @@ stop_ssh_tunnel() {
         return 0
     fi
     info "停止 SSH 隧道 (tmux: $TUNNEL_TMUX_SESSION)..."
-    # 发 Ctrl-C 让 ssh 正常关闭（释放端口）
     tmux send-keys -t "$TUNNEL_TMUX_SESSION" "C-c" 2>/dev/null || true
     sleep 1
     tmux kill-session -t "$TUNNEL_TMUX_SESSION" 2>/dev/null || true
-    # 等端口释放
-    local retries=5
-    while (( retries > 0 )); do
-        ss -tlnp 2>/dev/null | grep -q ":$1 " || break
-        sleep 1
-        retries=$((retries - 1))
-    done
     info "SSH 隧道已停止"
 }
 
