@@ -152,9 +152,11 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
         ]
         tool_choice = anth_body.get("tool_choice")
         if tool_choice:
-            if tool_choice.get("type") == "tool":
+            if isinstance(tool_choice, dict) and tool_choice.get("type") == "tool":
                 openai_body["tool_choice"] = {"type": "function", "function": {"name": tool_choice.get("name", "")}}
-            else:
+            elif isinstance(tool_choice, str):
+                openai_body["tool_choice"] = tool_choice
+            elif isinstance(tool_choice, dict):
                 openai_body["tool_choice"] = tool_choice.get("type", "auto")
 
     return openai_body
