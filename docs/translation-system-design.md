@@ -2,7 +2,7 @@
 
 > 2026-08-22 | 四路并行深度调研（A 质量标准 / B LLM 架构 / C 工具生态 / D 系统设计）综合产出
 > **核心决策：自建 LLM 翻译流水线（不采购 DeepL/CAT）**，落地为一个新 skill `ftransec`
-> 最终交付：本方案 + `skill/plugins/ftransec/`（SKILL.md + config + deps + references）
+> 最终交付：本方案 + `skill/plugins/ftransec/`（SKILL.md + config + deps + references×3）
 
 ---
 
@@ -10,15 +10,15 @@
 
 | 方案 | 术语一致 | 批量 | 交付定制 | 成本 | 结论 |
 |------|---------|------|---------|------|------|
-| DeepL | glossary 需 **≥1000 句对**训练，科研小批量难启动 | 有(API) | 弱 | 订阅/按量 | 通用好但定制弱 |
+| DeepL | glossary 需 **≥1000 句对**训练(实测)，科研小批量难启动 | 有(API) | 弱 | 订阅/按量($8.74起) | 通用好但定制弱 |
 | CAT（Trados/memoQ/Phrase） | 强 | 强 | 中 | 贵+学习成本 | 过度工程化 |
-| **自建 LLM 流水线** | **全可控（curated 术语库+强制注入）** | **强（脚本化）** | **最强（Word/飞书/MD 自选）** | **复用现有 LLM 网关，零新增** | ✅ **选这个** |
+| **自建 LLM 流水线** | **全可控(curated 术语库+强制注入)** | **强(脚本化)** | **最强(Word/飞书/MD 自选)** | **复用现有 LLM 网关，零新增** | ✅ **选这个** |
 
 **决定性理由**：
 1. **已有 LLM 网关**（`127.0.0.1:8897` → DeepSeek-V4-Flash），翻译引擎零新增费用
 2. **科研翻译命门 = 术语一致 + 学术语体**，自建可完全定制 glossary 注入 + 中文科研语体规范；DeepL/CAT 给不了
-3. **交付形态自由**：双语 Word（fdocx）/飞书（ffeishu）/Markdown 随心选，直接衔接现有交付 skills
-4. DeepL/CAT 的术语管理是产品内封闭系统；自建术语库 = git 版本化 + 跨文档复用 + 越用越准
+3. **交付形态自由**：双语 Word（fdocx）/飞书（ffeishu）/Markdown，直接衔接现有交付 skills
+4. DeepL glossary 需 ≥1000 句对（TMX/TSV）训练——科研小批量启动成本高；自建 LLM 术语库按词条即配即用
 5. 权威开源实现（TBL/BookLLM/aiww）已验证 LLM 流水线质量可达出版级，且有 benchmark
 
 ---
@@ -32,10 +32,10 @@
 
 | 步 | 做什么 | 产出 |
 |----|--------|------|
-| ① 切分 | token 计数+自然边界（软上限 ~80%，段落/句子收尾）；中文 1.5 char/token；记录 `join_with` | `chunks/src/*.md` + `manifest.jsonl` |
-| ② 注入 | 命中当前 chunk 的术语（上限 20 条）+ 禁译表 + 禁止译法 + 风格预设，按 chunk 过滤 | 每 chunk 的 prompt |
-| ③ 翻译 | System(角色+语言硬约束+输出契约+术语) + User(前文 context ~350 字 + 正文)；代码/公式/URL 用 placeholder | `chunks/out/*.md`(含置信分) |
-| ④ 评分 | 全量 reference-free 评分滤低分 + 低分/随机 5% LLMjudge 细审 | `chunks/reviews/*.json` |
+| ① 切分 | token 计数+自然边界（软上限~80%，段落/句子收尾）；中文 1.5 char/token；记 `join_with` | `chunks/src/*.md` + `manifest.jsonl` |
+| ② 注入 | 命中当前 chunk 的术语（上限20条）+ 禁译表 + 禁止译法 + 风格预设，按 chunk 过滤 | 每 chunk 的 prompt |
+| ③ 翻译 | System(角色+语言硬约束+输出契约+术语) + User(前文 context ~350字 + 正文)；代码/公式/URL 用 placeholder | `chunks/out/*.md`(含置信分) |
+| ④ 评分 | 全量 reference-free 评分滤低分 + 低分/随机5% LLMjudge 细审 | `chunks/reviews/*.json` |
 | ⑤ 后编辑 | 低分/关键段走 review pass（保守 QA 修正，非重译） | 修正后译文 |
 | ⑥ Stitch | 按 manifest + `join_with` 还原顺序，不凭空造段内断行 | 全文译文 |
 | ⑦ 格式还原 | 公式/图表/引用/数字逐字保真，还原 placeholder | 结构化文档 |
@@ -43,7 +43,7 @@
 
 ---
 
-## 三、术语库与翻译记忆（第一公民，维度 A/B/D 共识）
+## 三、术语库与翻译记忆（第一公民，A/B/D 共识）
 
 ### 位置与格式
 - 项目术语库：`build/glossary.csv`（`source,target,type,severity`）；跨项目学科库：`~/.claude/skills/ftransec/glossaries/<学科>.csv`
@@ -57,7 +57,7 @@ doNotTranslate        → 不译：缩写、符号、公式名、保留原文
 forbiddenTranslations → 禁止译法 {source, forbidden, prefer}
 ```
 
-### severity 分级（QC 强校验依据，来自 A/D）
+### severity 分级（QC 强校验依据，A/D）
 | 级别 | 范围 | QC 行为 |
 |------|------|---------|
 | `high` | 专有名词、技术核心术语 | **强校验**——未用 preferred term 标 critical |
@@ -68,10 +68,10 @@ forbiddenTranslations → 禁止译法 {source, forbidden, prefer}
 每次翻译结束：**从评审报告挖新术语/术语纠错 → 回灌 glossary → 下次注入**。
 第 0 批无术语库时先跑 **术语抽取**（采样 10 段×600 字跨文分布，LLM 结构化抽取，跑 2-3 轮收敛）。
 
-### 术语注入策略（省 token，来自 B）
+### 术语注入策略（省 token，B）
 **不把整个术语表塞进每个 chunk**——只注入当前 chunk 实际出现且命中的术语，命中上限 20 条。
 
-### TM 副作用规避（来自 A，必须写进规范）
+### TM 副作用规避（A，必须写进规范）
 - **错误传播** → 纠错后回写 tm
 - **sentence-salad** → 要求全文终审
 - **peephole** → 禁改写风格凑复用
@@ -183,13 +183,13 @@ forbiddenTranslations → 禁止译法 {source, forbidden, prefer}
 ### 本轮已完成
 - ✅ 方案文档（本文件）
 - ✅ `ftransec` skill 全套（SKILL.md + config.yaml.example + deps.txt + references×3）
-- ✅ 四份调研报告归档 job tmp（`~/.claude/jobs/f0fe57b5/tmp/translation-research/`）
-- ✅ marketplace 注册 + 同步 + CHANGELOG
+- ✅ marketplace 注册 + sync-marketplace + CHANGELOG
+- ✅ 三份核心调研报告归档 job tmp（`~/.claude/jobs/f0fe57b5/tmp/translation-research/`）
 
 ### 待用户确认后继续
-1. `bash ccconfig/init-skill.sh sync` 生成 `~/.claude/skills/ftransec` symlink
+1. `bash ccconfig/init-skill.sh sync` 生成 `~/.claude/skills/ftransec` symlink + 检查依赖
 2. 用 1-2 篇论文端到端跑通流水线，实测术语抽取 + QE 阈值
-3. 视需要安装 MinerU/pandoc（科研 PDF 表格公式解析）
+3. 视需要安装 MinerU / pandoc（科研 PDF 表格公式解析）
 
 ---
 
@@ -199,7 +199,7 @@ forbiddenTranslations → 禁止译法 {source, forbidden, prefer}
 - [tbl] [TranslateBooksWithLLMs](https://github.com/hydropix/TranslateBooksWithLLMs)（GLOSSARY / STYLE_EXTRACTION / JUDGE_RUBRIC_V2 / BENCHMARK）
 - [bookllm] [BookLLM](https://github.com/purecodework/bookllm)（translation/review/polish/glossary-extraction prompt）
 - [comet] [COMET](https://github.com/Unbabel/COMET) — reference-free QE + XCOMET 错误 span
-- [deepl] [DeepL glossary](https://www.deepl.com/en/features/glossary) — 需 ≥1000 句对训练（TMX/TSV）
+- [deepl] [DeepL glossary](https://www.deepl.com/en/features/glossary) — 需 ≥1000 句对训练（TMX/TSV）；定价 $8.74 起
 - [phrase] [Phrase MTPE](https://phrase.com/blog/posts/machine-translation-post-editing/) — 术语重要性 + LPE/FPE 分层 + 选择性人工介入
 - [bi18n] [better-i18n AI Translation Workflows](https://better-i18n.com/en/blog/ai-translation-workflows-mtpe/) — 6 阶段 + QE 阈值路由
 - [transept] [Transept MTPE Guide 2026](https://transept.ai/guides/machine-translation-post-editing-mtpe-guide) — 术语库/TM/styleguide 角色
