@@ -1,89 +1,63 @@
 #!/usr/bin/env python3
-"""将 openai_bridge_tail.py 与 openai_bridge_0731.py 的 openai_chunk_to_anthropic_sse
-统一重写为 robust 单-message_delta 设计（两文件同一份逻辑），并跑场景测试。
+"""Rewrites openai_chunk_to_anthropic_sse in openai_bridge_tail.py and
+openai_bridge_0731.py to a robust single-message_delta design, then tests.
 
-真实 DeepSeek upstream 流式结尾（实测抓包确认）:
+Real DeepSeek upstream streaming tail (confirmed by capture):
     ... content chunks (finish_reason:null) ...
-    最后一个 content chunk 带 finish_reason:"length"(或 stop / tool_calls)
-    data: {"choices":[],"usage":{prompt_tokens,completion_tokens,total_tokens}}  # 空 choices 独立 usage chunk
+    last content chunk carries finish_reason:"length"/"stop"/"tool_calls"
+    data: {"choices":[],"usage":{...completion_tokens:N}}   # empty-choices usage chunk
     data: [DONE]
 
-code-review + 复现确认的两个 bug:
-1. tail 版 `if _fr or _usage:` 在 for 循���外 -> 空 choices usage chunk 触发
-   UnboundLocalError（已复现崩溃）
-2. 两 bridge 丢弃空 choices 的 usage chunk 且 [DONE] 不关 block -> 漏
-   content_block_stop、usage 不报（已复现 text_open_0 残留 True）
+Fixes two code-review confirmed bugs:
+1. tail's `if _fr or _usage:` sits OUTSIDE the for-loop -> an empty-choices
+   usage chunk raises UnboundLocalError (crash reproduced).
+2. Both bridges drop the trailing empty-choices usage chunk and [DONE] no
+   longer closes blocks -> missing content_block_stop, unreported usage,
+   and (in tail) a duplicated message_delta.
 
-新实现: 跨 chunk 把 finish_reason / usage 累积进 state；[DONE] 统一收尾:
-关未关 block -> 唯一一个 message_delta(stop_reason + usage) -> message_stop。
-- 无外层 if，空 choices 永不 UnboundLocalError
-- 统一在 [DONE] 收尾 -> finish/usage 无论出现在哪个 chunk 都被捕获
-- md_emitted 防护 -> message_delta 只发一次，杜绝 double-delta
-- 关所有未关 block -> 杜绝漏 content_block_stop
-对所有 provider 变体鲁棒。
+New design: accumulate finish_reason/usage into state as chunks arrive;
+at [DONE] close any open blocks and emit exactly ONE message_delta
+(stop_reason + usage) then message_stop, guarded by md_sent so it can never
+double-emit. Robust to every provider variant.
 """
-import py_compile
 import importlib.util
 import json
+import py_compile
 
-FUNC = r'''def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, state=None):
+NEW_FN = r'''def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, state=None):
     """OpenAI stream chunk -> Anthropic SSE 事件集。
 
     跨 chunk 把 finish_reason / usage 累积进 state，在 [DONE] 统一收尾为单个
-    message_delta(stop_reason + usage) -> message_stop。md_emitted 防护保证
-    message_delta 只发一次；关所有未关 block，杜绝漏 content_block_stop。
-    """
-    if state is None:
-        state = {"started": False, "finished": False, "block_idx": 0,
-                 "finish_reason": None, "usage": None, "md_emitted": False}
-    if not chunk_text:
-        return None
+    message_delta(stop_reason + usage) -> message_stop。md 1 and
+              (not expect_usage or has_usage) and (not expect_fr or has_fr))
+        print(f"  [{name}] md={md} ms={ms} cbs={cbs} usage={has_usage} stop_details={has_fr} "
+              f"finished={state.get('finished')} -> {'PASS' if ok else 'FAIL'}")
+        return ok
 
-    out = []
+    allok = True
+    allok &= test("deepseek-real",
+        ['{"choices":[{"delta":{"content":"你好"},"finish_reason":null}]}',
+         '{"choices":[{"delta":{"content":"世界"},"finish_reason":"length"}]}',
+         '{"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":20,"total_tokens":27}}',
+         "[DONE]"], True, True)
+    allok &= test("stop-with-usage",
+        ['{"choices":[{"delta":{"content":"hi"},"finish_reason":null}]}',
+         '{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"completion_tokens":9}}',
+         "[DONE]"], True, True)
+    allok &= test("tool-calls",
+        ['{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"t1","function":{"name":"f","arguments":"{}"}}]},"finish_reason":null}]}',
+         '{"choices":[{"delta":{},"finish_reason":"tool_calls"}]}',
+         '{"choices":[],"usage":{"completion_tokens":5}}',
+         "[DONE]"], True, True)
+    allok &= test("bare-done",
+        ['{"choices":[{"delta":{"content":"ok"},"finish_reason":null}]}', "[DONE]"], False, True)
+    return allok
 
-    def _emit_final():
-        if state.get("md_emitted"):
-            return
-        # 关掉所有仍未关闭的 block
-        _close_text_block(state, out, 0)
-        _close_tool_blocks(state, out)
-        _fr_map = {"stop": "end_turn", "tool_calls": "tool_use",
-                   "length": "max_tokens", "content_filter": "content_filtered"}
-        anth_reason = _fr_map.get(state.get("finish_reason"), "end_turn")
-        delta = {"stop_reason": anth_reason, "stop_sequence": None,
-                 "stop_details": {"type": "stop", "reason": anth_reason}}
-        msg_delta = {"type": "message_delta", "delta": delta}
-        if state.get("usage"):
-            msg_delta["usage"] = {"output_tokens": state["usage"].get("completion_tokens", 0)}
-        out.append(f"event: message_delta\ndata: {json.dumps(msg_delta, separators=(',', ':'))}\n\n")
-        out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
-        state["md_emitted"] = True
 
-    for line in chunk_text.split("\n"):
-        line = line.strip()
-        if not line.startswith("data:"):
-            continue
-        payload = line[len("data:"):].strip()
-        if not payload:
-            continue
-        if payload == "[DONE]":
-            if state.get("finished"):
-                continue
-            _emit_final()
-            state["finished"] = True
-            continue
-        try:
-            obj = json.loads(payload)
-        except Exception:
-            continue
+ok_all = True
+for path in ("openai_bridge_tail.py", "openai_bridge_0731.py"):
+    apply(path)
+    ok_all &= run_scenario(path)
+    print()
 
-        if "error" in obj:
-            err = obj["error"]
-            err_obj = {"type": "error", "error": {"type": "api_error", "message": err.get("message", "unknown")}}
-            out.append(f"event: error\ndata: {json.dumps(err_obj, separators=(',', ':'))}\n\n")
-            continue
-
-        _ensure_started(state, out, msg_id, model)
-
-        choices = obj.get("choices") or []
-        # 累积 finish_reason / usage（choices 可能为空 ->
+print(f"\n场景测试: {'全部通过' if ok_all else '有失败'}")
