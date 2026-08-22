@@ -210,8 +210,18 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
         if payload == "[DONE]":
             if state.get("finished"):
                 continue
-            # message_delta（含 stop_reason + usage）已在 finish_reason 或 last usage chunk 处理
-            # [DONE] 只发 message_stop
+            # 统一在 [DONE] 收尾：关 block → 单个 message_delta（stop_reason + usage）→ message_stop
+            _close_text_block(state, out, 0)
+            _close_tool_blocks(state, out)
+            _fr = state.get("finish_reason")
+            _fr_map = {"stop": "end_turn", "tool_calls": "tool_use", "length": "max_tokens", "content_filter": "content_filtered"}
+            anth_reason = _fr_map.get(_fr, "end_turn")
+            delta = {"stop_reason": anth_reason, "stop_sequence": None, "stop_details": {"type": "stop", "reason": anth_reason}}
+            msg_delta = {"type": "message_delta", "delta": delta}
+            _usage = state.get("usage")
+            if _usage:
+                msg_delta["usage"] = {"output_tokens": _usage.get("completion_tokens", 0)}
+            out.append(f"event: message_delta\ndata: {json.dumps(msg_delta, separators=(',', ':'))}\n\n")
             out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
             state["finished"] = True
             continue
