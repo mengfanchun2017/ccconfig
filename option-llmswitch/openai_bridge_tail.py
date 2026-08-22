@@ -210,10 +210,8 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
         if payload == "[DONE]":
             if state.get("finished"):
                 continue
-            _close_text_block(state, out, 0)
-            _close_tool_blocks(state, out)
-            stop_delta = {"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None, "stop_details": {"type": "stop", "reason": "end_turn"}}}
-            out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
+            # message_delta（含 stop_reason + usage）已在 finish_reason 或 last usage chunk 处理
+            # [DONE] 只发 message_stop
             out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
             state["finished"] = True
             continue
@@ -354,7 +352,7 @@ http_client = None
 async def on_startup():
     global http_client
     verify = not state.get("skip_tls_verify", False)
-    http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0), trust_env=False, verify=verify)
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=30.0, pool=None), trust_env=False, verify=verify, limits=httpx.Limits(max_connections=10, max_keepalive_connections=2))
 
 
 # 当 upstream URL 用 IP 代替了域名（DNS 预解析后），ssl 握手的 SNI 仍要用域名
@@ -498,24 +496,31 @@ async def messages(request: Request):
         sse_state = {"started": False, "block_open": False, "finished": False}
 
         async def gen():
-            if use_win_curl:
-                # WSL 内网限制：流式通过 Windows 侧 curl.exe 转发
-                async for chunk in _stream_via_win_curl(target_url, headers, upstream_body, host_header):
-                    sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
-                    if sse_out:
-                        yield sse_out
-            else:
-                async with client.stream(
-                    "POST",
-                    target_url,
-                    headers=headers,
-                    json=upstream_body,
-                    extensions=extra_ext or None,
-                ) as r:
-                    async for chunk in r.aiter_text():
+            try:
+                if use_win_curl:
+                    async for chunk in _stream_via_win_curl(target_url, headers, upstream_body, host_header):
                         sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
                         if sse_out:
                             yield sse_out
+                else:
+                    async with client.stream(
+                        "POST",
+                        target_url,
+                        headers=headers,
+                        json=upstream_body,
+                        extensions=extra_ext or None,
+                    ) as r:
+                        async for chunk in r.aiter_text():
+                            sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
+                            if sse_out:
+                                yield sse_out
+            except Exception as exc:
+                from traceback import format_exc
+                print(f"[bridge tail] stream error: {exc}", flush=True)
+                print(format_exc(), flush=True)
+                yield ('event: message_delta\n'
+                       'data: {"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null}}\n\n')
+                yield 'event: message_stop\ndata: {"type":"message_stop"}\n\n'
         return StreamingResponse(gen(), media_type="text/event-stream")
     else:
         if use_win_curl:
