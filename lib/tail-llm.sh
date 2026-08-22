@@ -72,28 +72,23 @@ _tail_start_ssh_tunnel() {
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=3 \
             -o TCPKeepAlive=yes \
+            -o ConnectTimeout=30 \
             -o StrictHostKeyChecking=accept-new \
             -o UserKnownHostsFile=/dev/null \
             2>> '$TAIL_SSH_LOG'" 2>&1
 
-    sleep 2
-    if ! tmux has-session -t "$TAIL_TMUX_SESSION" 2>/dev/null; then
-        error "  SSH 隧道 tmux session 已退出"
-        head -5 "$TAIL_SSH_LOG"
-        return 1
-    fi
-
-    local retries=10
+    local retries=20
     while (( retries > 0 )); do
         if ss -tlnp 2>/dev/null | grep -q ":$TAIL_TUNNEL_PORT "; then
             info "  SSH 隧道就绪: localhost:$TAIL_TUNNEL_PORT → $remote"
             return 0
         fi
-        sleep 1
+        sleep 2
         retries=$((retries - 1))
     done
 
     error "  端口 $TAIL_TUNNEL_PORT 未被监听"
+    error "  SSH 日志尾: $(head -10 $TAIL_SSH_LOG | tr '\n' ';')"
     tmux kill-session -t "$TAIL_TMUX_SESSION" 2>/dev/null || true
     return 1
 }
