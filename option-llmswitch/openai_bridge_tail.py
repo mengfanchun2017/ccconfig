@@ -228,6 +228,9 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
 
         _ensure_started(state, out, msg_id, model)
 
+        # _fr/_usage 在循环外初始化，避免空 choices 的 usage chunk 触发 UnboundLocalError
+        _fr = None
+        _usage = obj.get("usage") or None
         for choice in obj.get("choices", []):
             delta = choice.get("delta", {})
             content = delta.get("content")
