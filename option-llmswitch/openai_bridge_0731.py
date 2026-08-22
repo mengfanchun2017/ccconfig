@@ -195,13 +195,41 @@ def _close_tool_blocks(state, out):
 
 
 def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, state=None):
-    """OpenAI stream chunk (可能含多行 data:...) → Anthropic SSE 事件集。"""
+    """OpenAI stream chunk -> Anthropic SSE 事件集。
+
+    跨 chunk 累积 finish_reason / usage 到 state，在 [DONE] 统一收尾为单个
+    message_delta(stop_reason + usage) -> message_stop。md_sent 防护保证
+    message_delta 只发一次；收尾关闭所有未关 block，杜绝漏 content_block_stop。
+    兼容 provider 各种结尾: finish 在 content chunk、独立空 choices usage chunk、
+    裸 [DONE]、length 截断。
+    """
     if state is None:
-        state = {"started": False, "finished": False, "block_idx": 0}
+        state = {"started": False, "finished": False, "block_idx": 0,
+                 "finish_reason": None, "usage": None, "md_sent": False}
     if not chunk_text:
         return None
 
     out = []
+
+    def _emit_final():
+        # 流结束统一收尾，md_sent 防护保证只发一次 message_delta
+        if state.get("md_sent"):
+            return
+        _close_text_block(state, out, 0)
+        _close_tool_blocks(state, out)
+        _fr_map = {"stop": "end_turn", "tool_calls": "tool_use",
+                   "length": "max_tokens", "content_filter": "content_filtered"}
+        anth_reason = _fr_map.get(state.get("finish_reason"), "end_turn")
+        delta = {"stop_reason": anth_reason, "stop_sequence": None,
+                 "stop_details": {"type": "stop", "reason": anth_reason}}
+        msg_delta = {"type": "message_delta", "delta": delta}
+        if state.get("usage"):
+            msg_delta["usage"] = {"output_tokens": state["usage"].get("completion_tokens", 0)}
+        out.append(f"event: message_delta\ndata: {json.dumps(msg_delta, separators=(',', ':'))}\n\n")
+        out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
+        state["md_sent"] = True
+        state["finished"] = True
+
     for line in chunk_text.split("\n"):
         line = line.strip()
         if not line.startswith("data:"):
@@ -210,12 +238,7 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
         if not payload:
             continue
         if payload == "[DONE]":
-            if state.get("finished"):
-                continue
-            # message_delta已在 finish_reason 或 last usage chunk 处理
-            # [DONE] 只发 message_stop
-            out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
-            state["finished"] = True
+            _emit_final()
             continue
         try:
             obj = json.loads(payload)
@@ -229,6 +252,17 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
             continue
 
         _ensure_started(state, out, msg_id, model)
+
+        # 累积 finish_reason / usage（choices 可能为空 -> 就地写 state，无 UnboundLocalError）
+        if obj.get("usage"):
+            state["usage"] = obj["usage"]
+        for choice in obj.get("choices", []):
+            _fr = choice.get("finish_reason")
+            if _fr:
+                state["finish_reason"] = _fr
+            _usage = choice.get("usage") or obj.get("usage")
+            if _usage:
+                state["usage"] = _usage
 
         for choice in obj.get("choices", []):
             delta = choice.get("delta", {})
@@ -285,22 +319,6 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                         "delta": {"type": "input_json_delta", "partial_json": fn["arguments"]},
                     }
                     out.append(f"event: content_block_delta\ndata: {json.dumps(args_delta, separators=(',', ':'))}\n\n")
-
-            _fr = choice.get("finish_reason")
-            _usage = choice.get("usage") or obj.get("usage")
-            if _fr or _usage:
-                if _fr:
-                    _close_text_block(state, out, 0)
-                    _close_tool_blocks(state, out)
-                    _fr_map = {"stop": "end_turn", "tool_calls": "tool_use", "length": "max_tokens", "content_filter": "content_filtered"}
-                    anth_reason = _fr_map.get(_fr, "end_turn")
-                    delta = {"stop_reason": anth_reason, "stop_sequence": None, "stop_details": {"type": "stop", "reason": anth_reason}}
-                else:
-                    delta = {}
-                msg_delta = {"type": "message_delta", "delta": delta}
-                if _usage:
-                    msg_delta["usage"] = {"output_tokens": _usage.get("completion_tokens", 0)}
-                out.append(f"event: message_delta\ndata: {json.dumps(msg_delta, separators=(',', ':'))}\n\n")
 
     return "".join(out) if out else None
 
