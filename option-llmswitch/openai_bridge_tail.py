@@ -287,7 +287,7 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                     out.append(f"event: content_block_delta\ndata: {json.dumps(args_delta, separators=(',', ':'))}\n\n")
 
             _fr = choice.get("finish_reason")
-        _usage = obj.get("usage")
+            _usage = choice.get("usage") or obj.get("usage")
         if _fr or _usage:
             if _fr:
                 _close_text_block(state, out, 0)
