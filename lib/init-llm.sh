@@ -266,62 +266,6 @@ start_tunnel_bridge() {
     [[ -n "$health" ]]
 }
 
-# 0731 模型独立 bridge（port 8897，openai_bridge_0731.py）
-# $1: upstream  $2: model_name  $3: api_key
-_ensure_bridge_0731() {
-    local upstream="$1" model="$2" key="$3"
-    local port=8897
-
-    # 先杀原版 bridge（port 8898）——0731 独享，原版 bridge 不冲突，但仍要清 8897 残留
-    pkill -f "openai_bridge_0731.py" 2>/dev/null || true
-    sleep 1
-
-    # 检测是否需 win-curl（WSL 网络受限场景，同 ensure_bridge 逻辑简化版）
-    local use_win_curl=0
-    if command -v curl.exe &>/dev/null; then
-        local probe_host
-        probe_host=$(echo "$upstream" | python3 -c "
-import sys, urllib.parse
-p = urllib.parse.urlparse(sys.stdin.read().strip())
-print(p.hostname or '')" 2>/dev/null)
-        if [[ -n "$probe_host" ]]; then
-            timeout 3 bash -c "echo > /dev/tcp/$probe_host/18080" 2>/dev/null || use_win_curl=1
-        fi
-    fi
-
-    local env_args="-u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy"
-    local bridge_env="env $env_args \
-        OPENAI_BRIDGE_UPSTREAM=$upstream \
-        OPENAI_BRIDGE_UPSTREAM_ORIGINAL=$upstream \
-        OPENAI_BRIDGE_KEY=$key \
-        OPENAI_BRIDGE_MODEL=$model"
-    local extra_args=""
-    if [[ "$use_win_curl" -eq 1 ]]; then
-        bridge_env="$bridge_env OPENAI_BRIDGE_USE_WIN_CURL=1"
-        extra_args="--use-win-curl"
-        info "  WSL 网络不可达 upstream → 启用 Windows 侧 curl.exe 转发"
-    fi
-
-    nohup $bridge_env \
-        python3 "$CCCONFIG_ROOT/option-llmswitch/openai_bridge_0731.py" --port "$port" $extra_args \
-        > "$HOME/.cache/openai_bridge_0731.log" 2>&1 &
-    disown
-
-    local health=""
-    for i in 1 2 3 4 5; do
-        sleep 1
-        health=$(curl -s --max-time 2 "http://127.0.0.1:${port}/health" 2>/dev/null)
-        [[ -n "$health" ]] && break
-    done
-
-    if [[ -z "$health" ]]; then
-        error "0731 bridge 启动失败，查看 ~/.cache/openai_bridge_0731.log"
-        head -20 "$HOME/.cache/openai_bridge_0731.log"
-        return 1
-    fi
-    info "  0731 bridge 已就绪 (port $port)"
-}
-
 # ========== 读取配置 ==========
 list_llms() {
     python3 - "$CONFIG_FILE" "$LLMSWITCH_CONF" << 'PYEOF'
@@ -703,20 +647,13 @@ PYEOF
         fi
     # 检测 OpenAI-only 端点（不是 Anthropic compatible），自动启 bridge + 改写 base_url
     elif [[ "$base_url" != *"/anthropic"* ]] && [[ "$base_url" != *"://127.0.0.1"* ]]; then
-        if [[ "$name" == "altllm0731" ]]; then
-            # 0731 模型走独立 bridge 文件 + 8897 端口，避免 SSE 格式差异影响原版
-            info "  altllm0731: 启动独立 bridge (openai_bridge_0731.py port 8897)..."
-            _ensure_bridge_0731 "$base_url" "$model_name" "$api_key" || return 1
-            base_url="http://127.0.0.1:8897"
+        info "  检测到 OpenAI-only 端点，自动启用 Anthropic↔OpenAI bridge..."
+        if ensure_bridge "$base_url" "$model_name" "$api_key"; then
+            base_url="http://127.0.0.1:8898"
+            info "  Bridge 已就绪，base_url → $base_url"
         else
-            info "  检测到 OpenAI-only 端点，自动启用 Anthropic↔OpenAI bridge..."
-            if ensure_bridge "$base_url" "$model_name" "$api_key"; then
-                base_url="http://127.0.0.1:8898"
-                info "  Bridge 已就绪，base_url → $base_url"
-            else
-                error "  bridge 启动失败，请检查 ~/.cache/openai_bridge.log"
-                return 1
-            fi
+            error "  bridge 启动失败，请检查 ~/.cache/openai_bridge.log"
+            return 1
         fi
     else
         # 切到直连/本地端点，bridge 无需求 → 关残留进程
