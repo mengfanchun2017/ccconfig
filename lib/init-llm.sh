@@ -334,10 +334,124 @@ print(f"{llm.get('base_url', '')}|{llm.get('model', '')}|{llm.get('key', '')}|{s
 PYEOF
 }
 
+# ========== 切换前 snapshot / 回滚 ==========
+# 切完探测 endpoint 失败时回滚到上一个 working 状态
+# 解决"切完不知道能不能用"——尤其 VPN/防火墙拦截场景
+LLM_SWITCH_SNAPSHOT_DIR="$HOME/.cache/llm-switch-snapshot"
+
+_snapshot_config() {
+    mkdir -p "$LLM_SWITCH_SNAPSHOT_DIR"
+    cp "$HOME/.claude/settings.json" "$LLM_SWITCH_SNAPSHOT_DIR/settings.json.bak" 2>/dev/null || true
+    cp "$CONFIG_FILE" "$LLM_SWITCH_SNAPSHOT_DIR/llm.json.bak" 2>/dev/null || true
+}
+
+_rollback_config() {
+    if [[ -f "$LLM_SWITCH_SNAPSHOT_DIR/settings.json.bak" ]]; then
+        cp "$LLM_SWITCH_SNAPSHOT_DIR/settings.json.bak" "$HOME/.claude/settings.json"
+        info "  已回滚 ~/.claude/settings.json"
+    fi
+    if [[ -f "$LLM_SWITCH_SNAPSHOT_DIR/llm.json.bak" ]]; then
+        cp "$LLM_SWITCH_SNAPSHOT_DIR/llm.json.bak" "$CONFIG_FILE"
+        info "  已回滚 conf/llm.json"
+    fi
+}
+
+# 探测切换后的 endpoint，给清晰错误（VPN/防火墙/bridge 死/鉴权失败区分开）
+# 返回 0=通过 1=不可达（应回滚）
+_verify_endpoint() {
+    local name="$1" base_url="$2" model_name="$3" api_key="$4"
+
+    # 占位符 key 跳过探测（用户还没填 key 时不应该报错）
+    [[ -z "$api_key" ]] && return 0
+    if echo "$api_key" | grep -qE '请填入|请替换|your.key|placeholder|changeme|<your-'; then
+        return 0
+    fi
+
+    # 本地 bridge：先看 /health 再 probe /v1/messages（让 bridge 转发到 upstream）
+    # 仅探 /health 不够——bridge 活着不代表 upstream 可达
+    if [[ "$base_url" == *"://127.0.0.1"* ]]; then
+        local port="${base_url##*:}"; port="${port%%/*}"
+        local h=$(curl -s --max-time 3 "http://127.0.0.1:${port}/health" 2>/dev/null)
+        if [[ -z "$h" ]]; then
+            error "  ✗ 本地 bridge (port $port) 无响应 — bridge 进程可能挂了"
+            return 1
+        fi
+        # 真实 probe：bridge → upstream 全链路
+        local upstream_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+            -X POST "${base_url%/}/v1/messages" \
+            -H "Content-Type: application/json" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "Authorization: Bearer $api_key" \
+            -d "{\"model\":\"$model_name\",\"max_tokens\":5,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null || echo "000")
+        case "$upstream_status" in
+            200) info "  ✓ bridge → upstream 探测成功 ($name)"; return 0 ;;
+            000|502|503|504)
+                error "  ✗ bridge 上游不可达 (HTTP $upstream_status) — VPN/防火墙可能拦了 upstream"
+                error "    检查: tail -20 ~/.cache/openai_bridge.log"
+                return 1
+                ;;
+            401|403|400)
+                # bridge 把请求成功转发到了 upstream，upstream 返回鉴权/参数错误
+                # 说明链路通，仅 key/model 不匹配 — 切 LLM 是成功的，不回滚
+                info "  ✓ bridge → upstream 链路通 ($upstream_status — key/model 需核对)"
+                return 0
+                ;;
+            *)
+                warn "  ⚠ bridge 转发返回 HTTP $upstream_status（不回滚）"
+                return 0
+                ;;
+        esac
+    fi
+
+    # 选协议
+    local probe_path
+    if [[ "$base_url" == *"/anthropic"* ]]; then
+        probe_path="${base_url%/}/v1/messages"
+    else
+        probe_path="${base_url%/}/chat/completions"
+    fi
+
+    local body="{\"model\":\"$model_name\",\"max_tokens\":5,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+    local headers=(-H "Content-Type: application/json" -H "Authorization: Bearer $api_key")
+    [[ "$probe_path" == *"/v1/messages" ]] && headers+=(-H "anthropic-version: 2023-06-01")
+
+    local status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 \
+        -X POST "$probe_path" "${headers[@]}" \
+        -d "$body" 2>/dev/null || echo "000")
+
+    case "$status" in
+        200)
+            info "  ✓ endpoint 探测成功 ($name)"
+            return 0
+            ;;
+        000)
+            error "  ✗ endpoint 不可达 (连接超时/拒绝) — 可能是 VPN/防火墙拦截 $base_url"
+            error "    提示: 公司 VPN 可能拦了 minimaxi.com / deepseek.com 等公网 API"
+            error "    验证: curl -v --max-time 5 $probe_path"
+            return 1
+            ;;
+        401|403)
+            warn "  ⚠ HTTP $status — endpoint 可达但鉴权失败（key 问题，不回滚）"
+            return 0
+            ;;
+        404)
+            error "  ✗ HTTP 404 — 路径不存在 ($probe_path)"
+            return 1
+            ;;
+        *)
+            warn "  ⚠ HTTP $status — endpoint 返回非 200（不回滚）"
+            return 0
+            ;;
+    esac
+}
+
 # ========== 写配置（直连 + gateway 共用） ==========
 # $1: name  $2: base_url  $3: model  $4: small_model  $5: api_key (optional)
 _write_llm_config() {
     local name="$1" base_url="$2" model_name="$3" small_model="$4" api_key="${5:-}"
+
+    # 切换前 snapshot，探测失败时回滚
+    _snapshot_config
 
     info "  API: $base_url"
     info "  模型: $model_name"
@@ -443,6 +557,12 @@ print("~/.claude/settings.json 已更新")
 PYEOF
 
     success "LLM 已切换为: $name"
+
+    # 验证 endpoint 可达性（探测失败则回滚到切换前状态）
+    if ! _verify_endpoint "$name" "$base_url" "$model_name" "$api_key"; then
+        _rollback_config
+        return 1
+    fi
 }
 
 # ========== Custom (临时输入任意 Anthropic-compatible 端点) ==========
@@ -1210,6 +1330,43 @@ PYEOF
 }
 
 
+# ========== Sync (修复 /model 污染) ==========
+# 同步 settings.json 顶层 model 字段为 env.ANTHROPIC_MODEL
+# 背景: Claude Code /model 命令会改 settings.json 顶层 model（如 "haiku"），
+#       但 env.ANTHROPIC_MODEL 仍是 init-llm.sh 切的真实模型名（如 "MiniMax-M3"）。
+#       下次开新 session 默认用顶层 model，provider 不认 → 模型错误。
+# 用法: bash init-llm.sh sync
+sync_llm_config() {
+    python3 - <<'PYEOF'
+import json, os, sys
+sf = os.path.expanduser("~/.claude/settings.json")
+try:
+    with open(sf) as f:
+        d = json.load(f)
+except Exception:
+    print("settings.json 不存在或无效，跳过")
+    sys.exit(0)
+
+env_model = d.get('env', {}).get('ANTHROPIC_MODEL', '')
+top_model = d.get('model', '')
+
+if not env_model:
+    print("env.ANTHROPIC_MODEL 为空，无法同步")
+    sys.exit(0)
+
+if env_model == top_model:
+    print(f"已同步: 顶层 model = env.ANTHROPIC_MODEL = {env_model}")
+    sys.exit(0)
+
+old = top_model or "(空)"
+d['model'] = env_model
+with open(sf, 'w') as f:
+    json.dump(d, f, indent=4, ensure_ascii=False)
+print(f"已同步: 顶层 model {old} → {env_model}")
+PYEOF
+}
+
+
 # ========== 交互式选择 ==========
 interactive_select() {
     local lines=$(list_llms)
@@ -1326,6 +1483,9 @@ main() {
     elif [[ "$cmd" == "bill" ]] || [[ "$cmd" == "pricing" ]] || [[ "$cmd" == "-p" ]]; then
         # 配置模型价格（option-usage 计费用）
         bill_config "${2:-}"
+    elif [[ "$cmd" == "sync" ]]; then
+        # 同步 settings.json 顶层 model 为 env.ANTHROPIC_MODEL（修 /model 污染）
+        sync_llm_config
     elif [[ -z "$cmd" ]]; then
         # 无参数：交互式选择
         interactive_select
