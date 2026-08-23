@@ -7,6 +7,8 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 BLUE='\033[0;34m'
 BOLD='\033[1m'
+BOLD_BLUE='\033[1;34m'   # 字母快捷专用（菜单 A/B/C 高亮）
+BOLD_GRAY='\033[1;90m'   # 分类标题 --xxx--
 GRAY='\033[0;90m'
 DIM='\033[2m'
 NC='\033[0m'
@@ -27,6 +29,7 @@ error()   { err "$@"; }
 if ! type ok &>/dev/null 2>/dev/null; then
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; BLUE='\033[0;34m'; BOLD='\033[1m'
+    BOLD_BLUE='\033[1;34m'; BOLD_GRAY='\033[1;90m'
     GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
     ok()    { echo -e "  ${GREEN}$1${NC}"; }
     err()   { echo -e "  ${RED}$1${NC}"; }
