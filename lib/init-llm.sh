@@ -568,6 +568,10 @@ PYEOF
         _rollback_config
         return 1
     fi
+
+    # 同步 settings.json 顶层 model 为 env.ANTHROPIC_MODEL（覆盖 /model 污染）
+    # 自动跑，用户无需手动 sync；只在切换成功时才同步
+    sync_llm_config
 }
 
 # ========== Custom (临时输入任意 Anthropic-compatible 端点) ==========
