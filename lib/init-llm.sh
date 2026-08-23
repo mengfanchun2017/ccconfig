@@ -377,12 +377,15 @@ _verify_endpoint() {
             return 1
         fi
         # 真实 probe：bridge → upstream 全链路
-        local upstream_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+        # 注意：curl timeout 时 -w "%{http_code}" 仍输出 "000"（拼 || echo "000" 会变 "000000"）
+        local upstream_status
+        upstream_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
             -X POST "${base_url%/}/v1/messages" \
             -H "Content-Type: application/json" \
             -H "anthropic-version: 2023-06-01" \
             -H "Authorization: Bearer $api_key" \
-            -d "{\"model\":\"$model_name\",\"max_tokens\":5,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null || echo "000")
+            -d "{\"model\":\"$model_name\",\"max_tokens\":5,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null)
+        [[ -z "$upstream_status" || "$upstream_status" =~ ^0+$ ]] && upstream_status="000"
         case "$upstream_status" in
             200) info "  ✓ bridge → upstream 探测成功 ($name)"; return 0 ;;
             000|502|503|504)
@@ -415,9 +418,11 @@ _verify_endpoint() {
     local headers=(-H "Content-Type: application/json" -H "Authorization: Bearer $api_key")
     [[ "$probe_path" == *"/v1/messages" ]] && headers+=(-H "anthropic-version: 2023-06-01")
 
-    local status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 \
+    local status
+    status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 \
         -X POST "$probe_path" "${headers[@]}" \
-        -d "$body" 2>/dev/null || echo "000")
+        -d "$body" 2>/dev/null)
+    [[ -z "$status" || "$status" =~ ^0+$ ]] && status="000"
 
     case "$status" in
         200)
