@@ -275,8 +275,8 @@ menu_render() {
 
         # 菜单项: <cat><letter>  title                  desc
         local key="${cat}${letter}"
-        printf "  ${BOLD}%s${NC} ${BOLD_BLUE}%s${NC}  %-26s ${DIM}%s${NC}\n" \
-               "$cat" "$letter" "$title" "$desc"
+        printf "  ${BOLD_GREEN}%s${letter:+%s}${NC}  %-26s ${DIM}%s${NC}\n" \
+               "$cat" ${letter:+"$letter"} "$title" "$desc"
     done
 }
 
@@ -414,14 +414,14 @@ menu_loop() {
         banner "$title"
         menu_render
         echo ""
-        read -p "  选择: " choice < /dev/tty || choice=""
+        printf "  ${BOLD_GREEN}选择: ${NC}"; read -r choice < /dev/tty || choice=""
         echo ""
         menu_parse "$choice"
         local rc=$?
         [[ $rc -eq 2 ]] && return 0
         [[ $rc -eq 1 ]] && continue
         echo ""
-        read -p "  按回车继续..." dummy < /dev/tty || true
+        printf "  按回车继续..."; read -r dummy < /dev/tty || true
     done
     local result=""
     for idx in "${selected[@]}"; do result+="${items[$idx]} "; done

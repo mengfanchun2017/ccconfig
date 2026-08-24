@@ -40,5 +40,5 @@ MENU_ENTRIES=(
     "3|I|GitHub PAT|刷新 fine-grained PAT|bash \"$CCCONFIG_DIR/bin/refresh-gh-auth.sh\"|"
 
     # ── 0: 退出 ──
-    "0|0|退出||exit 0|"
+    "0| |退出||exit 0|"
 )
