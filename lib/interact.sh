@@ -100,17 +100,17 @@ menu_select() {
 
     # 菜单输出走 stderr — 避开 `c=$(...)` 把 stdout 截走后菜单列表不显示
     printf '\n' >&2
-    section "$title" >&2
+    echo -e "  ${BOLD_GRAY}--${title}--${NC}" >&2
     local i sel
     for i in "${!items[@]}"; do
-        printf '  %2d) %s\n' "$((i+1))" "${items[$i]}" >&2
+        printf "  ${BOLD_GREEN}%d${NC}  %s\n" "$((i+1))" "${items[$i]}" >&2
     done
     printf '\n' >&2
     # 从 /dev/tty 读，避开 stdin 被管道/重定向导致的 read 阻塞/失败
     if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
-        read -p "  选择 [1-${#items[@]}]: " sel < /dev/tty || true
+        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}]: ${NC}" >&2; read -r sel < /dev/tty || true
     else
-        read -p "  选择 [1-${#items[@]}]: " sel
+        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}]: ${NC}" >&2; read -r sel
     fi
     [[ "$sel" =~ ^[0-9]+$ ]] || { printf '0\n'; return 0; }
     (( sel < 1 || sel > ${#items[@]} )) && { printf '0\n'; return 0; }
