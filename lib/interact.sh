@@ -275,7 +275,7 @@ menu_render() {
 
         # 菜单项: <cat><letter>  title                  desc
         local key="${cat}${letter}"
-        printf "  ${BOLD_GREEN}%s${letter:+%s}${NC}  %-26s ${DIM}%s${NC}\n" \
+        printf "  ${BOLD_GREEN}%s${letter:+%s}${NC}  %-32s ${DIM}%s${NC}\n" \
                "$cat" ${letter:+"$letter"} "$title" "$desc"
     done
 }
