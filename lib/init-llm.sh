@@ -77,7 +77,7 @@ peak = key_to_model.get(peak_key, peak_key)
 off_peak = key_to_model.get(off_peak_key, off_peak_key)
 peak_hours = sw.get('peak_hours', [])
 blocks = [f"{b['start']}-{b['end']}" for b in peak_hours]
-print(f"高峰 {','.join(blocks)} → {peak} ｜ 非高峰 → {off_peak}")
+print(f"高峰 {','.join(blocks)}→{peak}, 非高峰→{off_peak}")
 PYEOF
 }
 
@@ -1514,7 +1514,7 @@ interactive_select() {
         IFS='|' read -r name display_name model small marker base_url <<< "$entry"
         local small_str="" route_str=""
         [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
-        [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
+        [[ "$name" == "gateway" ]] && route_str=" ${LIGHT_BLUE}$(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)${NC}"
         local curr_str=""
         [[ "$marker" == "◀" ]] && curr_str="  ${LIGHT_BLUE}◀ 当前${NC}"
         echo -e "  ${BOLD_GREEN}1${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}${curr_str}"
@@ -1529,7 +1529,7 @@ interactive_select() {
         IFS='|' read -r name display_name model small marker base_url <<< "$entry"
         local small_str="" route_str=""
         [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
-        [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
+        [[ "$name" == "gateway" ]] && route_str=" ${LIGHT_BLUE}$(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)${NC}"
         local curr_str=""
         [[ "$marker" == "◀" ]] && curr_str="  ${LIGHT_BLUE}◀ 当前${NC}"
         echo -e "  ${BOLD_GREEN}2${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}${curr_str}"
