@@ -1524,8 +1524,8 @@ interactive_select() {
         local small_str="" route_str="" curr_mark=""
         [[ -n "$small" ]] && small_str=" [小模型: $small]"
         [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
-        [[ "$marker" == "◀" ]] && curr_mark="  ${BOLD_BLUE}◀ 当前${NC}"
-        printf "  ${BOLD}%d${NC} ${BOLD_BLUE}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
+        [[ "$marker" == "◀" ]] && curr_mark="  ${LIGHT_BLUE}◀ 当前${NC}"
+        printf "  ${BOLD}%d${NC}${BOLD_GREEN}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
             1 "$letter" "$display_name" "$model" "$small_str" "$route_str" "$curr_mark"
         item_cat+=("1"); item_letter+=("$letter"); item_name+=("$name")
         case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
@@ -1539,8 +1539,8 @@ interactive_select() {
         local small_str="" route_str="" curr_mark=""
         [[ -n "$small" ]] && small_str=" [小模型: $small]"
         [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
-        [[ "$marker" == "◀" ]] && curr_mark="  ${BOLD_BLUE}◀ 当前${NC}"
-        printf "  ${BOLD}%d${NC} ${BOLD_BLUE}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
+        [[ "$marker" == "◀" ]] && curr_mark="  ${LIGHT_BLUE}◀ 当前${NC}"
+        printf "  ${BOLD}%d${NC}${BOLD_GREEN}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
             2 "$letter" "$display_name" "$model" "$small_str" "$route_str" "$curr_mark"
         item_cat+=("2"); item_letter+=("$letter"); item_name+=("$name")
         case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
@@ -1548,10 +1548,10 @@ interactive_select() {
 
     # ── 配置 ──
     echo -e "  ${BOLD_GRAY}--llm 配置--${NC}"
-    printf "  ${BOLD}3${NC} ${BOLD_BLUE}A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义 preset" "输入任意 base_url + model + key"
-    printf "  ${BOLD}3${NC} ${BOLD_BLUE}B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义 preset" "删除已保存的自定义预设"
-    printf "  ${BOLD}3${NC} ${BOLD_BLUE}C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
-    printf "  ${BOLD}3${NC} ${BOLD_BLUE}D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
+    printf "  ${BOLD}3${NC}${BOLD_GREEN}A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义 preset" "输入任意 base_url + model + key"
+    printf "  ${BOLD}3${NC}${BOLD_GREEN}B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义 preset" "删除已保存的自定义预设"
+    printf "  ${BOLD}3${NC}${BOLD_GREEN}C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
+    printf "  ${BOLD}3${NC}${BOLD_GREEN}D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
     echo ""
     printf "  输入 (如 1A, 2B, 3C) 或数字 (如 1=内建首项) 选择: "
     read -r choice
