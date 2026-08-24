@@ -13,10 +13,8 @@ CAT_NAME[3]="工具"
 #   submenu: "menu:xxx" → 调 _submenu_xxx 函数
 MENU_ENTRIES=(
     # ── 1: 状态 ──
-    "1|A|状态总览|检查符号链接/auto-sync/LLM/飞书等运行状态|bash \"$LIB_DIR/status.sh\"|"
-    "1|B|Monitor 状态|查看监控进程运行状态|bash \"$LIB_DIR/monitor.sh\" status|"
-    "1|C|快速探测|一行状态头（quick-probe）|source \"$LIB_DIR/quick-probe.sh\"; header_status|"
-    "1|D|git 状态|git log/status/diff|git -C \"$SCRIPT_DIR\" status -s && git -C \"$SCRIPT_DIR\" log --oneline -5|"
+    "1|A|完整状态|深度检查：链接/依赖/monitor/PAT/飞书/MCP|bash \"$LIB_DIR/status.sh\"|"
+    "1|B|快速状态|日常快速巡检|bash \"$LIB_DIR/status.sh\" --quick|"
 
     # ── 2: 维护 ──
     "2|A|一键修复|符号链接+缺失目录+auto-sync+模板|do_finalize|"
