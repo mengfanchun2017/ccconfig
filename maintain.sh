@@ -35,7 +35,7 @@ _submenu_monitor() {
         "重启" \
         "修复" \
         "返回")
-    [[ -z "$c" ]] && return
+    [[ -z "$c" || "$c" = "0" ]] && return
     case "$c" in
         1) bash "$SCRIPT_DIR/lib/init-llm.sh" status ;;
         2) bash "$LIB_DIR/monitor.sh" status ;;
@@ -55,7 +55,7 @@ _submenu_usage() {
         "timer 管理" \
         "手动触发" \
         "返回")
-    [[ -z "$c" ]] && return
+    [[ -z "$c" || "$c" = "0" ]] && return
     case "$c" in
         1) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
         2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
@@ -67,7 +67,7 @@ _submenu_usage() {
  "卸载" \
  "配置" \
  "返回")
-           case "$ts" in i) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; c) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; esac ;;
+           case "$ts" in i) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; c) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; 0|*) return;; esac ;;
         6) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
     esac
 }
@@ -77,7 +77,7 @@ _submenu_feishu() {
         "飞书账号" \
         "lark-cli" \
         "返回")
-    [[ -z "$c" ]] && return
+    [[ -z "$c" || "$c" = "0" ]] && return
     case "$c" in
         1) _submenu_feishu_accounts ;;
         2) _submenu_feishu_larkcli ;;
@@ -142,11 +142,13 @@ print('\t'.join([
     if [ ${#names[@]} -eq 0 ]; then
         warn "feishu.json 中无 app 配置"
         sel=$(menu_select "选择" "添加新 app" "返回飞书菜单")
+        [[ "$sel" = "0" ]] && return 0
         case "$sel" in 1) bash "$feishu_lc" ;; esac
         return 0
     fi
 
     sel=$(menu_select "飞书账号" "${names[@]}" "添加" "删除" "返回")
+    [[ "$sel" = "0" ]] && return 0
     case "$sel" in
         $((${#names[@]} + 3))) return 0 ;;
         $((${#names[@]} + 1))) bash "$feishu_lc" ;;
@@ -187,6 +189,7 @@ _submenu_feishu_app_menu() {
         "编辑" \
         "发测试" \
         "返回")
+    [[ "$sub" = "0" ]] && return 0
     case "$sub" in
         1) bash "$feishu_switch" "$target" ;;
         2)
@@ -222,6 +225,7 @@ _submenu_feishu_larkcli() {
         "OAuth 状态" \
         "列出账号" \
         "返回")
+    [[ "$sub" = "0" ]] && return 0
     case "$sub" in
         1) bash "$feishu_lc" ;;
         2) bash "$feishu_switch" ;;
@@ -321,6 +325,7 @@ _submenu_getnote() {
         "切换(session)" \
         "切换(持久化)" \
         "返回")
+    [[ "$c" = "0" ]] && return 0
     case "$c" in
         1) bash "$init" add ;;
         2) bash "$init" remove ;;

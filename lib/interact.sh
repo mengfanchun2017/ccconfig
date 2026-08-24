@@ -112,8 +112,8 @@ menu_select() {
     else
         printf "  ${BOLD_GREEN}选择 [1-${#items[@]}]: ${NC}" >&2; read -r sel
     fi
-    [[ "$sel" =~ ^[0-9]+$ ]] || { printf '0\n'; return 0; }
-    (( sel < 1 || sel > ${#items[@]} )) && { printf '0\n'; return 0; }
+    [[ "$sel" =~ ^[0-9]+$ ]] || { printf '\n'; return 0; }
+    (( sel < 0 || sel > ${#items[@]} )) && { printf '\n'; return 0; }
     printf '%s\n' "$sel"
 }
 
