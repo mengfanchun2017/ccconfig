@@ -1512,12 +1512,12 @@ interactive_select() {
     local letter="A"
     for entry in "${builtin_r[@]}"; do
         IFS='|' read -r name display_name model small marker base_url <<< "$entry"
-        local small_str="" route_str="" curr_mark=""
+        local small_str="" route_str=""
         [[ -n "$small" ]] && small_str=" [小模型: $small]"
         [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
-        [[ "$marker" == "◀" ]] && curr_mark="  ${LIGHT_BLUE}◀ 当前${NC}"
-        printf "  ${BOLD_GREEN}%d%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
-            1 "$letter" "$display_name" "$model" "$small_str" "$route_str" "$curr_mark"
+        local curr_str=""
+        [[ "$marker" == "◀" ]] && curr_str="  ${LIGHT_BLUE}◀ 当前${NC}"
+        echo -e "  ${BOLD_GREEN}1${letter}${NC}  ${display_name} ${DIM}(${model})${NC}${small_str}${route_str}${curr_str}"
         item_cat+=("1"); item_letter+=("$letter"); item_name+=("$name")
         case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
     done
@@ -1527,12 +1527,12 @@ interactive_select() {
     letter="A"
     for entry in "${custom_r[@]}"; do
         IFS='|' read -r name display_name model small marker base_url <<< "$entry"
-        local small_str="" route_str="" curr_mark=""
+        local small_str="" route_str=""
         [[ -n "$small" ]] && small_str=" [小模型: $small]"
         [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
-        [[ "$marker" == "◀" ]] && curr_mark="  ${LIGHT_BLUE}◀ 当前${NC}"
-        printf "  ${BOLD_GREEN}%d%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
-            2 "$letter" "$display_name" "$model" "$small_str" "$route_str" "$curr_mark"
+        local curr_str=""
+        [[ "$marker" == "◀" ]] && curr_str="  ${LIGHT_BLUE}◀ 当前${NC}"
+        echo -e "  ${BOLD_GREEN}2${letter}${NC}  ${display_name} ${DIM}(${model})${NC}${small_str}${route_str}${curr_str}"
         item_cat+=("2"); item_letter+=("$letter"); item_name+=("$name")
         case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
     done
