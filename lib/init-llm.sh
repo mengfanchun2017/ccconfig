@@ -892,33 +892,31 @@ except: pass
 " 2>/dev/null)
 
     echo ""
-    info "── LLM 状态诊断 ──"
-    printf "  llm.json current          : %s\n" "${llm_current:-<未设置>}"
+    printf "━━━ LLM 链路诊断 ──\n"
+    printf "llm.json current          : %s\n" "${llm_current:-<未设置>}"
     if [[ -n "$sett_env" ]]; then
         IFS='|' read -r base model tok <<< "$sett_env"
-        printf "  env.ANTHROPIC_BASE_URL    : %s\n" "${base:-<未设置>}"
-        printf "  env.ANTHROPIC_MODEL       : %s   (下次请求实际生效)\n" "${model:-<未设置>}"
+        printf "env.ANTHROPIC_BASE_URL    : %s\n" "${base:-<未设置>}"
+        printf "env.ANTHROPIC_MODEL       : %s (下次请求实际生效)\n" "${model:-<未设置>}"
         if [[ -n "$tok" ]]; then
-            printf "  env.ANTHROPIC_AUTH_TOKEN  : ...%s\n" "${tok: -4}"
+            printf "env.ANTHROPIC_AUTH_TOKEN  : ...%s\n" "${tok: -4}"
         fi
     fi
-    printf "  settings 顶层 model       : %s   (session 启动时锁定, 只读参考)\n" "${sett_model:-<未设置>}"
+    printf "settings 顶层 model       : %s (session 启动时锁定, 只读参考)\n" "${sett_model:-<未设置>}"
 
-    # 桥接诊断
     if [[ "$sett_env" == *"://127.0.0.1:8898"* ]]; then
         local h=$(curl -s --max-time 2 "http://127.0.0.1:8898/health" 2>/dev/null)
         if [[ -n "$h" ]]; then
             local up=$(echo "$h" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream','?')+'|'+d.get('upstream_model','?'))" 2>/dev/null)
             IFS='|' read -r up_base up_model <<< "$up"
-            info "  bridge (port 8898)       : ✓ upstream=$up_base model=$up_model"
+            printf "bridge (8898)              : ✓ upstream=%s model=%s\n" "$up_base" "$up_model"
         else
-            error "  bridge (port 8898)       : ✗ 未响应 (env 指向 8898 但 bridge 没起)"
+            printf "bridge (8898)              : ✗ 未响应 (env 指向 8898 但 bridge 没起)\n"
         fi
     elif is_proxy_running; then
-        info "  网关代理                  : $(get_gateway_status_one_liner)"
+        printf "gateway 代理               : %s\n" "$(get_gateway_status_one_liner)"
     fi
 
-    # SSH 隧道诊断（tmux 持久化）
     if is_ssh_tunnel_running; then
         local tun_info=$(get_ssh_tunnel_status_one_liner)
         local bridge_info=""
@@ -927,12 +925,10 @@ except: pass
         else
             bridge_info="bridge=✗"
         fi
-        info "  SSH 隧道 (tmux:$TUNNEL_TMUX_SESSION)    : $tun_info | $bridge_info"
+        printf "SSH 隧道 (tmux:%s)  : %s | %s\n" "$TUNNEL_TMUX_SESSION" "$tun_info" "$bridge_info"
     fi
 
-    # 一致性检查
     echo ""
-    # 一致性: model 是 env 真值, base_url 在 OpenAI-only 端点下会被 bridge 改写属正常
     local preset_state="N"
     if [[ -n "$llm_current" && -n "$sett_env" ]]; then
         IFS='|' read -r env_base env_model _ <<< "$sett_env"
@@ -944,11 +940,10 @@ try:
     if not llm or llm.get('model','') != sys.argv[4]:
         print('N'); sys.exit(0)
     pb, eb = llm.get('base_url',''), sys.argv[3]
-    # 直连: base_url 必须等; bridge: preset 是 OpenAI-only 端点, env 是 127.0.0.1:8898
     if pb == eb:
         print('Y')
     elif pb and '/anthropic' not in pb and '127.0.0.1' not in pb and eb == 'http://127.0.0.1:8898':
-        print('B')  # bridge 改写后一致
+        print('B')
     else:
         print('N')
 except: print('N')
@@ -956,9 +951,9 @@ PYEOF
 )
     fi
     case "$preset_state" in
-        Y) success "  三处配置一致" ;;
-        B) info "  bridge 改写后一致 (preset=$llm_current → 127.0.0.1:8898)" ;;
-        N) warn "  注意: llm.json current=$llm_current 与 env 不一致, 建议重新跑一次 init-llm" ;;
+        Y) success "三处配置一致" ;;
+        B) printf "bridge 改写后一致 (preset=%s → 127.0.0.1:8898)\n" "$llm_current" ;;
+        N) printf "注意: llm.json current=%s 与 env 不一致, 建议重新跑一次 init-llm\n" "$llm_current" ;;
     esac
     echo ""
 }
