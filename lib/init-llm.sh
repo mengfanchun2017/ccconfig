@@ -1501,74 +1501,52 @@ _llm_status_header() {
 
 interactive_select() {
     local lines=$(list_llms)
-    local total=$(echo "$lines" | grep "^TOTAL:" | cut -d: -f2)
     local current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
 
     _llm_status_header "$current"
 
-    # 先解析所有 LLM 并分组
-    local -a builtin_names custom_names
-    local -a builtin_disp custom_disp
+    local -a item_cat item_letter item_name
+    local -a builtin_r=() custom_r=()
     while IFS='|' read -r marker name display_name model base_url small; do
         [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
-        local small_str=""
-        [[ -n "$small" ]] && small_str=" [小模型: $small]"
-        local route_str=""
-        [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE")"
-        local current_mark=""
-        [[ "$marker" == "◀" ]] && current_mark="  ${BOLD_BLUE}◀ 当前${NC}"
-        local tunnel_mark=""
-        if [[ -n "$(python3 - "$CONFIG_FILE" "$name" 2>/dev/null <<< 'import json,sys;d=json.load(open(sys.argv[1]));t=d.get("llms",{}).get(sys.argv[2],{}).get("ssh_tunnel",{});print("1" if t.get("ssh_host") else "")' 2>/dev/null)" ]]; then
-            tunnel_mark=" 🔒"
-        fi
-
-        # 自定义 vs 内建
         if [[ "$name" == "minimax" || "$name" == "deepseek_flash" || "$name" == "gateway" ]]; then
-            builtin_names+=("$name")
-            builtin_disp+=("$display_name|$model|$small_str|$route_str|$current_mark|$tunnel_mark")
+            builtin_r+=("$name|$display_name|$model|$small|$marker|$base_url")
         else
-            custom_names+=("$name")
-            custom_disp+=("$display_name|$model|$small_str|$route_str|$current_mark|$tunnel_mark")
+            custom_r+=("$name|$display_name|$model|$small|$marker|$base_url")
         fi
     done < <(echo "$lines")
 
-    # ── 渲染 ──
-    # 内建 llm（cat=1）
-    echo -e "  ${BOLD_GRAY}--内建 llm--${NC}"
-    local letter="A"
-    for i in "${!builtin_names[@]}"; do
-        IFS='|' read -r dname model small_str route_str curr_mark tunnel_mark <<< "${builtin_disp[$i]}"
-        printf "  ${BOLD}%d${NC} ${BOLD_BLUE}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s%s\n" \
-            1 "$letter" "$dname" "$model" "$small_str" "$route_str" "$tunnel_mark" "$curr_mark"
-        letter=$(echo "$letter" | tr 'A-Z' 'B-ZA' 2>/dev/null || echo "A")  # 简单递增
-        # 安全递增
-        case "$letter" in
-            A) letter="B";; B) letter="C";; C) letter="D";; D) letter="E";; E) letter="F";; F) letter="G";; G) letter="H";; H) letter="I";;
-            I) letter="J";; J) letter="K";; K) letter="L";; L) letter="M";; M) letter="N";; N) letter="O";; O) letter="P";;
-            P) letter="Q";; Q) letter="R";; R) letter="S";; S) letter="T";; T) letter="U";; U) letter="V";; V) letter="W";;
-            W) letter="X";; X) letter="Y";; Y) letter="Z";; *) letter="A";;
-        esac
-    done
+    _render_llm_group() {
+        local cat="$1"
+        local -n ref="$2"
+        local label="$3"
+        echo -e "  ${BOLD_GRAY}--$label--${NC}"
+        local letter="A"
+        for entry in "${ref[@]}"; do
+            IFS='|' read -r name display_name model small marker base_url <<< "$entry"
+            local small_str="" route_str="" curr_mark=""
+            [[ -n "$small" ]] && small_str=" [小模型: $small]"
+            [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE")"
+            [[ "$marker" == "◀" ]] && curr_mark="  ${BOLD_BLUE}◀ 当前${NC}"
+            printf "  ${BOLD}%d${NC} ${BOLD_BLUE}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
+                "$cat" "$letter" "$display_name" "$model" "$small_str" "$route_str" "$curr_mark"
+            item_cat+=("$cat")
+            item_letter+=("$letter")
+            item_name+=("$name")
+            case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
+        done
+    }
 
-    # 自定义 llm（cat=2）
-    echo -e "  ${BOLD_GRAY}--自定义 llm--${NC}"
-    letter="A"
-    for i in "${!custom_names[@]}"; do
-        IFS='|' read -r dname model small_str route_str curr_mark tunnel_mark <<< "${custom_disp[$i]}"
-        printf "  ${BOLD}%d${NC} ${BOLD_BLUE}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s%s\n" \
-            2 "$letter" "$dname" "$model" "$small_str" "$route_str" "$tunnel_mark" "$curr_mark"
-        case "$letter" in A) letter="B";; B) letter="C";; C) letter="D";; D) letter="E";; E) letter="F";; F) letter="G";; G) letter="H";; H) letter="I";; I) letter="J";; J) letter="K";; K) letter="L";; L) letter="M";; *) letter="A";; esac
-    done
+    _render_llm_group 1 builtin_r "内建 llm"
+    _render_llm_group 2 custom_r "自定义 llm"
 
-    # 配置选项（cat=3）
     echo -e "  ${BOLD_GRAY}--llm 配置--${NC}"
     printf "  ${BOLD}3${NC} ${BOLD_BLUE}A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义 preset" "输入任意 base_url + model + key"
     printf "  ${BOLD}3${NC} ${BOLD_BLUE}B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义 preset" "删除已保存的自定义预设"
     printf "  ${BOLD}3${NC} ${BOLD_BLUE}C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
     printf "  ${BOLD}3${NC} ${BOLD_BLUE}D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
-
-    echo -e ""
-    printf "  输入 (如 1A, 2C, 3A) 或数字 (如 1) 选择: "
+    echo ""
+    printf "  输入 (如 1A, 2B, 3C) 或数字 (如 1=内建首项) 选择: "
     read -r choice
 
     if [[ -z "$choice" ]]; then
@@ -1576,121 +1554,47 @@ interactive_select() {
         return 0
     fi
 
-    # 把输入解析到新变量去匹配
-    parse_and_switch "$choice"
-}
-
-# 新解析器：同时支持 1A、2C、1（cat 默认首项）、数字（老的兼容）
-parse_and_switch() {
-    local input="$1"
-
-    # 重新收集列表以按实际渲染顺序匹配
-    local lines=$(list_llms)
-    local -a all_names
-    local -a all_order  # 按显示顺序：builtins + customs
-    while IFS='|' read -r marker name display_name model base_url small; do
-        [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
-        if [[ "$name" == "minimax" || "$name" == "deepseek_flash" || "$name" == "gateway" ]]; then
-            all_order+=("$name")
-        else
-            all_order+=("$name")
-        fi
-        all_names+=("$name")
-    done < <(echo "$lines")
-
-    local builtin_count=0 custom_count=0
-    for n in "${all_order[@]}"; do
-        if [[ "$n" == "minimax" || "$n" == "deepseek_flash" || "$n" == "gateway" ]]; then
-            builtin_count=$((builtin_count + 1))
-        else
-            custom_count=$((custom_count + 1))
-        fi
-    done
-
-    # cat+letter 组合
-    if [[ "$input" =~ ^([0-9]+)([A-Za-z])$ ]]; then
+    if [[ "$choice" =~ ^([0-9]+)([A-Za-z])$ ]]; then
         local cat="${BASH_REMATCH[1]}"
         local letter="${BASH_REMATCH[2]^^}"
-        local letter_num
-        case "$letter" in A) letter_num=0;; B) letter_num=1;; C) letter_num=2;; D) letter_num=3;; E) letter_num=4;; F) letter_num=5;; G) letter_num=6;; H) letter_num=7;; I) letter_num=8;; J) letter_num=9;; K) letter_num=10;; L) letter_num=11;; M) letter_num=12;; N) letter_num=13;; O) letter_num=14;; P) letter_num=15;; Q) letter_num=16;; R) letter_num=17;; S) letter_num=18;; T) letter_num=19;; *) warn "无效字母: $letter"; return 1;; esac
-
-        case "$cat" in
-            1)  # 内建
-                if (( letter_num < builtin_count )); then
-                    local idx=0 cnt=0
-                    for n in "${all_order[@]}"; do
-                        if [[ "$n" == "minimax" || "$n" == "deepseek_flash" || "$n" == "gateway" ]]; then
-                            if (( cnt == letter_num )); then
-                                switch_llm "$n"
-                                return $?
-                            fi
-                            cnt=$((cnt + 1))
-                        fi
-                        idx=$((idx + 1))
-                    done
-                fi
-                warn "内建 LLM 字母范围: A-$(echo "A" | tr 'A-Z' "A-$(printf \\$(printf '%03o' $((64+builtin_count))))" 2>/dev/null || echo "?")"
-                return 1
-                ;;
-            2)  # 自定义
-                if (( letter_num < custom_count )); then
-                    local cnt=0
-                    for n in "${all_order[@]}"; do
-                        if [[ "$n" != "minimax" && "$n" != "deepseek_flash" && "$n" != "gateway" ]]; then
-                            if (( cnt == letter_num )); then
-                                switch_llm "$n"
-                                return $?
-                            fi
-                            cnt=$((cnt + 1))
-                        fi
-                    done
-                fi
-                warn "自定义 LLM 字母范围: A-?"
-                return 1
-                ;;
-            3)  # 配置
-                case "$letter" in
-                    A) switch_custom ;;
-                    B) delete_preset ;;
-                    C) bash "$LLMSWITCH_INIT" ;;
-                    D) bill_config ;;
-                    *) warn "无效配置动作: $letter (A=新增 B=删除 C=Gateway D=Bill)"; return 1 ;;
-                esac
+        if [[ "$cat" == "3" ]]; then
+            case "$letter" in
+                A) switch_custom ;;
+                B) delete_preset ;;
+                C) bash "$LLMSWITCH_INIT" ;;
+                D) bill_config ;;
+                *) warn "配置: A=新增 B=删除 C=Gateway D=Bill"; return 1 ;;
+            esac
+            return $?
+        fi
+        for i in "${!item_cat[@]}"; do
+            if [[ "${item_cat[$i]}" == "$cat" && "${item_letter[$i]}" == "$letter" ]]; then
+                switch_llm "${item_name[$i]}"
                 return $?
-                ;;
-            *) warn "未知分类: $cat"; return 1 ;;
-        esac
+            fi
+        done
+        warn "未找到 ${cat}${letter}"
+        return 1
     fi
 
-    # 单数字 → cat 默认首项
-    if [[ "$input" =~ ^[0-9]+$ ]]; then
-        case "$input" in
-            1)  # 内建第一个
-                for n in "${all_order[@]}"; do
-                    if [[ "$n" == "minimax" || "$n" == "deepseek_flash" || "$n" == "gateway" ]]; then
-                        switch_llm "$n"
-                        return $?
-                    fi
-                done
-                ;;
-            2)  # 自定义第一个
-                for n in "${all_order[@]}"; do
-                    if [[ "$n" != "minimax" && "$n" != "deepseek_flash" && "$n" != "gateway" ]]; then
-                        switch_llm "$n"
-                        return $?
-                    fi
-                done
-                ;;
-            3)  switch_custom ;;
-            *) warn "按数字: 1=内建 2=自定义 3=配置"; return 1 ;;
-        esac
-        return $?
+    if [[ "$choice" =~ ^[0-9]+$ ]]; then
+        if [[ "$choice" == "3" ]]; then
+            switch_custom
+            return $?
+        fi
+        for i in "${!item_cat[@]}"; do
+            if [[ "${item_cat[$i]}" == "$choice" ]]; then
+                switch_llm "${item_name[$i]}"
+                return $?
+            fi
+        done
+        warn "分类 $choice 无 LLM 项"
+        return 1
     fi
 
-    warn "无效输入: $input"
+    warn "无效输入: $choice (格式: 1A, 2B, 3C)"
     return 1
 }
-
 # ========== 主流程 ==========
 main() {
     local cmd="${1:-${INIT_LLM_NAME:-}}"
