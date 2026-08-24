@@ -1465,63 +1465,110 @@ PYEOF
 
 
 # ========== 交互式选择 ==========
+_llm_status_header() {
+    local current="${1:-}"
+    local llm_name="" llm_display=""
+    if [[ -n "$current" ]]; then
+        llm_name=$(echo "$current" | cut -d'|' -f1)
+        llm_display=$(echo "$current" | cut -d'|' -f2)
+        [[ -z "$llm_display" ]] && llm_display="$llm_name"
+    fi
+
+    echo -e ""
+    if [[ -n "$llm_display" ]]; then
+        echo -e "  ${BOLD_BLUE}llm 生效: $llm_display${NC}"
+    else
+        echo -e "  ${BOLD_BLUE}llm 生效: 未配置${NC}"
+    fi
+
+    # 检测运行模式：bridge vs gateway vs 直连
+    local mode_display="${GRAY}○ 直连${NC}"
+    if is_proxy_running; then
+        local health=$(get_proxy_health)
+        local mode=$(echo "$health" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('mode','?'))" 2>/dev/null || echo "?")
+        local route=$(echo "$health" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('current_route','?'))" 2>/dev/null || echo "?")
+        mode_display="${GREEN}●${NC} ${BOLD_BLUE}gateway 模式: $route  (mode=$mode)${NC}"
+    elif curl -s --max-time 1 "http://127.0.0.1:8898/health" >/dev/null 2>&1; then
+        # bridge 在 8898
+        local up=$(curl -s --max-time 1 "http://127.0.0.1:8898/health" 2>/dev/null | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream','?')+'|'+d.get('upstream_model','?'))" 2>/dev/null || echo "?|?")
+        local up_base="${up%%|*}"
+        local up_model="${up#*|}"
+        mode_display="${GREEN}●${NC} ${BOLD_BLUE}bridge 模式: $up_model${NC}"
+    fi
+    echo -e "  模式: $mode_display"
+    echo -e ""
+}
+
 interactive_select() {
     local lines=$(list_llms)
     local total=$(echo "$lines" | grep "^TOTAL:" | cut -d: -f2)
     local current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
 
-    echo ""
-    if [[ -n "$current" ]]; then
-        printf "当前 LLM：%s\n" "$current"
-    else
-        echo "当前 LLM：未配置（选择下方编号初始化）"
-    fi
-    echo ""
+    _llm_status_header "$current"
 
-    local idx=1
-    local selectable=0
-    local names=()
+    # 先解析所有 LLM 并分组
+    local -a builtin_names custom_names
+    local -a builtin_disp custom_disp
     while IFS='|' read -r marker name display_name model base_url small; do
-        if [[ "$marker" == "TOTAL:"* ]] || [[ "$marker" == "CURRENT:"* ]]; then
-            continue
-        fi
-        if [[ -z "$name" ]]; then
-            continue
-        fi
+        [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
         local small_str=""
-        if [[ -n "$small" ]]; then
-            small_str=" [小模型: $small]"
-        fi
+        [[ -n "$small" ]] && small_str=" [小模型: $small]"
         local route_str=""
-        if [[ "$name" == "gateway" ]]; then
-            route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE")"
-        fi
+        [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE")"
+        local current_mark=""
+        [[ "$marker" == "◀" ]] && current_mark="  ${BOLD_BLUE}◀ 当前${NC}"
         local tunnel_mark=""
-        if [[ -n "$(python3 - "$CONFIG_FILE" "$name" 2>/dev/null <<< 'import json,sys;d=json.load(open(sys.argv[1]));t=d.get("llms",{}).get(sys.argv[2],{}).get("ssh_tunnel",{});print("🔒" if t.get("ssh_host") else "")' 2>/dev/null)" ]]; then
+        if [[ -n "$(python3 - "$CONFIG_FILE" "$name" 2>/dev/null <<< 'import json,sys;d=json.load(open(sys.argv[1]));t=d.get("llms",{}).get(sys.argv[2],{}).get("ssh_tunnel",{});print("1" if t.get("ssh_host") else "")' 2>/dev/null)" ]]; then
             tunnel_mark=" 🔒"
         fi
-        names+=("$name")
-        selectable=$((selectable + 1))
-        if [[ "$marker" == "◀" ]]; then
-            printf "  %d) %s (%s)%s%s%s ◀ 当前\n" "$idx" "$display_name" "$model" "$small_str" "$route_str" "$tunnel_mark"
+
+        # 自定义 vs 内建
+        if [[ "$name" == "minimax" || "$name" == "deepseek_flash" || "$name" == "gateway" ]]; then
+            builtin_names+=("$name")
+            builtin_disp+=("$display_name|$model|$small_str|$route_str|$current_mark|$tunnel_mark")
         else
-            printf "  %d) %s (%s)%s%s%s\n" "$idx" "$display_name" "$model" "$small_str" "$route_str" "$tunnel_mark"
+            custom_names+=("$name")
+            custom_disp+=("$display_name|$model|$small_str|$route_str|$current_mark|$tunnel_mark")
         fi
-        idx=$((idx + 1))
     done < <(echo "$lines")
 
-    # Custom + Delete + Configure Gateway + Bill 是固定选项
-    local custom_idx=$((selectable + 1))
-    local delete_idx=$((selectable + 2))
-    local gateway_conf_idx=$((selectable + 3))
-    local bill_idx=$((selectable + 4))
-    printf "  %d) %s\n" "$custom_idx" "Custom (输入任意 base_url + model + key)"
-    printf "  %d) %s\n" "$delete_idx" "Delete (删除已保存的自定义预设)"
-    printf "  %d) %s\n" "$gateway_conf_idx" "Configure Gateway (peak_hours / routes / mode)"
-    printf "  %d) %s\n" "$bill_idx" "Bill (配置模型 token 单价，用于 token-usage 计费)"
+    # ── 渲染 ──
+    # 内建 llm（cat=1）
+    echo -e "  ${BOLD_GRAY}--内建 llm--${NC}"
+    local letter="A"
+    for i in "${!builtin_names[@]}"; do
+        IFS='|' read -r dname model small_str route_str curr_mark tunnel_mark <<< "${builtin_disp[$i]}"
+        printf "  ${BOLD}%d${NC} ${BOLD_BLUE}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s%s\n" \
+            1 "$letter" "$dname" "$model" "$small_str" "$route_str" "$tunnel_mark" "$curr_mark"
+        letter=$(echo "$letter" | tr 'A-Z' 'B-ZA' 2>/dev/null || echo "A")  # 简单递增
+        # 安全递增
+        case "$letter" in
+            A) letter="B";; B) letter="C";; C) letter="D";; D) letter="E";; E) letter="F";; F) letter="G";; G) letter="H";; H) letter="I";;
+            I) letter="J";; J) letter="K";; K) letter="L";; L) letter="M";; M) letter="N";; N) letter="O";; O) letter="P";;
+            P) letter="Q";; Q) letter="R";; R) letter="S";; S) letter="T";; T) letter="U";; U) letter="V";; V) letter="W";;
+            W) letter="X";; X) letter="Y";; Y) letter="Z";; *) letter="A";;
+        esac
+    done
 
-    echo ""
-    printf "输入数字 [1-%d] 选择（直接回车保持当前 (%s)): " "$bill_idx" "$current"
+    # 自定义 llm（cat=2）
+    echo -e "  ${BOLD_GRAY}--自定义 llm--${NC}"
+    letter="A"
+    for i in "${!custom_names[@]}"; do
+        IFS='|' read -r dname model small_str route_str curr_mark tunnel_mark <<< "${custom_disp[$i]}"
+        printf "  ${BOLD}%d${NC} ${BOLD_BLUE}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s%s\n" \
+            2 "$letter" "$dname" "$model" "$small_str" "$route_str" "$tunnel_mark" "$curr_mark"
+        case "$letter" in A) letter="B";; B) letter="C";; C) letter="D";; D) letter="E";; E) letter="F";; F) letter="G";; G) letter="H";; H) letter="I";; I) letter="J";; J) letter="K";; K) letter="L";; L) letter="M";; *) letter="A";; esac
+    done
+
+    # 配置选项（cat=3）
+    echo -e "  ${BOLD_GRAY}--llm 配置--${NC}"
+    printf "  ${BOLD}3${NC} ${BOLD_BLUE}A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义 preset" "输入任意 base_url + model + key"
+    printf "  ${BOLD}3${NC} ${BOLD_BLUE}B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义 preset" "删除已保存的自定义预设"
+    printf "  ${BOLD}3${NC} ${BOLD_BLUE}C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
+    printf "  ${BOLD}3${NC} ${BOLD_BLUE}D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
+
+    echo -e ""
+    printf "  输入 (如 1A, 2C, 3A) 或数字 (如 1) 选择: "
     read -r choice
 
     if [[ -z "$choice" ]]; then
@@ -1529,33 +1576,119 @@ interactive_select() {
         return 0
     fi
 
-    if [[ "$choice" == "$custom_idx" ]]; then
-        switch_custom
+    # 把输入解析到新变量去匹配
+    parse_and_switch "$choice"
+}
+
+# 新解析器：同时支持 1A、2C、1（cat 默认首项）、数字（老的兼容）
+parse_and_switch() {
+    local input="$1"
+
+    # 重新收集列表以按实际渲染顺序匹配
+    local lines=$(list_llms)
+    local -a all_names
+    local -a all_order  # 按显示顺序：builtins + customs
+    while IFS='|' read -r marker name display_name model base_url small; do
+        [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
+        if [[ "$name" == "minimax" || "$name" == "deepseek_flash" || "$name" == "gateway" ]]; then
+            all_order+=("$name")
+        else
+            all_order+=("$name")
+        fi
+        all_names+=("$name")
+    done < <(echo "$lines")
+
+    local builtin_count=0 custom_count=0
+    for n in "${all_order[@]}"; do
+        if [[ "$n" == "minimax" || "$n" == "deepseek_flash" || "$n" == "gateway" ]]; then
+            builtin_count=$((builtin_count + 1))
+        else
+            custom_count=$((custom_count + 1))
+        fi
+    done
+
+    # cat+letter 组合
+    if [[ "$input" =~ ^([0-9]+)([A-Za-z])$ ]]; then
+        local cat="${BASH_REMATCH[1]}"
+        local letter="${BASH_REMATCH[2]^^}"
+        local letter_num
+        case "$letter" in A) letter_num=0;; B) letter_num=1;; C) letter_num=2;; D) letter_num=3;; E) letter_num=4;; F) letter_num=5;; G) letter_num=6;; H) letter_num=7;; I) letter_num=8;; J) letter_num=9;; K) letter_num=10;; L) letter_num=11;; M) letter_num=12;; N) letter_num=13;; O) letter_num=14;; P) letter_num=15;; Q) letter_num=16;; R) letter_num=17;; S) letter_num=18;; T) letter_num=19;; *) warn "无效字母: $letter"; return 1;; esac
+
+        case "$cat" in
+            1)  # 内建
+                if (( letter_num < builtin_count )); then
+                    local idx=0 cnt=0
+                    for n in "${all_order[@]}"; do
+                        if [[ "$n" == "minimax" || "$n" == "deepseek_flash" || "$n" == "gateway" ]]; then
+                            if (( cnt == letter_num )); then
+                                switch_llm "$n"
+                                return $?
+                            fi
+                            cnt=$((cnt + 1))
+                        fi
+                        idx=$((idx + 1))
+                    done
+                fi
+                warn "内建 LLM 字母范围: A-$(echo "A" | tr 'A-Z' "A-$(printf \\$(printf '%03o' $((64+builtin_count))))" 2>/dev/null || echo "?")"
+                return 1
+                ;;
+            2)  # 自定义
+                if (( letter_num < custom_count )); then
+                    local cnt=0
+                    for n in "${all_order[@]}"; do
+                        if [[ "$n" != "minimax" && "$n" != "deepseek_flash" && "$n" != "gateway" ]]; then
+                            if (( cnt == letter_num )); then
+                                switch_llm "$n"
+                                return $?
+                            fi
+                            cnt=$((cnt + 1))
+                        fi
+                    done
+                fi
+                warn "自定义 LLM 字母范围: A-?"
+                return 1
+                ;;
+            3)  # 配置
+                case "$letter" in
+                    A) switch_custom ;;
+                    B) delete_preset ;;
+                    C) bash "$LLMSWITCH_INIT" ;;
+                    D) bill_config ;;
+                    *) warn "无效配置动作: $letter (A=新增 B=删除 C=Gateway D=Bill)"; return 1 ;;
+                esac
+                return $?
+                ;;
+            *) warn "未知分类: $cat"; return 1 ;;
+        esac
+    fi
+
+    # 单数字 → cat 默认首项
+    if [[ "$input" =~ ^[0-9]+$ ]]; then
+        case "$input" in
+            1)  # 内建第一个
+                for n in "${all_order[@]}"; do
+                    if [[ "$n" == "minimax" || "$n" == "deepseek_flash" || "$n" == "gateway" ]]; then
+                        switch_llm "$n"
+                        return $?
+                    fi
+                done
+                ;;
+            2)  # 自定义第一个
+                for n in "${all_order[@]}"; do
+                    if [[ "$n" != "minimax" && "$n" != "deepseek_flash" && "$n" != "gateway" ]]; then
+                        switch_llm "$n"
+                        return $?
+                    fi
+                done
+                ;;
+            3)  switch_custom ;;
+            *) warn "按数字: 1=内建 2=自定义 3=配置"; return 1 ;;
+        esac
         return $?
     fi
 
-    if [[ "$choice" == "$delete_idx" ]]; then
-        delete_preset
-        return $?
-    fi
-
-    if [[ "$choice" == "$gateway_conf_idx" ]]; then
-        bash "$LLMSWITCH_INIT" --config
-        return $?
-    fi
-
-    if [[ "$choice" == "$bill_idx" ]]; then
-        bill_config
-        return $?
-    fi
-
-    if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "$selectable" ]]; then
-        target="${names[$((choice-1))]}"
-        switch_llm "$target"
-    else
-        error "无效选择: $choice"
-        return 1
-    fi
+    warn "无效输入: $input"
+    return 1
 }
 
 # ========== 主流程 ==========
