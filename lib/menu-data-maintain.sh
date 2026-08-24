@@ -29,15 +29,14 @@ MENU_ENTRIES=(
     "2|H|模板同步|.example 与模板间同步|bash \"$LIB_DIR/example-sync.sh\" status|"
 
     # ── 3: 工具 ──
-    "3|A|LLM 切换|init-llm 交互选择|bash \"$LIB_DIR/init-llm.sh\"|"
-    "3|B|llmswitch|Gateway 代理管理||menu:llmswitch"
-    "3|C|Bill \& Token|模型单价/用量统计||menu:bill_token"
-    "3|D|MCP 管理|跨项目查看/配置 MCP|bash \"$LIB_DIR/mcp-manager.sh\" config|"
-    "3|E|飞书管理|lark-cli 账号/OAuth/测试||menu:feishu"
-    "3|F|getnote|得到大脑 MCP 账号管理||menu:getnote"
-    "3|G|ccprivate 升级|私有配置仓库升级|bash \"$LIB_DIR/ccprivate-upgrade.sh\"|"
-    "3|H|回归测试|bootstrap 测试|bash \"$CCCONFIG_DIR/bin/test-bootstrap.sh\"|"
-    "3|I|GitHub PAT|刷新 fine-grained PAT|bash \"$CCCONFIG_DIR/bin/refresh-gh-auth.sh\"|"
+    "3|A|LLM 切换|切换预设/配置 Gateway/模型单价|bash \"$LIB_DIR/init-llm.sh\"|"
+    "3|B|用量统计|token-usage 统计/报告/归档||menu:usage"
+    "3|C|MCP 管理|跨项目查看/配置 MCP|bash \"$LIB_DIR/mcp-manager.sh\" config|"
+    "3|D|飞书管理|lark-cli 账号/OAuth/测试||menu:feishu"
+    "3|E|getnote|得到大脑 MCP 账号管理||menu:getnote"
+    "3|F|ccprivate 升级|私有配置仓库升级|bash \"$LIB_DIR/ccprivate-upgrade.sh\"|"
+    "3|G|回归测试|bootstrap 测试|bash \"$CCCONFIG_DIR/bin/test-bootstrap.sh\"|"
+    "3|H|GitHub PAT|刷新 fine-grained PAT|bash \"$CCCONFIG_DIR/bin/refresh-gh-auth.sh\"|"
 
     # ── 0: 退出 ──
     "0| |退出||exit 0|"

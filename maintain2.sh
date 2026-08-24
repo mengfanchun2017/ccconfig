@@ -46,27 +46,8 @@ _submenu_monitor() {
     esac
 }
 
-_submenu_llmswitch() {
-    local c; c=$(menu_select "llmswitch" \
-        "启动" \
-        "停止" \
-        "重启" \
-        "状态" \
-        "切换 LLM" \
-        "返回")
-    [[ -z "$c" ]] && return
-    case "$c" in
-        1) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --start ;;
-        2) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --stop ;;
-        3) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --restart ;;
-        4) bash "$CCCONFIG_DIR/option-llmswitch/init.sh" --status ;;
-        5) bash "$LIB_DIR/init-llm.sh" ;;
-    esac
-}
-
-_submenu_bill_token() {
-    local c; c=$(menu_select "Bill \& Token" \
-        "Bill(模型单价)" \
+_submenu_usage() {
+    local c; c=$(menu_select "用量统计" \
         "用量统计" \
         "按日报告" \
         "按天归档" \
@@ -76,19 +57,18 @@ _submenu_bill_token() {
         "返回")
     [[ -z "$c" ]] && return
     case "$c" in
-        1) bash "$LIB_DIR/init-llm.sh" bill ;;
-        2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
-        3) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
-        4) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ;;
-        5) url=$(prompt "飞书 URL"); bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ${url:+--feishu "$url"} ;;
-        6) bash "$CCCONFIG_DIR/option-usage/init.sh" status
+        1) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
+        2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
+        3) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ;;
+        4) url=$(prompt "飞书 URL"); bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ${url:+--feishu "$url"} ;;
+        5) bash "$CCCONFIG_DIR/option-usage/init.sh" status
            ts=$(menu_select "timer" \
  "安装" \
  "卸载" \
  "配置" \
  "返回")
            case "$ts" in i) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; c) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; esac ;;
-        7) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
+        6) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
     esac
 }
 

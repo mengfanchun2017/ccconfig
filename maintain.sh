@@ -253,7 +253,7 @@ submenu_monitor() {
     [[ -z "$c" ]] && return
     case "$c" in
         1) bash "$CCCONFIG_ROOT/lib/init-llm.sh" status ;;
-        2) bash "$LIB_DIR/monitor.sh" log; echo ""; prompt "按回车继续" ;;
+        2) bash "$LIB_DIR/monitor.sh" log ;;
         3) bash "$LIB_DIR/monitor.sh" status ;;
         4) bash "$LIB_DIR/monitor.sh" start ;;
         5) bash "$LIB_DIR/monitor.sh" stop ;;
