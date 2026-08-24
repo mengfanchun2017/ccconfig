@@ -236,8 +236,8 @@ stop_tmux_bridge() {
 # tmux 持久化：独立于 Claude 进程
 # $1: tunnel_listen_port  $2: model_name  $3: api_key
 start_tunnel_bridge() {
-    local listen_port="$1" model="$2" key="$3"
-    local port=8898
+    local tunnel_port="$1" model="$2" key="$3"
+    local bridge_port=8898
 
     # 关残留 bridge（tmux 或 direct 都清）
     stop_tmux_bridge
@@ -248,18 +248,18 @@ start_tunnel_bridge() {
     tmux new-session -d -s "$BRIDGE_TMUX_SESSION" \
         "cd '$CCCONFIG_ROOT' && \
          env $env_args \
-            OPENAI_BRIDGE_UPSTREAM='https://127.0.0.1:${listen_port}' \
-            OPENAI_BRIDGE_UPSTREAM_ORIGINAL='https://127.0.0.1:${listen_port}' \
+            OPENAI_BRIDGE_UPSTREAM='https://127.0.0.1:${tunnel_port}' \
+            OPENAI_BRIDGE_UPSTREAM_ORIGINAL='https://127.0.0.1:${tunnel_port}' \
             OPENAI_BRIDGE_KEY='$key' \
             OPENAI_BRIDGE_MODEL='$model' \
             OPENAI_BRIDGE_SKIP_TLS_VERIFY=1 \
-            python3 option-llmswitch/openai_bridge.py --port '$port' \
+            python3 option-llmswitch/openai_bridge.py --port '$bridge_port' \
          2>&1 | tee '$HOME/.cache/openai_bridge.log'" 2>&1
 
     local health=""
     for i in 1 2 3 4 5; do
         sleep 1
-        health=$(curl -s --max-time 2 "http://127.0.0.1:${port}/health" 2>/dev/null)
+        health=$(curl -s --max-time 2 "http://127.0.0.1:${bridge_port}/health" 2>/dev/null)
         [[ -n "$health" ]] && break
     done
 
@@ -973,6 +973,21 @@ PYEOF
         B) printf "bridge 改写后一致 (preset=%s → 127.0.0.1:8898)\n" "$llm_current" ;;
         N) printf "注意: llm.json current=%s 与 env 不一致, 建议重新跑一次 init-llm\n" "$llm_current" ;;
     esac
+
+    # Gateway 路由一致性检查
+    if [[ "$llm_current" == "gateway" ]] && is_proxy_running; then
+        local gh=$(get_proxy_health)
+        local gw_route=$(echo "$gh" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('current_route','?'))" 2>/dev/null || echo "?")
+        local gw_mode=$(echo "$gh" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('mode','?'))" 2>/dev/null || echo "?")
+        IFS='|' read -r env_base env_model _ <<< "$sett_env"
+        if [[ "$gw_mode" == "off" ]]; then
+            printf "注意: gateway 模式=off（代理运行中但路由未生效）\n"
+        elif [[ "$gw_mode" == "manual" ]]; then
+            printf "gateway mode=manual → %s\n" "$gw_route"
+        else
+            printf "gateway auto → %s | env model=%s\n" "$gw_route" "$env_model"
+        fi
+    fi
     echo ""
 }
 
@@ -1520,6 +1535,7 @@ interactive_select() {
         fi
     done < <(echo "$lines")
 
+    while true; do
     # ── 渲染内建 llm ──
     echo -e "  ${BOLD_GRAY}--内建 llm--${NC}"
     local letter="A"
@@ -1560,10 +1576,12 @@ interactive_select() {
     printf "  输入 (如 ${BOLD_GREEN}1A${NC}, ${BOLD_GREEN}2B${NC}, ${BOLD_GREEN}3C${NC}) 或数字 (如 ${BOLD_GREEN}1${NC}=内建首项) 选择: "
     read -r choice
 
-    if [[ -z "$choice" ]]; then
-        info "保持当前: $current"
-        return 0
-    fi
+    echo ""
+    echo "  0) 退出"
+    printf "  输入 (如 1A, 2B, 3C) 或数字选择: "
+    read -r choice
+
+    [[ -z "$choice" || "$choice" == "0" ]] && { info "已退出"; return 0; }
 
     if [[ "$choice" =~ ^([0-9]+)([A-Za-z])$ ]]; then
         local cat="${BASH_REMATCH[1]}"
@@ -1574,37 +1592,34 @@ interactive_select() {
                 B) delete_preset ;;
                 C) bash "$LLMSWITCH_INIT" ;;
                 D) bill_config ;;
-                *) warn "配置: A=新增 B=删除 C=Gateway D=Bill"; return 1 ;;
+                *) warn "配置: A=新增 B=删除 C=Gateway D=Bill"; continue ;;
             esac
-            return $?
+            continue
         fi
         for i in "${!item_cat[@]}"; do
             if [[ "${item_cat[$i]}" == "$cat" && "${item_letter[$i]}" == "$letter" ]]; then
                 switch_llm "${item_name[$i]}"
-                return $?
+                continue 2
             fi
         done
         warn "未找到 ${cat}${letter}"
-        return 1
+        continue
     fi
 
     if [[ "$choice" =~ ^[0-9]+$ ]]; then
-        if [[ "$choice" == "3" ]]; then
-            switch_custom
-            return $?
-        fi
+        [[ "$choice" == "3" ]] && { switch_custom; continue; }
         for i in "${!item_cat[@]}"; do
             if [[ "${item_cat[$i]}" == "$choice" ]]; then
                 switch_llm "${item_name[$i]}"
-                return $?
+                continue 2
             fi
         done
         warn "分类 $choice 无 LLM 项"
-        return 1
+        continue
     fi
 
     warn "无效输入: $choice (格式: 1A, 2B, 3C)"
-    return 1
+    done
 }
 # ========== 主流程 ==========
 main() {
