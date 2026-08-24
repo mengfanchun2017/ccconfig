@@ -330,7 +330,12 @@ if target not in llms:
 
 llm = llms[target]
 small = llm.get('small_model', llm.get('model', ''))
-print(f"{llm.get('base_url', '')}|{llm.get('model', '')}|{llm.get('key', '')}|{small}")
+key = llm.get('key', '')
+# altllm_tail 的 key 为空时从 altllm 继承（消除重复配置）
+if target == 'altllm_tail' and (not key or key in ['请填入', '请替换', 'your.key', 'placeholder', 'changeme', '<your-']):
+    src = llms.get('altllm', {})
+    key = src.get('key', key)
+print(f"{llm.get('base_url', '')}|{llm.get('model', '')}|{key}|{small}")
 PYEOF
 }
 
@@ -741,30 +746,38 @@ PYEOF
         has_tunnel=true
     fi
 
-    # 切到直连前先停 watchdog + proxy + ssh 隧道 + tmux bridge（如果之前是隧道模式）
-    if is_ssh_tunnel_running; then
-        stop_ssh_tunnel
-    fi
-    # 也停可能残留的 tmux bridge session
-    stop_tmux_bridge
-    if is_proxy_running; then
-        info "停止网关代理..."
-        local watchdog_pid_file="$HOME/.cache/llmswitch-watchdog.pid"
-        if [ -f "$watchdog_pid_file" ]; then
-            kill "$(cat "$watchdog_pid_file")" 2>/dev/null || true
-            rm -f "$watchdog_pid_file"
+    # 旧链路清理函数（新链路就绪后调用）
+    _stop_old_link() {
+        if is_ssh_tunnel_running; then
+            info "停止旧 SSH 隧道..."
+            stop_ssh_tunnel
         fi
-        bash "$LLMSWITCH_INIT" --stop 2>/dev/null || true
-    fi
+        stop_tmux_bridge
+        if is_proxy_running; then
+            info "停止旧网关代理..."
+            local wpid="$HOME/.cache/llmswitch-watchdog.pid"
+            if [ -f "$wpid" ]; then
+                kill "$(cat "$wpid")" 2>/dev/null || true
+                rm -f "$wpid"
+            fi
+            bash "$LLMSWITCH_INIT" --stop 2>/dev/null || true
+        fi
+    }
+
+    local need_stop_old=true
 
     # SSH 隧道模式：先启隧道，再启 bridge 转发到本地端口
     if $has_tunnel; then
         info "检测到 SSH 隧道配置: ${tunnel_user}@${tunnel_host}:${tunnel_port} → ${tunnel_remote}"
+        # 端口冲突检测：新旧 tunnel 同端口时需先停旧
+        if is_ssh_tunnel_running && ss -tlnp 2>/dev/null | grep -q ":$tunnel_listen_port "; then
+            _stop_old_link
+            need_stop_old=false
+        fi
         start_ssh_tunnel "$tunnel_host" "$tunnel_port" "$tunnel_user" "$tunnel_remote" "$tunnel_listen_port" || {
             error "SSH 隧道启动失败"
             return 1
         }
-        # SSH 隧道转发到远程端点，bridge 指向本地隧道端口做 Anthropic↔OpenAI 转换
         info "  启用 Anthropic↔OpenAI bridge (upstream: http://127.0.0.1:$tunnel_listen_port)"
         if start_tunnel_bridge "$tunnel_listen_port" "$model_name" "$api_key"; then
             base_url="http://127.0.0.1:8898"
@@ -784,12 +797,17 @@ PYEOF
             error "  bridge 启动失败，请检查 ~/.cache/openai_bridge.log"
             return 1
         fi
-    else
-        # 切到直连/本地端点，bridge 无需求 → 关残留进程
-        if pgrep -f "openai_bridge.py" >/dev/null 2>&1; then
-            info "  切换目标不需要 bridge，关闭残留 openai_bridge 进程..."
-            pkill -f "openai_bridge.py" 2>/dev/null || true
-        fi
+    fi
+
+    # 新链路就绪后清理旧链路（减少切换瞬断窗口）
+    if $need_stop_old; then
+        _stop_old_link
+    fi
+
+    # 停 bridge 进程（仅当新链路不需要 bridge 且旧 bridge 在运行）
+    if ! $has_tunnel && [[ "$base_url" != *"://127.0.0.1"* ]] && pgrep -f "openai_bridge.py" >/dev/null 2>&1; then
+        info "  切换目标不需要 bridge，关闭残留 openai_bridge 进程..."
+        pkill -f "openai_bridge.py" 2>/dev/null || true
     fi
 
     # 占位符 key → 尝试从已有配置读取，都没有就交互输入
