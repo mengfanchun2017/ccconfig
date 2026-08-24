@@ -1482,6 +1482,11 @@ _llm_status_header() {
         echo -e "  ${LIGHT_BLUE}生效: 未配置${NC}"
     fi
 
+    # bridge 活跃时显示 bridge 行
+    if curl -s --max-time 1 "http://127.0.0.1:8898/health" >/dev/null 2>&1; then
+        local up=$(curl -s --max-time 1 "http://127.0.0.1:8898/health" 2>/dev/null | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
+        echo -e "  ${LIGHT_BLUE}bridge启用: $up${NC}"
+    fi
     echo -e ""
 }
 
