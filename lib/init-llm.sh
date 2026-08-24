@@ -1475,25 +1475,25 @@ _llm_status_header() {
     fi
 
     echo -e ""
+    echo -e "  ${BOLD_GRAY}--当前配置--${NC}"
     if [[ -n "$llm_display" ]]; then
-        echo -e "  ${BOLD_BLUE}llm 生效: $llm_display${NC}"
+        echo -e "  ${LIGHT_BLUE}生效: $llm_display${NC}"
     else
-        echo -e "  ${BOLD_BLUE}llm 生效: 未配置${NC}"
+        echo -e "  ${LIGHT_BLUE}生效: 未配置${NC}"
     fi
 
     # 检测运行模式：bridge vs gateway vs 直连
-    local mode_display="${GRAY}○ 直连${NC}"
+    local mode_display="${LIGHT_BLUE}○ 直连${NC}"
     if is_proxy_running; then
         local health=$(get_proxy_health)
         local mode=$(echo "$health" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('mode','?'))" 2>/dev/null || echo "?")
         local route=$(echo "$health" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('current_route','?'))" 2>/dev/null || echo "?")
-        mode_display="${GREEN}●${NC} ${BOLD_BLUE}gateway 模式: $route  (mode=$mode)${NC}"
+        mode_display="${LIGHT_BLUE}● gateway 模式: $route  (mode=$mode)${NC}"
     elif curl -s --max-time 1 "http://127.0.0.1:8898/health" >/dev/null 2>&1; then
-        # bridge 在 8898
         local up=$(curl -s --max-time 1 "http://127.0.0.1:8898/health" 2>/dev/null | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream','?')+'|'+d.get('upstream_model','?'))" 2>/dev/null || echo "?|?")
         local up_base="${up%%|*}"
         local up_model="${up#*|}"
-        mode_display="${GREEN}●${NC} ${BOLD_BLUE}bridge 模式: $up_model${NC}"
+        mode_display="${LIGHT_BLUE}● bridge 模式: $up_model${NC}"
     fi
     echo -e "  模式: $mode_display"
     echo -e ""
@@ -1525,7 +1525,7 @@ interactive_select() {
         [[ -n "$small" ]] && small_str=" [小模型: $small]"
         [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
         [[ "$marker" == "◀" ]] && curr_mark="  ${LIGHT_BLUE}◀ 当前${NC}"
-        printf "  ${BOLD}%d${NC}${BOLD_GREEN}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
+        printf "  ${BOLD_GREEN}%d%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
             1 "$letter" "$display_name" "$model" "$small_str" "$route_str" "$curr_mark"
         item_cat+=("1"); item_letter+=("$letter"); item_name+=("$name")
         case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
@@ -1540,7 +1540,7 @@ interactive_select() {
         [[ -n "$small" ]] && small_str=" [小模型: $small]"
         [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
         [[ "$marker" == "◀" ]] && curr_mark="  ${LIGHT_BLUE}◀ 当前${NC}"
-        printf "  ${BOLD}%d${NC}${BOLD_GREEN}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
+        printf "  ${BOLD_GREEN}%d%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
             2 "$letter" "$display_name" "$model" "$small_str" "$route_str" "$curr_mark"
         item_cat+=("2"); item_letter+=("$letter"); item_name+=("$name")
         case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
@@ -1548,10 +1548,10 @@ interactive_select() {
 
     # ── 配置 ──
     echo -e "  ${BOLD_GRAY}--llm 配置--${NC}"
-    printf "  ${BOLD}3${NC}${BOLD_GREEN}A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义 preset" "输入任意 base_url + model + key"
-    printf "  ${BOLD}3${NC}${BOLD_GREEN}B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义 preset" "删除已保存的自定义预设"
-    printf "  ${BOLD}3${NC}${BOLD_GREEN}C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
-    printf "  ${BOLD}3${NC}${BOLD_GREEN}D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
+    printf "  ${BOLD_GREEN}3A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义 preset" "输入任意 base_url + model + key"
+    printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义 preset" "删除已保存的自定义预设"
+    printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
+    printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
     echo ""
     printf "  输入 (如 1A, 2B, 3C) 或数字 (如 1=内建首项) 选择: "
     read -r choice
