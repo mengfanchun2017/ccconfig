@@ -1482,20 +1482,6 @@ _llm_status_header() {
         echo -e "  ${LIGHT_BLUE}生效: 未配置${NC}"
     fi
 
-    # 检测运行模式：bridge vs gateway vs 直连
-    local mode_display="${LIGHT_BLUE}○ 直连${NC}"
-    if is_proxy_running; then
-        local health=$(get_proxy_health)
-        local mode=$(echo "$health" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('mode','?'))" 2>/dev/null || echo "?")
-        local route=$(echo "$health" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('current_route','?'))" 2>/dev/null || echo "?")
-        mode_display="${LIGHT_BLUE}● gateway 模式: $route  (mode=$mode)${NC}"
-    elif curl -s --max-time 1 "http://127.0.0.1:8898/health" >/dev/null 2>&1; then
-        local up=$(curl -s --max-time 1 "http://127.0.0.1:8898/health" 2>/dev/null | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream','?')+'|'+d.get('upstream_model','?'))" 2>/dev/null || echo "?|?")
-        local up_base="${up%%|*}"
-        local up_model="${up#*|}"
-        mode_display="${LIGHT_BLUE}● bridge 模式: $up_model${NC}"
-    fi
-    echo -e "  模式: $mode_display"
     echo -e ""
 }
 
@@ -1553,7 +1539,7 @@ interactive_select() {
     printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
     printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
     echo ""
-    printf "  输入 (如 1A, 2B, 3C) 或数字 (如 1=内建首项) 选择: "
+    printf "  ${BOLD_GREEN}输入 (如 1A, 2B, 3C) 或数字 (如 1=内建首项) 选择: ${NC}"
     read -r choice
 
     if [[ -z "$choice" ]]; then

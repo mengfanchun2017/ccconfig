@@ -3,7 +3,7 @@
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-LIGHT_BLUE='\033[1;94m'   # 状态/当前标记（浅蓝）
+LIGHT_BLUE='\033[96m'    # 状态/当前标记（亮青，深色终端可见）
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 BLUE='\033[0;34m'
@@ -31,7 +31,7 @@ error()   { err "$@"; }
 if ! type ok &>/dev/null 2>/dev/null; then
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; BLUE='\033[0;34m'; BOLD='\033[1m'
-    BOLD_BLUE='\033[1;34m'; BOLD_GREEN='\033[1;32m'; LIGHT_BLUE='\033[1;94m'
+    BOLD_BLUE='\033[1;34m'; BOLD_GREEN='\033[1;32m'; LIGHT_BLUE='\033[96m'
     BOLD_GRAY='\033[1;90m'; GRAY='\033[0;90m'; DIM='\033[2m'; NC='\033[0m'
     ok()    { echo -e "  ${GREEN}$1${NC}"; }
     err()   { echo -e "  ${RED}$1${NC}"; }
