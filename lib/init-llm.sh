@@ -1524,12 +1524,12 @@ interactive_select() {
         local letter="A"
         for entry in "${ref[@]}"; do
             IFS='|' read -r name display_name model small marker base_url <<< "$entry"
-            local small_str="" route_str="" curr_mark=""
+            local small_str="" route_str="" curr_str=""
             [[ -n "$small" ]] && small_str=" [小模型: $small]"
             [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE")"
-            [[ "$marker" == "◀" ]] && curr_mark="  ${BOLD_BLUE}◀ 当前${NC}"
-            printf "  ${BOLD}%d${NC} ${BOLD_BLUE}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
-                "$cat" "$letter" "$display_name" "$model" "$small_str" "$route_str" "$curr_mark"
+            local curr_mark=""
+            [[ "$marker" == "◀" ]] && curr_mark="${BOLD_BLUE} ◀ 当前${NC}"
+            echo -e "  ${BOLD}${cat}${NC} ${BOLD_BLUE}${letter}${NC}  ${display_name}${small_str}${route_str}${curr_mark}"
             item_cat+=("$cat")
             item_letter+=("$letter")
             item_name+=("$name")
