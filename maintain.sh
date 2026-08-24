@@ -28,21 +28,23 @@ source "$LIB_DIR/menu-data-maintain.sh"
 
 _submenu_monitor() {
     local c; c=$(menu_select "Monitor" \
+        "LLM 链路诊断" \
+        "查看日志" \
+        "状态查看" \
         "启动" \
         "停止" \
-        "看状态" \
-        "追踪" \
-        "文件变更" \
+        "重启" \
         "修复" \
         "返回")
     [[ -z "$c" ]] && return
     case "$c" in
-        1) bash "$LIB_DIR/monitor.sh" start ;;
-        2) bash "$LIB_DIR/monitor.sh" stop ;;
+        1) bash "$SCRIPT_DIR/lib/init-llm.sh" status ;;
+        2) bash "$LIB_DIR/monitor.sh" log ;;
         3) bash "$LIB_DIR/monitor.sh" status ;;
-        4) bash "$LIB_DIR/monitor.sh" tail ;;
-        5) bash "$LIB_DIR/monitor.sh" monitor ;;
-        6) fix_monitor ;;
+        4) bash "$LIB_DIR/monitor.sh" start ;;
+        5) bash "$LIB_DIR/monitor.sh" stop ;;
+        6) bash "$LIB_DIR/monitor.sh" stop; sleep 1; bash "$LIB_DIR/monitor.sh" start ;;
+        7) fix_monitor ;;
     esac
 }
 
