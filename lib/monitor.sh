@@ -708,6 +708,17 @@ status_watch() {
         echo -e "${GRAY}－${NC} not running"
     fi
 
+    # Bridge (8898) — 仅在 settings.json 指向 bridge 时检查
+    if grep -q '127.0.0.1:8898' "$HOME/.claude/settings.json" 2>/dev/null; then
+        echo -n "  Bridge (8898) ... "
+        if curl -s --max-time 2 http://127.0.0.1:8898/health >/dev/null 2>&1; then
+            local up=$(curl -s --max-time 1 http://127.0.0.1:8898/health 2>/dev/null | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
+            echo -e "${GREEN}✅${NC} → $up"
+        else
+            echo -e "${RED}❌${NC} — bash init-llm.sh heal"
+        fi
+    fi
+
     # systemd 自启动
     local user_svc="$HOME/.config/systemd/user/claude-auto-sync.service"
     local sys_svc="/etc/systemd/system/claude-auto-sync.service"
