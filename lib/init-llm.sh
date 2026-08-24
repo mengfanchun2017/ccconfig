@@ -1516,30 +1516,37 @@ interactive_select() {
         fi
     done < <(echo "$lines")
 
-    _render_llm_group() {
-        local cat="$1"
-        local -n ref="$2"
-        local label="$3"
-        echo -e "  ${BOLD_GRAY}--$label--${NC}"
-        local letter="A"
-        for entry in "${ref[@]}"; do
-            IFS='|' read -r name display_name model small marker base_url <<< "$entry"
-            local small_str="" route_str="" curr_str=""
-            [[ -n "$small" ]] && small_str=" [小模型: $small]"
-            [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE")"
-            local curr_mark=""
-            [[ "$marker" == "◀" ]] && curr_mark="${BOLD_BLUE} ◀ 当前${NC}"
-            echo -e "  ${BOLD}${cat}${NC} ${BOLD_BLUE}${letter}${NC}  ${display_name}${small_str}${route_str}${curr_mark}"
-            item_cat+=("$cat")
-            item_letter+=("$letter")
-            item_name+=("$name")
-            case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
-        done
-    }
+    # ── 渲染内建 llm ──
+    echo -e "  ${BOLD_GRAY}--内建 llm--${NC}"
+    local letter="A"
+    for entry in "${builtin_r[@]}"; do
+        IFS='|' read -r name display_name model small marker base_url <<< "$entry"
+        local small_str="" route_str="" curr_mark=""
+        [[ -n "$small" ]] && small_str=" [小模型: $small]"
+        [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
+        [[ "$marker" == "◀" ]] && curr_mark="  ${BOLD_BLUE}◀ 当前${NC}"
+        printf "  ${BOLD}%d${NC} ${BOLD_BLUE}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
+            1 "$letter" "$display_name" "$model" "$small_str" "$route_str" "$curr_mark"
+        item_cat+=("1"); item_letter+=("$letter"); item_name+=("$name")
+        case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
+    done
 
-    _render_llm_group 1 builtin_r "内建 llm"
-    _render_llm_group 2 custom_r "自定义 llm"
+    # ── 渲染自定义 llm ──
+    echo -e "  ${BOLD_GRAY}--自定义 llm--${NC}"
+    letter="A"
+    for entry in "${custom_r[@]}"; do
+        IFS='|' read -r name display_name model small marker base_url <<< "$entry"
+        local small_str="" route_str="" curr_mark=""
+        [[ -n "$small" ]] && small_str=" [小模型: $small]"
+        [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
+        [[ "$marker" == "◀" ]] && curr_mark="  ${BOLD_BLUE}◀ 当前${NC}"
+        printf "  ${BOLD}%d${NC} ${BOLD_BLUE}%s${NC}  %-18s ${DIM}(%s)${NC}%s%s%s\n" \
+            2 "$letter" "$display_name" "$model" "$small_str" "$route_str" "$curr_mark"
+        item_cat+=("2"); item_letter+=("$letter"); item_name+=("$name")
+        case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
+    done
 
+    # ── 配置 ──
     echo -e "  ${BOLD_GRAY}--llm 配置--${NC}"
     printf "  ${BOLD}3${NC} ${BOLD_BLUE}A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义 preset" "输入任意 base_url + model + key"
     printf "  ${BOLD}3${NC} ${BOLD_BLUE}B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义 preset" "删除已保存的自定义预设"
