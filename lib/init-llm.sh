@@ -1376,6 +1376,94 @@ PYEOF
 }
 
 
+# ========== Heal (手动跑 selfheal) ==========
+# 当 SessionStart hook 没及时跑 / 用户不想重启 Claude Code 时，手动拉起 bridge
+# 等价于 status.sh 的 check_bridge_selfheal()，但只跑这一个检查，不刷完整状态
+# 用法: bash init-llm.sh heal
+heal_bridge() {
+    info "── bridge / tunnel 自愈 ──"
+
+    local cfg="$CONFIG_FILE"
+    local cur
+    cur="$(python3 -c "import json; print(json.load(open('$cfg')).get('current',''))" 2>/dev/null)" || {
+        warn "无法读取 llm.json current"
+        return 1
+    }
+    [[ -z "$cur" ]] && { info "llm.json current 为空，无需自愈"; return 0; }
+    info "  current preset: $cur"
+
+    # settings.json 不指向 127.0.0.1:8898 → 不需要 bridge / 隧道
+    if ! grep -q '127.0.0.1:8898' "$HOME/.claude/settings.json" 2>/dev/null; then
+        info "  settings.json 不指向 bridge (127.0.0.1:8898)，无需自愈"
+        return 0
+    fi
+
+    # 解析当前 preset 的 ssh_tunnel 配置（如果有）
+    local tunnel_info
+    tunnel_info=$(python3 - "$cfg" "$cur" << 'PYEOF' 2>/dev/null
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+    llm = d.get('llms', {}).get(sys.argv[2], {})
+    t = llm.get('ssh_tunnel', {})
+    host = t.get('host') or t.get('ssh_host', '')
+    if host and t.get('remote'):
+        print(f"{host}|{t.get('port',22)}|{t.get('user','')}|{t['remote']}|{t.get('listen_port',8890)}")
+    else:
+        sys.exit(1)
+except:
+    sys.exit(1)
+PYEOF
+    ) || true
+
+    # SSH 隧道自愈
+    if [[ -n "$tunnel_info" ]]; then
+        if ! tmux has-session -t "altllm-tunnel" 2>/dev/null; then
+            IFS='|' read -r host port user remote listen_port <<< "$tunnel_info"
+            warn "  SSH 隧道未运行 (altllm-tunnel)，拉起..."
+            if start_ssh_tunnel "$host" "$port" "$user" "$remote" "$listen_port"; then
+                success "  SSH 隧道已拉起"
+            else
+                error "  SSH 隧道拉起失败"
+                return 1
+            fi
+        else
+            info "  SSH 隧道已在运行 (altllm-tunnel)"
+        fi
+    fi
+
+    # bridge 自愈
+    if curl -s --max-time 2 http://127.0.0.1:8898/health >/dev/null 2>&1; then
+        success "  bridge (8898) 已响应"
+        return 0
+    fi
+
+    warn "  bridge (8898) 未响应，拉起..."
+    if [[ -n "$tunnel_info" ]]; then
+        # SSH 隧道场景：bridge 指向本地隧道端口
+        local config; config=$(get_llm_config "$cur") || { error "  无法读取 $cur 配置"; return 1; }
+        IFS='|' read -r _ model key _ <<< "$config"
+        IFS='|' read -r _ _ _ _ listen_port <<< "$tunnel_info"
+        if start_tunnel_bridge "$listen_port" "$model" "$key"; then
+            success "  隧道桥接已拉起 → 127.0.0.1:8898"
+        else
+            error "  桥接拉起失败，运行: bash init-llm.sh switch $cur"
+            return 1
+        fi
+    else
+        # 普通 OpenAI-only 端点：用 ensure_bridge
+        local bc; bc="$(read_bridge_config "$cfg" "$cur")" || { error "  无法读取 $cur bridge 配置"; return 1; }
+        IFS='|' read -r base_url model key <<< "$bc"
+        if ensure_bridge "$base_url" "$model" "$key"; then
+            success "  bridge 已拉起 ($cur) → 127.0.0.1:8898"
+        else
+            error "  bridge 拉起失败，运行: bash init-llm.sh switch $cur"
+            return 1
+        fi
+    fi
+}
+
+
 # ========== 交互式选择 ==========
 interactive_select() {
     local lines=$(list_llms)
@@ -1495,6 +1583,9 @@ main() {
     elif [[ "$cmd" == "sync" ]]; then
         # 同步 settings.json 顶层 model 为 env.ANTHROPIC_MODEL（修 /model 污染）
         sync_llm_config
+    elif [[ "$cmd" == "heal" ]]; then
+        # 手动 selfheal：拉起死掉的 bridge / SSH 隧道（无需重启 Claude Code）
+        heal_bridge
     elif [[ -z "$cmd" ]]; then
         # 无参数：交互式选择
         interactive_select
