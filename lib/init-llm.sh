@@ -1513,11 +1513,11 @@ interactive_select() {
     for entry in "${builtin_r[@]}"; do
         IFS='|' read -r name display_name model small marker base_url <<< "$entry"
         local small_str="" route_str=""
-        [[ -n "$small" ]] && small_str=" [小模型: $small]"
+        [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
         [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
         local curr_str=""
         [[ "$marker" == "◀" ]] && curr_str="  ${LIGHT_BLUE}◀ 当前${NC}"
-        echo -e "  ${BOLD_GREEN}1${letter}${NC}  ${display_name} ${DIM}(${model})${NC}${small_str}${route_str}${curr_str}"
+        echo -e "  ${BOLD_GREEN}1${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}${curr_str}"
         item_cat+=("1"); item_letter+=("$letter"); item_name+=("$name")
         case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
     done
@@ -1528,11 +1528,11 @@ interactive_select() {
     for entry in "${custom_r[@]}"; do
         IFS='|' read -r name display_name model small marker base_url <<< "$entry"
         local small_str="" route_str=""
-        [[ -n "$small" ]] && small_str=" [小模型: $small]"
+        [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
         [[ "$name" == "gateway" ]] && route_str="  — $(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)"
         local curr_str=""
         [[ "$marker" == "◀" ]] && curr_str="  ${LIGHT_BLUE}◀ 当前${NC}"
-        echo -e "  ${BOLD_GREEN}2${letter}${NC}  ${display_name} ${DIM}(${model})${NC}${small_str}${route_str}${curr_str}"
+        echo -e "  ${BOLD_GREEN}2${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}${curr_str}"
         item_cat+=("2"); item_letter+=("$letter"); item_name+=("$name")
         case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
     done
