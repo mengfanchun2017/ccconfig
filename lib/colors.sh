@@ -20,6 +20,7 @@ err()   { echo -e "  ${RED}❌ $1${NC}"; }
 warn()  { echo -e "  ${YELLOW}⚠  $1${NC}"; }
 info()  { echo -e "  ${GRAY}$1${NC}"; }
 section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
+banner() { echo -e "${BOLD}━━━ $1 ━━━${NC}"; }
 # 旧名别名（兼容）
 good()  { ok "$@"; }
 bad()   { err "$@"; }
@@ -38,4 +39,5 @@ if ! type ok &>/dev/null 2>/dev/null; then
     warn()  { echo -e "  ${YELLOW}⚠  $1${NC}"; }
     info()  { echo -e "  ${GRAY}$1${NC}"; }
     section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
+    banner() { echo -e "${BOLD}━━━ $1 ━━━${NC}"; }
 fi
