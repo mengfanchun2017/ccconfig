@@ -671,6 +671,24 @@ with open(p, 'w') as f: json.dump(d, f, indent=4)
     fi
 }
 
+# ========== 旧链路清理（全局函数，新链路就绪后调用）==========
+stop_old_link() {
+    if is_ssh_tunnel_running; then
+        info "停止旧 SSH 隧道..."
+        stop_ssh_tunnel
+    fi
+    stop_tmux_bridge
+    if is_proxy_running; then
+        info "停止旧网关代理..."
+        local wpid="$HOME/.cache/llmswitch-watchdog.pid"
+        if [ -f "$wpid" ]; then
+            kill "$(cat "$wpid")" 2>/dev/null || true
+            rm -f "$wpid"
+        fi
+        bash "$LLMSWITCH_INIT" --stop 2>/dev/null || true
+    fi
+}
+
 # ========== 切换 LLM ==========
 switch_llm() {
     local name="$1"
@@ -689,6 +707,8 @@ switch_llm() {
             return $?
             ;;
         altllm_tail)
+            # 切到 altllm_tail 前停旧链路（proxy/watchdog/tunnel/bridge）
+            stop_old_link
             local tconfig=$(get_llm_config "$name") || { error "无法获取 altllm_tail 配置"; return 1; }
             IFS='|' read -r _ tmodel tkey tsmall <<< "$tconfig"
             # SSH 隧道配置从 llm.json 解析
@@ -746,24 +766,6 @@ PYEOF
         has_tunnel=true
     fi
 
-    # 旧链路清理函数（新链路就绪后调用）
-    _stop_old_link() {
-        if is_ssh_tunnel_running; then
-            info "停止旧 SSH 隧道..."
-            stop_ssh_tunnel
-        fi
-        stop_tmux_bridge
-        if is_proxy_running; then
-            info "停止旧网关代理..."
-            local wpid="$HOME/.cache/llmswitch-watchdog.pid"
-            if [ -f "$wpid" ]; then
-                kill "$(cat "$wpid")" 2>/dev/null || true
-                rm -f "$wpid"
-            fi
-            bash "$LLMSWITCH_INIT" --stop 2>/dev/null || true
-        fi
-    }
-
     local need_stop_old=true
 
     # SSH 隧道模式：先启隧道，再启 bridge 转发到本地端口
@@ -771,7 +773,7 @@ PYEOF
         info "检测到 SSH 隧道配置: ${tunnel_user}@${tunnel_host}:${tunnel_port} → ${tunnel_remote}"
         # 端口冲突检测：新旧 tunnel 同端口时需先停旧
         if is_ssh_tunnel_running && ss -tlnp 2>/dev/null | grep -q ":$tunnel_listen_port "; then
-            _stop_old_link
+            stop_old_link
             need_stop_old=false
         fi
         start_ssh_tunnel "$tunnel_host" "$tunnel_port" "$tunnel_user" "$tunnel_remote" "$tunnel_listen_port" || {
@@ -801,7 +803,7 @@ PYEOF
 
     # 新链路就绪后清理旧链路（减少切换瞬断窗口）
     if $need_stop_old; then
-        _stop_old_link
+        stop_old_link
     fi
 
     # 停 bridge 进程（仅当新链路不需要 bridge 且旧 bridge 在运行）
