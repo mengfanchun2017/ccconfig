@@ -770,7 +770,13 @@ PYEOF
         if ! tmux has-session -t "altllm-tunnel" 2>/dev/null; then
             IFS='|' read -r host port user remote listen_port <<< "$tunnel_info"
             warn "  [tunnel] SSH 隧道未运行 ($cur)，自动拉起..."
-            source "$SCRIPT_DIR/../lib/init-llm.sh" 2>/dev/null || return 0
+            # source init-llm.sh 获取 start_ssh_tunnel，预屏蔽顶层的 exit 1
+            local _init_llm="$SCRIPT_DIR/../lib/init-llm.sh"
+            eval "$(sed 's/|| exit 1//g' "$_init_llm" 2>/dev/null)" 2>/dev/null || { warn "  [tunnel] init-llm.sh 加载失败"; return 0; }
+            if ! declare -f start_ssh_tunnel &>/dev/null; then
+                warn "  [tunnel] init-llm.sh 加载失败"
+                return 0
+            fi
             start_ssh_tunnel "$host" "$port" "$user" "$remote" "$listen_port" || {
                 warn "  [tunnel] 自动拉起失败，运行: bash init-llm.sh switch $cur"
                 return 0
@@ -784,7 +790,12 @@ PYEOF
         warn "  [bridge] 未响应，自动拉起..."
         if [[ -n "$tunnel_info" ]]; then
             # SSH 隧道场景：bridge 指向本地隧道端口，用 init-llm.sh 的 start_tunnel_bridge
-            source "$SCRIPT_DIR/../lib/init-llm.sh" 2>/dev/null || return 0
+            local _init_llm2="$SCRIPT_DIR/../lib/init-llm.sh"
+            eval "$(sed 's/|| exit 1//g' "$_init_llm2" 2>/dev/null)" 2>/dev/null || { warn "  [bridge] init-llm.sh 加载失败"; return 0; }
+            if ! declare -f get_llm_config &>/dev/null || ! declare -f start_tunnel_bridge &>/dev/null; then
+                warn "  [bridge] init-llm.sh 加载失败"
+                return 0
+            fi
             local config
             config=$(get_llm_config "$cur") || return 0
             IFS='|' read -r _ model key _ <<< "$config"

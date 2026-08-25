@@ -38,7 +38,7 @@ setup_link() {
         run rm -f "$link"
     fi
     run ln -sf "$target" "$link"
-    ok"$name: 已链接"
+    ok "$name: 已链接"
 }
 
 setup_symlinks() {
@@ -69,7 +69,7 @@ setup_symlinks() {
         else
             [[ -e "$git_hook" ]] && run rm -f "$git_hook"
             run ln -sf "$hook_src" "$git_hook"
-            ok"pre-commit hook: 已安装"
+            ok "pre-commit hook: 已安装"
         fi
     fi
 }
