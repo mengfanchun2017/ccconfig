@@ -1,10 +1,10 @@
 #!/bin/bash
-# maintain2.sh — ccconfig 运维入口（数据驱动菜单）
+# maintain.sh — ccconfig 运维入口（数据驱动菜单）
 #
 # 用法：
-#   bash maintain2.sh                  # 交互菜单
-#   bash maintain2.sh status           # 直接执行子命令
-#   bash maintain2.sh fix              # 一键修复
+#   bash maintain.sh                  # 交互菜单
+#   bash maintain.sh status           # 直接执行子命令
+#   bash maintain.sh fix              # 一键修复
 #
 # 数据层: menu-data-maintain.sh
 # 渲染/解析: interact.sh menu_loop
@@ -12,7 +12,7 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# 保持 maintain2.sh 在 ccconfig 根目录，SCRIPT_DIR 指向根目录
+# 保持 maintain.sh 在 ccconfig 根目录，SCRIPT_DIR 指向根目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/lib"
 CCCONFIG_DIR="$SCRIPT_DIR"
@@ -489,6 +489,6 @@ case "${1:-menu}" in
     upgrade-ccprivate|upgrade-ccpriv|ccpriv-upgrade)
         shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
     *)
-        echo "用法: bash maintain2.sh [status|self|upgrade|sync|monitor|deps|fix|...]"
+        echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|...]"
         exit 1 ;;
 esac

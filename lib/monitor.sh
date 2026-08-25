@@ -458,8 +458,8 @@ start_watch() {
                 *"_ext/"*) continue ;;
             esac
             # Check if file is under a tracked git repo
-            local filepath=$(echo "$line" | awk '{print $1}')
-            local repo_root
+            local filepath repo_root
+            filepath=$(echo "$line" | awk '{print $1}')
             repo_root=$(get_repo_root "$filepath" 2>/dev/null) || continue
             # Skip repos without remote
             git -C "$repo_root" remote get-url origin &>/dev/null 2>&1 || continue
