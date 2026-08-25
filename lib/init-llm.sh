@@ -376,21 +376,36 @@ _verify_endpoint() {
     # 仅探 /health 不够——bridge 活着不代表 upstream 可达
     if [[ "$base_url" == *"://127.0.0.1"* ]]; then
         local port="${base_url##*:}"; port="${port%%/*}"
-        local h=$(curl -s --max-time 3 "http://127.0.0.1:${port}/health" 2>/dev/null)
+        # health 探测：retry 3 次×2s（cold start / tunnel 慢启动场景）
+        local h=""
+        for i in 1 2 3; do
+            h=$(curl -s --max-time 3 "http://127.0.0.1:${port}/health" 2>/dev/null)
+            [[ -n "$h" ]] && break
+            sleep 2
+        done
         if [[ -z "$h" ]]; then
             error "  ✗ 本地 bridge (port $port) 无响应 — bridge 进程可能挂了"
             return 1
         fi
         # 真实 probe：bridge → upstream 全链路
         # 注意：curl timeout 时 -w "%{http_code}" 仍输出 "000"（拼 || echo "000" 会变 "000000"）
-        local upstream_status
-        upstream_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
-            -X POST "${base_url%/}/v1/messages" \
-            -H "Content-Type: application/json" \
-            -H "anthropic-version: 2023-06-01" \
-            -H "Authorization: Bearer $api_key" \
-            -d "{\"model\":\"$model_name\",\"max_tokens\":5,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null)
-        [[ -z "$upstream_status" || "$upstream_status" =~ ^0+$ ]] && upstream_status="000"
+        # cold start 时 SSH tunnel 可能还没建好，retry 3 次×15s
+        local upstream_status="000"
+        for i in 1 2 3; do
+            upstream_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+                -X POST "${base_url%/}/v1/messages" \
+                -H "Content-Type: application/json" \
+                -H "anthropic-version: 2023-06-01" \
+                -H "Authorization: Bearer $api_key" \
+                -d "{\"model\":\"$model_name\",\"max_tokens\":5,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null)
+            [[ -z "$upstream_status" || "$upstream_status" =~ ^0+$ ]] && upstream_status="000"
+            # 200/4xx 说明链路通，直接返回；5xx/000 重试
+            case "$upstream_status" in
+                200|400|401|403) break ;;
+            esac
+            info "  ↻ probe 第 $i 次未通（$upstream_status），2s 后重试"
+            sleep 2
+        done
         case "$upstream_status" in
             200) info "  ✓ bridge → upstream 探测成功 ($name)"; return 0 ;;
             000|502|503|504)
