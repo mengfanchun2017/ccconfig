@@ -1422,7 +1422,25 @@ heal_bridge() {
     [[ -z "$cur" ]] && { info "llm.json current 为空，无需自愈"; return 0; }
     info "  current preset: $cur"
 
+    # altllm_tail 独立链路：用 tail-llm.sh 自愈
+    if [[ "$cur" == "altllm_tail" ]]; then
+        source "$CCCONFIG_ROOT/lib/tail-llm.sh"
+        if tail_status >/dev/null 2>&1; then
+            success "  altllm_tail 链路已响应"
+            return 0
+        fi
+        warn "  altllm_tail 链路未响应，拉起..."
+        if tail_start; then
+            success "  altllm_tail 链路已拉起"
+            return 0
+        else
+            error "  altllm_tail 拉起失败，运行: bash lib/tail-llm.sh start"
+            return 1
+        fi
+    fi
+
     # settings.json 不指向 127.0.0.1:8898 → 不需要 bridge / 隧道
+    local bridge_port="8898"
     if ! grep -q '127.0.0.1:8898' "$HOME/.claude/settings.json" 2>/dev/null; then
         info "  settings.json 不指向 bridge (127.0.0.1:8898)，无需自愈"
         return 0
@@ -1463,19 +1481,19 @@ PYEOF
     fi
 
     # bridge 自愈
-    if curl -s --max-time 2 http://127.0.0.1:8898/health >/dev/null 2>&1; then
-        success "  bridge (8898) 已响应"
+    if curl -s --max-time 2 "http://127.0.0.1:${bridge_port}/health" >/dev/null 2>&1; then
+        success "  bridge (${bridge_port}) 已响应"
         return 0
     fi
 
-    warn "  bridge (8898) 未响应，拉起..."
+    warn "  bridge (${bridge_port}) 未响应，拉起..."
     if [[ -n "$tunnel_info" ]]; then
         # SSH 隧道场景：bridge 指向本地隧道端口
         local config; config=$(get_llm_config "$cur") || { error "  无法读取 $cur 配置"; return 1; }
         IFS='|' read -r _ model key _ <<< "$config"
         IFS='|' read -r _ _ _ _ listen_port <<< "$tunnel_info"
         if start_tunnel_bridge "$listen_port" "$model" "$key"; then
-            success "  隧道桥接已拉起 → 127.0.0.1:8898"
+            success "  隧道桥接已拉起 → 127.0.0.1:${bridge_port}"
         else
             error "  桥接拉起失败，运行: bash init-llm.sh switch $cur"
             return 1
@@ -1485,7 +1503,7 @@ PYEOF
         local bc; bc="$(read_bridge_config "$cfg" "$cur")" || { error "  无法读取 $cur bridge 配置"; return 1; }
         IFS='|' read -r base_url model key <<< "$bc"
         if ensure_bridge "$base_url" "$model" "$key"; then
-            success "  bridge 已拉起 ($cur) → 127.0.0.1:8898"
+            success "  bridge 已拉起 ($cur) → 127.0.0.1:${bridge_port}"
         else
             error "  bridge 拉起失败，运行: bash init-llm.sh switch $cur"
             return 1
