@@ -566,6 +566,20 @@ write_json(sf, updater)
 print("~/.claude/settings.json 已更新")
 PYEOF
 
+    # altllm_tail 继承 key 回写（llm.json 占位符 → 真实 key）
+    if [[ "$name" == "altllm_tail" && -n "$api_key" ]]; then
+        python3 - "$CONFIG_FILE" "$api_key" << 'PYEOF'
+import json, sys
+path, key = sys.argv[1], sys.argv[2]
+with open(path) as f: d = json.load(f)
+t = d.get('llms', {}).get('altllm_tail', {})
+if t.get('key', '') != key:
+    t['key'] = key
+    with open(path, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
+    print("  altllm_tail key 已同步写入 llm.json（继承自 altllm）")
+PYEOF
+    fi
+
     success "LLM 已切换为: $name"
 
     # 验证 endpoint 可达性（探测失败则回滚到切换前状态）
@@ -726,7 +740,9 @@ TAILPY
             ) || { error "altllm_tail SSH 隧道配置不完整"; return 1; }
             IFS='|' read -r thost tport tuser tremote <<< "$tail_cfg"
             # altllm_tail 走独立链路脚本（Tailscale → SSH 隧道 → tail bridge）
+            local _saved_script_dir="$SCRIPT_DIR"
             source "$CCCONFIG_ROOT/lib/tail-llm.sh"
+            SCRIPT_DIR="$_saved_script_dir"
             if tail_start "$thost" "$tport" "$tuser" "$tremote" "$tmodel" "$tkey"; then
                 info "altllm_tail 链路就绪，写入配置..."
                 _write_llm_config "$name" "http://127.0.0.1:8895" "$tmodel" "$tsmall" "$tkey"
@@ -1424,7 +1440,9 @@ heal_bridge() {
 
     # altllm_tail 独立链路：用 tail-llm.sh 自愈
     if [[ "$cur" == "altllm_tail" ]]; then
+        local _saved_sd="$SCRIPT_DIR"
         source "$CCCONFIG_ROOT/lib/tail-llm.sh"
+        SCRIPT_DIR="$_saved_sd"
         if tail_status >/dev/null 2>&1; then
             success "  altllm_tail 链路已响应"
             return 0
