@@ -489,59 +489,84 @@ check_option_components() {
         "--os--|bat glow nano"
         "--claude--|mcp skill"
         "--lark--|larkcli ccbridge"
-        "--other--|officecli remote cloudflare"
+        "--other--|$(ls -d "$REPO_DIR"/option-*/ 2>/dev/null | xargs -n1 basename | sed 's/^option-//' | grep -vE '^(larkcli|usage|getnote|llmswitch|officecli|remote|cloudflare)$' | tr '\n' ' ')"
         "--key--|feishu_key"
     )
+
+    # 自动发现 option-* 组件
+    local auto_opts=()
+    while IFS= read -r d; do
+        local name="${d#option-}"
+        auto_opts+=("$name")
+    done < <(ls -d "$REPO_DIR"/option-*/ 2>/dev/null | xargs -n1 basename)
 
     for group_entry in "${groups[@]}"; do
         local group_title="${group_entry%%|*}"
         local group_items="${group_entry#*|}"
+        [ -z "$group_items" ] && continue
 
         echo -e "  ${BOLD}${group_title}${NC}"
 
         for name in $group_items; do
-            # 检测是否存在
-            case "$name" in
-                mcp|feishu_key|ccbridge) ;;
-                bat|glow|nano) ;;
-                *) [ -d "$REPO_DIR/option-$name" ] || continue ;;
-            esac
             found=$((found + 1))
-
             icon="" detail=""
-            if [ "$name" = "mcp" ]; then
-                local claude_json="$HOME/.claude/.config.json"
-                if [ -f "$claude_json" ]; then
-                    local count=$(python3 -c "import json; d=json.load(open('$claude_json')); print(len(d.get('mcpServers',{})))" 2>/dev/null || echo "0")
-                    [ "$count" -gt 0 ] && { icon="ok"; detail="$count 个 MCP 服务器"; } || { icon="miss"; detail="MCP 未配置（bash lib/init-mcp.sh sync）"; }
-                else
-                    icon="miss"; detail="mcp-servers.json 未找到"
-                fi
-            elif [ "$name" = "ccbridge" ]; then
-                local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
-                if [ -f "$ccbridge_init" ]; then
-                    local jout; jout=$(bash "$ccbridge_init" --status --json 2>/dev/null) || true
-                    if [ -n "$jout" ]; then
-                        local installed=$(echo "$jout" | python3 -c "import json,sys; print(json.load(sys.stdin).get('installed',False))" 2>/dev/null || echo "False")
-                        local v=$(echo "$jout" | python3 -c "import json,sys; print(json.load(sys.stdin).get('version',''))" 2>/dev/null || echo "?")
-                        local pc=$(echo "$jout" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('profiles',[])))" 2>/dev/null || echo "0")
-                        if [ "$installed" = "True" ]; then
-                            icon="ok"; detail="[$v] $pc profile(s)"
-                        else
-                            icon="warn"; detail="[$v] 未启动"
-                        fi
-                    else
-                        icon="?"; detail="ccbridge 已安装"
-                    fi
-                else
-                    icon="miss"; detail="ccbridge 未安装（git clone ~/git/ccbridge）"
-                fi
-            elif [ "$name" = "feishu_key" ]; then
-                local feishu_conf
-                feishu_conf=$(resolve_conf feishu.json 2>/dev/null) || { icon="miss"; detail="ccprivate/conf/feishu.json 不存在"; }
-                if [ -z "$icon" ]; then
-                    local fk_out
-                    fk_out=$(python3 - "$feishu_conf" << 'PYEOF' 2>/dev/null
+            _check_component "$name"
+            _print_option "$name" "$icon" "$detail"
+
+            if [ "$name" = "remote" ]; then
+                local out; out=$(bash "$REPO_DIR/option-remote/init.sh" --status 2>&1) || true
+                echo "$out" | sed 's/\x1b\[[0-9;]*[mK]//g' | grep -vE '^[[:space:]]*$' | tail -n +2 | while IFS= read -r sub; do
+                    echo "      $sub"
+                done
+            fi
+        done
+    done
+
+    # 自动发现的 option 不在分组中的也显示
+    local handled="mcp skill larkcli ccbridge officecli remote cloudflare usage getnote llmswitch feishu_key bat glow nano"
+    for name in "${auto_opts[@]}"; do
+        if ! echo " $handled " | grep -q " $name "; then
+            found=$((found + 1))
+            icon="" detail=""
+            _check_component "$name"
+            _print_option "$name" "$icon" "$detail"
+        fi
+    done
+
+    if [ $found -eq 0 ]; then
+        echo -e "  ${GRAY}(无可选组件)${NC}"
+    fi
+    echo ""
+}
+
+# 子函数：检测单个组件状态
+_check_component() {
+    local name="$1"
+    case "$name" in
+        mcp)
+            local claude_json="$HOME/.claude/.config.json"
+            if [ -f "$claude_json" ]; then
+                local count=$(python3 -c "import json; d=json.load(open('$claude_json')); print(len(d.get('mcpServers',{})))" 2>/dev/null || echo "0")
+                [ "$count" -gt 0 ] && { icon="ok"; detail="$count 个 MCP 服务器"; } || { icon="miss"; detail="MCP 未配置（bash lib/init-mcp.sh sync）"; }
+            else
+                icon="miss"; detail="mcp-servers.json 未找到"
+            fi ;;
+        ccbridge)
+            local init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
+            if [ -f "$init" ]; then
+                local jout; jout=$(bash "$init" --status --json 2>/dev/null) || true
+                if [ -n "$jout" ]; then
+                    local installed=$(echo "$jout" | python3 -c "import json,sys; print(json.load(sys.stdin).get('installed',False))" 2>/dev/null || echo "False")
+                    local v=$(echo "$jout" | python3 -c "import json,sys; print(json.load(sys.stdin).get('version',''))" 2>/dev/null || echo "?")
+                    local pc=$(echo "$jout" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('profiles',[])))" 2>/dev/null || echo "0")
+                    if [ "$installed" = "True" ]; then icon="ok"; detail="[$v] $pc profile(s)"
+                    else icon="warn"; detail="[$v] 未启动"; fi
+                else icon="?"; detail="ccbridge 已安装"; fi
+            else icon="miss"; detail="ccbridge 未安装（git clone ~/git/ccbridge）"; fi ;;
+        feishu_key)
+            local feishu_conf; feishu_conf=$(resolve_conf feishu.json 2>/dev/null) || { icon="miss"; detail="ccprivate/conf/feishu.json 不存在"; return; }
+            local fk_out
+            fk_out=$(python3 - "$feishu_conf" << 'PYEOF' 2>/dev/null
 import json, sys
 PLACEHOLDER = ['请填入','请到','请替换','your key','your_key','placeholder','changeme','<your-','your-app-name']
 def is_ph(v):
@@ -556,48 +581,27 @@ elif ph_unfilled: print("empty|" + ",".join(ph_unfilled))
 else: print("ok|所有 appId/appSecret 已配置")
 PYEOF
 )
-                    icon="${fk_out%%|*}"; detail="${fk_out#*|}"
-                fi
-            elif [ "$name" = "bat" ]; then
-                local ver=$(bat --version 2>/dev/null | head -1 || batcat --version 2>/dev/null | head -1 || echo "")
-                [ -n "$ver" ] && { icon="ok"; detail="bat 已安装 ($ver)"; } || { icon="miss"; detail="bat 未安装"; }
-            elif [ "$name" = "glow" ]; then
-                local ver=$(glow --version 2>/dev/null | head -1)
-                [ -n "$ver" ] && { icon="ok"; detail="glow 已安装 ($ver)"; } || { icon="miss"; detail="glow 未安装"; }
-            elif [ "$name" = "nano" ]; then
-                local ver=$(nano --version 2>/dev/null | head -1)
-                [ -n "$ver" ] && { icon="ok"; detail="nano 已安装 ($ver)"; } || { icon="miss"; detail="nano 未安装"; }
-            else
-                # 从 option-* init.sh --status 取首行解析
-                local init_script="$REPO_DIR/option-$name/init.sh"
-                local out
-                out=$(bash "$init_script" --status 2>&1) || true
-                local line
-                line=$(echo "$out" | sed 's/\x1b\[[0-9;]*[mK]//g' | grep -vE '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//; s/[[:space:]]*$//') || true
+            icon="${fk_out%%|*}"; detail="${fk_out#*|}" ;;
+        bat)
+            local ver=$(bat --version 2>/dev/null | head -1 || batcat --version 2>/dev/null | head -1 || echo "")
+            [ -n "$ver" ] && { icon="ok"; detail="bat 已安装 ($ver)"; } || { icon="miss"; detail="bat 未安装"; } ;;
+        glow)
+            local ver=$(glow --version 2>/dev/null | head -1)
+            [ -n "$ver" ] && { icon="ok"; detail="glow 已安装 ($ver)"; } || { icon="miss"; detail="glow 未安装"; } ;;
+        nano)
+            local ver=$(nano --version 2>/dev/null | head -1)
+            [ -n "$ver" ] && { icon="ok"; detail="nano 已安装 ($ver)"; } || { icon="miss"; detail="nano 未安装"; } ;;
+        *)
+            local init_script="$REPO_DIR/option-$name/init.sh"
+            if [ -f "$init_script" ]; then
+                local out; out=$(bash "$init_script" --status 2>&1) || true
+                local line; line=$(echo "$out" | sed 's/\x1b\[[0-9;]*[mK]//g' | grep -vE '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//; s/[[:space:]]*$//') || true
                 if echo "$line" | grep -qi "^OK"; then icon="ok"; detail="${line#OK }"
                 elif echo "$line" | grep -qi "^WARN"; then icon="warn"; detail="${line#WARN }"
                 elif echo "$line" | grep -qiE "^(MISSING|FAIL)"; then icon="miss"; detail="${line#MISSING }"; detail="${detail#FAIL }"
                 else icon="?"; detail="$line"; fi
-            fi
-
-            _print_option "$name" "$icon" "$detail"
-
-            # option-remote: 额外展开子行
-            if [ "$name" = "remote" ]; then
-                local init_script="$REPO_DIR/option-remote/init.sh"
-                local out
-                out=$(bash "$init_script" --status 2>&1) || true
-                echo "$out" | sed 's/\x1b\[[0-9;]*[mK]//g' | grep -vE '^[[:space:]]*$' | tail -n +2 | while IFS= read -r sub; do
-                    echo "      $sub"
-                done
-            fi
-        done
-    done
-
-    if [ $found -eq 0 ]; then
-        echo -e "  ${GRAY}(无可选组件)${NC}"
-    fi
-    echo ""
+            else icon="miss"; detail="option-$name 目录存在但 init.sh 缺失"; fi ;;
+    esac
 }
 
 _print_option() {

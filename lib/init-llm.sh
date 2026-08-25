@@ -87,9 +87,8 @@ get_gateway_status_one_liner() {
         return
     fi
     local h=$(get_proxy_health)
-    local mode=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('mode','?'))" 2>/dev/null || echo "?")
-    local peak=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('peak',False))" 2>/dev/null || echo "False")
-    local route=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('current_route','?'))" 2>/dev/null || echo "?")
+    local mode peak route
+    IFS='|' read -r mode peak route < <(echo "$h" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('mode','?')+'|'+str(d.get('peak',False))+'|'+d.get('current_route','?'))" 2>/dev/null || echo "?|False|?")
     local peak_str=""
     [ "$peak" = "True" ] && peak_str=" (高峰)"
     local watchdog_pid="$HOME/.cache/llmswitch-watchdog.pid"
@@ -1577,8 +1576,9 @@ _llm_status_header() {
     fi
 
     # bridge 活跃时显示 bridge 行
-    if curl -s --max-time 1 "http://127.0.0.1:8898/health" >/dev/null 2>&1; then
-        local up=$(curl -s --max-time 1 "http://127.0.0.1:8898/health" 2>/dev/null | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
+    local _bh; _bh=$(curl -s --max-time 1 "http://127.0.0.1:8898/health" 2>/dev/null)
+    if [[ -n "$_bh" ]]; then
+        local up=$(echo "$_bh" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
         echo -e "  ${LIGHT_BLUE}bridge启用: $up${NC}"
     fi
     echo -e ""

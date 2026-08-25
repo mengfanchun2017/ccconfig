@@ -38,8 +38,14 @@ ensure_bridge() {
     local port=8898
     _bridge_supported "$upstream" || return 1
 
+    # 快速短路：bridge 已健康且 upstream 匹配 → 不用重启
+    local _eh; _eh=$(curl -s --max-time 1 "http://127.0.0.1:${port}/health" 2>/dev/null)
+    if [[ -n "$_eh" ]]; then
+        local _eu; _eu=$(echo "$_eh" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
+        [[ "$_eu" = "$upstream" ]] && return 0
+    fi
+
     # 决策：是否需要 win-curl 模式（WSL 网络可达性）
-    # 提前决策，因为 bridge 进程内是不是 win-curl 模式取决于启动时的环境
     local need_win_curl=0
     if command -v curl.exe &>/dev/null; then
         # 拿上游的 hostname 探测（如果不是 IP）
