@@ -165,9 +165,9 @@ else:
     fi
 
     # 启新 bridge（unset 代理 env 直连上游）
-    local _saved_cwd="$PWD"
+    _ENSURE_BRIDGE_CWD="$PWD"
     cd "$CCCONFIG_ROOT"
-    trap 'cd "$_saved_cwd"' RETURN
+    trap 'cd "$_ENSURE_BRIDGE_CWD"' RETURN
 
     if [[ "$need_win_curl" -eq 1 ]]; then
         info "  WSL 网络不可达 upstream → 启用 Windows 侧 curl.exe 转发"
