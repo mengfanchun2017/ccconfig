@@ -131,7 +131,8 @@ import sys, urllib.parse
 p = urllib.parse.urlparse(sys.stdin.read().strip())
 print(p.hostname or '')
 " 2>/dev/null)
-        if [[ -n "$win_domain" ]]; then
+        # 已经是 IP 的不需要 DNS 预解析
+        if [[ -n "$win_domain" ]] && ! echo "$win_domain" | python3 -c "import sys,socket; sys.exit(0 if socket.inet_aton(sys.stdin.read().strip()) else 1)" 2>/dev/null; then
             local win_ip=""
             # 优先用环境变量指定的 DNS 服务器（公司 VPN DNS），兜底 Windows 默认 DNS
             local dns_server="${OPENAI_BRIDGE_WIN_DNS:-}"
