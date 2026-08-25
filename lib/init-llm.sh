@@ -1573,10 +1573,6 @@ interactive_select() {
     printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
     printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
     echo ""
-    printf "  输入 (如 ${BOLD_GREEN}1A${NC}, ${BOLD_GREEN}2B${NC}, ${BOLD_GREEN}3C${NC}) 或数字 (如 ${BOLD_GREEN}1${NC}=内建首项) 选择: "
-    read -r choice
-
-    echo ""
     echo "  0) 退出"
     printf "  输入 (如 1A, 2B, 3C) 或数字选择: "
     read -r choice
