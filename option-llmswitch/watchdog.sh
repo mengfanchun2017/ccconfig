@@ -35,8 +35,8 @@ notify_route_change() {
 check_and_restart() {
     local h=$(curl -s --max-time 3 "$HEALTH_URL" 2>/dev/null)
     if [ -n "$h" ] && echo "$h" | python3 -c "import json,sys; d=json.load(sys.stdin); exit(0 if d.get('status')=='ok' else 1)" 2>/dev/null; then
-        local route=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('current_route','?'))" 2>/dev/null)
-        local peak=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('peak',False))" 2>/dev/null)
+        local route peak
+        IFS='|' read -r route peak < <(echo "$h" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('current_route','?')+'|'+str(d.get('peak',False)))" 2>/dev/null)
         notify_route_change "$route" "$peak"
         return 0
     fi
