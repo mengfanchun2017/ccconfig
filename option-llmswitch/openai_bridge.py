@@ -352,7 +352,7 @@ http_client = None
 async def on_startup():
     global http_client
     verify = not state.get("skip_tls_verify", False)
-    http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0), trust_env=False, verify=verify)
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=30.0), trust_env=False, verify=verify)
 
 
 # 当 upstream URL 用 IP 代替了域名（DNS 预解析后），ssl 握手的 SNI 仍要用域名
