@@ -701,12 +701,17 @@ with open(p, 'w') as f: json.dump(d, f, indent=4)
 }
 
 # ========== 旧链路清理（全局函数，新链路就绪后调用）==========
+# 用法: stop_old_link [keep_bridge]
+#   keep_bridge="yes" → 不杀 bridge（本次切换刚启的，需要保留）
 stop_old_link() {
+    local keep_bridge="${1:-no}"
     if is_ssh_tunnel_running; then
         info "停止旧 SSH 隧道..."
         stop_ssh_tunnel
     fi
-    stop_tmux_bridge
+    if [[ "$keep_bridge" != "yes" ]]; then
+        stop_tmux_bridge
+    fi
     if is_proxy_running; then
         info "停止旧网关代理..."
         local wpid="$HOME/.cache/llmswitch-watchdog.pid"
@@ -798,6 +803,7 @@ PYEOF
     fi
 
     local need_stop_old=true
+    local new_link_uses_bridge=false
 
     # SSH 隧道模式：先启隧道，再启 bridge 转发到本地端口
     if $has_tunnel; then
@@ -814,6 +820,7 @@ PYEOF
         info "  启用 Anthropic↔OpenAI bridge (upstream: http://127.0.0.1:$tunnel_listen_port)"
         if start_tunnel_bridge "$tunnel_listen_port" "$model_name" "$api_key"; then
             base_url="http://127.0.0.1:8898"
+            new_link_uses_bridge=true
             info "  Bridge 已就绪，base_url → $base_url"
         else
             error "  bridge 启动失败"
@@ -825,6 +832,7 @@ PYEOF
         info "  检测到 OpenAI-only 端点，自动启用 Anthropic↔OpenAI bridge..."
         if ensure_bridge "$base_url" "$model_name" "$api_key"; then
             base_url="http://127.0.0.1:8898"
+            new_link_uses_bridge=true
             info "  Bridge 已就绪，base_url → $base_url"
         else
             error "  bridge 启动失败，请检查 ~/.cache/openai_bridge.log"
@@ -833,12 +841,17 @@ PYEOF
     fi
 
     # 新链路就绪后清理旧链路（减少切换瞬断窗口）
+    # 新启了 bridge 时保留（stop_old_link 默认会杀 bridge，会误杀刚启的）
     if $need_stop_old; then
-        stop_old_link
+        if $new_link_uses_bridge; then
+            stop_old_link "yes"
+        else
+            stop_old_link
+        fi
     fi
 
     # 停 bridge 进程（仅当新链路不需要 bridge 且旧 bridge 在运行）
-    if ! $has_tunnel && [[ "$base_url" != *"://127.0.0.1"* ]] && pgrep -f "openai_bridge.py" >/dev/null 2>&1; then
+    if ! $new_link_uses_bridge && pgrep -f "openai_bridge.py" >/dev/null 2>&1; then
         info "  切换目标不需要 bridge，关闭残留 openai_bridge 进程..."
         pkill -f "openai_bridge.py" 2>/dev/null || true
     fi
