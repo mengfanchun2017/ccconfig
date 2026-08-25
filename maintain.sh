@@ -23,6 +23,7 @@ export PATH="$HOME/.local/bin:$(find_node_bin 2>/dev/null || echo ""):$PATH"
 source "$LIB_DIR/colors.sh"
 source "$LIB_DIR/interact.sh"
 source "$LIB_DIR/menu-data-maintain.sh"
+source "$LIB_DIR/menu-feishu.sh"
 
 # ========== 子菜单函数 ==========
 
@@ -72,19 +73,7 @@ _submenu_usage() {
     esac
 }
 
-_submenu_feishu() {
-    local c; c=$(menu_select "飞书管理" \
-        "飞书账号" \
-        "lark-cli" \
-        "返回")
-    [[ -z "$c" || "$c" = "0" ]] && return
-    case "$c" in
-        1) _submenu_feishu_accounts ;;
-        2) _submenu_feishu_larkcli ;;
-    esac
-}
-
-_submenu_feishu_accounts() {
+_submenu_getnote() {
     # 从 maintain.sh 搬过来的飞书账号逻辑
     local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
     local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
