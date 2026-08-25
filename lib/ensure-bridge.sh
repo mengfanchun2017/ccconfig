@@ -181,8 +181,14 @@ else:
         bridge_env="$bridge_env OPENAI_BRIDGE_USE_WIN_CURL=1"
     fi
 
+    # HTTPS upstream 自动跳过 TLS 验证（自签证书场景：tailscale serve、内网 API）
+    local extra_args=""
+    if [[ "$upstream" == https:* ]]; then
+        extra_args="--skip-tls-verify"
+    fi
+
     nohup $bridge_env \
-        python3 option-llmswitch/openai_bridge.py --port "$port" \
+        python3 option-llmswitch/openai_bridge.py --port "$port" $extra_args \
         > "$HOME/.cache/openai_bridge.log" 2>&1 &
     disown
 
