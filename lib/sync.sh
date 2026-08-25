@@ -290,7 +290,7 @@ menu_mode() {
 
     menu_items+=("★ 全部同步（ff-only）")
     menu_items+=("ccconfig 完整检查（deps + 摘要）")
-    menu_items+=("0) 退出")
+    menu_items+=("退出")
 
     local choice
     choice=$(menu_select "多仓库同步" "${menu_items[@]}")
@@ -299,9 +299,10 @@ menu_mode() {
     local repo_count="${#names[@]}"
     local all_idx=$((repo_count + 1))        # "★ 全部同步" 选项序号
     local check_idx=$((repo_count + 2))       # "ccconfig 完整检查" 选项序号
+    local exit_idx=$((repo_count + 3))        # "退出" 选项序号
 
     case "$choice" in
-        0) break ;;
+        0|$exit_idx) break ;;
         $all_idx)  # 全部同步
             echo ""
             echo -e "${CYAN}── 全部仓库同步 ──${NC}"
@@ -334,7 +335,7 @@ menu_mode() {
                     "强制拉取远程" \
                     "本地覆盖远程" \
                     "返回")
-                [[ -z "$sub" ]] && continue
+                [[ -z "$sub" || "$sub" = "0" ]] && continue
                 case "$sub" in
                     "1") sync_one_repo "$dir" "$name" "$mode"
                        [ "$name" = "ccconfig" ] && { do_cconfig_post; echo -e "${GREEN}✅ 同步完成${NC}"; } ;;
@@ -595,7 +596,7 @@ git_conflict_menu() {
     conflict_items+=("取消")
     local cancel_idx=${#conflict_items[@]}  # 取消的序号（末项）
     choice=$(menu_select "冲突处理" "${conflict_items[@]}")
-    [[ -z "$choice" || "$choice" == "$cancel_idx" ]] && { echo -e "  ${YELLOW}已取消${NC}"; return 1; }
+    [[ -z "$choice" || "$choice" == "0" || "$choice" == "$cancel_idx" ]] && { echo -e "  ${YELLOW}已取消${NC}"; return 1; }
     case "$choice" in
         1)  # 远程覆盖本地
             echo ""
