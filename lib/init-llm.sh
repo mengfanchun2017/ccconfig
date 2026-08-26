@@ -1636,8 +1636,9 @@ interactive_select() {
     # ── 配置 ──
     echo -e "  ${BOLD_GRAY}--llm 配置--${NC}"
     printf "  ${BOLD_GREEN}3A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义 preset" "输入任意 base_url + model + key"
-    printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
-    printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
+    printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义 preset" "删除已保存的自定义预设"
+    printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
+    printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
     echo ""
     echo "  0) 退出"
     printf "  输入 (如 1A, 2B, 3C) 或数字选择: "
@@ -1651,9 +1652,10 @@ interactive_select() {
         if [[ "$cat" == "3" ]]; then
             case "$letter" in
                 A) switch_custom ;;
-                B) bash "$LLMSWITCH_INIT" ;;
-                C) bill_config ;;
-                *) warn "配置: A=新增 B=Gateway C=Bill"; continue ;;
+                B) delete_preset ;;
+                C) bash "$LLMSWITCH_INIT" ;;
+                D) bill_config ;;
+                *) warn "配置: A=新增 B=删除 C=Gateway D=Bill"; continue ;;
             esac
             continue
         fi
