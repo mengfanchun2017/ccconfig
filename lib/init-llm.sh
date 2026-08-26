@@ -648,8 +648,8 @@ switch_custom() {
         local preset_name; preset_name=$(prompt "预设名称")
         preset_name=$(echo "$preset_name" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
         if [[ -z "$preset_name" ]]; then
-            error "预设名称不能为空，跳过保存"
-            save_preset="n"
+            error "预设名称不能为空，跳过本次添加"
+            return 1
         else
             # 写到 llm.json（不覆盖已有 providers）
             python3 - <<PYEOF
