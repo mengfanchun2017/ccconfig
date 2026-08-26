@@ -1576,7 +1576,8 @@ _llm_status_header() {
     fi
 
     # bridge 活跃时显示 bridge 行
-    local _bh; _bh=$(curl -s --max-time 1 "http://127.0.0.1:8898/health" 2>/dev/null)
+    local _bh=""
+    _bh=$(curl -s --max-time 1 "http://127.0.0.1:8898/health" 2>/dev/null) || true
     if [[ -n "$_bh" ]]; then
         local up=$(echo "$_bh" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
         echo -e "  ${LIGHT_BLUE}bridge启用: $up${NC}"
