@@ -114,7 +114,7 @@ _tail_start_bridge() {
         OPENAI_BRIDGE_KEY="$key" \
         OPENAI_BRIDGE_MODEL="$model" \
         OPENAI_BRIDGE_SKIP_TLS_VERIFY=1 \
-        python3 "$SCRIPT_DIR/option-llmswitch/openai_bridge_tail.py" --port "$TAIL_BRIDGE_PORT" --skip-tls-verify \
+        python3 "${CCCONFIG_ROOT:-$SCRIPT_DIR}/option-llmswitch/openai_bridge_tail.py" --port "$TAIL_BRIDGE_PORT" --skip-tls-verify \
         > "$TAIL_BRIDGE_LOG" 2>&1 &
     disown
 
