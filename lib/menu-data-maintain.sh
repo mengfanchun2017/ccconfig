@@ -27,7 +27,7 @@ MENU_ENTRIES=(
     "2|H|模板同步|.example 与模板间同步|bash \"$LIB_DIR/example-sync.sh\" status|"
 
     # ── 3: 工具 ──
-    "3|A|LLM 切换|切换预设/配置 Gateway/模型单价|bash \"$LIB_DIR/init-llm.sh\"|"
+    "3|A|LLM 切换|切换预设/配置 Gateway/模型单价|bash \"$LIB_DIR/init-llm.sh\" || true|"
     "3|B|用量统计|token-usage 统计/报告/归档||menu:usage"
     "3|C|MCP 管理|跨项目查看/配置 MCP|bash \"$LIB_DIR/mcp-manager.sh\" config|"
     "3|D|飞书管理|lark-cli 账号/OAuth/测试||menu:feishu"
