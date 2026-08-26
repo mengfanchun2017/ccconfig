@@ -1635,8 +1635,8 @@ interactive_select() {
 
     # ── 配置 ──
     echo -e "  ${BOLD_GRAY}--llm 配置--${NC}"
-    printf "  ${BOLD_GREEN}3A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义 preset" "输入任意 base_url + model + key"
-    printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义 preset" "删除已保存的自定义预设"
+    printf "  ${BOLD_GREEN}3A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义" "输入任意 base_url + model + key"
+    printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义" "删除已保存的自定义预设"
     printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
     printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
     echo ""
