@@ -330,10 +330,6 @@ if target not in llms:
 llm = llms[target]
 small = llm.get('small_model', llm.get('model', ''))
 key = llm.get('key', '')
-# altllm_tail 的 key 为空时从 altllm 继承（消除重复配置）
-if target == 'altllm_tail' and (not key or key in ['请填入', '请替换', 'your.key', 'placeholder', 'changeme', '<your-']):
-    src = llms.get('altllm', {})
-    key = src.get('key', key)
 print(f"{llm.get('base_url', '')}|{llm.get('model', '')}|{key}|{small}")
 PYEOF
 }
@@ -580,20 +576,6 @@ write_json(sf, updater)
 print("~/.claude/settings.json 已更新")
 PYEOF
 
-    # altllm_tail 继承 key 回写（llm.json 占位符 → 真实 key）
-    if [[ "$name" == "altllm_tail" && -n "$api_key" ]]; then
-        python3 - "$CONFIG_FILE" "$api_key" << 'PYEOF'
-import json, sys
-path, key = sys.argv[1], sys.argv[2]
-with open(path) as f: d = json.load(f)
-t = d.get('llms', {}).get('altllm_tail', {})
-if t.get('key', '') != key:
-    t['key'] = key
-    with open(path, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
-    print("  altllm_tail key 已同步写入 llm.json（继承自 altllm）")
-PYEOF
-    fi
-
     success "LLM 已切换为: $name"
 
     # 验证 endpoint 可达性（探测失败则回滚到切换前状态）
@@ -738,41 +720,7 @@ switch_llm() {
         custom|-c)
             switch_custom
             return $?
-            ;;
-        altllm_tail)
-            # 切到 altllm_tail 前停旧链路（proxy/watchdog/tunnel/bridge）
-            stop_old_link
-            local tconfig=$(get_llm_config "$name") || { error "无法获取 altllm_tail 配置"; return 1; }
-            IFS='|' read -r _ tmodel tkey tsmall <<< "$tconfig"
-            # SSH 隧道配置从 llm.json 解析
-            local tail_cfg
-            tail_cfg=$(python3 - "$CONFIG_FILE" << 'TAILPY'
-import json, sys
-d = json.load(open(sys.argv[1]))
-t = d.get('llms',{}).get('altllm_tail',{}).get('ssh_tunnel',{})
-host = t.get('host') or t.get('ssh_host','')
-if host and t.get('remote'):
-    print(f"{host}|{t.get('port',22)}|{t.get('user','')}|{t['remote']}")
-else:
-    sys.exit(1)
-TAILPY
-            ) || { error "altllm_tail SSH 隧道配置不完整"; return 1; }
-            IFS='|' read -r thost tport tuser tremote <<< "$tail_cfg"
-            # altllm_tail 走独立链路脚本（Tailscale → SSH 隧道 → tail bridge）
-            local _saved_script_dir="$SCRIPT_DIR"
-            source "$CCCONFIG_ROOT/lib/tail-llm.sh"
-            SCRIPT_DIR="$_saved_script_dir"
-            if tail_start "$thost" "$tport" "$tuser" "$tremote" "$tmodel" "$tkey"; then
-                info "altllm_tail 链路就绪，写入配置..."
-                _write_llm_config "$name" "http://127.0.0.1:8895" "$tmodel" "$tsmall" "$tkey"
-                success "LLM 已切换为: $name"
-                return 0
-            else
-                error "altllm_tail 链路启动失败"
-                return 1
-            fi
-            ;;
-    esac
+            ;;    esac
 
     local config=$(get_llm_config "$name") || { error "无法获取 LLM 配置: $name"; return 1; }
     IFS='|' read -r base_url model_name api_key small_model <<< "$config"
@@ -1464,25 +1412,6 @@ heal_bridge() {
     }
     [[ -z "$cur" ]] && { info "llm.json current 为空，无需自愈"; return 0; }
     info "  current preset: $cur"
-
-    # altllm_tail 独立链路：用 tail-llm.sh 自愈
-    if [[ "$cur" == "altllm_tail" ]]; then
-        local _saved_sd="$SCRIPT_DIR"
-        source "$CCCONFIG_ROOT/lib/tail-llm.sh"
-        SCRIPT_DIR="$_saved_sd"
-        if tail_status >/dev/null 2>&1; then
-            success "  altllm_tail 链路已响应"
-            return 0
-        fi
-        warn "  altllm_tail 链路未响应，拉起..."
-        if tail_start; then
-            success "  altllm_tail 链路已拉起"
-            return 0
-        else
-            error "  altllm_tail 拉起失败，运行: bash lib/tail-llm.sh start"
-            return 1
-        fi
-    fi
 
     # settings.json 不指向 127.0.0.1:8898 → 不需要 bridge / 隧道
     local bridge_port="8898"
