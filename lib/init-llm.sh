@@ -391,7 +391,7 @@ _verify_endpoint() {
         # cold start 时 SSH tunnel 可能还没建好，retry 3 次×15s
         local upstream_status="000"
         for i in 1 2 3; do
-            upstream_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+            upstream_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 35 \
                 -X POST "${base_url%/}/v1/messages" \
                 -H "Content-Type: application/json" \
                 -H "anthropic-version: 2023-06-01" \
