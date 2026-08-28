@@ -737,90 +737,25 @@ check_example_sync() {
     return 0
 }
 
-# ========== SSH 隧道 + bridge 自愈（会话启动时自动恢复） ==========
-# openaialt/altllm_tail 等隧道/bridge 依赖场景。Claude 重启后，tmux 里的进程可能还在，
-# 也可能因系统重启或手动清理而消失。自动检测并拉起。
-# 未配置 bridge/隧道预设的用户 grep 短路，零开销。
+# ========== bridge 自愈（会话启动时自动恢复） ==========
+# Claude 重启后，bridge 进程可能因系统重启或手动清理消失。自动检测并拉起。
+# 简化后仅处理 OpenAI-only 端点的 bridge；SSH 隧道场景已废弃（8311f46）。
+# 未配置 bridge 预设的用户 grep 短路，零开销。
 check_bridge_selfheal() {
     local cfg="${CONFIG_FILE:-$(resolve_conf llm.json 2>/dev/null)}"
     [[ -n "$cfg" && -f "$cfg" ]] || return 0
-    local cur
-    cur="$(python3 -c "import json; print(json.load(open('$cfg')).get('current',''))" 2>/dev/null)" || return 0
-    [[ -n "$cur" ]] || return 0
 
-    # settings.json 不指向 127.0.0.1:8898 → 不需要 bridge 或隧道
+    # settings.json 不指向 127.0.0.1:8898 → 不需要 bridge
     grep -q '127.0.0.1:8898' "$HOME/.claude/settings.json" 2>/dev/null || return 0
 
-    # 检查当前预设是否有 SSH 隧道配置
-    local tunnel_info
-    tunnel_info=$(python3 - "$cfg" "$cur" << 'PYEOF' 2>/dev/null
-import json, sys
-try:
-    d = json.load(open(sys.argv[1]))
-    llm = d.get('llms', {}).get(sys.argv[2], {})
-    t = llm.get('ssh_tunnel', {})
-    host = t.get('host') or t.get('ssh_host', '')
-    if host and t.get('remote'):
-        print(f"{host}|{t.get('port',22)}|{t.get('user','')}|{t['remote']}|{t.get('listen_port',8890)}")
-    else:
-        sys.exit(1)
-except:
-    sys.exit(1)
-PYEOF
-    ) || true
-
-    # SSH 隧道自愈
-    if [[ -n "$tunnel_info" ]]; then
-        if ! tmux has-session -t "altllm-tunnel" 2>/dev/null; then
-            IFS='|' read -r host port user remote listen_port <<< "$tunnel_info"
-            warn "  [tunnel] SSH 隧道未运行 ($cur)，自动拉起..."
-            # source init-llm.sh 获取 start_ssh_tunnel，预屏蔽顶层的 exit 1
-            local _init_llm="$SCRIPT_DIR/../lib/init-llm.sh"
-            eval "$(sed 's/|| exit 1//g' "$_init_llm" 2>/dev/null)" 2>/dev/null || { warn "  [tunnel] init-llm.sh 加载失败"; return 0; }
-            if ! declare -f start_ssh_tunnel &>/dev/null; then
-                warn "  [tunnel] init-llm.sh 加载失败"
-                return 0
-            fi
-            start_ssh_tunnel "$host" "$port" "$user" "$remote" "$listen_port" || {
-                warn "  [tunnel] 自动拉起失败，运行: bash init-llm.sh switch $cur"
-                return 0
-            }
-            warn "  [tunnel] SSH 隧道已自动拉起"
-        fi
+    # bridge 已响应 → OK
+    if curl -s --max-time 2 http://127.0.0.1:8898/health >/dev/null 2>&1; then
+        return 0
     fi
 
-    # bridge 自愈
-    if ! curl -s --max-time 2 http://127.0.0.1:8898/health >/dev/null 2>&1; then
-        warn "  [bridge] 未响应，自动拉起..."
-        if [[ -n "$tunnel_info" ]]; then
-            # SSH 隧道场景：bridge 指向本地隧道端口，用 init-llm.sh 的 start_tunnel_bridge
-            local _init_llm2="$SCRIPT_DIR/../lib/init-llm.sh"
-            eval "$(sed 's/|| exit 1//g' "$_init_llm2" 2>/dev/null)" 2>/dev/null || { warn "  [bridge] init-llm.sh 加载失败"; return 0; }
-            if ! declare -f get_llm_config &>/dev/null || ! declare -f start_tunnel_bridge &>/dev/null; then
-                warn "  [bridge] init-llm.sh 加载失败"
-                return 0
-            fi
-            local config
-            config=$(get_llm_config "$cur") || return 0
-            IFS='|' read -r _ model key _ <<< "$config"
-            IFS='|' read -r _ _ _ _ listen_port <<< "$tunnel_info"
-            if start_tunnel_bridge "$listen_port" "$model" "$key"; then
-                warn "  [bridge] 隧道桥接已自动拉起"
-            else
-                warn "  [bridge] 自动拉起失败，运行: bash init-llm.sh switch $cur"
-            fi
-        else
-            # 普通 OpenAI-only 端点：用 ensure_bridge
-            source "$SCRIPT_DIR/ensure-bridge.sh" 2>/dev/null || return 0
-            local bc; bc="$(read_bridge_config "$cfg" "$cur")" || return 0
-            IFS='|' read -r base_url model key <<< "$bc"
-            if ensure_bridge "$base_url" "$model" "$key"; then
-                warn "  [bridge] 已自动拉起 ($cur) → 127.0.0.1:8898"
-            else
-                warn "  [bridge] 自动拉起失败，运行: bash init-llm.sh switch $cur"
-            fi
-        fi
-    fi
+    # bridge 未响应 → 调 ensure-bridge.sh 的 selfheal
+    source "$SCRIPT_DIR/ensure-bridge.sh" 2>/dev/null || return 0
+    selfheal_bridge "$cfg" && warn "  [bridge] 已自动拉起" || warn "  [bridge] 自动拉起失败，运行: bash init-llm.sh switch <name>"
 }
 
 # ========== 执行所有检查 ==========

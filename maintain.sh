@@ -30,6 +30,9 @@ source "$LIB_DIR/menu-feishu.sh"
 _submenu_monitor() {
     local c; c=$(menu_select "Monitor" \
         "LLM 链路诊断" \
+        "切 LLM 预设" \
+        "模型单价配置" \
+        "bridge 自愈" \
         "状态查看" \
         "启动" \
         "停止" \
@@ -39,11 +42,14 @@ _submenu_monitor() {
     [[ -z "$c" || "$c" = "0" ]] && return
     case "$c" in
         1) bash "$SCRIPT_DIR/lib/init-llm.sh" status ;;
-        2) bash "$LIB_DIR/monitor.sh" status ;;
-        3) bash "$LIB_DIR/monitor.sh" start ;;
-        4) bash "$LIB_DIR/monitor.sh" stop ;;
-        5) bash "$LIB_DIR/monitor.sh" stop; sleep 1; bash "$LIB_DIR/monitor.sh" start ;;
-        6) fix_monitor ;;
+        2) bash "$SCRIPT_DIR/lib/init-llm.sh" ;;
+        3) bash "$SCRIPT_DIR/lib/init-llm-bill.sh" ;;
+        4) bash "$SCRIPT_DIR/lib/init-llm.sh" heal ;;
+        5) bash "$LIB_DIR/monitor.sh" status ;;
+        6) bash "$LIB_DIR/monitor.sh" start ;;
+        7) bash "$LIB_DIR/monitor.sh" stop ;;
+        8) bash "$LIB_DIR/monitor.sh" stop; sleep 1; bash "$LIB_DIR/monitor.sh" start ;;
+        9) fix_monitor ;;
     esac
 }
 
