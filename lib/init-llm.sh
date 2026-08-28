@@ -1497,11 +1497,10 @@ _llm_status_header() {
     fi
 
     echo -e ""
-    echo -e "  ${BOLD_GRAY}--当前配置--${NC}"
     if [[ -n "$llm_display" ]]; then
-        echo -e "  ${LIGHT_BLUE}生效: $llm_display${NC}"
+        echo -e "  ${LIGHT_BLUE}生效配置: $llm_display${NC}"
     else
-        echo -e "  ${LIGHT_BLUE}生效: 未配置${NC}"
+        echo -e "  ${LIGHT_BLUE}生效配置: 未配置${NC}"
     fi
 
     # bridge 活跃时显示 bridge 行
@@ -1509,7 +1508,7 @@ _llm_status_header() {
     _bh=$(curl -s --max-time 1 "http://127.0.0.1:8898/health" 2>/dev/null) || true
     if [[ -n "$_bh" ]]; then
         local up=$(echo "$_bh" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
-        echo -e "  ${LIGHT_BLUE}bridge启用: $up${NC}"
+        echo -e "  ${LIGHT_BLUE}bridge启动: $up${NC}"
     fi
     echo -e ""
 }
@@ -1540,9 +1539,7 @@ interactive_select() {
         local small_str="" route_str=""
         [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
         [[ "$name" == "gateway" ]] && route_str=" ${YELLOW}$(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)${NC}"
-        local curr_str=""
-        [[ "$marker" == "◀" ]] && curr_str="  ${LIGHT_BLUE}◀ 当前${NC}"
-        echo -e "  ${BOLD_GREEN}1${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}${curr_str}"
+        echo -e "  ${BOLD_GREEN}1${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
         item_cat+=("1"); item_letter+=("$letter"); item_name+=("$name")
         case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
     done
@@ -1555,9 +1552,7 @@ interactive_select() {
         local small_str="" route_str=""
         [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
         [[ "$name" == "gateway" ]] && route_str=" ${YELLOW}$(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)${NC}"
-        local curr_str=""
-        [[ "$marker" == "◀" ]] && curr_str="  ${LIGHT_BLUE}◀ 当前${NC}"
-        echo -e "  ${BOLD_GREEN}2${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}${curr_str}"
+        echo -e "  ${BOLD_GREEN}2${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
         item_cat+=("2"); item_letter+=("$letter"); item_name+=("$name")
         case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
     done
