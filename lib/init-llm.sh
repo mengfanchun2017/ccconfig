@@ -93,6 +93,33 @@ get_gateway_status() {
     echo "→ $route$ps | mode:$mode"
 }
 
+# 从 llmswitch.json 读 peak/off-peak 路由摘要（菜单显示用）
+read_gateway_routes() {
+    python3 - "${1:-$LLMSWITCH_CONF}" "${2:-$CONFIG_FILE}" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f: sw = json.load(f)
+except Exception:
+    sys.exit(0)
+
+key_to_model = {}
+try:
+    with open(sys.argv[2]) as f: llm_cfg = json.load(f)
+    for k, v in llm_cfg.get('llms', {}).items():
+        key_to_model[k] = v.get('model', k)
+except Exception: pass
+
+routes = sw.get('routes', {}).get('llmgateway', {})
+peak_key = routes.get('peak', '?')
+off_peak_key = routes.get('off_peak', '?')
+peak = key_to_model.get(peak_key, peak_key)
+off_peak = key_to_model.get(off_peak_key, off_peak_key)
+peak_hours = sw.get('peak_hours', [])
+blocks = [f"{b['start']}-{b['end']}" for b in peak_hours]
+print(f"高峰 {','.join(blocks)}→{peak}, 非高峰→{off_peak}")
+PYEOF
+}
+
 # ========== 探测 endpoint（不自动回滚）==========
 # 用法: verify_endpoint <name> <base_url> <model> <key>
 # 返回 0=链路通或鉴权失败 1=不可达
@@ -261,7 +288,7 @@ switch_llm() {
     # 占位符 key → 交互输入
     local _is_ph=0
     [[ -z "$key" ]] && _is_ph=1
-    [[ $is_ph -eq 0 ]] && case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) _is_ph=1 ;; esac
+    [[ $_is_ph -eq 0 ]] && case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) _is_ph=1 ;; esac
     if [[ $_is_ph -eq 1 ]]; then
         if [[ -t 0 ]]; then
             echo ""; key=$(prompt_password "输入 ${name} API Key")
@@ -509,57 +536,125 @@ else:
 PYEOF
 }
 
-# ========== 简化菜单（纯数字）==========
-interactive_menu() {
-    local current; current=$(list_llms | grep "^CURRENT:" | cut -d: -f2)
-    echo ""
-    echo "  当前: ${current:-<未设置>}"
-    echo ""
-    echo "  1) 切换预设"
-    echo "  2) 状态诊断"
-    echo "  3) 测试预设"
-    echo "  4) 自定义端点"
-    echo "  5) 删除预设"
-    echo "  6) 模型单价（→ init-llm-bill.sh）"
-    echo "  0) 退出"
-    echo ""
-    local c; c=$(prompt "选择")
-    case "$c" in
-        1) interactive_pick ;;
-        2) show_status ;;
-        3) interactive_test ;;
-        4) switch_custom ;;
-        5) delete_preset ;;
-        6) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
-        0|q) return 0 ;;
-        *) warn "无效选择: $c" ;;
-    esac
+# ========== 交互式菜单（保留原字母 1A/2B/3C 样式）==========
+_llm_status_header() {
+    local current="${1:-}"
+    local llm_name="" llm_display=""
+    if [[ -n "$current" ]]; then
+        llm_name=$(echo "$current" | cut -d'|' -f1)
+        llm_display=$(echo "$current" | cut -d'|' -f2)
+        [[ -z "$llm_display" ]] && llm_display="$llm_name"
+    fi
+
+    echo -e ""
+    if [[ -n "$llm_display" ]]; then
+        echo -e "  ${LIGHT_BLUE}生效配置: $llm_display${NC}"
+    else
+        echo -e "  ${LIGHT_BLUE}生效配置: 未配置${NC}"
+    fi
+
+    # bridge 活跃时显示 bridge 行
+    local _bh=""
+    _bh=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
+    if [[ -n "$_bh" ]]; then
+        local up
+        up=$(echo "$_bh" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
+        echo -e "  ${LIGHT_BLUE}bridge启动: $up${NC}"
+    fi
+    echo -e ""
 }
 
-interactive_pick() {
-    echo ""
-    echo "  选择预设："
-    local names=()
-    while IFS='|' read -r marker name display model base small; do
-        [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
-        names+=("$name")
-        printf "  %d) %-10s %s\n" "${#names[@]}" "$display" "$model"
-    done < <(list_llms)
-    [[ ${#names[@]} -eq 0 ]] && { info "无预设"; return 0; }
-    local sel; sel=$(prompt "选择")
-    [[ "$sel" =~ ^[0-9]+$ ]] && (( sel >= 1 && sel <= ${#names[@]} )) && switch_llm "${names[$((sel-1))]}"
-}
+interactive_select() {
+    local lines; lines=$(list_llms)
+    local current; current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
 
-interactive_test() {
-    echo ""
-    local names=()
-    while IFS='|' read -r marker name display model _ _; do
+    _llm_status_header "$current"
+
+    local -a item_cat item_letter item_name
+    local -a builtin_r=() custom_r=()
+    while IFS='|' read -r marker name display_name model base_url small; do
         [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
-        names+=("$name")
-        printf "  %d) %s\n" "${#names[@]}" "$display"
-    done < <(list_llms)
-    local sel; sel=$(prompt "选择测试哪个")
-    [[ "$sel" =~ ^[0-9]+$ ]] && (( sel >= 1 && sel <= ${#names[@]} )) && test_llm "${names[$((sel-1))]}"
+        if [[ "$name" == "minimax" || "$name" == "deepseek_flash" || "$name" == "gateway" ]]; then
+            builtin_r+=("$name|$display_name|$model|$small|$marker|$base_url")
+        else
+            custom_r+=("$name|$display_name|$model|$small|$marker|$base_url")
+        fi
+    done < <(echo "$lines")
+
+    while true; do
+        echo -e "  ${BOLD_GRAY}--内建 llm--${NC}"
+        local letter="A"
+        for entry in "${builtin_r[@]}"; do
+            IFS='|' read -r name display_name model small marker base_url <<< "$entry"
+            local small_str="" route_str=""
+            [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
+            [[ "$name" == "gateway" ]] && route_str=" ${YELLOW}$(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)${NC}"
+            echo -e "  ${BOLD_GREEN}1${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
+            item_cat+=("1"); item_letter+=("$letter"); item_name+=("$name")
+            case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
+        done
+
+        echo -e "  ${BOLD_GRAY}--自定义 llm--${NC}"
+        letter="A"
+        for entry in "${custom_r[@]}"; do
+            IFS='|' read -r name display_name model small marker base_url <<< "$entry"
+            local small_str="" route_str=""
+            [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
+            [[ "$name" == "gateway" ]] && route_str=" ${YELLOW}$(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)${NC}"
+            echo -e "  ${BOLD_GREEN}2${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
+            item_cat+=("2"); item_letter+=("$letter"); item_name+=("$name")
+            case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
+        done
+
+        echo -e "  ${BOLD_GRAY}--llm 配置--${NC}"
+        printf "  ${BOLD_GREEN}3A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义" "输入任意 base_url + model + key"
+        printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义" "删除已保存的自定义预设"
+        printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
+        printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
+        echo ""
+        echo "  0) 退出"
+        printf "  输入 (如 1A, 2B, 3C) 或数字选择: "
+        read -r choice
+
+        [[ -z "$choice" || "$choice" == "0" ]] && { info "已退出"; return 0; }
+
+        if [[ "$choice" =~ ^([0-9]+)([A-Za-z])$ ]]; then
+            local cat="${BASH_REMATCH[1]}"
+            local letter_m="${BASH_REMATCH[2]^^}"
+            if [[ "$cat" == "3" ]]; then
+                case "$letter_m" in
+                    A) switch_custom ;;
+                    B) delete_preset ;;
+                    C) bash "$LLMSWITCH_INIT" ;;
+                    D) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
+                    *) warn "配置: A=新增 B=删除 C=Gateway D=Bill"; continue ;;
+                esac
+                continue
+            fi
+            for i in "${!item_cat[@]}"; do
+                if [[ "${item_cat[$i]}" == "$cat" && "${item_letter[$i]}" == "$letter_m" ]]; then
+                    switch_llm "${item_name[$i]}"
+                    continue 2
+                fi
+            done
+            warn "未找到 ${cat}${letter_m}"
+            continue
+        fi
+
+        if [[ "$choice" =~ ^[0-9]+$ ]]; then
+            [[ "$choice" == "3" ]] && { switch_custom; continue; }
+            for i in "${!item_cat[@]}"; do
+                if [[ "${item_cat[$i]}" == "$choice" ]]; then
+                    switch_llm "${item_name[$i]}"
+                    continue 2
+                fi
+            done
+            warn "分类 $choice 无 LLM 项"
+            continue
+        fi
+
+        warn "无效输入: $choice (格式: 1A, 2B, 3C)"
+    done
 }
 
 # ========== 主流程 ==========
@@ -580,7 +675,7 @@ main() {
                 && success "bridge 健康" \
                 || error "bridge 自愈失败"
             ;;
-        "")          interactive_menu ;;
+        "")          interactive_select ;;
         *)
             if [[ "$cmd" =~ ^b[i1]l[1l]?$ ]] || [[ "$cmd" =~ ^pr[i1]c[i1]ng$ ]]; then
                 error "猜你想用 'bill'（账单）？运行: bash init-llm.sh bill"
