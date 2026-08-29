@@ -57,13 +57,20 @@ ensure_bridge() {
     local extra_args=""
     [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
 
+    # WSL 场景：Windows 侧 tailscale 有 subnet route，但 WSL 看不到
+    # 让 bridge 通过 /mnt/c/Windows/System32/curl.exe 转发，走 Windows 网络栈
+    local win_curl=""
+    if command -v curl.exe &>/dev/null && [[ "$upstream" == *"10.150.224"* ]]; then
+        win_curl="--use-win-curl"
+    fi
+
     (
         cd "$CCCONFIG_ROOT"
         env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
             OPENAI_BRIDGE_UPSTREAM="$upstream" \
             OPENAI_BRIDGE_KEY="$key" \
             OPENAI_BRIDGE_MODEL="$model" \
-            nohup python3 option-llmswitch/openai_bridge.py --port "$BRIDGE_PORT" $extra_args \
+            nohup python3 option-llmswitch/openai_bridge.py --port "$BRIDGE_PORT" $extra_args $win_curl \
             > "$HOME/.cache/openai_bridge.log" 2>&1 &
         disown
     )
