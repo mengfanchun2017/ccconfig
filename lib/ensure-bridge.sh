@@ -41,6 +41,7 @@ ensure_bridge() {
     # 已健康且 upstream 匹配 → 直接返回
     local health
     health=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
+    local old_pid=""
     if [[ -n "$health" ]]; then
         local cur_upstream
         cur_upstream=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
@@ -48,11 +49,14 @@ ensure_bridge() {
             return 0
         fi
         info "  upstream 变化 ($cur_upstream → $upstream)，重启 bridge..."
+        old_pid=$(lsof -ti :${BRIDGE_PORT} 2>/dev/null | head -1 || true)
     fi
 
-    # 启新 bridge
-    pkill -f "openai_bridge.py" 2>/dev/null || true
-    sleep 1
+    # 杀老 bridge（按端口号精确 kill，避免误杀）
+    if [[ -n "$old_pid" ]]; then
+        kill "$old_pid" 2>/dev/null || true
+        sleep 1
+    fi
 
     local extra_args=""
     [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
@@ -64,11 +68,13 @@ ensure_bridge() {
         win_curl="--use-win-curl"
     fi
 
-    # 写 wrapper 脚本确保 bridge 脱离父 shell 进程组
-    local wrapper="/tmp/ensure-bridge-wrapper-$$.sh"
+    # 写 wrapper 脚本（与 Bash 父子进程组解耦）
+    # Why: 之前 ( cd; nohup ... &; disown ) 子 shell 退出时 python 进程被 SIGHUP 杀
+    # wrapper 文件名加随机后缀避免冲突
+    local wrapper="/tmp/ensure-bridge-$RANDOM-$$.sh"
     cat > "$wrapper" << WRAPEOF
 #!/bin/bash
-cd "$CCCONFIG_ROOT"
+cd "$CCCONFIG_ROOT" || exit 1
 exec env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
     OPENAI_BRIDGE_UPSTREAM="$upstream" \
     OPENAI_BRIDGE_KEY="$key" \
@@ -77,8 +83,9 @@ exec env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY 
 WRAPEOF
     chmod +x "$wrapper"
     nohup "$wrapper" > "$HOME/.cache/openai_bridge.log" 2>&1 < /dev/null &
-    disown
-    rm -f "$wrapper"  # wrapper 已 exec python3，文件可删
+    local bridge_pid=$!
+    disown $bridge_pid 2>/dev/null || true
+    rm -f "$wrapper"
 
     # 等启动（最多 5s）
     local h=""
