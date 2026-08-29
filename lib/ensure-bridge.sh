@@ -64,16 +64,21 @@ ensure_bridge() {
         win_curl="--use-win-curl"
     fi
 
-    (
-        cd "$CCCONFIG_ROOT"
-        env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
-            OPENAI_BRIDGE_UPSTREAM="$upstream" \
-            OPENAI_BRIDGE_KEY="$key" \
-            OPENAI_BRIDGE_MODEL="$model" \
-            nohup python3 option-llmswitch/openai_bridge.py --port "$BRIDGE_PORT" $extra_args $win_curl \
-            > "$HOME/.cache/openai_bridge.log" 2>&1 &
-        disown
-    )
+    # 写 wrapper 脚本确保 bridge 脱离父 shell 进程组
+    local wrapper="/tmp/ensure-bridge-wrapper-$$.sh"
+    cat > "$wrapper" << WRAPEOF
+#!/bin/bash
+cd "$CCCONFIG_ROOT"
+exec env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
+    OPENAI_BRIDGE_UPSTREAM="$upstream" \
+    OPENAI_BRIDGE_KEY="$key" \
+    OPENAI_BRIDGE_MODEL="$model" \
+    python3 option-llmswitch/openai_bridge.py --port "$BRIDGE_PORT" $extra_args $win_curl
+WRAPEOF
+    chmod +x "$wrapper"
+    nohup "$wrapper" > "$HOME/.cache/openai_bridge.log" 2>&1 < /dev/null &
+    disown
+    rm -f "$wrapper"  # wrapper 已 exec python3，文件可删
 
     # 等启动（最多 5s）
     local h=""
