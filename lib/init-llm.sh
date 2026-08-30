@@ -35,7 +35,6 @@ LLMSWITCH_CONF="$CCCONFIG_ROOT/option-llmswitch/conf/llmswitch.json"
 LLMSWITCH_INIT="$CCCONFIG_ROOT/option-llmswitch/init.sh"
 LLMSWITCH_WATCHDOG="$CCCONFIG_ROOT/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
-BRIDGE_PORT=8898
 
 # 内置预设（不可删除）
 BUILTIN_LLMS="minimax deepseek_flash gateway"
@@ -315,6 +314,10 @@ switch_llm() {
 }
 
 switch_to_gateway() {
+    if _dry_run_enabled; then
+        echo "  [DRY-RUN] switch_to_gateway: would start proxy + write config"
+        return 0
+    fi
     info "切换到 Gateway 模式"
     if [[ ! -f "$LLMSWITCH_CONF" ]]; then
         [[ -f "$LLMSWITCH_CONF.example" ]] || { error "模板不存在: $LLMSWITCH_CONF.example"; return 1; }
@@ -329,8 +332,13 @@ switch_to_gateway() {
     fi
 
     local gw_model gw_small
-    gw_model=$(python3 -c "import json; print(json.load(open('$LLMSWITCH_CONF')).get('model_name','llmgateway'))" 2>/dev/null || echo "llmgateway")
-    gw_small=$(python3 -c "import json; print(json.load(open('$LLMSWITCH_CONF')).get('small_model_name',''))" 2>/dev/null || echo "")
+    read -r gw_model gw_small < <(python3 - "$LLMSWITCH_CONF" << 'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1]))
+print(d.get('model_name','llmgateway'))
+print(d.get('small_model_name',''))
+PYEOF
+    2>/dev/null || echo -e "llmgateway\n")
     [[ -z "$gw_small" ]] && gw_small="$gw_model"
 
     local base_url

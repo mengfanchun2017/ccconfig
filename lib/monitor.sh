@@ -887,17 +887,6 @@ show_help() {
 }
 
 # ========== Push public ==========
-push_public() {
-    if [ ! -f "$SCRIPT_DIR/pushpub.sh" ]; then
-        echo -e "${RED}[SYNC]${NC} pushpub.sh not found"
-        return 1
-    fi
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}[SYNC] Export to ccconfig-public${NC}"
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    bash "$SCRIPT_DIR/pushpub.sh"
-}
-
 # ========== Main ==========
 case "${1}" in
     start)    start_watch ;;
@@ -907,7 +896,6 @@ case "${1}" in
     monitor)  run_monitor ;;
     ""|start) start_watch ;;
     tail)     tail_watch ;;
-    pub|pushpub) push_public ;;
     help|--help|-h) show_help ;;
     *)        echo -e "${RED}Unknown: $1${NC}"; show_help; exit 1 ;;
 esac

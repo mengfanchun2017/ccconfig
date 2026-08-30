@@ -114,7 +114,9 @@ PYEOF
 main() {
     local target="${1:-}"
     if [[ -n "$target" ]]; then
-        bill_set "$target"
+        local _mj; _mj=$(list_models)
+        local _m; _m=$(resolve_model "$_mj" "$target") || { error "无效模型: $target（用序号或精确名称）"; return 1; }
+        bill_set "$_m"
         return $?
     fi
 
