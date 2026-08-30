@@ -362,59 +362,36 @@ switch_custom() {
     [[ -z "$url" ]] && { error "URL 不能为空"; return 1; }
     local model; model=$(prompt "Model 名称")
     [[ -z "$model" ]] && { error "Model 不能为空"; return 1; }
-    local key; key=$(prompt_password "API Key（留空复用当前）")
-    [[ -z "$key" ]] && key=$(python3 -c "
+    local key; key=$(prompt_password "API Key")
+    if [[ -n "$key" ]]; then
+        info "  Key: ...${key: -4}"
+    else
+        key=$(python3 -c "
 import json,os
 try:
     print(json.load(open(os.path.expanduser('~/.claude/settings.json'))).get('env',{}).get('ANTHROPIC_AUTH_TOKEN',''))
 except: pass" 2>/dev/null)
-
-    local save_preset=""
-    if confirm "保存为预设？" y; then
-        save_preset=$(prompt "预设名称（小写无空格）" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+        [[ -n "$key" ]] && info "  Key: 复用已有 ...${key: -4}"
     fi
 
-    if [[ -n "$save_preset" ]]; then
-        python3 - <<PYEOF
+    local preset_name; preset_name=$(prompt "预设名称（小写无空格）" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+    [[ -z "$preset_name" ]] && { error "预设名称不能为空"; return 1; }
+
+    python3 - <<PYEOF
 import json
 p = "${CONFIG_FILE}"
 with open(p) as f: d = json.load(f)
-d.setdefault('llms', {})["${save_preset}"] = {
-    "name": "${save_preset}",
+d.setdefault('llms', {})["${preset_name}"] = {
+    "name": "${preset_name}",
     "base_url": "${url}",
     "model": "${model}",
     "key": "${key}",
     "small_model": "${model}",
 }
-d['current'] = '${save_preset}'
+d['current'] = '${preset_name}'
 with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
 PYEOF
-        switch_llm "$save_preset"
-    else
-        # 临时模式：只改 settings.json env，不改 llm.json current
-        python3 - <<PYEOF
-import json, os
-sf = os.path.expanduser("~/.claude/settings.json")
-if os.path.islink(sf) and not os.path.exists(sf):
-    os.unlink(sf)
-try:
-    with open(sf) as f: sd = json.load(f)
-except: sd = {}
-sd.setdefault('env', {}).update({
-    "ANTHROPIC_BASE_URL": "${url}",
-    "ANTHROPIC_MODEL": "${model}",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
-    "ENABLE_PROMPT_CACHING_1H": "1",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "${model}",
-})
-if "${key}": sd['env']['ANTHROPIC_AUTH_TOKEN'] = "${key}"
-if "${model}": sd['model'] = "${model}"
-with open(sf, 'w') as f: json.dump(sd, f, indent=4, ensure_ascii=False)
-print("settings.json 已更新（临时模式，未保存预设）")
-PYEOF
-        info "临时模式已生效。选择 '保存为预设？Y' 可将此配置保存到菜单。"
-    fi
+    switch_llm "$preset_name"
 }
 
 # ========== 状态 ==========
