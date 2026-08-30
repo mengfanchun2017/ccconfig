@@ -391,9 +391,29 @@ with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
 PYEOF
         switch_llm "$save_preset"
     else
-        # 临时模式：写 env 不写预设
-        export BASE_URL="$url" MODEL_NAME="$model" SMALL_MODEL="$model" API_KEY="$key" NAME="custom"
-        write_llm_config "custom" "$url" "$model" "$model" "$key"
+        # 临时模式：只改 settings.json env，不改 llm.json current
+        python3 - <<PYEOF
+import json, os
+sf = os.path.expanduser("~/.claude/settings.json")
+if os.path.islink(sf) and not os.path.exists(sf):
+    os.unlink(sf)
+try:
+    with open(sf) as f: sd = json.load(f)
+except: sd = {}
+sd.setdefault('env', {}).update({
+    "ANTHROPIC_BASE_URL": "${url}",
+    "ANTHROPIC_MODEL": "${model}",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "ENABLE_PROMPT_CACHING_1H": "1",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "${model}",
+})
+if "${key}": sd['env']['ANTHROPIC_AUTH_TOKEN'] = "${key}"
+if "${model}": sd['model'] = "${model}"
+with open(sf, 'w') as f: json.dump(sd, f, indent=4, ensure_ascii=False)
+print("settings.json 已更新（临时模式，未保存预设）")
+PYEOF
+        info "临时模式已生效。选择 '保存为预设？Y' 可将此配置保存到菜单。"
     fi
 }
 
