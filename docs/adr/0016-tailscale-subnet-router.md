@@ -35,6 +35,15 @@
 
 #### 跳板机 S 上
 
+如果 S 是全新机器，先装 tailscale 并登录：
+
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+```
+
+已有 tailscale 则跳过安装，直接配置：
+
 ```bash
 # 1. 关闭旧的 tailscale serve（如果还在）
 sudo tailscale serve --tcp <port> off
