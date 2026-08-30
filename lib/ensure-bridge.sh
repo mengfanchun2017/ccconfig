@@ -88,15 +88,16 @@ WRAPEOF
     nohup "$wrapper" > "$HOME/.cache/openai_bridge.log" 2>&1 < /dev/null &
     local bridge_pid=$!
     disown $bridge_pid 2>/dev/null || true
-    rm -f "$wrapper"
 
     # 等启动（最多 5s）
+    # Why: 必须等 wrapper 完成 exec python3 再删，否则 bash 子进程会因找不到文件直接退出
     local h=""
     for _ in 1 2 3 4 5; do
         sleep 1
         h=$(curl -s --max-time 2 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
         [[ -n "$h" ]] && break
     done
+    rm -f "$wrapper"
 
     [[ -n "$h" ]]
 }
