@@ -76,7 +76,7 @@ sudo systemctl daemon-reload
 #### 居家机器 A 上
 
 ```bash
-# 1. 启用接受路由（WSL 需用 sudo）
+# 1. 启用接受路由（WSL/Linux 用 sudo，Windows 则在 tailscale 设置中勾选 "Accept routes"）
 sudo tailscale set --accept-routes
 
 # 2. 验证子网可达
@@ -85,6 +85,10 @@ curl -k --max-time 15 https://10.x.x.x:18080/v1/models
 ```
 
 响应 401（未提供令牌）即表示网络通了。
+
+> **WSL 注意**：如果 A 是 Windows + WSL，WSL 的虚拟网卡不直接继承 Windows 路由表。
+> bridge 会自动检测 RFC1918 私有段并启用 `--use-win-curl`（通过 Windows 侧 curl.exe 转发），
+> 解决 WSL 看不到 Windows tailscale 子网路由的问题。无需手动干预。
 
 #### A 上 init-llm.sh 配置
 
