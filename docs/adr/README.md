@@ -25,6 +25,7 @@
 | [0013](0013-bridge-selfheal-sessionstart.md) | OpenAI bridge 自愈：SessionStart hook + env guard | 2026-08-13 | ✅ Accepted | — |
 | [0014](0014-tailscale-jump-server.md) | Tailscale 跳板机部署方案 | 2026-08-21 | ✅ Accepted | — |
 | [0015](0015-llm-0731-deprecation.md) | 废弃 altllm0731 preset — 停止自改 bridge 适配网关不兼容 | 2026-08-23 | ✅ Accepted | — |
+| [0016](0016-tailscale-subnet-router.md) | Tailscale Subnet Router — 适用 WSL + Windows：通过 RFC1918 私有段自动触发 `--use-win-curl` | 2026-08-29 | ✅ Accepted | — |
 
 > ADR 收录门槛见 [「何时写 ADR」](#何时写-adr)。轻量变更（bug fix / 单文件重构 / 样式调整）只在下方「决策时间线」一行记录。
 

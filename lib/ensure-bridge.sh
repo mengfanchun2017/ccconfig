@@ -49,7 +49,9 @@ ensure_bridge() {
             return 0
         fi
         info "  upstream 变化 ($cur_upstream → $upstream)，重启 bridge..."
-        old_pid=$(lsof -ti :${BRIDGE_PORT} 2>/dev/null | head -1 || true)
+        # Why: lsof 无结果时 exit 1 + pipefail + set -e 会让函数直接退出
+        old_pid=$( { lsof -ti :${BRIDGE_PORT} 2>/dev/null || true; } | head -1 || true)
+        old_pid="${old_pid:-}"
     fi
 
     # 杀老 bridge（按端口号精确 kill，避免误杀）
@@ -58,13 +60,14 @@ ensure_bridge() {
         sleep 1
     fi
 
-    local extra_args=""
+local extra_args=""
     [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
 
     # WSL 场景：Windows 侧 tailscale 有 subnet route，但 WSL 看不到
-    # 让 bridge 通过 /mnt/c/Windows/System32/curl.exe 转发，走 Windows 网络栈
+    # RFC1918 私有段统一触发 --use-win-curl（10/8, 172.16/12, 192.168/16）
+    # Why: 这些段通常是企业内网，WSL 用户多半通过 Windows tailscale 才能访问
     local win_curl=""
-    if command -v curl.exe &>/dev/null && [[ "$upstream" == *"10.150.224"* ]]; then
+    if command -v curl.exe &>/dev/null && [[ "$upstream" =~ ://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.) ]]; then
         win_curl="--use-win-curl"
     fi
 

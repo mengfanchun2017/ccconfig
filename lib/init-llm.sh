@@ -346,6 +346,9 @@ switch_custom() {
     stop_gateway
 
     echo ""
+    echo "  💡 WSL + Tailscale subnet router 场景：base_url 填内网 IP（如 10.x.x.x:port）"
+    echo "     详见 docs/adr/0016-tailscale-subnet-router.md（自动启用 Windows curl.exe 转发）"
+    echo ""
     echo "  ── 自定义 Anthropic-compatible 端点 ──"
     local url; url=$(prompt "Base URL")
     [[ -z "$url" ]] && { error "URL 不能为空"; return 1; }
