@@ -273,6 +273,7 @@ check_mode() {
 # ========== 菜单模式 ==========
 menu_mode() {
     while true; do
+    clear 2>/dev/null || true
     echo ""
     echo -e "${CYAN}━━━ ccconfig 多仓库同步 ━━━${NC}"
     echo ""
