@@ -295,7 +295,7 @@ menu_mode() {
 
     local choice
     choice=$(menu_select "多仓库同步" "${menu_items[@]}")
-    [[ -z "$choice" ]] && continue
+    [[ -z "$choice" || "$choice" = "0" ]] && continue
 
     local repo_count="${#names[@]}"
     local all_idx=$((repo_count + 1))        # "★ 全部同步" 选项序号

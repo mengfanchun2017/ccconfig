@@ -19,8 +19,9 @@
 #
 # menu_select [title] [item1] [item2] ... [itemN]
 #   单选菜单。items 必须是纯文本（不带数字前缀），菜单自动加 "1) 2) 3)"。
-#   返回选中项的**序号字符串**（"5"），选中最后一项返回 "${#items[@]}"。
-#   0 表示「返回/取消」（用户输入空、非法、越界，或末项是"返回"被选中）。
+#   返回选中项的**序号字符串**（如 "5"）。末项返回其序号 ${#items[@]}。
+#   "0" = 取消哨值：用户输入空/非法/越界/EOF/显式输入 0，stdout 输出 "0"。
+#   调用方判取消：[[ -z "$c" || "$c" = "0" ]]（-z 为兼容兜底，新契约下恒为 "0"）。
 #   菜单显示走 stderr，返回值走 stdout（`c=$(menu_select ...)` 接）。
 #   用法:
 #     c=$(menu_select "ccconfig 运维" "状态" "Monitor" "更新" "返回")
@@ -101,19 +102,22 @@ menu_select() {
     # 菜单输出走 stderr — 避开 `c=$(...)` 把 stdout 截走后菜单列表不显示
     printf '\n' >&2
     echo -e "  ${BOLD_GRAY}--${title}--${NC}" >&2
-    local i sel
+    local i sel=""
     for i in "${!items[@]}"; do
         printf "  ${BOLD_GREEN}%d${NC}  %s\n" "$((i+1))" "${items[$i]}" >&2
     done
     printf '\n' >&2
     # 从 /dev/tty 读，避开 stdin 被管道/重定向导致的 read 阻塞/失败
+    # 两分支都加 || true：EOF/管道断开时 read 返回非零，set -e 下会中断子 shell
     if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
         printf "  ${BOLD_GREEN}选择 [1-${#items[@]}]: ${NC}" >&2; read -r sel < /dev/tty || true
     else
-        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}]: ${NC}" >&2; read -r sel
+        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}]: ${NC}" >&2; read -r sel || true
     fi
-    [[ "$sel" =~ ^[0-9]+$ ]] || { printf '\n'; return 0; }
-    (( sel < 0 || sel > ${#items[@]} )) && { printf '\n'; return 0; }
+    # 取消哨值统一 "0"：空/非法/越界/EOF/输入 0 均返回 "0"
+    # 调用方用 [[ -z "$c" || "$c" = "0" ]] 判取消（-z 是旧契约的兼容兜底）
+    [[ "$sel" =~ ^[0-9]+$ ]] || { printf '0\n'; return 0; }
+    (( sel < 1 || sel > ${#items[@]} )) && { printf '0\n'; return 0; }
     printf '%s\n' "$sel"
 }
 
@@ -423,7 +427,4 @@ menu_loop() {
         echo ""
         printf "  按回车继续..."; read -r dummy < /dev/tty || true
     done
-    local result=""
-    for idx in "${selected[@]}"; do result+="${items[$idx]} "; done
-    echo "$result"
 }

@@ -305,7 +305,7 @@ do_interactive() {
     echo "    p) 更新到最新版"
     local choice; choice=$(menu_select "Cloudflare" \
         "全部安装" "仅 marketplace" "仅 plugin" "卸载" "更新" "退出")
-    [[ -z "$choice" ]] && return
+    [[ -z "$choice" || "$choice" = "0" ]] && return
     case "$choice" in
         1) echo ""; do_install ;;
         2) echo ""; do_install_marketplace_only ;;
