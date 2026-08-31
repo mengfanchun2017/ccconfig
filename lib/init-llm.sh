@@ -814,7 +814,6 @@ interactive_select() {
         printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "修改自定义" "修改已保存的自定义预设"
         printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义" "删除已保存的自定义预设"
         printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
-        echo ""
         printf "  ${BOLD_GREEN}3E${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
         echo "  0) 退出"
         printf "  输入 (如 1A, 2B, 3D) 或数字选择: "
