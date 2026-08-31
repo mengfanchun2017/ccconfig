@@ -499,11 +499,13 @@ show_list() {
     local current
     current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
 
-    while IFS='|' read -r marker name display model base small; do
+    while IFS='|' read -r marker name display model base small is_builtin; do
         [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
+        local tag=""
+        [[ "$is_builtin" == "1" ]] && tag=" ${DIM}[内建]${NC}"
         local info_small=""
-        [[ -n "$small" ]] && info_small="  (小: $small)"
-        printf "  %s %-10s %-20s%s\n" "$marker" "$display" "$model" "$info_small"
+        [[ -n "$small" ]] && info_small=" ${DIM}(小: $small)${NC}"
+        printf "  %s %-10s %-20s%s%s\n" "$marker" "$display" "$model" "$tag" "$info_small"
     done < <(echo "$lines")
     echo ""
     if [[ -n "$current" && "$current" == "gateway" ]]; then
