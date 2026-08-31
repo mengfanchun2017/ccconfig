@@ -11,8 +11,7 @@
 #
 
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# 保持 maintain.sh 在 ccconfig 根目录，SCRIPT_DIR 指向根目录
+# maintain.sh 在 ccconfig 根目录，SCRIPT_DIR 指向根目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/lib"
 CCCONFIG_DIR="$SCRIPT_DIR"
@@ -74,7 +73,7 @@ _submenu_usage() {
  "卸载" \
  "配置" \
  "返回")
-           case "$ts" in i) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; u) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; c) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; 0|*) return;; esac ;;
+           case "$ts" in 1) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; 2) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; 3) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; 4|0|*) return;; esac ;;
         6) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
     esac
 }
@@ -261,7 +260,7 @@ case "${1:-menu}" in
     token|usage)
         shift; bash "$CCCONFIG_DIR/option-usage/token-usage.sh" "$@" ;;
     feishu)
-        local ccbridge_test="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/tests/test-feishu.sh"
+        ccbridge_test="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/tests/test-feishu.sh"
         if [ -f "$ccbridge_test" ]; then
             bash "$ccbridge_test" "$@"
         else
