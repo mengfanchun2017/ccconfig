@@ -38,6 +38,7 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 - （无）
 
 ## 约束
+- **每次 Edit/Write 后先 git add + git commit，不等 auto-sync**。auto-sync 只做 push，不做 add/commit 可以避免 inotify 竞争导致 Edit old_string 过期
 - 本仓库不记录 memory（memory symlink → ccprivate/link/memory/，由 ccprivate/setup.sh 建立）
 - 私有数据（conf 真实值、CLAUDE.md 内容）通过 symlink 引用 ccprivate，不在本仓库提交
 - ccconfig 最终目标是可公开
