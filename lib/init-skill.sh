@@ -289,9 +289,12 @@ do_link_self_built() {
         return 0
     fi
 
-    local src_count=$(ls -d "$SKILLS_SRC"/*/ 2>/dev/null | wc -l)
+    local src_count
+    src_count=$(ls -d "$SKILLS_SRC"/*/ 2>/dev/null | wc -l) || true
     local local_count=0
-    [[ -d "$LOCAL_SKILLS_SRC" ]] && local_count=$(ls -d "$LOCAL_SKILLS_SRC"/*/ 2>/dev/null | wc -l)
+    if [[ -d "$LOCAL_SKILLS_SRC" ]]; then
+        local_count=$(ls -d "$LOCAL_SKILLS_SRC"/*/ 2>/dev/null | wc -l) || true
+    fi
     local existing_count=$(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l)
     [[ "$quiet" != "1" ]] && info "  公开源: $SKILLS_SRC ($src_count 个)"
     [[ "$quiet" != "1" ]] && [[ $local_count -gt 0 ]] && info "  私有源: $LOCAL_SKILLS_SRC ($local_count 个)"
