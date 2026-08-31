@@ -101,6 +101,20 @@ _submenu_getnote() {
     esac
 }
 
+_submenu_update_sync() {
+    local c; c=$(menu_select "更新同步" \
+        "自我更新" \
+        "Git 同步" \
+        "全部" \
+        "返回")
+    [[ -z "$c" || "$c" = "0" ]] && return
+    case "$c" in
+        1) do_self all ;;
+        2) bash "$LIB_DIR/sync.sh" ;;
+        3) do_self all && bash "$LIB_DIR/sync.sh" ;;
+    esac
+}
+
 # ========== 主动能 ==========
 
 do_finalize() {
@@ -140,9 +154,11 @@ do_finalize() {
         warn "auto-sync 启动失败（可手动: bash $LIB_DIR/monitor.sh start）"
     fi
 
-    if [ -x "$LIB_DIR/example-sync.sh" ]; then
-        section "3. Example 模板同步"
-        bash "$LIB_DIR/example-sync.sh" sync 2>/dev/null && ok "模板已同步" || warn "模板同步跳过"
+    section "3. 依赖检查"
+    if bash "$LIB_DIR/deps-check.sh"; then
+        ok "依赖完整"
+    else
+        warn "部分依赖缺失，详见上方输出"
     fi
 
     section "4. 状态总览"
