@@ -45,7 +45,7 @@ repo_status() {
     local head=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null)
     local dirty=""
     if ! git -C "$dir" diff --quiet 2>/dev/null || ! git -C "$dir" diff --cached --quiet 2>/dev/null; then
-        dirty=" ⚡"
+        dirty=" 有改动"
     fi
     echo -e "  ${GRAY}$branch${NC} ${GREEN}$head${NC}$dirty"
 }
