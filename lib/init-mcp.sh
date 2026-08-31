@@ -459,7 +459,7 @@ do_menu() {
         echo ""
         local cmd
         cmd=$(menu_select "MCP 配置" "状态" "同步" "配置 Key" "启停 MCP" "退出")
-        [[ -z "$cmd" ]] && continue
+        [[ -z "$cmd" || "$cmd" = "0" ]] && continue
         case "$cmd" in
             1) do_status ;;
             2) do_sync ;;
@@ -474,14 +474,14 @@ do_menu() {
                     mcp_items+=("$n ($s)")
                 done <<< "$(read_mcp_list)"
                 local sel; sel=$(menu_select "选择 MCP" "${mcp_items[@]}")
-                [[ -z "$sel" ]] && continue
+                [[ -z "$sel" || "$sel" = "0" ]] && continue
                 local tname=""
                 for ((mi=0; mi<${#mcp_items[@]}; mi++)); do
                     [[ "${mcp_items[$mi]}" == "$sel" ]] && { tname="${mcp_names[$mi]}"; break; }
                 done
                 [ -z "$tname" ] && continue
                 local tact; tact=$(menu_select "操作" "on" "off")
-                [ -z "$tact" ] && continue
+                [[ -z "$tact" || "$tact" = "0" ]] && continue
                 do_toggle "$tname" "$tact"
                 read -p "  按回车继续..." dummy < /dev/tty || true
                 ;;
