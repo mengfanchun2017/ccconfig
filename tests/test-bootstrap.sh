@@ -92,11 +92,28 @@ echo "=== Test 10: 四步流程定位 ==="
 grep -q 'init-ccprivate-repo.sh' "$BOOTSTRAP" && pass "指引 init-ccprivate-repo (Step 3)" || fail "no init-ccprivate-repo guide"
 grep -q 'bash init-base.sh all' "$BOOTSTRAP" && pass "指引 init-base.sh all (Step 4)" || fail "no init-base.sh all guide"
 
-# ── Test 11: 颜色变量定义 ──
-echo "=== Test 11: 颜色输出 ==="
-grep -q "RED=" "$BOOTSTRAP" && pass "color RED" || fail "no RED"
-grep -q "GREEN=" "$BOOTSTRAP" && pass "color GREEN" || fail "no GREEN"
-grep -q "YELLOW=" "$BOOTSTRAP" && pass "color YELLOW" || fail "no YELLOW"
+# ── Test 11: 颜色/交互库 source（不再自定变量） ──
+echo "=== Test 11: source lib 库 ==="
+grep -q 'source.*lib/colors.sh' "$BOOTSTRAP" && pass "sources lib/colors.sh" || fail "no colors.sh source"
+grep -q 'source.*lib/interact.sh' "$BOOTSTRAP" && pass "sources lib/interact.sh" || fail "no interact.sh source"
+grep -q 'source.*lib/dry-run.sh' "$BOOTSTRAP" && pass "sources lib/dry-run.sh" || fail "no dry-run.sh source"
+
+# ── Test 11b: gh auth 菜单 case 分支正确（PAT=1, OAuth=2, 取消=0） ──
+echo "=== Test 11b: auth 菜单 case 正确 ==="
+grep -q 'menu_select.*PAT' "$BOOTSTRAP" && pass "menu_select 含 PAT 项" || fail "no menu_select PAT"
+awk '/case "\$gh_auth_choice"/{f=1} f{print} /esac/{if(f)exit}' "$BOOTSTRAP" > /tmp/bs-case.txt
+if awk '/^        1\)/{f=1} /^        2\)/{f=0} f' /tmp/bs-case.txt | grep -q 'with-token'; then
+    pass "case 1) = PAT (--with-token)"
+else
+    fail "case 1) 应为 PAT (--with-token)"
+fi
+if awk '/^        2\)/{f=1} /^        0\)/{f=0} f' /tmp/bs-case.txt | grep -q -- '--web'; then
+    pass "case 2) = Web OAuth (--web)"
+else
+    fail "case 2) 应为 Web OAuth (--web)"
+fi
+rm -f /tmp/bs-case.txt
+grep -q '0)' "$BOOTSTRAP" && pass "case 0) = 取消/跳过" || fail "no cancel branch 0)"
 
 # ── Test 12: 不应再含旧版一行 curl 引导（已拆三步） ──
 echo "=== Test 12: 不含旧版引导 ==="
