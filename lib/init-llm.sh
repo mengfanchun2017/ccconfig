@@ -696,40 +696,65 @@ PYEOF
 # ========== 交互式菜单（保留原字母 1A/2B/3C 样式）==========
 _llm_status_header() {
     local current="${1:-}"
-    local llm_name="" llm_display=""
-    if [[ -n "$current" ]]; then
-        llm_name=$(echo "$current" | cut -d'|' -f1)
-        llm_display=$(echo "$current" | cut -d'|' -f2)
-        [[ -z "$llm_display" ]] && llm_display="$llm_name"
-    fi
-
     echo -e ""
-    if [[ -n "$llm_display" ]]; then
-        echo -e "  ${LIGHT_BLUE}生效配置: $llm_display${NC}"
-    else
+    if [[ -z "$current" ]]; then
         echo -e "  ${LIGHT_BLUE}生效配置: 未配置${NC}"
+        echo -e ""
+        return
     fi
 
-    # bridge 活跃且当前配置指向 bridge 端口时才显示
+    local display model base_url
+    IFS='|' read -r display model base_url < <(CUR="$current" CONFIG_FILE="$CONFIG_FILE" python3 - << 'PYEOF'
+import json, os
+d = json.load(open(os.environ['CONFIG_FILE']))
+llm = d.get('llms', {}).get(os.environ['CUR'], {})
+print(f"{llm.get('name', os.environ['CUR'])}|{llm.get('model','')}|{llm.get('base_url','')}")
+PYEOF
+    ) 2>/dev/null
+    [[ -z "$display" ]] && display="$current"
+    echo -e "  ${LIGHT_BLUE}生效配置: $display${NC} ${DIM}($model)${NC}"
+
+    # bridge 状态：settings.json env 指向 bridge 端口
     local _sf_url
     _sf_url=$(python3 -c "
 import json, os
 try: print(json.load(open(os.path.expanduser('~/.claude/settings.json'))).get('env',{}).get('ANTHROPIC_BASE_URL',''))
 except: pass" 2>/dev/null)
     if [[ "$_sf_url" == "http://127.0.0.1:${BRIDGE_PORT}"* ]]; then
-        local _bh=""
+        local _bh
         _bh=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
         if [[ -n "$_bh" ]]; then
             local up
             up=$(echo "$_bh" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
-            echo -e "  ${LIGHT_BLUE}bridge启动: $up${NC}"
+            echo -e "  ${LIGHT_BLUE}bridge: ${GREEN}✓${NC} ${DIM}upstream=$up${NC}"
+        else
+            echo -e "  ${LIGHT_BLUE}bridge: ${RED}✗ 无响应${NC}"
+        fi
+    fi
+
+    # tailscale 状态：当前预设 base_url 是 RFC1918 私网段（10/172.16-31/192.168）
+    if [[ "$base_url" =~ ^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.) ]]; then
+        if command -v curl.exe &>/dev/null; then
+            local ts_code
+            ts_code=$(curl.exe -s -o /dev/null -w "%{http_code}" --max-time 3 -k "$base_url" 2>/dev/null || echo "000")
+            if [[ "$ts_code" == "000" ]]; then
+                echo -e "  ${LIGHT_BLUE}tailscale: ${RED}✗ 不可达${NC}"
+            else
+                echo -e "  ${LIGHT_BLUE}tailscale: ${GREEN}✓ 就绪${NC} ${DIM}(HTTP $ts_code)${NC}"
+            fi
+        else
+            echo -e "  ${LIGHT_BLUE}tailscale: ${YELLOW}? curl.exe 不可用${NC}"
         fi
     fi
     echo -e ""
 }
 
 interactive_select() {
-    _rebuild_llm_list() {
+    local -a item_cat item_letter item_name
+    local -a builtin_r custom_r
+
+    while true; do
+        clear
         local lines; lines=$(list_llms)
         local current; current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
         _llm_status_header "$current"
@@ -742,15 +767,6 @@ interactive_select() {
                 custom_r+=("$name|$display_name|$model|$small|$marker|$base_url")
             fi
         done < <(echo "$lines")
-    }
-
-    local -a item_cat item_letter item_name
-    local -a builtin_r=() custom_r=()
-    _rebuild_llm_list
-
-    while true; do
-        clear
-        item_cat=(); item_letter=(); item_name=()
         echo -e "  ${BOLD_GRAY}--内建 llm--${NC}"
         local letter="A"
         for entry in "${builtin_r[@]}"; do
@@ -793,9 +809,9 @@ interactive_select() {
             local letter_m="${BASH_REMATCH[2]^^}"
             if [[ "$cat" == "3" ]]; then
                 case "$letter_m" in
-                    A) switch_custom; _rebuild_llm_list ;;
-                    B) edit_preset; _rebuild_llm_list ;;
-                    C) delete_preset; _rebuild_llm_list ;;
+                    A) switch_custom ;;
+                    B) edit_preset ;;
+                    C) delete_preset ;;
                     D) bash "$LLMSWITCH_INIT" --config ;;
                     E) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
                     *) warn "配置: A=新增 B=修改 C=删除 D=Gateway E=Bill"; continue ;;
