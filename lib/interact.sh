@@ -273,9 +273,9 @@ menu_render() {
             current_cat="$cat"
         fi
 
-        # 菜单项: <cat><letter>  title                  desc
+        # 菜单项: <cat><letter>  title        desc
         local key="${cat}${letter}"
-        printf "  ${BOLD_GREEN}%s${letter:+%s}${NC}  %-32s ${DIM}%s${NC}\n" \
+        printf "  ${BOLD_GREEN}%s${letter:+%s}${NC}  %-20s ${DIM}%s${NC}\n" \
                "$cat" ${letter:+"$letter"} "$title" "$desc"
     done
 }
