@@ -36,6 +36,10 @@ LLMSWITCH_INIT="$CCCONFIG_ROOT/option-llmswitch/init.sh"
 LLMSWITCH_WATCHDOG="$CCCONFIG_ROOT/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
+# ccconfig 自带预设 key —— builtin 分类以代码为准，不依赖用户 llm.json 的 builtin 字段
+# 用户 llm.json 可能缺该字段或被手改，会导致菜单内建/自定义分组错乱
+BUILTIN_PRESETS=(minimax deepseek_flash gateway)
+
 # ========== 读取配置 ==========
 get_llm_config() {
     python3 - "$CONFIG_FILE" "$1" << 'PYEOF'
@@ -49,8 +53,9 @@ PYEOF
 }
 
 list_llms() {
-    python3 - "$CONFIG_FILE" "$LLMSWITCH_CONF" << 'PYEOF'
+    BUILTIN_KEYS="${BUILTIN_PRESETS[*]}" python3 - "$CONFIG_FILE" "$LLMSWITCH_CONF" << 'PYEOF'
 import json, sys, os
+builtin_set = set(os.environ.get('BUILTIN_KEYS','').split())
 with open(sys.argv[1]) as f: d = json.load(f)
 llms = d.get('llms', {}); cur = d.get('current', '')
 sw_model = sw_small = ''
@@ -68,7 +73,7 @@ for name, llm in llms.items():
         model = sw_model
     marker = "◀" if name == cur else " "
     small = (sw_small if name == 'gateway' and sw_small else llm.get('small_model', ''))
-    is_builtin = '1' if llm.get('builtin', False) else '0'
+    is_builtin = '1' if (name in builtin_set or llm.get('builtin', False)) else '0'
     print(f"{marker}|{name}|{llm.get('name', name)}|{model}|{llm.get('base_url','')}|{small}|{is_builtin}")
 PYEOF
 }
@@ -560,12 +565,13 @@ show_list() {
 delete_preset() {
     local target="${1:-}"
 
-    # 读 builtin 列表
+    # 读 builtin 列表（以代码定义为准，兼容用户 builtin 字段）
     local builtin_list
-    builtin_list=$(python3 - "$CONFIG_FILE" << 'PYEOF'
-import json, sys
+    builtin_list=$(BUILTIN_KEYS="${BUILTIN_PRESETS[*]}" python3 - "$CONFIG_FILE" << 'PYEOF'
+import json, sys, os
+builtin_set = set(os.environ.get('BUILTIN_KEYS','').split())
 with open(sys.argv[1]) as f: d = json.load(f)
-names = [k for k, v in d.get('llms', {}).items() if v.get('builtin')]
+names = [k for k, v in d.get('llms', {}).items() if k in builtin_set or v.get('builtin')]
 print(' '.join(names))
 PYEOF
     )
@@ -610,12 +616,13 @@ PYEOF
 edit_preset() {
     local target="${1:-}"
 
-    # 读 builtin 列表
+    # 读 builtin 列表（以代码定义为准，兼容用户 builtin 字段）
     local builtin_list
-    builtin_list=$(python3 - "$CONFIG_FILE" << 'PYEOF'
-import json, sys
+    builtin_list=$(BUILTIN_KEYS="${BUILTIN_PRESETS[*]}" python3 - "$CONFIG_FILE" << 'PYEOF'
+import json, sys, os
+builtin_set = set(os.environ.get('BUILTIN_KEYS','').split())
 with open(sys.argv[1]) as f: d = json.load(f)
-names = [k for k, v in d.get('llms', {}).items() if v.get('builtin')]
+names = [k for k, v in d.get('llms', {}).items() if k in builtin_set or v.get('builtin')]
 print(' '.join(names))
 PYEOF
     )
@@ -749,12 +756,20 @@ except: pass" 2>/dev/null)
     echo -e ""
 }
 
+# 动作后停顿，让用户看清结果再重渲染（防止输出堆积、clear 抖动）
+_pause_continue() {
+    echo ""
+    printf "  ${DIM}按回车返回菜单...${NC}"
+    read -r _ < /dev/tty 2>/dev/null || true
+    echo ""
+}
+
 interactive_select() {
     local -a item_cat item_letter item_name
     local -a builtin_r custom_r
 
     while true; do
-        clear
+        clear 2>/dev/null || true
         local lines; lines=$(list_llms)
         local current; current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
         _llm_status_header "$current"
@@ -768,27 +783,30 @@ interactive_select() {
             fi
         done < <(echo "$lines")
         echo -e "  ${BOLD_GRAY}--内建 llm--${NC}"
-        local letter="A"
-        for entry in "${builtin_r[@]}"; do
-            IFS='|' read -r name display_name model small marker base_url <<< "$entry"
+        local idx letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        for ((idx=0; idx<${#builtin_r[@]}; idx++)); do
+            IFS='|' read -r name display_name model small marker base_url <<< "${builtin_r[$idx]}"
             local small_str="" route_str=""
             [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
             [[ "$name" == "gateway" ]] && route_str=" ${YELLOW}$(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)${NC}"
-            echo -e "  ${BOLD_GREEN}1${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
+            local cur_mark=" "
+            [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
+            local letter="${letters:$idx:1}"
+            echo -e "  ${BOLD_GREEN}1${letter}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
             item_cat+=("1"); item_letter+=("$letter"); item_name+=("$name")
-            case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
         done
 
         echo -e "  ${BOLD_GRAY}--自定义 llm--${NC}"
-        letter="A"
-        for entry in "${custom_r[@]}"; do
-            IFS='|' read -r name display_name model small marker base_url <<< "$entry"
+        for ((idx=0; idx<${#custom_r[@]}; idx++)); do
+            IFS='|' read -r name display_name model small marker base_url <<< "${custom_r[$idx]}"
             local small_str="" route_str=""
             [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
             [[ "$name" == "gateway" ]] && route_str=" ${YELLOW}$(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)${NC}"
-            echo -e "  ${BOLD_GREEN}2${letter}${NC}  ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
+            local cur_mark=" "
+            [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
+            local letter="${letters:$idx:1}"
+            echo -e "  ${BOLD_GREEN}2${letter}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
             item_cat+=("2"); item_letter+=("$letter"); item_name+=("$name")
-            case "$letter" in A) letter=B;; B) letter=C;; C) letter=D;; D) letter=E;; E) letter=F;; F) letter=G;; G) letter=H;; H) letter=I;; I) letter=J;; J) letter=K;; K) letter=L;; L) letter=M;; M) letter=N;; N) letter=O;; O) letter=P;; P) letter=Q;; Q) letter=R;; R) letter=S;; S) letter=T;; T) letter=U;; U) letter=V;; V) letter=W;; W) letter=X;; X) letter=Y;; Y) letter=Z;; *) letter=A;; esac
         done
 
         echo -e "  ${BOLD_GRAY}--llm 配置--${NC}"
@@ -816,11 +834,13 @@ interactive_select() {
                     E) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
                     *) warn "配置: A=新增 B=修改 C=删除 D=Gateway E=Bill"; continue ;;
                 esac
+                _pause_continue
                 continue
             fi
             for i in "${!item_cat[@]}"; do
                 if [[ "${item_cat[$i]}" == "$cat" && "${item_letter[$i]}" == "$letter_m" ]]; then
                     switch_llm "${item_name[$i]}"
+                    _pause_continue
                     continue 2
                 fi
             done
@@ -829,10 +849,11 @@ interactive_select() {
         fi
 
         if [[ "$choice" =~ ^[0-9]+$ ]]; then
-            [[ "$choice" == "3" ]] && { switch_custom; continue; }
+            [[ "$choice" == "3" ]] && { switch_custom; _pause_continue; continue; }
             for i in "${!item_cat[@]}"; do
                 if [[ "${item_cat[$i]}" == "$choice" ]]; then
                     switch_llm "${item_name[$i]}"
+                    _pause_continue
                     continue 2
                 fi
             done
