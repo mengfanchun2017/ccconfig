@@ -4,7 +4,8 @@
 #
 # skill 来源（聚合到 ~/.claude/skills/）：
 #   CLI 依赖          → 自建 skill deps.txt（per-skill 自声明），npm/go 自动安装
-#   自建 f-*         → symlink 从 skill/plugins/（开源仓库，单一源）
+#   公开 skill       → symlink 从 skill/plugins/（开源仓库，git pull 更新）
+#   私有 skill        → symlink 从 ccprivate/skill-local/（私有 git，不开源，跨机器同步）
 #   私有配置         → ccprivate config overlay（conf/*.yaml 覆盖 skill 内 config.yaml.example）
 #
 # 使用：
@@ -25,6 +26,7 @@ source "$SCRIPT_DIR/dry-run.sh"
 SKILLS_SRC="${SKILL_SRC:-$HOME/git/skill/plugins}"
 SKILL_REPO_DIR="$HOME/git/skill"
 CCPRIVATE_DIR="${CCPRIVATE_HOME:-${CCPRIVATE_DIR:-$HOME/git/ccprivate}}"
+LOCAL_SKILLS_SRC="${LOCAL_SKILLS_SRC:-$CCPRIVATE_DIR/skill-local}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 THIRD_PARTY_CONF="$CCCONFIG_ROOT/conf/third-party-skills.txt"
 
@@ -230,7 +232,47 @@ do_install_cli_deps() {
 }
 
 # 阶段 1：symlink 自建 skill 到 ~/.claude/skills/
-# 保护 npx skills 装的 symlink：目标不在 $SKILLS_SRC/ 下就跳过（user-managed）
+# 两源：$SKILLS_SRC（公开上游）+ $LOCAL_SKILLS_SRC（私有 ccprivate）
+# 私有同名覆盖公开；公开扫到已指向私有的 symlink 则跳过（私有优先）
+link_skill_dir() {
+    local skill_dir="$1" is_local="${2:-0}"
+    local quiet="${INIT_ALL_FLOW:-0}"
+    local name=$(basename "$skill_dir")
+    local target="$CLAUDE_SKILLS_DIR/$name"
+
+    if [[ -L "$target" ]] && [[ -e "$target" ]] && [[ "$(readlink -f "$target")" == "$(readlink -f "$skill_dir")" ]]; then
+        [[ "$quiet" != "1" ]] && info "  $name: 已链接" >&2
+        echo "skip"
+    elif [[ -L "$target" ]] && [[ ! -e "$target" ]]; then
+        run rm -f "$target"
+        run ln -s "$skill_dir" "$target"
+        [[ "$quiet" != "1" ]] && good "  $name: ✓ 删断链 + 重新链接" >&2
+        echo "clean"
+    elif [[ -L "$target" ]]; then
+        local tgt_real
+        tgt_real=$(readlink -f "$target")
+        if [[ "$is_local" == "1" ]]; then
+            run rm -f "$target"
+            run ln -s "$skill_dir" "$target"
+            [[ "$quiet" != "1" ]] && warn "  $name: 私有覆盖上游" >&2
+            echo "override"
+        elif [[ "$tgt_real" == "$LOCAL_SKILLS_SRC"/* ]]; then
+            [[ "$quiet" != "1" ]] && info "  $name: 私有优先，公开跳过" >&2
+            echo "skip"
+        else
+            [[ "$quiet" != "1" ]] && info "  $name: user-managed (npx 等)，保留" >&2
+            echo "skip"
+        fi
+    elif [[ -d "$target" ]]; then
+        [[ "$quiet" != "1" ]] && info "  $name: 本地已有（非链接），跳过" >&2
+        echo "skip"
+    else
+        run ln -s "$skill_dir" "$target"
+        [[ "$quiet" != "1" ]] && good "  $name: ✓" >&2
+        echo "link"
+    fi
+}
+
 do_link_self_built() {
     local quiet="${INIT_ALL_FLOW:-0}"
     title "阶段 1/4: symlink 自建 skill → ~/.claude/skills/"
@@ -248,49 +290,43 @@ do_link_self_built() {
     fi
 
     local src_count=$(ls -d "$SKILLS_SRC"/*/ 2>/dev/null | wc -l)
+    local local_count=0
+    [[ -d "$LOCAL_SKILLS_SRC" ]] && local_count=$(ls -d "$LOCAL_SKILLS_SRC"/*/ 2>/dev/null | wc -l)
     local existing_count=$(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l)
-    [[ "$quiet" != "1" ]] && info "  源: $SKILLS_SRC ($src_count 个 skill)"
-    [[ "$quiet" != "1" ]] && info "  目标: $CLAUDE_SKILLS_DIR ($existing_count 个已存在)"
+    [[ "$quiet" != "1" ]] && info "  公开源: $SKILLS_SRC ($src_count 个)"
+    [[ "$quiet" != "1" ]] && [[ $local_count -gt 0 ]] && info "  私有源: $LOCAL_SKILLS_SRC ($local_count 个)"
+    [[ "$quiet" != "1" ]] && info "  目标:   $CLAUDE_SKILLS_DIR ($existing_count 个已存在)"
 
     if [[ $src_count -eq 0 ]]; then
-        warn "  源目录无 skill，检查: ls $SKILLS_SRC/"
+        warn "  公开源目录无 skill，检查: ls $SKILLS_SRC/"
         return 0
     fi
 
-    local linked=0 skipped=0 cleaned=0 user_managed=0
+    local linked=0 skipped=0 cleaned=0 override=0
+    local st
     for skill_dir in "$SKILLS_SRC"/*; do
         [[ -d "$skill_dir" ]] || continue
-        local name=$(basename "$skill_dir")
-        local target="$CLAUDE_SKILLS_DIR/$name"
-
-        if [[ -L "$target" ]] && [[ -e "$target" ]] && [[ "$(readlink -f "$target")" == "$(readlink -f "$skill_dir")" ]]; then
-            [[ "$quiet" != "1" ]] && info "  $name: 已链接"
-            skipped=$((skipped + 1))
-        elif [[ -L "$target" ]] && [[ ! -e "$target" ]]; then
-            run rm -f "$target"
-            run ln -s "$skill_dir" "$target"
-            [[ "$quiet" != "1" ]] && good "  $name: ✓ 删断链 + 重新链接"
-            cleaned=$((cleaned + 1))
-            linked=$((linked + 1))
-        elif [[ -L "$target" ]]; then
-            if [[ "$(readlink -f "$target")" != "$(readlink -f "$skill_dir")" ]]; then
-                [[ "$quiet" != "1" ]] && info "  $name: user-managed (npx 等)，保留"
-                user_managed=$((user_managed + 1))
-            else
-                run rm -f "$target"
-                run ln -s "$skill_dir" "$target"
-                [[ "$quiet" != "1" ]] && good "  $name: ✓ (修复链接)"
-                linked=$((linked + 1))
-            fi
-        elif [[ -d "$target" ]]; then
-            [[ "$quiet" != "1" ]] && info "  $name: 本地已有（非链接），跳过"
-            skipped=$((skipped + 1))
-        else
-            run ln -s "$skill_dir" "$target"
-            [[ "$quiet" != "1" ]] && good "  $name: ✓"
-            linked=$((linked + 1))
-        fi
+        st=$(link_skill_dir "$skill_dir" 0)
+        case "$st" in
+            link)    linked=$((linked + 1)) ;;
+            clean)   cleaned=$((cleaned + 1)); linked=$((linked + 1)) ;;
+            override) override=$((override + 1)); linked=$((linked + 1)) ;;
+            *)       skipped=$((skipped + 1)) ;;
+        esac
     done
+
+    if [[ -d "$LOCAL_SKILLS_SRC" ]]; then
+        for skill_dir in "$LOCAL_SKILLS_SRC"/*; do
+            [[ -d "$skill_dir" ]] || continue
+            st=$(link_skill_dir "$skill_dir" 1)
+            case "$st" in
+                link)    linked=$((linked + 1)) ;;
+                clean)   cleaned=$((cleaned + 1)); linked=$((linked + 1)) ;;
+                override) override=$((override + 1)); linked=$((linked + 1)) ;;
+                *)       skipped=$((skipped + 1)) ;;
+            esac
+        done
+    fi
 
     local orphan=0
     for target in "$CLAUDE_SKILLS_DIR"/*; do
@@ -300,8 +336,14 @@ do_link_self_built() {
         tgt_raw=$(readlink "$target" 2>/dev/null) || continue
         local tgt_dir
         tgt_dir="$(cd "$(dirname "$target")" 2>/dev/null && cd "$(dirname "$tgt_raw")" 2>/dev/null && pwd 2>/dev/null)/$(basename "$tgt_raw")"
-        [[ "$tgt_dir" == "$SKILLS_SRC"/* ]] || continue
-        if [[ ! -d "$SKILLS_SRC/$name" ]]; then
+        local in_public=0 in_local=0
+        [[ "$tgt_dir" == "$SKILLS_SRC"/* ]] && in_public=1
+        [[ "$tgt_dir" == "$LOCAL_SKILLS_SRC"/* ]] && in_local=1
+        [[ $in_public -eq 0 && $in_local -eq 0 ]] && continue
+        local src_missing=0
+        [[ $in_public -eq 1 && ! -d "$SKILLS_SRC/$name" ]] && src_missing=1
+        [[ $in_local -eq 1 && ! -d "$LOCAL_SKILLS_SRC/$name" ]] && src_missing=1
+        if [[ $src_missing -eq 1 ]]; then
             run rm -f "$target"
             [[ "$quiet" != "1" ]] && good "  $name: ✓ 删孤儿（源已删除）"
             orphan=$((orphan + 1))
@@ -318,7 +360,7 @@ do_link_self_built() {
         fi
     done
 
-    echo -e "  symlink: ${GREEN}${linked} 新建${NC}, ${GRAY}${skipped} 跳过${NC}, ${cleaned} 修复, ${orphan} 清理"
+    echo -e "  symlink: ${GREEN}${linked} 新建${NC}, ${GRAY}${skipped} 跳过${NC}, ${cleaned} 修复, ${override} 覆盖, ${orphan} 清理"
 }
 
 # 阶段 2：检 marketplace（保留自建 marketplace 给 f-* 自动跟）
@@ -418,6 +460,17 @@ _collect_all_deps() {
             done < "$dep_file"
         done
     fi
+
+    if [[ -d "$LOCAL_SKILLS_SRC" ]]; then
+        for skill_dir in "$LOCAL_SKILLS_SRC"/*/; do
+            local dep_file="${skill_dir}deps.txt"
+            [[ -f "$dep_file" ]] || continue
+            while IFS= read -r line; do
+                [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+                _deps_out+=("$line")
+            done < "$dep_file"
+        done
+    fi
 }
 
 do_update() {
@@ -478,11 +531,18 @@ do_cleanup() {
 }
 
 do_list() {
-    echo "=== 自建 skill (skill/plugins/ 实体) ==="
+    echo "=== 自建 skill (skill/plugins/ 公开上游) ==="
     if [[ -d "$SKILLS_SRC" ]]; then
         ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
     else
         echo "  (目录不存在: $SKILLS_SRC)"
+    fi
+    echo ""
+    echo "=== 私有 skill (ccprivate/skill-local/) ==="
+    if [[ -d "$LOCAL_SKILLS_SRC" ]] && [[ -n "$(ls -A "$LOCAL_SKILLS_SRC" 2>/dev/null)" ]]; then
+        ls "$LOCAL_SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
+    else
+        echo "  (无)"
     fi
     echo ""
     echo "=== ~/.claude/skills/ (symlink + npx-installed) ==="
@@ -492,7 +552,7 @@ do_list() {
         [[ -L "$d" ]] || marker="○"
         local src
         if [[ -L "$d" ]]; then
-            src=$(readlink "$d" | sed 's|.*/\.agents/skills/|npx: |; s|.*/skill/plugins/|skill: |; s|.*/templates/skills/|ccconfig (legacy): |')
+            src=$(readlink "$d" | sed 's|.*/\.agents/skills/|npx: |; s|.*/skill-local/|private: |; s|.*/skill/plugins/|skill: |; s|.*/templates/skills/|ccconfig (legacy): |')
         else
             src="(本地)"
         fi
@@ -535,7 +595,9 @@ do_diff() {
         INSTALLED["$name"]=1
         if [[ -L "$d" ]]; then
             local target=$(readlink -f "$d")
-            if [[ "$target" == *"/skill/plugins"* ]] || [[ "$target" == *"$SKILLS_SRC"* ]]; then
+            if [[ "$target" == *"$LOCAL_SKILLS_SRC"* ]]; then
+                INSTALLED_SRC["$name"]="local-self"
+            elif [[ "$target" == *"/skill/plugins"* ]] || [[ "$target" == *"$SKILLS_SRC"* ]]; then
                 INSTALLED_SRC["$name"]="self-built"
             elif [[ "$target" == *".agents/skills"* ]]; then
                 INSTALLED_SRC["$name"]="npx"
@@ -563,7 +625,7 @@ do_diff() {
     echo ""
     echo -e "${CYAN}── 已装但不在清单（untracked drift）${NC}"
     for skill in "${!INSTALLED[@]}"; do
-        if [[ -z "${MANIFEST_SKILLS[$skill]}" ]] && [[ "${INSTALLED_SRC[$skill]}" != "self-built" ]]; then
+        if [[ -z "${MANIFEST_SKILLS[$skill]}" ]] && [[ "${INSTALLED_SRC[$skill]}" != "self-built" ]] && [[ "${INSTALLED_SRC[$skill]}" != "local-self" ]]; then
             local src_label="${INSTALLED_SRC[$skill]}"
             echo -e "  ${YELLOW}?${NC} $skill — $src_label（不在 third-party-skills.txt）"
             extra=$((extra + 1))
@@ -575,8 +637,8 @@ do_diff() {
     echo -e "${CYAN}── 自建 skill（不在清单管理范围）${NC}"
     local self_count=0
     for skill in "${!INSTALLED_SRC[@]}"; do
-        if [[ "${INSTALLED_SRC[$skill]}" == "self-built" ]]; then
-            info "  $skill"
+        if [[ "${INSTALLED_SRC[$skill]}" == "self-built" ]] || [[ "${INSTALLED_SRC[$skill]}" == "local-self" ]]; then
+            info "  $skill [${INSTALLED_SRC[$skill]}]"
             self_count=$((self_count + 1))
         fi
     done
@@ -603,6 +665,11 @@ do_remove() {
     if [[ -d "$SKILLS_SRC/$skill" ]]; then
         bad "  $skill 是自建 skill，由 skill 仓库管理，不能通过此脚本卸载"
         info "  如需移除自建 skill：删除 skill/plugins/$skill/ 目录并提交 PR"
+        return 1
+    fi
+    if [[ -d "$LOCAL_SKILLS_SRC/$skill" ]]; then
+        bad "  $skill 是私有 skill，不能通过此脚本卸载"
+        info "  如需移除: rm -rf $LOCAL_SKILLS_SRC/$skill && bash init-skill.sh sync"
         return 1
     fi
 
@@ -641,8 +708,9 @@ do_status() {
     title "Skills 状态"
 
     # 源 / 视图一对，不重复罗列同一份实体
-    local src_count=0 view_count=0
+    local src_count=0 local_count=0 view_count=0
     [[ -d "$SKILLS_SRC" ]] && src_count=$(ls "$SKILLS_SRC" 2>/dev/null | wc -l)
+    [[ -d "$LOCAL_SKILLS_SRC" ]] && local_count=$(ls "$LOCAL_SKILLS_SRC" 2>/dev/null | wc -l)
     [[ -d "$CLAUDE_SKILLS_DIR" ]] && view_count=$(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l)
 
     if [[ $src_count -gt 0 && $view_count -eq 0 ]]; then
@@ -650,12 +718,13 @@ do_status() {
     elif [[ $src_count -eq 0 && $view_count -gt 0 ]]; then
         echo -e "${YELLOW}~/.claude/skills/ 有 ${view_count} 项，但源目录不存在（drift）${NC}"
     elif [[ $src_count -ne "$view_count" ]]; then
-        echo -e "${YELLOW}drift: 源 ${src_count} ≠ 视图 ${view_count}${NC}"
+        echo -e "${YELLOW}drift: 公开源 ${src_count} ≠ 视图 ${view_count}（私有源 ${local_count} 个，同名覆盖不另计）${NC}"
     else
-        echo -e "${GREEN}源 ${src_count} = 视图 ${view_count}（无 drift）${NC}"
+        echo -e "${GREEN}公开源 ${src_count} = 视图 ${view_count}（无 drift）${NC}"
     fi
-    info "  源:    ${SKILLS_SRC}"
-    info "  视图:  ${CLAUDE_SKILLS_DIR}"
+    info "  公开源: ${SKILLS_SRC} (${src_count})"
+    info "  私有源: ${LOCAL_SKILLS_SRC} (${local_count})"
+    info "  视图:   ${CLAUDE_SKILLS_DIR}"
 
     echo ""
     echo -e "${CYAN}~/.claude/skills/ 明细 (${view_count} 项)${NC}"
@@ -666,7 +735,9 @@ do_status() {
         local src
         if [[ -L "$d" ]]; then
             local target=$(readlink -f "$d")
-            if [[ "$target" == *"/skill/plugins"* || "$target" == *"$SKILLS_SRC"* ]]; then
+            if [[ "$target" == *"$LOCAL_SKILLS_SRC"* ]]; then
+                src="private"
+            elif [[ "$target" == *"/skill/plugins"* || "$target" == *"$SKILLS_SRC"* ]]; then
                 src="skill"
             elif [[ "$target" == *".agents/skills"* ]]; then
                 src="npx"
