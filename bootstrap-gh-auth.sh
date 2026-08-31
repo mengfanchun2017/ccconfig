@@ -114,7 +114,7 @@ echo -e "  ${GRAY}做什么${NC}  登录 GitHub"
 echo -e "  ${GRAY}为什么${NC}  gh 调用 API 全靠登录 token；没它 Step 4 拿不到 git 身份、后续 gh repo create 也不行"
 echo -e "  ${GRAY}预计${NC}    ~30 s（有代理）/ ~2 min（手动 fine-grained PAT）"
 
-if gh auth status &>/dev/null 2>&1; then
+if gh auth status &>/dev/null; then
     ok "GitHub 已登录: $(gh api user --jq '.login' 2>/dev/null)"
 elif [[ -f "$HOME/.ssh/id_ed25519" ]]; then
     info "gh 未登录，但 SSH 密钥已存在 → 跳过 gh 认证"
@@ -136,14 +136,6 @@ else
 
     case "$gh_auth_choice" in
         1)
-            info "浏览器打开 github.com → 点 Approve（~30 s）"
-            gh auth login --web --git-protocol https --hostname github.com
-            if ! gh auth status &>/dev/null 2>&1; then
-                err "Web OAuth 失败"
-                warn "可重试或选 A 方式: bash bootstrap-gh-auth.sh"
-            fi
-            ;;
-        *)
             # PAT 粘贴（默认）— Fine-grained PAT，最小权限
             echo ""
             echo -e "  浏览器打开 → 生成 ${BOLD}Fine-grained PAT${NC}:"
@@ -180,6 +172,17 @@ else
                 echo "$GH_TOKEN_INPUT" | gh auth login --hostname github.com --with-token
             fi
             ;;
+        2)
+            info "浏览器打开 github.com → 点 Approve（~30 s）"
+            gh auth login --web --git-protocol https --hostname github.com
+            if ! gh auth status &>/dev/null; then
+                err "Web OAuth 失败"
+                warn "可重试或选 A 方式: bash bootstrap-gh-auth.sh"
+            fi
+            ;;
+        0)
+            warn "跳过 GitHub 认证，之后可重跑: bash bootstrap-gh-auth.sh"
+            ;;
     esac
 fi
 
@@ -189,7 +192,7 @@ echo -e "  ${GRAY}做什么${NC}  从 gh api 取 GitHub 用户名+邮箱 → 写
 echo -e "  ${GRAY}为什么${NC}  git commit 需要 user.name / user.email；gh credential helper 让 clone/push 免密"
 echo -e "  ${GRAY}预计${NC}    < 5 s"
 
-if gh auth status &>/dev/null 2>&1; then
+if gh auth status &>/dev/null; then
     gh_email=$(gh api user --jq '.email // empty' 2>/dev/null)
     gh_name=$(gh api user --jq '.name // .login' 2>/dev/null)
     [[ -n "$gh_email" ]] && git config --global user.email "$gh_email"
