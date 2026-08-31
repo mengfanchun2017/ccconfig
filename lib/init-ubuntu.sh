@@ -33,6 +33,9 @@ source "$SCRIPT_DIR/dry-run.sh"
 # 颜色（colors.sh 可选 source，缺失时 fallback）
 source "$SCRIPT_DIR/colors.sh"
 
+# libicu 确保（.NET 二进制运行时依赖，officecli/fpptx/fdocx/fxlsx 共用）
+source "$SCRIPT_DIR/ensure-libicu.sh"
+
 # ========== 读取 git 配置 ==========
 # 从 git config / gh api 读取（不再依赖 ubuntu.json）
 read_git_config() {
@@ -539,6 +542,7 @@ main() {
     setup_nodejs
     ensure_pip
     setup_python_packages
+    ensure_libicu
     setup_claude_code || CLAUDE_CLI_NOT_READY=1
 
     # ccprivate 私有链接（MEMORY.md, CLAUDE.md, settings.json 等）

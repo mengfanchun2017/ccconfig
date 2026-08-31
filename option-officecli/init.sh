@@ -55,24 +55,8 @@ get_latest_version() {
 }
 
 # ========== libicu 依赖 ==========
-# officecli 是 .NET 单文件应用，缺 libicu 启动即报 "Couldn't find a valid ICU package"。
-# 包名 Ubuntu 26.04 为 libicu78，其他版本 `apt-cache search libicu` 查对应名。
-ensure_libicu() {
-    if ldconfig -p 2>/dev/null | grep -q "libicuuc\.so"; then
-        return 0
-    fi
-    warn "缺少 libicu（.NET 运行时必需，officecli 无法启动）"
-    if sudo apt-get install -y libicu78 2>&1 | tail -3; then
-        if ldconfig -p 2>/dev/null | grep -q "libicuuc\.so"; then
-            ok "libicu78 已装"
-        else
-            warn "libicu 仍未就绪，officecli 可能无法运行"
-        fi
-    else
-        warn "libicu78 安装失败，手动: sudo apt-get install -y libicu78"
-        return 1
-    fi
-}
+# 复用 lib/ensure-libicu.sh（发行版自适应包名，24.04→libicu74 / 26.04→libicu78）
+source "$CCCONFIG_DIR/lib/ensure-libicu.sh"
 
 # ========== 安装 ==========
 install_officecli() {
