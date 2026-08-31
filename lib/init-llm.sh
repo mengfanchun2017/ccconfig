@@ -369,6 +369,8 @@ switch_custom() {
     [[ -z "$url" ]] && { error "URL 不能为空"; return 1; }
     local model; model=$(prompt "Model 名称")
     [[ -z "$model" ]] && { error "Model 不能为空"; return 1; }
+    local small; small=$(prompt "小模型名称（回车默认同大模型）")
+    [[ -z "$small" ]] && small="$model"
     local key; key=$(prompt "API Key（留空复用当前）")
     if [[ -n "$key" ]]; then
         info "  Key: ${key:0:4}...${key: -4}"
@@ -384,7 +386,7 @@ except: pass" 2>/dev/null)
     local preset_name; preset_name=$(prompt "预设名称（小写无空格）" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
     [[ -z "$preset_name" ]] && { error "预设名称不能为空"; return 1; }
 
-    CONFIG_FILE="$CONFIG_FILE" PRESET_NAME="$preset_name" URL="$url" MODEL="$model" KEY="$key" \
+    CONFIG_FILE="$CONFIG_FILE" PRESET_NAME="$preset_name" URL="$url" MODEL="$model" SMALL="$small" KEY="$key" \
         python3 - <<'PYEOF'
 import json, os
 p = os.environ['CONFIG_FILE']
@@ -394,7 +396,7 @@ d.setdefault('llms', {})[os.environ['PRESET_NAME']] = {
     "base_url": os.environ['URL'],
     "model": os.environ['MODEL'],
     "key": os.environ['KEY'],
-    "small_model": os.environ['MODEL'],
+    "small_model": os.environ['SMALL'],
 }
 d['current'] = os.environ['PRESET_NAME']
 with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
@@ -594,23 +596,27 @@ _llm_status_header() {
 }
 
 interactive_select() {
-    local lines; lines=$(list_llms)
-    local current; current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
-
-    _llm_status_header "$current"
+    _rebuild_llm_list() {
+        local lines; lines=$(list_llms)
+        local current; current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
+        _llm_status_header "$current"
+        builtin_r=(); custom_r=(); item_cat=(); item_letter=(); item_name=()
+        while IFS='|' read -r marker name display_name model base_url small is_builtin; do
+            [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
+            if [[ "$is_builtin" == "1" ]]; then
+                builtin_r+=("$name|$display_name|$model|$small|$marker|$base_url")
+            else
+                custom_r+=("$name|$display_name|$model|$small|$marker|$base_url")
+            fi
+        done < <(echo "$lines")
+    }
 
     local -a item_cat item_letter item_name
     local -a builtin_r=() custom_r=()
-    while IFS='|' read -r marker name display_name model base_url small is_builtin; do
-        [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
-        if [[ "$is_builtin" == "1" ]]; then
-            builtin_r+=("$name|$display_name|$model|$small|$marker|$base_url")
-        else
-            custom_r+=("$name|$display_name|$model|$small|$marker|$base_url")
-        fi
-    done < <(echo "$lines")
+    _rebuild_llm_list
 
     while true; do
+        item_cat=(); item_letter=(); item_name=()
         echo -e "  ${BOLD_GRAY}--内建 llm--${NC}"
         local letter="A"
         for entry in "${builtin_r[@]}"; do
@@ -652,8 +658,8 @@ interactive_select() {
             local letter_m="${BASH_REMATCH[2]^^}"
             if [[ "$cat" == "3" ]]; then
                 case "$letter_m" in
-                    A) switch_custom ;;
-                    B) delete_preset ;;
+                    A) switch_custom; _rebuild_llm_list ;;
+                    B) delete_preset; _rebuild_llm_list ;;
                     C) bash "$LLMSWITCH_INIT" ;;
                     D) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
                     *) warn "配置: A=新增 B=删除 C=Gateway D=Bill"; continue ;;
