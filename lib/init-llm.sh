@@ -265,6 +265,22 @@ stop_gateway() {
     bash "$LLMSWITCH_INIT" --stop 2>/dev/null || true
 }
 
+# 停 bridge（如有）
+stop_bridge() {
+    local pid
+    pid=$( { lsof -ti :${BRIDGE_PORT} 2>/dev/null || true; } | head -1 || true)
+    [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
+}
+
+# 读 use_bridge 标记
+get_use_bridge() {
+    python3 - "$CONFIG_FILE" "$1" << 'PYEOF'
+import json, sys
+with open(sys.argv[1]) as f: d = json.load(f)
+print(d.get('llms', {}).get(sys.argv[2], {}).get('use_bridge', False))
+PYEOF
+}
+
 # ========== 切换主入口 ==========
 switch_llm() {
     local name="$1"
@@ -295,8 +311,22 @@ switch_llm() {
     # 停 gateway（切直连前）
     stop_gateway
 
-    # OpenAI-only 端点 → 启 bridge
-    if [[ "$base_url" != *"/anthropic"* ]] && [[ "$base_url" != *"://127.0.0.1"* ]]; then
+    # 读 use_bridge 标记
+    local use_bridge
+    use_bridge=$(get_use_bridge "$name")
+
+    # 是否走 bridge
+    if [[ "$use_bridge" == "True" ]]; then
+        info "  用户指定 bridge 代理..."
+        if ensure_bridge "$base_url" "$model" "$key"; then
+            base_url="http://127.0.0.1:${BRIDGE_PORT}"
+            info "  bridge 就绪 → $base_url"
+        else
+            error "  bridge 启动失败，查 log: tail -30 ~/.cache/openai_bridge.log"
+            return 1
+        fi
+    elif [[ "$base_url" != *"/anthropic"* ]] && [[ "$base_url" != *"://127.0.0.1"* ]]; then
+        # 自动检测：OpenAI-only 端点 → 启 bridge
         info "  OpenAI-only 端点 → 启动 bridge..."
         if ensure_bridge "$base_url" "$model" "$key"; then
             base_url="http://127.0.0.1:${BRIDGE_PORT}"
@@ -305,6 +335,9 @@ switch_llm() {
             error "  bridge 启动失败，查 log: tail -30 ~/.cache/openai_bridge.log"
             return 1
         fi
+    else
+        # 直连 → 停 bridge（如有）
+        stop_bridge
     fi
 
     info "切换到: $name"
@@ -326,6 +359,7 @@ switch_to_gateway() {
         return 0
     fi
     info "切换到 Gateway 模式"
+    stop_bridge
     if [[ ! -f "$LLMSWITCH_CONF" ]]; then
         [[ -f "$LLMSWITCH_CONF.example" ]] || { error "模板不存在: $LLMSWITCH_CONF.example"; return 1; }
         cp "$LLMSWITCH_CONF.example" "$LLMSWITCH_CONF"
@@ -359,6 +393,7 @@ switch_custom() {
         echo "  [DRY-RUN] switch_custom"; return 0
     fi
     stop_gateway
+    stop_bridge
 
     echo ""
     echo "  💡 WSL + Tailscale subnet router 场景：base_url 填内网 IP（如 10.x.x.x:port）"
@@ -386,7 +421,11 @@ except: pass" 2>/dev/null)
     local preset_name; preset_name=$(prompt "预设名称（小写无空格）" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
     [[ -z "$preset_name" ]] && { error "预设名称不能为空"; return 1; }
 
-    CONFIG_FILE="$CONFIG_FILE" PRESET_NAME="$preset_name" URL="$url" MODEL="$model" SMALL="$small" KEY="$key" \
+    local use_bridge="False"
+    local bridge_choice; bridge_choice=$(prompt "使用 bridge 代理? (y/N)" | tr '[:upper:]' '[:lower:]')
+    [[ "$bridge_choice" == "y" ]] && use_bridge="True"
+
+    CONFIG_FILE="$CONFIG_FILE" PRESET_NAME="$preset_name" URL="$url" MODEL="$model" SMALL="$small" KEY="$key" USE_BRIDGE="$use_bridge" \
         python3 - <<'PYEOF'
 import json, os
 p = os.environ['CONFIG_FILE']
@@ -397,6 +436,7 @@ d.setdefault('llms', {})[os.environ['PRESET_NAME']] = {
     "model": os.environ['MODEL'],
     "key": os.environ['KEY'],
     "small_model": os.environ['SMALL'],
+    "use_bridge": os.environ['USE_BRIDGE'] == 'True',
 }
 d['current'] = os.environ['PRESET_NAME']
 with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
@@ -567,6 +607,93 @@ else:
 PYEOF
 }
 
+# ========== 修改预设 ==========
+edit_preset() {
+    local target="${1:-}"
+
+    # 读 builtin 列表
+    local builtin_list
+    builtin_list=$(python3 - "$CONFIG_FILE" << 'PYEOF'
+import json, sys
+with open(sys.argv[1]) as f: d = json.load(f)
+names = [k for k, v in d.get('llms', {}).items() if v.get('builtin')]
+print(' '.join(names))
+PYEOF
+    )
+
+    if [[ -z "$target" ]]; then
+        echo "可修改的自定义预设："
+        local names=()
+        while IFS='|' read -r _ name display model _ _ is_builtin; do
+            [[ -z "$name" ]] && continue
+            [[ "$is_builtin" == "1" ]] && continue
+            names+=("$name")
+            printf "  %d) %s (%s)\n" "${#names[@]}" "$display" "$model"
+        done < <(list_llms)
+        [[ ${#names[@]} -eq 0 ]] && { info "无可修改预设"; return 0; }
+        local sel; sel=$(prompt "选择序号")
+        [[ "$sel" =~ ^[0-9]+$ ]] && (( sel >= 1 && sel <= ${#names[@]} )) && target="${names[$((sel-1))]}"
+    fi
+    [[ -z "$target" ]] && { error "未指定预设"; return 1; }
+
+    local config
+    config=$(get_llm_config "$target") || { error "未知预设: $target"; return 1; }
+    IFS='|' read -r cur_url cur_model cur_key cur_small <<< "$config"
+
+    local cur_use_bridge
+    cur_use_bridge=$(get_use_bridge "$target")
+
+    echo ""
+    info "修改预设: $target"
+    echo "  当前: base_url=$cur_url"
+    echo "         model=$cur_model"
+    echo "         small_model=$cur_small"
+    echo "         use_bridge=$cur_use_bridge"
+    echo "         key=...${cur_key: -4}"
+    echo ""
+
+    local new_url; new_url=$(prompt "Base URL（回车保持）")
+    [[ -z "$new_url" ]] && new_url="$cur_url"
+
+    local new_model; new_model=$(prompt "Model（回车保持）")
+    [[ -z "$new_model" ]] && new_model="$cur_model"
+
+    local new_small; new_small=$(prompt "小模型（回车保持）")
+    [[ -z "$new_small" ]] && new_small="$cur_small"
+
+    local new_key; new_key=$(prompt "API Key（回车保持，输=覆盖）")
+    [[ -z "$new_key" ]] && new_key="$cur_key"
+
+    local new_bridge="$cur_use_bridge"
+    local bridge_choice; bridge_choice=$(prompt "使用 bridge 代理? (y/N 当前: $cur_use_bridge)" | tr '[:upper:]' '[:lower:]')
+    if [[ "$bridge_choice" == "y" ]]; then
+        new_bridge="True"
+    elif [[ "$bridge_choice" == "n" ]]; then
+        new_bridge="False"
+    fi
+
+    confirm "确认修改 '$target'？" y || { info "已取消"; return 0; }
+
+    CONFIG_FILE="$CONFIG_FILE" TARGET="$target" URL="$new_url" MODEL="$new_model" SMALL="$new_small" KEY="$new_key" USE_BRIDGE="$new_bridge" \
+        python3 - <<'PYEOF'
+import json, os
+p = os.environ['CONFIG_FILE']
+with open(p) as f: d = json.load(f)
+llm = d.setdefault('llms', {}).get(os.environ['TARGET'])
+if llm:
+    llm['base_url'] = os.environ['URL']
+    llm['model'] = os.environ['MODEL']
+    llm['small_model'] = os.environ['SMALL']
+    llm['key'] = os.environ['KEY']
+    llm['use_bridge'] = os.environ['USE_BRIDGE'] == 'True'
+    with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
+    print("OK")
+else:
+    print("NOT_FOUND")
+PYEOF
+    success "预设 '$target' 已更新"
+}
+
 # ========== 交互式菜单（保留原字母 1A/2B/3C 样式）==========
 _llm_status_header() {
     local current="${1:-}"
@@ -584,13 +711,20 @@ _llm_status_header() {
         echo -e "  ${LIGHT_BLUE}生效配置: 未配置${NC}"
     fi
 
-    # bridge 活跃时显示 bridge 行
-    local _bh=""
-    _bh=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
-    if [[ -n "$_bh" ]]; then
-        local up
-        up=$(echo "$_bh" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
-        echo -e "  ${LIGHT_BLUE}bridge启动: $up${NC}"
+    # bridge 活跃且当前配置指向 bridge 端口时才显示
+    local _sf_url
+    _sf_url=$(python3 -c "
+import json, os
+try: print(json.load(open(os.path.expanduser('~/.claude/settings.json'))).get('env',{}).get('ANTHROPIC_BASE_URL',''))
+except: pass" 2>/dev/null)
+    if [[ "$_sf_url" == "http://127.0.0.1:${BRIDGE_PORT}"* ]]; then
+        local _bh=""
+        _bh=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
+        if [[ -n "$_bh" ]]; then
+            local up
+            up=$(echo "$_bh" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
+            echo -e "  ${LIGHT_BLUE}bridge启动: $up${NC}"
+        fi
     fi
     echo -e ""
 }
@@ -643,12 +777,13 @@ interactive_select() {
 
         echo -e "  ${BOLD_GRAY}--llm 配置--${NC}"
         printf "  ${BOLD_GREEN}3A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义" "输入任意 base_url + model + key"
-        printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义" "删除已保存的自定义预设"
-        printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
-        printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
+        printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "修改自定义" "修改已保存的自定义预设"
+        printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义" "删除已保存的自定义预设"
+        printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
         echo ""
+        printf "  ${BOLD_GREEN}3E${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
         echo "  0) 退出"
-        printf "  输入 (如 1A, 2B, 3C) 或数字选择: "
+        printf "  输入 (如 1A, 2B, 3D) 或数字选择: "
         read -r choice
 
         [[ -z "$choice" || "$choice" == "0" ]] && { info "已退出"; return 0; }
@@ -659,10 +794,11 @@ interactive_select() {
             if [[ "$cat" == "3" ]]; then
                 case "$letter_m" in
                     A) switch_custom; _rebuild_llm_list ;;
-                    B) delete_preset; _rebuild_llm_list ;;
-                    C) bash "$LLMSWITCH_INIT" ;;
-                    D) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
-                    *) warn "配置: A=新增 B=删除 C=Gateway D=Bill"; continue ;;
+                    B) edit_preset; _rebuild_llm_list ;;
+                    C) delete_preset; _rebuild_llm_list ;;
+                    D) bash "$LLMSWITCH_INIT" ;;
+                    E) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
+                    *) warn "配置: A=新增 B=修改 C=删除 D=Gateway E=Bill"; continue ;;
                 esac
                 continue
             fi
