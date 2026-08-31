@@ -27,6 +27,7 @@ check_prereqs() {
 
     # 自动化 / CI 旁路：不阻塞 read，直接 return 让上层 hard-exit 接管
     if [[ "${CCP_SKIP_PREREQ_PROMPT:-}" == "1" ]] || [[ "${INIT_ALL_FLOW:-}" == "1" ]]; then
+        err "ccprivate 未找到，CI/自动模式终止"
         return 1
     fi
 
@@ -143,7 +144,6 @@ init_all_steps() {
 run_step() {
     local label="$1" script="$2" auto="$3"
     local what="${4:-}" why="${5:-}" eta="${6:-}"
-    shift 6 2>/dev/null || true
 
     echo ""
     echo -e "${CYAN}━━━ ${label} ━━━${NC}"
@@ -154,14 +154,14 @@ run_step() {
     echo ""
 
     if [ "$auto" = "true" ]; then
-        if bash "$script" "$@"; then
+        if bash "$script"; then
             echo -e "${GREEN}✅ ${label} 完成${NC}"
         else
             echo -e "${RED}❌ ${label} 失败（继续）${NC}"
         fi
     else
         if confirm "运行？" y; then
-            if bash "$script" "$@"; then
+            if bash "$script"; then
                 echo -e "${GREEN}✅ ${label} 完成${NC}"
             else
                 echo -e "${RED}❌ ${label} 失败${NC}"
@@ -196,7 +196,7 @@ submenu_remote() {
     case "$c" in
         "1") run_step "SSH Server" "$SCRIPT_DIR/option-remote/server/tmux-sshd.sh" false ;;
         "2") bash "$SCRIPT_DIR/option-remote/deploy.sh" server ;;
-        "3") cat "$SCRIPT_DIR/option-remote/readme.md" 2>/dev/null || warn "readme.md 不存在" ;;
+        "3") cat "$SCRIPT_DIR/option-remote/README.md" 2>/dev/null || warn "README.md 不存在" ;;
         *) return ;;
     esac
 }
@@ -205,22 +205,23 @@ submenu_remote() {
 main_menu() {
     show_banner
     check_prereqs
-    local choice; choice=$(menu_select "ccconfig 初始化" \
-        "Ubuntu 环境/LLM/自启动" \
-        "远程连接/SSH/tmux" \
-        "★ 一键全部初始化" \
-        "可选组件(MCP/Skills/CLI)" \
-        "退出")
-    [[ -z "$choice" ]] && { main_menu; return; }
-    case "$choice" in
-        1) submenu_env ;;
-        2) submenu_remote ;;
-        3) init_all_steps; exit 0 ;;
-        4) echo -e "  ${GRAY}请执行: bash init-option.sh${NC}" ;;
-        0) echo ""; exit 0 ;;
-    esac
-    echo ""; read -p "按回车返回主菜单..." dummy < /dev/tty || true
-    main_menu
+    local choice
+    while true; do
+        choice=$(menu_select "ccconfig 初始化" \
+            "Ubuntu 环境/LLM/自启动" \
+            "远程连接/SSH/tmux" \
+            "★ 一键全部初始化" \
+            "可选组件(MCP/Skills/CLI)" \
+            "退出")
+        case "$choice" in
+            1) submenu_env ;;
+            2) submenu_remote ;;
+            3) init_all_steps; exit 0 ;;
+            4) echo -e "  ${GRAY}请执行: bash init-option.sh${NC}" ;;
+            0) echo ""; exit 0 ;;
+        esac
+        echo ""; read -p "按回车返回主菜单..." dummy < /dev/tty || true
+    done
 }
 
 # ========== 入口 ==========
