@@ -438,10 +438,9 @@ d.setdefault('llms', {})[os.environ['PRESET_NAME']] = {
     "small_model": os.environ['SMALL'],
     "use_bridge": os.environ['USE_BRIDGE'] == 'True',
 }
-d['current'] = os.environ['PRESET_NAME']
 with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
 PYEOF
-    switch_llm "$preset_name"
+    info "预设 '$preset_name' 已保存，手动切换：菜单选 2X 或 bash init-llm.sh $preset_name"
 }
 
 # ========== 状态 ==========
@@ -750,6 +749,7 @@ interactive_select() {
     _rebuild_llm_list
 
     while true; do
+        clear
         item_cat=(); item_letter=(); item_name=()
         echo -e "  ${BOLD_GRAY}--内建 llm--${NC}"
         local letter="A"
