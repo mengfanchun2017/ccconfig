@@ -796,7 +796,7 @@ interactive_select() {
                     A) switch_custom; _rebuild_llm_list ;;
                     B) edit_preset; _rebuild_llm_list ;;
                     C) delete_preset; _rebuild_llm_list ;;
-                    D) bash "$LLMSWITCH_INIT" ;;
+                    D) bash "$LLMSWITCH_INIT" --config ;;
                     E) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
                     *) warn "配置: A=新增 B=修改 C=删除 D=Gateway E=Bill"; continue ;;
                 esac
