@@ -237,7 +237,6 @@ print("settings.json 已更新")
 PYEOF
 
     success "LLM 已切换为: $name"
-    verify_endpoint "$name" "$base_url" "$model" "$key" || true
     sync_top_model
 }
 
@@ -310,6 +309,15 @@ switch_llm() {
     fi
 
     info "切换到: $name"
+
+    # 先探测 endpoint（gateway 本机 proxy 不走 verify）
+    if [[ "$name" != "gateway" ]]; then
+        verify_endpoint "$name" "$base_url" "$model" "$key" || {
+            warn "endpoint 不可达，切换中止（llm.json 未改动）"
+            return 1
+        }
+    fi
+
     write_llm_config "$name" "$base_url" "$model" "$small" "$key"
 }
 
