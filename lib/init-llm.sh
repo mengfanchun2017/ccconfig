@@ -156,8 +156,9 @@ verify_endpoint() {
     case "$status" in
         200) info "  ✓ endpoint 探测成功 ($name)"; return 0 ;;
         000) error "  ✗ endpoint 不可达 (连接超时/拒绝) — VPN/防火墙可能拦了 $base_url"; return 1 ;;
-        401|403|400) info "  ⚠ HTTP $status — 链路通但鉴权/参数错（不回滚）"; return 0 ;;
-        *) info "  ⚠ HTTP $status（不回滚）"; return 0 ;;
+        401|403) info "  ⚠ HTTP $status — 链路通但鉴权错"; return 0 ;;
+        400) warn "  ⚠ HTTP 400 — endpoint 路径/参数可能不对 $base_url"; return 0 ;;
+        *) info "  ⚠ HTTP $status"; return 0 ;;
     esac
 }
 
