@@ -36,9 +36,6 @@ LLMSWITCH_INIT="$CCCONFIG_ROOT/option-llmswitch/init.sh"
 LLMSWITCH_WATCHDOG="$CCCONFIG_ROOT/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
-# 内置预设（不可删除）
-BUILTIN_LLMS="minimax deepseek_flash gateway"
-
 # ========== 读取配置 ==========
 get_llm_config() {
     python3 - "$CONFIG_FILE" "$1" << 'PYEOF'
@@ -71,7 +68,8 @@ for name, llm in llms.items():
         model = sw_model
     marker = "◀" if name == cur else " "
     small = (sw_small if name == 'gateway' and sw_small else llm.get('small_model', ''))
-    print(f"{marker}|{name}|{llm.get('name', name)}|{model}|{llm.get('base_url','')}|{small}")
+    is_builtin = '1' if llm.get('builtin', False) else '0'
+    print(f"{marker}|{name}|{llm.get('name', name)}|{model}|{llm.get('base_url','')}|{small}|{is_builtin}")
 PYEOF
 }
 
@@ -518,12 +516,23 @@ show_list() {
 # ========== 删预设 ==========
 delete_preset() {
     local target="${1:-}"
+
+    # 读 builtin 列表
+    local builtin_list
+    builtin_list=$(python3 - "$CONFIG_FILE" << 'PYEOF'
+import json, sys
+with open(sys.argv[1]) as f: d = json.load(f)
+names = [k for k, v in d.get('llms', {}).items() if v.get('builtin')]
+print(' '.join(names))
+PYEOF
+    )
+
     if [[ -z "$target" ]]; then
         echo "可删除的自定义预设："
         local names=()
-        while IFS='|' read -r _ name display model _; do
+        while IFS='|' read -r _ name display model _ _ is_builtin; do
             [[ -z "$name" ]] && continue
-            [[ " $BUILTIN_LLMS " == *" $name "* ]] && continue
+            [[ "$is_builtin" == "1" ]] && continue
             names+=("$name")
             printf "  %d) %s (%s)\n" "${#names[@]}" "$display" "$model"
         done < <(list_llms)
@@ -533,7 +542,7 @@ delete_preset() {
     fi
     [[ -z "$target" ]] && { error "未指定预设"; return 1; }
 
-    if [[ " $BUILTIN_LLMS " == *" $target "* ]]; then
+    if [[ " $builtin_list " == *" $target "* ]]; then
         error "内置预设 '$target' 不可删"; return 1
     fi
     if [[ "$(python3 -c "import json; print(json.load(open('$CONFIG_FILE')).get('current',''))" 2>/dev/null)" == "$target" ]]; then
@@ -590,9 +599,9 @@ interactive_select() {
 
     local -a item_cat item_letter item_name
     local -a builtin_r=() custom_r=()
-    while IFS='|' read -r marker name display_name model base_url small; do
+    while IFS='|' read -r marker name display_name model base_url small is_builtin; do
         [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
-        if [[ "$name" == "minimax" || "$name" == "deepseek_flash" || "$name" == "gateway" ]]; then
+        if [[ "$is_builtin" == "1" ]]; then
             builtin_r+=("$name|$display_name|$model|$small|$marker|$base_url")
         else
             custom_r+=("$name|$display_name|$model|$small|$marker|$base_url")
