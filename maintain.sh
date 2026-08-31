@@ -232,7 +232,8 @@ fix_monitor() {
 
 # ========== 入口 ==========
 
-case "${1:-menu}" in
+# 测试模式：source 时只加载函数/数据，不进交互菜单（仿 init-llm.sh TEST_MODE）
+[[ "${MAINTAIN_TEST_MODE:-0}" == "1" ]] || case "${1:-menu}" in
     menu|"")
         menu_loop "ccconfig 运维中心"
         ;;

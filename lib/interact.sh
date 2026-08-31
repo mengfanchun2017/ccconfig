@@ -104,7 +104,7 @@ menu_select() {
     echo -e "  ${BOLD_GRAY}--${title}--${NC}" >&2
     local i sel=""
     for i in "${!items[@]}"; do
-        printf "  ${BOLD_GREEN}%d${NC}  %s\n" "$((i+1))" "${items[$i]}" >&2
+        printf "  ${BOLD_GREEN}%d)${NC}  %s\n" "$((i+1))" "${items[$i]}" >&2
     done
     printf '\n' >&2
     # 从 /dev/tty 读，避开 stdin 被管道/重定向导致的 read 阻塞/失败
