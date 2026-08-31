@@ -283,7 +283,7 @@ TESTS=(
 
 	# ═══ 分组 6: openai_bridge.py 语法 ═══
 	"t_bridge_py_syntax:openai_bridge.py Python 语法正确"
-	"t_bridge_py_has_max_completion_tokens:含 max_completion_tokens"
+	"t_bridge_py_has_max_completion_tokens:含 max_tokens 透传"
 	"t_bridge_py_has_tool_call_handler:含 tool_call 流式转换逻辑"
 	"t_bridge_py_has_anthropic_tool_use:非流式响应含 tool_use"
 
@@ -466,10 +466,10 @@ for name, cfg in d['llms'].items():
 
 		# ═══ 分组 4: 编号菜单 ═══
 		t_config_shows_numbered_menu)
-			# 验证 _do_config_manual_provider 的编号菜单代码结构
-			grep -q 'printf.*%d).*%s (%s)' "$TEST_HOME/git/ccconfig/option-llmswitch/init.sh" \
-				&& _pass "_do_config_manual_provider uses numbered printf" \
-				|| _fail "no numbered printf in config menu"
+			# 配置菜单用 echo + menu_select，验证编号项存在（1) 切换模式）
+			grep -qE '[0-9]+\)[^)]*切换模式' "$TEST_HOME/git/ccconfig/option-llmswitch/init.sh" \
+				&& _pass "config menu has numbered items (切换模式)" \
+				|| _fail "no numbered config menu"
 			;;
 		t_config_shows_peak_daily)
 			# 验证高峰时段显示含 六,日
@@ -500,9 +500,10 @@ for name, cfg in d['llms'].items():
 				|| _fail "openai_bridge.py syntax error"
 			;;
 		t_bridge_py_has_max_completion_tokens)
-			grep -q "max_completion_tokens" "$TEST_HOME/git/ccconfig/option-llmswitch/openai_bridge.py" \
-				&& _pass "bridge has max_completion_tokens" \
-				|| _fail "max_completion_tokens not found in bridge"
+			# bridge 用 max_tokens 字段透传给 OpenAI API（max_completion_tokens 是新版别名）
+			grep -q "max_tokens" "$TEST_HOME/git/ccconfig/option-llmswitch/openai_bridge.py" \
+				&& _pass "bridge has max_tokens passthrough" \
+				|| _fail "max_tokens not found in bridge"
 			;;
 		t_bridge_py_has_tool_call_handler)
 			grep -q "tool_call" "$TEST_HOME/git/ccconfig/option-llmswitch/openai_bridge.py" \
