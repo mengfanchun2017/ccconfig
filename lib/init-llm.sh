@@ -362,9 +362,9 @@ switch_custom() {
     [[ -z "$url" ]] && { error "URL 不能为空"; return 1; }
     local model; model=$(prompt "Model 名称")
     [[ -z "$model" ]] && { error "Model 不能为空"; return 1; }
-    local key; key=$(prompt_password "API Key")
+    local key; key=$(prompt "API Key（留空复用当前）")
     if [[ -n "$key" ]]; then
-        info "  Key: ...${key: -4}"
+        info "  Key: ${key:0:4}...${key: -4}"
     else
         key=$(python3 -c "
 import json,os
@@ -377,18 +377,19 @@ except: pass" 2>/dev/null)
     local preset_name; preset_name=$(prompt "预设名称（小写无空格）" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
     [[ -z "$preset_name" ]] && { error "预设名称不能为空"; return 1; }
 
-    python3 - <<PYEOF
-import json
-p = "${CONFIG_FILE}"
+    CONFIG_FILE="$CONFIG_FILE" PRESET_NAME="$preset_name" URL="$url" MODEL="$model" KEY="$key" \
+        python3 - <<'PYEOF'
+import json, os
+p = os.environ['CONFIG_FILE']
 with open(p) as f: d = json.load(f)
-d.setdefault('llms', {})["${preset_name}"] = {
-    "name": "${preset_name}",
-    "base_url": "${url}",
-    "model": "${model}",
-    "key": "${key}",
-    "small_model": "${model}",
+d.setdefault('llms', {})[os.environ['PRESET_NAME']] = {
+    "name": os.environ['PRESET_NAME'],
+    "base_url": os.environ['URL'],
+    "model": os.environ['MODEL'],
+    "key": os.environ['KEY'],
+    "small_model": os.environ['MODEL'],
 }
-d['current'] = '${preset_name}'
+d['current'] = os.environ['PRESET_NAME']
 with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
 PYEOF
     switch_llm "$preset_name"
