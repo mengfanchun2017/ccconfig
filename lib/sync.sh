@@ -279,8 +279,6 @@ menu_mode() {
     echo ""
 
     # ---- 构造菜单 ----
-    # 清空所有累积数组（while 循环内 local 不清空，bash 特性）
-    menu_items=(); dirs=(); names=(); modes=()
     local repos_data
     repos_data=$(list_repos)
     local -a dirs names modes menu_items
