@@ -114,35 +114,6 @@ if project_filter:
     if project_filter not in project_path and not fname.startswith(project_filter):
         sys.exit(0)
 
-def detect_route(model, endpoint_id):
-    if not endpoint_id or endpoint_id.startswith("<"):
-        return "synthetic"
-    if endpoint_id.startswith("chatcmpl-"):
-        return "bridge-openaialt"
-
-    # 提取真实 id 前缀（去掉 msg_ 前缀统一处理）
-    raw_id = endpoint_id
-    if endpoint_id.startswith("msg_"):
-        raw_id = endpoint_id[4:]
-
-    # 根据 model 判断 route（优先）
-    mdl = model.lower()
-    if "deepseek" in mdl:
-        return "deepseek-direct"
-    if "mini" in mdl or "minimax" in mdl:
-        return "minimax-direct"
-    if "glm" in mdl or "qwen" in mdl:
-        return "anthropic-compatible"
-
-    # model 名不明确时，靠 endpoint_id 格式推断
-    if len(endpoint_id) == 32 and all(c in "0123456789abcdef" for c in endpoint_id):
-        return "anthropic-compatible"
-    if len(endpoint_id) == 36 and endpoint_id.count("-") == 4:
-        return "anthropic-direct"
-    if len(raw_id) == 36 and raw_id.count("-") == 4:
-        return "anthropic-direct"
-    return "unknown"
-
 def parse_ts(ts):
     if not ts: return None
     try:
@@ -195,9 +166,9 @@ sessions = defaultdict(lambda: {
     "input": 0, "output": 0, "cache_creation": 0, "cache_read": 0,
     "request_count": 0, "turn_count": 0,
     "first": None, "last": None,
-    "session_name": "", "ai_title": "", "route": "",
+    "session_name": "", "ai_title": "",
     "models": defaultdict(lambda: {"input":0,"output":0,"cache_creation":0,"cache_read":0,"count":0}),
-    "days": defaultdict(lambda: defaultdict(lambda: {"input":0,"output":0,"cache_creation":0,"cache_read":0,"count":0,"route":"","first_ts":"","last_ts":"","turn_count":0})),
+    "days": defaultdict(lambda: defaultdict(lambda: {"input":0,"output":0,"cache_creation":0,"cache_read":0,"count":0,"first_ts":"","last_ts":"","turn_count":0})),
     "timeline": [],
 })
 ai_titles = {}
@@ -246,11 +217,6 @@ with open(path, encoding="utf-8") as fh:
                 if content and not content.startswith("<") and "command-message" not in content[:30]:
                     s["session_name"] = content[:80].replace("\n"," ").replace(","," ").strip()
 
-        # route（首个 assistant）
-        if is_a and not s["route"]:
-            msg = rec.get("message") or {}
-            s["route"] = detect_route(msg.get("model",""), msg.get("id",""))
-
         # turn_count（真实 user 输入，排除 tool_result）
         if is_ur:
             s["turn_count"] += 1
@@ -281,8 +247,6 @@ with open(path, encoding="utf-8") as fh:
                 dm["cache_creation"] += cc_t
                 dm["cache_read"] += cr_t
                 dm["count"] += 1
-                if not dm["route"]:
-                    dm["route"] = detect_route(model, msg.get("id",""))
                 if not dm["first_ts"] or ts < dm["first_ts"]: dm["first_ts"] = ts
                 if not dm["last_ts"] or ts > dm["last_ts"]: dm["last_ts"] = ts
             mb = s["models"][model]
@@ -315,7 +279,6 @@ if mode == "by-day":
                     "day": day,
                     "projectPath": project_path,
                     "model": model,
-                    "route": dm["route"] or s["route"],
                     "sessionName": s["session_name"],
                     "inputTokens": dm["input"],
                     "outputTokens": dm["output"],
@@ -348,7 +311,6 @@ for sid, s in sessions.items():
     out = {
         "sessionId": sid,
         "projectPath": project_path,
-        "route": s["route"],
         "sessionName": s["session_name"],
         "aiTitle": s["ai_title"],
         "inputTokens": s["input"],
@@ -376,7 +338,7 @@ write_csv() {
     mkdir -p "$OUTPUT_DIR"
     local out="$OUTPUT_DIR/sessions-${date_stamp}.csv"
     {
-        echo "session_id,project_path,route,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,first_activity,last_activity,cost_cny"
+        echo "session_id,project_path,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,first_activity,last_activity,cost_cny"
         while IFS= read -r row; do
             [[ -z "$row" ]] && continue
             python3 - "$row" "$pricing" << 'PYEOF' 2>/dev/null
@@ -386,7 +348,6 @@ pricing = json.loads(sys.argv[2]) if sys.argv[2] else {}
 p = pricing.get
 sid = row["sessionId"][:8]
 project = row["projectPath"]
-route = row.get("route", "unknown")
 session_name = (row.get("sessionName") or "").replace(",", " ").replace("\n", " ")[:80]
 models = row.get("models", {})
 if models:
@@ -400,7 +361,7 @@ pm = pricing.get(main_model, {})
 cost = ((row["inputTokens"] * pm.get("input", 0))
         + (row["outputTokens"] * pm.get("output", 0))
         + (row["cacheReadTokens"] * pm.get("cache_read", 0))) / 1_000_000
-print(f'{sid},{project},{route},{session_name},{main_model},{row["inputTokens"]},{row["cacheReadTokens"]},{row["outputTokens"]},{row["totalTokens"]},{row["requestCount"]},{row.get("turnCount",0)},{mt},{tt},{wt},{row["firstActivity"]},{row["lastActivity"]},{cost:.6f}')
+print(f'{sid},{project},{session_name},{main_model},{row["inputTokens"]},{row["cacheReadTokens"]},{row["outputTokens"]},{row["totalTokens"]},{row["requestCount"]},{row.get("turnCount",0)},{mt},{tt},{wt},{row["firstActivity"]},{row["lastActivity"]},{cost:.6f}')
 PYEOF
         done < "$rows_file"
     } > "$out"
@@ -431,7 +392,7 @@ for line in open(rows_file):
     r = json.loads(line)
     by_day[r["day"]].append(r)
 
-header = ("session_id,day,project_path,route,session_name,model,"
+header = ("session_id,day,project_path,session_name,model,"
          "input_tokens,cache_read_tokens,output_tokens,total_tokens,"
          "request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,"
          "first_ts,last_ts,cost_cny\n")
@@ -453,8 +414,7 @@ for day, rows in sorted(by_day.items()):
                     + (r["outputTokens"] * pm.get("output", 0))
                     + (r["cacheReadTokens"] * pm.get("cache_read", 0))) / 1_000_000
             sn = (r.get("sessionName","") or "").replace(",", " ").replace("\n", " ")[:80]
-            route = r.get("route", "unknown")
-            f.write(f'{r["sessionId"][:8]},{day},{r["projectPath"]},{route},{sn},{r["model"]},'
+            f.write(f'{r["sessionId"][:8]},{day},{r["projectPath"]},{sn},{r["model"]},'
                     f'{r["inputTokens"]},{r["cacheReadTokens"]},{r["outputTokens"]},{r["totalTokens"]},'
                     f'{r["requestCount"]},{r.get("turnCount",0)},{r.get("modelTimeMs",0)},'
                     f'{r.get("toolTimeMs",0)},{r.get("wallMs",0)},'
