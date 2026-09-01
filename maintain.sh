@@ -68,7 +68,7 @@ _submenu_usage() {
     section "Token 用量管理"
     echo -e "  Timer:   $tstate  (${schedule} 每日）"
     echo -e "  保存:    $cdir/usage/YYYY-MM-DD.csv"
-    echo -e "  逻辑:    扫 ~/.claude jsonl → 按天${BOLD}覆盖写${NC}到昨天"
+    echo -e "  逻辑:    扫 ~/.claude jsonl → 按天${BOLD}写一次${NC}（历史 day 跳过）"
     echo -e "           今天不写（明天定稿）；跨天 session 按天分摊"
     echo -e "           关机补跑: Persistent=true + 全量重算自动补缺"
     echo ""
@@ -76,8 +76,9 @@ _submenu_usage() {
     local c; c=$(menu_select "用量管理" \
         "用量统计（跨 LLM 总量）" \
         "按日报告" \
-        "立即归档（到昨天）" \
+        "立即归档（增量，只写新 day）" \
         "今日快照（含今天）" \
+        "强制重算全量（改 pricing/列后用）" \
         "启用 timer" \
         "停用 timer" \
         "配置（时间/飞书/含今天）" \
@@ -89,10 +90,11 @@ _submenu_usage() {
         2) bash "$tu" --report ;;
         3) bash "$tu" --by-day ;;
         4) bash "$tu" --by-day --include-today ;;
-        5) bash "$ini" install ;;
-        6) bash "$ini" uninstall ;;
-        7) bash "$ini" config ;;
-        8) bash "$LIB_DIR/init-llm-bill.sh" ;;
+        5) bash "$tu" --by-day --force ;;
+        6) bash "$ini" install ;;
+        7) bash "$ini" uninstall ;;
+        8) bash "$ini" config ;;
+        9) bash "$LIB_DIR/init-llm-bill.sh" ;;
     esac
 }
 

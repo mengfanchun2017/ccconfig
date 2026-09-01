@@ -3,18 +3,20 @@
 #
 # 数据源: ~/.claude/projects/**/*.jsonl
 # 字段: 每个 assistant message 的 usage.{input,output,cache_creation,cache_read}_tokens
-# 输出: 默认 CSV 到 ~/.cache/token-usage/YYYY-MM-DD.csv；可选 --feishu <url> 推多维表格
+# 输出: 默认 CSV 到 ccprivate/usage/YYYY-MM-DD.csv；可选 --feishu <url> 推多维表格
 #
 # 用法：
-#   bash lib/token-usage.sh                          # 全量扫，写 CSV
-#   bash lib/token-usage.sh --since 2026-07-30       # 限定起始日
-#   bash lib/token-usage.sh --until 2026-07-31       # 限定截止日（不含）
-#   bash lib/token-usage.sh --project ccconfig       # 限定 projectPath
-#   bash lib/token-usage.sh --incremental            # 只处理新 session（state 去重）
-#   bash lib/token-usage.sh --json                   # 输出 JSON 行到 stdout
-#   bash lib/token-usage.sh --feishu <url>           # 推送到飞书多维表格（需先访问授权）
-#   bash lib/token-usage.sh --report                 # 按日聚合到 stdout
-#   bash lib/token-usage.sh --stats                  # 统计覆盖天数/session 数
+#   bash token-usage.sh                              # 全量扫，写 session CSV
+#   bash token-usage.sh --by-day                      # 归档到 <day>.csv（写一次：历史 day 跳过）
+#   bash token-usage.sh --by-day --force             # 全量重算覆盖（改 pricing/列后用）
+#   bash token-usage.sh --by-day --include-today     # 含今天（进行中 session 漂移）
+#   bash token-usage.sh --since 2026-07-30           # 限定起始日
+#   bash token-usage.sh --until 2026-08-01           # 限定截止日（不含）
+#   bash token-usage.sh --project ccconfig           # 限定 projectPath
+#   bash token-usage.sh --json                       # 输出 JSON 行到 stdout
+#   bash token-usage.sh --feishu <url>               # 推送到飞书多维表格（可选）
+#   bash token-usage.sh --report                     # 按日聚合到 stdout
+#   bash token-usage.sh --stats                       # 跨 LLM 总量汇总（模型/route/时间/成本）
 #
 # 挂载：bash maintain.sh token [args...]
 
@@ -397,18 +399,21 @@ PYEOF
 }
 
 # by-day 归档：每行 = (session, day, model) → <day>.csv
-# 每次全量重算 + 按 day 整体覆盖写。jsonl append-only，历史 day 稳定，
-# 覆盖无副作用；进行中 session 的当天行会被更新到最新。不再用 state 去重。
+# 写一次策略：历史 day（< today）已写过即跳过（jsonl append-only，数据冻结，
+# 重算结果相同）；今天 always 覆盖（进行中 session 漂移）。--force 全量重算
+# （改列结构/改 pricing 后用）。首次运行或补缺时，缺失 day 自动写。
 write_by_day_csv() {
-    local rows_file="$1"
+    local rows_file="$1" today="$2" force="${3:-false}"
     mkdir -p "$OUTPUT_DIR"
-    local written
-    written=$(python3 - "$rows_file" "$OUTPUT_DIR" "$pricing" << 'PYEOF' 2>/dev/null
+    local written skipped
+    local res
+    res=$(python3 - "$rows_file" "$OUTPUT_DIR" "$pricing" "$today" "$force" << 'PYEOF' 2>/dev/null
 import json, sys, os
 from collections import defaultdict
 
-rows_file, out_dir, pricing = sys.argv[1:4]
+rows_file, out_dir, pricing, today, force = sys.argv[1:6]
 p = json.loads(pricing) if pricing else {}
+force = (force == "true")
 
 by_day = defaultdict(list)
 for line in open(rows_file):
@@ -422,10 +427,15 @@ header = ("session_id,day,project_path,route,session_name,model,"
          "request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,"
          "first_ts,last_ts,cost_cny\n")
 
-count = 0
+written = 0
+skipped = 0
 for day, rows in sorted(by_day.items()):
-    rows.sort(key=lambda r: (r.get("firstTs") or "", r["sessionId"]))
     path = os.path.join(out_dir, f"{day}.csv")
+    # 写一次：历史 day 已存在且非 force → 跳过（数据已冻结）
+    if not force and day < today and os.path.exists(path):
+        skipped += 1
+        continue
+    rows.sort(key=lambda r: (r.get("firstTs") or "", r["sessionId"]))
     with open(path, "w") as f:
         f.write(header)
         for r in rows:
@@ -440,15 +450,19 @@ for day, rows in sorted(by_day.items()):
                     f'{r["requestCount"]},{r.get("turnCount",0)},{r.get("modelTimeMs",0)},'
                     f'{r.get("toolTimeMs",0)},{r.get("wallMs",0)},'
                     f'{r["firstTs"]},{r["lastTs"]},{cost:.6f}\n')
-    count += len(rows)
+    written += len(rows)
 
-print(count)
+print(f"{written}\t{skipped}")
 PYEOF
 )
-    if [[ -z "$written" || "$written" == "0" ]]; then
+    written="${res%%$'\t'*}"
+    skipped="${res##*$'\t'}"
+    if [[ "$skipped" -gt 0 ]]; then
+        ok "by-day 写入 $written 条，跳过 $skipped 个已冻结历史 day"
+    elif [[ -z "$written" || "$written" == "0" ]]; then
         ok "by-day 无数据"
     else
-        ok "by-day 覆盖写入 $written 条 → $OUTPUT_DIR/"
+        ok "by-day 写入 $written 条 → $OUTPUT_DIR/"
     fi
 }
 
@@ -709,7 +723,7 @@ PYEOF
 # ========== CLI ==========
 main() {
     local since="" until="" project="" json_output=false incremental=false
-    local feishu_url="" report=false stats=false by_day=false include_today=false auto_backfill=false
+    local feishu_url="" report=false stats=false by_day=false include_today=false auto_backfill=false force=false
     # json 模式走 stdout，其他模式日志走 stderr
     if [[ "${QUIET:-0}" == "1" || -n "${JSON_OUTPUT_FORCE:-}" ]]; then
         : # 保留 ok/warn/err，info 也输出
@@ -743,6 +757,7 @@ main() {
             --by-day)   by_day=true; shift ;;
             --include-today) include_today=true; shift ;;
             --auto-backfill) auto_backfill=true; shift ;;
+            --force)    force=true; shift ;;
             --stats)    stats=true; shift ;;
             -h|--help)
                 sed -n '2,25p' "$0" | sed 's/^# *//'
@@ -885,8 +900,10 @@ PYEOF
             cat "$tmp"
             exit 0
         fi
-        # 归档到 <day>.csv（全量覆盖写）
-        write_by_day_csv "$tmp"
+        # 归档到 <day>.csv（写一次：历史 day 跳过，今天覆盖，--force 全量重算）
+        local today_str
+        today_str=$(date +%Y-%m-%d)
+        write_by_day_csv "$tmp" "$today_str" "$force"
         # 顺便推飞书（如果有 URL）
         if [[ -n "$feishu_url" ]]; then
             push_feishu "$feishu_url" "$tmp"
