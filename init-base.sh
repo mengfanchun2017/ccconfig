@@ -225,6 +225,8 @@ main_menu() {
 }
 
 # ========== 入口 ==========
+# BASH_SOURCE 守卫：被 source 时不执行入口（支持测试 source 调函数）
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 case "${1:-menu}" in
     all)
         init_all_steps
@@ -252,3 +254,4 @@ case "${1:-menu}" in
         echo "用法: bash init-base.sh [all|option|--dry-run|menu]"
         ;;
 esac
+fi
