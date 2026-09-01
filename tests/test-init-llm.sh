@@ -146,7 +146,6 @@ EOF
 	cp "$CCCONFIG_DIR/lib/init-llm.sh" "$TEST_HOME/git/ccconfig/lib/"
 	cp "$CCCONFIG_DIR/option-llmswitch/init.sh" "$TEST_HOME/git/ccconfig/option-llmswitch/"
 	cp "$CCCONFIG_DIR/option-llmswitch/openai_bridge.py" "$TEST_HOME/git/ccconfig/option-llmswitch/"
-	cp "$CCCONFIG_DIR/lib/start-openai-bridge.sh" "$TEST_HOME/git/ccconfig/lib/"
 	cp "$CCCONFIG_DIR/option-llmswitch/watchdog.sh" "$TEST_HOME/git/ccconfig/option-llmswitch/" 2>/dev/null || true
 
 	# 复制依赖的 lib 文件
@@ -286,11 +285,6 @@ TESTS=(
 	"t_bridge_py_has_max_completion_tokens:含 max_tokens 透传"
 	"t_bridge_py_has_tool_call_handler:含 tool_call 流式转换逻辑"
 	"t_bridge_py_has_anthropic_tool_use:非流式响应含 tool_use"
-
-	# ═══ 分组 7: start-openai-bridge.sh ═══
-	"t_start_bridge_no_init_llm:start 脚本不含 init-llm.sh 调用"
-	"t_start_bridge_has_auto_key:start 脚本含自动读 key 逻辑"
-	"t_start_bridge_syntax:start 脚本 bash 语法正确"
 
 	# ═══ 分组 8: bridge Anthropic→OpenAI 转换 ═══
 	"t_bridge_system_as_string:system 字符串转 messages"
@@ -514,23 +508,6 @@ for name, cfg in d['llms'].items():
 			grep -q "tool_use" "$TEST_HOME/git/ccconfig/option-llmswitch/openai_bridge.py" \
 				&& _pass "bridge outputs tool_use for Anthropic" \
 				|| _fail "no tool_use in Anthropic response"
-			;;
-
-		# ═══ 分组 7: start-openai-bridge.sh ═══
-		t_start_bridge_no_init_llm)
-			! grep -q "bash.*init-llm.sh" "$TEST_HOME/git/ccconfig/lib/start-openai-bridge.sh" \
-				&& _pass "start script does NOT call init-llm.sh" \
-				|| _fail "start script still calls init-llm.sh"
-			;;
-		t_start_bridge_has_auto_key)
-			grep -q "print(prov.get" "$TEST_HOME/git/ccconfig/lib/start-openai-bridge.sh" \
-				&& _pass "start script auto-reads provider config from llm.json" \
-				|| _fail "start script missing auto key logic"
-			;;
-		t_start_bridge_syntax)
-			bash -n "$TEST_HOME/git/ccconfig/lib/start-openai-bridge.sh" 2>/dev/null \
-				&& _pass "start-openai-bridge.sh syntax OK" \
-				|| _fail "start-openai-bridge.sh syntax error"
 			;;
 
 		# ═══ 分组 8: bridge Anthropic→OpenAI 转换 ═══
