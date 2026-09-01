@@ -104,7 +104,7 @@ claude mcp remove <name>
 
 - v2.1.212 实测确认 `/mcp` 已移除
 - `claude settings.json` 中 `mcp_servers` 字段仍为配置真相源，`claude mcp add` 实际写入 settings.json
-- 当前 session 中已有 MCP 服务（tavily、minimax、minimax-mcp）不受影响
+- 当前 session 中已有 MCP 服务（tavily、getnote、exa）不受影响
 
 ## Related Decisions
 
