@@ -759,16 +759,48 @@ do_status() {
     echo ""
 }
 
+do_link_single() {
+    local name="$1"
+    if [[ -z "$name" ]]; then
+        bad "用法: $0 link-single <skill-name>"
+        return 1
+    fi
+
+    local target="$CLAUDE_SKILLS_DIR/$name"
+    if [[ -e "$target" ]]; then
+        warn "  $name: 已存在，跳过"
+        return 0
+    fi
+
+    # 先查私有源，再查公开源
+    local src_dir=""
+    if [[ -d "$LOCAL_SKILLS_SRC/$name" ]]; then
+        src_dir="$LOCAL_SKILLS_SRC/$name"
+        info "  $name: 从私有源链接"
+    elif [[ -d "$SKILLS_SRC/$name" ]]; then
+        src_dir="$SKILLS_SRC/$name"
+        info "  $name: 从公开源链接"
+    else
+        bad "  $name: 源目录不存在（查过 $SKILLS_SRC/$name 和 $LOCAL_SKILLS_SRC/$name）"
+        return 1
+    fi
+
+    mkdir -p "$CLAUDE_SKILLS_DIR"
+    run ln -s "$src_dir" "$target"
+    good "  $name: ✓ symlink 已创建"
+}
+
 action="${1:-sync}"
 case "$action" in
-    sync)    do_sync ;;
-    update)  do_update ;;
-    remove)  do_remove "$2" ;;
-    cleanup) do_cleanup ;;
-    list)    do_list ;;
-    status)  do_status ;;
-    diff)    do_diff ;;
-    *)       echo "用法: $0 {sync|update|remove <name>|cleanup|list|status|diff}"; exit 1 ;;
+    sync)       do_sync ;;
+    update)     do_update ;;
+    remove)     do_remove "$2" ;;
+    cleanup)    do_cleanup ;;
+    list)       do_list ;;
+    status)     do_status ;;
+    diff)       do_diff ;;
+    link-single) do_link_single "$2" ;;
+    *)          echo "用法: $0 {sync|update|remove <name>|cleanup|list|status|diff|link-single <name>}"; exit 1 ;;
 esac
 
 echo ""
