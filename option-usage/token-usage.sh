@@ -789,7 +789,6 @@ total_in = total_out = total_cc = total_cr = total_req = total_turn = 0
 total_mt = total_tt = total_wt = total_cost = 0
 days = set()
 by_model = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"req":0,"sessions":0,"cost":0.0})
-by_route = defaultdict(lambda: {"total":0,"sessions":0})
 for r in rows:
     total_in += r["inputTokens"]; total_out += r["outputTokens"]
     total_cc += r["cacheCreationTokens"]; total_cr += r["cacheReadTokens"]
@@ -813,45 +812,66 @@ for r in rows:
         mm = max(models.items(), key=lambda x: sum(x[1][k] for k in ("input","output","cache_creation","cache_read")))[0]
     else:
         mm = "unknown"
-    by_route[r.get("route","unknown")]["total"] += r["totalTokens"]
-    by_route[r.get("route","unknown")]["sessions"] += 1
     by_model[mm]["sessions"] += 1 if mm != "unknown" else 0
 def h(ms):
     s = ms/1000
     if s < 60: return f"{s:.0f}s"
     if s < 3600: return f"{s/60:.1f}m"
     return f"{s/3600:.2f}h"
-print(f"=== 总览 ===")
-print(f"Sessions:     {len(rows)}")
-print(f"覆盖天数:     {len(days)}")
-print(f"Turns:        {total_turn}  (真实用户输入数)")
-print(f"Requests:     {total_req}  (assistant 消息数)")
-print()
-print(f"=== Token 总量 ===")
-print(f"Input:        {total_in:,}")
-print(f"Cache read:   {total_cr:,}  (命中缓存)")
-if total_cc > 0:
-    print(f"Cache create: {total_cc:,}  (异常，应为 0)")
-print(f"Output:       {total_out:,}")
-print(f"Total:        {total_in+total_out+total_cc+total_cr:,}")
-print()
-print(f"=== 时间（复杂度指标）===")
-print(f"Model time:   {h(total_mt)}  (LLM 推理挂钟，跨所有 LLM)")
-print(f"Tool time:    {h(total_tt)}  (工具执行挂钟)")
-print(f"Wall time:    {h(total_wt)}  (挂钟跨度，含发呆)")
-print()
-print(f"=== 按模型 ===")
-print(f"{'Model':<24} {'Sessions':>8} {'Input':>12} {'CacheRead':>12} {'Output':>10} {'Total':>14} {'Cost':>9}")
-for m in sorted(by_model, key=lambda x: -by_model[x]["total"]):
-    d = by_model[m]
-    if d["total"] == 0: continue
-    print(f"{m[:24]:<24} {d['sessions']:>8} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>9.2f}")
-print()
-print(f"=== 按 Route ===")
-print(f"{'Route':<22} {'Sessions':>8} {'Total tokens':>14}")
-for r in sorted(by_route, key=lambda x: -by_route[x]["total"]):
-    d = by_route[r]
-    print(f"{r[:22]:<22} {d['sessions']:>8} {d['total']:>14,}")
+
+def fmt_daily(val, n):
+    if n == 0: return "-"
+    return f"{val/n:.1f}"
+
+# 按日期间隔统计
+from datetime import datetime, timedelta
+now = datetime.now()
+# 昨天
+yesterday_str = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+# 7 天前
+day7_str = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+# 30 天前
+day30_str = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+
+# 为每行标注 first_day
+for r in rows:
+    fa = r.get("firstActivity", "") or ""
+    r["_day"] = fa[:10] if fa else ""
+
+# 各时间段聚合
+def agg(cond, label):
+    sel = [r for r in rows if cond(r["_day"])]
+    n = len(sel)
+    si = sum(r["inputTokens"] for r in sel)
+    so = sum(r["outputTokens"] for r in sel)
+    scr = sum(r["cacheReadTokens"] for r in sel)
+    stot = sum(r["totalTokens"] for r in sel)
+    cost = 0.0
+    for r in sel:
+        for m, v in r.get("models", {}).items():
+            mi = v.get("input",0); mo = v.get("output",0); mcr = v.get("cache_read",0)
+            pm = p.get(m, {})
+            cost += (mi*pm.get("input",0) + mo*pm.get("output",0) + mcr*pm.get("cache_read",0)) / 1_000_000
+    return n, si, so, scr, stot, cost
+
+def print_period(name, n, si, so, scr, stot, cost):
+    if n == 0:
+        print(f"  {name:<12} 无数据")
+        return
+    print(f"  {name:<12} {n:>4}sessions  Input:{si:>13,}  Output:{so:>10,}  CacheRead:{scr:>12,}  Total:{stot:>14,}  Cost:{cost:>9.2f}")
+
+# 全量日均
+per_day = max(1, len(days))
+print(f"\n=== 按时间段 ===")
+print(f"{'区间':<16} {'Sessions':>9} {'Input/Day':>12} {'Output/Day':>10} {'Total/Day':>14} {'Cost/Day':>10}")
+avg_cost = total_cost / per_day
+print(f"  {'日均':<14} {len(rows)/per_day:>8.1f} {fmt_daily(total_in, per_day):>12} {fmt_daily(total_out, per_day):>10} {fmt_daily(total_in+total_out+total_cc+total_cr, per_day):>14} {avg_cost:>9.2f}")
+ns, si, so, scr, stot, cost = agg(lambda d: d == yesterday_str, "昨天")
+print_period(yesterday_str, ns, si, so, scr, stot, cost)
+ns, si, so, scr, stot, cost = agg(lambda d: d >= day7_str, "近7天")
+print_period("近7天", ns, si, so, scr, stot, cost)
+ns, si, so, scr, stot, cost = agg(lambda d: d >= day30_str, "近30天")
+print_period("近30天", ns, si, so, scr, stot, cost)
 print()
 print(f"=== 总成本 ===")
 tot_cost = sum(by_model[m]["cost"] for m in by_model)
