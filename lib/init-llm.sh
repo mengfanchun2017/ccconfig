@@ -36,6 +36,9 @@ LLMSWITCH_INIT="$CCCONFIG_ROOT/option-llmswitch/init.sh"
 LLMSWITCH_WATCHDOG="$CCCONFIG_ROOT/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
+# 机器本地 current 文件（不参与 ccprivate 同步）
+LOCAL_CURRENT_FILE="$HOME/.claude/llm-current"
+
 # ccconfig 自带预设 key —— builtin 分类以代码为准，不依赖用户 llm.json 的 builtin 字段
 # 用户 llm.json 可能缺该字段或被手改，会导致菜单内建/自定义分组错乱
 BUILTIN_PRESETS=(minimax deepseek_flash gateway)
@@ -52,12 +55,38 @@ print(f"{llm.get('base_url','')}|{llm.get('model','')}|{llm.get('key','')}|{smal
 PYEOF
 }
 
+# ========== 本地 current 读写（不碰 ccprivate llm.json.current）==========
+# 读本地 llm-current，不存在则 fallback 读 llm.json.current（兼容旧机器）
+read_local_current() {
+    if [[ -f "$LOCAL_CURRENT_FILE" ]]; then
+        cat "$LOCAL_CURRENT_FILE"
+    else
+        python3 -c "
+import json
+p = '$CONFIG_FILE'
+try: print(json.load(open(p)).get('current',''))
+except: pass
+" 2>/dev/null || echo ""
+    fi
+}
+
+# 写本地 llm-current（不写 llm.json.current）
+write_local_current() {
+    local name="$1"
+    mkdir -p "$(dirname "$LOCAL_CURRENT_FILE")"
+    printf '%s' "$name" > "$LOCAL_CURRENT_FILE"
+    info "llm-current: $name"
+}
+
 list_llms() {
+    local cur
+    cur=$(read_local_current)
+    export LIST_CUR="$cur"
     BUILTIN_KEYS="${BUILTIN_PRESETS[*]}" python3 - "$CONFIG_FILE" "$LLMSWITCH_CONF" << 'PYEOF'
 import json, sys, os
 builtin_set = set(os.environ.get('BUILTIN_KEYS','').split())
 with open(sys.argv[1]) as f: d = json.load(f)
-llms = d.get('llms', {}); cur = d.get('current', '')
+llms = d.get('llms', {}); cur = os.environ.get('LIST_CUR', d.get('current', ''))
 sw_model = sw_small = ''
 if os.path.exists(sys.argv[2]):
     try:
