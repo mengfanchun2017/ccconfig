@@ -72,6 +72,11 @@ confirm() {
     local msg="${1:-确定？}"
     local default="${2:-n}"
 
+    # 非交互旁路：CI/脚本化环境返回默认值，不阻塞 read
+    if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+        [[ "$default" =~ ^[Yy]$ ]] && return 0 || return 1
+    fi
+
     local prompt_str
     case "$default" in
         y|Y) prompt_str="[Y/n]" ;;
@@ -98,6 +103,11 @@ menu_select() {
     local title="${1:-选择}"; shift
     local items=("$@")
     [[ ${#items[@]} -eq 0 ]] && { warn "menu_select: items 为空"; return 1; }
+
+    # 非交互旁路：返回 "0"（取消哨值），caller 走默认/返回分支
+    if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+        printf '0\n'; return 0
+    fi
 
     # 菜单输出走 stderr — 避开 `c=$(...)` 把 stdout 截走后菜单列表不显示
     printf '\n' >&2
@@ -126,6 +136,11 @@ prompt() {
     local msg="${1:-输入}"
     local default="${2:-}"
 
+    # 非交互旁路：直接返回默认值
+    if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+        echo "$default"; return 0
+    fi
+
     local ans
     if [[ -n "$default" ]]; then
         if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
@@ -147,6 +162,12 @@ prompt() {
 # ========== 密码输入 ==========
 prompt_password() {
     local msg="${1:-输入密码}"
+
+    # 非交互旁路：返回空（CI 环境无法输入密码）
+    if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+        echo ""; return 0
+    fi
+
     local ans
     if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
         read -s -p "  $msg: " ans < /dev/tty || ans=""
