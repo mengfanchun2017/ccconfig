@@ -37,7 +37,7 @@ check_prereqs() {
     echo -e "  ${RED}❌${NC} ccprivate 未找到 — 私有配置（API Key、CLAUDE.md、settings.json）"
     echo -e "     ${CYAN}→${NC} bash ccconfig/init-ccprivate-repo.sh"
     echo ""
-    echo -e "  ${GRAY}（完整流程：clone → bootstrap-gh-auth.sh → init-ccprivate-repo.sh → init-base.sh all → 可选 init-option.sh/option-skill/init.sh → maintain.sh status）${NC}"
+    echo -e "  ${GRAY}（完整流程：clone → bootstrap-gh-auth.sh → init-ccprivate-repo.sh → init-base.sh all [即可选组件] → maintain.sh status）${NC}"
     echo ""
 
     if confirm "现在创建 ccprivate？" y; then
@@ -109,15 +109,37 @@ init_all_steps() {
         "Claude Code 通过 ANTHROPIC_AUTH_TOKEN 调用 LLM；没配就跑不了" \
         "10 s"
 
-    # 步骤 3/4: 收尾指引
+    # 步骤 3/4: 收尾 — 链接 + auto-sync 服务（必需：setup-links.sh 建 symlink）
     echo ""
-    echo -e "${CYAN}━━━ 3/4 收尾 ━━━${NC}"
-    echo -e "  ${GRAY}链接修复 + 启动 auto-sync 服务 + 状态验证${NC}"
+    echo -e "${CYAN}━━━ 3/4 收尾（链接 + 服务）━━━${NC}"
+    echo -e "  ${GRAY}setup-links.sh 建符号链接 + auto-sync 服务 + 状态验证${NC}"
+    echo -e "  ${GRAY}symlink 是 ccprivate 穿透访问的基石，缺则 Claude Code 读不到配置${NC}"
     echo ""
-    echo -e "  ${GREEN}✅ Ubuntu 环境 + LLM 配置完成${NC}"
-    echo -e "  ${GRAY}请执行以下命令完成收尾:${NC}"
-    echo -e "    ${CYAN}bash maintain.sh setup${NC}"
+    if bash "$SCRIPT_DIR/maintain.sh" setup; then
+        echo -e "  ${GREEN}✅ 3/4 收尾完成${NC}"
+    else
+        echo -e "  ${RED}❌ 3/4 收尾失败（继续）${NC}"
+    fi
+
+    # 步骤 4/4: 可选组件 — 链式安装（不再需要单独跑 init-option.sh）
     echo ""
+    echo -e "${CYAN}━━━ 4/4 可选组件 ━━━${NC}"
+    echo -e "  ${GRAY}MCP / Skills / lark-cli / officecli / remote 等按需安装${NC}"
+    echo ""
+    local opt_flag=""
+    if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+        opt_flag="--yes"
+        echo -e "  ${GRAY}非交互模式：自动装非 auth 组件，larkcli/getnote 跳过${NC}"
+    fi
+    if [[ -n "$opt_flag" ]] || confirm "现在安装可选组件？" y; then
+        if bash "$SCRIPT_DIR/init-option.sh" all $opt_flag; then
+            echo -e "  ${GREEN}✅ 4/4 可选组件完成${NC}"
+        else
+            echo -e "  ${YELLOW}⚠ 4/4 部分组件未完成（稍后 bash init-option.sh 手动补装）${NC}"
+        fi
+    else
+        echo -e "  ${GRAY}跳过可选组件（稍后 bash init-option.sh 手动安装）${NC}"
+    fi
 
     echo -e "${GREEN}🎉 全部初始化完成${NC}"
     echo ""
@@ -136,8 +158,7 @@ init_all_steps() {
     echo "  切换 LLM:          bash $SCRIPT_DIR/lib/init-llm.sh"
     echo "  系统升级:          bash $SCRIPT_DIR/lib/update.sh all"
     echo "  状态检查:          bash maintain.sh status"
-    echo "  装 Skills:         bash option-skill/init.sh --install"
-    echo "  装 MCP/可选组件:    bash init-option.sh"
+    echo "  补装组件:          bash init-option.sh"
     echo ""
 }
 
@@ -217,7 +238,7 @@ main_menu() {
             1) submenu_env ;;
             2) submenu_remote ;;
             3) init_all_steps; exit 0 ;;
-            4) echo -e "  ${GRAY}请执行: bash init-option.sh${NC}" ;;
+            4) bash "$SCRIPT_DIR/init-option.sh" ;;
             0) echo ""; exit 0 ;;
         esac
         echo ""; read -p "按回车返回主菜单..." dummy < /dev/tty || true
@@ -229,11 +250,14 @@ main_menu() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 case "${1:-menu}" in
     all)
+        if [[ "${2:-}" == "--yes" || "${2:-}" == "-y" ]]; then
+            export NONINTERACTIVE=true
+        fi
         init_all_steps
         exit 0
         ;;
     option|options)
-        echo -e "  ${GRAY}请执行: bash init-option.sh${NC}"
+        exec bash "$SCRIPT_DIR/init-option.sh" "${@:2}"
         ;;
     --dry-run|--preview|--what)
         show_banner
@@ -241,17 +265,18 @@ case "${1:-menu}" in
         echo -e "${CYAN}━━━ 预览：将要执行的操作 ━━━${NC}"
         echo "  1) init-ubuntu.sh    → 系统包 + node/gh/claude + symlink"
         echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
-        echo "  3) maintain.sh       → 链接修复 + 状态 + 服务"
+        echo "  3) maintain.sh setup → 链接修复 + 状态 + 服务"
+        echo "  4) init-option.sh all → 可选组件（MCP/Skills/CLI）"
         echo ""
         echo "  运行 'bash init-base.sh all' 执行以上所有步骤"
+        echo "  运行 'bash init-base.sh all --yes' 全自动（非交互）"
         echo "  运行 'bash init-base.sh' 进入交互式菜单"
-        echo "  MCP/Skills 可选: bash init-option.sh"
         ;;
     menu|"")
         main_menu
         ;;
     *)
-        echo "用法: bash init-base.sh [all|option|--dry-run|menu]"
+        echo "用法: bash init-base.sh [all [--yes]|option|--dry-run|menu]"
         ;;
 esac
 fi
