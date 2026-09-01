@@ -800,7 +800,8 @@ case "$action" in
     status)     do_status ;;
     diff)       do_diff ;;
     link-single) do_link_single "$2" ;;
-    *)          echo "用法: $0 {sync|update|remove <name>|cleanup|list|status|diff|link-single <name>}"; exit 1 ;;
+    link-only)   do_link_self_built ;;
+    *)          echo "用法: $0 {sync|update|remove <name>|cleanup|list|status|diff|link-single <name>|link-only}"; exit 1 ;;
 esac
 
 echo ""
