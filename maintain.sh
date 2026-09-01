@@ -53,26 +53,46 @@ _submenu_monitor() {
 }
 
 _submenu_usage() {
-    local c; c=$(menu_select "用量统计" \
+    local ini="$CCCONFIG_DIR/option-usage/init.sh"
+    local tu="$CCCONFIG_DIR/option-usage/token-usage.sh"
+    local cdir="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+
+    # ── 状态横幅 ──
+    local tstate schedule
+    if systemctl is-active ccconfig-token-usage.timer 2>/dev/null | grep -q active; then
+        tstate="${GREEN}✅ 运行中${NC}"
+    else
+        tstate="${YELLOW}⚠ 未启用${NC}"
+    fi
+    schedule=$(python3 -c "import json;d=json.load(open('$cdir/conf/token-usage.json'));print(d.get('schedule','12:01:00'))" 2>/dev/null || echo "12:01:00")
+    section "Token 用量管理"
+    echo -e "  Timer:   $tstate  (${schedule} 每日）"
+    echo -e "  保存:    $cdir/usage/YYYY-MM-DD.csv"
+    echo -e "  逻辑:    扫 ~/.claude jsonl → 按天${BOLD}覆盖写${NC}到昨天"
+    echo -e "           今天不写（明天定稿）；跨天 session 按天分摊"
+    echo -e "           关机补跑: Persistent=true + 全量重算自动补缺"
+    echo ""
+
+    local c; c=$(menu_select "用量管理" \
         "用量统计（跨 LLM 总量）" \
         "按日报告" \
-        "按天归档（到昨天）" \
+        "立即归档（到昨天）" \
         "今日快照（含今天）" \
-        "timer 管理" \
+        "启用 timer" \
+        "停用 timer" \
+        "配置（时间/飞书/含今天）" \
+        "设置费用 pricing" \
         "返回")
     [[ -z "$c" || "$c" = "0" ]] && return
     case "$c" in
-        1) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
-        2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
-        3) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day ;;
-        4) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --include-today ;;
-        5) bash "$CCCONFIG_DIR/option-usage/init.sh" status
-           ts=$(menu_select "timer" \
- "安装" \
- "卸载" \
- "配置" \
- "返回")
-           case "$ts" in 1) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; 2) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; 3) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; 4|0|*) return;; esac ;;
+        1) bash "$tu" --stats ;;
+        2) bash "$tu" --report ;;
+        3) bash "$tu" --by-day ;;
+        4) bash "$tu" --by-day --include-today ;;
+        5) bash "$ini" install ;;
+        6) bash "$ini" uninstall ;;
+        7) bash "$ini" config ;;
+        8) bash "$LIB_DIR/init-llm-bill.sh" ;;
     esac
 }
 

@@ -235,7 +235,7 @@ case "${1:-}" in
         status
         ;;
     run|trigger)
-        bash "$SCRIPT_DIR/token-usage.sh" --by-day --incremental --auto-backfill
+        bash "$SCRIPT_DIR/token-usage.sh" --by-day
         ;;
     set-feishu)
         shift
