@@ -393,7 +393,7 @@ SSHEOF
     fi
 
     # === 4. 测试连接 ===
-    if ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 git@github.com 2>&1 | grep -q "successfully authenticated"; then
+    if { ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 git@github.com 2>&1 || true; } | grep -q "successfully authenticated"; then
         success "GitHub SSH 连接成功"
 
         # SSH 通了，扫描仓库转 HTTPS → SSH

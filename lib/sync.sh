@@ -379,7 +379,7 @@ case "${1:-}" in
         fi
         [ -d "$REPO_DIR/.git" ] || { echo -e "${RED}❌ 未找到仓库: $REPO_NAME${NC}"; exit 1; }
         git_force_pull "$REPO_DIR" "" "$REPO_NAME"
-        [ "$REPO_NAME" = "cconfig" ] && do_cconfig_post
+        [ "$REPO_NAME" = "ccconfig" ] && do_cconfig_post
         ;;
     --push)
         REPO_DIR="$CCCONFIG_ROOT"
@@ -407,7 +407,7 @@ case "${1:-}" in
         else
             commitpush "$REPO_DIR" "$REPO_NAME"
         fi
-        [ "$REPO_NAME" = "cconfig" ] && do_cconfig_post
+        [ "$REPO_NAME" = "ccconfig" ] && do_cconfig_post
         ;;
     --check)
         check_mode
@@ -452,7 +452,7 @@ case "${1:-}" in
             exit 1
         fi
         sync_one_repo "$REPO_DIR" "$REPO_NAME" "rw"
-        if [ "$REPO_NAME" = "cconfig" ]; then
+        if [ "$REPO_NAME" = "ccconfig" ]; then
             do_cconfig_post
             echo -e "${GREEN}✅ 同步完成${NC}"
         fi
