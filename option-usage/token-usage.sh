@@ -100,172 +100,204 @@ extract_sessions() {
     find "$CLAUDE_PROJECTS_DIR" -name "*.jsonl" -type f -print0 2>/dev/null | \
     while IFS= read -r -d '' f; do
         python3 - "$f" "$since" "$until" "$project_filter" "$mode" << 'PYEOF'
-import json, sys, os
+import json, sys, os, datetime
 from collections import defaultdict
 
 path, since, until, project_filter, mode = sys.argv[1:6]
-
-# 顶层目录名即 projectPath
 project_path = os.path.basename(os.path.dirname(path))
 
-# 过滤 project：匹配 projectPath 顶层目录名 或 jsonl 文件名前缀
 if project_filter:
     fname = os.path.basename(path).replace(".jsonl", "")
     if project_filter not in project_path and not fname.startswith(project_filter):
         sys.exit(0)
 
 def detect_route(model, endpoint_id):
-    """根据 model 名 + endpoint ID 格式判断 route"""
-    import os
     if not endpoint_id or endpoint_id.startswith("<"):
         return "synthetic"
     if endpoint_id.startswith("chatcmpl-"):
-        return "bridge-openaialt"  # OpenAI 协议（bridge 转）
+        return "bridge-openaialt"
     if endpoint_id.startswith("msg_") and len(endpoint_id) == 24:
-        return "anthropic-direct"  # 标准 Anthropic 直连
-    # 32 hex = MiniMax 兼容 / deepseek 直连 / openaialt 网关转发
+        return "anthropic-direct"
     if len(endpoint_id) == 32 and all(c in "0123456789abcdef" for c in endpoint_id):
-        # 当前 LLM 配置如果是 openaialt，32 hex ID 应归 bridge-openaialt
         cur = os.environ.get("CCCURRENT_LLM", "")
         if cur == "openaialt":
             return "bridge-openaialt"
         if "deepseek" in model:
-            return "deepseek-direct"  # api.deepseek.com/anthropic
+            return "deepseek-direct"
         if "MiniMax" in model or "minimax" in model:
-            return "minimax-direct"  # api.minimaxi.com/anthropic
+            return "minimax-direct"
         return "anthropic-compatible"
-    # 36 字符 UUID
     if len(endpoint_id) == 36 and endpoint_id.count("-") == 4:
-        return "anthropic-direct"  # 标准 UUID（Anthropic 协议）
+        return "anthropic-direct"
     return "unknown"
 
-# 聚合: session_id -> { model: { in, out, cc, cr, count }, first, last }
+def parse_ts(ts):
+    if not ts: return None
+    try:
+        return datetime.datetime.fromisoformat(ts.replace("Z","+00:00"))
+    except Exception:
+        return None
+
+def is_tool_result(rec):
+    if rec.get("type") != "user":
+        return False
+    msg = rec.get("message") or {}
+    content = msg.get("content")
+    if isinstance(content, list):
+        for blk in content:
+            if isinstance(blk, dict) and blk.get("type") == "tool_result":
+                return True
+    return False
+
+def compute_times(timeline):
+    # timeline = [(dt, is_assistant, is_tool_result, is_real_user, day), ...]
+    # 返回 {day: (model_ms, tool_ms, wall_ms)}
+    if not timeline:
+        return {}
+    timeline.sort(key=lambda x: x[0])
+    by_day = defaultdict(lambda: [0, 0, 0])  # model_ms, tool_ms, _
+    first_by_day = {}
+    last_by_day = {}
+    prev = None
+    for (dt, is_a, tr, is_ur, day) in timeline:
+        if day:
+            if day not in first_by_day:
+                first_by_day[day] = dt
+            last_by_day[day] = dt
+        if prev and day:
+            delta = (dt - prev[0]).total_seconds() * 1000
+            if delta > 0:
+                if is_a:
+                    by_day[day][0] += delta
+                elif tr:
+                    by_day[day][1] += delta
+        if is_a or tr or is_ur:
+            prev = (dt, is_a, tr, is_ur, day)
+    result = {}
+    for day in first_by_day:
+        wall = (last_by_day[day] - first_by_day[day]).total_seconds() * 1000
+        result[day] = (int(by_day[day][0]), int(by_day[day][1]), int(max(0, wall)))
+    return result
+
 sessions = defaultdict(lambda: {
     "input": 0, "output": 0, "cache_creation": 0, "cache_read": 0,
-    "request_count": 0, "user_request_count": 0,
+    "request_count": 0, "turn_count": 0,
     "first": None, "last": None,
-    "session_name": "", "route": "",
-    "models": defaultdict(lambda: {"input": 0, "output": 0, "cache_creation": 0, "cache_read": 0, "count": 0}),
-    # by-day 模式：按 (day, model) 聚合
-    "days": defaultdict(lambda: defaultdict(lambda: {"input":0,"output":0,"cache_creation":0,"cache_read":0,"count":0,"route":"","first_ts":"","last_ts":""})),
+    "session_name": "", "ai_title": "", "route": "",
+    "models": defaultdict(lambda: {"input":0,"output":0,"cache_creation":0,"cache_read":0,"count":0}),
+    "days": defaultdict(lambda: defaultdict(lambda: {"input":0,"output":0,"cache_creation":0,"cache_read":0,"count":0,"route":"","first_ts":"","last_ts":"","turn_count":0})),
+    "timeline": [],
 })
+ai_titles = {}
 
-# 先扫一遍 count user/assistant 按 session+day
-session_user_counts = defaultdict(lambda: defaultdict(int))
-
-# 先扫一遍找每 session 的首条 user 消息（用作 session_name）+ 首个 endpoint（route）
-session_first_user = {}
-session_route = {}
 with open(path, encoding="utf-8") as fh:
     for line in fh:
         line = line.strip()
         if not line: continue
         try: rec = json.loads(line)
         except: continue
+        t = rec.get("type")
         sid = rec.get("sessionId") or rec.get("session_id")
-        if not sid: continue
         ts = rec.get("timestamp", "")
         day = ts[:10] if ts else ""
-        if rec.get("type") == "user":
-            session_user_counts[sid][day] += 1
+
+        # ai-title 记录：Claude 自动生成的 session 标题
+        if t == "ai-title":
+            title = rec.get("aiTitle") or ""
+            if title and sid and sid not in ai_titles:
+                ai_titles[sid] = title
+            continue
+        if not sid: continue
+
+        s = sessions[sid]
+        tr = is_tool_result(rec)
+        is_a = (t == "assistant")
+        is_ur = (t == "user" and not tr)
+        dt = parse_ts(ts)
+
+        # timeline（用于时间计算）
+        if dt:
+            s["timeline"].append((dt, is_a, tr, is_ur, day))
+
+        # session_name: ai-title 优先（后续注入），否则首条真实 user 文本
+        if is_ur and not s["session_name"]:
             msg = rec.get("message") or {}
             content = msg.get("content", "")
             if isinstance(content, list):
-                text_parts = []
+                parts = []
                 for blk in content:
-                    if isinstance(blk, dict):
-                        text_parts.append(blk.get("text", ""))
-                    elif isinstance(blk, str):
-                        text_parts.append(blk)
-                content = " ".join(text_parts)
+                    if isinstance(blk, dict): parts.append(blk.get("text",""))
+                    elif isinstance(blk, str): parts.append(blk)
+                content = " ".join(parts)
             if isinstance(content, str):
                 content = content.strip()
-                # 跳过 <bridge_context> 等系统消息；如果之前已设但内容为空/系统消息，覆盖
-                if not content or content.startswith("<") or "command-message" in content[:30]:
-                    # bridge 回放 session 没有真实用户文本，跳过
-                    pass
-                else:
-                    if sid not in session_first_user or not session_first_user[sid]:
-                        session_first_user[sid] = content[:80].replace("\n", " ").replace(",", " ").strip()
-                    elif len(content) < len(session_first_user.get(sid, "")):
-                        pass  # 保留更长的首条消息
-        elif rec.get("type") == "assistant" and sid not in session_route:
-            msg = rec.get("message") or {}
-            model = msg.get("model", "")
-            eid = msg.get("id", "")
-            session_route[sid] = detect_route(model, eid)
+                if content and not content.startswith("<") and "command-message" not in content[:30]:
+                    s["session_name"] = content[:80].replace("\n"," ").replace(","," ").strip()
 
-with open(path, encoding="utf-8") as fh:
-    for line in fh:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            rec = json.loads(line)
-        except Exception:
-            continue
-        if rec.get("type") != "assistant":
-            continue
-        msg = rec.get("message") or {}
-        usage = msg.get("usage") or {}
-        in_t = usage.get("input_tokens", 0)
-        out_t = usage.get("output_tokens", 0)
-        cc_t = usage.get("cache_creation_input_tokens", 0)
-        cr_t = usage.get("cache_read_input_tokens", 0)
-        model = msg.get("model") or "unknown"
-        sid = rec.get("sessionId") or rec.get("session_id")
-        ts = rec.get("timestamp")
-        if not sid:
-            continue
-        s = sessions[sid]
-        # 注入 session_name 和 route（首次设置）
-        if not s["session_name"]:
-            s["session_name"] = session_first_user.get(sid, "")
-        if not s["route"]:
-            s["route"] = session_route.get(sid, "unknown")
-        s["input"] += in_t
-        s["output"] += out_t
-        s["cache_creation"] += cc_t
-        s["cache_read"] += cr_t
-        s["request_count"] += 1
-        if ts:
-            if not s["first"] or ts < s["first"]:
-                s["first"] = ts
-            if not s["last"] or ts > s["last"]:
-                s["last"] = ts
-            # by-day 桶
-            day = ts[:10]
-            dm = s["days"][day][model]
-            dm["input"] += in_t
-            dm["output"] += out_t
-            dm["cache_creation"] += cc_t
-            dm["cache_read"] += cr_t
-            dm["count"] += 1
-            if not dm["route"]:
-                eid = msg.get("id", "")
-                dm["route"] = detect_route(model, eid)
-            if not dm["first_ts"] or ts < dm["first_ts"]:
-                dm["first_ts"] = ts
-            if not dm["last_ts"] or ts > dm["last_ts"]:
-                dm["last_ts"] = ts
-            # 按 day 累计 user_request_count
-        s["user_request_count"] = sum(session_user_counts.get(sid, {}).values())
-        mb = s["models"][model]
-        mb["input"] += in_t
-        mb["output"] += out_t
-        mb["cache_creation"] += cc_t
-        mb["cache_read"] += cr_t
-        mb["count"] += 1
+        # route（首个 assistant）
+        if is_a and not s["route"]:
+            msg = rec.get("message") or {}
+            s["route"] = detect_route(msg.get("model",""), msg.get("id",""))
+
+        # turn_count（真实 user 输入，排除 tool_result）
+        if is_ur:
+            s["turn_count"] += 1
+            if day:
+                s["days"][day]["_turn_count"] = s["days"][day].get("_turn_count", 0) + 1
+
+        # token 聚合（assistant）
+        if is_a:
+            msg = rec.get("message") or {}
+            usage = msg.get("usage") or {}
+            in_t = usage.get("input_tokens", 0)
+            out_t = usage.get("output_tokens", 0)
+            cc_t = usage.get("cache_creation_input_tokens", 0)
+            cr_t = usage.get("cache_read_input_tokens", 0)
+            model = msg.get("model") or "unknown"
+            s["input"] += in_t
+            s["output"] += out_t
+            s["cache_creation"] += cc_t
+            s["cache_read"] += cr_t
+            s["request_count"] += 1
+            if ts:
+                if not s["first"] or ts < s["first"]: s["first"] = ts
+                if not s["last"] or ts > s["last"]: s["last"] = ts
+            if day:
+                dm = s["days"][day][model]
+                dm["input"] += in_t
+                dm["output"] += out_t
+                dm["cache_creation"] += cc_t
+                dm["cache_read"] += cr_t
+                dm["count"] += 1
+                if not dm["route"]:
+                    dm["route"] = detect_route(model, msg.get("id",""))
+                if not dm["first_ts"] or ts < dm["first_ts"]: dm["first_ts"] = ts
+                if not dm["last_ts"] or ts > dm["last_ts"]: dm["last_ts"] = ts
+            mb = s["models"][model]
+            mb["input"] += in_t
+            mb["output"] += out_t
+            mb["cache_creation"] += cc_t
+            mb["cache_read"] += cr_t
+            mb["count"] += 1
+
+# 注入 ai-title 作 session_name（优先于首条 user 文本）
+for sid, title in ai_titles.items():
+    if sid in sessions:
+        sessions[sid]["ai_title"] = title
+        sessions[sid]["session_name"] = title
 
 if mode == "by-day":
-    # 每条 = (session, day, model) 一个记录
     for sid, s in sessions.items():
+        day_times = compute_times(s["timeline"])
         for day in sorted(s["days"]):
             if since and day < since:
                 continue
             if until and day >= until:
                 continue
+            mt, tt, wt = day_times.get(day, (0, 0, 0))
             for model, dm in s["days"][day].items():
+                if model == "_turn_count":
+                    continue
                 row = {
                     "sessionId": sid,
                     "day": day,
@@ -279,7 +311,10 @@ if mode == "by-day":
                     "cacheReadTokens": dm["cache_read"],
                     "totalTokens": dm["input"] + dm["output"] + dm["cache_creation"] + dm["cache_read"],
                     "requestCount": dm["count"],
-                    "userRequestCount": session_user_counts.get(sid, {}).get(day, 0),
+                    "turnCount": s["days"][day].get("_turn_count", 0),
+                    "modelTimeMs": mt,
+                    "toolTimeMs": tt,
+                    "wallMs": wt,
                     "firstTs": dm["first_ts"],
                     "lastTs": dm["last_ts"],
                 }
@@ -294,18 +329,26 @@ for sid, s in sessions.items():
         continue
     if until and last and last >= until:
         continue
+    all_times = compute_times(s["timeline"])
+    total_mt = sum(v[0] for v in all_times.values())
+    total_tt = sum(v[1] for v in all_times.values())
+    total_wt = sum(v[2] for v in all_times.values())
     out = {
         "sessionId": sid,
         "projectPath": project_path,
         "route": s["route"],
         "sessionName": s["session_name"],
+        "aiTitle": s["ai_title"],
         "inputTokens": s["input"],
         "outputTokens": s["output"],
         "cacheCreationTokens": s["cache_creation"],
         "cacheReadTokens": s["cache_read"],
         "totalTokens": s["input"] + s["output"] + s["cache_creation"] + s["cache_read"],
         "requestCount": s["request_count"],
-        "userRequestCount": s["user_request_count"],
+        "turnCount": s["turn_count"],
+        "modelTimeMs": total_mt,
+        "toolTimeMs": total_tt,
+        "wallMs": total_wt,
         "firstActivity": s["first"],
         "lastActivity": s["last"],
         "models": dict(s["models"]),
