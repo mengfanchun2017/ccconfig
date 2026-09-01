@@ -888,7 +888,7 @@ show_help() {
 
 # ========== Push public ==========
 # ========== Main ==========
-case "${1}" in
+case "${1:-}" in
     start)    start_watch ;;
     stop)     stop_watch ;;
     status)   status_watch ;;
