@@ -575,31 +575,39 @@ EOF
 gen_setup_sh() {
     cat > "$CCPRIVATE_DIR/setup.sh" << 'SETUPEOF'
 #!/bin/bash
-# ccprivate setup.sh — 私有配置注入
+# ccprivate — 私有配置注入脚本
 #
-# 职责：
+# 职责（v3）：
 #   1. 用户级文件 symlink → ~/ 和 ~/.claude/
-#   2. 运行时链接（rules/agents/commands → ccprivate）
-#   3. ccconfig 公开链接（shell_init + pre-commit hook）
+#   2. 触发 ccconfig 公开部分链接（agents/rules/commands/skills）
+#  (ccconfig 脚本通过 resolve_conf() 直接读 ccprivate/conf/，无需中间目录)
 #
 # 用法：
 #   bash ~/git/ccprivate/setup.sh
+
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="${CCCONFIG_DIR:-$HOME/git/ccconfig}"
 CLAUDE_DIR="$HOME/.claude"
 
-echo "=== ccprivate setup ==="
+source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
+    GREEN='\033[0;32m'; BLUE='\033[0;34m'; CYAN='\033[0;36m'; YELLOW='\033[0;33m'; NC='\033[0m'
+    section() { echo -e "\n${CYAN}=== $1 ===${NC}"; }
+    info()    { echo -e "${BLUE}ℹ️  $1${NC}"; }
+    ok()      { echo -e "${GREEN}✅ $1${NC}"; }
+    warn()    { echo -e "${YELLOW}⚠️  $1${NC}"; }
+}
 
 setup_link() {
     local link="$1" target="$2" label="$3"
     mkdir -p "$(dirname "$link")"
     if [ -L "$link" ]; then
-        local existing=$(readlink -f "$link" 2>/dev/null)
-        local expected=$(readlink -f "$target" 2>/dev/null)
-        if [ "$existing" = "$expected" ]; then
-            echo "  $label: 已链接，跳过"
+        local existing expected
+        existing=$(readlink -f "$link" 2>/dev/null || true)
+        expected=$(readlink -f "$target" 2>/dev/null || true)
+        if [ "$existing" = "$expected" ] && [ -n "$existing" ]; then
+            info "$label: 已链接"
             return 0
         fi
         rm -f "$link"
@@ -607,39 +615,35 @@ setup_link() {
         rm -rf "$link"
     fi
     ln -s "$target" "$link"
-    echo "  $label"
+    ok "$label"
 }
 
-# --- 用户级链接 ---
-echo "--- 用户级链接 ---"
+# 1. 用户级 ~/ 链接
+section "用户级链接"
 setup_link "$HOME/CLAUDE.md"           "$SCRIPT_DIR/link/CLAUDE.md"     "~/CLAUDE.md"
 setup_link "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/link/settings.json" "~/.claude/settings.json"
 setup_link "$CLAUDE_DIR/.config.json"  "$SCRIPT_DIR/link/.config.json"  "~/.claude/.config.json"
+setup_link "$HOME/.lark-default-account" "$SCRIPT_DIR/link/.lark-default-account" ".lark-default-account → ccprivate"
+setup_link "$CLAUDE_DIR/.claudeignore"  "$SCRIPT_DIR/link/.claudeignore"  "~/.claude/.claudeignore"
+setup_link "$CLAUDE_DIR/commands/should-compact.md" "$CCCONFIG_DIR/commands/should-compact.md" "~/.claude/commands/should-compact.md"
 
-# --- Memory 链接 ---
-echo "--- Memory 链接 ---"
-for proj_dir in "$SCRIPT_DIR/link/projects"/-home-*-*/; do
-    [ -d "$proj_dir" ] || continue
-    PROJ_NAME=$(basename "$proj_dir")
-    if [ -d "${proj_dir}memory" ]; then
-        setup_link "$CLAUDE_DIR/projects/$PROJ_NAME/memory" "${proj_dir}memory" "memory/$PROJ_NAME"
-    fi
-done
+# 2. ccconfig 私有配置由 resolve_conf() 直接读 ccprivate/conf/
+info "ccconfig 私有配置: ccconfig 脚本通过 resolve_conf() 直接读 ccprivate/conf/"
+setup_link "$HOME/git/ccconfig/option-llmswitch/conf/llmswitch.json" "$SCRIPT_DIR/conf/llmswitch.json" "llmswitch.json → ccprivate/conf/"
 
-# --- 项目 CLAUDE.md ---
-echo "--- 项目 CLAUDE.md ---"
-for proj_dir in "$SCRIPT_DIR/link/projects"/-home-*-*/; do
-    [ -d "$proj_dir" ] || continue
-    PROJ_NAME=$(basename "$proj_dir")
-    if [ "$PROJ_NAME" = "-home-${USER}-git" ]; then continue; fi
-    PROJ_PATH="/$(echo "$PROJ_NAME" | sed 's/^-//' | sed 's/-/\//g')"
-    if [ -f "${proj_dir}CLAUDE.md" ] && [ -d "$PROJ_PATH" ]; then
-        setup_link "$PROJ_PATH/CLAUDE.md" "${proj_dir}CLAUDE.md" "$PROJ_NAME/CLAUDE.md"
-    fi
-done
+# 私有 skill 实体目录
+mkdir -p "$SCRIPT_DIR/skill-local"
+[ -f "$SCRIPT_DIR/skill-local/.gitkeep" ] || touch "$SCRIPT_DIR/skill-local/.gitkeep"
+info "私有 skill 目录: $SCRIPT_DIR/skill-local/（用户自建 skill 存放处）"
 
-# --- 运行时链接（rules/agents/commands → ccprivate） ---
-echo "--- 运行时链接 ---"
+# 3. 用户级 memory symlink（动态计算 project ID）
+section "用户级记忆"
+_cconfig_id="$(echo "$HOME/git/ccconfig" | tr '/' '-')"
+setup_link "$CLAUDE_DIR/projects/$_cconfig_id/memory" "$SCRIPT_DIR/link/memory" "memory → ccprivate/link/memory"
+unset _cconfig_id
+
+# 4. 运行时链接（rules/agents/commands → ccprivate）
+section "运行时链接"
 if [ -d "$SCRIPT_DIR/rules" ]; then
     setup_link "$CLAUDE_DIR/rules" "$SCRIPT_DIR/rules" "rules → ccprivate/rules"
 fi
@@ -650,15 +654,16 @@ if [ -d "$SCRIPT_DIR/commands" ]; then
     setup_link "$CLAUDE_DIR/commands" "$SCRIPT_DIR/commands" "commands → ccprivate/commands"
 fi
 
-# --- ccconfig 公开链接（shell_init + pre-commit hook） ---
-echo "--- ccconfig 公开链接 ---"
+# 5. ccconfig 公开部分（shell_init.sh + pre-commit hook）
+section "ccconfig 公开链接"
 if [ -x "$CCCONFIG_DIR/lib/setup-links.sh" ]; then
     bash "$CCCONFIG_DIR/lib/setup-links.sh"
+else
+    warn "ccconfig/lib/setup-links.sh 不存在，跳过（请确认 ccconfig 已 clone）"
 fi
 
 echo ""
-echo "=== ccprivate setup 完成 ==="
-echo "下一步: bash $CCCONFIG_DIR/init-base.sh all"
+ok "ccprivate setup 完成"
 SETUPEOF
     chmod +x "$CCPRIVATE_DIR/setup.sh"
     ok "setup.sh"
