@@ -28,6 +28,7 @@
 | [0016](0016-tailscale-subnet-router.md) | Tailscale Subnet Router — 适用 WSL + Windows：通过 RFC1918 私有段自动触发 `--use-win-curl` | 2026-08-29 | ✅ Accepted | — |
 | [0017](0017-tailscale-serve-https.md) | Tailscale Serve HTTPS — 内网 LLM API 远程访问（流式兼容） | 2026-08-28 | ⚠️ Superseded by 0016 | — |
 | [0018](0018-permission-mode-strategy.md) | 权限模式策略 — defaultMode 用 auto，bypass 仅 flag 触发 | 2026-09-01 | ✅ Accepted | — |
+| [0019](0019-bridge-win-curl-wsl-vpn.md) | OpenAI bridge 三层修复：WSL 网络栈隔离 + DNS 污染 + ARG_MAX 溢出 | 2026-08-14 | ✅ Accepted | — |
 
 > ADR 收录门槛见 [「何时写 ADR」](#何时写-adr)。轻量变更（bug fix / 单文件重构 / 样式调整）只在下方「决策时间线」一行记录。
 
