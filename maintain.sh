@@ -54,19 +54,18 @@ _submenu_monitor() {
 
 _submenu_usage() {
     local c; c=$(menu_select "用量统计" \
-        "用量统计" \
+        "用量统计（跨 LLM 总量）" \
         "按日报告" \
-        "按天归档" \
-        "推飞书" \
+        "按天归档（到昨天）" \
+        "今日快照（含今天）" \
         "timer 管理" \
-        "手动触发" \
         "返回")
     [[ -z "$c" || "$c" = "0" ]] && return
     case "$c" in
         1) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --stats ;;
         2) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --report ;;
-        3) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ;;
-        4) url=$(prompt "飞书 URL"); bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental ${url:+--feishu "$url"} ;;
+        3) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day ;;
+        4) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --include-today ;;
         5) bash "$CCCONFIG_DIR/option-usage/init.sh" status
            ts=$(menu_select "timer" \
  "安装" \
@@ -74,7 +73,6 @@ _submenu_usage() {
  "配置" \
  "返回")
            case "$ts" in 1) bash "$CCCONFIG_DIR/option-usage/init.sh" install;; 2) bash "$CCCONFIG_DIR/option-usage/init.sh" uninstall;; 3) bash "$CCCONFIG_DIR/option-usage/init.sh" config;; 4|0|*) return;; esac ;;
-        6) bash "$CCCONFIG_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
     esac
 }
 
