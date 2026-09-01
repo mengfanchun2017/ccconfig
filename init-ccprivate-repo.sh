@@ -34,8 +34,8 @@ LOCAL_BIN="$HOME/.local/bin"
 export PATH="$LOCAL_BIN:$PATH"
 
 source "$SCRIPT_DIR/lib/dry-run.sh"
-source "$SCRIPT_DIR/lib/interact.sh"
 source "$SCRIPT_DIR/lib/colors.sh"
+source "$SCRIPT_DIR/lib/interact.sh"
 
 banner() {
     echo ""
@@ -61,7 +61,6 @@ ensure_gh_cli() {
     else
         install_choice=$(menu_select "安装 gh" \
             "apt 装" "binary 装" "跳过")
-        [[ "$install_choice" == "" ]] && install_choice="1"
     fi
 
     case "$install_choice" in
@@ -86,14 +85,15 @@ PYEOF
 )
             mkdir -p "$LOCAL_BIN"
             local tmp="/tmp/gh-install-$$"
+            mkdir -p "$tmp"
             curl -fsSL "https://github.com/cli/cli/releases/download/v${gh_ver}/gh_${gh_ver}_linux_amd64.tar.gz" \
-                -o "$tmp/gh.tar.gz" || { err "下载失败"; return 1; }
+                -o "$tmp/gh.tar.gz" || { err "下载失败"; rm -rf "$tmp"; return 1; }
             tar -xzf "$tmp/gh.tar.gz" -C "$tmp"
             mv "$tmp/gh_${gh_ver}_linux_amd64/bin/gh" "$LOCAL_BIN/gh"
             chmod +x "$LOCAL_BIN/gh"
             rm -rf "$tmp"
             ;;
-        0)
+        0|3)
             warn "跳过 gh 安装。请手动安装后重跑: https://cli.github.com/manual/installation"
             return 1
             ;;
@@ -123,7 +123,7 @@ check_gh_auth() {
     fi
     if [[ -n "$env_token" ]]; then
         info "检测到环境变量 GH_TOKEN/GITHUB_TOKEN，自动注入 gh auth"
-        printf '%s' "$env_token" | gh auth login --with-token --hostname github.com >/dev/null 2>&1
+        printf '%s' "$env_token" | gh auth login --with-token --hostname github.com >/dev/null 2>&1 || true
         if gh auth status &>/dev/null; then
             ok "GitHub 认证完成（env token）: $(gh api user --jq '.login' 2>/dev/null)"
             gh auth setup-git >/dev/null 2>&1 || true
@@ -152,17 +152,12 @@ check_gh_auth() {
         info "GitHub 认证: ${GREEN}SSH key 已配置${NC}（git push/clone 可用）"
         warn "但 gh CLI 未登录，部分操作（创建仓库、API 查询）会失败"
         echo ""
-        if confirm "现在补 gh 登录？" y; then
-            return 0  # SSH 够用
+        if confirm "SSH 已够用，跳过 gh 登录？" y; then
+            return 0
         fi
     else
         warn "GitHub 未认证，需要先登录"
         echo ""
-        if confirm "现在登录？" y; then
-            echo ""
-            echo "  没有认证将无法创建 GitHub 私有仓库。"
-            return 1
-        fi
     fi
 
     # --- 双选项：A) PAT 粘贴（默认） B) Web OAuth ---
@@ -182,7 +177,11 @@ check_gh_auth() {
     login_method=$(menu_select "认证方式" "PAT 粘贴" "Web OAuth")
     case "$login_method" in
         2)
-            gh auth login --web --git-protocol https --hostname github.com
+            gh auth login --web --git-protocol https --hostname github.com || true
+            ;;
+        0)
+            err "跳过 GitHub 认证"
+            return 1
             ;;
         *)
             echo ""
@@ -199,14 +198,13 @@ check_gh_auth() {
             echo -e "  ${GRAY}续期：bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
             echo ""
             local token=""
-            read -r -s -p "  PAT（粘贴，不回显）: " token
-            echo ""
+            token=$(prompt_password "PAT（粘贴，不回显）")
             if [[ -z "$token" ]]; then
                 err "Token 为空"
                 return 1
             fi
             token=$(printf '%s' "$token" | tr -d '\r\n')
-            echo "$token" | gh auth login --with-token --hostname github.com
+            echo "$token" | gh auth login --with-token --hostname github.com || true
             ;;
     esac
 
@@ -434,6 +432,10 @@ collect_info() {
             3)
                 DEFAULT_LLM="claude"
                 [ -z "$CLAUDE_KEY" ] && CLAUDE_KEY=$(prompt_password "Anthropic API Key")
+                ;;
+            0)
+                warn "取消 LLM 选择"
+                DEFAULT_LLM="${DEFAULT_LLM:-deepseek}"
                 ;;
         esac
 
@@ -855,12 +857,12 @@ do_update() {
     fi
     if [ -n "$llm_src" ]; then
         eval "$(LLM_SRC="$llm_src" python3 << 'PYEOF'
-import json, os
+import json, os, shlex
 d = json.load(open(os.environ["LLM_SRC"]))
 llms = d.get("llms", {})
 for key, var in [("deepseek","DEEPSEEK_KEY"), ("minimax","MINIMAX_KEY"), ("claude","CLAUDE_KEY")]:
-    print(f'{var}={llms.get(key,{}).get("key","")}')
-print(f'DEFAULT_LLM={d.get("current","deepseek")}')
+    print(f'{var}={shlex.quote(llms.get(key,{}).get("key",""))}')
+print(f'DEFAULT_LLM={shlex.quote(d.get("current","deepseek"))}')
 PYEOF
         )"
         if [ -n "$DEEPSEEK_KEY" ] || [ -n "$MINIMAX_KEY" ] || [ -n "$CLAUDE_KEY" ]; then
@@ -898,10 +900,11 @@ do_clone() {
         info "ccprivate 已存在，拉取最新"
         git -C "$CCPRIVATE_DIR" pull origin main 2>&1 | tail -2
     else
-        # 无 remote（失败的 do_create 残留）或非 git 目录 → 直接 clone
+        # 无 remote（失败的 do_create 残留）或非 git 目录 → 备份后 clone
         if [ -d "$CCPRIVATE_DIR" ]; then
-            info "移除旧 ccprivate（无 remote 或非 git 仓库）"
-            rm -rf "$CCPRIVATE_DIR"
+            local bak="${CCPRIVATE_DIR}.bak.$(date +%s)"
+            warn "旧 ccprivate 无 remote 或非 git 仓库，备份到 $bak 后重新 clone"
+            mv "$CCPRIVATE_DIR" "$bak"
         fi
         section "克隆 ccprivate"
         gh repo clone "$GH_USER/ccprivate" "$CCPRIVATE_DIR"
