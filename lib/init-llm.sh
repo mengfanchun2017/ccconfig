@@ -233,16 +233,15 @@ else:
     final = ''
     print(f"\033[1;33m  Key: 未配置\033[0m")
 
-# 写 llm.json
+# 写 llm.json（保留 key 同步，不写 current——current 在本地 llm-current）
 cfg = os.environ['CONFIG_FILE']
 with open(cfg) as f: d = json.load(f)
-d['current'] = os.environ['NAME']
 if final:
     llms = d.setdefault('llms', {})
     if os.environ['NAME'] in llms:
         llms[os.environ['NAME']]['key'] = final
 with open(cfg, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
-print("llm.json 已更新")
+print("llm.json 已更新（provider key）")
 
 # 写 settings.json env + 顶层 model
 env_upd = {
@@ -269,6 +268,7 @@ with open(sf, 'w') as f: json.dump(sd, f, indent=4, ensure_ascii=False)
 print("settings.json 已更新")
 PYEOF
 
+    write_local_current "$name"
     success "LLM 已切换为: $name"
     sync_top_model
 }
@@ -480,10 +480,10 @@ PYEOF
 # ========== 状态 ==========
 show_status() {
     local llm_cur sett_env sett_model
-    llm_cur=$(python3 -c "
+    llm_cur=$(cat "$LOCAL_CURRENT_FILE" 2>/dev/null || \n        python3 -c "
 import json
 try: print(json.load(open('${CONFIG_FILE}')).get('current',''))
-except: pass" 2>/dev/null)
+except: pass" 2>/dev/null || echo "")
 
     sett_env=$(python3 -c "
 import json, os
@@ -623,7 +623,7 @@ PYEOF
     if [[ " $builtin_list " == *" $target "* ]]; then
         error "内置预设 '$target' 不可删"; return 1
     fi
-    if [[ "$(python3 -c "import json; print(json.load(open('$CONFIG_FILE')).get('current',''))" 2>/dev/null)" == "$target" ]]; then
+    if [[ "$(read_local_current)" == "$target" ]]; then
         error "当前正在用 '$target'，先切别的再删"; return 1
     fi
     confirm "确认删除 '$target'？" n || { info "已取消"; return 0; }
