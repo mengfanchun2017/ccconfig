@@ -54,6 +54,17 @@ All notable changes to ccconfig will be documented in this file.
 - **`option-larkcli/README.md` + `option-larkbridge/README.md`** — 新建（之前缺）
 - **删除 dead files** — `templates/skills/`（空目录）、`ccprivate/link/.config.json.bak`、`ccprivate/link/settings.json.bak`
 
+### Fixed（全仓审计 2026-09-01 第二轮）
+- **`monitor.sh:891` set -u 无参崩溃** — `case "${1}"` → `${1:-}`；`bash monitor.sh` 无参时 set -u 杀进程，`""|start)` 不可达
+- **`sync.sh:382,410,455` `"cconfig"` 拼写死分支** — 3 处 `"cconfig"`（单 c）→ `"ccconfig"`（双 c）；`do_cconfig_post` 在 `--pull`/`--commitpush`/直接仓库名路径永不触发，跳过重建链接+skill 同步+新模板检测
+- **`init-ubuntu.sh:396` ssh pipefail 死分支** — `ssh -T git@github.com` 永远 exit 1，pipefail 使 `if ssh|grep` 恒 false；改 `{ ssh ... || true; }|grep` 隔离，恢复 SSH 成功分支（HTTPS→SSH URL 转换 + insteadOf 配置）
+- **ADR 0014 编号冲突** — `0014-bridge-win-curl-wsl-vpn.md` 与 `0014-tailscale-jump-server.md` 重号；bridge 重编号 **0019**（title + 0015 引用 + adr/README 索引），tailscale 保持 canonical 0014（0016/0017 已引用）
+- **孤立文档 `docs/SH-MENU-CONVENTIONS.md`** — 0 引用；链接自 `docs/README` 索引 + `CLAUDE.md` SH 段（内容真实有用：菜单渲染格式+颜色变量+data-driven MENU_ENTRIES 模式，与 CLAUDE.md API 契约不重复）
+- **`docs/README` 失效索引** — 删 `prd.md` 引用（文件 8/25 已删）
+
+### Removed（全仓审计 2026-09-01 第二轮）
+- **`lib/start-openai-bridge.sh`** — 运行时无人调用（`init-llm.sh`/`status.sh` 均用 `ensure-bridge.sh`），功能是 `ensure-bridge.sh` 子集（无 self-heal/upstream 变化检测/win-curl）；同步清理 test-init-llm 分组 7（3 测试）+ README 架构图/目录树 + lib/README 表行
+
 ### Audit Summary
 - 3 个并行 Agent（安全/质量/SH）共发现 P0 12 项 + P1 16 项 + P2 14 项
 - 本次修复 23 项 P0/P1，含 2 处硬编码、2 处 bash 语法 bug、3 处 stale 文件、7 处失效文档引用、4 处 SH 标准违反
