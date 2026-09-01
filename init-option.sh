@@ -26,7 +26,7 @@ source "$SCRIPT_DIR/lib/interact.sh"
 
 # 内置 CLI 描述
 declare -A CLI_DESC
-CLI_DESC["bat"]="cat 替代，语法高亮+行号"
+CLI_DESC["batcat"]="cat 替代，语法高亮+行号"
 CLI_DESC["glow"]="终端 Markdown 渲染阅读"
 # nano: Ubuntu 26 自带，仅展示提示不出现在安装列表
 
@@ -100,7 +100,8 @@ option_status() {
     case "$name" in
         batcat|bat)
             if command -v batcat &>/dev/null || command -v bat &>/dev/null; then
-                local ver=$(bat --version 2>/dev/null | head -1 || batcat --version 2>/dev/null | head -1 || echo "")
+                local bcmd="bat"; command -v bat &>/dev/null || bcmd="batcat"
+                local ver=$($bcmd --version 2>/dev/null | head -1)
                 echo "ok|OK|batcat 已安装${ver:+ ($ver)}"
             else
                 echo "miss|MISSING|batcat 未安装"
@@ -367,23 +368,23 @@ print('\t'.join([
             "2")
                 echo ""
                 bash "$SCRIPT_DIR/option-larkcli/lark-switch.sh" "$target_name"
-                local cd="$HOME/.lark-cli-${target_name}"
-                if [ -f "${cd}/config.json" ]; then
-                    if ! LARKSUITE_CLI_CONFIG_DIR="$cd" lark-cli auth status 2>/dev/null | grep -q "tokenStatus.*valid"; then
+                local cfg_dir="$HOME/.lark-cli-${target_name}"
+                if [ -f "${cfg_dir}/config.json" ]; then
+                    if ! LARKSUITE_CLI_CONFIG_DIR="$cfg_dir" lark-cli auth status 2>/dev/null | grep -q "tokenStatus.*valid"; then
                         echo ""; warn "未授权，自动拉起..."
-                        LARKSUITE_CLI_CONFIG_DIR="$cd" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1
+                        LARKSUITE_CLI_CONFIG_DIR="$cfg_dir" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1
                     else
                         info "授权状态正常"
                     fi
                 fi
                 ;;
             "3")
-                local cd="$HOME/.lark-cli-${target_name}"
-                [ -f "${cd}/config.json" ] && LARKSUITE_CLI_CONFIG_DIR="$cd" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1 || warn "先编辑 App ID/Secret"
+                local cfg_dir="$HOME/.lark-cli-${target_name}"
+                [ -f "${cfg_dir}/config.json" ] && LARKSUITE_CLI_CONFIG_DIR="$cfg_dir" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1 || warn "先编辑 App ID/Secret"
                 ;;
             "4")
-                local cd="$HOME/.lark-cli-${target_name}"
-                [ -f "${cd}/config.json" ] && LARKSUITE_CLI_CONFIG_DIR="$cd" lark-cli auth status 2>&1 | grep -v "^\[lark-cli\]" | sed 's/^/  /' || warn "config.json 不存在"
+                local cfg_dir="$HOME/.lark-cli-${target_name}"
+                [ -f "${cfg_dir}/config.json" ] && LARKSUITE_CLI_CONFIG_DIR="$cfg_dir" lark-cli auth status 2>&1 | grep -v "^\[lark-cli\]" | sed 's/^/  /' || warn "config.json 不存在"
                 ;;
             "5") _feishu_delete_app "$conf" "$target_name" ;;
             *) break ;;
@@ -398,7 +399,7 @@ install_option() {
     shift
 
     if _dry_run_enabled "$@"; then
-        printf 'would: bash option-%s/init.sh\n' "$name"
+        printf 'would: install %s\n' "$name"
         return 0
     fi
 
@@ -412,20 +413,16 @@ install_option() {
         bash "$SCRIPT_DIR/option-usage/init.sh" install 2>&1 | sed 's/^/  /'
       else
         while true; do
-          echo "  ─ usage 管理 ─"
-          echo "    1) 安装 timer (每天 12:01 自动归档+推飞书)"
-          echo "    2) 卸载 timer"
-          echo "    3) 配置 (feishu_url / schedule / include_today)"
           local sub; sub=$(menu_select "usage 管理" \
-            "安装 timer" "卸载 timer" "配置" "状态" "手动触发" "返回")
-          [[ -z "$sub" ]] && continue
+            "安装 timer (每天 12:01 归档+推飞书)" "卸载 timer" \
+            "配置 (feishu_url/schedule/include_today)" "状态" "手动触发" "返回")
           case "$sub" in
             "1") bash "$SCRIPT_DIR/option-usage/init.sh" install ;;
             "2") bash "$SCRIPT_DIR/option-usage/init.sh" uninstall ;;
             "3") bash "$SCRIPT_DIR/option-usage/init.sh" config ;;
             "4") bash "$SCRIPT_DIR/option-usage/init.sh" status ;;
             "5") bash "$SCRIPT_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
-            "6") break ;;
+            *) break ;;
           esac
           echo ""
           read -p "按回车继续..." dummy < /dev/tty || true
@@ -505,7 +502,7 @@ install_bat() {
                 bv=$(curl -fsSL "https://api.github.com/repos/sharkdp/bat/releases/latest" | grep '"tag_name"' | head -1 | cut -d'"' -f4 | tr -d 'v')
                 bv="${bv:-0.24.0}"
                 curl -fsSL "https://github.com/sharkdp/bat/releases/download/v${bv}/bat_${bv}_amd64.deb" -o /tmp/bat.deb
-                sudo dpkg -i /tmp/bat.deb 2>/dev/null || sudo apt-get install -f -y
+                sudo apt-get install -y /tmp/bat.deb 2>/dev/null || sudo apt-get install -f -y
                 rm -f /tmp/bat.deb
             }
         else
@@ -543,7 +540,7 @@ install_glow() {
             gv=$(curl -fsSL "https://api.github.com/repos/charmbracelet/glow/releases/latest" | grep '"tag_name"' | head -1 | cut -d'"' -f4 | tr -d 'v')
             gv="${gv:-2.1.0}"
             curl -fsSL "https://github.com/charmbracelet/glow/releases/download/v${gv}/glow_${gv}_linux_amd64.deb" -o /tmp/glow.deb
-            sudo dpkg -i /tmp/glow.deb 2>/dev/null || sudo apt-get install -f -y
+            sudo apt-get install -y /tmp/glow.deb 2>/dev/null || sudo apt-get install -f -y
             rm -f /tmp/glow.deb
         }
     else
@@ -600,16 +597,24 @@ interactive_menu() {
         local exit_idx=$total_items                   # 退出序号
 
         local choice; choice=$(menu_select "可选组件" "${menu_items[@]}")
-        [[ -z "$choice" || "$choice" == "$exit_idx" ]] && continue
+        [[ -z "$choice" || "$choice" == "0" || "$choice" == "$exit_idx" ]] && break
 
         if [[ "$choice" == "$all_idx" ]]; then
             for n in "${all_names[@]}"; do
-                [ "$n" = "feishu_key" ] && feishu_key_wizard || install_option "$n"
+                if [ "$n" = "feishu_key" ]; then
+                    feishu_key_wizard
+                else
+                    install_option "$n"
+                fi
             done
             ok "全部安装完成"
         elif [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#all_names[@]} ]]; then
             local selected="${all_names[$((choice-1))]}"
-            [ "$selected" = "feishu_key" ] && feishu_key_wizard || install_option "$selected"
+            if [ "$selected" = "feishu_key" ]; then
+                feishu_key_wizard
+            else
+                install_option "$selected"
+            fi
         else
             warn "无效选择"
         fi
@@ -708,7 +713,7 @@ list_names_compact() {
             case "$n" in
                 mcp|feishu_key) echo "  $n" ;;
                 batcat|glow) echo "  $n" ;;
-                *) [ -n "${AUTO_MANAGED[$n]:-}" ] || has_init_script "$n" && echo "  $n" ;;
+                *) if [ -n "${AUTO_MANAGED[$n]:-}" ] || has_init_script "$n"; then echo "  $n"; fi ;;
             esac
         done
     done
@@ -733,6 +738,16 @@ install_all() {
 }
 
 # ── 入口 ──
+# 解析全局 --dry-run：从参数中剥离并设置环境变量
+_DRY_RUN_GLOBAL=false
+case "${1:-}" in
+    --dry-run|--preview|--what)
+        _DRY_RUN_GLOBAL=true
+        export CCC_DRY_RUN=1
+        shift
+        ;;
+esac
+
 case "${1:-menu}" in
     --status|status|-s)
         list_all
