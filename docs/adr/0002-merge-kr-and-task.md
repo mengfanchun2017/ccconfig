@@ -2,7 +2,7 @@
 
 > **Status**: ✅ Accepted
 > **日期**: 2026-06-08
-> **关联**: [task_plan.md（待更新）](../../.github/task_plan.md), [Phase 0 安全 + 公开化](../../.github/task_plan.md)
+> **关联**: Phase 0 安全 + 公开化（已完成）
 > **Supersedes**: (无)
 > **Superseded by**: (无)
 > **模板**: MADR 4.0 极简版
@@ -106,7 +106,7 @@ ccconfig 4 层追踪系统早期设计为：O → KR → Task → Worklog，4 �
 
 ## Implementation
 
-详见 [task_plan.md（Phase 0 任务 #14-#15 + 合并任务）](../../.github/task_plan.md)
+Phase 0 任务 #14-#15 + 合并任务已全部完成（2026-06-08 执行）。
 
 **实际执行**（2026-06-08）：
 - OKR_KR 加 4 字段
