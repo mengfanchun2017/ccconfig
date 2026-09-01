@@ -20,20 +20,7 @@ source "$SCRIPT_DIR/interact.sh"
 CONFIG_FILE="$(resolve_conf llm.json)" || exit 1
 
 list_models() {
-    python3 - "$CONFIG_FILE" << 'PYEOF'
-import json, sys
-try:
-    d = json.load(open(sys.argv[1]))
-except: sys.exit(0)
-seen = []
-for k, v in d.get('llms', {}).items():
-    if k == 'gateway': continue
-    m = v.get('model', '')
-    if m and m not in seen: seen.append(m)
-for m in d.get('pricing', {}).keys():
-    if m and m not in seen: seen.append(m)
-print(json.dumps(seen, ensure_ascii=False))
-PYEOF
+    list_models_marked | while IFS=$'\t' read -r m _; do echo "$m"; done
 }
 
 show_table() {
@@ -54,28 +41,46 @@ PYEOF
 }
 
 # 输出 "model\tmark" 行（mark=✓/空），供菜单构建
+# 模型发现四源：llm.json presets + 已配 pricing + usage CSV + jsonl 实扫
 list_models_marked() {
+    CCPRIVATE_HOME="${CCPRIVATE_HOME:-$HOME/git/ccprivate}" \
     python3 - "$CONFIG_FILE" << 'PYEOF'
-import json, sys
+import json, sys, os, re, glob, csv
 d = json.load(open(sys.argv[1]))
 pricing = d.get('pricing', {})
 seen = []
+def add(m):
+    m = (m or '').strip()
+    if m and not m.startswith('<') and m not in seen:
+        seen.append(m)
 for k, v in d.get('llms', {}).items():
     if k == 'gateway': continue
-    m = v.get('model', '')
-    if m and m not in seen: seen.append(m)
-for m in list(pricing.keys()):
-    if m and m not in seen: seen.append(m)
+    add(v.get('model', ''))
+for m in list(pricing.keys()): add(m)
+ccpriv = os.environ.get('CCPRIVATE_HOME', os.path.expanduser('~/git/ccprivate'))
+for f in glob.glob(os.path.join(ccpriv, 'usage', '*.csv')):
+    try:
+        with open(f) as fh:
+            for row in csv.DictReader(fh): add(row.get('model', ''))
+    except: pass
+pat = re.compile(r'"model"\s*:\s*"([^"]+)"')
+for f in glob.glob(os.path.expanduser('~/.claude/projects/*/*.jsonl')):
+    try:
+        with open(f, errors='ignore') as fh:
+            for line in fh:
+                m = pat.search(line)
+                if m: add(m.group(1))
+    except: pass
 for m in seen:
     print(f"{m}\t{'✓' if m in pricing else ' '}")
 PYEOF
 }
 
 resolve_model() {
-    local models_json="$1" sel="$2"
-    python3 - "$models_json" "$sel" << 'PYEOF'
-import json, sys
-models = json.loads(sys.argv[1])
+    local models_text="$1" sel="$2"
+    python3 - "$models_text" "$sel" << 'PYEOF'
+import sys
+models = [m for m in sys.argv[1].splitlines() if m.strip()]
 sel = sys.argv[2].strip()
 if sel.isdigit() and 1 <= int(sel) <= len(models):
     print(models[int(sel) - 1])
