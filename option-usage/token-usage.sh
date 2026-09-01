@@ -119,18 +119,27 @@ def detect_route(model, endpoint_id):
         return "synthetic"
     if endpoint_id.startswith("chatcmpl-"):
         return "bridge-openaialt"
-    if endpoint_id.startswith("msg_") and len(endpoint_id) == 24:
-        return "anthropic-direct"
+
+    # 提取真实 id 前缀（去掉 msg_ 前缀统一处理）
+    raw_id = endpoint_id
+    if endpoint_id.startswith("msg_"):
+        raw_id = endpoint_id[4:]
+
+    # 根据 model 判断 route（优先）
+    mdl = model.lower()
+    if "deepseek" in mdl:
+        return "deepseek-direct"
+    if "mini" in mdl or "minimax" in mdl:
+        return "minimax-direct"
+    if "glm" in mdl or "qwen" in mdl:
+        return "anthropic-compatible"
+
+    # model 名不明确时，靠 endpoint_id 格式推断
     if len(endpoint_id) == 32 and all(c in "0123456789abcdef" for c in endpoint_id):
-        cur = os.environ.get("CCCURRENT_LLM", "")
-        if cur == "openaialt":
-            return "bridge-openaialt"
-        if "deepseek" in model:
-            return "deepseek-direct"
-        if "MiniMax" in model or "minimax" in model:
-            return "minimax-direct"
         return "anthropic-compatible"
     if len(endpoint_id) == 36 and endpoint_id.count("-") == 4:
+        return "anthropic-direct"
+    if len(raw_id) == 36 and raw_id.count("-") == 4:
         return "anthropic-direct"
     return "unknown"
 
