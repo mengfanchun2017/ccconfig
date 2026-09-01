@@ -56,8 +56,6 @@ flowchart TB
     Skills 管理"]
     exampleSync["example-sync.sh
     模板同步"]
-    bridge["start-openai-bridge.sh
-    OpenAI 协议桥"]
   end
 
   subgraph ops["lib/ — 运维工具"]
@@ -139,7 +137,6 @@ flowchart TB
   update --> libMcp
   update --> libSkill
   initBase --> libAutostart
-  initBase --> bridge
 
   %% 共享库
   pathHelper -.-> libUbuntu
@@ -169,7 +166,6 @@ ccconfig/
 │   ├── init-mcp.sh           # MCP 服务器注册管理
 │   ├── init-skill.sh         # Skills 同步
 │   ├── init-autostart.sh     # auto-sync systemd 服务
-│   ├── start-openai-bridge.sh # OpenAI 协议桥
 │   ├── monitor.sh            # inotify 监听 + 自动 git 同步
 │   ├── status.sh             # 14 项状态检查
 │   ├── sync.sh               # 多仓库 Git 同步（内含冲突解决）

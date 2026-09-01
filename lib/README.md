@@ -17,7 +17,6 @@
 | `update.sh` | 月度组件升级 | maintain.sh update |
 | `setup-links.sh` | 公开部分符号链接 | ccprivate/setup.sh |
 | `deps-check.sh` | 依赖完整性检查 | status.sh |
-| `start-openai-bridge.sh` | OpenAI-only 端点协议桥 | init-llm.sh |
 | ~~`update-third-party-skills.sh`~~ | ~~已废弃，由 `init-skill.sh update` 替代~~ | — |
 
 ## 共享库
