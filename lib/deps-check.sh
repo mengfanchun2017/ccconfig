@@ -21,13 +21,30 @@ MISSING=0
 WARNINGS=0
 JSON_OUT=false
 REQUIRED_ONLY=false
+PLAIN_OUT=false
 
 for arg in "$@"; do
     case "$arg" in
         --json) JSON_OUT=true ;;
         --required) REQUIRED_ONLY=true ;;
+        --plain) PLAIN_OUT=true ;;
     esac
 done
+
+# plain 模式：无 ANSI、无 emoji，纯文字
+if $PLAIN_OUT; then
+    OK_SYM="[✓]"
+    NG_SYM="[✗]"
+    WARN_SYM="[○]"
+    SEP=""  # plain: no ANSI separator
+    # 清空 ANSI 变量
+    RED=""; GREEN=""; YELLOW=""; CYAN=""; GRAY=""; BOLD=""; NC=""
+else
+    OK_SYM="✅"
+    NG_SYM="❌"
+    WARN_SYM="○"
+    SEP="$GRAY"
+fi
 
 # ========== 依赖定义 ==========
 
@@ -106,8 +123,7 @@ check_dep() {
 
     local status="OK"
     local version=""
-    local color="$GREEN"
-    local symbol="✅"
+    local symbol="$OK_SYM"
 
     if check_cmd "$bin"; then
         version=$(get_version "$extract_cmd")
@@ -115,13 +131,11 @@ check_dep() {
     else
         if [ "$required" = "true" ]; then
             status="MISSING"
-            color="$RED"
-            symbol="❌"
+            symbol="$NG_SYM"
             MISSING=$((MISSING + 1))
         else
             status="未安装"
-            color="$YELLOW"
-            symbol="○"
+            symbol="$WARN_SYM"
             WARNINGS=$((WARNINGS + 1))
         fi
         version="-"
@@ -130,7 +144,7 @@ check_dep() {
     if $JSON_OUT; then
         echo "{\"name\":\"$label\",\"bin\":\"$bin\",\"status\":\"$status\",\"version\":\"$version\",\"desc\":\"$desc\"},"
     else
-        printf "  %b %-18s %-16s %b%s%b\n" "$symbol" "$label" "$version" "$GRAY" "$desc" "$NC"
+        printf "  %b %-18s %-16s %s%b\n" "$symbol" "$label" "$version" "$SEP" "$desc" "$NC"
     fi
 }
 
@@ -140,22 +154,20 @@ check_python_pkg() {
 
     local status="OK"
     local version="-"
-    local color="$GREEN"
-    local symbol="✅"
+    local symbol="$OK_SYM"
 
     if python3 -c "import $import_name" 2>/dev/null; then
         version=$(python3 -c "import $import_name; print(getattr($import_name, '__version__', '已安装'))" 2>/dev/null || echo "已安装")
     else
         status="未安装"
-        color="$YELLOW"
-        symbol="○"
+        symbol="$WARN_SYM"
         WARNINGS=$((WARNINGS + 1))
     fi
 
     if $JSON_OUT; then
         echo "{\"name\":\"$pkg_label\",\"type\":\"python\",\"status\":\"$status\",\"version\":\"$version\",\"desc\":\"$desc\"},"
     else
-        printf "  %b %-18s %-16s %s%b\n" "$symbol" "$pkg_label" "$version" "$GRAY" "$desc" "$NC"
+        printf "  %b %-18s %-16s %s%b\n" "$symbol" "$pkg_label" "$version" "$SEP" "$desc" "$NC"
     fi
 }
 
@@ -166,14 +178,14 @@ check_network() {
         if $JSON_OUT; then
             echo "{\"name\":\"$label\",\"status\":\"OK\"},"
         else
-            printf "  %s %-18s %s%s%s\n" "✅" "$label" "$GRAY" "可达" "$NC"
+            printf "  %b %-18s %s%b\n" "$OK_SYM" "$label" "$SEP" "可达" "$NC"
         fi
     else
         MISSING=$((MISSING + 1))
         if $JSON_OUT; then
             echo "{\"name\":\"$label\",\"status\":\"不可达\"},"
         else
-            printf "  %s %-18s %s%s%s\n" "❌" "$label" "$RED" "不可达" "$NC"
+            printf "  %b %-18s %s%b\n" "$NG_SYM" "$label" "$SEP" "不可达" "$NC"
         fi
     fi
 }
@@ -186,7 +198,7 @@ fi
 
 # 必需
 if ! $REQUIRED_ONLY; then
-    echo -e "${CYAN}── 必需依赖 ──${NC}"
+    echo "── 必需依赖 ──"
 fi
 for dep in "${REQUIRED_DEPS[@]}"; do
     check_dep "$dep" "true"
@@ -195,7 +207,7 @@ done
 # 核心
 if ! $REQUIRED_ONLY; then
     echo ""
-    echo -e "${CYAN}── 核心依赖 ──${NC}"
+    echo "── 核心依赖 ──"
 fi
 for dep in "${CORE_DEPS[@]}"; do
     check_dep "$dep" "true"
@@ -212,9 +224,9 @@ elif python3 -m pip --version &>/dev/null 2>&1; then
     pip_ok=true
 fi
 if $pip_ok; then
-    printf "  %b %-18s %-16s %b%s%b\n" "✅" "pip" "$pip_ver" "$GRAY" "Python 包管理" "$NC"
+    printf "  %b %-18s %-16s %s%b\n" "$OK_SYM" "pip" "$pip_ver" "$SEP" "Python 包管理" "$NC"
 else
-    printf "  %b %-18s %-16s %b%s%b\n" "❌" "pip" "-" "$RED" "Python 包管理" "$NC"
+    printf "  %b %-18s %-16s %s%b\n" "$NG_SYM" "pip" "-" "$SEP" "Python 包管理" "$NC"
     MISSING=$((MISSING + 1))
 fi
 
@@ -251,19 +263,23 @@ if $JSON_OUT; then
     echo "{}]"
 else
     echo ""
-    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    if $PLAIN_OUT; then
+        echo "────────────────────────────────────────"
+    else
+        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    fi
 
     if [ $MISSING -eq 0 ] && [ $WARNINGS -eq 0 ]; then
-        echo -e "  ${GREEN}✅ 所有依赖完整${NC}"
+        echo -e "  ${OK_SYM} 所有依赖完整"
     else
         if [ $MISSING -gt 0 ]; then
-            echo -e "  ${RED}❌ $MISSING 个依赖缺失${NC}"
+            echo -e "  ${NG_SYM} $MISSING 个依赖缺失"
         fi
         if [ $WARNINGS -gt 0 ]; then
-            echo -e "  ${YELLOW}○ $WARNINGS 个可选依赖未安装${NC}"
+            echo -e "  ${WARN_SYM} $WARNINGS 个可选依赖未安装"
         fi
         echo ""
-        echo -e "  ${GRAY}修复: bash ${SCRIPT_DIR}/init-ubuntu.sh${NC}"
+        echo "  修复: bash ${SCRIPT_DIR}/init-ubuntu.sh"
     fi
     echo ""
 fi
