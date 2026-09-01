@@ -782,6 +782,7 @@ import json, sys
 from collections import defaultdict
 rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
 p = json.loads(sys.argv[2]) if sys.argv[2] else {}
+today = sys.argv[3] if len(sys.argv) > 3 else ""
 if not rows:
     print("无数据"); sys.exit(0)
 total_in = total_out = total_cc = total_cr = total_req = total_turn = 0
