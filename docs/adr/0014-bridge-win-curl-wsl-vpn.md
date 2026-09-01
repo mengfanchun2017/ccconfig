@@ -1,4 +1,4 @@
-# 0014. OpenAI bridge 三层修复：WSL 网络栈隔离 + DNS 污染 + ARG_MAX 溢出
+# 0019. OpenAI bridge 三层修复：WSL 网络栈隔离 + DNS 污染 + ARG_MAX 溢出
 
 > **Status**: ✅ Accepted
 > **日期**: 2026-08-14

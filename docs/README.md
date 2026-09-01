@@ -7,7 +7,7 @@
 | 文件 | 说明 |
 |------|------|
 | `architecture.md` | 产品架构设计（三仓库模型、数据流、初始化流程） |
-| `prd.md` | 产品需求文档（PRD / 软考系统分析师「需求工程」） |
+| `SH-MENU-CONVENTIONS.md` | SH 菜单统一规范（渲染格式、颜色变量、data-driven 模式） |
 | `upgrade-guide.md` | 升级策略与指南 |
 | `ccprivate-guide.md` | ccprivate 私有配置仓库详细指南（ccprivate 仓库阅读） |
 | `docs/adr/` | 架构决策记录（MADR 4.0 格式）+ 决策时间线（worklog 提取） |

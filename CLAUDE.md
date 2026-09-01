@@ -52,3 +52,4 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 - **避坑**: menu_select 显示走 stderr（避开 `c=$(...)` 截走）；read 从 /dev/tty（避开管道阻塞）；while+case 不能 continue 重入菜单。详见 memory `menu-migration-pitfalls-20260810`
 - **item 文本必须纯文本**：caller 传 `"auto"` 不要传 `"1) auto"`——后者会让菜单显示双前缀 (`1) 1) auto`)。case pattern 匹配 menu_select 返回的**序号字符串**（"1"），不是 item 文本
 - **每次 Edit 后必跑 bash -n**：防 P0 行合并 bug（Edit replace 时跨行易把多行压成一行导致运行时 `[: missing ']'`）。`bash -n <file>` 0.1s 即可检出
+- **菜单完整规范**（渲染格式、颜色变量、MENU_ENTRIES data-driven 模式）见 [docs/SH-MENU-CONVENTIONS.md](docs/SH-MENU-CONVENTIONS.md)

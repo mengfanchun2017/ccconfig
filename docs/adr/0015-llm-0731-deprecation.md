@@ -112,6 +112,6 @@
 
 ## Related Decisions
 
-- [[0014-bridge-win-curl-wsl-vpn]](0014-bridge-win-curl-wsl-vpn.md) — OpenAI bridge 的 WSL/VPN 修复（仍有效，本 ADR 不影响）
+- [[0019-bridge-win-curl-wsl-vpn]](0019-bridge-win-curl-wsl-vpn.md) — OpenAI bridge 的 WSL/VPN 修复（仍有效，本 ADR 不影响）
 - [[0013-bridge-selfheal-sessionstart]](0013-bridge-selfheal-sessionstart.md) — bridge 自愈机制（仍有效）
 - 内存 [[altllm-tail-separate-file]] — 需更新：去掉 0731 行（改为只记录 altllm/altllm_tail 两 preset）
