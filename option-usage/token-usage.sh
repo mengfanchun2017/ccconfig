@@ -875,7 +875,7 @@ print(f"{'Model':<24} {'Sessions':>8} {'Input':>12} {'CacheRead':>12} {'Output':
 for m in sorted(by_model, key=lambda x: -by_model[x]["total"]):
     d = by_model[m]
     if d["total"] == 0: continue
-    print(f"{m[:24]:<24} {d['sessions']:>8} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>8.2f}$")
+    print(f"{m[:24]:<24} {d['sessions']:>8} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>9.2f}")
 print()
 print(f"=== 按 Route ===")
 print(f"{'Route':<22} {'Sessions':>8} {'Total tokens':>14}")
@@ -885,7 +885,7 @@ for r in sorted(by_route, key=lambda x: -by_route[x]["total"]):
 print()
 print(f"=== 总成本 ===")
 tot_cost = sum(by_model[m]["cost"] for m in by_model)
-print(f"估算总成本: {tot_cost:.2f} USD")
+print(f"估算总成本: {tot_cost:.2f}")
 PYEOF
         exit 0
     fi
