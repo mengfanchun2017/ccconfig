@@ -176,47 +176,6 @@ bash lib/init-llm.sh switch altllm_tailscale
 - 不在跳板机上开任何公网端口（已关闭 tailscale serve 和 socat 服务）
 - A 上的 Tailscale token 有失效时间，建议用 fine-grained PAT 认证
 
-## 新机器首次设置流程（端到端）
-
-以下是从零开始搭建的完整流程：
-
-1. **跳板机 S**：装 tailscale → 登录 → 开 ip_forward → 广告路由 → 确认开机自启
-
-```bash
-# S 上一次性操作
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
-net.ipv4.ip_forward = 1 | sudo tee /etc/sysctl.d/99-tailscale.conf
-sudo sysctl -p /etc/sysctl.d/99-tailscale.conf
-sudo tailscale set --advertise-routes=10.x.x.0/24
-sudo systemctl enable tailscaled
-```
-
-2. **Tailscale 控制台**：登录后找到 S → Edit route settings → Approve `10.x.x.0/24`
-
-3. **居家机器 A**：打开 tailscale → 设置 Accept routes → 验证连通
-
-```bash
-# A 上（WSL 环境）
-sudo tailscale set --accept-routes
-ping -c 3 10.x.x.x  # 通表示路由生效
-curl -k --max-time 15 https://10.x.x.x:18080/v1/models  # 返回 401 即网络通
-```
-
-4. **ccconfig LLM 配置**：通过 `init-llm.sh custom` 交互输入
-
-```bash
-bash lib/init-llm.sh
-# 选择 3A（新增自定义）
-# Base URL: https://10.x.x.x:18080/v1
-# Model: deepseek-v4-flash  （按实际模型名）
-# API Key: <your-key>
-# 保存为预设：altllm_tailscale
-# 自动切到新 preset
-```
-
-或在 `conf/llm.json` 中手动添加 preset 后用 `switch` 切换。
-
 ## Notes
 
 - `tailscale status` 不显示自己的路由广告。路由生效通过客户端能否 ping 通内网 IP 来验证
@@ -229,4 +188,5 @@ bash lib/init-llm.sh
 
 - [Subnet routers | Tailscale Docs](https://tailscale.com/docs/features/subnet-routers)
 - [ADR 0014: Tailscale 跳板机部署方案](0014-tailscale-jump-server.md)
+- [ADR 0017: Tailscale Serve HTTPS](0017-tailscale-serve-https.md)（前置方案，已被本 ADR subnet router 取代 — IP 路由层转发无需 serve，延迟更低）
 - [Tailscale ACL 文档](https://tailscale.com/docs/features/access-control)

@@ -7,9 +7,7 @@
 [![CI](https://github.com/mengfanchun2017/ccconfig/actions/workflows/check.yml/badge.svg)](https://github.com/mengfanchun2017/ccconfig/actions/workflows/check.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/mengfanchun2017/ccconfig.svg)](https://github.com/mengfanchun2017/ccconfig/commits/main)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Code style: shellcheck+shfmt](https://img.shields.io/badge/code%20style-shellcheck%2Bshfmt-blue.svg)](.github/workflows/check.yml)
-[![Security policy](https://img.shields.io/badge/security-policy-brightgreen.svg)](SECURITY.md)
 
 [English](../README.md) · [中文](README.md)
 
@@ -213,9 +211,8 @@ ccconfig/
 ├── docs/                     # 设计文档 + ADR（docs/adr/）
 ├── .github/workflows/        # CI（shellcheck + shfmt）
 ├── .claude/settings.json     # 本仓库 Claude Code 设置
-├── CLAUDE.md / BOOTSTRAP.md / CHANGELOG.md / ROADMAP.md
-├── SECURITY.md / LICENSE / CONTRIBUTING.md
-└── skills-lock.json          # 第三方 skill hash 锁定
+├── CLAUDE.md / BOOTSTRAP.md / CHANGELOG.md
+└── LICENSE / .editorconfig
 ```
 
 ## 快速开始

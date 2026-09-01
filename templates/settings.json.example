@@ -21,7 +21,7 @@
             "Glob(**/*)",
             "Grep(**/*)"
         ],
-        "defaultMode": "bypassPermissions"
+        "defaultMode": "auto"
     },
     "hooks": {
         "SessionStart": [
@@ -60,12 +60,12 @@
                 "GETNOTE_CLIENT_ID": "<your-getnote-client-id>"
             }
         },
-        "minimax": {
-            "command": "uvx",
-            "args": ["minimax-mcp"],
-            "env": {
-                "MINIMAX_API_KEY": "<your-minimax-key>",
-                "MINIMAX_API_HOST": "https://api.minimax.chat"
+        "exa": {
+            "_comment": "语义搜索 MCP（HTTP 传输）",
+            "type": "http",
+            "url": "https://mcp.exa.ai/mcp",
+            "headers": {
+                "x-api-key": "<your-exa-api-key>"
             }
         },
         "supabase": {
