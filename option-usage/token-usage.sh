@@ -550,7 +550,6 @@ for line in open(sys.argv[1]):
         "sessionid": sid,
         "session_day": day_ms,
         "project": r["projectPath"],
-        "route": r.get("route", "unknown"),
         "model": row_model,
         "session_name": (r.get("sessionName","") or "")[:80] or sid,
         "input_tokens": int(r["inputTokens"]),
@@ -735,11 +734,6 @@ main() {
         esac
     done
 
-    # 传当前 LLM 名给 detect_route（区分 deepseek-direct 和 bridge-openaialt）
-    local cur_llm
-    cur_llm=$(python3 -c "import json; d=json.load(open('$LLM_CONF')); print(d.get('current',''))" 2>/dev/null || echo "")
-    export CCCURRENT_LLM="$cur_llm"
-
     local pricing
     pricing=$(load_pricing) || pricing="{}"
     [[ "$pricing" != "{}" ]] && info "已加载 pricing 配置 ($(echo "$pricing" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null) 个模型)" || info "未配置 pricing，成本列将为 0"
@@ -872,6 +866,13 @@ ns, si, so, scr, stot, cost = agg(lambda d: d >= day7_str, "近7天")
 print_period("近7天", ns, si, so, scr, stot, cost)
 ns, si, so, scr, stot, cost = agg(lambda d: d >= day30_str, "近30天")
 print_period("近30天", ns, si, so, scr, stot, cost)
+print()
+print("=== 按模型 ===")
+print(f"{'Model':<24} {'Sessions':>8} {'Input':>12} {'CacheRead':>12} {'Output':>10} {'Total':>14} {'Cost':>9}")
+for m in sorted(by_model, key=lambda x: -by_model[x]["total"]):
+    d = by_model[m]
+    if d["total"] == 0: continue
+    print(f"{m[:24]:<24} {d['sessions']:>8} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>9.2f}")
 print()
 print(f"=== 总成本 ===")
 tot_cost = sum(by_model[m]["cost"] for m in by_model)
