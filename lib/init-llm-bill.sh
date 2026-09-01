@@ -37,23 +37,37 @@ PYEOF
 }
 
 show_table() {
-    local models_json="$1"
-    python3 - "$CONFIG_FILE" "$models_json" << 'PYEOF'
+    python3 - "$CONFIG_FILE" << 'PYEOF'
 import json, sys
 d = json.load(open(sys.argv[1]))
-models = json.loads(sys.argv[2])
 pricing = d.get('pricing', {})
-print("  模型列表（✓=已配）：")
-for i, m in enumerate(models, 1):
-    mark = "✓" if m in pricing else " "
-    print(f"    {i:>2}) [{mark}] {m}")
-if pricing:
-    print("\n  当前价格：")
+if not pricing:
+    print("  （暂无已配价格）")
+else:
+    print("  当前价格：")
     for m, v in pricing.items():
         print(f"    {m}:")
         print(f"      input=¥{v.get('input',0)}/1M  output=¥{v.get('output',0)}/1M  cache_read=¥{v.get('cache_read',0)}/1M", end='')
         cc = v.get('cache_creation')
         print(f"  cache_creation=¥{cc}/1M" if cc is not None else "  cache_creation=(默认=input×1.25)")
+PYEOF
+}
+
+# 输出 "model\tmark" 行（mark=✓/空），供菜单构建
+list_models_marked() {
+    python3 - "$CONFIG_FILE" << 'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1]))
+pricing = d.get('pricing', {})
+seen = []
+for k, v in d.get('llms', {}).items():
+    if k == 'gateway': continue
+    m = v.get('model', '')
+    if m and m not in seen: seen.append(m)
+for m in list(pricing.keys()):
+    if m and m not in seen: seen.append(m)
+for m in seen:
+    print(f"{m}\t{'✓' if m in pricing else ' '}")
 PYEOF
 }
 
@@ -111,6 +125,27 @@ else:
 PYEOF
 }
 
+_bill_delete_menu() {
+    local -a ditems=() dnames=()
+    while IFS= read -r m; do
+        [[ -z "$m" ]] && continue
+        ditems+=("$m")
+        dnames+=("$m")
+    done < <(python3 -c "import json;d=json.load(open('$CONFIG_FILE'));[print(m) for m in d.get('pricing',{})]" 2>/dev/null)
+    if [[ ${#dnames[@]} -eq 0 ]]; then
+        warn "无已配价格"
+        return
+    fi
+    ditems+=("返回")
+    local c; c=$(menu_select "删除价格" "${ditems[@]}")
+    local n=${#dnames[@]}
+    [[ -z "$c" || "$c" = "0" || "$c" = "$((n+1))" ]] && return
+    if [[ "$c" -ge 1 && "$c" -le "$n" ]] 2>/dev/null; then
+        local m="${dnames[$((c-1))]}"
+        confirm "删除 $m 的价格？" && bill_del "$m"
+    fi
+}
+
 main() {
     local target="${1:-}"
     if [[ -n "$target" ]]; then
@@ -120,30 +155,34 @@ main() {
         return $?
     fi
 
-    local models_json; models_json=$(list_models)
-
     while true; do
         echo ""
         echo "═══ Bill (模型 token 单价，CNY ¥/1M) ═══"
-        show_table "$models_json"
+        show_table
         echo ""
-        local op; op=$(prompt "操作 (a=添加/修改  d=删除  0=返回)")
-        case "$op" in
-            a|A)
-                local sel model
-                sel=$(prompt "模型序号或名称")
-                model=$(resolve_model "$models_json" "$sel") || { error "无效: $sel"; continue; }
-                bill_set "$model"
-                ;;
-            d|D)
-                local sel model
-                sel=$(prompt "模型序号或名称")
-                model=$(resolve_model "$models_json" "$sel") || { error "无效: $sel"; continue; }
-                bill_del "$model"
-                ;;
-            0|q|return|back) return 0 ;;
-            *) warn "无效: $op" ;;
-        esac
+        # 菜单：模型列表（✓=已配）+ 添加自定义 + 删除 + 返回
+        local -a items=() names=()
+        while IFS=$'\t' read -r m mark; do
+            [[ -z "$m" ]] && continue
+            items+=("$m [$mark]")
+            names+=("$m")
+        done < <(list_models_marked)
+        items+=("＋ 添加自定义模型")
+        items+=("删除已配价格")
+        items+=("返回")
+        local n=${#names[@]}
+        local c; c=$(menu_select "模型单价" "${items[@]}")
+        [[ -z "$c" || "$c" = "0" ]] && return 0
+        [[ "$c" = "$((n+3))" ]] && return 0
+        if [[ "$c" -ge 1 && "$c" -le "$n" ]] 2>/dev/null; then
+            bill_set "${names[$((c-1))]}"
+        elif [[ "$c" = "$((n+1))" ]]; then
+            local m; m=$(prompt "模型名称")
+            [[ -z "$m" ]] && continue
+            bill_set "$m"
+        elif [[ "$c" = "$((n+2))" ]]; then
+            _bill_delete_menu
+        fi
     done
 }
 

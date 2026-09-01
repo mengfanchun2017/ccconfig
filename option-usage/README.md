@@ -31,7 +31,7 @@ bash option-usage/token-usage.sh [args...]
 
 ## 数据格式
 
-归档文件 `ccprivate/usage/YYYY-MM-DD.csv`，每次运行**全量覆盖写**（jsonl append-only，历史 day 稳定，覆盖无副作用）：
+归档文件 `ccprivate/usage/YYYY-MM-DD.csv`，**写一次**策略：历史 day（< 今天）已写过即跳过（jsonl append-only，数据冻结，重算结果相同）；今天 always 覆盖（进行中 session 漂移）。`--force` 全量重算覆盖（改 pricing/列结构后用）。每日 timer 只写昨天 1 个文件，不重写历史。
 
 ```csv
 session_id,day,project_path,route,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,first_ts,last_ts,cost_cny
