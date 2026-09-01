@@ -10,5 +10,5 @@ Group=<GROUP>
 WorkingDirectory=<HOME>/git/ccconfig
 Environment=PATH=<HOME>/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=CCPRIVATE_HOME=<HOME>/git/ccprivate
-ExecStart=/bin/bash -c '/home/francis/git/ccconfig/option-usage/token-usage.sh --by-day --incremental --auto-backfill --feishu "https://rcnejwuhyp41.feishu.cn/base/K2dqb6366akDHrstfgWcxm1OnUh?table=tblcdUoM4FfnHkQf" || true'
+ExecStart=/bin/bash -c '<HOME>/git/ccconfig/option-usage/token-usage.sh --by-day || true'
 Nice=10

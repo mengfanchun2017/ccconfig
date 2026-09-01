@@ -4,7 +4,27 @@ All notable changes to ccconfig will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **根脚本链式串联** — `init-base.sh all` 现串联四步：Ubuntu → LLM → `maintain.sh setup`（建 symlink）→ `init-option.sh all`（可选组件）。不再需要单独跑 `init-option.sh`。`all --yes` 全非交互（auth 类组件自动跳过）
+- **`lib/interact.sh` NONINTERACTIVE 旁路** — `confirm/menu_select/prompt/prompt_password` 检测 `NONINTERACTIVE=true` 时返回默认值，防 CI/脚本化环境 `read` 挂起
+- **`init-option.sh --yes` 全局标志** — 剥离 `--yes/--batch`（不再透传给 option `init.sh` 的未知参数），按 option 派发非交互子命令（skill/cloudflare/officecli→`--install`、remote→`--run`、larkcli/getnote→跳过+提示）；修复原 `install_all` 传 `--batch` 给 init.sh 的 bug
+
+### Changed
+- **`templates/settings.json.example`** — `defaultMode` `bypassPermissions`→`auto`（对齐 ADR-0018 与实际 `~/.claude/settings.json`）；删 stale `minimax` MCP entry，补 `exa`（http 传输，当前在用）
+- **README 架构图修正** — 删不存在的 `lib/lock.sh`/`log.sh`/`json-validate.sh`，补 `interact.sh`/`option-getnote`/`option-usage`；`option-larkbridge` 节点移除（ccbridge 已是外部仓）；`initBase-->initOption` 连线现真实成立
+- **README 核心命令/快速开始** — 反映 `init-base.sh all` 串联 + `--yes` 全自动
+- **BOOTSTRAP 四步起步** — Step 4 说明串联可选组件
+
 ### Removed
+- **一人项目冗余治理文件** — `CITATION.cff` / `CODE_OF_CONDUCT.md` / `CONTRIBUTING.md`（有用内容已在 README 开发段 + CLAUDE.md SH 规范 + rules/ccconfig-open-source.md）/ `SECURITY.md` / `ROADMAP.md` / `.github` PR+Issue 模板
+- **`skills-lock.json`** — 38 个 mattpocock 技能 hash 锁定文件，与实际安装的 f-* 系列技能完全脱节，死文件
+
+### Fixed（ADR 交叉引用 + 模板对齐）
+- **ADR 交叉引用修正** — 0001 删 `.github/task_plan.md` 断链；0005 Notes `minimax`→`tavily/getnote/exa`；0006 init-option 可选项列表重复词 + larkbridge→ccbridge；0016 删与正文重复的"新机器首次设置流程"段、Related 补 0017；0017 Status→`Superseded by 0016`、修 Context 误引"ADR 0016 用 tcp"、修 Related 断链文件名 `0016-tailscale-serve-tcp-forward.md`→`0016-tailscale-subnet-router.md`；`docs/adr/README.md` 索引 0017 状态同步、删 ROADMAP 链接
+
+### Removed（前置审计）
+- **`windows-tools/`** — 已拆出到独立仓库 [fancypowershell](https://github.com/mengfanchun2017/fancypowershell)。当前仅 `psupdate/` 一项，git rm 后内容无丢失
+- **`option-larkbridge/`** + **`lib/feishu-perms.sh`** + **`lib/test-feishu.sh`** — 已整体迁出到独立仓库 [ccbridge](https://github.com/mengfanchun2017/ccbridge)。ccconfig 端改为调 `${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh`
 - **`windows-tools/`** — 已拆出到独立仓库 [fancypowershell](https://github.com/mengfanchun2017/fancypowershell)。当前仅 `psupdate/` 一项，git rm 后内容无丢失
 - **`option-larkbridge/`** + **`lib/feishu-perms.sh`** + **`lib/test-feishu.sh`** — 已整体迁出到独立仓库 [ccbridge](https://github.com/mengfanchun2017/ccbridge)。ccconfig 端改为调 `${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh`
 

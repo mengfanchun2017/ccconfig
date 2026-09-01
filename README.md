@@ -81,14 +81,10 @@ flowchart TB
     路径/版本解析"]
     colors["colors.sh
     颜色定义"]
-    lock["lock.sh
-    进程锁"]
     dryrun["dry-run.sh
     预览模式"]
-    jsonValid["json-validate.sh
-    JSON 校验"]
-    log["log.sh
-    日志"]
+    interact["interact.sh
+    交互菜单 + NONINTERACTIVE 旁路"]
     setupLinks["setup-links.sh
     符号链接"]
   end
@@ -104,6 +100,10 @@ flowchart TB
     远程 SSH"]
     optSkill["option-skill/
     Skill 安装"]
+    optGetnote["option-getnote/
+    得到笔记 MCP"]
+    optUsage["option-usage/
+    Token 用量"]
     optLlms["option-llmswitch/
     LLM 网关
     (由 init-llm.sh 管理)"]
@@ -121,13 +121,14 @@ flowchart TB
   maintain --> ccprivUp
   maintain --> exampleSync
 
-  %% init-option 调用关系
+  %% init-option 调用关系（larkbridge 委托外部仓 ccbridge，此处不画）
   initOption --> optLarkcli
-  initOption --> optLarkbridge
   initOption --> optOfficecli
   initOption --> optCloudflare
   initOption --> optRemote
   initOption --> optSkill
+  initOption --> optGetnote
+  initOption --> optUsage
   initOption --> libMcp
   initOption --> libSkill
 
@@ -146,7 +147,6 @@ flowchart TB
   pathHelper -.-> update
   pathHelper -.-> status
   colors -.-> 几乎所有脚本
-  lock -.-> update
   dryrun -.-> bootstrap
   dryrun -.-> initOption
   setupLinks -.-> maintain
@@ -229,11 +229,12 @@ bash ~/git/ccconfig/bootstrap-gh-auth.sh
 # 3. 创建 ccprivate
 bash ~/git/ccconfig/init-ccprivate-repo.sh
 
-# 4. 全量初始化（Ubuntu → LLM → 收尾）
+# 4. 全量初始化（Ubuntu → LLM → 链接 → 可选组件，一条命令串联）
 bash ~/git/ccconfig/init-base.sh all
-
-# 5. 装可选组件（MCP / Skills / CLI 工具等）——按需选
-bash ~/git/ccconfig/init-option.sh
+#    全自动非交互（auth 类组件如 larkcli/getnote 跳过，稍后手动装）:
+#    bash ~/git/ccconfig/init-base.sh all --yes
+#    补装/重装单个可选组件:
+#    bash ~/git/ccconfig/init-option.sh
 ```
 
 ## 特色亮点
@@ -309,8 +310,9 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | 命令 | 用途 |
 |------|------|
 | `bash init-base.sh` | 交互式菜单 |
-| `bash init-base.sh all` | 一键全初始化（Ubuntu → LLM → 收尾） |
-| `bash init-option.sh` | 可选组件菜单（分组展示） |
+| `bash init-base.sh all` | 一键全初始化（Ubuntu → LLM → 链接 → 可选组件，串联） |
+| `bash init-base.sh all --yes` | 全自动非交互（auth 类组件跳过） |
+| `bash init-option.sh` | 可选组件菜单（分组展示，可单独补装） |
 | `bash maintain.sh status` | 完整状态检查 |
 | `bash maintain.sh fix` | 自动修复断链 |
 | `bash maintain.sh monitor start` | 启动 auto-sync |

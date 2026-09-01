@@ -97,7 +97,7 @@
 - 更新 [[okr-base-v2-2026-05-31]] 标记 Tasks 和 KR_Progress 为 deprecated
 - 更新 [[ccconfig-4-layer-framework-2026-06-08]] L2 描述
 - 更新 `../.github/findings.md` 加本决策 entry
-- 更新 `ROADMAP.md` 飞书 Base 状态描述
+- ~~更新 `ROADMAP.md` 飞书 Base 状态描述~~（ROADMAP.md 已删除，不再维护）
 
 ## Notes
 
