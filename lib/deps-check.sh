@@ -8,6 +8,7 @@
 #   bash ccconfig/deps-check.sh            # 全量检查
 #   bash ccconfig/deps-check.sh --required  # 仅必需依赖
 #   bash ccconfig/deps-check.sh --json      # JSON 输出（供程序消费）
+#   bash ccconfig/deps-check.sh --plain     # 纯文字（无 ANSI / emoji，不兼容终端用）
 
 set -euo pipefail
 
