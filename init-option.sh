@@ -403,6 +403,17 @@ install_option() {
         return 0
     fi
 
+    # 解析 --yes/-y/--batch：非交互模式标志，剥离后不透传给 init.sh（后者不认这些参数）
+    local yes_mode=false
+    local -a clean_args=()
+    for a in "$@"; do
+        case "$a" in
+            --yes|-y|--batch) yes_mode=true ;;
+            *) clean_args+=("$a") ;;
+        esac
+    done
+    set -- "${clean_args[@]}"
+
     # usage 特殊处理：先于 has_init_script 拦截
     if [ "$name" = "usage" ]; then
       local is_batch=false
@@ -459,7 +470,26 @@ install_option() {
     fi
 
     if has_init_script "$name"; then
-        # remote: 无参数默认执行 --run（一键安装）
+        # --yes 非交互派发：按 option 选定子命令，跳过需 auth/手动配置的
+        if $yes_mode; then
+            case "$name" in
+                larkcli)
+                    warn "跳过 larkcli（需扫码授权: bash init-option.sh larkcli）"
+                    return 0 ;;
+                getnote)
+                    warn "跳过 getnote（需配置 API key: bash option-getnote/init.sh menu）"
+                    return 0 ;;
+                remote)
+                    section "安装 remote"
+                    bash "$SCRIPT_DIR/option-$name/init.sh" --run
+                    return $? ;;
+                *)
+                    section "安装 $name (--install)"
+                    bash "$SCRIPT_DIR/option-$name/init.sh" --install
+                    return $? ;;
+            esac
+        fi
+        # 交互模式：remote 无参数默认 --run
         if [ "$name" = "remote" ] && [ ${#@} -eq 0 ]; then
             section "安装 remote"
             bash "$SCRIPT_DIR/option-$name/init.sh" --run
@@ -720,16 +750,19 @@ list_names_compact() {
 }
 
 install_all() {
+    # --yes 非交互：由全局 NONINTERACTIVE 或显式 --yes 触发
+    local yes_flag=""
+    [[ "${NONINTERACTIVE:-false}" == "true" ]] && yes_flag="--yes"
     for group_entry in "${MENU_GROUPS[@]}"; do
         local group_items="${group_entry#*|}"
         for n in $group_items; do
             # 自动管理的项：批量跳过（init-llm 按需拉起）
             [ -n "${AUTO_MANAGED[$n]:-}" ] && continue
             case "$n" in
-                mcp) install_option "mcp" --batch ;;
-                batcat|glow) install_option "$n" --batch ;;
-                usage) install_option "$n" --batch --yes ;;
-                *) has_init_script "$n" && install_option "$n" --batch ;;
+                mcp) install_option "mcp" $yes_flag ;;
+                batcat|glow) install_option "$n" $yes_flag ;;
+                usage) install_option "usage" $yes_flag ;;
+                *) has_init_script "$n" && install_option "$n" $yes_flag ;;
             esac
         done
     done
@@ -738,12 +771,20 @@ install_all() {
 }
 
 # ── 入口 ──
-# 解析全局 --dry-run：从参数中剥离并设置环境变量
+# 解析全局 --dry-run / --yes：从参数中剥离并设置环境变量
 _DRY_RUN_GLOBAL=false
 case "${1:-}" in
     --dry-run|--preview|--what)
         _DRY_RUN_GLOBAL=true
         export CCC_DRY_RUN=1
+        shift
+        ;;
+esac
+
+# --yes/-y：非交互模式，旁路所有 interact.sh 菜单/确认
+case "${1:-}" in
+    --yes|-y)
+        export NONINTERACTIVE=true
         shift
         ;;
 esac
