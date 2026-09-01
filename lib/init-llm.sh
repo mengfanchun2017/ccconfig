@@ -480,10 +480,7 @@ PYEOF
 # ========== 状态 ==========
 show_status() {
     local llm_cur sett_env sett_model
-    llm_cur=$(cat "$LOCAL_CURRENT_FILE" 2>/dev/null || \n        python3 -c "
-import json
-try: print(json.load(open('${CONFIG_FILE}')).get('current',''))
-except: pass" 2>/dev/null || echo "")
+    llm_cur=$(read_local_current)
 
     sett_env=$(python3 -c "
 import json, os
