@@ -124,6 +124,79 @@ echo '{"key": "请填入你的 API Key"}' > "$EXAMPLE"
 grep -qE '请填入|请替换|your.key|placeholder|changeme' "$EXAMPLE" \
   && pass ".example placeholder detected" || fail ".example placeholder missed"
 
+# ── Test 8+: 结构回归测试（修复的 bug 不复发） ──
+_REAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT="$_REAL_DIR/init-ccprivate-repo.sh"
+
+echo "=== Test 8: ensure_gh_cli binary mkdir ==="
+grep -A3 'local tmp="/tmp/gh-install-$$"' "$SCRIPT" | grep -q 'mkdir -p "$tmp"' \
+  && pass "binary 安装路径有 mkdir -p" || fail "binary 路径缺 mkdir"
+
+echo "=== Test 9: ensure_gh_cli 跳过项 case ==="
+grep -q '0|3)' "$SCRIPT" \
+  && pass "跳过项(序号3)有 case 0|3" || fail "跳过项无 case 分支"
+grep -q '\[\[ "\$install_choice" == "" \]\]' "$SCRIPT" \
+  && fail "仍有死代码 == '' 兼容" || pass "已删 == '' 死代码"
+
+echo "=== Test 10: check_gh_auth confirm 不反转 ==="
+# SSH 分支应是"跳过 gh 登录"问句，y→return 0（跳过）
+grep -q 'confirm "SSH 已够用，跳过 gh 登录？"' "$SCRIPT" \
+  && pass "SSH confirm 文案正确（y=跳过）" || fail "SSH confirm 文案错误/反转"
+
+echo "=== Test 11: A/B 菜单 cancel 处理 ==="
+grep -A20 'login_method=\$(menu_select' "$SCRIPT" | grep -q '0)' \
+  && pass "A/B 菜单有 0) cancel 分支" || fail "A/B 菜单 cancel 落 *) 走 PAT"
+
+echo "=== Test 12: gh auth login || true ==="
+count=$(grep -c 'gh auth login --with-token.*|| true\|gh auth login --web.*|| true\|gh auth login --with-token --hostname github.com || true' "$SCRIPT")
+[ "$count" -ge 2 ] \
+  && pass "gh auth login 有 || true（$count 处）" || fail "gh auth login 缺 || true（set -e 会杀脚本）"
+
+echo "=== Test 13: rm -rf 改 mv 备份 ==="
+if grep -q 'rm -rf "\$CCPRIVATE_DIR"' "$SCRIPT"; then
+  fail "仍有 rm -rf ccprivate（违反 code.md）"
+else
+  pass "rm -rf 已改 mv 备份"
+fi
+grep -q 'mv "\$CCPRIVATE_DIR" "\$bak"' "$SCRIPT" \
+  && pass "do_clone 用 mv 备份" || fail "do_clone 未用 mv"
+
+echo "=== Test 14: LLM 菜单 cancel ==="
+awk '/menu_select "默认 LLM"/{f=1} f{print} /esac/{if(f)exit}' "$SCRIPT" > "$TMPDIR/llm-case.txt"
+grep -q '0)' "$TMPDIR/llm-case.txt" \
+  && pass "LLM 菜单有 0) cancel（防 set -u 崩）" || fail "LLM 菜单无 cancel 分支"
+
+echo "=== Test 15: gen_setup_sh 链接完整性 ==="
+# gen_setup_sh heredoc 内应含真实 setup.sh 的关键链接（整文件 grep，模式唯一）
+grep -q '.lark-default-account' "$SCRIPT" \
+  && pass "gen_setup_sh 含 .lark-default-account" || fail "gen_setup_sh 缺 .lark-default-account"
+grep -q '.claudeignore' "$SCRIPT" \
+  && pass "gen_setup_sh 含 .claudeignore" || fail "gen_setup_sh 缺 .claudeignore"
+grep -q 'skill-local' "$SCRIPT" \
+  && pass "gen_setup_sh 含 skill-local" || fail "gen_setup_sh 缺 skill-local"
+grep -q "tr '/' '-'" "$SCRIPT" \
+  && pass "gen_setup_sh memory 用 tr 动态 ID" || fail "gen_setup_sh memory 未用 tr 动态 ID"
+grep -q 'should-compact' "$SCRIPT" \
+  && pass "gen_setup_sh 含 should-compact" || fail "gen_setup_sh 缺 should-compact"
+grep -q 'llmswitch' "$SCRIPT" \
+  && pass "gen_setup_sh 含 llmswitch" || fail "gen_setup_sh 缺 llmswitch"
+
+echo "=== Test 16: do_update eval shlex.quote ==="
+grep -A8 'eval "\$(LLM_SRC=' "$SCRIPT" | grep -q 'shlex' \
+  && pass "do_update eval 用 shlex.quote 防注入" || fail "do_update eval 未引号化"
+
+echo "=== Test 17: source 顺序 ==="
+if grep -n 'source.*lib/' "$SCRIPT" | awk -F: '{print $1}' | head -3 | \
+   awk 'NR==1{n=$1} NR==2{print ($1>n)? "ok":"bad"}' | grep -q ok; then
+  # colors.sh 应在 interact.sh 之前
+  line_colors=$(grep -n 'source.*lib/colors.sh' "$SCRIPT" | head -1 | cut -d: -f1)
+  line_interact=$(grep -n 'source.*lib/interact.sh' "$SCRIPT" | head -1 | cut -d: -f1)
+  [ "$line_colors" -lt "$line_interact" ] \
+    && pass "colors.sh 先于 interact.sh" || fail "source 顺序错误"
+else
+  fail "无法解析 source 顺序"
+fi
+
 echo ""
 echo "===================="
 echo "Pass: $PASS  Fail: $FAIL"
