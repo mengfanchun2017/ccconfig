@@ -1,5 +1,5 @@
 #!/bin/bash
-# test-init.sh — ccconfig 初始化流程自动化测试
+# test-init-base.sh — ccconfig 初始化流程自动化测试
 #
 # 在隔离的临时目录中模拟新机器环境，mock 外部命令，验证所有 init 路径不报错。
 # 零网络调用，纯本地，秒级完成。
@@ -347,6 +347,47 @@ test_init_dry_run() {
     fi
 }
 
+test_run_step_no_garbage_args() {
+    # run_step 不应把 label/script/auto 当参数透传给子脚本（shift 6 bug 回归）
+    local d="$HOME/git/ccconfig"
+    local mock="$HOME/.mock-echo.sh"
+    cat > "$mock" << 'M'
+#!/bin/bash
+echo "ARGS=${#@}:[$*]"
+M
+    chmod +x "$mock"
+    # source init-base.sh（BASH_SOURCE 守卫保证不执行入口）
+    source "$d/init-base.sh"
+    local out
+    out=$(run_step "TestLabel" "$mock" true "what" "why" "eta" 2>&1) || true
+    if echo "$out" | grep -q "ARGS=0:\[\]"; then
+        _pass "run_step: 子脚本收到 0 参数（无 label/script 透传）"
+    else
+        _fail "run_step" "子脚本收到多余参数: $(echo "$out" | grep ARGS)"
+    fi
+    rm -f "$mock"
+}
+
+test_init_base_readme_casing() {
+    # option-remote/README.md 大小写（readme.md 会 cat 失败）
+    local d="$HOME/git/ccconfig"
+    if grep -q 'README.md' "$d/init-base.sh" && ! grep -q 'readme.md' "$d/init-base.sh"; then
+        _pass "init-base: README.md 大小写正确"
+    else
+        _fail "init-base" "readme.md 大小写未修正"
+    fi
+}
+
+test_init_base_main_menu_loop() {
+    # main_menu 用 while 循环而非尾递归（防栈增长）
+    local d="$HOME/git/ccconfig"
+    if grep -A20 '^main_menu()' "$d/init-base.sh" | grep -q 'while true'; then
+        _pass "main_menu: while 循环实现"
+    else
+        _fail "main_menu" "未用 while 循环（尾递归）"
+    fi
+}
+
 test_sync_setup_links_nonfatal() {
     # 验证 sync.sh 中 setup-links 失败不中断
     local result=0
@@ -554,10 +595,10 @@ test_init_config_preflight() {
     local d="$HOME/git/ccconfig"
     mkdir -p "$d/conf"
 
-    # 场景 1：三个配置都缺失 → 从 .example 复制并提示
+    # 场景 1：配置缺失 → 从 .example 复制并提示
+    # init_all_steps 只检查 llm.json + mcp-servers.json（ubuntu.json 已移除）
     local missing=0
     local configs=(
-        "$d/conf/ubuntu.json"
         "$d/conf/llm.json"
         "$d/conf/mcp-servers.json"
     )
@@ -776,6 +817,9 @@ all_tests=(
     "placeholder: 中文字符串 → 检测为 placeholder" test_placeholder_detection
     "home_expand: ~ 和 \$HOME → 正确展开"          test_home_expansion
     "init --dry-run: 输出预览内容"                 test_init_dry_run
+    "run_step: 子脚本收到 0 参数（无垃圾透传）"      test_run_step_no_garbage_args
+    "init-base: README.md 大小写正确"              test_init_base_readme_casing
+    "main_menu: while 循环实现"                    test_init_base_main_menu_loop
     "sync: setup-links 失败 → 不中断同步"          test_sync_setup_links_nonfatal
     "mcp sync: 写 ~/.claude/settings.json"         test_mcp_config_path
     "mcp sync: ~/.claude.json 缺失 → 不崩溃"      test_mcp_missing_config_json
