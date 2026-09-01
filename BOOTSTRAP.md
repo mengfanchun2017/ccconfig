@@ -23,9 +23,16 @@ bash bootstrap-gh-auth.sh
 # Step 3: 创建 ccprivate 私有仓库（API Key / Token / 个人配置）
 bash init-ccprivate-repo.sh
 
-# Step 4: 全量初始化（ccprivate 已就位）
+# Step 4: 全量初始化（Ubuntu → LLM → 链接 → 可选组件，串联）
 bash init-base.sh all
+#    全自动非交互（auth 类组件跳过）: bash init-base.sh all --yes
+#    补装单个可选组件: bash init-option.sh
 ```
+
+> **Step 4 串联说明**：`init-base.sh all` 依次跑 Ubuntu 环境 → LLM 配置 →
+> `maintain.sh setup`（建 symlink）→ `init-option.sh all`（可选组件）。
+> 不再需要单独跑 `init-option.sh`。需扫码授权的组件（larkcli/getnote）
+> 在 `all` 模式交互确认，在 `--yes` 模式自动跳过（稍后手动装）。
 
 > **为什么是四步而不是一行 curl | bash?**
 > curl 在国内环境经常被 GFW 阻断 `port 443`，但 `git clone` 走自己的代理栈（`~/.gitconfig` 的 `http.proxy` 或环境变量），所以 git 能通 curl 不一定通。
