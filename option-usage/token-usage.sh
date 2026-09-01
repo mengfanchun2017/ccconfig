@@ -734,7 +734,8 @@ main() {
         esac
     done
 
-    local pricing
+    local today pricing
+    today=$(date +%Y-%m-%d)
     pricing=$(load_pricing) || pricing="{}"
     [[ "$pricing" != "{}" ]] && info "已加载 pricing 配置 ($(echo "$pricing" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null) 个模型)" || info "未配置 pricing，成本列将为 0"
 
