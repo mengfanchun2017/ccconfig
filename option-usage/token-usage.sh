@@ -27,11 +27,12 @@ source "$CCCONFIG_ROOT/lib/path-helper.sh" 2>/dev/null || true
 source "$CCCONFIG_ROOT/lib/colors.sh"
 
 # 日志到 stderr（保护 --json 输出的 stdout 管道）
-info()  { command info "$@" >&2; }
-ok()    { command ok "$@" >&2; }
-err()   { command err "$@" >&2; }
-warn()  { command warn "$@" >&2; }
-section() { command section "$@" >&2; }
+# colors.sh 函数走 stdout，这里重定向到 stderr
+info()    { echo -e "  ${GRAY:-}$1${NC:-}" >&2; }
+ok()      { echo -e "  ${GREEN:-}✅ $1${NC:-}" >&2; }
+err()     { echo -e "  ${RED:-}❌ $1${NC:-}" >&2; }
+warn()    { echo -e "  ${YELLOW:-}⚠  $1${NC:-}" >&2; }
+section() { echo -e "\n${CYAN:-}━━━ $1 ━━━${NC:-}" >&2; }
 
 CLAUDE_PROJECTS_DIR="${CLAUDE_PROJECTS_DIR:-$HOME/.claude/projects}"
 
