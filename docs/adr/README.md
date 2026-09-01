@@ -30,6 +30,7 @@
 | [0018](0018-permission-mode-strategy.md) | 权限模式策略 — defaultMode 用 auto，bypass 仅 flag 触发 | 2026-09-01 | ✅ Accepted | — |
 | [0019](0019-bridge-win-curl-wsl-vpn.md) | OpenAI bridge 三层修复：WSL 网络栈隔离 + DNS 污染 + ARG_MAX 溢出 | 2026-08-14 | ✅ Accepted | — |
 | [0020](0020-llm-current-local-per-machine.md) | LLM 运行时配置本地化 — 每台机器独立选择 LLM | 2026-09-01 | ✅ Accepted | — |
+| [0021](0021-skill-creation-workflow.md) | Skill 创建工作流 — fskillcreat 交互 + link-single 增量注册 | 2026-09-01 | ✅ Accepted | — |
 
 > ADR 收录门槛见 [「何时写 ADR」](#何时写-adr)。轻量变更（bug fix / 单文件重构 / 样式调整）只在下方「决策时间线」一行记录。
 
