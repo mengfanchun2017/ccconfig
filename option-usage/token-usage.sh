@@ -777,7 +777,7 @@ main() {
     info "扫描完成: $count 个 session"
 
     if [[ "$stats" == true ]]; then
-        python3 - "$tmp" "$pricing" << 'PYEOF'
+        python3 - "$tmp" "$pricing" "$today" << 'PYEOF'
 import json, sys
 from collections import defaultdict
 rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
