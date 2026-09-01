@@ -1,13 +1,13 @@
 # 0017. Tailscale Serve HTTPS — 内网 LLM API 远程访问（流式兼容）
 
-> **Status**: ✅ Accepted
+> **Status**: ⚠️ Superseded by [0016](0016-tailscale-subnet-router.md)（subnet router 方案更优，已取代 HTTPS serve）
 > **日期**: 2026-08-28
 > **模板**: MADR 4.0 极简版
 > **目的**: 用 tailscale serve --https 替换 --tcp，解决 raw TCP 对流式 SSE 的不兼容
 
 ## Context and Problem Statement
 
-ADR 0016 用 `tailscale serve --tcp 18081` 转发内网 LLM API，但 raw TCP 转发对 HTTP 流式响应（SSE）不友好：httpx 在长连接传输中段返回 `ReadError`，Claude 发长消息时 500 重试。
+早期用 `tailscale serve --tcp 18081` 转发内网 LLM API，但 raw TCP 转发对 HTTP 流式响应（SSE）不友好：httpx 在长连接传输中段返回 `ReadError`，Claude 发长消息时 500 重试。
 
 需要改用 HTTP 层代理而非 raw TCP，以正确支持 chunked transfer + keep-alive。
 
@@ -94,4 +94,4 @@ base_url: https://francistail.tailxxxx.ts.net:8443/v1
 ## Related
 
 - [ADR 0014: Tailscale 跳板机部署方案](0014-tailscale-jump-server.md)
-- [ADR 0016: Tailscale Serve TCP 转发](0016-tailscale-serve-tcp-forward.md)（被本 ADR 替换）
+- [ADR 0016: Tailscale Subnet Router](0016-tailscale-subnet-router.md)（取代本 ADR — subnet router 在 IP 路由层转发，无需 serve，延迟更低）
