@@ -868,8 +868,8 @@ Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
     echo ""
     ok "ccprivate 创建完成"
     echo ""
-    echo -e "  ${GREEN}下一步: bash $CCCONFIG_DIR/init-base.sh all${NC}"
-    echo -e "  ${GRAY}(Ubuntu → LLM → MCP → 收尾)${NC}"
+    echo -e "  ${GREEN}下一步: bash $CCCONFIG_DIR/init-bootstrap.sh${NC}"
+    echo -e "  ${GRAY}或单独跑: bash $CCCONFIG_DIR/init-base.sh all${NC}"
     echo ""
 }
 
@@ -959,8 +959,8 @@ do_clone() {
 
     ok "ccprivate 就绪"
     echo ""
-    echo -e "  ${GREEN}下一步: bash $CCCONFIG_DIR/init-base.sh all${NC}"
-    echo -e "  ${GRAY}(Ubuntu → LLM → MCP → 收尾)${NC}"
+    echo -e "  ${GREEN}下一步: bash $CCCONFIG_DIR/init-bootstrap.sh${NC}"
+    echo -e "  ${GRAY}或单独跑: bash $CCCONFIG_DIR/init-base.sh all${NC}"
 }
 
 # ── 入口 ──
