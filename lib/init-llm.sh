@@ -156,6 +156,7 @@ PYEOF
 # 返回 0=链路通或鉴权失败 1=不可达
 verify_endpoint() {
     local name="$1" base_url="$2" model="$3" key="$4"
+    key="${key//$'\r'/}"
     [[ -z "$key" ]] && return 0
     case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) return 0 ;; esac
 
@@ -187,7 +188,7 @@ verify_endpoint() {
 
     case "$status" in
         200) info "  ✓ endpoint 探测成功 ($name)"; return 0 ;;
-        000) error "  ✗ endpoint 不可达 (连接超时/拒绝) — $base_url（探测已强制直连，检查 DNS/网络出口）"; return 1 ;;
+        000) error "  ✗ endpoint 不可达 — $base_url（key 长度 ${#key}，探测强制直连仍失败 → 查 DNS/出口或 key 含特殊字符）"; return 1 ;;
         401|403) info "  ⚠ HTTP $status — 链路通但鉴权错"; return 0 ;;
         400) warn "  ⚠ HTTP 400 — endpoint 路径/参数可能不对 $base_url"; return 0 ;;
         *) info "  ⚠ HTTP $status"; return 0 ;;
@@ -338,7 +339,7 @@ switch_llm() {
     [[ $_is_ph -eq 0 ]] && case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) _is_ph=1 ;; esac
     if [[ $_is_ph -eq 1 ]]; then
         if [[ -t 0 ]]; then
-            echo ""; key=$(prompt_key "输入 ${name} API Key")
+            echo ""; key=$(prompt_key "输入 ${name} API Key" | tr -d '\r\n')
         fi
     fi
 
