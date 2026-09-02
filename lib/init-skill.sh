@@ -486,7 +486,7 @@ do_update() {
         local pkg=$(echo "$line" | awk '{print $1}')
         local mgr=$(echo "$line" | awk '{print $2}' | cut -d: -f1)
         local key="$pkg|$mgr"
-        [[ -n "${updated[$key]}" ]] && continue
+        [[ -n "${updated[$key]:-}" ]] && continue
         updated[$key]=1
 
         case "$mgr" in
@@ -618,7 +618,7 @@ do_diff() {
     echo ""
     echo -e "${CYAN}── 清单有但未装（需 sync）${NC}"
     for skill in "${!MANIFEST_SKILLS[@]}"; do
-        if [[ -z "${INSTALLED[$skill]}" ]]; then
+        if [[ -z "${INSTALLED[$skill]:-}" ]]; then
             echo -e "  ${RED}✗${NC} $skill — ${MANIFEST_SKILLS[$skill]}"
             missing=$((missing + 1))
         fi
@@ -628,7 +628,7 @@ do_diff() {
     echo ""
     echo -e "${CYAN}── 已装但不在清单（untracked drift）${NC}"
     for skill in "${!INSTALLED[@]}"; do
-        if [[ -z "${MANIFEST_SKILLS[$skill]}" ]] && [[ "${INSTALLED_SRC[$skill]}" != "self-built" ]] && [[ "${INSTALLED_SRC[$skill]}" != "local-self" ]]; then
+        if [[ -z "${MANIFEST_SKILLS[$skill]:-}" ]] && [[ "${INSTALLED_SRC[$skill]:-}" != "self-built" ]] && [[ "${INSTALLED_SRC[$skill]:-}" != "local-self" ]]; then
             local src_label="${INSTALLED_SRC[$skill]}"
             echo -e "  ${YELLOW}?${NC} $skill — $src_label（不在 third-party-skills.txt）"
             extra=$((extra + 1))
