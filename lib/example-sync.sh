@@ -12,7 +12,6 @@
 #   bash ccconfig/lib/example-sync.sh sync              # 非交互自动同步（仅新增）
 #
 # 文件匹配规则：
-#   ccconfig/templates/rules/<name>.md.example  →  ccprivate/rules/<name>.md
 #   ccconfig/templates/agents/<name>.md.example →  ccprivate/agents/<name>.md
 #   ccconfig/conf/<name>.json.example       →  ccprivate/conf/<name>
 
@@ -31,10 +30,7 @@ source "$SCRIPT_DIR/colors.sh"
 derive_ccprivate() {
     local example="$1"
     local rel="${example#$CCCONFIG_ROOT/}"
-    if [[ "$rel" == templates/rules/*.md.example ]]; then
-        local base; base=$(basename "$example" .md.example)
-        echo "$CCPRIVATE/rules/${base}.md"
-    elif [[ "$rel" == templates/agents/*.md.example ]]; then
+    if [[ "$rel" == templates/agents/*.md.example ]]; then
         local base; base=$(basename "$example" .md.example)
         echo "$CCPRIVATE/agents/${base}.md"
     elif [[ "$rel" == conf/*.example ]]; then
@@ -47,10 +43,7 @@ derive_ccprivate() {
 derive_example() {
     local ccprivate_file="$1"
     local rel="${ccprivate_file#$CCPRIVATE/}"
-    if [[ "$rel" == rules/*.md ]]; then
-        local base; base=$(basename "$ccprivate_file" .md)
-        echo "$CCCONFIG_ROOT/templates/rules/${base}.md.example"
-    elif [[ "$rel" == agents/*.md ]]; then
+    if [[ "$rel" == agents/*.md ]]; then
         local base; base=$(basename "$ccprivate_file" .md)
         echo "$CCCONFIG_ROOT/templates/agents/${base}.md.example"
     elif [[ "$rel" == conf/* ]]; then
@@ -108,7 +101,6 @@ confirm_sync() {
 collect_diffs() {
     local -n _outdated="$1" _new="$2"
     local mapping=(
-        "templates/rules:rules:.md.example:.md"
         "templates/agents:agents:.md.example:.md"
         "conf:conf:.json.example:.json"
     )

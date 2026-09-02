@@ -109,24 +109,6 @@ test_init_base_dry_run() {
 }
 
 # ═══ example-sync.sh CCC_DRY_RUN=1 ═══
-test_example_sync_dry_run() {
-    setup_isolated_env
-    local d="$HOME/git/ccconfig"
-    # 创建模板 + 目标
-    mkdir -p "$d/templates/rules"
-    echo "# test rule" > "$d/templates/rules/test-rule.md.example"
-    mkdir -p "$HOME/git/ccprivate"
-    # dry-run promote 不应复制
-    local out
-    out=$(CCC_DRY_RUN=1 bash "$d/lib/example-sync.sh" promote "$d/templates/rules/test-rule.md.example" 2>&1 < /dev/null) || true
-    if [ ! -f "$HOME/git/ccprivate/rules/test-rule.md" ]; then
-        pass "example-sync: CCC_DRY_RUN=1 不复制文件"
-    else
-        fail "example-sync" "dry-run 下仍复制了文件"
-    fi
-    teardown_isolated_env
-}
-
 # ═══ init-skill.sh CCC_DRY_RUN=1 ═══
 test_init_skill_dry_run() {
     setup_isolated_env

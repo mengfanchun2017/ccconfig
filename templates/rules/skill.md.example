@@ -1,6 +1,0 @@
-# Skill 开发规范
-
-## 描述必须中文
-- 所有 skill 的 `description` frontmatter 必须全中文，避免用户看不懂
-- 触发词用中文主动式（`用法：用户说"..."触发`），不用英文 `Use when` 前缀
-- 同步规则：改 `plugins/<name>/SKILL.md` 后跑 `scripts/sync-marketplace.py --write` 同步 marketplace.json

@@ -823,17 +823,6 @@ EOF
         fi
     done
 
-    # 复制 rules .example 到 ccprivate（首次初始化）
-    for example in "$CCCONFIG_DIR"/templates/rules/*.md.example; do
-        [ -f "$example" ] || continue
-        local base=$(basename "$example" .md.example)
-        local target="$CCPRIVATE_DIR/rules/$base.md"
-        if [ ! -f "$target" ]; then
-            cp "$example" "$target"
-            info "rules/$base.md (从模板复制)"
-        fi
-    done
-
     # 复制 agents .example 到 ccprivate（首次初始化）
     for example in "$CCCONFIG_DIR"/templates/agents/*.md.example; do
         [ -f "$example" ] || continue

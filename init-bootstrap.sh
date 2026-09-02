@@ -673,13 +673,7 @@ EOF
         fi
     done
 
-    # 复制 rules/agents 模板
-    for example in "$CCCONFIG_DIR"/templates/rules/*.md.example; do
-        [[ -f "$example" ]] || continue
-        local base; base=$(basename "$example" .md.example)
-        local target="$CCPRIVATE_DIR/rules/$base.md"
-        [[ ! -f "$target" ]] && cp "$example" "$target" && info "rules/$base.md (从模板)"
-    done
+    # 复制 agents 模板
     for example in "$CCCONFIG_DIR"/templates/agents/*.md.example; do
         [[ -f "$example" ]] || continue
         local base; base=$(basename "$example" .md.example)

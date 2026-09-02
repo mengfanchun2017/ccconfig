@@ -668,32 +668,6 @@ check_example_sync() {
     echo ""
     echo -e "${CYAN}━━━ 模板同步━━━${NC}"
 
-    # rules 检查
-    local rules_outdated=0 rules_new=0 rules_added=0
-    for example in "$ccconfig_example/rules/"*.md.example; do
-        [ -f "$example" ] || continue
-        local base=$(basename "$example" .md.example)
-        local target="$ccpriv/rules/${base}.md"
-        if [ ! -f "$target" ]; then
-            rules_new=$((rules_new + 1))
-        elif ! diff -q "$example" "$target" &>/dev/null; then
-            rules_outdated=$((rules_outdated + 1))
-        fi
-    done
-    rules_added=0
-    for f in "$ccpriv/rules/"*.md; do
-        [ -f "$f" ] || continue
-        base=$(basename "$f" .md)
-        [ -f "$ccconfig_example/rules/${base}.md.example" ] || rules_added=$((rules_added + 1))
-    done
-
-    local out=""
-    [ $rules_outdated -gt 0 ] && out="${out}${YELLOW}${rules_outdated} 过期${NC} "
-    [ $rules_new -gt 0 ] && out="${out}${CYAN}${rules_new} 新增${NC} "
-    [ $rules_added -gt 0 ] && out="${out}${GRAY}${rules_added} 独有${NC} "
-    [ -z "$out" ] && out="${GREEN}✅ 同步${NC}"
-    echo -e "  rules: $out"
-
     # agents 检查
     local agents_outdated=0 agents_new=0 agents_added=0
     for example in "$ccconfig_example/agents/"*.md.example; do
