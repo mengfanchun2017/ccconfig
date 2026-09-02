@@ -239,6 +239,16 @@ detect_git_email() {
     gh api user --jq '.email' 2>/dev/null || echo ""
 }
 
+probe_repo() {
+    local err_out
+    err_out=$(gh repo view "$1" 2>&1 >/dev/null)
+    if [[ $? -eq 0 ]]; then
+        return 0
+    fi
+    grep -qiE 'Could not resolve to a Repository|HTTP 404|Not Found|repository not found' <<<"$err_out" && return 1
+    return 2
+}
+
 collect_info() {
     section "GitHub 信息"
 
@@ -507,15 +517,23 @@ create_and_push() {
         info "  手动建仓: https://github.com/new?name=ccprivate&visibility=private"
         info "  git remote add origin git@github.com:$GH_USER/ccprivate.git"
         _rc=1
-    elif gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
-        _repo_found=true
-    elif git ls-remote "https://github.com/$GH_USER/ccprivate.git" &>/dev/null 2>&1; then
-        info "git ls-remote 验证通过"
-        _repo_found=true
     else
-        warn "仓库检测失败（API 可能被阻断）"
-        if confirm "仓库 $GH_USER/ccprivate 已创建？尝试 push 到远程？" y; then
+        probe_repo "$GH_USER/ccprivate"; local _p=$?
+        if [[ $_p -eq 0 ]]; then
             _repo_found=true
+        elif git ls-remote "https://github.com/$GH_USER/ccprivate.git" &>/dev/null 2>&1; then
+            info "git ls-remote 验证通过"
+            _repo_found=true
+        elif [[ $_p -eq 1 ]]; then
+            warn "仓库 $GH_USER/ccprivate 不存在（404），需先在 GitHub 建仓"
+            if confirm "仓库 $GH_USER/ccprivate 已创建？尝试 push 到远程？" y; then
+                _repo_found=true
+            fi
+        else
+            warn "仓库检测失败（网络瞬断或 API 阻断，非 404）"
+            if confirm "仓库 $GH_USER/ccprivate 已创建？尝试 push 到远程？" y; then
+                _repo_found=true
+            fi
         fi
     fi
 
@@ -571,10 +589,15 @@ do_create() {
     # 收集信息
     collect_info || return 1
 
-    # 手动建仓引导
-    if [[ -n "$GH_USER" ]] && ! gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
-        section "需要先建 GitHub 私有仓库"
-        cat <<'EOF'
+    # 手动建仓引导：仅当 404（真不存在）才提示建仓，网络瞬断不误导
+    if [[ -n "$GH_USER" ]]; then
+        probe_repo "$GH_USER/ccprivate"; local _pr=$?
+        if [[ $_pr -eq 2 ]]; then
+            warn "$GH_USER/ccprivate 探测失败（网络瞬断或 API 阻断，非 404）"
+            info "跳过建仓引导——若仓库已存在，push 阶段会重试"
+        elif [[ $_pr -ne 0 ]]; then
+            section "需要先建 GitHub 私有仓库"
+            cat <<'EOF'
   打开: https://github.com/new?name=ccprivate&visibility=private&description=Personal+Claude+Code+config
   • Repository name : ccprivate
   • Description     : Personal Claude Code config
@@ -584,24 +607,27 @@ do_create() {
 
   建好后按回车继续（或 Ctrl+C 取消）。
 EOF
-        read -p "建好了？按回车继续..." _ < /dev/tty || true
+            read -p "建好了？按回车继续..." _ < /dev/tty || true
 
-        local _repo_ok=false
-        if gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
-            _repo_ok=true
-        elif git ls-remote "https://github.com/$GH_USER/ccprivate.git" &>/dev/null 2>&1; then
-            _repo_ok=true
-        else
-            warn "gh repo view 和 git ls-remote 都失败，手动确认"
-            if confirm "仓库确实已创建？继续推送？" y; then
+            local _repo_ok=false _pr2
+            probe_repo "$GH_USER/ccprivate"; _pr2=$?
+            if [[ $_pr2 -eq 0 ]]; then
                 _repo_ok=true
+            elif git ls-remote "https://github.com/$GH_USER/ccprivate.git" &>/dev/null 2>&1; then
+                _repo_ok=true
+            elif [[ $_pr2 -eq 1 ]]; then
+                warn "仓库仍 404——确认已在 GitHub 建仓"
+                confirm "仓库确实已创建？继续推送？" y && _repo_ok=true
+            else
+                warn "探测仍失败（网络瞬断），手动确认"
+                confirm "仓库确实已创建？继续推送？" y && _repo_ok=true
             fi
+            if ! $_repo_ok; then
+                err "仓库未就绪，请确认 $GH_USER/ccprivate 存在后重跑"
+                return 1
+            fi
+            ok "GitHub 仓库已就绪: $GH_USER/ccprivate"
         fi
-        if ! $_repo_ok; then
-            err "仓库未就绪，请确认 $GH_USER/ccprivate 存在后重跑"
-            return 1
-        fi
-        ok "GitHub 仓库已就绪: $GH_USER/ccprivate"
     fi
 
     section "创建目录结构"
