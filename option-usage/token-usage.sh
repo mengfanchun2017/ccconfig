@@ -824,11 +824,11 @@ def agg_days(cond):
     return len(all_sids), si, so, scr, stot, cost
 
 print(f"\n\033[32m=== 按模型 ===\033[0m")
-print(f"{'Model':<24} {'Sessions':>8} {'Input':>12} {'CacheRead':>12} {'Output':>10} {'Total':>14} {'Cost':>9}")
+print(f"{'Model':<24} {'Sessions':>8} {'Input':>12} {'CacheRead':>12} {'Output':>10} \033[34m{'Total':>14}\033[0m \033[33m{'Cost':>9}\033[0m")
 for m in sorted(by_model, key=lambda x: -by_model[x]["total"]):
     d = by_model[m]
     if d["total"] == 0: continue
-    print(f"{m[:24]:<24} {len(d['unique_sessions']):>8} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>9.2f}")
+    print(f"{m[:24]:<24} {len(d['unique_sessions']):>8} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} \033[34m{d['total']:>14,}\033[0m \033[33m{d['cost']:>9.2f}\033[0m")
 # total 汇总行
 all_sids = set()
 for m in by_model:
@@ -839,24 +839,24 @@ t_cr = sum(by_model[m]["cr"] for m in by_model)
 t_out = sum(by_model[m]["out"] for m in by_model)
 t_total = sum(by_model[m]["total"] for m in by_model)
 t_cost_sum = sum(by_model[m]["cost"] for m in by_model)
-print(f"{'total':<24} {t_sessions:>8} {t_in:>12,} {t_cr:>12,} {t_out:>10,} {t_total:>14,} {t_cost_sum:>9.2f}")
+print(f"{'total':<24} {t_sessions:>8} {t_in:>12,} {t_cr:>12,} {t_out:>10,} \033[34m{t_total:>14,}\033[0m \033[33m{t_cost_sum:>9.2f}\033[0m")
 print()
 print(f"\033[32m=== 按时间段 ===\033[0m")
-print(f"{'区间':<16} {'Sessions':>9} {'Input':>12} {'Output':>10} {'CacheRead':>12} {'Total':>14} {'Cost':>10}")
+print(f"{'区间':<16} {'Sessions':>9} {'Input':>12} {'Output':>10} {'CacheRead':>12} \033[34m{'Total':>14}\033[0m \033[33m{'Cost':>10}\033[0m")
 # 单日 = 昨天（latest full day）
 ns, si, so, scr, stot, cost = agg_days(lambda d: d == yesterday_str)
 if ns > 0:
-    print(f"{yesterday_display:<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
+    print(f"{yesterday_display:<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} \033[34m{stot:>14,}\033[0m \033[33m{cost:>10.2f}\033[0m")
 else:
     print(f"{yesterday_display:<16} 无数据")
 ns, si, so, scr, stot, cost = agg_days(lambda d: d >= day7_str)
 if ns > 0:
-    print(f"{"近7天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
+    print(f"{"近7天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} \033[34m{stot:>14,}\033[0m \033[33m{cost:>10.2f}\033[0m")
 else:
     print(f"{"近7天":<16} 无数据")
 ns, si, so, scr, stot, cost = agg_days(lambda d: d >= day30_str)
 if ns > 0:
-    print(f"{"近30天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
+    print(f"{"近30天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} \033[34m{stot:>14,}\033[0m \033[33m{cost:>10.2f}\033[0m")
 else:
     print(f"{"近30天":<16} 无数据")
 print()
@@ -870,7 +870,7 @@ for d, bd in by_day.items():
     bm["total"] += bd["total"]; bm["cost"] += bd["cost"]
     bm["sessions"] |= bd["unique_sessions"]
 months = sorted(by_month.keys(), reverse=True)
-print(f"{'Month':<14} {'Sessions':>9} {'Input':>12} {'CacheRead':>12} {'Output':>10} {'Total':>14} {'Cost':>10}")
+print(f"{'Month':<14} {'Sessions':>9} {'Input':>12} {'CacheRead':>12} {'Output':>10} \033[34m{'Total':>14}\033[0m \033[33m{'Cost':>10}\033[0m")
 # 首行 = 全量总计
 all_sessions = len(set().union(*[by_month[m]["sessions"] for m in months]))
 all_in = sum(by_month[m]["in"] for m in months)
@@ -878,14 +878,14 @@ all_cr = sum(by_month[m]["cr"] for m in months)
 all_out = sum(by_month[m]["out"] for m in months)
 all_total = sum(by_month[m]["total"] for m in months)
 all_cost = sum(by_month[m]["cost"] for m in months)
-print(f"{'total':<14} {all_sessions:>9} {all_in:>12,} {all_cr:>12,} {all_out:>10,} {all_total:>14,} {all_cost:>10.2f}")
+print(f"{'total':<14} {all_sessions:>9} {all_in:>12,} {all_cr:>12,} {all_out:>10,} \033[34m{all_total:>14,}\033[0m \033[33m{all_cost:>10.2f}\033[0m")
 for m in months:
     d = by_month[m]
     if d["total"] == 0: continue
-    print(f"{m:<14} {len(d['sessions']):>9} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>10.2f}")
+    print(f"{m:<14} {len(d['sessions']):>9} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} \033[34m{d['total']:>14,}\033[0m \033[33m{d['cost']:>10.2f}\033[0m")
 print()
 print(f"\033[32m=== 按任务（Top 5） ===\033[0m")
-print(f"{'Total':>14} {'Input':>12} {'CacheRead':>12} {'Output':>10}  {'Session'}")
+print(f"{'Session':<24} {'Input':>12} {'CacheRead':>12} {'Output':>10}  \033[34m{'Total':>14}\033[0m")
 by_session = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"name":""})
 for r in rows:
     sid = r["sessionId"]
@@ -897,7 +897,7 @@ for r in rows:
     bs["total"] += r["inputTokens"] + r["outputTokens"]
 for sid, d in sorted(by_session.items(), key=lambda x: -x[1]["total"])[:5]:
     name = d["name"] or sid[:20]
-    print(f"{d['total']:>14,} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,}  {name}")
+    print(f"{name[:24]:<24} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,}  \033[34m{d['total']:>14,}\033[0m")
 PYEOF
         exit 0
     fi
