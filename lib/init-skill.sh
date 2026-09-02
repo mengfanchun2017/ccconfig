@@ -58,15 +58,17 @@ ensure_claude_skills() {
         return 0
     fi
 
-    local gh_user candidates=() clone_url
+    local gh_user up_owner candidates=() clone_url
     gh_user=$(_github_user)
+    up_owner="${SKILL_UPSTREAM%%/*}"
 
     # 候选仓库列表：用户 fork → 上游公共仓库
-    [[ -n "$gh_user" ]] && candidates+=("$gh_user/skill")
+    # fork owner 与 upstream owner 相同时不重复（作者本人 = 上游）
+    [[ -n "$gh_user" && "$gh_user" != "$up_owner" ]] && candidates+=("$gh_user/skill")
     candidates+=("$SKILL_UPSTREAM")
 
     for candidate in "${candidates[@]}"; do
-        [[ "$candidate" == "/skill" ]] && continue
+        [[ "$candidate" == "/skill" || -z "$candidate" ]] && continue
 
         # SSH 优先
         clone_url="git@github.com:${candidate}.git"
@@ -534,14 +536,20 @@ do_cleanup() {
 }
 
 do_list() {
-    echo "=== 自建 skill (skill/plugins/ 公开上游) ==="
+    local pub_remote=""
+    if [[ -d "$SKILL_REPO_DIR/.git" ]]; then
+        pub_remote=$(git -C "$SKILL_REPO_DIR" remote get-url origin 2>/dev/null | sed 's#.*github.com[:/]##; s#\.git$##')
+    fi
+    [[ -z "$pub_remote" ]] && pub_remote="${SKILL_UPSTREAM:-mengfanchun2017/skill}"
+
+    echo "=== 公开 skill（$SKILLS_SRC ← $pub_remote）==="
     if [[ -d "$SKILLS_SRC" ]]; then
         ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
     else
         echo "  (目录不存在: $SKILLS_SRC)"
     fi
     echo ""
-    echo "=== 私有 skill (ccprivate/skill-local/) ==="
+    echo "=== 私有 skill（$LOCAL_SKILLS_SRC）==="
     if [[ -d "$LOCAL_SKILLS_SRC" ]] && [[ -n "$(ls -A "$LOCAL_SKILLS_SRC" 2>/dev/null)" ]]; then
         ls "$LOCAL_SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
     else
@@ -555,7 +563,7 @@ do_list() {
         [[ -L "$d" ]] || marker="○"
         local src
         if [[ -L "$d" ]]; then
-            src=$(readlink "$d" | sed 's|.*/\.agents/skills/|npx: |; s|.*/skill-local/|private: |; s|.*/skill/plugins/|skill: |; s|.*/templates/skills/|ccconfig (legacy): |')
+            src=$(readlink "$d" | sed 's|.*/\.agents/skills/|npx: |; s|.*/skill-local/|private: |; s|.*/skill/plugins/|skill: |')
         else
             src="(本地)"
         fi
@@ -712,9 +720,14 @@ do_status() {
 
     # 源 / 视图一对，不重复罗列同一份实体
     local src_count=0 local_count=0 view_count=0
+    local pub_remote=""
     [[ -d "$SKILLS_SRC" ]] && src_count=$(ls "$SKILLS_SRC" 2>/dev/null | wc -l)
     [[ -d "$LOCAL_SKILLS_SRC" ]] && local_count=$(ls "$LOCAL_SKILLS_SRC" 2>/dev/null | wc -l)
     [[ -d "$CLAUDE_SKILLS_DIR" ]] && view_count=$(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l)
+    if [[ -d "$SKILL_REPO_DIR/.git" ]]; then
+        pub_remote=$(git -C "$SKILL_REPO_DIR" remote get-url origin 2>/dev/null | sed 's#.*github.com[:/]##; s#\.git$##')
+    fi
+    [[ -z "$pub_remote" ]] && pub_remote="${SKILL_UPSTREAM:-mengfanchun2017/skill}"
 
     if [[ $src_count -gt 0 && $view_count -eq 0 ]]; then
         echo -e "${YELLOW}源 ${src_count} 个已 clone，但 ~/.claude/skills/ 未链接（运行 sync）${NC}"
@@ -725,7 +738,7 @@ do_status() {
     else
         echo -e "${GREEN}公开源 ${src_count} = 视图 ${view_count}（无 drift）${NC}"
     fi
-    info "  公开源: ${SKILLS_SRC} (${src_count})"
+    info "  公开源: ${SKILLS_SRC} ← ${pub_remote} (${src_count})"
     info "  私有源: ${LOCAL_SKILLS_SRC} (${local_count})"
     info "  视图:   ${CLAUDE_SKILLS_DIR}"
 
