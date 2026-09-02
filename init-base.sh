@@ -135,6 +135,8 @@ init_all_steps() {
         echo -e "  ${YELLOW}⚠ 当前终端 claude 未生效（init 在子 shell 中运行）${NC}"
         echo -e "  ${GREEN}→ source ~/.bashrc${NC}  ${GRAY}或开新终端即可${NC}"
     fi
+    echo -e "  ${CYAN}claudeby${NC} = claude --dangerously-skip-permissions（bypass 权限，跳分类器）"
+    echo -e "  ${GRAY}日常用 claude（auto+allow 已覆盖 spawn agent），需跳权限用 claudeby${NC}"
     echo ""
 
     echo -e "${BOLD}下一步:${NC}"
