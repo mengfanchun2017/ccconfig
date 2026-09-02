@@ -1,0 +1,5 @@
+# ccconfig 全局 Python pip 包
+# 被 init-ubuntu.sh setup_python_packages() 和 update.sh update_python_packages() 引用
+# 格式: 包名==版本 或 包名（不指定版本则安装最新）
+
+python-docx

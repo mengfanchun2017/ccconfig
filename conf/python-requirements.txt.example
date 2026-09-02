@@ -1,0 +1,4 @@
+# ccconfig 全局 Python pip 包（模板）
+# 复制为 python-requirements.txt 并按需修改
+
+python-docx
