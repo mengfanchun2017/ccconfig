@@ -3,7 +3,9 @@
 #
 # 使用：
 #   bash init-base.sh                  # 交互式菜单（默认）
-#   bash init-base.sh all              # 一键全部（跳过交互全自动）
+#   bash init-base.sh new              # 新机器：gh auth → ccprivate → 全量
+#   bash init-base.sh all              # 一键全部（跳过认证，已有 ccprivate）
+#   bash init-base.sh new --yes        # 全自动非交互
 #   bash init-base.sh --dry-run        # 预览将要执行的操作（不实际执行）
 #
 # 子命令输出指引让用户手动执行，不直接调其他根脚本。
@@ -259,7 +261,13 @@ case "${1:-menu}" in
         exit 0
         ;;
     new|bootstrap)
-        exec bash "$SCRIPT_DIR/init-bootstrap.sh"
+        # gh auth + ccprivate 一体化
+        if [[ "${2:-}" == "--yes" || "${2:-}" == "-y" ]]; then
+            export CCP_NONINTERACTIVE=1
+        fi
+        bash "$SCRIPT_DIR/init-bootstrap.sh" || exit 1
+        # 成功后继续全量初始化
+        exec bash "$0" all "${2:-}"
         ;;
     option|options)
         exec bash "$SCRIPT_DIR/init-option.sh" "${@:2}"

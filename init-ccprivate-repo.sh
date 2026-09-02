@@ -1,6 +1,9 @@
 #!/bin/bash
 # init-ccprivate-repo.sh — 一键创建 ccprivate 私有配置仓库
 #
+# 设计：init-ccprivate-repo.sh 已合并到 init-bootstrap.sh（gh auth + ccprivate 一体化），
+# 本脚本作为独立入口保留，仍可单独使用。
+#
 # 用法：
 #   bash ccconfig/init-ccprivate-repo.sh                    # 交互式新建
 #   bash ccconfig/init-ccprivate-repo.sh --clone            # 从已有 GitHub 仓库克隆

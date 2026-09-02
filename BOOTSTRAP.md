@@ -17,18 +17,21 @@
 git clone https://github.com/<your-github-username>/ccconfig.git ~/git/ccconfig
 cd ~/git/ccconfig
 
-# Step 2: 一键新机器初始化（GitHub 认证 → ccprivate → 全量）
-bash init-bootstrap.sh
-#    全自动非交互: bash init-bootstrap.sh all
+# Step 2: 一键新机器初始化（gh auth → ccprivate → 全量，三步合一）
+bash init-base.sh new
+#    全自动非交互: bash init-base.sh new --yes
 #    补装单个可选组件: bash init-option.sh
+
+# 或分步（gh auth + ccprivate 先，全量后）
+# bash init-bootstrap.sh && bash init-base.sh all
 ```
 
-> **init-bootstrap.sh 自动做 3 步**：
+> **init-base.sh new 自动做**：
 > 1. GitHub 认证（装 gh + gh auth + 配 git 身份）
 > 2. ccprivate 配置仓库（建仓/克隆 + LLM key 收集 + 符号链接）
 > 3. 全量初始化（Ubuntu 环境 + LLM 写入 + 链接修复 + 可选组件）
 >
-> 遇到某步失败修好之后重跑 bash init-bootstrap.sh 即可（幂等）。
+> 遇到某步失败修好之后重跑 bash init-base.sh new 即可（幂等）。
 >
 > **为什么是两步而不是一行 curl | bash?**
 > curl 在国内环境经常被 GFW 阻断 port 443，但 git clone 走自己的代理栈（~/.gitconfig 的 http.proxy 或环境变量）。
@@ -57,12 +60,17 @@ bash init-bootstrap.sh
 ```bash
 cd ~/git/ccconfig
 bash init-base.sh all            # 跳过 gh auth + ccprivate，直接全量初始化
+# 或单独刷新 ccprivate:
+# bash init-bootstrap.sh --clone  # 克隆已有 ccprivate
 ```
 
 > **环境变量**：
 > - BOOTSTRAP_NOSUDO=1：跳过 sudo apt，用二进制装 gh
 > - GH_TOKEN：直接用此 PAT 登录（CI 友好，跳过交互）
 > - CCP_NONINTERACTIVE=1：非交互模式
+> - CCP_GH_USER / CCP_GIT_EMAIL：GitHub 用户名和邮箱
+> - CCP_DEFAULT_LLM：默认 LLM（deepseek/minimax/claude）
+> - CCP_LLM_DEEPSEEK_KEY / CCP_LLM_MINIMAX_KEY / CCP_LLM_ANTHROPIC_KEY：LLM API Key
 
 ---
 
@@ -321,7 +329,7 @@ gh --version
 
 ### 3a. Fine-grained PAT（必做，主路径）
 
-**gh auth 和 git 传输都靠这一个 token**。`init-bootstrap.sh` 脚本会引导你完成，跑：
+**gh auth 和 git 传输都靠这一个 token**。`init-bootstrap.sh` 整合了 gh auth + ccprivate，跑：
 
 ```bash
 bash init-bootstrap.sh

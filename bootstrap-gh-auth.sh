@@ -1,7 +1,12 @@
 #!/bin/bash
-# bootstrap-gh-auth.sh — ccconfig 起步阶段 2：装 gh + GitHub 认证
+# bootstrap-gh-auth.sh — ccconfig 起步：装 gh + GitHub 认证
 #
-# 设计：四步流程中的第二步。
+# 设计：bootstrap-gh-auth.sh 已合并到 init-bootstrap.sh（gh auth + ccprivate 一体化），
+# 本脚本作为独立入口保留，仍可单独使用。
+#
+# 新用户推荐: bash init-bootstrap.sh
+#
+# 旧流程（四步）：
 #   Step 1: git clone https://github.com/<your-username>/ccconfig.git ~/git/ccconfig
 #   Step 2: bash bootstrap-gh-auth.sh               ← 你在这里
 #   Step 3: bash init-ccprivate-repo.sh         ← 创建 ccprivate 私有仓库
