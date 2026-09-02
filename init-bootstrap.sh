@@ -22,7 +22,6 @@
 #   CCP_DEFAULT_LLM             deepseek | minimax | claude
 #   CCP_LLM_DEEPSEEK_KEY        DeepSeek API key
 #   CCP_LLM_MINIMAX_KEY         MiniMax API key
-#   CCP_LLM_ANTHROPIC_KEY       Anthropic API key
 #   CCP_SKIP_FEISHU=1           跳过飞书占位符引导
 
 set -euo pipefail
@@ -273,14 +272,12 @@ collect_info() {
 
     DEEPSEEK_KEY="${CCP_LLM_DEEPSEEK_KEY:-}"
     MINIMAX_KEY="${CCP_LLM_MINIMAX_KEY:-}"
-    CLAUDE_KEY="${CCP_LLM_ANTHROPIC_KEY:-}"
 
     if $NONINTERACTIVE; then
         case "${CCP_DEFAULT_LLM:-deepseek}" in
             deepseek|1) DEFAULT_LLM=deepseek ;;
             minimax|2)  DEFAULT_LLM=minimax ;;
-            claude|3)   DEFAULT_LLM=claude ;;
-            *) err "CCP_DEFAULT_LLM 必须是 deepseek|minimax|claude"; return 1 ;;
+            *) err "CCP_DEFAULT_LLM 必须是 deepseek|minimax"; return 1 ;;
         esac
         info "默认 LLM: ${GREEN}$DEFAULT_LLM${NC}"
         local key_var="${DEFAULT_LLM}_KEY"
@@ -291,21 +288,19 @@ collect_info() {
         fi
     else
         local llm_choice
-        llm_choice=$(menu_select "默认 LLM" "DeepSeek" "MiniMax" "Claude (Anthropic 官方)")
+        llm_choice=$(menu_select "默认 LLM" "DeepSeek" "MiniMax")
         case "$llm_choice" in
             1) DEFAULT_LLM=deepseek; [[ -z "$DEEPSEEK_KEY" ]] && DEEPSEEK_KEY=$(prompt_password "DeepSeek API Key") ;;
             2) DEFAULT_LLM=minimax;  [[ -z "$MINIMAX_KEY" ]] && MINIMAX_KEY=$(prompt_password "MiniMax API Key") ;;
-            3) DEFAULT_LLM=claude;   [[ -z "$CLAUDE_KEY" ]]  && CLAUDE_KEY=$(prompt_password "Anthropic API Key") ;;
             0) warn "取消 LLM 选择"; DEFAULT_LLM="${DEFAULT_LLM:-deepseek}" ;;
         esac
 
         # 收集其他 LLM key（可选）
         [[ "$llm_choice" != "1" && -z "$DEEPSEEK_KEY" ]] && DEEPSEEK_KEY=$(prompt "DeepSeek Key？(回车跳过)")
         [[ "$llm_choice" != "2" && -z "$MINIMAX_KEY" ]]  && MINIMAX_KEY=$(prompt "MiniMax Key？(回车跳过)")
-        [[ "$llm_choice" != "3" && -z "$CLAUDE_KEY" ]]   && CLAUDE_KEY=$(prompt "Anthropic Key？(回车跳过)")
     fi
 
-    export GH_USER GIT_EMAIL DEFAULT_LLM DEEPSEEK_KEY MINIMAX_KEY CLAUDE_KEY
+    export GH_USER GIT_EMAIL DEFAULT_LLM DEEPSEEK_KEY MINIMAX_KEY
 }
 
 # ============================================================
@@ -314,10 +309,10 @@ collect_info() {
 gen_llm_json() {
     local f="$CCPRIVATE_DIR/conf/llm.json"
     DEEPSEEK_KEY="${DEEPSEEK_KEY:-}" MINIMAX_KEY="${MINIMAX_KEY:-}" \
-    CLAUDE_KEY="${CLAUDE_KEY:-}" DEFAULT_LLM="$DEFAULT_LLM" OUT="$f" python3 << 'PYEOF'
+    DEFAULT_LLM="$DEFAULT_LLM" OUT="$f" python3 << 'PYEOF'
 import json, os
 llms = {}
-for k, v in [("deepseek","DEEPSEEK_KEY"),("minimax","MINIMAX_KEY"),("claude","CLAUDE_KEY")]:
+for k, v in [("deepseek","DEEPSEEK_KEY"),("minimax","MINIMAX_KEY")]:
     key = os.environ.get(v, "")
     if not key:
         continue
@@ -325,8 +320,6 @@ for k, v in [("deepseek","DEEPSEEK_KEY"),("minimax","MINIMAX_KEY"),("claude","CL
         llms[k] = {"name":"DeepSeek","base_url":"https://api.deepseek.com/anthropic","model":"deepseek-v4-pro","key":key,"small_model":"deepseek-v4-pro"}
     elif k == "minimax":
         llms[k] = {"name":"MiniMax","base_url":"https://api.minimaxi.com/anthropic","model":"MiniMax-M3","key":key,"small_model":"MiniMax-M3"}
-    elif k == "claude":
-        llms[k] = {"name":"Claude","base_url":"https://api.anthropic.com","model":"claude-sonnet-4-6","key":key,"small_model":"claude-haiku-4-5"}
 d = {"llms": llms, "current": os.environ["DEFAULT_LLM"]}
 with open(os.environ["OUT"], "w") as fh:
     json.dump(d, fh, indent=4, ensure_ascii=False)
@@ -625,10 +618,13 @@ EOF
     gen_dot_config_json
     gen_setup_sh
 
-    # 复制 .example 模板到 ccprivate
+    # 复制 .example 模板到 ccprivate（死模板/可选场景不注入新用户）
     for example in "$CCCONFIG_DIR"/conf/*.example; do
         [[ -f "$example" ]] || continue
         local name; name=$(basename "$example" .example)
+        case "$name" in
+            claude.json|ubuntu.json|supabase.json) continue ;;
+        esac
         if [[ ! -f "$CCPRIVATE_DIR/conf/$name" ]]; then
             cp "$example" "$CCPRIVATE_DIR/conf/$name"
             if grep -qE '请填入|请替换|your.key|placeholder|changeme' "$CCPRIVATE_DIR/conf/$name" 2>/dev/null; then
