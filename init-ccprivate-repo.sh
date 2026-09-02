@@ -348,15 +348,22 @@ detect_gh_user() {
 
 # ── 自动检测 git email ──
 detect_git_email() {
-    local e
+    local e id login
     e=$(git config --global user.email 2>/dev/null || echo "")
     [ -n "$e" ] && echo "$e" && return
     e=$(gh api user --jq '.email' 2>/dev/null) || true
     if echo "$e" | grep -qE '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'; then
         echo "$e"
-    else
-        echo ""
+        return
     fi
+    # email 不公开（GitHub 隐私默认）→ 用 noreply 兜底
+    id=$(gh api user --jq '.id // empty' 2>/dev/null) || true
+    login=$(gh api user --jq '.login // empty' 2>/dev/null) || true
+    if [ -n "$id" ] && [ -n "$login" ]; then
+        echo "${id}+${login}@users.noreply.github.com"
+        return
+    fi
+    echo ""
 }
 
 # ── 收集用户信息 ──
