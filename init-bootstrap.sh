@@ -195,9 +195,15 @@ setup_git_ident() {
 
     # 从 gh api 取
     if gh auth status &>/dev/null; then
-        local gh_email gh_name
+        local gh_email gh_name gh_id gh_login
         gh_email=$(gh api user --jq '.email // empty' 2>/dev/null)
         gh_name=$(gh api user --jq '.name // .login' 2>/dev/null)
+        # email 不公开（GitHub 隐私默认）→ 用 noreply 兜底
+        if [[ -z "$gh_email" ]]; then
+            gh_id=$(gh api user --jq '.id // empty' 2>/dev/null)
+            gh_login=$(gh api user --jq '.login // empty' 2>/dev/null)
+            [[ -n "$gh_id" && -n "$gh_login" ]] && gh_email="${gh_id}+${gh_login}@users.noreply.github.com"
+        fi
         [[ -n "$gh_email" ]] && git config --global user.email "$gh_email"
         [[ -n "$gh_name" ]]  && git config --global user.name  "$gh_name"
         if [[ -n "$(git config --global user.name)" && -n "$(git config --global user.email)" ]]; then
