@@ -855,17 +855,6 @@ def print_period(name, n, si, so, scr, stot, cost):
         return
     print(f"  {name:<12} {n:>4}sessions  Input:{si:>13,}  Output:{so:>10,}  CacheRead:{scr:>12,}  Total:{stot:>14,}  Cost:{cost:>9.2f}")
 
-print(f"\n=== 按时间段 ===")
-print(f"{'区间':<16} {'Sessions':>9} {'Input':>12} {'Output':>10} {'CacheRead':>12} {'Total':>14} {'Cost':>10}")
-# 单日 = 昨天（latest full day）
-ns, si, so, scr, stot, cost = agg(lambda d: d == yesterday_str, yesterday_str)
-print_period(yesterday_str, ns, si, so, scr, stot, cost)
-ns, si, so, scr, stot, cost = agg(lambda d: d >= day7_str, "近7天")
-print_period("近7天", ns, si, so, scr, stot, cost)
-ns, si, so, scr, stot, cost = agg(lambda d: d >= day30_str, "近30天")
-print_period("近30天", ns, si, so, scr, stot, cost)
-print()
-
 print(f"\n  \033[32m=== 按模型 ===\033[0m")
 print(f"{'Model':<24} {'Sessions':>8} {'Input':>12} {'CacheRead':>12} {'Output':>10} {'Total':>14} {'Cost':>9}")
 for m in sorted(by_model, key=lambda x: -by_model[x]["total"]):
@@ -881,6 +870,26 @@ t_total = sum(by_model[m]["total"] for m in by_model)
 t_cost_sum = sum(by_model[m]["cost"] for m in by_model)
 print(f"{'total':<24} {t_sessions:>8} {t_in:>12,} {t_cr:>12,} {t_out:>10,} {t_total:>14,} {t_cost_sum:>9.2f}")
 print()
+print(f"\n=== 按时间段 ===")
+print(f"{'区间':<16} {'Sessions':>9} {'Input':>12} {'Output':>10} {'CacheRead':>12} {'Total':>14} {'Cost':>10}")
+# 单日 = 昨天（latest full day）
+ns, si, so, scr, stot, cost = agg(lambda d: d == yesterday_str, yesterday_str)
+if ns > 0:
+    print(f"{yesterday_str:<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
+else:
+    print(f"{yesterday_str:<16} 无数据")
+ns, si, so, scr, stot, cost = agg(lambda d: d >= day7_str, "近7天")
+if ns > 0:
+    print(f"{"近7天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
+else:
+    print(f"{"近7天":<16} 无数据")
+ns, si, so, scr, stot, cost = agg(lambda d: d >= day30_str, "近30天")
+if ns > 0:
+    print(f"{"近30天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
+else:
+    print(f"{"近30天":<16} 无数据")
+print()
+
 print(f"=== 按月 ===")
 # 按月统计（descending，首行 = 全量总计）
 by_month = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"sessions":0,"cost":0.0})
