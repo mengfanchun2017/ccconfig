@@ -116,11 +116,11 @@ else
 fi
 
 # ── Test 10: A&&B||C 反模式已改 if/else ──
-echo "=== Test 10: feishu_key 分支 ==="
-if ! grep -q 'feishu_key_wizard || install_option' "$OPT"; then
-    pass "feishu_key_wizard 用 if/else（无 || 反模式）"
+echo "=== Test 10: larkkey 分支 ==="
+if ! grep -q 'larkkey_wizard || install_option' "$OPT"; then
+    pass "larkkey_wizard 用 if/else（无 || 反模式）"
 else
-    fail "feishu_key_wizard 仍用 A&&B||C 反模式"
+    fail "larkkey_wizard 仍用 A&&B||C 反模式"
 fi
 
 # ── Test 11: --status 退出码 0 ──
