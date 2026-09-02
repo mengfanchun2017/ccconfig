@@ -257,6 +257,7 @@ check_mode() {
 
 # ========== 菜单模式 ==========
 menu_mode() {
+    local -a dirs names modes menu_items
     while true; do
     clear 2>/dev/null || true
     echo ""
@@ -266,7 +267,7 @@ menu_mode() {
     # ---- 构造菜单 ----
     local repos_data
     repos_data=$(list_repos)
-    local -a dirs names modes menu_items
+    dirs=(); names=(); modes=(); menu_items=()
     while IFS='|' read -r name dir mode; do
         [ -z "$name" ] && continue
         names+=("$name"); dirs+=("$dir"); modes+=("$mode")
