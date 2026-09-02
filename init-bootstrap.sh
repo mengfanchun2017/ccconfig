@@ -149,7 +149,7 @@ gh_auth() {
         *)
             echo ""
             echo "  浏览器打开（Fine-grained PAT）:"
-            echo "    ${BOLD}https://github.com/settings/personal-access-tokens/new${NC}"
+            echo -e "    ${BOLD}https://github.com/settings/personal-access-tokens/new${NC}"
             echo ""
             echo "  按以下填："
             echo "    Token name        : ccconfig-push"
@@ -160,7 +160,7 @@ gh_auth() {
             echo "      Metadata  : Read-only       ☑"
             echo "    Account permissions : 全部 No access"
             echo ""
-            echo "  ${GRAY}Token 仅存本地 ~/.config/gh/hosts.yml（600），不同步 ccprivate${NC}"
+            echo -e "  ${GRAY}Token 仅存本地 ~/.config/gh/hosts.yml（600），不同步 ccprivate${NC}"
             echo ""
             local token
             token=$(prompt_password "PAT（粘贴，不回显）")
