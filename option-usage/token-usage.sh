@@ -745,7 +745,7 @@ main() {
     trap "rm -f $tmp" EXIT
 
     local mode="session"
-    [[ "$by_day" == true ]] && mode="by-day"
+    [[ "$by_day" == true || "$stats" == true ]] && mode="by-day"
 
     # 默认截止到昨天（避免当天的进行中 session 数据不稳定）
     # until=today 作为排他上界：day >= today 被跳过，含昨天
@@ -777,43 +777,41 @@ import json, sys
 from collections import defaultdict
 rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
 p = json.loads(sys.argv[2]) if sys.argv[2] else {}
-today = sys.argv[3] if len(sys.argv) > 3 else ""
 if not rows:
     print("无数据"); sys.exit(0)
-total_in = total_out = total_cc = total_cr = total_req = total_turn = 0
-total_mt = total_tt = total_wt = total_cost = 0
-days = set()
-by_model = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"req":0,"sessions":0,"cost":0.0})
+# 每个 row = (day, model) 粒度的 token
+# 字段: day, model, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, totalTokens, sessionId
+by_model = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"count":0,"unique_sessions":set(),"cost":0.0})
+by_day = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"unique_sessions":set(),"cost":0.0})
 for r in rows:
-    total_in += r["inputTokens"]; total_out += r["outputTokens"]
-    total_cc += r["cacheCreationTokens"]; total_cr += r["cacheReadTokens"]
-    total_req += r["requestCount"]; total_turn += r.get("turnCount", 0)
-    total_mt += r.get("modelTimeMs", 0)
-    total_tt += r.get("toolTimeMs", 0)
-    total_wt += r.get("wallMs", 0)
-    if r.get("firstActivity"): days.add(r["firstActivity"][:10])
-    models = r.get("models", {})
-    for m, v in models.items():
-        mi = v.get("input",0); mo = v.get("output",0)
-        mcc = v.get("cache_creation",0); mcr = v.get("cache_read",0)
-        mt = mi+mo+mcc+mcr
-        pm = p.get(m, {})
-        c = ((mi*pm.get("input",0)) + (mo*pm.get("output",0)) + (mcr*pm.get("cache_read",0))) / 1_000_000
-        d = by_model[m]
-        d["in"] += mi; d["cr"] += mcr; d["out"] += mo
-        d["total"] += mt; d["req"] += v.get("count",0); d["cost"] += c
-    # 主模型用于 route 维度
-    if models:
-        mm = max(models.items(), key=lambda x: sum(x[1][k] for k in ("input","output","cache_creation","cache_read")))[0]
-    else:
-        mm = "unknown"
-    by_model[mm]["sessions"] += 1 if mm != "unknown" else 0
-def h(ms):
-    s = ms/1000
-    if s < 60: return f"{s:.0f}s"
-    if s < 3600: return f"{s/60:.1f}m"
-    return f"{s/3600:.2f}h"
+    d = r["day"]
+    m = r["model"]
+    sid = r["sessionId"]
+    mi = r["inputTokens"]
+    mo = r["outputTokens"]
+    mcr = r["cacheReadTokens"]
+    mcc = r["cacheCreationTokens"]
+    mt = r["totalTokens"]
+    pm = p.get(m, {})
+    c = (mi*pm.get("input",0) + mo*pm.get("output",0) + mcr*pm.get("cache_read",0)) / 1_000_000
 
+    bm = by_model[m]
+    bm["in"] += mi; bm["cr"] += mcr; bm["out"] += mo; bm["total"] += mt; bm["count"] += 1; bm["cost"] += c
+    bm["unique_sessions"].add(sid)
+
+    bd = by_day[d]
+    bd["in"] += mi; bd["cr"] += mcr; bd["out"] += mo; bd["total"] += mt; bd["cost"] += c
+    bd["unique_sessions"].add(sid)
+
+# 每个 day 的主模型
+by_day_model = defaultdict(lambda: defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"count":0,"cost":0.0}))
+for r in rows:
+    d = r["day"]; m = r["model"]
+    mi = r["inputTokens"]; mo = r["outputTokens"]; mcr = r["cacheReadTokens"]
+    mcc = r["cacheCreationTokens"]; mt = r["totalTokens"]
+    pm = p.get(m, {}); c = (mi*pm.get("input",0) + mo*pm.get("output",0) + mcr*pm.get("cache_read",0)) / 1_000_000
+    dmb = by_day_model[d][m]
+    dmb["in"] += mi; dmb["cr"] += mcr; dmb["out"] += mo; dmb["total"] += mt; dmb["count"] += 1; dmb["cost"] += c
 def fmt_daily(val, n):
     if n == 0: return "-"
     return f"{val/n:.1f}"
