@@ -12,7 +12,7 @@
 #   bash init-bootstrap.sh --dry-run         # 预览
 #
 # 输出：~/git/ccprivate/ + 符号链接已建立
-# 下一步：bash init-base.sh all
+# 全链：init-bootstrap → init-base.sh all（含init-option）→ maintain.sh（1A 全量检查）
 #
 # 环境变量：
 #   GH_TOKEN                    GitHub PAT（跳过 gh auth 交互）
@@ -704,7 +704,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
     ok "ccprivate 创建完成 🎉"
     echo ""
     echo -e "  ${GREEN}下一步:${NC} bash $CCCONFIG_DIR/init-base.sh all"
-    echo -e "  ${GRAY}（Ubuntu 环境 → LLM 写入 → MCP 同步 → 收尾）${NC}"
+    echo -e "  ${GRAY}（Ubuntu 环境 → LLM 写入 → MCP 同步 → 收尾 → 可选组件 → maintain 检查）${NC}"
     echo ""
 }
 
@@ -743,7 +743,7 @@ do_clone() {
     ok "ccprivate 就绪"
     echo ""
     echo -e "  ${GREEN}下一步:${NC} bash $CCCONFIG_DIR/init-base.sh all"
-    echo -e "  ${GRAY}（Ubuntu 环境 → LLM 写入 → MCP 同步 → 收尾）${NC}"
+    echo -e "  ${GRAY}（Ubuntu 环境 → LLM 写入 → MCP 同步 → 收尾 → 可选组件 → maintain 检查）${NC}"
 }
 
 # ============================================================
@@ -809,7 +809,7 @@ if $DRY_RUN; then
     echo "  5. 推送到 GitHub 私有仓库"
     echo "  6. 建立符号链接（setup.sh）"
     echo ""
-    echo "  下一步: bash init-base.sh all"
+    echo "  下一步: bash init-base.sh all → init-option → maintain.sh（1A 全量检查）"
     echo ""
     echo "  === dry-run: no changes applied ==="
     exit 0
