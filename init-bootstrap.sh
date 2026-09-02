@@ -430,6 +430,8 @@ mkdir -p "$SCRIPT_DIR/skill-local"
 [ -f "$SCRIPT_DIR/skill-local/.gitkeep" ] || touch "$SCRIPT_DIR/skill-local/.gitkeep"
 section "用户级记忆"
 _cconfig_id="$(echo "$HOME/git/ccconfig" | tr '/' '-')"
+mkdir -p "$SCRIPT_DIR/link/memory"
+[ -f "$SCRIPT_DIR/link/memory/.gitkeep" ] || touch "$SCRIPT_DIR/link/memory/.gitkeep"
 setup_link "$CLAUDE_DIR/projects/$_cconfig_id/memory" "$SCRIPT_DIR/link/memory" "memory → ccprivate/link/memory"
 unset _cconfig_id
 section "运行时链接"
@@ -609,6 +611,8 @@ EOF
     mkdir -p "$CCPRIVATE_DIR/agents"
     mkdir -p "$CCPRIVATE_DIR/commands"
     mkdir -p "$CCPRIVATE_DIR/link/projects"
+    mkdir -p "$CCPRIVATE_DIR/link/memory"
+    touch "$CCPRIVATE_DIR/link/memory/.gitkeep"
 
     section "生成配置文件"
     gen_llm_json
