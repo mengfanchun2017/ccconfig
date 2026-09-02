@@ -115,13 +115,15 @@ out=$(printf "2\n" | menu_select "t" "a" "b" 2>/dev/null)
 
 # ── 8. _submenu_usage timer case 回归（数字非字母）──
 echo "=== 8. timer case 回归 ==="
-timer_line=$(grep 'case "\$ts" in' "$CCCONFIG_DIR/maintain.sh")
-if echo "$timer_line" | grep -qE '1\).*install.*2\).*uninstall.*3\).*config'; then
-    pass "timer case 用数字 1/2/3"
+# _submenu_usage 用 menu_select → case "$c" in，install/uninstall/config 是 6/7/8
+timer_block=$(awk '/_submenu_usage\(\)/,/^}/' "$CCCONFIG_DIR/maintain.sh")
+if echo "$timer_block" | grep -qE 'case "\$c" in'; then
+    pass "timer case 用 \$c（menu_select 返回序号）"
 else
-    fail "timer case 仍用字母" "$timer_line"
+    fail "timer case 变量异常" "$timer_block"
 fi
-echo "$timer_line" | grep -qE 'i\)|u\)|c\)' && fail "timer case 残留字母 i/u/c" || pass "无字母 i/u/c"
+echo "$timer_block" | grep -qE '6\).*install' && echo "$timer_block" | grep -qE '7\).*uninstall' && echo "$timer_block" | grep -qE '8\).*config' && pass "timer: 6=install 7=uninstall 8=config" || fail "timer case install/uninstall/config 映射异常"
+echo "$timer_block" | grep -qE 'i\)|u\)|c\)' && fail "timer case 残留字母 i/u/c" || pass "无字母 i/u/c"
 
 # ── 9. feishu 顶层 case 无 local ──
 echo "=== 9. feishu case 无顶层 local ==="

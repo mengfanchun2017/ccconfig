@@ -22,16 +22,20 @@ bash init-base.sh new
 #    全自动非交互: bash init-base.sh new --yes
 #    补装单个可选组件: bash init-option.sh
 
-# 或分步（gh auth + ccprivate 先，全量后，再检查）
-# bash init-bootstrap.sh && bash init-base.sh all && bash maintain.sh
+# 或分步（gh auth + ccprivate 先，基础初始化，可选组件，再检查）
+# bash init-bootstrap.sh && bash init-base.sh all && bash init-option.sh && bash maintain.sh
 ```
 
 > **init-base.sh new 自动做**：
 > 1. GitHub 认证（装 gh + gh auth + 配 git 身份）
 > 2. ccprivate 配置仓库（建仓/克隆 + LLM key 收集 + 符号链接）
-> 3. 全量初始化（Ubuntu 环境 + LLM 写入 + 链接修复 + 可选组件）
+> 3. 基础初始化（Ubuntu 环境 + LLM 写入 + 链接修复/服务，3 步）
 >
-> 全部完成后运行 `bash maintain.sh`（菜单选 1A 完整状态检查），确认一切就绪。
+> 基础初始化不再内联可选组件。完成后按需跑：
+> ```bash
+> bash init-option.sh          # 可选，装附加组件（MCP/Skills/CLI）
+> bash maintain.sh             # 全量检查（菜单选 1A），开工前推荐跑
+> ```
 >
 > 遇到某步失败修好之后重跑 bash init-base.sh new 即可（幂等）。
 >
@@ -534,18 +538,18 @@ cd ~/git/ccconfig
 bash init-base.sh all
 ```
 
-**这一步会自动做**（按顺序）：
+**这一步会自动做**（按顺序，3 步）：
 
 | 步骤 | 脚本 | 做了什么 |
 |------|------|----------|
-| 1/4 | `lib/init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
-| 2/4 | `lib/init-llm.sh` | 从 conf/llm.json 读取当前 LLM，写入 API key 到 settings.json |
-| 3/4 | `lib/init-mcp.sh` | 装并同步 MCP 服务器 |
-| 4/4 | `maintain.sh finalize` | 修复符号链接 + 启动 auto-sync + 状态验证
+| 1/3 | `lib/init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
+| 2/3 | `lib/init-llm.sh` | 从 conf/llm.json 读取当前 LLM，写入 API key 到 settings.json |
+| 3/3 | `maintain.sh setup` | 修复符号链接 + 启动 auto-sync + 状态验证 |
 
+> 可选组件（MCP/Skills/CLI）不再内联进 init-base，用 `bash init-option.sh` 单独装。
 > **symlink 已全量建立**（用户级 + rules/agents/commands → ccprivate），无需手动跑 `ccprivate/setup.sh`。
 
-**全程无输入**：gh 已登录，LLM 默认值在阶段 4c（init-ccprivate-repo.sh）已写入 conf/llm.json，MCP 自动注册。Skills 可选：`bash option-skill/init.sh --install`。
+**全程无输入**：gh 已登录，LLM 默认值在阶段 4c（init-bootstrap.sh）已写入 conf/llm.json。MCP/Skills 走 init-option：`bash init-option.sh`。
 
 **会触发 sudo**（安装系统包时），提前准备好 sudo 密码。
 

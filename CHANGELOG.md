@@ -4,8 +4,19 @@ All notable changes to ccconfig will be documented in this file.
 
 ## [Unreleased]
 
-### Added
-- **根脚本链式串联** — `init-base.sh all` 现串联四步：Ubuntu → LLM → `maintain.sh setup`（建 symlink）→ `init-option.sh all`（可选组件）。不再需要单独跑 `init-option.sh`。`all --yes` 全非交互（auth 类组件自动跳过）
+### Changed
+- **bootstrap 流程解耦** — `init-base.sh all` 从 4 步缩回 3 步（Ubuntu → LLM → 收尾链接/服务），不再内联 `init-option.sh`。可选组件（MCP/Skills/CLI）恢复为独立可选步：`init-bootstrap → init-base.sh all → init-option.sh（可选）→ maintain.sh（1A 全量检查）`。各脚本尾部引导链对齐此顺序
+- **`bootstrap-gh-auth.sh` 重写为一行式入口** — 原 243 行 gh-auth 脚本（与 init-bootstrap.sh 重复）重写为自包含的 curl|bash 入口：装 git + clone ccconfig + 提示 `init-bootstrap.sh`。不再 source lib/（curl|bash 场景 ccconfig 还没 clone，source 不到），gh auth 交由 init-bootstrap.sh 接管。CLAUDE.md/README 一行命令描述现与实现一致
+- **`bin/test-bootstrap.sh` CI 路径更新** — 从旧 `bootstrap-gh-auth.sh + init-ccprivate-repo.sh` 改为 `init-bootstrap.sh --non-interactive`，init-option 独立成第 3 步
+
+### Removed
+- **`.bootstrap-commit.sh`** — 一次性提交脚本误入 git track，已 `git rm` 并加进 `.gitignore`
+
+### Fixed
+- **`tests/test-bootstrap.sh`** — 重写对齐新 bootstrap-gh-auth.sh（自包含 + 装 git + clone + 全流程链路断言），删旧 5-step gh-auth 断言
+- **`tests/test-maintain.sh`** — 修 stale `_submenu_usage` timer case 断言（旧查 `case "$ts" in`+1/2/3，实际是 `case "$c" in`+6/7/8）
+- **`tests/test-token-usage.sh`** — 修 stale `--stats` 表格格式断言 + CSV 扩展头字段（session_name/turn_count/各 time 列）
+- **`option-remote/README.md`** — Tailscale 示例 IP `100.118.224.45`（疑似真实）换占位 `100.101.102.103`
 - **`lib/interact.sh` NONINTERACTIVE 旁路** — `confirm/menu_select/prompt/prompt_password` 检测 `NONINTERACTIVE=true` 时返回默认值，防 CI/脚本化环境 `read` 挂起
 - **`init-option.sh --yes` 全局标志** — 剥离 `--yes/--batch`（不再透传给 option `init.sh` 的未知参数），按 option 派发非交互子命令（skill/cloudflare/officecli→`--install`、remote→`--run`、larkcli/getnote→跳过+提示）；修复原 `install_all` 传 `--batch` 给 init.sh 的 bug
 
