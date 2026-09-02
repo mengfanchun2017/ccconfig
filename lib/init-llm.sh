@@ -182,12 +182,12 @@ verify_endpoint() {
     [[ "$probe_path" == *"/v1/messages" ]] && headers+=(-H "anthropic-version: 2023-06-01")
 
     local status
-    status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 35 -X POST "$probe_path" "${headers[@]}" -d "$body" 2>/dev/null) || status="000"
+    status=$(curl -s -o /dev/null -w "%{http_code}" --noproxy '*' --max-time 35 -X POST "$probe_path" "${headers[@]}" -d "$body" 2>/dev/null) || status="000"
     [[ -z "$status" || "$status" =~ ^0+$ ]] && status="000"
 
     case "$status" in
         200) info "  ✓ endpoint 探测成功 ($name)"; return 0 ;;
-        000) error "  ✗ endpoint 不可达 (连接超时/拒绝) — VPN/防火墙可能拦了 $base_url"; return 1 ;;
+        000) error "  ✗ endpoint 不可达 (连接超时/拒绝) — $base_url（探测已强制直连，检查 DNS/网络出口）"; return 1 ;;
         401|403) info "  ⚠ HTTP $status — 链路通但鉴权错"; return 0 ;;
         400) warn "  ⚠ HTTP 400 — endpoint 路径/参数可能不对 $base_url"; return 0 ;;
         *) info "  ⚠ HTTP $status"; return 0 ;;
