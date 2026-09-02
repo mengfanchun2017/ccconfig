@@ -8,8 +8,8 @@
 #   bash init-base.sh new --yes        # 全自动非交互
 #   bash init-base.sh --dry-run        # 预览将要执行的操作（不实际执行）
 #
-# 全链：init-base.sh all → init-option（可选组件）→ maintain.sh（1A 全量检查）
-# 新机器：init-bootstrap.sh → init-base.sh all → maintain.sh（1A 全量检查）
+# 全链：init-base.sh all → init-option（可选）→ maintain.sh（1A 全量检查）
+# 新机器：init-bootstrap.sh → init-base.sh all → init-option（可选）→ maintain.sh（1A 全量检查）
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -38,13 +38,13 @@ check_prereqs() {
     echo -e "${YELLOW}━━━ 首次初始化引导 ━━━${NC}"
     echo ""
     echo -e "  ${RED}❌${NC} ccprivate 未找到 — 私有配置（API Key、CLAUDE.md、settings.json）"
-    echo -e "     ${CYAN}→${NC} bash ccconfig/init-ccprivate-repo.sh"
+    echo -e "     ${CYAN}→${NC} bash ccconfig/init-bootstrap.sh"
     echo ""
-    echo -e "  ${GRAY}（完整流程：clone → bootstrap-gh-auth.sh → init-ccprivate-repo.sh → init-base.sh all [即可选组件] → maintain.sh status）${NC}"
+    echo -e "  ${GRAY}（完整流程：clone → init-bootstrap.sh → init-base.sh all → init-option（可选）→ maintain.sh status）${NC}"
     echo ""
 
     if confirm "现在创建 ccprivate？" y; then
-        echo -e "  ${GRAY}请执行: bash ccconfig/init-ccprivate-repo.sh${NC}"
+        echo -e "  ${GRAY}请执行: bash ccconfig/init-bootstrap.sh${NC}"
         echo -e "  ${YELLOW}创建完成后重新运行 bash init-base.sh${NC}"
         exit 0
     fi
@@ -60,7 +60,7 @@ init_all_steps() {
     # 预检：确保 ccprivate 配置已就绪
     local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
     if [[ ! -d "$ccpriv" ]]; then
-        err "ccprivate 未找到，请先: bash init-ccprivate-repo.sh"
+        err "ccprivate 未找到，请先: bash init-bootstrap.sh"
         exit 1
     fi
 
@@ -102,49 +102,29 @@ init_all_steps() {
     current_llm=$(python3 -c "import json; print(json.load(open('$llm_json')).get('current',''))" 2>/dev/null || echo "")
     export INIT_LLM_NAME="$current_llm"
 
-    run_step "1/4 Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true \
+    run_step "1/3 Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true \
         "装 Node / Claude Code / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
         "Claude Code 需要 Node 运行时；auto-sync 让配置变更自动 push" \
         "3 min（含 apt 下载）"
 
-    run_step "2/4 LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true \
+    run_step "2/3 LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true \
         "把当前 LLM 的 API key 写入 ~/.claude/settings.json" \
         "Claude Code 通过 ANTHROPIC_AUTH_TOKEN 调用 LLM；没配就跑不了" \
         "10 s"
 
-    # 步骤 3/4: 收尾 — 链接 + auto-sync 服务（必需：setup-links.sh 建 symlink）
+    # 步骤 3/3: 收尾 — 链接 + auto-sync 服务（必需：setup-links.sh 建 symlink）
     echo ""
-    echo -e "${CYAN}━━━ 3/4 收尾（链接 + 服务）━━━${NC}"
+    echo -e "${CYAN}━━━ 3/3 收尾（链接 + 服务）━━━${NC}"
     echo -e "  ${GRAY}setup-links.sh 建符号链接 + auto-sync 服务 + 状态验证${NC}"
     echo -e "  ${GRAY}symlink 是 ccprivate 穿透访问的基石，缺则 Claude Code 读不到配置${NC}"
     echo ""
     if bash "$SCRIPT_DIR/maintain.sh" setup; then
-        echo -e "  ${GREEN}✅ 3/4 收尾完成${NC}"
+        echo -e "  ${GREEN}✅ 3/3 收尾完成${NC}"
     else
-        echo -e "  ${RED}❌ 3/4 收尾失败（继续）${NC}"
+        echo -e "  ${RED}❌ 3/3 收尾失败（继续）${NC}"
     fi
 
-    # 步骤 4/4: 可选组件 — 链式安装（不再需要单独跑 init-option.sh）
-    echo ""
-    echo -e "${CYAN}━━━ 4/4 可选组件 ━━━${NC}"
-    echo -e "  ${GRAY}MCP / Skills / lark-cli / officecli / remote 等按需安装${NC}"
-    echo ""
-    local opt_flag=""
-    if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
-        opt_flag="--yes"
-        echo -e "  ${GRAY}非交互模式：自动装非 auth 组件，larkcli/getnote 跳过${NC}"
-    fi
-    if [[ -n "$opt_flag" ]] || confirm "现在安装可选组件？" y; then
-        if bash "$SCRIPT_DIR/init-option.sh" all $opt_flag; then
-            echo -e "  ${GREEN}✅ 4/4 可选组件完成${NC}"
-        else
-            echo -e "  ${YELLOW}⚠ 4/4 部分组件未完成（稍后 bash init-option.sh 手动补装）${NC}"
-        fi
-    else
-        echo -e "  ${GRAY}跳过可选组件（稍后 bash init-option.sh 手动安装）${NC}"
-    fi
-
-    echo -e "${GREEN}🎉 全部初始化完成${NC}"
+    echo -e "${GREEN}🎉 基础初始化完成${NC}"
     echo ""
 
     export PATH="$HOME/.local/bin:$PATH"
@@ -158,9 +138,10 @@ init_all_steps() {
     echo ""
 
     echo -e "${BOLD}下一步:${NC}"
-    echo -e "  ${GREEN}bash maintain.sh${NC}     # 全量检查（菜单选 1A 完整状态）"
+    echo -e "  ${CYAN}bash init-option.sh${NC}  # （可选）装附加组件：MCP / Skills / CLI"
+    echo -e "  ${GREEN}bash maintain.sh${NC}     # 全量检查（菜单选 1A 完整状态，开工前推荐跑）"
     echo ""
-    echo -e "  ${GRAY}确认一切就绪后即可开始使用 Claude Code。${NC}"
+    echo -e "  ${GRAY}确认 1A 全绿后即可开始使用 Claude Code。${NC}"
     echo ""
     echo -e "${BOLD}日常使用:${NC}"
     echo "  切换 LLM:          bash $SCRIPT_DIR/lib/init-llm.sh"
@@ -284,12 +265,12 @@ case "${1:-menu}" in
         echo -e "${CYAN}━━━ 预览：将要执行的操作 ━━━${NC}"
         echo "  1) init-ubuntu.sh    → 系统包 + node/gh/claude + symlink"
         echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
-        echo "  3) maintain.sh setup → 链接修复 + 状态 + 服务"
-        echo "  4) init-option.sh all → 可选组件（MCP/Skills/CLI）"
+        echo "  3) maintain.sh setup → 链接修复 + auto-sync + 状态"
         echo ""
-        echo "  运行 'bash init-base.sh all' 执行以上所有步骤"
+        echo "  运行 'bash init-base.sh all' 执行以上 3 步"
         echo "  运行 'bash init-base.sh all --yes' 全自动（非交互）"
-        echo "  完成后: bash maintain.sh（菜单选 1A 完整状态检查）"
+        echo "  完成后: bash init-option.sh（可选，装附加组件）"
+        echo "  最后:   bash maintain.sh（菜单选 1A 完整状态检查）"
         echo "  运行 'bash init-base.sh' 进入交互式菜单"
         ;;
     menu|"")

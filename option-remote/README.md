@@ -90,7 +90,7 @@ powershell -ExecutionPolicy Bypass -File "C:\git\winremote\ts-setup.ps1"
 
 ```powershell
 tailscale ip -4
-# 例如: 100.118.224.45
+# 例如: 100.101.102.103（Tailscale CGNAT 段，实际值各机不同）
 ```
 
 记住这个 IP，客户端连接时需要。
