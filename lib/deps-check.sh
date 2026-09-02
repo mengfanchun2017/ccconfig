@@ -145,7 +145,7 @@ check_dep() {
     if $JSON_OUT; then
         echo "{\"name\":\"$label\",\"bin\":\"$bin\",\"status\":\"$status\",\"version\":\"$version\",\"desc\":\"$desc\"},"
     else
-        printf "  %b %-18s %-16s %s%b\n" "$symbol" "$label" "$version" "$SEP" "$desc" "$NC"
+        printf "  %b %-18s %-16s %b%s%b\n" "$symbol" "$label" "$version" "$SEP" "$desc" "$NC"
     fi
 }
 
@@ -168,7 +168,7 @@ check_python_pkg() {
     if $JSON_OUT; then
         echo "{\"name\":\"$pkg_label\",\"type\":\"python\",\"status\":\"$status\",\"version\":\"$version\",\"desc\":\"$desc\"},"
     else
-        printf "  %b %-18s %-16s %s%b\n" "$symbol" "$pkg_label" "$version" "$SEP" "$desc" "$NC"
+        printf "  %b %-18s %-16s %b%s%b\n" "$symbol" "$pkg_label" "$version" "$SEP" "$desc" "$NC"
     fi
 }
 
@@ -179,14 +179,14 @@ check_network() {
         if $JSON_OUT; then
             echo "{\"name\":\"$label\",\"status\":\"OK\"},"
         else
-            printf "  %b %-18s %s%b\n" "$OK_SYM" "$label" "$SEP" "可达" "$NC"
+            printf "  %b %-18s %b%s%b\n" "$OK_SYM" "$label" "$SEP" "可达" "$NC"
         fi
     else
         MISSING=$((MISSING + 1))
         if $JSON_OUT; then
             echo "{\"name\":\"$label\",\"status\":\"不可达\"},"
         else
-            printf "  %b %-18s %s%b\n" "$NG_SYM" "$label" "$SEP" "不可达" "$NC"
+            printf "  %b %-18s %b%s%b\n" "$NG_SYM" "$label" "$SEP" "不可达" "$NC"
         fi
     fi
 }
@@ -225,9 +225,9 @@ elif python3 -m pip --version &>/dev/null 2>&1; then
     pip_ok=true
 fi
 if $pip_ok; then
-    printf "  %b %-18s %-16s %s%b\n" "$OK_SYM" "pip" "$pip_ver" "$SEP" "Python 包管理" "$NC"
+    printf "  %b %-18s %-16s %b%s%b\n" "$OK_SYM" "pip" "$pip_ver" "$SEP" "Python 包管理" "$NC"
 else
-    printf "  %b %-18s %-16s %s%b\n" "$NG_SYM" "pip" "-" "$SEP" "Python 包管理" "$NC"
+    printf "  %b %-18s %-16s %b%s%b\n" "$NG_SYM" "pip" "-" "$SEP" "Python 包管理" "$NC"
     MISSING=$((MISSING + 1))
 fi
 
