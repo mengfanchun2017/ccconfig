@@ -694,7 +694,7 @@ check_example_sync() {
     [ -z "$out" ] && out="${GREEN}✅ 同步${NC}"
     echo -e "  agents: $out"
 
-    local needs_action=$((rules_outdated + rules_new + agents_outdated + agents_new))
+    local needs_action=$((agents_outdated + agents_new))
     if [ $needs_action -gt 0 ]; then
         echo ""
         echo -e "  ${GRAY}运行: bash maintain.sh example promote${NC}"
