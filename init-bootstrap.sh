@@ -58,28 +58,10 @@ install_gh() {
         return 0
     fi
 
-    warn "gh 命令未找到，需要先安装 GitHub CLI"
+    warn "gh 命令未找到，binary 安装到 ~/.local/bin/gh"
 
-    if $NONINTERACTIVE || [[ "${BOOTSTRAP_NOSUDO:-}" == "1" ]]; then
-        info "非交互模式：binary 装到 ~/.local/bin/gh"
-        local choice=2
-    else
-        local choice
-        choice=$(menu_select "安装 gh" "apt 装" "binary 装" "跳过")
-    fi
-
-    case "${choice:-2}" in
-        1)
-            if command -v apt-get &>/dev/null; then
-                sudo apt-get update -qq && sudo apt-get install -y gh
-            else
-                err "系统没有 apt-get，请用 binary 或手动安装"
-                return 1
-            fi
-            ;;
-        2)
-            local gh_ver
-            gh_ver=$(CCCONFIG_DIR="$CCCONFIG_DIR" python3 -c '
+    local gh_ver
+    gh_ver=$(CCCONFIG_DIR="$CCCONFIG_DIR" python3 -c '
 import json, os
 try:
     p = os.path.join(os.environ["CCCONFIG_DIR"], "conf", "versions.json")
@@ -87,21 +69,15 @@ try:
 except Exception:
     print("2.97.0")
 ' 2>/dev/null || echo "2.97.0")
-            mkdir -p "$LOCAL_BIN"
-            local tmp="/tmp/gh-install-$$"
-            mkdir -p "$tmp"
-            curl -fsSL "https://github.com/cli/cli/releases/download/v${gh_ver}/gh_${gh_ver}_linux_amd64.tar.gz" \
-                -o "$tmp/gh.tar.gz" || { err "下载失败"; rm -rf "$tmp"; return 1; }
-            tar -xzf "$tmp/gh.tar.gz" -C "$tmp"
-            mv "$tmp/gh_${gh_ver}_linux_amd64/bin/gh" "$LOCAL_BIN/gh"
-            chmod +x "$LOCAL_BIN/gh"
-            rm -rf "$tmp"
-            ;;
-        0|3)
-            warn "跳过 gh 安装，请手动装后重跑"
-            return 1
-            ;;
-    esac
+    mkdir -p "$LOCAL_BIN"
+    local tmp="/tmp/gh-install-$$"
+    mkdir -p "$tmp"
+    curl -fsSL "https://github.com/cli/cli/releases/download/v${gh_ver}/gh_${gh_ver}_linux_amd64.tar.gz" \
+        -o "$tmp/gh.tar.gz" || { err "下载失败（GitHub 可能被墙，设 http_proxy 重试）"; rm -rf "$tmp"; return 1; }
+    tar -xzf "$tmp/gh.tar.gz" -C "$tmp"
+    mv "$tmp/gh_${gh_ver}_linux_amd64/bin/gh" "$LOCAL_BIN/gh"
+    chmod +x "$LOCAL_BIN/gh"
+    rm -rf "$tmp"
 
     if command -v gh &>/dev/null; then
         ok "gh 已装: $(gh --version | head -1)"
