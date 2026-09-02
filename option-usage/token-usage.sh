@@ -790,7 +790,6 @@ for r in rows:
     mi = r["inputTokens"]
     mo = r["outputTokens"]
     mcr = r["cacheReadTokens"]
-    mcc = r["cacheCreationTokens"]
     mt = r["totalTokens"]
     pm = p.get(m, {})
     c = (mi*pm.get("input",0) + mo*pm.get("output",0) + mcr*pm.get("cache_read",0)) / 1_000_000
@@ -803,15 +802,6 @@ for r in rows:
     bd["in"] += mi; bd["cr"] += mcr; bd["out"] += mo; bd["total"] += mt; bd["cost"] += c
     bd["unique_sessions"].add(sid)
 
-# 每个 day 的主模型
-by_day_model = defaultdict(lambda: defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"count":0,"cost":0.0}))
-for r in rows:
-    d = r["day"]; m = r["model"]
-    mi = r["inputTokens"]; mo = r["outputTokens"]; mcr = r["cacheReadTokens"]
-    mcc = r["cacheCreationTokens"]; mt = r["totalTokens"]
-    pm = p.get(m, {}); c = (mi*pm.get("input",0) + mo*pm.get("output",0) + mcr*pm.get("cache_read",0)) / 1_000_000
-    dmb = by_day_model[d][m]
-    dmb["in"] += mi; dmb["cr"] += mcr; dmb["out"] += mo; dmb["total"] += mt; dmb["count"] += 1; dmb["cost"] += c
 # 按日期间隔统计
 from datetime import datetime, timedelta
 now = datetime.now()
@@ -832,20 +822,17 @@ def agg_days(cond):
         all_sids |= by_day[d]["unique_sessions"]
     return len(all_sids), si, so, scr, stot, cost
 
-def print_period(name, n, si, so, scr, stot, cost):
-    if n == 0:
-        print(f"  {name:<12} 无数据")
-        return
-    print(f"  {name:<12} {n:>4}sessions  Input:{si:>13,}  Output:{so:>10,}  CacheRead:{scr:>12,}  Total:{stot:>14,}  Cost:{cost:>9.2f}")
-
 print(f"\n\033[32m=== 按模型 ===\033[0m")
 print(f"{'Model':<24} {'Sessions':>8} {'Input':>12} {'CacheRead':>12} {'Output':>10} {'Total':>14} {'Cost':>9}")
 for m in sorted(by_model, key=lambda x: -by_model[x]["total"]):
     d = by_model[m]
     if d["total"] == 0: continue
-    print(f"{m[:24]:<24} {d['sessions']:>8} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>9.2f}")
+    print(f"{m[:24]:<24} {len(d['unique_sessions']):>8} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>9.2f}")
 # total 汇总行
-t_sessions = sum(by_model[m]["sessions"] for m in by_model)
+all_sids = set()
+for m in by_model:
+    all_sids |= by_model[m]["unique_sessions"]
+t_sessions = len(all_sids)
 t_in = sum(by_model[m]["in"] for m in by_model)
 t_cr = sum(by_model[m]["cr"] for m in by_model)
 t_out = sum(by_model[m]["out"] for m in by_model)
@@ -856,17 +843,17 @@ print()
 print(f"\033[32m=== 按时间段 ===\033[0m")
 print(f"{'区间':<16} {'Sessions':>9} {'Input':>12} {'Output':>10} {'CacheRead':>12} {'Total':>14} {'Cost':>10}")
 # 单日 = 昨天（latest full day）
-ns, si, so, scr, stot, cost = agg(lambda d: d == yesterday_str, yesterday_str)
+ns, si, so, scr, stot, cost = agg_days(lambda d: d == yesterday_str)
 if ns > 0:
     print(f"{yesterday_str:<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
 else:
     print(f"{yesterday_str:<16} 无数据")
-ns, si, so, scr, stot, cost = agg(lambda d: d >= day7_str, "近7天")
+ns, si, so, scr, stot, cost = agg_days(lambda d: d >= day7_str)
 if ns > 0:
     print(f"{"近7天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
 else:
     print(f"{"近7天":<16} 无数据")
-ns, si, so, scr, stot, cost = agg(lambda d: d >= day30_str, "近30天")
+ns, si, so, scr, stot, cost = agg_days(lambda d: d >= day30_str)
 if ns > 0:
     print(f"{"近30天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
 else:
@@ -874,23 +861,17 @@ else:
 print()
 print(f"\033[32m=== 按月 ===\033[0m")
 # 按月统计（descending，首行 = 全量总计）
-by_month = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"sessions":0,"cost":0.0})
-for r in rows:
-    fa = r.get("firstActivity", "") or ""
-    month = fa[:7] if len(fa) >= 7 else ""
-    if not month: continue
+by_month = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"sessions":set(),"cost":0.0})
+for d, bd in by_day.items():
+    month = d[:7]
     bm = by_month[month]
-    bm["sessions"] += 1
-    for mn, v in r.get("models", {}).items():
-        mi = v.get("input",0); mo = v.get("output",0); mcr = v.get("cache_read",0)
-        bm["in"] += mi; bm["out"] += mo; bm["cr"] += mcr
-        bm["total"] += mi + mo + v.get("cache_creation",0) + mcr
-        pm = p.get(mn, {})
-        bm["cost"] += (mi*pm.get("input",0) + mo*pm.get("output",0) + mcr*pm.get("cache_read",0)) / 1_000_000
+    bm["in"] += bd["in"]; bm["cr"] += bd["cr"]; bm["out"] += bd["out"]
+    bm["total"] += bd["total"]; bm["cost"] += bd["cost"]
+    bm["sessions"] |= bd["unique_sessions"]
 months = sorted(by_month.keys(), reverse=True)
 print(f"{'Month':<14} {'Sessions':>9} {'Input':>12} {'CacheRead':>12} {'Output':>10} {'Total':>14} {'Cost':>10}")
 # 首行 = 全量总计
-all_sessions = sum(by_month[m]["sessions"] for m in months)
+all_sessions = len(set().union(*[by_month[m]["sessions"] for m in months]))
 all_in = sum(by_month[m]["in"] for m in months)
 all_cr = sum(by_month[m]["cr"] for m in months)
 all_out = sum(by_month[m]["out"] for m in months)
@@ -900,7 +881,7 @@ print(f"{'total':<14} {all_sessions:>9} {all_in:>12,} {all_cr:>12,} {all_out:>10
 for m in months:
     d = by_month[m]
     if d["total"] == 0: continue
-    print(f"{m:<14} {d['sessions']:>9} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>10.2f}")
+    print(f"{m:<14} {len(d['sessions']):>9} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>10.2f}")
 PYEOF
         exit 0
     fi
