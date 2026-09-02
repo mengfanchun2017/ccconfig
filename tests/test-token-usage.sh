@@ -183,9 +183,10 @@ test_stats() {
     make_jsonl "$CLAUDE_PROJECTS_DIR/-x/s.jsonl" "s1" "2026-07-30T01:00:00Z" "m" 100 10 0 0
     make_jsonl "$CLAUDE_PROJECTS_DIR/-x/s.jsonl" "s1" "2026-07-30T02:00:00Z" "m" 200 20 0 0
     out=$(bash "$TOKEN" --stats 2>/dev/null)
-    echo "$out" | grep -q "Input tokens:.*300" || { _log "input: $out"; return 1; }
-    echo "$out" | grep -q "Output tokens:.*30" || { _log "output: $out"; return 1; }
-    echo "$out" | grep -q "Request count:.*2"
+    # 新格式：表格（=== 按模型 ===），total 行汇总 Input=300 Output=30
+    echo "$out" | grep -q "按模型" || { _log "no 按模型 section: $out"; return 1; }
+    echo "$out" | grep -qE 'total.*300' || { _log "input total 300 missing: $out"; return 1; }
+    echo "$out" | grep -qE 'total.*30' || { _log "output total 30 missing: $out"; return 1; }
     return 0
 }
 
@@ -194,9 +195,9 @@ test_csv_header() {
     setup_test_env
     make_jsonl "$CLAUDE_PROJECTS_DIR/-x/s.jsonl" "ss-1" "2026-07-30T01:00:00Z" "m" 100 10 0 0
     bash "$TOKEN" 2>/dev/null >/dev/null
-    csv="$TOKEN_USAGE_OUTPUT/$(date +%Y-%m-%d).csv"
+    csv="$TOKEN_USAGE_OUTPUT/sessions-$(date +%Y-%m-%d).csv"
     [[ -f "$csv" ]] || { _log "csv not created"; return 1; }
-    head -1 "$csv" | grep -q "session_id,project_path,model,input_tokens,input_cache,output_tokens,total_tokens,request_count,first_activity,last_activity,cost_cny"
+    head -1 "$csv" | grep -q "session_id,project_path,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,first_activity,last_activity,cost_cny"
     return 0
 }
 

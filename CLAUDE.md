@@ -27,8 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 `bootstrap-gh-auth.sh` 自动装 git → clone ccconfig → 输出下一步命令。完整流程看 `BOOTSTRAP.md`。
 
 支持环境变量：
-- `CCCONFIG_REPO=myuser/ccconfig` — fork 用
-- `BOOTSTRAP_NOSUDO=1` — 跳过 sudo（git 必须已装）
+- `CCCONFIG_REPO=myuser/ccconfig` — fork 用（默认 mengfanchun2017/ccconfig）
 
 ## 版本管理
 - `conf/versions.json` 版本单一真相源
