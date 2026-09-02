@@ -812,40 +812,25 @@ for r in rows:
     pm = p.get(m, {}); c = (mi*pm.get("input",0) + mo*pm.get("output",0) + mcr*pm.get("cache_read",0)) / 1_000_000
     dmb = by_day_model[d][m]
     dmb["in"] += mi; dmb["cr"] += mcr; dmb["out"] += mo; dmb["total"] += mt; dmb["count"] += 1; dmb["cost"] += c
-def fmt_daily(val, n):
-    if n == 0: return "-"
-    return f"{val/n:.1f}"
-
 # 按日期间隔统计
 from datetime import datetime, timedelta
 now = datetime.now()
-# 昨天
 yesterday_str = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-# 7 天前
 day7_str = (now - timedelta(days=7)).strftime("%Y-%m-%d")
-# 30 天前
 day30_str = (now - timedelta(days=30)).strftime("%Y-%m-%d")
 
-# 为每行标注 first_day
-for r in rows:
-    fa = r.get("firstActivity", "") or ""
-    r["_day"] = fa[:10] if fa else ""
-
-# 各时间段聚合
-def agg(cond, label):
-    sel = [r for r in rows if cond(r["_day"])]
-    n = len(sel)
-    si = sum(r["inputTokens"] for r in sel)
-    so = sum(r["outputTokens"] for r in sel)
-    scr = sum(r["cacheReadTokens"] for r in sel)
-    stot = sum(r["totalTokens"] for r in sel)
-    cost = 0.0
-    for r in sel:
-        for m, v in r.get("models", {}).items():
-            mi = v.get("input",0); mo = v.get("output",0); mcr = v.get("cache_read",0)
-            pm = p.get(m, {})
-            cost += (mi*pm.get("input",0) + mo*pm.get("output",0) + mcr*pm.get("cache_read",0)) / 1_000_000
-    return n, si, so, scr, stot, cost
+def agg_days(cond):
+    """按 day 聚合，返回 (session_count, input, output, cache_read, total, cost)"""
+    sel_days = [d for d in by_day if cond(d)]
+    si = sum(by_day[d]["in"] for d in sel_days)
+    so = sum(by_day[d]["out"] for d in sel_days)
+    scr = sum(by_day[d]["cr"] for d in sel_days)
+    stot = sum(by_day[d]["total"] for d in sel_days)
+    cost = sum(by_day[d]["cost"] for d in sel_days)
+    all_sids = set()
+    for d in sel_days:
+        all_sids |= by_day[d]["unique_sessions"]
+    return len(all_sids), si, so, scr, stot, cost
 
 def print_period(name, n, si, so, scr, stot, cost):
     if n == 0:
