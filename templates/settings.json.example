@@ -5,21 +5,19 @@
         "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
         "ENABLE_PROMPT_CACHING_1H": "1",
         "ANTHROPIC_AUTH_TOKEN": "<your-api-key>",
-        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "<your-small-model>"
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "<your-small-model>",
+        "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT": "1"
     },
     "permissions": {
+        "_comment": "Edit(**/*) 覆盖 Edit/Write/NotebookEdit 所有编辑工具; Read(**/*) 覆盖 Read/Glob/Grep 所有读工具。defaultMode 用 auto (ADR 0018), bypassPermissions 无法持久化只能 flag。",
         "allow": [
             "Bash(*)",
-            "Edit(**/*.md)",
-            "Edit(**/*.json)",
-            "Edit(**/*.sh)",
-            "Edit(**/*.py)",
-            "Edit(**/*.ts)",
-            "Edit(**/*.js)",
-            "Write(**/*)",
+            "Edit(**/*)",
             "Read(**/*)",
-            "Glob(**/*)",
-            "Grep(**/*)"
+            "WebSearch",
+            "WebFetch",
+            "Skill(*)",
+            "Agent"
         ],
         "defaultMode": "auto"
     },

@@ -406,15 +406,14 @@ gen_settings_json() {
   "permissions": {
     "allow": [
       "Bash(*)",
-      "Read(*)",
-      "Write(*)",
-      "Edit(*)",
-      "Glob(*)",
-      "Grep(*)",
+      "Edit(**/*)",
+      "Read(**/*)",
       "WebSearch",
       "WebFetch",
-      "Skill(*)"
-    ]
+      "Skill(*)",
+      "Agent"
+    ],
+    "defaultMode": "auto"
   }
 }
 EOF
