@@ -291,8 +291,8 @@ larkkey_wizard() {
         local marker="$HOME/.lark-cli-account"
         [ -f "$marker" ] && current_name=$(grep '^name=' "$marker" | cut -d'=' -f2)
 
-        # 列出所有 apps
-        local -a apps_json names
+        # 列出所有 apps（=() 每轮重置，避免菜单回环后 apps 翻倍）
+        local -a apps_json=() names=()
         while IFS= read -r line; do
             [ -n "$line" ] && apps_json+=("$line")
         done < <(python3 - "$conf" << 'PYEOF' 2>/dev/null
