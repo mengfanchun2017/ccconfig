@@ -231,7 +231,7 @@ main_menu() {
         choice=$(menu_select "ccconfig 初始化" \
             "Ubuntu 环境/LLM/自启动" \
             "远程连接/SSH/tmux" \
-            "★ 一键新机（gh auth + ccprivate + 全量）" \
+            "★ 一键新机（init-bootstrap.sh）" \
             "★ 一键全部（跳过认证，已有 ccprivate）" \
             "可选组件(MCP/Skills/CLI)" \
             "退出")
@@ -259,38 +259,7 @@ case "${1:-menu}" in
         exit 0
         ;;
     new|bootstrap)
-        # 整合：gh auth + ccprivate + 全量初始化三步合一
-        show_banner
-        echo ""
-        section "新机器初始化（三步合一）"
-        echo -e "  ${GRAY}Step 1/3: 装 gh + GitHub 认证 + git 身份配置${NC}"
-        echo -e "  ${GRAY}Step 2/3: 创建/克隆 ccprivate 私有配置仓库${NC}"
-        echo -e "  ${GRAY}Step 3/3: 全量初始化（Ubuntu → LLM → 链接 → 可选组件）${NC}"
-        echo ""
-
-        if ! confirm "开始新机器初始化？" y; then
-            info "已取消"
-            exit 0
-        fi
-
-        # Step 1: gh auth + git 身份（复用 bootstrap-gh-auth.sh）
-        section "Step 1/3: GitHub 认证"
-        if ! bash "$SCRIPT_DIR/bootstrap-gh-auth.sh"; then
-            err "GitHub 认证失败，中止"
-            exit 1
-        fi
-
-        # Step 2: ccprivate（复用 init-ccprivate-repo.sh）
-        section "Step 2/3: ccprivate 配置仓库"
-        if ! bash "$SCRIPT_DIR/init-ccprivate-repo.sh"; then
-            err "ccprivate 初始化失败"
-            info "  修复后重跑: bash init-base.sh new"
-            exit 1
-        fi
-
-        # Step 3: 全量初始化
-        section "Step 3/3: 全量初始化"
-        exec bash "$0" all
+        exec bash "$SCRIPT_DIR/init-bootstrap.sh"
         ;;
     option|options)
         exec bash "$SCRIPT_DIR/init-option.sh" "${@:2}"
