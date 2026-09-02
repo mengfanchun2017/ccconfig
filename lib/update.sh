@@ -342,7 +342,21 @@ update_python_packages() {
         return 0
     fi
 
-    # 升级前版本（只取 requirements.txt 中列出的包）
+    # 优先升级有 apt 包的 Python 库
+    local apt_pkgs=""
+    while IFS= read -r line; do
+        local pkg_name
+        pkg_name=$(echo "$line" | sed 's/==.*//' | xargs)
+        case "$pkg_name" in
+            python-docx) apt_pkgs="$apt_pkgs python3-docx" ;;
+        esac
+    done < "$req_file"
+    if [ -n "$apt_pkgs" ]; then
+        info "升级 apt 版 Python 包..."
+        sudo apt-get install -y -qq --no-install-recommends $apt_pkgs 2>/dev/null || true
+    fi
+
+    # 升级前版本
     local before
     before=$(pip3 freeze --user 2>/dev/null | grep -Ff <(sed -n 's/^\([a-zA-Z0-9_-]*\)==.*/\1/p' "$req_file") | sort)
 
