@@ -10,6 +10,8 @@
 # 状态规范: 每个 option 的 init.sh --status 第一行必须是
 #   OK <name> ...   |   WARN <name> ...   |   MISSING <name> ...
 # （无 ANSI，供 init-option 解析；后续行可含 ANSI 供详情展示）
+#
+# 下一步：bash maintain.sh（菜单选 1A 完整状态检查）
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -768,6 +770,10 @@ install_all() {
     done
     echo ""
     ok "全部可选组件安装完成"
+    echo ""
+    echo -e "  ${GREEN}下一步:${NC} bash maintain.sh（菜单选 1A 完整状态检查）"
+    echo -e "  ${GRAY}完整状态检查会验证链接/依赖/monitor/PAT/飞书/MCP 等全部配置。${NC}"
+    echo ""
 }
 
 # ── 入口 ──
