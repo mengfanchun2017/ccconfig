@@ -352,7 +352,7 @@ print('\t'.join([
         fi
 
         local target_name=""
-        [[ "$sel" =~ ^[0-9]+$ ]] && [ "$sel" -ge 1 ] && [ "$sel" -le "$names_count" ]] && target_name="${names[$((sel-1))]}"
+        [[ "$sel" =~ ^[0-9]+$ ]] && [ "$sel" -ge 1 ] && [ "$sel" -le "$names_count" ] && target_name="${names[$((sel-1))]}"
         [[ -z "$target_name" ]] && continue
 
         # app 二级菜单（纯文本，menu_select 自动编号）
@@ -595,8 +595,8 @@ interactive_menu() {
     while true; do
         list_all
 
-        # 运行时收集 all_names（与 list_all 一致）
-        local -a all_names
+        # 运行时收集 all_names（与 list_all 一致）；=() 每轮重置，避免 local 复用导致菜单堆叠
+        local -a all_names=()
         for group_entry in "${MENU_GROUPS[@]}"; do
             local group_items="${group_entry#*|}"
             for name in $group_items; do
@@ -640,7 +640,7 @@ interactive_menu() {
                 fi
             done
             ok "全部安装完成"
-        elif [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#all_names[@]} ]]; then
+        elif [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#all_names[@]} ]; then
             local selected="${all_names[$((choice-1))]}"
             if [ "$selected" = "feishu_key" ]; then
                 feishu_key_wizard
