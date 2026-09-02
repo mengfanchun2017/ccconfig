@@ -338,7 +338,7 @@ switch_llm() {
     [[ $_is_ph -eq 0 ]] && case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) _is_ph=1 ;; esac
     if [[ $_is_ph -eq 1 ]]; then
         if [[ -t 0 ]]; then
-            echo ""; key=$(prompt_password "输入 ${name} API Key")
+            echo ""; key=$(prompt_key "输入 ${name} API Key")
         fi
     fi
 

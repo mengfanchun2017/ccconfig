@@ -162,7 +162,7 @@ gh_auth() {
             echo -e "  ${GRAY}Token 仅存本地 ~/.config/gh/hosts.yml（600），不同步 ccprivate${NC}"
             echo ""
             local token
-            token=$(prompt_password "PAT（粘贴，不回显）")
+            token=$(prompt_key "PAT（粘贴，输入后显示末 4 位）")
             if [[ -z "$token" ]]; then
                 err "Token 为空"
                 return 1
@@ -290,8 +290,8 @@ collect_info() {
         local llm_choice
         llm_choice=$(menu_select "默认 LLM" "DeepSeek" "MiniMax")
         case "$llm_choice" in
-            1) DEFAULT_LLM=deepseek; [[ -z "$DEEPSEEK_KEY" ]] && DEEPSEEK_KEY=$(prompt_password "DeepSeek API Key") ;;
-            2) DEFAULT_LLM=minimax;  [[ -z "$MINIMAX_KEY" ]] && MINIMAX_KEY=$(prompt_password "MiniMax API Key") ;;
+            1) DEFAULT_LLM=deepseek; [[ -z "$DEEPSEEK_KEY" ]] && DEEPSEEK_KEY=$(prompt_key "DeepSeek API Key") ;;
+            2) DEFAULT_LLM=minimax;  [[ -z "$MINIMAX_KEY" ]] && MINIMAX_KEY=$(prompt_key "MiniMax API Key") ;;
             0) warn "取消 LLM 选择"; DEFAULT_LLM="${DEFAULT_LLM:-deepseek}" ;;
         esac
 

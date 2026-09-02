@@ -178,6 +178,25 @@ prompt_password() {
     echo "$ans"
 }
 
+# ========== Key 输入（不回显 + 末 4 位确认粘贴）==========
+prompt_key() {
+    local msg="${1:-输入 Key}"
+
+    if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+        echo ""; return 0
+    fi
+
+    local ans
+    if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
+        read -s -p "  $msg: " ans < /dev/tty || ans=""
+    else
+        read -s -p "  $msg: " ans || ans=""
+    fi
+    printf '\n'
+    [[ -n "$ans" ]] && printf '  ↳ 已输入（末 4 位: %s）\n' "${ans: -4}" >&2
+    echo "$ans"
+}
+
 # ========== 表格 ==========
 table() {
     local title="${1:-}"; shift

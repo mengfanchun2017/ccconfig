@@ -203,7 +203,7 @@ check_gh_auth() {
             echo -e "  ${GRAY}续期：bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
             echo ""
             local token=""
-            token=$(prompt_password "PAT（粘贴，不回显）")
+            token=$(prompt_key "PAT（粘贴，不回显）")
             if [[ -z "$token" ]]; then
                 err "Token 为空"
                 return 1
@@ -428,15 +428,15 @@ collect_info() {
         case "$LLM_CHOICE" in
             1)
                 DEFAULT_LLM="deepseek"
-                [ -z "$DEEPSEEK_KEY" ] && DEEPSEEK_KEY=$(prompt_password "DeepSeek API Key")
+                [ -z "$DEEPSEEK_KEY" ] && DEEPSEEK_KEY=$(prompt_key "DeepSeek API Key")
                 ;;
             2)
                 DEFAULT_LLM="minimax"
-                [ -z "$MINIMAX_KEY" ] && MINIMAX_KEY=$(prompt_password "MiniMax API Key")
+                [ -z "$MINIMAX_KEY" ] && MINIMAX_KEY=$(prompt_key "MiniMax API Key")
                 ;;
             3)
                 DEFAULT_LLM="claude"
-                [ -z "$CLAUDE_KEY" ] && CLAUDE_KEY=$(prompt_password "Anthropic API Key")
+                [ -z "$CLAUDE_KEY" ] && CLAUDE_KEY=$(prompt_key "Anthropic API Key")
                 ;;
             0)
                 warn "取消 LLM 选择"
