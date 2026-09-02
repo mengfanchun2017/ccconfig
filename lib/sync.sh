@@ -74,21 +74,6 @@ do_cconfig_post() {
     [ $found -eq 0 ] && echo -e "  ${GRAY}无新配置模板${NC}" || echo -e "  ${YELLOW}⚠️ 请编辑新配置文件填入个人凭证${NC}"
 
 
-    # rules 新模板检测
-    local rules_found=0
-    for example in "$CCCONFIG_ROOT"/templates/rules/*.md.example; do
-        [ -f "$example" ] || continue
-        local base=$(basename "$example" .md.example)
-        local target="$ccpriv/rules/$base.md"
-        if [ ! -f "$target" ]; then
-            mkdir -p "$ccpriv/rules"
-            cp "$example" "$target"
-            echo -e "  ${GREEN}✅${NC} 新建 rules/$base.md (→ ccprivate/rules/)"
-            rules_found=1
-        fi
-    done
-    [ $rules_found -eq 0 ] || echo -e "  ${GRAY}rules 新模板已复制到 ccprivate${NC}"
-
     # agents 新模板检测
     local agents_found=0
     for example in "$CCCONFIG_ROOT"/templates/agents/*.md.example; do
