@@ -70,16 +70,17 @@ ensure_claude_skills() {
     for candidate in "${candidates[@]}"; do
         [[ "$candidate" == "/skill" || -z "$candidate" ]] && continue
 
-        # SSH 优先
-        clone_url="git@github.com:${candidate}.git"
+        # HTTPS 优先（SSH 非默认认证方式，无 key 时会卡在 host key 确认）
+        clone_url="https://github.com/${candidate}.git"
         info "skill 仓库未找到，尝试 clone: $candidate"
         if run git clone "$clone_url" "$SKILL_REPO_DIR" 2>/dev/null; then
-            good "skill 已 clone (SSH): $SKILL_REPO_DIR"
+            good "skill 已 clone (HTTPS): $SKILL_REPO_DIR"
             return 0
         fi
 
-        if run git clone "https://github.com/${candidate}.git" "$SKILL_REPO_DIR" 2>/dev/null; then
-            good "skill 已 clone (HTTPS): $SKILL_REPO_DIR"
+        clone_url="git@github.com:${candidate}.git"
+        if run git clone "$clone_url" "$SKILL_REPO_DIR" 2>/dev/null; then
+            good "skill 已 clone (SSH): $SKILL_REPO_DIR"
             return 0
         fi
     done
