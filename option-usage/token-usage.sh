@@ -841,23 +841,23 @@ t_cost_sum = sum(by_model[m]["cost"] for m in by_model)
 print(f"{'total':<24} {t_sessions:>8} {t_in:>12,} {t_cr:>12,} {t_out:>10,} {t_total:>14,} {t_cost_sum:>9.2f}")
 print()
 print(f"\033[32m=== 按时间段 ===\033[0m")
-print(f"{'区间':<16} {'Sessions':>9} {'Input':>12} {'Output':>10} {'CacheRead':>12} {'Total':>14} {'Cost':>10}")
+print(f"{'区间':<18} {'Sessions':>9} {'Input':>12} {'Output':>10} {'CacheRead':>12} {'Total':>14} {'Cost':>10}")
 # 单日 = 昨天（latest full day）
 ns, si, so, scr, stot, cost = agg_days(lambda d: d == yesterday_str)
 if ns > 0:
-    print(f"{yesterday_str:<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
+    print(f"{yesterday_str:<18} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
 else:
-    print(f"{yesterday_str:<16} 无数据")
+    print(f"{yesterday_str:<18} 无数据")
 ns, si, so, scr, stot, cost = agg_days(lambda d: d >= day7_str)
 if ns > 0:
-    print(f"{"近7天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
+    print(f"{"近7天":<18} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
 else:
-    print(f"{"近7天":<16} 无数据")
+    print(f"{"近7天":<18} 无数据")
 ns, si, so, scr, stot, cost = agg_days(lambda d: d >= day30_str)
 if ns > 0:
-    print(f"{"近30天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
+    print(f"{"近30天":<18} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} {stot:>14,} {cost:>10.2f}")
 else:
-    print(f"{"近30天":<16} 无数据")
+    print(f"{"近30天":<18} 无数据")
 print()
 print(f"\033[32m=== 按月 ===\033[0m")
 # 按月统计（descending，首行 = 全量总计）
