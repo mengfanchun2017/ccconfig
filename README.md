@@ -154,7 +154,7 @@ flowchart TB
 
 ```
 ccconfig/
-├── bootstrap-gh-auth.sh      # 装 gh CLI + GitHub 认证
+├── bootstrap-gh-auth.sh      # 一行式起步（curl|bash：装 git + clone ccconfig）
 ├── init-base.sh              # 初始化统一入口
 ├── init-ccprivate-repo.sh    # ccprivate 仓库创建向导
 ├── maintain.sh               # 运维入口（status/self/upgrade/sync/monitor/deps/fix）
@@ -219,18 +219,19 @@ ccconfig/
 # 1. Clone
  git clone git@github.com:<user>/ccconfig.git ~/git/ccconfig
 
-# 2. gh 认证
-bash ~/git/ccconfig/bootstrap-gh-auth.sh
+# 2. gh 认证 + ccprivate（建仓或 clone 已有，二合一）
+bash ~/git/ccconfig/init-bootstrap.sh
 
-# 3. 创建 ccprivate
-bash ~/git/ccconfig/init-ccprivate-repo.sh
-
-# 4. 全量初始化（Ubuntu → LLM → 链接 → 可选组件，一条命令串联）
+# 3. 基础初始化（Ubuntu → LLM → 链接/服务，3 步）
 bash ~/git/ccconfig/init-base.sh all
-#    全自动非交互（auth 类组件如 larkcli/getnote 跳过，稍后手动装）:
+#    全自动非交互:
 #    bash ~/git/ccconfig/init-base.sh all --yes
-#    补装/重装单个可选组件:
-#    bash ~/git/ccconfig/init-option.sh
+
+# 4. 可选组件（MCP/Skills/CLI，独立一步）
+bash ~/git/ccconfig/init-option.sh
+
+# 5. 全量检查（菜单选 1A 完整状态，开工前推荐跑）
+bash ~/git/ccconfig/maintain.sh
 ```
 
 ## 特色亮点
@@ -306,7 +307,7 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | 命令 | 用途 |
 |------|------|
 | `bash init-base.sh` | 交互式菜单 |
-| `bash init-base.sh all` | 一键全初始化（Ubuntu → LLM → 链接 → 可选组件，串联） |
+| `bash init-base.sh all` | 一键基础初始化（Ubuntu → LLM → 链接/服务，3 步） |
 | `bash init-base.sh all --yes` | 全自动非交互（auth 类组件跳过） |
 | `bash init-option.sh` | 可选组件菜单（分组展示，可单独补装） |
 | `bash maintain.sh status` | 完整状态检查 |
