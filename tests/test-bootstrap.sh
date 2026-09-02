@@ -1,19 +1,21 @@
 #!/bin/bash
-# test-bootstrap.sh — unit tests for bootstrap.sh
+# test-bootstrap.sh — bootstrap-gh-auth.sh 测试
+#
+# bootstrap-gh-auth.sh 现在是 curl|bash 入口（pre-bootstrap）：
+#   装 git + clone ccconfig + 提示 init-bootstrap.sh
+# gh auth + ccprivate 已移交 init-bootstrap.sh，本脚本不重复。
 #
 # 测什么：
-#   1. 语法（bash -n）
-#   2. shebang + 可执行
-#   3. 5 步结构（前置 → 装 gh → 认证 → git 身份 → 引导）
-#   4. git 必装检查（前置条件）
-#   5. gh 安装三路径（apt / NOSUDO binary / 已装）
-#   6. gh auth 引导 + SSH 跳过逻辑
-#   7. git 用户身份从 gh api 拿
-#   8. 引导输出包含 cd + init-base.sh all
+#   1. 语法（bash -n）+ 可执行 + shebang
+#   2. 自包含（不 source 任何 lib/，curl|bash 可用）
+#   3. 装 git 逻辑（command -v git + apt-get install git）
+#   4. clone ccconfig 逻辑（git clone + CCCONFIG_DIR）
+#   5. 提示 init-bootstrap.sh 下一步
+#   6. 全流程链路输出（init-bootstrap → init-base → init-option → maintain）
+#   7. CCCONFIG_REPO 环境变量支持
 #
 # 不测什么：
-#   - 实际网络 clone（CI 沙箱可能无外网）
-#   - sudo apt-get（需要真 root + apt 源）
+#   - 实际网络 clone / sudo apt（CI 沙箱可能无外网/无 root）
 
 set -uo pipefail
 
@@ -42,85 +44,54 @@ echo "=== Test 2: 文件可执行 ==="
 echo "=== Test 3: shebang 是 bash ==="
 head -1 "$BOOTSTRAP" | grep -q "^#!/bin/bash" && pass "bash shebang" || fail "wrong shebang: $(head -1 "$BOOTSTRAP")"
 
-# ── Test 4: 5 步结构 ──
-echo "=== Test 4: 5 步结构 ==="
-grep -q 'Step 1/5 前置检查' "$BOOTSTRAP" && pass "Step 1/5 前置检查" || fail "missing Step 1"
-grep -q 'Step 2/5 装 GitHub CLI' "$BOOTSTRAP" && pass "Step 2/5 装 gh" || fail "missing Step 2"
-grep -q 'Step 3/5 GitHub 认证' "$BOOTSTRAP" && pass "Step 3/5 认证" || fail "missing Step 3"
-grep -q 'Step 4/5 git 用户身份' "$BOOTSTRAP" && pass "Step 4/5 git 身份" || fail "missing Step 4"
-grep -q 'Step 5/5 准备完成' "$BOOTSTRAP" && pass "Step 5/5 引导" || fail "missing Step 5"
-
-# ── Test 5: git 必装检查 ──
-echo "=== Test 5: git 前置检查 ==="
-grep -q 'command -v git' "$BOOTSTRAP" && pass "checks git" || fail "no git check"
-grep -q 'git 未装' "$BOOTSTRAP" && pass "报错 'git 未装'" || fail "no 'git 未装' error"
-
-# ── Test 6: 关键引导输出 ──
-echo "=== Test 6: 引导输出 ==="
-grep -q 'bash init-base.sh all' "$BOOTSTRAP" && pass "instructs bash init-base.sh all" || fail "missing init-base.sh all"
-grep -q 'BOOTSTRAP_NOSUDO' "$BOOTSTRAP" && pass "supports BOOTSTRAP_NOSUDO env" || fail "missing NO-SUDO support"
-
-# ── Test 7: gh 安装三路径 ──
-echo "=== Test 7: gh 安装路径 ==="
-grep -q 'command -v gh' "$BOOTSTRAP" && pass "checks gh installed" || fail "no gh check"
-grep -q 'apt-get install -y gh' "$BOOTSTRAP" && pass "apt install gh fallback" || fail "no apt install gh"
-grep -q 'linux_amd64.tar.gz' "$BOOTSTRAP" && pass "binary download fallback (NOSUDO)" || fail "no binary download"
-
-# ── Test 8: gh auth + SSH 跳过 ──
-echo "=== Test 8: gh auth 逻辑 ==="
-grep -q 'gh auth status' "$BOOTSTRAP" && pass "checks gh auth" || fail "no gh auth check"
-grep -q 'id_ed25519' "$BOOTSTRAP" && pass "detects existing SSH key" || fail "no SSH detection"
-grep -q 'gh auth login' "$BOOTSTRAP" && pass "prompts gh auth login" || fail "no gh auth login"
-grep -q 'with-token' "$BOOTSTRAP" && pass "uses --with-token (PAT 路径)" || fail "no --with-token (PAT 路径)"
-grep -q 'GH_TOKEN' "$BOOTSTRAP" && pass "supports \$GH_TOKEN env" || fail "no \$GH_TOKEN env"
-# 不能用 --skip-ssh-key（Ubuntu apt 版 gh 2.45 不支持）
-if ! grep -q -- '--skip-ssh-key' "$BOOTSTRAP"; then
-    pass "no --skip-ssh-key (Ubuntu apt gh 兼容性)"
+# ── Test 4: 自包含（curl|bash 可用，不 source lib/）──
+echo "=== Test 4: 自包含，不 source lib ==="
+if grep -E '^[^#]*source.*lib/' "$BOOTSTRAP" | grep -qv '^\s*#'; then
+    fail "source lib/ — curl|bash 场景 ccconfig 还没 clone，会失败"
 else
-    fail "still uses --skip-ssh-key (breaks Ubuntu apt gh)"
+    pass "不 source 任何 lib/（自包含）"
 fi
+# 自定义输出函数（不依赖 lib/colors.sh）
+grep -q '^info()' "$BOOTSTRAP" && pass "自定义 info()" || fail "no info() def"
+grep -q '^ok()' "$BOOTSTRAP" && pass "自定义 ok()" || fail "no ok() def"
 
-# ── Test 9: git 用户身份从 gh api 拿 ──
-echo "=== Test 9: git 身份配置 ==="
-grep -q 'gh api user' "$BOOTSTRAP" && pass "fetches user from gh api" || fail "no gh api user"
-grep -q 'git config --global user.email' "$BOOTSTRAP" && pass "sets git user.email" || fail "no git config email"
-grep -q 'git config --global user.name' "$BOOTSTRAP" && pass "sets git user.name" || fail "no git config name"
-grep -q 'gh auth setup-git' "$BOOTSTRAP" && pass "runs gh auth setup-git" || fail "no setup-git"
+# ── Test 5: 装 git 逻辑 ──
+echo "=== Test 5: 装 git 逻辑 ==="
+grep -q 'command -v git' "$BOOTSTRAP" && pass "检查 git 是否已装" || fail "no git check"
+grep -q 'apt-get install -y git' "$BOOTSTRAP" && pass "apt install git fallback" || fail "no apt install git"
 
-# ── Test 10: 四步流程在脚本中体现 ──
-echo "=== Test 10: 四步流程定位 ==="
-grep -q 'init-ccprivate-repo.sh' "$BOOTSTRAP" && pass "指引 init-ccprivate-repo (Step 3)" || fail "no init-ccprivate-repo guide"
-grep -q 'bash init-base.sh all' "$BOOTSTRAP" && pass "指引 init-base.sh all (Step 4)" || fail "no init-base.sh all guide"
+# ── Test 6: clone ccconfig 逻辑 ──
+echo "=== Test 6: clone ccconfig 逻辑 ==="
+grep -q 'git clone' "$BOOTSTRAP" && pass "执行 git clone" || fail "no git clone"
+grep -q 'CCCONFIG_DIR="$HOME/git/ccconfig"' "$BOOTSTRAP" && pass "目标路径 ~/git/ccconfig" || fail "no CCCONFIG_DIR"
+grep -q '\.git' "$BOOTSTRAP" && pass "检查 .git 判断已 clone" || fail "no .git check"
 
-# ── Test 11: 颜色/交互库 source（不再自定变量） ──
-echo "=== Test 11: source lib 库 ==="
-grep -q 'source.*lib/colors.sh' "$BOOTSTRAP" && pass "sources lib/colors.sh" || fail "no colors.sh source"
-grep -q 'source.*lib/interact.sh' "$BOOTSTRAP" && pass "sources lib/interact.sh" || fail "no interact.sh source"
-grep -q 'source.*lib/dry-run.sh' "$BOOTSTRAP" && pass "sources lib/dry-run.sh" || fail "no dry-run.sh source"
+# ── Test 7: 提示 init-bootstrap.sh 下一步 ──
+echo "=== Test 7: 引导 init-bootstrap.sh ==="
+grep -q 'init-bootstrap.sh' "$BOOTSTRAP" && pass "提示 bash init-bootstrap.sh" || fail "no init-bootstrap prompt"
 
-# ── Test 11b: gh auth 菜单 case 分支正确（PAT=1, OAuth=2, 取消=0） ──
-echo "=== Test 11b: auth 菜单 case 正确 ==="
-grep -q 'menu_select.*PAT' "$BOOTSTRAP" && pass "menu_select 含 PAT 项" || fail "no menu_select PAT"
-awk '/case "\$gh_auth_choice"/{f=1} f{print} /esac/{if(f)exit}' "$BOOTSTRAP" > /tmp/bs-case.txt
-if awk '/^        1\)/{f=1} /^        2\)/{f=0} f' /tmp/bs-case.txt | grep -q 'with-token'; then
-    pass "case 1) = PAT (--with-token)"
+# ── Test 8: 全流程链路输出 ──
+echo "=== Test 8: 全流程链路 ==="
+grep -q 'init-bootstrap.sh' "$BOOTSTRAP" && pass "链路含 init-bootstrap.sh" || fail "no init-bootstrap in flow"
+grep -q 'init-base.sh all' "$BOOTSTRAP" && pass "链路含 init-base.sh all" || fail "no init-base in flow"
+grep -q 'init-option.sh' "$BOOTSTRAP" && pass "链路含 init-option.sh" || fail "no init-option in flow"
+grep -q 'maintain.sh' "$BOOTSTRAP" && pass "链路含 maintain.sh" || fail "no maintain in flow"
+
+# ── Test 9: CCCONFIG_REPO 环境变量 ──
+echo "=== Test 9: CCCONFIG_REPO 支持 ==="
+grep -q 'CCCONFIG_REPO' "$BOOTSTRAP" && pass "支持 CCCONFIG_REPO env（fork 用）" || fail "no CCCONFIG_REPO"
+
+# ── Test 10: 不残留旧 gh-auth 逻辑 ──
+echo "=== Test 10: 不含旧 gh-auth 残留 ==="
+if grep -q 'gh auth login' "$BOOTSTRAP"; then
+    fail "仍含 gh auth login（已移交 init-bootstrap.sh）"
 else
-    fail "case 1) 应为 PAT (--with-token)"
+    pass "无 gh auth login 残留"
 fi
-if awk '/^        2\)/{f=1} /^        0\)/{f=0} f' /tmp/bs-case.txt | grep -q -- '--web'; then
-    pass "case 2) = Web OAuth (--web)"
+if grep -q 'Step [0-9]/5' "$BOOTSTRAP"; then
+    fail "仍含旧 5-step 结构"
 else
-    fail "case 2) 应为 Web OAuth (--web)"
-fi
-rm -f /tmp/bs-case.txt
-grep -q '0)' "$BOOTSTRAP" && pass "case 0) = 取消/跳过" || fail "no cancel branch 0)"
-
-# ── Test 12: 不应再含旧版一行 curl 引导（已拆三步） ──
-echo "=== Test 12: 不含旧版引导 ==="
-if ! grep -q 'curl -fsSL.*| bash' "$BOOTSTRAP"; then
-    pass "no one-line curl|bash bootstrap (deprecated)"
-else
-    fail "still contains curl|bash bootstrap"
+    pass "无旧 5-step 结构残留"
 fi
 
 echo ""

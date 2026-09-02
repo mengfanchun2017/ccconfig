@@ -23,6 +23,7 @@ __pycache__/
 .tmp/
 tmp/
 .env
+.bootstrap-commit.sh
 
 # 编辑器
 *:Zone.Identifier
