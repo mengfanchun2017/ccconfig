@@ -22,14 +22,16 @@ bash init-base.sh new
 #    全自动非交互: bash init-base.sh new --yes
 #    补装单个可选组件: bash init-option.sh
 
-# 或分步（gh auth + ccprivate 先，全量后）
-# bash init-bootstrap.sh && bash init-base.sh all
+# 或分步（gh auth + ccprivate 先，全量后，再检查）
+# bash init-bootstrap.sh && bash init-base.sh all && bash maintain.sh
 ```
 
 > **init-base.sh new 自动做**：
 > 1. GitHub 认证（装 gh + gh auth + 配 git 身份）
 > 2. ccprivate 配置仓库（建仓/克隆 + LLM key 收集 + 符号链接）
 > 3. 全量初始化（Ubuntu 环境 + LLM 写入 + 链接修复 + 可选组件）
+>
+> 全部完成后运行 `bash maintain.sh`（菜单选 1A 完整状态检查），确认一切就绪。
 >
 > 遇到某步失败修好之后重跑 bash init-base.sh new 即可（幂等）。
 >
@@ -60,6 +62,7 @@ bash init-base.sh new
 ```bash
 cd ~/git/ccconfig
 bash init-base.sh all            # 跳过 gh auth + ccprivate，直接全量初始化
+bash maintain.sh                 # 全量检查（菜单选 1A 完整状态）
 # 或单独刷新 ccprivate:
 # bash init-bootstrap.sh --clone  # 克隆已有 ccprivate
 ```

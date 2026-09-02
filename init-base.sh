@@ -8,7 +8,8 @@
 #   bash init-base.sh new --yes        # 全自动非交互
 #   bash init-base.sh --dry-run        # 预览将要执行的操作（不实际执行）
 #
-# 子命令输出指引让用户手动执行，不直接调其他根脚本。
+# 全链：init-base.sh all → init-option（可选组件）→ maintain.sh（1A 全量检查）
+# 新机器：init-bootstrap.sh → init-base.sh all → maintain.sh（1A 全量检查）
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -156,6 +157,11 @@ init_all_steps() {
     fi
     echo ""
 
+    echo -e "${BOLD}下一步:${NC}"
+    echo -e "  ${GREEN}bash maintain.sh${NC}     # 全量检查（菜单选 1A 完整状态）"
+    echo ""
+    echo -e "  ${GRAY}确认一切就绪后即可开始使用 Claude Code。${NC}"
+    echo ""
     echo -e "${BOLD}日常使用:${NC}"
     echo "  切换 LLM:          bash $SCRIPT_DIR/lib/init-llm.sh"
     echo "  系统升级:          bash $SCRIPT_DIR/lib/update.sh all"
@@ -283,6 +289,7 @@ case "${1:-menu}" in
         echo ""
         echo "  运行 'bash init-base.sh all' 执行以上所有步骤"
         echo "  运行 'bash init-base.sh all --yes' 全自动（非交互）"
+        echo "  完成后: bash maintain.sh（菜单选 1A 完整状态检查）"
         echo "  运行 'bash init-base.sh' 进入交互式菜单"
         ;;
     menu|"")
