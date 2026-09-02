@@ -148,17 +148,19 @@ gh_auth() {
             ;;
         *)
             echo ""
-            echo "  浏览器打开 → 生成 PAT:"
-            echo "    ${BOLD}Classic:  https://github.com/settings/tokens/new${NC}"
-            echo "    ${BOLD}Fine-grd: https://github.com/settings/personal-access-tokens/new${NC}"
+            echo "  浏览器打开（Fine-grained PAT）:"
+            echo "    ${BOLD}https://github.com/settings/personal-access-tokens/new${NC}"
             echo ""
-            echo "  Classic PAT（推荐，个人项目省事）："
-            echo "    Note: ccconfig-push, Expiration: No expiration"
-            echo "    Scopes: ☑ repo（全选）"
+            echo "  按以下填："
+            echo "    Token name        : ccconfig-push"
+            echo "    Expiration        : No expiration（或选 1 年）"
+            echo "    Repository access : All repositories"
+            echo "    Repository permissions →"
+            echo "      Contents  : Read and write  ☑"
+            echo "      Metadata  : Read-only       ☑"
+            echo "    Account permissions : 全部 No access"
             echo ""
-            echo "  Fine-grained PAT："
-            echo "    Repository access: All repositories"
-            echo "    Contents: Read and write | Metadata: Read-only"
+            echo "  ${GRAY}Token 仅存本地 ~/.config/gh/hosts.yml（600），不同步 ccprivate${NC}"
             echo ""
             local token
             token=$(prompt_password "PAT（粘贴，不回显）")
