@@ -8,66 +8,61 @@
 > **三仓库模型**：ccconfig（公开 infra）+ skill（公开 skill 市场）+ ccprivate（私有配置）。
 > 三个仓库各司其职，ccconfig 脚本编排、skill 提供 skill 插件、ccprivate 保管密钥。
 
-## ⚡ 四步起步（推荐）
+## ⚡ 两步起步（推荐）
 
-新机器按顺序跑四条命令：
+新机器按顺序跑两条命令：
 
 ```bash
 # Step 1: 先 clone ccconfig（git 自带代理栈，绕开 curl 443 问题）
 git clone https://github.com/<your-github-username>/ccconfig.git ~/git/ccconfig
 cd ~/git/ccconfig
 
-# Step 2: 装 gh + GitHub 认证
-bash bootstrap-gh-auth.sh
-
-# Step 3: 创建 ccprivate 私有仓库（API Key / Token / 个人配置）
-bash init-ccprivate-repo.sh
-
-# Step 4: 全量初始化（Ubuntu → LLM → 链接 → 可选组件，串联）
-bash init-base.sh all
+# Step 2: 一键新机器初始化（gh auth + ccprivate + Ubuntu + LLM + 链接）
+bash init-base.sh new
 #    全自动非交互（auth 类组件跳过）: bash init-base.sh all --yes
 #    补装单个可选组件: bash init-option.sh
 ```
 
-> **Step 4 串联说明**：`init-base.sh all` 依次跑 Ubuntu 环境 → LLM 配置 →
-> `maintain.sh setup`（建 symlink）→ `init-option.sh all`（可选组件）。
-> 不再需要单独跑 `init-option.sh`。需扫码授权的组件（larkcli/getnote）
-> 在 `all` 模式交互确认，在 `--yes` 模式自动跳过（稍后手动装）。
-
-> **为什么是四步而不是一行 curl | bash?**
-> curl 在国内环境经常被 GFW 阻断 `port 443`，但 `git clone` 走自己的代理栈（`~/.gitconfig` 的 `http.proxy` 或环境变量），所以 git 能通 curl 不一定通。
-> 拆分让"网络好"的步骤先跑，"网络差"的步骤后跑，问题更容易定位。
-> ccprivate 创建必须在 init-base.sh all 之前，否则 LLM API key 等私有配置缺失导致后续步骤失败。
-
-`bootstrap-gh-auth.sh` 自动：
-1. 系统环境准备（apt update + upgrade + autoremove，可选跳过）
-2. 检测 git（必须已装）
-3. 装 GitHub CLI (gh)，apt 优先，二进制兜底
-4. gh auth 登录（双选项菜单）
-   - A) Fine-grained PAT 粘贴（推荐）— Contents R/W + Metadata R + SSH Keys R/W，No expiration，仅存本地
-   - B) Web OAuth — 浏览器授权，有过期时间
-5. 配置 git 用户身份（从 gh api 拿）和 credential helper
-6. 输出下一步命令
-
-`init-ccprivate-repo.sh` 自动：
-1. gh auth 自动登录（与 bootstrap-gh-auth.sh 相同的双选项菜单）
-2. **手动建仓引导**（fine-grained PAT 不能建仓库，deep link 一键填好 name/visibility）
-3. clone 到 `~/git/ccprivate`
-4. 写 `conf/llm.json` / `conf/feishu.json` 等私有配置
-5. 建立符号链接 `~/.claude/CLAUDE.md` → ccprivate/CLAUDE.md 等
-
-> **支持的环境变量**：
-> - `BOOTSTRAP_NOSUDO=1` — 跳过 sudo apt，用二进制装 gh（适合受限环境）
-> - `GH_TOKEN` — bootstrap-gh-auth.sh 直接用此 PAT 登录（CI 友好，跳过交互）
+> **init-base.sh new 自动做 3 步**：
+> 1. GitHub 认证（装 gh + gh auth + 配 git 身份）
+> 2. ccprivate 配置仓库（建仓/克隆 + LLM key 收集 + 符号链接）
+> 3. 全量初始化（Ubuntu 环境 + LLM 写入 + 链接修复 + 可选组件）
 >
-> **示例**（公司受限机）：
-> ```bash
-> git clone https://github.com/<your-github-username>/ccconfig.git ~/git/ccconfig
-> cd ~/git/ccconfig && BOOTSTRAP_NOSUDO=1 bash bootstrap-gh-auth.sh
-> bash init-base.sh all
-> ```
+> 遇到某步失败修好之后重跑 bash init-base.sh new 即可（幂等）。
+>
+> **为什么是两步而不是一行 curl | bash?**
+> curl 在国内环境经常被 GFW 阻断 port 443，但 git clone 走自己的代理栈（~/.gitconfig 的 http.proxy 或环境变量）。
+> 两步让网络好的步骤先跑，网络差的步骤后跑，问题更容易定位。
 
-跑完 bootstrap 后，继续跑 `bash init-base.sh all`。
+### GitHub PAT 引导说明
+
+执行到 GitHub 认证时，脚本引导选择 PAT 类型：
+
+| 类型 | 适用场景 | 生成链接 |
+|------|---------|---------|
+| Classic PAT | 个人项目，省事 | https://github.com/settings/tokens/new |
+| Fine-grained PAT | 精细权限控制 | https://github.com/settings/personal-access-tokens/new |
+
+**Classic PAT 配置**：Note=ccconfig-push, Expiration=No expiration, Scopes= repo
+
+**Fine-grained PAT 配置**：Repository access=All repositories, Contents=Read and write, Metadata=Read-only
+
+> 如果选 Fine-grained 但 gh repo view 报 404（国内 GitHub API 可能被干扰），
+> 脚本会 fallback 到 git ls-remote 验证，再不行会问你是否确认继续。
+
+### 已有配置的机器
+
+已有 ccprivate 的机器（恢复场景）：
+
+```bash
+cd ~/git/ccconfig
+bash init-base.sh all            # 跳过 gh auth + ccprivate，直接全量初始化
+```
+
+> **环境变量**：
+> - BOOTSTRAP_NOSUDO=1：跳过 sudo apt，用二进制装 gh
+> - GH_TOKEN：直接用此 PAT 登录（CI 友好，跳过交互）
+> - CCP_NONINTERACTIVE=1：非交互模式
 
 ---
 

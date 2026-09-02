@@ -231,14 +231,16 @@ main_menu() {
         choice=$(menu_select "ccconfig 初始化" \
             "Ubuntu 环境/LLM/自启动" \
             "远程连接/SSH/tmux" \
-            "★ 一键全部初始化" \
+            "★ 一键新机（gh auth + ccprivate + 全量）" \
+            "★ 一键全部（跳过认证，已有 ccprivate）" \
             "可选组件(MCP/Skills/CLI)" \
             "退出")
         case "$choice" in
             1) submenu_env ;;
             2) submenu_remote ;;
-            3) init_all_steps; exit 0 ;;
-            4) bash "$SCRIPT_DIR/init-option.sh" ;;
+            3) bash "$0" new ;;
+            4) init_all_steps; exit 0 ;;
+            5) bash "$SCRIPT_DIR/init-option.sh" ;;
             0) echo ""; exit 0 ;;
         esac
         echo ""; read -p "按回车返回主菜单..." dummy < /dev/tty || true
@@ -255,6 +257,40 @@ case "${1:-menu}" in
         fi
         init_all_steps
         exit 0
+        ;;
+    new|bootstrap)
+        # 整合：gh auth + ccprivate + 全量初始化三步合一
+        show_banner
+        echo ""
+        section "新机器初始化（三步合一）"
+        echo -e "  ${GRAY}Step 1/3: 装 gh + GitHub 认证 + git 身份配置${NC}"
+        echo -e "  ${GRAY}Step 2/3: 创建/克隆 ccprivate 私有配置仓库${NC}"
+        echo -e "  ${GRAY}Step 3/3: 全量初始化（Ubuntu → LLM → 链接 → 可选组件）${NC}"
+        echo ""
+
+        if ! confirm "开始新机器初始化？" y; then
+            info "已取消"
+            exit 0
+        fi
+
+        # Step 1: gh auth + git 身份（复用 bootstrap-gh-auth.sh）
+        section "Step 1/3: GitHub 认证"
+        if ! bash "$SCRIPT_DIR/bootstrap-gh-auth.sh"; then
+            err "GitHub 认证失败，中止"
+            exit 1
+        fi
+
+        # Step 2: ccprivate（复用 init-ccprivate-repo.sh）
+        section "Step 2/3: ccprivate 配置仓库"
+        if ! bash "$SCRIPT_DIR/init-ccprivate-repo.sh"; then
+            err "ccprivate 初始化失败"
+            info "  修复后重跑: bash init-base.sh new"
+            exit 1
+        fi
+
+        # Step 3: 全量初始化
+        section "Step 3/3: 全量初始化"
+        exec bash "$0" all
         ;;
     option|options)
         exec bash "$SCRIPT_DIR/init-option.sh" "${@:2}"
@@ -276,7 +312,7 @@ case "${1:-menu}" in
         main_menu
         ;;
     *)
-        echo "用法: bash init-base.sh [all [--yes]|option|--dry-run|menu]"
+        echo "用法: bash init-base.sh [new|all [--yes]|option|--dry-run|menu]"
         ;;
 esac
 fi
