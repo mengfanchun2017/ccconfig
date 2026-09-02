@@ -51,7 +51,7 @@ SSH push 失败后调研 GitHub 认证路径。原方案 classc PAT `repo` scope
 2. **建仓手动**：init-ccprivate-repo.sh 删除 `gh repo create`，改为 `github.com/new?name=...` deep link 引导 + 检测确认。
 3. **credential helper**：`gh auth setup-git` 接管，push/clone 免密。
 4. **三层过期检测**：
-   - Layer 1（status）：`maintain.sh status` 新增 GitHub PAT 章节，现场 curl expiration header，<10 天红、<30 天黄，顶部 pat-warn 醒目提示。
+   - Layer 1（status）：`maintain.sh status` 新增 GitHub PAT 章节，现场 curl expiration header，<10 天红、<30 天黄，顶部 pat-warn 醒目提示。~~（Layer 1 过期天数巡检已被 [0023](0023-pat-expiry-on-failure-only.md) 取代，改为 on-failure-only）~~
    - Layer 2（monitor）：`check_pat_status()` + 6h cache，git_push 检测 auth error 时强制刷新。
    - Layer 3（refresh）：`bin/refresh-gh-auth.sh` 一键续期，引导 Regenerate → 粘新 token → 验证 push → 清 flag。
 5. **SSH 降级**：init-ubuntu.sh 标"可选加速"，默认跳过；`SETUP_SSH=1` 强制配。

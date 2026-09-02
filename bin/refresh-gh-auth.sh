@@ -22,27 +22,10 @@ echo ""
 if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
     current_user=$(gh api user --jq '.login' 2>/dev/null || echo "unknown")
     echo -e "  当前账号: ${GREEN}${current_user}${NC}"
-
-    current_token=$(gh auth token 2>/dev/null || echo "")
-    if [[ -n "$current_token" ]]; then
-        current_exp=$(curl -s --max-time 5 -H "Authorization: Bearer $current_token" \
-            -D - https://api.github.com/user -o /dev/null 2>/dev/null | \
-            grep -i 'github-authentication-token-expiration:' | \
-            awk '{print $2}' | tr -d '\r')
-        if [[ -n "$current_exp" ]]; then
-            now=$(date +%s)
-            exp_epoch=$(date -d "$current_exp UTC" +%s 2>/dev/null || echo 0)
-            days_left=$(( (exp_epoch - now) / 86400 ))
-            if [[ $days_left -lt 10 ]]; then
-                echo -e "  当前 token: ${RED}剩余 ${days_left} 天（过期 ${current_exp} UTC）${NC}"
-            elif [[ $days_left -lt 30 ]]; then
-                echo -e "  当前 token: ${YELLOW}剩余 ${days_left} 天${NC}"
-            else
-                echo -e "  当前 token: ${GREEN}剩余 ${days_left} 天${NC}"
-            fi
-        else
-            echo -e "  当前 token: classic PAT（无过期）或无 expiration"
-        fi
+    if gh api user &>/dev/null 2>&1; then
+        echo -e "  当前 token: ${GREEN}✅ 有效${NC}（push 失败来续期，直接粘贴新 token）"
+    else
+        echo -e "  当前 token: ${RED}❌ 失效${NC}"
     fi
     echo ""
 else
@@ -56,7 +39,7 @@ echo -e "    1. 打开 ${CYAN}https://github.com/settings/tokens${NC}"
 echo -e "    2. 找到 ccconfig-push，点 ${BOLD}Regenerate token${NC}"
 echo -e "    3. 复制新 token，粘贴到下面（不回显）"
 echo ""
-echo -e "  ${GRAY}提示：如 token 选的是 No expiration 则无需续期；过期前 30 天可点 Regenerate，继承原权限${NC}"
+echo -e "  ${GRAY}提示：token 选 No expiration 通常无需续期；push 失败时点 Regenerate 可继承原权限${NC}"
 echo ""
 
 # 读新 token（空输入 = 保持现状退出）
@@ -98,5 +81,4 @@ echo -e "  ${GREEN}✅${NC} 已清过期 flag 文件"
 
 echo ""
 echo -e "  ${GREEN}PAT 已续期。下次 push 自动用新 token。${NC}"
-echo -e "  ${GRAY}下次过期检查：maintain.sh status 或 monitor tail${NC}"
 echo ""
