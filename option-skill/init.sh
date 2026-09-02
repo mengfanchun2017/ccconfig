@@ -15,6 +15,8 @@ source "$LIB_DIR/dry-run.sh"
 source "$LIB_DIR/colors.sh"
 source "$LIB_DIR/interact.sh"
 SKILLS_SRC="${SKILL_SRC:-$HOME/git/skill/plugins}"
+CCPRIVATE_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+LOCAL_SKILLS_SRC="${LOCAL_SKILLS_SRC:-$CCPRIVATE_DIR/skill-local}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 
 do_install() {
@@ -30,13 +32,14 @@ do_update() {
 }
 
 do_status() {
-    local count=0 src_count=0
+    local count=0 pub_count=0 priv_count=0
     [[ -d "$CLAUDE_SKILLS_DIR" ]] && count=$(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l)
-    [[ -d "$SKILLS_SRC" ]] && src_count=$(ls "$SKILLS_SRC" 2>/dev/null | wc -l)
+    [[ -d "$SKILLS_SRC" ]] && pub_count=$(find "$SKILLS_SRC" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+    [[ -d "$LOCAL_SKILLS_SRC" ]] && priv_count=$(find "$LOCAL_SKILLS_SRC" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
 
     if [[ $count -gt 0 ]]; then
-        echo "OK Skills ${count}个已安装（源: ${src_count}个）"
-    elif [[ $src_count -gt 0 ]]; then
+        echo "OK Skills ${count}个已安装（公开 ${pub_count} / 私有 ${priv_count}）"
+    elif [[ $pub_count -gt 0 || $priv_count -gt 0 ]]; then
         echo "WARN Skills 源存在但未链接（运行 --install）"
     else
         echo "MISSING Skills 源不存在（bash ccconfig/option-skill/init.sh --install）"

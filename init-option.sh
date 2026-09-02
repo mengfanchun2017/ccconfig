@@ -39,10 +39,9 @@ CLI_DESC["glow"]="终端 Markdown 渲染阅读"
 MENU_GROUPS=(
     "--os--|batcat glow"
     "--claude--|mcp skill"
-    "--lark--|larkcli"
+    "--lark--|larkcli larkkey"
     "--other--|officecli remote cloudflare usage"
     "--auto--|llmswitch"
-    "--key--|feishu_key"
 )
 
 # 自动管理的项：状态展示但不可 toggle
@@ -163,7 +162,7 @@ render_status() {
 }
 
 # ── 检测 feishu key 状态：是否含占位符 ──
-check_feishu_key() {
+check_larkkey() {
     local conf
     conf="$(resolve_conf feishu.json 2>/dev/null)" || { echo "no_conf|ccprivate/conf/feishu.json 不存在"; return; }
     python3 - "$conf" << 'PYEOF' 2>/dev/null
@@ -218,7 +217,7 @@ list_all() {
         for name in $group_items; do
             # 检查是否存在
             case "$name" in
-                mcp|feishu_key) ;;
+                mcp|larkkey) ;;
                 batcat|glow) ;;
                 usage) ;;
                 *) has_init_script "$name" || continue ;;
@@ -228,8 +227,8 @@ list_all() {
             local status
             if [ "$name" = "mcp" ]; then
                 status=$(mcp_status)
-            elif [ "$name" = "feishu_key" ]; then
-                status=$(check_feishu_key 2>/dev/null || echo "no_conf|ccprivate 未初始化")
+            elif [ "$name" = "larkkey" ]; then
+                status=$(check_larkkey 2>/dev/null || echo "no_conf|ccprivate 未初始化")
             elif [ "$name" = "usage" ]; then
                 local ccpriv_conf="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/token-usage.json"
                 if [ -f "$ccpriv_conf" ]; then
@@ -272,9 +271,9 @@ list_all() {
     echo ""
 }
 
-# ── 飞书 key 配置向导 ──
-feishu_key_wizard() {
-    section "飞书 key 配置向导"
+# ── Lark Key 配置向导 ──
+larkkey_wizard() {
+    section "Lark Key 配置向导"
 
     local conf
     if ! conf="$(resolve_conf feishu.json)"; then
@@ -601,7 +600,7 @@ interactive_menu() {
             local group_items="${group_entry#*|}"
             for name in $group_items; do
                 case "$name" in
-                    mcp|feishu_key|usage) all_names+=("$name") ;;
+                    mcp|larkkey|usage) all_names+=("$name") ;;
                     batcat|glow) all_names+=("$name") ;;
                     *) has_init_script "$name" && all_names+=("$name") ;;
                 esac
@@ -614,7 +613,7 @@ interactive_menu() {
             local desc=""
             case "$n" in
                 mcp) desc="MCP 服务" ;;
-                feishu_key) desc="飞书 Key" ;;
+                larkkey) desc="Lark Key" ;;
                 usage) desc="Token 用量" ;;
                 batcat|glow) ;;
                 *) [ -n "${AUTO_MANAGED[$n]:-}" ] && desc="[auto]" ;;
@@ -633,8 +632,8 @@ interactive_menu() {
 
         if [[ "$choice" == "$all_idx" ]]; then
             for n in "${all_names[@]}"; do
-                if [ "$n" = "feishu_key" ]; then
-                    feishu_key_wizard
+                if [ "$n" = "larkkey" ]; then
+                    larkkey_wizard
                 else
                     install_option "$n"
                 fi
@@ -642,8 +641,8 @@ interactive_menu() {
             ok "全部安装完成"
         elif [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#all_names[@]} ]; then
             local selected="${all_names[$((choice-1))]}"
-            if [ "$selected" = "feishu_key" ]; then
-                feishu_key_wizard
+            if [ "$selected" = "larkkey" ]; then
+                larkkey_wizard
             else
                 install_option "$selected"
             fi
@@ -655,7 +654,7 @@ interactive_menu() {
     done
 }
 
-# ── 飞书 app 辅助函数（被 feishu_key_wizard 调用） ──
+# ── 飞书 app 辅助函数（被 larkkey_wizard 调用） ──
 _feishu_add_app() {
     local conf="$1"
     echo ""
@@ -743,7 +742,7 @@ list_names_compact() {
         echo "$group_title"
         for n in $group_items; do
             case "$n" in
-                mcp|feishu_key) echo "  $n" ;;
+                mcp|larkkey) echo "  $n" ;;
                 batcat|glow) echo "  $n" ;;
                 *) if [ -n "${AUTO_MANAGED[$n]:-}" ] || has_init_script "$n"; then echo "  $n"; fi ;;
             esac
