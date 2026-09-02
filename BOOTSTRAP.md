@@ -17,18 +17,18 @@
 git clone https://github.com/<your-github-username>/ccconfig.git ~/git/ccconfig
 cd ~/git/ccconfig
 
-# Step 2: 一键新机器初始化（gh auth + ccprivate + Ubuntu + LLM + 链接）
-bash init-base.sh new
-#    全自动非交互（auth 类组件跳过）: bash init-base.sh all --yes
+# Step 2: 一键新机器初始化（GitHub 认证 → ccprivate → 全量）
+bash init-bootstrap.sh
+#    全自动非交互: bash init-bootstrap.sh all
 #    补装单个可选组件: bash init-option.sh
 ```
 
-> **init-base.sh new 自动做 3 步**：
+> **init-bootstrap.sh 自动做 3 步**：
 > 1. GitHub 认证（装 gh + gh auth + 配 git 身份）
 > 2. ccprivate 配置仓库（建仓/克隆 + LLM key 收集 + 符号链接）
 > 3. 全量初始化（Ubuntu 环境 + LLM 写入 + 链接修复 + 可选组件）
 >
-> 遇到某步失败修好之后重跑 bash init-base.sh new 即可（幂等）。
+> 遇到某步失败修好之后重跑 bash init-bootstrap.sh 即可（幂等）。
 >
 > **为什么是两步而不是一行 curl | bash?**
 > curl 在国内环境经常被 GFW 阻断 port 443，但 git clone 走自己的代理栈（~/.gitconfig 的 http.proxy 或环境变量）。
@@ -321,10 +321,10 @@ gh --version
 
 ### 3a. Fine-grained PAT（必做，主路径）
 
-**gh auth 和 git 传输都靠这一个 token**。`bootstrap-gh-auth.sh` 脚本会引导你完成，跑：
+**gh auth 和 git 传输都靠这一个 token**。`init-bootstrap.sh` 脚本会引导你完成，跑：
 
 ```bash
-bash bootstrap-gh-auth.sh
+bash init-bootstrap.sh
 # 选 A (PAT 粘贴, 推荐)
 # 按提示生成 fine-grained PAT，粘贴即可
 ```
@@ -491,9 +491,15 @@ gh repo clone <your-github-username>/skill
 > **ccconfig 用户**：skill 在阶段 5 的 `lib/init-skill.sh sync` 被自动引用（`SKILL_SRC` 默认 `~/git/skill/plugins`）。如果目录缺失且 gh 可用，自动 clone；否则跳过并提示手动克隆。
 > **独立用户**：不需 ccconfig，直接 `/plugin marketplace add <your-username>/skill` 安装。
 
-### 4c. 初始化 ccprivate（一条命令）
+### 4c. 初始化 ccprivate
 
-ccprivate 是私有配置仓库，存放 API key + Token + 个人配置。**一条命令完成**：
+ccprivate 是私有配置仓库，存放 API key + Token + 个人配置。**一键完成**（含 gh auth）：
+
+```bash
+bash init-bootstrap.sh
+```
+
+也可单独跑 ccprivate（如果 gh auth 已完成）：
 
 ```bash
 bash init-ccprivate-repo.sh
