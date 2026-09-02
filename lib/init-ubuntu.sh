@@ -180,19 +180,37 @@ setup_python_packages() {
         return 0
     fi
 
-    info "安装 Python 依赖..."
+        # 优先安装有 apt 包的 Python 库
+    info "安装 apt 版 Python 包（python3-xxx）..."
+    local apt_pkgs=""
+    while IFS= read -r line; do
+        # 跳过注释和空行，检查是否有 apt 替代
+        local pkg_name
+        pkg_name=$(echo "$line" | sed 's/==.*//' | xargs)
+        case "$pkg_name" in
+            python-docx) apt_pkgs="$apt_pkgs python3-docx" ;;
+            # 后续有更多 apt 包的 python 库在这里加
+        esac
+    done < "$req_file"
+    if [ -n "$apt_pkgs" ]; then
+        sudo apt-get install -y -qq --no-install-recommends $apt_pkgs 2>/dev/null || {
+            warn "apt 安装失败，跳回 pip 安装"
+        }
+    fi
+
+    # pip 安装剩余包（排除已有 apt 包的）
+    info "安装 pip 依赖..."
     local out
-    # Ubuntu 26.04+ PEP 668: try --user first, fall back to --break-system-packages
     out=$(pip3 install --user -r "$req_file" 2>&1) || true
     if echo "$out" | grep -q "externally-managed-environment"; then
         info "PEP 668 环境，使用 --break-system-packages..."
         out=$(pip3 install --break-system-packages --user -r "$req_file" 2>&1) || {
-            warn "部分包安装失败（可能已满足或需 sudo apt install python3-xxx）"
+            warn "部分包安装失败（需手动安装）"
             echo "$out" | tail -5
             return 0
         }
     fi
-    success "Python pip 包已安装"
+    success "Python 依赖已安装"
 }
 
 # ========== 4. Claude Code (原生方式) ==========
