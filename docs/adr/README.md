@@ -32,6 +32,7 @@
 | [0020](0020-llm-current-local-per-machine.md) | LLM 运行时配置本地化 — 每台机器独立选择 LLM | 2026-09-01 | ✅ Accepted | — |
 | [0021](0021-skill-creation-workflow.md) | Skill 创建工作流 — fskillcreat 交互 + link-single 增量注册 | 2026-09-01 | ✅ Accepted | — |
 | [0022](0022-batch-translate-workflow.md) | 批量文档翻译工作流 — DOCX 中间格式 + python-docx 原地替换文本 | 2026-09-01 | ✅ Accepted | python-docx → init-option |
+| [0023](0023-pat-expiry-on-failure-only.md) | GitHub PAT 失效检测改为 on-failure-only — 删主动过期天数巡检 | 2026-09-02 | ✅ Accepted | supersedes 0011 Layer 1 |
 
 > ADR 收录门槛见 [「何时写 ADR」](#何时写-adr)。轻量变更（bug fix / 单文件重构 / 样式调整）只在下方「决策时间线」一行记录。
 

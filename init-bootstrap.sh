@@ -152,7 +152,7 @@ gh_auth() {
             echo ""
             echo "  按以下填："
             echo "    Token name        : ccconfig-push"
-            echo "    Expiration        : No expiration（或选 1 年）"
+            echo "    Expiration        : No expiration（推荐；GitHub 过期前会邮件提醒）"
             echo "    Repository access : All repositories"
             echo "    Repository permissions →"
             echo "      Contents  : Read and write  ☑"
