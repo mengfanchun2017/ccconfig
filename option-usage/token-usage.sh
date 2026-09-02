@@ -790,7 +790,7 @@ for r in rows:
     mi = r["inputTokens"]
     mo = r["outputTokens"]
     mcr = r["cacheReadTokens"]
-    mt = r["totalTokens"]
+    mt = mi + mo  # input 已含 cache 类 token，不重复加
     pm = p.get(m, {})
     c = (mi*pm.get("input",0) + mo*pm.get("output",0) + mcr*pm.get("cache_read",0)) / 1_000_000
 
@@ -882,6 +882,21 @@ for m in months:
     d = by_month[m]
     if d["total"] == 0: continue
     print(f"{m:<14} {len(d['sessions']):>9} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>10.2f}")
+print()
+print(f"\033[32m=== 按任务（Top 5） ===\033[0m")
+print(f"{'Total':>14} {'Input':>12} {'CacheRead':>12} {'Output':>10}  {'Session'}")
+by_session = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"name":""})
+for r in rows:
+    sid = r["sessionId"]
+    bs = by_session[sid]
+    bs["name"] = (r.get("sessionName") or "")[:38]
+    bs["in"] += r["inputTokens"]
+    bs["cr"] += r["cacheReadTokens"]
+    bs["out"] += r["outputTokens"]
+    bs["total"] += r["inputTokens"] + r["outputTokens"]
+for sid, d in sorted(by_session.items(), key=lambda x: -x[1]["total"])[:5]:
+    name = d["name"] or sid[:20]
+    print(f"{d['total']:>14,} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,}  {name}")
 PYEOF
         exit 0
     fi
