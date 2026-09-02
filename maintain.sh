@@ -27,7 +27,7 @@ source "$LIB_DIR/menu-feishu.sh"
 # ========== 子菜单函数 ==========
 
 _submenu_monitor() {
-    local c; c=$(menu_select "Monitor" \
+    local c; c=$(menu_select "监控配置" \
         "LLM 链路诊断" \
         "切 LLM 预设" \
         "模型单价配置" \
@@ -121,8 +121,8 @@ _submenu_getnote() {
 }
 
 _submenu_update_sync() {
-    local c; c=$(menu_select "更新同步" \
-        "自我更新" \
+    local c; c=$(menu_select "更新配置" \
+        "ccconfig更新" \
         "Git 同步" \
         "全部" \
         "返回")
@@ -138,7 +138,7 @@ _submenu_update_sync() {
 
 do_finalize() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}  ccconfig 一键修复 — 符号链接 + 缺失目录 + auto-sync + 模板同步${NC}"
+    echo -e "${CYAN}  ccconfig 一键修复 — 符号链接 + 缺失目录 + auto-sync + 依赖检查${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
@@ -153,7 +153,7 @@ do_finalize() {
         info "ccprivate/setup.sh 不可用，仅修复了公开链接"
     fi
 
-    local expected_dirs=("skill" "rules" "agents" "commands" "bin")
+    local expected_dirs=("skill" "skill-local" "rules" "agents" "commands" "bin" "usage" "workflow_local")
     local created=false
     for d in "${expected_dirs[@]}"; do
         if [[ ! -d "$ccpriv/$d" ]]; then
@@ -202,7 +202,7 @@ do_self() {
     local target="${1:-all}"
     case "$target" in
         cc|ccconfig)
-            echo -e "${CYAN}── ccconfig 自更新 ──${NC}"
+            echo -e "${CYAN}── ccconfig 更新 ──${NC}"
             if ! git -C "$SCRIPT_DIR" fetch origin main 2>/dev/null; then
                 warn "无法连接远程（网络不通），跳过自更新"
                 return 1
