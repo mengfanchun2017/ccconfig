@@ -28,8 +28,9 @@ for arg in "${@}"; do
 done
 
 # ── v3 setup.sh 模板 ──
-# 与 ccprivate/setup.sh 当前版本保持一致
-SETUP_SH_V3='#!/bin/bash
+# 与 ccprivate/setup.sh 当前版本保持一致（heredoc 避免单引号转义）
+SETUP_SH_V3=$(cat <<'CCPRIVATE_SETUP_EOF'
+#!/bin/bash
 # ccprivate — 私有配置注入脚本
 #
 # 职责（v3）：
@@ -49,6 +50,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="${CCCONFIG_DIR:-$HOME/git/ccconfig}"
 CLAUDE_DIR="$HOME/.claude"
+
+# 从 ccconfig 借 colors.sh；缺失时用本地 ANSI 兜底
+source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
+    GREEN='\033[0;32m'
+    BLUE='\033[0;34m'
+    CYAN='\033[0;36m'
+    YELLOW='\033[0;33m'
+    NC='\033[0m'
+
+    section() { echo -e "\n${CYAN}=== $1 ===${NC}"; }
+    info()    { echo -e "${BLUE}ℹ️  $1${NC}"; }
+    ok()      { echo -e "${GREEN}✅ $1${NC}"; }
+    warn()    { echo -e "${YELLOW}⚠️  $1${NC}"; }
+}
 
 setup_link() {
     local link="$1"
@@ -76,11 +91,25 @@ setup_link() {
 # ============================================================
 section "用户级链接"
 setup_link "$HOME/CLAUDE.md"           "$SCRIPT_DIR/link/CLAUDE.md"     "~/CLAUDE.md"
-setup_link "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/link/settings.json" "~/.claude/settings.json"
 setup_link "$CLAUDE_DIR/.config.json"  "$SCRIPT_DIR/link/.config.json"  "~/.claude/.config.json"
 setup_link "$HOME/.lark-default-account" "$SCRIPT_DIR/link/.lark-default-account" ".lark-default-account → ccprivate"
 setup_link "$CLAUDE_DIR/.claudeignore"  "$SCRIPT_DIR/link/.claudeignore"  "~/.claude/.claudeignore"
-# should-compact.md 已迁至 ccprivate/commands/（全局 commands 链接自动覆盖）
+setup_link "$CLAUDE_DIR/commands/should-compact.md" "$CCCONFIG_DIR/commands/should-compact.md" "~/.claude/commands/should-compact.md"
+
+# settings.json 不再 symlink → ccprivate（避免 llm 配置跨机覆盖）
+# 首次 setup 时 cp 模板；已存在则跳过，各机独立维护
+SF="$CLAUDE_DIR/settings.json"
+mkdir -p "$(dirname "$SF")"
+if [ -L "$SF" ]; then
+    rm -f "$SF"
+    cp "$SCRIPT_DIR/link/settings.json" "$SF"
+    ok "settings.json: symlink 转独立文件"
+elif [ ! -f "$SF" ]; then
+    cp "$SCRIPT_DIR/link/settings.json" "$SF"
+    ok "settings.json: 已复制（来自 ccprivate/link/）"
+else
+    info "settings.json: 已存在，跳过"
+fi
 
 # ============================================================
 # 2. ccconfig 私有配置 — 由 resolve_conf() 直接读 ccprivate/conf/
@@ -88,11 +117,18 @@ setup_link "$CLAUDE_DIR/.claudeignore"  "$SCRIPT_DIR/link/.claudeignore"  "~/.cl
 # ============================================================
 info "ccconfig 私有配置: ccconfig 脚本通过 resolve_conf() 直接读 ccprivate/conf/"
 
+setup_link "$HOME/git/ccconfig/option-llmswitch/conf/llmswitch.json" "$SCRIPT_DIR/conf/llmswitch.json" "llmswitch.json → ccprivate/conf/"
+
+# 私有 skill 实体目录（不开源，跨机器同步）
+mkdir -p "$SCRIPT_DIR/skill-local"
+[ -f "$SCRIPT_DIR/skill-local/.gitkeep" ] || touch "$SCRIPT_DIR/skill-local/.gitkeep"
+info "私有 skill 目录: $SCRIPT_DIR/skill-local/（用户自建 skill 存放处）"
+
 # ============================================================
 # 3. 用户级 memory symlink（动态计算 project ID，不硬编码用户名）
 # ============================================================
 section "用户级记忆"
-_cconfig_id="$(echo "$HOME/git/ccconfig" | tr '\''/'\'' '\''-'\'')"
+_cconfig_id="$(echo "$HOME/git/ccconfig" | tr '/' '-')"
 setup_link "$CLAUDE_DIR/projects/$_cconfig_id/memory" "$SCRIPT_DIR/link/memory" "memory → ccprivate/link/memory"
 unset _cconfig_id
 
@@ -120,8 +156,16 @@ else
     warn "ccconfig/lib/setup-links.sh 不存在，跳过（请确认 ccconfig 已 clone）"
 fi
 
+# 注册私有 skill 到 ~/.claude/skills/
+if [ -x "$CCCONFIG_DIR/lib/init-skill.sh" ] && [ -d "$SCRIPT_DIR/skill-local" ] && ls "$SCRIPT_DIR/skill-local"/*/ &>/dev/null; then
+    info "注册私有 skill → ~/.claude/skills/"
+    bash "$CCCONFIG_DIR/lib/init-skill.sh" link-only
+fi
+
 echo ""
-ok "ccprivate setup 完成"'
+ok "ccprivate setup 完成"
+CCPRIVATE_SETUP_EOF
+)
 
 # ── link/ 文件模板 ──
 LINK_CLAUDE_MD='# Claude Code 用户配置
@@ -233,7 +277,7 @@ check_generated_dir() {
 }
 
 check_directories() {
-    local expected=("skill" "rules" "agents" "commands" "bin")
+    local expected=("skill" "skill-local" "rules" "agents" "commands" "bin" "usage" "workflow_local")
     local missing=()
     for d in "${expected[@]}"; do
         [ -d "$CCPRIVATE/$d" ] || missing+=("$d")
@@ -318,7 +362,7 @@ fix_generated_dir() {
 }
 
 fix_directories() {
-    local dirs=("skill" "rules" "agents" "commands" "bin")
+    local dirs=("skill" "skill-local" "rules" "agents" "commands" "bin" "usage" "workflow_local")
     for d in "${dirs[@]}"; do
         if [ ! -d "$CCPRIVATE/$d" ]; then
             mkdir -p "$CCPRIVATE/$d"
