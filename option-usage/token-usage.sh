@@ -855,29 +855,16 @@ def print_period(name, n, si, so, scr, stot, cost):
         return
     print(f"  {name:<12} {n:>4}sessions  Input:{si:>13,}  Output:{so:>10,}  CacheRead:{scr:>12,}  Total:{stot:>14,}  Cost:{cost:>9.2f}")
 
-# 全量日均
-per_day = max(1, len(days))
 print(f"\n=== 按时间段 ===")
-print(f"{'区间':<16} {'Sessions':>9} {'Input/Day':>12} {'Output/Day':>10} {'Total/Day':>14} {'Cost/Day':>10}")
-avg_cost = total_cost / per_day
-print(f"  {'日均':<14} {len(rows)/per_day:>8.1f} {fmt_daily(total_in, per_day):>12} {fmt_daily(total_out, per_day):>10} {fmt_daily(total_in+total_out+total_cc+total_cr, per_day):>14} {avg_cost:>9.2f}")
-ns, si, so, scr, stot, cost = agg(lambda d: d == yesterday_str, "昨天")
-print_period(yesterday_str, ns, si, so, scr, stot, cost)
-ns, si, so, scr, stot, cost = agg(lambda d: d >= day7_str, "近7天")
-print_period("近7天", ns, si, so, scr, stot, cost)
-ns, si, so, scr, stot, cost = agg(lambda d: d >= day30_str, "近30天")
-print_period("近30天", ns, si, so, scr, stot, cost)
-print()
-print("=== 按模型 ===")
-print(f"{'Model':<24} {'Sessions':>8} {'Input':>12} {'CacheRead':>12} {'Output':>10} {'Total':>14} {'Cost':>9}")
-for m in sorted(by_model, key=lambda x: -by_model[x]["total"]):
-    d = by_model[m]
-    if d["total"] == 0: continue
-    print(f"{m[:24]:<24} {d['sessions']:>8} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} {d['total']:>14,} {d['cost']:>9.2f}")
-print()
-print(f"=== 总成本 ===")
-tot_cost = sum(by_model[m]["cost"] for m in by_model)
-print(f"估算总成本: {tot_cost:.2f}")
+	print(f"{'区间':<16} {'Sessions':>9} {'Input':>12} {'Output':>10} {'CacheRead':>12} {'Total':>14} {'Cost':>10}")
+	# 单日 = 昨天（latest full day）
+	ns, si, so, scr, stot, cost = agg(lambda d: d == yesterday_str, yesterday_str)
+	print_period(yesterday_str, ns, si, so, scr, stot, cost)
+	ns, si, so, scr, stot, cost = agg(lambda d: d >= day7_str, "近7天")
+	print_period("近7天", ns, si, so, scr, stot, cost)
+	ns, si, so, scr, stot, cost = agg(lambda d: d >= day30_str, "近30天")
+	print_period("近30天", ns, si, so, scr, stot, cost)
+	print()
 PYEOF
         exit 0
     fi
