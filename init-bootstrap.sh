@@ -136,17 +136,6 @@ gh_auth() {
     fi
 
     # 交互：PAT 或 Web OAuth
-    echo ""
-    echo -e "  ${BOLD}选择认证方式:${NC}"
-    echo ""
-    echo -e "  ${CYAN}A)${NC} ${BOLD}PAT 粘贴（推荐，默认）${NC}"
-    echo -e "     - Classic PAT（repo scope）或 Fine-grained PAT"
-    echo -e "     - Token 仅存本地 ~/.config/gh/hosts.yml（600 权限）"
-    echo -e "     - ${GRAY}不会同步到 ccprivate${NC}"
-    echo ""
-    echo -e "  ${CYAN}B)${NC} ${BOLD}Web OAuth${NC} — 浏览器授权，有有效期"
-    echo ""
-
     local method
     method=$(menu_select "认证方式" "PAT 粘贴" "Web OAuth")
     case "$method" in
