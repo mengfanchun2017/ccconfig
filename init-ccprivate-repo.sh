@@ -185,15 +185,17 @@ check_gh_auth() {
             ;;
         *)
             echo ""
-            echo "  浏览器打开 → 生成 Fine-grained PAT:"
-            echo "    ${BOLD}https://github.com/settings/personal-access-tokens/new${NC}"
+            echo "  浏览器打开 → 生成 PAT:"
+            echo "    ${BOLD}Classic:  https://github.com/settings/tokens/new${NC}"
+            echo "    ${BOLD}Fine-grd: https://github.com/settings/personal-access-tokens/new${NC}"
             echo ""
-            echo "  按以下配置（其他默认）："
-            echo "    ${YELLOW}Token name${NC}       : ccconfig-push"
-            echo "    ${YELLOW}Expiration${NC}       : No expiration 或 90 days（建议 No expiration 免续期）"
-            echo "    ${YELLOW}Repository access${NC}: All repositories"
-            echo "    ${YELLOW}Contents${NC}        : Read and write"
-            echo "    ${YELLOW}Metadata${NC}        : Read-only（默认）"
+            echo "  Classic PAT（推荐，个人项目省事）："
+            echo "    Note: ccconfig-push, Expiration: No expiration"
+            echo "    Scopes: ☑ repo（全选）"
+            echo ""
+            echo "  Fine-grained PAT："
+            echo "    Repository access: All repositories"
+            echo "    Contents: Read and write | Metadata: Read-only"
             echo ""
             echo -e "  ${GRAY}续期：bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
             echo ""
@@ -674,7 +676,7 @@ create_and_push() {
     section "创建 GitHub 私有仓库"
 
     pushd "$CCPRIVATE_DIR" >/dev/null || return 1
-    local _rc=0
+    local _rc=0 _repo_found=false
 
     if git remote get-url origin &>/dev/null; then
         info "remote 已存在，跳过创建"
@@ -683,13 +685,24 @@ create_and_push() {
         info "  手动: 在 GitHub 创建私有仓库 $GH_USER/ccprivate"
         info "  然后: git remote add origin git@github.com:$GH_USER/ccprivate.git"
     elif gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
+        _repo_found=true
+    elif git ls-remote "https://github.com/$GH_USER/ccprivate.git" &>/dev/null 2>&1; then
+        info "git ls-remote 验证通过"
+        _repo_found=true
+    else
+        warn "仓库检测失败（API 可能被阻断）"
+        if confirm "仓库 $GH_USER/ccprivate 已创建？尝试 push 到远程？" y; then
+            _repo_found=true
+        fi
+    fi
+
+    if [[ "$_repo_found" == "true" ]]; then
         info "GitHub 仓库已存在: $GH_USER/ccprivate"
-        git remote add origin "https://github.com/$GH_USER/ccprivate.git"
+        git remote add origin "https://github.com/$GH_USER/ccprivate.git" 2>/dev/null || true
         git push -u origin main 2>&1 | tail -2
         ok "已推送"
     else
-        # 仓库不存在 — do_create 已引导用户手动建仓；这里兜底提示
-        err "GitHub 仓库 $GH_USER/ccprivate 不存在"
+        err "GitHub 仓库 $GH_USER/ccprivate 不可达"
         err "  请手动建仓: https://github.com/new?name=ccprivate&visibility=private"
         err "  然后重跑: bash init-ccprivate-repo.sh"
         _rc=1
@@ -715,7 +728,15 @@ do_create() {
 
     # GitHub 已有 ccprivate → 引导 clone，不新建
     local gh_user=$(detect_gh_user)
-    if [ -n "$gh_user" ] && gh repo view "$gh_user/ccprivate" &>/dev/null 2>&1; then
+    local _remote_exists=false
+    if [ -n "$gh_user" ]; then
+        if gh repo view "$gh_user/ccprivate" &>/dev/null 2>&1; then
+            _remote_exists=true
+        elif git ls-remote "https://github.com/$gh_user/ccprivate.git" &>/dev/null 2>&1; then
+            _remote_exists=true
+        fi
+    fi
+    if $_remote_exists; then
         info "GitHub 已有 ccprivate 仓库: $gh_user/ccprivate"
         echo ""
         echo -e "  ${GREEN}已有配置，直接 clone 即可，无需重新创建。${NC}"
@@ -743,10 +764,27 @@ do_create() {
   建好后按回车继续（或 Ctrl+C 取消，之后手动重跑本脚本）。
 EOF
         read -p "建好了？按回车继续..." _
-        # 再确认一次（防用户跳过）
-        if ! gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
-            err "GitHub 仍未检测到 ccprivate 仓库"
-            err "  请确认仓库名: $GH_USER/ccprivate, 可见性: Private"
+        # 再确认一次 — 用 gh repo view + git ls-remote + 手动确认三级 fallback
+        local _repo_ok=false
+        if gh repo view "$GH_USER/ccprivate" &>/dev/null 2>&1; then
+            _repo_ok=true
+        elif git ls-remote "https://github.com/$GH_USER/ccprivate.git" &>/dev/null 2>&1; then
+            info "git ls-remote 验证通过"
+            _repo_ok=true
+        else
+            warn "gh repo view 和 git ls-remote 都失败了（可能是网络阻断）"
+            echo ""
+            echo -e "  请手动确认: 仓库 ${BOLD}$GH_USER/ccprivate${NC} 确实已创建"
+            echo "  打开验证: https://github.com/$GH_USER/ccprivate"
+            echo ""
+            if confirm "确实已创建？继续推送本地仓库？" y; then
+                _repo_ok=true
+            fi
+        fi
+        if ! $_repo_ok; then
+            err "ccprivate 仓库未就绪"
+            err "  请返回 GitHub 确认仓库名: $GH_USER/ccprivate, 可见性: Private"
+            err "  确认存在后重跑: bash init-ccprivate-repo.sh"
             return 1
         fi
         ok "GitHub 仓库已就绪: $GH_USER/ccprivate"
