@@ -1,0 +1,32 @@
+# 搜索策略
+
+> 方向性规则。搜索工具：Tavily MCP + Exa MCP。
+> 详细搜索方法 → 项目 skill 文档。
+
+## 分流规则
+- 英文搜索: tavily search MCP（主力）
+- 语义/补充搜索: exa search MCP
+- 深度调研: tavily research + extract
+- 通用后备: WebSearch（仅 MCP 不可用时）
+
+## 多源并行
+搜索时同时执行：Tavily + Exa + WebSearch（后备）+ Tavily Research（需要深度时）。
+
+## 内容提取优先级
+
+```
+Tavily extract（主力）→ 拿到内容 → 直接用
+                      → Exa fetch（补充）→ 直接用
+                      → 空壳/被拦截/需要登录/JS渲染 → 浏览器提取
+```
+
+- **Tavily extract** 速度快、成本低、可并行，适合所有公开静态页面
+- **Exa fetch** 适合 Exa 搜索结果的页面内容提取
+- **浏览器提取**是最后 fallback，仅用于 Tavily/Exa 都无法提取的页面：登录墙、SPA、需要交互才能展示内容、反爬页面
+
+## 来源标注（强制）
+每次搜索结果，**每条结果都必须标注来源标签**，不允许混在一起不标注。
+- `[tavily]` — Tavily 英文搜索/研究
+- `[exa]` — Exa 语义搜索
+- `[websearch]` — LLM 内置 WebSearch
+- `[tavily-research]` — Tavily 深度研究

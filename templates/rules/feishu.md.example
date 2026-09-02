@@ -1,0 +1,52 @@
+# 飞书集成规范
+
+> **可选模块**：仅在使用飞书/Lark 文档功能时需要。不使用可安全忽略此文件。
+
+## lark-cli auth 预检（写操作前置）
+
+**任何 `docs +create` / `+update` / `drive +upload` 前**，先验证 auth 存活：
+
+```bash
+lark-cli drive +search --query test --page-size 1 --as user 2>&1 | sed '/^\[lark-cli\]/d'
+```
+
+若返回 `"ok":true` → 继续。若返回 `token_missing` / `need_user_authorization` → auth 过期，走 QR 码授权流程。
+
+## 工具选择
+- **lark-cli --as user**：所有飞书操作（文档、Base、日历、白板、表格）
+
+## 写操作后必输出完整链接
+
+飞书 doc 创建/更新/上传/删除后，**必须**输出 `[标题](完整 URL)` 格式链接。不允只给 doc_id/file_token，不允省略。多链接用表格汇总。
+
+## lark-cli 速查
+
+### 运行前缀
+```bash
+export LARKSUITE_CLI_CONFIG_DIR="${LARKSUITE_CLI_CONFIG_DIR:-$HOME/.lark-cli}" && export PATH="$HOME/.local/bin:$PATH"
+```
+
+### 常用命令
+
+| 操作 | 命令 |
+|------|------|
+| 创建文档 | `lark-cli docs +create --title "标题" --type docx --as user` |
+| 读取文档 | `lark-cli docs +read --token <doc_token> --as user` |
+| 更新文档 | `lark-cli docs +update --token <doc_token> --content <file.md> --as user` |
+| 搜索文件 | `lark-cli drive +search --query "关键词" --page-size 10 --as user` |
+| 上传文件 | `lark-cli drive +upload --file <path> --parent <folder_token> --as user` |
+| 创建表格 | `lark-cli sheets +create --title "标题" --as user` |
+| 创建白板 | `lark-cli whiteboard +create --title "标题" --as user` |
+| 创建多维表格 | `lark-cli base +create --title "标题" --as user` |
+| 导出文档 | `lark-cli docs +export --token <doc_token> --format pdf --as user` |
+
+### 输出解析
+
+stdout 含日志行（`[lark-cli] ...`）和进度行，**禁止 pipe 到 `json.load` 全量解析**，用 `grep` 提取目标字段：
+
+```bash
+# 正确：grep 提取单字段
+lark-cli ... 2>&1 | grep '"token"' | head -1
+```
+
+`api` 子命令不输出 JSON。

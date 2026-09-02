@@ -1,0 +1,21 @@
+# Git 规范
+
+## 提交
+- 在 git 仓库中 Edit/Write 后主动 `git add` + `git commit`，不等用户说"提交"
+- 不跳过 hooks（--no-verify）
+- commit 消息用 heredoc 传递，描述 why 不描述 what
+
+## 认证
+- 连接 GitHub 使用 fine-grained PAT（HTTPS + gh credential helper）
+- push 走 HTTPS，凭据由 gh credential helper 接管
+- PAT 权限最小集：Contents `Read and write` + Metadata `Read-only`，Account 全 No access
+
+## 安全
+- push 前确认远程分支
+- 不 force push 到 main/master
+- 不 amend 已发布的 commit
+
+## 个人项目
+- 个人项目（无协作方、无 review 流程）直接往 main 提交和 push
+- 个人项目标识：无其他 contributor、无 CODEOWNERS、无 PR template、owner 是用户本人
+- 个人项目也保持 commit 质量：一事一 commit，message 写清楚 what+why
