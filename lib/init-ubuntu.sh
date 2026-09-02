@@ -541,9 +541,11 @@ main() {
     export PATH="$LOCAL_BIN:$PATH"
 
     # shell 别名同步（cconfig/setup-links.sh 维护符号链接）
+    # bashrc 加载行 + symlink 同步到位：claudeby 等 alias 在 step1 即就绪
     if ! grep -q "shell_init.sh" "$HOME/.bashrc" 2>/dev/null; then
         echo '[ -f ~/.claude/shell_init.sh ] && source ~/.claude/shell_init.sh' >> "$HOME/.bashrc"
     fi
+    setup_symlinks
 
     # git 传输：gh auth + credential helper 已就绪则跳过 SSH
     # bootstrap-gh-auth.sh 已配好，SSH 是可选加速（push 2-3s vs 5-15s）
