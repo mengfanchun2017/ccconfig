@@ -33,6 +33,9 @@
 | [0021](0021-skill-creation-workflow.md) | Skill 创建工作流 — fskillcreat 交互 + link-single 增量注册 | 2026-09-01 | ✅ Accepted | — |
 | [0022](0022-batch-translate-workflow.md) | 批量文档翻译工作流 — DOCX 中间格式 + python-docx 原地替换文本 | 2026-09-01 | ✅ Accepted | python-docx → init-option |
 | [0023](0023-pat-expiry-on-failure-only.md) | GitHub PAT 失效检测改为 on-failure-only — 删主动过期天数巡检 | 2026-09-02 | ✅ Accepted | supersedes 0011 Layer 1 |
+| [0026](0026-bats-test-framework.md) | bats 测试框架引入 — bats_run 代替 run，test/ 统一测试目录 | 2026-09-03 | ✅ Accepted | — |
+| [0027](0027-idempotent-guard-pattern.md) | 幂等 guard 模式 — _is_installed/_is_not_file/atomic_write 统一 API | 2026-09-03 | ✅ Accepted | SH 编码规范 |
+| [0028](0028-unified-cli-entry.md) | 统一 CLI 入口 — bin/ccconfig subcommand 路由 | 2026-09-03 | ✅ Accepted | CLI 基础设施 |
 
 > ADR 收录门槛见 [「何时写 ADR」](#何时写-adr)。轻量变更（bug fix / 单文件重构 / 样式调整）只在下方「决策时间线」一行记录。
 
