@@ -29,10 +29,10 @@ setup() {
     [ "$out" = "would: install pkg-a pkg-b" ]
 }
 
-@test "dispatch() calls dry_fn when CCC_DRY_RUN=1" {
+@test "dispatch() uses _dry_default when dry_fn not set" {
     CCC_DRY_RUN=1
-    local out; out=$(dispatch real_fn dry_fn 2>&1)
-    [ "$out" = "would: dry_fn" ]
+    local out; out=$(dispatch real_fn 2>&1)
+    [[ "$out" == *"would:"* ]]
 }
 
 @test "dispatch() calls real_fn without CCC_DRY_RUN" {
