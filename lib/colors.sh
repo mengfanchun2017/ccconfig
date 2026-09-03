@@ -30,7 +30,7 @@ error()   { err "$@"; }
 
 # 自备 fallback：当被非 tty 环境 source 时确保函数可用
 # caller 不再需要写 2>/dev/null || { RED='...' ... }
-if ! type ok &>/dev/null 2>/dev/null; then
+if ! type ok &>/dev/null; then
     RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
     CYAN='\033[0;36m'; BLUE='\033[0;34m'; BOLD='\033[1m'
     BOLD_BLUE='\033[1;34m'; BOLD_GREEN='\033[1;32m'; LIGHT_BLUE='\033[96m'
