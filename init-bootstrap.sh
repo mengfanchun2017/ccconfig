@@ -409,10 +409,6 @@ EOF
     ok "link/settings.json"
 }
 
-gen_dot_config_json() {
-    echo "{}" > "$CCPRIVATE_DIR/link/.config.json"
-    ok "link/.config.json"
-}
 
 gen_setup_sh() {
     cat > "$CCPRIVATE_DIR/setup.sh" << 'SETUPEOF'
@@ -479,46 +475,6 @@ SETUPEOF
 # ============================================================
 # 模块 6: 飞书配置引导
 # ============================================================
-prompt_feishu_config() {
-    local f="$CCPRIVATE_DIR/conf/feishu.json"
-    [[ -f "$f" ]] || return 0
-    if $NONINTERACTIVE || [[ "${CCP_SKIP_FEISHU:-}" == "1" ]]; then
-        info "跳过飞书占位符引导（稍后 vim $f）"
-        return 0
-    fi
-    grep -qE '请填入|your-app-name|你的应用' "$f" 2>/dev/null || return 0
-
-    warn "conf/feishu.json 还是模板（含占位符）"
-    local choice
-    choice=$(menu_select "配置飞书" "现在配置" "跳过")
-    [[ "$choice" != "1" ]] && { info "跳过。后续: vim $f"; return 0; }
-
-    echo ""
-    info "在 https://open.feishu.cn/app 创建企业自建应用"
-    local app_id app_secret app_name
-    while [[ -z "$app_id" ]]; do app_id=$(prompt "App ID (cli_xxxxx)"); done
-    read -r -s -p "  App Secret: " app_secret; echo ""
-    app_name=$(prompt "应用名称" "default")
-    app_name="${app_name:-default}"
-
-    APP_ID="$app_id" APP_SECRET="$app_secret" APP_NAME="$app_name" FILE="$f" python3 << 'PYEOF'
-import json, os
-with open(os.environ["FILE"]) as fh: d = json.load(fh)
-apps = d.get("apps", [{}])
-apps[0]["name"] = os.environ.get("APP_NAME","default")
-apps[0]["appId"] = os.environ["APP_ID"]
-apps[0]["appSecret"] = os.environ["APP_SECRET"]
-apps[0]["description"] = apps[0].get("description","filled by init-bootstrap")
-apps[0]["brand"] = "feishu"
-apps[0]["workDir"] = os.path.expanduser("~/git")
-apps[0]["claudeConfigDir"] = os.path.expanduser("~/.claude")
-apps[0].setdefault("larkCli", {"enabled":True,"configDir":"~/.lark-cli","description":""})
-apps[0]["larkCli"]["enabled"] = True
-d["apps"] = apps
-with open(os.environ["FILE"],"w") as fh: json.dump(d,fh,indent=2,ensure_ascii=False); fh.write("\n")
-PYEOF
-    ok "conf/feishu.json 已填好"
-}
 
 # ============================================================
 # 模块 7: 创建 GitHub 私有仓库 + push
@@ -537,13 +493,13 @@ create_and_push() {
         info "  git remote add origin git@github.com:$GH_USER/ccprivate.git"
         _rc=1
     else
-        probe_repo "$GH_USER/ccprivate"; local _p=$?
-        if [[ $_p -eq 0 ]]; then
+        probe_status="$(probe_repo "$GH_USER/ccprivate")"
+        if [[ "$probe_status" == "found" ]]; then
             _repo_found=true
         elif git ls-remote "https://github.com/$GH_USER/ccprivate.git" &>/dev/null 2>&1; then
             info "git ls-remote 验证通过"
             _repo_found=true
-        elif [[ $_p -eq 1 ]]; then
+        elif [[ "$probe_status" == "not_found" ]]; then
             warn "仓库 $GH_USER/ccprivate 不存在（404），需先在 GitHub 建仓"
             if confirm "仓库 $GH_USER/ccprivate 已创建？尝试 push 到远程？" y; then
                 _repo_found=true
@@ -610,11 +566,11 @@ do_create() {
 
     # 手动建仓引导：仅当 404（真不存在）才提示建仓，网络瞬断不误导
     if [[ -n "$GH_USER" ]]; then
-        probe_repo "$GH_USER/ccprivate"; local _pr=$?
-        if [[ $_pr -eq 2 ]]; then
+        pr="$(probe_repo "$GH_USER/ccprivate")"
+        if [[ "$pr" == "network_error" ]]; then
             warn "$GH_USER/ccprivate 探测失败（网络瞬断或 API 阻断，非 404）"
             info "跳过建仓引导——若仓库已存在，push 阶段会重试"
-        elif [[ $_pr -ne 0 ]]; then
+        elif [[ "$pr" != "found" ]]; then
             section "需要先建 GitHub 私有仓库"
             cat <<'EOF'
   打开: https://github.com/new?name=ccprivate&visibility=private&description=Personal+Claude+Code+config
@@ -629,12 +585,12 @@ EOF
             read -p "建好了？按回车继续..." _ < /dev/tty || true
 
             local _repo_ok=false _pr2
-            probe_repo "$GH_USER/ccprivate"; _pr2=$?
-            if [[ $_pr2 -eq 0 ]]; then
+            pr2="$(probe_repo "$GH_USER/ccprivate")"
+            if [[ "$pr2" == "found" ]]; then
                 _repo_ok=true
             elif git ls-remote "https://github.com/$GH_USER/ccprivate.git" &>/dev/null 2>&1; then
                 _repo_ok=true
-            elif [[ $_pr2 -eq 1 ]]; then
+            elif [[ "$pr2" == "not_found" ]]; then
                 warn "仓库仍 404——确认已在 GitHub 建仓"
                 confirm "仓库确实已创建？继续推送？" y && _repo_ok=true
             else
@@ -664,7 +620,6 @@ EOF
     gen_mcp_servers_json
     gen_claude_md
     gen_settings_json
-    gen_dot_config_json
     gen_setup_sh
 
     # 复制 .example 模板到 ccprivate（死模板/可选场景不注入新用户）
