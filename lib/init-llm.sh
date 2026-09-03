@@ -351,13 +351,14 @@ switch_llm() {
     IFS='|' read -r base_url model key small <<< "$config"
 
     # 占位符 key → 交互输入
+    # why: write_llm_config 统一写 llm.json + settings.json
+    # 提前持久化防止 verify 失败丢 key，但不写 llm.json（write_llm_config 统一写入）
     local _is_ph=0
     [[ -z "$key" ]] && _is_ph=1
     [[ $_is_ph -eq 0 ]] && case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) _is_ph=1 ;; esac
     if [[ $_is_ph -eq 1 ]]; then
         if [[ -t 0 ]]; then
             echo ""; key=$(prompt_key "输入 ${name} API Key" | tr -d '\r\n')
-            persist_llm_key "$name" "$key"
         fi
     fi
 
@@ -580,6 +581,68 @@ test_llm() {
         return 1
     fi
 }
+
+# 批量测试所有预设连通性
+test_all() {
+    echo ""
+    section "批量测试所有 LLM 预设"
+    local lines; lines=$(list_llms)
+    local names=()
+    while IFS='|' read -r marker name display model base_url small is_builtin; do
+        [[ -z "$name" || "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* ]] && continue
+        names+=("$name|$display|$model|$base_url")
+    done < <(echo "$lines")
+
+    local ok=0 fail=0 skip=0 total=${#names[@]}
+    for entry in "${names[@]}"; do
+        IFS='|' read -r name display model base_url <<< "$entry"
+        local config; config=$(get_llm_config "$name") || { warn "  $display — 配置读取失败"; ((fail++)); continue; }
+        IFS='|' read -r _ _ key _ <<< "$config"
+
+        local _is_ph=0
+        [[ -z "$key" ]] && _is_ph=1
+        [[ $_is_ph -eq 0 ]] && case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) _is_ph=1 ;; esac
+        if [[ $_is_ph -eq 1 ]]; then
+            warn "  $display — 无有效 Key，跳过"
+            ((skip++)); continue
+        fi
+
+        local path
+        if [[ "$base_url" == *"/anthropic"* ]] || [[ "$base_url" == *"://127.0.0.1"* ]]; then
+            path="${base_url%/}/v1/messages"
+        else
+            path="${base_url%/}/chat/completions"
+        fi
+        local headers=(-H "Content-Type: application/json" -H "Authorization: Bearer $key")
+        [[ "$path" == *"/v1/messages" ]] && headers+=(-H "anthropic-version: 2023-06-01")
+
+        printf "  %-20s %-30s " "$display" "$model"
+        local status
+        status=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -X POST "$path" "${headers[@]}" \
+            -d "{\"model\":\"$model\",\"max_tokens\":5,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || status="000"
+        [[ -z "$status" ]] && status="000"
+
+        case "$status" in
+            200) ok_color "✓ $status"; ((ok++)) ;;
+            000) err_color "✗ 不可达"; ((fail++)) ;;
+            401|403) warn_color "⚠ $status 鉴权"; ((ok++)) ;;
+            400) warn_color "⚠ $status 路径"; ((fail++)) ;;
+            *) warn_color "⚠ $status"; ((fail++)) ;;
+        esac
+        echo ""
+    done
+
+    echo ""
+    if [[ $fail -eq 0 && $skip -eq 0 ]]; then
+        success "全部 $total 个预设均可达"
+    else
+        info "结果: $ok 可用 / $fail 失败 / $skip 跳过 (共 $total)"
+    fi
+}
+
+ok_color() { printf "${GREEN}%s${NC}" "$1"; }
+err_color() { printf "${RED}%s${NC}" "$1"; }
+warn_color() { printf "${YELLOW}%s${NC}" "$1"; }
 
 # ========== 列预设 ==========
 show_list() {
@@ -916,7 +979,7 @@ main() {
     case "$cmd" in
         list)        show_list ;;
         status)      show_status ;;
-        test|-t)     test_llm "${2:-}" ;;
+        test|-t)     [[ "${2:-}" == "all" ]] && test_all || test_llm "${2:-}" ;;
         switch)      switch_llm "${2:-}" ;;
         custom|-c)   switch_custom ;;
         delete|-d)   delete_preset "${2:-}" ;;
