@@ -11,6 +11,17 @@
 | `net.sh` | 网络探测：check_proxy/check_tcp |
 | `deps-check.sh` | 依赖检查 |
 
+## 函数 API
+| 函数 | 所在文件 | 用途 |
+|------|---------|------|
+| `guard_mkdir <dir>` | dry-run.sh | 幂等创建目录（等价 mkdir -p，dry-run 感知） |
+| `guard_symlink <target> <link>` | dry-run.sh | 幂等符号链接（dry-run 感知） |
+| `guard_append_line <file> <line>` | dry-run.sh | 幂等追加行（dry-run 感知） |
+| `guard_write_file <file> <content>` | dry-run.sh | 幂等写入（内容不同才覆盖，dry-run 感知） |
+| `atomic_write <file>` | dry-run.sh | 原子写入（mktemp + mv，防写一半断掉） |
+| `safe_exit [code]` | safe-exit.sh | 统一清理退出（注册 trap 后用） |
+| `_register_temp <path>` | safe-exit.sh | 注册清理目标 |
+
 ## 内部实现（仅 maintain.sh / 入口脚本调用）
 | 文件 | 用途 |
 |------|------|
