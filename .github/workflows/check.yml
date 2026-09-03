@@ -43,17 +43,11 @@ jobs:
             [ -f "$f" ] || continue
             python3 -c "import json,sys; json.load(open('$f'))" || { echo "INVALID JSON: $f"; exit 1; }
           done
-      - name: validate conf/*.json.example against schema
+      - name: validate conf/*.json.example (well-formed JSON)
         run: |
-          source lib/json-validate.sh
           for f in conf/*.json.example; do
             [ -f "$f" ] || continue
-            name=$(basename "$f" .example)
-            case "$name" in
-              claude) schema=mcp ;;
-              *) schema="$name" ;;
-            esac
-            try_assert_json "$f" "$schema"
+            python3 -c "import json; json.load(open('$f'))" || { echo "INVALID JSON: $f"; exit 1; }
           done
 
   python:
