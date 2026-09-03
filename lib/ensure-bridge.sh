@@ -9,6 +9,64 @@
 
 CCCONFIG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BRIDGE_PORT=8898
+BRIDGE_WD_PID="$HOME/.cache/bridge-watchdog.pid"
+BRIDGE_WD_LOG="$HOME/.cache/bridge-watchdog.log"
+
+_bridge_wd_log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$BRIDGE_WD_LOG"; }
+
+# bridge watchdog：30s 检查，挂了自动重启
+# 被 ensure_bridge 成功后在后台启动
+start_bridge_watchdog() {
+    local upstream="$1" model="$2" key="$3"
+    # 已有 watchdog 在跑 → 跳过
+    if [[ -f "$BRIDGE_WD_PID" ]]; then
+        local old_pid
+        old_pid=$(cat "$BRIDGE_WD_PID" 2>/dev/null) || true
+        if [[ -n "$old_pid" ]] && kill -0 "$old_pid" 2>/dev/null; then
+            return 0
+        fi
+        rm -f "$BRIDGE_WD_PID"
+    fi
+
+    local wrapper="/tmp/bridge-watchdog-$RANDOM-$$.sh"
+    cat > "$wrapper" << WDEOF
+#!/bin/bash
+while true; do
+    h=\$(curl -s --max-time 3 http://127.0.0.1:${BRIDGE_PORT}/health 2>/dev/null) || h=''
+    if [[ -z "\$h" ]]; then
+        # bridge 无响应 — kill 老进程（如有）然后重启
+        local old
+        old=\$( { lsof -ti :${BRIDGE_PORT} 2>/dev/null || true; } | head -1 || true)
+        [[ -n "\$old" ]] && kill "\$old" 2>/dev/null || true
+        sleep 1
+        cd "${CCCONFIG_ROOT}" || exit 1
+        exec env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
+            OPENAI_BRIDGE_UPSTREAM="$upstream" \
+            OPENAI_BRIDGE_KEY="$key" \
+            OPENAI_BRIDGE_MODEL="$model" \
+            python3 option-llmswitch/openai_bridge.py --port "${BRIDGE_PORT}" \$( [[ "$upstream" == https:* ]] && echo '--skip-tls-verify' ) \$( command -v curl.exe &>/dev/null && [[ "$upstream" =~ ://(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.) ]] && echo '--use-win-curl' || true )
+    fi
+    sleep 30
+done
+WDEOF
+    chmod +x "$wrapper"
+    nohup "$wrapper" > "$BRIDGE_WD_LOG" 2>&1 < /dev/null &
+    local wd_pid=$!
+    disown "$wd_pid" 2>/dev/null || true
+    echo "$wd_pid" > "$BRIDGE_WD_PID"
+    _bridge_wd_log "watchdog 启动 (PID: $wd_pid)"
+}
+
+stop_bridge_watchdog() {
+    if [[ ! -f "$BRIDGE_WD_PID" ]]; then return 0; fi
+    local wd_pid
+    wd_pid=$(cat "$BRIDGE_WD_PID" 2>/dev/null) || true
+    if [[ -n "$wd_pid" ]]; then
+        kill "$wd_pid" 2>/dev/null || true
+        _bridge_wd_log "watchdog 停止 (PID: $wd_pid)"
+    fi
+    rm -f "$BRIDGE_WD_PID"
+}
 
 _bridge_supported() {
     local upstream="$1"
@@ -99,7 +157,7 @@ WRAPEOF
     done
     rm -f "$wrapper"
 
-    [[ -n "$h" ]]
+    [[ -n "$h" ]] && start_bridge_watchdog "$upstream" "$model" "$key"
 }
 
 # 仅自愈：env 指向 127.0.0.1:8898 但 bridge 死了时拉起
