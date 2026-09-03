@@ -800,6 +800,7 @@ do_link_single() {
     fi
 
     mkdir -p "$CLAUDE_SKILLS_DIR"
+    run rm -f -- "$target"
     run ln -s "$src_dir" "$target"
     good "  $name: ✓ symlink 已创建"
 }
