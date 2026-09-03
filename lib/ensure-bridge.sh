@@ -96,7 +96,7 @@ ensure_bridge() {
     local upstream="$1" model="$2" key="$3"
     _bridge_supported "$upstream" || return 1
 
-    # 已健康且 upstream 匹配 → 直接返回
+    # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
     local health
     health=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
     local old_pid=""
@@ -104,6 +104,7 @@ ensure_bridge() {
         local cur_upstream
         cur_upstream=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
         if [[ "$cur_upstream" == "$upstream" ]]; then
+            start_bridge_watchdog "$upstream" "$model" "$key"
             return 0
         fi
         info "  upstream 变化 ($cur_upstream → $upstream)，重启 bridge..."
