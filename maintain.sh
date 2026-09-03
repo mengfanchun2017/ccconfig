@@ -114,7 +114,7 @@ _submenu_update_sync() {
 
 do_setup() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}  ccconfig 一键修复 — 符号链接 + 缺失目录 + auto-sync + 依赖检查${NC}"
+    echo -e "${CYAN}  ccconfig 一键修复 — 符号链接 + 缺失目录 + auto-sync ${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
@@ -149,14 +149,7 @@ do_setup() {
         warn "auto-sync 启动失败（可手动: bash $LIB_DIR/monitor.sh start）"
     fi
 
-    section "3. 依赖检查"
-    if bash "$LIB_DIR/deps-check.sh"; then
-        ok "依赖完整"
-    else
-        warn "部分依赖缺失，详见上方输出"
-    fi
-
-    section "4. 状态总览"
+    section "3. 状态总览"
     bash "$LIB_DIR/status.sh" --quick
 
     echo ""
