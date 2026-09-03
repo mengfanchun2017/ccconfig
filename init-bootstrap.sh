@@ -268,33 +268,11 @@ probe_repo() {
 }
 
 collect_info() {
-    section "GitHub 信息"
-
+    # GH_USER/GIT_EMAIL 自动从 gh api 提取，gh auth 已登录时不交互
     GH_USER="${CCP_GH_USER:-$(detect_gh_user)}"
-    if [[ -n "$GH_USER" ]]; then
-        info "GitHub 账号: ${GREEN}$GH_USER${NC}"
-    elif $NONINTERACTIVE; then
-        err "GH_USER 缺失（设 CCP_GH_USER 或保持 gh 已登录）"
-        return 1
-    else
-        while [[ -z "$GH_USER" ]]; do
-            GH_USER=$(prompt "GitHub 用户名")
-            [[ -z "$GH_USER" ]] && err "不能为空"
-        done
-    fi
-
     GIT_EMAIL="${CCP_GIT_EMAIL:-$(detect_git_email)}"
-    if [[ -n "$GIT_EMAIL" ]]; then
-        info "Git 邮箱: ${GREEN}$GIT_EMAIL${NC}"
-    elif $NONINTERACTIVE; then
-        err "GIT_EMAIL 缺失（设 CCP_GIT_EMAIL 或 git config --global user.email）"
-        return 1
-    else
-        while [[ -z "$GIT_EMAIL" ]]; do
-            GIT_EMAIL=$(prompt "Git 邮箱")
-            [[ -z "$GIT_EMAIL" ]] && err "不能为空"
-        done
-    fi
+    [[ -n "$GH_USER" ]]   && info "GitHub: ${GREEN}$GH_USER${NC}"   || warn "GH_USER 未检测到（gh 未登录？）"
+    [[ -n "$GIT_EMAIL" ]] && info "Git 邮箱: ${GREEN}$GIT_EMAIL${NC}" || warn "GIT_EMAIL 未检测到"
 
     section "LLM API Key（至少填一个）"
 
