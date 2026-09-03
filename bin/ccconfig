@@ -1,0 +1,72 @@
+#!/bin/bash
+# ccconfig — 统一入口
+#
+# 用法:
+#   ccconfig                    # 交互菜单（同 maintain.sh）
+#   ccconfig init               # 初始化
+#   ccconfig bootstrap          # 全新安装引导
+#   ccconfig maintain <args>    # 运维（转发到 maintain.sh）
+#   ccconfig init-option <args> # 可选组件
+#   ccconfig help               # 帮助
+#
+# 子命令对应根目录入口脚本，透传剩余参数。
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CCCONFIG_DIR="$(dirname "$SCRIPT_DIR")"
+
+help() {
+    cat << EOF
+用法: ccconfig <command> [args]
+
+命令:
+  init                 初始化环境（Ubuntu 工具/LLM/MCP/skill 等）
+  bootstrap            全新 WSL/Ubuntu 安装引导
+  init-option          可选组件安装（lark-cli/getnote/officecli 等）
+  maintain [args]      运维中心（状态检查/更新/修复/LLM/MCP）
+  init-ccprivate       私有配置仓库初始化
+  help                 显示此帮助
+
+无参数时启动交互菜单。
+EOF
+    exit 0
+}
+
+main() {
+    case "${1:-}" in
+        ""|menu)
+            exec "$CCCONFIG_DIR/maintain.sh"
+            ;;
+        init)
+            shift
+            exec "$CCCONFIG_DIR/init-base.sh" "$@"
+            ;;
+        bootstrap)
+            shift
+            exec "$CCCONFIG_DIR/bootstrap-gh-auth.sh" "$@"
+            ;;
+        init-option)
+            shift
+            exec "$CCCONFIG_DIR/init-option.sh" "$@"
+            ;;
+        maintain)
+            shift
+            exec "$CCCONFIG_DIR/maintain.sh" "$@"
+            ;;
+        init-ccprivate)
+            shift
+            exec "$CCCONFIG_DIR/init-ccprivate-repo.sh" "$@"
+            ;;
+        help|--help|-h)
+            help
+            ;;
+        *)
+            echo "未知命令: $1"
+            echo "运行 'ccconfig help' 查看用法"
+            exit 2
+            ;;
+    esac
+}
+
+main "$@"
