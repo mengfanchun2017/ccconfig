@@ -354,7 +354,7 @@ _exec_entry() {
                 local sub="${submenu#menu:}"
                 if declare -F "_submenu_$sub" > /dev/null; then
                     "_submenu_$sub"
-                    return $?
+                    return 3  # 子菜单返回 3 → menu_loop 跳过暂停
                 else
                     warn "子菜单不存在: _submenu_$sub"
                     return 3
@@ -453,6 +453,7 @@ menu_parse() {
 #   menu_loop "标题"
 menu_loop() {
     local title="${1:-菜单}"
+    local skip_pause=0
     while true; do
         clear 2>/dev/null || true
         banner "$title"
@@ -464,7 +465,10 @@ menu_loop() {
         local rc=$?
         [[ $rc -eq 2 ]] && return 0
         [[ $rc -eq 1 ]] && continue
-        echo ""
-        printf "  按回车继续..."; read -r dummy < /dev/tty || true
+        # 子菜单返回 3 跳过暂停
+        if [[ $rc -ne 3 ]]; then
+            echo ""
+            printf "  按回车继续..."; read -r dummy < /dev/tty || true
+        fi
     done
 }
