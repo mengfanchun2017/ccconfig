@@ -22,10 +22,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: install linters
         run: sudo apt-get install -y -qq shellcheck shfmt
-      - name: shellcheck (error severity fails)
+      - name: shellcheck (warning severity fails)
         run: |
           find . -name "*.sh" -not -path "./.git/*" -not -path "./.claude/*" -print0 \
-            | xargs -0 shellcheck -S error
+            | xargs -0 shellcheck -S warning
       - name: shfmt format check
         run: |
           find . -name "*.sh" -not -path "./.git/*" -not -path "./.claude/*" -print0 \
