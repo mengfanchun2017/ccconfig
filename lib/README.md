@@ -1,47 +1,36 @@
-# lib/ — 子脚本 + 共享库
+# lib/ 函数库
 
-> init-base.sh / maintain.sh 调用的所有子脚本和公共函数。
-
-## 子脚本
-
-| 文件 | 用途 | 调用者 |
-|------|------|--------|
-| `init-ubuntu.sh` | Ubuntu/WSL 全环境初始化 | init-base.sh all |
-| `init-llm.sh` | LLM 后端切换 | init-base.sh / init-ubuntu.sh |
-| `init-mcp.sh` | MCP 服务器管理 | init-base.sh all |
-| `init-skill.sh` | Skills 同步管理 | init-base.sh all |
-| `init-autostart.sh` | auto-sync systemd 服务 | init-ubuntu.sh |
-| `monitor.sh` | 多仓库文件监听 + 自动 git 同步 | maintain.sh / systemd |
-| `status.sh` | 状态检查（11 项） | maintain.sh status |
-| `sync.sh` | 多仓库智能同步 | maintain.sh sync |
-| `update.sh` | 月度组件升级 | maintain.sh update |
-| `setup-links.sh` | 公开部分符号链接 | ccprivate/setup.sh |
-| `deps-check.sh` | 依赖完整性检查 | status.sh |
-| ~~`update-third-party-skills.sh`~~ | ~~已废弃，由 `init-skill.sh update` 替代~~ | — |
-
-## 共享库
-
+## 稳定 API（option-* / 外部可 source）
 | 文件 | 用途 |
 |------|------|
-| `path-helper.sh` | Node.js 路径发现（4 级回退）、版本文件读写、PATH 清理 |
-| `colors.sh` | 终端颜色定义 |
+| `colors.sh` | 颜色输出：ok/err/warn/info/section |
+| `interact.sh` | 交互菜单：confirm/menu_select/spinner/prompt |
+| `dry-run.sh` | 干运行支持：would/run |
+| `safe-exit.sh` | 统一 trap 清理：safe_exit/_register_temp |
+| `path-helper.sh` | 路径解析：resolve_conf/find_node_bin/get_version |
+| `net.sh` | 网络探测：check_proxy/check_tcp |
+| `deps-check.sh` | 依赖检查 |
 
-## 路径约定
-
-子脚本通过 `CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"` 定位仓库根目录：
-
-```bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
-
-source "$SCRIPT_DIR/path-helper.sh"          # sibling in lib/
-CONFIG="$CCCONFIG_ROOT/conf/llm.json"    # conf/ at repo root
-```
-
-## 使用
-
-```bash
-# 用户入口（repo root）
-bash maintain.sh status      # → lib/status.sh
-bash init-base.sh all             # → lib/init-ubuntu.sh → lib/init-mcp.sh → lib/init-skill.sh
-```
+## 内部实现（仅 maintain.sh / 入口脚本调用）
+| 文件 | 用途 |
+|------|------|
+| `monitor.sh` | auto-sync 监控 |
+| `sync.sh` | Git 同步 |
+| `update.sh` | 组件升级 |
+| `status.sh` | 状态检查 |
+| `mcp-manager.sh` | MCP 管理 |
+| `example-sync.sh` | 模板同步门禁 |
+| `setup-links.sh` | 符号链接设置 |
+| `menu-data-maintain.sh` | maintain.sh 菜单数据 |
+| `menu-feishu.sh` | 飞书子菜单 |
+| `ccprivate-upgrade.sh` | 私有配置升级 |
+| `shell_init.sh` | shell 初始化 |
+| `ensure-bridge.sh` | bridge 看门狗 |
+| `ensure-libicu.sh` | ICU 依赖 |
+| `install-inotify.sh` | inotify 安装 |
+| `init-ubuntu.sh` | Ubuntu 初始化 |
+| `init-llm.sh` | LLM 配置 |
+| `init-llm-bill.sh` | LLM 账单 |
+| `init-mcp.sh` | MCP 初始化 |
+| `init-skill.sh` | Skill 安装 |
+| `init-autostart.sh` | 自启动配置 |
