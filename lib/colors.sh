@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # 颜色变量 + 日志函数 — 所有脚本统一 source
 # 使用: source "$SCRIPT_DIR/colors.sh"
 

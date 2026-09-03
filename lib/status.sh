@@ -132,7 +132,7 @@ check_ccprivate_structure() {
 
     if [ ! -d "$ccpriv" ]; then
         echo -e "  ${RED}❌${NC} ccprivate 目录不存在: $ccpriv"
-        echo -e "  ${GRAY}创建: bash ccconfig/init-ccprivate-repo.sh${NC}"
+        echo -e "  ${GRAY}创建: bash ccconfig/init-bootstrap.sh${NC}"
         return
     fi
 
