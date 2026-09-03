@@ -419,7 +419,7 @@ echo ""
 # Guard: ccprivate 不存在
 if [ ! -d "$CCPRIVATE" ]; then
     echo -e "  ${RED}❌${NC} ccprivate 目录不存在: $CCPRIVATE"
-    echo -e "  ${GRAY}创建: bash ccconfig/init-ccprivate-repo.sh${NC}"
+    echo -e "  ${GRAY}创建: bash ccconfig/init-bootstrap.sh${NC}"
     exit 1
 fi
 

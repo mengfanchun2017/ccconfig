@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # safe-exit.sh — 统一 trap 清理函数
 #
 # 用法: source 后入口脚本注册 trap

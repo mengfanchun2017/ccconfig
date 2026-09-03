@@ -112,7 +112,7 @@ _submenu_update_sync() {
 
 # ========== 主动能 ==========
 
-do_finalize() {
+do_setup() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}  ccconfig 一键修复 — 符号链接 + 缺失目录 + auto-sync + 依赖检查${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -239,7 +239,7 @@ fix_monitor() {
         shift
         case "${1:-all}" in
             monitor) fix_monitor ;;
-            all|"")  do_finalize ;;
+            all|"")  do_setup ;;
             *)       err "未知 fix 子命令: $1"; exit 1 ;;
         esac ;;
     upgrade) shift; bash "$LIB_DIR/update.sh" "$@" ;;
