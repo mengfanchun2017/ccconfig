@@ -102,28 +102,11 @@ init_all_steps() {
     current_llm=$(python3 -c "import json; print(json.load(open('$llm_json')).get('current',''))" 2>/dev/null || echo "")
     export INIT_LLM_NAME="$current_llm"
 
-    run_step "1/3 Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true \
-        "装 Node / Claude Code / 建符号链接 / 启动 auto-sync / 注册 SessionStart hook" \
-        "Claude Code 需要 Node 运行时；auto-sync 让配置变更自动 push" \
-        "3 min（含 apt 下载）"
+    run_step "Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true         "装 Node / Claude Code / 建符号链接 / 启动 auto-sync"         "3 min（含 apt 下载）"
 
-    run_step "2/3 LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true \
-        "把当前 LLM 的 API key 写入 ~/.claude/settings.json" \
-        "Claude Code 通过 ANTHROPIC_AUTH_TOKEN 调用 LLM；没配就跑不了" \
-        "10 s"
+    run_step "LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true         "把当前 LLM 的 API key 写入 ~/.claude/settings.json"         "10 s"
 
-    # 步骤 3/3: 收尾 — 链接 + auto-sync 服务（必需：setup-links.sh 建 symlink）
-    echo ""
-    echo -e "${CYAN}━━━ 3/3 收尾（链接 + 服务）━━━${NC}"
-    echo -e "  ${GRAY}setup-links.sh 建符号链接 + auto-sync 服务 + 状态验证${NC}"
-    echo -e "  ${GRAY}symlink 是 ccprivate 穿透访问的基石，缺则 Claude Code 读不到配置${NC}"
-    echo ""
-    if bash "$SCRIPT_DIR/maintain.sh" setup; then
-        echo -e "  ${GREEN}✅ 3/3 收尾完成${NC}"
-    else
-        echo -e "  ${RED}❌ 3/3 收尾失败（继续）${NC}"
-    fi
-
+    run_step "收尾（链接 + 服务）" "$SCRIPT_DIR/maintain.sh" true         "ccprivate 链接 + auto-sync 服务 + 状态验证"         "30 s"
     echo -e "${GREEN}🎉 基础初始化完成${NC}"
     echo ""
 

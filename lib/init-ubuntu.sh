@@ -47,7 +47,7 @@ read_git_config() {
 }
 
 # ========== 1. ccprivate 私有仓库 clone ==========
-# 已由 init-ccprivate-repo.sh 在 Step 3 处理；此处仅做幂等补刀
+# 已由 init-bootstrap.sh 处理；此处仅 pull 最新做幂等补刀
 setup_ccprivate() {
     section "ccprivate 私有仓库"
 
