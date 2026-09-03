@@ -529,7 +529,7 @@ bash init-bootstrap.sh --clone
 
 > **已有 ccprivate？** 其他机器恢复时用 `bash init-bootstrap.sh --clone` 直接克隆。
 >
-> **手动控制**：需要自定义更多配置 → [docs/ccprivate-guide.md](docs/ccprivate-guide.md)。
+> **手动控制**：需要自定义更多配置 → 直接编辑 `~/git/ccprivate/` 文件（git 跟踪）。
 
 ## 阶段 5 — 系统初始化
 
