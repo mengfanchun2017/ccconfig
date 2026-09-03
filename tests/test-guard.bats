@@ -1,5 +1,8 @@
 #!/usr/bin/env bats
 # test-guard.bats — lib/dry-run.sh guard 幂等函数测试
+#
+# 注意：dry-run.sh 定义了 run() 覆盖 bats 内置 run。
+# 测试中不用 bats 的 run 命令，用 $() 或直接断言。
 
 load "setup"
 
@@ -26,8 +29,7 @@ setup() {
 @test "guard_append_line adds line if absent" {
     local f; f=$(mktemp)
     guard_append_line "$f" "test-line"
-    bats_run grep -qxF "test-line" "$f"
-    [ "$status" -eq 0 ]
+    grep -qxF "test-line" "$f"
     rm -f "$f"
 }
 
@@ -35,8 +37,8 @@ setup() {
     local f; f=$(mktemp)
     printf 'existing-line\n' > "$f"
     guard_append_line "$f" "existing-line"
-    bats_run wc -l < "$f"
-    [ "$output" = "1" ]
+    local count; count=$(wc -l < "$f")
+    [ "$count" = "1" ]
     rm -f "$f"
 }
 
@@ -45,15 +47,14 @@ setup() {
 }
 
 @test "guard_command_exists returns 1 for missing command" {
-    bats_run guard_command_exists nonexistent-cmd-xyz
-    [ "$status" -eq 1 ]
+    ! guard_command_exists nonexistent-cmd-xyz
 }
 
 @test "atomic_write writes content atomically" {
     local f; f=$(mktemp -u)
     printf 'hello' | atomic_write "$f"
-    bats_run cat "$f"
-    [ "$output" = "hello" ]
+    local content; content=$(cat "$f")
+    [ "$content" = "hello" ]
     [ -f "$f" ]
     rm -f "$f"
 }

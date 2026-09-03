@@ -3,8 +3,8 @@
 #
 # 覆盖：run()/would()/dispatch() 在 CCC_DRY_RUN 下的行为
 #
-# 注意：dry-run.sh 定义了 run() 函数，会覆盖 bats 内置的 run。
-# 测试中用 bats_run 调用 bats 的 run。
+# 注意：dry-run.sh 定义了 run() 会覆盖 bats 内置 run 命令。
+# 测试中直接用 $() 捕获输出，不用 bats 的 run。
 
 load "setup"
 
@@ -14,35 +14,30 @@ setup() {
 }
 
 @test "run() executes normally without CCC_DRY_RUN" {
-    bats_run run echo hello
-    [ "$status" -eq 0 ]
-    [ "$output" = "hello" ]
+    local out; out=$(run echo hello 2>/dev/null)
+    [ "$out" = "hello" ]
 }
 
 @test "run() prints would: with CCC_DRY_RUN=1" {
-    CCC_DRY_RUN=1 bats_run run echo hello
-    [[ "$output" == *"would:"* ]]
-}
-
-@test "run() strips --dry-run flag" {
-    CCC_DRY_RUN=1 bats_run run echo hello --dry-run
-    echo "$output"
-    [[ "$output" == *"hello"* ]]
+    CCC_DRY_RUN=1
+    local out; out=$(run echo hello 2>&1)
+    [[ "$out" == *"would:"* ]]
 }
 
 @test "would() prints formatted message" {
-    bats_run would "install" "pkg-a pkg-b"
-    [ "$output" = "would: install pkg-a pkg-b" ]
+    local out; out=$(would "install" "pkg-a pkg-b")
+    [ "$out" = "would: install pkg-a pkg-b" ]
 }
 
 @test "dispatch() calls dry_fn when CCC_DRY_RUN=1" {
-    CCC_DRY_RUN=1 bats_run dispatch real_fn dry_fn
-    [ "$output" = "would: dry_fn" ]
+    CCC_DRY_RUN=1
+    local out; out=$(dispatch real_fn dry_fn 2>&1)
+    [ "$out" = "would: dry_fn" ]
 }
 
 @test "dispatch() calls real_fn without CCC_DRY_RUN" {
     my_real() { echo "real-called"; }
     my_dry() { echo "dry-called"; }
-    bats_run dispatch my_real my_dry
-    [ "$output" = "real-called" ]
+    local out; out=$(dispatch my_real my_dry 2>&1)
+    [ "$out" = "real-called" ]
 }

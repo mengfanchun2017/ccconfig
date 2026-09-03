@@ -102,11 +102,17 @@ init_all_steps() {
     current_llm=$(python3 -c "import json; print(json.load(open('$llm_json')).get('current',''))" 2>/dev/null || echo "")
     export INIT_LLM_NAME="$current_llm"
 
-    run_step "Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true         "装 Node / Claude Code / 建符号链接 / 启动 auto-sync"         "3 min（含 apt 下载）"
+    run_step "Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true         \\
+        "装 Node / Claude Code / 建符号链接 / 启动 auto-sync"         \\
+        "3 min（含 apt 下载）"
 
-    run_step "LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true         "把当前 LLM 的 API key 写入 ~/.claude/settings.json"         "10 s"
+    run_step "LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true         \\
+        "把当前 LLM 的 API key 写入 ~/.claude/settings.json"         \\
+        "10 s"
 
-    run_step "收尾（链接 + 服务）" "$SCRIPT_DIR/maintain.sh" true         "ccprivate 链接 + auto-sync 服务 + 状态验证"         "30 s"
+    run_step "收尾（链接 + 服务）" "$SCRIPT_DIR/maintain.sh" true         \\
+        "ccprivate 链接 + auto-sync 服务 + 状态验证"         \\
+        "30 s"
     echo -e "${GREEN}🎉 基础初始化完成${NC}"
     echo ""
 
@@ -210,9 +216,9 @@ main_menu() {
             "可选组件(MCP/Skills/CLI)" \
             "退出")
         case "$choice" in
-            submenu_env ;;
-            submenu_remote ;;
-            bash "$0" new ;;
+            1) submenu_env ;;
+            2) submenu_remote ;;
+            3) bash "$0" new ;;
             4) init_all_steps; exit 0 ;;
             5) bash "$SCRIPT_DIR/init-option.sh" ;;
             0) echo ""; exit 0 ;;
