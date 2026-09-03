@@ -65,6 +65,15 @@ jobs:
           find . -name "*.py" -not -path "./.git/*" -not -path "./.claude/*" -print0 \
             | xargs -0 python3 -m py_compile
 
+  bats:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: install bats
+        run: sudo apt-get install -y -qq bats
+      - name: bats tests
+        run: bats tests/*.bats
+
   unit:
     runs-on: ubuntu-26.04
     steps:

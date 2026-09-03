@@ -1,42 +1,72 @@
 # tests/ — ccconfig 自动化测试
 
-## test-init-base.sh
+## 测试框架：bats（Bash Automated Testing System）
 
-init 流程回归测试。在隔离的临时目录中模拟新机器环境，mock git/gh/npm/claude/curl 等外部命令，验证所有 init 路径不报错。
+**新测试一律用 bats**（`.bats` 文件），不再写自定义 `pass()`/`fail()` 函数。
 
-**零网络调用，纯本地，秒级完成。**
-
-### 用法
+### bats 测试示例
 
 ```bash
-bash ccconfig/tests/test-init-base.sh              # 全部测试
-bash ccconfig/tests/test-init-base.sh --verbose    # 详细输出
-bash ccconfig/tests/test-init-base.sh --list       # 仅列出测试用例
+#!/usr/bin/env bats
+load "setup"
+
+@test "description" {
+    source "$CCCONFIG_DIR/lib/dry-run.sh"
+    run some_function
+    [ "$status" -eq 0 ]
+    [ "$output" = "expected" ]
+}
 ```
 
-### 覆盖范围
+### bats API
+| 函数 | 用途 |
+|------|------|
+| `run <cmd>` | 执行命令，捕获到 `$status` `$output` `$lines` |
+| `[ "$status" -eq 0 ]` | 断言退出码 |
+| `[ "$output" = "..." ]` | 断言 stdout |
+| `[[ "$output" == *"..."* ]]` | 断言 stdout 包含 |
+| `load "setup"` | 加载 setup.bats（提供 `$CCCONFIG_DIR` 等变量） |
+| `skip "reason"` | 跳过测试 |
 
-| 类别 | 测试项 |
-|------|--------|
-| `ensure_config` | broken symlink / 已有配置 / 缺配置缺模板 |
-| `check_first_time` | ccprivate 缺失 / ccprivate 存在 |
-| `ensure_claude_skills` | 无 gh 认证 / 有 gh 认证 |
-| symlink | SKILLS_SRC 目录缺失不崩溃 |
-| placeholder | 中文模板值检测 / 真实值识别 |
-| home_expand | `~` 和 `$HOME` 展开 |
-| init --dry-run | 输出预览内容 |
-| sync | setup-links 失败不中断同步 |
-| mcp sync | 写入正确路径 / 缺文件不崩溃 |
+### 测试文件约定
+- 文件名：`test-<module>.bats`
+- 每个 `@test` 块测试一个行为
+- 外部依赖用 `run` 捕获，不写手动的 `PASS++`
+- `setup.bats` 提供公共的 `$CCCONFIG_DIR`/`$LIB_DIR` 和 `make_isolated_home()`
 
-### Mock 策略
+### 运行
 
-对外部命令全部替换为 stub（`~/.local/bin/` 优先于系统 PATH）：
-- `git` / `gh` / `npm` / `npx` / `claude` — 返回 mock 输出
-- `curl` / `systemctl` / `inotifywait` / `sudo` — 返回成功
-- `python3` — 真实二进制（JSON 解析需要）
+```bash
+# 运行所有 bats 测试
+bats tests/*.bats
 
-### 添加新测试
+# 运行单个
+bats tests/test-dry-run.bats
+```
 
-1. 在 `test-init-base.sh` 写一个 `test_xxx()` 函数
-2. 加入 `all_tests` 数组：`"描述文字" test_xxx`
-3. 跑 `bash ccconfig/tests/test-init-base.sh` 验证
+## 现有 shell 测试（兼容保持）
+
+以下 `.sh` 测试保留供 CI 继续使用，新功能不在此写：
+
+| 文件 | 覆盖 |
+|------|------|
+| `test-init-base.sh` | init 流程回归（mock 隔离环境） |
+| `test-init-llm.sh` | LLM 配置读写 |
+| `test-init-option.sh` | option 语法检查 |
+| `test-maintain.sh` | maintain 菜单回归 |
+| `test-monitor.sh` | monitor 核心函数 |
+| `test-sync.sh` | sync 核心函数 |
+| `test-json-schema.sh` | JSON 结构兼容性 |
+| `test-token-usage.sh` | token 统计 |
+| `test-bootstrap.sh` | bootstrap 流程 |
+| `test-cross-script-dryrun.sh` | 跨脚本 dry-run |
+| `test-interact.sh` | interact 函数 |
+| `test-init-ccprivate-repo.sh` | ccprivate 初始化 |
+| `test-syntax.sh` | 语法检查（被 test-syntax.bats 替代） |
+
+## 添加新测试
+
+1. 创建 `tests/test-<module>.bats`
+2. 第一行 `load "setup"`
+3. 写 `@test "描述" { ... }` 块
+4. 跑 `bats tests/test-<module>.bats` 验证
