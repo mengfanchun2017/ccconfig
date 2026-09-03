@@ -16,7 +16,7 @@ for _repo in "$HOME/git"/*/; do
     [ -d "$_central" ] && cp -a "$_central"/* "${_repo}.claude/memory/" 2>/dev/null
     rm -rf "$_central"
     mkdir -p "$(dirname "$_central")"
-    ln -s "${_repo}.claude/memory" "$_central"
+    ln -sf "${_repo}.claude/memory" "$_central"
 done
 unset _repo _project_id _central
 
