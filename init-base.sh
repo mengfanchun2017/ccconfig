@@ -210,9 +210,9 @@ main_menu() {
             "可选组件(MCP/Skills/CLI)" \
             "退出")
         case "$choice" in
-            1) submenu_env ;;
-            2) submenu_remote ;;
-            3) bash "$0" new ;;
+            submenu_env ;;
+            submenu_remote ;;
+            bash "$0" new ;;
             4) init_all_steps; exit 0 ;;
             5) bash "$SCRIPT_DIR/init-option.sh" ;;
             0) echo ""; exit 0 ;;
@@ -248,14 +248,14 @@ case "${1:-menu}" in
         show_banner
         echo ""
         echo -e "${CYAN}━━━ 预览：将要执行的操作 ━━━${NC}"
-        echo "  1) init-ubuntu.sh    → 系统包 + node/gh/claude + symlink"
-        echo "  2) init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
-        echo "  3) maintain.sh setup → 链接修复 + auto-sync + 状态"
+        echo "  init-ubuntu.sh  → 系统包 + node/gh/claude + symlink"
+        echo "  init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
+        echo "  maintain.sh setup → 链接修复 + auto-sync + 状态"
         echo ""
         echo "  运行 'bash init-base.sh all' 执行以上 3 步"
         echo "  运行 'bash init-base.sh all --yes' 全自动（非交互）"
-        echo "  完成后: bash init-option.sh（可选，装附加组件）"
-        echo "  最后:   bash maintain.sh（菜单选 1A 完整状态检查）"
+        echo "  完成后: bash init-option.sh（可选组件）→ bash maintain.sh status（状态检查）"
+        echo "  "
         echo "  运行 'bash init-base.sh' 进入交互式菜单"
         ;;
     menu|"")
