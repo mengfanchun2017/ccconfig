@@ -319,6 +319,7 @@ stop_gateway() {
 
 # 停 bridge（如有）
 stop_bridge() {
+    stop_bridge_watchdog
     local pid
     pid=$( { lsof -ti :${BRIDGE_PORT} 2>/dev/null || true; } | head -1 || true)
     [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
