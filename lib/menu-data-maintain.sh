@@ -23,7 +23,7 @@ MENU_ENTRIES=(
     "2|C|组件升级|Node/Claude/skill 组件升级|bash \"$LIB_DIR/update.sh\" menu|"
 
     # ── 3: 工具 ──
-    "3|A|LLM 切换|切换预设/配置 Gateway/模型单价|bash \"$LIB_DIR/init-llm.sh\"|"
+    "3|A|LLM 配置|切换预设/测试所有模型/Gateway/单价||menu:llm"
     "3|B|用量统计|token-usage 统计/报告/归档||menu:usage"
     "3|C|MCP 管理|跨项目查看/配置 MCP|bash \"$LIB_DIR/mcp-manager.sh\" config|"
     "3|D|飞书管理|lark-cli 账号/OAuth/测试||menu:feishu"

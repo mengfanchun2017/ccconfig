@@ -26,6 +26,18 @@ source "$LIB_DIR/menu-feishu.sh"
 
 # ========== 子菜单函数 ==========
 
+_submenu_llm() {
+    local c; c=$(menu_select "LLM 配置" \
+        "LLM 交互菜单" \
+        "测试所有模型" \
+        "返回")
+    [[ -z "$c" || "$c" = "0" ]] && return
+    case "$c" in
+        1) bash "$LIB_DIR/init-llm.sh" ;;
+        2) bash "$LIB_DIR/init-llm.sh" test all ;;
+    esac
+}
+
 _submenu_monitor() {
     local c; c=$(menu_select "监控配置" \
         "LLM 链路诊断" \
