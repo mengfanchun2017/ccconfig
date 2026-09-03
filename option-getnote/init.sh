@@ -154,7 +154,7 @@ case "${1:-}" in
     list|ls|l) bash "$SCRIPT_DIR/getnote-switch.sh" --list ;;
     ""|menu)
         while true; do
-            local c; c=$(menu_select "getnote 账号管理" \
+            c=$(menu_select "getnote 账号管理" \
                 "1) 添加账号" "2) 删除账号" "3) 列出账号" "4) 切换账号" "0) 退出")
             [[ -z "$c" ]] && continue
             case "${c:0:1}" in
@@ -163,7 +163,7 @@ case "${1:-}" in
                 3) bash "$SCRIPT_DIR/getnote-switch.sh" --list ;;
                 4)
                     bash "$SCRIPT_DIR/getnote-switch.sh" --list
-                    local target; target=$(prompt "账号名") || continue
+                    target=$(prompt "账号名") || continue
                     if [ -n "$target" ]; then
                         if confirm "持久化到 ccprivate？" n; then
                             bash "$SCRIPT_DIR/getnote-switch.sh" "$target" -p
