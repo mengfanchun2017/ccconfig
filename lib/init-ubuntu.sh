@@ -55,7 +55,7 @@ setup_ccprivate() {
 
     local CCPRIVATE_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 
-    # 已 clone → 跳过（init-ccprivate-repo.sh 在 4 步流程 Step 3 已处理）
+    # 已 clone → 跳过（init-bootstrap.sh 已处理）
     if [[ -d "$CCPRIVATE_DIR/.git" ]]; then
         info "ccprivate 已存在，pull 最新"
         git -C "$CCPRIVATE_DIR" pull --ff-only 2>&1 | tail -2 || warn "pull 失败（本地有改动），继续"
