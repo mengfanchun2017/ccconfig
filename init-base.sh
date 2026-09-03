@@ -155,31 +155,31 @@ init_all_steps() {
 
 run_step() {
     local label="$1" script="$2" auto="$3"
-    local what="${4:-}" why="${5:-}" eta="${6:-}"
+    local desc="${4:-}" eta="${5:-}"
 
     echo ""
-    echo -e "${CYAN}━━━ ${label} ━━━${NC}"
-    if [[ -n "$what" ]]; then
-        echo -e "  ${GRAY}${what}${NC}"
+    echo -e "${BOLD}${CYAN}▸ ${label}${NC}"
+    if [[ -n "$desc" ]]; then
+        echo -e "  ${GRAY}${desc}${NC}"
         [[ -n "$eta" ]] && echo -e "  ${GRAY}预计 ~${eta}${NC}"
     fi
     echo ""
 
     if [ "$auto" = "true" ]; then
         if bash "$script"; then
-            echo -e "${GREEN}✅ ${label} 完成${NC}"
+            ok "${label}"
         else
-            echo -e "${RED}❌ ${label} 失败（继续）${NC}"
+            warn "${label} 失败（继续）"
         fi
     else
         if confirm "运行？" y; then
             if bash "$script"; then
-                echo -e "${GREEN}✅ ${label} 完成${NC}"
+                ok "${label}"
             else
-                echo -e "${RED}❌ ${label} 失败${NC}"
+                err "${label} 失败"
             fi
         else
-            echo -e "${YELLOW}跳过${NC}"
+            echo -e "  ${YELLOW}跳过${NC}"
         fi
     fi
 }
