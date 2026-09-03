@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2034  # ANSI 清空变量、NPM_PACKAGES 等仅供消费方/未来扩展
 # deps-check.sh — ccconfig 依赖完整性检查
 #
 # 检查所有脚本依赖的工具和包，输出清晰状态表。
@@ -13,10 +14,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091  # path-helper.sh may not exist in test mode
 source "$SCRIPT_DIR/path-helper.sh" 2>/dev/null || true
+# shellcheck disable=SC1091  # colors.sh may not exist in test mode
 source "$SCRIPT_DIR/colors.sh"
 
-export PATH="$HOME/.local/bin:$(find_node_bin 2>/dev/null || echo ""):$PATH"
+# shellcheck disable=SC2155  # intentional: PATH export with computed fallback
+node_bin_path="$(find_node_bin 2>/dev/null || echo "")"
+export PATH="$HOME/.local/bin:${node_bin_path}:$PATH"
 
 MISSING=0
 WARNINGS=0
@@ -38,7 +43,6 @@ if $PLAIN_OUT; then
     NG_SYM="[✗]"
     WARN_SYM="[○]"
     SEP=""  # plain: no ANSI separator
-    # 清空 ANSI 变量
     RED=""; GREEN=""; YELLOW=""; CYAN=""; GRAY=""; BOLD=""; NC=""
 else
     OK_SYM="✅"

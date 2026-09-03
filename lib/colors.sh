@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2034  # 颜色变量被 source 方消费
 # 颜色变量 + 日志函数 — 所有脚本统一 source
 # 使用: source "$SCRIPT_DIR/colors.sh"
 
