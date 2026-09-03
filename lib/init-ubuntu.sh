@@ -407,6 +407,7 @@ SSHEOF
     # 需要 SSH 加速的用户手动：git remote set-url origin git@github.com:<repo>.git
     if { ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 git@github.com 2>&1 || true; } | grep -q "successfully authenticated"; then
         success "GitHub SSH 连接成功"
+    else
         echo ""
         echo -e "  ${YELLOW}⚠ SSH 连接测试未通过${NC}"
         echo -e "  ${GRAY}公钥需先添加到 GitHub: https://github.com/settings/keys${NC}"
