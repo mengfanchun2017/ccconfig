@@ -231,11 +231,11 @@ spinner() {
 
     local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
     ( "$@" & local pid=$! i=0
-      while kill -0 $pid 2>/dev/null; do
+      while kill -0 "$pid" 2>/dev/null; do
         printf "\r  ${GRAY}%s %s${NC}" "${frames[$i]}" "$msg"
         i=$(( (i + 1) % ${#frames[@]} )); sleep 0.1
       done
-      wait $pid; printf "\r  ${GREEN}✓${NC} %s\n" "$msg" )
+      wait "$pid"; printf "\r  ${GREEN}✓${NC} %s\n" "$msg" )
 }
 
 # ========== 多选 checklist ==========

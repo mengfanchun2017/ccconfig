@@ -270,13 +270,13 @@ else
         echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     fi
 
-    if [ $MISSING -eq 0 ] && [ $WARNINGS -eq 0 ]; then
+    if [ "$MISSING" -eq 0 ] && [ "$WARNINGS" -eq 0 ]; then
         echo -e "  ${OK_SYM} 所有依赖完整"
     else
-        if [ $MISSING -gt 0 ]; then
+        if [ "$MISSING" -gt 0 ]; then
             echo -e "  ${NG_SYM} $MISSING 个依赖缺失"
         fi
-        if [ $WARNINGS -gt 0 ]; then
+        if [ "$WARNINGS" -gt 0 ]; then
             echo -e "  ${WARN_SYM} $WARNINGS 个可选依赖未安装"
         fi
         echo ""
@@ -285,4 +285,4 @@ else
     echo ""
 fi
 
-[ $MISSING -eq 0 ] || exit 1
+[ "$MISSING" -eq 0 ] || exit 1
