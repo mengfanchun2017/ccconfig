@@ -24,14 +24,14 @@ MENU_ENTRIES=(
     "2|C|组件升级|Node/Claude/skill 组件升级|bash \"$LIB_DIR/update.sh\" menu|"
 
     # ── 3: 工具 ──
-    "3|A|LLM 配置|切换预设/测试所有模型/Gateway/单价||menu:llm"
+    "3|A|LLM 配置|切换预设/Gateway/单价/自定义|bash \"$LIB_DIR/init-llm.sh\"|"
     "3|B|用量统计|token-usage 统计/报告/归档||menu:usage"
     "3|C|MCP 管理|跨项目查看/配置 MCP|bash \"$LIB_DIR/mcp-manager.sh\" config|"
-    "3|D|飞书管理|lark-cli 账号/OAuth/测试||menu:feishu"
-    "3|E|getnote|得到大脑 MCP 账号管理||menu:getnote"
-    "3|F|ccprivate 升级|私有配置仓库升级|bash \"$LIB_DIR/ccprivate-upgrade.sh\"|"
-    "3|G|回归测试|bootstrap 测试|bash \"$CCCONFIG_DIR/bin/test-bootstrap.sh\"|"
-    "3|H|GitHub PAT|刷新 fine-grained PAT|bash \"$CCCONFIG_DIR/bin/refresh-gh-auth.sh\"|"
+    "3|D|Lark 配置|lark-cli 账号/OAuth/测试||menu:feishu"
+    "3|E|Getnote 配置|得到大脑 MCP 账号管理||menu:getnote"
+    "3|F|Bootstrap 回归测试|bootstrap 集成测试|bash \"$CCCONFIG_DIR/bin/test-bootstrap.sh\"|"
+    "3|G|gitPAT 配置|刷新 fine-grained PAT|bash \"$CCCONFIG_DIR/bin/refresh-gh-auth.sh\"|"
+    "3|H|LLM 测试|测试所有模型|bash \"$LIB_DIR/init-llm.sh\" test all|"
 
     # ── 0: 退出 ──
     "0| |退出||exit 0|"

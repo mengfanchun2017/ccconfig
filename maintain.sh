@@ -26,16 +26,6 @@ source "$LIB_DIR/menu-feishu.sh"
 
 # ========== 子菜单函数 ==========
 
-_submenu_llm() {
-    local items=("LLM 交互菜单" "测试所有模型" "返回")
-    local c; c=$(menu_select "LLM 配置" "${items[@]}")
-    [[ -z "$c" || "$c" = "0" || "$c" = "${#items[@]}" ]] && return
-    case "$c" in
-        1) bash "$LIB_DIR/init-llm.sh" ;;
-        2) bash "$LIB_DIR/init-llm.sh" test all ;;
-    esac
-}
-
 _submenu_monitor() {
     local items=("LLM 链路诊断" "切 LLM 预设" "模型单价配置" "bridge 自愈" "状态查看" "启动" "停止" "重启" "修复" "返回")
     local c; c=$(menu_select "监控配置" "${items[@]}")
@@ -109,13 +99,14 @@ _submenu_getnote() {
 }
 
 _submenu_update_sync() {
-    local items=("ccconfig更新" "Git 同步" "全部" "返回")
+    local items=("ccconfig更新" "Git 同步" "ccprivate 升级" "全部" "返回")
     local c; c=$(menu_select "更新配置" "${items[@]}")
     [[ -z "$c" || "$c" = "0" || "$c" = "${#items[@]}" ]] && return
     case "$c" in
         1) do_self all ;;
         2) bash "$LIB_DIR/sync.sh" ;;
-        3) do_self all && bash "$LIB_DIR/sync.sh" ;;
+        3) bash "$LIB_DIR/ccprivate-upgrade.sh" ;;
+        4) do_self all && bash "$LIB_DIR/sync.sh" ;;
     esac
 }
 
