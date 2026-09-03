@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2178,SC2128  # false positive: tmp in atomic_write is never an array
 # ==============================================
 # dry-run.sh — 统一 dry-run 助手
 #
@@ -150,6 +151,7 @@ guard_command_exists() {
 # ========== 原子写入 ==========
 # 临时文件 → mv 原子重命名，防止写一半断掉
 atomic_write() {
+    # false positive: shellcheck 0.10.0 thinks tmp is an array
     local out="$1"
     local tmp; tmp=$(mktemp "${out}.XXXXXX") || return 1
     cat > "$tmp"
