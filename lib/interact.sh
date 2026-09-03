@@ -120,9 +120,9 @@ menu_select() {
     # 从 /dev/tty 读，避开 stdin 被管道/重定向导致的 read 阻塞/失败
     # 两分支都加 || true：EOF/管道断开时 read 返回非零，set -e 下会中断子 shell
     if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
-        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}]: ${NC}" >&2; read -r sel < /dev/tty || true
+        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}] (0=返回): ${NC}" >&2; read -r sel < /dev/tty || true
     else
-        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}]: ${NC}" >&2; read -r sel || true
+        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}] (0=返回): ${NC}" >&2; read -r sel || true
     fi
     # 取消哨值统一 "0"：空/非法/越界/EOF/输入 0 均返回 "0"
     # 调用方用 [[ -z "$c" || "$c" = "0" ]] 判取消（-z 是旧契约的兼容兜底）
