@@ -22,7 +22,7 @@
 #   CCP_DEFAULT_LLM             deepseek | minimax | claude
 #   CCP_LLM_DEEPSEEK_KEY        DeepSeek API key
 #   CCP_LLM_MINIMAX_KEY         MiniMax API key
-#   CCP_SKIP_FEISHU=1           跳过飞书占位符引导
+#   CCP_SKIP_FEISHU=1           跳过飞书配置提示（飞书在 init-option.sh 中配置）
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -749,11 +749,11 @@ if $DRY_RUN; then
     echo "  1. 装 gh（如缺失）"
     echo "  2. GitHub 认证（PAT/Web OAuth）"
     echo "  3. 配置 git 身份 + credential helper"
-    echo "  4. 创建 ~/git/ccprivate/ 目录结构 + 配置文件"
+    echo "  4. 收集 LLM API Key + 生成 ccprivate 配置"
     echo "  5. 推送到 GitHub 私有仓库"
     echo "  6. 建立符号链接（setup.sh）"
     echo ""
-    echo "  下一步: bash init-base.sh all → init-option（可选）→ maintain.sh（1A 全量检查）"
+    echo "  下一步: bash init-base.sh all → init-option（可选）→ maintain.sh status"
     echo ""
     echo "  === dry-run: no changes applied ==="
     exit 0
