@@ -99,6 +99,7 @@ find_node_bin() {
     fi
 
     # 策略 2: 扫描 ~/.local/node-v*-linux-x64/，取最高版本
+    # shellcheck disable=SC2012  # ls+sort -V is the canonical version-sort pattern here
     found=$(ls -d "$_LOCAL_DIR"/node-v*-linux-x64/bin/node 2>/dev/null | sort -V | tail -1)
     if [ -n "$found" ] && [ -x "$found" ]; then
         dirname "$found"

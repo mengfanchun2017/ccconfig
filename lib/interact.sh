@@ -1,5 +1,5 @@
 #!/bin/bash
-# interact.sh — 统一交互菜单/选择/输入/表格函数库
+# shellcheck disable=SC2162,SC2059,SC2034  # read -r not needed interactively; printf color vars intentional; unused vars by design
 #
 # 纯 sh 实现，零外部依赖。只调用 section/warn/ok 等颜色函数（colors.sh），不依赖 menu_num。
 # 菜单显示全部走 stderr，避开 `c=$(menu_select ...)` 把 stdout 截走后菜单不显示的问题。
