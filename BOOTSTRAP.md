@@ -367,7 +367,7 @@ bash init-bootstrap.sh
 >
 > **为什么不选 classic PAT 的 `repo` scope？**
 > classic `repo` scope 等同所有私有仓全权，泄露影响范围大。fine-grained 限定到具体仓库 + 具体权限，更安全。
-> 建仓已改为手动（`init-ccprivate-repo.sh` 引导网页建仓），不需要 classic 的 repo 创建能力。
+> 建仓由 init-bootstrap.sh 在 github.com 网页引导完成，不需要 classic 的 repo 创建能力。
 
 **Token 存哪？**
 - `~/.config/gh/hosts.yml`（600 权限，本机）
@@ -514,10 +514,10 @@ ccprivate 是私有配置仓库，存放 API key + Token + 个人配置。**一�
 bash init-bootstrap.sh
 ```
 
-也可单独跑 ccprivate（如果 gh auth 已完成）：
+如果 gh auth 已完成但需要单独刷新 ccprivate：
 
 ```bash
-bash init-ccprivate-repo.sh
+bash init-bootstrap.sh --clone
 ```
 
 脚本交互式收集信息（GitHub 账号、邮箱、LLM API Key），自动：
@@ -527,7 +527,7 @@ bash init-ccprivate-repo.sh
 - 创建 GitHub 私有仓库并推送
 - 建立所有 symlink（私有 + 公开）
 
-> **已有 ccprivate？** 其他机器恢复时用 `bash init-ccprivate-repo.sh --clone` 直接克隆。
+> **已有 ccprivate？** 其他机器恢复时用 `bash init-bootstrap.sh --clone` 直接克隆。
 >
 > **手动控制**：需要自定义更多配置 → [docs/ccprivate-guide.md](docs/ccprivate-guide.md)。
 

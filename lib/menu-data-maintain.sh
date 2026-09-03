@@ -15,7 +15,7 @@ CAT_NAME[3]="工具"
 MENU_ENTRIES=(
     # ── 1: 状态 ──
     "1|A|状态检查|深度检查：链接/依赖/monitor/PAT/飞书/MCP|bash \"$LIB_DIR/status.sh\"|"
-    "1|B|一键修复|符号链接+缺失目录+auto-sync+依赖检查|do_finalize|"
+    "1|B|一键修复|符号链接+缺失目录+auto-sync+依赖检查|do_setup|"
     "1|C|追踪日志|tail monitor 日志|bash \"$LIB_DIR/monitor.sh\" tail|"
 
     # ── 2: 维护 ──

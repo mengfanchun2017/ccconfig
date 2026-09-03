@@ -125,6 +125,112 @@ do_summary() {
     echo ""
 }
 
+# ── 以下函数原 lib/git-conflict.sh（已合并） ──
+
+show_changed_since() {
+    local before="$1" after="$2" dir="$3"
+    local changed
+    changed=$(git -C "$dir" diff --name-only "$before" "$after" 2>/dev/null || echo "")
+    if [ -n "$changed" ]; then
+        echo -e "${CYAN}变更文件:${NC}"
+        echo "$changed" | while read f; do echo -e "  ${GRAY}$f${NC}"; done
+    fi
+}
+
+git_force_pull() {
+    local repo_dir="$1"
+    local branch="${2:-$(git -C "$repo_dir" branch --show-current)}"
+    local repo_name="${3:-$(basename "$repo_dir")}"
+    echo ""
+    echo -e "${RED}╔═════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  ⚠️  高危操作 — 远程覆盖本地     ║${NC}"
+    echo -e "${RED}╚═════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "  仓库: ${CYAN}$repo_name${NC} ($repo_dir)"
+    echo -e "  分支: ${CYAN}$branch${NC}"
+    echo -e "  方向: ${YELLOW}远程 → 本地${NC}（丢弃本地所有改动）"
+    echo ""
+    if ! git -C "$repo_dir" diff --quiet 2>/dev/null || ! git -C "$repo_dir" diff --cached --quiet 2>/dev/null; then
+        echo -e "  ${YELLOW}⚠️  本地未提交的改动（将被丢弃）：${NC}"
+        git -C "$repo_dir" status --short 2>/dev/null | head -20
+        echo ""
+    fi
+    local ahead
+    ahead=$(git -C "$repo_dir" rev-list --count "origin/$branch..HEAD" 2>/dev/null || echo "?")
+    if [ "$ahead" != "?" ] && [ "$ahead" -gt 0 ]; then
+        echo -e "  ${YELLOW}⚠️  本地领先远程 $ahead 个提交（将被丢弃）${NC}"
+        git -C "$repo_dir" log --oneline "origin/$branch..HEAD" 2>/dev/null | head -10
+        echo ""
+    fi
+    echo -e "  ${RED}此操作不可逆！${NC}"
+    echo ""
+    if ! confirm "确认强制拉取？（高危）" n; then
+        echo -e "  ${YELLOW}已取消${NC}"; return 1
+    fi
+    echo ""
+    echo -e "${CYAN}  🔃 远程 → 本地: $repo_name${NC}"
+    if ! git -C "$repo_dir" diff --quiet 2>/dev/null || ! git -C "$repo_dir" diff --cached --quiet 2>/dev/null; then
+        echo "     丢弃本地改动..."
+        git -C "$repo_dir" checkout -- . 2>/dev/null || true
+    fi
+    local before
+    before=$(git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null)
+    local safety_stash="ccconfig-force-pull-safety-$(date +%s)"
+    git -C "$repo_dir" stash push -u -m "$safety_stash" 2>/dev/null || true
+    echo "     fetching origin/$branch..."
+    git -C "$repo_dir" fetch origin "$branch" --prune
+    git -C "$repo_dir" reset --hard "origin/$branch"
+    git -C "$repo_dir" clean -fd 2>/dev/null || true
+    if git -C "$repo_dir" stash list | grep -q "$safety_stash"; then
+        echo "     ⚠  本地改动已存到 $safety_stash（reset 不会丢）"
+    fi
+    local after
+    after=$(git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null)
+    echo -e "  ${GREEN}✅ $repo_name: $before → $after（本地已与远程一致）${NC}"
+    show_changed_since "$before" "$after" "$repo_dir"
+    return 0
+}
+
+git_force_push() {
+    local repo_dir="$1"
+    local branch="${2:-$(git -C "$repo_dir" branch --show-current)}"
+    local repo_name="${3:-$(basename "$repo_dir")}"
+    echo ""
+    echo -e "${RED}╔═════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  ⚠️  高危操作 — 本地覆盖远程     ║${NC}"
+    echo -e "${RED}╚═════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "  仓库: ${CYAN}$repo_name${NC} ($repo_dir)"
+    echo -e "  分支: ${CYAN}$branch${NC}"
+    echo -e "  方向: ${YELLOW}本地 → 远程${NC}（强制推送覆盖远程）"
+    echo ""
+    local ahead
+    ahead=$(git -C "$repo_dir" rev-list --count "origin/$branch..HEAD" 2>/dev/null || echo "0")
+    if [ "$ahead" -gt 0 ]; then
+        echo -e "  ${CYAN}本地领先远程 $ahead 个提交（将强制推送）：${NC}"
+        git -C "$repo_dir" log --oneline "origin/$branch..HEAD" 2>/dev/null | head -10
+        echo ""
+    fi
+    local behind
+    behind=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo "0")
+    if [ "$behind" -gt 0 ]; then
+        echo -e "  ${RED}⚠️  远程有 $behind 个本地没有的提交（将被永久覆盖）：${NC}"
+        git -C "$repo_dir" log --oneline "HEAD..origin/$branch" 2>/dev/null | head -10
+        echo ""
+    fi
+    echo -e "  ${RED}此操作不可逆！${NC}"
+    echo ""
+    if ! confirm "确认强制推送？（高危）" n; then
+        echo -e "  ${YELLOW}已取消${NC}"; return 1
+    fi
+    echo ""
+    echo -e "${CYAN}  🔃 本地 → 远程: $repo_name${NC}"
+    echo "     force pushing to origin/$branch..."
+    git -C "$repo_dir" push --force origin "$branch"
+    echo -e "  ${GREEN}✅ $repo_name → origin/$branch（远程已强制覆盖）${NC}"
+    return 0
+}
+
 # ========== 同步一个仓库 ==========
 sync_one_repo() {
     local repo_dir="$1" repo_name="$2" writable="$3"

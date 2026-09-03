@@ -222,8 +222,8 @@ main_menu() {
         choice=$(menu_select "ccconfig 初始化" \
             "Ubuntu 环境/LLM/自启动" \
             "远程连接/SSH/tmux" \
-            "★ 一键新机（init-bootstrap.sh）" \
-            "★ 一键全部（跳过认证，已有 ccprivate）" \
+            "★ 新机第一步：gh auth + ccprivate" \
+            "★ 已有 ccprivate：基础初始化 3 步" \
             "可选组件(MCP/Skills/CLI)" \
             "退出")
         case "$choice" in
