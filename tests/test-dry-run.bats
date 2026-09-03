@@ -5,10 +5,7 @@
 
 load "setup"
 
-setup_file() {
-    # 全局：一次 source，所有测试共享
-    export TEST_LIB="$CCCONFIG_DIR/lib"
-}
+# CCCONFIG_DIR/LIB_DIR 由 setup.bash 顶层设置，全局可用
 
 setup() {
     # 每个 test 前重置 dry-run 状态
@@ -16,7 +13,7 @@ setup() {
 }
 
 @test "run() executes normally without CCC_DRY_RUN" {
-    source "$TEST_LIB/dry-run.sh"
+    source "$LIB_DIR/dry-run.sh"
     run run echo hello
     [ "$status" -eq 0 ]
     [ "$output" = "hello" ]
@@ -24,7 +21,7 @@ setup() {
 
 @test "run() prints would: with CCC_DRY_RUN=1" {
     CCC_DRY_RUN=1 export CCC_DRY_RUN
-    source "$TEST_LIB/dry-run.sh"
+    source "$LIB_DIR/dry-run.sh"
     run run echo hello
     # 在 dry-run 下只打印 would:，不执行
     [[ "$output" == *"would:"* ]]
@@ -32,21 +29,21 @@ setup() {
 
 @test "run() strips --dry-run flag before printing" {
     CCC_DRY_RUN=1 export CCC_DRY_RUN
-    source "$TEST_LIB/dry-run.sh"
+    source "$LIB_DIR/dry-run.sh"
     run run echo hello --dry-run
     # --dry-run 不应出现在 would: 输出中
     [[ "$output" != *"--dry-run"* ]]
 }
 
 @test "would() prints formatted message" {
-    source "$TEST_LIB/dry-run.sh"
+    source "$LIB_DIR/dry-run.sh"
     run would "install" "pkg-a pkg-b"
     [ "$output" = "would: install pkg-a pkg-b" ]
 }
 
 @test "dispatch() calls dry_fn when CCC_DRY_RUN=1" {
     CCC_DRY_RUN=1 export CCC_DRY_RUN
-    source "$TEST_LIB/dry-run.sh"
+    source "$LIB_DIR/dry-run.sh"
 
     dry_called=0
     real_called=0
@@ -57,7 +54,7 @@ setup() {
 
 @test "dispatch() calls real_fn without CCC_DRY_RUN" {
     unset CCC_DRY_RUN
-    source "$TEST_LIB/dry-run.sh"
+    source "$LIB_DIR/dry-run.sh"
 
     my_real() { echo "real-called"; }
     my_dry() { echo "dry-called"; }
