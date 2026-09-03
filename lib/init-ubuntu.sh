@@ -84,19 +84,11 @@ setup_ccprivate() {
     mkdir -p "$PARENT_DIR" 2>/dev/null || { warn "无法创建 $PARENT_DIR，跳过 ccprivate clone"; return 0; }
 
     info "克隆 ccprivate: $CCPRIVATE_REPO → $CCPRIVATE_DIR"
-    if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
-        git clone "git@github.com:${CCPRIVATE_REPO}.git" "$CCPRIVATE_DIR" || {
-            error "SSH 克隆失败，尝试 gh..."
-            gh repo clone "$CCPRIVATE_REPO" "$CCPRIVATE_DIR" 2>/dev/null || warn "gh clone 也失败"
-        }
-    elif gh auth status &>/dev/null 2>&1; then
-        gh repo clone "$CCPRIVATE_REPO" "$CCPRIVATE_DIR" 2>/dev/null || warn "gh clone 失败"
-    else
-        git clone "https://github.com/${CCPRIVATE_REPO}.git" "$CCPRIVATE_DIR" 2>/dev/null || {
-            warn "ccprivate clone 失败"
-            warn "  手动: bash init-ccprivate-repo.sh"
-            return 0
-        }
+    # gh repo clone 走 PAT 认证（gh credential helper），统一认证路径
+    if ! gh repo clone "$CCPRIVATE_REPO" "$CCPRIVATE_DIR" 2>/dev/null; then
+        warn "ccprivate clone 失败"
+        warn "  手动: bash init-bootstrap.sh --clone"
+        return 0
     fi
 
     if [[ -d "$CCPRIVATE_DIR/.git" ]]; then
@@ -339,12 +331,12 @@ setup_llm_backend() {
 
 
 # ========== 6. GitHub SSH 密钥（多 WSL 共享） — 可选加速 ==========
+# 注意：被 init-option.sh 调用，不从 main 流程自动跑
 # 策略：
-#   - gh auth（bootstrap-gh-auth.sh 已做）= 认证主路径，PAT 已够 push/clone
-#   - SSH 密钥（本段）= 可选加速，push 更快（2-3s vs 5-15s）
+#   - 认证主路径始终是 PAT + HTTPS（ADR 0011），SSH 仅作 push 加速（2-3s vs 5-15s）
 #   - 同机多 WSL：密钥放 Windows 宿主目录，各 WSL 复制到本地
 #   - 不同机器：各自生成独立密钥，公钥都加到 github.com/settings/keys
-#   - caller 逻辑：gh auth 已配 → 跳过 SSH；gh 未配 → 跑 SSH 作为 fallback
+#   - `insteadOf` 和仓库 URL 转换会与 PAT 认证冲突，不在本函数内做
 setup_ssh_github() {
     section "GitHub SSH 密钥（可选加速）"
 
@@ -411,25 +403,10 @@ SSHEOF
     fi
 
     # === 4. 测试连接 ===
+    # 注意：不设 insteadOf / 不转仓库 URL — 这些操作与 PAT+HTTPS 认证策略冲突
+    # 需要 SSH 加速的用户手动：git remote set-url origin git@github.com:<repo>.git
     if { ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 git@github.com 2>&1 || true; } | grep -q "successfully authenticated"; then
         success "GitHub SSH 连接成功"
-
-        # SSH 通了，扫描仓库转 HTTPS → SSH
-        if [[ -d "$HOME/git" ]]; then
-            while IFS= read -r -d '' gitdir; do
-                local repo_dir=$(dirname "$gitdir")
-                local current_url=$(git -C "$repo_dir" remote get-url origin 2>/dev/null || echo "")
-                if [[ "$current_url" == https://github.com/* ]]; then
-                    local repo_path="${current_url#https://github.com/}"
-                    git -C "$repo_dir" remote set-url origin "git@github.com:${repo_path}"
-                fi
-            done < <(find "$HOME/git" -maxdepth 3 -name .git -type d -print0 2>/dev/null)
-        fi
-
-        if [[ "$(git config --global url.'git@github.com:'.insteadOf 2>/dev/null)" != "https://github.com/" ]]; then
-            git config --global url."git@github.com:".insteadOf "https://github.com/"
-        fi
-    else
         echo ""
         echo -e "  ${YELLOW}⚠ SSH 连接测试未通过${NC}"
         echo -e "  ${GRAY}公钥需先添加到 GitHub: https://github.com/settings/keys${NC}"
@@ -547,16 +524,12 @@ main() {
     fi
     setup_symlinks
 
-    # git 传输：gh auth + credential helper 已就绪则跳过 SSH
-    # bootstrap-gh-auth.sh 已配好，SSH 是可选加速（push 2-3s vs 5-15s）
+    # git 认证统一走 PAT + credential helper，SSH 是可选的 push 加速
+    # 需要 SSH 的用户：bash ccconfig/lib/init-ubuntu.sh --setup-ssh
     if gh auth status &>/dev/null 2>&1; then
-        info "git: HTTPS + gh credential helper（PAT 已配，SSH 跳过）"
-        info "  可选加速: 重跑本脚本 + 设 SETUP_SSH=1 强制配 SSH"
-    elif [[ "${SETUP_SSH:-}" == "1" ]]; then
-        info "SETUP_SSH=1 强制配 SSH（即使 PAT 已配）"
-        setup_ssh_github
+        info "git: HTTPS + gh credential helper（PAT 已配）"
     else
-        setup_ssh_github
+        warn "gh 未登录，请先跑: bash init-bootstrap.sh"
     fi
     setup_ccprivate
     setup_nodejs
