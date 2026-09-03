@@ -242,17 +242,30 @@ detect_git_email() {
     local e
     e=$(git config --global user.email 2>/dev/null || echo "")
     [[ -n "$e" ]] && echo "$e" && return
-    gh api user --jq '.email' 2>/dev/null || echo ""
+    # gh api 返回 null（隐私默认）→ noreply 兜底
+    local gh_email gh_id gh_login
+    gh_email=$(gh api user --jq '.email // empty' 2>/dev/null)
+    if [[ -n "$gh_email" ]]; then
+        echo "$gh_email"; return
+    fi
+    gh_id=$(gh api user --jq '.id // empty' 2>/dev/null)
+    gh_login=$(gh api user --jq '.login // empty' 2>/dev/null)
+    if [[ -n "$gh_id" && -n "$gh_login" ]]; then
+        echo "${gh_id}+${gh_login}@users.noreply.github.com"
+    fi
 }
 
 probe_repo() {
+    # 返回 "found" / "not_found" / "network_error"
     local err_out
     err_out=$(gh repo view "$1" 2>&1 >/dev/null)
     if [[ $? -eq 0 ]]; then
-        return 0
+        echo "found"; return 0
     fi
-    grep -qiE 'Could not resolve to a Repository|HTTP 404|Not Found|repository not found' <<<"$err_out" && return 1
-    return 2
+    if grep -qiE 'Could not resolve to a Repository|HTTP 404|Not Found|repository not found' <<<"$err_out"; then
+        echo "not_found"; return 1
+    fi
+    echo "network_error"; return 2
 }
 
 collect_info() {
