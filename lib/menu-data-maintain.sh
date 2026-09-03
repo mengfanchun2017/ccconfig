@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # lib/menu-data-maintain.sh — maintain.sh 菜单数据层
 #
 # 定义 CAT_NAME / MENU_ENTRIES 供 menu_loop 驱动。

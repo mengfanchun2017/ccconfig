@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # menu-feishu.sh — 飞书子菜单（从 maintain.sh 抽出）
 #
 # 依赖: colors.sh, interact.sh（调用方已 source）

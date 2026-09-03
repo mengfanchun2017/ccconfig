@@ -457,8 +457,7 @@ show_changed_since() {
     fi
 }
 
-git_force_pull() {
-    local repo_dir="$1"
+# shellcheck disable=SC2218 # git_force_* 在 case 中调用，运行时无顺序问题
     local branch="${2:-$(git -C "$repo_dir" branch --show-current)}"
     local repo_name="${3:-$(basename "$repo_dir")}"
     echo ""

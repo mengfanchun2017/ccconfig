@@ -27,11 +27,9 @@ source "$LIB_DIR/menu-feishu.sh"
 # ========== 子菜单函数 ==========
 
 _submenu_llm() {
-    local c; c=$(menu_select "LLM 配置" \
-        "LLM 交互菜单" \
-        "测试所有模型" \
-        "返回")
-    [[ -z "$c" || "$c" = "0" ]] && return
+    local items=("LLM 交互菜单" "测试所有模型" "返回")
+    local c; c=$(menu_select "LLM 配置" "${items[@]}")
+    [[ -z "$c" || "$c" = "0" || "$c" = "${#items[@]}" ]] && return
     case "$c" in
         1) bash "$LIB_DIR/init-llm.sh" ;;
         2) bash "$LIB_DIR/init-llm.sh" test all ;;
@@ -39,18 +37,9 @@ _submenu_llm() {
 }
 
 _submenu_monitor() {
-    local c; c=$(menu_select "监控配置" \
-        "LLM 链路诊断" \
-        "切 LLM 预设" \
-        "模型单价配置" \
-        "bridge 自愈" \
-        "状态查看" \
-        "启动" \
-        "停止" \
-        "重启" \
-        "修复" \
-        "返回")
-    [[ -z "$c" || "$c" = "0" ]] && return
+    local items=("LLM 链路诊断" "切 LLM 预设" "模型单价配置" "bridge 自愈" "状态查看" "启动" "停止" "重启" "修复" "返回")
+    local c; c=$(menu_select "监控配置" "${items[@]}")
+    [[ -z "$c" || "$c" = "0" || "$c" = "${#items[@]}" ]] && return
     case "$c" in
         1) bash "$SCRIPT_DIR/lib/init-llm.sh" status ;;
         2) bash "$SCRIPT_DIR/lib/init-llm.sh" ;;
@@ -85,18 +74,9 @@ _submenu_usage() {
     echo -e "           关机补跑: Persistent=true + 全量重算自动补缺"
     echo ""
 
-    local c; c=$(menu_select "用量管理" \
-        "用量统计（跨 LLM 总量）" \
-        "按日报告" \
-        "立即归档（增量，只写新 day）" \
-        "今日快照（含今天）" \
-        "强制重算全量（改 pricing/列后用）" \
-        "启用 timer" \
-        "停用 timer" \
-        "配置（时间/飞书/含今天）" \
-        "设置费用 pricing" \
-        "返回")
-    [[ -z "$c" || "$c" = "0" ]] && return
+    local items=("用量统计（跨 LLM 总量）" "按日报告" "立即归档（增量，只写新 day）" "今日快照（含今天）" "强制重算全量（改 pricing/列后用）" "启用 timer" "停用 timer" "配置（时间/飞书/含今天）" "设置费用 pricing" "返回")
+    local c; c=$(menu_select "用量管理" "${items[@]}")
+    [[ -z "$c" || "$c" = "0" || "$c" = "${#items[@]}" ]] && return
     case "$c" in
         1) bash "$tu" --stats ;;
         2) bash "$tu" --report ;;
@@ -117,13 +97,9 @@ _submenu_getnote() {
     echo ""; section "getnote 账号"
     bash "$sw" --list 2>/dev/null || echo -e "  ${YELLOW}无 getnote 账号${NC}"
     echo ""
-    local c; c=$(menu_select "配置调整" \
-        "添加" \
-        "删除" \
-        "切换(session)" \
-        "切换(持久化)" \
-        "返回")
-    [[ "$c" = "0" ]] && return 0
+    local items=("添加" "删除" "切换(session)" "切换(持久化)" "返回")
+    local c; c=$(menu_select "配置调整" "${items[@]}")
+    [[ -z "$c" || "$c" = "0" || "$c" = "${#items[@]}" ]] && return
     case "$c" in
         1) bash "$init" add ;;
         2) bash "$init" remove ;;
@@ -133,12 +109,9 @@ _submenu_getnote() {
 }
 
 _submenu_update_sync() {
-    local c; c=$(menu_select "更新配置" \
-        "ccconfig更新" \
-        "Git 同步" \
-        "全部" \
-        "返回")
-    [[ -z "$c" || "$c" = "0" ]] && return
+    local items=("ccconfig更新" "Git 同步" "全部" "返回")
+    local c; c=$(menu_select "更新配置" "${items[@]}")
+    [[ -z "$c" || "$c" = "0" || "$c" = "${#items[@]}" ]] && return
     case "$c" in
         1) do_self all ;;
         2) bash "$LIB_DIR/sync.sh" ;;
