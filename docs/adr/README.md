@@ -21,6 +21,7 @@
 | [0008](0008-remote-connection.md) | Remote 远程连接方案（自 `adr/001` 迁入） | 2026-07-31 | ✅ Accepted | option-remote |
 | [0009](0009-token-cost-reduction.md) | Token 成本优化：不装 caveman/rtk/headroom | 2026-08-02 | ✅ Accepted | — |
 | [0010](0010-adr-directory-location.md) | ADR 目录位置约定 | 2026-08-02 | ✅ Accepted | — |
+| [0011](0011-git-auth-fine-grained-pat.md) | GitHub git 认证统一为 fine-grained PAT + HTTPS | 2026-08-09 | ✅ Accepted | superseded by 0023 (Layer 1 过期巡检部分) |
 | [0012](0012-interact-p0-no-gum.md) | SH 交互规范化：lib/interact.sh P0 + 弃用 gum | 2026-08-10 | ✅ Accepted | Phase 1-3 |
 | [0013](0013-bridge-selfheal-sessionstart.md) | OpenAI bridge 自愈：SessionStart hook + env guard | 2026-08-13 | ✅ Accepted | — |
 | [0014](0014-tailscale-jump-server.md) | Tailscale 跳板机部署方案 | 2026-08-21 | ✅ Accepted | — |
