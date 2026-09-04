@@ -455,9 +455,11 @@ do_sync() {
 _collect_all_deps() {
     declare -n _deps_out=$1
     _deps_out=()
-
-    if [[ -d "$SKILLS_SRC" ]]; then
-        for skill_dir in "$SKILLS_SRC"/*/; do
+    local dirs=()
+    [[ -d "$SKILLS_SRC" ]]      && dirs+=("$SKILLS_SRC")
+    [[ -d "$LOCAL_SKILLS_SRC" ]] && dirs+=("$LOCAL_SKILLS_SRC")
+    for src in "${dirs[@]}"; do
+        for skill_dir in "$src"/*/; do
             local dep_file="${skill_dir}deps.txt"
             [[ -f "$dep_file" ]] || continue
             while IFS= read -r line; do
@@ -465,18 +467,7 @@ _collect_all_deps() {
                 _deps_out+=("$line")
             done < "$dep_file"
         done
-    fi
-
-    if [[ -d "$LOCAL_SKILLS_SRC" ]]; then
-        for skill_dir in "$LOCAL_SKILLS_SRC"/*/; do
-            local dep_file="${skill_dir}deps.txt"
-            [[ -f "$dep_file" ]] || continue
-            while IFS= read -r line; do
-                [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-                _deps_out+=("$line")
-            done < "$dep_file"
-        done
-    fi
+    done
 }
 
 do_update() {
