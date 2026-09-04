@@ -55,23 +55,6 @@ print(f"{llm.get('base_url','')}|{llm.get('model','')}|{llm.get('key','')}|{smal
 PYEOF
 }
 
-# 持久化 key 到 llm.json（独立于 verify/切换）
-# why: switch_llm 在 verify 失败时 return 1 跳过 write_llm_config，已输入的 key 被丢弃，
-# 下次再跑仍遇占位符 key → 重问。输入后立即存，与链路探测解耦。
-persist_llm_key() {
-    local name="$1" key="$2"
-    [[ -z "$key" || -z "$name" ]] && return 0
-    CONFIG_FILE="$CONFIG_FILE" NAME="$name" KEY="$key" python3 << 'PYEOF'
-import json, os
-p = os.environ['CONFIG_FILE']
-with open(p) as f: d = json.load(f)
-llms = d.setdefault('llms', {})
-if os.environ['NAME'] in llms:
-    llms[os.environ['NAME']]['key'] = os.environ['KEY']
-    with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
-PYEOF
-}
-
 # ========== 本地 current 读写（不碰 ccprivate llm.json.current）==========
 # 读本地 llm-current，不存在则 fallback 读 llm.json.current（兼容旧机器）
 read_local_current() {
