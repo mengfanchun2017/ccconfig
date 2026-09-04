@@ -18,7 +18,7 @@ ccconfig 是 Claude Code 配置基础设施的公开部分。**三仓库模型**
 | 仓库 | 可见性 | 内容 |
 |------|--------|------|
 | **ccconfig** | 公开 | infra 脚本、.example 模板（rules/agents/conf） |
-| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | 16 个 f-* skill 插件（marketplace 兼容） |
+| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | 17 个 f-* skill 插件（marketplace 兼容） |
 | **ccprivate** | 私有 | API key / Token / 个人配置，symlink 穿透访问 |
 
 ccconfig 本身不含任何密钥。
@@ -154,7 +154,6 @@ flowchart TB
 ccconfig/
 ├── bootstrap-gh-auth.sh      # 一行式起步（curl|bash：装 git + clone ccconfig）
 ├── init-base.sh              # 初始化统一入口
-├── init-ccprivate-repo.sh    # ccprivate 仓库创建向导
 ├── maintain.sh               # 运维入口（status/self/upgrade/sync/monitor/deps/fix）
 ├── init-option.sh            # 可选组件安装入口（分组菜单）
 │
@@ -227,8 +226,8 @@ bash ~/git/ccconfig/init-base.sh all
 # 4. 可选组件（MCP/Skills/CLI，独立一步）
 bash ~/git/ccconfig/init-option.sh
 
-# 5. 全量检查（菜单选 1A 完整状态，开工前推荐跑）
-bash ~/git/ccconfig/maintain.sh
+# 5. 全量状态检查
+bash ~/git/ccconfig/maintain.sh status
 ```
 
 ## 特色亮点
@@ -251,30 +250,25 @@ bash lib/init-llm.sh gateway      # 切到网关（自动装启 option-llmswitch
 
 ### 🧩 可选组件（分组菜单）
 
-`init-option.sh` 按组展示，每项带一句话说明：
+`init-option.sh` 按组展示，每项带状态标记：
 
 ```
---os--
- 1) bat         ✓ bat 已安装 (bat 0.25.0)
-                  bat 是 cat 替代，语法高亮+行号
+--CLI--
+ 1) bat         ✓ 已安装 — cat 替代，语法高亮+行号
 
---claude--
- 2) mcp         ✗ MCP 未配置（bash lib/init-mcp.sh sync）
-                  Claude Code 工具箱：Tavily/MiniMax/Supabase 等
- 3) skill       ✓ Skills 16个已安装
-                  16 个 f-* 工作流：搜索/报告/飞书文档/PPT/excel 等
+--Claude--
+ 2) mcp         ✗ 未配置（bash init-option.sh mcp）
+ 3) skill       ✓ 17 个 skill 已安装
+ 4) usage       ✓ timer 运行中 — Token 用量追踪
+ 5) llmswitch   [auto] — 由 init-llm 自动管理
 
---lark--
- 4) larkcli     ✓ lark-cli v1.0.79
-                  飞书 CLI：编辑文档/Base/日历/任务
- 5) ccbridge    ✓ lark-channel-bridge 0.6.4
-                  飞书 ↔ Claude Code 双向通信（独立仓 ccbridge）
+--飞书--
+ 6) larkcli     ✓ lark-cli 已安装 — 飞书 CLI
 
---other--
- 6) officecli    ✓ OfficeCLI 已安装
-                  生成 .pptx/.docx/.xlsx
+--其他--
+ 7) officecli   ✓ OfficeCLI 已安装 — 生成 .pptx/.docx
+ 8) remote      ✗ 未配置 — SSH + Tailscale 远程
 ...
-    k) feishu key    ✓ 所有 appId/appSecret 已配置
 
   a) 全部安装  0) 返回
 ```
@@ -284,9 +278,8 @@ bash lib/init-llm.sh gateway      # 切到网关（自动装启 option-llmswitch
 | 仓库 | 存什么 | 公开？ |
 |------|--------|--------|
 | ccconfig | 脚本、.example 模板 | ✅ 开源 |
-| ccbridge | 飞书 lark-channel-bridge 管理 ([mengfanchun2017/ccbridge](https://github.com/mengfanchun2017/ccbridge)) | ✅ 开源 |
 | fancypowershell | Windows PowerShell 工具集 | ✅ 开源 |
-| skill | 16 个 f-* skill 插件 | ✅ marketplace |
+| skill | 17 个 f-* skill 插件 | ✅ marketplace |
 | ccprivate | API key、token、个人配置 | ❌ 私有 |
 
 ### 🔄 Auto-Sync 守护进程
@@ -317,11 +310,11 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 
 ## 状态检查
 
-`maintain.sh status` 检查 14 项：链接/依赖/auto-sync/Git 推送/Memory/项目/飞书/Playwright/MCP/可选组件/Skills/模板同步。
+`maintain.sh status` 检查：链接/依赖/auto-sync/Git 推送/Memory/项目/飞书/MCP/可选组件/Skills/模板同步。
 
 ## 自建 Skills
 
-全部 16 个 skill 发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库：ffeishu / fpptx / fdiagram / fdocx / fsearch / flogme 等。
+全部 17 个 skill 发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库：ffeishu / fpptx / fdiagram / fdocx / fsearch / flogme 等。
 `bash lib/init-skill.sh sync` 从 `~/git/skill/plugins/` symlink 到 `~/.claude/skills/`。
 
 ## 环境变量

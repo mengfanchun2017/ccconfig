@@ -130,9 +130,8 @@ init_all_steps() {
 
     echo -e "${BOLD}下一步:${NC}"
     echo -e "  ${CYAN}bash init-option.sh${NC}  # （可选）装附加组件：MCP / Skills / CLI"
-    echo -e "  ${GREEN}bash maintain.sh${NC}     # 全量检查（菜单选 1A 完整状态，开工前推荐跑）"
-    echo ""
-    echo -e "  ${GRAY}确认 1A 全绿后即可开始使用 Claude Code。${NC}"
+    echo -e "  ${GREEN}bash maintain.sh${NC}     # 全量状态检查"
+    echo -e "  ${GRAY}确认所有项通过后即可开始使用 Claude Code。${NC}"
     echo ""
     echo -e "${BOLD}日常使用:${NC}"
     echo "  切换 LLM:          bash $SCRIPT_DIR/lib/init-llm.sh"

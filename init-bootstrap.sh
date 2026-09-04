@@ -12,7 +12,7 @@
 #   bash init-bootstrap.sh --dry-run         # 预览
 #
 # 输出：~/git/ccprivate/ + 符号链接已建立
-# 全链：init-bootstrap → init-base.sh all → init-option（可选）→ maintain.sh（1A 全量检查）
+# 全链：init-bootstrap → init-base.sh all → init-option（可选）→ maintain.sh（全量状态检查）
 #
 # 环境变量：
 #   GH_TOKEN                    GitHub PAT（跳过 gh auth 交互）
@@ -642,7 +642,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
     echo ""
     echo -e "  ${GREEN}下一步:${NC} bash $CCCONFIG_DIR/init-base.sh all"
     echo -e "  ${GRAY}（Ubuntu 环境 → LLM 写入 → 收尾链接/服务，3 步）${NC}"
-    echo -e "  ${GRAY}完成后: bash init-option.sh（可选装附加组件）→ bash maintain.sh（1A 全量检查）${NC}"
+    echo -e "  ${GRAY}完成后: bash init-option.sh（可选装附加组件）→ bash maintain.sh status${NC}"
     echo ""
     echo -e "  ${CYAN}权限配置已写入 settings.json:${NC}"
     echo -e "    defaultMode=auto + allow 全工具（Bash/Edit/Read/Agent，spawn agent 跳分类器）"
@@ -687,7 +687,7 @@ do_clone() {
     echo ""
     echo -e "  ${GREEN}下一步:${NC} bash $CCCONFIG_DIR/init-base.sh all"
     echo -e "  ${GRAY}（Ubuntu 环境 → LLM 写入 → 收尾链接/服务，3 步）${NC}"
-    echo -e "  ${GRAY}完成后: bash init-option.sh（可选装附加组件）→ bash maintain.sh（1A 全量检查）${NC}"
+    echo -e "  ${GRAY}完成后: bash init-option.sh（可选装附加组件）→ bash maintain.sh status${NC}"
 }
 
 # ============================================================
