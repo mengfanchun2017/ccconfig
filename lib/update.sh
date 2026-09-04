@@ -437,29 +437,6 @@ rebuild_larkcli_symlink() {
 }
 
 
-# ========== 版本比较 ==========
-# 比较两个语义版本，返回 0 如果 v1 >= v2
-version_ge() {
-    local v1="$1"
-    local v2="$2"
-    # 去除 v 前缀
-    v1="${v1#v}"
-    v2="${v2#v}"
-    # 提取主版本号（忽略预发布后缀如 -beta.1）
-    local v1_major v1_minor v1_patch v2_major v2_minor v2_patch
-    IFS='.' read -r v1_major v1_minor v1_patch <<< "$v1"
-    IFS='.' read -r v2_major v2_minor v2_patch <<< "$v2"
-    # 去除 v1_patch 中的预发布后缀
-    v1_patch="${v1_patch%%-*}"
-
-    if [ "$v1_major" -gt "$v2_major" ]; then return 0; fi
-    if [ "$v1_major" -lt "$v2_major" ]; then return 1; fi
-    if [ "$v1_minor" -gt "$v2_minor" ]; then return 0; fi
-    if [ "$v1_minor" -lt "$v2_minor" ]; then return 1; fi
-    if [ "$v1_patch" -ge "$v2_patch" ]; then return 0; fi
-    return 1
-}
-
 # ========== 5. GitHub CLI ==========
 
 update_gh() {

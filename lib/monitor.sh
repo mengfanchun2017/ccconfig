@@ -819,7 +819,7 @@ case "${1:-}" in
     status)   status_watch ;;
     log)      log_watch "${2:-}" ;;
     monitor)  run_monitor ;;
-    ""|start) start_watch ;;
+    "")   start_watch ;;
     tail)     tail_watch ;;
     help|--help|-h) show_help ;;
     *)        echo -e "${RED}Unknown: $1${NC}"; show_help; exit 1 ;;
