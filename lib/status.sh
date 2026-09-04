@@ -668,22 +668,6 @@ check_example_sync() {
 # Claude 重启后，bridge 进程可能因系统重启或手动清理消失。自动检测并拉起。
 # 简化后仅处理 OpenAI-only 端点的 bridge；SSH 隧道场景已废弃（8311f46）。
 # 未配置 bridge 预设的用户 grep 短路，零开销。
-check_bridge_selfheal() {
-    local cfg="${CONFIG_FILE:-$(resolve_conf llm.json 2>/dev/null)}"
-    [[ -n "$cfg" && -f "$cfg" ]] || return 0
-
-    # settings.json 不指向 127.0.0.1:8898 → 不需要 bridge
-    grep -q '127.0.0.1:8898' "$HOME/.claude/settings.json" 2>/dev/null || return 0
-
-    # bridge 已响应 → OK
-    if curl -s --max-time 2 http://127.0.0.1:8898/health >/dev/null 2>&1; then
-        return 0
-    fi
-
-    # bridge 未响应 → 调 ensure-bridge.sh 的 selfheal
-    source "$SCRIPT_DIR/ensure-bridge.sh" 2>/dev/null || return 0
-    selfheal_bridge "$cfg" && warn "  [bridge] 已自动拉起" || warn "  [bridge] 自动拉起失败，运行: bash init-llm.sh switch <name>"
-}
 
 # ========== 执行所有检查 ==========
 
@@ -703,7 +687,6 @@ check_autosync
 check_pat_expiry
 check_repos
 check_feishu
-check_bridge_selfheal
 
 if ! $QUICK_MODE; then
     check_mcp
