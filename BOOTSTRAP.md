@@ -34,7 +34,7 @@ bash init-base.sh new
 > 基础初始化不再内联可选组件。完成后按需跑：
 > ```bash
 > bash init-option.sh          # 可选，装附加组件（MCP/Skills/CLI）
-> bash maintain.sh             # 全量检查（菜单选 1A），开工前推荐跑
+> bash maintain.sh status     # 全量状态检查，开工前推荐跑
 > ```
 >
 > 遇到某步失败修好之后重跑 bash init-base.sh new 即可（幂等）。
@@ -66,7 +66,7 @@ bash init-base.sh new
 ```bash
 cd ~/git/ccconfig
 bash init-base.sh all            # 跳过 gh auth + ccprivate，直接全量初始化
-bash maintain.sh                 # 全量检查（菜单选 1A 完整状态）
+bash maintain.sh status         # 全量状态检查
 # 或单独刷新 ccprivate:
 # bash init-bootstrap.sh --clone  # 克隆已有 ccprivate
 ```
