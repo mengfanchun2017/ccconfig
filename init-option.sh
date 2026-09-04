@@ -11,7 +11,7 @@
 #   OK <name> ...   |   WARN <name> ...   |   MISSING <name> ...
 # （无 ANSI，供 init-option 解析；后续行可含 ANSI 供详情展示）
 #
-# 下一步：bash maintain.sh（菜单选 1A 完整状态检查）
+# 完成后：bash maintain.sh status（全量状态检查）
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -157,7 +157,6 @@ render_status() {
     esac
 }
 
-# ── 检测 feishu key 状态：是否含占位符 ──
 list_all() {
     echo -e "${BOLD}${CYAN}▸ 可选组件${NC}"
     echo ""
@@ -166,7 +165,7 @@ list_all() {
     local -a all_names
 
     mcp_status() {
-        local conf="$CCPRIVATE_HOME/conf/mcp-servers.json"
+        local conf="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/mcp-servers.json"
         if [ -f "$conf" ]; then
             local count=$(python3 -c "import json; d=json.load(open('$conf')); print(len(d.get('mcp_servers',[])))" 2>/dev/null || echo "0")
             if [ "$count" -gt 0 ]; then
@@ -421,7 +420,7 @@ install_glow() {
 
 # ── 交互菜单 ──
 interactive_menu() {
-    echo -e "${CYAN}Claude Code 可选组件安装${NC}"
+    echo -e "${BOLD}${CYAN}▸ 可选组件安装${NC}"
 
     while true; do
         list_all
@@ -593,8 +592,7 @@ install_all() {
     echo ""
     ok "全部可选组件安装完成"
     echo ""
-    echo -e "  ${GREEN}下一步:${NC} bash maintain.sh（菜单选 1A 完整状态检查）"
-    echo -e "  ${GRAY}完整状态检查会验证链接/依赖/monitor/PAT/飞书/MCP 等全部配置。${NC}"
+    echo -e "  ${GREEN}下一步:${NC} bash maintain.sh status（全量状态检查）"
     echo ""
 }
 
