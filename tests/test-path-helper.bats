@@ -50,3 +50,4 @@ setup() {
 @test "find_node_bin runs without crash" {
     run find_node_bin
     # CI runner 可能没有 node，不断言 status，只要不 crash
+}
