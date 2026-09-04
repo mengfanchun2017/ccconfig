@@ -8,8 +8,8 @@
 #   bash init-base.sh new --yes        # 全自动非交互
 #   bash init-base.sh --dry-run        # 预览将要执行的操作（不实际执行）
 #
-# 全链：init-base.sh all → init-option（可选）→ maintain.sh（1A 全量检查）
-# 新机器：init-bootstrap.sh → init-base.sh all → init-option（可选）→ maintain.sh（1A 全量检查）
+# 全链：init-base.sh all → init-option（可选）→ maintain.sh（全量状态检查）
+# 新机器：init-bootstrap.sh → init-base.sh all → init-option（可选）→ maintain.sh（全量状态检查）
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
