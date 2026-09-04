@@ -5,6 +5,12 @@
 
 CCCONFIG_HOME="${CCCONFIG_HOME:-$HOME/git/ccconfig}"
 
+# ccconfig 脚本直接可执行（maintain.sh / init-base.sh / init-* 等）
+case ":$PATH:" in
+    *":$CCCONFIG_HOME:"*) ;;
+    *) export PATH="$CCCONFIG_HOME:$PATH" ;;
+esac
+
 # ========== project memory symlink ==========
 # 检测 ~/git/*/ 下各项目是否有 .claude/memory/ 目录
 # 有则建 symlink 让 Claude Code 把 memory 写到项目 repo 中
