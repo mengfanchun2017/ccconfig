@@ -27,19 +27,22 @@ source "$LIB_DIR/menu-feishu.sh"
 # ========== 子菜单函数 ==========
 
 _submenu_monitor() {
-    local items=("LLM 链路诊断" "切 LLM 预设" "模型单价配置" "bridge 自愈" "状态查看" "启动" "停止" "重启" "修复" "返回")
-    local c; c=$(menu_select "监控配置" "${items[@]}")
-    [[ -z "$c" || "$c" = "0" || "$c" = "${#items[@]}" ]] && return
+    local c; c=$(menu_select "监控" \
+        "状态" \
+        "启动" \
+        "停止" \
+        "重启" \
+        "追踪日志" \
+        "修复 inotify" \
+        "返回")
+    [[ -z "$c" || "$c" = "0" || "$c" = "7" ]] && return
     case "$c" in
-        1) bash "$SCRIPT_DIR/lib/init-llm.sh" status ;;
-        2) bash "$SCRIPT_DIR/lib/init-llm.sh" ;;
-        3) bash "$SCRIPT_DIR/lib/init-llm-bill.sh" ;;
-        4) bash "$SCRIPT_DIR/lib/init-llm.sh" heal ;;
-        5) bash "$LIB_DIR/monitor.sh" status ;;
-        6) bash "$LIB_DIR/monitor.sh" start ;;
-        7) bash "$LIB_DIR/monitor.sh" stop ;;
-        8) bash "$LIB_DIR/monitor.sh" stop; sleep 1; bash "$LIB_DIR/monitor.sh" start ;;
-        9) fix_monitor ;;
+        1) bash "$LIB_DIR/monitor.sh" status ;;
+        2) bash "$LIB_DIR/monitor.sh" start ;;
+        3) bash "$LIB_DIR/monitor.sh" stop ;;
+        4) bash "$LIB_DIR/monitor.sh" stop; sleep 1; bash "$LIB_DIR/monitor.sh" start ;;
+        5) bash "$LIB_DIR/monitor.sh" tail ;;
+        6) fix_monitor ;;
     esac
 }
 
@@ -84,12 +87,16 @@ _submenu_getnote() {
     local sw="$CCCONFIG_DIR/option-getnote/getnote-switch.sh"
     local init="$CCCONFIG_DIR/option-getnote/init.sh"
 
-    echo ""; section "getnote 账号"
+    section "getnote 账号"
     bash "$sw" --list 2>/dev/null || echo -e "  ${YELLOW}无 getnote 账号${NC}"
     echo ""
-    local items=("添加" "删除" "切换(session)" "切换(持久化)" "返回")
-    local c; c=$(menu_select "配置调整" "${items[@]}")
-    [[ -z "$c" || "$c" = "0" || "$c" = "${#items[@]}" ]] && return
+    local c; c=$(menu_select "配置" \
+        "添加账号" \
+        "删除账号" \
+        "切换(session)" \
+        "切换(持久化)" \
+        "返回")
+    [[ -z "$c" || "$c" = "0" || "$c" = "5" ]] && return
     case "$c" in
         1) bash "$init" add ;;
         2) bash "$init" remove ;;
@@ -99,13 +106,17 @@ _submenu_getnote() {
 }
 
 _submenu_update_sync() {
-    local items=("ccconfig更新" "Git 同步" "ccprivate 升级" "全部" "返回")
-    local c; c=$(menu_select "更新配置" "${items[@]}")
-    [[ -z "$c" || "$c" = "0" || "$c" = "${#items[@]}" ]] && return
+    local c; c=$(menu_select "更新配置" \
+        "ccconfig 更新" \
+        "ccprivate 升级" \
+        "Git 同步" \
+        "全部" \
+        "返回")
+    [[ -z "$c" || "$c" = "0" || "$c" = "5" ]] && return
     case "$c" in
         1) do_self all ;;
-        2) bash "$LIB_DIR/sync.sh" ;;
-        3) bash "$LIB_DIR/ccprivate-upgrade.sh" ;;
+        2) bash "$LIB_DIR/ccprivate-upgrade.sh" ;;
+        3) bash "$LIB_DIR/sync.sh" ;;
         4) do_self all && bash "$LIB_DIR/sync.sh" ;;
     esac
 }
@@ -245,8 +256,6 @@ fix_monitor() {
     mcp)     shift; bash "$LIB_DIR/mcp-manager.sh" "$@" ;;
     pat|pat-refresh|gh-auth)
         bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh" ;;
-    test|bootstrap|regression)
-        shift; bash "$CCCONFIG_DIR/bin/test-bootstrap.sh" "$@" ;;
     token|usage)
         shift; bash "$CCCONFIG_DIR/option-usage/token-usage.sh" "$@" ;;
     feishu)
@@ -261,6 +270,6 @@ fix_monitor() {
     upgrade-ccprivate|upgrade-ccpriv|ccpriv-upgrade)
         shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
     *)
-        echo "用法: bash maintain.sh [status|self|upgrade|sync|monitor|deps|fix|...]"
+        echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|llm|mcp|pat|token|feishu]"
         exit 1 ;;
 esac
