@@ -30,23 +30,19 @@ source "$SCRIPT_DIR/lib/interact.sh"
 declare -A CLI_DESC
 CLI_DESC["batcat"]="cat 替代，语法高亮+行号"
 CLI_DESC["glow"]="终端 Markdown 渲染阅读"
-# nano: Ubuntu 26 自带，仅展示提示不出现在安装列表
-
-# Option 描述
 
 # ── 分组列表 ──
 # 格式: "group_title|item1 item2 ..."
 MENU_GROUPS=(
-    "--os--|batcat glow"
-    "--claude--|mcp skill"
-    "--lark--|larkcli larkkey"
-    "--other--|officecli remote cloudflare usage"
-    "--auto--|llmswitch"
+    "--CLI--|batcat glow"
+    "--Claude--|mcp skill usage llmswitch"
+    "--飞书--|larkcli"
+    "--其他--|officecli remote cloudflare getnote"
 )
 
 # 自动管理的项：状态展示但不可 toggle
 declare -A AUTO_MANAGED
-AUTO_MANAGED["llmswitch"]="由 init-llm 自动启停（按 provider 切换）|bash init-llm.sh|bash maintain.sh llmswitch {start,stop,status,restart}"
+AUTO_MANAGED["llmswitch"]="由 init-llm 自动启停（按 provider 切换）"
 
 # ── 检测 option-* 目录 ──
 list_option_dirs() {
@@ -162,38 +158,13 @@ render_status() {
 }
 
 # ── 检测 feishu key 状态：是否含占位符 ──
-check_larkkey() {
-    local conf
-    conf="$(resolve_conf feishu.json 2>/dev/null)" || { echo "no_conf|ccprivate/conf/feishu.json 不存在"; return; }
-    python3 - "$conf" << 'PYEOF' 2>/dev/null
-import json, sys
-PLACEHOLDER = ['请填入','请到','请替换','your key','your_key','placeholder','changeme','<your-','your-app-name']
-def is_ph(v):
-    if not v or not isinstance(v, str): return True
-    return any(p in v.lower() for p in PLACEHOLDER)
-with open(sys.argv[1]) as f: d = json.load(f)
-apps = d.get('apps', [])
-ph_lc = [a['name'] for a in apps if a.get('larkCli',{}).get('enabled') and (is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')))]
-ph_unfilled = [a['name'] for a in apps if not a.get('appId') or not a.get('appSecret')]
-if ph_lc:
-    out = ["larkcli:" + ",".join(ph_lc)]
-    print("placeholder|" + ";".join(out))
-elif ph_unfilled:
-    print("empty|" + ",".join(ph_unfilled))
-else:
-    print("ok|所有 appId/appSecret 已配置")
-PYEOF
-}
-
-# ── 列出所有 option（分组格式） ──
 list_all() {
-    echo -e "${CYAN}可选组件状态${NC}"
+    echo -e "${BOLD}${CYAN}▸ 可选组件${NC}"
     echo ""
 
     local idx=1
     local -a all_names
 
-    # 确保 mcp 在 group 中可被检测（作为内置选项，无 option-mcp 目录）
     mcp_status() {
         local conf="$CCPRIVATE_HOME/conf/mcp-servers.json"
         if [ -f "$conf" ]; then
@@ -212,58 +183,42 @@ list_all() {
         local group_title="${group_entry%%|*}"
         local group_items="${group_entry#*|}"
 
-        echo -e "  ${BOLD}${group_title}${NC}"
+        echo -e "  ${GRAY}${group_title}${NC}"
 
         for name in $group_items; do
-            # 检查是否存在
             case "$name" in
-                mcp|larkkey) ;;
-                batcat|glow) ;;
-                usage) ;;
+                mcp|batcat|glow|usage) ;;
                 *) has_init_script "$name" || continue ;;
             esac
 
             all_names+=("$name")
             local status
-            if [ "$name" = "mcp" ]; then
-                status=$(mcp_status)
-            elif [ "$name" = "larkkey" ]; then
-                status=$(check_larkkey 2>/dev/null || echo "no_conf|ccprivate 未初始化")
-            elif [ "$name" = "usage" ]; then
-                local ccpriv_conf="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/token-usage.json"
-                if [ -f "$ccpriv_conf" ]; then
-                    if systemctl is-active ccconfig-token-usage.timer 2>/dev/null | grep -q "active"; then
-                        status="ok|OK|timer 运行中"
+            case "$name" in
+                mcp)   status=$(mcp_status) ;;
+                usage)
+                    local ccpriv_conf="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/token-usage.json"
+                    if [ -f "$ccpriv_conf" ]; then
+                        if systemctl is-active ccconfig-token-usage.timer 2>/dev/null | grep -q "active"; then
+                            status="ok|OK|timer 运行中"
+                        else
+                            status="ok|OK|已配置，timer 未启用"
+                        fi
                     else
-                        status="ok|OK|已配置，timer 未启用"
-                    fi
-                else
-                    status="miss|MISSING|未配置（bash option-usage/init.sh）"
-                fi
-            else
-                status=$(option_status "$name")
-            fi
+                        status="miss|MISSING|未配置（bash option-usage/init.sh）"
+                    fi ;;
+                *) status=$(option_status "$name") ;;
+            esac
 
             printf "  %2d) %-12s " "$idx" "$name"
-            # 自动管理的项：加 [auto] 标签，可观测但不可 toggle
             if [ -n "${AUTO_MANAGED[$name]:-}" ]; then
                 printf "${GRAY}[auto]${NC} "
             fi
             render_status "$status"
-            # 内置 CLI 描述
             local desc="${CLI_DESC[$name]:-}"
             [ -n "$desc" ] && printf "  ${DIM}- ${desc}${NC}"
             echo ""
             idx=$((idx + 1))
         done
-
-        # nano: Ubuntu 26 自带，仅提示
-        if [ "$group_title" = "--os--" ]; then
-            if command -v nano &>/dev/null; then
-                local nano_ver=$(nano --version 2>/dev/null | head -1)
-                echo -e "     ${GRAY}• nano         Ubuntu 26 已自带${nano_ver:+ ($nano_ver)} - 终端文本编辑器，简单直观${NC}"
-            fi
-        fi
     done
 
     echo ""
@@ -271,130 +226,7 @@ list_all() {
     echo ""
 }
 
-# ── Lark Key 配置向导 ──
-larkkey_wizard() {
-    section "Lark Key 配置向导"
-
-    local conf
-    if ! conf="$(resolve_conf feishu.json)"; then
-        err "ccprivate/conf/feishu.json 不存在"
-        info "先运行: bash ccconfig/init-ccprivate-repo.sh"
-        return 1
-    fi
-
-    info "配置文件: $conf"
-    echo ""
-
-    while true; do
-        # 读取当前活跃账号
-        local current_name=""
-        local marker="$HOME/.lark-cli-account"
-        [ -f "$marker" ] && current_name=$(grep '^name=' "$marker" | cut -d'=' -f2)
-
-        # 列出所有 apps（=() 每轮重置，避免菜单回环后 apps 翻倍）
-        local -a apps_json=() names=()
-        while IFS= read -r line; do
-            [ -n "$line" ] && apps_json+=("$line")
-        done < <(python3 - "$conf" << 'PYEOF' 2>/dev/null
-import json, sys
-with open(sys.argv[1]) as f:
-    d = json.load(f)
-for a in d.get('apps', []):
-    print(json.dumps(a, ensure_ascii=False))
-PYEOF
-        )
-
-        if [ ${#apps_json[@]} -eq 0 ]; then
-            err "feishu.json 中没有 apps 配置"
-            echo ""
-            confirm "添加新 app？" y || return 0
-            _feishu_add_app "$conf"
-            continue
-        fi
-
-        echo -e "  当前 apps:  ${GRAY}(当前活跃: ${current_name:-无})${NC}"
-        echo -e "  ${GRAY}cli=lark-cli 命令行账号   bridge=飞书↔Claude 机器人（决定是否出现在 larkbridge 选单）${NC}"
-        echo ""
-        local i=1
-        names=()
-        for app_json in "${apps_json[@]}"; do
-            local name appid desc lc lb
-            IFS=$'\t' read -r name appid desc lc lb < <(echo "$app_json" | python3 -c "
-import json, sys
-a = json.load(sys.stdin)
-i = a.get('appId','')
-# larkbridge 历史上写过 larkBridge 驼峰，两种都认
-lb = a.get('larkbridge') or a.get('larkBridge') or {}
-print('\t'.join([
-    a.get('name','?'),
-    (i[:12] + '…') if len(i) > 12 else i,
-    a.get('description',''),
-    'Y' if a.get('larkCli',{}).get('enabled') else 'N',
-    'Y' if lb.get('enabled') else 'N',
-]))")
-            local lc_disp="${GRAY}✗ cli${NC}"; [ "$lc" = "Y" ] && lc_disp="${GREEN}✓ cli${NC}"
-            local lb_disp="${GRAY}✗ bridge${NC}"; [ "$lb" = "Y" ] && lb_disp="${GREEN}✓ bridge${NC}"
-            local marker_str=""
-            [ "$name" = "$current_name" ] && marker_str="  ${GREEN}← 当前${NC}"
-            printf "    %d) %-12s appId=%-14s %b  %b%b\n" "$i" "$name" "$appid" "$lc_disp" "$lb_disp" "$marker_str"
-            [ -n "$desc" ] && echo -e "       ${GRAY}${desc}${NC}"
-            names+=("$name")
-            i=$((i + 1))
-        done
-        local sel; sel=$(menu_select "选择 app" "${names[@]}" "添加新 app" "返回")
-        [[ -z "$sel" ]] && continue
-        local names_count=${#names[@]}
-        if [[ "$sel" == "$((names_count + 2))" ]]; then  # 返回
-            return 0
-        elif [[ "$sel" == "$((names_count + 1))" ]]; then  # 添加新 app
-            _feishu_add_app "$conf"; continue
-        fi
-
-        local target_name=""
-        [[ "$sel" =~ ^[0-9]+$ ]] && [ "$sel" -ge 1 ] && [ "$sel" -le "$names_count" ] && target_name="${names[$((sel-1))]}"
-        [[ -z "$target_name" ]] && continue
-
-        # app 二级菜单（纯文本，menu_select 自动编号）
-        local sub; sub=$(menu_select "应用: $target_name" \
-            "编辑 App ID/Secret" \
-            "切换账号" \
-            "OAuth 授权" \
-            "查看授权" \
-            "删除" \
-            "返回")
-        [[ -z "$sub" ]] && continue
-
-        case "$sub" in
-            "1") _feishu_edit_key "$conf" "$target_name" ;;
-            "2")
-                echo ""
-                bash "$SCRIPT_DIR/option-larkcli/lark-switch.sh" "$target_name"
-                local cfg_dir="$HOME/.lark-cli-${target_name}"
-                if [ -f "${cfg_dir}/config.json" ]; then
-                    if ! LARKSUITE_CLI_CONFIG_DIR="$cfg_dir" lark-cli auth status 2>/dev/null | grep -q "tokenStatus.*valid"; then
-                        echo ""; warn "未授权，自动拉起..."
-                        LARKSUITE_CLI_CONFIG_DIR="$cfg_dir" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1
-                    else
-                        info "授权状态正常"
-                    fi
-                fi
-                ;;
-            "3")
-                local cfg_dir="$HOME/.lark-cli-${target_name}"
-                [ -f "${cfg_dir}/config.json" ] && LARKSUITE_CLI_CONFIG_DIR="$cfg_dir" bash "$SCRIPT_DIR/option-larkcli/init.sh" --auth-login "$target_name" 2>&1 || warn "先编辑 App ID/Secret"
-                ;;
-            "4")
-                local cfg_dir="$HOME/.lark-cli-${target_name}"
-                [ -f "${cfg_dir}/config.json" ] && LARKSUITE_CLI_CONFIG_DIR="$cfg_dir" lark-cli auth status 2>&1 | grep -v "^\[lark-cli\]" | sed 's/^/  /' || warn "config.json 不存在"
-                ;;
-            "5") _feishu_delete_app "$conf" "$target_name" ;;
-            *) break ;;
-        esac
-        echo ""
-    done
-}
-
-# ── 安装单个 option ──
+# ── Lark Key 配置向导 ──# ── 安装单个 option ──
 install_option() {
     local name="$1"
     shift
@@ -600,7 +432,7 @@ interactive_menu() {
             local group_items="${group_entry#*|}"
             for name in $group_items; do
                 case "$name" in
-                    mcp|larkkey|usage) all_names+=("$name") ;;
+                    mcp|usage) all_names+=("$name") ;;
                     batcat|glow) all_names+=("$name") ;;
                     *) has_init_script "$name" && all_names+=("$name") ;;
                 esac
@@ -613,7 +445,7 @@ interactive_menu() {
             local desc=""
             case "$n" in
                 mcp) desc="MCP 服务" ;;
-                larkkey) desc="Lark Key" ;;
+                # larkkey 已移至 option-larkcli/init.sh
                 usage) desc="Token 用量" ;;
                 batcat|glow) ;;
                 *) [ -n "${AUTO_MANAGED[$n]:-}" ] && desc="[auto]" ;;
@@ -632,20 +464,12 @@ interactive_menu() {
 
         if [[ "$choice" == "$all_idx" ]]; then
             for n in "${all_names[@]}"; do
-                if [ "$n" = "larkkey" ]; then
-                    larkkey_wizard
-                else
-                    install_option "$n"
-                fi
+                install_option "$n"
             done
             ok "全部安装完成"
         elif [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#all_names[@]} ]; then
             local selected="${all_names[$((choice-1))]}"
-            if [ "$selected" = "larkkey" ]; then
-                larkkey_wizard
-            else
-                install_option "$selected"
-            fi
+            install_option "$selected"
         else
             warn "无效选择"
         fi
@@ -654,7 +478,6 @@ interactive_menu() {
     done
 }
 
-# ── 飞书 app 辅助函数（被 larkkey_wizard 调用） ──
 _feishu_add_app() {
     local conf="$1"
     echo ""
@@ -742,7 +565,7 @@ list_names_compact() {
         echo "$group_title"
         for n in $group_items; do
             case "$n" in
-                mcp|larkkey) echo "  $n" ;;
+                mcp) echo "  $n" ;;
                 batcat|glow) echo "  $n" ;;
                 *) if [ -n "${AUTO_MANAGED[$n]:-}" ] || has_init_script "$n"; then echo "  $n"; fi ;;
             esac
