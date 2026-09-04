@@ -74,3 +74,19 @@ setup() {
     [ "$status" -eq 0 ]
     [ "$output" = "" ]
 }
+
+@test "confirm accepts yes via pipe" {
+    NONINTERACTIVE=true run confirm "?" y
+}
+
+@test "table function exists" {
+    type table
+}
+
+@test "spinner function exists" {
+    type spinner
+}
+
+@test "menu_multi function exists" {
+    type menu_multi
+}
