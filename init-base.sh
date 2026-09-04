@@ -254,15 +254,11 @@ case "${1:-menu}" in
         show_banner
         echo ""
         echo -e "${CYAN}━━━ 预览：将要执行的操作 ━━━${NC}"
-        echo "  init-ubuntu.sh  → 系统包 + node/gh/claude + symlink"
+        echo "  init-ubuntu.sh  → 系统包 + node/claude + symlink"
         echo "  init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
-        echo "  maintain.sh setup → 链接修复 + auto-sync + 状态"
+        echo "  maintain.sh setup → 链接 + auto-sync + 状态"
         echo ""
-        echo "  运行 'bash init-base.sh all' 执行以上 3 步"
-        echo "  运行 'bash init-base.sh all --yes' 全自动（非交互）"
-        echo "  完成后: bash init-option.sh（可选组件）→ bash maintain.sh status（状态检查）"
-        echo "  "
-        echo "  运行 'bash init-base.sh' 进入交互式菜单"
+        echo "  运行 bash init-base.sh all [--yes]"
         ;;
     menu|"")
         main_menu
