@@ -212,9 +212,11 @@ Claude Code 权限设置。至少包含：
       "Edit(*)",
       "Glob(*)",
       "Grep(*)",
-      "WebSearch",
       "WebFetch",
       "Skill(*)"
+    ],
+    "deny": [
+      "WebSearch"
     ]
   }
 }
