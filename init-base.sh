@@ -56,6 +56,8 @@ check_prereqs() {
 init_all_steps() {
     show_banner
     export INIT_ALL_FLOW=1
+    # all 流程全自动：bootstrap 已配过 key，init-llm 直接用 llm.json 已有 key 写 settings.json
+    export NONINTERACTIVE=true
 
     # 预检：确保 ccprivate 配置已就绪
     local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
