@@ -112,7 +112,7 @@ init_all_steps() {
 
     run_step "收尾（链接 + 服务）" "$SCRIPT_DIR/maintain.sh" true         \
         "ccprivate 链接 + auto-sync 服务 + 状态验证"         \
-        "30 s"
+        "30 s" setup
     echo -e "${GREEN}🎉 基础初始化完成${NC}"
     echo ""
 
@@ -144,6 +144,7 @@ init_all_steps() {
 run_step() {
     local label="$1" script="$2" auto="$3"
     local desc="${4:-}" eta="${5:-}"
+    local -a extra=("${@:6}")
 
     echo ""
     echo -e "${BOLD}${CYAN}▸ ${label}${NC}"
@@ -154,14 +155,14 @@ run_step() {
     echo ""
 
     if [ "$auto" = "true" ]; then
-        if bash "$script"; then
+        if bash "$script" "${extra[@]+"${extra[@]}"}"; then
             ok "${label}"
         else
             warn "${label} 失败（继续）"
         fi
     else
         if confirm "运行？" y; then
-            if bash "$script"; then
+            if bash "$script" "${extra[@]+"${extra[@]}"}"; then
                 ok "${label}"
             else
                 err "${label} 失败"
