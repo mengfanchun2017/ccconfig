@@ -9,15 +9,17 @@
         "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT": "1"
     },
     "permissions": {
-        "_comment": "Edit(**/*) 覆盖 Edit/Write/NotebookEdit 所有编辑工具; Read(**/*) 覆盖 Read/Glob/Grep 所有读工具。defaultMode 用 auto (ADR 0018), bypassPermissions 无法持久化只能 flag。",
+        "_comment": "Edit(**/*) 覆盖 Edit/Write/NotebookEdit 所有编辑工具; Read(**/*) 覆盖 Read/Glob/Grep 所有读工具。defaultMode 用 auto (ADR 0018), bypassPermissions 无法持久化只能 flag。WebSearch deny：底层 LLM 无内置搜索能力，强制走 Tavily/Exa MCP。",
         "allow": [
             "Bash(*)",
             "Edit(**/*)",
             "Read(**/*)",
-            "WebSearch",
             "WebFetch",
             "Skill(*)",
             "Agent"
+        ],
+        "deny": [
+            "WebSearch"
         ],
         "defaultMode": "auto"
     },
