@@ -127,6 +127,7 @@ init_all_steps() {
     fi
     echo -e "  ${CYAN}claudeby${NC} = claude --dangerously-skip-permissions（bypass 权限，跳分类器）"
     echo -e "  ${GRAY}日常用 claude（auto+allow 已覆盖 spawn agent），需跳权限用 claudeby${NC}"
+    echo -e "  ${GRAY}claudeby 是 alias，当前终端需 source ~/.bashrc 或开新终端生效${NC}"
     echo ""
 
     echo -e "${BOLD}下一步:${NC}"
