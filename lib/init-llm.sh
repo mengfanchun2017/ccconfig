@@ -336,7 +336,8 @@ switch_llm() {
 
     # Key 输入（明文 + 已有 key 提示尾号 4 位 / 回车保持）
     # why: minimax/deepseek 等用户自有 key 明文粘贴更稳，read -s 在部分终端吞粘贴字符
-    if [[ -t 0 ]]; then
+    # init-base all 等非交互流程（NONINTERACTIVE）跳过，直接用 llm.json 已有 key
+    if [[ "${NONINTERACTIVE:-false}" != "true" ]] && [[ -t 0 ]]; then
         echo ""
         key=$(prompt_key_plain "输入 ${name} API Key" "$key" | tr -d '\r\n')
     fi
