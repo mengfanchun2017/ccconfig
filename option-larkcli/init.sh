@@ -19,6 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$CCCONFIG_DIR/lib/dry-run.sh"
 source "$CCCONFIG_DIR/lib/colors.sh"
+source "$CCCONFIG_DIR/lib/interact.sh"
 source "$CCCONFIG_DIR/lib/path-helper.sh"
 FEISHU_CONF="$(resolve_conf feishu.json)" || exit 1
 export PATH="$(find_node_bin):${HOME}/.local/bin:$PATH"
@@ -136,13 +137,10 @@ _do_auth_login() {
     fi
 }
 
-run_lark_cli() {
-    install_lark_cli || return 1
-    echo ""
+# ========== 交互式配置（占位符/空 apps 时引导输入）==========
 
-    # 预检：检查是否有占位符 App ID/Secret
-    local placeholder_apps
-    placeholder_apps=$(python3 - "$FEISHU_CONF" << 'PYEOF' 2>/dev/null
+_get_placeholder_app_names() {
+    python3 - "$FEISHU_CONF" << 'PYEOF' 2>/dev/null
 import json, sys
 PLACEHOLDER = ['请填入', '请到', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-', 'your-app-name']
 def is_ph(val):
@@ -152,20 +150,153 @@ def is_ph(val):
     return False
 with open(sys.argv[1], 'r') as f:
     data = json.load(f)
-apps = data.get('apps', [])
-bad = [a.get('name','?') for a in apps if a.get('larkCli',{}).get('enabled') and (is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')))]
-if bad:
-    print('\n'.join(bad))
+for a in data.get('apps', []):
+    if a.get('larkCli', {}).get('enabled') and (is_ph(a.get('appId', '')) or is_ph(a.get('appSecret', ''))):
+        print(a.get('name', '?'))
 PYEOF
-    )
-    if [ -n "$placeholder_apps" ]; then
-        warn "以下账号的 App ID/Secret 仍为占位符，需先填写:"
-        echo "$placeholder_apps" | while read -r name; do
-            echo -e "    ${YELLOW}→${NC} $name"
+}
+
+_has_no_apps() {
+    python3 - "$FEISHU_CONF" << 'PYEOF' 2>/dev/null
+import json, sys
+with open(sys.argv[1]) as f: d = json.load(f)
+print('true' if not d.get('apps') else 'false')
+PYEOF
+}
+
+# 交互式填写一个占位符 app 的 appId/appSecret
+# 用法: _fill_app_interactive <name>
+_fill_app_interactive() {
+    local name="$1"
+    echo ""
+    section "填写飞书应用: ${name}"
+    info "  获取 App ID / Secret: https://open.feishu.cn/app"
+    echo ""
+    local app_id; app_id=$(prompt "App ID")
+    local app_secret; app_secret=$(prompt_password "App Secret")
+    if [ -z "$app_id" ] || [ -z "$app_secret" ]; then
+        warn "App ID/Secret 不能为空，跳过 ${name}"
+        return 1
+    fi
+    echo -e "  ${GRAY}App Secret 末 4 位: ${app_secret: -4}${NC}"
+    if ! confirm "确认写入 feishu.json？" y; then
+        info "已取消"; return 1
+    fi
+    python3 - "$FEISHU_CONF" "$name" "$app_id" "$app_secret" << 'PYEOF' 2>/dev/null
+import json, sys
+conf, name, appid, secret = sys.argv[1:5]
+with open(conf) as f: d = json.load(f)
+for a in d.get('apps', []):
+    if a.get('name') == name:
+        a['appId'] = appid
+        a['appSecret'] = secret
+        with open(conf, 'w') as f:
+            json.dump(d, f, indent=4, ensure_ascii=False)
+        sys.exit(0)
+sys.exit(1)
+PYEOF
+    if [ $? -eq 0 ]; then
+        ok "  ${name} 已写入"
+        return 0
+    else
+        err "  写入失败（未找到 app: ${name}）"
+        return 1
+    fi
+}
+
+# 交互式新增一个 app（apps 为空时引导）
+_add_app_interactive() {
+    echo ""
+    section "新增飞书应用"
+    info "  获取 App ID / Secret: https://open.feishu.cn/app"
+    echo ""
+    local name; name=$(prompt "应用名称 (如 personal/ailab)")
+    [ -z "$name" ] && { warn "名称不能为空"; return 1; }
+    local app_id; app_id=$(prompt "App ID")
+    local app_secret; app_secret=$(prompt_password "App Secret")
+    local desc; desc=$(prompt "描述" "我的飞书应用")
+    if [ -z "$app_id" ] || [ -z "$app_secret" ]; then
+        warn "App ID/Secret 不能为空"; return 1
+    fi
+    echo -e "  ${GRAY}App Secret 末 4 位: ${app_secret: -4}${NC}"
+    if ! confirm "确认写入 feishu.json？" y; then info "已取消"; return 1; fi
+    python3 - "$FEISHU_CONF" "$name" "$app_id" "$app_secret" "$desc" << 'PYEOF' 2>/dev/null
+import json, sys, os
+conf, name, appid, secret, desc = sys.argv[1:6]
+with open(conf) as f: d = json.load(f)
+d.setdefault('apps', []).append({
+    'name': name,
+    'appId': appid,
+    'appSecret': secret,
+    'description': desc,
+    'brand': 'feishu',
+    'workDir': os.path.expanduser('~/git'),
+    'claudeConfigDir': os.path.expanduser('~/.claude'),
+    'larkCli': {'enabled': True, 'configDir': f'~/.lark-cli-{name}'},
+    'larkbridge': {'enabled': False, 'adminOpenIds': []},
+})
+with open(conf, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
+PYEOF
+    ok "  ${name} 已添加"
+    return 0
+}
+
+# 主入口：检测 feishu.json 状态，占位符/空则交互式引导填写
+# 返回 0 = 可继续配置；1 = 跳过（用户取消或非交互）
+_interactive_ensure_apps() {
+    if [ "$(_has_no_apps)" = "true" ]; then
+        warn "feishu.json 中无飞书应用配置"
+        if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+            info "非交互模式，跳过。手动编辑: vim $FEISHU_CONF"
+            return 1
+        fi
+        if confirm "是否现在交互式添加飞书应用？" y; then
+            _add_app_interactive || return 1
+        else
+            info "已跳过。手动编辑: vim $FEISHU_CONF"
+            return 1
+        fi
+        return 0
+    fi
+
+    local placeholders
+    placeholders=$(_get_placeholder_app_names)
+    if [ -n "$placeholders" ]; then
+        warn "以下应用的 App ID/Secret 仍为占位符:"
+        echo "$placeholders" | while read -r n; do
+            echo -e "    ${YELLOW}→${NC} $n"
         done
         echo ""
-        info "编辑 feishu.json 填入真实值: vim $FEISHU_CONF"
-        info "获取地址: https://open.feishu.cn/app"
+        if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+            info "非交互模式，跳过。手动编辑: vim $FEISHU_CONF"
+            return 1
+        fi
+        if confirm "是否现在交互式填写？" y; then
+            echo "$placeholders" | while read -r n; do
+                [ -z "$n" ] && continue
+                _fill_app_interactive "$n" || true
+            done
+            if [ -n "$(_get_placeholder_app_names)" ]; then
+                warn "仍有占位符未填写，无法继续配置"
+                info "手动编辑: vim $FEISHU_CONF"
+                info "获取地址: https://open.feishu.cn/app"
+                return 1
+            fi
+        else
+            info "已跳过。手动编辑: vim $FEISHU_CONF"
+            info "获取地址: https://open.feishu.cn/app"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+run_lark_cli() {
+    install_lark_cli || return 1
+    echo ""
+
+    # 预检：占位符 / 空 apps → 交互式引导填写 appId/appSecret
+    if ! _interactive_ensure_apps; then
         return 1
     fi
 
