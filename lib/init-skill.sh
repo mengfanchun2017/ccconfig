@@ -369,7 +369,9 @@ do_link_self_built() {
     echo -e "  symlink: ${GREEN}${linked} 新建${NC}, ${GRAY}${skipped} 跳过${NC}, ${cleaned} 修复, ${override} 覆盖, ${orphan} 清理"
 }
 
-# 阶段 2：检 marketplace（保留自建 marketplace 给 f-* 自动跟）
+# 阶段 2：（已废弃）
+# f-* 自建 skill 走 symlink 即装即用，marketplace 注册与其重复（两条安装路并存）。
+# 函数体保留向后兼容直接调用，do_sync 中已跳过。
 do_ensure_marketplace() {
     local quiet="${INIT_ALL_FLOW:-0}"
     local mkt_repo mkt_name
@@ -437,8 +439,8 @@ do_sync() {
 
     do_install_cli_deps
     do_link_self_built
-    do_ensure_marketplace
     do_apply_ccprivate_config
+    # Phase 2 (do_ensure_marketplace) 已废弃 — f-* 走 symlink 即装，marketplace 注册与 symlink 双路重复
     # Phase 3 (do_install_third_party) 已废弃 — 2026-07-15
 
     if [[ "$quiet" == "1" ]]; then
@@ -534,19 +536,13 @@ do_list() {
     fi
     [[ -z "$pub_remote" ]] && pub_remote="${SKILL_UPSTREAM:-mengfanchun2017/skill}"
 
-    echo "=== 公开 skill（$SKILLS_SRC ← $pub_remote）==="
-    if [[ -d "$SKILLS_SRC" ]]; then
-        ls "$SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
-    else
-        echo "  (目录不存在: $SKILLS_SRC)"
-    fi
-    echo ""
-    echo "=== 私有 skill（$LOCAL_SKILLS_SRC）==="
+    local pub_count=0 priv_count=0
+    [[ -d "$SKILLS_SRC" ]] && pub_count=$(ls "$SKILLS_SRC" 2>/dev/null | wc -l)
     if [[ -d "$LOCAL_SKILLS_SRC" ]] && [[ -n "$(ls -A "$LOCAL_SKILLS_SRC" 2>/dev/null)" ]]; then
-        ls "$LOCAL_SKILLS_SRC" 2>/dev/null | while read n; do echo "  $n"; done
-    else
-        echo "  (无)"
+        priv_count=$(ls "$LOCAL_SKILLS_SRC" 2>/dev/null | wc -l)
     fi
+    info "  公开源: $SKILLS_SRC ← $pub_remote ($pub_count 个)"
+    info "  私有源: $LOCAL_SKILLS_SRC ($priv_count 个)"
     echo ""
     echo "=== ~/.claude/skills/ (symlink + npx-installed) ==="
     for d in "$CLAUDE_SKILLS_DIR"/*; do
