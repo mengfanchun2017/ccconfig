@@ -352,7 +352,16 @@ http_client = None
 async def on_startup():
     global http_client
     verify = not state.get("skip_tls_verify", False)
-    http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=30.0, read=60.0, write=60.0, pool=30.0), trust_env=False, verify=verify)
+    # write=120s: tailscale TCP 透传 + 内网 LLM 慢链路下大请求 (tool_use/长 prompt) 易撞 60s
+    # retries=2: WriteTimeout/ConnectError 自动重试, 偶尔抖一下不致命
+    # keepalive_expiry=10s: tailscale serve 端空闲可能 < 5s, 主动短一点避免撞对端 idle close
+    transport = httpx.AsyncHTTPTransport(retries=2)
+    limits = httpx.Limits(max_keepalive_connections=20, keepalive_expiry=10.0)
+    http_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(300.0, connect=30.0, read=60.0, write=120.0, pool=30.0),
+        transport=transport, limits=limits,
+        trust_env=False, verify=verify,
+    )
 
 
 # 当 upstream URL 用 IP 代替了域名（DNS 预解析后），ssl 握手的 SNI 仍要用域名
