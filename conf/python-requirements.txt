@@ -3,3 +3,7 @@
 # 格式: 包名==版本 或 包名（不指定版本则安装最新）
 # 注意: 有 apt 包的优先用 apt（python3-xxx），见 lib/install-python-packages.sh
 # 这里只放没有 apt 包的纯 pip 包
+
+# translate-weekly workflow 翻译依赖
+pdf2docx
+pypdf
