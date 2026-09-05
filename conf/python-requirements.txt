@@ -4,6 +4,5 @@
 # 注意: 有 apt 包的优先用 apt（python3-xxx），见 lib/install-python-packages.sh
 # 这里只放没有 apt 包的纯 pip 包
 
-# translate-weekly workflow 翻译依赖
+# translate-weekly workflow 翻译依赖（pdf2docx 含 PyMuPDF，兜底文本提取也用它）
 pdf2docx
-pypdf
