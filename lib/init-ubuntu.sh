@@ -549,7 +549,7 @@ main() {
     setup_claude_code || CLAUDE_CLI_NOT_READY=1
 
     # ccprivate 私有链接（MEMORY.md, CLAUDE.md, settings.json 等）
-    # init-base.sh all 流程中 maintain.sh finalize 统一处理，此处跳过避免重复
+    # init-base.sh all 收尾步调 ccprivate/setup.sh，此处跳过避免重复
     if [[ "${INIT_ALL_FLOW:-}" != "1" ]]; then
         local ccprivate_setup="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/setup.sh"
         if [[ -x "$ccprivate_setup" ]]; then
