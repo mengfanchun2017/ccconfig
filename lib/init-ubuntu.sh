@@ -55,11 +55,20 @@ setup_ccprivate() {
 
     local CCPRIVATE_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 
-    # 已 clone → 跳过（init-bootstrap.sh 已处理）
+    # 已 clone → pull 最新做幂等补刀（init-bootstrap.sh 已 clone）
     if [[ -d "$CCPRIVATE_DIR/.git" ]]; then
         info "ccprivate 已存在，pull 最新"
-        git -C "$CCPRIVATE_DIR" pull --ff-only 2>&1 | tail -2 || warn "pull 失败（本地有改动），继续"
-        success "ccprivate 已更新"
+        # 幂等确保 credential helper 就绪：bootstrap 已配过，此处补刀防漂移
+        gh auth setup-git >/dev/null 2>&1 || true
+        # GIT_TERMINAL_PROMPT=0：credential helper 不通则直接失败，绝不卡在用户名提示
+        local pull_out
+        if pull_out=$(GIT_TERMINAL_PROMPT=0 git -C "$CCPRIVATE_DIR" pull --ff-only 2>&1); then
+            echo "$pull_out" | tail -2
+            success "ccprivate 已更新"
+        else
+            echo "$pull_out" | tail -2
+            warn "ccprivate pull 失败（credential helper 未就绪或本地有改动），跳过——已有本地副本可用"
+        fi
         return 0
     fi
 
