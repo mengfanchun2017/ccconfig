@@ -16,8 +16,9 @@ _bridge_wd_log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$BRIDGE_WD_LOG";
 
 # bridge watchdog：30s 检查，挂了自动重启
 # 被 ensure_bridge 成功后在后台启动
+# host_header（第 4 参数）：可选。tailscale/SSH 透传场景证书 SAN 不匹配 IP 时，把 SNI+Host 改成证书里的真实域名/IP
 start_bridge_watchdog() {
-    local upstream="$1" model="$2" key="$3"
+    local upstream="$1" model="$2" key="$3" host_header="${4:-}"
     # 已有 watchdog 在跑 → 跳过
     if [[ -f "$BRIDGE_WD_PID" ]]; then
         local old_pid
@@ -44,6 +45,7 @@ while true; do
             OPENAI_BRIDGE_UPSTREAM="$upstream" \
             OPENAI_BRIDGE_KEY="$key" \
             OPENAI_BRIDGE_MODEL="$model" \
+            OPENAI_BRIDGE_HOST="$host_header" \
             python3 option-llmswitch/openai_bridge.py --port "${BRIDGE_PORT}" \$( [[ "$upstream" == https:* ]] && echo '--skip-tls-verify' ) \$( command -v curl.exe &>/dev/null && [[ "$upstream" =~ ://(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.) ]] && echo '--use-win-curl' || true )
     fi
     sleep 30
@@ -76,24 +78,26 @@ _bridge_supported() {
     return 0
 }
 
-# 读 llm.json 预设的 base_url|model|key（无 upstream_original 兼容）
+# 读 llm.json 预设的 base_url|model|key|host_header（无 upstream_original 兼容）
+# host_header 可选：tailscale/SSH 透传场景证书 SAN 不匹配 IP 时，把 SNI+Host 改成证书里的真实域名/IP
 read_bridge_config() {
     python3 - "$1" "$2" << 'PYEOF'
 import json, sys
 try:
     d = json.load(open(sys.argv[1]))
     llm = d.get('llms', {}).get(sys.argv[2], {})
-    print(f"{llm.get('base_url','')}|{llm.get('model','')}|{llm.get('key','')}")
+    print(f"{llm.get('base_url','')}|{llm.get('model','')}|{llm.get('key','')}|{llm.get('host_header','')}")
 except Exception:
     sys.exit(1)
 PYEOF
 }
 
 # 确保 bridge 跑且 upstream 正确
-# 用法: ensure_bridge <upstream> <model> <key>
+# 用法: ensure_bridge <upstream> <model> <key> [<host_header>]
+# host_header 可选：tailscale/SSH 透传场景证书 SAN 不匹配 IP 时，把 SNI+Host 改成证书里的真实域名/IP
 # 返回 0=就绪 1=失败
 ensure_bridge() {
-    local upstream="$1" model="$2" key="$3"
+    local upstream="$1" model="$2" key="$3" host_header="${4:-}"
     _bridge_supported "$upstream" || return 1
 
     # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
@@ -104,7 +108,7 @@ ensure_bridge() {
         local cur_upstream
         cur_upstream=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
         if [[ "$cur_upstream" == "$upstream" ]]; then
-            start_bridge_watchdog "$upstream" "$model" "$key"
+            start_bridge_watchdog "$upstream" "$model" "$key" "$host_header"
             return 0
         fi
         info "  upstream 变化 ($cur_upstream → $upstream)，重启 bridge..."
@@ -141,6 +145,7 @@ exec env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY 
     OPENAI_BRIDGE_UPSTREAM="$upstream" \
     OPENAI_BRIDGE_KEY="$key" \
     OPENAI_BRIDGE_MODEL="$model" \
+    OPENAI_BRIDGE_HOST="$host_header" \
     python3 option-llmswitch/openai_bridge.py --port "$BRIDGE_PORT" $extra_args $win_curl
 WRAPEOF
     chmod +x "$wrapper"
@@ -158,7 +163,7 @@ WRAPEOF
     done
     rm -f "$wrapper"
 
-    [[ -n "$h" ]] && start_bridge_watchdog "$upstream" "$model" "$key"
+    [[ -n "$h" ]] && start_bridge_watchdog "$upstream" "$model" "$key" "$host_header"
 }
 
 # 仅自愈：env 指向 127.0.0.1:8898 但 bridge 死了时拉起
@@ -187,8 +192,8 @@ selfheal_bridge() {
 
     local bc
     bc=$(read_bridge_config "$cfg" "$cur") || return 1
-    IFS='|' read -r upstream model key <<< "$bc"
+    IFS='|' read -r upstream model key host_header <<< "$bc"
 
     warn "  bridge ($BRIDGE_PORT) 未响应，自动拉起 ($cur)..."
-    ensure_bridge "$upstream" "$model" "$key"
+    ensure_bridge "$upstream" "$model" "$key" "$host_header"
 }

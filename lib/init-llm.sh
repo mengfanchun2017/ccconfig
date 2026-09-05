@@ -55,6 +55,19 @@ print(f"{llm.get('base_url','')}|{llm.get('model','')}|{llm.get('key','')}|{smal
 PYEOF
 }
 
+# 读 provider 的 host_header 字段（可选，tailscale/SSH 透传场景用）
+get_provider_host_header() {
+    python3 - "$CONFIG_FILE" "$1" << 'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1], 'r') as f: d = json.load(f)
+    llm = d.get('llms', {}).get(sys.argv[2], {})
+    print(llm.get('host_header', ''))
+except Exception:
+    print('')
+PYEOF
+}
+
 # ========== 本地 current 读写（不碰 ccprivate llm.json.current）==========
 # 读本地 llm-current，不存在则 fallback 读 llm.json.current（兼容旧机器）
 read_local_current() {
@@ -334,6 +347,10 @@ switch_llm() {
     config=$(get_llm_config "$name") || { error "未知预设: $name"; return 1; }
     IFS='|' read -r base_url model key small <<< "$config"
 
+    # host_header（tailscale/SSH 透传场景：证书 SAN 签的是单位内网 IP，客户端连的是跳板机 IP → SNI+Host 改回单位 IP）
+    local host_header
+    host_header=$(get_provider_host_header "$name")
+
     # Key 输入（明文 + 已有 key 提示尾号 4 位 / 回车保持）
     # why: minimax/deepseek 等用户自有 key 明文粘贴更稳，read -s 在部分终端吞粘贴字符
     # init-base all 等非交互流程（NONINTERACTIVE）跳过，直接用 llm.json 已有 key
@@ -352,7 +369,7 @@ switch_llm() {
     # 是否走 bridge
     if [[ "$use_bridge" == "True" ]]; then
         info "  用户指定 bridge 代理..."
-        if ensure_bridge "$base_url" "$model" "$key"; then
+        if ensure_bridge "$base_url" "$model" "$key" "$host_header"; then
             base_url="http://127.0.0.1:${BRIDGE_PORT}"
             info "  bridge 就绪 → $base_url"
         else
@@ -362,7 +379,7 @@ switch_llm() {
     elif [[ "$base_url" != *"/anthropic"* ]] && [[ "$base_url" != *"://127.0.0.1"* ]]; then
         # 自动检测：OpenAI-only 端点 → 启 bridge
         info "  OpenAI-only 端点 → 启动 bridge..."
-        if ensure_bridge "$base_url" "$model" "$key"; then
+        if ensure_bridge "$base_url" "$model" "$key" "$host_header"; then
             base_url="http://127.0.0.1:${BRIDGE_PORT}"
             info "  bridge 就绪 → $base_url"
         else
@@ -522,12 +539,46 @@ except: pass" 2>/dev/null)
 }
 
 # ========== 测试连接（非破坏性）==========
+# 把 base_url 改成探测用 URL：
+# - 默认用原 base_url
+# - 若 host_header（如 tailscale 跳板机场景证书 SAN 签的是域名但 URL 是 IP），用域名 + --resolve 改 SNI
+_probe_url() {
+    local base_url="$1" host_header="$2"
+    if [[ -n "$host_header" ]]; then
+        # 提取原 host:port（如 100.96.236.22:18080），用 host_header 替换 host 部分
+        local orig_host_port path_part
+        orig_host_port=$(echo "$base_url" | sed -E 's|^https?://([^/]+).*|\1|')
+        path_part=$(echo "$base_url" | sed -E 's|^https?://[^/]+||')
+        local port
+        port=$(echo "$orig_host_port" | sed -E 's|.*:||')
+        [[ "$port" == "$orig_host_port" ]] && port="443"
+        echo "https://${host_header}:${port}${path_part}"
+        return 0
+    fi
+    echo "$base_url"
+}
+
+# 把 --resolve host_header:port:ip 参数打印出来（空则不打印）
+_probe_resolve_args() {
+    local base_url="$1" host_header="$2"
+    [[ -z "$host_header" ]] && return 0
+    local orig_host port ip_part
+    orig_host=$(echo "$base_url" | sed -E 's|^https?://([^:/]+).*|\1|')
+    port=$(echo "$base_url" | sed -E 's|^https?://[^:/]+:([0-9]+).*|\1|')
+    [[ "$port" == "$base_url" ]] && port="443"
+    # 解析原 host 为 IP（--resolve 需要 IP 而非域名）
+    ip_part=$(getent ahosts "$orig_host" 2>/dev/null | awk 'NR==1{print $1}')
+    [[ -z "$ip_part" ]] && return 0
+    echo "--resolve ${host_header}:${port}:${ip_part}"
+}
+
 test_llm() {
     local target="${1:-}"
     [[ -z "$target" ]] && { error "用法: init-llm.sh test <preset>"; return 1; }
     local config
     config=$(get_llm_config "$target") || { error "未知预设: $target"; return 1; }
     IFS='|' read -r base_url model key _ <<< "$config"
+    local host_header; host_header=$(get_provider_host_header "$target")
 
     local _is_ph=0
     [[ -z "$key" ]] && _is_ph=1
@@ -537,18 +588,23 @@ test_llm() {
     fi
 
     info "测试: $target ($model @ $base_url)"
+    [[ -n "$host_header" ]] && info "  host_header: $host_header"
     local body_file; body_file=$(mktemp)
+    local probe_url; probe_url=$(_probe_url "$base_url" "$host_header")
+    local resolve_args; resolve_args=$(_probe_resolve_args "$base_url" "$host_header")
+    # shellcheck disable=SC2086
     local path
-    if [[ "$base_url" == *"/anthropic"* ]] || [[ "$base_url" == *"://127.0.0.1"* ]]; then
-        path="${base_url%/}/v1/messages"
+    if [[ "$probe_url" == *"/anthropic"* ]] || [[ "$probe_url" == *"://127.0.0.1"* ]]; then
+        path="${probe_url%/}/v1/messages"
     else
-        path="${base_url%/}/chat/completions"
+        path="${probe_url%/}/chat/completions"
     fi
     local headers=(-H "Content-Type: application/json" -H "Authorization: Bearer $key")
     [[ "$path" == *"/v1/messages" ]] && headers+=(-H "anthropic-version: 2023-06-01")
 
     local status
-    status=$(curl -sk --max-time 30 -o "$body_file" -w "%{http_code}" -X POST "$path" "${headers[@]}" \
+    # shellcheck disable=SC2086
+    status=$(curl -sk --max-time 30 -o "$body_file" -w "%{http_code}" -X POST $resolve_args "$path" "${headers[@]}" \
         -d "{\"model\":\"$model\",\"max_tokens\":16,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || status="000"
 
     if [[ "$status" == "200" ]]; then
@@ -578,6 +634,7 @@ test_all() {
         IFS='|' read -r name display model base_url <<< "$entry"
         local config; config=$(get_llm_config "$name") || { warn "  $display — 配置读取失败"; ((fail++)); continue; }
         IFS='|' read -r _ _ key _ <<< "$config"
+        local host_header; host_header=$(get_provider_host_header "$name")
 
         local _is_ph=0
         [[ -z "$key" ]] && _is_ph=1
@@ -587,18 +644,21 @@ test_all() {
             ((skip++)); continue
         fi
 
+        local probe_url; probe_url=$(_probe_url "$base_url" "$host_header")
+        local resolve_args; resolve_args=$(_probe_resolve_args "$base_url" "$host_header")
         local path
-        if [[ "$base_url" == *"/anthropic"* ]] || [[ "$base_url" == *"://127.0.0.1"* ]]; then
-            path="${base_url%/}/v1/messages"
+        if [[ "$probe_url" == *"/anthropic"* ]] || [[ "$probe_url" == *"://127.0.0.1"* ]]; then
+            path="${probe_url%/}/v1/messages"
         else
-            path="${base_url%/}/chat/completions"
+            path="${probe_url%/}/chat/completions"
         fi
         local headers=(-H "Content-Type: application/json" -H "Authorization: Bearer $key")
         [[ "$path" == *"/v1/messages" ]] && headers+=(-H "anthropic-version: 2023-06-01")
 
         printf "  %-20s %-30s " "$display" "$model"
         local status
-        status=$(curl -sk --max-time 15 -o /dev/null -w "%{http_code}" -X POST "$path" "${headers[@]}" \
+        # shellcheck disable=SC2086
+        status=$(curl -sk --max-time 15 -o /dev/null -w "%{http_code}" -X POST $resolve_args "$path" "${headers[@]}" \
             -d "{\"model\":\"$model\",\"max_tokens\":5,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || status="000"
         [[ -z "$status" ]] && status="000"
 
