@@ -110,9 +110,10 @@ init_all_steps() {
         "把当前 LLM 的 API key 写入 ~/.claude/settings.json"         \
         "10 s"
 
-    run_step "收尾（链接 + 服务）" "$SCRIPT_DIR/maintain.sh" true         \
-        "ccprivate 链接 + auto-sync 服务 + 状态验证"         \
-        "30 s" setup
+    # 私有链接收尾：auto-sync 已由 init-ubuntu.sh 启动，maintain 留给用户手动跑
+    run_step "收尾（私有链接）" "$ccpriv/setup.sh" true         \
+        "ccprivate 私有链接（CLAUDE.md / MEMORY.md / settings.json 等 symlink）"         \
+        "10 s"
     echo -e "${GREEN}🎉 基础初始化完成${NC}"
     echo ""
 
@@ -144,7 +145,6 @@ init_all_steps() {
 run_step() {
     local label="$1" script="$2" auto="$3"
     local desc="${4:-}" eta="${5:-}"
-    local -a extra=("${@:6}")
 
     echo ""
     echo -e "${BOLD}${CYAN}▸ ${label}${NC}"
@@ -155,14 +155,14 @@ run_step() {
     echo ""
 
     if [ "$auto" = "true" ]; then
-        if bash "$script" "${extra[@]+"${extra[@]}"}"; then
+        if bash "$script"; then
             ok "${label}"
         else
             warn "${label} 失败（继续）"
         fi
     else
         if confirm "运行？" y; then
-            if bash "$script" "${extra[@]+"${extra[@]}"}"; then
+            if bash "$script"; then
                 ok "${label}"
             else
                 err "${label} 失败"
