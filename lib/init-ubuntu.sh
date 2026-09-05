@@ -67,7 +67,14 @@ setup_ccprivate() {
             success "ccprivate 已更新"
         else
             echo "$pull_out" | tail -2
-            warn "ccprivate pull 失败（credential helper 未就绪或本地有改动），跳过——已有本地副本可用"
+            if echo "$pull_out" | grep -qiE '403|Write access|Forbidden|resource not accessible'; then
+                warn "ccprivate pull 失败：PAT 无 ccprivate 访问权限"
+                info "  编辑 PAT: https://github.com/settings/personal-access-tokens"
+                info "  Repository access → All repositories（或加 ccprivate）+ Contents: Read and write"
+                info "  跳过 pull——本地副本可用，init-base all 继续不受影响"
+            else
+                warn "ccprivate pull 失败（credential helper 未就绪或本地有改动），跳过——已有本地副本可用"
+            fi
         fi
         return 0
     fi
