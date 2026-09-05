@@ -140,7 +140,7 @@ do_setup() {
         info "ccprivate/setup.sh 不可用，仅修复了公开链接"
     fi
 
-    local expected_dirs=("skill" "skill-local" "rules" "agents" "commands" "bin" "usage" "workflow_local")
+    local expected_dirs=("skill" "skill-local" "rules" "agents" "commands" "bin" "usage")
     local created=false
     for d in "${expected_dirs[@]}"; do
         if [[ ! -d "$ccpriv/$d" ]]; then
