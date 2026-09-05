@@ -229,10 +229,12 @@ LINK_SETTINGS_JSON='{
       "Bash(*)",
       "Edit(**/*)",
       "Read(**/*)",
-      "WebSearch",
       "WebFetch",
       "Skill(*)",
       "Agent"
+    ],
+    "deny": [
+      "WebSearch"
     ],
     "defaultMode": "auto"
   }

@@ -357,7 +357,8 @@ gen_claude_md() {
 
 ## 权限
 - Bash(*) Read(*) Write(*) Edit(*) Glob(*) Grep(*)
-- WebSearch WebFetch Skill(*)
+- WebFetch Skill(*)
+- WebSearch 已 deny（底层 LLM 无内置搜索，走 Tavily/Exa MCP）
 
 ## 工作目录
 - 配置维护 → `cd ${CCCONFIG_HOME:-~/git/ccconfig} && claude`
@@ -374,10 +375,12 @@ gen_settings_json() {
       "Bash(*)",
       "Edit(**/*)",
       "Read(**/*)",
-      "WebSearch",
       "WebFetch",
       "Skill(*)",
       "Agent"
+    ],
+    "deny": [
+      "WebSearch"
     ],
     "defaultMode": "auto"
   }
