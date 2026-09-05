@@ -183,7 +183,7 @@ verify_endpoint() {
     [[ "$probe_path" == *"/v1/messages" ]] && headers+=(-H "anthropic-version: 2023-06-01")
 
     local status
-    status=$(curl -s -o /dev/null -w "%{http_code}" --noproxy '*' --max-time 35 -X POST "$probe_path" "${headers[@]}" -d "$body" 2>/dev/null) || status="000"
+    status=$(curl -sk -o /dev/null -w "%{http_code}" --noproxy '*' --max-time 35 -X POST "$probe_path" "${headers[@]}" -d "$body" 2>/dev/null) || status="000"
     [[ -z "$status" || "$status" =~ ^0+$ ]] && status="000"
 
     case "$status" in
@@ -552,7 +552,7 @@ test_llm() {
     [[ "$path" == *"/v1/messages" ]] && headers+=(-H "anthropic-version: 2023-06-01")
 
     local status
-    status=$(curl -s --max-time 30 -o "$body_file" -w "%{http_code}" -X POST "$path" "${headers[@]}" \
+    status=$(curl -sk --max-time 30 -o "$body_file" -w "%{http_code}" -X POST "$path" "${headers[@]}" \
         -d "{\"model\":\"$model\",\"max_tokens\":16,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || status="000"
 
     if [[ "$status" == "200" ]]; then
@@ -602,7 +602,7 @@ test_all() {
 
         printf "  %-20s %-30s " "$display" "$model"
         local status
-        status=$(curl -s --max-time 15 -o /dev/null -w "%{http_code}" -X POST "$path" "${headers[@]}" \
+        status=$(curl -sk --max-time 15 -o /dev/null -w "%{http_code}" -X POST "$path" "${headers[@]}" \
             -d "{\"model\":\"$model\",\"max_tokens\":5,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || status="000"
         [[ -z "$status" ]] && status="000"
 
