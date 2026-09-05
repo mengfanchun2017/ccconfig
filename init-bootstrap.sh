@@ -648,6 +648,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
     echo -e "    defaultMode=auto + allow 全工具（Bash/Edit/Read/Agent，spawn agent 跳分类器）"
     echo -e "  ${CYAN}bypass 模式:${NC} init-base.sh all 后终端输 ${GREEN}claudeby${NC} = claude --dangerously-skip-permissions"
     echo -e "    ${GRAY}日常用 claude（auto+allow 足够），需跳分类器/无人值守用 claudeby${NC}"
+    echo -e "    ${GRAY}claudeby 是 alias，需 source ~/.bashrc 或开新终端生效（init 在子 shell 运行）${NC}"
     echo ""
 }
 
