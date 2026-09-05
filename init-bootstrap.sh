@@ -255,14 +255,17 @@ detect_git_email() {
 }
 
 probe_repo() {
-    # 返回 "found" / "not_found" / "network_error"
-    local err_out
-    err_out=$(gh repo view "$1" 2>&1 >/dev/null)
-    if [[ $? -eq 0 ]]; then
+    # 返回 "found" / "not_found" / "no_access" / "network_error"
+    local err_out rc
+    err_out=$(gh repo view "$1" 2>&1 >/dev/null) && rc=0 || rc=$?
+    if [[ $rc -eq 0 ]]; then
         echo "found"; return 0
     fi
-    if grep -qiE 'Could not resolve to a Repository|HTTP 404|Not Found|repository not found' <<<"$err_out"; then
+    if grep -qiE 'HTTP 404|Not Found|repository not found|Could not resolve to a Repository' <<<"$err_out"; then
         echo "not_found"; return 1
+    fi
+    if grep -qiE '403|Forbidden|Write access|read access|resource not accessible|permission' <<<"$err_out"; then
+        echo "no_access"; return 3
     fi
     echo "network_error"; return 2
 }
@@ -463,40 +466,61 @@ create_and_push() {
 
     if git remote get-url origin &>/dev/null; then
         info "remote 已存在，跳过创建"
+        _repo_found=true
     elif ! gh auth status &>/dev/null 2>&1; then
-        warn "gh 未认证，无法自动创建仓库"
-        info "  手动建仓: https://github.com/new?name=ccprivate&visibility=private"
-        info "  git remote add origin git@github.com:$GH_USER/ccprivate.git"
+        warn "gh 未认证，无法推送"
+        info "  手动: git remote add origin https://github.com/$GH_USER/ccprivate.git"
+        info "        git push -u origin main"
         _rc=1
     else
+        local probe_status
         probe_status="$(probe_repo "$GH_USER/ccprivate")"
         if [[ "$probe_status" == "found" ]]; then
             _repo_found=true
         elif git ls-remote "https://github.com/$GH_USER/ccprivate.git" &>/dev/null 2>&1; then
             info "git ls-remote 验证通过"
             _repo_found=true
+        elif [[ "$probe_status" == "no_access" ]]; then
+            err "PAT 无 $GH_USER/ccprivate 访问权限"
+            info "  编辑 PAT: https://github.com/settings/personal-access-tokens"
+            info "  Repository access → All repositories（或加 ccprivate）+ Contents: Read and write"
+            info "  修改后重跑: bash init-bootstrap.sh"
+            _rc=1
         elif [[ "$probe_status" == "not_found" ]]; then
             warn "仓库 $GH_USER/ccprivate 不存在（404），需先在 GitHub 建仓"
             echo ""
             echo "  打开: https://github.com/new?name=ccprivate&visibility=private&description=Personal+Claude+Code+config"
             echo "  • 不要勾 Add README / .gitignore / license"
             echo ""
-            if confirm "仓库 $GH_USER/ccprivate 已创建？尝试 push 到远程？" y; then
+            if confirm "仓库 $GH_USER/ccprivate 已创建？尝试 push？" y; then
                 _repo_found=true
             fi
         else
-            warn "仓库检测失败（网络瞬断或 API 阻断，非 404）"
-            if confirm "仓库 $GH_USER/ccprivate 已创建？尝试 push 到远程？" y; then
-                _repo_found=true
-            fi
+            # network_error：gh API 不通但 git push 可能走不同路径，直接尝试 push（不再停顿问）
+            info "gh API 探测失败（网络/代理），直接尝试 git push..."
+            _repo_found=true
         fi
     fi
 
     if $_repo_found; then
-        info "GitHub 仓库已存在: $GH_USER/ccprivate"
+        info "GitHub 仓库: $GH_USER/ccprivate"
         git remote add origin "https://github.com/$GH_USER/ccprivate.git" 2>/dev/null || true
-        git push -u origin main 2>&1 | tail -2
-        ok "已推送"
+        local push_out push_rc
+        push_out=$(git push -u origin main 2>&1) && push_rc=0 || push_rc=$?
+        echo "$push_out" | grep -vE '^(Enumerating|Counting|Compressing|Writing|To |\* )' | tail -5
+        if [[ $push_rc -ne 0 ]]; then
+            if echo "$push_out" | grep -qiE '403|Write access|Forbidden|resource not accessible'; then
+                err "PAT 无 $GH_USER/ccprivate 写入权限"
+                info "  编辑 PAT: https://github.com/settings/personal-access-tokens"
+                info "  Repository access → All repositories（或加 ccprivate）+ Contents: Read and write"
+                info "  修改后重跑: bash init-bootstrap.sh"
+            else
+                err "git push 失败（exit $push_rc）"
+            fi
+            _rc=1
+        else
+            ok "已推送到 GitHub"
+        fi
     else
         err "GitHub 仓库 $GH_USER/ccprivate 不可达"
         err "  请手动建仓: https://github.com/new?name=ccprivate&visibility=private"
