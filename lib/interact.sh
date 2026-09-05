@@ -197,6 +197,42 @@ prompt_key() {
     echo "$ans"
 }
 
+# ========== Key 输入（明文 + 已有 key 检查）==========
+# 用法: key=$(prompt_key_plain "DeepSeek API Key" "$existing_key")
+# - existing 为空/占位符 → 明文输入新 key
+# - existing 有效 → 提示尾号 4 位，回车保持 / 粘贴新 key 替换
+prompt_key_plain() {
+    local msg="${1:-输入 Key}"
+    local existing="${2:-}"
+
+    if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+        echo "$existing"; return 0
+    fi
+
+    # 占位符检测
+    local _is_ph=0
+    [[ -z "$existing" ]] && _is_ph=1
+    [[ "$_is_ph" -eq 0 ]] && case "$existing" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) _is_ph=1 ;; esac
+
+    local ans
+    if [[ $_is_ph -eq 0 ]]; then
+        local hint="已配置 尾号 ${existing: -4}，回车保持 / 粘贴新 key 替换"
+        if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
+            read -p "  $msg [$hint]: " ans < /dev/tty || ans=""
+        else
+            read -p "  $msg [$hint]: " ans || ans=""
+        fi
+        echo "${ans:-$existing}"
+    else
+        if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
+            read -p "  $msg: " ans < /dev/tty || ans=""
+        else
+            read -p "  $msg: " ans || ans=""
+        fi
+        echo "$ans"
+    fi
+}
+
 # ========== 表格 ==========
 table() {
     local title="${1:-}"; shift
