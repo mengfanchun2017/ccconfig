@@ -334,16 +334,11 @@ switch_llm() {
     config=$(get_llm_config "$name") || { error "未知预设: $name"; return 1; }
     IFS='|' read -r base_url model key small <<< "$config"
 
-    # 占位符 key → 交互输入
-    # why: write_llm_config 统一写 llm.json + settings.json
-    # 提前持久化防止 verify 失败丢 key，但不写 llm.json（write_llm_config 统一写入）
-    local _is_ph=0
-    [[ -z "$key" ]] && _is_ph=1
-    [[ $_is_ph -eq 0 ]] && case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) _is_ph=1 ;; esac
-    if [[ $_is_ph -eq 1 ]]; then
-        if [[ -t 0 ]]; then
-            echo ""; key=$(prompt_key "输入 ${name} API Key" | tr -d '\r\n')
-        fi
+    # Key 输入（明文 + 已有 key 提示尾号 4 位 / 回车保持）
+    # why: minimax/deepseek 等用户自有 key 明文粘贴更稳，read -s 在部分终端吞粘贴字符
+    if [[ -t 0 ]]; then
+        echo ""
+        key=$(prompt_key_plain "输入 ${name} API Key" "$key" | tr -d '\r\n')
     fi
 
     # 停 gateway（切直连前）

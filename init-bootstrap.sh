@@ -296,14 +296,14 @@ collect_info() {
         local llm_choice
         llm_choice=$(menu_select "默认 LLM" "DeepSeek" "MiniMax")
         case "$llm_choice" in
-            1) DEFAULT_LLM=deepseek; [[ -z "$DEEPSEEK_KEY" ]] && DEEPSEEK_KEY=$(prompt_key "DeepSeek API Key") ;;
-            2) DEFAULT_LLM=minimax;  [[ -z "$MINIMAX_KEY" ]] && MINIMAX_KEY=$(prompt_key "MiniMax API Key") ;;
+            1) DEFAULT_LLM=deepseek; [[ -z "$DEEPSEEK_KEY" ]] && DEEPSEEK_KEY=$(prompt_key_plain "DeepSeek API Key") ;;
+            2) DEFAULT_LLM=minimax;  [[ -z "$MINIMAX_KEY" ]] && MINIMAX_KEY=$(prompt_key_plain "MiniMax API Key") ;;
             0) warn "取消 LLM 选择"; DEFAULT_LLM="${DEFAULT_LLM:-deepseek}" ;;
         esac
 
         # 收集其他 LLM key（可选）
-        [[ "$llm_choice" != "1" && -z "$DEEPSEEK_KEY" ]] && DEEPSEEK_KEY=$(prompt "DeepSeek Key？(回车跳过)")
-        [[ "$llm_choice" != "2" && -z "$MINIMAX_KEY" ]]  && MINIMAX_KEY=$(prompt "MiniMax Key？(回车跳过)")
+        [[ "$llm_choice" != "1" && -z "$DEEPSEEK_KEY" ]] && DEEPSEEK_KEY=$(prompt_key_plain "DeepSeek Key（回车跳过）")
+        [[ "$llm_choice" != "2" && -z "$MINIMAX_KEY" ]]  && MINIMAX_KEY=$(prompt_key_plain "MiniMax Key（回车跳过）")
     fi
 
     export GH_USER GIT_EMAIL DEFAULT_LLM DEEPSEEK_KEY MINIMAX_KEY
@@ -477,6 +477,10 @@ create_and_push() {
             _repo_found=true
         elif [[ "$probe_status" == "not_found" ]]; then
             warn "仓库 $GH_USER/ccprivate 不存在（404），需先在 GitHub 建仓"
+            echo ""
+            echo "  打开: https://github.com/new?name=ccprivate&visibility=private&description=Personal+Claude+Code+config"
+            echo "  • 不要勾 Add README / .gitignore / license"
+            echo ""
             if confirm "仓库 $GH_USER/ccprivate 已创建？尝试 push 到远程？" y; then
                 _repo_found=true
             fi
@@ -540,47 +544,6 @@ do_create() {
     # 收集信息
     collect_info || return 1
 
-    # 手动建仓引导：仅当 404（真不存在）才提示建仓，网络瞬断不误导
-    if [[ -n "$GH_USER" ]]; then
-        pr="$(probe_repo "$GH_USER/ccprivate")"
-        if [[ "$pr" == "network_error" ]]; then
-            warn "$GH_USER/ccprivate 探测失败（网络瞬断或 API 阻断，非 404）"
-            info "跳过建仓引导——若仓库已存在，push 阶段会重试"
-        elif [[ "$pr" != "found" ]]; then
-            section "需要先建 GitHub 私有仓库"
-            cat <<'EOF'
-  打开: https://github.com/new?name=ccprivate&visibility=private&description=Personal+Claude+Code+config
-  • Repository name : ccprivate
-  • Description     : Personal Claude Code config
-  • Visibility      : Private
-  • ❌ 不要勾 Add README / .gitignore / license
-  • 点 Create repository
-
-  建好后按回车继续（或 Ctrl+C 取消）。
-EOF
-            read -p "建好了？按回车继续..." _ < /dev/tty || true
-
-            local _repo_ok=false _pr2
-            pr2="$(probe_repo "$GH_USER/ccprivate")"
-            if [[ "$pr2" == "found" ]]; then
-                _repo_ok=true
-            elif git ls-remote "https://github.com/$GH_USER/ccprivate.git" &>/dev/null 2>&1; then
-                _repo_ok=true
-            elif [[ "$pr2" == "not_found" ]]; then
-                warn "仓库仍 404——确认已在 GitHub 建仓"
-                confirm "仓库确实已创建？继续推送？" y && _repo_ok=true
-            else
-                warn "探测仍失败（网络瞬断），手动确认"
-                confirm "仓库确实已创建？继续推送？" y && _repo_ok=true
-            fi
-            if ! $_repo_ok; then
-                err "仓库未就绪，请确认 $GH_USER/ccprivate 存在后重跑"
-                return 1
-            fi
-            ok "GitHub 仓库已就绪: $GH_USER/ccprivate"
-        fi
-    fi
-
     section "创建目录结构"
     mkdir -p "$CCPRIVATE_DIR/conf"
     mkdir -p "$CCPRIVATE_DIR/skill-config"
@@ -635,10 +598,12 @@ EOF
 Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
     popd >/dev/null
 
-    create_and_push || return 1
-
+    # 先建本地符号链接（保证 init-base all 可用，即使 GitHub push 失败）
     section "建立符号链接"
     bash "$CCPRIVATE_DIR/setup.sh"
+
+    # 推送到 GitHub（非致命：失败只 warn，本地 ccprivate 已就绪不阻断）
+    create_and_push || warn "GitHub push 跳过——本地 ccprivate 已就绪，稍后 bash init-bootstrap.sh --update 补 push"
 
     echo ""
     ok "ccprivate 创建完成 🎉"
