@@ -223,7 +223,7 @@ commit_and_push() {
             while [ $pull_attempt -le $pull_max ]; do
                 local pull_output pull_rc
                 set +e
-                pull_output=$(timeout --kill-after=5 30 git -C "$repo_dir" pull --rebase origin "$branch" 2>&1)
+                pull_output=$(timeout --kill-after=5 30 git -C "$repo_dir" pull --rebase --autostash origin "$branch" 2>&1)
                 pull_rc=$?
                 set -e
                 if [ $pull_rc -eq 0 ]; then
