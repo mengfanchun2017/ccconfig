@@ -5,15 +5,25 @@
 # 在 maintain.sh 中 source 后调用 _submenu_feishu
 
 _submenu_feishu() {
-    local c; c=$(menu_select "飞书管理" \
-        "飞书账号" \
-        "lark-cli" \
-        "返回")
-    [[ -z "$c" || "$c" = "0" ]] && return
-    case "$c" in
-        1) _submenu_feishu_accounts ;;
-        2) _submenu_feishu_larkcli ;;
-    esac
+    local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
+    local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
+
+    while true; do
+        echo ""
+        local c; c=$(menu_select "飞书管理" \
+            "飞书账号" \
+            "重置 lark-cli" \
+            "OAuth 状态" \
+            "列出账号" \
+            "返回")
+        [[ -z "$c" || "$c" = "0" || "$c" = "5" ]] && return
+        case "$c" in
+            1) _submenu_feishu_accounts ;;
+            2) bash "$feishu_lc" ;;
+            3) bash "$feishu_switch" ;;
+            4) bash "$feishu_switch" --list ;;
+        esac
+    done
 }
 
 _submenu_feishu_accounts() {
