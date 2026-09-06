@@ -402,6 +402,11 @@ switch_llm() {
     fi
 
     write_llm_config "$name" "$base_url" "$model" "$small" "$key"
+
+    # tailscale 链路多环节（本机↔跳板机↔内网网关↔LLM API），切后约 30s 完全稳定
+    if [[ "$name" == *tailscale* ]] || [[ "$base_url" =~ ^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.) ]]; then
+        warn "tailscale 链路跳转后约需 30s 完全生效"
+    fi
 }
 
 switch_to_gateway() {
