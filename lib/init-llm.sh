@@ -377,7 +377,16 @@ switch_llm() {
             return 1
         fi
     elif [[ "$base_url" != *"/anthropic"* ]] && [[ "$base_url" != *"://127.0.0.1"* ]]; then
-        # 自动检测：OpenAI-only 端点 → 启 bridge
+        # OpenAI-only 端点
+        if [[ "$use_bridge" == "False" ]]; then
+            # why: use_bridge:false 显式要直连，但 Claude Code 只支持 Anthropic Messages 格式
+            # OpenAI-only URL（如 paas/v4）直连必失败 → 早报错，避免静默走 auto-bridge 违背用户意图
+            error "  base_url '$base_url' 是 OpenAI-only 端点 + use_bridge:false → 不兼容"
+            error "  Claude Code 只支持 Anthropic Messages 格式，直连必失败"
+            error "  修：use_bridge:true 走 bridge / 换含 /anthropic 的 Anthropic 兼容 URL"
+            return 1
+        fi
+        # use_bridge 未显式 False（或缺失）→ 保留旧 auto-bridge 行为
         info "  OpenAI-only 端点 → 启动 bridge..."
         if ensure_bridge "$base_url" "$model" "$key" "$host_header"; then
             base_url="http://127.0.0.1:${BRIDGE_PORT}"
