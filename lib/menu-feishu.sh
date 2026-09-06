@@ -153,27 +153,6 @@ _submenu_feishu_app_menu() {
     esac
 }
 
-_submenu_feishu_larkcli() {
-    local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
-    local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
-
-    echo ""
-    echo -e "${CYAN}── lark-cli ──${NC}"
-    bash "$feishu_lc" --status
-    echo ""
-    local sub; sub=$(menu_select "lark-cli" \
-        "重置配置" \
-        "OAuth 状态" \
-        "列出账号" \
-        "返回")
-    [[ "$sub" = "0" ]] && return 0
-    case "$sub" in
-        1) bash "$feishu_lc" ;;
-        2) bash "$feishu_switch" ;;
-        3) bash "$feishu_switch" --list ;;
-    esac
-}
-
 _submenu_feishu_send_test() {
     local target="$1"
     local conf; conf="$(resolve_conf feishu.json 2>/dev/null)" || return 0
