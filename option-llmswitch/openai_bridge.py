@@ -11,6 +11,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import socket
 import urllib.parse
 from pathlib import Path
@@ -485,7 +486,9 @@ async def messages(request: Request):
         "Content-Type": "application/json",
     }
     upstream_base = state["upstream"].rstrip("/")
-    if upstream_base.endswith("/v1"):
+    # URL 已含版本段（/v1, /v4, /paas/v4, /openai/v1 等）或完整路径 → 只追加 /chat/completions
+    # why: 之前只检测 /v1，遇到智谱 paas/v4 类非标准路径会拼成 /v4/v1/chat/completions → 404
+    if re.search(r"/v\d+(/|$)", upstream_base) or "/chat/completions" in upstream_base:
         target_url = upstream_base + "/chat/completions"
     else:
         target_url = upstream_base + "/v1/chat/completions"
