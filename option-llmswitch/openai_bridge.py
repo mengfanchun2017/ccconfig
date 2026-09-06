@@ -298,7 +298,13 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
 
         usage = obj.get("usage")
         if usage:
-            msg_delta_usage = {"type": "message_delta", "usage": {"output_tokens": usage.get("completion_tokens", 0)}}
+            # why: CC 解析每个 message_delta 必访问 delta.stop_details，
+            # usage-only 结构（无 delta 字段）→ JS 报 undefined is not an object
+            msg_delta_usage = {
+                "type": "message_delta",
+                "delta": {"stop_reason": None, "stop_sequence": None},
+                "usage": {"output_tokens": usage.get("completion_tokens", 0)},
+            }
             out.append(f"event: message_delta\ndata: {json.dumps(msg_delta_usage, separators=(',', ':'))}\n\n")
 
     return "".join(out) if out else None
