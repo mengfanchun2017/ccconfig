@@ -943,7 +943,7 @@ interactive_select() {
             local letter="${letters:$idx:1}"
             echo -e "  ${BOLD_GREEN}1${letter}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
             item_name+=("$name")
-            ((idx++))
+            idx=$((idx+1))
         done < <(echo "$lines")
 
         echo -e "  ${BOLD_GRAY}--LLM配置--${NC}"
