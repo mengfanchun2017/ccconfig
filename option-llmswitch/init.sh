@@ -485,7 +485,7 @@ else:
 PYEOF
         echo ""
         local action
-        action=$(menu_select "操作" "添加" "删除" "返回")
+        action=$(menu_select "操作" "添加" "删除" "返回上层")
         [[ -z "$action" ]] && continue
         case "$action" in
             1)
@@ -589,7 +589,7 @@ else:
         print(f"    {name}: 非高峰→{op}")
 PYEOF
         echo ""
-        local c; c=$(menu_select "选择路由" "${choices[@]}" "返回")
+        local c; c=$(menu_select "选择路由" "${choices[@]}" "返回上层")
         [[ -z "$c" ]] && continue
         if [[ "$c" == "5" ]]; then break; fi
         local idx=$((c - 1))
@@ -694,16 +694,9 @@ if lconf:
     except: pass
 PYEOF
 
-        echo ""
-        echo -e "  ${BOLD}配置项:${NC}"
-        echo -e "  ${GREEN}1)${NC} 切换模式 (auto/manual/off)"
-        echo -e "  ${CYAN}2)${NC} 配置高峰时段"
-        echo -e "  ${YELLOW}3)${NC} 配置路由"
-        echo -e "  ${GRAY}0)${NC} 返回"
-        echo ""
         local config_choice
         config_choice=$(menu_select "配置" \
-            "切换模式" "高峰时段" "路由" "返回")
+            "切换模式" "高峰时段" "路由" "返回上层")
         [[ -z "$config_choice" ]] && continue
 
         case "$config_choice" in

@@ -141,7 +141,7 @@ _bill_delete_menu() {
         warn "无已配价格"
         return
     fi
-    ditems+=("返回")
+    ditems+=("返回上层")
     local c; c=$(menu_select "删除价格" "${ditems[@]}")
     local n=${#dnames[@]}
     [[ -z "$c" || "$c" = "0" || "$c" = "$((n+1))" ]] && return
@@ -174,7 +174,7 @@ main() {
         done < <(list_models_marked)
         items+=("＋ 添加自定义模型")
         items+=("删除已配价格")
-        items+=("返回")
+        items+=("返回上层")
         local n=${#names[@]}
         local c; c=$(menu_select "模型单价" "${items[@]}")
         [[ -z "$c" || "$c" = "0" ]] && return 0

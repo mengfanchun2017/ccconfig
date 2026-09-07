@@ -750,7 +750,7 @@ PYEOF
             items+=("$display ($model)")
         done < <(list_llms)
         [[ ${#items[@]} -eq 0 ]] && { info "无可删预设"; return 0; }
-        items+=("返回上一层")
+        items+=("返回上层")
         local sel; sel=$(menu_select "可删除的模型" "${items[@]}")
         [[ -z "$sel" || "$sel" == "0" ]] && return 0
         (( sel == ${#items[@]} )) && return 0
@@ -791,7 +791,7 @@ edit_preset() {
             items+=("$display ($model)")
         done < <(list_llms)
         [[ ${#items[@]} -eq 0 ]] && { info "无可修改预设"; return 0; }
-        items+=("返回上一层")
+        items+=("返回上层")
         local sel; sel=$(menu_select "可修改的模型" "${items[@]}")
         [[ -z "$sel" || "$sel" == "0" ]] && return 0
         (( sel == ${#items[@]} )) && return 0
@@ -947,14 +947,14 @@ interactive_select() {
         done < <(echo "$lines")
 
         echo -e "  ${BOLD_GRAY}--LLM配置--${NC}"
-        printf "  ${BOLD_GREEN}3A${NC}  %-26s ${DIM}%s${NC}\n" "增加模型" "输入 base_url + model + key"
-        printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "修改模型" "修改已保存预设"
-        printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
-        printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode"
-        printf "  ${BOLD_GREEN}3E${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "token 单价计费"
-        printf "  ${BOLD_GREEN}3F${NC}  %-26s ${DIM}%s${NC}\n" "批量测试" "探测所有预设连通性"
-        echo "  0) 退出"
-        printf "  ${BOLD_GREEN}输入 (如 1A, 3D): ${NC}"
+        printf "  ${BOLD_GREEN}2A${NC}  %-26s ${DIM}%s${NC}\n" "增加模型" "输入 base_url + model + key"
+        printf "  ${BOLD_GREEN}2B${NC}  %-26s ${DIM}%s${NC}\n" "修改模型" "修改已保存预设"
+        printf "  ${BOLD_GREEN}2C${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
+        printf "  ${BOLD_GREEN}2D${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode"
+        printf "  ${BOLD_GREEN}2E${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "token 单价计费"
+        printf "  ${BOLD_GREEN}2F${NC}  %-26s ${DIM}%s${NC}\n" "批量测试" "探测所有预设连通性"
+        echo -e "  ${BOLD_GREEN}0${NC}  退出"
+        printf "  ${BOLD_GREEN}输入 (如 1A, 2D): ${NC}"
         read -r choice
 
         [[ -z "$choice" || "$choice" == "0" ]] && { info "已退出"; return 0; }
@@ -962,7 +962,7 @@ interactive_select() {
         if [[ "$choice" =~ ^([0-9]+)([A-Za-z])$ ]]; then
             local cat="${BASH_REMATCH[1]}"
             local letter_m="${BASH_REMATCH[2]^^}"
-            if [[ "$cat" == "3" ]]; then
+            if [[ "$cat" == "2" ]]; then
                 case "$letter_m" in
                     A) switch_custom ;;
                     B) edit_preset ;;
@@ -990,7 +990,7 @@ interactive_select() {
             continue
         fi
 
-        warn "无效输入: $choice (格式: 1A, 3D)"
+        warn "无效输入: $choice (格式: 1A, 2D)"
     done
 }
 
