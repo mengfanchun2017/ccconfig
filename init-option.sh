@@ -44,16 +44,6 @@ MENU_GROUPS=(
 declare -A AUTO_MANAGED
 AUTO_MANAGED["llmswitch"]="由 init-llm 自动启停（按 provider 切换）"
 
-# ── 检测 option-* 目录 ──
-list_option_dirs() {
-    local dirs=()
-    for d in "$SCRIPT_DIR"/option-*/; do
-        [ -d "$d" ] || continue
-        dirs+=("$(basename "$d")")
-    done
-    echo "${dirs[@]}"
-}
-
 has_init_script() {
     [ -f "$SCRIPT_DIR/option-$1/init.sh" ]
 }
@@ -617,7 +607,17 @@ case "${1:-menu}" in
         list_all
         ;;
     -l|list)
-        list_names_compact
+        # 列出所有 option 名称（紧凑格式），用 MENU_GROUPS data-driven
+        for group_entry in "${MENU_GROUPS[@]}"; do
+            local gt="${group_entry%%|*}" gi="${group_entry#*|}"
+            echo "$gt"
+            for n in $gi; do
+                case "$n" in
+                    mcp|batcat|glow|usage) echo "  $n" ;;
+                    *) if [ -n "${AUTO_MANAGED[$n]:-}" ] || has_init_script "$n"; then echo "  $n"; fi ;;
+                esac
+            done
+        done
         ;;
     all|--all|-a)
         shift 2>/dev/null || true
