@@ -322,11 +322,14 @@ stop_bridge() {
 }
 
 # 读 use_bridge 标记
+# 返回：True / False（显式设置）/ 空（字段缺失 → 走 auto-bridge 兜底）
+# why: 区分 absent 与 explicit-false，守卫只拦显式 false，缺字段不报错
 get_use_bridge() {
     python3 - "$CONFIG_FILE" "$1" << 'PYEOF'
 import json, sys
 with open(sys.argv[1]) as f: d = json.load(f)
-print(d.get('llms', {}).get(sys.argv[2], {}).get('use_bridge', False))
+v = d.get('llms', {}).get(sys.argv[2], {}).get('use_bridge', '__ABSENT__')
+print('' if v == '__ABSENT__' else v)
 PYEOF
 }
 
