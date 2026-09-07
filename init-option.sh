@@ -597,11 +597,8 @@ install_all() {
 }
 
 # ── 入口 ──
-# 解析全局 --dry-run / --yes：从参数中剥离并设置环境变量
-_DRY_RUN_GLOBAL=false
 case "${1:-}" in
     --dry-run|--preview|--what)
-        _DRY_RUN_GLOBAL=true
         export CCC_DRY_RUN=1
         shift
         ;;
