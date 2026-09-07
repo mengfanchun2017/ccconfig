@@ -682,9 +682,9 @@ test_all() {
         [[ -z "$status" ]] && status="000"
 
         case "$status" in
-            200) ok_color "✓ $status"; ((ok++)) ;;
+            200) ok_color "✓ $status"; ((++ok)) ;;
             000) err_color "✗ 不可达"; ((fail++)) ;;
-            401|403) warn_color "⚠ $status 鉴权"; ((ok++)) ;;
+            401|403) warn_color "⚠ $status 鉴权"; ((++ok)) ;;
             400) warn_color "⚠ $status 路径"; ((fail++)) ;;
             *) warn_color "⚠ $status"; ((fail++)) ;;
         esac
