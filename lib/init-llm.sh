@@ -651,7 +651,7 @@ test_all() {
     local ok=0 fail=0 skip=0 total=${#names[@]}
     for entry in "${names[@]}"; do
         IFS='|' read -r name display model base_url <<< "$entry"
-        local config; config=$(get_llm_config "$name") || { warn "  $display — 配置读取失败"; ((fail++)); continue; }
+        local config; config=$(get_llm_config "$name") || { warn "  $display — 配置读取失败"; ((++fail)); continue; }
         IFS='|' read -r _ _ key _ <<< "$config"
         local host_header; host_header=$(get_provider_host_header "$name")
 
@@ -660,7 +660,7 @@ test_all() {
         [[ $_is_ph -eq 0 ]] && case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) _is_ph=1 ;; esac
         if [[ $_is_ph -eq 1 ]]; then
             warn "  $display — 无有效 Key，跳过"
-            ((skip++)); continue
+            ((++skip)); continue
         fi
 
         local probe_url; probe_url=$(_probe_url "$base_url" "$host_header")
@@ -683,10 +683,10 @@ test_all() {
 
         case "$status" in
             200) ok_color "✓ $status"; ((++ok)) ;;
-            000) err_color "✗ 不可达"; ((fail++)) ;;
+            000) err_color "✗ 不可达"; ((++fail)) ;;
             401|403) warn_color "⚠ $status 鉴权"; ((++ok)) ;;
-            400) warn_color "⚠ $status 路径"; ((fail++)) ;;
-            *) warn_color "⚠ $status"; ((fail++)) ;;
+            400) warn_color "⚠ $status 路径"; ((++fail)) ;;
+            *) warn_color "⚠ $status"; ((++fail)) ;;
         esac
         echo ""
     done
