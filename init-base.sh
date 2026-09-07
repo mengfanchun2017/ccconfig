@@ -181,7 +181,7 @@ run_step() {
 submenu_env() {
     echo ""; section "环境初始化"
     local c; c=$(menu_select "选择" \
-        "Ubuntu 全环境初始化" "LLM 切换" "auto-sync" "★ 一键全部" "返回")
+        "Ubuntu 全环境初始化" "LLM 切换" "auto-sync" "★ 一键全部" "返回上层")
     [[ -z "$c" ]] && return
     case "$c" in
         "1") run_step "Ubuntu" "$SCRIPT_DIR/lib/init-ubuntu.sh" false; echo -e "${YELLOW}操作完成，按回车退出...${NC}"; read -r < /dev/tty || true; exit 0 ;;
@@ -195,7 +195,7 @@ submenu_env() {
 submenu_remote() {
     echo ""; section "远程连接"
     local c; c=$(menu_select "选择" \
-        "SSH Server + tmux" "部署到 Windows" "查看说明" "返回")
+        "SSH Server + tmux" "部署到 Windows" "查看说明" "返回上层")
     [[ -z "$c" ]] && return
     case "$c" in
         "1") run_step "SSH Server" "$SCRIPT_DIR/option-remote/server/tmux-sshd.sh" false ;;

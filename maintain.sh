@@ -34,7 +34,7 @@ _submenu_monitor() {
         "重启" \
         "追踪日志" \
         "修复 inotify" \
-        "返回")
+        "返回上层")
     [[ -z "$c" || "$c" = "0" || "$c" = "7" ]] && return
     case "$c" in
         1) bash "$LIB_DIR/monitor.sh" status ;;
@@ -67,7 +67,7 @@ _submenu_usage() {
     echo -e "           关机补跑: Persistent=true + 全量重算自动补缺"
     echo ""
 
-    local items=("用量统计（跨 LLM 总量）" "按日报告" "立即归档（增量，只写新 day）" "今日快照（含今天）" "强制重算全量（改 pricing/列后用）" "启用 timer" "停用 timer" "配置（时间/飞书/含今天）" "设置费用 pricing" "返回")
+    local items=("用量统计（跨 LLM 总量）" "按日报告" "立即归档（增量，只写新 day）" "今日快照（含今天）" "强制重算全量（改 pricing/列后用）" "启用 timer" "停用 timer" "配置（时间/飞书/含今天）" "设置费用 pricing" "返回上层")
     local c; c=$(menu_select "用量管理" "${items[@]}")
     [[ -z "$c" || "$c" = "0" || "$c" = "${#items[@]}" ]] && return
     case "$c" in
@@ -95,7 +95,7 @@ _submenu_getnote() {
         "删除账号" \
         "切换(session)" \
         "切换(持久化)" \
-        "返回")
+        "返回上层")
     [[ -z "$c" || "$c" = "0" || "$c" = "5" ]] && return
     case "$c" in
         1) bash "$init" add ;;
@@ -111,7 +111,7 @@ _submenu_update_sync() {
         "ccprivate 升级" \
         "Git 同步" \
         "全部" \
-        "返回")
+        "返回上层")
     [[ -z "$c" || "$c" = "0" || "$c" = "5" ]] && return
     case "$c" in
         1) do_self all ;;
