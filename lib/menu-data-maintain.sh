@@ -19,7 +19,7 @@ MENU_ENTRIES=(
 
     # ── 2: 维护 ──
     "2|A|监控|启动/停止/重启/追踪||menu:monitor"
-    "2|B|更新 ccconfig|ccconfig 自更新 + Git 同步||menu:update_sync"
+    "2|B|git 更新|ccconfig 自更新 + Git 云拉取||menu:update_sync"
     "2|C|组件升级|Node/Claude/skill 升级|bash \"$LIB_DIR/update.sh\" menu|"
 
     # ── 3: 工具 ──
