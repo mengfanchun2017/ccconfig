@@ -354,6 +354,15 @@ switch_llm() {
     local host_header
     host_header=$(get_provider_host_header "$name")
 
+    # 多路径候选：探测选最佳 upstream（单位直连 / 家里 tailscale 自动适配）
+    # 无 upstream_candidates 的预设退化为顶层 base_url + host_header（不探测）
+    local picked
+    picked=$(pick_best_upstream_live "$CONFIG_FILE" "$name")
+    if [[ -n "$picked" ]]; then
+        IFS='|' read -r base_url host_header <<< "$picked"
+        info "  选定 upstream: $base_url${host_header:+ (host: $host_header)}"
+    fi
+
     # Key 输入（明文 + 已有 key 提示尾号 4 位 / 回车保持）
     # why: minimax/deepseek 等用户自有 key 明文粘贴更稳，read -s 在部分终端吞粘贴字符
     # init-base all 等非交互流程（NONINTERACTIVE）跳过，直接用 llm.json 已有 key
@@ -372,7 +381,7 @@ switch_llm() {
     # 是否走 bridge
     if [[ "$use_bridge" == "True" ]]; then
         info "  用户指定 bridge 代理..."
-        if ensure_bridge "$base_url" "$model" "$key" "$host_header"; then
+        if ensure_bridge "$base_url" "$model" "$key" "$host_header" "$CONFIG_FILE" "$name"; then
             base_url="http://127.0.0.1:${BRIDGE_PORT}"
             info "  bridge 就绪 → $base_url"
         else
@@ -391,7 +400,7 @@ switch_llm() {
         fi
         # use_bridge 未显式 False（或缺失）→ 保留旧 auto-bridge 行为
         info "  OpenAI-only 端点 → 启动 bridge..."
-        if ensure_bridge "$base_url" "$model" "$key" "$host_header"; then
+        if ensure_bridge "$base_url" "$model" "$key" "$host_header" "$CONFIG_FILE" "$name"; then
             base_url="http://127.0.0.1:${BRIDGE_PORT}"
             info "  bridge 就绪 → $base_url"
         else
