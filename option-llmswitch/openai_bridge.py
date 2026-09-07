@@ -365,7 +365,7 @@ async def on_startup():
     transport = httpx.AsyncHTTPTransport(retries=2)
     limits = httpx.Limits(max_keepalive_connections=20, keepalive_expiry=10.0)
     http_client = httpx.AsyncClient(
-        timeout=httpx.Timeout(300.0, connect=30.0, read=60.0, write=120.0, pool=30.0),
+        timeout=httpx.Timeout(300.0, connect=30.0, read=180.0, write=120.0, pool=30.0),
         transport=transport, limits=limits,
         trust_env=False, verify=verify,
     )
@@ -514,24 +514,28 @@ async def messages(request: Request):
         sse_state = {"started": False, "block_open": False, "finished": False}
 
         async def gen():
-            if use_win_curl:
-                # WSL 内网限制：流式通过 Windows 侧 curl.exe 转发
-                async for chunk in _stream_via_win_curl(target_url, headers, upstream_body, host_header):
-                    sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
-                    if sse_out:
-                        yield sse_out
-            else:
-                async with client.stream(
-                    "POST",
-                    target_url,
-                    headers=headers,
-                    json=upstream_body,
-                    extensions=extra_ext or None,
-                ) as r:
-                    async for chunk in r.aiter_text():
+            # 捕获 upstream 间歇性超时/断连：log + 结束 stream，不让异常杀进程
+            # Claude Code 收到不完整响应会自动重试，比 bridge 整个死掉强
+            try:
+                if use_win_curl:
+                    async for chunk in _stream_via_win_curl(target_url, headers, upstream_body, host_header):
                         sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
                         if sse_out:
                             yield sse_out
+                else:
+                    async with client.stream(
+                        "POST",
+                        target_url,
+                        headers=headers,
+                        json=upstream_body,
+                        extensions=extra_ext or None,
+                    ) as r:
+                        async for chunk in r.aiter_text():
+                            sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
+                            if sse_out:
+                                yield sse_out
+            except (httpx.WriteTimeout, httpx.ReadTimeout, httpx.PoolTimeout, httpx.ConnectError, httpx.ReadError) as e:
+                print(f"[bridge] upstream stream error: {type(e).__name__}: {e}", flush=True)
         return StreamingResponse(gen(), media_type="text/event-stream")
     else:
         if use_win_curl:
@@ -544,12 +548,16 @@ async def messages(request: Request):
                 return JSONResponse({"error": "upstream non-json", "body": r_text[:500]}, status_code=502)
             anth = openai_to_anthropic_resp(openai_json)
             return JSONResponse(anth)
-        r = await client.post(
-            target_url,
-            headers=headers,
-            json=upstream_body,
-            extensions=extra_ext or None,
-        )
+        try:
+            r = await client.post(
+                target_url,
+                headers=headers,
+                json=upstream_body,
+                extensions=extra_ext or None,
+            )
+        except (httpx.WriteTimeout, httpx.ReadTimeout, httpx.PoolTimeout, httpx.ConnectError, httpx.ReadError) as e:
+            print(f"[bridge] upstream post error: {type(e).__name__}: {e}", flush=True)
+            return JSONResponse({"error": "upstream timeout", "type": type(e).__name__}, status_code=529)
         try:
             openai_json = r.json()
         except Exception:
