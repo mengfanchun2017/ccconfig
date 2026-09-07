@@ -232,8 +232,11 @@ fix_monitor() {
 
 # ========== 入口 ==========
 
-# 测试模式：source 时只加载函数/数据，不进交互菜单（仿 init-llm.sh TEST_MODE）
-[[ "${MAINTAIN_TEST_MODE:-0}" == "1" ]] || case "${1:-menu}" in
+# BASH_SOURCE 守卫：被 source 时不执行入口
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  # 测试模式兼容：MAINTAIN_TEST_MODE=1 source 时跳过，但 bash 执行时不受影响
+  [[ "${MAINTAIN_TEST_MODE:-0}" == "1" ]] && exit 0
+  case "${1:-menu}" in
     menu|"")
         menu_loop "ccconfig 运维中心"
         ;;
@@ -272,4 +275,5 @@ fix_monitor() {
     *)
         echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|llm|mcp|pat|token|feishu]"
         exit 1 ;;
-esac
+  esac
+fi

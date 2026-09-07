@@ -31,9 +31,9 @@ CCPRIVATE_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 LOCAL_BIN="$HOME/.local/bin"
 export PATH="$LOCAL_BIN:$PATH"
 
+source "$SCRIPT_DIR/lib/dry-run.sh"
 source "$SCRIPT_DIR/lib/colors.sh"
 source "$SCRIPT_DIR/lib/interact.sh"
-source "$SCRIPT_DIR/lib/dry-run.sh"
 
 NONINTERACTIVE=false
 [[ "${CCP_NONINTERACTIVE:-}" == "1" ]] && NONINTERACTIVE=true
