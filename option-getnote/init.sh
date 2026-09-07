@@ -155,9 +155,9 @@ case "${1:-}" in
     ""|menu)
         while true; do
             c=$(menu_select "getnote 账号管理" \
-                "1) 添加账号" "2) 删除账号" "3) 列出账号" "4) 切换账号" "0) 退出")
-            [[ -z "$c" ]] && continue
-            case "${c:0:1}" in
+                "添加账号" "删除账号" "列出账号" "切换账号")
+            [[ -z "$c" || "$c" == "0" ]] && exit 0
+            case "$c" in
                 1) do_add ;;
                 2) do_remove ;;
                 3) bash "$SCRIPT_DIR/getnote-switch.sh" --list ;;
@@ -172,7 +172,6 @@ case "${1:-}" in
                         fi
                     fi
                     ;;
-                0|"") exit 0 ;;
                 *) warn "无效选项" ;;
             esac
         done

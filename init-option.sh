@@ -221,7 +221,7 @@ list_all() {
     done
 
     echo ""
-    echo -e "  ${DIM}a) 全部安装  0) 返回${NC}"
+    echo -e "  ${BOLD_GREEN}a)${NC} 全部安装  ${BOLD_GREEN}0)${NC} 返回上层"
     echo ""
 }
 
