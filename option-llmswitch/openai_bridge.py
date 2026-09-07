@@ -534,7 +534,7 @@ async def messages(request: Request):
                             sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
                             if sse_out:
                                 yield sse_out
-            except (httpx.WriteTimeout, httpx.ReadTimeout, httpx.PoolTimeout, httpx.ConnectError, httpx.ReadError) as e:
+            except httpx.TransportError as e:
                 print(f"[bridge] upstream stream error: {type(e).__name__}: {e}", flush=True)
         return StreamingResponse(gen(), media_type="text/event-stream")
     else:
@@ -555,7 +555,7 @@ async def messages(request: Request):
                 json=upstream_body,
                 extensions=extra_ext or None,
             )
-        except (httpx.WriteTimeout, httpx.ReadTimeout, httpx.PoolTimeout, httpx.ConnectError, httpx.ReadError) as e:
+        except httpx.TransportError as e:
             print(f"[bridge] upstream post error: {type(e).__name__}: {e}", flush=True)
             return JSONResponse({"error": "upstream timeout", "type": type(e).__name__}, status_code=529)
         try:
