@@ -115,13 +115,15 @@ PYEOF
 # 候选路径可达性探测：GET，任何 HTTP 响应=可达（000=不可达）
 # linux curl 先试；不通则试 curl.exe（tailscale 可能在 Windows 侧，WSL 看不到）
 # why: 探测传输须与 bridge 实际传输一致，否则误判路径可用性
+# why: curl 必须 </dev/null——本函数被 pick_best_upstream_live 的 while-read<<<heredoc 循环调用，
+#       curl 不重定向 stdin 会吞掉 heredoc 剩余行，导致只探第一个候选
 _bridge_probe_reachable() {
     local base_url="$1" host_header="${2:-}"
     local code
-    code=$(curl -sk --max-time 3 -o /dev/null -w "%{http_code}" "$base_url" 2>/dev/null) || code="000"
+    code=$(curl -sk --max-time 3 -o /dev/null -w "%{http_code}" "$base_url" 2>/dev/null </dev/null) || code="000"
     [[ -n "$code" && "$code" != "000" ]] && return 0
     if command -v curl.exe &>/dev/null; then
-        code=$(curl.exe -sk --max-time 3 -o /dev/null -w "%{http_code}" "$base_url" 2>/dev/null) || code="000"
+        code=$(curl.exe -sk --max-time 3 -o /dev/null -w "%{http_code}" "$base_url" 2>/dev/null </dev/null) || code="000"
         [[ -n "$code" && "$code" != "000" ]] && return 0
     fi
     return 1
