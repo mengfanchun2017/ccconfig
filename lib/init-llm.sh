@@ -714,10 +714,9 @@ show_list() {
 
     while IFS='|' read -r marker name display model base small is_builtin; do
         [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
-        [[ "$is_builtin" == "1" ]] && tag=" ${DIM}[内建]${NC}"
         local info_small=""
         [[ -n "$small" ]] && info_small=" ${DIM}(小: $small)${NC}"
-        printf "  %s %-10s %-20s%s%s\n" "$marker" "$display" "$model" "$tag" "$info_small"
+        printf "  %s %-10s %-20s%b\n" "$marker" "$display" "$model" "$info_small"
     done < <(echo "$lines")
     echo ""
     if [[ -n "$current" && "$current" == "gateway" ]]; then
@@ -743,17 +742,19 @@ PYEOF
     )
 
     if [[ -z "$target" ]]; then
-        echo "可删除的自定义预设："
-        local names=()
+        local items=() names=()
         while IFS='|' read -r _ name display model _ _ is_builtin; do
             [[ -z "$name" ]] && continue
             [[ "$is_builtin" == "1" ]] && continue
             names+=("$name")
-            printf "  %d) %s (%s)\n" "${#names[@]}" "$display" "$model"
+            items+=("$display ($model)")
         done < <(list_llms)
-        [[ ${#names[@]} -eq 0 ]] && { info "无可删预设"; return 0; }
-        local sel; sel=$(prompt "选择序号")
-        [[ "$sel" =~ ^[0-9]+$ ]] && (( sel >= 1 && sel <= ${#names[@]} )) && target="${names[$((sel-1))]}"
+        [[ ${#items[@]} -eq 0 ]] && { info "无可删预设"; return 0; }
+        items+=("返回上一层")
+        local sel; sel=$(menu_select "可删除的模型" "${items[@]}")
+        [[ -z "$sel" || "$sel" == "0" ]] && return 0
+        (( sel == ${#items[@]} )) && return 0
+        target="${names[$((sel-1))]}"
     fi
     [[ -z "$target" ]] && { error "未指定预设"; return 1; }
 
@@ -782,29 +783,19 @@ PYEOF
 edit_preset() {
     local target="${1:-}"
 
-    # 读 builtin 列表（以代码定义为准，兼容用户 builtin 字段）
-    local builtin_list
-    builtin_list=$(BUILTIN_KEYS="${BUILTIN_PRESETS[*]}" python3 - "$CONFIG_FILE" << 'PYEOF'
-import json, sys, os
-builtin_set = set(os.environ.get('BUILTIN_KEYS','').split())
-with open(sys.argv[1]) as f: d = json.load(f)
-names = [k for k, v in d.get('llms', {}).items() if k in builtin_set or v.get('builtin')]
-print(' '.join(names))
-PYEOF
-    )
-
     if [[ -z "$target" ]]; then
-        echo "可修改的预设："
-        local names=()
+        local items=() names=()
         while IFS='|' read -r _ name display model _ _ is_builtin; do
-        [[ "$is_builtin" == "1" ]] && tag=" ${DIM}[内建]${NC}" || tag=""
             [[ -z "$name" ]] && continue
             names+=("$name")
-            printf "  %d) %s (%s)%s\n" "${#names[@]}" "$display" "$model" "$tag"
+            items+=("$display ($model)")
         done < <(list_llms)
-        [[ ${#names[@]} -eq 0 ]] && { info "无可修改预设"; return 0; }
-        local sel; sel=$(prompt "选择序号")
-        [[ "$sel" =~ ^[0-9]+$ ]] && (( sel >= 1 && sel <= ${#names[@]} )) && target="${names[$((sel-1))]}"
+        [[ ${#items[@]} -eq 0 ]] && { info "无可修改预设"; return 0; }
+        items+=("返回上一层")
+        local sel; sel=$(menu_select "可修改的模型" "${items[@]}")
+        [[ -z "$sel" || "$sel" == "0" ]] && return 0
+        (( sel == ${#items[@]} )) && return 0
+        target="${names[$((sel-1))]}"
     fi
     [[ -z "$target" ]] && { error "未指定预设"; return 1; }
 
@@ -931,27 +922,19 @@ _pause_continue() {
 }
 
 interactive_select() {
-    local -a item_cat item_letter item_name
-    local -a builtin_r custom_r
+    local -a item_name
+    local letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
     while true; do
         clear 2>/dev/null || true
         local lines; lines=$(list_llms)
         local current; current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
         _llm_status_header "$current"
-        builtin_r=(); custom_r=(); item_cat=(); item_letter=(); item_name=()
+        item_name=()
+        local idx=0
+        echo -e "  ${BOLD_GRAY}--LLM--${NC}"
         while IFS='|' read -r marker name display_name model base_url small is_builtin; do
             [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
-            if [[ "$is_builtin" == "1" ]]; then
-                builtin_r+=("$name|$display_name|$model|$small|$marker|$base_url")
-            else
-                custom_r+=("$name|$display_name|$model|$small|$marker|$base_url")
-            fi
-        done < <(echo "$lines")
-        echo -e "  ${BOLD_GRAY}--内建 llm--${NC}"
-        local idx letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        for ((idx=0; idx<${#builtin_r[@]}; idx++)); do
-            IFS='|' read -r name display_name model small marker base_url <<< "${builtin_r[$idx]}"
             local small_str="" route_str=""
             [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
             [[ "$name" == "gateway" ]] && route_str=" ${YELLOW}$(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)${NC}"
@@ -959,30 +942,19 @@ interactive_select() {
             [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
             local letter="${letters:$idx:1}"
             echo -e "  ${BOLD_GREEN}1${letter}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
-            item_cat+=("1"); item_letter+=("$letter"); item_name+=("$name")
-        done
+            item_name+=("$name")
+            ((idx++))
+        done < <(echo "$lines")
 
-        echo -e "  ${BOLD_GRAY}--自定义 llm--${NC}"
-        for ((idx=0; idx<${#custom_r[@]}; idx++)); do
-            IFS='|' read -r name display_name model small marker base_url <<< "${custom_r[$idx]}"
-            local small_str="" route_str=""
-            [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
-            [[ "$name" == "gateway" ]] && route_str=" ${YELLOW}$(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)${NC}"
-            local cur_mark=" "
-            [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
-            local letter="${letters:$idx:1}"
-            echo -e "  ${BOLD_GREEN}2${letter}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
-            item_cat+=("2"); item_letter+=("$letter"); item_name+=("$name")
-        done
-
-        echo -e "  ${BOLD_GRAY}--llm 配置--${NC}"
-        printf "  ${BOLD_GREEN}3A${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义" "输入任意 base_url + model + key"
-        printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "修改自定义" "修改已保存的自定义预设"
-        printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "删除自定义" "删除已保存的自定义预设"
-        printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode → llmswitch 管理"
-        printf "  ${BOLD_GREEN}3E${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "配置 token 单价，用于 token-usage 计费"
+        echo -e "  ${BOLD_GRAY}--LLM配置--${NC}"
+        printf "  ${BOLD_GREEN}3A${NC}  %-26s ${DIM}%s${NC}\n" "增加模型" "输入 base_url + model + key"
+        printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "修改模型" "修改已保存预设"
+        printf "  ${BOLD_GREEN}3C${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
+        printf "  ${BOLD_GREEN}3D${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode"
+        printf "  ${BOLD_GREEN}3E${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "token 单价计费"
+        printf "  ${BOLD_GREEN}3F${NC}  %-26s ${DIM}%s${NC}\n" "批量测试" "探测所有预设连通性"
         echo "  0) 退出"
-        printf "  输入 (如 1A, 2B, 3D) 或数字选择: "
+        printf "  ${BOLD_GREEN}输入 (如 1A, 3D): ${NC}"
         read -r choice
 
         [[ -z "$choice" || "$choice" == "0" ]] && { info "已退出"; return 0; }
@@ -997,36 +969,28 @@ interactive_select() {
                     C) delete_preset ;;
                     D) bash "$LLMSWITCH_INIT" --config ;;
                     E) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
-                    *) warn "配置: A=新增 B=修改 C=删除 D=Gateway E=Bill"; continue ;;
+                    F) test_all ;;
+                    *) warn "配置: A=增 B=改 C=删 D=Gateway E=Bill F=测试"; continue ;;
                 esac
                 _pause_continue
                 continue
             fi
-            for i in "${!item_cat[@]}"; do
-                if [[ "${item_cat[$i]}" == "$cat" && "${item_letter[$i]}" == "$letter_m" ]]; then
-                    switch_llm "${item_name[$i]}"
+            if [[ "$cat" == "1" ]]; then
+                local pos=-1 j
+                for ((j=0; j<${#letters}; j++)); do
+                    [[ "${letters:$j:1}" == "$letter_m" ]] && { pos=$j; break; }
+                done
+                if (( pos >= 0 && pos < ${#item_name[@]} )); then
+                    switch_llm "${item_name[$pos]}"
                     _pause_continue
                     continue 2
                 fi
-            done
+            fi
             warn "未找到 ${cat}${letter_m}"
             continue
         fi
 
-        if [[ "$choice" =~ ^[0-9]+$ ]]; then
-            [[ "$choice" == "3" ]] && { switch_custom; _pause_continue; continue; }
-            for i in "${!item_cat[@]}"; do
-                if [[ "${item_cat[$i]}" == "$choice" ]]; then
-                    switch_llm "${item_name[$i]}"
-                    _pause_continue
-                    continue 2
-                fi
-            done
-            warn "分类 $choice 无 LLM 项"
-            continue
-        fi
-
-        warn "无效输入: $choice (格式: 1A, 2B, 3C)"
+        warn "无效输入: $choice (格式: 1A, 3D)"
     done
 }
 
