@@ -354,10 +354,22 @@ sync_one_repo() {
             dirty=true
         fi
         if $dirty; then
-            echo -e "  ${YELLOW}⚠️  HEAD 与远程一致 ($before)，但工作区有未提交改动${NC}"
-            echo ""
-            git -C "$repo_dir" status --short 2>/dev/null | head -10
-            echo ""
+            if [[ "${PERSONAL_REPOS:-}" == *"$repo_name"* ]]; then
+                echo -e "  ${YELLOW}⚡ 脏工作区 — 自动 commit + push (个人仓库)${NC}"
+                git -C "$repo_dir" add -A
+                git -C "$repo_dir" commit -m "Auto-sync: $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null && {
+                    local new_hash=$(git -C "$repo_dir" rev-parse --short HEAD)
+                    echo -e "  ${GREEN}✅ 已提交: $before → $new_hash${NC}"
+                    timeout 60 git -C "$repo_dir" push origin "$branch" 2>&1 &&
+                        echo -e "  ${GREEN}✅ 已推送${NC}" ||
+                        echo -e "  ${YELLOW}⚠️ 推送失败${NC}"
+                } || echo -e "  ${YELLOW}⚠️ 提交失败（无改动？）${NC}"
+            else
+                echo -e "  ${YELLOW}⚠️  HEAD 与远程一致 ($before)，但工作区有未提交改动${NC}"
+                echo ""
+                git -C "$repo_dir" status --short 2>/dev/null | head -10
+                echo ""
+            fi
         else
             echo -e "  ${GREEN}✅ 已是最新: $before${NC}"
         fi
