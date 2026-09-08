@@ -109,15 +109,15 @@ _submenu_update_sync() {
     local c; c=$(menu_select "更新配置" \
         "ccconfig 更新" \
         "ccprivate 升级" \
-        "Git 同步" \
+        "Git 同步（全部仓库）" \
         "全部" \
         "返回上层")
     [[ -z "$c" || "$c" = "0" || "$c" = "5" ]] && return
     case "$c" in
         1) do_self all ;;
         2) bash "$LIB_DIR/ccprivate-upgrade.sh" ;;
-        3) bash "$LIB_DIR/sync.sh" ;;
-        4) do_self all && bash "$LIB_DIR/sync.sh" ;;
+        3) bash "$LIB_DIR/sync.sh" --all ;;
+        4) do_self all && bash "$LIB_DIR/sync.sh" --all ;;
     esac
 }
 
