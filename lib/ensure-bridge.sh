@@ -32,17 +32,24 @@ start_bridge_watchdog() {
         rm -f "$BRIDGE_WD_PID"
     fi
 
+    # upstream 健康探测：读 bridge 当前 upstream，对该 URL 做轻量 GET（任何 HTTP 响应=可达，000=不可达）
+    # 失败 N 次连续 → 触发 bridge-restart.sh 重探候选路径 + 重启
+    # why: 之前 watchdog 只查 /health 看进程死活，bridge 没死但 upstream 间歇 529/timeout 时无人救
+    # 候选路径存在时让 bridge-restart.sh 重选，可能换路径（单位直连挂→切 tailscale）
+    local fail_threshold="${BRIDGE_WD_FAIL_THRESH:-3}"   # 连续失败次数门槛
     local wrapper="/tmp/bridge-watchdog-$RANDOM-$$.sh"
     cat > "$wrapper" << WDEOF
 #!/bin/bash
+fail_count=0
 while true; do
     h=\$(curl -s --max-time 3 http://127.0.0.1:${BRIDGE_PORT}/health 2>/dev/null) || h=''
+
+    # bridge 死了：清零 + 走原重启路径
     if [[ -z "\$h" ]]; then
+        fail_count=0
         if [[ -n "${cfg}" && -n "${preset}" ]]; then
-            # 重探候选路径后重启（环境可能已变）
             bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${preset}" "${model}" "${key}" "${BRIDGE_PORT}" >> "${BRIDGE_WD_LOG}" 2>&1 || true
         else
-            # 无候选信息：硬编码 upstream 重启（兼容）
             old=\$( { lsof -ti :${BRIDGE_PORT} 2>/dev/null || true; } | head -1 || true)
             [[ -n "\$old" ]] && kill "\$old" 2>/dev/null || true
             sleep 1
@@ -53,6 +60,29 @@ while true; do
             disown 2>/dev/null || true
         fi
         sleep 5
+        continue
+    fi
+
+    # bridge 活着：主动探 upstream 是否可达（任何非 000 都算通）
+    # why: /health 只证明进程活，upstream 路由质量差时 bridge 会返回 529 给客户端
+    # 单次探测可能抖一下，连续 ${fail_threshold} 次失败才触发重启避免误杀
+    cur_up=\$(echo "\$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
+    if [[ -n "\$cur_up" ]]; then
+        code=\$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "\$cur_up" </dev/null 2>/dev/null) || code="000"
+        if [[ "\$code" == "000" ]]; then
+            fail_count=\$((fail_count + 1))
+            echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 探测失败 (\$code) 第\${fail_count}次: \$cur_up" >> "${BRIDGE_WD_LOG}"
+            if (( fail_count >= ${fail_threshold} )) && [[ -n "${cfg}" && -n "${preset}" ]]; then
+                echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 连续失败 ≥${fail_threshold} 次，重探候选路径并重启 bridge" >> "${BRIDGE_WD_LOG}"
+                bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${preset}" "${model}" "${key}" "${BRIDGE_PORT}" >> "${BRIDGE_WD_LOG}" 2>&1 || true
+                fail_count=0
+                sleep 5
+                continue
+            fi
+        else
+            [[ \$fail_count -gt 0 ]] && echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 恢复 (\$code), fail_count 清零" >> "${BRIDGE_WD_LOG}"
+            fail_count=0
+        fi
     fi
     sleep 30
 done
