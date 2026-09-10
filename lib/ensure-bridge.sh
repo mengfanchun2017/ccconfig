@@ -224,10 +224,10 @@ local extra_args=""
     [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
 
     # WSL 场景：Windows 侧 tailscale 有 subnet route，但 WSL 看不到
-    # RFC1918 私有段统一触发 --use-win-curl（10/8, 172.16/12, 192.168/16）
-    # Why: 这些段通常是企业内网，WSL 用户多半通过 Windows tailscale 才能访问
+    # RFC1918 (10/8, 172.16/12, 192.168/16) + tailscale CGNAT (100.64/10) 统一触发 --use-win-curl
+    # Why: 这些段通常是企业内网 / tailscale 跳板，WSL 用户多半通过 Windows 侧才能访问
     local win_curl=""
-    if command -v curl.exe &>/dev/null && [[ "$upstream" =~ ://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.) ]]; then
+    if command -v curl.exe &>/dev/null && [[ "$upstream" =~ ://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.) ]]; then
         win_curl="--use-win-curl"
     fi
 
