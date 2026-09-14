@@ -49,9 +49,10 @@ import json, sys, os, re, glob, csv
 d = json.load(open(sys.argv[1]))
 pricing = d.get('pricing', {})
 seen = []
+EXCLUDE = {'unknown', 'model', '<synthetic>'}
 def add(m):
     m = (m or '').strip()
-    if m and not m.startswith('<') and m not in seen:
+    if m and m not in EXCLUDE and not m.startswith('<') and m not in seen:
         seen.append(m)
 for k, v in d.get('llms', {}).items():
     if k == 'gateway': continue
