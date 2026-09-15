@@ -49,9 +49,9 @@ check_symlinks() {
 
     local issues=0
 
-    # settings.json
-    if [ -L "$HOME/.claude/settings.json" ] && [ -e "$HOME/.claude/settings.json" ]; then
-        echo -e "  ${GREEN}✅${NC} settings.json"
+    # settings.json — 独立文件（非 symlink），每机 LLM 配置独立
+    if [ -f "$HOME/.claude/settings.json" ]; then
+        echo -e "  ${GREEN}✅${NC} settings.json（独立 LLM 配置）"
     else
         echo -e "  ${RED}❌${NC} settings.json"
         issues=$((issues + 1))
