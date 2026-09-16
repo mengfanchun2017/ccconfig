@@ -238,9 +238,9 @@ do_self() {
             echo ""
             bash "$LIB_DIR/setup-links.sh"
             # 修复项目级 memory symlink（真实目录→symlink）
-            local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
-            if [ -x "$ccpriv/setup.sh" ]; then
-                bash "$ccpriv/setup.sh" 2>/dev/null && ok "memory symlink 已修复" || warn "memory symlink 部分失败"
+            local _mccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+            if [ -x "$_mccpriv/setup.sh" ]; then
+                bash "$_mccpriv/setup.sh" 2>/dev/null && ok "memory symlink 已修复" || warn "memory symlink 部分失败"
             fi
             ;;
         skill)
