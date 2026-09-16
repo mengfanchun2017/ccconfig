@@ -251,6 +251,8 @@ check_repos() {
         local mem_path="$HOME/.claude/projects/$proj_id/memory"
         if [ -L "$mem_path" ] && [ ! -d "$mem_path" ]; then
             issues="${issues}memory断链 "
+        elif [ -d "$mem_path" ] && [ ! -L "$mem_path" ]; then
+            issues="${issues}memory应为symlink "
         fi
 
         if [ -n "$issues" ]; then
