@@ -243,6 +243,7 @@ do_self() {
                 bash "$_mccpriv/setup.sh" 2>/dev/null && ok "memory symlink 已修复" || warn "memory symlink 部分失败"
             fi
             echo -e "  ${YELLOW}提示: memory symlink 修复后需重启 Claude session 才生效（Claude 仅启动时加载 memory 索引）${NC}"
+            echo -e "  ${YELLOW}提示: memory symlink 修复后需重启 Claude session 才生效（Claude 仅启动时加载 memory 索引）${NC}"
             ;;
         skill)
             echo -e "${CYAN}── Skill 同步 ──${NC}"
