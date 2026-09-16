@@ -36,7 +36,7 @@ start_bridge_watchdog() {
     # 失败 N 次连续 → 触发 bridge-restart.sh 重启（同 upstream/model/key，preset 已绑死环境）
     # why: 之前 watchdog 只查 /health 看进程死活，bridge 没死但 upstream 间歇 529/timeout 时无人救
     local fail_threshold="${BRIDGE_WD_FAIL_THRESH:-5}"   # 连续失败次数门槛（家里 tailscale 抖动建议 5+）
-    local wrapper="/tmp/bridge-watchdog-$RANDOM-$$.sh"
+    local wrapper="$HOME/.cache/bridge-watchdog-$RANDOM-$$.sh"
     cat > "$wrapper" << WDEOF
 #!/bin/bash
 fail_count=0
@@ -55,7 +55,7 @@ while true; do
             cd "${CCCONFIG_ROOT}" || exit 1
             env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \\
                 OPENAI_BRIDGE_UPSTREAM="${upstream}" OPENAI_BRIDGE_KEY="${key}" OPENAI_BRIDGE_MODEL="${model}" OPENAI_BRIDGE_HOST="${host_header}" \\
-                python3 option-llmswitch/openai_bridge.py --port ${BRIDGE_PORT} \$( [[ "${upstream}" == https:* ]] && echo '--skip-tls-verify' ) \$( command -v curl.exe &>/dev/null && [[ "${upstream}" =~ ://(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.) ]] && echo '--use-win-curl' || true ) >> "${BRIDGE_WD_LOG}" 2>&1 &
+                python3 option-llmswitch/openai_bridge.py --port ${BRIDGE_PORT} \$( [[ "${upstream}" == https:* ]] && echo '--skip-tls-verify' ) \$( command -v curl.exe &>/dev/null && [[ "${upstream}" =~ ://(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.|100\\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\.) ]] && echo '--use-win-curl' || true ) >> "${BRIDGE_WD_LOG}" 2>&1 &
             disown 2>/dev/null || true
         fi
         sleep 5
@@ -87,7 +87,7 @@ while true; do
 done
 WDEOF
     chmod +x "$wrapper"
-    nohup "$wrapper" > "$BRIDGE_WD_LOG" 2>&1 < /dev/null &
+    setsid nohup "$wrapper" > "$BRIDGE_WD_LOG" 2>&1 < /dev/null &
     local wd_pid=$!
     disown "$wd_pid" 2>/dev/null || true
     echo "$wd_pid" > "$BRIDGE_WD_PID"
