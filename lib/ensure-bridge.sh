@@ -36,17 +36,19 @@ start_bridge_watchdog() {
     # 失败 N 次连续 → 触发 bridge-restart.sh 重探候选路径 + 重启
     # why: 之前 watchdog 只查 /health 看进程死活，bridge 没死但 upstream 间歇 529/timeout 时无人救
     # 候选路径存在时让 bridge-restart.sh 重选，可能换路径（单位直连挂→切 tailscale）
-    local fail_threshold="${BRIDGE_WD_FAIL_THRESH:-3}"   # 连续失败次数门槛
+    local fail_threshold="${BRIDGE_WD_FAIL_THRESH:-5}"   # 连续失败次数门槛（家里 tailscale 抖动建议 5+）
     local wrapper="/tmp/bridge-watchdog-$RANDOM-$$.sh"
     cat > "$wrapper" << WDEOF
 #!/bin/bash
 fail_count=0
+prev_up=""
 while true; do
     h=\$(curl -s --max-time 3 http://127.0.0.1:${BRIDGE_PORT}/health 2>/dev/null) || h=''
 
     # bridge 死了：清零 + 走原重启路径
     if [[ -z "\$h" ]]; then
         fail_count=0
+        prev_up=""
         if [[ -n "${cfg}" && -n "${preset}" ]]; then
             bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${preset}" "${model}" "${key}" "${BRIDGE_PORT}" >> "${BRIDGE_WD_LOG}" 2>&1 || true
         else
@@ -68,6 +70,13 @@ while true; do
     # 单次探测可能抖一下，连续 ${fail_threshold} 次失败才触发重启避免误杀
     cur_up=\$(echo "\$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
     if [[ -n "\$cur_up" ]]; then
+        # upstream 变化时清零 fail_count（新上游不应继承旧上游的失败计数）
+        # why: bridge 重启或 bridge-restart.sh 选路后 fail_count 仍累计 → 误触发重启
+        if [[ -n "\$prev_up" ]] && [[ "\$cur_up" != "\$prev_up" ]]; then
+            echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 变化 (\$prev_up → \$cur_up), fail_count 清零" >> "${BRIDGE_WD_LOG}"
+            fail_count=0
+        fi
+        prev_up="\$cur_up"
         code=\$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "\$cur_up" </dev/null 2>/dev/null) || code="000"
         if [[ "\$code" == "000" ]]; then
             fail_count=\$((fail_count + 1))
@@ -196,6 +205,17 @@ ensure_bridge() {
     local upstream="$1" model="$2" key="$3" host_header="${4:-}"
     local cfg="${5:-}" preset="${6:-}"
     _bridge_supported "$upstream" || return 1
+
+    # 启动前先 pick_best_upstream_live 选最佳路径（家里 tailscale / 单位直连自动适配）
+    # why: 之前直接用 base_url 启动，家里 tailscale 场景永远先起域名路径（不通）→ watchdog 触发 restart 换 IP 路径
+    #      前 5*30s=2.5min 用户请求全失败；先选路可避免这次冷启动震荡
+    if [[ -n "$cfg" && -n "$preset" ]]; then
+        local picked
+        picked=$(pick_best_upstream_live "$cfg" "$preset" 2>/dev/null) || picked=""
+        if [[ -n "$picked" ]]; then
+            IFS='|' read -r upstream host_header <<< "$picked"
+        fi
+    fi
 
     # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
     local health
