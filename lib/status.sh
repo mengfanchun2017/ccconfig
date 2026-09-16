@@ -255,6 +255,8 @@ check_repos() {
             issues="${issues}memory应为symlink "
         fi
 
+
+
         if [ -n "$issues" ]; then
             echo -e "  ${YELLOW}⚠${NC} $name — $issues"
         fi
