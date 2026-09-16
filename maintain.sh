@@ -236,7 +236,13 @@ do_self() {
                 [ "$local_commit" != "$after" ] && ok "ccconfig: $local_commit → $after" || ok "ccconfig 已是最新: $local_commit"
             } || { warn "ccconfig 拉取失败（有本地改动？）"; return 1; }
             echo ""
-            bash "$LIB_DIR/setup-links.sh" ;;
+            bash "$LIB_DIR/setup-links.sh"
+            # 修复项目级 memory symlink（真实目录→symlink）
+            local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+            if [ -x "$ccpriv/setup.sh" ]; then
+                bash "$ccpriv/setup.sh" 2>/dev/null && ok "memory symlink 已修复" || warn "memory symlink 部分失败"
+            fi
+            ;;
         skill)
             echo -e "${CYAN}── Skill 同步 ──${NC}"
             bash "$LIB_DIR/init-skill.sh" sync ;;
