@@ -160,8 +160,51 @@ do_setup() {
         warn "auto-sync 启动失败（可手动: bash $LIB_DIR/monitor.sh start）"
     fi
 
-    section "3. 状态总览"
-    bash "$LIB_DIR/status.sh" --quick
+    section "3. 迁移旧版 settings.json（LLM 配置独立化）"
+    python3 << 'PYEOF'
+import json, os, sys
+
+sf = os.path.expanduser("~/.claude/settings.json")
+cf = os.path.expanduser("~/.claude/.config.json")
+
+try:
+    with open(sf) as f: sd = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    sys.exit(0)
+
+# 需要迁移到 .config.json 的字段
+SETTINGS_KEYS = {"permissions", "model", "skillOverrides", "statusLine",
+                 "enabledPlugins", "extraKnownMarketplaces", "effortLevel",
+                 "autoUpdatesChannel", "skipDangerousModePermissionPrompt",
+                 "skipWorkflowUsageWarning", "tui", "hooks", "mcpServers",
+                 "disabledMcpServers", "projects"}
+
+migrated = []
+for k in SETTINGS_KEYS:
+    if k in sd:
+        try:
+            with open(cf) as f: cd = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            cd = {}
+        if k not in cd:
+            cd[k] = sd.pop(k)
+            with open(cf, "w") as f:
+                json.dump(cd, f, indent=2, ensure_ascii=False)
+                f.write("\n")
+            migrated.append(k)
+
+if migrated:
+    # 写回清理后的 settings.json
+    with open(sf, "w") as f:
+        json.dump(sd, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    print(f"  ✅ 迁移 {len(migrated)} 个字段: {', '.join(migrated)}")
+    print(f"  settings.json 仅保留 LLM 配置 (env)")
+else:
+    print("  ✓ settings.json 已经是 LLM-only 结构")
+PYEOF
+
+    section "4. 状态总览"
 
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
