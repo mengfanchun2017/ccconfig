@@ -248,13 +248,12 @@ check_repos() {
         local rel_path="${git_dir#/}"
         rel_path="${rel_path%/}"
         local proj_id="-${rel_path//\//-}"
-        local mem_path="$HOME/.claude/projects/$proj_id/memory"
-        if [ -L "$mem_path" ] && [ ! -d "$mem_path" ]; then
+        local mem="$HOME/.claude/projects/$proj_id/memory"
+        if [ -L "$mem" ] && [ ! -d "$mem" ]; then
             issues="${issues}memory断链 "
-        elif [ -d "$mem_path" ] && [ ! -L "$mem_path" ]; then
+        elif [ -d "$mem" ] && [ ! -L "$mem" ]; then
             issues="${issues}memory应为symlink "
         fi
-
 
 
         if [ -n "$issues" ]; then
