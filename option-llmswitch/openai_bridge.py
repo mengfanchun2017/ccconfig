@@ -536,6 +536,9 @@ async def messages(request: Request):
                                 yield sse_out
             except httpx.TransportError as e:
                 print(f"[bridge] upstream stream error: {type(e).__name__}: {e}", flush=True)
+                # yield SSE error event 让 Claude Code 立刻看到错误（不等 4 分钟）
+                yield 'event: error\ndata: {"type":"error","error":{"type":"upstream_disconnected","message":"stream interrupted"}}\n\n'
+                yield 'event: message_stop\ndata: {"type":"message_stop"}\n\n'
         return StreamingResponse(gen(), media_type="text/event-stream")
     else:
         if use_win_curl:
