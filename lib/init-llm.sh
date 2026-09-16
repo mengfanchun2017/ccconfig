@@ -176,15 +176,17 @@ verify_endpoint() {
     local probe_path
     if [[ "$base_url" == *"://127.0.0.1"* ]]; then
         local port="${base_url##*:}"; port="${port%%/*}"
-        # /health 探测：retry 3 次
+        # bridge 探测：只验进程活（/health 200 OK），不再 POST /v1/messages 触发完整上游链路
+        # why: POST 会等 upstream 响应（tailscale 首次握手可能 10s+），verify_endpoint 35s 超时不够；
+        #      真正的 upstream 探测留给用户首次请求，超时由 Claude Code 端处理
         local h=""
-        for _ in 1 2 3; do
+        for _ in 1 2 3 4 5; do
             h=$(curl -s --max-time 3 "http://127.0.0.1:${port}/health" 2>/dev/null) || true
             [[ -n "$h" ]] && break
             sleep 1
         done
         [[ -z "$h" ]] && { error "  ✗ bridge (port $port) 无响应 — bridge 进程可能挂了"; return 1; }
-        probe_path="${base_url%/}/v1/messages"
+        info "  ✓ bridge 就绪 ($name)"; return 0
     elif [[ "$base_url" == *"/anthropic"* ]]; then
         probe_path="${base_url%/}/v1/messages"
     else
