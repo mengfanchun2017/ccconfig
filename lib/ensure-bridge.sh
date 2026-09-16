@@ -156,13 +156,15 @@ PYEOF
 # why: 探测传输须与 bridge 实际传输一致，否则误判路径可用性
 # why: curl 必须 </dev/null——本函数被 pick_best_upstream_live 的 while-read<<<heredoc 循环调用，
 #       curl 不重定向 stdin 会吞掉 heredoc 剩余行，导致只探第一个候选
+# why: --max-time 5（不是 3）— 家里 tailscale 链路首次握手偶尔 3-4s，3s 超时太多误判 000，
+#       触发 pick_best fallback 到首条（域名路径家里永远不通）→ bridge-restart 死循环
 _bridge_probe_reachable() {
     local base_url="$1" host_header="${2:-}"
     local code
-    code=$(curl -sk --max-time 3 -o /dev/null -w "%{http_code}" "$base_url" 2>/dev/null </dev/null) || code="000"
+    code=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "$base_url" 2>/dev/null </dev/null) || code="000"
     [[ -n "$code" && "$code" != "000" ]] && return 0
     if command -v curl.exe &>/dev/null; then
-        code=$(curl.exe -sk --max-time 3 -o /dev/null -w "%{http_code}" "$base_url" 2>/dev/null </dev/null) || code="000"
+        code=$(curl.exe -sk --max-time 5 -o /dev/null -w "%{http_code}" "$base_url" 2>/dev/null </dev/null) || code="000"
         [[ -n "$code" && "$code" != "000" ]] && return 0
     fi
     return 1
