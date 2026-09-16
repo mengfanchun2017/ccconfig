@@ -354,15 +354,7 @@ switch_llm() {
     local host_header
     host_header=$(get_provider_host_header "$name")
 
-    # 多路径候选：探测选最佳 upstream（单位直连 / 家里 tailscale 自动适配）
-    # 无 upstream_candidates 的预设退化为顶层 base_url + host_header（不探测）
-    local picked
-    picked=$(pick_best_upstream_live "$CONFIG_FILE" "$name")
-    if [[ -n "$picked" ]]; then
-        IFS='|' read -r base_url host_header <<< "$picked"
-        info "  选定 upstream: $base_url${host_header:+ (host: $host_header)}"
-    fi
-
+    info "  选定 upstream: $base_url${host_header:+ (host: $host_header)}"
 
     # 停 gateway（切直连前）
     stop_gateway
