@@ -282,6 +282,23 @@ WRAPEOF
     done
     rm -f "$wrapper"
 
+    # 启动后立即自检 upstream：失败立刻重选路径重启，不等 watchdog 5 次×30s=2.5min
+    # Why: 家里 tailscale 选路后可能拿到不通路径（旧 bridge 残留 / 抖动），立即切路径比等 watchdog 快
+    if [[ -n "$h" && -n "$cfg" && -n "$preset" ]]; then
+        local cur_up check_code attempts=0
+        while (( attempts < 3 )); do
+            cur_up=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
+            [[ -z "$cur_up" ]] && break
+            check_code=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "$cur_up" </dev/null 2>/dev/null) || check_code="000"
+            [[ "$check_code" != "000" ]] && break  # 可达，成功
+            info "  启动自检失败 ($cur_up → $check_code)，重选路径..."
+            bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "$cfg" "$preset" "$model" "$key" "$BRIDGE_PORT" >> "${BRIDGE_WD_LOG}" 2>&1 || true
+            sleep 2
+            h=$(curl -s --max-time 2 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || h=""
+            ((attempts++))
+        done
+    fi
+
     [[ -n "$h" ]] && start_bridge_watchdog "$upstream" "$model" "$key" "$host_header" "$cfg" "$preset"
 }
 
