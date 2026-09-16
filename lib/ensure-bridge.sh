@@ -14,10 +14,10 @@ BRIDGE_WD_LOG="$HOME/.cache/bridge-watchdog.log"
 
 _bridge_wd_log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$BRIDGE_WD_LOG"; }
 
-# bridge watchdog：30s 检查，挂了调用 bridge-restart.sh 重探路径 + 重启
+# bridge watchdog：30s 检查，挂了调用 bridge-restart.sh 重启
 # 被 ensure_bridge 成功后在后台启动
 # why: 不再 exec 替换（旧版 exec 后 watchdog 死、只救一次）；改成循环调 bridge-restart.sh
-# bridge-restart.sh 会重探候选路径，环境变了（单位↔家）自动选对路径
+# bridge-restart.sh 不再选路径（preset 已绑死环境），只重启同配置 bridge
 # 参数: upstream model key host_header cfg preset
 start_bridge_watchdog() {
     local upstream="$1" model="$2" key="$3" host_header="${4:-}"
@@ -33,24 +33,21 @@ start_bridge_watchdog() {
     fi
 
     # upstream 健康探测：读 bridge 当前 upstream，对该 URL 做轻量 GET（任何 HTTP 响应=可达，000=不可达）
-    # 失败 N 次连续 → 触发 bridge-restart.sh 重探候选路径 + 重启
+    # 失败 N 次连续 → 触发 bridge-restart.sh 重启（同 upstream/model/key，preset 已绑死环境）
     # why: 之前 watchdog 只查 /health 看进程死活，bridge 没死但 upstream 间歇 529/timeout 时无人救
-    # 候选路径存在时让 bridge-restart.sh 重选，可能换路径（单位直连挂→切 tailscale）
     local fail_threshold="${BRIDGE_WD_FAIL_THRESH:-5}"   # 连续失败次数门槛（家里 tailscale 抖动建议 5+）
     local wrapper="/tmp/bridge-watchdog-$RANDOM-$$.sh"
     cat > "$wrapper" << WDEOF
 #!/bin/bash
 fail_count=0
-prev_up=""
 while true; do
     h=\$(curl -s --max-time 3 http://127.0.0.1:${BRIDGE_PORT}/health 2>/dev/null) || h=''
 
-    # bridge 死了：清零 + 走原重启路径
+    # bridge 死了：清零 + 重启
     if [[ -z "\$h" ]]; then
         fail_count=0
-        prev_up=""
         if [[ -n "${cfg}" && -n "${preset}" ]]; then
-            bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${preset}" "${model}" "${key}" "${BRIDGE_PORT}" >> "${BRIDGE_WD_LOG}" 2>&1 || true
+            bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${preset}" "${model}" "${key}" "${upstream}" "${host_header}" "${BRIDGE_PORT}" >> "${BRIDGE_WD_LOG}" 2>&1 || true
         else
             old=\$( { lsof -ti :${BRIDGE_PORT} 2>/dev/null || true; } | head -1 || true)
             [[ -n "\$old" ]] && kill "\$old" 2>/dev/null || true
@@ -70,20 +67,13 @@ while true; do
     # 单次探测可能抖一下，连续 ${fail_threshold} 次失败才触发重启避免误杀
     cur_up=\$(echo "\$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
     if [[ -n "\$cur_up" ]]; then
-        # upstream 变化时清零 fail_count（新上游不应继承旧上游的失败计数）
-        # why: bridge 重启或 bridge-restart.sh 选路后 fail_count 仍累计 → 误触发重启
-        if [[ -n "\$prev_up" ]] && [[ "\$cur_up" != "\$prev_up" ]]; then
-            echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 变化 (\$prev_up → \$cur_up), fail_count 清零" >> "${BRIDGE_WD_LOG}"
-            fail_count=0
-        fi
-        prev_up="\$cur_up"
         code=\$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "\$cur_up" </dev/null 2>/dev/null) || code="000"
         if [[ "\$code" == "000" ]]; then
             fail_count=\$((fail_count + 1))
             echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 探测失败 (\$code) 第\${fail_count}次: \$cur_up" >> "${BRIDGE_WD_LOG}"
             if (( fail_count >= ${fail_threshold} )) && [[ -n "${cfg}" && -n "${preset}" ]]; then
-                echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 连续失败 ≥${fail_threshold} 次，重探候选路径并重启 bridge" >> "${BRIDGE_WD_LOG}"
-                bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${preset}" "${model}" "${key}" "${BRIDGE_PORT}" >> "${BRIDGE_WD_LOG}" 2>&1 || true
+                echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 连续失败 ≥${fail_threshold} 次，重启 bridge (同路径)" >> "${BRIDGE_WD_LOG}"
+                bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${preset}" "${model}" "${key}" "${upstream}" "${host_header}" "${BRIDGE_PORT}" >> "${BRIDGE_WD_LOG}" 2>&1 || true
                 fail_count=0
                 sleep 5
                 continue
@@ -137,68 +127,6 @@ except Exception:
 PYEOF
 }
 
-# 读 upstream_candidates（多路径探测：单位直连 / 家里 tailscale）
-# 输出每行 "base_url|host_header"，无候选则空
-get_upstream_candidates() {
-    python3 - "$1" "$2" << 'PYEOF'
-import json, sys
-try:
-    d = json.load(open(sys.argv[1]))
-    for c in d.get('llms', {}).get(sys.argv[2], {}).get('upstream_candidates', []):
-        print(f"{c.get('base_url','')}|{c.get('host_header','')}")
-except Exception:
-    pass
-PYEOF
-}
-
-# 候选路径可达性探测：GET，任何 HTTP 响应=可达（000=不可达）
-# linux curl 先试；不通则试 curl.exe（tailscale 可能在 Windows 侧，WSL 看不到）
-# why: 探测传输须与 bridge 实际传输一致，否则误判路径可用性
-# why: curl 必须 </dev/null——本函数被 pick_best_upstream_live 的 while-read<<<heredoc 循环调用，
-#       curl 不重定向 stdin 会吞掉 heredoc 剩余行，导致只探第一个候选
-# why: --max-time 5（不是 3）— 家里 tailscale 链路首次握手偶尔 3-4s，3s 超时太多误判 000，
-#       触发 pick_best fallback 到首条（域名路径家里永远不通）→ bridge-restart 死循环
-_bridge_probe_reachable() {
-    local base_url="$1" host_header="${2:-}"
-    local code
-    code=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "$base_url" 2>/dev/null </dev/null) || code="000"
-    [[ -n "$code" && "$code" != "000" ]] && return 0
-    if command -v curl.exe &>/dev/null; then
-        code=$(curl.exe -sk --max-time 5 -o /dev/null -w "%{http_code}" "$base_url" 2>/dev/null </dev/null) || code="000"
-        [[ -n "$code" && "$code" != "000" ]] && return 0
-    fi
-    return 1
-}
-
-# 选最佳 upstream：有 candidates 则逐个探测选第一条可达（都不通则回退首条）；
-# 无候选则返回顶层 base_url|host_header（不探测，兼容旧预设）
-# 用法: pick_best_upstream_live <cfg> <preset>
-# 输出: "base_url|host_header"
-pick_best_upstream_live() {
-    local cfg="$1" name="$2"
-    local cands
-    cands=$(get_upstream_candidates "$cfg" "$name")
-    if [[ -n "$cands" ]]; then
-        local first_url="" first_host="" url host
-        while IFS='|' read -r url host; do
-            [[ -z "$url" ]] && continue
-            [[ -z "$first_url" ]] && { first_url="$url"; first_host="$host"; }
-            if _bridge_probe_reachable "$url" "$host"; then
-                echo "${url}|${host}"
-                return 0
-            fi
-        done <<< "$cands"
-        echo "${first_url}|${first_host}"
-        return 0
-    fi
-    python3 - "$cfg" "$name" << 'PYEOF'
-import json, sys
-d = json.load(open(sys.argv[1]))
-llm = d.get('llms', {}).get(sys.argv[2], {})
-print(f"{llm.get('base_url','')}|{llm.get('host_header','')}")
-PYEOF
-}
-
 # 确保 bridge 跑且 upstream 正确
 # 用法: ensure_bridge <upstream> <model> <key> [<host_header>]
 # host_header 可选：tailscale/SSH 透传场景证书 SAN 不匹配 IP 时，把 SNI+Host 改成证书里的真实域名/IP
@@ -207,17 +135,6 @@ ensure_bridge() {
     local upstream="$1" model="$2" key="$3" host_header="${4:-}"
     local cfg="${5:-}" preset="${6:-}"
     _bridge_supported "$upstream" || return 1
-
-    # 启动前先 pick_best_upstream_live 选最佳路径（家里 tailscale / 单位直连自动适配）
-    # why: 之前直接用 base_url 启动，家里 tailscale 场景永远先起域名路径（不通）→ watchdog 触发 restart 换 IP 路径
-    #      前 5*30s=2.5min 用户请求全失败；先选路可避免这次冷启动震荡
-    if [[ -n "$cfg" && -n "$preset" ]]; then
-        local picked
-        picked=$(pick_best_upstream_live "$cfg" "$preset" 2>/dev/null) || picked=""
-        if [[ -n "$picked" ]]; then
-            IFS='|' read -r upstream host_header <<< "$picked"
-        fi
-    fi
 
     # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
     local health
@@ -282,23 +199,6 @@ WRAPEOF
     done
     rm -f "$wrapper"
 
-    # 启动后立即自检 upstream：失败立刻重选路径重启，不等 watchdog 5 次×30s=2.5min
-    # Why: 家里 tailscale 选路后可能拿到不通路径（旧 bridge 残留 / 抖动），立即切路径比等 watchdog 快
-    if [[ -n "$h" && -n "$cfg" && -n "$preset" ]]; then
-        local cur_up check_code attempts=0
-        while (( attempts < 3 )); do
-            cur_up=$(echo "$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
-            [[ -z "$cur_up" ]] && break
-            check_code=$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "$cur_up" </dev/null 2>/dev/null) || check_code="000"
-            [[ "$check_code" != "000" ]] && break  # 可达，成功
-            info "  启动自检失败 ($cur_up → $check_code)，重选路径..."
-            bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "$cfg" "$preset" "$model" "$key" "$BRIDGE_PORT" >> "${BRIDGE_WD_LOG}" 2>&1 || true
-            sleep 2
-            h=$(curl -s --max-time 2 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || h=""
-            ((attempts++))
-        done
-    fi
-
     [[ -n "$h" ]] && start_bridge_watchdog "$upstream" "$model" "$key" "$host_header" "$cfg" "$preset"
 }
 
@@ -328,12 +228,7 @@ selfheal_bridge() {
 
     local bc
     bc=$(read_bridge_config "$cfg" "$cur") || return 1
-    IFS='|' read -r _ model key _ <<< "$bc"
-
-    # 多路径候选：重探选最佳 upstream（环境可能已变）
-    local picked upstream host_header
-    picked=$(pick_best_upstream_live "$cfg" "$cur")
-    IFS='|' read -r upstream host_header <<< "$picked"
+    IFS='|' read -r upstream model key host_header <<< "$bc"
 
     warn "  bridge ($BRIDGE_PORT) 未响应，自动拉起 ($cur)..."
     ensure_bridge "$upstream" "$model" "$key" "$host_header" "$cfg" "$cur"
