@@ -415,6 +415,10 @@ switch_llm() {
     if [[ "$name" == *tailscale* ]] || [[ "$base_url" =~ ^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.) ]]; then
         warn "tailscale 链路跳转后约需 30s 完全生效"
     fi
+
+    # 提示重启 Claude session：settings.json 改了，但当前 claude 进程不 reload 旧连接池
+    # why: 不重启会看到 "waiting 4m" 卡顿（旧连接断了重试）— 新 session 才会读新 BASE_URL
+    warn "切 LLM 后必须 /exit 退出当前 Claude session，然后 'claude -c' 续最近会话"
 }
 
 switch_to_gateway() {
