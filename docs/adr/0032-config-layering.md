@@ -33,7 +33,7 @@
 
 **P1**
 
-4. **`llm.json.current` 字段残留** —— 与本地 `llm-current` 已不一致（`home-deck-flash` vs `deepseek_flash`），且随 push 把 A 机选择带给 B 机。
+4. **`llm.json.current` 字段残留** —— 与本地 `llm-current` 已不一致（`homedsflash` vs `deepseek_flash`），且随 push 把 A 机选择带给 B 机。
 5. **`status.sh` 仍要求 `.config.json` 是 symlink** —— 每次 startup 必报 ❌，制造"配置乱了"的错觉。
 
 **P2**
