@@ -5,6 +5,7 @@
 > **关联**: `lib/init-llm.sh`、`lib/init-llm-bill.sh`、`lib/ensure-bridge.sh`、`option-llmswitch/`、`docs/init-llm.md`
 > **模板**: MADR 4.0 极简版
 > **备注**: 同步落地 [docs/init-llm.md](../init-llm.md)（目标文档 294 行）
+> **后续**: [ADR-0031](./0031-init-llm-consolidation-2026.md) 完成本 ADR 未落地的简化项（探测函数合并、删交互式 CRUD），并修复其 §稳定性增强 中两项带来的回退
 
 ## Context and Problem Statement
 

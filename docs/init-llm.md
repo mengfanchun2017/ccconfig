@@ -37,7 +37,7 @@ flowchart LR
 **关键约束**：
 - **稳定性 > 一切**：当前痛点是"探测 OK 但实际跑挂"（[见 §五](#五核心稳定性要求)）
 - **家里只用 1 种模型**：合并 altllm*_tail 系列按需启用
-- **单位 vs 家里是离散二元环境**：环境由人显式选（不搞自动探测，见 [ADR-0029](../docs/adr/0029-init-llm-target-2026.md) — 后续开 ADR）
+- **单位 vs 家里是离散二元环境**：环境由人显式选（不搞自动探测，见 [ADR-0029](../docs/adr/0029-init-llm-target-2026.md)、[ADR-0031](../docs/adr/0031-init-llm-consolidation-2026.md)）
 
 ## 三、能力清单
 
@@ -287,6 +287,9 @@ while true:
   - [ADR-0016 Tailscale Subnet Router（WSL + Windows 自动触发 `--use-win-curl`）](../adr/0016-tailscale-subnet-router.md)
   - [ADR-0019 bridge 三层修复（WSL 网络栈 + DNS + ARG_MAX）](../adr/0019-bridge-win-curl-wsl-vpn.md)
   - [ADR-0020 settings.json LLM 本地化](../adr/0020-llm-current-local-per-machine.md)
+  - [ADR-0029 init-llm 2026 目标决策](../adr/0029-init-llm-target-2026.md)
+  - [ADR-0030 Gateway 模式废弃](../adr/0030-gateway-deprecation-2026.md)
+  - [ADR-0031 init-llm 收敛：桥接链路修复 + 探测统一 + 四层守护模型](../adr/0031-init-llm-consolidation-2026.md)
   - 后续：ADR-0029 init-llm target（本文件落地的决策）
 - **memory**（核心条目）：
   - [`llm-management`](../memory/llm-management.md)

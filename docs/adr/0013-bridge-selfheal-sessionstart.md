@@ -4,6 +4,7 @@
 > **日期**: 2026-08-13
 > **关联**: `lib/ensure-bridge.sh`、`lib/status.sh`、`lib/init-llm.sh`、`option-llmswitch/openai_bridge.py`
 > **模板**: MADR 4.0 极简版
+> **后续**: 本 ADR 的 `check_bridge_selfheal()` 在 commit `855ba92` 被删除（声称"搬到 init-llm.sh"，实际只留函数无自动调用点），导致本决策**失效数月**——系统重启后再也不自愈。2026-09-17 由 [ADR-0031](./0031-init-llm-consolidation-2026.md) 以 `lib/status.sh` 的 `_bridge_cold_start()` 补回，env guard 与时机设计沿用本 ADR。
 
 ## Context and Problem Statement
 
