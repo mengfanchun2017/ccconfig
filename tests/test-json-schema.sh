@@ -40,7 +40,8 @@ test_llm_json_structure() {
     python3 - "$f" << 'PYEOF' >/dev/null 2>&1
 import json, sys
 with open(sys.argv[1]) as f: d = json.load(f)
-assert 'current' in d, "missing current"
+# 不要求 current：ADR-0020 后 current 归本机 ~/.claude/llm-current，
+# llm.json 里不该有它（有也是旧机器残留，会被 write_llm_config 清掉）
 llms = d.get('llms', {})
 assert llms, "empty llms"
 for name, cfg in llms.items():
@@ -49,7 +50,7 @@ for name, cfg in llms.items():
 print("OK")
 PYEOF
     if [ $? -eq 0 ]; then
-        pass "llm.json: current + llms.{name}.key/base_url/model 齐全"
+        pass "llm.json: llms.{name}.key/base_url/model 齐全"
     else
         fail "llm.json" "结构不完整"
     fi
@@ -58,11 +59,16 @@ PYEOF
 test_llm_json_current_in_llms() {
     local f=$(find_json "llm.json")
     [ -z "$f" ] && return
-    python3 - "$f" << 'PYEOF' >/dev/null 2>&1
+    # ADR-0020：current 的权威来源是本机 ~/.claude/llm-current（不跨机同步），
+    # llm.json.current 只是兼容旧机器的副本 → 二者取其一，都没有就不校验
+    local local_cur=""
+    [ -f "$HOME/.claude/llm-current" ] && local_cur=$(tr -d '[:space:]' < "$HOME/.claude/llm-current")
+    python3 - "$f" "$local_cur" << 'PYEOF' >/dev/null 2>&1
 import json, sys
 with open(sys.argv[1]) as f: d = json.load(f)
-cur = d.get('current', '')
-assert cur in d.get('llms', {}), f"current={cur} not in llms"
+cur = sys.argv[2] or d.get('current', '')
+if cur:
+    assert cur in d.get('llms', {}), f"current={cur} not in llms"
 print("OK")
 PYEOF
     [ $? -eq 0 ] && pass "llm.json: current 指向存在的 provider" || fail "llm.json" "current 不指向任何 provider"
