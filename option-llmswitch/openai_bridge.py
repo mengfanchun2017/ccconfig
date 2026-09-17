@@ -556,6 +556,12 @@ async def messages(request: Request):
             finally:
                 pump.cancel()
 
+        def _error_frames(kind: str, msg: str) -> str:
+            return (
+                'event: error\ndata: {"type":"error","error":{"type":"%s","message":"%s"}}\n\n'
+                'event: message_stop\ndata: {"type":"message_stop"}\n\n'
+            ) % (kind, msg)
+
         async def gen():
             # 捕获 upstream 间歇性超时/断连：log + 结束 stream，不让异常杀进程
             # Claude Code 收到不完整响应会自动重试，比 bridge 整个死掉强
@@ -580,8 +586,15 @@ async def messages(request: Request):
             except httpx.TransportError as e:
                 print(f"[bridge] upstream stream error: {type(e).__name__}: {e}", flush=True)
                 # yield SSE error event 让 Claude Code 立刻看到错误（不等 4 分钟）
-                yield 'event: error\ndata: {"type":"error","error":{"type":"upstream_disconnected","message":"stream interrupted"}}\n\n'
-                yield 'event: message_stop\ndata: {"type":"message_stop"}\n\n'
+                sse_state["finished"] = True
+                yield _error_frames("upstream_disconnected", "stream interrupted")
+                return
+            # upstream 结束却没给终止标记（截断 / 空响应）→ 显式报错
+            # why: 否则客户端只拿到半条流且无从判断，探测也只能靠"缺少 message_stop"
+            #      间接推断；显式 error 让两边都能确定地识别失败
+            if not sse_state.get("finished"):
+                print("[bridge] upstream stream ended without [DONE] (truncated or empty)", flush=True)
+                yield _error_frames("upstream_incomplete", "upstream stream ended without completion marker")
         return StreamingResponse(gen(), media_type="text/event-stream")
     else:
         if use_win_curl:

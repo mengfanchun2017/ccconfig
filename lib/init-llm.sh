@@ -534,11 +534,15 @@ test_llm() {
         -H "Authorization: Bearer $key" \
         -d "{\"model\":\"$model\",\"max_tokens\":16,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || true
 
-    if printf '%s' "$out" | grep -q "$expect"; then
+    if printf '%s' "$out" | grep -q "$expect" && ! printf '%s' "$out" | grep -q '"type":"error"'; then
         success "✓ 流式链路完整（收到 $expect）— '$target' 可用"
         return 0
     fi
-    error "✗ 流式链路失败（未收到 $expect）"
+    if printf '%s' "$out" | grep -q '"type":"error"'; then
+        error "✗ 流式链路报错（upstream 中断或被截断）"
+    else
+        error "✗ 流式链路失败（未收到 $expect）"
+    fi
     printf '%s' "$out" | head -6 | sed 's/^/    /'
     return 1
 }
