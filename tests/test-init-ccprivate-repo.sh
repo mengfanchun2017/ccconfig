@@ -176,8 +176,10 @@ grep -q 'skill-local' "$SETUP_TPL" \
   && pass "模板含 skill-local" || fail "模板缺 skill-local"
 grep -q "tr '/' '-'" "$SETUP_TPL" \
   && pass "模板 memory 用 tr 动态 ID" || fail "模板 memory 未用 tr 动态 ID"
-grep -q 'should-compact' "$SETUP_TPL" \
-  && pass "模板含 should-compact" || fail "模板缺 should-compact"
+# 反向断言：should-compact.md 已废弃（ccconfig/commands/ 目录已删），模板不应再建其链接
+# 注意匹配 setup_link 调用而非注释里提到的文件名
+grep -qE 'setup_link.*should-compact' "$SETUP_TPL" \
+  && fail "模板仍建已废弃的 should-compact 链接" || pass "模板不含 should-compact 链接（已废弃）"
 # 反向断言：本机文件必须走 install_user_file（symlink 会跨机覆盖），且不再内嵌副本
 grep -q 'install_user_file' "$SETUP_TPL" \
   && pass "模板用 install_user_file 建本机文件" || fail "模板未用 install_user_file"
