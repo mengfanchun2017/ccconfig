@@ -7,11 +7,12 @@
 #   bash init-llm.sh <name>          # 直接切预设
 #   bash init-llm.sh list            # 列预设
 #   bash init-llm.sh status          # 当前链路诊断
-#   bash init-llm.sh test <name>     # 非破坏性探测
+#   bash init-llm.sh test <name>     # 真实链路探测（走 bridge + 流式）
 #   bash init-llm.sh sync            # 修 /model 污染
-#   bash init-llm.sh custom          # 自定义临时端点
 #   bash init-llm.sh delete <name>   # 删预设
 #   bash init-llm.sh bill            # 用量统计（拆 init-llm-bill.sh）
+#
+# 新增/修改预设：直接编辑 conf/llm.json（schema 见 docs/init-llm.md §六）
 #
 # 设计原则：
 #   - 单文件真相源：llm.json（providers + current）
@@ -106,52 +107,6 @@ for name, llm in llms.items():
     is_builtin = '1' if (name in builtin_set or llm.get('builtin', False)) else '0'
     print(f"{marker}|{name}|{llm.get('name', name)}|{model}|{llm.get('base_url','')}|{small}|{is_builtin}")
 PYEOF
-}
-
-# ========== 探测 endpoint（不自动回滚）==========
-# 用法: verify_endpoint <name> <base_url> <model> <key>
-# 返回 0=链路通或鉴权失败 1=不可达
-verify_endpoint() {
-    local name="$1" base_url="$2" model="$3" key="$4"
-    key="${key//$'\r'/}"
-    [[ -z "$key" ]] && return 0
-    case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) return 0 ;; esac
-
-    local probe_path
-    if [[ "$base_url" == *"://127.0.0.1"* ]]; then
-        local port="${base_url##*:}"; port="${port%%/*}"
-        # bridge 探测：只验进程活（/health 200 OK），不再 POST /v1/messages 触发完整上游链路
-        # why: POST 会等 upstream 响应（tailscale 首次握手可能 10s+），verify_endpoint 35s 超时不够；
-        #      真正的 upstream 探测留给用户首次请求，超时由 Claude Code 端处理
-        local h=""
-        for _ in 1 2 3 4 5; do
-            h=$(curl -s --max-time 3 "http://127.0.0.1:${port}/health" 2>/dev/null) || true
-            [[ -n "$h" ]] && break
-            sleep 1
-        done
-        [[ -z "$h" ]] && { error "  ✗ bridge (port $port) 无响应 — bridge 进程可能挂了"; return 1; }
-        info "  ✓ bridge 就绪 ($name)"; return 0
-    elif [[ "$base_url" == *"/anthropic"* ]]; then
-        probe_path="${base_url%/}/v1/messages"
-    else
-        probe_path="${base_url%/}/chat/completions"
-    fi
-
-    local body="{\"model\":\"$model\",\"max_tokens\":5,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
-    local headers=(-H "Content-Type: application/json" -H "Authorization: Bearer $key")
-    [[ "$probe_path" == *"/v1/messages" ]] && headers+=(-H "anthropic-version: 2023-06-01")
-
-    local status
-    status=$(curl -sk -o /dev/null -w "%{http_code}" --noproxy '*' --max-time 35 -X POST "$probe_path" "${headers[@]}" -d "$body" 2>/dev/null) || status="000"
-    [[ -z "$status" || "$status" =~ ^0+$ ]] && status="000"
-
-    case "$status" in
-        200) info "  ✓ endpoint 探测成功 ($name)"; return 0 ;;
-        000) error "  ✗ endpoint 不可达 — $base_url（key 长度 ${#key}，探测强制直连仍失败 → 查 DNS/出口或 key 含特殊字符）"; return 1 ;;
-        401|403) info "  ⚠ HTTP $status — 链路通但鉴权错"; return 0 ;;
-        400) warn "  ⚠ HTTP 400 — endpoint 路径/参数可能不对 $base_url"; return 0 ;;
-        *) info "  ⚠ HTTP $status"; return 0 ;;
-    esac
 }
 
 # ========== 写配置（settings.json env + llm-current） ==========
@@ -278,10 +233,6 @@ switch_llm() {
         return 0
     fi
 
-    case "$name" in
-        custom|-c) switch_custom; return $? ;;
-    esac
-
     local config
     config=$(get_llm_config "$name") || { error "未知预设: $name"; return 1; }
     IFS='|' read -r base_url model key small <<< "$config"
@@ -332,79 +283,39 @@ switch_llm() {
 
     info "切换到: $name"
 
-    # 先探测 endpoint
-    verify_endpoint "$name" "$base_url" "$model" "$key" || {
-        warn "endpoint 不可达，切换中止（llm.json 未改动）"
+    # 真实链路探测：test_llm 会走 bridge（若需要）+ 流式请求 + 完整判据。
+    # 探测不通过就中止切换，避免切到一个实际跑不通的配置。
+    test_llm "$name" || {
+        warn "流式链路探测未通过，切换中止（settings.json 未改动）"
         return 1
     }
 
     write_llm_config "$name" "$base_url" "$model" "$small" "$key"
-
-    # tailscale 链路多环节（本机↔跳板机↔内网网关↔LLM API），切后约 30s 完全稳定
-    if [[ "$name" == *tailscale* ]] || [[ "$base_url" =~ ^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.) ]]; then
-        warn "tailscale 链路跳转后约需 30s 完全生效"
-    fi
 
     # 提示重启 Claude session：settings.json 改了，但当前 claude 进程不 reload 旧连接池
     # why: 不重启会看到 "waiting 4m" 卡顿（旧连接断了重试）— 新 session 才会读新 BASE_URL
     warn "切 LLM 后必须 /exit 退出当前 Claude session，然后 'claude -c' 续最近会话"
 }
 
-switch_custom() {
-    if _dry_run_enabled; then
-        echo "  [DRY-RUN] switch_custom"; return 0
-    fi
-    stop_bridge
-
-    echo ""
-    echo "  💡 WSL + Tailscale subnet router 场景：base_url 填内网 IP（如 10.x.x.x:port）"
-    echo "     详见 docs/adr/0016-tailscale-subnet-router.md（自动启用 Windows curl.exe 转发）"
-    echo ""
-    echo "  ── 自定义 Anthropic-compatible 端点 ──"
-    local url; url=$(prompt "Base URL")
-    [[ -z "$url" ]] && { error "URL 不能为空"; return 1; }
-    local model; model=$(prompt "Model 名称")
-    [[ -z "$model" ]] && { error "Model 不能为空"; return 1; }
-    local small; small=$(prompt "小模型名称（回车默认同大模型）")
-    [[ -z "$small" ]] && small="$model"
-    local key; key=$(prompt "API Key（留空复用当前）")
-    if [[ -n "$key" ]]; then
-        info "  Key: ${key:0:4}...${key: -4}"
-    else
-        key=$(python3 -c "
-import json,os
-try:
-    print(json.load(open(os.path.expanduser('~/.claude/settings.json'))).get('env',{}).get('ANTHROPIC_AUTH_TOKEN',''))
-except: pass" 2>/dev/null)
-        [[ -n "$key" ]] && info "  Key: 复用已有 ...${key: -4}"
-    fi
-
-    local preset_name; preset_name=$(prompt "预设名称（小写无空格）" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
-    [[ -z "$preset_name" ]] && { error "预设名称不能为空"; return 1; }
-
-    local use_bridge="False"
-    local bridge_choice; bridge_choice=$(prompt "使用 bridge 代理? (y/N)" | tr '[:upper:]' '[:lower:]')
-    [[ "$bridge_choice" == "y" ]] && use_bridge="True"
-
-    CONFIG_FILE="$CONFIG_FILE" PRESET_NAME="$preset_name" URL="$url" MODEL="$model" SMALL="$small" KEY="$key" USE_BRIDGE="$use_bridge" \
-        python3 - <<'PYEOF'
-import json, os
-p = os.environ['CONFIG_FILE']
-with open(p) as f: d = json.load(f)
-d.setdefault('llms', {})[os.environ['PRESET_NAME']] = {
-    "name": os.environ['PRESET_NAME'],
-    "base_url": os.environ['URL'],
-    "model": os.environ['MODEL'],
-    "key": os.environ['KEY'],
-    "small_model": os.environ['SMALL'],
-    "use_bridge": os.environ['USE_BRIDGE'] == 'True',
-}
-with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
-PYEOF
-    info "预设 '$preset_name' 已保存，手动切换：菜单选 2X 或 bash init-llm.sh $preset_name"
-}
-
 # ========== 状态 ==========
+# 探 bridge /health，输出 "state|upstream|model"（state: up/down）
+# show_status 与菜单头共用，避免两处各写一遍解析
+_bridge_health() {
+    local h
+    h=$(curl -s --max-time 2 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
+    if [[ -z "$h" ]]; then
+        printf 'down||'
+        return
+    fi
+    printf '%s' "$h" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    print(f\"up|{d.get('upstream','?')}|{d.get('upstream_model','?')}\")
+except Exception:
+    print('down||')" 2>/dev/null || printf 'down||'
+}
+
 show_status() {
     local llm_cur sett_env sett_model
     llm_cur=$(read_local_current)
@@ -432,12 +343,9 @@ except: pass" 2>/dev/null)
     printf "settings 顶层 model       : %s\n" "${sett_model:-<未设置>}"
 
     if [[ "$sett_env" == *"://127.0.0.1:${BRIDGE_PORT}"* ]]; then
-        local h
-        h=$(curl -s --max-time 2 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
-        if [[ -n "$h" ]]; then
-            local up
-            up=$(echo "$h" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream','?')+'|'+d.get('upstream_model','?'))" 2>/dev/null || echo "?|?")
-            IFS='|' read -r ub um <<< "$up"
+        local st ub um
+        IFS='|' read -r st ub um <<< "$(_bridge_health)"
+        if [[ "$st" == "up" ]]; then
             printf "bridge (%d)              : ✓ upstream=%s model=%s\n" "$BRIDGE_PORT" "$ub" "$um"
         else
             printf "bridge (%d)              : ✗ 未响应（env 指向但没起，跑 init-llm.sh <name> 重启）\n" "$BRIDGE_PORT"
@@ -527,91 +435,32 @@ test_llm() {
 
     # why 流式 + 查终止标记：Claude Code 全程 stream:true。非流式探测只能证明"上游活着"，
     # 证明不了流式链路完整 —— 流式包装器在流尾抛异常的 bug 下它照样返回 200。
-    local out
+    local out http_code body_file
+    body_file=$(mktemp)
     # shellcheck disable=SC2086
-    out=$(curl -sN -k --max-time 60 --noproxy '*' -X POST $resolve_args "$probe_url" \
+    http_code=$(curl -sN -k --max-time 60 --noproxy '*' -o "$body_file" -w "%{http_code}" -X POST $resolve_args "$probe_url" \
         -H "Content-Type: application/json" -H "anthropic-version: 2023-06-01" \
         -H "Authorization: Bearer $key" \
-        -d "{\"model\":\"$model\",\"max_tokens\":16,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || true
+        -d "{\"model\":\"$model\",\"max_tokens\":16,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || http_code="000"
+    out=$(cat "$body_file" 2>/dev/null); rm -f "$body_file"
+    [[ -z "$http_code" ]] && http_code="000"
 
     if printf '%s' "$out" | grep -q "$expect" && ! printf '%s' "$out" | grep -q '"type":"error"'; then
         success "✓ 流式链路完整（收到 $expect）— '$target' 可用"
         return 0
     fi
-    if printf '%s' "$out" | grep -q '"type":"error"'; then
-        error "✗ 流式链路报错（upstream 中断或被截断）"
-    else
-        error "✗ 流式链路失败（未收到 $expect）"
-    fi
+    case "$http_code" in
+        000) error "✗ 不可达 — $probe_url（查 DNS / 出口 / VPN）" ;;
+        401|403) warn "⚠ HTTP $http_code — 链路通但鉴权失败（key 可能无效）"; return 0 ;;
+        *)   if printf '%s' "$out" | grep -q '"type":"error"'; then
+                 error "✗ 流式链路报错（upstream 中断或被截断）"
+             else
+                 error "✗ 流式链路失败（HTTP $http_code，未收到 $expect）"
+             fi ;;
+    esac
     printf '%s' "$out" | head -6 | sed 's/^/    /'
     return 1
 }
-
-# 批量测试所有预设连通性
-test_all() {
-    echo ""
-    section "批量测试所有 LLM 预设"
-    local lines; lines=$(list_llms)
-    local names=()
-    while IFS='|' read -r marker name display model base_url small is_builtin; do
-        [[ -z "$name" || "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* ]] && continue
-        names+=("$name|$display|$model|$base_url")
-    done < <(echo "$lines")
-
-    local ok=0 fail=0 skip=0 total=${#names[@]}
-    for entry in "${names[@]}"; do
-        IFS='|' read -r name display model base_url <<< "$entry"
-        local config; config=$(get_llm_config "$name") || { warn "  $display — 配置读取失败"; ((++fail)); continue; }
-        IFS='|' read -r _ _ key _ <<< "$config"
-        local host_header; host_header=$(get_provider_host_header "$name")
-
-        local _is_ph=0
-        [[ -z "$key" ]] && _is_ph=1
-        [[ $_is_ph -eq 0 ]] && case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) _is_ph=1 ;; esac
-        if [[ $_is_ph -eq 1 ]]; then
-            warn "  $display — 无有效 Key，跳过"
-            ((++skip)); continue
-        fi
-
-        local probe_url; probe_url=$(_probe_url "$base_url" "$host_header")
-        local resolve_args; resolve_args=$(_probe_resolve_args "$base_url" "$host_header")
-        local path
-        if [[ "$probe_url" == *"/anthropic"* ]] || [[ "$probe_url" == *"://127.0.0.1"* ]]; then
-            path="${probe_url%/}/v1/messages"
-        else
-            path="${probe_url%/}/chat/completions"
-        fi
-        local headers=(-H "Content-Type: application/json" -H "Authorization: Bearer $key")
-        [[ "$path" == *"/v1/messages" ]] && headers+=(-H "anthropic-version: 2023-06-01")
-
-        printf "  %-20s %-30s " "$display" "$model"
-        local status
-        # shellcheck disable=SC2086
-        status=$(curl -sk --max-time 15 -o /dev/null -w "%{http_code}" -X POST $resolve_args "$path" "${headers[@]}" \
-            -d "{\"model\":\"$model\",\"max_tokens\":5,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || status="000"
-        [[ -z "$status" ]] && status="000"
-
-        case "$status" in
-            200) ok_color "✓ $status"; ((++ok)) ;;
-            000) err_color "✗ 不可达"; ((++fail)) ;;
-            401|403) warn_color "⚠ $status 鉴权"; ((++ok)) ;;
-            400) warn_color "⚠ $status 路径"; ((++fail)) ;;
-            *) warn_color "⚠ $status"; ((++fail)) ;;
-        esac
-        echo ""
-    done
-
-    echo ""
-    if [[ $fail -eq 0 && $skip -eq 0 ]]; then
-        success "全部 $total 个预设均可达"
-    else
-        info "结果: $ok 可用 / $fail 失败 / $skip 跳过 (共 $total)"
-    fi
-}
-
-ok_color() { printf "${GREEN}%s${NC}" "$1"; }
-err_color() { printf "${RED}%s${NC}" "$1"; }
-warn_color() { printf "${YELLOW}%s${NC}" "$1"; }
 
 # ========== 列预设 ==========
 show_list() {
@@ -687,85 +536,6 @@ else:
 PYEOF
 }
 
-# ========== 修改预设 ==========
-edit_preset() {
-    local target="${1:-}"
-
-    if [[ -z "$target" ]]; then
-        local items=() names=()
-        while IFS='|' read -r _ name display model _ _ is_builtin; do
-            [[ -z "$name" ]] && continue
-            names+=("$name")
-            items+=("$display ($model)")
-        done < <(list_llms)
-        [[ ${#items[@]} -eq 0 ]] && { info "无可修改预设"; return 0; }
-        items+=("返回上层")
-        local sel; sel=$(menu_select "可修改的模型" "${items[@]}")
-        [[ -z "$sel" || "$sel" == "0" ]] && return 0
-        (( sel == ${#items[@]} )) && return 0
-        target="${names[$((sel-1))]}"
-    fi
-    [[ -z "$target" ]] && { error "未指定预设"; return 1; }
-
-    local config
-    config=$(get_llm_config "$target") || { error "未知预设: $target"; return 1; }
-    IFS='|' read -r cur_url cur_model cur_key cur_small <<< "$config"
-
-    local cur_use_bridge
-    cur_use_bridge=$(get_use_bridge "$target")
-
-    echo ""
-    info "修改预设: $target"
-    echo "  当前: base_url=$cur_url"
-    echo "         model=$cur_model"
-    echo "         small_model=$cur_small"
-    echo "         use_bridge=$cur_use_bridge"
-    echo "         key=...${cur_key: -4}"
-    echo ""
-
-    local new_url; new_url=$(prompt "Base URL（回车保持）")
-    [[ -z "$new_url" ]] && new_url="$cur_url"
-
-    local new_model; new_model=$(prompt "Model（回车保持）")
-    [[ -z "$new_model" ]] && new_model="$cur_model"
-
-    local new_small; new_small=$(prompt "小模型（回车保持）")
-    [[ -z "$new_small" ]] && new_small="$cur_small"
-
-    local new_key; new_key=$(prompt "API Key（回车保持，输=覆盖）")
-    [[ -z "$new_key" ]] && new_key="$cur_key"
-
-    local new_bridge="$cur_use_bridge"
-    local bridge_choice; bridge_choice=$(prompt "使用 bridge 代理? (y/N 当前: $cur_use_bridge)" | tr '[:upper:]' '[:lower:]')
-    if [[ "$bridge_choice" == "y" ]]; then
-        new_bridge="True"
-    elif [[ "$bridge_choice" == "n" ]]; then
-        new_bridge="False"
-    fi
-
-    confirm "确认修改 '$target'？" y || { info "已取消"; return 0; }
-
-    CONFIG_FILE="$CONFIG_FILE" TARGET="$target" URL="$new_url" MODEL="$new_model" SMALL="$new_small" KEY="$new_key" USE_BRIDGE="$new_bridge" \
-        python3 - <<'PYEOF'
-import json, os
-p = os.environ['CONFIG_FILE']
-with open(p) as f: d = json.load(f)
-llm = d.setdefault('llms', {}).get(os.environ['TARGET'])
-if llm:
-    llm['base_url'] = os.environ['URL']
-    llm['model'] = os.environ['MODEL']
-    llm['small_model'] = os.environ['SMALL']
-    llm['key'] = os.environ['KEY']
-    llm['use_bridge'] = os.environ['USE_BRIDGE'] == 'True'
-    with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
-    print("OK")
-else:
-    print("NOT_FOUND")
-PYEOF
-    success "预设 '$target' 已更新"
-}
-
-# ========== 交互式菜单（保留原字母 1A/2B/3C 样式）==========
 _llm_status_header() {
     local current="${1:-}"
     echo -e ""
@@ -775,47 +545,31 @@ _llm_status_header() {
         return
     fi
 
-    local display model base_url
-    IFS='|' read -r display model base_url < <(CUR="$current" CONFIG_FILE="$CONFIG_FILE" python3 - << 'PYEOF'
+    # 一次 python 取齐：预设显示名/model + settings.json 的 env.ANTHROPIC_BASE_URL
+    local display model sf_url
+    IFS='|' read -r display model sf_url < <(CUR="$current" CONFIG_FILE="$CONFIG_FILE" python3 - << 'PYEOF'
 import json, os
 d = json.load(open(os.environ['CONFIG_FILE']))
 llm = d.get('llms', {}).get(os.environ['CUR'], {})
-print(f"{llm.get('name', os.environ['CUR'])}|{llm.get('model','')}|{llm.get('base_url','')}")
+try:
+    sf = json.load(open(os.path.expanduser('~/.claude/settings.json')))
+    base = sf.get('env', {}).get('ANTHROPIC_BASE_URL', '')
+except Exception:
+    base = ''
+print(f"{llm.get('name', os.environ['CUR'])}|{llm.get('model','')}|{base}")
 PYEOF
     ) 2>/dev/null
     [[ -z "$display" ]] && display="$current"
     echo -e "  ${LIGHT_BLUE}生效配置: $display${NC} ${DIM}($model)${NC}"
 
-    # bridge 状态：settings.json env 指向 bridge 端口
-    local _sf_url
-    _sf_url=$(python3 -c "
-import json, os
-try: print(json.load(open(os.path.expanduser('~/.claude/settings.json'))).get('env',{}).get('ANTHROPIC_BASE_URL',''))
-except: pass" 2>/dev/null)
-    if [[ "$_sf_url" == "http://127.0.0.1:${BRIDGE_PORT}"* ]]; then
-        local _bh
-        _bh=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
-        if [[ -n "$_bh" ]]; then
-            local up
-            up=$(echo "$_bh" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
-            echo -e "  ${LIGHT_BLUE}bridge: ${GREEN}✓${NC} ${DIM}upstream=$up${NC}"
+    # bridge 状态：仅当 settings.json 的 env 指向 bridge 端口时才有意义
+    if [[ "$sf_url" == "http://127.0.0.1:${BRIDGE_PORT}"* ]]; then
+        local st _ub um
+        IFS='|' read -r st _ub um <<< "$(_bridge_health)"
+        if [[ "$st" == "up" ]]; then
+            echo -e "  ${LIGHT_BLUE}bridge: ${GREEN}✓${NC} ${DIM}model=$um${NC}"
         else
             echo -e "  ${LIGHT_BLUE}bridge: ${RED}✗ 无响应${NC}"
-        fi
-    fi
-
-    # tailscale 状态：当前预设 base_url 是 RFC1918 私网段（10/172.16-31/192.168）
-    if [[ "$base_url" =~ ^https?://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.) ]]; then
-        if command -v curl.exe &>/dev/null; then
-            local ts_code
-            ts_code=$(curl.exe -s -o /dev/null -w "%{http_code}" --max-time 3 -k "$base_url" 2>/dev/null || echo "000")
-            if [[ "$ts_code" == "000" ]]; then
-                echo -e "  ${LIGHT_BLUE}tailscale: ${RED}✗ 不可达${NC}"
-            else
-                echo -e "  ${LIGHT_BLUE}tailscale: ${GREEN}✓ 就绪${NC} ${DIM}(HTTP $ts_code)${NC}"
-            fi
-        else
-            echo -e "  ${LIGHT_BLUE}tailscale: ${YELLOW}? curl.exe 不可用${NC}"
         fi
     fi
     echo -e ""
@@ -848,17 +602,15 @@ interactive_select() {
             local cur_mark=" "
             [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
             local letter="${letters:$idx:1}"
-            echo -e "  ${BOLD_GREEN}1${letter}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${route_str}"
+            echo -e "  ${BOLD_GREEN}1${letter}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}"
             item_name+=("$name")
             idx=$((idx+1))
         done < <(echo "$lines")
 
         echo -e "  ${BOLD_GRAY}--LLM配置--${NC}"
-        printf "  ${BOLD_GREEN}2A${NC}  %-26s ${DIM}%s${NC}\n" "增加模型" "输入 base_url + model + key"
-        printf "  ${BOLD_GREEN}2B${NC}  %-26s ${DIM}%s${NC}\n" "修改模型" "修改已保存预设"
-        printf "  ${BOLD_GREEN}2C${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
-        printf "  ${BOLD_GREEN}2D${NC}  %-26s ${DIM}%s${NC}\n" "用量统计" "按 model+day 聚合 ccprivate/usage/*.csv"
-        printf "  ${BOLD_GREEN}2E${NC}  %-26s ${DIM}%s${NC}\n" "批量测试" "探测所有预设连通性"
+        printf "  ${BOLD_GREEN}2A${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
+        printf "  ${BOLD_GREEN}2B${NC}  %-26s ${DIM}%s${NC}\n" "用量统计" "按 model+day 聚合 ccprivate/usage/*.csv"
+        printf "  ${DIM}新增/修改预设：直接编辑 conf/llm.json 后重进菜单${NC}\n"
         echo -e "  ${BOLD_GREEN}0${NC}  退出"
         printf "  ${BOLD_GREEN}输入 (如 1A, 2D): ${NC}"
         read -r choice
@@ -870,12 +622,9 @@ interactive_select() {
             local letter_m="${BASH_REMATCH[2]^^}"
             if [[ "$cat" == "2" ]]; then
                 case "$letter_m" in
-                    A) switch_custom ;;
-                    B) edit_preset ;;
-                    C) delete_preset ;;
-                    D) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
-                    E) test_all ;;
-                    *) warn "配置: A=增 B=改 C=删 D=Bill E=测试"; continue ;;
+                    A) delete_preset ;;
+                    B) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
+                    *) warn "配置: A=删模型 B=用量统计"; continue ;;
                 esac
                 _pause_continue
                 continue
@@ -906,9 +655,13 @@ main() {
     case "$cmd" in
         list)        show_list ;;
         status)      show_status ;;
-        test|-t)     [[ "${2:-}" == "all" ]] && test_all || test_llm "${2:-}" ;;
+        test|-t)
+            if [[ "${2:-}" == "all" ]]; then
+                warn "'test all' 已移除（预设变少后价值不大），改用 test <预设名>"
+                return 1
+            fi
+            test_llm "${2:-}" ;;
         switch)      switch_llm "${2:-}" ;;
-        custom|-c)   switch_custom ;;
         delete|-d)   delete_preset "${2:-}" ;;
         bill|pricing|-p) bash "$SCRIPT_DIR/init-llm-bill.sh" "${2:-}" ;;
         sync)        sync_top_model ;;
