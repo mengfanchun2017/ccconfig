@@ -77,7 +77,7 @@ setup_link() {
 section "用户级链接"
 setup_link "$HOME/CLAUDE.md"           "$SCRIPT_DIR/link/CLAUDE.md"     "~/CLAUDE.md"
 setup_link "$HOME/.lark-default-account" "$SCRIPT_DIR/link/.lark-default-account" ".lark-default-account → ccprivate"
-setup_link "$CLAUDE_DIR/commands/should-compact.md" "$CCCONFIG_DIR/commands/should-compact.md" "~/.claude/commands/should-compact.md"
+# should-compact.md 已废弃（ccconfig/commands/ 整个目录已删），不要再建它的链接
 
 # 以下三文件是本机状态（LLM 选择 / 会话配置 / context 策略），symlink 会跨机覆盖
 # 首次 setup 时从 .example 模板 cp；已存在则跳过，各机独立维护，永不回写 ccprivate
