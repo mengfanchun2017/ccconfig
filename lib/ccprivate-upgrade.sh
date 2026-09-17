@@ -117,8 +117,6 @@ fi
 # ============================================================
 info "ccconfig 私有配置: ccconfig 脚本通过 resolve_conf() 直接读 ccprivate/conf/"
 
-setup_link "$HOME/git/ccconfig/option-llmswitch/conf/llmswitch.json" "$SCRIPT_DIR/conf/llmswitch.json" "llmswitch.json → ccprivate/conf/"
-
 # 私有 skill 实体目录（不开源，跨机器同步）
 mkdir -p "$SCRIPT_DIR/skill-local"
 [ -f "$SCRIPT_DIR/skill-local/.gitkeep" ] || touch "$SCRIPT_DIR/skill-local/.gitkeep"

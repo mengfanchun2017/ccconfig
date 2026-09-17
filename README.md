@@ -101,8 +101,8 @@ flowchart TB
     optUsage["option-usage/
     Token 用量"]
     optLlms["option-llmswitch/
-    LLM 网关
-    (由 init-llm.sh 管理)"]
+    Anthropic↔OpenAI 桥
+    (由 init-llm.sh 自动管理)"]
   end
 
   %% 入口调用关系
@@ -159,7 +159,7 @@ ccconfig/
 │
 ├── lib/                      # 脚本库
 │   ├── init-ubuntu.sh        # Ubuntu/WSL 环境初始化（Node/Claude/uv/symlink）
-│   ├── init-llm.sh           # LLM 后端切换（多预设 + gateway）
+│   ├── init-llm.sh           # LLM 后端切换（多预设 + bridge 自动管理）
 │   ├── init-mcp.sh           # MCP 服务器注册管理
 │   ├── init-skill.sh         # Skills 同步
 │   ├── init-autostart.sh     # auto-sync systemd 服务
@@ -196,7 +196,7 @@ ccconfig/
 ├── option-cloudflare/        # 可选：Cloudflare 开发环境
 ├── option-remote/            # 可选：Tailscale + SSH 远程
 ├── option-skill/             # 可选：Skill 安装（包装 lib/init-skill.sh）
-├── option-llmswitch/         # 内部：LLM 网关（init-llm.sh 自动管理）
+├── option-llmswitch/         # 内部：Anthropic↔OpenAI 桥（init-llm.sh 自动管理）
 ├── bin/memory-check.sh       # Memory 过期检查
 ├── hooks/pre-commit          # 防私密文件误提交
 ├── tests/                    # 自动化测试（mock 隔离，零网络）
@@ -235,18 +235,22 @@ bash ~/git/ccconfig/maintain.sh status
 ### 🔀 LLM 后端随心切
 
 ```bash
-bash lib/init-llm.sh              # 交互菜单
-bash lib/init-llm.sh deepseek     # 一条命令切
-bash lib/init-llm.sh gateway      # 切到网关（自动装启 option-llmswitch）
+bash lib/init-llm.sh                    # 交互菜单
+bash lib/init-llm.sh <preset>           # 一条命令切
+bash lib/init-llm.sh list               # 列预设
+bash lib/init-llm.sh status             # 链路诊断
+bash lib/init-llm.sh test <preset>      # 真实链路探测（走 bridge + 流式）
+bash lib/init-llm.sh bill               # 用量统计
 ```
 
-- **多预设管理** — MiniMax/DeepSeek/Gateway 内置，支持自建自定义
-- **Gateway 自动切换** — LLM 代理网关按高峰/非高峰时段自动切后端
-- **OpenAI Bridge** — 遇到 OpenAI-only 端点自动启协议转换 proxy
+- **多预设管理** — MiniMax/DeepSeek 内置，其余在 `conf/llm.json` 里加
+- **OpenAI Bridge** — 遇到 OpenAI-only 端点（如内网 LLM 只提供 OpenAI 协议）自动启协议转换
+- **真实链路探测** — `test` 走 Claude Code 实际使用的那条路径（bridge + 流式），
+  判定含终止标记与连接完整性，不用"HTTP 200"糊弄
 
 > **切换后旧 session 报 400 model not supported？** session 记住了上次的模型名，`/model`
-> 重选新模型即可（或 `claude -r <session-id> --model <模型>` 命令行覆盖）。详见
-> `option-llmswitch/README.md` 已知问题 #3。
+> 重选新模型即可（或 `claude -r <session-id> --model <模型>` 命令行覆盖）。
+> 设计说明见 [`docs/init-llm.md`](docs/init-llm.md)。
 
 ### 🧩 可选组件（分组菜单）
 
@@ -260,10 +264,9 @@ bash lib/init-llm.sh gateway      # 切到网关（自动装启 option-llmswitch
  2) mcp         ✗ 未配置（bash init-option.sh mcp）
  3) skill       ✓ 17 个 skill 已安装
  4) usage       ✓ timer 运行中 — Token 用量追踪
- 5) llmswitch   [auto] — 由 init-llm 自动管理
 
 --飞书--
- 6) larkcli     ✓ lark-cli 已安装 — 飞书 CLI
+ 5) larkcli     ✓ lark-cli 已安装 — 飞书 CLI
 
 --其他--
  7) officecli   ✓ OfficeCLI 已安装 — 生成 .pptx/.docx

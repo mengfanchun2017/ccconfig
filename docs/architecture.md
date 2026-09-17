@@ -115,7 +115,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │   │   └── settings.json.example
 │   ├── init-ccprivate-repo.sh   # ccprivate 一键创建向导
 │   ├── hooks/                  # git pre-commit hook
-│   ├── option-*/               # 可选组件（bridge/officecli/llmswitch/remote/cloudflare）
+│   ├── option-*/               # 可选组件（llmswitch/officecli/usage/larkcli/getnote/remote/cloudflare）
 │   └── docs/                   # 架构/升级/ADR/进度 文档
 │
 ├── skill/              # ← 用户 clone 这个（或 /plugin marketplace add）
