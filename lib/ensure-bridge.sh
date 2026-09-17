@@ -35,11 +35,13 @@ start_bridge_watchdog() {
     # upstream 健康探测：读 bridge 当前 upstream，对该 URL 做轻量 GET（任何 HTTP 响应=可达，000=不可达）
     # 失败 N 次连续 → 触发 bridge-restart.sh 重启（同 upstream/model/key，preset 已绑死环境）
     # why: 之前 watchdog 只查 /health 看进程死活，bridge 没死但 upstream 间歇 529/timeout 时无人救
-    local fail_threshold="${BRIDGE_WD_FAIL_THRESH:-5}"   # 连续失败次数门槛（家里 tailscale 抖动建议 5+）
+    local fail_threshold="${BRIDGE_WD_FAIL_THRESH:-3}"   # 连续失败次数门槛（10s × 3 = 30s 空窗，比原 2.5min 缩 5×）
+    local big_probe_interval="${BRIDGE_WD_BIG_PROBE_SEC:-300}"  # 大 body 探测间隔（根治"探测 OK 但实际挂"）
     local wrapper="$HOME/.cache/bridge-watchdog-$RANDOM-$$.sh"
     cat > "$wrapper" << WDEOF
 #!/bin/bash
 fail_count=0
+last_big_probe=0
 while true; do
     h=\$(curl -s --max-time 3 http://127.0.0.1:${BRIDGE_PORT}/health 2>/dev/null) || h=''
 
@@ -82,6 +84,28 @@ while true; do
             [[ \$fail_count -gt 0 ]] && echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 恢复 (\$code), fail_count 清零" >> "${BRIDGE_WD_LOG}"
             fail_count=0
         fi
+
+        # 大 body 探活（根治"探测 OK 但实际挂"）—— 仅 log + counter，不触发重启
+        # why: Claude 真实请求 600KB+ 时 SNI cert 重传/MTU fragmentation/TCP slow start 重传 5+ 次才成功，
+        #      短探（100B）完全发现不了；大 body 探命中也不重启避免抖动误杀
+        # 5min 一次，模拟 Claude Code 真实请求尺寸
+        now=\$(date +%s)
+        if (( now - last_big_probe >= ${big_probe_interval} )); then
+            big_body='{"model":"${model}","max_tokens":16,"messages":[{"role":"user","content":"'"\$(printf 'x%.0s' {1..128000})"'"}]}'
+            big_code=\$(curl -sk --max-time 15 -o /dev/null -w "%{http_code}" -H "Content-Type: application/json" -H "Authorization: Bearer ${key}" -X POST "\$cur_up/chat/completions" -d "\$big_body" 2>/dev/null) || big_code="000"
+            echo "[\$(date '+%Y-%m-%d %H:%M:%S')] big-body 探测 (~128KB) 返 \$big_code: \$cur_up" >> "${BRIDGE_WD_LOG}"
+            last_big_probe=\$now
+        fi
+    fi
+
+    # 指数退避：失败 sleep 10s/20s/40s 增长（避免频繁 restart 浪费握手）
+    # why: 上游瞬断时短间隔重探只会浪费 TCP 握手，让 fail_count 触发后重启更划算
+    if (( fail_count > 0 )); then
+        sleep_sec=\$(( 10 * (1 << (fail_count - 1)) ))  # 10/20/40/80s
+        [[ \$sleep_sec -gt 60 ]] && sleep_sec=60
+        sleep \$sleep_sec
+    else
+        sleep 10
     fi
     sleep 30
 done
@@ -135,6 +159,16 @@ ensure_bridge() {
     local upstream="$1" model="$2" key="$3" host_header="${4:-}"
     local cfg="${5:-}" preset="${6:-}"
     _bridge_supported "$upstream" || return 1
+
+    # WSL2 MTU 1280 杀 tailscale 大包 — https://github.com/tailscale/tailscale/issues/4833
+    # 家里场景：WSL eth0 默认 MTU 1280，WireGuard overhead 让 1500-byte packet 被 silent drop
+    # why: 理论上 tailscale 链路所有 HTTPS 请求都可能撞，特别是大 body（SSE 流 + 长 context）
+    if [[ -f /proc/sys/fs/ostype ]] && grep -qi 'microsoft' /proc/sys/fs/ostype 2>/dev/null; then
+        if command -v ip >/dev/null 2>&1 && ip link show eth0 2>/dev/null | grep -q 'mtu 1280'; then
+            warn "  ⚠ WSL2 默认 MTU 1280 检测到，tailscale 大包可能挂"
+            warn "    修：echo 'ip link set eth0 mtu 1500' | sudo tee -a /etc/wsl.conf [boot] command"
+        fi
+    fi
 
     # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
     local health

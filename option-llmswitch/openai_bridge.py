@@ -9,10 +9,12 @@ Usage:
         --upstream-key sk-xxx --upstream-model deepseek-v4-flash
 """
 import argparse
+import asyncio
 import json
 import os
 import re
 import socket
+import time
 import urllib.parse
 from pathlib import Path
 
@@ -513,12 +515,27 @@ async def messages(request: Request):
     if stream:
         sse_state = {"started": False, "block_open": False, "finished": False}
 
+        async def _iter_with_idle_ping(stream_iter):
+            """包装 stream：每 15s 无 chunk 时 yield ': ping\n\n' 心跳注释（Anthropic SDK 忽略）
+            根治流式中断：upstream 不发 token 时（agent 等 tool call 30-60s）撞 tailscale 75s /
+            AWS ALB 60s / Cloudflare 100s idle cap 必断。why: SDK SSE 解析只看 data: 行，注释跳过。
+            """
+            last_chunk_at = time.time()
+            while True:
+                try:
+                    chunk = await asyncio.wait_for(anext(stream_iter), timeout=15.0)
+                    last_chunk_at = time.time()
+                    yield chunk
+                except asyncio.TimeoutError:
+                    if time.time() - last_chunk_at >= 5.0:
+                        yield ": ping\n\n"
+
         async def gen():
             # 捕获 upstream 间歇性超时/断连：log + 结束 stream，不让异常杀进程
             # Claude Code 收到不完整响应会自动重试，比 bridge 整个死掉强
             try:
                 if use_win_curl:
-                    async for chunk in _stream_via_win_curl(target_url, headers, upstream_body, host_header):
+                    async for chunk in _iter_with_idle_ping(_stream_via_win_curl(target_url, headers, upstream_body, host_header)):
                         sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
                         if sse_out:
                             yield sse_out
@@ -530,7 +547,7 @@ async def messages(request: Request):
                         json=upstream_body,
                         extensions=extra_ext or None,
                     ) as r:
-                        async for chunk in r.aiter_text():
+                        async for chunk in _iter_with_idle_ping(r.aiter_text()):
                             sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
                             if sse_out:
                                 yield sse_out
