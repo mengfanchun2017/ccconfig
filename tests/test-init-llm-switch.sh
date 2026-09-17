@@ -29,7 +29,8 @@ WORKDIR=$(mktemp -d)
 cleanup() {
     [[ -n "${MOCK_PID:-}" ]] && kill "$MOCK_PID" 2>/dev/null
     for p in $(lsof -ti :"$TEST_BRIDGE_PORT" 2>/dev/null); do kill "$p" 2>/dev/null; done
-    for p in $(pgrep -f "bridge-watchdog.*$WORKDIR" 2>/dev/null); do kill "$p" 2>/dev/null; done
+    # pattern 用 [g] 避开 pgrep -f 匹配到执行本脚本的 shell 自身
+    for p in $(pgrep -f "bridge-watchdog[^ ]*$WORKDIR" 2>/dev/null); do [[ "$p" == "$$" ]] && continue; kill "$p" 2>/dev/null; done
     rm -rf "$WORKDIR"
 }
 trap cleanup EXIT
@@ -45,8 +46,14 @@ class H(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-Type', 'text/event-stream')
         self.end_headers()
-        self.wfile.write(b'data: {"id":"1","choices":[{"delta":{"content":"ok"},"index":0}]}\n\n')
-        self.wfile.write(b'data: [DONE]\n\n')
+        if '/messages' in self.path:
+            # Anthropic 格式（直连 preset 探测用）
+            self.wfile.write(b'event: message_start\ndata: {"type":"message_start","message":{"id":"m","content":[],"usage":{"input_tokens":1,"output_tokens":1}}}\n\n')
+            self.wfile.write(b'event: message_stop\ndata: {"type":"message_stop"}\n\n')
+        else:
+            # OpenAI 格式（bridge upstream 用）
+            self.wfile.write(b'data: {"id":"1","choices":[{"delta":{"content":"ok"},"index":0}]}\n\n')
+            self.wfile.write(b'data: [DONE]\n\n')
         self.wfile.flush()
 
     def log_message(self, *a):
@@ -55,9 +62,21 @@ class H(BaseHTTPRequestHandler):
 HTTPServer(('127.0.0.1', int(sys.argv[1])), H).serve_forever()
 PYEOF
 
+# 清掉上次异常退出残留、占着同端口的 mock —— 否则新 mock 绑不上端口，
+# 请求会落到旧进程上（行为不同），表现为莫名其妙的失败
+for p in $(lsof -ti :"$MOCK_PORT" 2>/dev/null); do kill -9 "$p" 2>/dev/null; done
+for p in $(lsof -ti :"$TEST_BRIDGE_PORT" 2>/dev/null); do kill "$p" 2>/dev/null; done
+sleep 0.5
+
 python3 "$WORKDIR/mock_up.py" "$MOCK_PORT" > /dev/null 2>&1 &
 MOCK_PID=$!
 sleep 1
+
+# 自检：mock 必须两个路径都按预期返回，否则后续断言全无意义
+if ! curl -s --max-time 3 -X POST "http://localhost:${MOCK_PORT}/anthropic/v1/messages" -d '{}' 2>/dev/null | grep -q 'message_stop'; then
+    _fail "mock upstream 未按预期响应（Anthropic 路径）" "端口 $MOCK_PORT 可能被占用"
+    exit 1
+fi
 
 # ── 隔离环境（HOME + CCPRIVATE_DIR 都在临时目录，绝不碰真实的）──
 TEST_HOME="$WORKDIR/home"
@@ -71,7 +90,7 @@ cat > "$WORKDIR/conf/llm.json" <<JSON
   "llms": {
     "direct": {
       "name": "Direct",
-      "base_url": "https://api.direct.example/anthropic",
+      "base_url": "http://localhost:${MOCK_PORT}/anthropic",
       "model": "model-d1",
       "key": "sk-test-direct",
       "small_model": "model-d1"
@@ -99,7 +118,14 @@ echo "  隔离 HOME: $TEST_HOME"
 echo ""
 
 # ── source init-llm.sh（TEST_MODE=1 跳过 main）──
+# 换 HOME 前保存真实 user site：openai_bridge.py 依赖 httpx，它装在真实
+# HOME 的 ~/.local/lib 下，只换 HOME 会让 bridge 因 ModuleNotFoundError 起不来
+REAL_HOME="${HOME}"
+REAL_USER_SITE="$(python3 -c 'import site; print(site.getusersitepackages())' 2>/dev/null \
+    || echo "$REAL_HOME/.local/lib/python3.12/site-packages")"
+
 export HOME="$TEST_HOME"
+export PYTHONPATH="${REAL_USER_SITE}${PYTHONPATH:+:$PYTHONPATH}"
 # 注意：resolve_conf 会自行拼 /conf/，所以这里给 ccprivate 根目录而非 conf 目录
 export CCPRIVATE_DIR="$WORKDIR"
 export TEST_MODE=1
@@ -147,25 +173,22 @@ print(json.load(open('$TEST_HOME/.claude/settings.json')).get('env',{}).get('ANT
     $VERBOSE && sed 's/^/      /' "$WORKDIR/switch.log" | tail -15
 fi
 
-# ── T2: 直连 preset 切换 → BASE_URL 保持原始 URL ──
+# ── T2: 直连 preset 切换 → BASE_URL 保持原始上游 URL（不得串成 bridge 地址）──
 echo "T2 direct preset → settings.json 的 BASE_URL 应是原始上游 URL"
 switch_llm "direct" > "$WORKDIR/switch2.log" 2>&1
 switch2_rc=$?
 written2=$(python3 -c "
 import json
 print(json.load(open('$TEST_HOME/.claude/settings.json')).get('env',{}).get('ANTHROPIC_BASE_URL',''))" 2>/dev/null)
+expect2="http://localhost:${MOCK_PORT}/anthropic"
 
-if [[ "$written2" == "https://api.direct.example/anthropic" ]]; then
-    _pass "BASE_URL 正确 = $written2"
-elif [[ $switch2_rc -ne 0 ]]; then
-    # 直连探测会失败（example.com 不存在），切换中止属预期 —— settings 不应被改
-    if [[ "$written2" == "http://127.0.0.1:${TEST_BRIDGE_PORT}" ]]; then
-        _pass "探测失败时切换中止，settings 保持上一次的值（未写坏）"
-    else
-        _fail "直连切换异常" "rc=$switch2_rc BASE_URL='$written2'"
-    fi
+if [[ "$written2" == "$expect2" ]]; then
+    _pass "BASE_URL 正确 = $written2（直连未被误改成 bridge 地址）"
+elif [[ "$written2" == "http://127.0.0.1:${TEST_BRIDGE_PORT}" ]]; then
+    _fail "直连 preset 被误写成 bridge 地址" "got=$written2"
 else
-    _fail "BASE_URL 不符合预期" "got='$written2'"
+    _fail "BASE_URL 不符合预期" "rc=$switch2_rc got='$written2' expected='$expect2'"
+    $VERBOSE && sed 's/^/      /' "$WORKDIR/switch2.log" | tail -12
 fi
 
 # ── T3: llm-current 跟随 ──
