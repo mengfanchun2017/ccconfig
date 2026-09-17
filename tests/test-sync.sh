@@ -238,10 +238,13 @@ test_force_pull_dry_run_confirm() {
     else
         fail "git_force_pull" "缺少不可逆提示"
     fi
-    if grep -q '需要输入仓库名' "$CCCONFIG_DIR/lib/sync.sh" || grep -q '确认？' "$CCCONFIG_DIR/lib/sync.sh"; then
-        pass "git_force_pull: 要求输入仓库名确认"
+    # 断言实际实现的确认门（confirm 调用，默认 no），不是"输入仓库名"
+    # 这种从未实现过的文案 —— 旧断言匹配 '确认？' 但实现是 '确认强制拉取？（高危）'
+    # （问号后紧跟左括号），子串永远不匹配 → 恒定失败
+    if grep -qE 'confirm "确认强制拉取' "$CCCONFIG_DIR/lib/sync.sh"; then
+        pass "git_force_pull: 有 confirm 确认门"
     else
-        fail "git_force_pull" "缺少仓库名确认"
+        fail "git_force_pull" "缺少确认门"
     fi
 }
 
@@ -250,6 +253,12 @@ test_force_push_dry_run_confirm() {
         pass "git_force_push: 标注强制推送"
     else
         fail "git_force_push" "缺少强制推送标注"
+    fi
+    # 覆盖远程不可逆，必须有默认 no 的确认门
+    if grep -qE 'confirm "确认强制推送' "$CCCONFIG_DIR/lib/sync.sh"; then
+        pass "git_force_push: 有 confirm 确认门"
+    else
+        fail "git_force_push" "缺少确认门（强制推送无二次确认）"
     fi
 }
 
