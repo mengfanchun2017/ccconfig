@@ -60,4 +60,4 @@ session_id,day,project_path,route,session_name,model,input_tokens,cache_read_tok
 - `cache_read`: 缓存命中
 - `cache_creation`: 缓存创建（1.25× input 价；deepseek/MiniMax 不适用）
 
-价格按**模型名**配置，与渠道（gateway/bridge/直连）无关。
+价格按**模型名**配置，与渠道（bridge/直连）无关。
