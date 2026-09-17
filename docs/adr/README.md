@@ -37,6 +37,7 @@
 | [0026](0026-bats-test-framework.md) | bats 测试框架引入 — bats_run 代替 run，test/ 统一测试目录 | 2026-09-03 | ✅ Accepted | — |
 | [0027](0027-idempotent-guard-pattern.md) | 幂等 guard 模式 — _is_installed/_is_not_file/atomic_write 统一 API | 2026-09-03 | ✅ Accepted | SH 编码规范 |
 | [0028](0028-unified-cli-entry.md) | 统一 CLI 入口 — bin/ccconfig subcommand 路由 | 2026-09-03 | ✅ Accepted | CLI 基础设施 |
+| [0029](0029-init-llm-target-2026.md) | init-llm 目标文档化 + 删 gateway 整层 + 3 个稳定性增强 + bill 简化为用量读取 + 合并 altllm preset 4→2 | 2026-09-17 | ✅ Accepted | LLM 管理 |
 
 > ADR 收录门槛见 [「何时写 ADR」](#何时写-adr)。轻量变更（bug fix / 单文件重构 / 样式调整）只在下方「决策时间线」一行记录。
 

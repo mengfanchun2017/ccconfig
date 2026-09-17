@@ -37,7 +37,7 @@ flowchart LR
 **关键约束**：
 - **稳定性 > 一切**：当前痛点是"探测 OK 但实际跑挂"（[见 §五](#五核心稳定性要求)）
 - **家里只用 1 种模型**：合并 altllm*_tail 系列按需启用
-- **单位 vs 家里是离散二元环境**：环境由人显式选（不搞自动探测，见 [ADR-0024](../docs/adr/0024-init-llm-target.md) — 后续开 ADR）
+- **单位 vs 家里是离散二元环境**：环境由人显式选（不搞自动探测，见 [ADR-0029](../docs/adr/0029-init-llm-target-2026.md) — 后续开 ADR）
 
 ## 三、能力清单
 
@@ -276,7 +276,7 @@ while true (30s):
   - [ADR-0016 Tailscale Subnet Router（WSL + Windows 自动触发 `--use-win-curl`）](../adr/0016-tailscale-subnet-router.md)
   - [ADR-0019 bridge 三层修复（WSL 网络栈 + DNS + ARG_MAX）](../adr/0019-bridge-win-curl-wsl-vpn.md)
   - [ADR-0020 settings.json LLM 本地化](../adr/0020-llm-current-local-per-machine.md)
-  - 后续：ADR-0024 init-llm target（本文件落地的决策）
+  - 后续：ADR-0029 init-llm target（本文件落地的决策）
 - **memory**（核心条目）：
   - [`llm-management`](../memory/llm-management.md)
   - [`altllm-split-presets-20260917`](../memory/altllm-split-presets-20260917.md)
@@ -291,4 +291,4 @@ while true (30s):
 2. **删 §七 删减清单**（~1790 行移除）
 3. **init-llm-bill 简化为用量读取**（菜单 `2E` 读 `ccprivate/usage/*.csv`，按 model + day 聚合）
 4. **altllm preset 合并**：4 个 → 2 个（office 直连 + tail 含 `--use-win-curl` + `host_header`）
-5. **ADR-0024**：把本文件核心决策正式化为 ADR
+5. **ADR-0029**：把本文件核心决策正式化为 ADR
