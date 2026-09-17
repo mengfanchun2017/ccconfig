@@ -124,22 +124,7 @@ ensure_bridge() {
         old_pid="${old_pid:-}"
     fi
 
-    # WSL2 MTU 1280 杀 tailscale 大包 — https://github.com/tailscale/tailscale/issues/4833
-    # 家里场景：WSL eth0 默认 MTU 1280，WireGuard overhead 让 1500-byte packet 被 silent drop
-    # why: 理论上 tailscale 链路所有 HTTPS 请求都可能撞，特别是大 body（SSE 流 + 长 context）
-    # why uname 而非 /proc/sys/fs/ostype：后者在标准内核里不存在，旧写法是死代码从不触发
-    # why 移到 health 检查之后 + guard：ensure_bridge 每次切换都会被调（switch_llm + test_llm
-    #     各一次），早期实现无条件 warn → 用户看到重复输出去排查别的问题时分心；只在真正
-    #     要启/重启 bridge 时提醒一次，避免误导"切失败是因为 MTU"
-    if [[ "$need_restart" -eq 1 ]] && [[ -z "${_ENSURE_BRIDGE_MTU_WARNED:-}" ]] \
-       && [[ "$(uname -r)" == *microsoft* ]] \
-       && command -v ip >/dev/null 2>&1 \
-       && ip link show eth0 2>/dev/null | grep -q 'mtu 1280'; then
-        warn "  ⚠ WSL2 默认 MTU 1280，tailscale 大包可能被静默丢弃"
-        warn "    修：/etc/wsl.conf 加 [boot] command=\"ip link set eth0 mtu 1500\" 后 wsl --shutdown"
-        export _ENSURE_BRIDGE_MTU_WARNED=1
-    fi
-
+    
     # 杀老 bridge（按端口号精确 kill，避免误杀）
     if [[ -n "$old_pid" ]]; then
         kill "$old_pid" 2>/dev/null || true
