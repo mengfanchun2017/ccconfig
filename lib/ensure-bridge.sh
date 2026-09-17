@@ -112,13 +112,21 @@ ensure_bridge() {
     health=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
     local old_pid="" need_restart=1
     if [[ -n "$health" ]]; then
-        local cur_upstream
+        local cur_upstream cur_model
         cur_upstream=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
-        if [[ "$cur_upstream" == "$upstream" ]]; then
+        # 必须同时比对 model：flash/pro 两个 preset 常用同一个 upstream URL
+        # （同网关不同模型），只比 upstream 会复用旧 bridge —— 切 pro 实际仍在
+        # 用 flash，且探测"通过"是假阳性（测的是旧 model）
+        cur_model=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream_model',''))" 2>/dev/null || echo "")
+        if [[ "$cur_upstream" == "$upstream" && "$cur_model" == "$model" ]]; then
             start_bridge_watchdog "$cfg" "$preset"
             return 0
         fi
-        info "  upstream 变化 ($cur_upstream → $upstream)，重启 bridge..."
+        if [[ "$cur_upstream" == "$upstream" ]]; then
+            info "  model 变化 ($cur_model → $model)，重启 bridge..."
+        else
+            info "  upstream 变化 ($cur_upstream → $upstream)，重启 bridge..."
+        fi
         # Why: lsof 无结果时 exit 1 + pipefail + set -e 会让函数直接退出
         old_pid=$( { lsof -ti :${BRIDGE_PORT} 2>/dev/null || true; } | head -1 || true)
         old_pid="${old_pid:-}"
