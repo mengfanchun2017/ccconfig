@@ -336,8 +336,7 @@ except: pass" 2>/dev/null)
     printf "━━━ LLM 链路诊断 ──\n"
     printf "llm.json current          : %s\n" "${llm_cur:-<未设置>}"
     if [[ -n "$sett_env" && "$sett_env" != "||" ]]; then
-        IFS='|' read -r base model tok <<< "$sett_env"
-        printf "env.ANTHROPIC_BASE_URL    : %s\n" "${base:-<未设置>}"
+        local base model tok; IFS='|' read -r base model tok <<< "$sett_env"
         printf "env.ANTHROPIC_MODEL       : %s\n" "${model:-<未设置>}"
         [[ -n "$tok" ]] && printf "env.ANTHROPIC_AUTH_TOKEN  : ...%s\n" "${tok: -4}"
     fi
