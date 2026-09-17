@@ -64,13 +64,24 @@ ccprivate/skill-config/flogme.yaml ──apply-config.sh ln -s──→ ~/.claud
 
 skill 的 Python 脚本 `open('config.yaml')` 自动跟踪 symlink 读到 ccprivate 的真实值。修改 ccprivate 立即生效，无需重跑脚本。
 
-### 个人配置（直接 symlink 到 ~）
+### 个人配置（分两层：共享 symlink / 本机独立）
+
+**共享**——改一处全机生效：
 
 ```
 ccprivate/link/CLAUDE.md ──setup.sh ln -s──→ ~/CLAUDE.md
-ccprivate/link/settings.json ──setup.sh ln -s──→ ~/.claude/settings.json
-ccprivate/link/projects/ ──setup.sh ln -s──→ ~/.claude/projects/（memory）
+ccprivate/link/memory/   ──setup.sh ln -s──→ ~/.claude/projects/<id>/memory/
 ```
+
+**本机**——跨机同步会互相覆盖，首次从 `.example` cp 一次后各机自维护（详见 [ADR-0032](adr/0032-config-layering.md)）：
+
+```
+templates/settings.json.example  ──cp 一次──→ ~/.claude/settings.json（LLM env）
+templates/.config.json.example   ──cp 一次──→ ~/.claude/.config.json（permissions/hooks/MCP）
+templates/.claudeignore.example  ──cp 一次──→ ~/.claude/.claudeignore
+```
+
+LLM 的 preset 定义（`conf/llm.json`）共享；"本机当前选了哪个"存 `~/.claude/llm-current`，故 A 机切换不影响 B 机。
 
 ### 运行时配置（ccprivate → ~/.claude/）
 
