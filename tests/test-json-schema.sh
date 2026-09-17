@@ -4,7 +4,6 @@
 # 覆盖：
 #   - llm.json: current + llms.{name}.key/base_url/model 必含
 #   - mcp-servers.json: mcp_servers[].name/command/args/env
-#   - llmswitch.json: listen/mode/routes/peak_hours
 #   - .example 模板占位符检测
 #
 # 用途：跨脚本引用共享的 JSON 结构，防止一处改 schema 其他脚本崩。
@@ -94,47 +93,19 @@ with open(sys.argv[1]) as f: d = json.load(f)
 servers = d.get('mcp_servers', [])
 assert isinstance(servers, list), "mcp_servers should be list"
 for s in servers:
+    name = s.get('name', '<unnamed>')
     assert 'name' in s, "server missing name"
-    assert 'command' in s, f"{s.get('name')} missing command"
-    assert 'args' in s and isinstance(s['args'], list), f"{s.get('name')} args not list"
-    assert 'env' in s and isinstance(s['env'], dict), f"{s.get('name')} env not dict"
+    # MCP 支持两种传输：stdio 用 command/args/env，http(sse) 用 url/headers
+    if s.get('type', 'stdio') in ('http', 'sse'):
+        assert 'url' in s, f"{name} (http) missing url"
+        assert isinstance(s.get('headers', {}), dict), f"{name} headers not dict"
+    else:
+        assert 'command' in s, f"{name} missing command"
+        assert isinstance(s.get('args', []), list), f"{name} args not list"
+        assert isinstance(s.get('env', {}), dict), f"{name} env not dict"
 print("OK")
 PYEOF
     [ $? -eq 0 ] && pass "mcp-servers.json: mcp_servers[] 结构完整" || fail "mcp-servers.json" "mcp_servers 结构错误"
-}
-
-# ═══ llmswitch.json ═══
-test_llmswitch_json_structure() {
-    local f="$CCCONFIG_DIR/option-llmswitch/conf/llmswitch.json"
-    [ -f "$f" ] || { skip "llmswitch.json" "未找到"; return; }
-    python3 - "$f" << 'PYEOF' >/dev/null 2>&1
-import json, sys
-with open(sys.argv[1]) as f: d = json.load(f)
-assert 'listen' in d, "missing listen"
-assert 'mode' in d, "missing mode"
-assert 'routes' in d, "missing routes"
-assert 'peak_hours' in d, "missing peak_hours"
-for name, r in d['routes'].items():
-    if isinstance(r, dict):
-        assert 'peak' in r and 'off_peak' in r, f"{name} route missing peak/off_peak"
-print("OK")
-PYEOF
-    [ $? -eq 0 ] && pass "llmswitch.json: listen/mode/routes/peak_hours 齐全" || fail "llmswitch.json" "结构错误"
-}
-
-test_llmswitch_peak_hours_format() {
-    local f="$CCCONFIG_DIR/option-llmswitch/conf/llmswitch.json"
-    [ -f "$f" ] || return
-    python3 - "$f" << 'PYEOF' >/dev/null 2>&1
-import json, sys
-with open(sys.argv[1]) as f: d = json.load(f)
-for block in d.get('peak_hours', []):
-    assert 'days' in block and isinstance(block['days'], list), "peak block missing days"
-    assert 'start' in block and 'end' in block, "peak block missing start/end"
-    assert ':' in block['start'] and ':' in block['end'], f"time format: {block['start']}-{block['end']}"
-print("OK")
-PYEOF
-    [ $? -eq 0 ] && pass "llmswitch.json: peak_hours 时间格式 HH:MM" || fail "llmswitch.json" "peak_hours 格式错误"
 }
 
 # ═══ settings.json 兼容性（跨脚本写入） ═══
@@ -198,8 +169,6 @@ all_tests=(
     "desc: llm.json current 指向" test_llm_json_current_in_llms
     "desc: llm.json 无占位符 key" test_llm_json_key_not_placeholder
     "desc: mcp-servers.json mcp_servers" test_mcp-servers.json_mcp_servers
-    "desc: llmswitch.json 结构" test_llmswitch_json_structure
-    "desc: llmswitch.json peak_hours 格式" test_llmswitch_peak_hours_format
     "desc: settings.json env 合并" test_settings_json_env_merge
     "desc: example 占位符检测" test_example_placeholder_detection
     "desc: example JSON 合法" test_example_json_valid

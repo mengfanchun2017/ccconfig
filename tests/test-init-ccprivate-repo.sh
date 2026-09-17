@@ -178,8 +178,9 @@ grep -q "tr '/' '-'" "$SCRIPT" \
   && pass "gen_setup_sh memory 用 tr 动态 ID" || fail "gen_setup_sh memory 未用 tr 动态 ID"
 grep -q 'should-compact' "$SCRIPT" \
   && pass "gen_setup_sh 含 should-compact" || fail "gen_setup_sh 缺 should-compact"
+# gateway 已删除，生成器不应再建 llmswitch.json 链接（反向断言，防回潮）
 grep -q 'llmswitch' "$SCRIPT" \
-  && pass "gen_setup_sh 含 llmswitch" || fail "gen_setup_sh 缺 llmswitch"
+  && fail "gen_setup_sh 仍含已废弃的 llmswitch" || pass "gen_setup_sh 不含 llmswitch（gateway 已清）"
 
 echo "=== Test 16: do_update eval shlex.quote ==="
 grep -A8 'eval "\$(LLM_SRC=' "$SCRIPT" | grep -q 'shlex' \
