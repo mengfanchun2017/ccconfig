@@ -3,6 +3,7 @@
 > **Status**: ✅ Accepted
 > **日期**: 2026-09-01
 > **模板**: MADR 4.0 极简版
+> **后续**: 本 ADR 的本地化只做了一半——`settings.json` 改了，`.config.json`/`.claudeignore` 没改，且 `ccprivate-upgrade.sh` 仍 symlink 回 ccprivate，跑一次 upgrade 就把本机文件打回共享。切换时还无条件重写 `llm.json` 触发 auto-sync。[ADR-0032](./0032-config-layering.md) 收口全部执行路径并建立三层模型
 
 ## Context and Problem Statement
 
