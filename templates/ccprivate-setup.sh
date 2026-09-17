@@ -44,7 +44,10 @@ setup_link() {
     local target="$2"
     local label="$3"
     mkdir -p "$(dirname "$link")"
-    if [ -L "$link" ]; then
+    # 必须 [ -e "$link" ] 才算健康：readlink -f 对死链也返回规范路径字符串（非空，
+    # 退出码 0），只看字符串相等会把死链判成"已链接" → 永远不修，症状是
+    # maintain 反复报 memory 断链却怎么修都不好
+    if [ -L "$link" ] && [ -e "$link" ]; then
         local existing expected
         existing=$(readlink -f "$link" 2>/dev/null || true)
         expected=$(readlink -f "$target" 2>/dev/null || true)
@@ -53,8 +56,16 @@ setup_link() {
             return 0
         fi
         rm -f "$link"
+    elif [ -L "$link" ]; then
+        warn "$label: 死链（目标不存在），重建"
+        rm -f "$link"
     elif [ -e "$link" ]; then
         rm -rf "$link"
+    fi
+    # 目标不存在时不建链：建出的死链会让问题更隐蔽（下次运行还会被判"已链接"）
+    if [ ! -e "$target" ]; then
+        warn "$label: 目标不存在，跳过（$target）"
+        return 0
     fi
     ln -s "$target" "$link"
     ok "$label"
@@ -107,6 +118,9 @@ info "私有 skill 目录: $SCRIPT_DIR/skill-local/（用户自建 skill 存放�
 # ============================================================
 section "用户级记忆"
 _cconfig_id="$(echo "$HOME/git/ccconfig" | tr '/' '-')"
+# git 不跟踪空目录：新账号的 ccprivate 里可能没有 link/memory/，
+# 不先建目录就会链接到一个不存在的目标（死链）
+mkdir -p "$SCRIPT_DIR/link/memory"
 setup_link "$CLAUDE_DIR/projects/$_cconfig_id/memory" "$SCRIPT_DIR/link/memory" "memory → ccprivate/link/memory"
 unset _cconfig_id
 

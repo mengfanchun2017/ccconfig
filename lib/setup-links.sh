@@ -26,16 +26,26 @@ setup_link() {
     local name="$3"
 
     run mkdir -p "$(dirname "$link")"
-    if [[ -L "$link" ]]; then
-        local existing=$(readlink -f "$link")
-        local expected=$(readlink -f "$target" 2>/dev/null)
-        if [[ "$existing" = "$expected" ]]; then
+    # 死链必须 [ -e ] 才排除：readlink -f 对死链返回规范路径字符串（非空），
+    # 只比字符串会把死链判成"已链接，跳过" → 永远不修
+    if [[ -L "$link" ]] && [[ -e "$link" ]]; then
+        local existing=$(readlink -f "$link" 2>/dev/null || true)
+        local expected=$(readlink -f "$target" 2>/dev/null || true)
+        if [[ -n "$existing" && "$existing" = "$expected" ]]; then
             info "$name: 已链接，跳过"
             return 0
         fi
         run rm -f "$link"
+    elif [[ -L "$link" ]]; then
+        warn "$name: 死链（目标不存在），重建"
+        run rm -f "$link"
     elif [[ -e "$link" ]]; then
         run rm -f "$link"
+    fi
+    # 目标不存在时不建链：建出的死链会让问题更隐蔽（下次还被判"已链接，跳过"）
+    if [[ ! -e "$target" ]]; then
+        warn "$name: 目标不存在，跳过（$target）"
+        return 0
     fi
     run ln -sf "$target" "$link"
     ok "$name: 已链接"
@@ -64,7 +74,7 @@ setup_symlinks() {
     local git_hook="$CCCONFIG_ROOT/.git/hooks/pre-commit"
     local hook_src="$CCCONFIG_ROOT/hooks/pre-commit"
     if [[ -f "$hook_src" ]]; then
-        if [[ -L "$git_hook" ]] && [[ "$(readlink -f "$git_hook")" == "$(readlink -f "$hook_src")" ]]; then
+        if [[ -L "$git_hook" ]] && [[ -e "$git_hook" ]] && [[ "$(readlink -f "$git_hook")" == "$(readlink -f "$hook_src")" ]]; then
             info "pre-commit hook: 已链接，跳过"
         else
             [[ -e "$git_hook" ]] && run rm -f "$git_hook"
