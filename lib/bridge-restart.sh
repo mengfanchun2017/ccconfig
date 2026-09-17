@@ -50,6 +50,7 @@ if command -v curl.exe &>/dev/null && [[ "$up" =~ ://(10\.|172\.(1[6-9]|2[0-9]|3
 fi
 
 cd "$CCCONFIG_ROOT" || exit 1
+mkdir -p "$HOME/.cache"   # 目录不存在会让重定向失败、bridge 起不来
 env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
     OPENAI_BRIDGE_UPSTREAM="$up" OPENAI_BRIDGE_KEY="$key" OPENAI_BRIDGE_MODEL="$model" OPENAI_BRIDGE_HOST="$hh" \
     python3 option-llmswitch/openai_bridge.py --port "$port" $extra_args $win_curl \
