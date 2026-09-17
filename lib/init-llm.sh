@@ -497,33 +497,50 @@ test_llm() {
 
     info "测试: $target ($model @ $base_url)"
     [[ -n "$host_header" ]] && info "  host_header: $host_header"
-    local body_file; body_file=$(mktemp)
-    local probe_url; probe_url=$(_probe_url "$base_url" "$host_header")
-    local resolve_args; resolve_args=$(_probe_resolve_args "$base_url" "$host_header")
-    # shellcheck disable=SC2086
-    local path
-    if [[ "$probe_url" == *"/anthropic"* ]] || [[ "$probe_url" == *"://127.0.0.1"* ]]; then
-        path="${probe_url%/}/v1/messages"
-    else
-        path="${probe_url%/}/chat/completions"
-    fi
-    local headers=(-H "Content-Type: application/json" -H "Authorization: Bearer $key")
-    [[ "$path" == *"/v1/messages" ]] && headers+=(-H "anthropic-version: 2023-06-01")
 
-    local status
-    # shellcheck disable=SC2086
-    status=$(curl -sk --max-time 30 -o "$body_file" -w "%{http_code}" -X POST $resolve_args "$path" "${headers[@]}" \
-        -d "{\"model\":\"$model\",\"max_tokens\":16,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || status="000"
-
-    if [[ "$status" == "200" ]]; then
-        success "✓ HTTP 200 — '$target' 可用"
-        rm -f "$body_file"
-    else
-        error "✗ HTTP $status"
-        head -5 "$body_file" 2>/dev/null | sed 's/^/    /'
-        rm -f "$body_file"
-        return 1
+    # 走 Claude Code 真实路径：走 bridge 的 preset 必须经 bridge 测，否则测的是上游
+    # 直连（能通）而非 bridge 转换链路（真正会挂的地方）
+    local use_bridge need_bridge=0
+    use_bridge=$(get_use_bridge "$target")
+    if [[ "$use_bridge" == "True" ]]; then
+        need_bridge=1
+    elif [[ "$use_bridge" != "False" && "$base_url" != *"/anthropic"* && "$base_url" != *"://127.0.0.1"* ]]; then
+        need_bridge=1
     fi
+
+    local probe_url expect resolve_args=""
+    if (( need_bridge )); then
+        info "  bridge 链路（真实路径）..."
+        ensure_bridge "$base_url" "$model" "$key" "$host_header" "$CONFIG_FILE" "$target" \
+            || { error "  ✗ bridge 启动失败 — 查 tail -30 ~/.cache/openai_bridge.log"; return 1; }
+        probe_url="http://127.0.0.1:${BRIDGE_PORT}/v1/messages"
+        expect="message_stop"
+    else
+        probe_url=$(_probe_url "$base_url" "$host_header")
+        if [[ "$probe_url" == *"/anthropic"* ]]; then
+            probe_url="${probe_url%/}/v1/messages"; expect="message_stop"
+        else
+            probe_url="${probe_url%/}/chat/completions"; expect="\\[DONE\\]"
+        fi
+        resolve_args=$(_probe_resolve_args "$base_url" "$host_header")
+    fi
+
+    # why 流式 + 查终止标记：Claude Code 全程 stream:true。非流式探测只能证明"上游活着"，
+    # 证明不了流式链路完整 —— 流式包装器在流尾抛异常的 bug 下它照样返回 200。
+    local out
+    # shellcheck disable=SC2086
+    out=$(curl -sN -k --max-time 60 --noproxy '*' -X POST $resolve_args "$probe_url" \
+        -H "Content-Type: application/json" -H "anthropic-version: 2023-06-01" \
+        -H "Authorization: Bearer $key" \
+        -d "{\"model\":\"$model\",\"max_tokens\":16,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || true
+
+    if printf '%s' "$out" | grep -q "$expect"; then
+        success "✓ 流式链路完整（收到 $expect）— '$target' 可用"
+        return 0
+    fi
+    error "✗ 流式链路失败（未收到 $expect）"
+    printf '%s' "$out" | head -6 | sed 's/^/    /'
+    return 1
 }
 
 # 批量测试所有预设连通性
