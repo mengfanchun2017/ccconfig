@@ -11,7 +11,9 @@
 
 ### 起因：可用性事故
 
-2026-09-17 重构（ADR-0029/0030）之后，用户报告：**两个走 bridge 的 preset（office-deck-flash / home-deck-flash）全部不可用，只有直连能跑**。且 `init-llm.sh test` 仍返回 HTTP 200 —— 即长期困扰用户的"**探测 OK 但实际挂**"。
+2026-09-17 重构（ADR-0029/0030）之后，用户报告：**两个走 bridge 的 preset（officedsflash / homedsflash）全部不可用，只有直连能跑**。且 `init-llm.sh test` 仍返回 HTTP 200 —— 即长期困扰用户的"**探测 OK 但实际挂**"。
+
+> 注：上述 preset key 在 ADR-0029 时为 `office-deck-flash` / `home-deck-flash`，2026-09-17 后续重命名为 `officedsflash` / `homedsflash`，本文以现状为准。
 
 事故的直接触发是 ADR-0029 中"3 个稳定性增强"里的 SSE 心跳包装器；深入排查后又暴露出同一批代码中若干独立缺陷。
 
