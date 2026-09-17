@@ -29,6 +29,7 @@ start_bridge_watchdog() {
     # 无条件清掉残留（旧版只认 PID 文件，被覆盖/失联的老 watchdog 会永久残留）
     stop_bridge_watchdog >/dev/null 2>&1 || true
 
+    mkdir -p "$HOME/.cache"
     local wrapper="$HOME/.cache/bridge-watchdog-$RANDOM-$$.sh"
     cat > "$wrapper" << WDEOF
 #!/bin/bash
@@ -154,6 +155,9 @@ local extra_args=""
     # 写 wrapper 脚本（与 Bash 父子进程组解耦）
     # Why: 之前 ( cd; nohup ... &; disown ) 子 shell 退出时 python 进程被 SIGHUP 杀
     # wrapper 文件名加随机后缀避免冲突
+    # why: 日志重定向目标目录不存在会让整个重定向失败、bridge 根本起不来
+    mkdir -p "$HOME/.cache"
+
     local wrapper="/tmp/ensure-bridge-$RANDOM-$$.sh"
     cat > "$wrapper" << WRAPEOF
 #!/bin/bash
