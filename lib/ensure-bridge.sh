@@ -141,7 +141,7 @@ ensure_bridge() {
         sleep 1
     fi
 
-local extra_args=""
+    local extra_args=""
     [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
 
     # WSL 场景：Windows 侧 tailscale 有 subnet route，但 WSL 看不到
@@ -206,13 +206,21 @@ selfheal_bridge() {
         return 0
     fi
 
-    # 读 current preset 配置拉起
+    # 读「当前」preset 配置拉起。
+    # why 先读本地 llm-current 再回落 llm.json.current：ADR-0020 之后 current 的
+    #     权威来源是机器本地文件（llm.json.current 只是兼容旧机器的副本，可能过时），
+    #     读错会用别的 preset 起 bridge。
     local cur
-    cur=$(python3 -c "import json; print(json.load(open('$cfg')).get('current',''))" 2>/dev/null) || return 1
+    cur="$(tr -d '[:space:]' < "$HOME/.claude/llm-current" 2>/dev/null || true)"
+    if [[ -z "$cur" ]]; then
+        cur=$(python3 -c "import json; print(json.load(open('$cfg')).get('current',''))" 2>/dev/null) || return 1
+    fi
     [[ -z "$cur" ]] && return 0
 
     local bc
     bc=$(read_bridge_config "$cfg" "$cur") || return 1
+    # why local：防 bash 动态作用域污染调用者同名变量
+    local upstream model key host_header
     IFS='|' read -r upstream model key host_header <<< "$bc"
 
     warn "  bridge ($BRIDGE_PORT) 未响应，自动拉起 ($cur)..."

@@ -13,7 +13,7 @@
 # 删除历史（ADR-0029 落地）：
 #   - 不再输入价格（input/output/cache_read/cache_creation 4 字段）
 #   - 价格由上游 API / LLM 账单算（cost_cny 字段直接读）
-#   - 保留模型发现四源（llm.json presets + 已配 pricing + usage CSV + jsonl 实扫）
+#   - 模型发现三源（llm.json presets + usage CSV + jsonl 实扫）
 # ==============================================
 
 set -euo pipefail
@@ -26,14 +26,14 @@ source "$SCRIPT_DIR/interact.sh"
 CONFIG_FILE="$(resolve_conf llm.json)" || exit 1
 USAGE_DIR="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/usage"
 
-# 输出 "model\tmark" 行（mark=✓/空），供菜单构建
-# 模型发现四源：llm.json presets + 已配 pricing + usage CSV + jsonl 实扫
-list_models_marked() {
+# 输出有历史用量的模型名，供菜单构建
+# 三源：llm.json presets + usage CSV + jsonl 实扫
+# （曾经还读 llm.json 的 pricing 只为产出一个标记列，而调用方从不使用该列）
+list_models() {
     CCPRIVATE_HOME="${CCPRIVATE_HOME:-$HOME/git/ccprivate}" \
     python3 - "$CONFIG_FILE" << 'PYEOF'
 import json, sys, os, re, glob, csv
 d = json.load(open(sys.argv[1]))
-pricing = d.get('pricing', {})
 seen = []
 EXCLUDE = {'unknown', 'model', '<synthetic>'}
 def add(m):
@@ -42,7 +42,6 @@ def add(m):
         seen.append(m)
 for k, v in d.get('llms', {}).items():
     add(v.get('model', ''))
-for m in list(pricing.keys()): add(m)
 ccpriv = os.environ.get('CCPRIVATE_HOME', os.path.expanduser('~/git/ccprivate'))
 for f in glob.glob(os.path.join(ccpriv, 'usage', '*.csv')):
     try:
@@ -58,7 +57,7 @@ for f in glob.glob(os.path.expanduser('~/.claude/projects/*/*.jsonl')):
                 if m: add(m.group(1))
     except: pass
 for m in seen:
-    print(f"{m}\t{'✓' if m in pricing else ' '}")
+    print(m)
 PYEOF
 }
 
@@ -200,11 +199,11 @@ main() {
             case "$c" in
                 1)
                     local -a items=() names=()
-                    while IFS=$'\t' read -r m _; do
+                    while IFS= read -r m; do
                         [[ -z "$m" ]] && continue
                         items+=("$m")
                         names+=("$m")
-                    done < <(list_models_marked)
+                    done < <(list_models)
                     [[ ${#items[@]} -eq 0 ]] && { warn "  无已知模型"; return 0; }
                     items+=("返回上层")
                     local sel; sel=$(menu_select "选 model" "${items[@]}")
