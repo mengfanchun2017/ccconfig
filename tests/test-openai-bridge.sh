@@ -39,6 +39,8 @@ import sys, time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 class H(BaseHTTPRequestHandler):
+    disable_nagle_algorithm = True   # 关 Nagle，让小片真的以小片到达（复刻 curl.exe 分片）
+
     def do_POST(self):
         n = int(self.headers.get('Content-Length', 0) or 0)
         self.rfile.read(n)
@@ -62,6 +64,18 @@ class H(BaseHTTPRequestHandler):
             chunk('partial')          # 故意不写 [DONE]：模拟流被中途掐断
         elif mode == 'drop':
             pass                      # 立即断开：模拟 upstream 连接失败
+        elif mode == 'frag':
+            # 每 7 字节 flush 一次：复刻 curl.exe stdout / httpx aiter_text 的
+            # 随机分片边界（实测真实长流每次有 15-29 个切点落在行中间）。
+            # 必须 sleep 拉开时间：发太快会被接收端缓冲成整片，跨界就不复现了。
+            payload = b''
+            for t in ('He', 'llo', 'Wo', 'rld'):
+                payload += ('data: {"id":"1","choices":[{"delta":{"content":"%s"},"index":0}]}\n\n' % t).encode()
+            payload += b'data: [DONE]\n\n'
+            for i in range(0, len(payload), 7):
+                self.wfile.write(payload[i:i+7])
+                self.wfile.flush()
+                time.sleep(0.01)
 
     def log_message(self, *a):
         pass
@@ -195,6 +209,117 @@ if start_bridge "http://127.0.0.1:${MOCK_PORT}/normal/v1"; then
     fi
 else
     _fail "bridge 启动失败"
+fi
+
+# ── T6: 碎分片（data: 行被跨片切断）→ 正文与终止标记都不能丢 ──
+# 旧 bug：解析器对每个分片独立 split("\n")，片边界落在行中间时，那行不以
+# `data:` 开头 → 整行 continue 丢弃。丢 usage 事小，切中 `data: [DONE]` 就把
+# 终止标记丢了 → 误报 upstream_incomplete；切中正文则内容静默缺失。
+echo "T6 碎分片（7 字节一片）→ 正文完整 + message_stop"
+if start_bridge "http://127.0.0.1:${MOCK_PORT}/frag/v1"; then
+    out=$(request_stream); rc=$?
+    text=$(printf '%s' "$out" | extract_text)
+    if [[ "$text" == "HelloWorld" ]] && printf '%s' "$out" | grep -q 'message_stop'; then
+        _pass "跨片行已重组（text='$text' + message_stop）"
+    else
+        _fail "跨片行被丢弃" "期望 'HelloWorld'+message_stop，实得 text='$text' message_stop=$(printf '%s' "$out" | grep -c message_stop)"
+        printf '%s' "$out" | grep -q '"type":"error"' && _fail "误报 error（upstream_incomplete 的翻版）"
+        $VERBOSE && printf '%s\n' "$out" | head -8 | sed 's/^/      /'
+    fi
+else
+    _fail "bridge 启动失败"
+fi
+
+# ── T7: _iter_complete_lines 直接单测（确定性分片，不依赖 TCP 行为）──
+echo "T7 _iter_complete_lines 跨片重组"
+t7=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import asyncio, importlib.util, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+
+async def main():
+    async def gen(pieces):
+        for p in pieces: yield p
+    # 每行切成三片：断言缓冲能把残行拼回来
+    pieces = ['data: {"a"', ':1}\n', 'data: [DO', 'NE]\n', 'data: {"b":2}\n']
+    got = [c async for c in m._iter_complete_lines(gen(pieces))]
+    want = ['data: {"a":1}\n', 'data: [DONE]\n', 'data: {"b":2}\n']
+    if got != want:
+        print(f"FAIL: {got!r} != {want!r}"); return 1
+    # 无换行尾片不能吞掉
+    got2 = [c async for c in m._iter_complete_lines(gen(['abc', 'def']))]
+    if got2 != ['abcdef']:
+        print(f"FAIL tail: {got2!r}"); return 1
+    # 已是完整行时原样通过（不得多加/少加换行）
+    got3 = [c async for c in m._iter_complete_lines(gen(['a\nb\n']))]
+    if got3 != ['a\n', 'b\n']:
+        print(f"FAIL passthrough: {got3!r}"); return 1
+    print("OK"); return 0
+
+sys.exit(asyncio.run(main()))
+PYEOF
+)
+[[ "$t7" == "OK" ]] && _pass "跨片重组 / 尾片 / 原样透传 全通过" || _fail "_iter_complete_lines 行为不符" "$t7"
+
+# ── T8: 真实 win_curl 路径（curl.exe stdout 的 read(4096) 边界）──
+# T6 走 httpx，分片会被 http.client 对齐到 chunk 边界，跨界难复现；
+# win_curl 路径的管道读边界才是真随机的（实测真实长流每次 15-29 个跨界点）。
+echo "T8 win_curl 路径跨片重组"
+if command -v curl.exe &>/dev/null; then
+    t8=$(python3 - "$BRIDGE_PY" "$MOCK_PORT" <<'PYEOF'
+import asyncio, importlib.util, json, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+URL = "http://127.0.0.1:%s/frag/v1/chat/completions" % sys.argv[2]
+BODY = {"model": "t", "stream": True, "messages": [{"role": "user", "content": "hi"}]}
+
+def scan(parts):
+    done, buf = False, ""
+    for p in parts:
+        for line in p.split("\n"):
+            s = line.strip()
+            if not s.startswith("data:"):
+                continue
+            payload = s[5:].strip()
+            if payload == "[DONE]":
+                done = True
+                continue
+            try:
+                d = json.loads(payload)
+                buf += d["choices"][0]["delta"].get("content", "")
+            except Exception:
+                pass
+    return done, buf
+
+async def main():
+    raw = []
+    async for c in m._stream_via_win_curl(URL, {}, BODY, ""):
+        raw.append(c)
+    cross = sum(1 for c in raw if not c.endswith("\n"))
+    async def gen():
+        for c in raw: yield c
+    lines = [l async for l in m._iter_complete_lines(gen())]
+    r_done, r_text = scan(raw)
+    b_done, b_text = scan(lines)
+    print("SPLITS=%d CROSS=%d RAW_DONE=%s BUF_DONE=%s BUF_TEXT=%s"
+          % (len(raw), cross, r_done, b_done, b_text))
+
+asyncio.run(main())
+PYEOF
+)
+    echo "  $t8"
+    cross=$(printf '%s' "$t8" | sed -n 's/.*CROSS=\([0-9]*\).*/\1/p')
+    if [[ -z "$t8" ]]; then
+        _fail "win_curl 路径测试未产出结果" "模块无 _iter_complete_lines？"
+    elif [[ "${cross:-0}" -eq 0 ]]; then
+        _fail "未能构造跨界分片" "mock 发送间隔不够，测试无效（不是通过了）"
+    elif printf '%s' "$t8" | grep -q 'BUF_DONE=True' && printf '%s' "$t8" | grep -q 'BUF_TEXT=HelloWorld'; then
+        _pass "win_curl 跨界 $cross 处 → 缓冲后正文完整 + 终止标记齐全"
+    else
+        _fail "win_curl 路径跨片丢失" "$t8"
+    fi
+else
+    echo -e "  ${YELLOW}⏭${NC} 跳过（无 curl.exe：非 WSL/Windows 环境）"
 fi
 
 echo ""

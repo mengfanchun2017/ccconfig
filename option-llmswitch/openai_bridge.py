@@ -10,6 +10,7 @@ Usage:
 """
 import argparse
 import asyncio
+import codecs
 import json
 import os
 import re
@@ -312,6 +313,36 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
     return "".join(out) if out else None
 
 
+async def _iter_complete_lines(stream_iter):
+    """把任意字节边界的分片重组为完整行后再向下游吐。
+
+    why: curl.exe stdout / httpx aiter_text 的分片边界是随机的（实测长流每次有
+    15-29 个切点落在行中间）。被切开的行不以 `data:` 开头 → openai_chunk_to_anthropic_sse
+    整行 continue 丢弃：丢 usage 事小，切中 `data: [DONE]` 就把终止标记丢了 →
+    误报 upstream_incomplete；切中正文行则内容静默缺失。
+    行缓冲保证只有完整行才进解析器，不再依赖分片边界恰好落在换行上。
+    """
+    buf = ""
+    async for chunk in stream_iter:
+        if not chunk:
+            continue
+        buf += chunk
+        start = 0
+        while True:
+            nl = buf.find("\n", start)
+            if nl < 0:
+                break
+            yield buf[start:nl + 1]
+            start = nl + 1
+        buf = buf[start:]
+        # 上游永不发换行（非 SSE 响应体）时不能无限攒内存
+        if len(buf) > 1_048_576:
+            yield buf
+            buf = ""
+    if buf:
+        yield buf
+
+
 def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> dict:
     """非流式：OpenAI Chat Completions response → Anthropic message。"""
     choices = openai_body.get("choices", [])
@@ -442,7 +473,10 @@ async def _stream_via_win_curl(url: str, headers: dict, body: dict, host_header:
     """
     import asyncio
 
-    cmd = ["curl.exe", "-s", "-k", "-N", "--max-time", "300", "-X", "POST", url]
+    # --connect-timeout：连不上就快报错（默认无限制会一直挂着）
+    # --max-time 1800：长任务（整篇文档生成）常超 5 分钟，300s 会把正常流掐断成
+    #                  "no [DONE]" → 误报 upstream_incomplete
+    cmd = ["curl.exe", "-s", "-k", "-N", "--connect-timeout", "15", "--max-time", "1800", "-X", "POST", url]
     for hk, hv in headers.items():
         cmd += ["-H", f"{hk}: {hv}"]
     if host_header:
@@ -464,12 +498,20 @@ async def _stream_via_win_curl(url: str, headers: dict, body: dict, host_header:
     except Exception:
         pass
 
+    # 增量解码：分片可能切在多字节 UTF-8 序列中间，逐片 decode(errors="replace")
+    # 会把残字节变成 U+FFFD —— 中文每字 3 字节，4096 边界切中概率高，正文必现乱码
+    dec = codecs.getincrementaldecoder("utf-8")("replace")
     try:
         while True:
             chunk = await proc.stdout.read(4096)
             if not chunk:
                 break
-            yield chunk.decode("utf-8", errors="replace")
+            text = dec.decode(chunk)
+            if text:
+                yield text
+        tail = dec.decode(b"", True)
+        if tail:
+            yield tail
     finally:
         if proc.returncode is None:
             try:
@@ -562,13 +604,22 @@ async def messages(request: Request):
                 'event: message_stop\ndata: {"type":"message_stop"}\n\n'
             ) % (kind, msg)
 
+        def _render(chunk: str):
+            # SSE 注释（idle 心跳，`:` 开头）必须原样透传：喂给
+            # openai_chunk_to_anthropic_sse 会因不以 data: 开头被丢掉，
+            # 心跳等于没发，tailscale 75s idle 断流照样发生
+            if chunk.startswith(":"):
+                return chunk
+            return openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
+
         async def gen():
             # 捕获 upstream 间歇性超时/断连：log + 结束 stream，不让异常杀进程
             # Claude Code 收到不完整响应会自动重试，比 bridge 整个死掉强
             try:
                 if use_win_curl:
-                    async for chunk in _iter_with_idle_ping(_stream_via_win_curl(target_url, headers, upstream_body, host_header)):
-                        sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
+                    src = _stream_via_win_curl(target_url, headers, upstream_body, host_header)
+                    async for chunk in _iter_with_idle_ping(_iter_complete_lines(src)):
+                        sse_out = _render(chunk)
                         if sse_out:
                             yield sse_out
                 else:
@@ -579,11 +630,14 @@ async def messages(request: Request):
                         json=upstream_body,
                         extensions=extra_ext or None,
                     ) as r:
-                        async for chunk in _iter_with_idle_ping(r.aiter_text()):
-                            sse_out = openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
+                        async for chunk in _iter_with_idle_ping(_iter_complete_lines(r.aiter_text())):
+                            sse_out = _render(chunk)
                             if sse_out:
                                 yield sse_out
-            except httpx.TransportError as e:
+            except Exception as e:
+                # why Exception 而非 httpx.TransportError：win_curl 路径抛的是
+                # OSError/ConnectionResetError 之类，漏掉会让异常直接逃出 gen() ——
+                # 客户端既拿不到 error 事件也等不到 message_stop，表现为永久卡死
                 print(f"[bridge] upstream stream error: {type(e).__name__}: {e}", flush=True)
                 # yield SSE error event 让 Claude Code 立刻看到错误（不等 4 分钟）
                 sse_state["finished"] = True
