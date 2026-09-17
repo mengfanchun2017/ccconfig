@@ -15,6 +15,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 MOCK_PORT=18899
 BRIDGE_PORT=8897
+# 可注入其它版本便于验证测试自身的有效性
+BRIDGE_PY="${BRIDGE_PY:-$CCCONFIG_DIR/option-llmswitch/openai_bridge.py}"
 VERBOSE=false
 [[ "${1:-}" == "--verbose" || "${1:-}" == "-v" ]] && VERBOSE=true
 
@@ -78,7 +80,7 @@ start_bridge() {
     sleep 0.5
     env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
         OPENAI_BRIDGE_UPSTREAM="$base" OPENAI_BRIDGE_KEY="test-key" OPENAI_BRIDGE_MODEL="test-model" \
-        python3 "$CCCONFIG_DIR/option-llmswitch/openai_bridge.py" --port "$BRIDGE_PORT" \
+        python3 "$BRIDGE_PY" --port "$BRIDGE_PORT" \
         > "$WORKDIR/bridge.log" 2>&1 &
     BRIDGE_PID=$!
     for _ in $(seq 1 12); do
@@ -88,7 +90,10 @@ start_bridge() {
     return 1
 }
 
-# 发一个流式 Anthropic 请求，回显 SSE
+# 发流式 Anthropic 请求，回显 SSE。
+# 函数退出码即 curl 退出码：0=连接正常收完，18=传输被中途掐断。
+# why 必须看退出码：流被异常终止时，已发出的帧仍可能被 curl 收下，
+# 只查内容会漏判（这正是"探测 200 但实际挂"在测试层的翻版）。
 request_stream() {
     curl -sN --max-time 45 --noproxy '*' -X POST "http://127.0.0.1:${BRIDGE_PORT}/v1/messages" \
         -H "Content-Type: application/json" -H "anthropic-version: 2023-06-01" \
@@ -118,15 +123,15 @@ echo ""
 echo "═══ openai_bridge 流式链路回归测试 ═══"
 echo ""
 
-# ── T1: 流正常结束必须发 message_stop（旧 bug：RuntimeError 掐断整条流）──
-echo "T1 流正常结束 → 完整 SSE + message_stop"
+# ── T1: 流正常结束必须完整收完（旧 bug：RuntimeError 掐断连接）──
+echo "T1 流正常结束 → 连接正常收完 + 完整 SSE + message_stop"
 if start_bridge "http://127.0.0.1:${MOCK_PORT}/normal/v1"; then
-    out=$(request_stream)
+    out=$(request_stream); rc=$?
     text=$(printf '%s' "$out" | extract_text)
-    if printf '%s' "$out" | grep -q 'message_stop' && [[ "$text" == "Hello" ]]; then
-        _pass "收到完整流（text='$text' + message_stop）"
+    if [[ $rc -eq 0 ]] && printf '%s' "$out" | grep -q 'message_stop' && [[ "$text" == "Hello" ]]; then
+        _pass "连接干净收完（curl rc=0），text='$text' + message_stop"
     else
-        _fail "流不完整" "text='$text' message_stop=$(printf '%s' "$out" | grep -c message_stop)"
+        _fail "流不完整或被掐断" "curl rc=$rc text='$text' message_stop=$(printf '%s' "$out" | grep -c message_stop)"
         $VERBOSE && printf '%s\n' "$out" | head -8 | sed 's/^/      /'
     fi
 else
@@ -134,14 +139,14 @@ else
 fi
 
 # ── T2: 中途停顿后数据不能丢（旧 bug：wait_for 超时 cancel 掉 anext）──
-echo "T2 upstream 停顿 3s → 前后 chunk 都要收到"
+echo "T2 upstream 停顿 3s → 前后 chunk 都要收到且连接完整"
 if start_bridge "http://127.0.0.1:${MOCK_PORT}/stall/v1"; then
-    out=$(request_stream)
+    out=$(request_stream); rc=$?
     text=$(printf '%s' "$out" | extract_text)
-    if [[ "$text" == "AB" ]]; then
-        _pass "停顿前后数据无丢失（text='$text'）"
+    if [[ $rc -eq 0 ]] && [[ "$text" == "AB" ]]; then
+        _pass "停顿前后数据无丢失（curl rc=0, text='$text'）"
     else
-        _fail "数据丢失" "期望 'AB'，实得 '$text'"
+        _fail "数据丢失或连接异常" "curl rc=$rc 期望 'AB'，实得 '$text'"
         $VERBOSE && printf '%s\n' "$out" | head -10 | sed 's/^/      /'
     fi
 else
@@ -151,7 +156,7 @@ fi
 # ── T3: 截断流必须显式报错（不能只靠"缺少 message_stop"让人猜）──
 echo "T3 upstream 截断（无 [DONE]）→ 显式 error 事件"
 if start_bridge "http://127.0.0.1:${MOCK_PORT}/truncate/v1"; then
-    out=$(request_stream)
+    out=$(request_stream); rc=$?
     text=$(printf '%s' "$out" | extract_text)
     if printf '%s' "$out" | grep -q '"type":"error"'; then
         _pass "截断被显式报错（已收到 text='$text'）"
@@ -167,7 +172,7 @@ fi
 echo "T4 upstream 空响应 → 快速返回 + 显式 error，不挂死"
 if start_bridge "http://127.0.0.1:${MOCK_PORT}/drop/v1"; then
     start_ts=$(date +%s)
-    out=$(request_stream)
+    out=$(request_stream); rc=$?
     elapsed=$(( $(date +%s) - start_ts ))
     if [[ $elapsed -lt 30 ]] && printf '%s' "$out" | grep -q '"type":"error"'; then
         _pass "快速返回（${elapsed}s）并显式报错"
