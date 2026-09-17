@@ -371,87 +371,32 @@ EOF
 }
 
 gen_settings_json() {
-    cat > "$CCPRIVATE_DIR/link/settings.json" << 'EOF'
-{
-  "permissions": {
-    "allow": [
-      "Bash(*)",
-      "Edit(**/*)",
-      "Read(**/*)",
-      "WebFetch",
-      "Skill(*)",
-      "Agent"
-    ],
-    "deny": [
-      "WebSearch"
-    ],
-    "defaultMode": "auto"
-  }
-}
-EOF
-    ok "link/settings.json"
+    # 本机文件（LLM 选择 / 会话配置 / context 策略）不跨机同步，只放 .example 模板。
+    # setup.sh 首次运行时从这里 cp 一次，之后各机独立维护。详见 ADR-0032
+    mkdir -p "$CCPRIVATE_DIR/link"
+    local f
+    for f in settings.json .config.json .claudeignore; do
+        if [ -f "$SCRIPT_DIR/templates/$f.example" ]; then
+            cp "$SCRIPT_DIR/templates/$f.example" "$CCPRIVATE_DIR/link/$f.example"
+        else
+            warn "模板缺失: $SCRIPT_DIR/templates/$f.example"
+        fi
+    done
+    ok "link/*.example 本机文件模板"
 }
 
 
 gen_setup_sh() {
-    cat > "$CCPRIVATE_DIR/setup.sh" << 'SETUPEOF'
-#!/bin/bash
-# ccprivate — 私有配置注入脚本
-set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CCCONFIG_DIR="${CCCONFIG_DIR:-$HOME/git/ccconfig}"
-CLAUDE_DIR="$HOME/.claude"
-source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
-    GREEN='\033[0;32m'; BLUE='\033[0;34m'; CYAN='\033[0;36m'; YELLOW='\033[0;33m'; NC='\033[0m'
-    section(){ echo -e "\n${CYAN}=== $1 ===${NC}"; }
-    info(){ echo -e "${BLUE}ℹ️  $1${NC}"; }
-    ok(){ echo -e "${GREEN}✅ $1${NC}"; }
-    warn(){ echo -e "${YELLOW}⚠️  $1${NC}"; }
-}
-setup_link() {
-    local link="$1" target="$2" label="$3"
-    mkdir -p "$(dirname "$link")"
-    if [ -L "$link" ]; then
-        local existing expected
-        existing=$(readlink -f "$link" 2>/dev/null || true)
-        expected=$(readlink -f "$target" 2>/dev/null || true)
-        if [ "$existing" = "$expected" ] && [ -n "$existing" ]; then
-            info "$label: 已链接"
-            return 0
-        fi
-        rm -f "$link"
-    elif [ -e "$link" ]; then
-        rm -rf "$link"
+    # 单一真相源 templates/ccprivate-setup.sh：bootstrap 与 upgrade 共用，
+    # 避免多份内嵌副本漂移（曾出现"新机建 symlink、老机建本机文件"互相打架）
+    local tpl="$SCRIPT_DIR/templates/ccprivate-setup.sh"
+    if [ ! -f "$tpl" ]; then
+        warn "模板缺失 $tpl，跳过 setup.sh 生成"
+        return 0
     fi
-    ln -s "$target" "$link"
-    ok "$label"
-}
-section "用户级链接"
-setup_link "$HOME/CLAUDE.md"           "$SCRIPT_DIR/link/CLAUDE.md"     "~/CLAUDE.md"
-setup_link "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/link/settings.json" "~/.claude/settings.json"
-setup_link "$CLAUDE_DIR/.config.json"  "$SCRIPT_DIR/link/.config.json"  "~/.claude/.config.json"
-setup_link "$HOME/.lark-default-account" "$SCRIPT_DIR/link/.lark-default-account" ".lark-default-account"
-setup_link "$CLAUDE_DIR/.claudeignore"  "$SCRIPT_DIR/link/.claudeignore"  "~/.claude/.claudeignore"
-setup_link "$CLAUDE_DIR/commands/should-compact.md" "$CCCONFIG_DIR/commands/should-compact.md" "~/.claude/commands/should-compact.md"
-mkdir -p "$SCRIPT_DIR/skill-local"
-[ -f "$SCRIPT_DIR/skill-local/.gitkeep" ] || touch "$SCRIPT_DIR/skill-local/.gitkeep"
-section "用户级记忆"
-_cconfig_id="$(echo "$HOME/git/ccconfig" | tr '/' '-')"
-mkdir -p "$SCRIPT_DIR/link/memory"
-[ -f "$SCRIPT_DIR/link/memory/.gitkeep" ] || touch "$SCRIPT_DIR/link/memory/.gitkeep"
-setup_link "$CLAUDE_DIR/projects/$_cconfig_id/memory" "$SCRIPT_DIR/link/memory" "memory → ccprivate/link/memory"
-unset _cconfig_id
-section "运行时链接"
-[ -d "$SCRIPT_DIR/rules" ] && setup_link "$CLAUDE_DIR/rules" "$SCRIPT_DIR/rules" "rules → ccprivate/rules"
-[ -d "$SCRIPT_DIR/agents" ] && setup_link "$CLAUDE_DIR/agents" "$SCRIPT_DIR/agents" "agents → ccprivate/agents"
-[ -d "$SCRIPT_DIR/commands" ] && setup_link "$CLAUDE_DIR/commands" "$SCRIPT_DIR/commands" "commands → ccprivate/commands"
-section "ccconfig 公开链接"
-[ -x "$CCCONFIG_DIR/lib/setup-links.sh" ] && bash "$CCCONFIG_DIR/lib/setup-links.sh" || warn "ccconfig/lib/setup-links.sh 不存在"
-echo ""
-ok "ccprivate setup 完成"
-SETUPEOF
+    cp "$tpl" "$CCPRIVATE_DIR/setup.sh"
     chmod +x "$CCPRIVATE_DIR/setup.sh"
-    ok "setup.sh"
+    ok "setup.sh（来自 templates/ccprivate-setup.sh）"
 }
 
 # ============================================================

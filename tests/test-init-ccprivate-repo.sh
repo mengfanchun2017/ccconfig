@@ -126,15 +126,14 @@ grep -qE '请填入|请替换|your.key|placeholder|changeme' "$EXAMPLE" \
 
 # ── Test 8+: 结构回归测试（修复的 bug 不复发） ──
 _REAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCRIPT="$_REAL_DIR/init-ccprivate-repo.sh"
+SCRIPT="$_REAL_DIR/init-bootstrap.sh"
+SETUP_TPL="$_REAL_DIR/templates/ccprivate-setup.sh"
 
 echo "=== Test 8: ensure_gh_cli binary mkdir ==="
 grep -A3 'local tmp="/tmp/gh-install-$$"' "$SCRIPT" | grep -q 'mkdir -p "$tmp"' \
   && pass "binary 安装路径有 mkdir -p" || fail "binary 路径缺 mkdir"
 
-echo "=== Test 9: ensure_gh_cli 跳过项 case ==="
-grep -q '0|3)' "$SCRIPT" \
-  && pass "跳过项(序号3)有 case 0|3" || fail "跳过项无 case 分支"
+echo "=== Test 9: 死代码回归 ==="
 grep -q '\[\[ "\$install_choice" == "" \]\]' "$SCRIPT" \
   && fail "仍有死代码 == '' 兼容" || pass "已删 == '' 死代码"
 
@@ -143,12 +142,12 @@ echo "=== Test 10: check_gh_auth confirm 不反转 ==="
 grep -q 'confirm "SSH 已够用，跳过 gh 登录？"' "$SCRIPT" \
   && pass "SSH confirm 文案正确（y=跳过）" || fail "SSH confirm 文案错误/反转"
 
-echo "=== Test 11: A/B 菜单 cancel 处理 ==="
-grep -A20 'login_method=\$(menu_select' "$SCRIPT" | grep -q '0)' \
-  && pass "A/B 菜单有 0) cancel 分支" || fail "A/B 菜单 cancel 落 *) 走 PAT"
+echo "=== Test 11: 认证方式菜单 cancel 处理 ==="
+grep -A20 'method=\$(menu_select "认证方式"' "$SCRIPT" | grep -q '0)' \
+  && pass "认证菜单有 0) cancel 分支" || fail "认证菜单 cancel 落 *) 走 PAT"
 
 echo "=== Test 12: gh auth login || true ==="
-count=$(grep -c 'gh auth login --with-token.*|| true\|gh auth login --web.*|| true\|gh auth login --with-token --hostname github.com || true' "$SCRIPT")
+count=$(grep -c 'gh auth login.*|| true' "$SCRIPT")
 [ "$count" -ge 2 ] \
   && pass "gh auth login 有 || true（$count 处）" || fail "gh auth login 缺 || true（set -e 会杀脚本）"
 
@@ -166,21 +165,26 @@ awk '/menu_select "默认 LLM"/{f=1} f{print} /esac/{if(f)exit}' "$SCRIPT" > "$T
 grep -q '0)' "$TMPDIR/llm-case.txt" \
   && pass "LLM 菜单有 0) cancel（防 set -u 崩）" || fail "LLM 菜单无 cancel 分支"
 
-echo "=== Test 15: gen_setup_sh 链接完整性 ==="
-# gen_setup_sh heredoc 内应含真实 setup.sh 的关键链接（整文件 grep，模式唯一）
-grep -q '.lark-default-account' "$SCRIPT" \
-  && pass "gen_setup_sh 含 .lark-default-account" || fail "gen_setup_sh 缺 .lark-default-account"
-grep -q '.claudeignore' "$SCRIPT" \
-  && pass "gen_setup_sh 含 .claudeignore" || fail "gen_setup_sh 缺 .claudeignore"
-grep -q 'skill-local' "$SCRIPT" \
-  && pass "gen_setup_sh 含 skill-local" || fail "gen_setup_sh 缺 skill-local"
-grep -q "tr '/' '-'" "$SCRIPT" \
-  && pass "gen_setup_sh memory 用 tr 动态 ID" || fail "gen_setup_sh memory 未用 tr 动态 ID"
-grep -q 'should-compact' "$SCRIPT" \
-  && pass "gen_setup_sh 含 should-compact" || fail "gen_setup_sh 缺 should-compact"
-# gateway 已删除，生成器不应再建 llmswitch.json 链接（反向断言，防回潮）
-grep -q 'llmswitch' "$SCRIPT" \
-  && fail "gen_setup_sh 仍含已废弃的 llmswitch" || pass "gen_setup_sh 不含 llmswitch（gateway 已清）"
+echo "=== Test 15: setup.sh 模板完整性 ==="
+# setup.sh 内容住在 templates/ccprivate-setup.sh（唯一真相源），
+# init-bootstrap.sh 与 lib/ccprivate-upgrade.sh 都 cp 它，不再各自内嵌
+grep -q '.lark-default-account' "$SETUP_TPL" \
+  && pass "模板含 .lark-default-account" || fail "模板缺 .lark-default-account"
+grep -q '.claudeignore' "$SETUP_TPL" \
+  && pass "模板含 .claudeignore" || fail "模板缺 .claudeignore"
+grep -q 'skill-local' "$SETUP_TPL" \
+  && pass "模板含 skill-local" || fail "模板缺 skill-local"
+grep -q "tr '/' '-'" "$SETUP_TPL" \
+  && pass "模板 memory 用 tr 动态 ID" || fail "模板 memory 未用 tr 动态 ID"
+grep -q 'should-compact' "$SETUP_TPL" \
+  && pass "模板含 should-compact" || fail "模板缺 should-compact"
+# 反向断言：本机文件必须走 install_user_file（symlink 会跨机覆盖），且不再内嵌副本
+grep -q 'install_user_file' "$SETUP_TPL" \
+  && pass "模板用 install_user_file 建本机文件" || fail "模板未用 install_user_file"
+grep -q 'cp "\$tpl" "\$CCPRIVATE_DIR/setup.sh"' "$SCRIPT" \
+  && pass "gen_setup_sh 走 cp 模板（防内嵌副本漂移）" || fail "gen_setup_sh 未走模板"
+grep -q 'llmswitch' "$SETUP_TPL" \
+  && fail "模板仍含已废弃的 llmswitch" || pass "模板不含 llmswitch（gateway 已清）"
 
 echo "=== Test 16: do_update eval shlex.quote ==="
 grep -A8 'eval "\$(LLM_SRC=' "$SCRIPT" | grep -q 'shlex' \
