@@ -82,7 +82,7 @@ flowchart LR
 
 | 候选 | WSL 网络栈隔离 | 探测/实际一致性 | 自愈 | 延迟开销 | 复杂度 |
 |------|----------------|------------------|------|----------|--------|
-| **bridge + win_curl（当前）** | ✅ 解决 | ⚠️ 差（5KB 探 vs 600KB 实际）| 中（2.5min 空窗）| ~50ms | 低 |
+| **bridge + win_curl（当前）** | ✅ 解决 | ✅ 已修（探测走真实流式链路）| 好（四层守护）| ~50ms | 低 |
 | Tailscale Subnet Router | ❌ WSL 看不到路由表 | 好 | 好 | ~0.4s | 中 |
 | Tailscale Serve HTTPS | ✅ 已废弃（ADR-0017 superseded by 0016） | — | — | — | — |
 | Cloudflare Tunnel | ✅ 出站 | 好 | 好 | +80-200ms | 中 |
@@ -251,18 +251,19 @@ ensure_bridge <upstream> <model> <key> <host_header>
 ### 4. bridge watchdog 状态机
 
 ```
-while true (30s):
+while true:
     /health = GET :8898/health
-    ├─ 空响应（bridge 死）→ fail_count=0 → bridge-restart.sh → sleep 5
-    └─ 有响应 → 解析 current_upstream
-        └─ 主动探 upstream HTTP code (5s)
-            ├─ 200 → fail_count=0 → sleep 30
-            └─ 000 → fail_count++
-                ├─ fail_count < 5 → sleep 30
-                └─ fail_count >= 5 → bridge-restart.sh → fail_count=0
+    ├─ 有响应 → fail=0 → sleep 10
+    └─ 空响应（bridge 死）→ fail++ → bridge-restart.sh（按当前 preset）
+                          → sleep min(5 × 2^(fail-1), 60)
 ```
 
-> 当前 watchdog 阈值 5 次 × 30s = 2.5min 空窗。[增强 5] 改为 3 次 × 10s + 指数退避。
+`bridge-restart.sh` 每次现场读 `llm-current` + `llm.json` 取配置；当前 preset
+不需要 bridge（直连 / `use_bridge:false`）时直接返回，不拉起。
+
+> **不做 upstream 主动探测**：探测失败 ≠ bridge 故障，重启修不了网络问题，
+> 反而会杀掉正在服务的进程、打断进行中的请求。旧版靠它"自愈"，实际把
+> 用户刚切好的 preset 覆盖掉了。
 
 ## 九、不在本工具范围
 
@@ -290,8 +291,15 @@ while true (30s):
 
 ## 十一、未来工作
 
-1. **落地 §五 三个稳定性增强**（~80 行代码，1-2 周）
-2. **删 §七 删减清单**（~1790 行移除）
-3. **init-llm-bill 简化为用量读取**（菜单 `2E` 读 `ccprivate/usage/*.csv`，按 model + day 聚合）
-4. **altllm preset 合并**：4 个 → 2 个（office 直连 + tail 含 `--use-win-curl` + `host_header`）
-5. **ADR-0029**：把本文件核心决策正式化为 ADR
+已完成（2026-09-17）：
+- ~~删 §七 删减清单（gateway 整层，-1619 行）~~
+- ~~init-llm-bill 简化为用量读取（按 model + day 聚合 CSV）~~
+- ~~preset 合并（office-* / home-*）~~
+- ~~ADR-0029 / ADR-0030 落地~~
+- ~~§五 可靠性：四层守护模型 + 真实链路探测 + 回归测试~~
+
+待办：
+1. **合并 `verify_endpoint` 与 `test_llm`** —— 现存两个探测函数（114 行 / 64 行）行为不一致：`verify_endpoint` 对 bridge 只探 `/health`，`test_llm` 走完整流式。切换路径应复用同一套流式判据，否则"切换时探测不到位"的残余风险还在。
+2. **评估 `switch_custom` / `edit_preset` 的必要性**（合计 ~130 行）—— 若实际都靠手改 `llm.json` + 菜单选，可移除。
+3. **`show_status` 与 `status.sh` 的 LLM 段去重**。
+4. **是否把 `tests/test-init-llm.sh` 重写为当前架构**（现标记过时，gateway 时代用例；bridge 部分已由 `test-openai-bridge.sh` 覆盖）。
