@@ -148,15 +148,27 @@ else:
     final = ''
     print(f"\033[1;33m  Key: 未配置\033[0m")
 
-# 写 llm.json（保留 key 同步，不写 current——current 在本地 llm-current）
+# 写 llm.json —— 保留 key 同步，但只在内容真变化时落盘
+# why 幂等：无条件重写会让每次切换都 MODIFY 文件，触发 auto-sync 全仓 debounce
+# + pull/push 网络往返；且 A 机写出的内容会 push 给 B 机造成跨机覆盖
 cfg = os.environ['CONFIG_FILE']
 with open(cfg) as f: d = json.load(f)
 if final:
     llms = d.setdefault('llms', {})
     if os.environ['NAME'] in llms:
         llms[os.environ['NAME']]['key'] = final
-with open(cfg, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
-print("llm.json 已更新（provider key）")
+# current 归属本地 llm-current，清掉历史残留字段（本机选择不跨机同步）
+d.pop('current', None)
+blob = json.dumps(d, indent=4, ensure_ascii=False)
+try:
+    with open(cfg) as f: old = f.read()
+except OSError:
+    old = None
+if old == blob:
+    print("llm.json 无变化，跳过写入")
+else:
+    with open(cfg, 'w') as f: f.write(blob)
+    print("llm.json 已更新（provider key）")
 
 # 写 settings.json env + 顶层 model
 env_upd = {
@@ -191,11 +203,11 @@ PYEOF
 # 同步 settings.json 顶层 model 为 env.ANTHROPIC_MODEL（修 /model 污染）
 sync_top_model() {
     python3 - <<'PYEOF'
-import json, os
+import json, os, sys
 sf = os.path.expanduser("~/.claude/settings.json")
 try:
     with open(sf) as f: d = json.load(f)
-except: sys.exit(0)
+except Exception: sys.exit(0)
 em = d.get('env', {}).get('ANTHROPIC_MODEL', '')
 tm = d.get('model', '')
 if em and em != tm:
