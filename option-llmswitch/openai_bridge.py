@@ -599,10 +599,16 @@ async def messages(request: Request):
                 pump.cancel()
 
         def _error_frames(kind: str, msg: str) -> str:
-            return (
-                'event: error\ndata: {"type":"error","error":{"type":"%s","message":"%s"}}\n\n'
-                'event: message_stop\ndata: {"type":"message_stop"}\n\n'
-            ) % (kind, msg)
+            # 用 json.dumps 而非 % 拼接：msg 可能来自上游错误原文，含引号/反斜杠时
+            # 直接插值会产出非法 JSON 帧，客户端解析失败就只剩"流断了"
+            payload = json.dumps(
+                {"type": "error", "error": {"type": kind, "message": msg}},
+                ensure_ascii=False,
+            )
+            return f"event: error\ndata: {payload}\n\n" + 'event: message_stop\ndata: {"type":"message_stop"}\n\n'
+
+        # 留一份原始响应头段，用于区分"真截断"和"上游回的根本不是 SSE"
+        raw_buf = [""]
 
         def _render(chunk: str):
             # SSE 注释（idle 心跳，`:` 开头）必须原样透传：喂给
@@ -610,6 +616,8 @@ async def messages(request: Request):
             # 心跳等于没发，tailscale 75s idle 断流照样发生
             if chunk.startswith(":"):
                 return chunk
+            if len(raw_buf[0]) < 4096:
+                raw_buf[0] += chunk
             return openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
 
         async def gen():
@@ -647,8 +655,16 @@ async def messages(request: Request):
             # why: 否则客户端只拿到半条流且无从判断，探测也只能靠"缺少 message_stop"
             #      间接推断；显式 error 让两边都能确定地识别失败
             if not sse_state.get("finished"):
-                print("[bridge] upstream stream ended without [DONE] (truncated or empty)", flush=True)
-                yield _error_frames("upstream_incomplete", "upstream stream ended without completion marker")
+                if "data:" not in raw_buf[0] and raw_buf[0].strip():
+                    # 一整个 data: 行都没出现过 → upstream 回的不是 SSE。
+                    # one-api 类网关对"模型无可用渠道/额度不足"就是 HTTP 200 + 裸 JSON
+                    # error，报 upstream_incomplete 会把人引向查网络，其实是上游拒绝
+                    detail = raw_buf[0].strip()[:500]
+                    print(f"[bridge] upstream returned non-SSE body: {detail}", flush=True)
+                    yield _error_frames("upstream_error", detail)
+                else:
+                    print("[bridge] upstream stream ended without [DONE] (truncated or empty)", flush=True)
+                    yield _error_frames("upstream_incomplete", "upstream stream ended without completion marker")
         return StreamingResponse(gen(), media_type="text/event-stream")
     else:
         if use_win_curl:
@@ -659,6 +675,10 @@ async def messages(request: Request):
                 openai_json = json.loads(r_text)
             except Exception:
                 return JSONResponse({"error": "upstream non-json", "body": r_text[:500]}, status_code=502)
+            # 网关 HTTP 200 + {"error":...} 拒绝（无可用渠道/额度不足）时，
+            # openai_to_anthropic_resp 会产出空消息，表现为"模型不说话"而非报错
+            if isinstance(openai_json, dict) and "error" in openai_json:
+                return JSONResponse({"error": "upstream_error", "body": r_text[:500]}, status_code=502)
             anth = openai_to_anthropic_resp(openai_json)
             return JSONResponse(anth)
         try:
@@ -675,6 +695,8 @@ async def messages(request: Request):
             openai_json = r.json()
         except Exception:
             return JSONResponse({"error": "upstream non-json", "body": r.text[:500]}, status_code=502)
+        if isinstance(openai_json, dict) and "error" in openai_json:
+            return JSONResponse({"error": "upstream_error", "body": r.text[:500]}, status_code=502)
         anth = openai_to_anthropic_resp(openai_json)
         return JSONResponse(anth)
 
