@@ -460,6 +460,16 @@ test_llm() {
     out=$(cat "$body_file" 2>/dev/null); rm -f "$body_file"
     [[ -z "$http_code" ]] && http_code="000"
 
+    # 上游饱和/限流：网关后端容量不足时回 429，或经 bridge 转成
+    # HTTP 200 + error 事件里的 TooManyRequests。链路本身是通的 → 不能中止切换，
+    # 否则上游一忙就切不动 preset（症状：切换时"偶尔报 429"、settings.json 不更新）。
+    # 注意流式响应经 bridge 后 http_code 恒为 200，必须从 body 识别，不能只看状态码。
+    if printf '%s' "$out" | grep -qE '"TooManyRequests"|负载已饱和'; then
+        warn "⚠ 上游负载饱和（429）— 链路通，非本机/配置问题"
+        warn "  网关侧容量限流，稍后自动恢复；继续切换"
+        return 0
+    fi
+
     if printf '%s' "$out" | grep -q "$expect" && ! printf '%s' "$out" | grep -q '"type":"error"'; then
         success "✓ 流式链路完整（收到 $expect）— '$target' 可用"
         return 0
@@ -467,6 +477,7 @@ test_llm() {
     case "$http_code" in
         000) error "✗ 不可达 — $probe_url"
              error "  查 DNS / 出口 / VPN（内网 preset 在家不可达是正常的，切 home preset）" ;;
+        429) warn "⚠ HTTP 429 — 链路通，上游负载饱和（网关侧限流）"; return 0 ;;
         401|403) warn "⚠ HTTP $http_code — 链路通但鉴权失败（key 可能无效）"; return 0 ;;
         *)   if printf '%s' "$out" | grep -q '"type":"error"'; then
                  error "✗ 流式链路报错（upstream 中断或被截断）"
