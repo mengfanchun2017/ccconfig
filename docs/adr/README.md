@@ -39,6 +39,7 @@
 | [0028](0028-unified-cli-entry.md) | 统一 CLI 入口 — bin/ccconfig subcommand 路由 | 2026-09-03 | ✅ Accepted | CLI 基础设施 |
 | [0029](0029-init-llm-target-2026.md) | init-llm 目标文档化 + 删 gateway 整层 + 3 个稳定性增强 + bill 简化为用量读取 + 合并 altllm preset 4→2 | 2026-09-17 | ✅ Accepted | LLM 管理 |
 | [0030](0030-gateway-deprecation-2026.md) | Gateway 模式废弃（option-llmswitch 整层删除），保留 ADR + 恢复路径 | 2026-09-17 | ✅ Accepted | LLM 管理 |
+| [0031](0031-init-llm-consolidation-2026.md) | init-llm 收敛：修桥接链路 P0（流式包装器/transport/守护层）+ 探测统一 + 四层守护模型 + 删交互式编辑 | 2026-09-17 | ✅ Accepted | LLM 管理 |
 
 > ADR 收录门槛见 [「何时写 ADR」](#何时写-adr)。轻量变更（bug fix / 单文件重构 / 样式调整）只在下方「决策时间线」一行记录。
 
