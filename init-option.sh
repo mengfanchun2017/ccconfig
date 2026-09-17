@@ -35,14 +35,10 @@ CLI_DESC["glow"]="终端 Markdown 渲染阅读"
 # 格式: "group_title|item1 item2 ..."
 MENU_GROUPS=(
     "--CLI--|batcat glow"
-    "--Claude--|mcp skill usage llmswitch"
+    "--Claude--|mcp skill usage"
     "--飞书--|larkcli"
     "--其他--|officecli remote cloudflare getnote"
 )
-
-# 自动管理的项：状态展示但不可 toggle
-declare -A AUTO_MANAGED
-AUTO_MANAGED["llmswitch"]="由 init-llm 自动启停（按 provider 切换）"
 
 has_init_script() {
     [ -f "$SCRIPT_DIR/option-$1/init.sh" ]

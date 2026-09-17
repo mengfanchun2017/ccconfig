@@ -433,7 +433,6 @@ setup_link "$CLAUDE_DIR/.config.json"  "$SCRIPT_DIR/link/.config.json"  "~/.clau
 setup_link "$HOME/.lark-default-account" "$SCRIPT_DIR/link/.lark-default-account" ".lark-default-account"
 setup_link "$CLAUDE_DIR/.claudeignore"  "$SCRIPT_DIR/link/.claudeignore"  "~/.claude/.claudeignore"
 setup_link "$CLAUDE_DIR/commands/should-compact.md" "$CCCONFIG_DIR/commands/should-compact.md" "~/.claude/commands/should-compact.md"
-setup_link "$HOME/git/ccconfig/option-llmswitch/conf/llmswitch.json" "$SCRIPT_DIR/conf/llmswitch.json" "llmswitch.json"
 mkdir -p "$SCRIPT_DIR/skill-local"
 [ -f "$SCRIPT_DIR/skill-local/.gitkeep" ] || touch "$SCRIPT_DIR/skill-local/.gitkeep"
 section "用户级记忆"
