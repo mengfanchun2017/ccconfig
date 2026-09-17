@@ -91,25 +91,31 @@ setup_link() {
 # ============================================================
 section "用户级链接"
 setup_link "$HOME/CLAUDE.md"           "$SCRIPT_DIR/link/CLAUDE.md"     "~/CLAUDE.md"
-setup_link "$CLAUDE_DIR/.config.json"  "$SCRIPT_DIR/link/.config.json"  "~/.claude/.config.json"
 setup_link "$HOME/.lark-default-account" "$SCRIPT_DIR/link/.lark-default-account" ".lark-default-account → ccprivate"
-setup_link "$CLAUDE_DIR/.claudeignore"  "$SCRIPT_DIR/link/.claudeignore"  "~/.claude/.claudeignore"
 setup_link "$CLAUDE_DIR/commands/should-compact.md" "$CCCONFIG_DIR/commands/should-compact.md" "~/.claude/commands/should-compact.md"
 
-# settings.json 不再 symlink → ccprivate（避免 llm 配置跨机覆盖）
-# 首次 setup 时 cp 模板；已存在则跳过，各机独立维护
-SF="$CLAUDE_DIR/settings.json"
-mkdir -p "$(dirname "$SF")"
-if [ -L "$SF" ]; then
-    rm -f "$SF"
-    cp "$SCRIPT_DIR/link/settings.json" "$SF"
-    ok "settings.json: symlink 转独立文件"
-elif [ ! -f "$SF" ]; then
-    cp "$SCRIPT_DIR/link/settings.json" "$SF"
-    ok "settings.json: 已复制（来自 ccprivate/link/）"
-else
-    info "settings.json: 已存在，跳过"
-fi
+# 以下三文件是本机状态（LLM 选择 / 会话配置 / context 策略），symlink 会跨机覆盖
+# （A 机切换 → push → B 机 pull 后被顶掉）。改成本机文件，仅首次从模板 cp
+install_user_file() {
+    local dst="$1" tpl="$2" desc="$3"
+    mkdir -p "$(dirname "$dst")"
+    if [ ! -f "$tpl" ]; then
+        warn "$desc: 模板缺失 $tpl，跳过"
+    elif [ -L "$dst" ]; then
+        rm -f "$dst"
+        cp "$tpl" "$dst"
+        ok "$desc: symlink 转本机文件"
+    elif [ ! -f "$dst" ]; then
+        cp "$tpl" "$dst"
+        ok "$desc: 已从模板创建"
+    else
+        info "$desc: 已存在，跳过"
+    fi
+}
+
+install_user_file "$CLAUDE_DIR/.config.json"  "$SCRIPT_DIR/link/.config.json.example"  ".config.json"
+install_user_file "$CLAUDE_DIR/.claudeignore" "$SCRIPT_DIR/link/.claudeignore.example" ".claudeignore"
+install_user_file "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/link/settings.json.example" "settings.json"
 
 # ============================================================
 # 2. ccconfig 私有配置 — 由 resolve_conf() 直接读 ccprivate/conf/
@@ -221,7 +227,22 @@ Go/Rust: go, gofmt, cargo, rustc
 编辑器: code, vim, nvim, nano
 其他: awk, sed, cut, tr, make, cmake, docker, kubectl, tmux, screen'
 
-LINK_SETTINGS_JSON='{
+# settings.json 只放 LLM env（本机文件，不入同步）；permissions 归 .config.json
+LINK_SETTINGS_JSON_EXAMPLE='{
+  "env": {
+    "ANTHROPIC_BASE_URL": "请填入你的 LLM API 地址",
+    "ANTHROPIC_MODEL": "请填入模型名",
+    "ANTHROPIC_AUTH_TOKEN": "请填入你的 API Key",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "请填入小模型名",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "ENABLE_PROMPT_CACHING_1H": "1"
+  },
+  "model": "请填入模型名"
+}
+'
+
+LINK_DOT_CONFIG_JSON_EXAMPLE='{
   "permissions": {
     "allow": [
       "Bash(*)",
@@ -237,9 +258,6 @@ LINK_SETTINGS_JSON='{
     "defaultMode": "auto"
   }
 }
-'
-
-LINK_DOT_CONFIG_JSON='{}
 '
 
 # ═══════════════════════════════════════════════════════════════
@@ -387,13 +405,14 @@ fix_link_content() {
         echo "$LINK_CLAUDE_MD" > "$CCPRIVATE/link/CLAUDE.md"
         ok "创建: link/CLAUDE.md"
     fi
-    if [ ! -f "$CCPRIVATE/link/settings.json" ]; then
-        echo "$LINK_SETTINGS_JSON" > "$CCPRIVATE/link/settings.json"
-        ok "创建: link/settings.json"
+    # settings.json / .config.json 是本机文件（跨机同步会互相覆盖），只放模板
+    if [ ! -f "$CCPRIVATE/link/settings.json.example" ]; then
+        echo "$LINK_SETTINGS_JSON_EXAMPLE" > "$CCPRIVATE/link/settings.json.example"
+        ok "创建: link/settings.json.example"
     fi
-    if [ ! -f "$CCPRIVATE/link/.config.json" ]; then
-        echo "$LINK_DOT_CONFIG_JSON" > "$CCPRIVATE/link/.config.json"
-        ok "创建: link/.config.json"
+    if [ ! -f "$CCPRIVATE/link/.config.json.example" ]; then
+        echo "$LINK_DOT_CONFIG_JSON_EXAMPLE" > "$CCPRIVATE/link/.config.json.example"
+        ok "创建: link/.config.json.example"
     fi
 }
 
