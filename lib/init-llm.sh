@@ -550,7 +550,7 @@ _llm_status_header() {
     fi
 
     # 一次 python 取齐：预设显示名/model + settings.json 的 env.ANTHROPIC_BASE_URL
-    local display model sf_url
+    local display model sf_url st _ub um st _ub um
     IFS='|' read -r display model sf_url < <(CUR="$current" CONFIG_FILE="$CONFIG_FILE" python3 - << 'PYEOF'
 import json, os
 d = json.load(open(os.environ['CONFIG_FILE']))
