@@ -445,7 +445,7 @@ check_option_components() {
         "--os--|bat glow nano"
         "--claude--|mcp skill"
         "--lark--|larkcli ccbridge"
-        "--other--|$(ls -d "$REPO_DIR"/option-*/ 2>/dev/null | xargs -n1 basename | sed 's/^option-//' | grep -vE '^(larkcli|usage|getnote|llmswitch|officecli|remote|cloudflare)$' | tr '\n' ' ')"
+        "--other--|$(ls -d "$REPO_DIR"/option-*/ 2>/dev/null | xargs -n1 basename | sed 's/^option-//' | grep -vE '^(larkcli|usage|getnote|officecli|remote|cloudflare)$' | tr '\n' ' ')"
         "--key--|feishu_key"
     )
 
@@ -479,7 +479,7 @@ check_option_components() {
     done
 
     # 自动发现的 option 不在分组中的也显示
-    local handled="mcp skill larkcli ccbridge officecli remote cloudflare usage getnote llmswitch feishu_key bat glow nano"
+    local handled="mcp skill larkcli ccbridge officecli remote cloudflare usage getnote feishu_key bat glow nano"
     for name in "${auto_opts[@]}"; do
         if ! echo " $handled " | grep -q " $name "; then
             found=$((found + 1))
@@ -668,9 +668,15 @@ check_example_sync() {
 }
 
 # ========== bridge 自愈（会话启动时自动恢复） ==========
-# Claude 重启后，bridge 进程可能因系统重启或手动清理消失。自动检测并拉起。
-# 简化后仅处理 OpenAI-only 端点的 bridge；SSH 隧道场景已废弃（8311f46）。
-# 未配置 bridge 预设的用户 grep 短路，零开销。
+# watchdog 只守护运行时；系统/WSL 重启后 watchdog 与 bridge 一起消失，靠这里兜冷启动。
+# 未用 bridge 的用户（settings.json 不含 127.0.0.1:8898）在 selfheal_bridge 内短路，零开销。
+_bridge_cold_start() {
+    local cfg
+    cfg=$(resolve_conf llm.json 2>/dev/null) || return 0
+    [[ -n "$cfg" && -f "$cfg" ]] || return 0
+    source "$SCRIPT_DIR/ensure-bridge.sh"
+    selfheal_bridge "$cfg" || true
+}
 
 # ========== 执行所有检查 ==========
 
@@ -683,6 +689,7 @@ fi
 echo ""
 
 git_pull
+_bridge_cold_start
 check_symlinks
 check_ccprivate_structure
 check_deps_quick
