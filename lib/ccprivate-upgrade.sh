@@ -29,147 +29,6 @@ done
 
 # ── v3 setup.sh 模板 ──
 # 与 ccprivate/setup.sh 当前版本保持一致（heredoc 避免单引号转义）
-SETUP_SH_V3=$(cat <<'CCPRIVATE_SETUP_EOF'
-#!/bin/bash
-# ccprivate — 私有配置注入脚本
-#
-# 职责（v3）：
-#   1. 用户级文件 symlink → ~/ 和 ~/.claude/
-#   2. 触发 ccconfig 公开部分链接（agents/rules/commands/skills）
-#   (ccconfig 脚本通过 resolve_conf() 直接读 ccprivate/conf/，无需中间目录)
-#
-# 私有数据分类：
-#   link/       — 用户级（CLAUDE.md、settings.json、.config.json）
-#   conf/       — API key/token（ccconfig 通过 resolve_conf() 直接读）
-#
-# 用法：
-#   bash ~/git/ccprivate/setup.sh
-
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CCCONFIG_DIR="${CCCONFIG_DIR:-$HOME/git/ccconfig}"
-CLAUDE_DIR="$HOME/.claude"
-
-# 从 ccconfig 借 colors.sh；缺失时用本地 ANSI 兜底
-source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
-    GREEN='\033[0;32m'
-    BLUE='\033[0;34m'
-    CYAN='\033[0;36m'
-    YELLOW='\033[0;33m'
-    NC='\033[0m'
-
-    section() { echo -e "\n${CYAN}=== $1 ===${NC}"; }
-    info()    { echo -e "${BLUE}ℹ️  $1${NC}"; }
-    ok()      { echo -e "${GREEN}✅ $1${NC}"; }
-    warn()    { echo -e "${YELLOW}⚠️  $1${NC}"; }
-}
-
-setup_link() {
-    local link="$1"
-    local target="$2"
-    local label="$3"
-    mkdir -p "$(dirname "$link")"
-    if [ -L "$link" ]; then
-        local existing expected
-        existing=$(readlink -f "$link" 2>/dev/null || true)
-        expected=$(readlink -f "$target" 2>/dev/null || true)
-        if [ "$existing" = "$expected" ] && [ -n "$existing" ]; then
-            info "$label: 已链接"
-            return 0
-        fi
-        rm -f "$link"
-    elif [ -e "$link" ]; then
-        rm -rf "$link"
-    fi
-    ln -s "$target" "$link"
-    ok "$label"
-}
-
-# ============================================================
-# 1. 用户级 ~/ 链接（直连 ccprivate/link/）
-# ============================================================
-section "用户级链接"
-setup_link "$HOME/CLAUDE.md"           "$SCRIPT_DIR/link/CLAUDE.md"     "~/CLAUDE.md"
-setup_link "$HOME/.lark-default-account" "$SCRIPT_DIR/link/.lark-default-account" ".lark-default-account → ccprivate"
-setup_link "$CLAUDE_DIR/commands/should-compact.md" "$CCCONFIG_DIR/commands/should-compact.md" "~/.claude/commands/should-compact.md"
-
-# 以下三文件是本机状态（LLM 选择 / 会话配置 / context 策略），symlink 会跨机覆盖
-# （A 机切换 → push → B 机 pull 后被顶掉）。改成本机文件，仅首次从模板 cp
-install_user_file() {
-    local dst="$1" tpl="$2" desc="$3"
-    mkdir -p "$(dirname "$dst")"
-    if [ ! -f "$tpl" ]; then
-        warn "$desc: 模板缺失 $tpl，跳过"
-    elif [ -L "$dst" ]; then
-        rm -f "$dst"
-        cp "$tpl" "$dst"
-        ok "$desc: symlink 转本机文件"
-    elif [ ! -f "$dst" ]; then
-        cp "$tpl" "$dst"
-        ok "$desc: 已从模板创建"
-    else
-        info "$desc: 已存在，跳过"
-    fi
-}
-
-install_user_file "$CLAUDE_DIR/.config.json"  "$SCRIPT_DIR/link/.config.json.example"  ".config.json"
-install_user_file "$CLAUDE_DIR/.claudeignore" "$SCRIPT_DIR/link/.claudeignore.example" ".claudeignore"
-install_user_file "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/link/settings.json.example" "settings.json"
-
-# ============================================================
-# 2. ccconfig 私有配置 — 由 resolve_conf() 直接读 ccprivate/conf/
-#    无需中间目录。ccconfig/ 零 symlink。
-# ============================================================
-info "ccconfig 私有配置: ccconfig 脚本通过 resolve_conf() 直接读 ccprivate/conf/"
-
-# 私有 skill 实体目录（不开源，跨机器同步）
-mkdir -p "$SCRIPT_DIR/skill-local"
-[ -f "$SCRIPT_DIR/skill-local/.gitkeep" ] || touch "$SCRIPT_DIR/skill-local/.gitkeep"
-info "私有 skill 目录: $SCRIPT_DIR/skill-local/（用户自建 skill 存放处）"
-
-# ============================================================
-# 3. 用户级 memory symlink（动态计算 project ID，不硬编码用户名）
-# ============================================================
-section "用户级记忆"
-_cconfig_id="$(echo "$HOME/git/ccconfig" | tr '/' '-')"
-setup_link "$CLAUDE_DIR/projects/$_cconfig_id/memory" "$SCRIPT_DIR/link/memory" "memory → ccprivate/link/memory"
-unset _cconfig_id
-
-# ============================================================
-# 4. 运行时链接（rules/agents/commands → ccprivate，用户可自定义）
-# ============================================================
-section "运行时链接"
-if [ -d "$SCRIPT_DIR/rules" ]; then
-    setup_link "$CLAUDE_DIR/rules" "$SCRIPT_DIR/rules" "rules → ccprivate/rules"
-fi
-if [ -d "$SCRIPT_DIR/agents" ]; then
-    setup_link "$CLAUDE_DIR/agents" "$SCRIPT_DIR/agents" "agents → ccprivate/agents"
-fi
-if [ -d "$SCRIPT_DIR/commands" ]; then
-    setup_link "$CLAUDE_DIR/commands" "$SCRIPT_DIR/commands" "commands → ccprivate/commands"
-fi
-
-# ============================================================
-# 5. ccconfig 公开部分（shell_init.sh + pre-commit hook）
-# ============================================================
-section "ccconfig 公开链接"
-if [ -x "$CCCONFIG_DIR/lib/setup-links.sh" ]; then
-    bash "$CCCONFIG_DIR/lib/setup-links.sh"
-else
-    warn "ccconfig/lib/setup-links.sh 不存在，跳过（请确认 ccconfig 已 clone）"
-fi
-
-# 注册私有 skill 到 ~/.claude/skills/
-if [ -x "$CCCONFIG_DIR/lib/init-skill.sh" ] && [ -d "$SCRIPT_DIR/skill-local" ] && ls "$SCRIPT_DIR/skill-local"/*/ &>/dev/null; then
-    info "注册私有 skill → ~/.claude/skills/"
-    bash "$CCCONFIG_DIR/lib/init-skill.sh" link-only
-fi
-
-echo ""
-ok "ccprivate setup 完成"
-CCPRIVATE_SETUP_EOF
-)
 
 # ── link/ 文件模板 ──
 LINK_CLAUDE_MD='# Claude Code 用户配置
@@ -228,37 +87,7 @@ Go/Rust: go, gofmt, cargo, rustc
 其他: awk, sed, cut, tr, make, cmake, docker, kubectl, tmux, screen'
 
 # settings.json 只放 LLM env（本机文件，不入同步）；permissions 归 .config.json
-LINK_SETTINGS_JSON_EXAMPLE='{
-  "env": {
-    "ANTHROPIC_BASE_URL": "请填入你的 LLM API 地址",
-    "ANTHROPIC_MODEL": "请填入模型名",
-    "ANTHROPIC_AUTH_TOKEN": "请填入你的 API Key",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "请填入小模型名",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
-    "ENABLE_PROMPT_CACHING_1H": "1"
-  },
-  "model": "请填入模型名"
-}
-'
 
-LINK_DOT_CONFIG_JSON_EXAMPLE='{
-  "permissions": {
-    "allow": [
-      "Bash(*)",
-      "Edit(**/*)",
-      "Read(**/*)",
-      "WebFetch",
-      "Skill(*)",
-      "Agent"
-    ],
-    "deny": [
-      "WebSearch"
-    ],
-    "defaultMode": "auto"
-  }
-}
-'
 
 # ═══════════════════════════════════════════════════════════════
 # 检测函数
@@ -331,7 +160,7 @@ check_setup_sh_version() {
     fi
 
     # 结构不同但无明确 v2 特征 → 可能是用户修改版
-    if ! diff -q <(echo "$SETUP_SH_V3") "$CCPRIVATE/setup.sh" &>/dev/null; then
+    if ! diff -q "$CCCONFIG_DIR/templates/ccprivate-setup.sh" "$CCPRIVATE/setup.sh" &>/dev/null; then
         echo -e "  ${YELLOW}⚠${NC}  setup.sh 与当前模板不同（可能已自定义）"
         return 1
     fi
@@ -390,14 +219,18 @@ fix_directories() {
 }
 
 fix_setup_sh() {
-    local bak="$CCPRIVATE/setup.sh.bak.$(date +%Y%m%d)"
-    if [ -f "$CCPRIVATE/setup.sh" ]; then
-        cp "$CCPRIVATE/setup.sh" "$bak"
-        info "已备份: setup.sh → setup.sh.bak.$(date +%Y%m%d)"
+    local tpl="$CCCONFIG_DIR/templates/ccprivate-setup.sh"
+    if [ ! -f "$tpl" ]; then
+        err "模板缺失 $tpl，无法更新 setup.sh"
+        return 1
     fi
-    echo "$SETUP_SH_V3" > "$CCPRIVATE/setup.sh"
+    if [ -f "$CCPRIVATE/setup.sh" ]; then
+        cp "$CCPRIVATE/setup.sh" "$CCPRIVATE/setup.sh.bak.$(date +%Y%m%d)"
+        info "已备份: setup.sh.bak.$(date +%Y%m%d)"
+    fi
+    cp "$tpl" "$CCPRIVATE/setup.sh"
     chmod +x "$CCPRIVATE/setup.sh"
-    ok "setup.sh 已更新到 v3"
+    ok "setup.sh 已更新（来自 templates/ccprivate-setup.sh）"
 }
 
 fix_link_content() {
@@ -405,15 +238,16 @@ fix_link_content() {
         echo "$LINK_CLAUDE_MD" > "$CCPRIVATE/link/CLAUDE.md"
         ok "创建: link/CLAUDE.md"
     fi
-    # settings.json / .config.json 是本机文件（跨机同步会互相覆盖），只放模板
-    if [ ! -f "$CCPRIVATE/link/settings.json.example" ]; then
-        echo "$LINK_SETTINGS_JSON_EXAMPLE" > "$CCPRIVATE/link/settings.json.example"
-        ok "创建: link/settings.json.example"
-    fi
-    if [ ! -f "$CCPRIVATE/link/.config.json.example" ]; then
-        echo "$LINK_DOT_CONFIG_JSON_EXAMPLE" > "$CCPRIVATE/link/.config.json.example"
-        ok "创建: link/.config.json.example"
-    fi
+    # 本机文件（LLM 选择/会话配置/context 策略）不跨机同步，只放 .example 模板
+    local f
+    for f in settings.json .config.json .claudeignore; do
+        if [ -f "$CCCONFIG_DIR/templates/$f.example" ]; then
+            cp "$CCCONFIG_DIR/templates/$f.example" "$CCPRIVATE/link/$f.example"
+        else
+            warn "模板缺失: $CCCONFIG_DIR/templates/$f.example"
+        fi
+    done
+    ok "link/*.example 模板就绪"
 }
 
 fix_symlinks() {
