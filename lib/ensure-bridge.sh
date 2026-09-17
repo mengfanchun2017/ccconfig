@@ -14,100 +14,39 @@ BRIDGE_WD_LOG="$HOME/.cache/bridge-watchdog.log"
 
 _bridge_wd_log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$BRIDGE_WD_LOG"; }
 
-# bridge watchdog：30s 检查，挂了调用 bridge-restart.sh 重启
-# 被 ensure_bridge 成功后在后台启动
-# why: 不再 exec 替换（旧版 exec 后 watchdog 死、只救一次）；改成循环调 bridge-restart.sh
-# bridge-restart.sh 不再选路径（preset 已绑死环境），只重启同配置 bridge
-# 参数: upstream model key host_header cfg preset
+# bridge watchdog：只守护进程存活 —— bridge 没了就按「当前」preset 拉起
+#
+# why 不做 upstream 主动探测：探测失败 ≠ bridge 故障。网络断了重启 bridge 修不了，
+#     反而杀掉正在服务的进程、打断进行中的请求（旧版就是这么把好 bridge 换掉的）。
+# why 每轮读 llm-current 而非启动时绑参：watchdog wrapper 是启动时一次性生成的，
+#     绑参后切 preset 会拿旧 upstream 覆盖用户刚选的 preset。
+# 参数: cfg(llm.json 路径)
 start_bridge_watchdog() {
-    local upstream="$1" model="$2" key="$3" host_header="${4:-}"
-    local cfg="${5:-}" preset="${6:-}"
-    # 已有 watchdog 在跑 → 跳过
-    if [[ -f "$BRIDGE_WD_PID" ]]; then
-        local old_pid
-        old_pid=$(cat "$BRIDGE_WD_PID" 2>/dev/null) || true
-        if [[ -n "$old_pid" ]] && kill -0 "$old_pid" 2>/dev/null; then
-            return 0
-        fi
-        rm -f "$BRIDGE_WD_PID"
-    fi
+    local cfg="${1:-}"
+    local initial_preset="${2:-}"
+    [[ -z "$cfg" ]] && return 0
 
-    # upstream 健康探测：读 bridge 当前 upstream，对该 URL 做轻量 GET（任何 HTTP 响应=可达，000=不可达）
-    # 失败 N 次连续 → 触发 bridge-restart.sh 重启（同 upstream/model/key，preset 已绑死环境）
-    # why: 之前 watchdog 只查 /health 看进程死活，bridge 没死但 upstream 间歇 529/timeout 时无人救
-    local fail_threshold="${BRIDGE_WD_FAIL_THRESH:-3}"   # 连续失败次数门槛（10s × 3 = 30s 空窗，比原 2.5min 缩 5×）
-    local big_probe_interval="${BRIDGE_WD_BIG_PROBE_SEC:-300}"  # 大 body 探测间隔（根治"探测 OK 但实际挂"）
+    # 无条件清掉残留（旧版只认 PID 文件，被覆盖/失联的老 watchdog 会永久残留）
+    stop_bridge_watchdog >/dev/null 2>&1 || true
+
     local wrapper="$HOME/.cache/bridge-watchdog-$RANDOM-$$.sh"
     cat > "$wrapper" << WDEOF
 #!/bin/bash
-fail_count=0
-last_big_probe=0
+fail=0
 while true; do
-    h=\$(curl -s --max-time 3 http://127.0.0.1:${BRIDGE_PORT}/health 2>/dev/null) || h=''
-
-    # bridge 死了：清零 + 重启
-    if [[ -z "\$h" ]]; then
-        fail_count=0
-        if [[ -n "${cfg}" && -n "${preset}" ]]; then
-            bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${preset}" "${model}" "${key}" "${upstream}" "${host_header}" "${BRIDGE_PORT}" >> "${BRIDGE_WD_LOG}" 2>&1 || true
-        else
-            old=\$( { lsof -ti :${BRIDGE_PORT} 2>/dev/null || true; } | head -1 || true)
-            [[ -n "\$old" ]] && kill "\$old" 2>/dev/null || true
-            sleep 1
-            cd "${CCCONFIG_ROOT}" || exit 1
-            env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \\
-                OPENAI_BRIDGE_UPSTREAM="${upstream}" OPENAI_BRIDGE_KEY="${key}" OPENAI_BRIDGE_MODEL="${model}" OPENAI_BRIDGE_HOST="${host_header}" \\
-                python3 option-llmswitch/openai_bridge.py --port ${BRIDGE_PORT} \$( [[ "${upstream}" == https:* ]] && echo '--skip-tls-verify' ) \$( command -v curl.exe &>/dev/null && [[ "${upstream}" =~ ://(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.|100\\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\.) ]] && echo '--use-win-curl' || true ) >> "${BRIDGE_WD_LOG}" 2>&1 &
-            disown 2>/dev/null || true
-        fi
-        sleep 5
+    if curl -s --max-time 3 http://127.0.0.1:${BRIDGE_PORT}/health >/dev/null 2>&1; then
+        [[ \$fail -gt 0 ]] && echo "[\$(date '+%Y-%m-%d %H:%M:%S')] bridge 恢复 (第 \${fail} 次重试)" >> "${BRIDGE_WD_LOG}"
+        fail=0
+        sleep ${BRIDGE_WD_INTERVAL:-10}
         continue
     fi
-
-    # bridge 活着：主动探 upstream 是否可达（任何非 000 都算通）
-    # why: /health 只证明进程活，upstream 路由质量差时 bridge 会返回 529 给客户端
-    # 单次探测可能抖一下，连续 ${fail_threshold} 次失败才触发重启避免误杀
-    cur_up=\$(echo "\$h" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
-    if [[ -n "\$cur_up" ]]; then
-        code=\$(curl -sk --max-time 5 -o /dev/null -w "%{http_code}" "\$cur_up" </dev/null 2>/dev/null) || code="000"
-        if [[ "\$code" == "000" ]]; then
-            fail_count=\$((fail_count + 1))
-            echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 探测失败 (\$code) 第\${fail_count}次: \$cur_up" >> "${BRIDGE_WD_LOG}"
-            if (( fail_count >= ${fail_threshold} )) && [[ -n "${cfg}" && -n "${preset}" ]]; then
-                echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 连续失败 ≥${fail_threshold} 次，重启 bridge (同路径)" >> "${BRIDGE_WD_LOG}"
-                bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${preset}" "${model}" "${key}" "${upstream}" "${host_header}" "${BRIDGE_PORT}" >> "${BRIDGE_WD_LOG}" 2>&1 || true
-                fail_count=0
-                sleep 5
-                continue
-            fi
-        else
-            [[ \$fail_count -gt 0 ]] && echo "[\$(date '+%Y-%m-%d %H:%M:%S')] upstream 恢复 (\$code), fail_count 清零" >> "${BRIDGE_WD_LOG}"
-            fail_count=0
-        fi
-
-        # 大 body 探活（根治"探测 OK 但实际挂"）—— 仅 log + counter，不触发重启
-        # why: Claude 真实请求 600KB+ 时 SNI cert 重传/MTU fragmentation/TCP slow start 重传 5+ 次才成功，
-        #      短探（100B）完全发现不了；大 body 探命中也不重启避免抖动误杀
-        # 5min 一次，模拟 Claude Code 真实请求尺寸
-        now=\$(date +%s)
-        if (( now - last_big_probe >= ${big_probe_interval} )); then
-            big_body='{"model":"${model}","max_tokens":16,"messages":[{"role":"user","content":"'"\$(printf 'x%.0s' {1..128000})"'"}]}'
-            big_code=\$(curl -sk --max-time 15 -o /dev/null -w "%{http_code}" -H "Content-Type: application/json" -H "Authorization: Bearer ${key}" -X POST "\$cur_up/chat/completions" -d "\$big_body" 2>/dev/null) || big_code="000"
-            echo "[\$(date '+%Y-%m-%d %H:%M:%S')] big-body 探测 (~128KB) 返 \$big_code: \$cur_up" >> "${BRIDGE_WD_LOG}"
-            last_big_probe=\$now
-        fi
-    fi
-
-    # 指数退避：失败 sleep 10s/20s/40s 增长（避免频繁 restart 浪费握手）
-    # why: 上游瞬断时短间隔重探只会浪费 TCP 握手，让 fail_count 触发后重启更划算
-    if (( fail_count > 0 )); then
-        sleep_sec=\$(( 10 * (1 << (fail_count - 1)) ))  # 10/20/40/80s
-        [[ \$sleep_sec -gt 60 ]] && sleep_sec=60
-        sleep \$sleep_sec
-    else
-        sleep 10
-    fi
-    sleep 30
+    fail=\$((fail + 1))
+    echo "[\$(date '+%Y-%m-%d %H:%M:%S')] bridge 无响应，按当前 preset 拉起 (第 \${fail} 次)" >> "${BRIDGE_WD_LOG}"
+    # 传本 wrapper 启动时的 preset 作 fallback：llm-current 缺失时仍能兜住
+    bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${initial_preset}" >> "${BRIDGE_WD_LOG}" 2>&1 || true
+    sleep_sec=\$(( 5 * (1 << (fail - 1)) ))
+    [[ \$sleep_sec -gt 60 ]] && sleep_sec=60
+    sleep \$sleep_sec
 done
 WDEOF
     chmod +x "$wrapper"
@@ -115,18 +54,25 @@ WDEOF
     local wd_pid=$!
     disown "$wd_pid" 2>/dev/null || true
     echo "$wd_pid" > "$BRIDGE_WD_PID"
-    _bridge_wd_log "watchdog 启动 (PID: $wd_pid) cfg=${cfg} preset=${preset}"
+    _bridge_wd_log "watchdog 启动 (PID: $wd_pid) cfg=${cfg} preset=${initial_preset:-<llm-current>}"
 }
 
 stop_bridge_watchdog() {
-    if [[ ! -f "$BRIDGE_WD_PID" ]]; then return 0; fi
-    local wd_pid
-    wd_pid=$(cat "$BRIDGE_WD_PID" 2>/dev/null) || true
-    if [[ -n "$wd_pid" ]]; then
-        kill "$wd_pid" 2>/dev/null || true
-        _bridge_wd_log "watchdog 停止 (PID: $wd_pid)"
+    if [[ -f "$BRIDGE_WD_PID" ]]; then
+        local wd_pid
+        wd_pid=$(cat "$BRIDGE_WD_PID" 2>/dev/null) || true
+        if [[ -n "$wd_pid" ]]; then
+            kill "$wd_pid" 2>/dev/null || true
+            _bridge_wd_log "watchdog 停止 (PID: $wd_pid)"
+        fi
+        rm -f "$BRIDGE_WD_PID"
     fi
-    rm -f "$BRIDGE_WD_PID"
+    # PID 文件失联/被覆盖时兜底（pattern 用 [[]] 避免 pgrep 匹配到自己这条命令）
+    local p
+    for p in $(pgrep -f "bridge-watchdo[g]-" 2>/dev/null || true); do
+        [[ "$p" == "$$" ]] && continue
+        kill "$p" 2>/dev/null || true
+    done
 }
 
 _bridge_supported() {
@@ -163,11 +109,12 @@ ensure_bridge() {
     # WSL2 MTU 1280 杀 tailscale 大包 — https://github.com/tailscale/tailscale/issues/4833
     # 家里场景：WSL eth0 默认 MTU 1280，WireGuard overhead 让 1500-byte packet 被 silent drop
     # why: 理论上 tailscale 链路所有 HTTPS 请求都可能撞，特别是大 body（SSE 流 + 长 context）
-    if [[ -f /proc/sys/fs/ostype ]] && grep -qi 'microsoft' /proc/sys/fs/ostype 2>/dev/null; then
-        if command -v ip >/dev/null 2>&1 && ip link show eth0 2>/dev/null | grep -q 'mtu 1280'; then
-            warn "  ⚠ WSL2 默认 MTU 1280 检测到，tailscale 大包可能挂"
-            warn "    修：echo 'ip link set eth0 mtu 1500' | sudo tee -a /etc/wsl.conf [boot] command"
-        fi
+    # why uname 而非 /proc/sys/fs/ostype：后者在标准内核里不存在，旧写法是死代码从不触发
+    if [[ "$(uname -r)" == *microsoft* ]] \
+       && command -v ip >/dev/null 2>&1 \
+       && ip link show eth0 2>/dev/null | grep -q 'mtu 1280'; then
+        warn "  ⚠ WSL2 默认 MTU 1280，tailscale 大包可能被静默丢弃"
+        warn "    修：/etc/wsl.conf 加 [boot] command=\"ip link set eth0 mtu 1500\" 后 wsl --shutdown"
     fi
 
     # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
@@ -178,7 +125,7 @@ ensure_bridge() {
         local cur_upstream
         cur_upstream=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
         if [[ "$cur_upstream" == "$upstream" ]]; then
-            start_bridge_watchdog "$upstream" "$model" "$key" "$host_header" "$cfg" "$preset"
+            start_bridge_watchdog "$cfg" "$preset"
             return 0
         fi
         info "  upstream 变化 ($cur_upstream → $upstream)，重启 bridge..."
@@ -233,7 +180,7 @@ WRAPEOF
     done
     rm -f "$wrapper"
 
-    [[ -n "$h" ]] && start_bridge_watchdog "$upstream" "$model" "$key" "$host_header" "$cfg" "$preset"
+    [[ -n "$h" ]] && start_bridge_watchdog "$cfg" "$preset"
 }
 
 # 仅自愈：env 指向 127.0.0.1:8898 但 bridge 死了时拉起

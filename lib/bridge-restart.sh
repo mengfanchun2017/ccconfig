@@ -1,20 +1,43 @@
 #!/bin/bash
-# bridge-restart.sh — 重启 openai_bridge.py（同 upstream/model/key）
-# 被 bridge watchdog / selfheal 调用：环境变了需手动切 preset，restart 不再选路
+# bridge-restart.sh — 按当前 preset 重启 openai_bridge.py
 #
-# 用法: bridge-restart.sh <cfg> <preset> <model> <key> <upstream> <host_header> <port>
-# 返回：后台启动 bridge 进程，自身退出
+# 用法: bridge-restart.sh <llm.json> [<preset>]
+#   preset 省略时读 ~/.claude/llm-current
+# 返回: 0=已就绪 / 当前 preset 不需要 bridge；1=配置或启动失败
+#
+# why 自动读配置：旧版从调用方命令行取 upstream/model/key，而 watchdog 是启动时
+# 一次性生成 wrapper 的，切 preset 后老 watchdog 仍用旧 upstream 重启 bridge，把
+# 用户刚选的 preset 覆盖掉（在家切 tailscale 后被换成单位地址 → 全挂）。
 
 set -uo pipefail
 
 CCCONFIG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-cfg="${1:-}" preset="${2:-}" model="${3:-}" key="${4:-}"
-up="${5:-}" hh="${6:-}" port="${7:-${BRIDGE_PORT:-8898}}"
+cfg="${1:-}"
+[[ -z "$cfg" || ! -f "$cfg" ]] && exit 1
+preset="${2:-}"
+[[ -z "$preset" ]] && preset="$(tr -d '[:space:]' < "$HOME/.claude/llm-current" 2>/dev/null || true)"
+[[ -z "$preset" ]] && exit 0
 
-[[ -z "$cfg" || -z "$preset" || -z "$model" || -z "$key" || -z "$up" ]] && exit 1
+# 读 preset 配置；use_bridge 三态 → true/false/空
+IFS='|' read -r use_bridge up model key hh <<< "$(python3 - "$cfg" "$preset" <<'PY'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    print("|||"); raise SystemExit(0)
+llm = d.get('llms', {}).get(sys.argv[2], {})
+ub = llm.get('use_bridge')
+flag = 'true' if ub is True else ('false' if ub is False else '')
+print(f"{flag}|{llm.get('base_url','')}|{llm.get('model','')}|{llm.get('key','')}|{llm.get('host_header','')}")
+PY
+)"
 
-# kill 端口旧进程
+# 当前 preset 不走 bridge（直连/显式 false/字段缺失）→ 不是故障，不拉起
+[[ "$use_bridge" != "true" ]] && exit 0
+[[ -z "$up" || -z "$key" || -z "$model" ]] && exit 1
+
+port="${BRIDGE_PORT:-8898}"
 old=$( { lsof -ti :"$port" 2>/dev/null || true; } | head -1 || true)
 [[ -n "$old" ]] && kill "$old" 2>/dev/null || true
 sleep 1
@@ -32,3 +55,4 @@ env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u al
     python3 option-llmswitch/openai_bridge.py --port "$port" $extra_args $win_curl \
     >> "$HOME/.cache/openai_bridge.log" 2>&1 &
 disown 2>/dev/null || true
+exit 0
