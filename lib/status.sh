@@ -49,21 +49,20 @@ check_symlinks() {
 
     local issues=0
 
-    # settings.json — 独立文件（非 symlink），每机 LLM 配置独立
-    if [ -f "$HOME/.claude/settings.json" ]; then
-        echo -e "  ${GREEN}✅${NC} settings.json（独立 LLM 配置）"
-    else
-        echo -e "  ${RED}❌${NC} settings.json"
-        issues=$((issues + 1))
-    fi
-
-    # .config.json
-    if [ -L "$HOME/.claude/.config.json" ] && [ -e "$HOME/.claude/.config.json" ]; then
-        echo -e "  ${GREEN}✅${NC} .config.json"
-    else
-        echo -e "  ${RED}❌${NC} .config.json"
-        issues=$((issues + 1))
-    fi
+    # 本机组 —— LLM 选择 / 会话配置 / context 策略，每机独立文件，
+    # symlink 回 ccprivate 才是错的（A 机切换会 push 覆盖 B 机）
+    local f
+    for f in settings.json .config.json .claudeignore; do
+        if [ -L "$HOME/.claude/$f" ]; then
+            echo -e "  ${YELLOW}○${NC} $f（被 symlink 回 ccprivate，会跨机覆盖）"
+            issues=$((issues + 1))
+        elif [ -f "$HOME/.claude/$f" ]; then
+            echo -e "  ${GREEN}✅${NC} $f（本机）"
+        else
+            echo -e "  ${RED}❌${NC} $f（缺失，跑 ccprivate/setup.sh）"
+            issues=$((issues + 1))
+        fi
+    done
 
     # CLAUDE.md
     if [ -L "$HOME/CLAUDE.md" ] && [ -e "$HOME/CLAUDE.md" ]; then
