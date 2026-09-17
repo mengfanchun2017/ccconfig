@@ -515,20 +515,43 @@ async def messages(request: Request):
     if stream:
         sse_state = {"started": False, "block_open": False, "finished": False}
 
-        async def _iter_with_idle_ping(stream_iter):
-            """包装 stream：每 15s 无 chunk 时 yield ': ping\n\n' 心跳注释（Anthropic SDK 忽略）
-            根治流式中断：upstream 不发 token 时（agent 等 tool call 30-60s）撞 tailscale 75s /
-            AWS ALB 60s / Cloudflare 100s idle cap 必断。why: SDK SSE 解析只看 data: 行，注释跳过。
+        async def _iter_with_idle_ping(stream_iter, idle=15.0):
+            """upstream 静默 idle 秒后注入 SSE 注释心跳（`:` 开头，Anthropic SDK 忽略）。
+
+            why: agent 等 tool call 时 upstream 可能 30-60s 不发 token，撞 tailscale 75s /
+            AWS ALB 60s / Cloudflare 100s idle cap 会被中间设备断流。
+
+            why queue+pump task：绝不能对 anext() 套 asyncio.wait_for —— 超时 cancel 会把
+            async generator 直接弄死（剩余 chunk 全丢），且迭代结束的 StopAsyncIteration
+            从 async generator 内冒出会被 CPython 转成 RuntimeError 掐断整条流。
             """
-            last_chunk_at = time.time()
-            while True:
+            q: asyncio.Queue = asyncio.Queue()
+            _DONE = object()
+
+            async def _pump():
                 try:
-                    chunk = await asyncio.wait_for(anext(stream_iter), timeout=15.0)
-                    last_chunk_at = time.time()
-                    yield chunk
-                except asyncio.TimeoutError:
-                    if time.time() - last_chunk_at >= 5.0:
+                    async for chunk in stream_iter:
+                        await q.put(chunk)
+                except BaseException as e:  # 原样转交调用方（httpx.TransportError 等）
+                    await q.put(e)
+                finally:
+                    await q.put(_DONE)
+
+            pump = asyncio.create_task(_pump())
+            try:
+                while True:
+                    try:
+                        item = await asyncio.wait_for(q.get(), timeout=idle)
+                    except asyncio.TimeoutError:
                         yield ": ping\n\n"
+                        continue
+                    if item is _DONE:
+                        return
+                    if isinstance(item, BaseException):
+                        raise item
+                    yield item
+            finally:
+                pump.cancel()
 
         async def gen():
             # 捕获 upstream 间歇性超时/断连：log + 结束 stream，不让异常杀进程
@@ -602,7 +625,17 @@ async def reload(request: Request):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", **state}
+    # 不回 upstream_key 明文（旧版直接 **state 把 API key 吐给任何能访问端口的人）
+    return {
+        "status": "ok",
+        "upstream": state.get("upstream", ""),
+        "upstream_model": state.get("upstream_model", ""),
+        "upstream_host": state.get("upstream_host", ""),
+        "upstream_original": state.get("upstream_original", ""),
+        "upstream_key_set": bool(state.get("upstream_key")),
+        "use_win_curl": state.get("use_win_curl", False),
+        "skip_tls_verify": state.get("skip_tls_verify", False),
+    }
 
 
 def main():
