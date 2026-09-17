@@ -235,6 +235,7 @@ switch_llm() {
 
     local config
     config=$(get_llm_config "$name") || { error "未知预设: $name"; return 1; }
+    local base_url model key small
     IFS='|' read -r base_url model key small <<< "$config"
 
     # host_header（tailscale/SSH 透传场景：证书 SAN 签的是单位内网 IP，客户端连的是跳板机 IP → SNI+Host 改回单位 IP）
@@ -393,6 +394,9 @@ test_llm() {
     [[ -z "$target" ]] && { error "用法: init-llm.sh test <preset>"; return 1; }
     local config
     config=$(get_llm_config "$target") || { error "未知预设: $target"; return 1; }
+    # why local：bash 动态作用域下，不加 local 的 read 会改写调用者（switch_llm）的同名变量，
+    # 把已设好的 bridge 地址覆盖回上游地址 → settings.json 写成 OpenAI 端点直连必挂
+    local base_url model key
     IFS='|' read -r base_url model key _ <<< "$config"
     local host_header; host_header=$(get_provider_host_header "$target")
 
