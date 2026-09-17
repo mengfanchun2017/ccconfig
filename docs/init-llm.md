@@ -43,16 +43,23 @@ flowchart LR
 
 | 能力 | 子命令 / 菜单 | 状态 | 说明 |
 |------|---------------|------|------|
-| 切换 preset | `bash init-llm.sh <name>` | ✅ 保留 | 写 settings.json env 块 + llm-current |
-| 状态诊断 | `bash init-llm.sh status` | ✅ 保留 | 链路 + bridge + gateway（未来删）状态 |
-| 单点探测 | `bash init-llm.sh test <name>` | ✅ 保留 | 非破坏，curl POST + 看 HTTP code |
-| 批量探测 | `bash init-llm.sh test all` | ✅ 保留 | 一键看所有 preset 可用性 |
-| 增/改/删 preset | 菜单 `2A / 2B / 2C` | ✅ 保留 | 写 llm.json |
-| 用量统计 | 菜单 `2E` | 🔧 改 | **新**：读 `ccprivate/usage/*.csv`，不再输入价格 |
-| ~~Gateway 路由~~ | 菜单 `2D` | ❌ 删 | proxy.py 整套 2131 行 移除 |
-| ~~token 价格输入~~ | `bash init-llm.sh bill` | ❌ 删 | 仅记用量，价格由上游账单算 |
-| bridge 自愈 | `bash init-llm.sh heal` | ✅ 保留 | SessionStart hook + ensure_bridge |
-| 修 `/model` 命令污染 | `bash init-llm.sh sync` | ✅ 保留 | 把顶层 `model` 同步到 `env.ANTHROPIC_MODEL` |
+| 切换 preset | `bash init-llm.sh <name>` | ✅ | 探测通过才写 settings.json env + llm-current |
+| 状态诊断 | `bash init-llm.sh status` | ✅ | llm-current / env / bridge 一致性 |
+| 链路探测 | `bash init-llm.sh test <name>` | ✅ | **走真实路径**：bridge preset 经 bridge、流式请求、判终止标记+连接完整性 |
+| 列出预设 | `bash init-llm.sh list` | ✅ | |
+| 删除 preset | 菜单 `2A` / `bash init-llm.sh delete <name>` | ✅ | |
+| 用量统计 | 菜单 `2B` / `bash init-llm.sh bill` | ✅ | 读 `ccprivate/usage/*.csv` 聚合，不输入价格 |
+| bridge 自愈 | `bash init-llm.sh heal` | ✅ | SessionStart hook（`status.sh`）+ `ensure_bridge` |
+| 修 `/model` 污染 | `bash init-llm.sh sync` | ✅ | 顶层 `model` 同步到 `env.ANTHROPIC_MODEL` |
+| ~~Gateway 路由~~ | 菜单 `2D` | ❌ 删 | proxy.py 整套移除（ADR-0030） |
+| ~~token 价格输入~~ | `bill` 子命令 | ❌ 删 | 仅记用量，价格由上游账单给（`cost_cny`） |
+| ~~交互式增/改 preset~~ | 菜单 `2A / 2B` | ❌ 删 | 手改 `conf/llm.json` 更直接（schema 见 §六） |
+| ~~批量探测~~ | `test all` | ❌ 删 | 预设变少后价值不大，单个探测足够 |
+| ~~upstream 主动探测~~ | watchdog 内 | ❌ 删 | 探测失败 ≠ bridge 故障，重启修不了网络还打断请求 |
+
+**规模**：`lib/init-llm.sh` 687 行（简化前 927）。有两条回归测试：
+`tests/test-openai-bridge.sh`（bridge 流式链路）、`tests/test-init-llm-switch.sh`
+（切换写出的 BASE_URL 正确性）。
 
 ## 四、架构决策（基于 2026-09 调研）
 
@@ -299,7 +306,8 @@ while true:
 - ~~§五 可靠性：四层守护模型 + 真实链路探测 + 回归测试~~
 
 待办：
-1. **合并 `verify_endpoint` 与 `test_llm`** —— 现存两个探测函数（114 行 / 64 行）行为不一致：`verify_endpoint` 对 bridge 只探 `/health`，`test_llm` 走完整流式。切换路径应复用同一套流式判据，否则"切换时探测不到位"的残余风险还在。
-2. **评估 `switch_custom` / `edit_preset` 的必要性**（合计 ~130 行）—— 若实际都靠手改 `llm.json` + 菜单选，可移除。
+1. ~~合并 `verify_endpoint` 与 `test_llm`~~ ✅ 已完成：删 `verify_endpoint`，切换路径复用 `test_llm` 的流式判据，并补上 HTTP 码识别（401/403 判鉴权、000 判不可达）。
+2. ~~评估 `switch_custom` / `edit_preset`~~ ✅ 已删除（连同菜单入口），改为手改 `conf/llm.json`。
+3. ~~`test_all` 与 `show_status` 去重~~ ✅ 已完成：删 `test_all`；bridge 状态检查抽成 `_bridge_health` 供 `show_status` 与菜单头共用。
 3. **`show_status` 与 `status.sh` 的 LLM 段去重**。
 4. **是否把 `tests/test-init-llm.sh` 重写为当前架构**（现标记过时，gateway 时代用例；bridge 部分已由 `test-openai-bridge.sh` 覆盖）。
