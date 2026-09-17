@@ -91,58 +91,61 @@ flowchart LR
 
 > WSL 网络栈隔离：WSL2 与 Windows 网络栈分离，VPN 分配的 IP 路由在 WSL 看不到（[microsoft/WSL#4517](https://github.com/microsoft/WSL/issues/4517)）；`curl.exe` 走 Windows 网络栈是当前唯一零依赖方案。
 
-#### 决策 3：当前架构 3 个稳定性增强（必落地）
+#### 决策 3：当前架构的可靠性模型（必落地）
 
 详见 [§五 核心稳定性要求](#五核心稳定性要求)。
 
 ## 五、核心稳定性要求
 
-**这是 init-llm 的首要设计目标**。以下 3 项增强合计 ~80 行代码，把"探测 OK 但实际挂"的 2.5min 空窗压到 < 30s，把流式中断概率从 tailscale 75s idle 必断改为心跳决定（理论无限）。
+**这是 init-llm 的首要设计目标**，由下面的多层守护 + 实现约束承担。
 
-### 增强 1：watchdog 双向探活（根治"探测 OK 但实际挂"）
+> ⚠️ **2026-09-17 修正**：本节原先描述的"3 个稳定性增强"（watchdog 大 body 探活、指数退避、SSE heartbeat）中，**前两项已被证明是负收益并全部移除**。它们用"探测失败就重启 bridge"的逻辑把网络抖动当成进程故障，反而杀掉正在服务的 bridge、打断进行中的请求 —— 这正是当时 office/home preset 全挂的直接原因之一。可靠性改由下面的分层模型承担。
 
-**根因**：`lib/ensure-bridge.sh:67` watchdog 探活只用 `max_tokens:5`（约 100B body）。Claude 真实请求 600KB+ 时常因 SNI cert chain 重传 / MTU fragmentation / TCP slow start 重传 5+ 次才成功，短探完全发现不了。
+### 5.1 四层守护模型（职责边界）
 
-**改动**：
-- 30s 周期小 body 探（100B，保留 fail_threshold 触发重启）
-- 5min 周期大 body 探（128KB，模拟 Claude Code send 真实请求）
-- 大 body 探不命中 fail_threshold（避免误杀），仅写入 Prometheus-style counter 给 status 报告
+| 层 | 触发时机 | 职责 | 实现 |
+|----|---------|------|------|
+| `ensure_bridge` | 切换 preset 时 | 按目标上游起/重启 bridge，探 `/health` | `lib/ensure-bridge.sh` |
+| `watchdog` | 运行时 | **只守护进程存活**：bridge 没了就按**当前** preset 拉起 | `lib/ensure-bridge.sh` |
+| `status.sh` SessionStart | Claude 启动时 | 冷启动兜底（系统重启后 watchdog 也一起没了） | `lib/status.sh` |
+| `selfheal_bridge` / `heal` | 手动 | 同上，可手动触发 | `lib/ensure-bridge.sh` |
 
-**文件**：`lib/ensure-bridge.sh` watchdog wrapper 主循环。
+**关键设计约束**：watchdog **不做 upstream 主动探测**。upstream 探测失败 ≠ bridge 故障；网络问题重启 bridge 修不了，只会杀掉正在服务的进程、打断请求。旧版正是这么把好的 bridge 换掉的。
 
-### 增强 2：SSE heartbeat 注入（根治"流式中断 vs 非流式 OK"）
+**watchdog 必须跟随「当前」preset**：wrapper 若绑死启动时的 upstream/model/key，切 preset 后它会拿旧 upstream 覆盖用户刚选的 preset（在家切 tailscale 被打回单位地址）。现改为每次拉起都现场读 `llm-current` + `llm.json`（`lib/bridge-restart.sh`）。
 
-**根因**：`option-llmswitch/openai_bridge.py:513` SSE 流式分支，upstream 不发 token 时（agent 等 tool call 30-60s）连接 0 字节流动，撞 tailscale 默认 75s idle / AWS ALB 60s idle / Cloudflare 100s idle 必断（[tianpan.co: SSE keepalive stripped](https://tianpan.co/blog/2026-06-03-the-sse-keepalive-your-reverse-proxy-stripped-between-provider-and-client)）。
+### 5.2 SSE 心跳（防中间设备 idle 断流）
 
-**改动**：
-- SSE 路径起 `asyncio.create_task(heartbeat_loop)`，每 15s yield `: ping\n\n` 到 StreamingResponse
-- **只在 idle 状态发**（监测 `time.time() - last_chunk_time > 5` 才注入），有 token 来时不发，避免污染 Anthropic SDK 解析
-- SSE 注释（RFC）Anthropic SDK 忽略；若上游已带心跳也不冲突（互不干扰）
+**根因**：upstream 不发 token 时（agent 等 tool call 30-60s）连接 0 字节流动，撞 tailscale 默认 75s idle / AWS ALB 60s idle / Cloudflare 100s idle 必断（[tianpan.co: SSE keepalive stripped](https://tianpan.co/blog/2026-06-03-the-sse-keepalive-your-reverse-proxy-stripped-between-provider-and-client)）。
 
-**文件**：`option-llmswitch/openai_bridge.py:513` `if stream:` 分支内。
+**实现**：`openai_bridge.py` `_iter_with_idle_ping()`，每 15s 无 chunk 时注入 `: ping\n\n`（SSE 注释，Anthropic SDK 忽略）。
 
-### 增强 3：watchdog 指数退避 + 桥内快速重连
+**实现约束（踩过大坑）**：**绝不能对 `anext()` 套 `asyncio.wait_for`**。超时 cancel 会弄死 async generator 丢数据；流正常结束时的 `StopAsyncIteration` 从 async generator 冒出还会被 CPython 转成 `RuntimeError`，掐断整条流。必须用 queue + 独立 pump task 实现。详见 memory `sse-async-gen-waitfor-pitfall-20260917`。
 
-**根因**：`lib/ensure-bridge.sh:38` `fail_threshold=5` × 30s = **2.5min 空窗**才重启。期间 Claude 任何请求都 529。
+### 5.3 探测必须复现真实请求形态
 
-**改动**：
-- bridge 内健康检查周期 30s → 10s，连续 3 次失败才重启（= 30s 空窗，缩 5×）
-- **指数退避**：第 1 次失败 10s 后重探，第 2 次 20s，第 3 次 40s，避免上游瞬断时频繁 restart 浪费握手
-- TransportError 后**重建 transport 对象**（不复用），强制下次请求走新 TCP（绕 [httpx#2983 keepalive reuse dead connection](https://github.com/encode/httpx/issues/2983)）
+`init-llm test` 曾有两个盲区，共同造成长期存在的"探测 OK 但实际挂"：
 
-**文件**：`lib/ensure-bridge.sh:38-86` wrapper 主循环；`openai_bridge.py` 在 `_stream_via_win_curl` 失败的 `except` 分支重建 transport。
+- **绕开 bridge 直接打 upstream**（当然通），完全没碰真正会挂的格式转换链路
+- **用非流式请求**，流式链路的故障一个都暴露不出来
 
-### 额外坑：WSL2 MTU 1280 杀 tailscale 大包
+**现行判据**：走 bridge 的 preset 先 `ensure_bridge`、再经 bridge 发**流式**请求；判定 = 收到终止标记（`message_stop` / `[DONE]`）**且**响应无 `"type":"error"` **且** curl 退出码为 0（18 = 连接被掐断）。
+
+**回归测试**：`tests/test-openai-bridge.sh`（用 mock upstream 造出正常/停顿/截断/空响应四种形态）。
+
+### 5.4 额外坑：WSL2 MTU 1280 杀 tailscale 大包
 
 **根因**：[tailscale/tailscale#4833](https://github.com/tailscale/tailscale/issues/4833) — WSL2 默认 MTU 1280，WireGuard overhead 让 1500-byte packet 被 silent drop。**理论上 tailscale 链路所有 HTTPS 请求都可能撞**。
 
-**改动**：`lib/ensure-bridge.sh` 启动 bridge 前检查 `ip link show eth0 | grep mtu 1280` → warn "检测到 WSL2 默认 MTU 1280，tailscale 大包可能挂；写 `ip link set eth0 mtu 1500` 进 `/etc/wsl.conf [boot]`"。
+**实现**：`ensure_bridge` 启动前用 `uname -r` 含 `microsoft` + `ip link show eth0` 判 MTU 1280 → warn。旧写法查 `/proc/sys/fs/ostype`，该文件在标准内核不存在，是**从未触发过的死代码**。
 
 ### 踩坑清单
 
 1. **SSE heartbeat 不能污染 Anthropic SDK**：`: ping\n\n` 是 SSE 注释（RFC），SDK 忽略；若写 `event: ping` + `data: {}` 会触发 SDK 解析失败
-2. **HTTP/2 下禁用 `Connection: keep-alive`**：bridge 必须检查 `extensions["http_version"]` 不输出该 header（[nestjs#17588](https://github.com/nestjs/nest/issues/17588)）
-3. **Claude Code v2.1.117 之前 NO_PROXY 不生效**：[anthropics/claude-code#39862](https://github.com/anthropics/claude-code/issues/39862) — `init-llm.sh` 升级提示加 `claude --version` 检查
+2. **httpx 传入自定义 transport 时，`AsyncClient(verify=/limits=/trust_env=)` 会被静默忽略** —— 必须把这些参数交给 transport 本身，否则 `--skip-tls-verify` 形同虚设（曾长期未生效，靠域名匹配证书侥幸通过）
+3. **`/health` 不要直接 `**state` 返回**：会把 upstream API key 明文吐给任何能访问该端口的人
+4. **HTTP/2 下禁用 `Connection: keep-alive`**：bridge 必须检查 `extensions["http_version"]` 不输出该 header（[nestjs#17588](https://github.com/nestjs/nest/issues/17588)）
+5. **Claude Code v2.1.117 之前 NO_PROXY 不生效**：[anthropics/claude-code#39862](https://github.com/anthropics/claude-code/issues/39862) — `init-llm.sh` 升级提示加 `claude --version` 检查
 
 ## 六、配置 schema
 
