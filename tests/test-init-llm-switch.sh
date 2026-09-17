@@ -200,6 +200,28 @@ else
     _fail "llm-current 未写入"
 fi
 
+# ── T4: 切换不应反复改写 conf/llm.json ──
+# why mtime 而非内容：auto-sync 用 inotify 监听写事件，内容相同但重写文件照样
+# 触发 60s debounce + pull/push 网络往返，且 A 机写出的内容会 push 给 B 机
+echo "T4 切换不应反复改写 conf/llm.json（防 auto-sync 频繁触发）"
+switch_llm "bridge-preset" > /dev/null 2>&1   # 首次可能清掉历史 current 字段（一次性）
+before=$(stat -c %y "$CONFIG_FILE")
+switch_llm "direct" > /dev/null 2>&1
+after=$(stat -c %y "$CONFIG_FILE")
+if [[ "$before" == "$after" ]]; then
+    _pass "llm.json 未被改写（mtime 不变）"
+else
+    _fail "llm.json 被改写 → 触发 inotify → auto-sync 全仓同步" "before=$before after=$after"
+fi
+
+# ── T5: 本机选择不得留在共享 llm.json 里 ──
+echo "T5 llm.json 不应含 current 字段（本机选择归 ~/.claude/llm-current）"
+if python3 -c "import json,sys; sys.exit(0 if 'current' in json.load(open('$CONFIG_FILE')) else 1)" 2>/dev/null; then
+    _fail "llm.json 仍含 current → 跨机会同步旧选择"
+else
+    _pass "llm.json 已无 current 字段"
+fi
+
 echo ""
 echo "───────────────────────────────"
 if [[ $FAIL -eq 0 ]]; then
