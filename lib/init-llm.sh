@@ -453,7 +453,7 @@ test_llm() {
     local out http_code body_file
     body_file=$(mktemp)
     # shellcheck disable=SC2086
-    http_code=$(curl -sN -k --max-time 60 --noproxy '*' -o "$body_file" -w "%{http_code}" -X POST $resolve_args "$probe_url" \
+    http_code=$(curl -sN -k --connect-timeout 10 --max-time 60 --noproxy '*' -o "$body_file" -w "%{http_code}" -X POST $resolve_args "$probe_url" \
         -H "Content-Type: application/json" -H "anthropic-version: 2023-06-01" \
         -H "Authorization: Bearer $key" \
         -d "{\"model\":\"$model\",\"max_tokens\":16,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" 2>/dev/null) || http_code="000"
@@ -465,7 +465,8 @@ test_llm() {
         return 0
     fi
     case "$http_code" in
-        000) error "✗ 不可达 — $probe_url（查 DNS / 出口 / VPN）" ;;
+        000) error "✗ 不可达 — $probe_url"
+             error "  查 DNS / 出口 / VPN（内网 preset 在家不可达是正常的，切 home preset）" ;;
         401|403) warn "⚠ HTTP $http_code — 链路通但鉴权失败（key 可能无效）"; return 0 ;;
         *)   if printf '%s' "$out" | grep -q '"type":"error"'; then
                  error "✗ 流式链路报错（upstream 中断或被截断）"
