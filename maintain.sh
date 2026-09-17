@@ -305,8 +305,6 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     monitor) shift; bash "$LIB_DIR/monitor.sh" "${1:-}" ;;
     deps)    bash "$LIB_DIR/deps-check.sh" ;;
     llm)     shift; bash "$LIB_DIR/init-llm.sh" "$@" ;;
-    llmswitch|llm-switch|gate)
-        shift; bash "$CCCONFIG_DIR/option-llmswitch/init.sh" "$@" ;;
     mcp)     shift; bash "$LIB_DIR/mcp-manager.sh" "$@" ;;
     pat|pat-refresh|gh-auth)
         bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh" ;;

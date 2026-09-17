@@ -11,7 +11,7 @@
 #   bash init-llm.sh sync            # 修 /model 污染
 #   bash init-llm.sh custom          # 自定义临时端点
 #   bash init-llm.sh delete <name>   # 删预设
-#   bash init-llm.sh bill            # 模型单价（拆 init-llm-bill.sh）
+#   bash init-llm.sh bill            # 用量统计（拆 init-llm-bill.sh）
 #
 # 设计原则：
 #   - 单文件真相源：llm.json（providers + current）
@@ -31,9 +31,6 @@ source "$SCRIPT_DIR/interact.sh"
 source "$SCRIPT_DIR/ensure-bridge.sh"
 
 CONFIG_FILE="$(resolve_conf llm.json)" || exit 1
-LLMSWITCH_CONF="$CCCONFIG_ROOT/option-llmswitch/conf/llmswitch.json"
-LLMSWITCH_INIT="$CCCONFIG_ROOT/option-llmswitch/init.sh"
-LLMSWITCH_WATCHDOG="$CCCONFIG_ROOT/option-llmswitch/watchdog.sh"
 CLAUDE_JSON="$HOME/.claude.json"
 
 # 机器本地 current 文件（不参与 ccprivate 同步）
@@ -41,7 +38,7 @@ LOCAL_CURRENT_FILE="$HOME/.claude/llm-current"
 
 # ccconfig 自带预设 key —— builtin 分类以代码为准，不依赖用户 llm.json 的 builtin 字段
 # 用户 llm.json 可能缺该字段或被手改，会导致菜单内建/自定义分组错乱
-BUILTIN_PRESETS=(minimax deepseek_flash gateway)
+BUILTIN_PRESETS=(minimax deepseek_flash)
 
 # ========== 读取配置 ==========
 get_llm_config() {
@@ -95,72 +92,19 @@ list_llms() {
     local cur
     cur=$(read_local_current)
     export LIST_CUR="$cur"
-    BUILTIN_KEYS="${BUILTIN_PRESETS[*]}" python3 - "$CONFIG_FILE" "$LLMSWITCH_CONF" << 'PYEOF'
+    BUILTIN_KEYS="${BUILTIN_PRESETS[*]}" python3 - "$CONFIG_FILE" << 'PYEOF'
 import json, sys, os
 builtin_set = set(os.environ.get('BUILTIN_KEYS','').split())
 with open(sys.argv[1]) as f: d = json.load(f)
 llms = d.get('llms', {}); cur = os.environ.get('LIST_CUR', d.get('current', ''))
-sw_model = sw_small = ''
-if os.path.exists(sys.argv[2]):
-    try:
-        sw = json.load(open(sys.argv[2]))
-        sw_model = sw.get('model_name', '')
-        sw_small = sw.get('small_model_name', '')
-    except: pass
 print(f"TOTAL:{len(llms)}")
 print(f"CURRENT:{cur}")
 for name, llm in llms.items():
     model = llm.get('model', '')
-    if name == 'gateway' and sw_model:
-        model = sw_model
     marker = "◀" if name == cur else " "
-    small = (sw_small if name == 'gateway' and sw_small else llm.get('small_model', ''))
+    small = llm.get('small_model', '')
     is_builtin = '1' if (name in builtin_set or llm.get('builtin', False)) else '0'
     print(f"{marker}|{name}|{llm.get('name', name)}|{model}|{llm.get('base_url','')}|{small}|{is_builtin}")
-PYEOF
-}
-
-# ========== Gateway 辅助 ==========
-is_proxy_running() {
-    local pf="$HOME/.cache/llmswitch.pid"
-    [[ -f "$pf" ]] && kill -0 "$(cat "$pf")" 2>/dev/null
-}
-
-get_gateway_status() {
-    local port="${LLMSWITCH_PORT:-8899}"
-    if ! is_proxy_running; then echo "未运行"; return; fi
-    local h mode peak route
-    h=$(curl -s --max-time 3 "http://127.0.0.1:${port}/health" 2>/dev/null || echo '{}')
-    IFS='|' read -r mode peak route < <(echo "$h" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('mode','?')+'|'+str(d.get('peak',False))+'|'+d.get('current_route','?'))" 2>/dev/null || echo "?|False|?")
-    local ps=""
-    [[ "$peak" == "True" ]] && ps=" (高峰)"
-    echo "→ $route$ps | mode:$mode"
-}
-
-# 从 llmswitch.json 读 peak/off-peak 路由摘要（菜单显示用）
-read_gateway_routes() {
-    python3 - "${1:-$LLMSWITCH_CONF}" "${2:-$CONFIG_FILE}" << 'PYEOF'
-import json, sys
-try:
-    with open(sys.argv[1]) as f: sw = json.load(f)
-except Exception:
-    sys.exit(0)
-
-key_to_model = {}
-try:
-    with open(sys.argv[2]) as f: llm_cfg = json.load(f)
-    for k, v in llm_cfg.get('llms', {}).items():
-        key_to_model[k] = v.get('model', k)
-except Exception: pass
-
-routes = sw.get('routes', {}).get('llmgateway', {})
-peak_key = routes.get('peak', '?')
-off_peak_key = routes.get('off_peak', '?')
-peak = key_to_model.get(peak_key, peak_key)
-off_peak = key_to_model.get(off_peak_key, off_peak_key)
-peak_hours = sw.get('peak_hours', [])
-blocks = [f"{b['start']}-{b['end']}" for b in peak_hours]
-print(f"高峰 {','.join(blocks)}→{peak}, 非高峰→{off_peak}")
 PYEOF
 }
 
@@ -210,7 +154,7 @@ verify_endpoint() {
     esac
 }
 
-# ========== 写配置（直连 + gateway 共用） ==========
+# ========== 写配置（settings.json env + llm-current） ==========
 # 占位符 key 检测 + 复用 settings.json 已有 token
 write_llm_config() {
     local name="$1" base_url="$2" model="$3" small="$4" key="${5:-}"
@@ -306,15 +250,6 @@ if em and em != tm:
 PYEOF
 }
 
-# 停 gateway 代理（如在跑）
-stop_gateway() {
-    if ! is_proxy_running; then return 0; fi
-    local wpf="$HOME/.cache/llmswitch-watchdog.pid"
-    [[ -f "$wpf" ]] && kill "$(cat "$wpf")" 2>/dev/null || true
-    rm -f "$wpf"
-    bash "$LLMSWITCH_INIT" --stop 2>/dev/null || true
-}
-
 # 停 bridge（如有）
 stop_bridge() {
     stop_bridge_watchdog
@@ -344,7 +279,6 @@ switch_llm() {
     fi
 
     case "$name" in
-        gateway) switch_to_gateway; return $? ;;
         custom|-c) switch_custom; return $? ;;
     esac
 
@@ -357,9 +291,6 @@ switch_llm() {
     host_header=$(get_provider_host_header "$name")
 
     info "  选定 upstream: $base_url${host_header:+ (host: $host_header)}"
-
-    # 停 gateway（切直连前）
-    stop_gateway
 
     # 读 use_bridge 标记
     local use_bridge
@@ -401,13 +332,11 @@ switch_llm() {
 
     info "切换到: $name"
 
-    # 先探测 endpoint（gateway 本机 proxy 不走 verify）
-    if [[ "$name" != "gateway" ]]; then
-        verify_endpoint "$name" "$base_url" "$model" "$key" || {
-            warn "endpoint 不可达，切换中止（llm.json 未改动）"
-            return 1
-        }
-    fi
+    # 先探测 endpoint
+    verify_endpoint "$name" "$base_url" "$model" "$key" || {
+        warn "endpoint 不可达，切换中止（llm.json 未改动）"
+        return 1
+    }
 
     write_llm_config "$name" "$base_url" "$model" "$small" "$key"
 
@@ -421,46 +350,10 @@ switch_llm() {
     warn "切 LLM 后必须 /exit 退出当前 Claude session，然后 'claude -c' 续最近会话"
 }
 
-switch_to_gateway() {
-    if _dry_run_enabled; then
-        echo "  [DRY-RUN] switch_to_gateway: would start proxy + write config"
-        return 0
-    fi
-    info "切换到 Gateway 模式"
-    stop_bridge
-    if [[ ! -f "$LLMSWITCH_CONF" ]]; then
-        [[ -f "$LLMSWITCH_CONF.example" ]] || { error "模板不存在: $LLMSWITCH_CONF.example"; return 1; }
-        cp "$LLMSWITCH_CONF.example" "$LLMSWITCH_CONF"
-    fi
-    if ! is_proxy_running; then
-        bash "$LLMSWITCH_INIT" --start || { error "代理启动失败"; return 1; }
-    fi
-    local wpf="$HOME/.cache/llmswitch-watchdog.pid"
-    if ! [[ -f "$wpf" ]] || ! kill -0 "$(cat "$wpf")" 2>/dev/null; then
-        nohup bash "$LLMSWITCH_WATCHDOG" --daemon >> "$HOME/.cache/llmswitch-watchdog.log" 2>&1 &
-    fi
-
-    local gw_model gw_small
-    read -r gw_model gw_small < <(python3 - "$LLMSWITCH_CONF" << 'PYEOF'
-import json, sys
-d = json.load(open(sys.argv[1]))
-print(d.get('model_name','llmgateway'))
-print(d.get('small_model_name',''))
-PYEOF
-    2>/dev/null || echo -e "llmgateway\n")
-    [[ -z "$gw_small" ]] && gw_small="$gw_model"
-
-    local base_url
-    base_url=$(get_llm_config "gateway" | cut -d'|' -f1) || { error "无法获取 Gateway 配置"; return 1; }
-    write_llm_config "gateway" "$base_url" "$gw_model" "$gw_small" ""
-    success "Gateway 已切换 ($gw_model) $(get_gateway_status)"
-}
-
 switch_custom() {
     if _dry_run_enabled; then
         echo "  [DRY-RUN] switch_custom"; return 0
     fi
-    stop_gateway
     stop_bridge
 
     echo ""
@@ -549,8 +442,6 @@ except: pass" 2>/dev/null)
         else
             printf "bridge (%d)              : ✗ 未响应（env 指向但没起，跑 init-llm.sh <name> 重启）\n" "$BRIDGE_PORT"
         fi
-    elif is_proxy_running; then
-        printf "gateway 代理              : %s\n" "$(get_gateway_status)"
     fi
     echo ""
 }
@@ -717,9 +608,7 @@ show_list() {
         printf "  %s %-10s %-20s%b\n" "$marker" "$display" "$model" "$info_small"
     done < <(echo "$lines")
     echo ""
-    if [[ -n "$current" && "$current" == "gateway" ]]; then
-        info "当前: Gateway $(get_gateway_status)"
-    elif [[ -n "$current" ]]; then
+    if [[ -n "$current" ]]; then
         info "当前: $current"
     fi
 }
@@ -933,9 +822,8 @@ interactive_select() {
         echo -e "  ${BOLD_GRAY}--LLM--${NC}"
         while IFS='|' read -r marker name display_name model base_url small is_builtin; do
             [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
-            local small_str="" route_str=""
+            local small_str=""
             [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
-            [[ "$name" == "gateway" ]] && route_str=" ${YELLOW}$(read_gateway_routes "$LLMSWITCH_CONF" "$CONFIG_FILE" 2>/dev/null)${NC}"
             local cur_mark=" "
             [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
             local letter="${letters:$idx:1}"
@@ -948,9 +836,8 @@ interactive_select() {
         printf "  ${BOLD_GREEN}2A${NC}  %-26s ${DIM}%s${NC}\n" "增加模型" "输入 base_url + model + key"
         printf "  ${BOLD_GREEN}2B${NC}  %-26s ${DIM}%s${NC}\n" "修改模型" "修改已保存预设"
         printf "  ${BOLD_GREEN}2C${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
-        printf "  ${BOLD_GREEN}2D${NC}  %-26s ${DIM}%s${NC}\n" "Gateway 切换规则" "peak_hours/routes/mode"
-        printf "  ${BOLD_GREEN}2E${NC}  %-26s ${DIM}%s${NC}\n" "Bill 模型单价" "token 单价计费"
-        printf "  ${BOLD_GREEN}2F${NC}  %-26s ${DIM}%s${NC}\n" "批量测试" "探测所有预设连通性"
+        printf "  ${BOLD_GREEN}2D${NC}  %-26s ${DIM}%s${NC}\n" "用量统计" "按 model+day 聚合 ccprivate/usage/*.csv"
+        printf "  ${BOLD_GREEN}2E${NC}  %-26s ${DIM}%s${NC}\n" "批量测试" "探测所有预设连通性"
         echo -e "  ${BOLD_GREEN}0${NC}  退出"
         printf "  ${BOLD_GREEN}输入 (如 1A, 2D): ${NC}"
         read -r choice
@@ -965,10 +852,9 @@ interactive_select() {
                     A) switch_custom ;;
                     B) edit_preset ;;
                     C) delete_preset ;;
-                    D) bash "$LLMSWITCH_INIT" --config ;;
-                    E) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
-                    F) test_all ;;
-                    *) warn "配置: A=增 B=改 C=删 D=Gateway E=Bill F=测试"; continue ;;
+                    D) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
+                    E) test_all ;;
+                    *) warn "配置: A=增 B=改 C=删 D=Bill E=测试"; continue ;;
                 esac
                 _pause_continue
                 continue
