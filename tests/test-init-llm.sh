@@ -1,14 +1,16 @@
 #!/bin/bash
-# test-init-llm.sh — init-llm.sh + llmswitch init.sh 综合测试
+# test-init-llm.sh — 【已过时，勿作为回归依据】
 #
-# 覆盖场景：
-#   llm.json 读写、Gateway 配置、bridge、openaialt、高峰时段、路由、
-#   编号菜单、backend 名显示、init-llm.sh list/switch、llmswitch init.sh config
+# 本文件写于 gateway 架构时期（最后更新 2026-09-01），此后 init-llm.sh 经历了
+# 多次重构：altllm 拆四 preset → 删 gateway 整层 → bill 改用量统计。文件里
+# 大量用例（Gateway 配置 llmswitch.json、init.sh --config 编号菜单、current=gateway
+# 断言、_read_provider_list 排除 gateway 等）针对的对象已不存在，跑起来只会
+# 制造误导性的失败。
 #
-# 用法：
-#   bash ccconfig/tests/test-init-llm.sh            # 全部测试
-#   bash ccconfig/tests/test-init-llm.sh --verbose  # 详细输出
-#   bash ccconfig/tests/test-init-llm.sh --list     # 仅列出测试用例
+# 当前有效的回归测试见：
+#   tests/test-openai-bridge.sh    — bridge 流式链路端到端（含 SSE 心跳、异常终止）
+#
+# 保留本文件仅为存档历史用例意图；重写前不要接入任何自动化流程。
 
 set -euo pipefail
 
