@@ -64,6 +64,10 @@ class H(BaseHTTPRequestHandler):
             chunk('partial')          # 故意不写 [DONE]：模拟流被中途掐断
         elif mode == 'drop':
             pass                      # 立即断开：模拟 upstream 连接失败
+        elif mode == 'apierr':
+            # 复刻 one-api 类网关的拒绝方式：HTTP 200 + 裸 JSON error（根本不是 SSE）
+            self.wfile.write(b'{"error":{"message":"no available channel for model test-model","type":"one_api_error"}}')
+            self.wfile.flush()
         elif mode == 'frag':
             # 每 7 字节 flush 一次：复刻 curl.exe stdout / httpx aiter_text 的
             # 随机分片边界（实测真实长流每次有 15-29 个切点落在行中间）。
@@ -320,6 +324,25 @@ PYEOF
     fi
 else
     echo -e "  ${YELLOW}⏭${NC} 跳过（无 curl.exe：非 WSL/Windows 环境）"
+fi
+
+# ── T9: 上游 200 + 裸 JSON error → 必须带出上游原文，不能报 upstream_incomplete ──
+# one-api 类网关对"模型无可用渠道 / 额度不足"就是 HTTP 200 + 裸 JSON error。
+# 旧代码把它当"流被截断"，报 upstream_incomplete → 把人引去查网络/DNS，
+# 实际是上游拒绝。真实踩坑：deepseek-v4-pro 在 default 分组无渠道，
+# 排查了很久才发现是模型名问题（正确名是 deepseek-v4-pro-outside）。
+echo "T9 上游 200 + 裸 JSON error → 报出上游原文"
+if start_bridge "http://127.0.0.1:${MOCK_PORT}/apierr/v1"; then
+    out=$(request_stream)
+    if printf '%s' "$out" | grep -q 'upstream_error' && printf '%s' "$out" | grep -q 'no available channel'; then
+        _pass "带出上游原文（upstream_error + message）"
+    elif printf '%s' "$out" | grep -q 'upstream_incomplete'; then
+        _fail "被误报成 upstream_incomplete" "表现为'网络截断'，实际是上游拒绝"
+    else
+        _fail "未识别非 SSE 响应" "输出：$(printf '%s' "$out" | head -3 | tr '\n' ' ')"
+    fi
+else
+    _fail "bridge 启动失败"
 fi
 
 echo ""

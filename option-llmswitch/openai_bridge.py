@@ -604,6 +604,7 @@ async def messages(request: Request):
             payload = json.dumps(
                 {"type": "error", "error": {"type": kind, "message": msg}},
                 ensure_ascii=False,
+                separators=(",", ":"),
             )
             return f"event: error\ndata: {payload}\n\n" + 'event: message_stop\ndata: {"type":"message_stop"}\n\n'
 
