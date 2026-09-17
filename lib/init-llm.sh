@@ -318,7 +318,7 @@ except Exception:
 }
 
 show_status() {
-    local llm_cur sett_env sett_model
+    local llm_cur sett_env sett_model base model tok
     llm_cur=$(read_local_current)
 
     sett_env=$(python3 -c "
