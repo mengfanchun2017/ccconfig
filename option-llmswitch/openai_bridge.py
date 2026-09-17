@@ -364,12 +364,15 @@ async def on_startup():
     # write=120s: tailscale TCP 透传 + 内网 LLM 慢链路下大请求 (tool_use/长 prompt) 易撞 60s
     # retries=2: WriteTimeout/ConnectError 自动重试, 偶尔抖一下不致命
     # keepalive_expiry=10s: tailscale serve 端空闲可能 < 5s, 主动短一点避免撞对端 idle close
-    transport = httpx.AsyncHTTPTransport(retries=2)
     limits = httpx.Limits(max_keepalive_connections=20, keepalive_expiry=10.0)
+    # why: httpx 一旦传入自定义 transport，AsyncClient(verify=/limits=/trust_env=) 会被
+    # 静默忽略 —— 必须把这些参数交给 transport 本身，否则 --skip-tls-verify 形同虚设
+    transport = httpx.AsyncHTTPTransport(
+        retries=2, verify=verify, limits=limits, trust_env=False,
+    )
     http_client = httpx.AsyncClient(
         timeout=httpx.Timeout(300.0, connect=30.0, read=180.0, write=120.0, pool=30.0),
-        transport=transport, limits=limits,
-        trust_env=False, verify=verify,
+        transport=transport,
     )
 
 
