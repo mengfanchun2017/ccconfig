@@ -218,7 +218,7 @@ for dep in "${CORE_DEPS[@]}"; do
     check_dep "$dep" "true"
 done
 
-# pip: 特殊检查 — Ubuntu 24.04 默认无 pip3 命令，python3 -m pip 也可用
+# pip: 特殊检查 — Ubuntu 24 默认无 pip3，不影响核心链路，warn 不 exit 1
 pip_ok=false
 pip_ver=""
 if command -v pip3 &>/dev/null; then
@@ -231,8 +231,8 @@ fi
 if $pip_ok; then
     printf "  %b %-18s %-16s %b%s%b\n" "$OK_SYM" "pip" "$pip_ver" "$SEP" "Python 包管理" "$NC"
 else
-    printf "  %b %-18s %-16s %b%s%b\n" "$NG_SYM" "pip" "-" "$SEP" "Python 包管理" "$NC"
-    MISSING=$((MISSING + 1))
+    printf "  %b %-18s %-16s %b%s%b\n" "$WARN_SYM" "pip" "-" "$SEP" "Python 包管理（不影响核心链路）" "$NC"
+    WARNINGS=$((WARNINGS + 1))
 fi
 
 if ! $REQUIRED_ONLY; then
