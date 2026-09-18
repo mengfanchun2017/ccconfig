@@ -108,6 +108,11 @@ init_all_steps() {
         "装 Node / Claude Code / 建符号链接 / 启动 auto-sync"         \
         "3 min（含 apt 下载）"
 
+    run_step "Python pip" "$SCRIPT_DIR/lib/init-ubuntu.sh" true      \
+        "确保 pip 可用（Ubuntu 24 默认无 pip3）"                      \
+        "10 s"                                                        \
+        "ensure_pip"
+
     run_step "LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true         \
         "把当前 LLM 的 API key 写入 ~/.claude/settings.json"         \
         "10 s"
