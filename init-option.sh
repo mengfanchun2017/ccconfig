@@ -34,9 +34,6 @@ CLI_DESC["glow"]="终端 Markdown 渲染阅读"
 # 由 init-llm 等外部管理，未 source 时为空
 declare -A AUTO_MANAGED
 
-# 由 init-llm 等外部管理，未 source 时为空
-declare -A AUTO_MANAGED
-
 # ── 分组列表 ──
 # 格式: "group_title|item1 item2 ..."
 MENU_GROUPS=(
