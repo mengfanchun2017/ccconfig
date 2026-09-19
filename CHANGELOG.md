@@ -16,7 +16,7 @@ All notable changes to ccconfig will be documented in this file.
 - **`tests/test-bootstrap.sh`** — 重写对齐新 bootstrap-gh-auth.sh（自包含 + 装 git + clone + 全流程链路断言），删旧 5-step gh-auth 断言
 - **`tests/test-maintain.sh`** — 修 stale `_submenu_usage` timer case 断言（旧查 `case "$ts" in`+1/2/3，实际是 `case "$c" in`+6/7/8）
 - **`tests/test-token-usage.sh`** — 修 stale `--stats` 表格格式断言 + CSV 扩展头字段（session_name/turn_count/各 time 列）
-- **`option-remote/README.md`** — Tailscale 示例 IP `100.118.224.45`（疑似真实）换占位 `100.101.102.103`
+- **`option-remote/README.md`** — Tailscale 示例 IP（疑似真实 CGNAT）换占位 `100.101.102.103`
 - **`lib/interact.sh` NONINTERACTIVE 旁路** — `confirm/menu_select/prompt/prompt_password` 检测 `NONINTERACTIVE=true` 时返回默认值，防 CI/脚本化环境 `read` 挂起
 - **`init-option.sh --yes` 全局标志** — 剥离 `--yes/--batch`（不再透传给 option `init.sh` 的未知参数），按 option 派发非交互子命令（skill/cloudflare/officecli→`--install`、remote→`--run`、larkcli/getnote→跳过+提示）；修复原 `install_all` 传 `--batch` 给 init.sh 的 bug
 
@@ -40,7 +40,7 @@ All notable changes to ccconfig will be documented in this file.
 - **`option-larkbridge/`** + **`lib/feishu-perms.sh`** + **`lib/test-feishu.sh`** — 已整体迁出到独立仓库 [ccbridge](https://github.com/mengfanchun2017/ccbridge)。ccconfig 端改为调 `${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh`
 
 ### Fixed
-- **`mcp-manager.sh` 硬编码用户路径** — 4 处 `/home/francis/git/` → `${HOME}/git/` + `os.path.expanduser('~/git/')`，跨用户移植性
+- **`mcp-manager.sh` 硬编码用户路径** — 4 处绝对路径 → `${HOME}/git/` + `os.path.expanduser('~/git/')`，跨用户移植性
 - **`tmux-sshd.sh` `local` 在函数外** — bash5.x 运行时报语法错误，删 `local` 关键字
 - **`init-option.sh` `AUTO_MANAGED` 分隔符冲突** — llmswitch 第 3 段 `{start|stop|status|restart}` 内嵌 `|` 被外层 `|` 切错位；改为 `,` 分隔
 - **`init-option.sh` 重复 `_dry_run_enabled`** — `install_option` 函数体内同一检查调用两次，删第二次
@@ -116,7 +116,7 @@ All notable changes to ccconfig will be documented in this file.
 ## [1.4.8] — 2026-07-12
 
 ### Fixed
-- **`init-ubuntu.sh` `setup_ccprivate`** — 从 ubuntu.json 读硬编码 `/home/francis` 路径致 `mkdir` 权限拒绝 → `set -e` 退出，Node/Claude Code 未安装。改用 `$HOME/git/ccprivate` + 已 clone 则跳过
+- **`init-ubuntu.sh` `setup_ccprivate`** — 从 ubuntu.json 读硬编码用户名路径致 `mkdir` 权限拒绝 → `set -e` 退出，Node/Claude Code 未安装。改用 `$HOME/git/ccprivate` + 已 clone 则跳过
 - **`bootstrap.sh`** — `$OLDPWD`→`SCRIPT_DIR`（非 repo 根运行时版本查找静默失败）、GRAY ANSI `\033[0:0m`→`\033[0;90m`、硬编码用户名范化
 - **`init-skill.sh`** — `GITHUB_USER` parse 时一次性求值→`_github_user()` 延迟函数；git `insteadOf` 规则冲突（HTTPS↔SSH 互相覆盖）；claude-skills clone 用户 fork 优先→上游公共仓库回退
 - **`bin/init-ccprivate.sh`** — feishu.json `$HOME` 字面量→`os.path.expanduser("~")`；`gen_ubuntu_json` typo `cconfig`→`ccconfig` + 读 `CCCONFIG_DIR` 环境变量
@@ -379,7 +379,7 @@ All notable changes to ccconfig will be documented in this file.
 
 ### Security
 - **git filter-repo** — 从全部 1144 commits 中永久删除历史密钥（conf/*.json、link/CLAUDE.md、link/projects/ 等 12 个私密文件）
-- **去标识化** — `<your-github-username>` → `<your-github-username>`，`/home/francis` → `$HOME`
+- **去标识化** — 硬编码用户名与绝对路径 → `<your-github-username>` / `$HOME`
 - `.gitignore` 加固 — 加 `__pycache__/`、`*.pyc`、`link/skills/f-doc/config.yaml`、`.env`
 
 ### Changed

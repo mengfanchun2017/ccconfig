@@ -8,7 +8,7 @@
 
 ## Context and Problem Statement
 
-`openaialt` 等 OpenAI-only 端点（如 `https://aiplus.airchina.com.cn:18080/v1`）切换时，`init-llm.sh` 启动 `openai_bridge.py`（127.0.0.1:8898）并把 `ANTHROPIC_BASE_URL` 持久化为 `http://127.0.0.1:8898`。bridge 是 `nohup` 后台进程，**无 systemd 服务、无开机自启**，watchdog.sh 只盯 8899 gateway 不管 8898。
+`openaialt` 等 OpenAI-only 端点（如 `https://<internal-llm-host>:18080/v1`）切换时，`init-llm.sh` 启动 `openai_bridge.py`（127.0.0.1:8898）并把 `ANTHROPIC_BASE_URL` 持久化为 `http://127.0.0.1:8898`。bridge 是 `nohup` 后台进程，**无 systemd 服务、无开机自启**，watchdog.sh 只盯 8899 gateway 不管 8898。
 
 **重启后**：bridge 进程没了，settings.json 仍指向 8898 → claude 启动连不上 → 报错。用户需手动"先切别的 LLM 再切回 openaialt"重拉 bridge。bridge 中途被 kill 也有同样问题。
 

@@ -373,7 +373,7 @@ except: pass" 2>/dev/null)
 _probe_url() {
     local base_url="$1" host_header="$2"
     if [[ -n "$host_header" ]]; then
-        # 提取原 host:port（如 100.96.236.22:18080），用 host_header 替换 host 部分
+        # 提取原 host:port（如 <internal-llm-ip>:18080），用 host_header 替换 host 部分
         local orig_host_port path_part
         orig_host_port=$(echo "$base_url" | sed -E 's|^https?://([^/]+).*|\1|')
         path_part=$(echo "$base_url" | sed -E 's|^https?://[^/]+||')

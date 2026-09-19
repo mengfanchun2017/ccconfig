@@ -35,7 +35,7 @@ bash option-usage/token-usage.sh [args...]
 
 ```csv
 session_id,day,project_path,route,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,first_ts,last_ts,cost_cny
-0e00f5e3,2026-07-30,-home-francis-git,deepseek-direct,init-llm openaialt,deepseek-v4-flash,130727,0,292,131019,4,1,5320,2100,137000,2026-07-30T06:48:33.606Z,2026-07-30T06:50:50.758Z,0.131311
+0e00f5e3,2026-07-30,-home-user-git,<preset>,<session-name>,<model-id>,130727,0,292,131019,4,1,5320,2100,137000,2026-07-30T06:48:33.606Z,2026-07-30T06:50:50.758Z,0.131311
 ```
 
 **字段说明**：
