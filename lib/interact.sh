@@ -509,7 +509,7 @@ menu_loop() {
         if ! read -r choice 2>/dev/null < /dev/tty; then
             echo ""
             err "非交互环境，无法读取输入"
-            echo -e "  ${GRAY}请改用子命令: bash maintain.sh {status|fix|self|upgrade|sync|llm|mcp}${NC}"
+            echo -e "  ${GRAY}请改用子命令: bash maintain.sh {status|fix|self|upgrade|sync|monitor|deps|llm|mcp|pat|token|feishu|example}${NC}"
             return 1
         fi
         echo ""

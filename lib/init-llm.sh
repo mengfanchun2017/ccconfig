@@ -10,12 +10,13 @@
 #   bash init-llm.sh test <name>     # 真实链路探测（走 bridge + 流式）
 #   bash init-llm.sh sync            # 修 /model 污染
 #   bash init-llm.sh delete <name>   # 删预设
+#   bash init-llm.sh heal            # bridge 自愈（按 llm-current 重拉）
 #   bash init-llm.sh bill            # 用量统计（拆 init-llm-bill.sh）
 #
 # 新增/修改预设：直接编辑 conf/llm.json（schema 见 docs/init-llm.md §六）
 #
 # 设计原则：
-#   - 单文件真相源：llm.json（providers + current）
+#   - 真相源：llm.json（providers）+ ~/.claude/llm-current（本机当前选择，ADR-0020）
 #   - Claude 唯一读 env：settings.json env 段
 #   - bridge 仅在 OpenAI-only 端点自动起，自愈靠 status.sh SessionStart hook
 #   - 切失败不自动回滚（让用户看清楚错误）
