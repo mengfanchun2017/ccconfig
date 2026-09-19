@@ -46,7 +46,7 @@ sudo tailscale serve --https=8443 https+insecure://<internal-llm-api-ip>:<port>
 
 **缺点**：
 - ❌ 端口 443 可能被其他服务占用，需用 8443
-- ❌ 依赖 MagicDNS 域名（`francistail.tailxxxx.ts.net`）可解析
+- ❌ 依赖 MagicDNS 域名（`xxx.tailxxxx.ts.net`）可解析
 
 ## Decision
 
@@ -86,7 +86,7 @@ tailscale serve status
 修改 `altllm_tailscale` 的 base_url：
 
 ```
-base_url: https://francistail.tailxxxx.ts.net:8443/v1
+base_url: https://xxx.tailxxxx.ts.net:8443/v1
 ```
 
 然后 `bash lib/init-llm.sh switch altllm_tailscale` 验证。
