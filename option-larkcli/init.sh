@@ -75,6 +75,25 @@ install_lark_cli() {
     fi
 }
 
+# ========== lark-cli agent skills ==========
+# lark-cli 本体不带 skill，官方要求单独一次性安装（落到 ~/.agents/skills + ~/.claude/skills 链接）
+install_lark_skills() {
+    echo -e "${CYAN}── lark-cli agent skills ──${NC}"
+    local n=0
+    [[ -d "$HOME/.agents/skills" ]] && n=$(ls "$HOME/.agents/skills" 2>/dev/null | grep -c '^lark-')
+    if [[ "$n" -gt 0 ]]; then
+        good "  ✓ 已装 ${n} 个 lark-* skill"
+        return 0
+    fi
+    echo -n "  npx skills add larksuite/cli -g -y ... "
+    if npx --yes skills@latest add larksuite/cli -g -y >/dev/null 2>&1; then
+        n=$(ls "$HOME/.agents/skills" 2>/dev/null | grep -c '^lark-')
+        good "✅ ${n} 个"
+    else
+        warn "  ⚠ 失败，手动: npx skills add larksuite/cli -g -y"
+    fi
+}
+
 setup_lark_cli_account() {
     local name="$1" brand="$2" app_id="$3" app_secret="$4" config_dir="$5"
     config_dir="${config_dir/#\~/$HOME}"
@@ -293,6 +312,7 @@ _interactive_ensure_apps() {
 
 run_lark_cli() {
     install_lark_cli || return 1
+    install_lark_skills
     echo ""
 
     # 预检：占位符 / 空 apps → 交互式引导填写 appId/appSecret
@@ -412,6 +432,13 @@ print('true' if any(is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')) for
     if [ -f "$cf" ]; then
         local name=$(grep '^name=' "$cf" | cut -d'=' -f2)
         echo -e "  当前账号 ... ${GREEN}${name}${NC}"
+    fi
+    local _sk=0
+    [[ -d "$HOME/.agents/skills" ]] && _sk=$(ls "$HOME/.agents/skills" 2>/dev/null | grep -c '^lark-')
+    if [ "$_sk" -gt 0 ]; then
+        echo -e "  agent skills ... ${GREEN}${_sk} 个${NC}"
+    else
+        echo -e "  agent skills ... ${YELLOW}未装${NC} → npx skills add larksuite/cli -g -y"
     fi
     if [ "$has_ph" = "true" ]; then
         echo -e "  ${YELLOW}!${NC} feishu.json 仍含占位符 → 编辑 ${GRAY}$FEISHU_CONF${NC}"
