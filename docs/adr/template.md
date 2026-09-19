@@ -36,7 +36,7 @@
 
 ## Related Decisions
 
-- [ADR-NNNN](NNNN-slug.md) — 关系说明
+- `ADR-NNNN`（文件名 `NNNN-slug.md`）— 关系说明。粘贴时把这里换成真实链接
 
 ## Notes
 
