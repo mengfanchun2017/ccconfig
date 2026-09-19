@@ -45,18 +45,15 @@ bash init-base.sh new
 
 ### GitHub PAT 引导说明
 
-执行到 GitHub 认证时，脚本引导选择 PAT 类型：
+执行到 GitHub 认证时，脚本引导生成 fine-grained PAT：
 
 | 类型 | 适用场景 | 生成链接 |
 |------|---------|---------|
-| Classic PAT | 个人项目，省事 | https://github.com/settings/tokens/new |
-| Fine-grained PAT | 精细权限控制 | https://github.com/settings/personal-access-tokens/new |
+| Fine-grained PAT | 唯一支持的方式（精细权限控制） | https://github.com/settings/personal-access-tokens/new |
 
-**Classic PAT 配置**：Note=ccconfig-push, Expiration=No expiration, Scopes= repo
+**Fine-grained PAT 配置**：Repository access=All repositories, Contents=Read and write, Metadata=Read-only, Account 权限全部 No access
 
-**Fine-grained PAT 配置**：Repository access=All repositories, Contents=Read and write, Metadata=Read-only
-
-> 如果选 Fine-grained 但 gh repo view 报 404（国内 GitHub API 可能被干扰），
+> 如果 gh repo view 报 404（国内 GitHub API 可能被干扰），
 > 脚本会 fallback 到 git ls-remote 验证，再不行会问你是否确认继续。
 
 ### 已有配置的机器
@@ -330,8 +327,8 @@ gh --version
 
 ## 阶段 3 — GitHub 认证
 
-> **核心思路**：一个 fine-grained PAT 覆盖所有场景（gh API + git 传输 + SSH key 添加）。
-> SSH key 用于 git 传输加速（push 2-3s vs 5-15s），PAT 自动配 SSH key 到 GitHub 无需手动操作。
+> **核心思路**：一个 fine-grained PAT 覆盖所有场景（gh API + git 传输，走 HTTPS + gh credential helper）。
+> SSH 是可选的 push 加速（`SETUP_SSH=1` 时才启用），默认不需要。
 > 阶段 3a 必做，3b 视情况，3c 续期流程记住即可。
 
 ### 3a. Fine-grained PAT（必做，主路径）
@@ -357,15 +354,12 @@ bash init-bootstrap.sh
    | Repository access | `All repositories` |
    | Repository permissions → Contents | `Read and write` |
    | Repository permissions → Metadata | `Read-only`（默认勾选） |
-   | Account permissions → SSH Keys | `Read and write` |
+   | Account permissions | 全部 `No access`（不需要 SSH Keys 权限） |
 
 3. 生成后复制 token string（一次性显示，关闭页面就看不到）
 4. 粘到 bootstrap-gh-auth.sh 的 prompt
 
-> **为什么需要 SSH Keys Read and write？**
-> `bootstrap-gh-auth.sh` 自动生成 SSH key 并通过 gh API 注册到 GitHub，后续 git 操作走 SSH 协议（国内环境 HTTPS 443 端口被 GFW 阻隔）。
->
-> **为什么不选 classic PAT 的 `repo` scope？**
+> **为什么不用 classic PAT 的 `repo` scope？**
 > classic `repo` scope 等同所有私有仓全权，泄露影响范围大。fine-grained 限定到具体仓库 + 具体权限，更安全。
 > 建仓由 init-bootstrap.sh 在 github.com 网页引导完成，不需要 classic 的 repo 创建能力。
 
@@ -469,18 +463,19 @@ gh auth setup-git
 
 ### 4a. 克隆 ccconfig
 
-**SSH（推荐）**：
+**HTTPS（默认，走 gh credential helper）**：
+
+```bash
+mkdir -p ~/git && cd ~/git
+git clone https://github.com/<your-github-username>/ccconfig.git
+# 或 gh repo clone <your-github-username>/ccconfig
+```
+
+**SSH（可选加速，需先配 key）**：
 
 ```bash
 mkdir -p ~/git && cd ~/git
 git clone git@github.com:<your-github-username>/ccconfig.git
-```
-
-**HTTPS（备选）**：
-
-```bash
-mkdir -p ~/git && cd ~/git
-gh repo clone <your-github-username>/ccconfig
 ```
 
 ### 4b. 克隆 skill
@@ -489,18 +484,19 @@ Skill 插件仓库。`lib/init-skill.sh sync` 从这里 symlink 自建 skill 到
 
 > **v1.3.1+**：`lib/init-skill.sh` 内置 `ensure_claude_skills()` 自动 clone。如果 gh 已登录，阶段 5 的 `init-base.sh all` 会自动完成这一步。手动 clone 仅需在 gh 未登录时做。
 
-**SSH（推荐）**：
+**HTTPS（默认）**：
+
+```bash
+cd ~/git
+git clone https://github.com/<your-github-username>/skill.git
+# 或 gh repo clone <your-github-username>/skill
+```
+
+**SSH（可选加速，需先配 key）**：
 
 ```bash
 cd ~/git
 git clone git@github.com:<your-github-username>/skill.git
-```
-
-**HTTPS（备选）**：
-
-```bash
-cd ~/git
-gh repo clone <your-github-username>/skill
 ```
 
 > **ccconfig 用户**：skill 在阶段 5 的 `lib/init-skill.sh sync` 被自动引用（`SKILL_SRC` 默认 `~/git/skill/plugins`）。如果目录缺失且 gh 可用，自动 clone；否则跳过并提示手动克隆。
@@ -542,12 +538,12 @@ bash init-base.sh all
 
 | 步骤 | 脚本 | 做了什么 |
 |------|------|----------|
-| 1/3 | `lib/init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 uv / 装 Claude Code / 配 SessionStart hook / 配 git credential helper / 配 auto-sync monitor |
+| 1/3 | `lib/init-ubuntu.sh` | git 配置 / gh 复用 / 装 Node / 装 Claude Code / 配 SessionStart hook / 配 git credential helper / 启动 auto-sync monitor |
 | 2/3 | `lib/init-llm.sh` | 从 conf/llm.json 读取当前 LLM，写入 API key 到 settings.json |
-| 3/3 | `maintain.sh setup` | 修复符号链接 + 启动 auto-sync + 状态验证 |
+| 3/3 | `ccprivate/setup.sh` | ccprivate 私有链接（CLAUDE.md / MEMORY.md / settings.json 等 symlink） |
 
 > 可选组件（MCP/Skills/CLI）不再内联进 init-base，用 `bash init-option.sh` 单独装。
-> **symlink 已全量建立**（用户级 + rules/agents/commands → ccprivate），无需手动跑 `ccprivate/setup.sh`。
+> auto-sync 由第 1 步 `init-ubuntu.sh` 启动；第 3 步只负责 ccprivate 私有 symlink。
 
 **全程无输入**：gh 已登录，LLM 默认值在阶段 4c（init-bootstrap.sh）已写入 conf/llm.json。MCP/Skills 走 init-option：`bash init-option.sh`。
 
@@ -565,18 +561,7 @@ bash init-base.sh all
 
 ccconfig 已就绪，接下来把其他项目也拉下来。
 
-**SSH（推荐）**：
-
-```bash
-gh repo list <your-github-username> --limit 50 --json name --jq '.[].name' | while read repo; do
-    [ "$repo" = "ccconfig" ] && continue
-    [ -d "$HOME/git/$repo" ] && continue
-    echo "克隆 $repo ..."
-    git clone "git@github.com:<your-github-username>/$repo.git" "$HOME/git/$repo"
-done
-```
-
-**HTTPS（备选）**：
+**HTTPS（默认）**：
 
 ```bash
 gh repo list <your-github-username> --limit 50 --json name --jq '.[].name' | while read repo; do
@@ -587,25 +572,54 @@ gh repo list <your-github-username> --limit 50 --json name --jq '.[].name' | whi
 done
 ```
 
+**SSH（可选加速，需先配 key）**：
+
+```bash
+gh repo list <your-github-username> --limit 50 --json name --jq '.[].name' | while read repo; do
+    [ "$repo" = "ccconfig" ] && continue
+    [ -d "$HOME/git/$repo" ] && continue
+    echo "克隆 $repo ..."
+    git clone "git@github.com:<your-github-username>/$repo.git" "$HOME/git/$repo"
+done
+```
+
 **这一步自动跳过已存在的项目**，可以安全重跑。
 
 
 ## 阶段 7 — 验证
 
 ```bash
-# 14 项状态检查
+# 11 项状态检查
 bash maintain.sh status
 ```
 
 **应该看到（精简版）**：
 ```
-[1] 配置文件链接      ✅ settings.json, .config.json, CLAUDE.md, rules ...
-[2] 核心依赖         ✅ git / bash / curl / node / python3 / pip3 / npm
-[3] auto-sync        ✓ Monitor loop running
-[4] 最后推送          (刚才 init 的某个时间)
-[5] MEMORY 更新       ✅
-[7] 飞书              (未配置，可选)
-[11] option-*         (各组件状态)
+=== Claude Config 状态检查 ===
+
+━━━ 配置文件链接━━━
+  ✅ CLAUDE.md（symlink → ccprivate）
+  ✅ settings.json（本机）
+━━━ ccprivate 结构━━━
+  ✅ conf/ link/ rules/ agents/ commands/
+━━━ 核心依赖━━━
+  ✅ git / bash / curl / node / python3 / pip3 / npm
+━━━ auto-sync━━━
+  ✅ Monitor loop running
+━━━ GitHub PAT━━━
+  ✅ 认证有效（<你的账号>）
+━━━ 仓库━━━
+  ccconfig 最后推送: (刚才 init 的某个时间)
+━━━ 飞书 (lark-cli)━━━
+  ○ 未配置（可选）
+━━━ MCP 服务器━━━
+  (各服务器状态)
+━━━ 可选组件━━━
+  (各 option-* 状态)
+── Skills
+  ✅ 17 个 skill 已安装
+━━━ 模板同步━━━
+  ✅ 无差异
 ```
 
 **如果 auto-sync 没起来**：
@@ -714,8 +728,6 @@ cd C:\path\to\ccconfig
 
 ```bash
 bash ~/git/ccconfig/bin/test-bootstrap.sh
-# 或
-bash maintain.sh test
 ```
 
 ## 完成 — 接下来干嘛
@@ -728,7 +740,7 @@ bash maintain.sh test
 |------|------|
 | 改文件自动推 | 默认行为，monitor 在跑 |
 | 看状态 | `bash maintain.sh status` |
-| 装可选组件 | `bash init-base.sh` → 6) 可选组件 |
+| 装可选组件 | `bash init-option.sh`（或 `bash init-base.sh` → 5) 可选组件） |
 | 强制拉远程 | `bash lib/sync.sh --pull`（暗号 `pullff`） |
 | 切 LLM 后端 | `bash init-base.sh` → 1) → 2) |
 | 月度升级 | `bash lib/update.sh all` |
@@ -784,7 +796,7 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 
 ### 状态检查发现问题的应对
 
-`bash maintain.sh status` 14 项检查，**任何一项 ✗ 都先看该项的命令**：
+`bash maintain.sh status` 11 项检查，**任何一项 ✗ 都先看该项的命令**：
 
 | 失败项 | 修命令 |
 |--------|--------|
@@ -803,8 +815,8 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 | `gh auth login` 浏览器没自动开 | WSL 没装 `wslview` | 手动复制终端的 one-time code，访问 https://github.com/login/device |
 | `gh repo clone` 报 404 | 没登录成功 / 账号不是仓库协作者 | `gh auth status` 确认账号；如果不是协作者，联系 owner 加 |
 | `init-base.sh all` 卡在 sudo | 密码没缓存 | 输密码，或配 sudo 免密（`echo "<your-username> ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/<your-username>`） |
-| monitor 不推 | SSH key 没注册到 GitHub | `ssh -T git@github.com` 测试；如未认证，走阶段 3 生成 SSH key 并添加到 GitHub |
-| monitor 不推（HTTPS 备选） | gh token 过期 | `gh auth login` 重新登录；`gh auth setup-git` 配置 credential helper |
+| monitor 不推 | gh token 过期 / credential helper 没配 | `gh auth login` 重新登录；`gh auth setup-git` 配置 credential helper |
+| monitor 不推（走 SSH 加速时） | SSH key 没注册到 GitHub | `ssh -T git@github.com` 测试；如未认证，走阶段 3b 生成 SSH key 并添加到 GitHub |
 | WSL 报 `Could not resolve hostname` | `/etc/hosts` 没本机 hostname | `echo "127.0.1.1 $(hostname)" \| sudo tee -a /etc/hosts` |
 | WSL 内存占用过高 | WSL 2 默认占 50% 主机内存 | 在 `%USERPROFILE%\.wslconfig` 加 `memory=8GB`（见阶段 0 § 2） |
 | WSL 里 `code .` 打不开 VSCode | 没装 WSL 扩展 | 在 VSCode 装 "WSL" 扩展；或直接用 `code` 命令（Windows PATH 注入） |

@@ -1,6 +1,6 @@
 # rules/ — 条件规则
 
-> Claude Code 按条件加载的规则文件。通过 `setup-links.sh` symlink 到 `~/.claude/rules/`。
+> Claude Code 按条件加载的规则文件。由 `ccprivate/setup.sh` symlink 到 `~/.claude/rules/`。
 
 ## 加载模式
 
@@ -15,16 +15,18 @@
 
 | 规则 | 加载 | 大小 | 内容 |
 |------|:--:|------|------|
+| `ccconfig-open-source.md` | 始终 | 1.3K | ccconfig 公开仓库保密规则 |
 | `code.md` | 始终 | 0.8K | 编码规范、禁止操作 |
-| `feishu.md` | 始终 | 2.7K | 飞书集成：auth 预检、账号、ffeishu 前置、URL 输出 |
-| `feishu-cli-cheatsheet.md` | 始终 | 0.7K | lark-cli 速查指针 → ffeishu references/ |
-| `search.md` | 始终 | 1.2K | 搜索策略、三源并行 |
+| `context-budget.md` | 始终 | 0.6K | rules/MEMORY 预算上限 |
+| `feishu.md` | 始终 | 4.5K | 飞书集成：auth 预检、账号、ffeishu 前置、URL 输出 |
+| `git.md` | 始终 | 1.6K | Git 提交规范、安全操作 |
 | `memory.md` | 始终 | 0.5K | 自动记忆、变更摘要、试错记录 |
-| `context-budget.md` | 始终 | 0.7K | rules/MEMORY 预算上限 |
+| `search.md` | 始终 | 1.4K | 搜索策略、三源并行 |
+| `skill.md` | 始终 | 0.3K | Skill 开发规范（描述中文、marketplace 同步） |
+| `workflow.md` | 始终 | 1.5K | workflow 目录结构 + symlink 管理 |
 | `python.md` | `**/*.py` | 2.5K | Python 版本、包管理、绘图约定 |
-| `git.md` | `**/.git/**` | 0.4K | Git 提交规范、安全操作 |
-| `godot.md` | `**/*.gd` | 1.2K | Godot/GDScript 规范 |
+| `godot.md` | `**/*.gd` | 1.4K | Godot/GDScript 规范 |
 
-**始终加载: 6.6KB / 15KB budget（44%）\| 路径加载: 4.2KB \| 合计: 10.8KB**
+**实测始终加载 ~13KB（9 个）\| 路径加载 ~4KB（2 个）**
 
 > 已移除：`rules/README.md`（CATALOG.md 已承担目录索引职责）。`feedback_cwd_drift.md` → memory。`ffeishu.md`（rules.d 断链）。`feishu-cli-cheatsheet.md` 命令表 → ffeishu/references/lark-cli-cheatsheet.md。
