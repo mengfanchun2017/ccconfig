@@ -3,6 +3,7 @@
 > **Status**: ✅ Accepted
 > **日期**: 2026-09-03
 > **关联**: 测试基础设施
+> **模板**: MADR 4.0 极简版
 
 ## Context and Problem Statement
 

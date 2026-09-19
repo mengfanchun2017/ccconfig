@@ -17,64 +17,65 @@ git -C ~/git/ccconfig branch --show-current
 
 ```bash
 # 查看同步状态
-bash ~/git/ccconfig/monitor.sh status
+bash ~/git/ccconfig/lib/monitor.sh status
 
 # 没在跑？启动
-bash ~/git/ccconfig/init-autostart.sh
+bash ~/git/ccconfig/lib/init-autostart.sh
 ```
 
 ## 月度：组件升级
 
 ```bash
-bash ~/git/ccconfig/update.sh all
+bash ~/git/ccconfig/lib/update.sh all
 ```
 
-这一步会自动：
-1. **git pull ccconfig** — 拉最新脚本
+这一步会自动（顺序同 `lib/update.sh` 的 `update_all()`）：
+1. **ccconfig 自更新** — 拉最新脚本（关键文件变更会自动 re-exec 续跑）
 2. **Node.js** — 升级到 conf/versions.json 锁定的版本
 3. **lark-cli** — npm 全局升级
 4. **Python pip 包** — 升级到 conf/python-requirements.txt 最新
 5. **GitHub CLI** — 升级到最新 release
 6. **Claude Code** — `claude install --force` 升级
-7. **uv** — 升级（30 天内已检查则跳过）
+7. **Skills 同步** — 重建 skill symlink
 8. **MCP 缓存** — 刷新（24h 内已刷新则跳过）
+9. **OfficeCLI** — 升级
+10. **Cloudflare 插件** — 升级
 
 升级前自动创建版本快照（`.snapshots/`），保留 90 天。升级后显示版本对比表。
 
 ```bash
 # 只看不升（兼容性预检查）
-bash ~/git/ccconfig/update.sh  # 菜单模式，选 0 退出
+bash ~/git/ccconfig/lib/update.sh  # 菜单模式，选 0 退出
 
 # 单项升级
-bash ~/git/ccconfig/update.sh node     # Node.js
-bash ~/git/ccconfig/update.sh claude   # Claude Code
-bash ~/git/ccconfig/update.sh python   # Python pip 包
-bash ~/git/ccconfig/update.sh skills   # Skills 同步
+bash ~/git/ccconfig/lib/update.sh node     # Node.js
+bash ~/git/ccconfig/lib/update.sh claude   # Claude Code
+bash ~/git/ccconfig/lib/update.sh python   # Python pip 包
+bash ~/git/ccconfig/lib/update.sh skills   # Skills 同步
 ```
 
 ## Skills 更新
 
 ```bash
-# 更新自建 skill + 第三方 skill + ccprivate 配置覆盖
-bash ~/git/ccconfig/init-skill.sh sync
+# 更新自建 skill + ccprivate 配置覆盖
+bash ~/git/ccconfig/lib/init-skill.sh sync
 
 # 查看 skill 状态
-bash ~/git/ccconfig/init-skill.sh status
-
-# 更新第三方 skill（npx skills）
-bash ~/git/ccconfig/lib/update-third-party-skills.sh
+bash ~/git/ccconfig/lib/init-skill.sh status
 ```
 
-skill 同步流程（3 阶段）：
-1. symlink 自建 f-* skill（skill/plugins → ~/.claude/skills/）
-2. ccprivate 配置覆盖（config/*.yaml → ~/.claude/skills/<skill>/config.yaml）
-3. npx skills 装第三方 skill（conf/third-party-skills.txt）
+skill 同步流程（2 阶段）：
+1. symlink 自建 f-* skill（`~/git/skill/plugins` + ccprivate/skill-local → ~/.claude/skills/）
+2. ccprivate 配置覆盖（ccprivate/skill/*.yaml → ~/.claude/skills/<skill>/config.yaml）
+
+> 早期的第 3 阶段「`npx skills` 装第三方 skill」已废弃：所有 skill 统一在
+> `~/git/skill/plugins/` 管理，不再有 `conf/third-party-skills.txt`。
 
 ## skill 更新
 
 ```bash
 cd ~/git/skill && git pull
-bash ~/git/ccconfig/init-skill.sh sync
+bash ~/git/ccconfig/lib/init-skill.sh sync
 ```
 
 独立用户（不用 ccconfig）：
@@ -113,7 +114,7 @@ bash ~/git/ccprivate/setup.sh
 bash ~/git/ccconfig/init-base.sh all
 
 # 验证
-bash ~/git/ccconfig/status.sh
+bash ~/git/ccconfig/lib/status.sh
 ```
 
 ## 升级前检查清单
@@ -127,10 +128,10 @@ bash ~/git/ccconfig/status.sh
 
 ```bash
 # 完整状态检查
-bash ~/git/ccconfig/status.sh
+bash ~/git/ccconfig/lib/status.sh
 
 # 确认 skill 正常
-bash ~/git/ccconfig/init-skill.sh status
+bash ~/git/ccconfig/lib/init-skill.sh status
 
 # 确认 symlink 无断链
 find ~/.claude -type l ! -exec test -e {} \; -print
@@ -189,7 +190,7 @@ python3 -c "import json; print(json.load(open('~/git/ccconfig/.snapshots/version
 机器 B（笔记本）
   ├── 开机 → git pull ccconfig + ccprivate + skill
   ├── bash ~/git/ccprivate/setup.sh  # 重建 symlink
-  └── bash ~/git/cconfig/init-skill.sh sync
+  └── bash ~/git/ccconfig/lib/init-skill.sh sync
 ```
 
 ccprivate 的 conf/*.json 由 ccconfig 脚本 resolve_conf() 直接读取，改 ccprivate 后 push → 另一台机器 pull ccprivate + 重跑 setup.sh 即可同步。
@@ -198,7 +199,7 @@ ccprivate 的 conf/*.json 由 ccconfig 脚本 resolve_conf() 直接读取，改 
 
 | 问题 | 原因 | 解决 |
 |------|------|------|
-| `update.sh` 卡在 git pull | 本地有未提交改动 | 选 a) 远程覆盖 或 c) 手动处理 |
+| `update.sh` 卡在 git pull | 本地有未提交改动 | 在菜单里选「本地覆盖远程」或「取消，手动处理」 |
 | `/skills` 看不到新 skill | Claude Code 缓存 skill 列表 | 新开一个 session |
 | `/mcp` 提示无此命令 | v2.0+ 已移除运行时 /mcp | 改用 `claude mcp list / add / remove`（CLI 层操作）|
 | `init-skill.sh sync` 跳过已有 skill | `~/.claude/skills/<name>` 是真目录不是 symlink | `rm -rf ~/.claude/skills/<name>` 再跑 sync |

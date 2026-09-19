@@ -38,10 +38,12 @@
 | [0027](0027-idempotent-guard-pattern.md) | 幂等 guard 模式 — _is_installed/_is_not_file/atomic_write 统一 API | 2026-09-03 | ✅ Accepted | SH 编码规范 |
 | [0028](0028-unified-cli-entry.md) | 统一 CLI 入口 — bin/ccconfig subcommand 路由 | 2026-09-03 | ✅ Accepted | CLI 基础设施 |
 | [0029](0029-init-llm-target-2026.md) | init-llm 目标文档化 + 删 gateway 整层 + 3 个稳定性增强 + bill 简化为用量读取 + 合并 altllm preset 4→2 | 2026-09-17 | ✅ Accepted | LLM 管理 |
-| [0030](0030-gateway-deprecation-2026.md) | Gateway 模式废弃（option-llmswitch 整层删除），保留 ADR + 恢复路径 | 2026-09-17 | ✅ Accepted | LLM 管理 |
+| [0030](0030-gateway-deprecation-2026.md) | Gateway 模式废弃 — 删 gateway 层（init.sh/proxy.py/watchdog.sh），保留 openai_bridge.py 作 bridge | 2026-09-17 | ✅ Accepted | LLM 管理 |
 | [0031](0031-init-llm-consolidation-2026.md) | init-llm 收敛：修桥接链路 P0（流式包装器/transport/守护层）+ 探测统一 + 四层守护模型 + 删交互式编辑 | 2026-09-17 | ✅ Accepted | LLM 管理 |
 | [0032](0032-config-layering.md) | 配置分层：共享预设 vs 本机选择 — 切换零写入 + setup.sh 单一模板真相源 + 模板拆分 | 2026-09-17 | ✅ Accepted | LLM 管理 |
 
+> **编号 0024 / 0025 未使用**：编号永不重用（见[命名约定](#命名约定)），这两号在 0023 之后被跳过、没有对应文件，也没有正文引用。新增 ADR 从**当前最大号 +1** 起，不要去填这个空档。
+>
 > ADR 收录门槛见 [「何时写 ADR」](#何时写-adr)。轻量变更（bug fix / 单文件重构 / 样式调整）只在下方「决策时间线」一行记录。
 
 ## 决策时间线（worklog 提取，按日期倒序）
@@ -49,6 +51,8 @@
 > 此前在 `docs/tech-decisions.md` 自动维护，已合并至此。轻量变更只在此处一行记录，重大决策进 [索引](#索引) 段。
 > 数据来源: Worklog Base（配置见 `conf/flogme.json`），flogme skill 自动同步。
 > 更新机制: worklog → `flogme extract-decisions` → 本段。
+>
+> ⚠️ **本段已滞后**：最后一条停在 2026-07-29，而[索引](#索引)已有到 2026-09-17 的 ADR。这一段时间的轻量决策没有回填，属已知缺口 —— 补全需重跑 `flogme extract-decisions`（或手工补齐）。不要据此认为 7 月底之后没做过决策。
 
 | 日期 | 决策 | 关联 ADR |
 |------|------|---------|
@@ -129,7 +133,9 @@ Proposed ──> Accepted ──> Superseded by NNNN
 
 ## 模板
 
-复制 `0001-secret-strategy.md` 当模板。这是 MADR canonical form 的精简版（5 字段 + 2 可选）。
+复制 [`template.md`](template.md)（MADR canonical form 精简版）。不要拿 0001 当模板 —— 它是正式 ADR，正文会被连带抄进新文件。
+
+标题格式统一为 `# NNNN. 标题`，头部统一用 `>` 引用块的四行（见 template.md）。
 
 ## 链接
 
