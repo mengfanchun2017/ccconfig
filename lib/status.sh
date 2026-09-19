@@ -1,19 +1,18 @@
 #!/bin/bash
 # Claude Config - 状态检查
 #
-# 检查项：
-# 1. 配置文件符号链接 + ccprivate 结构
-# 2. 核心依赖
-# 3. auto-sync 状态
-# 4. GitHub 最后推送
-# 5. MEMORY（~/.claude/projects/ 直查）
-# 6. Git 项目状态
-# 7. 飞书 lark-cli 状态
-# 8. Playwright 浏览器测试
-# 9. MCP 服务器状态
-# 10. option-* 可选组件（含远程连接 SSH/Tailscale）
-# 11. Skills 安装状态
-# 12. Example 模板同步
+# 检查项（与下方 check_*() 调用顺序一致，勿凭印象写）：
+# 1. 符号链接 + ccprivate 结构（check_symlinks / check_ccprivate_structure）
+# 2. 核心依赖（check_deps_quick）
+# 3. auto-sync 状态（check_autosync）
+# 4. GitHub PAT 有效期（check_pat_expiry）
+# 5. Git 项目状态 + MEMORY + 最后推送（check_repos）
+# 6. 飞书 lark-cli 状态（check_feishu）
+# --quick 到此为止，以下仅完整模式 --
+# 7. MCP 服务器状态（check_mcp）
+# 8. option-* 可选组件，含 SSH/Tailscale（check_option_components）
+# 9. Skills 安装/断链（check_skills）
+# 10. Example 模板同步（check_example_sync）
 #
 # 用途：通过 SessionStart hook 在 Claude 启动时运行
 
@@ -38,7 +37,15 @@ git_pull() {
         local updates=$(git -C "$REPO_DIR" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
         if [ "$updates" -gt 0 ]; then
             echo -e "${CYAN}[Git]${NC} 发现 $updates 个更新，正在拉取..."
-            timeout 30 git -C "$REPO_DIR" pull --rebase origin main 2>/dev/null
+            # 失败必须处理：本函数由 SessionStart hook 自动跑，--rebase 撞冲突会
+            # 把仓库留在中间态，而 2>/dev/null 让用户完全看不到发生了什么
+            if ! timeout 30 git -C "$REPO_DIR" pull --rebase origin main 2>&1 | tail -3; then
+                if [ -d "$REPO_DIR/.git/rebase-merge" ] || [ -d "$REPO_DIR/.git/rebase-apply" ]; then
+                    git -C "$REPO_DIR" rebase --abort 2>/dev/null || true
+                    echo -e "  ${YELLOW}⚠ 拉取冲突，已回滚到拉取前状态${NC}"
+                fi
+                echo -e "  ${GRAY}手动: cd $REPO_DIR && git pull --rebase origin main${NC}"
+            fi
         fi
     fi
 }
@@ -700,6 +707,7 @@ check_feishu
 if ! $QUICK_MODE; then
     check_mcp
     check_option_components
+    check_skills
     check_example_sync
 fi
 
