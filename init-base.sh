@@ -98,6 +98,8 @@ init_all_steps() {
         echo -e "  ${GREEN}继续执行全部初始化步骤...${NC}"
     fi
 
+    FAILED_STEPS=()
+
     # 读取 llm.json 中预设的 current
     local llm_json="$ccpriv/conf/llm.json"
     local current_llm
@@ -105,22 +107,37 @@ init_all_steps() {
     export INIT_LLM_NAME="$current_llm"
 
     run_step "Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true         \
-        "装 Node / Claude Code / 建符号链接 / 启动 auto-sync"         \
+        "装 Node / Claude Code / pip / 建符号链接 / 启动 auto-sync"    \
         "3 min（含 apt 下载）"
-
-    run_step "Python pip" "$SCRIPT_DIR/lib/init-ubuntu.sh" true      \
-        "确保 pip 可用（Ubuntu 24 默认无 pip3）"                      \
-        "10 s"                                                        \
-        "ensure_pip"
 
     run_step "LLM 配置" "$SCRIPT_DIR/lib/init-llm.sh" true         \
         "把当前 LLM 的 API key 写入 ~/.claude/settings.json"         \
         "10 s"
 
     # 私有链接收尾：auto-sync 已由 init-ubuntu.sh 启动，maintain 留给用户手动跑
-    run_step "收尾（私有链接）" "$ccpriv/setup.sh" true         \
-        "ccprivate 私有链接（CLAUDE.md / MEMORY.md / settings.json 等 symlink）"         \
-        "10 s"
+    if [[ -x "$ccpriv/setup.sh" ]]; then
+        run_step "收尾（私有链接）" "$ccpriv/setup.sh" true         \
+            "ccprivate 私有链接（CLAUDE.md / MEMORY.md / settings.json 等 symlink）"         \
+            "10 s"
+    else
+        echo ""
+        err "找不到 $ccpriv/setup.sh"
+        echo -e "  ${GRAY}ccprivate 由旧版本创建或缺初始化，跑 bash init-bootstrap.sh --update 修复${NC}"
+        FAILED_STEPS+=("收尾（私有链接）")
+    fi
+
+    if [[ ${#FAILED_STEPS[@]} -gt 0 ]]; then
+        echo ""
+        err "基础初始化未完成，以下步骤失败："
+        for s in "${FAILED_STEPS[@]}"; do
+            echo -e "  ${RED}✗${NC} $s"
+        done
+        echo ""
+        echo -e "  ${GRAY}修掉上面报错后重跑 bash init-base.sh all 即可（已完成的步骤幂等）${NC}"
+        echo ""
+        return 1
+    fi
+
     echo -e "${GREEN}🎉 基础初始化完成${NC}"
     echo ""
 
@@ -167,6 +184,7 @@ run_step() {
             ok "${label}"
         else
             warn "${label} 失败（继续）"
+            FAILED_STEPS+=("$label")
         fi
     else
         if confirm "运行？" y; then
@@ -174,6 +192,7 @@ run_step() {
                 ok "${label}"
             else
                 err "${label} 失败"
+                FAILED_STEPS+=("$label")
             fi
         else
             echo -e "  ${YELLOW}跳过${NC}"
@@ -243,8 +262,7 @@ case "${1:-menu}" in
         if [[ "${2:-}" == "--yes" || "${2:-}" == "-y" ]]; then
             export NONINTERACTIVE=true
         fi
-        init_all_steps
-        exit 0
+        init_all_steps || exit 1
         ;;
     new|bootstrap)
         # gh auth + ccprivate 一体化
@@ -262,9 +280,9 @@ case "${1:-menu}" in
         show_banner
         echo ""
         echo -e "${CYAN}━━━ 预览：将要执行的操作 ━━━${NC}"
-        echo "  init-ubuntu.sh  → 系统包 + node/claude + symlink"
-        echo "  init-llm.sh       → 写入 ANTHROPIC_AUTH_TOKEN"
-        echo "  maintain.sh setup → 链接 + auto-sync + 状态"
+        echo "  init-ubuntu.sh   → 系统包 + node/claude + pip + auto-sync"
+        echo "  init-llm.sh      → 写入 ANTHROPIC_AUTH_TOKEN"
+        echo "  ccprivate/setup.sh → 私有链接（CLAUDE.md / MEMORY.md / settings.json）"
         echo ""
         echo "  运行 bash init-base.sh all [--yes]"
         ;;
