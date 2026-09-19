@@ -186,6 +186,36 @@ menu_parse "q" ; [[ $? -eq 2 ]] && pass "q → 2(退出)" || fail "q"
 menu_parse "r" ; [[ $? -eq 1 ]] && pass "r → 1(刷新)" || fail "r"
 menu_parse "zzz" ; [[ $? -eq 3 ]] && pass "无效 → 3" || fail "无效输入"
 
+echo "=== 13. 快捷键映射与文案一致 ==="
+# 历史 bug：t 指向 2C(组件升级)，而 help 文案写 "2C = monitor tail"。
+# 菜单重排后漏改，按 t 会进组件升级菜单（高风险）。
+grep -qE 't\|T\)[[:space:]]+_exec_entry 2 A' "$CCCONFIG_DIR/lib/interact.sh" \
+    && pass "t → 2A(监控)" || fail "t 快捷键未指向监控"
+grep -q 'tail 追踪 (= 2C)' "$CCCONFIG_DIR/lib/interact.sh" \
+    && fail "help 文案仍写 2C" || pass "help 文案与 t 映射一致"
+
+echo "=== 14. 菜单可达性 ==="
+# _submenu_update_sync 曾定义了却无 menu:update_sync 引用 → do_self/ccprivate 升级菜单不可达
+grep -q 'menu:update_sync' "$CCCONFIG_DIR/lib/menu-data-maintain.sh" \
+    && pass "自身更新(2D)已接入菜单" || fail "update_sync 未接入菜单"
+
+echo "=== 15. 非交互不死循环 ==="
+# 历史 bug：EOF → choice="" → 重绘，无限自旋（实测 4s 渲染 116 次）。
+# CI / Bash 工具 / cron 跑 `bash maintain.sh` 会烧 CPU，必须快速失败。
+for s in maintain.sh lib/sync.sh; do
+    start=$(date +%s)
+    timeout 10 bash "$CCCONFIG_DIR/$s" </dev/null >/dev/null 2>&1
+    rc=$?
+    elapsed=$(( $(date +%s) - start ))
+    if [[ $rc -eq 124 ]]; then
+        fail "$s 非交互下死循环"
+    elif [[ $elapsed -gt 8 ]]; then
+        fail "$s 非交互下耗时 ${elapsed}s"
+    else
+        pass "$s 非交互快速退出 (exit=$rc, ${elapsed}s)"
+    fi
+done
+
 echo ""
 echo "────────────────────────────────────"
 printf "  ${GREEN}PASS${NC}: %d  ${RED}FAIL${NC}: %d\n" "$PASS" "$FAIL"

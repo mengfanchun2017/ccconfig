@@ -99,6 +99,13 @@ confirm() {
 # 调用方传纯文本 items（不带数字前缀），本函数自动加 "1) 2) 3)" 序号。
 # 返回: 选中项的序号字符串（如 "5"）；0 表示「返回/取消」（用户输入空、非法、越界）。
 # 用法: c=$(menu_select "title" "item1" "item2" "返回"); case "$c" in 1) ... ;; 0) return ;; esac
+# 真实终端探测：/dev/tty 可打开才算交互可用。
+# 不能只判 [ -t 0 ] —— 用户 `echo x | bash maintain.sh` 时 stdin 非 tty 但交互正常；
+# 也不能只判 [ -e /dev/tty ] —— 容器/CI 里设备节点存在却打不开（No such device）。
+has_tty() {
+    { true < /dev/tty; } 2>/dev/null
+}
+
 menu_select() {
     local title="${1:-选择}"; shift
     local items=("$@")
@@ -364,11 +371,11 @@ menu_render() {
 menu_help() {
     cat <<'EOF' | sed 's/^/  /'
 输入规则:
-  <cat><letter>  直接执行（如 2C = monitor tail）
+  <cat><letter>  直接执行（如 2A = 监控）
   <letter>       跨分类首字母匹配（首个匹配项）
   <cat>          进入该分类首个动作
   s              状态总览  (= 1A)
-  t              tail 追踪 (= 2C)
+  t              监控      (= 2A)
   r              刷新
   q / 0          退出
   ?              显示帮助
@@ -453,7 +460,7 @@ menu_parse() {
     case "$input" in
         q|Q|0|exit|quit) return 2 ;;
         s|S)               _exec_entry 1 A; return $? ;;
-        t|T)               _exec_entry 2 C; return $? ;;
+        t|T)               _exec_entry 2 A; return $? ;;
         r|R|fs|fresh)      return 1 ;;
         \?|h|H|help|HELP)  menu_help; return 0 ;;
     esac
@@ -495,7 +502,16 @@ menu_loop() {
         banner "$title"
         menu_render
         echo ""
-        printf "  ${BOLD_GREEN}选择: ${NC}"; read -r choice < /dev/tty || choice=""
+        printf "  ${BOLD_GREEN}选择: ${NC}"
+        # read 返回非零 = EOF 或 /dev/tty 不可用（CI、Bash 工具、cron）。
+        # 不能只判空串 —— 用户按空回车也是空串，那种情况要重绘。
+        # 不 bail 的话这里会渲染→EOF→重绘 无限自旋（实测 4s 渲染 116 次）
+        if ! read -r choice 2>/dev/null < /dev/tty; then
+            echo ""
+            err "非交互环境，无法读取输入"
+            echo -e "  ${GRAY}请改用子命令: bash maintain.sh {status|fix|self|upgrade|sync|llm|mcp}${NC}"
+            return 1
+        fi
         echo ""
         menu_parse "$choice"
         local rc=$?
@@ -504,7 +520,8 @@ menu_loop() {
         # 子菜单返回 3 跳过暂停
         if [[ $rc -ne 3 ]]; then
             echo ""
-            printf "  按回车继续..."; read -r dummy < /dev/tty || true
+            printf "  按回车继续..."
+            read -r dummy < /dev/tty || return 0
         fi
     done
 }
