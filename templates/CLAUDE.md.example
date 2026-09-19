@@ -1,0 +1,54 @@
+# Claude Code 用户配置
+
+> 全局 AI 行为指南。所有项目通用。项目级配置见各项目 `CLAUDE.md`。
+
+## 核心约定
+- 中文回复
+- **输出风格**: caveman 模式为默认。极简输出：删冠词/填充词/客套语，短词短句，fragments 可用。技术术语精确，代码块不变。不说"sure"/"of course"/"happy to"。
+- 未列出的命令会询问是否允许，可选择单次允许或永久添加
+- 禁止: rm -rf, git reset --hard, git clean -f, mkfs, dd, chmod -R 777, sudo（除 apt-get）, powershell -ExecutionPolicy Bypass
+- **自动错误分析**: 任何 Bash/CLI 命令返回非零退出码或报错时，自动：①定位根因 ②修复相关脚本/workflow/memory ③记录错误教训。不等待用户触发。修复前若涉及重大变更需确认，否则直接修。
+
+## 权限双层机制
+CLAUDE.md = AI 行为指南 | settings.json `permissions.allow` = 权限系统
+规则拆分到 `.claude/rules/`（按路径条件加载），不在 CLAUDE.md 中重复 rules 已有内容。
+
+## 自然语言触发（无需前缀）
+- "记录工作" / "写日志" / "总结任务" / "OKR" / "目标管理" / "反思" / "生成总结" / "季度报告" / "年度报告" → 自动调用 flogme skill
+- 调研/研究/分析 → 自动调用 fresearchframe skill
+- "写报告" / "出报告" / "分析报告" / "对比报告" / "方案报告" → 自动调用 fresearchframe skill（出报告走 fresearchreport 工作流）
+- 创建飞书文档/PPT/表格 → 自动调用 ffeishu skill（统一文档入口）
+- 生成PPT/做slides → fpptx skill
+- 画架构图/流程图/时序图 → fdiagram skill
+- 更新文档/整合/拆分/转换 → ffeishu skill
+
+## CLAUDE.md 分层规则
+
+| 层级 | 文件 | 加载时机 | 写什么 |
+|------|------|---------|--------|
+| 用户级 | `~/CLAUDE.md` | 所有会话 | 编码规范、行为偏好、权限说明、自然语言触发、允许命令、工作目录约定 |
+| 项目级 | `<project>/CLAUDE.md` | 仅该目录 | 项目架构、暗号、常用命令、版本管理、项目特有约束 |
+
+**不要放项目级**：全局行为偏好、自然语言触发、与用户级重复的内容（浪费 context token）。
+
+## 工作目录约定
+- 配置/环境维护 → `cd ~/git/ccconfig && claude`（改 rules、conf、CLAUDE.md、skills）
+- 项目开发 → `cd ~/git/<project> && claude`
+- 不要从 `~/git/` 启动 Claude（非 git repo，无项目 CLAUDE.md，缺上下文）
+- ccconfig 不记录项目级 memory（架构决策属于用户级，在用户级 memory 维护）
+
+## Auto Memory
+- 用户级记忆: `ccprivate/link/memory/MEMORY.md` → setup.sh 自动链接到 `~/.claude/projects/<id>/memory/`（id 由 `$HOME/git/ccconfig` 动态派生）
+- 项目标识符格式: 路径 `/` 替换为 `-`，如 `/home/user/git` → `-home-user-git`
+
+## 允许的 Bash 命令（权限已设 Bash(*)）
+文件/系统: ls, dir, tree, pwd, cd, mkdir, cp, mv, rm, rmdir, touch, ln, chmod, chown, cat, head, tail, less, more, file, stat, wc, sort, uniq, diff, cmp, find, grep, rg, ack, ag, which, where, locate, xargs, zip, unzip, tar, gzip
+网络: curl, wget, ping, ssh, scp, sftp, nslookup, dig, netstat, ss
+系统: uname, env, echo, date, whoami, id, uptime, top, ps, df, du, free, lsof, dmesg
+Git: git status, log, branch, checkout, switch, restore, diff, show, add, commit, reset, stash, rebase, merge, cherry-pick, tag, remote, fetch, pull, push, clone, config, init, mv, rm, clean, bisect, blame, reflog
+JS/TS: node, npm, npx, yarn, pnpm, bun, bunx, tsc, vitest, jest
+Python: python3, pip3, pytest
+Go/Rust: go, gofmt, cargo, rustc
+数据库: mysql, psql, sqlite3, redis-cli
+编辑器: code, vim, nvim, nano
+其他: awk, sed, cut, tr, make, cmake, docker, kubectl, tmux, screen

@@ -187,6 +187,12 @@ grep -q 'cp "\$tpl" "\$CCPRIVATE_DIR/setup.sh"' "$SCRIPT" \
   && pass "gen_setup_sh 走 cp 模板（防内嵌副本漂移）" || fail "gen_setup_sh 未走模板"
 grep -q 'llmswitch' "$SETUP_TPL" \
   && fail "模板仍含已废弃的 llmswitch" || pass "模板不含 llmswitch（gateway 已清）"
+# 反向断言：CLAUDE.md 模板也必须走 cp（内嵌副本曾漂移到已改名的 f-research-domain）
+UPGRADE="$_REAL_DIR/lib/ccprivate-upgrade.sh"
+grep -q 'LINK_CLAUDE_MD=' "$UPGRADE" \
+  && fail "ccprivate-upgrade 仍内嵌 CLAUDE.md 副本（会漂移）" || pass "CLAUDE.md 已抽出内嵌副本"
+grep -q 'templates/CLAUDE.md.example' "$UPGRADE" \
+  && pass "fix_link_content 走 templates/CLAUDE.md.example 模板" || fail "fix_link_content 未走模板"
 
 echo "=== Test 16: do_update eval shlex.quote ==="
 grep -A8 'eval "\$(LLM_SRC=' "$SCRIPT" | grep -q 'shlex' \
