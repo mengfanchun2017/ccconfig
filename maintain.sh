@@ -162,65 +162,109 @@ do_setup() {
         warn "auto-sync 启动失败（可手动: bash $LIB_DIR/monitor.sh start）"
     fi
 
-    section "3. 迁移旧版 settings.json（LLM 配置独立化）"
+    section "3. 配置文件归位（settings.json vs .config.json）"
     python3 << 'PYEOF'
 import json, os, sys
 
+# 两个文件在 Claude Code 里角色完全不同：
+#   ~/.claude/settings.json —— 唯一的用户级【settings 文件】。permissions/
+#     hooks/statusLine/model/... 只有放这里才生效。
+#   ~/.claude/.config.json —— 全局配置 / 应用状态（官方文档称 ~/.claude.json），
+#     存 user scope 的 mcpServers + Claude Code 自己维护的 projects/信任决策/
+#     OAuth 会话等。settings 类键写在这里【完全不读】，且静默失效无报错。
+# 早期版本把 permissions/hooks/statusLine 放进了 .config.json（方向反了），
+# 后果是权限白名单与 WebSearch deny 一直没生效。这里做归位。
 sf = os.path.expanduser("~/.claude/settings.json")
 cf = os.path.expanduser("~/.claude/.config.json")
 
-try:
-    with open(sf) as f: sd = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError):
-    sys.exit(0)
+SETTINGS_FILE_KEYS = {"permissions", "model", "skillOverrides", "statusLine",
+                      "enabledPlugins", "extraKnownMarketplaces", "effortLevel",
+                      "autoUpdatesChannel", "skipDangerousModePermissionPrompt",
+                      "skipWorkflowUsageWarning", "tui", "hooks", "theme", "verbose"}
+GLOBAL_CONFIG_KEYS = {"mcpServers", "disabledMcpServers", "projects"}
 
-# 需要迁移到 .config.json 的字段
-SETTINGS_KEYS = {"permissions", "model", "skillOverrides", "statusLine",
-                 "enabledPlugins", "extraKnownMarketplaces", "effortLevel",
-                 "autoUpdatesChannel", "skipDangerousModePermissionPrompt",
-                 "skipWorkflowUsageWarning", "tui", "hooks", "mcpServers",
-                 "disabledMcpServers", "projects"}
-
-def load_cd():
+def load(p):
     try:
-        with open(cf) as f: return json.load(f)
+        with open(p) as f: return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        return {}
+        return None
 
-migrated = []
-for k in SETTINGS_KEYS:
-    if k in sd:
-        cd = load_cd()
-        if k not in cd:
-            cd[k] = sd.pop(k)
-            with open(cf, "w") as f:
-                json.dump(cd, f, indent=2, ensure_ascii=False)
-                f.write("\n")
-            migrated.append(k)
+sd = load(sf)
+if sd is None:
+    print("  （无 settings.json，跳过）")
+    sys.exit(0)
+cd = load(cf) or {}
 
-if migrated:
-    with open(sf, "w") as f:
-        json.dump(sd, f, indent=2, ensure_ascii=False)
+def save(p, d):
+    with open(p, "w") as f:
+        json.dump(d, f, indent=2, ensure_ascii=False)
         f.write("\n")
-    print(f"  ✅ 迁移 {len(migrated)} 个字段: {', '.join(migrated)}")
 
-# 两份都有的键 = 真相源歧义。这里只报告不删：Claude Code 是否真从
-# .config.json 读这些键未经验证，静默删掉 settings.json 那份有可能
-# 直接丢掉权限白名单等生效配置。
-cd = load_cd()
-dupes = sorted(k for k in SETTINGS_KEYS if k in sd and k in cd)
-if dupes:
-    print(f"  ⚠️  {len(dupes)} 个字段在两份文件里都存在（真相源歧义）: {', '.join(dupes)}")
-    print(f"      本机: {sf}")
-    print(f"      共享: {cf}")
-    print("      未自动删除 —— 确认 Claude Code 读的是哪份后再手工收敛")
+def merge_permissions(a, b):
+    """permissions 特判：allow/ask/deny 求并集，标量（defaultMode）以 settings 为准。
+    只在 permissions 上做合并 —— 通用深合并会把 hooks 这种
+    dict→list→dict 的结构炸掉，也可能把过期条目复活。"""
+    out = dict(b)
+    out.update(a)
+    for key in ("allow", "ask", "deny"):
+        la, lb = a.get(key) or [], b.get(key) or []
+        if la or lb:
+            out[key] = sorted(set(map(str, lb)) | set(map(str, la)))
+    return out
 
-# 如实报告：不能说"已是 LLM-only"而实际还留着 model/theme/permissions 等
-stray = sorted(k for k in sd if k != "env")
-if stray:
-    print(f"  ⚠️  settings.json 仍有 {len(stray)} 个非 LLM 字段: {', '.join(stray)}")
-elif not dupes:
-    print("  ✓ settings.json 已是 LLM-only 结构（仅 env）")
+moved_to_settings, moved_to_global, merged, discarded, overrode = [], [], [], [], []
+for k in SETTINGS_FILE_KEYS:
+    if k not in cd:
+        continue
+    if k not in sd:
+        sd[k] = cd.pop(k)
+        moved_to_settings.append(k)
+        continue
+    if k == "permissions" and isinstance(sd[k], dict) and isinstance(cd[k], dict):
+        before = sd[k]
+        sd[k] = merge_permissions(sd[k], cd.pop(k))
+        (merged if sd[k] != before else discarded).append(k)
+    elif sd[k] == cd[k]:
+        cd.pop(k)
+        discarded.append(k)
+    else:
+        # settings.json 才是生效的那份，但两份内容不同 —— 删掉的副本要报出来
+        cd.pop(k)
+        overrode.append(k)
+
+for k in GLOBAL_CONFIG_KEYS:
+    if k not in sd:
+        continue
+    if k not in cd:
+        cd[k] = sd.pop(k)
+        moved_to_global.append(k)
+    else:
+        sd.pop(k)
+        (discarded if sd.get(k) == cd.get(k) else overrode).append(k)
+
+changed = bool(moved_to_settings or moved_to_global or merged or discarded or overrode)
+if changed:
+    save(sf, sd); save(cf, cd)
+    if moved_to_settings:
+        print(f"  ✅ 归位到 settings.json（原先在 .config.json 里不生效）: {', '.join(moved_to_settings)}")
+    if moved_to_global:
+        print(f"  ✅ 归位到 .config.json（settings.json 不读这个键）: {', '.join(moved_to_global)}")
+    if merged:
+        print(f"  ✅ 合并两份（allow/deny 取并集，标量以 settings.json 为准）: {', '.join(merged)}")
+    if discarded:
+        print(f"  ✅ 删除完全重复的副本: {', '.join(discarded)}")
+    if overrode:
+        print(f"  ⚠️  两份内容不同，以 settings.json 为准并删除 .config.json 副本: {', '.join(overrode)}")
+        print("      如需保留被删的那份，改动前可从 ~/.claude/backups/ 找回")
+else:
+    print("  ✓ 两个文件的内容与各自角色相符，无需归位")
+
+# 提示：settings.json 里出现的、Claude Code 只认全局配置的键
+GLOBAL_ONLY = {"autoConnectIde", "autoInstallIdeExtension", "copyOnSelect",
+               "diffTool", "externalEditorContext"}
+wrong = sorted(k for k in sd if k in GLOBAL_ONLY)
+if wrong:
+    print(f"  ⚠️  {', '.join(wrong)} 只能放在 .config.json，在 settings.json 里无效")
 PYEOF
 
     section "4. 状态总览"
