@@ -1,6 +1,6 @@
 # ccprivate 个人仓库搭建指南
 
-> **⚠️ 本文件为手动参考**。权威自动化版本是 [`init-ccprivate-repo.sh`](../init-ccprivate-repo.sh) — 该脚本会自动创建 GitHub 私有仓、写入 `conf/*.json`、生成 `setup.sh`、建立所有 symlink。本指南内容如与脚本行为不一致，**以脚本实际行为为准**。
+> **⚠️ 本文件为手动参考**。权威自动化版本是 [`init-ccprivate-repo.sh`](../init-bootstrap.sh) — 该脚本会自动创建 GitHub 私有仓、写入 `conf/*.json`、生成 `setup.sh`、建立所有 symlink。本指南内容如与脚本行为不一致，**以脚本实际行为为准**。
 >
 > **何时用本指南**：
 > - 想要理解每一步在做什么（脚本透明化读本）

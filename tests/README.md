@@ -51,7 +51,7 @@ bats tests/test-dry-run.bats
 | 文件 | 覆盖 |
 |------|------|
 | `test-init-base.sh` | init 流程回归（mock 隔离环境） |
-| `test-init-llm.sh` | LLM 配置读写 |
+| `test-init-llm-switch.sh` | LLM 切换端到端（含本机/共享分层、mtime 断言） |
 | `test-init-option.sh` | option 语法检查 |
 | `test-maintain.sh` | maintain 菜单回归 |
 | `test-monitor.sh` | monitor 核心函数 |
