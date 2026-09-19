@@ -571,7 +571,10 @@ Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
     bash "$CCPRIVATE_DIR/setup.sh"
 
     # 推送到 GitHub（非致命：失败只 warn，本地 ccprivate 已就绪不阻断）
-    create_and_push || warn "GitHub push 跳过——本地 ccprivate 已就绪，稍后 bash init-bootstrap.sh --update 补 push"
+    create_and_push || {
+        warn "GitHub push 跳过——本地 ccprivate 已就绪，不影响使用"
+        echo -e "  ${GRAY}稍后补 push: git -C $CCPRIVATE_DIR remote add origin https://github.com/<你的用户名>/ccprivate.git && git -C $CCPRIVATE_DIR push -u origin main${NC}"
+    }
 
     echo ""
     ok "ccprivate 创建完成 🎉"
@@ -644,6 +647,9 @@ do_update() {
 
     section "刷新生成配置"
     local llm_src="$CCPRIVATE_DIR/conf/llm.json"
+    # 预置：下面的 eval 在 python3 缺失 / llm.json 非法时输出为空，
+    # set -u 下第 657 行读未绑定变量会直接崩，只剩一行 cryptic 报错
+    local DEEPSEEK_KEY="" MINIMAX_KEY="" CLAUDE_KEY="" DEFAULT_LLM=""
     if [[ -f "$llm_src" ]]; then
         eval "$(LLM_SRC="$llm_src" python3 << 'PYEOF'
 import json, os, shlex

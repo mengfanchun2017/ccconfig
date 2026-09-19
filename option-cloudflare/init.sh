@@ -297,12 +297,6 @@ do_interactive() {
     echo "      5 MCP 服务器（api/docs/bindings/builds/observability，4/5 需 OAuth）"
     echo "      ~2-3k tokens"
     echo ""
-    echo "  操作:"
-    echo "    a) 全部安装（marketplace + plugin）[推荐]"
-    echo "    m) 仅 marketplace（只要 skills）"
-    echo "    g) 仅 plugin（依赖 marketplace）"
-    echo "    u) 卸载"
-    echo "    p) 更新到最新版"
     local choice; choice=$(menu_select "Cloudflare" \
         "全部安装" "仅 marketplace" "仅 plugin" "卸载" "更新" "退出")
     [[ -z "$choice" || "$choice" = "0" ]] && return
