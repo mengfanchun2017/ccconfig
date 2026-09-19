@@ -33,11 +33,9 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 - `conf/versions.json` 版本单一真相源
 - `lib/path-helper.sh` 动态路径解析，Node 路径用 `find_node_bin` 4级回退
 
-## 已安装插件
-- （无）
-
 ## 约束
-- **每次 Edit/Write 后先 git add + git commit，不等 auto-sync**。auto-sync 只做 push，不做 add/commit 可以避免 inotify 竞争导致 Edit old_string 过期
+- **每次 Edit/Write 后先 git add + git commit，不等 auto-sync**。原因有二：① auto-sync 的 debounce 会先抢跑，把你的改动一起提交成 `Auto-sync: <时间戳>`，原先写好的一事一 commit message 就丢了；② inotify 竞争会让 Edit 的 old_string 过期
+- **auto-sync 实际是 add + commit + push 全做**（`lib/monitor.sh:192` 的 `git add -A`、`:210` 的 `git commit -m "Auto-sync: ..."`）。此前本行误写成"只做 push"，与实际不符 —— 用户级 `rules/git.md` 的描述才是对的
 - 本仓库不记录 memory（memory symlink → ccprivate/link/memory/，由 ccprivate/setup.sh 建立）
 - 私有数据（conf 真实值、CLAUDE.md 内容）通过 symlink 引用 ccprivate，不在本仓库提交
 - ccconfig 最终目标是可公开
