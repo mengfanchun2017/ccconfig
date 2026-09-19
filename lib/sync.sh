@@ -252,12 +252,12 @@ git_conflict_menu() {
     echo -e "  本地: $before"
     echo -e "  远程: $after"
     echo ""
-    echo -e "  ${BOLD}a)${NC} 远程覆盖本地（丢弃本地所有改动）"
-    echo -e "  ${BOLD}b)${NC} 本地覆盖远程（强制推送本地到远程）"
+    echo -e "  ${GRAY}远程覆盖本地：丢弃本地所有改动${NC}"
+    echo -e "  ${GRAY}本地覆盖远程：强制推送本地到远程${NC}"
     if $with_rebase; then
-        echo -e "  ${BOLD}r)${NC} Rebase — 以远程为底，本地提交重放其上（推荐）"
+        echo -e "  ${GRAY}Rebase：以远程为底，本地提交重放其上（推荐）${NC}"
     fi
-    echo -e "  ${BOLD}c)${NC} 取消，手动处理"
+    echo -e "  ${GRAY}取消：不动仓库，手动处理${NC}"
     echo ""
     local conflict_items=("远程覆盖本地" "本地覆盖远程")
     $with_rebase && conflict_items+=("Rebase（推荐）")

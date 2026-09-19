@@ -341,7 +341,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     upgrade-ccprivate|upgrade-ccpriv|ccpriv-upgrade)
         shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
     *)
-        echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|llm|mcp|pat|token|feishu]"
+        echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|pat|token|feishu|example|upgrade-ccprivate]"
         exit 1 ;;
   esac
 fi

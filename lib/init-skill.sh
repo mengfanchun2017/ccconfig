@@ -28,6 +28,9 @@ SKILL_REPO_DIR="$HOME/git/skill"
 CCPRIVATE_DIR="${CCPRIVATE_HOME:-${CCPRIVATE_DIR:-$HOME/git/ccprivate}}"
 LOCAL_SKILLS_SRC="${LOCAL_SKILLS_SRC:-$CCPRIVATE_DIR/skill-local}"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
+# 已废弃：第三方 skill 流程（npx skills）已移除，所有 skill 统一在
+# ~/git/skill/plugins 管理，该配置文件不再存在。下方 579/685 行的引用都有
+# [[ -f ]] 守卫，实际不会执行 —— 保留仅为兼容旧部署的文件若仍存在。
 THIRD_PARTY_CONF="$CCCONFIG_ROOT/conf/third-party-skills.txt"
 
 # 延迟求值：脚本启动时 gh 可能未装（init-ubuntu.sh 在后续步骤才装）
