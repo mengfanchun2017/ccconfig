@@ -74,8 +74,9 @@ parse_status_line() {
         echo "miss|MISSING|${BASH_REMATCH[1]}"
         return
     fi
-    # 退化：视为状态描述
-    echo "?|$line|$line"
+    # 退化：视为状态描述。必须去掉 '|' —— caller 按 '|' 切三段，
+    # 行内自带 '|' 会把残渣当描述打出来（如 getnote 缺 --status 时的用法文本）
+    echo "?|$line|${line//|/}"
 }
 
 # ── 检测二进制是否安装（用于 CLI 工具 + option-*） ──
@@ -210,7 +211,7 @@ list_all() {
     done
 
     echo ""
-    echo -e "  ${BOLD_GREEN}a)${NC} 全部安装  ${BOLD_GREEN}0)${NC} 返回上层"
+    echo -e "  ${GRAY}菜单由下方 menu_select 渲染（含「全部安装」「退出」项）${NC}"
     echo ""
 }
 

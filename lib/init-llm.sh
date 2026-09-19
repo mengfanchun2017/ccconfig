@@ -300,6 +300,14 @@ switch_llm() {
     # 探测不通过就中止切换，避免切到一个实际跑不通的配置。
     test_llm "$name" || {
         warn "流式链路探测未通过，切换中止（settings.json 未改动）"
+        # 上面已 stop_bridge 或 ensure_bridge 换过上游，而 settings.json 仍指向
+        # 原 preset 的 127.0.0.1:8898 —— 不回滚就是「bridge 已死 + 会话指向它」，
+        # 当前会话立刻不可用。selfheal 按 llm-current（未改动）重拉原 upstream。
+        if selfheal_bridge "$CONFIG_FILE"; then
+            info "  已恢复原 preset 的 bridge"
+        else
+            warn "  原 bridge 恢复失败，跑: bash maintain.sh llm heal"
+        fi
         return 1
     }
 
