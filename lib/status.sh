@@ -71,6 +71,33 @@ check_symlinks() {
         fi
     done
 
+    # settings 类键必须待在 settings.json —— Claude Code 只把它当 settings 文件读，
+    # .config.json 是全局配置/应用状态（官方称 ~/.claude.json），写在那里的
+    # permissions/hooks/statusLine 等【完全不读】且静默失效。这条检查就是为了
+    # 让这种"配了但没生效"能被看见。
+    local misfiled
+    misfiled=$(python3 - <<'PY' 2>/dev/null || true
+import json, os
+sf = os.path.expanduser("~/.claude/settings.json")
+cf = os.path.expanduser("~/.claude/.config.json")
+KEYS = {"permissions","hooks","statusLine","enabledPlugins","extraKnownMarketplaces",
+        "skillOverrides","autoUpdatesChannel","effortLevel","skipWorkflowUsageWarning",
+        "skipDangerousModePermissionPrompt","tui"}
+try:
+    cd = json.load(open(cf))
+except Exception:
+    raise SystemExit
+print(",".join(sorted(k for k in KEYS if k in cd)))
+PY
+)
+    if [ -n "$misfiled" ]; then
+        echo -e "  ${YELLOW}○${NC} settings 键放错文件（在 .config.json 里不生效）: $misfiled"
+        echo -e "  ${GRAY}    修复: bash maintain.sh fix${NC}"
+        issues=$((issues + 1))
+    else
+        echo -e "  ${GREEN}✅${NC} settings 键都在 settings.json"
+    fi
+
     # CLAUDE.md
     if [ -L "$HOME/CLAUDE.md" ] && [ -e "$HOME/CLAUDE.md" ]; then
         echo -e "  ${GREEN}✅${NC} CLAUDE.md"
