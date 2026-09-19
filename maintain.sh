@@ -18,7 +18,9 @@ CCCONFIG_DIR="$SCRIPT_DIR"
 
 source "$LIB_DIR/dry-run.sh"
 source "$LIB_DIR/path-helper.sh" 2>/dev/null || true
-export PATH="$HOME/.local/bin:$(find_node_bin 2>/dev/null || echo ""):$PATH"
+# find_node_bin 四级回退都可能落空 → 原写法产生 "::" 空段，等于把当前目录塞进 PATH
+_nb="$(find_node_bin 2>/dev/null || true)"
+export PATH="$HOME/.local/bin${_nb:+:$_nb}:$PATH"
 source "$LIB_DIR/colors.sh"
 source "$LIB_DIR/interact.sh"
 source "$LIB_DIR/menu-data-maintain.sh"
@@ -179,13 +181,16 @@ SETTINGS_KEYS = {"permissions", "model", "skillOverrides", "statusLine",
                  "skipWorkflowUsageWarning", "tui", "hooks", "mcpServers",
                  "disabledMcpServers", "projects"}
 
+def load_cd():
+    try:
+        with open(cf) as f: return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
 migrated = []
 for k in SETTINGS_KEYS:
     if k in sd:
-        try:
-            with open(cf) as f: cd = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            cd = {}
+        cd = load_cd()
         if k not in cd:
             cd[k] = sd.pop(k)
             with open(cf, "w") as f:
@@ -194,14 +199,28 @@ for k in SETTINGS_KEYS:
             migrated.append(k)
 
 if migrated:
-    # 写回清理后的 settings.json
     with open(sf, "w") as f:
         json.dump(sd, f, indent=2, ensure_ascii=False)
         f.write("\n")
     print(f"  ✅ 迁移 {len(migrated)} 个字段: {', '.join(migrated)}")
-    print(f"  settings.json 仅保留 LLM 配置 (env)")
-else:
-    print("  ✓ settings.json 已经是 LLM-only 结构")
+
+# 两份都有的键 = 真相源歧义。这里只报告不删：Claude Code 是否真从
+# .config.json 读这些键未经验证，静默删掉 settings.json 那份有可能
+# 直接丢掉权限白名单等生效配置。
+cd = load_cd()
+dupes = sorted(k for k in SETTINGS_KEYS if k in sd and k in cd)
+if dupes:
+    print(f"  ⚠️  {len(dupes)} 个字段在两份文件里都存在（真相源歧义）: {', '.join(dupes)}")
+    print(f"      本机: {sf}")
+    print(f"      共享: {cf}")
+    print("      未自动删除 —— 确认 Claude Code 读的是哪份后再手工收敛")
+
+# 如实报告：不能说"已是 LLM-only"而实际还留着 model/theme/permissions 等
+stray = sorted(k for k in sd if k != "env")
+if stray:
+    print(f"  ⚠️  settings.json 仍有 {len(stray)} 个非 LLM 字段: {', '.join(stray)}")
+elif not dupes:
+    print("  ✓ settings.json 已是 LLM-only 结构（仅 env）")
 PYEOF
 
     section "4. 状态总览"
