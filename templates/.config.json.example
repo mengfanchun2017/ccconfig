@@ -1,40 +1,6 @@
 {
-    "permissions": {
-        "_comment": "Edit(**/*) 覆盖 Edit/Write/NotebookEdit 所有编辑工具; Read(**/*) 覆盖 Read/Glob/Grep 所有读工具。defaultMode 用 auto (ADR 0018), bypassPermissions 无法持久化只能 flag。WebSearch deny：底层 LLM 无内置搜索能力，强制走 Tavily/Exa MCP。",
-        "allow": [
-            "Bash(*)",
-            "Edit(**/*)",
-            "Read(**/*)",
-            "WebFetch",
-            "Skill(*)",
-            "Agent"
-        ],
-        "deny": [
-            "WebSearch"
-        ],
-        "defaultMode": "auto"
-    },
-    "hooks": {
-        "SessionStart": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "bash ${CCCONFIG_HOME:-$HOME/git/ccconfig}/status.sh"
-                    }
-                ]
-            }
-        ]
-    },
-    "statusLine": {
-        "type": "command",
-        "command": "true"
-    },
-    "skipDangerousModePermissionPrompt": true,
-    "autoUpdatesChannel": "stable",
+    "description": "Claude Code 全局配置 / 应用状态文件（官方文档里叫 ~/.claude.json）。这里只放 user scope 的 mcpServers 与 Claude Code 自己维护的状态 —— 它【不是】settings 文件。",
     "mcpServers": {
-        "_comment": "MCP server 配置。API key 填入 env 块，不要提交到公开仓库。",
         "tavily": {
             "command": "npx",
             "args": ["-y", "tavily-mcp"],
@@ -43,7 +9,6 @@
             }
         },
         "getnote": {
-            "_comment": "单实例 fallback。如 ccprivate/conf/claude.json 配置了 getnote_accounts + getnote_default，sync 时会覆盖此 env",
             "command": "npx",
             "args": ["-y", "@getnote/mcp"],
             "env": {
@@ -52,7 +17,6 @@
             }
         },
         "exa": {
-            "_comment": "语义搜索 MCP（HTTP 传输）",
             "type": "http",
             "url": "https://mcp.exa.ai/mcp",
             "headers": {
