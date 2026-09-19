@@ -20,8 +20,9 @@ source "$SCRIPT_DIR/path-helper.sh" 2>/dev/null || true
 source "$SCRIPT_DIR/colors.sh"
 
 # shellcheck disable=SC2155  # intentional: PATH export with computed fallback
-node_bin_path="$(find_node_bin 2>/dev/null || echo "")"
-export PATH="$HOME/.local/bin:${node_bin_path}:$PATH"
+node_bin_path="$(find_node_bin 2>/dev/null || true)"
+# ${x:+:...} 而非 :$x: —— 空值时后者留下 "::" 空段，等于把当前目录塞进 PATH
+export PATH="$HOME/.local/bin${node_bin_path:+:$node_bin_path}:$PATH"
 
 MISSING=0
 WARNINGS=0

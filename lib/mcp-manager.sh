@@ -349,7 +349,11 @@ for path, cfg in sorted(d.get('projects', {}).items()):
     if not isinstance(cfg, dict): continue
     name = path.rsplit('/', 1)[-1]
     proj_enabled = cfg.get('enabledMcpjsonServers', [])
-    proj_disabled = cfg.get('disabledMcpjsonServers', [])
+    # 两个键都读：本工具的写入路径用 disabledMcpServers，Claude Code 自身
+    # 维护 disabledMcpjsonServers，真实 .config.json 里两键并存 —— 只读一个
+    # 会让「特关」在总览里永远显示为启用
+    proj_disabled = list(dict.fromkeys(
+        cfg.get('disabledMcpServers', []) + cfg.get('disabledMcpjsonServers', [])))
     projects[name] = (proj_enabled, proj_disabled)
 
 proj_names = sorted(projects.keys())
