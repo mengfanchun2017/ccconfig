@@ -175,7 +175,7 @@ flowchart LR
 ```
 
 字段语义：
-- **`use_bridge` 三态**（[memory `use-bridge-absent-vs-false-20260907`](../memory/use-bridge-absent-vs-false-20260907.md)）：
+- **`use_bridge` 三态**（memory `use-bridge-absent-vs-false-20260907`）：
   - `"True"` 显式强制走 bridge
   - `"False"` 显式禁 bridge（OpenAI-only + false → 早报错，不静默兜底）
   - **缺失** → OpenAI-only 端点自动起 bridge，Anthropic 端点直连
@@ -276,28 +276,27 @@ while true:
 
 - **LLM provider 协议适配**：只接受 Anthropic Messages 协议，OpenAI-only 必须经 bridge
 - **多模型路由 / 负载均衡**：单 preset 单模型
-- **用量计费 / 账单推送飞书**：[`option-usage/`](../../option-usage/) 独立模块负责
+- **用量计费 / 账单推送飞书**：[`option-usage/`](../option-usage/) 独立模块负责
 - **OpenAI↔Anthropic 双向转换**：openai_bridge.py 只做 Anthropic→OpenAI 方向（让 Claude Code 调 OpenAI-only LLM）
 
 ## 十、相关文档
 
 - **设计依据 ADR**（按时间序）：
-  - [ADR-0013 bridge 自愈 SessionStart hook](../adr/0013-bridge-selfheal-sessionstart.md)
-  - [ADR-0015 废弃 altllm0731（停止自改 bridge 适配网关）](../adr/0015-llm-0731-deprecation.md)
-  - [ADR-0016 Tailscale Subnet Router（WSL + Windows 自动触发 `--use-win-curl`）](../adr/0016-tailscale-subnet-router.md)
-  - [ADR-0019 bridge 三层修复（WSL 网络栈 + DNS + ARG_MAX）](../adr/0019-bridge-win-curl-wsl-vpn.md)
-  - [ADR-0020 settings.json LLM 本地化](../adr/0020-llm-current-local-per-machine.md)
-  - [ADR-0029 init-llm 2026 目标决策](../adr/0029-init-llm-target-2026.md)
-  - [ADR-0030 Gateway 模式废弃](../adr/0030-gateway-deprecation-2026.md)
-  - [ADR-0031 init-llm 收敛：桥接链路修复 + 探测统一 + 四层守护模型](../adr/0031-init-llm-consolidation-2026.md)
+  - [ADR-0013 bridge 自愈 SessionStart hook](adr/0013-bridge-selfheal-sessionstart.md)
+  - [ADR-0015 废弃 altllm0731（停止自改 bridge 适配网关）](adr/0015-llm-0731-deprecation.md)
+  - [ADR-0016 Tailscale Subnet Router（WSL + Windows 自动触发 `--use-win-curl`）](adr/0016-tailscale-subnet-router.md)
+  - [ADR-0019 bridge 三层修复（WSL 网络栈 + DNS + ARG_MAX）](adr/0019-bridge-win-curl-wsl-vpn.md)
+  - [ADR-0020 settings.json LLM 本地化](adr/0020-llm-current-local-per-machine.md)
+  - [ADR-0029 init-llm 2026 目标决策](adr/0029-init-llm-target-2026.md)
+  - [ADR-0030 Gateway 模式废弃](adr/0030-gateway-deprecation-2026.md)
+  - [ADR-0031 init-llm 收敛：桥接链路修复 + 探测统一 + 四层守护模型](adr/0031-init-llm-consolidation-2026.md)
   - 后续：ADR-0029 init-llm target（本文件落地的决策）
-- **memory**（核心条目）：
-  - [`llm-management`](../memory/llm-management.md)
-  - [`altllm-split-presets-20260917`](../memory/altllm-split-presets-20260917.md)
-  - [`use-bridge-absent-vs-false-20260907`](../memory/use-bridge-absent-vs-false-20260907.md)
-  - [`claude-session-restart-after-llm-switch-20260917`](../memory/claude-session-restart-after-llm-switch-20260917.md)
-  - [`init-llm-key-discard-on-verify-fail-20260902`](../memory/init-llm-key-discard-on-verify-fail-20260902.md)
-  - [`openai-bridge`](../memory/openai-bridge.md)（含 0731 SSE bug 教训 + bridge 容错）
+- **memory**（核心条目，存于使用者的私有 memory，不随公开仓库分发）：
+  `llm-management` / `altllm-split-presets-20260917` /
+  `use-bridge-absent-vs-false-20260907` /
+  `claude-session-restart-after-llm-switch-20260917` /
+  `init-llm-key-discard-on-verify-fail-20260902` /
+  `openai-bridge`（含 0731 SSE bug 教训 + bridge 容错）
 
 ## 十一、未来工作
 
@@ -313,4 +312,4 @@ while true:
 2. ~~评估 `switch_custom` / `edit_preset`~~ ✅ 已删除（连同菜单入口），改为手改 `conf/llm.json`。
 3. ~~`test_all` 与 `show_status` 去重~~ ✅ 已完成：删 `test_all`；bridge 状态检查抽成 `_bridge_health` 供 `show_status` 与菜单头共用。
 3. **`show_status` 与 `status.sh` 的 LLM 段去重**。
-4. **是否把 `tests/test-init-llm.sh` 重写为当前架构**（现标记过时，gateway 时代用例；bridge 部分已由 `test-openai-bridge.sh` 覆盖）。
+4. ~~重写 `tests/test-init-llm.sh`~~ ✅ 已删除：gateway 时代用例，指向早已不存在的 `option-llmswitch/init.sh`，跑起来第一步就崩；bridge 部分由 `test-openai-bridge.sh` 覆盖，切换链路由 `test-init-llm-switch.sh` 覆盖。

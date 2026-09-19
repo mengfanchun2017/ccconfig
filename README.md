@@ -9,7 +9,7 @@
 [![Last commit](https://img.shields.io/github/last-commit/mengfanchun2017/ccconfig.svg)](https://github.com/mengfanchun2017/ccconfig/commits/main)
 [![Code style: shellcheck+shfmt](https://img.shields.io/badge/code%20style-shellcheck%2Bshfmt-blue.svg)](.github/workflows/check.yml)
 
-[English](../README.md) · [中文](README.md)
+[中文](README.md)
 
 ## 概述
 
