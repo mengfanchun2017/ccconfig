@@ -344,7 +344,10 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 
 ## 版本里程碑
 
-### v3.x — 交互菜单 API 收口（2026-08-10）
+> 发布版本号用 CalVer `YYYY.MM.DD`（真相源是 git tag，见 [CHANGELOG](CHANGELOG.md#版本号方案)）。
+> 下面的「里程碑」是**开发阶段代号**，不代表发布版本。
+
+### 交互菜单 API 收口（2026-08-10）
 
 ccconfig 历史上每个脚本各自写 `read -p "选择 [1-N]: "` + 数字校验 + `menu_num` 兜底，散落在 8+ 文件。新版统一收口到 `lib/interact.sh` 单一 API：
 

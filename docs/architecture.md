@@ -236,7 +236,7 @@ Tier 0: CLI/MCP 工具（真正的原语）
 
 Tier 1: 能力 Skill（包装工具加约定）
   fsearch          多源搜索编排（三源并行 + 去重 + 标注）
-  fpdf             PDF 内容提取（PyMuPDF）
+  ftransec         科研英文资料翻译流水线（PDF 解析 → 术语库/翻译记忆 → 双语交付）
   fdiagram         代码驱动图表生成（Mermaid + whiteboard-cli）
   fdocx            Word .docx 生成（OfficeCLI 引擎）
   fxlsx            Excel .xlsx 生成（OfficeCLI 引擎）

@@ -56,7 +56,7 @@ main() {
             ;;
         init-ccprivate)
             shift
-            exec "$CCCONFIG_DIR/init-ccprivate-repo.sh" "$@"
+            exec "$CCCONFIG_DIR/init-bootstrap.sh" "$@"
             ;;
         help|--help|-h)
             help

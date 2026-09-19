@@ -3,6 +3,7 @@
 > **Status**: ✅ Accepted
 > **日期**: 2026-07-30
 > **关联**: getnote skill (`skill/plugins/getnote/`)
+> **模板**: MADR 4.0 极简版
 
 ## Context and Problem Statement
 
