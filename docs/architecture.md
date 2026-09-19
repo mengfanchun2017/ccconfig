@@ -12,7 +12,7 @@ ccconfig 是 Claude Code 配置管理的基础设施。目标：**新机器 10 �
 |------|--------|------|----------|
 | **ccconfig** | 公开 | infra 脚本 + .example 模板（rules/agents/conf） | fork 或 clone，定期 git pull |
 | **skill** | 公开 | 16 个 f-* skill 插件 marketplace | clone 或 `/plugin marketplace add` |
-| **ccprivate** | 私有 | API key + token + 个人配置 | 运行 `init-ccprivate-repo.sh` 自建 |
+| **ccprivate** | 私有 | API key + token + 个人配置 | 运行 `init-bootstrap.sh` 自建 |
 
 ccconfig 本身不含任何密钥，可安全公开。skill 可独立使用（不依赖 ccconfig）。ccprivate 每人自建。
 
@@ -58,7 +58,7 @@ ccconfig 脚本通过 `resolve_conf()` 直接读 `ccprivate/conf/*.json`（路�
 ### Skill 配置（YAML，skill 直接读取）
 
 ```
-ccprivate/skill-config/flogme.yaml ──apply-config.sh ln -s──→ ~/.claude/skills/flogme/config.yaml
+ccprivate/skill/flogme.yaml ──apply-config.sh ln -s──→ ~/.claude/skills/flogme/config.yaml
                                                           └── flogme/log_write.py open('config.yaml') 读到真实 token
 ```
 
@@ -109,7 +109,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │   │   ├── init-skill.sh       # Skills 同步（4+1 阶段 pipeline）
 │   │   ├── init-autostart.sh   # auto-sync systemd 服务
 │   │   ├── update.sh           # 月度组件升级
-│   │   ├── status.sh           # 14 项状态检查
+│   │   ├── status.sh           # 11 项状态检查
 │   │   ├── monitor.sh          # 多仓库文件监听 + 自动 git 同步
 │   │   ├── sync.sh             # 多仓库智能同步
 │   │   ├── setup-links.sh      # 公开部分符号链接
@@ -124,21 +124,21 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │   │   ├── rules/              # 条件规则模板（9 个，.md.example）
 │   │   ├── agents/             # 意图路由 agent 模板（.md.example）
 │   │   └── settings.json.example
-│   ├── init-ccprivate-repo.sh   # ccprivate 一键创建向导
+│   ├── init-bootstrap.sh   # ccprivate 一键创建向导
 │   ├── hooks/                  # git pre-commit hook
-│   ├── option-*/               # 可选组件（llmswitch/officecli/usage/larkcli/getnote/remote/cloudflare）
+│   ├── option-*/               # 可选组件（llmswitch/officecli/usage/larkcli/getnote/remote/cloudflare/skill）
 │   └── docs/                   # 架构/升级/ADR/进度 文档
 │
 ├── skill/              # ← 用户 clone 这个（或 /plugin marketplace add）
 │   ├── .claude-plugin/marketplace.json
 │   └── plugins/                # 16 个 plugin
 │
-└── ccprivate/                  # ← 用户运行 init-ccprivate-repo.sh 自建
+└── ccprivate/                  # ← 用户运行 init-bootstrap.sh 自建
     ├── conf/*.json             # API key / token 真实值
     ├── rules/*.md              # 运行时条件规则
     ├── agents/*.md             # 运行时 agent
     ├── commands/                # 运行时自定义命令
-    ├── skill-config/*.yaml     # skill 私有配置覆盖
+    ├── skill/*.yaml     # skill 私有配置覆盖
     ├── link/                   # 个人 CLAUDE.md + settings.json + memory
     ├── setup.sh                # 私有+公开 symlink 一键建立
     └── bin/apply-config.sh     # skill config.yaml 覆盖
@@ -152,9 +152,9 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 阶段 0: Windows 前置（WSL2 + Ubuntu 26.04 LTS + PowerShell 7）
 阶段 1: OS 基础（apt update + git/curl/wget）
 阶段 2: gh CLI（GitHub 命令行）
-阶段 3: GitHub 认证（Fine-grained PAT 主路径 → 自动配 SSH key）
-阶段 4: 克隆三仓库 + init-ccprivate-repo.sh
-阶段 5: init-base.sh all（Ubuntu + LLM + MCP）
+阶段 3: GitHub 认证（Fine-grained PAT，HTTPS + gh credential helper；SSH 为可选加速）
+阶段 4: 克隆三仓库 + init-bootstrap.sh
+阶段 5: init-base.sh all（Ubuntu + LLM + 收尾链接/服务）
 阶段 6: 克隆所有项目
 阶段 7: maintain.sh status 验证
 ```
@@ -163,10 +163,9 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 
 ```
 init-base.sh all
-  ├── 1/4 init-ubuntu.sh     # 系统包 + Node + uv + Claude Code + git config + fonts + systemd
-  ├── 2/4 init-llm.sh        # LLM 后端配置（API key → settings.json）
-  ├── 3/4 init-mcp.sh        # MCP 服务器安装 + 配置
-  └── 4/4 maintain.sh finalize # 收尾：链接修复 + auto-sync 启动 + 状态验证
+  ├── 1/3 init-ubuntu.sh     # 系统包 + Node + uv + Claude Code + git config + fonts + systemd
+  ├── 2/3 init-llm.sh        # LLM 后端配置（API key → settings.json）
+  └── 3/3 ccprivate/setup.sh # 收尾：ccprivate 私有链接（CLAUDE.md / MEMORY.md / settings.json 等 symlink）
 ```
 
 symlink 建立链：
@@ -195,11 +194,21 @@ systemd user service 守护，开机自启。`monitor.sh status` 查看各仓库
 
 ### 状态检查（maintain.sh status）
 
-每次 Claude Code 启动自动运行（SessionStart hook）。14 项检查：
-1. 配置文件链接 2. 核心依赖 3. auto-sync 4. 最后推送 5. MEMORY 更新
-6. Git 项目状态 7. 飞书 lark-cli 8. Playwright 9. MCP 服务器（并行，24h 缓存）
-10. 远程连接（SSH + Tailscale） 11. option-*
-12. Example 模板同步（ccconfig .example vs ccprivate 运行时） 可选组件
+每次 Claude Code 启动自动运行（SessionStart hook）。11 项检查，输出用 `━━━ 段落名 ━━━` 段头：
+
+1. 配置文件链接（symlinks）
+2. ccprivate 结构
+3. 核心依赖
+4. auto-sync 状态
+5. GitHub PAT 有效期
+6. 仓库（Git 项目状态 + MEMORY + 最后推送）
+7. 飞书 lark-cli
+8. MCP 服务器（并行，24h 缓存）
+9. 可选组件 option-*（含 SSH/Tailscale）
+10. Skills 安装/断链
+11. 模板同步（ccconfig .example vs ccprivate 运行时）
+
+`--quick` 只跑前 6 项 + 飞书。
 
 ## 升级策略
 
@@ -226,12 +235,12 @@ Tier 0: CLI/MCP 工具（真正的原语）
   whiteboard-cli   飞书白板 SVG 渲染
 
 Tier 1: 能力 Skill（包装工具加约定）
-  f-search         多源搜索编排（三源并行 + 去重 + 标注）
-  f-pdf            PDF 内容提取（PyMuPDF）
-  f-diagram        代码驱动图表生成（Mermaid + whiteboard-cli）
-  f-docx           Word .docx 生成（OfficeCLI 引擎）
-  f-xlsx           Excel .xlsx 生成（OfficeCLI 引擎）
-  f-pptx           PPTX 生成（OfficeCLI 引擎 + autofit 后处理）
+  fsearch          多源搜索编排（三源并行 + 去重 + 标注）
+  fpdf             PDF 内容提取（PyMuPDF）
+  fdiagram         代码驱动图表生成（Mermaid + whiteboard-cli）
+  fdocx            Word .docx 生成（OfficeCLI 引擎）
+  fxlsx            Excel .xlsx 生成（OfficeCLI 引擎）
+  fpptx            PPTX 生成（OfficeCLI 引擎 + autofit 后处理）
 
 Tier 2: 编排层（路由 + 文档生命周期）
   ffeishu          飞书文档统一入口 → 委托 Tier 1 skill + lark-cli
@@ -239,7 +248,7 @@ Tier 2: 编排层（路由 + 文档生命周期）
 Tier 3: 领域方法论（领域知识 + 框架）
   fresearchframe    4 领域研究方法论（customer/generic/market/technical）
   freportstd       报告写作横向规范（4 套模板）
-  f-sysarchi       系统分析师备考方法论
+  fsysarchi        系统分析师备考方法论
 
 Tier 4: 应用 Skill（最终用户工作流）
   fresearchreport   报告生成 → 委托 fresearchframe + freportstd + ffeishu
@@ -253,12 +262,12 @@ Tier 4: 应用 Skill（最终用户工作流）
 | 来源 | 安装方式 | 管理 |
 |------|---------|------|
 | 自建 f-*（16 个） | `bash lib/init-skill.sh sync` 从 skill symlink | ccconfig |
-| 第三方（mattpocock） | `npx skills add` 从 GitHub | `conf/third-party-skills.txt` |
-| 私有覆盖 | `apply-config.sh` ln -s ccprivate/skill-config/*.yaml | ccprivate |
+| 第三方 | 已废弃，`conf/third-party-skills.txt` 不再存在；所有 skill 统一在 `~/git/skill/plugins/` 管理 | — |
+| 私有覆盖 | `apply-config.sh` ln -s ccprivate/skill/*.yaml | ccprivate |
 
 ### 私有配置覆盖
 
-skill 的 `config.yaml` 实际是 symlink → `ccprivate/skill-config/<skill>.yaml`。skill 内 Python 脚本 `open('config.yaml')` 自动跟踪 symlink 读到真实 token。修改 ccprivate 立即生效。
+skill 的 `config.yaml` 实际是 symlink → `ccprivate/skill/<skill>.yaml`。skill 内 Python 脚本 `open('config.yaml')` 自动跟踪 symlink 读到真实 token。修改 ccprivate 立即生效。
 
 ## 隐私模型
 
@@ -267,7 +276,7 @@ skill 的 `config.yaml` 实际是 symlink → `ccprivate/skill-config/<skill>.ya
 | API key / Token | ccprivate/conf/*.json | 私有仓库 |
 | 个人 CLAUDE.md / settings | ccprivate/link/ | 私有仓库 |
 | 项目 memory | ccprivate/link/projects/ | 私有仓库 |
-| Skill 私有配置 | ccprivate/skill-config/*.yaml | 私有仓库 |
+| Skill 私有配置 | ccprivate/skill/*.yaml | 私有仓库 |
 | infra 脚本 | ccconfig/*.sh | 公开 |
 | rules / agents / commands 模板 | ccconfig/templates/（.example） | 公开 |
 | 运行时 rules / agents / commands | ccprivate/ | 私有 |
@@ -284,6 +293,8 @@ skill 的 `config.yaml` 实际是 symlink → `ccprivate/skill-config/<skill>.ya
 ```
 option-larkcli/     飞书 lark-cli（编辑文档/日历/任务）
 option-officecli/   OfficeCLI（PPT/Office 原生 OpenXML 工具）
+option-skill/       Skills 安装（包装 lib/init-skill.sh）
+option-llmswitch/   Anthropic↔OpenAI 桥（内部，由 init-llm.sh 自动管理）
 option-cloudflare/  Cloudflare Workers/Pages/D1/R2/AI 开发环境
 option-remote/      Tailscale + SSH 远程访问桌面 tmux session
 option-getnote/     得到大脑 MCP 笔记集成
@@ -297,7 +308,7 @@ option-usage/       Token 用量归档 + 配额监控
 1. 在 `~/git/skill/plugins/<name>/` 创建 `SKILL.md` + 可选 `config.yaml.example`
 2. 在 `.claude-plugin/marketplace.json` 注册 plugin entry
 3. `bash lib/init-skill.sh sync` 同步到 `~/.claude/skills/`
-4. 如有私有配置：`ccprivate/skill-config/<name>.yaml` → `apply-config.sh` 自动覆盖
+4. 如有私有配置：`ccprivate/skill/<name>.yaml` → `apply-config.sh` 自动覆盖
 
 ### 添加新 Option
 

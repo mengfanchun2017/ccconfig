@@ -37,6 +37,7 @@
 | `ccprivate-upgrade.sh` | 私有配置升级 |
 | `shell_init.sh` | shell 初始化 |
 | `ensure-bridge.sh` | bridge 看门狗 |
+| `bridge-restart.sh` | bridge 重启（watchdog 与冷启动共用） |
 | `ensure-libicu.sh` | ICU 依赖 |
 | `install-inotify.sh` | inotify 安装 |
 | `init-ubuntu.sh` | Ubuntu 初始化 |
@@ -45,3 +46,4 @@
 | `init-mcp.sh` | MCP 初始化 |
 | `init-skill.sh` | Skill 安装 |
 | `init-autostart.sh` | 自启动配置 |
+| `claude-auto-sync.service` | systemd user service 模板（被 init-autostart.sh 使用） |

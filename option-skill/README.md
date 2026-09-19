@@ -29,8 +29,8 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
 | 类型 | 来源 | 安装方式 | 管理 |
 |------|------|---------|------|
 | **自建 f-*** | `skill/plugins/` | symlink 到 `~/.claude/skills/` | git 仓库（skill） |
-| **第三方 (npx)** | 上游 GitHub 仓库 | `npx skills add` → `~/.agents/skills/` → auto symlink | `conf/third-party-skills.txt` 清单 |
-| **私有配置** | `ccprivate/skill-config/` | symlink `config.yaml` 覆盖 skill 默认配置 | ccprivate 仓库 |
+| **第三方 (npx)** | 上游 GitHub 仓库 | `npx skills add` → `~/.agents/skills/` → auto symlink（流程已废弃：`conf/third-party-skills.txt` 已移除，统一在 `~/git/skill/plugins/` 管理） | — |
+| **私有配置** | `ccprivate/skill/` | symlink `config.yaml` 覆盖 skill 默认配置 | ccprivate 仓库 |
 
 ## 命令速查
 

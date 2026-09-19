@@ -1,6 +1,6 @@
 # ccprivate 个人仓库搭建指南
 
-> **⚠️ 本文件为手动参考**。权威自动化版本是 [`init-ccprivate-repo.sh`](../init-bootstrap.sh) — 该脚本会自动创建 GitHub 私有仓、写入 `conf/*.json`、生成 `setup.sh`、建立所有 symlink。本指南内容如与脚本行为不一致，**以脚本实际行为为准**。
+> **⚠️ 本文件为手动参考**。权威自动化版本是 [`init-bootstrap.sh`](../init-bootstrap.sh) — 该脚本会自动创建 GitHub 私有仓、写入 `conf/*.json`、生成 `setup.sh`、建立所有 symlink。本指南内容如与脚本行为不一致，**以脚本实际行为为准**。
 >
 > **何时用本指南**：
 > - 想要理解每一步在做什么（脚本透明化读本）
@@ -9,11 +9,11 @@
 >
 > **默认路径（99% 用户适用）**：
 > ```bash
-> bash ~/git/ccconfig/init-ccprivate-repo.sh   # 一条命令搞定
+> bash ~/git/ccconfig/init-bootstrap.sh   # 一条命令搞定
 > ```
 >
-> **最后人工核对日期**：2026-08-04
-> **核对方法**：对照 `init-ccprivate-repo.sh` 实际行为校对 7 步叙述，发现漂移即修订
+> **最后人工核对日期**：2026-09-19
+> **核对方法**：对照 `init-bootstrap.sh` 实际行为校对 7 步叙述，发现漂移即修订
 
 ---
 
@@ -34,7 +34,7 @@ ccprivate 通过 symlink 向 ccconfig 注入真实配置：
 ccprivate/                         ccconfig/
 ├── conf/                          conf/
 │   ├── llm.json        ──symlink──→ llm.json       (API Key)
-│   ├── claude.json     ──symlink──→ claude.json    (MCP env)
+│   ├── mcp-servers.json ──symlink──→ mcp-servers.json (MCP env)
 │   ├── feishu.json     ──symlink──→ feishu.json    (飞书 App ID/Secret)
 │   ├── ubuntu.json     ──symlink──→ ubuntu.json    (Git 用户信息，v3+ 不再需要，gh api 自动获取)
 │   ├── flogme.json    ──symlink──→ flogme.json   (飞书 Base token)
@@ -43,8 +43,8 @@ ccprivate/                         ccconfig/
 │
 ├── link/                          ~/
 │   ├── CLAUDE.md       ──symlink──→ ~/CLAUDE.md
-│   ├── settings.json   ──symlink──→ ~/.claude/settings.json
-│   ├── .config.json    ──symlink──→ ~/.claude/.config.json
+│   ├── settings.json   # 本机文件，cp 一次不做 symlink（ADR-0032）
+│   ├── .config.json    # 本机文件，cp 一次不做 symlink（ADR-0032）
 │   └── projects/       ──symlink──→ ~/.claude/projects/ (memory)
 │
 └── setup.sh            调用  →    ccconfig/setup-links.sh
@@ -66,17 +66,19 @@ ccprivate/                         ccconfig/
 
 ### 1.2 克隆到本地
 
-**SSH（推荐）**：
+**HTTPS（默认，走 gh credential helper）**：
+
+```bash
+mkdir -p ~/git && cd ~/git
+git clone https://github.com/<your-github-username>/ccprivate.git ~/git/ccprivate
+# 或 gh repo clone <your-github-username>/ccprivate ~/git/ccprivate
+```
+
+**SSH（可选加速，需先配 key）**：
 
 ```bash
 mkdir -p ~/git && cd ~/git
 git clone git@github.com:<your-github-username>/ccprivate.git
-```
-
-**HTTPS（备选）**：
-
-```bash
-gh repo clone <your-github-username>/ccprivate ~/git/ccprivate
 ```
 
 ---
@@ -88,7 +90,7 @@ cd ~/git/ccprivate
 
 # 创建子目录
 mkdir -p conf
-mkdir -p skill-config
+mkdir -p skill
 mkdir -p link/projects
 ```
 
@@ -100,7 +102,7 @@ ccprivate/
 ├── rules/                # 运行时条件规则
 ├── agents/               # 运行时 agent
 ├── commands/             # 运行时自定义命令
-├── skill-config/         # Skill 配置 YAML（供 apply-config.sh symlink）
+├── skill/         # Skill 配置 YAML（供 apply-config.sh symlink）
 ├── link/                 # 个人 Claude Code 配置
 │   ├── CLAUDE.md         # 你的全局 AI 行为指南
 │   ├── settings.json     # Claude Code 权限设置
@@ -148,10 +150,10 @@ cp ~/git/ccconfig/conf/llm.json.example ~/git/ccprivate/conf/llm.json
 
 至少填一个 LLM 后端。`current` 设为你日常用的默认后端。
 
-### 3.2 conf/claude.json — MCP 服务器配置
+### 3.2 conf/mcp-servers.json — MCP 服务器配置
 
 ```bash
-cp ~/git/ccconfig/conf/claude.json.example ~/git/ccprivate/conf/claude.json
+cp ~/git/ccconfig/conf/mcp-servers.json.example ~/git/ccprivate/conf/mcp-servers.json
 ```
 
 编辑填入：
@@ -175,7 +177,7 @@ cp ~/git/ccconfig/conf/claude.json.example ~/git/ccprivate/conf/claude.json
 | `conf/fpptx.json`   | PPT 生成工具路径 | 用 PPT 功能才需要 |
 | `conf/cloudflare.json` | Cloudflare API token | 用 Cloudflare 才需要 |
 | `conf/supabase.json` | Supabase 数据库 token | 用 Supabase 才需要 |
-| `conf/f-moocrec.yaml` | 慕课推荐配置（已迁到 ccprivate/skill-config/fmoocrec.yaml） | 用课程推荐才需要 |
+| `conf/f-moocrec.yaml` | 慕课推荐配置（已迁到 ccprivate/skill/fmoocrec.yaml） | 用课程推荐才需要 |
 
 每个都有对应的 `.example` 模板在 `ccconfig/conf/` 下，复制后编辑即可。
 
@@ -232,10 +234,10 @@ Claude Code 扩展配置（可选）。如果你有自定义配置，放这里�
 
 ## 第五步：创建 setup.sh
 
-`init-ccprivate-repo.sh` 已自动生成 `setup.sh`，无需手动创建。脚本内容：
+`init-bootstrap.sh` 已自动生成 `setup.sh`，无需手动创建。脚本内容：
 
-1. 个人 link/ → ~/  symlink（CLAUDE.md、settings.json、.config.json）
-2. 运行时 rules/agents/commands → ~/.claude/（ccprivate 侧）
+1. 共享文件 symlink → ~/（CLAUDE.md）与 ~/.claude/（rules/agents/commands）
+2. 本机文件从 `.example` cp 一次，不做 symlink：`~/.claude/settings.json` / `.config.json` / `.claudeignore`（ADR-0032）
 3. projects/ memory 目录 symlink
 4. 调用 `ccconfig/lib/setup-links.sh` 处理 shell_init + pre-commit
 
@@ -277,7 +279,7 @@ git push -u origin main
 bash ~/git/ccprivate/setup.sh
 ```
 
-然后继续 [BOOTSTRAP.md](../BOOTSTRAP.md) 的阶段 4（初始化）。
+然后继续 [BOOTSTRAP.md](../BOOTSTRAP.md) 的阶段 5（系统初始化）。
 
 ---
 
@@ -291,16 +293,16 @@ bash ~/git/ccprivate/setup.sh
 ### 新机器恢复
 
 ```bash
-git clone git@github.com:<your-username>/ccprivate.git ~/git/ccprivate
+git clone https://github.com/<your-username>/ccprivate.git ~/git/ccprivate
 bash ~/git/ccprivate/setup.sh
 ```
 
 ### Skill 私有配置（YAML 覆盖）
 
-部分 skill（flogme、ffeishu、fpptx、fmoocrec）需要私有配置（token/URL/table ID）。这些不走 `conf/*.json`，而是通过 `config/*.yaml` + symlink 直接注入 skill 目录：
+部分 skill（flogme、ffeishu、fpptx、fmoocrec）需要私有配置（token/URL/table ID）。这些不走 `conf/*.json`，而是通过 `skill/*.yaml` + symlink 直接注入 skill 目录：
 
 ```
-ccprivate/config/flogme.yaml ──apply-config.sh ln -s──→ ~/.claude/skills/flogme/config.yaml
+ccprivate/skill/flogme.yaml ──apply-config.sh ln -s──→ ~/.claude/skills/flogme/config.yaml
 ```
 
 skill 内 Python 脚本 `open('config.yaml')` 自动跟踪 symlink 读到 ccprivate 的真实值。修改 ccprivate 后立即生效，无需重跑脚本。
@@ -319,7 +321,7 @@ skill 内 Python 脚本 `open('config.yaml')` 自动跟踪 symlink 读到 ccpriv
 | 方式 | 格式 | 消费方 | 路径 |
 |------|------|--------|------|
 | 系统配置 | JSON（conf/*.json） | ccconfig init 脚本 | ccprivate/conf/ → ccconfig/conf/ |
-| Skill 配置 | YAML（config/*.yaml） | skill Python 脚本 | ccprivate/config/ → ~/.claude/skills/*/config.yaml |
+| Skill 配置 | YAML（skill/*.yaml） | skill Python 脚本 | ccprivate/skill/ → ~/.claude/skills/*/config.yaml |
 | 个人配置 | 直接文件 | Claude Code 自身 | ccprivate/link/ → ~/
 
 ---
@@ -330,10 +332,10 @@ skill 内 Python 脚本 `open('config.yaml')` 自动跟踪 symlink 读到 ccpriv
 A: ccprivate 和 ccconfig 是完全不同的仓库。ccconfig 是公开的工具集，ccprivate 是你个人的密钥库。没有"官方 ccprivate"可以 fork——每个人的密钥不同。
 
 ### Q: 可以不用 ccprivate 吗？
-A: 可以。用 `bash ccconfig/init-ccprivate-repo.sh` 交互式配置向导，手动输入 API Key。但 ccprivate 方式更方便——一次配置，多机复用，`git pull` 即可恢复。
+A: 可以。用 `bash ccconfig/init-bootstrap.sh` 交互式配置向导，手动输入 API Key。但 ccprivate 方式更方便——一次配置，多机复用，`git pull` 即可恢复。
 
 ### Q: ccprivate/setup.sh 和 ccconfig/setup-links.sh 的关系？
-A: `ccprivate/setup.sh` 做私有链接（CLAUDE.md + settings.json + rules + agents + commands），然后调用 `ccconfig/lib/setup-links.sh` 做 shell_init + pre-commit hook。一步到位。
+A: `ccprivate/setup.sh` 做私有链接（CLAUDE.md + rules + agents + commands；settings.json / .config.json / .claudeignore 是本机文件，从 `.example` cp 一次），然后调用 `ccconfig/lib/setup-links.sh` 做 shell_init + pre-commit hook。一步到位。
 
 ### Q: conf/ 文件是 symlink，git 会跟踪吗？
 A: ccconfig 的 `.gitignore` 已忽略 `conf/*.json`（除 `.example` 和 `versions.json`），symlink 不会被 commit。`hooks/pre-commit` 也会拦截。

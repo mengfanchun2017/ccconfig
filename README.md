@@ -18,7 +18,7 @@ ccconfig 是 Claude Code 配置基础设施的公开部分。**三仓库模型**
 | 仓库 | 可见性 | 内容 |
 |------|--------|------|
 | **ccconfig** | 公开 | infra 脚本、.example 模板（rules/agents/conf） |
-| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | 17 个 f-* skill 插件（marketplace 兼容） |
+| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | 17 个 skill 插件（16 个 f-* + getnote） |
 | **ccprivate** | 私有 | API key / Token / 个人配置，symlink 穿透访问 |
 
 ccconfig 本身不含任何密钥。
@@ -154,7 +154,7 @@ flowchart TB
 ccconfig/
 ├── bootstrap-gh-auth.sh      # 一行式起步（curl|bash：装 git + clone ccconfig）
 ├── init-base.sh              # 初始化统一入口
-├── maintain.sh               # 运维入口（status/self/upgrade/sync/monitor/deps/fix）
+├── maintain.sh               # 运维入口（status/self/setup/upgrade/sync/monitor/deps/llm/mcp/pat/token/feishu/example/upgrade-ccprivate）
 ├── init-option.sh            # 可选组件安装入口（分组菜单）
 │
 ├── lib/                      # 脚本库
@@ -164,7 +164,7 @@ ccconfig/
 │   ├── init-skill.sh         # Skills 同步
 │   ├── init-autostart.sh     # auto-sync systemd 服务
 │   ├── monitor.sh            # inotify 监听 + 自动 git 同步
-│   ├── status.sh             # 14 项状态检查
+│   ├── status.sh             # 11 项状态检查
 │   ├── sync.sh               # 多仓库 Git 同步（内含冲突解决）
 │   ├── update.sh             # 月度组件升级
 │   ├── example-sync.sh       # .example ↔ ccprivate 双向同步
@@ -195,13 +195,18 @@ ccconfig/
 ├── option-officecli/         # 可选：Office CLI（PPT/docx/xlsx）
 ├── option-cloudflare/        # 可选：Cloudflare 开发环境
 ├── option-remote/            # 可选：Tailscale + SSH 远程
+├── option-getnote/           # 可选：得到大脑 MCP 笔记集成
+├── option-usage/             # 可选：Token 用量归档 + 配额监控
 ├── option-skill/             # 可选：Skill 安装（包装 lib/init-skill.sh）
 ├── option-llmswitch/         # 内部：Anthropic↔OpenAI 桥（init-llm.sh 自动管理）
+├── bin/ccconfig              # CLI 包装（子命令转发到 maintain.sh / init-*.sh）
+├── bin/refresh-gh-auth.sh    # 刷新 fine-grained PAT
+├── bin/test-bootstrap.sh     # 启动引导自检
 ├── bin/memory-check.sh       # Memory 过期检查
 ├── hooks/pre-commit          # 防私密文件误提交
 ├── tests/                    # 自动化测试（mock 隔离，零网络）
 ├── docs/                     # 设计文档 + ADR（docs/adr/）
-├── .github/workflows/        # CI（shellcheck + shfmt）
+├── .github/workflows/        # CI check.yml（8 job：syntax/lint/json/python/bats/unit/links/deps）
 ├── .claude/settings.json     # 本仓库 Claude Code 设置
 ├── CLAUDE.md / BOOTSTRAP.md / CHANGELOG.md
 └── LICENSE / .editorconfig
@@ -213,7 +218,7 @@ ccconfig/
 
 ```bash
 # 1. Clone
- git clone git@github.com:<user>/ccconfig.git ~/git/ccconfig
+ git clone https://github.com/<user>/ccconfig.git ~/git/ccconfig
 
 # 2. gh 认证 + ccprivate（建仓或 clone 已有，二合一）
 bash ~/git/ccconfig/init-bootstrap.sh
@@ -258,22 +263,25 @@ bash lib/init-llm.sh bill               # 用量统计
 
 ```
 --CLI--
- 1) bat         ✓ 已安装 — cat 替代，语法高亮+行号
+ 1) batcat      ✓ 已安装 — cat 替代，语法高亮+行号
+ 2) glow        ✓ 已安装 — 终端 Markdown 渲染阅读
 
 --Claude--
- 2) mcp         ✗ 未配置（bash init-option.sh mcp）
- 3) skill       ✓ 17 个 skill 已安装
- 4) usage       ✓ timer 运行中 — Token 用量追踪
+ 3) mcp         ✗ 未配置（bash init-option.sh mcp）
+ 4) skill       ✓ 17 个 skill 已安装
+ 5) usage       ✓ timer 运行中 — Token 用量追踪
 
 --飞书--
- 5) larkcli     ✓ lark-cli 已安装 — 飞书 CLI
+ 6) larkcli     ✓ lark-cli 已安装 — 飞书 CLI
 
 --其他--
  7) officecli   ✓ OfficeCLI 已安装 — 生成 .pptx/.docx
  8) remote      ✗ 未配置 — SSH + Tailscale 远程
+ 9) cloudflare  ✗ 未配置 — Cloudflare Workers/Pages
+10) getnote     ✗ 未配置 — 得到大脑 MCP 笔记集成
 ...
-
-  a) 全部安装  0) 返回
+11) 全部安装
+12) 退出
 ```
 
 ### 🔐 公开/私密分离
@@ -282,7 +290,7 @@ bash lib/init-llm.sh bill               # 用量统计
 |------|--------|--------|
 | ccconfig | 脚本、.example 模板 | ✅ 开源 |
 | fancypowershell | Windows PowerShell 工具集 | ✅ 开源 |
-| skill | 17 个 f-* skill 插件 | ✅ marketplace |
+| skill | 17 个 skill 插件（16 个 f-* + getnote） | ✅ marketplace |
 | ccprivate | API key、token、个人配置 | ❌ 私有 |
 
 ### 🔄 Auto-Sync 守护进程
@@ -301,15 +309,22 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 |------|------|
 | `bash init-base.sh` | 交互式菜单 |
 | `bash init-base.sh all` | 一键基础初始化（Ubuntu → LLM → 链接/服务，3 步） |
-| `bash init-base.sh all --yes` | 全自动非交互（auth 类组件跳过） |
+| `bash init-base.sh all --yes` | 全自动非交互（跳过所有需人工确认的步骤） |
 | `bash init-option.sh` | 可选组件菜单（分组展示，可单独补装） |
 | `bash maintain.sh status` | 完整状态检查 |
-| `bash maintain.sh fix` | 自动修复断链 |
+| `bash maintain.sh fix` / `setup` | 自动修复断链 + 重新建立链接 |
 | `bash maintain.sh monitor start` | 启动 auto-sync |
 | `bash maintain.sh self skill` | 更新 skills |
+| `bash maintain.sh llm` | LLM 切换/测试/自愈 |
+| `bash maintain.sh mcp` | MCP 跨项目管理 |
+| `bash maintain.sh pat` | 刷新 fine-grained PAT |
+| `bash maintain.sh token` | Token 用量统计 |
+| `bash maintain.sh feishu` | 飞书链路测试 |
 | `bash maintain.sh example` | 检测 .example 模板差异 |
+| `bash maintain.sh upgrade-ccprivate` | ccprivate 结构升级 |
+| `bash maintain.sh deps` | 依赖完整性检查 |
 | `bash lib/init-llm.sh` | 切换 LLM 后端 |
-| `bash lib/update.sh all` | 月度组件升级 |
+| `bash lib/update.sh all` | 月度组件升级（10 步） |
 
 ## 状态检查
 
@@ -317,7 +332,7 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 
 ## 自建 Skills
 
-全部 17 个 skill 发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库：ffeishu / fpptx / fdiagram / fdocx / fsearch / flogme 等。
+全部 17 个 skill 插件（16 个 f-* + getnote）发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库：ffeishu / fpptx / fdiagram / fdocx / fsearch / flogme 等。
 `bash lib/init-skill.sh sync` 从 `~/git/skill/plugins/` symlink 到 `~/.claude/skills/`。
 
 ## 环境变量
@@ -364,7 +379,7 @@ for f in *.sh lib/*.sh option-*/*.sh; do bash -n "$f" && echo "$f OK"; done
 ### 添加 Option
 
 1. 创建 `option-<name>/`，含 `init.sh` + `--status` 支持
-2. 在 `init-option.sh` 的 `MENU_GROUPS` 和 `OPT_DESC` 中注册
+2. 在 `init-option.sh` 的 `MENU_GROUPS` 中注册（状态描述由 `option-<name>/init.sh --status` 提供）
 3. 自动被 `maintain.sh status` 发现
 
 ### 添加 Skill
