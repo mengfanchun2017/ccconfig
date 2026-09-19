@@ -100,11 +100,19 @@ init_all_steps() {
 
     FAILED_STEPS=()
 
-    # 读取 llm.json 中预设的 current
+    # 当前 preset 决定下面 init-llm.sh 切成哪个（导出后它按名字非交互切换）。
+    # why 先读 ~/.claude/llm-current 再回落 llm.json.current：ADR-0020 之后
+    #     llm.json 已不再写 current（本机选择归 llm-current），只读 llm.json
+    #     会拿到空值 → init-llm.sh 掉进交互菜单，配置根本没写入。
+    #     与 ensure-bridge.sh / bridge-restart.sh 的读法保持一致。
     local llm_json="$ccpriv/conf/llm.json"
     local current_llm
-    current_llm=$(python3 -c "import json; print(json.load(open('$llm_json')).get('current',''))" 2>/dev/null || echo "")
+    current_llm=$(tr -d '[:space:]' < "$HOME/.claude/llm-current" 2>/dev/null || true)
+    if [[ -z "$current_llm" ]]; then
+        current_llm=$(python3 -c "import json; print(json.load(open('$llm_json')).get('current',''))" 2>/dev/null || echo "")
+    fi
     export INIT_LLM_NAME="$current_llm"
+    [[ -z "$current_llm" ]] && warn "未确定当前 LLM preset（llm-current 与 llm.json 都没有），LLM 步骤会进交互菜单"
 
     run_step "Ubuntu 环境" "$SCRIPT_DIR/lib/init-ubuntu.sh" true         \
         "装 Node / Claude Code / pip / 建符号链接 / 启动 auto-sync"    \
