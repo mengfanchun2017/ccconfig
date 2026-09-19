@@ -442,7 +442,11 @@ async def _post_via_win_curl(url: str, headers: dict, body: dict, host_header: s
     """
     import asyncio
 
-    cmd = ["curl.exe", "-s", "-k", "--max-time", "300", "-X", "POST", url]
+    # why -sS：-s silent（不打印进度），-S 强制显示错误。
+    # 单 -s 时 curl 连接超时/证书错误/DNS 失败的 stderr 全被吞掉，stdout 空 → 上层
+    # 误把"网络问题"归因为 upstream non-json body=""。stream 路径已用 -sS（0919 修），
+    # 非流式路径同样覆盖。
+    cmd = ["curl.exe", "-sS", "-k", "--connect-timeout", "15", "--max-time", "300", "-X", "POST", url]
     for hk, hv in headers.items():
         cmd += ["-H", f"{hk}: {hv}"]
     if host_header:
@@ -459,6 +463,11 @@ async def _post_via_win_curl(url: str, headers: dict, body: dict, host_header: s
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate(input=body_bytes)
+        stderr_text = stderr.decode("utf-8", errors="replace").strip()
+        # curl 退出码非 0 时 stdout 通常空 + status=0（__HTTP_STATUS__ 没机会打印），
+        # 把 stderr 透传给上层，归因 upstream_error 而不是 misleading 的 upstream non-json body=""
+        if proc.returncode != 0:
+            return 0, f"curl.exe exit {proc.returncode}: {stderr_text[:500]}"
         text = stdout.decode("utf-8", errors="replace")
         # 解析 status (最后一行 __HTTP_STATUS__:xxx)
         status = 0
