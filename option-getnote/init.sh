@@ -17,7 +17,12 @@ source "$CCCONFIG_DIR/lib/dry-run.sh"
 source "$CCCONFIG_DIR/lib/colors.sh"
 source "$CCCONFIG_DIR/lib/interact.sh"
 
-CONF_FILE="$(resolve_conf getnote-accounts.json)" || exit 1
+# 账号文件缺失不是错误（首次使用/未配置），只是 --status 要能报 MISSING。
+# 硬 exit 1 会让 `init-option.sh --status` 打出一屏用法文本当状态。
+CONF_FILE="$(resolve_conf getnote-accounts.json 2>/dev/null || true)"
+if [[ -z "$CONF_FILE" ]]; then
+    CONF_FILE="${CCPRIVATE_HOME:-${CCPRIVATE_DIR:-$HOME/git/ccprivate}}/conf/getnote-accounts.json"
+fi
 
 # ── 添加账号 ──
 do_add() {
@@ -149,6 +154,19 @@ PYEOF
 
 # ── 主入口 ──
 case "${1:-}" in
+    --status|-s)
+        # 首行契约: OK/WARN/MISSING <描述>（init-option.sh parse_status_line 消费）
+        if [[ -f "$CONF_FILE" ]]; then
+            n=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(len(d.get('getnote_accounts') or []))" "$CONF_FILE" 2>/dev/null || echo 0)
+            if [[ "${n:-0}" -gt 0 ]]; then
+                echo "OK getnote 已配置 $n 个账号"
+            else
+                echo "MISSING getnote 无账号（bash option-getnote/init.sh add）"
+            fi
+        else
+            echo "MISSING getnote 未配置账号"
+        fi
+        ;;
     add|a)    do_add ;;
     remove|rm|r) shift; do_remove "${1:-}" ;;
     list|ls|l) bash "$SCRIPT_DIR/getnote-switch.sh" --list ;;

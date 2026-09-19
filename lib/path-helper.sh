@@ -183,6 +183,11 @@ resolve_conf() {
     local name="$1"
     local candidates=()
 
+    # CCPRIVATE_HOME 是全仓统一的变量名（init-bootstrap/init-ubuntu/option-* 都用它）；
+    # CCPRIVATE_DIR 是历史名，保留兼容
+    if [ -n "${CCPRIVATE_HOME:-}" ]; then
+        candidates+=("$CCPRIVATE_HOME/conf/$name")
+    fi
     if [ -n "${CCPRIVATE_DIR:-}" ]; then
         candidates+=("$CCPRIVATE_DIR/conf/$name")
     fi
