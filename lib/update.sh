@@ -322,6 +322,36 @@ update_npm_globals() {
         info "lark-cli 未安装，跳过"
     fi
 
+    # mmx-cli：同样是 npm 全局包 + $LOCAL_BIN symlink（指向 Node 版本目录，
+    # Node 升级后会断）。此前只在 versions.json 里声明、没有任何脚本升级它。
+    if command -v mmx &>/dev/null || [ -L "$LOCAL_BIN/mmx" ]; then
+        local mmx_before mmx_latest
+        mmx_before=$(mmx --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+        info "mmx-cli 当前: $mmx_before"
+        mmx_latest=$(npm view mmx-cli version 2>/dev/null || echo "")
+        if [ -n "$mmx_latest" ] && [ "$mmx_before" = "$mmx_latest" ] && [ "$mmx_before" != "?" ]; then
+            success "mmx-cli 已是最新: $mmx_latest"
+        elif ! npm install -g mmx-cli@latest 2>&1 | tail -3; then
+            warn "mmx-cli 更新失败"
+        else
+            local mmx_after
+            mmx_after=$(mmx --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+            if [ "$mmx_before" != "$mmx_after" ]; then
+                success "mmx-cli: $mmx_before → $mmx_after"
+                updated=$((updated + 1))
+            else
+                success "mmx-cli 已是最新: $mmx_after"
+            fi
+        fi
+        # npm 把可执行文件放在当前 Node 的 bin 下，$LOCAL_BIN 的 symlink 需重指
+        if [ -x "$node_bin/mmx" ]; then
+            run rm -f "$LOCAL_BIN/mmx"
+            run ln -sf "$node_bin/mmx" "$LOCAL_BIN/mmx"
+        fi
+    else
+        info "mmx-cli 未安装，跳过"
+    fi
+
     echo ""
     if [ $updated -gt 0 ]; then
         success "npm 全局包更新完成"

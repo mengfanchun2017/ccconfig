@@ -1,10 +1,10 @@
-# 0030. Gateway 模式废弃（option-llmswitch 整层删除）
+# 0030. Gateway 模式废弃（删 gateway 层，保留 openai_bridge.py）
 
 > **Status**: ✅ Accepted
 > **日期**: 2026-09-17
-> **关联**: `option-llmswitch/`（已删）、`lib/init-llm.sh`、`maintain.sh`、commit `9696e4b`
+> **关联**: `option-llmswitch/`（**仍在用**：`openai_bridge.py` 是当前 bridge，由 `lib/init-llm.sh` / `ensure-bridge.sh` 拉起）、`lib/init-llm.sh`、`maintain.sh`、commit `9696e4b`
 > **模板**: MADR 4.0 极简版
-> **取代**: 早期 gateway 模式整套（init.sh + proxy.py + watchdog.sh + llmswitch.json）
+> **取代**: 早期 gateway 模式整套（`init.sh` + `proxy.py` + `watchdog.sh` + `llmswitch.json`）
 
 ## Context and Problem Statement
 

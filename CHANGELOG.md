@@ -2,6 +2,15 @@
 
 All notable changes to ccconfig will be documented in this file.
 
+## 版本号方案
+
+**单一真相源 = git tag**，格式为 **CalVer `YYYY.MM.DD`**（同一天多次发布加 `.N`，如 `2026.09.19.1`）。
+
+- `v1.6.0`（2026-08-17）及之前是 semver，属历史遗留，不再沿用。
+- 本文件的段落标题、`conf/versions.json` 的 `self.version` 都必须与最新 tag 一致，不得各自发明版本号。
+- README 里的「版本里程碑」是**开发阶段代号**，不是发布版本，不要写成 `vX.Y` 形式以免与 tag 混淆。
+- 打 tag：`git tag -a "$(date +%Y.%m.%d)" -m "..."`（tag 不会被 auto-sync 推送，需手动 `git push --follow-tags`）。
+
 ## [Unreleased]
 
 ### Changed

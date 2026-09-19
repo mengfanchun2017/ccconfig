@@ -1,8 +1,10 @@
-# 0023 — GitHub PAT 失效检测改为 on-failure-only
+# 0023. GitHub PAT 失效检测改为 on-failure-only
 
-- **Status**: ✅ Accepted
-- **Date**: 2026-09-02
-- **Supersedes**: [0011](0011-git-auth-fine-grained-pat.md) 的 Layer 1 过期天数巡检部分
+> **Status**: ✅ Accepted
+> **日期**: 2026-09-02
+> **关联**: `lib/monitor.sh`、`lib/status.sh`、`bin/refresh-gh-auth.sh`；ccprivate `rules/git.md`
+> **模板**: MADR 4.0 极简版
+> **取代**: [0011](0011-git-auth-fine-grained-pat.md) 的 Layer 1 过期天数巡检部分
 
 ## Context and Problem Statement
 
