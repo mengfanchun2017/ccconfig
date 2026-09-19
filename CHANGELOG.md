@@ -13,7 +13,46 @@ All notable changes to ccconfig will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed（配置分层归位 2026-09-19）
+- **`templates/settings.json.example` / `.config.json.example` 放错文件** — `permissions` / `hooks` / `statusLine` / `skipDangerousModePermissionPrompt` / `autoUpdatesChannel` 全被放进了 `.config.json`，而 Claude Code 只把 `settings.json` 当 settings 文件读，**写在那里的 settings 键完全不生效且无报错**。实测本机 `permissions.deny: ["WebSearch"]` 因此从未生效。两个模板按真实角色重写：settings 键归 `settings.json`，`.config.json.example` 只留 user scope `mcpServers`
+- **`maintain.sh` 的迁移方向是反的** — 原逻辑把 settings 键从 `settings.json` 搬进 `.config.json`（搬到不生效的地方），且注释假设"`.config.json` 是共享文件"。改为反向归位；`permissions` 两份都有时对 `allow`/`ask`/`deny` **求并集**（原样丢弃会把不生效那份里的真规则删掉，实测确认过这个坑）
+- **`lib/status.sh` 新增分层检查** — 报出"settings 键放错文件"，此前没有任何检查能发现这类静默失效
+- **模板里的 hook 路径错误** — `templates/.config.json.example` 写 `bash .../ccconfig/status.sh`，实际在 `lib/` 下；新装会得到一个永不触发的 SessionStart hook
+
+### Fixed（安装链路 2026-09-19）
+- **`init-base.sh` 的 LLM 步骤读错 current 来源** — 从 `llm.json.current` 取值，而 ADR-0020 后该字段已不存在（权威来源是 `~/.claude/llm-current`）→ `INIT_LLM_NAME` 恒空 → `init-llm.sh` 弹交互菜单而非切预设，`settings.json` 从未写入。此前被"无条件打印 🎉"掩盖
+- **`init-base.sh` 步骤失败仍报成功** — `run_step` 失败只 warn 不计账、收尾无条件 🎉、`all)` 分支硬写 `exit 0`。改为失败计数 + 非零退出；`ccprivate/setup.sh` 缺失不再静默 warn
+- **Ubuntu 全量初始化跑两遍** — `run_step` 只取 `$1..$5`，第 6 参 `ensure_pip` 被丢弃 → 整步退化成再跑一遍 `init-ubuntu.sh`（~3min）。该步骤已被 `main()` 内部覆盖，直接删除
+- **`init-option.sh -l` 崩溃** — `-l|list` 分支在 case 顶层用 `local`（bash 不允许），且触发 shellcheck SC2168 让 CI lint 连续 3 次红。改为调用已存在但没人用的 `list_names_compact()`
+- **`init-option.sh usage --yes` 静默不装** — 批处理判定检查的 `"$@"` 早被 `--yes` 剥离后重写，恒空 → 走交互菜单 → NONINTERACTIVE 下 `menu_select` 返回 "0" → 直接 break，什么都不装却打印"全部完成"
+- **`getnote` 缺 `--status`** — 违反 option 状态契约，`init-option.sh --status` 打出它的用法文本并被 `|` 切碎
+- **`lib/ccprivate-upgrade.sh` 内嵌 CLAUDE.md 模板漂移** — 引用已改名的 `f-research-domain` / `f-report-gen`，新机器 onboarding 会拿到引用不存在 skill 的规则。按 728a585 处理 setup.sh 的同一模式抽到 `templates/CLAUDE.md.example`
+- **`init-bootstrap.sh` push 失败指引指向 `--update`**，但 `do_update` 从不 push
+
+### Fixed（日常运维 2026-09-19）
+- **`t` 快捷键指向 2C(组件升级)** 而 help 文案写「2C = monitor tail」—— 菜单重排后漏改，按 t 会进组件升级菜单
+- **`sync.sh` 单仓库选择恒空操作** — 拿 `menu_select` 返回的序号字符串去 grep 匹配仓库名，永不命中 → 选任一仓库（含"强制拉取远程"）全部无效且无提示
+- **非交互下菜单无限自旋** — EOF → 重绘，实测 4s 渲染 116 次、CPU 跑满；`bash maintain.sh` 在 CI / Bash 工具 / cron 里必踩。新增 `has_tty()` 实探 + read 失败即退避
+- **`_submenu_update_sync` 定义了却无菜单入口** — ccconfig 自更新与 ccprivate 升级在菜单里不可达。接入为 2D「自身更新」
+- **`lib/update.sh` 自更新后丢子命令** — 经 `run_step` 调用拿不到原始参数，re-exec 退化成交互菜单
+- **切 LLM 失败不回滚** — 直连分支先 `stop_bridge` 再探测，探测失败即 return，settings.json 仍指向已被杀掉的 bridge
+- **`lib/status.sh` 自动 `git pull --rebase` 冲突静默留中间态** — stderr 被丢、返回值不检查
+- **`maintain.sh` / `deps-check.sh` 的 PATH 拼接产生空段**（`::` 等价于当前目录进 PATH）
+- **`mcp-manager.sh` 项目总览读错 MCP 键**，特关永远显示为启用
+- **`lib/monitor.sh` 降级状态只写不读**
+- **`resolve_conf` 不认 `CCPRIVATE_HOME`** — 该变量才是全仓统一名，设了非默认目录的机器会找不到配置
+
+### Fixed（公开仓库卫生 2026-09-19）
+- **脱敏 6 处真实标识** — 内网 LLM IP、公司域名、tailnet 名、用户名路径、样例 CSV
+- **清除 155 个误提交的 .docx**（transliter 测试产物，~108MB）+ `.gitignore` 防复活
+- **19 处文档死链清零**，新增 CI `links` job 防复发
+- **CI `unit` job 此前只跑 1 个测试**，其余 15 个从不执行；补 9 个并新增 links job
+- **删除 `tests/test-init-llm.sh`** — gateway 时代用例，目标文件早已不存在，跑起来第一步就崩
+
 ### Changed
+- **版本号统一为 CalVer** — 此前 README 讲「v3.x」、CHANGELOG 停在 1.5.0、`versions.json` 无自身版本、tag 已到 v1.6.0，四方打架。真相源定为 git tag，见上文「版本号方案」
+- **ADR 修复** — 0030 标题/索引误写「option-llmswitch 整层删除」（实际删的是 gateway 层，`openai_bridge.py` 仍在使用）；0024/0025 断号补说明；0023 头部格式统一；新增 `docs/adr/template.md`（原先让人复制 0001 会把正式 ADR 正文抄进新文件）
+- **`update_npm_globals` 补管 mmx-cli** — 它在 `versions.json` 里声明却没有任何脚本升级（实测本机 1.0.19 vs registry 1.0.26）
 - **bootstrap 流程解耦** — `init-base.sh all` 从 4 步缩回 3 步（Ubuntu → LLM → 收尾链接/服务），不再内联 `init-option.sh`。可选组件（MCP/Skills/CLI）恢复为独立可选步：`init-bootstrap → init-base.sh all → init-option.sh（可选）→ maintain.sh（1A 全量检查）`。各脚本尾部引导链对齐此顺序
 - **`bootstrap-gh-auth.sh` 重写为一行式入口** — 原 243 行 gh-auth 脚本（与 init-bootstrap.sh 重复）重写为自包含的 curl|bash 入口：装 git + clone ccconfig + 提示 `init-bootstrap.sh`。不再 source lib/（curl|bash 场景 ccconfig 还没 clone，source 不到），gh auth 交由 init-bootstrap.sh 接管。CLAUDE.md/README 一行命令描述现与实现一致
 - **`bin/test-bootstrap.sh` CI 路径更新** — 从旧 `bootstrap-gh-auth.sh + init-ccprivate-repo.sh` 改为 `init-bootstrap.sh --non-interactive`，init-option 独立成第 3 步
