@@ -25,14 +25,14 @@ load "setup"
 | `[ "$status" -eq 0 ]` | 断言退出码 |
 | `[ "$output" = "..." ]` | 断言 stdout |
 | `[[ "$output" == *"..."* ]]` | 断言 stdout 包含 |
-| `load "setup"` | 加载 setup.bats（提供 `$CCCONFIG_DIR` 等变量） |
+| `load "setup"` | 加载 setup.bash（提供 `$CCCONFIG_DIR` 等变量） |
 | `skip "reason"` | 跳过测试 |
 
 ### 测试文件约定
 - 文件名：`test-<module>.bats`
 - 每个 `@test` 块测试一个行为
 - 外部依赖用 `run` 捕获，不写手动的 `PASS++`
-- `setup.bats` 提供公共的 `$CCCONFIG_DIR`/`$LIB_DIR` 和 `make_isolated_home()`
+- `setup.bash` 提供公共的 `$CCCONFIG_DIR`/`$LIB_DIR` 和 `make_isolated_home()`
 
 ### 运行
 
@@ -62,6 +62,7 @@ bats tests/test-dry-run.bats
 | `test-cross-script-dryrun.sh` | 跨脚本 dry-run |
 | `test-interact.sh` | interact 函数 |
 | `test-init-ccprivate-repo.sh` | ccprivate 初始化 |
+| `test-openai-bridge.sh` | Anthropic↔OpenAI bridge 协议转换 |
 | `test-syntax.sh` | 语法检查（被 test-syntax.bats 替代） |
 
 ## 添加新测试

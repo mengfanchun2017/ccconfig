@@ -8,9 +8,16 @@ All notable changes to ccconfig will be documented in this file.
 - **bootstrap 流程解耦** — `init-base.sh all` 从 4 步缩回 3 步（Ubuntu → LLM → 收尾链接/服务），不再内联 `init-option.sh`。可选组件（MCP/Skills/CLI）恢复为独立可选步：`init-bootstrap → init-base.sh all → init-option.sh（可选）→ maintain.sh（1A 全量检查）`。各脚本尾部引导链对齐此顺序
 - **`bootstrap-gh-auth.sh` 重写为一行式入口** — 原 243 行 gh-auth 脚本（与 init-bootstrap.sh 重复）重写为自包含的 curl|bash 入口：装 git + clone ccconfig + 提示 `init-bootstrap.sh`。不再 source lib/（curl|bash 场景 ccconfig 还没 clone，source 不到），gh auth 交由 init-bootstrap.sh 接管。CLAUDE.md/README 一行命令描述现与实现一致
 - **`bin/test-bootstrap.sh` CI 路径更新** — 从旧 `bootstrap-gh-auth.sh + init-ccprivate-repo.sh` 改为 `init-bootstrap.sh --non-interactive`，init-option 独立成第 3 步
+- **`templates/settings.json.example`** — `defaultMode` `bypassPermissions`→`auto`（对齐 ADR-0018 与实际 `~/.claude/settings.json`）；删 stale `minimax` MCP entry，补 `exa`（http 传输，当前在用）
+- **README 架构图修正** — 删不存在的 `lib/lock.sh`/`log.sh`/`json-validate.sh`，补 `interact.sh`/`option-getnote`/`option-usage`；`option-larkbridge` 节点移除（ccbridge 已是外部仓）；`initBase-->initOption` 连线现真实成立
+- **README 核心命令/快速开始** — 反映 `init-base.sh all` 串联 + `--yes` 全自动
+- **BOOTSTRAP 四步起步** — Step 4 说明串联可选组件
 
 ### Removed
 - **`.bootstrap-commit.sh`** — 一次性提交脚本误入 git track，已 `git rm` 并加进 `.gitignore`
+- **一人项目冗余治理文件** — `CITATION.cff` / `CODE_OF_CONDUCT.md` / `CONTRIBUTING.md`（有用内容已在 README 开发段 + CLAUDE.md SH 规范 + rules/ccconfig-open-source.md）/ `SECURITY.md` / `ROADMAP.md` / `.github` PR+Issue 模板
+- **`skills-lock.json`** — 38 个 mattpocock 技能 hash 锁定文件，与实际安装的 f-* 系列技能完全脱节，死文件
+- **`lib/start-openai-bridge.sh`** — 运行时无人调用（`init-llm.sh`/`status.sh` 均用 `ensure-bridge.sh`），功能是 `ensure-bridge.sh` 子集（无 self-heal/upstream 变化检测/win-curl）；同步清理 test-init-llm 分组 7（3 测试）+ README 架构图/目录树 + lib/README 表行
 
 ### Fixed
 - **`tests/test-bootstrap.sh`** — 重写对齐新 bootstrap-gh-auth.sh（自包含 + 装 git + clone + 全流程链路断言），删旧 5-step gh-auth 断言
@@ -19,23 +26,17 @@ All notable changes to ccconfig will be documented in this file.
 - **`option-remote/README.md`** — Tailscale 示例 IP（疑似真实 CGNAT）换占位 `100.101.102.103`
 - **`lib/interact.sh` NONINTERACTIVE 旁路** — `confirm/menu_select/prompt/prompt_password` 检测 `NONINTERACTIVE=true` 时返回默认值，防 CI/脚本化环境 `read` 挂起
 - **`init-option.sh --yes` 全局标志** — 剥离 `--yes/--batch`（不再透传给 option `init.sh` 的未知参数），按 option 派发非交互子命令（skill/cloudflare/officecli→`--install`、remote→`--run`、larkcli/getnote→跳过+提示）；修复原 `install_all` 传 `--batch` 给 init.sh 的 bug
+- **ADR 交叉引用修正** — 0001 删 `.github/task_plan.md` 断链；0005 Notes `minimax`→`tavily/getnote/exa`；0006 init-option 可选项列表重复词 + larkbridge→ccbridge；0016 删与正文重复的"新机器首次设置流程"段、Related 补 0017；0017 Status→`Superseded by 0016`、修 Context 误引"ADR 0016 用 tcp"、修 Related 断链文件名 `0016-tailscale-serve-tcp-forward.md`→`0016-tailscale-subnet-router.md`；`docs/adr/README.md` 索引 0017 状态同步、删 ROADMAP 链接
+- **`monitor.sh:891` set -u 无参崩溃** — `case "${1}"` → `${1:-}`；`bash monitor.sh` 无参时 set -u 杀进程，`""|start)` 不可达
+- **`sync.sh:382,410,455` `"cconfig"` 拼写死分支** — 3 处 `"cconfig"`（单 c）→ `"ccconfig"`（双 c）；`do_cconfig_post` 在 `--pull`/`--commitpush`/直接仓库名路径永不触发，跳过重建链接+skill 同步+新模板检测
+- **`init-ubuntu.sh:396` ssh pipefail 死分支** — `ssh -T git@github.com` 永远 exit 1，pipefail 使 `if ssh|grep` 恒 false；改 `{ ssh ... || true; }|grep` 隔离，恢复 SSH 成功分支（HTTPS→SSH URL 转换 + insteadOf 配置）
+- **ADR 0014 编号冲突** — `0014-bridge-win-curl-wsl-vpn.md` 与 `0014-tailscale-jump-server.md` 重号；bridge 重编号 **0019**（title + 0015 引用 + adr/README 索引），tailscale 保持 canonical 0014（0016/0017 已引用）
+- **孤立文档 `docs/SH-MENU-CONVENTIONS.md`** — 0 引用；链接自 `docs/README` 索引 + `CLAUDE.md` SH 段（内容真实有用：菜单渲染格式+颜色变量+data-driven MENU_ENTRIES 模式，与 CLAUDE.md API 契约不重复）
+- **`docs/README` 失效索引** — 删 `prd.md` 引用（文件 8/25 已删）
 
-### Changed
-- **`templates/settings.json.example`** — `defaultMode` `bypassPermissions`→`auto`（对齐 ADR-0018 与实际 `~/.claude/settings.json`）；删 stale `minimax` MCP entry，补 `exa`（http 传输，当前在用）
-- **README 架构图修正** — 删不存在的 `lib/lock.sh`/`log.sh`/`json-validate.sh`，补 `interact.sh`/`option-getnote`/`option-usage`；`option-larkbridge` 节点移除（ccbridge 已是外部仓）；`initBase-->initOption` 连线现真实成立
-- **README 核心命令/快速开始** — 反映 `init-base.sh all` 串联 + `--yes` 全自动
-- **BOOTSTRAP 四步起步** — Step 4 说明串联可选组件
+## [1.6.0] — 2026-08-17
 
 ### Removed
-- **一人项目冗余治理文件** — `CITATION.cff` / `CODE_OF_CONDUCT.md` / `CONTRIBUTING.md`（有用内容已在 README 开发段 + CLAUDE.md SH 规范 + rules/ccconfig-open-source.md）/ `SECURITY.md` / `ROADMAP.md` / `.github` PR+Issue 模板
-- **`skills-lock.json`** — 38 个 mattpocock 技能 hash 锁定文件，与实际安装的 f-* 系列技能完全脱节，死文件
-
-### Fixed（ADR 交叉引用 + 模板对齐）
-- **ADR 交叉引用修正** — 0001 删 `.github/task_plan.md` 断链；0005 Notes `minimax`→`tavily/getnote/exa`；0006 init-option 可选项列表重复词 + larkbridge→ccbridge；0016 删与正文重复的"新机器首次设置流程"段、Related 补 0017；0017 Status→`Superseded by 0016`、修 Context 误引"ADR 0016 用 tcp"、修 Related 断链文件名 `0016-tailscale-serve-tcp-forward.md`→`0016-tailscale-subnet-router.md`；`docs/adr/README.md` 索引 0017 状态同步、删 ROADMAP 链接
-
-### Removed（前置审计）
-- **`windows-tools/`** — 已拆出到独立仓库 [fancypowershell](https://github.com/mengfanchun2017/fancypowershell)。当前仅 `psupdate/` 一项，git rm 后内容无丢失
-- **`option-larkbridge/`** + **`lib/feishu-perms.sh`** + **`lib/test-feishu.sh`** — 已整体迁出到独立仓库 [ccbridge](https://github.com/mengfanchun2017/ccbridge)。ccconfig 端改为调 `${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh`
 - **`windows-tools/`** — 已拆出到独立仓库 [fancypowershell](https://github.com/mengfanchun2017/fancypowershell)。当前仅 `psupdate/` 一项，git rm 后内容无丢失
 - **`option-larkbridge/`** + **`lib/feishu-perms.sh`** + **`lib/test-feishu.sh`** — 已整体迁出到独立仓库 [ccbridge](https://github.com/mengfanchun2017/ccbridge)。ccconfig 端改为调 `${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh`
 
@@ -64,17 +65,6 @@ All notable changes to ccconfig will be documented in this file.
 - **`CHANGELOG.md` [1.0] 段 `option-cconnect` 错引** — 改为 `option-larkbridge`
 - **`option-larkcli/README.md` + `option-larkbridge/README.md`** — 新建（之前缺）
 - **删除 dead files** — `templates/skills/`（空目录）、`ccprivate/link/.config.json.bak`、`ccprivate/link/settings.json.bak`
-
-### Fixed（全仓审计 2026-09-01 第二轮）
-- **`monitor.sh:891` set -u 无参崩溃** — `case "${1}"` → `${1:-}`；`bash monitor.sh` 无参时 set -u 杀进程，`""|start)` 不可达
-- **`sync.sh:382,410,455` `"cconfig"` 拼写死分支** — 3 处 `"cconfig"`（单 c）→ `"ccconfig"`（双 c）；`do_cconfig_post` 在 `--pull`/`--commitpush`/直接仓库名路径永不触发，跳过重建链接+skill 同步+新模板检测
-- **`init-ubuntu.sh:396` ssh pipefail 死分支** — `ssh -T git@github.com` 永远 exit 1，pipefail 使 `if ssh|grep` 恒 false；改 `{ ssh ... || true; }|grep` 隔离，恢复 SSH 成功分支（HTTPS→SSH URL 转换 + insteadOf 配置）
-- **ADR 0014 编号冲突** — `0014-bridge-win-curl-wsl-vpn.md` 与 `0014-tailscale-jump-server.md` 重号；bridge 重编号 **0019**（title + 0015 引用 + adr/README 索引），tailscale 保持 canonical 0014（0016/0017 已引用）
-- **孤立文档 `docs/SH-MENU-CONVENTIONS.md`** — 0 引用；链接自 `docs/README` 索引 + `CLAUDE.md` SH 段（内容真实有用：菜单渲染格式+颜色变量+data-driven MENU_ENTRIES 模式，与 CLAUDE.md API 契约不重复）
-- **`docs/README` 失效索引** — 删 `prd.md` 引用（文件 8/25 已删）
-
-### Removed（全仓审计 2026-09-01 第二轮）
-- **`lib/start-openai-bridge.sh`** — 运行时无人调用（`init-llm.sh`/`status.sh` 均用 `ensure-bridge.sh`），功能是 `ensure-bridge.sh` 子集（无 self-heal/upstream 变化检测/win-curl）；同步清理 test-init-llm 分组 7（3 测试）+ README 架构图/目录树 + lib/README 表行
 
 ### Audit Summary
 - 3 个并行 Agent（安全/质量/SH）共发现 P0 12 项 + P1 16 项 + P2 14 项
