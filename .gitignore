@@ -22,9 +22,16 @@ __pycache__/
 *.tmp.*
 .tmp/
 tmp/
+work_tmp/
 work_tmp_out/
+claude_job_tmp/
 .env
 .bootstrap-commit.sh
+
+# workflow 产物误落仓库根（transliter 等按日期建目录）——公开仓库不留业务数据
+20[0-9][0-9]-[0-1][0-9]-[0-3][0-9]/
+*.docx
+*.pdf
 
 # 编辑器
 *:Zone.Identifier
