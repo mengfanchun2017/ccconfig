@@ -237,9 +237,7 @@ install_option() {
 
     # usage 特殊处理：先于 has_init_script 拦截
     if [ "$name" = "usage" ]; then
-      local is_batch=false
-      for a in "$@"; do [[ "$a" == "--batch" || "$a" == "--yes" || "$a" == "-y" ]] && is_batch=true; done
-      if $is_batch; then
+      if $yes_mode; then
         section "安装 usage → timer"
         bash "$SCRIPT_DIR/option-usage/init.sh" 2>&1 | sed 's/^/  /'
         bash "$SCRIPT_DIR/option-usage/init.sh" install 2>&1 | sed 's/^/  /'
@@ -553,8 +551,7 @@ list_names_compact() {
         echo "$group_title"
         for n in $group_items; do
             case "$n" in
-                mcp) echo "  $n" ;;
-                batcat|glow) echo "  $n" ;;
+                mcp|batcat|glow|usage) echo "  $n" ;;
                 *) if [ -n "${AUTO_MANAGED[$n]:-}" ] || has_init_script "$n"; then echo "  $n"; fi ;;
             esac
         done
@@ -606,17 +603,7 @@ case "${1:-menu}" in
         list_all
         ;;
     -l|list)
-        # 列出所有 option 名称（紧凑格式），用 MENU_GROUPS data-driven
-        for group_entry in "${MENU_GROUPS[@]}"; do
-            local gt="${group_entry%%|*}" gi="${group_entry#*|}"
-            echo "$gt"
-            for n in $gi; do
-                case "$n" in
-                    mcp|batcat|glow|usage) echo "  $n" ;;
-                    *) if [ -n "${AUTO_MANAGED[$n]:-}" ] || has_init_script "$n"; then echo "  $n"; fi ;;
-                esac
-            done
-        done
+        list_names_compact
         ;;
     all|--all|-a)
         shift 2>/dev/null || true
