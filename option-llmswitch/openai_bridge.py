@@ -425,6 +425,15 @@ def _inject_sni(headers: dict, host: str) -> dict:
 # 让 curl.exe（Windows 子系统）转发 HTTP 请求，由 Windows 走 VPN 网络栈。
 # curl.exe 的 -k 跳过 cert verify（IP 直连场景下证书主体不匹配 IP），配合 --resolve 解决 SNI
 
+
+class _WinCurlUpstreamError(Exception):
+    """curl.exe 退出码非 0 时带 stderr 文本抛出，让 caller 归因 upstream_error 而非 misleading 的 'stream interrupted'。"""
+    def __init__(self, returncode: int, stderr_text: str):
+        self.returncode = returncode
+        self.stderr_text = stderr_text
+        super().__init__(f"curl.exe exit {returncode}: {stderr_text[:200]}")
+
+
 async def _post_via_win_curl(url: str, headers: dict, body: dict, host_header: str) -> tuple:
     """通过 Windows 侧 curl.exe 发起 POST 请求，返回 (status, text)。
 
@@ -476,7 +485,7 @@ async def _stream_via_win_curl(url: str, headers: dict, body: dict, host_header:
     # --connect-timeout：连不上就快报错（默认无限制会一直挂着）
     # --max-time 1800：长任务（整篇文档生成）常超 5 分钟，300s 会把正常流掐断成
     #                  "no [DONE]" → 误报 upstream_incomplete
-    cmd = ["curl.exe", "-s", "-k", "-N", "--connect-timeout", "15", "--max-time", "1800", "-X", "POST", url]
+    cmd = ["curl.exe", "-sS", "-k", "-N", "--connect-timeout", "15", "--max-time", "1800", "-X", "POST", url]
     for hk, hv in headers.items():
         cmd += ["-H", f"{hk}: {hv}"]
     if host_header:
@@ -519,6 +528,19 @@ async def _stream_via_win_curl(url: str, headers: dict, body: dict, host_header:
             except Exception:
                 pass
         await proc.wait()
+        # 一次性 drain stderr —— curl.exe 连不上/证书错时 stdout 空、stderr 有诊断信息
+        # 不读就丢了，退出码非 0 时把 stderr 文本通过异常带出，让 caller 归因
+        # upstream_error 而不是 misleading 的 upstream_incomplete（"流被截断"）。
+        # why 不用并发 task：实测并发 drain 在 stdout 立即 EOF 场景下读不到 stderr
+        # （被 cancel 时 buf 累积空），proc.wait 后直接 read 剩余 PIPE 数据更稳。
+        stderr_data = b""
+        try:
+            stderr_data = await asyncio.wait_for(proc.stderr.read(), timeout=2)
+        except (asyncio.TimeoutError, Exception):
+            pass
+        if proc.returncode not in (0, None):
+            stderr_text = stderr_data.decode("utf-8", errors="replace").strip() if stderr_data else ""
+            raise _WinCurlUpstreamError(proc.returncode, stderr_text)
 
 
 @app.on_event("shutdown")
@@ -650,7 +672,12 @@ async def messages(request: Request):
                 print(f"[bridge] upstream stream error: {type(e).__name__}: {e}", flush=True)
                 # yield SSE error event 让 Claude Code 立刻看到错误（不等 4 分钟）
                 sse_state["finished"] = True
-                yield _error_frames("upstream_disconnected", "stream interrupted")
+                # 区分"curl.exe 启动失败/连不上"（stderr 有诊断信息）和"中途断连"：
+                # 前者归因 upstream_error 带 stderr 原文，后者归因 upstream_disconnected
+                if isinstance(e, _WinCurlUpstreamError):
+                    yield _error_frames("upstream_error", e.stderr_text[:500])
+                else:
+                    yield _error_frames("upstream_disconnected", "stream interrupted")
                 return
             # upstream 结束却没给终止标记（截断 / 空响应）→ 显式报错
             # why: 否则客户端只拿到半条流且无从判断，探测也只能靠"缺少 message_stop"
