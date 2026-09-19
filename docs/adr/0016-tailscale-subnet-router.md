@@ -52,16 +52,16 @@ sudo tailscale serve --tcp <port> off
 net.ipv4.ip_forward = 1 | sudo tee /etc/sysctl.d/99-tailscale.conf
 sudo sysctl -p /etc/sysctl.d/99-tailscale.conf
 
-# 3. 广告内网 LLM API 所在子网路由（掩码 /24 或 /32 按需）
+# 3. 宣告内网 LLM API 所在子网路由（掩码 /24 或 /32 按需）
 sudo tailscale set --advertise-routes=10.x.x.0/24
 ```
 
 **清理旧 socat systemd 服务**（如果之前写过）：
 
 ```bash
-sudo systemctl stop tailscale-aiplus.service 2>/dev/null || true
-sudo systemctl disable tailscale-aiplus.service 2>/dev/null || true
-sudo rm /etc/systemd/system/tailscale-aiplus.service 2>/dev/null || true
+sudo systemctl stop tailscale-llmroute.service 2>/dev/null || true
+sudo systemctl disable tailscale-llmroute.service 2>/dev/null || true
+sudo rm /etc/systemd/system/tailscale-llmroute.service 2>/dev/null || true
 sudo systemctl daemon-reload
 ```
 

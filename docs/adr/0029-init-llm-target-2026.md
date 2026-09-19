@@ -174,11 +174,8 @@
 
 ## Related Memory
 
-- [`claude-session-restart-after-llm-switch-20260917`](../../git/.claude/projects/-home-francis-git-ccconfig/memory/claude-session-restart-after-llm-switch-20260917.md) — 切 LLM 必须 /exit
-- [`altllm-split-presets-20260917`](../../git/.claude/projects/-home-francis-git-ccconfig/memory/altllm-split-presets-20260917.md) — 4 preset 拆分旧决策（即将合并）
-- [`use-bridge-absent-vs-false-20260907`](../../git/.claude/projects/-home-francis-git-ccconfig/memory/use-bridge-absent-vs-false-20260907.md) — use_bridge 三态
-- [`init-llm-2026-target-doc`](../../git/.claude/projects/-home-francis-git-ccconfig/memory/init-llm-2026-target-doc.md) — 本 ADR 决策汇总
-- [`windows-tailscale-not-wsl-20260917`](../../git/.claude/projects/-home-francis-git-ccconfig/memory/windows-tailscale-not-wsl-20260917.md) — tailscale 在 Windows 侧
+本 ADR 的配套笔记（切 LLM 需重启 session、4 preset 拆分沿革、`use_bridge` 三态、
+tailscale 跑在 Windows 侧而非 WSL）存在使用者的私有 memory 中，不随公开仓库分发。
 
 ## Related Docs
 
