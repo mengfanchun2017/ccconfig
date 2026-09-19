@@ -149,7 +149,7 @@ self_update() {
         if echo "$update_files" | grep -qE "update.sh|lib/path-helper.sh|conf/versions.json"; then
             warn "关键文件已更新，重新加载..."
             release_lock
-            exec bash "$SCRIPT_DIR/update.sh" "${1:-menu}"
+            exec bash "$SCRIPT_DIR/update.sh" "$CCC_UPDATE_CMD"
         fi
         return 0
     fi
@@ -956,6 +956,10 @@ show_menu() {
 }
 
 # ========== 主程序 ==========
+# self_update 经 run_step 调用时拿不到原始参数（run_step 只传函数名），
+# 自更新后 re-exec 会退化成 menu、丢掉本次子命令 —— 入口处先记下来
+CCC_UPDATE_CMD="${1:-menu}"
+
 acquire_lock
 trap release_lock EXIT
 

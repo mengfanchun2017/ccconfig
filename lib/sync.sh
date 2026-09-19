@@ -455,6 +455,13 @@ check_mode() {
 
 # ========== 菜单模式 ==========
 menu_mode() {
+    # 非交互（CI / Bash 工具 / cron）下 menu_select 恒返回 "0"，
+    # 下面的取消分支是 continue → 无限重绘自旋。提前拦掉。
+    if ! has_tty; then
+        err "非交互环境，菜单不可用"
+        echo -e "  ${GRAY}请用子命令: bash lib/sync.sh [--all|--pull|--commitpush|<仓库名>]${NC}"
+        return 1
+    fi
     local -a dirs names modes menu_items
     while true; do
     clear 2>/dev/null || true
@@ -505,13 +512,11 @@ menu_mode() {
         $check_idx)  # ccconfig 完整检查
             check_mode ;;
         *)
-            # 找到了仓库索引
+            # menu_select 返回序号字符串（1-based），仓库是前 repo_count 项
             local found=-1
-            for ((i=0; i<${#names[@]}; i++)); do
-                if echo "${menu_items[$i]}" | grep -q "^${names[$i]}" && echo "$choice" | grep -q "^${names[$i]}"; then
-                    found=$i; break
-                fi
-            done
+            if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "$repo_count" ]; then
+                found=$((choice - 1))
+            fi
             if [ "$found" -ge 0 ]; then
                 local name="${names[$found]}" dir="${dirs[$found]}" mode="${modes[$found]}"
                 local sub

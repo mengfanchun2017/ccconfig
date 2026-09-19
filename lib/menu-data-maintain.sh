@@ -21,9 +21,10 @@ MENU_ENTRIES=(
     "2|A|监控|启动/停止/重启/追踪||menu:monitor"
     "2|B|git 拉取|~git/ 下所有仓库同步 + 脏库自动 commit|bash \"$LIB_DIR/sync.sh\" --all|"
     "2|C|组件升级|Node/Claude/skill 升级|bash \"$LIB_DIR/update.sh\" menu|"
+    "2|D|自身更新|拉 ccconfig / ccprivate 升级 / Git 同步||menu:update_sync"
 
     # ── 3: 工具 ──
-    "3|A|LLM|切换/Gateway/测试/单价|bash \"$LIB_DIR/init-llm.sh\"|"
+    "3|A|LLM|切换/测试/自愈/单价|bash \"$LIB_DIR/init-llm.sh\"|"
     "3|B|用量统计|token-usage 统计/报告||menu:usage"
     "3|C|MCP 管理|跨项目查看/配置 MCP|bash \"$LIB_DIR/mcp-manager.sh\" config|"
     "3|D|飞书/Lark|lark-cli 账号/OAuth/测试||menu:feishu"
