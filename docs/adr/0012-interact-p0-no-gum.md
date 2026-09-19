@@ -73,6 +73,6 @@ review 时发现 `init-ccprivate-repo.sh` collect_info 重构中三处 case 分�
 
 ## Related
 
-- [colors.sh](../lib/colors.sh)
-- [interact.sh](../lib/interact.sh)
+- [colors.sh](../../lib/colors.sh)
+- [interact.sh](../../lib/interact.sh)
 - [CLAUDE.md](../../CLAUDE.md) — SH 交互规范段
