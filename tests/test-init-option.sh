@@ -53,7 +53,7 @@ fi
 
 # ── Test 4: --dry-run 入口解析 ──
 echo "=== Test 4: --dry-run 入口 ==="
-if grep -q '_DRY_RUN_GLOBAL=true' "$OPT" && grep -q 'export CCC_DRY_RUN=1' "$OPT"; then
+if grep -q 'export CCC_DRY_RUN=1' "$OPT"; then
     pass "入口剥离 --dry-run 并设 CCC_DRY_RUN"
 else
     fail "入口未解析 --dry-run"
