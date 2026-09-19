@@ -580,6 +580,22 @@ status_watch() {
         echo -e "  ${RED}✗${NC} inotifywait (dead — restart needed)"
     fi
 
+    # 降级状态：loop 会写 degraded:restart=N/M,backoff=Ns 或 failed，
+    # 此前只写不读，inotify 反复崩到放弃后这里看不出来
+    local status_file="$MONITOR_HOME/.monitor-sync.status"
+    if [ -f "$status_file" ]; then
+        local st; st=$(cat "$status_file" 2>/dev/null || true)
+        case "$st" in
+            ok) : ;;
+            failed)
+                echo -e "  ${RED}✗${NC} inotify 反复崩溃已放弃（status: failed）— 重启: bash lib/monitor.sh restart" ;;
+            degraded*)
+                echo -e "  ${YELLOW}⚠${NC}  inotify 降级中（${st#degraded:}）" ;;
+            "") : ;;
+            *) echo -e "  ${GRAY}status: $st${NC}" ;;
+        esac
+    fi
+
     echo ""
     echo -e "  ${GRAY}Tracked repos:${NC}"
     for repo_dir in $(list_repos); do
