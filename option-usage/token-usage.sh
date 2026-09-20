@@ -3,20 +3,22 @@
 #
 # 数据源: ~/.claude/projects/**/*.jsonl
 # 字段: 每个 assistant message 的 usage.{input,output,cache_creation,cache_read}_tokens
-# 输出: 默认 CSV 到 ccprivate/usage/YYYY-MM-DD.csv；可选 --feishu <url> 推多维表格
+# 输出: 默认 CSV 到 ccprivate/usage/YYYY-MM-DD.csv
+#
+# 只统计 token 与时间，**不折算钱、不外发**：费用由上游账单口径决定，
+# 本脚本自算的 cost 列既不准也无人消费，已随 pricing 一起移除。
 #
 # 用法：
 #   bash token-usage.sh                              # 全量扫，写 session CSV
 #   bash token-usage.sh --by-day                      # 归档到 <day>.csv（写一次：历史 day 跳过）
-#   bash token-usage.sh --by-day --force             # 全量重算覆盖（改 pricing/列后用）
+#   bash token-usage.sh --by-day --force             # 全量重算覆盖（改列结构后用）
 #   bash token-usage.sh --by-day --include-today     # 含今天（进行中 session 漂移）
 #   bash token-usage.sh --since 2026-07-30           # 限定起始日
 #   bash token-usage.sh --until 2026-08-01           # 限定截止日（不含）
 #   bash token-usage.sh --project ccconfig           # 限定 projectPath
 #   bash token-usage.sh --json                       # 输出 JSON 行到 stdout
-#   bash token-usage.sh --feishu <url>               # 推送到飞书多维表格（可选）
 #   bash token-usage.sh --report                     # 按日聚合到 stdout
-#   bash token-usage.sh --stats                       # 跨 LLM 总量汇总（模型/route/时间/成本）
+#   bash token-usage.sh --stats                       # 跨 LLM 总量汇总（模型/时间）
 #
 # 挂载：bash maintain.sh token [args...]
 
@@ -50,48 +52,6 @@ else
     OUTPUT_DIR="$HOME/.cache/token-usage"
 fi
 STATE_FILE="$OUTPUT_DIR/state.json"
-LLM_CONF="$(resolve_conf llm.json 2>/dev/null || echo "")"
-
-# ========== 解析 pricing ==========
-# 从 llm.json 读 pricing map：{ "model_name": {"input": 3.0, "output": 15.0, "cache_read": 0.3} } (USD / 1M tokens)
-load_pricing() {
-    if [[ -z "$LLM_CONF" || ! -f "$LLM_CONF" ]]; then
-        return 1
-    fi
-    python3 - "$LLM_CONF" << 'PYEOF' 2>/dev/null
-import json, sys
-try:
-    with open(sys.argv[1]) as f:
-        cfg = json.load(f)
-except Exception:
-    sys.exit(0)
-pricing = cfg.get("pricing", {})
-print(json.dumps(pricing, ensure_ascii=False))
-PYEOF
-}
-
-calc_cost() {
-    # $1: input $2: output $3: cache_creation $4: cache_read $5: model $6: pricing_json
-    local in="${1:-0}" out="${2:-0}" cc="${3:-0}" cr="${4:-0}" model="${5:-}" pricing="$6"
-    if [[ -z "$pricing" || -z "$model" ]]; then
-        echo "0"
-        return
-    fi
-    python3 - "$in" "$out" "$cc" "$cr" "$model" "$pricing" << 'PYEOF' 2>/dev/null
-import json, sys
-in_t, out_t, cc_t, cr_t, model, pricing = sys.argv[1:6]
-p = json.loads(pricing)
-m = p.get(model)
-if not m:
-    print("0")
-    sys.exit(0)
-cost = (int(in_t) * m.get("input", 0)
-        + int(out_t) * m.get("output", 0)
-        + int(cc_t) * m.get("cache_creation", m.get("input", 0))
-        + int(cr_t) * m.get("cache_read", 0)) / 1_000_000
-print(f"{cost:.6f}")
-PYEOF
-}
 
 # ========== 聚合 ==========
 # 从单个 jsonl 文件抽取每个 session 的 token 统计
@@ -338,14 +298,12 @@ write_csv() {
     mkdir -p "$OUTPUT_DIR"
     local out="$OUTPUT_DIR/sessions-${date_stamp}.csv"
     {
-        echo "session_id,project_path,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,first_activity,last_activity,cost_cny"
+        echo "session_id,project_path,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,first_activity,last_activity"
         while IFS= read -r row; do
             [[ -z "$row" ]] && continue
-            python3 - "$row" "$pricing" << 'PYEOF' 2>/dev/null
+            python3 - "$row" << 'PYEOF' 2>/dev/null
 import json, sys
 row = json.loads(sys.argv[1])
-pricing = json.loads(sys.argv[2]) if sys.argv[2] else {}
-p = pricing.get
 sid = row["sessionId"][:8]
 project = row["projectPath"]
 session_name = (row.get("sessionName") or "").replace(",", " ").replace("\n", " ")[:80]
@@ -357,11 +315,7 @@ else:
 mt = row.get("modelTimeMs", 0)
 tt = row.get("toolTimeMs", 0)
 wt = row.get("wallMs", 0)
-pm = pricing.get(main_model, {})
-cost = ((row["inputTokens"] * pm.get("input", 0))
-        + (row["outputTokens"] * pm.get("output", 0))
-        + (row["cacheReadTokens"] * pm.get("cache_read", 0))) / 1_000_000
-print(f'{sid},{project},{session_name},{main_model},{row["inputTokens"]},{row["cacheReadTokens"]},{row["outputTokens"]},{row["totalTokens"]},{row["requestCount"]},{row.get("turnCount",0)},{mt},{tt},{wt},{row["firstActivity"]},{row["lastActivity"]},{cost:.6f}')
+print(f'{sid},{project},{session_name},{main_model},{row["inputTokens"]},{row["cacheReadTokens"]},{row["outputTokens"]},{row["totalTokens"]},{row["requestCount"]},{row.get("turnCount",0)},{mt},{tt},{wt},{row["firstActivity"]},{row["lastActivity"]}')
 PYEOF
         done < "$rows_file"
     } > "$out"
@@ -371,18 +325,17 @@ PYEOF
 # by-day 归档：每行 = (session, day, model) → <day>.csv
 # 写一次策略：历史 day（< today）已写过即跳过（jsonl append-only，数据冻结，
 # 重算结果相同）；今天 always 覆盖（进行中 session 漂移）。--force 全量重算
-# （改列结构/改 pricing 后用）。首次运行或补缺时，缺失 day 自动写。
+# （改列结构后用）。首次运行或补缺时，缺失 day 自动写。
 write_by_day_csv() {
     local rows_file="$1" today="$2" force="${3:-false}"
     mkdir -p "$OUTPUT_DIR"
     local written skipped
     local res
-    res=$(python3 - "$rows_file" "$OUTPUT_DIR" "$pricing" "$today" "$force" << 'PYEOF' 2>/dev/null
+    res=$(python3 - "$rows_file" "$OUTPUT_DIR" "$today" "$force" << 'PYEOF' 2>/dev/null
 import json, sys, os
 from collections import defaultdict
 
-rows_file, out_dir, pricing, today, force = sys.argv[1:6]
-p = json.loads(pricing) if pricing else {}
+rows_file, out_dir, today, force = sys.argv[1:5]
 force = (force == "true")
 
 by_day = defaultdict(list)
@@ -395,7 +348,7 @@ for line in open(rows_file):
 header = ("session_id,day,project_path,session_name,model,"
          "input_tokens,cache_read_tokens,output_tokens,total_tokens,"
          "request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,"
-         "first_ts,last_ts,cost_cny\n")
+         "first_ts,last_ts\n")
 
 written = 0
 skipped = 0
@@ -409,16 +362,12 @@ for day, rows in sorted(by_day.items()):
     with open(path, "w") as f:
         f.write(header)
         for r in rows:
-            pm = p.get(r["model"], {})
-            cost = ((r["inputTokens"] * pm.get("input", 0))
-                    + (r["outputTokens"] * pm.get("output", 0))
-                    + (r["cacheReadTokens"] * pm.get("cache_read", 0))) / 1_000_000
             sn = (r.get("sessionName","") or "").replace(",", " ").replace("\n", " ")[:80]
             f.write(f'{r["sessionId"][:8]},{day},{r["projectPath"]},{sn},{r["model"]},'
                     f'{r["inputTokens"]},{r["cacheReadTokens"]},{r["outputTokens"]},{r["totalTokens"]},'
                     f'{r["requestCount"]},{r.get("turnCount",0)},{r.get("modelTimeMs",0)},'
                     f'{r.get("toolTimeMs",0)},{r.get("wallMs",0)},'
-                    f'{r["firstTs"]},{r["lastTs"]},{cost:.6f}\n')
+                    f'{r["firstTs"]},{r["lastTs"]}\n')
     written += len(rows)
 
 print(f"{written}\t{skipped}")
@@ -458,135 +407,6 @@ for d in sorted(days):
     tot = v["input"] + v["output"] + v["cc"] + v["cr"]
     print(f"{d:<12} {v['sessions']:>8} {v['count']:>9} {v['input']:>12,} {v['output']:>10,} {v['cr']:>12,} {tot:>14,}")
 PYEOF
-}
-
-# ========== 飞书多维表格 ==========
-parse_feishu_url() {
-    # 飞书多维表格 URL 形如：
-    # https://ailab.feishu.cn/base/<base_token>?table=<table_id>
-    # 或 https://ailab.feishu.cn/base/<base_token>/<table_id>
-    # 返回 "base_token table_id"
-    local url="$1"
-    python3 - "$url" << 'PYEOF'
-import re, sys, urllib.parse
-url = sys.argv[1]
-m = re.search(r'/base/([A-Za-z0-9_-]+)', url)
-if not m:
-    sys.exit(0)
-base_token = m.group(1)
-parsed = urllib.parse.urlparse(url)
-q = urllib.parse.parse_qs(parsed.query)
-table_id = (q.get("table") or [None])[0]
-if not table_id:
-    m2 = re.search(r'/base/' + re.escape(base_token) + r'/([A-Za-z0-9_-]+)', url)
-    if m2:
-        table_id = m2.group(1)
-if table_id:
-    print(f"{base_token} {table_id}")
-PYEOF
-}
-
-# 多维表格字段名约定（用户提前在 base 里建好同名列）：
-#   sessionid (text) — 主标识
-#   session_day (date) — 日期（YYYY-MM-DD）
-#   project (text)
-#   route (text)
-#   model (text)
-#   session_name (text)
-#   input_tokens (int)
-#   cache_read_tokens (int) — 命中缓存
-#   output_tokens (int)
-#   total_tokens (int)
-#   user_request (int) — turn 数
-#   agent_request (int) — assistant 消息数
-push_feishu() {
-    local url="$1" rows_file="$2"
-    local parsed
-    parsed=$(parse_feishu_url "$url")
-    if [[ -z "$parsed" ]]; then
-        err "无法解析飞书 URL: $url"
-        err "期望格式: https://<tenant>.feishu.cn/base/<base_token>?table=<table_id>"
-        return 1
-    fi
-    local base_token table_id
-    base_token=$(echo "$parsed" | awk '{print $1}')
-    table_id=$(echo "$parsed" | awk '{print $2}')
-    info "推送目标: base=$base_token table=$table_id"
-
-    # 选 lark-cli 账号配置（用 ailab 账号作为默认）
-    local config_dir="${LARKSUITE_CLI_CONFIG_DIR:-$HOME/.lark-cli-ailab}"
-    export LARKSUITE_CLI_CONFIG_DIR="$config_dir"
-
-    # 把 JSON 行转成 base 字段 map（每行 1 个 record）
-    # 过滤：交互 <=2 的测试 session 跳过；synthetic 跳过
-    local payload
-    payload=$(python3 - "$rows_file" << 'PYEOF'
-import json, sys
-records = []
-for line in open(sys.argv[1]):
-    line = line.strip()
-    if not line: continue
-    r = json.loads(line)
-
-    # 过滤：测试 session（请求 <= 2 或 model=<synthetic>）
-    if r.get("requestCount", 0) <= 2 or r.get("model","") == "<synthetic>":
-        continue
-
-    models = r.get("models", {})
-    main_model = max(models.items(), key=lambda x: sum(x[1].get(k, 0) for k in ("input","output","cache_creation","cache_read")))[0] if models else "unknown"
-
-    sid = r["sessionId"][:8]
-    # by-day 模式有 day 字段；session 模式没 day，用 firstActivity 日期
-    day_str = r.get("day") or (r.get("firstActivity") or r.get("firstTs") or "")[:10]
-    # 飞书 datetime 字段需毫秒时间戳
-    import time
-    day_ms = int(time.mktime(time.strptime(day_str, "%Y-%m-%d")) * 1000) if day_str else 0
-
-    # by-day 模式 row 直接有 model 字段（按天按 model 聚合）；
-    # session 模式用 models 里用量最大的 model
-    row_model = r.get("model") or main_model
-
-    records.append({
-        "sessionid": sid,
-        "session_day": day_ms,
-        "project": r["projectPath"],
-        "model": row_model,
-        "session_name": (r.get("sessionName","") or "")[:80] or sid,
-        "input_tokens": int(r["inputTokens"]),
-        "cache_read_tokens": int(r["cacheReadTokens"]),
-        "output_tokens": int(r["outputTokens"]),
-        "total_tokens": int(r["totalTokens"]),
-        "user_request": int(r.get("userRequestCount", 0)),
-        "agent_request": int(r.get("requestCount", 0)),
-    })
-print(json.dumps({"create_records": records}, ensure_ascii=False))
-PYEOF
-)
-
-    # 分批（每批 ≤200）
-    local total
-    total=$(echo "$payload" | python3 -c "import json,sys; print(len(json.load(sys.stdin)['create_records']))" 2>/dev/null || echo "0")
-    if [[ "$total" == "0" || -z "$total" ]]; then
-        warn "没有符合条件的记录（过滤测试 session 后为空）"
-        return 1
-    fi
-    info "共 $total 条记录（已过滤测试 session），分批写入..."
-
-    local batch_size=200
-    python3 - "$payload" "$batch_size" << 'PYEOF' | while IFS= read -r batch_json; do
-import json, sys
-data = json.loads(sys.argv[1])
-batch_size = int(sys.argv[2])
-recs = data["create_records"]
-for i in range(0, len(recs), batch_size):
-    print(json.dumps({"create_records": recs[i:i+batch_size]}, ensure_ascii=False))
-PYEOF
-        lark-cli base +record-batch-create \
-            --as user \
-            --base-token "$base_token" \
-            --table-id "$table_id" \
-            --json "$batch_json" 2>&1 | grep -E '"ok"|"error"' | head -1
-    done
 }
 
 # ========== 增量 state ==========
@@ -691,13 +511,13 @@ PYEOF
 # ========== CLI ==========
 main() {
     local since="" until="" project="" json_output=false incremental=false
-    local feishu_url="" report=false stats=false by_day=false include_today=false auto_backfill=false force=false
+    local report=false stats=false by_day=false include_today=false auto_backfill=false force=false
     # json 模式走 stdout，其他模式日志走 stderr
     if [[ "${QUIET:-0}" == "1" || -n "${JSON_OUTPUT_FORCE:-}" ]]; then
         : # 保留 ok/warn/err，info 也输出
     fi
 
-    # 默认从 ccprivate/conf/token-usage.json 读 feishu_url
+    # 默认从 ccprivate/conf/token-usage.json 读 include_today
     if [[ -z "${TOKEN_USAGE_CONFIG:-}" && -n "$CCPRIVATE_HOME" && -f "$CCPRIVATE_HOME/conf/token-usage.json" ]]; then
         TOKEN_USAGE_CONFIG="$CCPRIVATE_HOME/conf/token-usage.json"
     fi
@@ -705,10 +525,8 @@ main() {
         TOKEN_USAGE_CONFIG="$HOME/git/ccprivate/conf/token-usage.json"
     fi
     if [[ -n "${TOKEN_USAGE_CONFIG:-}" && -f "$TOKEN_USAGE_CONFIG" ]]; then
-        local cfg_url cfg_today
-        cfg_url=$(python3 -c "import json;d=json.load(open('$TOKEN_USAGE_CONFIG'));print(d.get('feishu_url',''))" 2>/dev/null)
+        local cfg_today
         cfg_today=$(python3 -c "import json;d=json.load(open('$TOKEN_USAGE_CONFIG'));print(d.get('include_today',False))" 2>/dev/null)
-        [[ -n "$cfg_url" && -z "$feishu_url" ]] && feishu_url="$cfg_url"
         [[ "$cfg_today" == "True" ]] && include_today=true
     fi
 
@@ -719,7 +537,6 @@ main() {
             --project)  project="$2"; shift 2 ;;
             --json)     json_output=true; shift ;;
             --incremental) incremental=true; shift ;;
-            --feishu)   feishu_url="$2"; shift 2 ;;
             --config)   TOKEN_USAGE_CONFIG="$2"; shift 2 ;;
             --report)   report=true; shift ;;
             --by-day)   by_day=true; shift ;;
@@ -734,10 +551,8 @@ main() {
         esac
     done
 
-    local today pricing
+    local today
     today=$(date +%Y-%m-%d)
-    pricing=$(load_pricing) || pricing="{}"
-    [[ "$pricing" != "{}" ]] && info "已加载 pricing 配置 ($(echo "$pricing" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null) 个模型)" || info "未配置 pricing，成本列将为 0"
 
     info "扫描 $CLAUDE_PROJECTS_DIR ..."
     local tmp
@@ -772,17 +587,16 @@ main() {
     info "扫描完成: $count 个 session"
 
     if [[ "$stats" == true ]]; then
-        python3 - "$tmp" "$pricing" "$today" << 'PYEOF'
+        python3 - "$tmp" << 'PYEOF'
 import json, sys
 from collections import defaultdict
 rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
-p = json.loads(sys.argv[2]) if sys.argv[2] else {}
 if not rows:
     print("无数据"); sys.exit(0)
 # 每个 row = (day, model) 粒度的 token
 # 字段: day, model, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, totalTokens, sessionId
-by_model = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"count":0,"unique_sessions":set(),"cost":0.0})
-by_day = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"unique_sessions":set(),"cost":0.0})
+by_model = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"count":0,"unique_sessions":set()})
+by_day = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"unique_sessions":set()})
 for r in rows:
     d = r["day"]
     m = r["model"]
@@ -791,15 +605,13 @@ for r in rows:
     mo = r["outputTokens"]
     mcr = r["cacheReadTokens"]
     mt = mi + mo  # input 已含 cache 类 token，不重复加
-    pm = p.get(m, {})
-    c = (mi*pm.get("input",0) + mo*pm.get("output",0) + mcr*pm.get("cache_read",0)) / 1_000_000
 
     bm = by_model[m]
-    bm["in"] += mi; bm["cr"] += mcr; bm["out"] += mo; bm["total"] += mt; bm["count"] += 1; bm["cost"] += c
+    bm["in"] += mi; bm["cr"] += mcr; bm["out"] += mo; bm["total"] += mt; bm["count"] += 1
     bm["unique_sessions"].add(sid)
 
     bd = by_day[d]
-    bd["in"] += mi; bd["cr"] += mcr; bd["out"] += mo; bd["total"] += mt; bd["cost"] += c
+    bd["in"] += mi; bd["cr"] += mcr; bd["out"] += mo; bd["total"] += mt
     bd["unique_sessions"].add(sid)
 
 # 按日期间隔统计
@@ -811,24 +623,23 @@ day7_str = (now - timedelta(days=7)).strftime("%Y-%m-%d")
 day30_str = (now - timedelta(days=30)).strftime("%Y-%m-%d")
 
 def agg_days(cond):
-    """按 day 聚合，返回 (session_count, input, output, cache_read, total, cost)"""
+    """按 day 聚合，返回 (session_count, input, output, cache_read, total)"""
     sel_days = [d for d in by_day if cond(d)]
     si = sum(by_day[d]["in"] for d in sel_days)
     so = sum(by_day[d]["out"] for d in sel_days)
     scr = sum(by_day[d]["cr"] for d in sel_days)
     stot = sum(by_day[d]["total"] for d in sel_days)
-    cost = sum(by_day[d]["cost"] for d in sel_days)
     all_sids = set()
     for d in sel_days:
         all_sids |= by_day[d]["unique_sessions"]
-    return len(all_sids), si, so, scr, stot, cost
+    return len(all_sids), si, so, scr, stot
 
 print(f"\n\033[32m=== 按模型 ===\033[0m")
-print(f"{'Model':<24} {'Sessions':>8} {'Input':>12} {'CacheRead':>12} {'Output':>10} \033[34m{'Total':>14}\033[0m \033[33m{'Cost':>9}\033[0m")
+print(f"{'Model':<24} {'Sessions':>8} {'Input':>12} {'CacheRead':>12} {'Output':>10} \033[34m{'Total':>14}\033[0m")
 for m in sorted(by_model, key=lambda x: -by_model[x]["total"]):
     d = by_model[m]
     if d["total"] == 0: continue
-    print(f"{m[:24]:<24} {len(d['unique_sessions']):>8} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} \033[34m{d['total']:>14,}\033[0m \033[33m{d['cost']:>9.2f}\033[0m")
+    print(f"{m[:24]:<24} {len(d['unique_sessions']):>8} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} \033[34m{d['total']:>14,}\033[0m")
 # total 汇总行
 all_sids = set()
 for m in by_model:
@@ -838,51 +649,49 @@ t_in = sum(by_model[m]["in"] for m in by_model)
 t_cr = sum(by_model[m]["cr"] for m in by_model)
 t_out = sum(by_model[m]["out"] for m in by_model)
 t_total = sum(by_model[m]["total"] for m in by_model)
-t_cost_sum = sum(by_model[m]["cost"] for m in by_model)
-print(f"{'total':<24} {t_sessions:>8} {t_in:>12,} {t_cr:>12,} {t_out:>10,} \033[34m{t_total:>14,}\033[0m \033[33m{t_cost_sum:>9.2f}\033[0m")
+print(f"{'total':<24} {t_sessions:>8} {t_in:>12,} {t_cr:>12,} {t_out:>10,} \033[34m{t_total:>14,}\033[0m")
 print()
 print(f"\033[32m=== 按时间段 ===\033[0m")
-print(f"{'区间':<16} {'Sessions':>9} {'Input':>12} {'Output':>10} {'CacheRead':>12} \033[34m{'Total':>14}\033[0m \033[33m{'Cost':>10}\033[0m")
+print(f"{'区间':<16} {'Sessions':>9} {'Input':>12} {'Output':>10} {'CacheRead':>12} \033[34m{'Total':>14}\033[0m")
 # 单日 = 昨天（latest full day）
-ns, si, so, scr, stot, cost = agg_days(lambda d: d == yesterday_str)
+ns, si, so, scr, stot = agg_days(lambda d: d == yesterday_str)
 if ns > 0:
-    print(f"{yesterday_display:<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} \033[34m{stot:>14,}\033[0m \033[33m{cost:>10.2f}\033[0m")
+    print(f"{yesterday_display:<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} \033[34m{stot:>14,}\033[0m")
 else:
     print(f"{yesterday_display:<16} 无数据")
-ns, si, so, scr, stot, cost = agg_days(lambda d: d >= day7_str)
+ns, si, so, scr, stot = agg_days(lambda d: d >= day7_str)
 if ns > 0:
-    print(f"{"近7天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} \033[34m{stot:>14,}\033[0m \033[33m{cost:>10.2f}\033[0m")
+    print(f"{"近7天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} \033[34m{stot:>14,}\033[0m")
 else:
     print(f"{"近7天":<16} 无数据")
-ns, si, so, scr, stot, cost = agg_days(lambda d: d >= day30_str)
+ns, si, so, scr, stot = agg_days(lambda d: d >= day30_str)
 if ns > 0:
-    print(f"{"近30天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} \033[34m{stot:>14,}\033[0m \033[33m{cost:>10.2f}\033[0m")
+    print(f"{"近30天":<16} {ns:>9} {si:>12,} {so:>10,} {scr:>12,} \033[34m{stot:>14,}\033[0m")
 else:
     print(f"{"近30天":<16} 无数据")
 print()
 print(f"\033[32m=== 按月 ===\033[0m")
 # 按月统计（descending，首行 = 全量总计）
-by_month = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"sessions":set(),"cost":0.0})
+by_month = defaultdict(lambda: {"in":0,"cr":0,"out":0,"total":0,"sessions":set()})
 for d, bd in by_day.items():
     month = d[:7]
     bm = by_month[month]
     bm["in"] += bd["in"]; bm["cr"] += bd["cr"]; bm["out"] += bd["out"]
-    bm["total"] += bd["total"]; bm["cost"] += bd["cost"]
+    bm["total"] += bd["total"]
     bm["sessions"] |= bd["unique_sessions"]
 months = sorted(by_month.keys(), reverse=True)
-print(f"{'Month':<14} {'Sessions':>9} {'Input':>12} {'CacheRead':>12} {'Output':>10} \033[34m{'Total':>14}\033[0m \033[33m{'Cost':>10}\033[0m")
+print(f"{'Month':<14} {'Sessions':>9} {'Input':>12} {'CacheRead':>12} {'Output':>10} \033[34m{'Total':>14}\033[0m")
 # 首行 = 全量总计
 all_sessions = len(set().union(*[by_month[m]["sessions"] for m in months]))
 all_in = sum(by_month[m]["in"] for m in months)
 all_cr = sum(by_month[m]["cr"] for m in months)
 all_out = sum(by_month[m]["out"] for m in months)
 all_total = sum(by_month[m]["total"] for m in months)
-all_cost = sum(by_month[m]["cost"] for m in months)
-print(f"{'total':<14} {all_sessions:>9} {all_in:>12,} {all_cr:>12,} {all_out:>10,} \033[34m{all_total:>14,}\033[0m \033[33m{all_cost:>10.2f}\033[0m")
+print(f"{'total':<14} {all_sessions:>9} {all_in:>12,} {all_cr:>12,} {all_out:>10,} \033[34m{all_total:>14,}\033[0m")
 for m in months:
     d = by_month[m]
     if d["total"] == 0: continue
-    print(f"{m:<14} {len(d['sessions']):>9} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} \033[34m{d['total']:>14,}\033[0m \033[33m{d['cost']:>10.2f}\033[0m")
+    print(f"{m:<14} {len(d['sessions']):>9} {d['in']:>12,} {d['cr']:>12,} {d['out']:>10,} \033[34m{d['total']:>14,}\033[0m")
 print()
 print(f"\033[32m=== 按任务（Top 5） ===\033[0m")
 print(f"{'Session':<24} {'Input':>12} {'CacheRead':>12} {'Output':>10}  \033[34m{'Total':>14}\033[0m")
@@ -916,10 +725,6 @@ PYEOF
         local today_str
         today_str=$(date +%Y-%m-%d)
         write_by_day_csv "$tmp" "$today_str" "$force"
-        # 顺便推飞书（如果有 URL）
-        if [[ -n "$feishu_url" ]]; then
-            push_feishu "$feishu_url" "$tmp"
-        fi
         exit 0
     fi
 
@@ -931,10 +736,6 @@ PYEOF
     local today
     today=$(date +%Y-%m-%d)
     write_csv "$today" "$tmp"
-
-    if [[ -n "$feishu_url" ]]; then
-        push_feishu "$feishu_url" "$tmp"
-    fi
 }
 
 main "$@"
