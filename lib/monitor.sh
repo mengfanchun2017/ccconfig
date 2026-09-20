@@ -544,10 +544,22 @@ start_watch() {
     $QUIET_MODE || echo -e "${GRAY}Repos: $(list_repos | xargs -I{} basename {} | tr '\n' ' ')${NC}"
 
     # 启动后 30s 扫描已有改动（不等 debounce）
+    # 为什么显式传 list_repos 结果 + 打仓库数：旧版这里 sync_repos 无参空转，
+    # 日志只留一行 "Initial scan..."，事后完全看不出是"没有改动"还是"没扫到仓库"。
+    # 实测重启后待提交改动会一直躺着，直到下一次文件事件才被提交。
     (
         sleep 30
-        do_log "Initial scan for pending changes..."
-        sync_repos
+        local _init_repos
+        _init_repos=$(list_repos)
+        local _init_n
+        _init_n=$(printf '%s' "$_init_repos" | awk 'NF{c++} END{print c+0}')
+        do_log "Initial scan: ${_init_n} 个仓库待查"
+        if [ "$_init_n" -eq 0 ]; then
+            do_log "Initial scan: list_repos 返回空（WATCH_DIR=$WATCH_DIR），跳过一次"
+        else
+            sync_repos "$_init_repos"
+            do_log "Initial scan done"
+        fi
     ) &
 }
 
