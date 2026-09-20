@@ -212,14 +212,17 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
         if not payload:
             continue
         if payload == "[DONE]":
-            if state.get("finished"):
+            if state.get("stopped"):
                 continue
-            _close_text_block(state, out, 0)
-            _close_tool_blocks(state, out)
-            stop_delta = {"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": None, "stop_details": {"type": "stop", "reason": "end_turn"}}}
+            if not state.get("finished"):
+                _close_text_block(state, out, 0)
+                _close_tool_blocks(state, out)
+            anth_reason = state.get("stop_reason") or "end_turn"
+            stop_delta = {"type": "message_delta", "delta": {"stop_reason": anth_reason, "stop_sequence": None, "stop_details": {"type": "stop", "reason": anth_reason}}}
             out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
             out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
             state["finished"] = True
+            state["stopped"] = True
             continue
         try:
             obj = json.loads(payload)
@@ -295,14 +298,12 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                 _close_text_block(state, out, 0)
                 _close_tool_blocks(state, out)
                 _fr_map = {"stop": "end_turn", "tool_calls": "tool_use", "length": "max_tokens", "content_filter": "content_filtered"}
-                anth_reason = _fr_map.get(_fr, "end_turn")
-                stop_delta = {"type": "message_delta", "delta": {"stop_reason": anth_reason, "stop_sequence": None, "stop_details": {"type": "stop", "reason": anth_reason}}}
-                out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
-                # why: 上游（DeepSeek 系）先发带 finish_reason 的 chunk 再发 [DONE]。
-                #      不在此收尾并置 finished，[DONE] 分支会再补一个 end_turn delta，
-                #      把真实 stop_reason（max_tokens/tool_use）覆盖成 end_turn，
-                #      导致 CC 收到截断输出时误判正常结束、不自动续写。
-                out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
+                # why: 不在此处发 message_delta —— 上游（DeepSeek 系）带 finish_reason 的
+                #      chunk 后面还跟着 usage-only chunk，那个 delta 的 stop_reason 是 None，
+                #      会把真实 stop_reason（max_tokens/tool_use）覆盖成 null/end_turn，
+                #      导致 CC 收到被截断的输出时误判正常结束、不自动续写。
+                #      记下来，等 [DONE] 时作为流内最后一个 message_delta 发出。
+                state["stop_reason"] = _fr_map.get(_fr, "end_turn")
                 state["finished"] = True
 
         usage = obj.get("usage")

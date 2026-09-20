@@ -11,7 +11,7 @@
 #   bash init-llm.sh sync            # 修 /model 污染
 #   bash init-llm.sh delete <name>   # 删预设
 #   bash init-llm.sh heal            # bridge 自愈（按 llm-current 重拉）
-#   bash init-llm.sh bill            # 用量统计（拆 init-llm-bill.sh）
+#   bash init-llm.sh bill            # 归档用量统计（按 model+day 聚合，不含费用）
 #
 # 新增/修改预设：直接编辑 conf/llm.json（schema 见 docs/init-llm.md §六）
 #
@@ -699,7 +699,7 @@ main() {
             test_llm "${2:-}" ;;
         switch)      switch_llm "${2:-}" ;;
         delete|-d)   delete_preset "${2:-}" ;;
-        bill|pricing|-p) bash "$SCRIPT_DIR/init-llm-bill.sh" "${2:-}" ;;
+        bill)        bash "$SCRIPT_DIR/init-llm-bill.sh" "${2:-}" ;;
         sync)        sync_top_model ;;
         heal)
             selfheal_bridge "$CONFIG_FILE" \
@@ -708,8 +708,8 @@ main() {
             ;;
         "")          interactive_select ;;
         *)
-            if [[ "$cmd" =~ ^b[i1]l[1l]?$ ]] || [[ "$cmd" =~ ^pr[i1]c[i1]ng$ ]]; then
-                error "猜你想用 'bill'（账单）？运行: bash init-llm.sh bill"
+            if [[ "$cmd" =~ ^pr[i1]c[i1]ng$ ]]; then
+                error "价格设定已移除（费用以上游账单为准）。用量统计走: bash init-llm.sh bill"
                 return 1
             fi
             switch_llm "$cmd"

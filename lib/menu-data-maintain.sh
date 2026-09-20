@@ -61,9 +61,10 @@ MENU_ENTRIES=(
     "4|E|修复 /model 污染|./maintain.sh llm sync|bash \"\$LIB_DIR/init-llm.sh\" sync"
     "4|F|bridge 自愈|./maintain.sh llm heal|bash \"\$LIB_DIR/init-llm.sh\" heal"
     "4|G|删除预设（问预设名）|./maintain.sh llm delete <名>|ask_run \"要删除的预设名\" \"\$LIB_DIR/init-llm.sh\" delete"
-    "4|H|用量/单价账单|./maintain.sh llm bill|bash \"\$LIB_DIR/init-llm.sh\" bill"
+    "4|H|归档用量（按模型+天）|./maintain.sh llm bill|bash \"\$LIB_DIR/init-llm.sh\" bill"
 
     # ── 5: 用量 ──
+    # 只统计 token 与时间：不算钱（费用以上游账单为准）、不外发（飞书上报已移除）
     "5|A|用量统计（跨 LLM）|./maintain.sh token --stats|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --stats"
     "5|B|按日报告|./maintain.sh token --report|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --report"
     "5|C|立即归档（增量）|./maintain.sh token --by-day|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --by-day"
@@ -72,8 +73,6 @@ MENU_ENTRIES=(
     "5|F|定时器状态|bash option-usage/init.sh status|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" status"
     "5|G|启用定时器|bash option-usage/init.sh install|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" install"
     "5|H|停用定时器|bash option-usage/init.sh uninstall|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" uninstall"
-    "5|I|定时器配置（时间/飞书）|bash option-usage/init.sh config|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" config"
-    "5|J|费用 pricing 设置|bash lib/init-llm-bill.sh|bash \"\$LIB_DIR/init-llm-bill.sh\""
 
     # ── 6: MCP ──
     "6|A|MCP 配置（跨项目）|./maintain.sh mcp config|bash \"\$LIB_DIR/mcp-manager.sh\" config"

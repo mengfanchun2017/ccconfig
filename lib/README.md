@@ -42,7 +42,7 @@
 | `install-inotify.sh` | inotify 安装 |
 | `init-ubuntu.sh` | Ubuntu 初始化 |
 | `init-llm.sh` | LLM 切换（预设 + bridge 生命周期 + 真实链路探测） |
-| `init-llm-bill.sh` | LLM 用量统计（聚合 ccprivate/usage/*.csv） |
+| `init-llm-bill.sh` | 归档用量统计（聚合 ccprivate/usage/*.csv，不含费用） |
 | `init-mcp.sh` | MCP 初始化 |
 | `init-skill.sh` | Skill 安装 |
 | `init-autostart.sh` | 自启动配置 |

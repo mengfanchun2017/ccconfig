@@ -12,8 +12,8 @@
 #   8. --stats 总计
 #   9. CSV 头字段
 #   10. --incremental state 去重
-#   11. pricing 集成（提供 mock llm.json）
-#   12. 飞书 URL 解析
+#   11. --stats 无 Cost 列（pricing 已移除）
+#   12. 飞书上报/pricing 已移除的回归锁
 #
 # 用法：
 #   bash ccconfig/tests/test-token-usage.sh            # 全部
@@ -97,8 +97,8 @@ run_test() {
         t_08_stats)             test_stats ;;
         t_09_csv_header)        test_csv_header ;;
         t_10_incremental)       test_incremental ;;
-        t_11_pricing)           test_pricing ;;
-        t_12_url_parse)         test_url_parse ;;
+        t_11_no_cost)           test_no_cost ;;
+        t_12_removed)           test_removed_features ;;
         t_13_by_day)            test_by_day ;;
         t_14_by_day_incremental) test_by_day_incremental ;;
         *) _fail "$id" "unknown test"; return ;;
@@ -197,7 +197,7 @@ test_csv_header() {
     bash "$TOKEN" 2>/dev/null >/dev/null
     csv="$TOKEN_USAGE_OUTPUT/sessions-$(date +%Y-%m-%d).csv"
     [[ -f "$csv" ]] || { _log "csv not created"; return 1; }
-    head -1 "$csv" | grep -q "session_id,project_path,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,first_activity,last_activity,cost_cny"
+    head -1 "$csv" | grep -q "session_id,project_path,session_name,model,input_tokens,cache_read_tokens,output_tokens,total_tokens,request_count,turn_count,model_time_ms,tool_time_ms,wall_ms,first_activity,last_activity"
     return 0
 }
 
@@ -216,55 +216,27 @@ test_incremental() {
     return 0
 }
 
-# ── T11: pricing integration ──
-test_pricing() {
+# ── T11: --stats 不再输出 Cost 列（pricing 2026-09-20 移除）──
+test_no_cost() {
     setup_test_env
-    # 临时 mock 一个 conf/llm.json
-    mock_conf="$TEST_ROOT/conf/llm.json"
-    mkdir -p "$(dirname "$mock_conf")"
-    cat > "$mock_conf" << EOF
-{"pricing": {"deepseek-v4-flash": {"input": 0.028, "output": 0.042, "cache_read": 0.003}}}
-EOF
-    # 直接测：跑一次 --json 看 pricing 是否被识别（输出含 "已加载 pricing"）
-    # 简化：用 ccprivate 测试配置在路径上需要 resolve_conf 工作。临时测试：直接测 cost 字段
-    make_jsonl "$CLAUDE_PROJECTS_DIR/-x/s.jsonl" "ss-pricing" "2026-07-30T01:00:00Z" \
-        "deepseek-v4-flash" 1000000 1000000 0 1000000
-    out=$(bash "$TOKEN" --json 2>/dev/null)
-    # 验证 token 字段正确（pricing 0 没数据时也应是 0 cost 列）
-    echo "$out" | python3 -c "
-import json, sys
-r = json.load(sys.stdin)
-assert r['inputTokens'] == 1000000
-assert r['outputTokens'] == 1000000
-" || return 1
+    make_jsonl "$CLAUDE_PROJECTS_DIR/-x/s.jsonl" "ss-1" "2026-07-30T01:00:00Z"         "deepseek-v4-flash" 1000000 1000000 0 1000000
+    out=$(bash "$TOKEN" --stats 2>/dev/null)
+    echo "$out" | grep -q "Cost" && { _log "stats 仍有 Cost 列"; return 1; }
+    echo "$out" | grep -q "按模型" || { _log "stats 结构变了"; return 1; }
     return 0
 }
 
-# ── T12: URL 解析 ──
-test_url_parse() {
-    # 用 grep 验证 push_feishu 中的 URL 正则能匹配
-    grep -q "parse_feishu_url" "$TOKEN" || return 1
-    # 直接跑 python3 模拟
-    for url in \
-        "https://ailab.feishu.cn/base/QdFrbND?table=tblXyZ" \
-        "https://ailab.feishu.cn/base/QdFrbND/tblXyZ" \
-    ; do
-        result=$(python3 - "$url" << 'PYEOF'
-import re, sys, urllib.parse
-url = sys.argv[1]
-m = re.search(r'/base/([A-Za-z0-9_-]+)', url)
-if not m: sys.exit(1)
-bt = m.group(1)
-q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
-ti = (q.get("table") or [None])[0]
-if not ti:
-    m2 = re.search(r'/base/' + re.escape(bt) + r'/([A-Za-z0-9_-]+)', url)
-    if m2: ti = m2.group(1)
-print(f"{bt} {ti}")
-PYEOF
-)
-        [[ -n "$result" ]] || { _log "failed for $url"; return 1; }
-    done
+# ── T12: 飞书上报 / pricing 移除回归锁 ──
+# 移除决策见 docs/updates/20260920-maintain-flat-menu.md：不做价格设定、不外发飞书。
+test_removed_features() {
+    grep -q "push_feishu\|parse_feishu_url\|load_pricing\|calc_cost" "$TOKEN" \
+        && { _log "token-usage.sh 仍有飞书/pricing 代码"; return 1; }
+    # CLI 不再接受 --feishu
+    bash "$TOKEN" --feishu https://x.feishu.cn/base/abc >/dev/null 2>&1 \
+        && { _log "--feishu 仍被接受"; return 1; }
+    # 配置模板不再有 feishu_url / enabled 键
+    grep -q "feishu_url" "$CCCONFIG_DIR/conf/token-usage.json.example" \
+        && { _log "example 仍有 feishu_url"; return 1; }
     return 0
 }
 
@@ -320,8 +292,8 @@ TESTS=(
     "t_08_stats:--stats"
     "t_09_csv_header:CSV 头"
     "t_10_incremental:--incremental"
-    "t_11_pricing:pricing"
-    "t_12_url_parse:飞书 URL 解析"
+    "t_11_no_cost:--stats 无 Cost 列"
+    "t_12_removed:飞书/pricing 已移除"
     "t_13_by_day:--by-day 拆分"
     "t_14_by_day_incremental:--by-day 增量"
 )

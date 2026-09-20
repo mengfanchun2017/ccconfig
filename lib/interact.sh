@@ -381,7 +381,9 @@ menu_render() {
         [[ -z "$letter" ]] && continue
 
         _pad_to "$title" "$TITLE_W" padded
-        printf "  ${BOLD_GREEN}%s%s${NC}  %s${DIM}%s${NC}\n" "$cat" "$letter" "$padded" "$cmd"
+        # 标题与命令之间用固定分隔符，不靠补位 —— 标题正好 TITLE_W 宽时补位为 0，
+        # 少了这 2 空格就会贴成 "…重建链接./maintain.sh"
+        printf "  ${BOLD_GREEN}%s%s${NC}  %s  ${DIM}%s${NC}\n" "$cat" "$letter" "$padded" "$cmd"
     done
 }
 

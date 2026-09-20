@@ -3,18 +3,17 @@
 #
 # 功能：
 #   - 初始化归档目录 ccprivate/usage/
-#   - 配置 token-usage.json (feishu_url + timer 开关 + 启动时间)
 #   - 装/卸 systemd timer
 #   - 查看状态
+#   - 改 token-usage.json 的 schedule / include_today（set-time / set-today）
 #
-# 用法（也通过 maintain.sh 10 号菜单调用）：
+# 用法（也通过 maintain.sh 5 号菜单调用）：
 #   bash ccconfig/option-usage/init.sh                # 初始化（建目录）
 #   bash ccconfig/option-usage/init.sh install        # 装 systemd timer
 #   bash ccconfig/option-usage/init.sh uninstall      # 卸 timer
-#   bash ccconfig/option-usage/init.sh config         # 交互式配置 token-usage.json
 #   bash ccconfig/option-usage/init.sh status         # 查状态（timer/归档/配置）
-#   bash ccconfig/option-usage/init.sh set-feishu <url>   # 单独设 feishu_url
-#   bash ccconfig/option-usage/init.sh set-time <HH:MM:SS> # 单独设启动时间
+#   bash ccconfig/option-usage/init.sh set-time <HH:MM:SS>  # 改归档时间
+#   bash ccconfig/option-usage/init.sh set-today <t/f>      # 归档是否含今天
 
 set -euo pipefail
 
@@ -28,7 +27,6 @@ EXAMPLE_CONFIG="$CCCONFIG_DIR/conf/token-usage.json.example"
 
 source "$CCCONFIG_DIR/lib/dry-run.sh"
 source "$CCCONFIG_DIR/lib/colors.sh"
-source "$CCCONFIG_DIR/lib/interact.sh"
 
 # ============ 初始化 ============
 setup_archive() {
@@ -48,7 +46,7 @@ setup_archive() {
     if [[ ! -f "$CONFIG" && -f "$EXAMPLE_CONFIG" ]]; then
         cp "$EXAMPLE_CONFIG" "$CONFIG"
         ok "已创建 $CONFIG（默认配置）"
-        info "编辑 conf/token-usage.json 修改 feishu_url 和 schedule"
+        info "编辑 conf/token-usage.json 可改 schedule / include_today"
     elif [[ -f "$CONFIG" ]]; then
         info "配置已存在: $CONFIG"
     else
@@ -119,8 +117,6 @@ status() {
         python3 -c "
 import json
 d = json.load(open('$CONFIG'))
-print(f'  feishu_url:      {d.get(\"feishu_url\",\"(未设)\")}')
-print(f'  enabled:         {d.get(\"enabled\", True)}')
 print(f'  schedule:        {d.get(\"schedule\",\"12:01:00\")}')
 print(f'  include_today:   {d.get(\"include_today\", False)}')
 " 2>/dev/null || echo "  配置解析失败"
@@ -151,46 +147,7 @@ print(f'  include_today:   {d.get(\"include_today\", False)}')
     info "总 CSV 文件: $total"
 }
 
-# ============ 配置交互 ============
-config_interactive() {
-    [[ ! -f "$CONFIG" ]] && setup_archive
-
-    local current_url current_schedule current_today
-    current_url=$(python3 -c "import json;d=json.load(open('$CONFIG'));print(d.get('feishu_url',''))" 2>/dev/null)
-    current_schedule=$(python3 -c "import json;d=json.load(open('$CONFIG'));print(d.get('schedule','12:01:00'))" 2>/dev/null)
-    current_today=$(python3 -c "import json;d=json.load(open('$CONFIG'));print(d.get('include_today',False))" 2>/dev/null)
-
-    echo ""
-    echo "── 当前 token-usage.json 配置 ──"
-    echo "  feishu_url:     $current_url"
-    echo "  schedule:       $current_schedule"
-    echo "  include_today:  $current_today"
-    echo ""
-    local opt; opt=$(menu_select "配置" \
-        "设置 feishu_url" \
-        "设置 schedule" \
-        "设置 include_today" \
-        "返回")
-    [[ -z "$opt" || "$opt" = "0" ]] && return
-    case "$opt" in
-        1) v=$(prompt "feishu_url"); [ -n "$v" ] && set_feishu "$v" ;;
-        2) v=$(prompt "schedule (HH:MM:SS)"); [ -n "$v" ] && set_schedule "$v" ;;
-        3) v=$(prompt "include_today (true/false)"); [ -n "$v" ] && set_include_today "$v" ;;
-    esac
-}
-
-set_feishu() {
-    local v="$1"
-    python3 - "$CONFIG" "$v" << 'PYEOF'
-import json, sys
-p, v = sys.argv[1:3]
-d = json.load(open(p))
-d["feishu_url"] = v
-json.dump(d, open(p, "w"), indent=4, ensure_ascii=False)
-PYEOF
-    ok "feishu_url 已更新: $v"
-}
-
+# ============ 配置 ============
 set_schedule() {
     local v="$1"
     python3 - "$CONFIG" "$v" << 'PYEOF'
@@ -228,18 +185,11 @@ case "${1:-}" in
     uninstall|disable|remove|untimer)
         disable_timer
         ;;
-    config|configure)
-        config_interactive
-        ;;
     status|--status)
         status
         ;;
     run|trigger)
         bash "$SCRIPT_DIR/token-usage.sh" --by-day
-        ;;
-    set-feishu)
-        shift
-        set_feishu "${1:-}"
         ;;
     set-time|set-schedule)
         shift
@@ -254,7 +204,7 @@ case "${1:-}" in
         status
         ;;
     *)
-        echo "用法: $0 [install|uninstall|config|status|run|set-feishu <url>|set-time <HH:MM:SS>|set-today <t/f>]"
+        echo "用法: $0 [install|uninstall|status|run|set-time <HH:MM:SS>|set-today <t/f>]"
         exit 1
         ;;
 esac
