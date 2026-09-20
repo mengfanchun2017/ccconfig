@@ -205,9 +205,25 @@ commit_and_push() {
         fi
     fi
 
+    # 提交信息带改动摘要。session 已不再自己 commit（见 CLAUDE.md 约束），
+    # 这里写什么就是历史里仅有的信息——只留时间戳等于把"改了什么"全丢掉。
+    local staged_files staged_count commit_subject commit_msg
+    staged_files=$(git -C "$repo_dir" diff --cached --name-only 2>/dev/null || true)
+    staged_count=$(printf '%s' "$staged_files" | awk 'NF{n++} END{print n+0}')
+    if [ "$staged_count" -gt 0 ]; then
+        commit_subject="Auto-sync: $repo $staged_count 文件"
+        commit_msg=$(printf '%s\n\n%s' "$commit_subject" \
+            "$(printf '%s\n' "$staged_files" | head -12 | sed 's/^/  /')")
+        [ "$staged_count" -gt 12 ] && commit_msg="$commit_msg
+  …还有 $((staged_count - 12)) 个"
+    else
+        commit_msg="Auto-sync: $repo $(date '+%Y-%m-%d %H:%M:%S')"
+    fi
+    unset staged_files staged_count commit_subject
+
     local commit_output
 
-    if commit_output=$(git -C "$repo_dir" commit -m "Auto-sync: $(date '+%Y-%m-%d %H:%M:%S')" 2>&1); then
+    if commit_output=$(git -C "$repo_dir" commit -m "$commit_msg" 2>&1); then
         local commit_hash=$(echo "$commit_output" | grep -o '[a-f0-9]\{7\}' | tail -1)
         log "[$repo] OK committed $commit_hash"
 
@@ -369,8 +385,10 @@ start_watch() {
 
     # Single inotify watching ~/git/, accepting events from any tracked repo.
     # Debounce triggers sync_repos with only the changed repo list (L2 优化).
-    local debounce=60
-    local min_push_gap=60
+    # 30s：session 已不再自己 commit（见 CLAUDE.md 约束），改完要尽快落盘，
+    #   太长会让连续编辑攒成一坨。两个值同步改，别只改一个。
+    local debounce=30
+    local min_push_gap=30
 
     inotifywait -m -r -q \
         --exclude '(\.git/|_ext/|\.snapshots/|node_modules/|\.tmp\.)' \
@@ -796,7 +814,7 @@ show_help() {
     echo "  tail               Frontend: push results"
     echo ""
     echo -e "${GREEN}Flow:${NC}"
-    echo "  Watch ~/git/ → 120s debounce → sync only repos with changes"
+    echo "  Watch ~/git/ → 30s debounce → sync only repos with changes"
     echo ""
 }
 

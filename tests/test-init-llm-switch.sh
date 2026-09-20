@@ -202,7 +202,7 @@ fi
 
 # ── T4: 切换不应反复改写 conf/llm.json ──
 # why mtime 而非内容：auto-sync 用 inotify 监听写事件，内容相同但重写文件照样
-# 触发 60s debounce + pull/push 网络往返，且 A 机写出的内容会 push 给 B 机
+# 触发 30s debounce + pull/push 网络往返，且 A 机写出的内容会 push 给 B 机
 echo "T4 切换不应反复改写 conf/llm.json（防 auto-sync 频繁触发）"
 switch_llm "bridge-preset" > /dev/null 2>&1   # 首次可能清掉历史 current 字段（一次性）
 before=$(stat -c %y "$CONFIG_FILE")

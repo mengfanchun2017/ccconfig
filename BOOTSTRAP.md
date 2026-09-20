@@ -638,7 +638,7 @@ bash lib/init-autostart.sh
 # 在 ccconfig 目录随便改个文件触发 monitor
 echo "# smoke test $(date)" > ~/git/ccconfig/.smoke-test.md
 
-# 等 1-2 分钟（monitor debounce 60s + push）
+# 等 1 分钟（monitor debounce 30s + push）
 tail -f ~/git/ccconfig/.monitor-sync.log
 # 应该看到: OK committed → OK pushed → GitHub
 # 测完删掉: rm ~/git/ccconfig/.smoke-test.md
@@ -775,7 +775,7 @@ bash lib/init-autostart.sh
 # 查看状态：./lib/monitor.sh status
 ```
 
-> **monitor push 行为**：监听 `~/git/` 下所有 git 仓库，触发条件是 inotify 检测到文件变化 → 60s debounce → **只 sync 真正改动的仓库**（不是全量扫）。所以同一个 repo 改两个文件不会重复 push，不同 repo 之间互不打扰。
+> **monitor push 行为**：监听 `~/git/` 下所有 git 仓库，触发条件是 inotify 检测到文件变化 → 30s debounce → **只 sync 真正改动的仓库**（不是全量扫）。所以同一个 repo 改两个文件不会重复 push，不同 repo 之间互不打扰。
 > 跑 `./lib/monitor.sh status` 看每个仓库的 `pending file(s)` 数；如果哪个仓库一直显示 "clean" 但你想强制推，临时改成 `conf/versions.json` 之类即可触发。
 
 **`pullff` 暗号 = 上面 1+2 一步到位**：

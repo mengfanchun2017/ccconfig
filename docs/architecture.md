@@ -185,7 +185,7 @@ ccprivate/setup.sh
 
 ```
 inotify 监听 ~/git/ 下所有仓库
-  → 文件变化 → 60s debounce → git add + commit + push
+  → 文件变化 → 30s debounce → git add + commit + push
   → 仅 push 真正改动的仓库
   → 30s push 超时 + 3x 重试
 ```

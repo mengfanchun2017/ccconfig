@@ -34,8 +34,11 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 - `lib/path-helper.sh` 动态路径解析，Node 路径用 `find_node_bin` 4级回退
 
 ## 约束
-- **每次 Edit/Write 后先 git add + git commit，不等 auto-sync**。原因有二：① auto-sync 的 debounce 会先抢跑，把你的改动一起提交成 `Auto-sync: <时间戳>`，原先写好的一事一 commit message 就丢了；② inotify 竞争会让 Edit 的 old_string 过期
-- **auto-sync 实际是 add + commit + push 全做**（`lib/monitor.sh:192` 的 `git add -A`、`:210` 的 `git commit -m "Auto-sync: ..."`）。此前本行误写成"只做 push"，与实际不符 —— 用户级 `rules/git.md` 的描述才是对的
+- **session 不 commit、不 push**。auto-sync 独占提交权：inotify 监听 `~/git/`，30s debounce 后 `git add -A` + commit + push 全做（`lib/monitor.sh`）。改完文件就继续干别的，别手动 `git add`/`git commit`
+- **why 这样定**：多 session 并行时手动 commit 会互相抢（两边改动被扫进同一个 commit）、会和 monitor 的 debounce 抢跑、`git reset` 拆 commit 在已 push 时等于改写发布历史。交给一个提交者，这些竞争面全部消失
+- **代价（已知并接受）**：提交粒度 = 一次 debounce 窗口内的全部改动，不是"一事一 commit"；因此 `rules/git.md` 的「一事一 commit」在本仓库不适用。补偿办法是 monitor 的提交信息**带改动摘要**（仓库名 + 文件数 + 文件清单前 12 项），别把它退回成纯时间戳
+- **不要 `git add` 后又不等**：手动 stage 中途被 debounce 触发，会连同别人的改动一起提交。要改就整段改完
+- **auto-sync 实际是 add + commit + push 全做**（`lib/monitor.sh` 的 `git add -A` 与 `git commit -m "$commit_msg"`）。此前本行误写成"只做 push"，与实际不符
 - 本仓库不记录 memory（memory symlink → ccprivate/link/memory/，由 ccprivate/setup.sh 建立）
 - 私有数据（conf 真实值、CLAUDE.md 内容）通过 symlink 引用 ccprivate，不在本仓库提交
 - ccconfig 最终目标是可公开

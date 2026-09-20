@@ -295,7 +295,7 @@ bash lib/init-llm.sh bill               # 用量统计
 
 ### 🔄 Auto-Sync 守护进程
 
-systemd 服务，inotify 监听 `~/git/`，60s debounce 自动 commit+push。
+systemd 服务，inotify 监听 `~/git/`，30s debounce 自动 commit+push。
 
 ### 🚀 一行命令起步
 
