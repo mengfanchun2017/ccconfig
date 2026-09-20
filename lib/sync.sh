@@ -357,7 +357,11 @@ sync_one_repo() {
             if [[ "${PERSONAL_REPOS:-}" == *"$repo_name"* ]]; then
                 echo -e "  ${YELLOW}⚡ 脏工作区 — 自动 commit + push (个人仓库)${NC}"
                 git -C "$repo_dir" add -A
-                git -C "$repo_dir" commit -m "Auto-sync: $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null && {
+                # 与 monitor 的提交信息同格式：仓库名 + 文件数（session 已不自己 commit，
+                # 纯时间戳会让历史里查不到"改了什么"）
+                local _nfiles
+                _nfiles=$(git -C "$repo_dir" diff --cached --name-only | awk 'NF{c++} END{print c+0}')
+                git -C "$repo_dir" commit -m "Auto-sync: $repo_name $_nfiles 文件" 2>/dev/null && {
                     local new_hash=$(git -C "$repo_dir" rev-parse --short HEAD)
                     echo -e "  ${GREEN}✅ 已提交: $before → $new_hash${NC}"
                     timeout 60 git -C "$repo_dir" push origin "$branch" 2>&1 &&
