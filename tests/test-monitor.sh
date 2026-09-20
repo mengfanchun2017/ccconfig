@@ -206,17 +206,27 @@ test_status_watch_no_pid() {
 # ========== debounce 逻辑 ==========
 
 test_debounce_window() {
-    # 验证 60s debounce 窗口
-    local debounce=60
-    local min_push_gap=60
-    local last_push_time=$(( $(date +%s) - 30 ))
-    local now=$(date +%s)
-    local gap=$((now - last_push_time))
-    if [ "$gap" -lt "$min_push_gap" ]; then
-        pass "debounce: 30s 内重复 → 跳过"
-    else
-        fail "debounce" "误判"
-    fi
+    # 直接读 monitor.sh 的真值，不在测试里再写一份硬编码。
+    # 旧版测试写 60、断言标签写 30s、monitor 与帮助文案又是 60/120 —— 三方对不上。
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    local debounce min_push_gap
+    debounce=$(grep -m1 '^    local debounce=' "$mon" | grep -oE '[0-9]+')
+    min_push_gap=$(grep -m1 '^    local min_push_gap=' "$mon" | grep -oE '[0-9]+')
+    [[ "$debounce" == "30" ]] \
+        && pass "debounce: monitor.sh 真值 = 30s" || fail "debounce" "monitor.sh 实为 ${debounce}s"
+
+    # 帮助文案不能与真值不符（曾写 120s）
+    grep -q "→ ${debounce}s debounce" "$mon" \
+        && pass "debounce: 帮助文案与真值一致" || fail "debounce" "帮助文案与 ${debounce}s 不符"
+
+    [[ -n "$min_push_gap" && "$min_push_gap" == "$debounce" ]] \
+        && pass "debounce: debounce 与 min_push_gap 同值" \
+        || fail "debounce" "debounce=${debounce} vs min_push_gap=${min_push_gap}"
+
+    local last_push_time=$(( $(date +%s) - 10 ))
+    local gap=$(( $(date +%s) - last_push_time ))
+    [ "$gap" -lt "$min_push_gap" ] \
+        && pass "debounce: ${gap}s 内重复 → 跳过" || fail "debounce" "误判"
 }
 
 # ========== exponential backoff ==========
