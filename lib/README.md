@@ -33,7 +33,6 @@
 | `example-sync.sh` | 模板同步门禁 |
 | `setup-links.sh` | 符号链接设置 |
 | `menu-data-maintain.sh` | maintain.sh 菜单数据 |
-| `menu-feishu.sh` | 飞书子菜单 |
 | `ccprivate-upgrade.sh` | 私有配置升级 |
 | `shell_init.sh` | shell 初始化 |
 | `ensure-bridge.sh` | bridge 看门狗 |

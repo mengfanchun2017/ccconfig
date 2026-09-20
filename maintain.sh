@@ -24,7 +24,6 @@ export PATH="$HOME/.local/bin${_nb:+:$_nb}:$PATH"
 source "$LIB_DIR/colors.sh"
 source "$LIB_DIR/interact.sh"
 source "$LIB_DIR/menu-data-maintain.sh"
-source "$LIB_DIR/menu-feishu.sh"
 
 # ========== 菜单动作 helper ==========
 # 需要用户输一个参数的叶子动作（删预设、切账号）。不要为此再开一层菜单 ——
@@ -295,18 +294,11 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh" ;;
     token|usage)
         shift; bash "$CCCONFIG_DIR/option-usage/token-usage.sh" "$@" ;;
-    feishu)
-        ccbridge_test="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/tests/test-feishu.sh"
-        if [ -f "$ccbridge_test" ]; then
-            bash "$ccbridge_test" "$@"
-        else
-            info "ccbridge 未安装，测试跳过"
-        fi ;;
     example)
         shift; bash "$LIB_DIR/example-sync.sh" "$@" ;;
     upgrade-ccprivate|upgrade-ccpriv|ccpriv-upgrade)
         shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
     *)
-        echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|pat|token|feishu|example|upgrade-ccprivate]"
+        echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|pat|token|example|upgrade-ccprivate]"
         exit 1 ;;  esac
 fi

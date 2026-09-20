@@ -154,7 +154,7 @@ flowchart TB
 ccconfig/
 ├── bootstrap-gh-auth.sh      # 一行式起步（curl|bash：装 git + clone ccconfig）
 ├── init-base.sh              # 初始化统一入口
-├── maintain.sh               # 运维入口（status/self/setup/upgrade/sync/monitor/deps/llm/mcp/pat/token/feishu/example/upgrade-ccprivate）
+├── maintain.sh               # 运维入口（status/self/setup/upgrade/sync/monitor/deps/llm/mcp/pat/token/example/upgrade-ccprivate）
 ├── init-option.sh            # 可选组件安装入口（分组菜单）
 │
 ├── lib/                      # 脚本库
@@ -322,7 +322,6 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | `bash maintain.sh mcp` | MCP 跨项目管理 |
 | `bash maintain.sh pat` | 刷新 fine-grained PAT |
 | `bash maintain.sh token` | Token 用量统计 |
-| `bash maintain.sh feishu` | 飞书链路测试 |
 | `bash maintain.sh example` | 检测 .example 模板差异 |
 | `bash maintain.sh upgrade-ccprivate` | ccprivate 结构升级 |
 | `bash maintain.sh deps` | 依赖完整性检查 |
