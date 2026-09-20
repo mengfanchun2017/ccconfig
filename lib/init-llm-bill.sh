@@ -3,7 +3,7 @@
 # LLM 用量统计（init-llm.sh bill 子命令独立版本）
 #
 # 数据来自 ccprivate/usage/YYYY-MM-DD.csv（option-usage/token-usage.sh 每日归档）
-# 按 model + day 聚合 token 用量 + 已计费成本（来自上游 API 的 cost_cny）
+# 按 model + day 聚合 token 用量
 #
 # 用法:
 #   bash init-llm-bill.sh              # 交互菜单（30 天统计 + 最近 7 天明细）
@@ -11,8 +11,7 @@
 #   bash init-llm-bill.sh model <name> # 单 model
 #
 # 删除历史（ADR-0029 落地）：
-#   - 不再输入价格（input/output/cache_read/cache_creation 4 字段）
-#   - 价格由上游 API / LLM 账单算（cost_cny 字段直接读）
+#   - 不再输入价格，也不展示成本：费用以上游账单为准，本地不折算
 #   - 模型发现三源（llm.json presets + usage CSV + jsonl 实扫）
 # ==============================================
 
@@ -62,7 +61,7 @@ PYEOF
 }
 
 # 按 model 聚合 30 天用量（CSV 累积）
-# 输出：model, total_tokens, input_tokens, cache_read_tokens, output_tokens, cost_cny, sessions, days
+# 输出：model, total_tokens, input_tokens, cache_read_tokens, output_tokens, sessions, days
 by_model_30d() {
     python3 - "$USAGE_DIR" << 'PYEOF'
 import csv, glob, os, sys, collections
@@ -82,14 +81,13 @@ for f in sorted(glob.glob(os.path.join(usage_dir, "20??-??-??.csv"))):
                 totals[m]["input"] += int(row.get("input_tokens", 0) or 0)
                 totals[m]["cache"] += int(row.get("cache_read_tokens", 0) or 0)
                 totals[m]["output"] += int(row.get("output_tokens", 0) or 0)
-                totals[m]["cost"] += float(row.get("cost_cny", 0) or 0)
                 totals[m]["requests"] += int(row.get("request_count", 0) or 0)
                 days_seen[m].add(day)
                 sessions[m].add(row.get("session_id", ""))
     except Exception: pass
-print("MODEL|TOTAL|INPUT|CACHE|OUTPUT|REQUESTS|COST_CNY|DAYS|SESSIONS")
+print("MODEL|TOTAL|INPUT|CACHE|OUTPUT|REQUESTS|DAYS|SESSIONS")
 for m, c in sorted(totals.items(), key=lambda x: -x[1]["total"]):
-    print(f"{m}|{c['total']}|{c['input']}|{c['cache']}|{c['output']}|{c['requests']}|{c['cost']:.4f}|{len(days_seen[m])}|{len(sessions[m])}")
+    print(f"{m}|{c['total']}|{c['input']}|{c['cache']}|{c['output']}|{c['requests']}|{len(days_seen[m])}|{len(sessions[m])}")
 PYEOF
 }
 
@@ -100,18 +98,17 @@ recent_days() {
 import csv, glob, os, sys, collections
 usage_dir, days = sys.argv[1], int(sys.argv[2])
 files = sorted(glob.glob(os.path.join(usage_dir, "20??-??-??.csv")))[-days:]
-print("DAY|TOKENS|COST_CNY|REQUESTS")
+print("DAY|TOKENS|REQUESTS")
 for f in files:
     day = os.path.basename(f).replace(".csv", "")
-    tok = cost = req = 0
+    tok = req = 0
     try:
         with open(f) as fh:
             for row in csv.DictReader(fh):
                 tok += int(row.get("total_tokens", 0) or 0)
-                cost += float(row.get("cost_cny", 0) or 0)
                 req += int(row.get("request_count", 0) or 0)
     except Exception: pass
-    print(f"{day}|{tok}|{cost:.4f}|{req}")
+    print(f"{day}|{tok}|{req}")
 PYEOF
 }
 
@@ -149,14 +146,14 @@ render_by_model() {
     echo ""
     echo "═══ 30 天用量（按 model 聚合）═══"
     echo ""
-    printf "%-32s  %15s  %12s  %10s  %8s  %s\n" "model" "total_tokens" "cache_read" "requests" "cost(¥)" "days/sess"
-    printf "%-32s  %15s  %12s  %10s  %8s  %s\n" "----" "----" "----" "----" "----" "----"
-    echo "$lines" | tail -n +2 | while IFS='|' read -r model total input cache output requests cost days sess; do
+    printf "%-32s  %15s  %12s  %10s  %s\n" "model" "total_tokens" "cache_read" "requests" "days/sess"
+    printf "%-32s  %15s  %12s  %10s  %s\n" "----" "----" "----" "----" "----"
+    echo "$lines" | tail -n +2 | while IFS='|' read -r model total input cache output requests days sess; do
         [[ -z "$model" ]] && continue
-        printf "%-32s  %15s  %12s  %10s  %8s  %s/%s\n" \
+        printf "%-32s  %15s  %12s  %10s  %s/%s\n" \
             "${model:0:32}" "$(printf "%'d" "$total")" \
             "$(printf "%'d" "$cache")" \
-            "$requests" "$(printf "%.2f" "$cost")" "$days" "$sess"
+            "$requests" "$days" "$sess"
     done
 }
 
@@ -167,11 +164,11 @@ render_recent_days() {
     echo ""
     echo "═══ 最近 ${days} 天每日总量 ═══"
     echo ""
-    printf "%-12s  %15s  %12s  %s\n" "day" "total_tokens" "cost(¥)" "requests"
-    printf "%-12s  %15s  %12s  %s\n" "----" "----" "----" "----"
-    echo "$lines" | tail -n +2 | while IFS='|' read -r day tok cost req; do
+    printf "%-12s  %15s  %s\n" "day" "total_tokens" "requests"
+    printf "%-12s  %15s  %s\n" "----" "----" "----"
+    echo "$lines" | tail -n +2 | while IFS='|' read -r day tok req; do
         [[ -z "$day" ]] && continue
-        printf "%-12s  %15s  %12s  %s\n" "$day" "$(printf "%'d" "$tok")" "$(printf "%.2f" "$cost")" "$req"
+        printf "%-12s  %15s  %s\n" "$day" "$(printf "%'d" "$tok")" "$req"
     done
 }
 

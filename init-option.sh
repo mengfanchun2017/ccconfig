@@ -245,14 +245,13 @@ install_option() {
       else
         while true; do
           local sub; sub=$(menu_select "usage 管理" \
-            "安装 timer (每天 12:01 归档+推飞书)" "卸载 timer" \
-            "配置 (feishu_url/schedule/include_today)" "状态" "手动触发" "返回")
+            "安装 timer (每天 12:01 归档)" "卸载 timer" \
+            "状态" "手动触发" "返回")
           case "$sub" in
             "1") bash "$SCRIPT_DIR/option-usage/init.sh" install ;;
             "2") bash "$SCRIPT_DIR/option-usage/init.sh" uninstall ;;
-            "3") bash "$SCRIPT_DIR/option-usage/init.sh" config ;;
-            "4") bash "$SCRIPT_DIR/option-usage/init.sh" status ;;
-            "5") bash "$SCRIPT_DIR/option-usage/token-usage.sh" --by-day --incremental --auto-backfill ;;
+            "3") bash "$SCRIPT_DIR/option-usage/init.sh" status ;;
+            "4") bash "$SCRIPT_DIR/option-usage/token-usage.sh" --by-day ;;
             *) break ;;
           esac
           echo ""
