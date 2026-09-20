@@ -249,7 +249,12 @@ PYEOF
     section "7. auto-sync 与运行依赖"
     # 已在跑就别再 enable —— enable 会重装系统级 systemd unit（要 sudo）。
     # 一键恢复里弹 sudo 认证很烦，而且非 tty（CI/脚本）下必然失败报错。
-    if bash "$LIB_DIR/monitor.sh" status 2>/dev/null | grep -q 'Monitor loop (PID'; then
+    # 先取变量再比，不要写成 `... | grep -q`：grep -q 一匹配就关管道，
+    # 写端拿到 EPIPE 退出 141，set -o pipefail 会把整个管道判成失败 →
+    # 条件恒假（实测踩过，且失败得很安静）。
+    local _mstat=""
+    _mstat="$(bash "$LIB_DIR/monitor.sh" status 2>/dev/null || true)"
+    if [[ "$_mstat" == *"Monitor loop (PID"* ]]; then
         ok "auto-sync 已在运行，跳过重装"
     else
         _fix_step "启动 auto-sync" bash "$LIB_DIR/init-autostart.sh" enable
