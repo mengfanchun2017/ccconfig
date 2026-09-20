@@ -313,7 +313,7 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | `bash init-option.sh` | 可选组件菜单（分组展示，可单独补装） |
 | `bash maintain.sh status` | 完整状态检查 |
 | `bash maintain.sh status --quick` | 快速状态（跳过 MCP/可选组件/模板对比） |
-| `bash maintain.sh fix` / `setup` | 自动修复断链 + 重新建立链接 |
+| `bash maintain.sh fix` / `setup` | **恢复最新功能**：结构升级 → 链接 → 新模板 → MCP → Skill → settings → LLM → 服务 |
 | `bash maintain.sh fix monitor` | 修 inotify + 重启 auto-sync |
 | `bash maintain.sh monitor start` | 启动 auto-sync |
 | `bash maintain.sh monitor restart` | 重启 auto-sync |
