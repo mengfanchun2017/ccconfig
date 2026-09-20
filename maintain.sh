@@ -146,7 +146,7 @@ do_setup() {
     _fix_step "MCP 注册缺失项 + 同步 settings" bash "$LIB_DIR/init-mcp.sh" sync
     _fix_step "Skill 全量同步（链接 + CLI 依赖）" bash "$LIB_DIR/init-skill.sh" sync
 
-    section "5. 配置文件归位（settings.json vs .config.json）"
+    section "5. settings 键归位（.config.json → settings.json）"
     python3 << 'PYEOF'
 import json, os, sys
 
@@ -165,7 +165,11 @@ SETTINGS_FILE_KEYS = {"permissions", "model", "skillOverrides", "statusLine",
                       "enabledPlugins", "extraKnownMarketplaces", "effortLevel",
                       "autoUpdatesChannel", "skipDangerousModePermissionPrompt",
                       "skipWorkflowUsageWarning", "tui", "hooks", "theme", "verbose"}
-GLOBAL_CONFIG_KEYS = {"mcpServers", "disabledMcpServers", "projects"}
+# 这里**故意不碰** mcpServers / disabledMcpServers / projects：
+# 它们是 MCP 模块的地盘，`maintain.sh mcp sync`（菜单 6D）会主动把它们同步进
+# settings.json。归位步骤再去删就成了两个模块互拆台 —— 实测同一轮 fix 里
+# 第 4 步刚写完、第 5 步就删掉，还打印一句吓人的"两份内容不同"。
+# 归位只做真正有害的那个方向：settings 键被错放进 .config.json（那份完全不读）。
 
 def load(p):
     try:
@@ -196,7 +200,7 @@ def merge_permissions(a, b):
             out[key] = sorted(set(map(str, lb)) | set(map(str, la)))
     return out
 
-moved_to_settings, moved_to_global, merged, discarded, overrode = [], [], [], [], []
+moved_to_settings, merged, discarded, overrode = [], [], [], []
 for k in SETTINGS_FILE_KEYS:
     if k not in cd:
         continue
@@ -216,23 +220,11 @@ for k in SETTINGS_FILE_KEYS:
         cd.pop(k)
         overrode.append(k)
 
-for k in GLOBAL_CONFIG_KEYS:
-    if k not in sd:
-        continue
-    if k not in cd:
-        cd[k] = sd.pop(k)
-        moved_to_global.append(k)
-    else:
-        sd.pop(k)
-        (discarded if sd.get(k) == cd.get(k) else overrode).append(k)
-
-changed = bool(moved_to_settings or moved_to_global or merged or discarded or overrode)
+changed = bool(moved_to_settings or merged or discarded or overrode)
 if changed:
     save(sf, sd); save(cf, cd)
     if moved_to_settings:
         print(f"  ✅ 归位到 settings.json（原先在 .config.json 里不生效）: {', '.join(moved_to_settings)}")
-    if moved_to_global:
-        print(f"  ✅ 归位到 .config.json（settings.json 不读这个键）: {', '.join(moved_to_global)}")
     if merged:
         print(f"  ✅ 合并两份（allow/deny 取并集，标量以 settings.json 为准）: {', '.join(merged)}")
     if discarded:
@@ -255,7 +247,13 @@ PYEOF
     check_llm_current || true
 
     section "7. auto-sync 与运行依赖"
-    _fix_step "启动 auto-sync" bash "$LIB_DIR/init-autostart.sh" enable
+    # 已在跑就别再 enable —— enable 会重装系统级 systemd unit（要 sudo）。
+    # 一键恢复里弹 sudo 认证很烦，而且非 tty（CI/脚本）下必然失败报错。
+    if bash "$LIB_DIR/monitor.sh" status 2>/dev/null | grep -q 'Monitor loop (PID'; then
+        ok "auto-sync 已在运行，跳过重装"
+    else
+        _fix_step "启动 auto-sync" bash "$LIB_DIR/init-autostart.sh" enable
+    fi
     ensure_runtime_deps
 
     echo ""
