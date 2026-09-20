@@ -127,9 +127,9 @@ menu_select() {
     # 从 /dev/tty 读，避开 stdin 被管道/重定向导致的 read 阻塞/失败
     # 两分支都加 || true：EOF/管道断开时 read 返回非零，set -e 下会中断子 shell
     if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
-        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}] (0=返回上层): ${NC}" >&2; read -r sel < /dev/tty || true
+        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}] (0=取消): ${NC}" >&2; read -r sel < /dev/tty || true
     else
-        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}] (0=返回上层): ${NC}" >&2; read -r sel || true
+        printf "  ${BOLD_GREEN}选择 [1-${#items[@]}] (0=取消): ${NC}" >&2; read -r sel || true
     fi
     # 取消哨值统一 "0"：空/非法/越界/EOF/输入 0 均返回 "0"
     # 调用方用 [[ -z "$c" || "$c" = "0" ]] 判取消（-z 是旧契约的兼容兜底）
@@ -322,48 +322,66 @@ trim() {
 }
 
 # ========== 数据驱动菜单系统 ==========
-# 数据 schema:
+# 数据 schema（**扁平结构：没有二级菜单**）:
 #   declare -a MENU_ENTRIES=(
-#       "cat|letter|title|desc|action|submenu"
+#       "cat|letter|title|cmd|action"
 #       ...
 #   )
-#   declare -A CAT_NAME=([1]="状态" [2]="auto-sync" ...)
+#   declare -A CAT_NAME=([1]="状态" [2]="监控/同步" ...)
 #
-# cat    : 全局分类 ID（不重置，1-N，唯一）
-# letter : 分类内字母（A-Z）
-# title  : 显示标题（建议 ≤ 22 字符）
-# desc   : 灰色说明（建议 ≤ 30 字符）
-# action : 主动作（bash 命令或函数名）。空=分组标记
-# submenu: 可选。menu:xxx = 调用 _submenu_xxx；空=无
+# cat    : 全局分类 ID（1-N，唯一，连续不跳号）
+# letter : 分类内字母（A-Z）。输入 <cat><letter> 直接执行
+# title  : 显示标题（建议 ≤ 20 显示列）
+# cmd    : 直接调用命令（显示在右侧，让用户知道绕过菜单怎么跑）
+# action : 要执行的 shell 命令或函数名（eval 上下文）
+#
+# 一级分类本身即功能域，字母即功能项 —— 所以不需要"返回上层"。
+# 需要用户输入的叶子动作（如删预设、切账号）由 action 内部 prompt，
+# 不要为了收参数再开一层菜单。
 #
 # 系统快捷键（与数据无关，常驻可用）:
-#   s=1A(状态总览)  t=2C(tail)  r=刷新  q/0=退出  ?=帮助
+#   s=1A(状态检查)  t=2A(监控状态)  r=刷新  q/0=退出  ?=帮助
 
-# 渲染菜单（按 cat 分组，分类标题 --name--）
+# 显示宽度：CJK 等非 ASCII 占 2 列。
+# 不能用 printf %-Ns 补位 —— bash 按**字节**补，中文标题宽度会参差。
+_pad_to() {
+    local s="$1" want="$2" i c n=0
+    for (( i=0; i<${#s}; i++ )); do
+        c="${s:i:1}"
+        if [[ "$c" == [!\ -~] ]]; then n=$((n+2)); else n=$((n+1)); fi
+    done
+    printf -v "$3" '%s%*s' "$s" "$(( n <= want ? want - n : 2 ))" ""
+}
+
+# 渲染菜单（按 cat 分组，分类标题 --N name--）
 menu_render() {
     [[ -z "${MENU_ENTRIES+x}" ]] && { warn "menu_render: MENU_ENTRIES 未定义"; return 1; }
 
-    local current_cat="" entry cat letter title desc action submenu
+    local current_cat="" entry cat letter title cmd action
+    local TITLE_W=24 padded
     for entry in "${MENU_ENTRIES[@]}"; do
-        IFS='|' read -r cat letter title desc action submenu <<< "$entry"
+        IFS='|' read -r cat letter title cmd action <<< "$entry"
         cat=$(trim "$cat"); letter=$(trim "$letter")
-        title=$(trim "$title"); desc=$(trim "$desc")
+        title=$(trim "$title"); cmd=$(trim "$cmd")
 
         # 分类标题（cat 切换时打印）
         if [[ "$cat" != "$current_cat" ]]; then
-            local cat_label="${CAT_NAME[$cat]:-}"
-            if [[ -n "$cat_label" && "$cat" != "0" ]]; then
-                printf "  ${BOLD_GRAY}--%s--${NC}\n" "$cat_label"
-            elif [[ "$cat" == "0" ]]; then
+            if [[ "$cat" == "0" ]]; then
                 printf "  ${BOLD_GRAY}--退出--${NC}\n"
+            else
+                printf "  ${BOLD_GRAY}--%s %s--${NC}\n" "$cat" "${CAT_NAME[$cat]:-}"
             fi
             current_cat="$cat"
         fi
 
-        # 菜单项: <cat><letter>  title        desc
-        local key="${cat}${letter}"
-        printf "  ${BOLD_GREEN}%s${letter:+%s}${NC}  %-20s ${DIM}%s${NC}\n" \
-               "$cat" ${letter:+"$letter"} "$title" "$desc"
+        if [[ "$cat" == "0" ]]; then
+            printf "  ${BOLD_GREEN}0${NC}   %s\n" "$title"
+            continue
+        fi
+        [[ -z "$letter" ]] && continue
+
+        _pad_to "$title" "$TITLE_W" padded
+        printf "  ${BOLD_GREEN}%s%s${NC}  %s${DIM}%s${NC}\n" "$cat" "$letter" "$padded" "$cmd"
     done
 }
 
@@ -371,39 +389,29 @@ menu_render() {
 menu_help() {
     cat <<'EOF' | sed 's/^/  /'
 输入规则:
-  <cat><letter>  直接执行（如 2A = 监控）
-  <letter>       跨分类首字母匹配（首个匹配项）
-  <cat>          进入该分类首个动作
-  s              状态总览  (= 1A)
-  t              监控      (= 2A)
+  <cat><letter>  执行该项（如 2A = 监控状态，4H = LLM 账单）
+  <cat>          执行该分类首项
+  s              状态检查  (= 1A)
+  t              监控状态  (= 2A)
   r              刷新
   q / 0          退出
   ?              显示帮助
+
+右侧灰色列是绕过菜单的直接调用命令，可复制到终端跑。
 EOF
 }
 
 # 内部：执行指定 cat+letter
+# 返回 0=已执行，3=未找到/执行失败（调用方必须捕获，见 menu_parse）
 _exec_entry() {
     local target_cat="$1"
     local target_letter="$2"
-    local entry cat letter title desc action submenu
+    local entry cat letter title cmd action
 
     for entry in "${MENU_ENTRIES[@]}"; do
-        IFS='|' read -r cat letter title desc action submenu <<< "$entry"
+        IFS='|' read -r cat letter title cmd action <<< "$entry"
         cat=$(trim "$cat"); letter=$(trim "$letter")
         if [[ "$cat" == "$target_cat" && "$letter" == "$target_letter" ]]; then
-            # 子菜单
-            if [[ -n "$submenu" && "$submenu" =~ ^menu: ]]; then
-                local sub="${submenu#menu:}"
-                if declare -F "_submenu_$sub" > /dev/null; then
-                    "_submenu_$sub"
-                    return 3  # 子菜单返回 3 → menu_loop 跳过暂停
-                else
-                    warn "子菜单不存在: _submenu_$sub"
-                    return 3
-                fi
-            fi
-            # 主动作
             if [[ -n "$action" ]]; then
                 eval "$action" || { warn "执行失败: $action"; return 3; }
                 return 0
@@ -416,30 +424,15 @@ _exec_entry() {
     return 3
 }
 
-# 内部：找 cat 内首个 letter
+# 内部：执行 cat 内首个 letter
 _exec_cat_first() {
     local target_cat="$1"
     local entry cat letter action
     for entry in "${MENU_ENTRIES[@]}"; do
-        IFS='|' read -r cat letter _ _ action _ <<< "$entry"
+        IFS='|' read -r cat letter _ _ action <<< "$entry"
         cat=$(trim "$cat"); letter=$(trim "$letter")
         if [[ "$cat" == "$target_cat" && -n "$action" ]]; then
             _exec_entry "$target_cat" "$letter"
-            return $?
-        fi
-    done
-    return 3
-}
-
-# 内部：跨分类首个 letter 匹配
-_exec_letter_first() {
-    local target_letter="$1"
-    local entry cat letter action
-    for entry in "${MENU_ENTRIES[@]}"; do
-        IFS='|' read -r cat letter _ _ action _ <<< "$entry"
-        cat=$(trim "$cat"); letter=$(trim "$letter")
-        if [[ "$letter" == "$target_letter" && -n "$action" ]]; then
-            _exec_entry "$cat" "$letter"
             return $?
         fi
     done
@@ -451,39 +444,34 @@ _exec_letter_first() {
 #   0 = 已处理动作
 #   1 = 刷新请求（重渲染）
 #   2 = 退出请求
-#   3 = 无效输入
+#   3 = 无效输入/动作失败
+#
+# **set -e 陷阱**：_exec_entry 失败时返回 3。调用方若裸调 `f; return $?`，
+# set -e 会在 f 返回非零的那一刻直接杀掉整个进程 —— 表现为"做完动作（或从
+# 任何返回 3 的分支出来）maintain.sh 自己退出了"。所有调用必须 `|| rc=$?`。
 menu_parse() {
-    local input="$1"
+    local input="$1" rc=0
     [[ -z "$input" ]] && return 0
 
     # 系统快捷键
     case "$input" in
-        q|Q|0|exit|quit) return 2 ;;
-        s|S)               _exec_entry 1 A; return $? ;;
-        t|T)               _exec_entry 2 A; return $? ;;
-        r|R|fs|fresh)      return 1 ;;
-        \?|h|H|help|HELP)  menu_help; return 0 ;;
+        q|Q|0|exit|quit)  return 2 ;;
+        r|R|fs|fresh)     return 1 ;;
+        \?|h|H|help|HELP) menu_help || true; return 0 ;;
+        s|S)              _exec_entry 1 A || rc=$?; return "$rc" ;;
+        t|T)              _exec_entry 2 A || rc=$?; return "$rc" ;;
     esac
 
-    # cat + letter 组合（如 1A, 2C, 15D）
+    # cat + letter 组合（如 1A, 4H, 12C）
     if [[ "$input" =~ ^([0-9]+)([A-Za-z])$ ]]; then
-        local cat="${BASH_REMATCH[1]}"
-        local letter="${BASH_REMATCH[2]^^}"
-        _exec_entry "$cat" "$letter"
-        return $?
-    fi
-
-    # 单字母 → 跨分类首字母匹配
-    if [[ "$input" =~ ^[A-Za-z]$ ]]; then
-        local letter="${input^^}"
-        _exec_letter_first "$letter"
-        return $?
+        _exec_entry "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]^^}" || rc=$?
+        return "$rc"
     fi
 
     # 单数字 → 该分类首个动作
     if [[ "$input" =~ ^[0-9]+$ ]]; then
-        _exec_cat_first "$input"
-        return $?
+        _exec_cat_first "$input" || rc=$?
+        return "$rc"
     fi
 
     warn "无效输入: $input (输入 ? 看帮助)"
@@ -509,15 +497,16 @@ menu_loop() {
         if ! read -r choice 2>/dev/null < /dev/tty; then
             echo ""
             err "非交互环境，无法读取输入"
-            echo -e "  ${GRAY}请改用子命令: bash maintain.sh {status|fix|self|upgrade|sync|monitor|deps|llm|mcp|pat|token|feishu|example}${NC}"
+            echo -e "  ${GRAY}请改用子命令: bash maintain.sh <子命令>，子命令清单见菜单最右列${NC}"
             return 1
         fi
         echo ""
-        menu_parse "$choice"
-        local rc=$?
+        # 必须捕获：menu_parse 可返回 1/2/3，裸调会被 set -e 当成致命错误退出
+        local rc=0
+        menu_parse "$choice" || rc=$?
         [[ $rc -eq 2 ]] && return 0
         [[ $rc -eq 1 ]] && continue
-        # 子菜单返回 3 跳过暂停
+        # 3（无效输入/动作失败）不回显暂停，直接重绘
         if [[ $rc -ne 3 ]]; then
             echo ""
             printf "  按回车继续..."

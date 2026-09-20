@@ -1,32 +1,13 @@
 # shellcheck shell=bash
-# menu-feishu.sh — 飞书子菜单（从 maintain.sh 抽出）
+# menu-feishu.sh — 飞书账号（app 级）管理
 #
-# 依赖: colors.sh, interact.sh（调用方已 source）
-# 在 maintain.sh 中 source 后调用 _submenu_feishu
+# 依赖: colors.sh, interact.sh, path-helper.sh（调用方已 source）
+#
+# 这是**叶子动作**，不是二级菜单入口：从 maintain.sh 菜单 7F 直接调用，
+# 也可以独立跑 `bash lib/menu-feishu.sh`。
+# 这里的 menu_select 是"从账号列表里挑一个"的选择器，按 0/返回 即回到主菜单。
 
-_submenu_feishu() {
-    local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
-    local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
-
-    while true; do
-        echo ""
-        local c; c=$(menu_select "飞书管理" \
-            "飞书账号" \
-            "重置 lark-cli" \
-            "OAuth 状态" \
-            "列出账号" \
-            "返回")
-        [[ -z "$c" || "$c" = "0" || "$c" = "5" ]] && return
-        case "$c" in
-            1) _submenu_feishu_accounts ;;
-            2) bash "$feishu_lc" ;;
-            3) bash "$feishu_switch" ;;
-            4) bash "$feishu_switch" --list ;;
-        esac
-    done
-}
-
-_submenu_feishu_accounts() {
+feishu_apps_menu() {
     local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
     local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
     local conf; conf="$(resolve_conf feishu.json 2>/dev/null)" || { warn "找不到 feishu.json"; return 0; }
@@ -82,7 +63,7 @@ print('\t'.join([
     local sel
     if [ ${#names[@]} -eq 0 ]; then
         warn "feishu.json 中无 app 配置"
-        sel=$(menu_select "选择" "添加新 app" "返回飞书菜单")
+        sel=$(menu_select "选择" "添加新 app" "返回主菜单")
         [[ "$sel" = "0" ]] && return 0
         case "$sel" in 1) bash "$feishu_lc" ;; esac
         return 0
@@ -110,12 +91,12 @@ PYEOF
         *)
             if [[ "$sel" =~ ^[0-9]+$ ]] && (( sel >= 1 && sel <= ${#names[@]} )); then
                 local target="${names[$((sel - 1))]}"
-                _submenu_feishu_app_menu "$target"
+                feishu_app_menu "$target"
             fi ;;
     esac
 }
 
-_submenu_feishu_app_menu() {
+feishu_app_menu() {
     local target="$1"
     local feishu_lc="$CCCONFIG_DIR/option-larkcli/init.sh"
     local feishu_switch="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
@@ -149,11 +130,11 @@ _submenu_feishu_app_menu() {
                 warn "config.json 不存在"
             fi ;;
         4) warn "手动编辑: vim $conf" ;;
-        5) _submenu_feishu_send_test "$target" ;;
+        5) feishu_send_test "$target" ;;
     esac
 }
 
-_submenu_feishu_send_test() {
+feishu_send_test() {
     local target="$1"
     local conf; conf="$(resolve_conf feishu.json 2>/dev/null)" || return 0
     local app_json
@@ -230,3 +211,13 @@ print(json.dumps({'receive_id': sys.argv[1], 'msg_type':'text', 'content': json.
         [ -n "$err_msg" ] && echo "    $err_msg"
     fi
 }
+
+# 独立运行（菜单右侧灰色列给的正是这条命令）
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    set -euo pipefail
+    CCCONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    source "$CCCONFIG_DIR/lib/colors.sh"
+    source "$CCCONFIG_DIR/lib/path-helper.sh"
+    source "$CCCONFIG_DIR/lib/interact.sh"
+    feishu_apps_menu
+fi

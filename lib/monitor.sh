@@ -806,6 +806,7 @@ case "${1:-}" in
     start)    start_watch ;;
     stop)     stop_watch ;;
     status)   status_watch ;;
+    restart)  stop_watch; sleep 1; start_watch ;;
     log)      log_watch "${2:-}" ;;
     monitor)  run_monitor ;;
     "")   start_watch ;;
