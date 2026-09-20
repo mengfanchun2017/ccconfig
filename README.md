@@ -312,8 +312,11 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | `bash init-base.sh all --yes` | 全自动非交互（跳过所有需人工确认的步骤） |
 | `bash init-option.sh` | 可选组件菜单（分组展示，可单独补装） |
 | `bash maintain.sh status` | 完整状态检查 |
+| `bash maintain.sh status --quick` | 快速状态（跳过 MCP/可选组件/模板对比） |
 | `bash maintain.sh fix` / `setup` | 自动修复断链 + 重新建立链接 |
+| `bash maintain.sh fix monitor` | 修 inotify + 重启 auto-sync |
 | `bash maintain.sh monitor start` | 启动 auto-sync |
+| `bash maintain.sh monitor restart` | 重启 auto-sync |
 | `bash maintain.sh self skill` | 更新 skills |
 | `bash maintain.sh llm` | LLM 切换/测试/自愈 |
 | `bash maintain.sh mcp` | MCP 跨项目管理 |
@@ -325,6 +328,10 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | `bash maintain.sh deps` | 依赖完整性检查 |
 | `bash lib/init-llm.sh` | 切换 LLM 后端 |
 | `bash lib/update.sh all` | 月度组件升级（10 步） |
+
+> `bash maintain.sh` 的交互菜单是**扁平结构**：9 个功能域各带字母项，选中即执行，
+> 没有二级菜单和"返回上层"。**每一项右侧灰色列就是上表里的直接调用命令**，
+> 可以复制到终端跑 —— 不需要为了记住路径而翻文档。
 
 ## 状态检查
 
