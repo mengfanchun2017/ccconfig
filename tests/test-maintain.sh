@@ -9,7 +9,7 @@
 #   - set -e 下菜单动作不得杀死进程（历史 bug：选完就退出）
 #   - cmd 列显示宽度对齐（CJK 按 2 列算）
 #   - menu_select 取消契约（cancel="0"）
-#   - 顶层 feishu case 无 local（set -e 不中断）
+#   - 顶层 case 无 local（set -e 不中断）
 #   - SCRIPT_DIR 单赋值
 #   - pty：菜单渲染一次、动作后回到菜单不退出、q 干净退出
 #
@@ -28,7 +28,7 @@ GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC
 
 # ── 1. 语法 ──
 echo "=== 1. 语法检查 ==="
-for f in maintain.sh lib/menu-data-maintain.sh lib/menu-feishu.sh lib/interact.sh; do
+for f in maintain.sh lib/menu-data-maintain.sh lib/interact.sh; do
     bash -n "$CCCONFIG_DIR/$f" 2>/dev/null && pass "$f syntax" || fail "$f syntax"
 done
 
@@ -44,7 +44,7 @@ source "'"$CCCONFIG_DIR"'/lib/path-helper.sh" 2>/dev/null || true
 source "'"$CCCONFIG_DIR"'/lib/interact.sh"
 source "'"$CCCONFIG_DIR"'/lib/menu-data-maintain.sh"
 ' 2>/dev/null)"
-# 菜单动作函数（do_setup/ask_run/...）和 feishu 叶子动作定义在 maintain.sh / menu-feishu.sh 主体
+# 菜单动作函数（do_setup/ask_run/...）定义在 maintain.sh 主体
 # 注意：maintain.sh 内部 set -euo pipefail 会打开 set -e，source 后重置避免测试误中断
 MAINTAIN_TEST_MODE=1 source "$CCCONFIG_DIR/maintain.sh" 2>/dev/null
 set +e
@@ -204,8 +204,8 @@ else
     pass "无「返回上层」文案"
 fi
 
-# ── 12. feishu 顶层 case 无 local ──
-echo "=== 12. feishu case 无顶层 local ==="
+# ── 12. 顶层 case 无 local ──
+echo "=== 12. 顶层 case 无 local ==="
 awk '/^case "\$\{1:-menu\}/,/^esac$/' "$CCCONFIG_DIR/maintain.sh" | grep -q 'local ' \
     && fail "顶层 case 仍用 local" || pass "顶层 case 无 local"
 

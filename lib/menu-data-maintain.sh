@@ -86,8 +86,6 @@ MENU_ENTRIES=(
     "7|C|切换账号并持久化|bash option-larkcli/lark-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
     "7|D|OAuth 授权状态|bash option-larkcli/lark-switch.sh|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
     "7|E|重置 lark-cli 配置|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
-    "7|F|账号详情/发测试消息|bash lib/menu-feishu.sh|feishu_apps_menu"
-    "7|G|飞书通道测试（ccbridge）|./maintain.sh feishu|bash \"\$CCCONFIG_DIR/maintain.sh\" feishu"
 
     # ── 8: getnote ──
     "8|A|账号列表|bash option-getnote/getnote-switch.sh --list|bash \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\" --list"
