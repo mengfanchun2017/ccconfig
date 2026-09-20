@@ -47,21 +47,85 @@ ask_run_p() {
 
 # ========== 主动能 ==========
 
+# 恢复链的步骤执行器：失败只记账、不中断
+# 一键恢复不该因为某一步坏掉就半途而废 —— 剩下的步骤照样修，最后统一报账
+_fix_failed=0
+_fix_step() {
+    local desc="$1"; shift
+    echo -e "  ${GRAY}→ $desc${NC}"
+    local rc=0
+    "$@" || rc=$?
+    if [[ $rc -eq 0 ]]; then
+        ok "$desc"
+    else
+        warn "$desc 失败（继续后续步骤）"
+        _fix_failed=$((_fix_failed + 1))
+    fi
+    echo ""
+}
+
+# 本机当前 LLM 选择是否可用。
+# 这条此前**完全无人检查**：status.sh 不查、init-llm show_status 只打印不校验、
+# ensure-bridge 读到空 llm-current 直接 return 0。结果是 llm-current 缺失/指向已删预设时，
+# 一切看起来正常，直到会话起不来。这里只报不修 —— 换 preset 要走探测，不能替用户瞎选。
+check_llm_current() {
+    local cur_file="$HOME/.claude/llm-current"
+    local cur=""
+    [[ -f "$cur_file" ]] && cur="$(tr -d '[:space:]' < "$cur_file")"
+    local conf; conf="$(resolve_conf llm.json 2>/dev/null || true)"
+
+    if [[ -z "$cur" ]]; then
+        warn "LLM 当前选择未设置（$cur_file 缺失或为空）"
+        info "  选一个: ./maintain.sh llm   （菜单 4A）"
+        return 1
+    fi
+    if [[ -n "$conf" ]] && ! python3 -c "
+import json,sys
+sys.exit(0 if '$cur' in json.load(open('$conf')).get('llms', {}) else 1)
+" 2>/dev/null; then
+        warn "LLM 当前选择 '$cur' 不在 llm.json 预设里（预设可能已改名/删除）"
+        info "  重选: ./maintain.sh llm   （菜单 4A）"
+        return 1
+    fi
+    ok "LLM 当前选择: $cur"
+}
+
+# 依赖：装上 auto-sync 必须要的 inotify，其余缺失只报不装
+# （node/python/gh 等由 init-ubuntu.sh 负责，那是全机引导，不该塞进一键恢复）
+ensure_runtime_deps() {
+    source "$LIB_DIR/install-inotify.sh"
+    install_inotify || warn "inotify-tools 装不上 — 手动: sudo apt install inotify-tools"
+
+    if ! bash "$LIB_DIR/deps-check.sh" --required >/dev/null 2>&1; then
+        warn "核心依赖有缺失 — 跑: bash init-ubuntu.sh"
+    fi
+    return 0
+}
+
 do_setup() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}  ccconfig 一键修复 — 符号链接 + 缺失目录 + auto-sync ${NC}"
+    echo -e "${CYAN}  ccconfig 恢复最新功能 ${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "  ${GRAY}git pull 到新版本后跑这个：把新版本带来的设定一次启用${NC}"
+    echo -e "  ${GRAY}结构 → 链接 → 模板 → MCP → Skill → settings → LLM → 服务${NC}"
     echo ""
 
     local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+    _fix_failed=0
 
-    section "1. 修复符号链接"
+    # 顺序要紧：必须先升级 ccprivate 结构与模板，再跑 setup.sh。
+    # setup.sh 补 settings 缺键用的是 ccprivate/link/settings.json.example，
+    # 那份模板只有 ccprivate-upgrade 会刷新 —— 反过来的话，status 用新模板
+    # 报缺键、setup 用旧模板补不上，键看着"修了"其实没进来。
+    section "1. ccprivate 结构与模板刷新（前置）"
+    _fix_step "ccprivate 结构升级" bash "$LIB_DIR/ccprivate-upgrade.sh" --yes
+
+    section "2. 符号链接 + 缺失目录"
     local ccprivate_setup="$ccpriv/setup.sh"
     if [[ -x "$ccprivate_setup" ]]; then
-        bash "$ccprivate_setup" 2>/dev/null && ok "符号链接已修复" || warn "符号链接部分失败"
+        _fix_step "重建 ~/.claude 符号链接" bash "$ccprivate_setup"
     else
-        bash "$LIB_DIR/setup-links.sh"
-        info "ccprivate/setup.sh 不可用，仅修复了公开链接"
+        _fix_step "重建公开符号链接（ccprivate/setup.sh 不可用）" bash "$LIB_DIR/setup-links.sh"
     fi
 
     local expected_dirs=("skill" "skill-local" "rules" "agents" "commands" "bin" "usage")
@@ -73,18 +137,16 @@ do_setup() {
             created=true
         fi
     done
-    if $created; then
-        ok "缺失 ccprivate 目录已补齐"
-    fi
+    $created && ok "缺失 ccprivate 目录已补齐"
 
-    section "2. 启动 auto-sync"
-    if bash "$LIB_DIR/init-autostart.sh" enable; then
-        ok "auto-sync 已启动"
-    else
-        warn "auto-sync 启动失败（可手动: bash $LIB_DIR/monitor.sh start）"
-    fi
+    section "3. 新配置模板跟进（conf/ + agents/）"
+    _fix_step "把新模板复制到 ccprivate" bash "$LIB_DIR/example-sync.sh" sync
 
-    section "3. 配置文件归位（settings.json vs .config.json）"
+    section "4. MCP 注册 + Skill 同步"
+    _fix_step "MCP 注册缺失项 + 同步 settings" bash "$LIB_DIR/init-mcp.sh" sync
+    _fix_step "Skill 全量同步（链接 + CLI 依赖）" bash "$LIB_DIR/init-skill.sh" sync
+
+    section "5. 配置文件归位（settings.json vs .config.json）"
     python3 << 'PYEOF'
 import json, os, sys
 
@@ -189,21 +251,34 @@ if wrong:
     print(f"  ⚠️  {', '.join(wrong)} 只能放在 .config.json，在 settings.json 里无效")
 PYEOF
 
-    section "4. 状态总览"
+    section "6. LLM 当前选择"
+    check_llm_current || true
+
+    section "7. auto-sync 与运行依赖"
+    _fix_step "启动 auto-sync" bash "$LIB_DIR/init-autostart.sh" enable
+    ensure_runtime_deps
 
     echo ""
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${GREEN}  ccconfig 就绪 🎉${NC}"
-    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    if [[ "$_fix_failed" -eq 0 ]]; then
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${GREEN}  恢复完成，全部步骤成功 🎉${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    else
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${YELLOW}  恢复完成，但有 ${_fix_failed} 步失败（上面标 ⚠ 的）${NC}"
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    fi
     echo ""
-    echo -e "  ${BOLD}日常命令:${NC}"
+    echo -e "  ${BOLD}接着做:${NC}"
+    echo -e "  ${CYAN}./maintain.sh status${NC}   # 复查（1A）"
+    echo -e "  ${CYAN}./maintain.sh${NC}          # 交互菜单"
     echo ""
-    echo -e "  ${CYAN}bash maintain.sh${NC}             # 交互菜单（推荐）"
-    echo -e "  ${CYAN}bash maintain.sh status --quick${NC}  # 快速状态"
-    echo -e "  ${CYAN}bash maintain.sh status${NC}         # 全量状态"
-    echo -e "  ${CYAN}bash maintain.sh self all${NC}       # 更新 ccconfig + skill"
-    echo -e "  ${CYAN}bash maintain.sh upgrade all${NC}     # 升级系统组件"
+
+    # 内存/软链改动要新开会话才生效，漏了这句用户会以为没生效
+    echo -e "  ${YELLOW}提示: 链接与 memory 修复后需重启 Claude session 才生效${NC}"
     echo ""
+
+    [[ "$_fix_failed" -eq 0 ]]
 }
 
 do_self() {
