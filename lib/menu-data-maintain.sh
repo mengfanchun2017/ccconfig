@@ -43,12 +43,15 @@ MENU_ENTRIES=(
     "2|G|git 拉取（全部仓库）|./maintain.sh sync --all|bash \"\$LIB_DIR/sync.sh\" --all"
 
     # ── 3: 更新 ──
-    "3|A|ccconfig 自更新|./maintain.sh self cc|do_self cc"
+    # 3A-3C 动的是【配置仓库】（拉代码 / 重建链接 / 私有仓结构迁移）
+    # 3D 动的是【已装的工具版本】（Node/Claude/gh/lark-cli…），不碰 git
+    # 3E 动的是【所有 git 仓库】（拉 + 脏库提交推送）；它把 ccconfig 也当第一个
+    #    仓库处理，所以 3A 的"拉代码+重建链接"已被它涵盖
+    "3|A|ccconfig 自更新+重建链接|./maintain.sh self cc|do_self cc"
     "3|B|Skill 同步|./maintain.sh self skill|do_self skill"
-    "3|C|ccprivate 升级|./maintain.sh upgrade-ccprivate|bash \"\$LIB_DIR/ccprivate-upgrade.sh\""
-    "3|D|组件升级（交互多选）|./maintain.sh upgrade menu|bash \"\$LIB_DIR/update.sh\" menu"
-    "3|E|组件升级（全部）|./maintain.sh upgrade all|bash \"\$LIB_DIR/update.sh\" all"
-    "3|F|全量更新（自更新+拉取）|./maintain.sh self all|do_full_update"
+    "3|C|ccprivate 升级（结构）|./maintain.sh upgrade-ccprivate|bash \"\$LIB_DIR/ccprivate-upgrade.sh\""
+    "3|D|升级工具链（全部）|./maintain.sh upgrade all|bash \"\$LIB_DIR/update.sh\" all"
+    "3|E|全部仓库 git 同步|./maintain.sh sync --all|bash \"\$LIB_DIR/sync.sh\" --all"
 
     # ── 4: LLM ──
     "4|A|切换预设（交互）|./maintain.sh llm|bash \"\$LIB_DIR/init-llm.sh\""
