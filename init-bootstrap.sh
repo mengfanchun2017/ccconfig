@@ -47,6 +47,36 @@ banner() {
     echo ""
 }
 
+# ccprivate 的实际分支名。历史仓库是 master，新建的是 main —— 硬编码 main 会让
+# --update/--clone 在老仓库上 `fatal: couldn't find remote ref main`，且 pipefail
+# 会把非零码透出、set -e 直接把后面的"重建配置/符号链接"整段吞掉（恢复配置失败）
+default_branch() {
+    local b
+    b=$(git -C "$CCPRIVATE_DIR" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null || true)
+    b="${b#origin/}"
+    if [ -z "$b" ]; then
+        b=$(git -C "$CCPRIVATE_DIR" branch --show-current 2>/dev/null || true)
+    fi
+    printf '%s' "${b:-main}"
+}
+
+# 老 ccprivate（早于 templates/ccprivate-setup.sh 引入）或 clone 残缺时补上 setup.sh，
+# 否则调用点会以 `bash: setup.sh: No such file` 静默死于 set -e
+ensure_setup_sh() {
+    if [[ -x "$CCPRIVATE_DIR/setup.sh" ]]; then
+        return 0
+    fi
+    local tpl="$CCCONFIG_DIR/templates/ccprivate-setup.sh"
+    if [[ -f "$tpl" ]]; then
+        warn "ccprivate/setup.sh 缺失，从 templates/ccprivate-setup.sh 重新生成"
+        cp "$tpl" "$CCPRIVATE_DIR/setup.sh"
+        chmod +x "$CCPRIVATE_DIR/setup.sh"
+        return 0
+    fi
+    err "ccprivate/setup.sh 缺失，且模板 $tpl 不存在"
+    return 1
+}
+
 # ============================================================
 # 模块 [1/6]: 装 gh
 # ============================================================
@@ -68,8 +98,9 @@ except Exception:
     print("2.97.0")
 ' 2>/dev/null || echo "2.97.0")
     mkdir -p "$LOCAL_BIN"
-    local tmp="/tmp/gh-install-$$"
-    mkdir -p "$tmp"
+    # mktemp -d：固定 /tmp/gh-install-$$ 在两个 job 并行时会互相覆盖解包目录
+    local tmp
+    tmp=$(mktemp -d -t gh-install-XXXXXX)
     curl -fsSL "https://github.com/cli/cli/releases/download/v${gh_ver}/gh_${gh_ver}_linux_amd64.tar.gz" \
         -o "$tmp/gh.tar.gz" || { err "下载失败（GitHub 可能被墙，设 http_proxy 重试）"; rm -rf "$tmp"; return 1; }
     tar -xzf "$tmp/gh.tar.gz" -C "$tmp"
@@ -337,6 +368,18 @@ PYEOF
     ok "conf/llm.json"
 }
 
+# 只在新机首装时写：ADR-0020 起"当前选择"归 ~/.claude/llm-current，llm.json.current
+# 是废弃字段（init-llm.sh 还会主动 pop 掉它）。不写这份权威文件，init-base.sh 的
+# LLM 步骤就只能靠"回落 llm.json.current"碰巧工作。do_update 刻意不调用本函数——
+# 那会把本机当前选择覆盖成 llm.json 里的陈旧值。
+write_local_current() {
+    local name="$1"
+    [[ -z "$name" ]] && return 0
+    mkdir -p "$HOME/.claude"
+    printf '%s' "$name" > "$HOME/.claude/llm-current"
+    info "llm-current: $name"
+}
+
 gen_mcp_servers_json() {
     local f="$CCPRIVATE_DIR/conf/mcp-servers.json"
     local template="$CCCONFIG_DIR/conf/mcp-servers.json.example"
@@ -349,25 +392,21 @@ gen_mcp_servers_json() {
 }
 
 gen_claude_md() {
-    cat > "$CCPRIVATE_DIR/link/CLAUDE.md" << 'EOF'
-# Claude Code 用户配置
-
-> 全局 AI 行为指南。所有项目通用。
-
-## 核心约定
-- 中文回复
-- 简洁输出，不啰嗦
-
-## 权限
-- Bash(*) Read(*) Write(*) Edit(*) Glob(*) Grep(*)
-- WebFetch Skill(*)
-- WebSearch 已 deny（底层 LLM 无内置搜索，走 Tavily/Exa MCP）
-
-## 工作目录
-- 配置维护 → `cd ${CCCONFIG_HOME:-~/git/ccconfig} && claude`
-- 项目开发 → `cd ~/git/<project> && claude`
-EOF
-    ok "link/CLAUDE.md"
+    # 单一真相源 templates/CLAUDE.md.example。这里曾内嵌一份陈旧的极简副本，
+    # 与 ccprivate-upgrade.sh 用的模板不一致 → 新机走 bootstrap、老机走 upgrade
+    # 拿到两份不同的用户级 CLAUDE.md（同一类漂移 bug，上次只修了 upgrade 那侧）
+    local tpl="$CCCONFIG_DIR/templates/CLAUDE.md.example"
+    local dst="$CCPRIVATE_DIR/link/CLAUDE.md"
+    if [[ ! -f "$tpl" ]]; then
+        warn "模板缺失 $tpl，跳过 link/CLAUDE.md"
+        return 0
+    fi
+    if [[ -f "$dst" ]]; then
+        info "link/CLAUDE.md 已存在，保留"
+        return 0
+    fi
+    cp "$tpl" "$dst"
+    ok "link/CLAUDE.md（来自 templates/CLAUDE.md.example）"
 }
 
 gen_settings_json() {
@@ -414,7 +453,7 @@ create_and_push() {
     elif ! gh auth status &>/dev/null 2>&1; then
         warn "gh 未认证，无法推送"
         info "  手动: git remote add origin https://github.com/$GH_USER/ccprivate.git"
-        info "        git push -u origin main"
+        info "        git push -u origin $(git branch --show-current 2>/dev/null || echo main)"
         _rc=1
     else
         local probe_status
@@ -449,8 +488,12 @@ create_and_push() {
     if $_repo_found; then
         info "GitHub 仓库: $GH_USER/ccprivate"
         git remote add origin "https://github.com/$GH_USER/ccprivate.git" 2>/dev/null || true
-        local push_out push_rc
-        push_out=$(git push -u origin main 2>&1) && push_rc=0 || push_rc=$?
+        # 推"当前所在分支"到同名远端分支，不硬编码 main：已在 pushd 进 $CCPRIVATE_DIR，
+        # 新建仓库是 main、既有仓库可能是 master，硬编码会把 master 仓库推出个孤儿 main
+        local push_branch push_out push_rc
+        push_branch=$(git branch --show-current 2>/dev/null || true)
+        push_branch="${push_branch:-main}"
+        push_out=$(git push -u origin "$push_branch" 2>&1) && push_rc=0 || push_rc=$?
         echo "$push_out" | grep -vE '^(Enumerating|Counting|Compressing|Writing|To |\* )' | tail -5
         if [[ $push_rc -ne 0 ]]; then
             if echo "$push_out" | grep -qiE '403|Write access|Forbidden|resource not accessible'; then
@@ -485,6 +528,7 @@ do_create() {
     # 本地已有完整 ccprivate → 刷新
     if [[ -d "$CCPRIVATE_DIR/.git" ]]; then
         info "ccprivate 已存在，刷新符号链接"
+        ensure_setup_sh || return 1
         bash "$CCPRIVATE_DIR/setup.sh"
         return 0
     fi
@@ -524,6 +568,7 @@ do_create() {
 
     section "生成配置文件"
     gen_llm_json
+    write_local_current "$DEFAULT_LLM"
     gen_mcp_servers_json
     gen_claude_md
     gen_settings_json
@@ -568,12 +613,13 @@ Co-Authored-By: Claude <noreply@anthropic.com>" 2>&1 | tail -1
 
     # 先建本地符号链接（保证 init-base all 可用，即使 GitHub push 失败）
     section "建立符号链接"
+    ensure_setup_sh || return 1
     bash "$CCPRIVATE_DIR/setup.sh"
 
     # 推送到 GitHub（非致命：失败只 warn，本地 ccprivate 已就绪不阻断）
     create_and_push || {
         warn "GitHub push 跳过——本地 ccprivate 已就绪，不影响使用"
-        echo -e "  ${GRAY}稍后补 push: git -C $CCPRIVATE_DIR remote add origin https://github.com/<你的用户名>/ccprivate.git && git -C $CCPRIVATE_DIR push -u origin main${NC}"
+        echo -e "  ${GRAY}稍后补 push: git -C $CCPRIVATE_DIR remote add origin https://github.com/<你的用户名>/ccprivate.git && git -C $CCPRIVATE_DIR push -u origin $(git -C "$CCPRIVATE_DIR" branch --show-current 2>/dev/null || echo main)${NC}"
     }
 
     echo ""
@@ -608,8 +654,11 @@ do_clone() {
     fi
 
     if [[ -d "$CCPRIVATE_DIR/.git" ]] && git -C "$CCPRIVATE_DIR" remote get-url origin &>/dev/null; then
-        info "ccprivate 已存在，拉取最新"
-        git -C "$CCPRIVATE_DIR" pull origin main 2>&1 | tail -2
+        local br; br=$(default_branch)
+        info "ccprivate 已存在，拉取最新（$br）"
+        # 拉取失败（网络/代理/冲突）不能终止整条恢复链——后面还有重建配置与链接
+        git -C "$CCPRIVATE_DIR" pull origin "$br" 2>&1 | tail -2 \
+            || warn "拉取失败（网络/代理/冲突），继续用本地版本"
     else
         if [[ -d "$CCPRIVATE_DIR" ]]; then
             local bak="${CCPRIVATE_DIR}.bak.$(date +%s)"
@@ -621,6 +670,7 @@ do_clone() {
     fi
 
     section "建立符号链接"
+    ensure_setup_sh || return 1
     bash "$CCPRIVATE_DIR/setup.sh"
 
     ok "ccprivate 就绪"
@@ -643,30 +693,19 @@ do_update() {
     fi
 
     section "拉取最新 ccprivate"
-    git -C "$CCPRIVATE_DIR" pull origin main 2>&1 | tail -3
+    local br; br=$(default_branch)
+    # 拉取失败不能终止整条恢复链——后面还有重建符号链接这一半
+    git -C "$CCPRIVATE_DIR" pull origin "$br" 2>&1 | tail -3 \
+        || warn "拉取失败（网络/代理/冲突），继续用本地 ccprivate 恢复链接"
 
-    section "刷新生成配置"
-    local llm_src="$CCPRIVATE_DIR/conf/llm.json"
-    # 预置：下面的 eval 在 python3 缺失 / llm.json 非法时输出为空，
-    # set -u 下第 657 行读未绑定变量会直接崩，只剩一行 cryptic 报错
-    local DEEPSEEK_KEY="" MINIMAX_KEY="" CLAUDE_KEY="" DEFAULT_LLM=""
-    if [[ -f "$llm_src" ]]; then
-        eval "$(LLM_SRC="$llm_src" python3 << 'PYEOF'
-import json, os, shlex
-d = json.load(open(os.environ["LLM_SRC"]))
-llms = d.get("llms", {})
-for k,v in [("deepseek","DEEPSEEK_KEY"),("minimax","MINIMAX_KEY"),("claude","CLAUDE_KEY")]:
-    print(f'{v}={shlex.quote(llms.get(k,{}).get("key",""))}')
-print(f'DEFAULT_LLM={shlex.quote(d.get("current","deepseek"))}')
-PYEOF
-        )"
-        if [[ -n "$DEEPSEEK_KEY" || -n "$MINIMAX_KEY" || -n "$CLAUDE_KEY" ]]; then
-            gen_llm_json
-            gen_mcp_servers_json
-        fi
-    fi
+    # 此处曾调 gen_llm_json + gen_mcp_servers_json "刷新生成配置"，是纯破坏：
+    # 前者只认 deepseek/minimax 两个 key，会重建整个 llm.json → 抹掉其余 preset；
+    # 后者无条件 cp 占位模板 → 盖掉真实 mcp-servers.json 的 key。
+    # 且这段只在 llm.json 已存在时才跑（否则连 key 都取不到），刷新毫无意义。
+    # --update 的职责是恢复"本机侧"链接，不动"仓库侧"配置。
 
     section "建立符号链接"
+    ensure_setup_sh || return 1
     bash "$CCPRIVATE_DIR/setup.sh"
 
     ok "ccprivate 更新完成"
@@ -718,6 +757,7 @@ fi
 if $CLONE_MODE; then
     install_gh || exit 1
     gh_auth || exit 1
+    setup_git_ident   # 缺这一步恢复回来的机器没有 user.name/email，auto-sync 提交会失败
     do_clone
     exit $?
 fi

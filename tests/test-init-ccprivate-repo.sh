@@ -129,9 +129,10 @@ _REAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$_REAL_DIR/init-bootstrap.sh"
 SETUP_TPL="$_REAL_DIR/templates/ccprivate-setup.sh"
 
-echo "=== Test 8: ensure_gh_cli binary mkdir ==="
-grep -A3 'local tmp="/tmp/gh-install-$$"' "$SCRIPT" | grep -q 'mkdir -p "$tmp"' \
-  && pass "binary 安装路径有 mkdir -p" || fail "binary 路径缺 mkdir"
+echo "=== Test 8: gh 安装临时目录独占 ==="
+# 固定 /tmp/gh-install-$$ 在两个 job 并行时会互相覆盖解包目录
+grep -q 'tmp=$(mktemp -d' "$SCRIPT" \
+  && pass "gh 安装用 mktemp -d 独占临时目录" || fail "gh 安装仍用固定 /tmp 路径"
 
 echo "=== Test 9: 死代码回归 ==="
 grep -q '\[\[ "\$install_choice" == "" \]\]' "$SCRIPT" \
@@ -194,9 +195,62 @@ grep -q 'LINK_CLAUDE_MD=' "$UPGRADE" \
 grep -q 'templates/CLAUDE.md.example' "$UPGRADE" \
   && pass "fix_link_content 走 templates/CLAUDE.md.example 模板" || fail "fix_link_content 未走模板"
 
-echo "=== Test 16: do_update eval shlex.quote ==="
-grep -A8 'eval "\$(LLM_SRC=' "$SCRIPT" | grep -q 'shlex' \
-  && pass "do_update eval 用 shlex.quote 防注入" || fail "do_update eval 未引号化"
+echo "=== Test 16: do_update 不重建仓库侧配置（防 preset/Key 被覆盖） ==="
+# gen_llm_json 只认 deepseek/minimax 两个 key，重建 llm.json 会抹掉其余 preset；
+# gen_mcp_servers_json 无条件 cp 占位模板，会盖掉真实 mcp-servers.json 的 key。
+# --update 的职责是恢复"本机侧"链接，不碰"仓库侧"配置。
+awk '/^do_update\(\)/,/^}/' "$SCRIPT" | grep -vE '^[[:space:]]*#' \
+  | grep -qE '^[[:space:]]*(gen_llm_json|gen_mcp_servers_json)' \
+  && fail "do_update 仍重建 llm.json/mcp-servers.json（数据丢失）" \
+  || pass "do_update 不碰仓库侧配置"
+
+# ── Test 18+: 新机安装/恢复配置可靠性回归 ──
+echo "=== Test 18: ccprivate 分支名不硬编码 main ==="
+# 实际 ccprivate 仓库分支是 master；硬编码 main 会让 --update/--clone
+# 报 could-not-find-remote-ref-main，且 pipefail 把 set -e 带崩、后续重建全跳过
+grep -qE "pull origin main|push -u origin main" "$SCRIPT" \
+  && fail "仍有硬编码 main 分支" || pass "pull/push 不再硬编码 main"
+grep -q '^default_branch()' "$SCRIPT" \
+  && pass "default_branch() 已定义" || fail "default_branch() 缺失"
+
+echo "=== Test 19: 拉取失败降级，不终止恢复链 ==="
+grep -A2 'pull origin "\$br"' "$SCRIPT" | grep -q '|| warn' \
+  && pass "pull 失败降级为 warn" || fail "pull 失败仍会 set -e 终止后续步骤"
+
+echo "=== Test 20: setup.sh 缺失可自愈 ==="
+grep -q '^ensure_setup_sh()' "$SCRIPT" \
+  && pass "ensure_setup_sh() 已定义" || fail "缺 ensure_setup_sh()（老 ccprivate 上 set -e 直接死）"
+[[ $(grep -c 'ensure_setup_sh || return 1' "$SCRIPT") -ge 3 ]] \
+  && pass "3 处调用点都做了守卫" || fail "ensure_setup_sh 调用点未全守卫"
+
+echo "=== Test 21: link/CLAUDE.md 走模板，不再内嵌副本 ==="
+# 内嵌副本曾与 templates/CLAUDE.md.example 不一致 → 新机 bootstrap 和老机 upgrade
+# 拿到两份不同的用户级 CLAUDE.md
+grep -q "templates/CLAUDE.md.example" "$SCRIPT" \
+  && pass "gen_claude_md 走 templates/CLAUDE.md.example" || fail "gen_claude_md 仍内嵌副本"
+grep -q '## 权限$' "$SCRIPT" \
+  && fail "init-bootstrap 仍内嵌 CLAUDE.md 正文" || pass "init-bootstrap 无内嵌 CLAUDE.md 正文"
+
+echo "=== Test 22: 首装写权威 llm-current ==="
+# ADR-0020：当前选择归 ~/.claude/llm-current；llm.json.current 是废弃字段。
+# 不写 llm-current，init-base.sh 的 LLM 步骤只能靠"回落废弃字段"碰巧工作。
+awk '/^do_create\(\)/,/^}/' "$SCRIPT" | grep -q 'write_local_current' \
+  && pass "do_create 写 llm-current" || fail "do_create 未写 llm-current"
+awk '/^do_update\(\)/,/^}/' "$SCRIPT" | grep -q 'write_local_current' \
+  && fail "do_update 会覆盖本机 llm-current" || pass "do_update 不碰 llm-current"
+
+echo "=== Test 23: 本机文件补齐模板基线键 ==="
+# init-ubuntu(setup_hook)/init-llm 都可能先于 setup.sh 创建 settings.json，
+# 旧逻辑"已存在即跳过"→ permissions/hooks/statusLine 永不写入，status 还报绿
+grep -q '补齐缺失键' "$SETUP_TPL" \
+  && pass "install_user_file 补齐缺失基线键" || fail "install_user_file 仍一律跳过"
+grep -q 'missing = \[k for k in t if k not in d\]' "$SETUP_TPL" \
+  && pass "只补顶层缺失键、不覆盖已有键" || fail "补齐逻辑缺失或会覆盖已有键"
+
+echo "=== Test 24: clone 模式也配 git 身份 ==="
+# 缺这一步，恢复回来的机器没有 user.name/email，auto-sync 提交会失败
+awk '/^if \$CLONE_MODE; then/,/^fi/' "$SCRIPT" | grep -q 'setup_git_ident' \
+  && pass "clone 模式调用 setup_git_ident" || fail "clone 模式缺 setup_git_ident"
 
 echo "=== Test 17: source 顺序 ==="
 if grep -n 'source.*lib/' "$SCRIPT" | awk -F: '{print $1}' | head -3 | \
