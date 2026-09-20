@@ -46,12 +46,6 @@ ask_run_p() {
     bash "$@" "$v" -p
 }
 
-do_full_update() {
-    do_self all
-    echo ""
-    bash "$LIB_DIR/sync.sh" --all
-}
-
 # ========== 主动能 ==========
 
 do_setup() {
