@@ -34,7 +34,7 @@
 | 4 LLM | 8 | 切换/列表/诊断/探测/修 model/sync/heal/删除/bill |
 | 5 用量 | 8 | 统计/报告/归档/快照/重算/timer 三件套 |
 | 6 MCP | 4 | 配置/状态/填 Key/同步 |
-| 7 飞书 | 7 | 账号列表/切换×2/OAuth/重置/app 详情/通道测试 |
+| 7 飞书 | 7 → **5** | 账号列表/切换×2/OAuth/重置（app 详情与 ccbridge 通道测试后续移除） |
 | 8 getnote | 6 | 列表/状态/增删/切换×2 |
 | 9 其他 | 3 | PAT 刷新、模板差异/推广 |
 
@@ -45,7 +45,7 @@
 - `_submenu_getnote` → `8A–8F`
 - `_submenu_update_sync` → `3A–3E`
 - `_submenu_feishu`（飞书 4 项外壳）→ 7A–7G
-- `_submenu_feishu_accounts` → **保留为叶子动作** `7F`（它本身是"从账号列表挑一个"的选择器，不是功能分组）；`_submenu_feishu_app_menu` / `_submenu_feishu_send_test` 相应改名 `feishu_app_menu` / `feishu_send_test`
+- `_submenu_feishu_accounts` → 叶子动作 `7F`（**2026-09-20 晚已随 ccbridge 独立成仓一起移除**，见 [20260920-drop-ccbridge-menu-entries.md](20260920-drop-ccbridge-menu-entries.md)）
 
 ## 设计决定
 
@@ -56,7 +56,7 @@
 "4|D|真实探测（问预设名）|./maintain.sh llm test <名>|ask_run \"预设名（4B 可查）\" \"\$LIB_DIR/init-llm.sh\" test"
 ```
 
-**`cmd` 必须真实可跑**。约定：能走 `maintain.sh` 子命令的用 `./maintain.sh <sub>`（最短、cwd=仓库根），其余用 `bash lib/xxx.sh`。`lib/menu-feishu.sh` 为此加了 script 直跑 guard，让它的 `cmd` 列不是空头承诺。
+**`cmd` 必须真实可跑**。约定：能走 `maintain.sh` 子命令的用 `./maintain.sh <sub>`（最短、cwd=仓库根），其余用 `bash lib/xxx.sh`。`lib/menu-feishu.sh`（已删除）当时为此加了 script 直跑 guard，让它的 `cmd` 列不是空头承诺。
 
 **`menu_select` 的 prompt 文案 `(0=返回上层)` → `(0=取消)`**：已经没有"上层"了，`0` 在所有调用点都意味着放弃本次选择。
 
