@@ -253,7 +253,7 @@ main_menu() {
         case "$choice" in
             1) submenu_env ;;
             2) submenu_remote ;;
-            3) bash "$0" new ;;
+            3) bash "$SCRIPT_DIR/init-base.sh" new ;;
             4) init_all_steps; exit 0 ;;
             5) bash "$SCRIPT_DIR/init-option.sh" ;;
             0) echo ""; exit 0 ;;

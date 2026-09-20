@@ -94,7 +94,38 @@ install_user_file() {
         cp "$src_template" "$dst"
         ok "$desc: 已从模板创建"
     else
-        info "$desc: 已存在，跳过"
+        # 已存在 ≠ 完整：init-ubuntu.sh 的 setup_hook 会先建出只有 hooks 的
+        # settings.json、init-llm.sh 会先建出只有 env/model 的，都比本脚本早。
+        # 旧逻辑一律 "已存在，跳过" → permissions/statusLine 永远不写入，
+        # 新机装完白名单全缺而 status 仍报绿（实测复现）。
+        # 只补模板里缺的【顶层键】，已有键一律不覆盖（尊重用户自主裁剪）。
+        local added=""
+        added=$(TPL="$src_template" DST="$dst" python3 - << 'PYEOF'
+import json, os
+tpl, dst = os.environ["TPL"], os.environ["DST"]
+try:
+    with open(tpl) as f: t = json.load(f)
+    with open(dst) as f: d = json.load(f)
+except Exception:
+    raise SystemExit(0)          # 非 JSON（如 .claudeignore）→ 不适用，视为已就绪
+if not isinstance(t, dict) or not isinstance(d, dict):
+    raise SystemExit(0)
+missing = [k for k in t if k not in d]
+if not missing:
+    raise SystemExit(0)
+for k in missing:
+    d[k] = t[k]
+with open(dst, "w") as f:
+    json.dump(d, f, indent=4, ensure_ascii=False)
+    f.write("\n")
+print(" ".join(missing))
+PYEOF
+        ) || added=""
+        if [ -n "$added" ]; then
+            warn "$desc: 已存在，补齐缺失键（$added）"
+        else
+            info "$desc: 已存在，跳过"
+        fi
     fi
 }
 
