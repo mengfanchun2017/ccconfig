@@ -41,7 +41,6 @@ MENU_ENTRIES=(
     "2|D|重启监控|./maintain.sh monitor restart|bash \"\$LIB_DIR/monitor.sh\" restart"
     "2|E|追踪推送日志|./maintain.sh monitor tail|bash \"\$LIB_DIR/monitor.sh\" tail"
     "2|F|修复 inotify|./maintain.sh fix monitor|fix_monitor"
-    "2|G|git 拉取（全部仓库）|./maintain.sh sync --all|bash \"\$LIB_DIR/sync.sh\" --all"
 
     # ── 3: 更新 ──
     # 3A-3C 动的是【配置仓库】（拉代码 / 重建链接 / 私有仓结构迁移）
@@ -62,7 +61,6 @@ MENU_ENTRIES=(
     "4|E|修复 /model 污染|./maintain.sh llm sync|bash \"\$LIB_DIR/init-llm.sh\" sync"
     "4|F|修复 bridge 转 Anthropic|./maintain.sh llm heal|bash \"\$LIB_DIR/init-llm.sh\" heal"
     "4|G|删除预设（问预设名）|./maintain.sh llm delete <名>|ask_run \"要删除的预设名\" \"\$LIB_DIR/init-llm.sh\" delete"
-    "4|H|归档用量（按模型+天）|./maintain.sh llm bill|bash \"\$LIB_DIR/init-llm.sh\" bill"
 
     # ── 5: 用量 ──
     # 只统计 token 与时间：不算钱（费用以上游账单为准）、不外发（飞书上报已移除）
