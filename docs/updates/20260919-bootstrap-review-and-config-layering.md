@@ -3,7 +3,7 @@
 > 范围：bootstrap / maintain / 架构文档三轮并行 review + 1 次配置分层核查
 > 提交：`origin/main` 共 12 个 commit，跨 1.5h
 > 关联 ADR：[ADR-0032 配置分层](../adr/0032-config-layering.md)
-> 关联 memory：[config-layering-sync-boundary-20260917](../../../.claude/projects/-home-francis-git-ccconfig/memory/config-layering-sync-boundary-20260917.md)、[claude-config-file-roles-20260919](../../../.claude/projects/-home-francis-git-ccconfig/memory/claude-config-file-roles-20260919.md)
+> 关联 memory（在用户私有 ccprivate 记忆库中，公开仓不可达）：`config-layering-sync-boundary-20260917`、`claude-config-file-roles-20260919`
 
 ## 发现汇总（47 项）
 
