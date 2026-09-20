@@ -258,6 +258,35 @@ test_max_restart_giveup() {
     fi
 }
 
+test_commit_message_has_summary() {
+    # session 已不自己 commit（见 CLAUDE.md 约束），提交信息是历史里仅有的信息，
+    # 退化成纯时间戳就等于把"改了什么"全丢掉。monitor 与 sync 两个提交点都要带摘要。
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    local syn="$CCCONFIG_DIR/lib/sync.sh"
+
+    grep -q 'Auto-sync: \$repo \$staged_count 文件' "$mon" \
+        && pass "commit_msg: monitor 摘要含仓库名+文件数" \
+        || fail "commit_msg" "monitor 未生成摘要提交信息"
+    grep -q 'diff --cached --name-only' "$mon" \
+        && pass "commit_msg: monitor 列出改动文件" \
+        || fail "commit_msg" "monitor 未列出改动文件"
+
+    grep -q 'Auto-sync: \$repo_name \$_nfiles 文件' "$syn" \
+        && pass "commit_msg: sync 摘要与 monitor 同格式" \
+        || fail "commit_msg" "sync 的提交信息格式与 monitor 不一致"
+}
+
+test_initial_scan_observable() {
+    # 初始扫描曾静默空转：日志只留一行 "Initial scan..."，看不出是"没改动"还是"没扫到仓库"
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    grep -q 'Initial scan: \${_init_n} 个仓库待查' "$mon" \
+        && pass "initial_scan: 打印仓库数" \
+        || fail "initial_scan" "初始扫描无仓库数日志"
+    awk '/Initial scan: \$\{_init_n\}/,/^    \) &/' "$mon" | grep -q 'sync_repos "\$_init_repos"' \
+        && pass "initial_scan: 显式传仓库列表" \
+        || fail "initial_scan" "初始扫描未显式传仓库列表"
+}
+
 # ========== Bash 语法 ==========
 
 test_monitor_sh_syntax() {
@@ -285,6 +314,8 @@ all_tests=(
     "desc: debounce 30s 内重复 → 跳过"               test_debounce_window
     "desc: backoff 2→...→300 cap"                    test_exponential_backoff
     "desc: max_restart 9 > 8 → 放弃"                 test_max_restart_giveup
+    "desc: 提交信息带摘要（monitor + sync）"          test_commit_message_has_summary
+    "desc: 初始扫描可见且显式传仓库"                  test_initial_scan_observable
     "desc: monitor.sh 语法检查"                      test_monitor_sh_syntax
 )
 
