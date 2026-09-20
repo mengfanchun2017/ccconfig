@@ -298,6 +298,12 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                 anth_reason = _fr_map.get(_fr, "end_turn")
                 stop_delta = {"type": "message_delta", "delta": {"stop_reason": anth_reason, "stop_sequence": None, "stop_details": {"type": "stop", "reason": anth_reason}}}
                 out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
+                # why: 上游（DeepSeek 系）先发带 finish_reason 的 chunk 再发 [DONE]。
+                #      不在此收尾并置 finished，[DONE] 分支会再补一个 end_turn delta，
+                #      把真实 stop_reason（max_tokens/tool_use）覆盖成 end_turn，
+                #      导致 CC 收到截断输出时误判正常结束、不自动续写。
+                out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
+                state["finished"] = True
 
         usage = obj.get("usage")
         if usage:
