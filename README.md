@@ -208,7 +208,7 @@ ccconfig/
 ├── docs/                     # 设计文档 + ADR（docs/adr/）
 ├── .github/workflows/        # CI check.yml（8 job：syntax/lint/json/python/bats/unit/links/deps）
 ├── .claude/settings.json     # 本仓库 Claude Code 设置
-├── CLAUDE.md / BOOTSTRAP.md / CHANGELOG.md
+├── CLAUDE.md / BOOTSTRAP.md / docs/updates/
 └── LICENSE / .editorconfig
 ```
 
@@ -344,7 +344,7 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 
 ## 版本里程碑
 
-> 发布版本号用 CalVer `YYYY.MM.DD`（真相源是 git tag，见 [CHANGELOG](CHANGELOG.md#版本号方案)）。
+> 发布版本号用 CalVer `YYYY.MM.DD`（真相源是 git tag）。变更流见 [docs/updates/](docs/updates/)。
 > 下面的「里程碑」是**开发阶段代号**，不代表发布版本。
 
 ### 交互菜单 API 收口（2026-08-10）

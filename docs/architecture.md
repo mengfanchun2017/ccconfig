@@ -219,7 +219,7 @@ systemd user service 守护，开机自启。`monitor.sh status` 查看各仓库
 月度：bash lib/update.sh all（Node/Claude/gh/uv/pip/MCP/skills 全升级）
 Skill：bash lib/init-skill.sh sync（从 skill 拉最新）
 ccconfig 自身：git pull（update.sh 开头自动执行）
-大版本：git pull → 看 CHANGELOG → 可能需重跑 init
+大版本：git pull → 看 docs/updates/ → 可能需重跑 init
 ```
 
 ## Skill 系统

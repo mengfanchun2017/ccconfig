@@ -98,7 +98,7 @@ bash ~/git/ccprivate/setup.sh
 
 当 ccconfig 有重大变更时：
 
-1. 看 [CHANGELOG.md](../CHANGELOG.md) 了解变更内容
+1. 看 [docs/updates/](../updates/) 了解近期变更
 
 ```bash
 cd ~/git/ccconfig && git pull
