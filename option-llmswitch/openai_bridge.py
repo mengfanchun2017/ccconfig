@@ -314,14 +314,13 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
 
         usage = obj.get("usage")
         if usage:
-            # why: CC 解析每个 message_delta 必访问 delta.stop_details，
-            # usage-only 结构（无 delta 字段）→ JS 报 undefined is not an object
-            msg_delta_usage = {
-                "type": "message_delta",
-                "delta": {"stop_reason": None, "stop_sequence": None},
-                "usage": {"output_tokens": usage.get("completion_tokens", 0)},
-            }
-            out.append(f"event: message_delta\ndata: {json.dumps(msg_delta_usage, separators=(',', ':'))}\n\n")
+            # 只在 state 记累计值，不再逐 chunk 发 message_delta：
+            # 上游（DeepSeek 系）每个 chunk 都带 usage，逐个转 message_delta 会
+            # 放大成与 token 数相当的冗余事件流（实测 200 字响应 302 事件里 154 个
+            # 是 usage-only delta）。慢速上游 + 海量冗余事件，CC 易把慢/异常当超时，
+            # 触发自动重试 → 表现"输出一半回退重输出"。最终 usage 合并进 [DONE] 的
+            # message_delta 一次发完。
+            state["output_tokens"] = usage.get("completion_tokens", 0)
 
     return "".join(out) if out else None
 
