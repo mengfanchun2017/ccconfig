@@ -12,6 +12,7 @@
 | `upgrade-guide.md` | 升级策略与指南 |
 | `ccprivate-guide.md` | ccprivate 私有配置仓库详细指南（ccprivate 仓库阅读） |
 | `docs/adr/` | 架构决策记录（MADR 4.0 格式）+ 决策时间线（worklog 提取） |
+| `docs/updates/` | 变更流日志（每次大改动一篇 `YYYYMMDD-主要内容.md`） |
 
 ## 组件专属文档（已下放）
 

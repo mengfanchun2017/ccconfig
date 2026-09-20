@@ -1,12 +1,11 @@
-# flibaudit 审计报告 — 2026-09-19
+# 2026-09-19 Bootstrap 评审 + 配置分层归位
 
-## 范围
-- 仓库：ccconfig（公开 infra）
-- 深度：高（3 个并行子代理：bootstrap / maintain / 架构文档）
-- 触发：使用者 review 请求 ——「架构是否专业 / bootstrap 是否优化 / maintain 是否完善 / 同步文档」
-- 仓库类型：ccconfig 型（个人项目，main 直推）
+> 范围：bootstrap / maintain / 架构文档三轮并行 review + 1 次配置分层核查
+> 提交：`origin/main` 共 12 个 commit，跨 1.5h
+> 关联 ADR：[ADR-0032 配置分层](../adr/0032-config-layering.md)
+> 关联 memory：[config-layering-sync-boundary-20260917](../../../.claude/projects/-home-francis-git-ccconfig/memory/config-layering-sync-boundary-20260917.md)、[claude-config-file-roles-20260919](../../../.claude/projects/-home-francis-git-ccconfig/memory/claude-config-file-roles-20260919.md)
 
-## 发现汇总
+## 发现汇总（47 项）
 
 | # | 严重 | 类别 | 发现 | 状态 |
 |---|------|------|------|------|
@@ -58,7 +57,7 @@
 | 46 | P2 | 文档 | `bin/README.md` 只列 `memory-check.sh` 漏 `ccconfig` / `refresh-gh-auth.sh` / `test-bootstrap.sh`；`lib/README.md` 漏 `bridge-restart.sh` / `claude-auto-sync.service`；`docs/README.md` 索引漏 `init-llm.md`；`templates/CATALOG.md` 含不存在的 `feishu-cli-cheatsheet.md` 行 | ✅ 已修 |
 | 47 | P2 | 卫生 | `docs/adr/README.md` 的「决策时间线」停在 2026-07-29 而索引已到 2026-09-17，掩盖了这段时间的轻量决策 | ✅ 已修（标注「本段已滞后」并指明缺口原因） |
 
-## 修复记录（按主题）
+## 按主题详解
 
 ### 公开仓库卫生（#1, #2）
 按用户决定：git 历史**不动**（那 108MB 测试数据不敏感），最新版 `git rm` + `.gitignore` 加 `work_tmp/`/`claude_job_tmp/`/日期目录/`*.docx` 规则防复活。
@@ -74,7 +73,7 @@
 
 修复：两个模板按真实角色重写（settings 键归 `settings.json`，`.config.json.example` 只留 user scope `mcpServers`）；`maintain.sh` 迁移方向反转；`permissions` 两份都有时 `allow`/`deny` 求并集（第一版按"丢弃副本"会把白名单整个删，沙箱测试当场抓到，参考 `memory-architecture` 中的"知识分层"原则）；`status.sh` 新增分层检查（本机报出 11 个错位键）。
 
-用户操作：`bash maintain.sh fix`，归位后需新 session 让权限白名单与 WebSearch deny 真正生效。
+**用户操作**：`bash maintain.sh fix`，归位后需新 session 让权限白名单与 WebSearch deny 真正生效。
 
 ### 安装链路（#3, #4, #5, #11, #13, #25, #35）
 全部是「看起来成功、实际没做」的静默失败，核心是 #4 + #5 互相掩盖——`init-base.sh` 读错 current 来源导致 LLM 步骤静默弹菜单，被「无条件 🎉」掩盖；`run_step` 第 6 参丢失导致 Ubuntu 跑两遍。修复后全链：
@@ -111,6 +110,28 @@ bootstrap-gh-auth.sh → init-bootstrap.sh → init-base.sh all → init-option.
 - 0024/0025 断号补说明「不要回填」
 - 0023 header 格式与 dominant 风格统一
 
+### 版本号（#43）
+- 真相源改为 git tag，格式 `CalVer YYYY.MM.DD`（同一天多次发 `.N`）
+- `conf/versions.json` 加 `self` 块，文档字符串指明 git tag 权威
+- README「版本里程碑」改名为开发代号，明确**不**是发布版本
+- `CHANGELOG.md` 删除（历史版本去 git tag / GitHub Releases 查看；变更流改放 `docs/updates/`，即本文）
+
+### init-option 解耦（#26, #36）
+- `init-base.sh all` 从 4 步缩回 3 步（Ubuntu → LLM → 收尾链接/服务），不再内联 `init-option.sh`
+- 可选组件（MCP/Skills/CLI）恢复为独立可选步：`init-bootstrap → init-base.sh all → init-option.sh（可选）→ maintain.sh（1A 全量检查）`
+- `bootstrap-gh-auth.sh` 重写为自包含的 curl|bash 入口，不再 source lib/
+- `bin/test-bootstrap.sh` CI 路径更新为 `init-bootstrap.sh --non-interactive`
+
+## 移除
+
+- **`.bootstrap-commit.sh`** — 一次性提交脚本误入 git track，已 `git rm` 并加进 `.gitignore`
+- **一人项目冗余治理文件** — `CITATION.cff` / `CODE_OF_CONDUCT.md` / `CONTRIBUTING.md`（有用内容已在 README 开发段 + CLAUDE.md SH 规范 + rules/ccconfig-open-source.md）/ `SECURITY.md` / `ROADMAP.md` / `.github` PR+Issue 模板
+- **`skills-lock.json`** — 38 个 mattpocock 技能 hash 锁定文件，与实际安装的 f-* 系列技能完全脱节，死文件
+- **`lib/start-openai-bridge.sh`** — 运行时无人调用（`init-llm.sh`/`status.sh` 均用 `ensure-bridge.sh`），功能是 `ensure-bridge.sh` 子集（无 self-heal/upstream 变化检测/win-curl）；同步清理 test-init-llm 分组 7（3 测试）+ README 架构图/目录树 + lib/README 表行
+- **`tests/test-init-llm.sh`** — gateway 时代用例，目标文件已不存在
+- **`CHANGELOG.md`** — 历史版本快照迁 git tag / GitHub Releases，变更流改放 `docs/updates/`
+- **`docs/audit/`** — 一次性审计快照归档目录，单次审计后再开新文件无意义；本次整体并入 `docs/updates/`
+
 ## 校验
 
 | 项 | 结果 |
@@ -125,7 +146,6 @@ bootstrap-gh-auth.sh → init-bootstrap.sh → init-base.sh all → init-option.
 ## 已知遗留（用户定夺）
 
 - **git 历史 108MB docx**：用户明示「git 历史不用改，这 108m 文件是我测试的不红要 不敏感」，不动
-- **CHANGELOG `[Unreleased]` 段仍有少量旧条目重复/手工维护**：自动化脚本缺位（memory `workflow-save-semantics` 类似问题）；本次补完整修复记录后仍是手工
 - **`docs/audit/audit-2026-09-02.md` 二次泄露修复**：本次审计发现「✅ 已修」行里复述了真实 IP（已去具体值）；是否整文件移入 ccprivate 由用户决定
 - **MEMORY.md 47 条已超 40 条上限**（规则 `context-budget.md`）：建议下一轮 review 跑 `bash ccconfig/bin/memory-check.sh` 选 archived
 - **`example-sync.sh diff` 暴露 ccprivate 的 `agents/*.md` 引用已删的 minimax/feishu MCP**：未在本次范围（ccprivate 端）

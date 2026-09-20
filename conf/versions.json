@@ -4,7 +4,7 @@
   "self": {
     "version": "2026.09.19",
     "scheme": "CalVer YYYY.MM.DD",
-    "_note": "ccconfig 自身版本，真相源是 git tag；发布时与 CHANGELOG 段落标题同步更新。下方 components 才是被 ccconfig 管理的第三方组件版本。"
+    "_note": "ccconfig 自身版本，真相源是 git tag（CalVer YYYY.MM.DD）。变更流见 docs/updates/。下方 components 才是被 ccconfig 管理的第三方组件版本。"
   },
   "components": {
     "node": {
