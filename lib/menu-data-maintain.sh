@@ -28,10 +28,10 @@ CAT_NAME[9]="其他"
 
 MENU_ENTRIES=(
     # ── 1: 状态 ──
-    "1|A|状态检查（全量）|./maintain.sh status|bash \"\$LIB_DIR/status.sh\""
-    "1|B|快速状态（跳过慢检查）|./maintain.sh status --quick|bash \"\$LIB_DIR/status.sh\" --quick"
-    "1|C|依赖检查|./maintain.sh deps|bash \"\$LIB_DIR/deps-check.sh\""
-    "1|D|一键修复（链接/目录）|./maintain.sh fix|do_setup"
+    # 只有两件事：看（1A，只读）和修（1B，一键把新版本的设定全部启用）。
+    # 细分检查不再各占一项 —— 1A 的输出里就有依赖段，全量依赖明细用 `./maintain.sh deps`。
+    "1|A|检查（只读）|./maintain.sh status|bash \"\$LIB_DIR/status.sh\""
+    "1|B|恢复最新功能（一键）|./maintain.sh fix|do_setup"
 
     # ── 2: 监控/同步 ──
     "2|A|监控状态|./maintain.sh monitor status|bash \"\$LIB_DIR/monitor.sh\" status"
@@ -99,6 +99,7 @@ MENU_ENTRIES=(
     "9|A|GitHub PAT 刷新|./maintain.sh pat|bash \"\$CCCONFIG_DIR/bin/refresh-gh-auth.sh\""
     "9|B|模板差异|./maintain.sh example status|bash \"\$LIB_DIR/example-sync.sh\" status"
     "9|C|模板推广（本机→模板）|./maintain.sh example promote|bash \"\$LIB_DIR/example-sync.sh\" promote"
+    "9|D|可选组件安装/补装|bash init-option.sh|bash \"\$CCCONFIG_DIR/init-option.sh\""
 
     # ── 0: 退出 ──
     "0| |退出||exit 0"
