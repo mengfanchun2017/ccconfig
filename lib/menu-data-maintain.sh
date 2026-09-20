@@ -28,10 +28,11 @@ CAT_NAME[9]="其他"
 
 MENU_ENTRIES=(
     # ── 1: 状态 ──
-    # 只有两件事：看（1A，只读）和修（1B，一键把新版本的设定全部启用）。
-    # 细分检查不再各占一项 —— 1A 的输出里就有依赖段，全量依赖明细用 `./maintain.sh deps`。
+    # 只有两件事：看（1A，只读）和修（1B，把新版本设定全部启用）。
+    # 1B 名字与 2F「修复 inotify」/4E「修复 /model 污染」统一为「修复 <对象>」。
+    # --quick 快速模式仍在 status.sh 里，但不再单占一个菜单项（菜单只暴露全量 1A）。
     "1|A|检查（只读）|./maintain.sh status|bash \"\$LIB_DIR/status.sh\""
-    "1|B|恢复最新功能（一键）|./maintain.sh fix|do_setup"
+    "1|B|修复 链接/目录|./maintain.sh fix|do_setup"
 
     # ── 2: 监控/同步 ──
     "2|A|监控状态|./maintain.sh monitor status|bash \"\$LIB_DIR/monitor.sh\" status"
@@ -56,44 +57,42 @@ MENU_ENTRIES=(
     # ── 4: LLM ──
     "4|A|切换预设（交互）|./maintain.sh llm|bash \"\$LIB_DIR/init-llm.sh\""
     "4|B|列出预设|./maintain.sh llm list|bash \"\$LIB_DIR/init-llm.sh\" list"
-    "4|C|链路诊断（当前生效）|./maintain.sh llm status|bash \"\$LIB_DIR/init-llm.sh\" status"
-    "4|D|真实探测（问预设名）|./maintain.sh llm test <名>|ask_run \"预设名（4B 可查）\" \"\$LIB_DIR/init-llm.sh\" test"
+    "4|C|链路诊断（只读，当前生效）|./maintain.sh llm status|bash \"\$LIB_DIR/init-llm.sh\" status"
+    "4|D|真实探测（问预设名，发请求）|./maintain.sh llm test <名>|ask_run \"预设名（4B 可查）\" \"\$LIB_DIR/init-llm.sh\" test"
     "4|E|修复 /model 污染|./maintain.sh llm sync|bash \"\$LIB_DIR/init-llm.sh\" sync"
-    "4|F|bridge 自愈|./maintain.sh llm heal|bash \"\$LIB_DIR/init-llm.sh\" heal"
+    "4|F|修复 bridge（OpenAI 转 Anthropic）|./maintain.sh llm heal|bash \"\$LIB_DIR/init-llm.sh\" heal"
     "4|G|删除预设（问预设名）|./maintain.sh llm delete <名>|ask_run \"要删除的预设名\" \"\$LIB_DIR/init-llm.sh\" delete"
     "4|H|归档用量（按模型+天）|./maintain.sh llm bill|bash \"\$LIB_DIR/init-llm.sh\" bill"
 
     # ── 5: 用量 ──
     # 只统计 token 与时间：不算钱（费用以上游账单为准）、不外发（飞书上报已移除）
+    # 归档默认含今天（5C）；截止昨天的增量归档、--force 全量重算低频，合并进 5C 说明，不单占菜单项
     "5|A|用量统计（跨 LLM）|./maintain.sh token --stats|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --stats"
     "5|B|按日报告|./maintain.sh token --report|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --report"
-    "5|C|立即归档（增量）|./maintain.sh token --by-day|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --by-day"
-    "5|D|今日快照（含今天）|./maintain.sh token --by-day --include-today|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --by-day --include-today"
-    "5|E|强制重算全量|./maintain.sh token --by-day --force|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --by-day --force"
-    "5|F|定时器状态|bash option-usage/init.sh status|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" status"
-    "5|G|启用定时器|bash option-usage/init.sh install|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" install"
-    "5|H|停用定时器|bash option-usage/init.sh uninstall|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" uninstall"
+    "5|C|立即归档（含今天）|./maintain.sh token --by-day --include-today|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --by-day --include-today"
+    "5|D|定时器状态|bash option-usage/init.sh status|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" status"
+    "5|E|启用定时器|bash option-usage/init.sh install|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" install"
+    "5|F|停用定时器|bash option-usage/init.sh uninstall|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" uninstall"
 
     # ── 6: MCP ──
-    "6|A|MCP 配置（跨项目）|./maintain.sh mcp config|bash \"\$LIB_DIR/mcp-manager.sh\" config"
+    "6|A|MCP 配置（用户级）|./maintain.sh mcp config|bash \"\$LIB_DIR/mcp-manager.sh\" config"
     "6|B|MCP 状态|./maintain.sh mcp status|bash \"\$LIB_DIR/mcp-manager.sh\" status"
     "6|C|填 MCP Key|./maintain.sh mcp keys|bash \"\$LIB_DIR/mcp-manager.sh\" keys"
     "6|D|同步到 settings.json|./maintain.sh mcp sync|bash \"\$LIB_DIR/mcp-manager.sh\" sync"
 
     # ── 7: 飞书/Lark ──
+    # 账号新增即持久化（feishu.json），切换默认持久化（带 -p），不再拆「并持久化」独立项
     "7|A|账号列表/当前账号|bash option-larkcli/lark-switch.sh --list|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\" --list"
-    "7|B|切换账号（问账号名）|bash option-larkcli/lark-switch.sh <名>|ask_run \"账号名\" \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
-    "7|C|切换账号并持久化|bash option-larkcli/lark-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
-    "7|D|OAuth 授权状态|bash option-larkcli/lark-switch.sh|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
-    "7|E|重置 lark-cli 配置|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
+    "7|B|切换账号（问账号名，持久化）|bash option-larkcli/lark-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
+    "7|C|OAuth 授权状态|bash option-larkcli/lark-switch.sh|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
+    "7|D|配置/更新 lark-cli 账号|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
 
     # ── 8: getnote ──
     "8|A|账号列表|bash option-getnote/getnote-switch.sh --list|bash \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\" --list"
     "8|B|状态|bash option-getnote/init.sh --status|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" --status"
     "8|C|添加账号|bash option-getnote/init.sh add|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" add"
     "8|D|删除账号|bash option-getnote/init.sh remove|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" remove"
-    "8|E|切换账号（问账号名）|bash option-getnote/getnote-switch.sh <名>|ask_run \"账号名\" \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\""
-    "8|F|切换账号并持久化|bash option-getnote/getnote-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\""
+    "8|E|切换账号（问账号名，持久化）|bash option-getnote/getnote-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\""
 
     # ── 9: 其他 ──
     "9|A|GitHub PAT 刷新|./maintain.sh pat|bash \"\$CCCONFIG_DIR/bin/refresh-gh-auth.sh\""
