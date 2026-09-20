@@ -218,7 +218,13 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                 _close_text_block(state, out, 0)
                 _close_tool_blocks(state, out)
             anth_reason = state.get("stop_reason") or "end_turn"
+            # why: 把 usage 并进收尾 delta 一起发——上游（DeepSeek 系）每个 chunk
+            #      都带 usage，逐个转 message_delta 会放大成与 token 数相当的冗余事件流，
+            #      CC 在慢速上游下易把海量 usage delta 当异常/超时，触发自动重试
+            #      （表现"输出一半回退重新输出"）。只在 [DONE] 发一次，携带最新累计值。
             stop_delta = {"type": "message_delta", "delta": {"stop_reason": anth_reason, "stop_sequence": None, "stop_details": {"type": "stop", "reason": anth_reason}}}
+            if state.get("output_tokens"):
+                stop_delta["usage"] = {"output_tokens": state["output_tokens"]}
             out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
             out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
             state["finished"] = True
