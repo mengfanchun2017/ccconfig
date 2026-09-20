@@ -3,6 +3,7 @@
 #
 # 检查项（与下方 check_*() 调用顺序一致，勿凭印象写）：
 # 1. 符号链接 + ccprivate 结构（check_symlinks / check_ccprivate_structure）
+#    含 settings 分层双向检查：键放错文件（.config.json 里不生效）+ 基线键缺失
 # 2. 核心依赖（check_deps_quick）
 # 3. auto-sync 状态（check_autosync）
 # 4. GitHub PAT 有效期（check_pat_expiry）
@@ -76,7 +77,7 @@ check_symlinks() {
     # permissions/hooks/statusLine 等【完全不读】且静默失效。这条检查就是为了
     # 让这种"配了但没生效"能被看见。
     local misfiled
-    misfiled=$(python3 - <<'PY' 2>/dev/null || true
+    misfiled=$(TPL="$CCCONFIG_ROOT/templates/settings.json.example" python3 - <<'PY' 2>/dev/null || true
 import json, os
 sf = os.path.expanduser("~/.claude/settings.json")
 cf = os.path.expanduser("~/.claude/.config.json")
@@ -86,16 +87,51 @@ KEYS = {"permissions","hooks","statusLine","enabledPlugins","extraKnownMarketpla
 try:
     cd = json.load(open(cf))
 except Exception:
-    raise SystemExit
-print(",".join(sorted(k for k in KEYS if k in cd)))
+    cd = {}
+misfiled = [k for k in KEYS if k in cd]
+
+# 反向检查：模板里的基线键在 settings.json 里是否缺失。
+# init-ubuntu.sh 的 setup_hook 与 init-llm.sh 都会先于 setup.sh 创建
+# settings.json，老逻辑判"已存在即跳过" → permissions/statusLine 永不落盘，
+# 而上面的错位检查照样报绿。这条让"配了但没配全"也能被看见。
+missing = []
+tpl_path = os.environ.get("TPL", "")
+try:
+    if os.path.isfile(tpl_path):
+        t = json.load(open(tpl_path))
+        with open(sf) as f:
+            sd = json.load(f)
+        missing = [k for k in t if k not in sd]
+except Exception:
+    pass
+
+if misfiled:
+    print("MISFILED:" + ",".join(sorted(misfiled)))
+if missing:
+    print("MISSING:" + ",".join(sorted(missing)))
 PY
 )
-    if [ -n "$misfiled" ]; then
-        echo -e "  ${YELLOW}○${NC} settings 键放错文件（在 .config.json 里不生效）: $misfiled"
+    local _mis="" _miss=""
+    while IFS= read -r _line; do
+        case "$_line" in
+            MISFILED:*) _mis="${_line#MISFILED:}" ;;
+            MISSING:*)  _miss="${_line#MISSING:}" ;;
+        esac
+    done <<< "$misfiled"
+    unset _line
+
+    if [ -n "$_mis" ]; then
+        echo -e "  ${YELLOW}○${NC} settings 键放错文件（在 .config.json 里不生效）: $_mis"
         echo -e "  ${GRAY}    修复: bash maintain.sh fix${NC}"
         issues=$((issues + 1))
-    else
-        echo -e "  ${GREEN}✅${NC} settings 键都在 settings.json"
+    fi
+    if [ -n "$_miss" ]; then
+        echo -e "  ${YELLOW}○${NC} settings.json 缺基线键: $_miss"
+        echo -e "  ${GRAY}    （权限白名单/hook/状态栏没生效）修复: bash ~/git/ccprivate/setup.sh${NC}"
+        issues=$((issues + 1))
+    fi
+    if [ -z "$_mis" ] && [ -z "$_miss" ]; then
+        echo -e "  ${GREEN}✅${NC} settings 键都在 settings.json 且基线完整"
     fi
 
     # CLAUDE.md
