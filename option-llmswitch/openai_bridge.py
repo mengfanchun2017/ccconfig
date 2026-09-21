@@ -278,8 +278,10 @@ def _close_text_block(state, out):
 
 
 def _close_tool_blocks(state, out):
+    # 只认 tool_*_open：文本块的开关叫 text_open，末尾同样是 "_open"，
+    # 不限定前缀会被误当成工具块把 text_open 置 False（块没关就再也关不上）
     for key in list(state.keys()):
-        if key.endswith("_open") and state.get(key):
+        if key.startswith("tool_") and key.endswith("_open") and state.get(key):
             tc_idx = key.replace("_open", "").replace("tool_", "", 1)
             tc_info = state.get(f"tool_{tc_idx}")
             if isinstance(tc_info, dict):
@@ -787,6 +789,7 @@ async def messages(request: Request):
             # 这里按"距上次真正输出"补注释心跳。
             if time.monotonic() - last_out[0] >= QUIET_PING:
                 last_out[0] = time.monotonic()
+                sse_state["quiet_pings"] = sse_state.get("quiet_pings", 0) + 1
                 return ": ping\n\n"
             return None
 
@@ -796,7 +799,7 @@ async def messages(request: Request):
                 f"[bridge] stream {tag} req={req_no} text_blocks={sse_state.get('text_blocks', 0)}"
                 f" tool_blocks={sse_state.get('tool_blocks', 0)} dup_blocks={sse_state.get('dup_blocks', 0)}"
                 f" stop={sse_state.get('stop_reason') or '-'} out_tok={sse_state.get('output_tokens', 0)}"
-                f" text_chars={sse_state.get('text_chars', 0)}",
+                f" text_chars={sse_state.get('text_chars', 0)} quiet_pings={sse_state.get('quiet_pings', 0)}",
                 flush=True,
             )
             if DUMP_DIR:
