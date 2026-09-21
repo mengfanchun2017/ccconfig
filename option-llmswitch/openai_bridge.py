@@ -141,6 +141,13 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
         if k in anth_body:
             openai_body[k] = anth_body[k]
 
+    # effort 透传：Claude Code 的 CLAUDE_EFFORT / modelSettings.effortLevel → Anth output_config
+    # → OpenAI reasoning_effort。缺了它，bridge 侧收不到 high effort 指令，上游用默认档，
+    # 表现"模型变傻"。映射三档（OpenAI 只认 low/medium/high）
+    oc = anth_body.get("output_config") or {}
+    if oc.get("effort") in ("low", "medium", "high"):
+        openai_body["reasoning_effort"] = oc["effort"]
+
     tools = anth_body.get("tools")
     if tools:
         openai_body["tools"] = [
