@@ -382,6 +382,111 @@ PYEOF
 )
 [[ "$t10" == "OK" ]] && _pass "thinking 透传为 reasoning_effort + output_config 优先级" || _fail "thinking 映射不符合预期" "$t10"
 
+# ── T11: thinking 开关（enable_thinking）──
+# 别的问题: 只发 reasoning_effort 时单位网关 reasoning_tokens 恒 0（不思考），
+# 模型把思路当正文吐出来 → CC 里出现"我现在执行。发送！"式空转。开关另发。
+echo "T11 thinking 开关 → enable_thinking"
+t11=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+fail = []
+cases = [
+    ({"type": "adaptive", "display": "omitted"}, True),   # CC 2.1.274 实际发的
+    ({"type": "enabled", "budget_tokens": 4000}, True),
+    ({"type": "disabled"}, False),
+    (None, False),
+]
+for thinking, want in cases:
+    body = {"model": "t", "messages": [], "max_tokens": 100, "thinking": thinking}
+    got = m.anthropic_to_openai_req(body, "t").get("enable_thinking", False)
+    if bool(got) != want:
+        fail.append(f"thinking={thinking} -> enable_thinking={got!r}, want {want}")
+# adaptive 时也不能丢 effort
+body = {"model": "t", "messages": [], "max_tokens": 100,
+        "thinking": {"type": "adaptive"}, "output_config": {"effort": "high"}}
+o = m.anthropic_to_openai_req(body, "t")
+if o.get("enable_thinking") is not True or o.get("reasoning_effort") != "high":
+    fail.append(f"adaptive + effort=high -> {o.get('enable_thinking')!r}/{o.get('reasoning_effort')!r}")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t11" == "OK" ]] && _pass "enable_thinking 随 thinking 开关下发 + effort 并存" || _fail "enable_thinking 映射不符合预期" "$t11"
+
+# ── T12: 同一条响应里文本块与工具块 index 必须不同 ──
+# 旧 bug: 文本块硬编码 index 0、工具块也从 block_idx=0 起算 → 一条"先说话再调工具"
+# 的响应里两个 content_block_start 都是 index 0。CC 按 index 收尾，把正文块重放/丢弃，
+# tool_use 被**执行两次**（界面"输出一段文字后回退再输出"）。
+echo "T12 文本块与工具块 index 不撞号"
+t12=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, json, re, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+lines = [
+    {"id": "1", "choices": [{"index": 0, "delta": {"role": "assistant", "content": "先说一句"}, "finish_reason": None}], "usage": {"prompt_tokens": 42, "completion_tokens": 3}},
+    {"id": "1", "choices": [{"index": 0, "delta": {"tool_calls": [{"index": 0, "id": "call_a", "function": {"name": "Bash", "arguments": '{"command":"ls"}'}}]}, "finish_reason": None}], "usage": {"prompt_tokens": 42, "completion_tokens": 9}},
+    {"id": "1", "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}], "usage": {"prompt_tokens": 42, "completion_tokens": 9}},
+]
+st = {"started": False, "finished": False, "block_idx": 0}
+out = ""
+for o in lines:
+    out += m.openai_chunk_to_anthropic_sse("data: " + json.dumps(o) + "\n", "msg_t", "t", st) or ""
+out += m.openai_chunk_to_anthropic_sse("data: [DONE]\n", "msg_t", "t", st) or ""
+fail = []
+starts = [int(x) for x in re.findall(r'"type":"content_block_start","index":(\d+)', out)]
+stops = [int(x) for x in re.findall(r'"type":"content_block_stop","index":(\d+)', out)]
+if starts != [0, 1]:
+    fail.append(f"block_start 索引序列 {starts} != [0, 1]")
+if len(set(starts)) != len(starts):
+    fail.append(f"索引重复: {starts}")
+if sorted(stops) != [0, 1]:
+    fail.append(f"block_stop 索引 {stops} != [0, 1]")
+if '"stop_reason":"tool_use"' not in out:
+    fail.append("stop_reason 不是 tool_use")
+if '"input_tokens":42' not in out:
+    fail.append("message_start 未带真 input_tokens")
+if st.get("text_idx") != 0:
+    fail.append(f"text_idx={st.get('text_idx')} != 0")
+if st.get("dup_blocks"):
+    fail.append(f"干净流不该有 dup_blocks={st.get('dup_blocks')}")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t12" == "OK" ]] && _pass "文本 index 0 / 工具 index 1，stop 与 input_tokens 正确" || _fail "block index 分配不符合预期" "$t12"
+
+# ── T13: 收尾后重复投递必须丢弃（否则工具再执行一次）──
+echo "T13 收尾后重复投递被丢弃"
+t13=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, json, re, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+tool = {"id": "1", "choices": [{"index": 0, "delta": {"tool_calls": [{"index": 0, "id": "call_a", "function": {"name": "Bash", "arguments": '{"command":"ls"}'}}]}, "finish_reason": None}], "usage": {"prompt_tokens": 42, "completion_tokens": 9}}
+fin = {"id": "1", "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}], "usage": {"prompt_tokens": 42, "completion_tokens": 9}}
+st = {"started": False, "finished": False, "block_idx": 0}
+out = ""
+for o in (tool, fin):
+    out += m.openai_chunk_to_anthropic_sse("data: " + json.dumps(o) + "\n", "msg_t", "t", st) or ""
+out += m.openai_chunk_to_anthropic_sse("data: [DONE]\n", "msg_t", "t", st) or ""
+first = out
+# 上游把整条响应又投递一遍（网关重试/重复投递）
+for o in (tool, fin):
+    out += m.openai_chunk_to_anthropic_sse("data: " + json.dumps(o) + "\n", "msg_t", "t", st) or ""
+out += m.openai_chunk_to_anthropic_sse("data: [DONE]\n", "msg_t", "t", st) or ""
+fail = []
+if out != first:
+    fail.append("重复投递产生了新事件（会重放块/重执行工具）")
+if out.count('"type":"message_stop"') != 1:
+    fail.append(f"message_stop 出现 {out.count('\"type\":\"message_stop\"')} 次")
+if not st.get("dup_blocks"):
+    fail.append("未计入 dup_blocks（静默丢弃无法观测）")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t13" == "OK" ]] && _pass "重复投递 0 新事件，仅计 dup_blocks" || _fail "重复投递未被丢弃" "$t13"
+
 echo ""
 echo "───────────────────────────────"
 if [[ $FAIL -eq 0 ]]; then
