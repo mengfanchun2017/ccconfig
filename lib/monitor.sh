@@ -563,8 +563,30 @@ start_watch() {
     ) &
 }
 
+# systemd 托管时 monitor loop PID 写在 /run/claude-auto-sync/monitor.pid，
+# 不能 kill（systemd Restart=always 立即拉起，start_watch 又被 Already running 挡）。
+# 非 systemd 场景再走裸 stop_watch 旧逻辑。
+is_systemd_managed() {
+    local pf=/run/claude-auto-sync/monitor.pid
+    [ -f "$pf" ] || return 1
+    local pid; pid=$(cat "$pf" 2>/dev/null)
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || return 1
+    local cmd; cmd=$(cat "/proc/$pid/cmdline" 2>/dev/null | tr '\0' ' ')
+    [[ "$cmd" == *"monitor.sh"* ]]
+}
+
 # ========== Stop monitoring ==========
 stop_watch() {
+    if is_systemd_managed; then
+        # 剥 inotify 让 systemd loop 自愈（它的 debounce 会自动重启），
+        # 不动 monitor loop（杀也白杀，systemd 拉起 + start_watch 拒启）
+        pkill -f "inotifywait.*$WATCH_DIR" 2>/dev/null || true
+        rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
+        echo -e "${YELLOW}[SYNC]${NC} systemd 托管（inotifywait 已剥，loop 会自愈）"
+        echo -e "${GRAY}  完全重启: sudo systemctl restart claude-auto-sync${NC}"
+        return 0
+    fi
+
     pkill -f "inotifywait.*$WATCH_DIR" 2>/dev/null || true
 
     if [ -f "$PID_FILE" ]; then
@@ -579,6 +601,18 @@ stop_watch() {
         echo -e "${YELLOW}[SYNC]${NC} Not running"
     fi
     rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
+}
+
+# ========== Restart ==========
+restart_watch() {
+    if is_systemd_managed; then
+        echo -e "${YELLOW}[SYNC]${NC} systemd 托管，重启请走 systemctl:"
+        echo -e "${GRAY}  sudo systemctl restart claude-auto-sync${NC}"
+        return 0
+    fi
+    stop_watch
+    sleep 1
+    start_watch
 }
 
 # ========== Status ==========
@@ -836,7 +870,7 @@ case "${1:-}" in
     start)    start_watch ;;
     stop)     stop_watch ;;
     status)   status_watch ;;
-    restart)  stop_watch; sleep 1; start_watch ;;
+    restart)  restart_watch ;;
     log)      log_watch "${2:-}" ;;
     monitor)  run_monitor ;;
     "")   start_watch ;;
