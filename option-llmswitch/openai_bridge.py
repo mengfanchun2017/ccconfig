@@ -148,6 +148,24 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
     if oc.get("effort") in ("low", "medium", "high"):
         openai_body["reasoning_effort"] = oc["effort"]
 
+    # thinking 透传：Claude Code 在 Anth 协议里用 thinking: {type:"enabled", budget_tokens:N}
+    # 启用 extended thinking。bridge 没把这条翻译给上游 → upstream 走默认档/不思考，
+    # 表现"思考深度变浅 / 跳过思考"。OpenAI 系用 reasoning_effort 三档，
+    # 按 budget_tokens 离散映射（缺省=高，<8k=低，<20k=中，>=20k=高）。
+    # 优先级低于 output_config.effort：后者是用户显式设定，应保留。
+    if "reasoning_effort" not in openai_body:
+        th = anth_body.get("thinking") or {}
+        if th.get("type") == "enabled":
+            budget = th.get("budget_tokens")
+            if budget is None:
+                openai_body["reasoning_effort"] = "high"
+            elif budget < 8000:
+                openai_body["reasoning_effort"] = "low"
+            elif budget < 20000:
+                openai_body["reasoning_effort"] = "medium"
+            else:
+                openai_body["reasoning_effort"] = "high"
+
     tools = anth_body.get("tools")
     if tools:
         openai_body["tools"] = [
