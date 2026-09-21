@@ -6,3 +6,15 @@
 
 # translate-weekly workflow 翻译依赖（pdf2docx 含 PyMuPDF，兜底文本提取也用它）
 pdf2docx
+
+# openai_bridge.py 依赖（option-llmswitch，Anthropic↔OpenAI 网关）
+# 缺了任意一个 bridge 启动即 ModuleNotFoundError（httpx/fastapi/uvicorn 全要）
+httpx
+fastapi
+uvicorn
+
+# openai_bridge.py 依赖（option-llmswitch，Anthropic↔OpenAI 网关）
+# 缺了任意一个 bridge 启动即 ModuleNotFoundError（httpx/fastapi/uvicorn 全要）
+httpx
+fastapi
+uvicorn
