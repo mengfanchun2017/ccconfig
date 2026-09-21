@@ -127,7 +127,7 @@ PY
     fi
     if [ -n "$_miss" ]; then
         echo -e "  ${YELLOW}○${NC} settings.json 缺基线键: $_miss"
-        echo -e "  ${GRAY}    （权限白名单/hook/状态栏没生效）修复: bash ~/git/ccprivate/setup.sh${NC}"
+        echo -e "  ${GRAY}    （权限白名单/hook/状态栏没生效）修复: bash maintain.sh fix${NC}"
         issues=$((issues + 1))
     fi
     if [ -z "$_mis" ] && [ -z "$_miss" ]; then
