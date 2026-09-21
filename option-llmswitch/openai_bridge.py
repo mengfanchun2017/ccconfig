@@ -761,18 +761,34 @@ async def messages(request: Request):
         # （重复块/重复收尾）而不用重跑现场
         dump_chunks = []
         req_no = _REQ_SEQ[0]
+        # 给下游发过东西的时刻：思考（reasoning）阶段的 chunk 被本 bridge 丢弃，
+        # 上游有数据但 CC 侧一个字节都收不到，靠这个计时补心跳
+        last_out = [time.monotonic()]
+        QUIET_PING = 10.0
 
         def _render(chunk: str):
             # SSE 注释（idle 心跳，`:` 开头）必须原样透传：喂给
             # openai_chunk_to_anthropic_sse 会因不以 data: 开头被丢掉，
             # 心跳等于没发，tailscale 75s idle 断流照样发生
             if chunk.startswith(":"):
+                last_out[0] = time.monotonic()
                 return chunk
             if len(raw_buf[0]) < 4096:
                 raw_buf[0] += chunk
             if DUMP_DIR:
                 dump_chunks.append(chunk)
-            return openai_chunk_to_anthropic_sse(chunk, f"msg_bridge_{req_no}", state["upstream_model"], sse_state)
+            out = openai_chunk_to_anthropic_sse(chunk, f"msg_bridge_{req_no}", state["upstream_model"], sse_state)
+            if out:
+                last_out[0] = time.monotonic()
+                return out
+            # 上游在思考（只有 reasoning_content 增量，本 bridge 不发这类块）时，
+            # 队列一直有数据、_iter_with_idle_ping 的 idle 心跳永远不触发，但 CC
+            # 侧是彻底静默的——长思考照样会被 tailscale(75s)/网关 idle cap 掐断。
+            # 这里按"距上次真正输出"补注释心跳。
+            if time.monotonic() - last_out[0] >= QUIET_PING:
+                last_out[0] = time.monotonic()
+                return ": ping\n\n"
+            return None
 
         def _dump_and_summary(tag: str):
             # 一行摘要便于 grep：块数 / 重复块 / 工具数 / 收尾原因 / 输出 token
