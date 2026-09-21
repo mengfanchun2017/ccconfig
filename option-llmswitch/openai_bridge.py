@@ -148,30 +148,35 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
         if k in anth_body:
             openai_body[k] = anth_body[k]
 
-    # effort 透传：Claude Code 的 CLAUDE_EFFORT / modelSettings.effortLevel → Anth output_config
-    # → OpenAI reasoning_effort。缺了它，bridge 侧收不到 high effort 指令，上游用默认档，
-    # 表现"模型变傻"。映射三档（OpenAI 只认 low/medium/high）
+    # thinking 开关透传：CC 用 Anth 的 thinking 字段请求思考（2.1.274 发
+    # {"type":"adaptive","display":"omitted"}，老版本发 enabled + budget_tokens）。
+    # 上游 OpenAI 协议里开关叫 enable_thinking（vLLM/SGLang 系 chat template 认这个）。
+    # 实测单位网关：只发 reasoning_effort 时 reasoning_tokens 恒为 0（模型不思考，
+    # 反而把思路当正文吐出来 → "我现在执行。发送！"式空转循环）；带上本开关才有
+    # 真实 reasoning。深度另由下面的 reasoning_effort 控制。
+    th = anth_body.get("thinking") or {}
+    if th.get("type") in ("enabled", "adaptive"):
+        openai_body["enable_thinking"] = True
+
+    # effort 透传：Claude Code 的 effort 设定（/effort、CLAUDE_EFFORT）→ Anth output_config
+    # → OpenAI reasoning_effort。缺了它上游用默认档，表现"模型变傻"。
+    # 优先级高于 thinking 推导值：output_config 是用户显式设定。
     oc = anth_body.get("output_config") or {}
     if oc.get("effort") in ("low", "medium", "high"):
         openai_body["reasoning_effort"] = oc["effort"]
 
-    # thinking 透传：Claude Code 在 Anth 协议里用 thinking: {type:"enabled", budget_tokens:N}
-    # 启用 extended thinking。bridge 没把这条翻译给上游 → upstream 走默认档/不思考，
-    # 表现"思考深度变浅 / 跳过思考"。OpenAI 系用 reasoning_effort 三档，
-    # 按 budget_tokens 离散映射（缺省=高，<8k=低，<20k=中，>=20k=高）。
-    # 优先级低于 output_config.effort：后者是用户显式设定，应保留。
-    if "reasoning_effort" not in openai_body:
-        th = anth_body.get("thinking") or {}
-        if th.get("type") == "enabled":
-            budget = th.get("budget_tokens")
-            if budget is None:
-                openai_body["reasoning_effort"] = "high"
-            elif budget < 8000:
-                openai_body["reasoning_effort"] = "low"
-            elif budget < 20000:
-                openai_body["reasoning_effort"] = "medium"
-            else:
-                openai_body["reasoning_effort"] = "high"
+    # thinking 预算兜底：老 CC 只用 thinking.budget_tokens 表达思考深度，
+    # 没有 output_config 时按预算离散映射（缺省=高，<8k=低，<20k=中，>=20k=高）。
+    if "reasoning_effort" not in openai_body and th.get("type") == "enabled":
+        budget = th.get("budget_tokens")
+        if budget is None:
+            openai_body["reasoning_effort"] = "high"
+        elif budget < 8000:
+            openai_body["reasoning_effort"] = "low"
+        elif budget < 20000:
+            openai_body["reasoning_effort"] = "medium"
+        else:
+            openai_body["reasoning_effort"] = "high"
 
     tools = anth_body.get("tools")
     if tools:
@@ -205,7 +210,10 @@ def _ensure_started(state, out, msg_id, model):
                 "id": msg_id, "type": "message", "role": "assistant",
                 "model": model, "content": [],
                 "stop_reason": None, "stop_sequence": None,
-                "usage": {"input_tokens": 0, "output_tokens": 0},
+                # 上游每个 chunk 都带 prompt_tokens，首个 chunk 就有真值。
+                # 恒发 0 会让 CC 以为输入是空的（上下文余量、自动压缩全失灵），
+                # 长会话跑下去撞上游真实窗口才报错。
+                "usage": {"input_tokens": state.get("input_tokens", 0), "output_tokens": 0},
             },
         }
         out.append(f"event: message_start\ndata: {json.dumps(msg_start, separators=(',', ':'))}\n\n")
@@ -325,6 +333,17 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
             out.append(f"event: error\ndata: {json.dumps(err_obj, separators=(',', ':'))}\n\n")
             continue
 
+        # usage 先记账再发事件：message_start 是首个 chunk 里发的，要带上真 input_tokens。
+        # 上游（DeepSeek 系）每个 chunk 都带 usage，逐个转 message_delta 会放大成与
+        # token 数同量级的冗余事件流（实测 200 字响应 302 事件里 154 个是 usage-only
+        # delta）。慢速上游 + 海量冗余事件，CC 易把慢/异常当超时触发自动重试
+        # → 表现"输出一半回退重输出"。因此 usage 只记账，收尾时合并成一次 message_delta。
+        usage = obj.get("usage")
+        if usage:
+            state["output_tokens"] = usage.get("completion_tokens", 0)
+            if usage.get("prompt_tokens"):
+                state["input_tokens"] = usage["prompt_tokens"]
+
         _ensure_started(state, out, msg_id, model)
 
         # 已收尾（finish_reason 或 [DONE] 已发）后上游再吐正文/工具增量 → 一律丢弃。
@@ -405,16 +424,6 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                 #      记下来，等 [DONE] 时作为流内最后一个 message_delta 发出。
                 state["stop_reason"] = _fr_map.get(_fr, "end_turn")
                 state["finished"] = True
-
-        usage = obj.get("usage")
-        if usage:
-            # 只在 state 记累计值，不再逐 chunk 发 message_delta：
-            # 上游（DeepSeek 系）每个 chunk 都带 usage，逐个转 message_delta 会
-            # 放大成与 token 数相当的冗余事件流（实测 200 字响应 302 事件里 154 个
-            # 是 usage-only delta）。慢速上游 + 海量冗余事件，CC 易把慢/异常当超时，
-            # 触发自动重试 → 表现"输出一半回退重输出"。最终 usage 合并进 [DONE] 的
-            # message_delta 一次发完。
-            state["output_tokens"] = usage.get("completion_tokens", 0)
 
     return "".join(out) if out else None
 
