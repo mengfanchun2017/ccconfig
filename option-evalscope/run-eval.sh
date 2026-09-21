@@ -11,7 +11,7 @@
 # 端点处理: openai /v1 直连; anthropic|bridge 走 ensure-bridge(8898)，测完恢复原 current。
 
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")\" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 source "$CCCONFIG_ROOT/lib/ensure-bridge.sh"
 
