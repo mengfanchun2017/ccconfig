@@ -235,10 +235,37 @@ def _mark_closed(state, idx):
     state.setdefault("_closed_idx", set()).add(idx)
 
 
-def _close_text_block(state, out, idx):
-    if state.get(f"text_open_{idx}"):
+def _alloc_idx(state) -> int:
+    """分配下一个 content block index。
+
+    why: 文本块与工具块曾各自算 index（文本硬编码 0、工具从 block_idx=0 起），
+    一条"先说话再调工具"的响应里两者都拿到 index 0 —— 同一个 index 在一个 message
+    里出现两个 content_block_start，Anthropic 协议不允许。CC 收到后按 index 收尾，
+    把已发出的正文块**重放/丢弃**，tool_use 于是被**执行两次**（真实副作用翻倍）。
+    现在统一用单调递增计数器，文本块和工具块永不撞号。
+    """
+    idx = state.get("block_idx", 0)
+    state["block_idx"] = idx + 1
+    return idx
+
+
+def _open_text_block(state, out) -> int:
+    idx = _alloc_idx(state)
+    state["text_idx"] = idx
+    state["text_open"] = True
+    _block_start(
+        state, out, idx,
+        f'event: content_block_start\ndata: {{"type":"content_block_start","index":{idx},"content_block":{{"type":"text","text":""}}}}\n\n',
+        "text",
+    )
+    return idx
+
+
+def _close_text_block(state, out):
+    if state.get("text_open"):
+        idx = state.get("text_idx", 0)
         out.append(f'event: content_block_stop\ndata: {{"type":"content_block_stop","index":{idx}}}\n\n')
-        state[f"text_open_{idx}"] = False
+        state["text_open"] = False
         _mark_closed(state, idx)
 
 
@@ -272,7 +299,7 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
             if state.get("stopped"):
                 continue
             if not state.get("finished"):
-                _close_text_block(state, out, 0)
+                _close_text_block(state, out)
                 _close_tool_blocks(state, out)
             anth_reason = state.get("stop_reason") or "end_turn"
             # why: 把 usage 并进收尾 delta 一起发——上游（DeepSeek 系）每个 chunk
@@ -300,21 +327,22 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
 
         _ensure_started(state, out, msg_id, model)
 
+        # 已收尾（finish_reason 或 [DONE] 已发）后上游再吐正文/工具增量 → 一律丢弃。
+        # why: 收尾后再发块 = 同 index 二次 start → CC 重放该块、tool_use 被再执行一次。
+        #      usage 不丢（仍需累计 output_tokens），只丢内容。
+        terminal = state.get("finished") or state.get("stopped")
+
         for choice in obj.get("choices", []):
             delta = choice.get("delta", {})
             content = delta.get("content")
-            if content:
-                if not state.get("text_open_0"):
-                    _block_start(
-                        state, out, 0,
-                        'event: content_block_start\n'
-                        'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n',
-                        "text",
-                    )
-                    state["text_open_0"] = True
+            if content and terminal:
+                state["dup_blocks"] = state.get("dup_blocks", 0) + 1
+            elif content:
+                if not state.get("text_open"):
+                    _open_text_block(state, out)
                 block_delta = {
                     "type": "content_block_delta",
-                    "index": 0,
+                    "index": state["text_idx"],
                     "delta": {"type": "text_delta", "text": content},
                 }
                 state["text_chars"] = state.get("text_chars", 0) + len(content)
@@ -326,14 +354,18 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
 
                 if tc_key not in state:
                     state[tc_key] = {
-                        "index": state.get("block_idx", 0),
+                        "index": _alloc_idx(state),
                         "id": tc.get("id", ""),
                         "name": "",
                         "args": "",
                     }
-                    state["block_idx"] = state.get("block_idx", 0) + 1
 
                 tc_info = state[tc_key]
+                # 该工具块已关闭后又被投递 → 上游重复投递/收尾后补发。再发一次 start
+                # 会让 CC 重放该工具块并**再执行一次**（副作用翻倍），直接丢。
+                if terminal or tc_info["index"] in state.get("_closed_idx", set()):
+                    state["dup_blocks"] = state.get("dup_blocks", 0) + 1
+                    continue
                 if "id" in tc and tc["id"]:
                     tc_info["id"] = tc["id"]
                 fn = tc.get("function", {})
@@ -363,7 +395,7 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
 
             _fr = choice.get("finish_reason")
             if _fr:
-                _close_text_block(state, out, 0)
+                _close_text_block(state, out)
                 _close_tool_blocks(state, out)
                 _fr_map = {"stop": "end_turn", "tool_calls": "tool_use", "length": "max_tokens", "content_filter": "content_filtered"}
                 # why: 不在此处发 message_delta —— 上游（DeepSeek 系）带 finish_reason 的
