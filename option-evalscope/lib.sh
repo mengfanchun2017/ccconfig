@@ -51,10 +51,10 @@ PYEOF
 }
 
 # 判定端点类型: openai(v1) | anthropic | bridge
-# 依赖 read_preset 的输出
+# 依赖 read_preset 的输出。use_bridge 可能是 JSON 布尔序列化的 Python "True"/"False"，大小写不敏感比对。
 detect_endpoint_type() {
     local base_url="$1" use_bridge="$2"
-    if [[ "${use_bridge:-false}" == "true" ]]; then
+    if [[ "${use_bridge,,}" == "true" ]]; then
         echo "bridge"
     elif [[ "$base_url" == *"/anthropic"* ]]; then
         echo "anthropic"

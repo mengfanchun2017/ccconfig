@@ -35,11 +35,11 @@ do_list() {
 }
 
 main() {
-    local preset="" parallel=(1 5) number=50 max_tokens=256 duration="" stream=1 rate="" outputs_dir=""
+    local preset="" parallel_set=0 parallel=(1 5) number=50 max_tokens=256 duration="" stream=1 rate="" outputs_dir=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --preset)   preset="$2"; shift 2 ;;
-            --parallel) shift; while [[ $# -gt 0 && "$1" != --* ]]; do parallel+=("$1"); shift; done ;;
+            --parallel) parallel_set=1; parallel=(); shift; while [[ $# -gt 0 && "$1" != --* ]]; do parallel+=("$1"); shift; done ;;
             --number)   number="$2"; shift 2 ;;
             --max-tokens) max_tokens="$2"; shift 2 ;;
             --duration) duration="$2"; shift 2 ;;
@@ -113,7 +113,6 @@ main() {
         [[ -n "$duration" ]] && args+=(--duration "$duration")
         [[ -n "$rate" ]] && args+=(--rate "$rate")
         if [[ "$stream" == "1" ]]; then args+=(--stream); else args+=(--no-stream); fi
-        if [[ -n "$host_header" ]]; then args+=(--headers "Host: $host_header"); fi
 
         echo "  \`$EVALSCOPE_BIN perf ${args[*]}\`"
         "$EVALSCOPE_BIN" perf "${args[@]}"
