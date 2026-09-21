@@ -345,6 +345,43 @@ else
     _fail "bridge 启动失败"
 fi
 
+# ── T10: thinking 参数透传为 reasoning_effort（旧 bug：bridge 把 thinking 丢弃，上游走默认深度）──
+# Claude Code 的 extended_thinking → OpenAI 端用 reasoning_effort 三档。
+# 按 budget_tokens 离散映射：<8k=低，<20k=中，>=20k=高，缺省预算→高。
+# output_config.effort 优先级更高（用户显式 effort 应保留）。
+echo "T10 thinking 参数 → reasoning_effort 映射"
+t10=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+base = {"model": "t", "messages": [], "max_tokens": 100}
+basic = [
+    ({"type": "enabled", "budget_tokens": 4000},  "low"),
+    ({"type": "enabled", "budget_tokens": 10000}, "medium"),
+    ({"type": "enabled", "budget_tokens": 25000}, "high"),
+    ({"type": "enabled"},                          "high"),
+    ({"type": "disabled"},                         None),
+    (None,                                         None),
+]
+fail = []
+for thinking, want in basic:
+    body = dict(base); body["thinking"] = thinking
+    out = m.anthropic_to_openai_req(body, "t")
+    got = out.get("reasoning_effort")
+    if got != want:
+        fail.append(f"thinking={thinking} -> got {got!r}, want {want!r}")
+# 优先级: output_config.effort=medium 覆盖 thinking(budget=4000)=low
+prio_body = dict(base)
+prio_body["thinking"] = {"type": "enabled", "budget_tokens": 4000}
+prio_body["output_config"] = {"effort": "medium"}
+if m.anthropic_to_openai_req(prio_body, "t").get("reasoning_effort") != "medium":
+    fail.append("output_config.effort 没覆盖 thinking 推导值")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t10" == "OK" ]] && _pass "thinking 透传为 reasoning_effort + output_config 优先级" || _fail "thinking 映射不符合预期" "$t10"
+
 echo ""
 echo "───────────────────────────────"
 if [[ $FAIL -eq 0 ]]; then
