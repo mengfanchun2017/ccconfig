@@ -437,6 +437,15 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     upgrade-ccprivate|upgrade-ccpriv|ccpriv-upgrade)
         shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
     *)
-        echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|pat|token|example|upgrade-ccprivate]"
-        exit 1 ;;  esac
+        # 交互菜单编号也能命令行直调: ./maintain 2e / 1A / t / s —— 复用 menu_parse
+        # 此前任何非子命令输入都落进 *) 只打印 usage 就 exit，动作静默不执行，
+        # 表现为「选了没反应」。menu_parse 返回 0=已执行/1=刷新/2=退出，3=无效。
+        _rc=0
+        menu_parse "${1:-}" || _rc=$?
+        if [[ $_rc -eq 3 ]]; then
+            echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|pat|token|example|upgrade-ccprivate]"
+            echo "      或菜单编号（如 2e）直接执行对应项"
+            exit 1
+        fi
+        exit 0 ;;  esac
 fi
