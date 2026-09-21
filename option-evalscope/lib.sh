@@ -50,13 +50,13 @@ for name in d.get('llms', {}):
 PYEOF
 }
 
-# 判定端点类型: openai(v1) | anthropic | bridge
-# 依赖 read_preset 的输出。use_bridge 可能是 JSON 布尔序列化的 Python "True"/"False"，大小写不敏感比对。
+# 判定端点协议: openai(含 /v1 /v4 等 OpenAI 兼容) | anthropic
+# 依赖 read_preset 的输出。evalscope 直连原始 base_url：
+#   — OpenAI 兼容端点直接可测；
+#   — Anthropic(/messages) 端点仅 eval 支持（--eval-type anthropic_api），perf 不支持。
 detect_endpoint_type() {
-    local base_url="$1" use_bridge="$2"
-    if [[ "${use_bridge,,}" == "true" ]]; then
-        echo "bridge"
-    elif [[ "$base_url" == *"/anthropic"* ]]; then
+    local base_url="$1"
+    if [[ "$base_url" == *"/anthropic"* || "$base_url" == *"/apps/anthropic"* ]]; then
         echo "anthropic"
     else
         echo "openai"
