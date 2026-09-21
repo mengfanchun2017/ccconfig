@@ -76,7 +76,7 @@ MENU_ENTRIES=(
     "6|A|MCP 配置（用户级）|./maintain.sh mcp config|bash \"\$LIB_DIR/mcp-manager.sh\" config"
     "6|B|MCP 状态|./maintain.sh mcp status|bash \"\$LIB_DIR/mcp-manager.sh\" status"
     "6|C|填 MCP Key|./maintain.sh mcp keys|bash \"\$LIB_DIR/mcp-manager.sh\" keys"
-    "6|D|MCP 配置（项目级）|./maintain.sh mcp config-project|bash "\$LIB_DIR/mcp-manager.sh" config-project"
+    "6|D|MCP 配置（项目级）|./maintain.sh mcp config-project|bash \"\$LIB_DIR/mcp-manager.sh\" config-project"
 
     # ── 7: 飞书/Lark ──
     # 账号新增即持久化（feishu.json），切换默认持久化（带 -p），不再拆「并持久化」独立项
