@@ -19,7 +19,6 @@ source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/interact.sh"
 
 CONFIG_JSON="$HOME/.claude/.config.json"
-SETTINGS_JSON="$HOME/.claude/settings.json"
 CONF_TEMPLATE="$(find "$HOME/git" -maxdepth 3 -path '*/conf/mcp-servers.json' 2>/dev/null | head -1)"
 [ -z "$CONF_TEMPLATE" ] && CONF_TEMPLATE="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/mcp-servers.json"
 
@@ -32,37 +31,6 @@ d = json.load(open('$CONFIG_JSON'))
 $1
 json.dump(d, open('$CONFIG_JSON', 'w'), indent=2, ensure_ascii=False)
 " 2>&1 || err "写入 .config.json 失败"
-}
-
-# 同步 projects 配置到 settings.json
-sync_projects_to_settings() {
-  python3 -c "
-import json, os
-cfg = json.load(open('$CONFIG_JSON'))
-try:
-    stg = json.load(open('$SETTINGS_JSON'))
-except:
-    stg = {}
-
-stg['disabledMcpServers'] = cfg.get('disabledMcpServers', [])
-
-projects = cfg.get('projects', {})
-sync = {}
-for path, p in projects.items():
-    if not path.startswith(os.path.expanduser('~/git/')): continue
-    sp = {}
-    if p.get('enabledMcpjsonServers'):
-        sp['enabledMcpjsonServers'] = p['enabledMcpjsonServers']
-    sp['disabledMcpServers'] = p.get('disabledMcpServers', [])
-    sync[path] = sp
-stg['projects'] = stg.get('projects', {}) | sync
-
-import os
-tmp = '$SETTINGS_JSON' + '.tmp'
-with open(tmp, 'w') as f: json.dump(stg, f, indent=2)
-os.replace(tmp, '$SETTINGS_JSON')
-print('ok')
-" 2>/dev/null && return 0 || return 1
 }
 
 # 获取当前项目路径（从 CWD 找最近的 git 仓库）
@@ -498,7 +466,6 @@ if '$target' not in d['disabledMcpServers']:
 "
     echo -e "  ${YELLOW}已关闭 $target (加入全局禁用)${NC}"
   fi
-  sync_projects_to_settings && info "  settings.json 已同步"
 }
 
 config_project() {
@@ -582,7 +549,6 @@ p.setdefault('disabledMcpServers', []).append('$target')
       *) return ;;
     esac
   fi
-  sync_projects_to_settings && info "  settings.json 已同步"
 }
 
 # ── 主入口 ──
