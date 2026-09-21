@@ -277,6 +277,50 @@ PYEOF
     echo -e "  ${CYAN}./maintain.sh${NC}          # 交互菜单"
     echo ""
 
+    # 未自动修项：fix 链修不了的、需要用户决策的，在这里点出。
+    # 否则 status 复查又报一遍，用户还得回头翻命令。
+    section "未自动修项（需你决策）"
+    local _manual=0
+    # PAT：失效要重新登录，必须本人给 token（或走 gh 交互）
+    if ! gh auth status &>/dev/null 2>&1; then
+        warn "GitHub PAT 未登录/失效 → ./maintain.sh pat"
+        _manual=$((_manual + 1))
+    fi
+    # getnote 多账号无 default：选谁当默认是用户偏好
+    local _gn_conf="$ccpriv/conf/mcp-servers.json"
+    if [ -f "$_gn_conf" ] && python3 - "$_gn_conf" << 'PYEOF' 2>/dev/null
+import json,sys
+try: d=json.load(open(sys.argv[1]))
+except: sys.exit(0)
+a=d.get('getnote_accounts') or []
+sys.exit(0 if (len([x for x in a if x.get('enabled',True)]) > 1 and not d.get('getnote_default')) else 1)
+PYEOF
+    then
+        warn "getnote 多账号未设 default → 菜单 8（getnote-switch <名> -p）"
+        _manual=$((_manual + 1))
+    fi
+    # 各 git 仓库 memory/CLAUDE.md 断链：ccprivate/setup.sh 只管 ccconfig 自己
+    local _git_dir
+    for _git_dir in "$HOME/git"/*/; do
+        [ -d "${_git_dir}.git" ] || continue
+        local _name=$(basename "$_git_dir")
+        [ "$_name" = "ccprivate" ] && continue
+        if { [ -L "${_git_dir}CLAUDE.md" ] && [ ! -e "${_git_dir}CLAUDE.md" ]; }; then
+            warn "$_name: CLAUDE.md 断链（手动: 重跑该仓库的 setup 或重建链接）"
+            _manual=$((_manual + 1))
+        fi
+        local _rel="${_git_dir#/}"; _rel="${_rel%/}"
+        local _mem="$HOME/.claude/projects/-${_rel//\//-}/memory"
+        if [ -L "$_mem" ] && [ ! -d "$_mem" ]; then
+            warn "$_name: memory 断链（手动: 重建 ~/.claude/projects/-${_rel//\//-}/memory）"
+            _manual=$((_manual + 1))
+        fi
+    done
+    if [ "$_manual" -eq 0 ]; then
+        info "无需手动项，全部干净"
+    fi
+    echo ""
+
     # 内存/软链改动要新开会话才生效，漏了这句用户会以为没生效
     echo -e "  ${YELLOW}提示: 链接与 memory 修复后需重启 Claude session 才生效${NC}"
     echo ""
