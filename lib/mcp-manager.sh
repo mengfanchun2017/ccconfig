@@ -591,6 +591,4 @@ case "${1:-status}" in
   status|st) cmd_status ;;
   config|cfg|c|conf) cmd_config ;;
   keys) bash "$(dirname "$SCRIPT_DIR")/lib/init-mcp.sh" keys ;;
-  sync) sync_projects_to_settings && echo -e "  ${GREEN}settings.json 已同步${NC}" || err "同步失败" ;;
-  *) echo -e "  ${YELLOW}用法: bash maintain.sh mcp {status|config|keys|sync}${NC}" ;;
 esac
