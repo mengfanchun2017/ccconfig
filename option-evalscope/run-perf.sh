@@ -60,14 +60,12 @@ main() {
     # 读 preset 配置（多行，read 到数组）
     local preset_data
     preset_data="$(read_preset "$cfg" "$preset")" || { echo "❌ preset '$preset' 不存在（--list 查看）"; return 1; }
-    local base_url model key host_header use_bridge
+    local base_url model key
     base_url="$(echo "$preset_data" | sed -n '1p')"
     model="$(echo "$preset_data" | sed -n '2p')"
     key="$(echo "$preset_data" | sed -n '3p')"
-    host_header="$(echo "$preset_data" | sed -n '4p')"
-    use_bridge="$(echo "$preset_data" | sed -n '5p')"
 
-    local etype; etype="$(detect_endpoint_type "$base_url" "$use_bridge")"
+    local etype; etype="$(detect_endpoint_type "$base_url")"
     echo -e "${CYAN}══ 性能压测 preset=$preset model=$model ──${NC}"
     echo "  端点类型: $etype  并发: ${parallel[*]}  请求/并发: $number  max_tokens: $max_tokens"
 

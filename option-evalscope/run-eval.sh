@@ -56,12 +56,10 @@ main() {
 
     local preset_data
     preset_data="$(read_preset "$cfg" "$preset")" || { echo "❌ preset '$preset' 不存在（--list 查看）"; return 1; }
-    local base_url model key host_header use_bridge
+    local base_url model key
     base_url="$(echo "$preset_data" | sed -n '1p')"
     model="$(echo "$preset_data" | sed -n '2p')"
     key="$(echo "$preset_data" | sed -n '3p')"
-    host_header="$(echo "$preset_data" | sed -n '4p')"
-    use_bridge="$(echo "$preset_data" | sed -n '5p')"
 
     local etype; etype="$(detect_endpoint_type "$base_url")"
     echo -e "${CYAN}══ 精度评估 preset=$preset model=$model ──${NC}"
