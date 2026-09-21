@@ -104,7 +104,7 @@ main() {
     if [[ "$collect_perf" == "1" ]]; then args+=(--collect-perf); else args+=(--no-collect-perf); fi
     if [[ -n "$host_header" ]]; then args+=(--headers "Host: $host_header"); fi
 
-    echo -e "\\n  \\`$EVALSCOPE_BIN eval ${args[*]}\\`\\n"
+    echo -e "\n  \`$EVALSCOPE_BIN eval ${args[*]}\`\n"
     "$EVALSCOPE_BIN" eval "${args[@]}"
 
     # 恢复原 current 的 bridge（如果切过）
