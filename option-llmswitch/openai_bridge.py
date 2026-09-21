@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """option-llmswitch OpenAI bridge — Anthropic Messages API → OpenAI Chat Completions.
 
-当目标 provider 只支持 OpenAI 格式（如国航 AI+ 网关 deepseek-v4-flash），
+当目标 provider 只支持 OpenAI 格式（如内网 LLM 网关的 deepseek-v4-flash），
 让 Claude Code 通过本 bridge 间接调用。
 
 Usage:

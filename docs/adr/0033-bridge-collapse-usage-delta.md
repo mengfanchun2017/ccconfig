@@ -6,7 +6,7 @@
 
 ## Context and Problem Statement
 
-用单位网关（国航 AI+，`deepseek-v4-flash`）经 `openai_bridge.py` 接 Claude Code 时，
+用内网 LLM 网关（OpenAI 协议，`deepseek-v4-flash`）经 `openai_bridge.py` 接 Claude Code 时，
 处理过程中经常「输出一半就回退又重新输出」。
 
 排查发现两个叠加因素，根因在 bridge 的**流量放大**，不在 CC 端：
