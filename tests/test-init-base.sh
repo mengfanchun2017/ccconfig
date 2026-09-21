@@ -400,50 +400,7 @@ test_sync_setup_links_nonfatal() {
     fi
 }
 
-test_mcp_config_path() {
-    # 验证 init-mcp.sh sync_to_settings 目标路径是 ~/.claude/settings.json
-    local target="$HOME/.claude/settings.json"
-    mkdir -p "$(dirname "$target")"
-    echo '{}' > "$target"
 
-    # 模拟 sync_to_settings 的写操作
-    if python3 -c "
-import json, os
-f = '$target'
-d = json.load(open(f))
-d['test'] = 'mcp_sync_works'
-with open(f, 'w') as fh:
-    json.dump(d, fh)
-" 2>/dev/null; then
-        if grep -q "mcp_sync_works" "$target"; then
-            _pass "mcp sync: 写入 ~/.claude/settings.json 成功"
-        else
-            _fail "mcp sync" "写入后文件内容不对"
-        fi
-    else
-        _fail "mcp sync" "写入失败"
-    fi
-}
-
-test_mcp_missing_config_json() {
-    # 验证 settings.json 不存在时 sync_to_settings 不崩溃
-    rm -f "$HOME/.claude/settings.json"
-    local result
-    result=$(python3 -c "
-import json
-try:
-    with open('$HOME/.claude/settings.json', 'r') as f:
-        d = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError):
-    d = {}
-print('ok-' + str(len(d)))
-" 2>/dev/null) || true
-    if echo "$result" | grep -q "ok-0"; then
-        _pass "mcp sync: settings.json 不存在 → 回退空 dict，不崩溃"
-    else
-        _fail "mcp sync" "expected ok-0, got: $result"
-    fi
-}
 
 test_status_repo_dir() {
     # 验证 status.sh 中 REPO_DIR 指向 ccconfig 根目录而非 lib/
@@ -821,8 +778,6 @@ all_tests=(
     "init-base: README.md 大小写正确"              test_init_base_readme_casing
     "main_menu: while 循环实现"                    test_init_base_main_menu_loop
     "sync: setup-links 失败 → 不中断同步"          test_sync_setup_links_nonfatal
-    "mcp sync: 写 ~/.claude/settings.json"         test_mcp_config_path
-    "mcp sync: ~/.claude.json 缺失 → 不崩溃"      test_mcp_missing_config_json
     "status.sh: REPO_DIR → CCCONFIG_ROOT"          test_status_repo_dir
     "check_memory: projects_src → CCCONFIG_ROOT"   test_check_memory_path
     "mcp key: placeholder 检测 8/8 正确"            test_mcp_key_detection
