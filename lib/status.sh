@@ -252,7 +252,7 @@ check_ccprivate_structure() {
     if [ $issues -eq 0 ]; then
         echo -e "  ${GREEN}✅ ccprivate 结构正常${NC}"
     else
-        echo -e "  ${GRAY}修复: bash maintain.sh upgrade-ccprivate${NC}"
+        echo -e "  ${GRAY}修复: bash maintain.sh fix${NC}"
     fi
 }
 
@@ -668,7 +668,7 @@ check_skills() {
         done
         echo -e "  已链接: ${GREEN}${linked}${NC} 个"
         if [[ $broken -gt 0 ]]; then
-            echo -e "  ${RED}断链: ${broken}${NC} 个 → bash init-skill.sh cleanup"
+            echo -e "  ${RED}断链: ${broken}${NC} 个 → bash maintain.sh fix"
             ok=false
         fi
     else
