@@ -7,12 +7,11 @@
 #   bash run-perf.sh --list              # 列出可用 preset
 #
 # 并行度 sweep: --parallel 1 5 20 50 会依次跑这几个并发，各出报告。
-# 端点处理: openai /v1 直连; anthropic|bridge 走 ensure-bridge(端口8898)，测完恢复原 current。
+# 端点处理: 仅支持 OpenAI 兼容端点（/v1 等）直连。Anthropic(/messages) 端点 perf 不支持。
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
-source "$CCCONFIG_ROOT/lib/ensure-bridge.sh"
 
 usage() {
     echo "用法: bash run-perf.sh --preset <name> [选项]"
@@ -107,22 +106,6 @@ main() {
         echo "  \`$EVALSCOPE_BIN perf ${args[*]}\`"
         "$EVALSCOPE_BIN" perf "${args[@]}"
     done
-
-    # 恢复原 current 的 bridge（如果切过）
-    if [[ -n "${restore_preset:-}" ]]; then
-        echo -e "\n${CYAN}── 恢复原 current preset 的 bridge ──${NC}"
-        local cur
-        cur="$(tr -d '[:space:]' < "$HOME/.claude/llm-current" 2>/dev/null || echo "$preset")"
-        if [[ -n "$cur" && "$cur" != "$preset" ]]; then
-            local cdata; cdata="$(read_preset "$cfg" "$cur")" || true
-            if [[ -n "$cdata" ]]; then
-                local cub cm ck ch
-                cub="$(echo "$cdata" | sed -n '1p')"; cm="$(echo "$cdata" | sed -n '2p')"
-                ck="$(echo "$cdata" | sed -n '3p')"; ch="$(echo "$cdata" | sed -n '4p')"
-                ensure_bridge "$cub" "$cm" "$ck" "$ch" "$cfg" "$cur" || true
-            fi
-        fi
-    fi
 
     echo -e "\n${CYAN}══ 完成。结果在: $outputs_dir ──${NC}"
 }
