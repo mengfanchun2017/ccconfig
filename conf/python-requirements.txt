@@ -12,9 +12,3 @@ pdf2docx
 httpx
 fastapi
 uvicorn
-
-# openai_bridge.py 依赖（option-llmswitch，Anthropic↔OpenAI 网关）
-# 缺了任意一个 bridge 启动即 ModuleNotFoundError（httpx/fastapi/uvicorn 全要）
-httpx
-fastapi
-uvicorn
