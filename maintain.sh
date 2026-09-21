@@ -328,6 +328,22 @@ fix_monitor() {
         return 1
     fi
 
+    # systemd 托管：手动 stop+start 失效（systemd Restart=always 拉起 +
+    # start_watch 看 /run PIDFile 已活 → Already running → 不启动 inotify）。
+    # 必须走 systemctl restart 让 systemd 拉一个全新的 monitor loop。
+    if [ -f /run/claude-auto-sync/monitor.pid ] \
+        && kill -0 "$(cat /run/claude-auto-sync/monitor.pid)" 2>/dev/null; then
+        info "auto-sync 由 systemd 托管 → systemctl restart"
+        if sudo systemctl restart claude-auto-sync; then
+            ok "systemd service 已重启"
+        else
+            err "sudo 失败（无密码/权限不足），手动:"
+            echo -e "  ${GRAY}sudo systemctl restart claude-auto-sync${NC}"
+        fi
+        bash "$LIB_DIR/monitor.sh" status
+        return 0
+    fi
+
     if bash "$LIB_DIR/monitor.sh" stop 2>/dev/null; then
         info "旧 monitor 已停止"
     fi
