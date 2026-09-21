@@ -109,7 +109,7 @@ main() {
 
     # 恢复原 current 的 bridge（如果切过）
     if [[ -n "${restore_preset:-}" ]]; then
-        echo -e "\\n${CYAN}── 恢复原 current preset 的 bridge ──${NC}"
+        echo -e "\n${CYAN}── 恢复原 current preset 的 bridge ──${NC}"
         local cur
         cur="$(tr -d '[:space:]' < "$HOME/.claude/llm-current" 2>/dev/null || echo "$preset")"
         if [[ -n "$cur" && "$cur" != "$preset" ]]; then
@@ -123,7 +123,7 @@ main() {
         fi
     fi
 
-    echo -e "\\n${CYAN}══ 完成。结果在: $outputs_dir ──${NC}"
+    echo -e "\n${CYAN}══ 完成。结果在: $outputs_dir ──${NC}"
 }
 
 main "$@"
