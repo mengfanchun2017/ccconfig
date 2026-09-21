@@ -79,6 +79,10 @@ usage-only delta（`delta.stop_reason=None`）被移除，也顺带消除了「u
 
 ## Notes
 
+> **2026-09-22 更新**：「输出一半回退 + 工具执行两次 + 思维链当正文空转」的根因已定位到 **bridge 的
+> 块索引撞号与 thinking 开关缺失**，不是 CC 侧输出窗口。见
+> [[0034-bridge-block-index-and-thinking-switch]] 的 R1（索引撞号）、R2（`enable_thinking` 缺失）。
+
 后续如果「输出一半回退」仍出现，方向转向 **CC 侧输出窗口/等待超时**——
 `deepseek-v4-flash` 对 CC 是不知名模型，走 fallback 窗口，且 `max_tokens` 传多少网关都不拒
 （实测 16384/32768 均正常）。那才是另一条独立链路。
