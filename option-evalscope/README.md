@@ -55,13 +55,14 @@ bash ccconfig/option-evalscope/run-all.sh --preset home-deck-flash
 
 ## 端点连接策略
 
-| preset 类型 | perf | eval |
-|-------------|------|------|
-| OpenAI `/v1` | 直连 | 直连 |
-| Anthropic `/anthropic` | 走 bridge(8898) | 走 bridge(8898) |
-| `use_bridge: true` | 走 bridge(8898) | 走 bridge(8898) |
+evalscope 直连 `llm.json` 里的原始 `base_url`，按路径自动判定协议：
 
-对需 bridge 的 preset，脚本调用 `ensure_bridge` 切到 `127.0.0.1:8898` 的 OpenAI bridge 完成转换；**测完恢复原 `llm-current` 的 bridge**，不改动 `~/.claude/llm-current`。
+| base_url 形态 | perf | eval |
+|---------------|------|------|
+| OpenAI 兼容（`/v1`、`/api/paas/v4` 等） | 直连 | `--eval-type openai_api` 直连 |
+| Anthropic（`/anthropic`、`/apps/anthropic`） | ❌ 不支持 | `--eval-type anthropic_api` 直连 |
+
+> **说明**：evalscope 是 OpenAI 协议客户端，能直连的端点不经 bridge。cconfig 的 `openai_bridge`（监听 `/v1/messages`，Anthropic 协议）**不适用于 evalscope**；仅 Anthropic 格式端点 perf 测不了（eval 可用）。
 
 ## 文件
 
