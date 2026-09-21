@@ -25,6 +25,13 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 CCCONFIG = Path(os.environ.get("CCCONFIG_HOME", Path.home() / "git" / "ccconfig"))
 
+# 原始上游流存档目录（可选）。设了就把每个请求的上游原始 chunk 落盘，
+# 下次出现"重复块/丢块"直接看存档，不用重跑现场
+DUMP_DIR = os.environ.get("OPENAI_BRIDGE_DUMP", "")
+# 单调递增请求号：给 message id 用（旧版所有响应 id 都是常量 "msg_bridge"，
+# 客户端把两条独立响应看成同一条消息时无法区分）
+_REQ_SEQ = [0]
+
 
 def load_json(p):
     with open(p) as f:
@@ -205,10 +212,34 @@ def _ensure_started(state, out, msg_id, model):
         out.append('event: ping\ndata: {"type":"ping"}\n\n')
 
 
+def _block_start(state, out, idx, payload: str, kind: str):
+    """发 content_block_start，并检测「同一 index 二次开启」。
+
+    why: CC 按 index 组装消息、按 index 收尾时执行工具。上游在收尾后重发同 index
+    内容（网关重试/重复投递）会让 bridge 再发一次 start → CC 把该块重放一遍：
+    界面"输出一段文字后回退再输出"，tool_use 则被**执行两次**（真实副作用翻倍）。
+    正常流每个 index 只开一次，这里留显式告警，便于定位是不是上游违约。
+    """
+    if idx in state.setdefault("_closed_idx", set()):
+        state["dup_blocks"] = state.get("dup_blocks", 0) + 1
+        print(f"[bridge] WARN duplicate content_block_start index={idx} kind={kind}"
+              f" (该 index 已关闭后又重开，上游违约)", flush=True)
+    state.setdefault("_open_idx", set()).add(idx)
+    kind_key = "text_blocks" if kind == "text" else "tool_blocks"
+    state[kind_key] = state.get(kind_key, 0) + 1
+    out.append(payload)
+
+
+def _mark_closed(state, idx):
+    state.setdefault("_open_idx", set()).discard(idx)
+    state.setdefault("_closed_idx", set()).add(idx)
+
+
 def _close_text_block(state, out, idx):
     if state.get(f"text_open_{idx}"):
         out.append(f'event: content_block_stop\ndata: {{"type":"content_block_stop","index":{idx}}}\n\n')
         state[f"text_open_{idx}"] = False
+        _mark_closed(state, idx)
 
 
 def _close_tool_blocks(state, out):
@@ -218,6 +249,7 @@ def _close_tool_blocks(state, out):
             tc_info = state.get(f"tool_{tc_idx}")
             if isinstance(tc_info, dict):
                 out.append(f'event: content_block_stop\ndata: {{"type":"content_block_stop","index":{tc_info["index"]}}}\n\n')
+                _mark_closed(state, tc_info["index"])
             state[key] = False
 
 
@@ -273,9 +305,11 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
             content = delta.get("content")
             if content:
                 if not state.get("text_open_0"):
-                    out.append(
+                    _block_start(
+                        state, out, 0,
                         'event: content_block_start\n'
-                        'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n'
+                        'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n',
+                        "text",
                     )
                     state["text_open_0"] = True
                 block_delta = {
@@ -283,6 +317,7 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                     "index": 0,
                     "delta": {"type": "text_delta", "text": content},
                 }
+                state["text_chars"] = state.get("text_chars", 0) + len(content)
                 out.append(f"event: content_block_delta\ndata: {json.dumps(block_delta, separators=(',', ':'))}\n\n")
 
             for tc in delta.get("tool_calls", []):
@@ -314,7 +349,9 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                         "index": tc_info["index"],
                         "content_block": {"type": "tool_use", "id": tc_info["id"], "name": tc_info["name"], "input": {}},
                     }
-                    out.append(f"event: content_block_start\ndata: {json.dumps(block_start, separators=(',', ':'))}\n\n")
+                    _block_start(state, out, tc_info["index"],
+                                 f"event: content_block_start\ndata: {json.dumps(block_start, separators=(',', ':'))}\n\n",
+                                 f"tool_use:{tc_info['name']}")
 
                 if fn.get("arguments"):
                     args_delta = {
@@ -626,6 +663,7 @@ async def messages(request: Request):
     use_win_curl = state.get("use_win_curl", False)
 
     if stream:
+        _REQ_SEQ[0] += 1
         sse_state = {"started": False, "block_open": False, "finished": False}
 
         async def _iter_with_idle_ping(stream_iter, idle=15.0):
@@ -678,6 +716,10 @@ async def messages(request: Request):
 
         # 留一份原始响应头段，用于区分"真截断"和"上游回的根本不是 SSE"
         raw_buf = [""]
+        # 逐请求原始流存档：OPENAI_BRIDGE_DUMP=<dir> 时落盘，用于复盘上游违约
+        # （重复块/重复收尾）而不用重跑现场
+        dump_chunks = []
+        req_no = _REQ_SEQ[0]
 
         def _render(chunk: str):
             # SSE 注释（idle 心跳，`:` 开头）必须原样透传：喂给
@@ -687,7 +729,25 @@ async def messages(request: Request):
                 return chunk
             if len(raw_buf[0]) < 4096:
                 raw_buf[0] += chunk
-            return openai_chunk_to_anthropic_sse(chunk, "msg_bridge", state["upstream_model"], sse_state)
+            if DUMP_DIR:
+                dump_chunks.append(chunk)
+            return openai_chunk_to_anthropic_sse(chunk, f"msg_bridge_{req_no}", state["upstream_model"], sse_state)
+
+        def _dump_and_summary(tag: str):
+            # 一行摘要便于 grep：块数 / 重复块 / 工具数 / 收尾原因 / 输出 token
+            print(
+                f"[bridge] stream {tag} req={req_no} text_blocks={sse_state.get('text_blocks', 0)}"
+                f" tool_blocks={sse_state.get('tool_blocks', 0)} dup_blocks={sse_state.get('dup_blocks', 0)}"
+                f" stop={sse_state.get('stop_reason') or '-'} out_tok={sse_state.get('output_tokens', 0)}"
+                f" text_chars={sse_state.get('text_chars', 0)}",
+                flush=True,
+            )
+            if DUMP_DIR:
+                try:
+                    with open(f"{DUMP_DIR}/{int(time.time() * 1000)}-{req_no}.raw", "w") as f:
+                        f.write("".join(dump_chunks))
+                except Exception as e:
+                    print(f"[bridge] dump failed: {e}", flush=True)
 
         async def gen():
             # 捕获 upstream 间歇性超时/断连：log + 结束 stream，不让异常杀进程
@@ -724,6 +784,7 @@ async def messages(request: Request):
                     yield _error_frames("upstream_error", e.stderr_text[:500])
                 else:
                     yield _error_frames("upstream_disconnected", "stream interrupted")
+                _dump_and_summary("error")
                 return
             # upstream 结束却没给终止标记（截断 / 空响应）→ 显式报错
             # why: 否则客户端只拿到半条流且无从判断，探测也只能靠"缺少 message_stop"
@@ -739,6 +800,7 @@ async def messages(request: Request):
                 else:
                     print("[bridge] upstream stream ended without [DONE] (truncated or empty)", flush=True)
                     yield _error_frames("upstream_incomplete", "upstream stream ended without completion marker")
+            _dump_and_summary("done" if sse_state.get("finished") else "unfinished")
         return StreamingResponse(gen(), media_type="text/event-stream")
     else:
         if use_win_curl:
