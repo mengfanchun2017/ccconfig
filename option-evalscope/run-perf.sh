@@ -78,23 +78,13 @@ main() {
     fi
     mkdir -p "$outputs_dir"
 
-    # 决定 evalscope 连接目标
-    local url="" api_key=""
-    case "$etype" in
-        openai)
-            url="$base_url"
-            api_key="$key"
-            ;;
-        anthropic|bridge)
-            # 走 ensure-bridge(端口8898)。记录当前 current，测完恢复。
-            local cfg_cur; ensure_bridge "$base_url" "$model" "$key" "$host_header" "$cfg" "$preset" \
-                || { echo "❌ bridge 切换失败"; return 1; }
-            url="http://127.0.0.1:${BRIDGE_PORT}"
-            api_key="$key"
-            restore_preset="$preset"
-            echo "  bridge: http://127.0.0.1:${BRIDGE_PORT}"
-            ;;
-    esac
+    # 决定 evalscope 连接目标（evalscope perf 仅支持 OpenAI 协议，直连 base_url）
+    if [[ "$etype" == "anthropic" ]]; then
+        echo "❌ perf 不支持 Anthropic(/messages) 端点：$base_url"
+        echo "   精度评估可用 run-eval.sh（自动走 --eval-type anthropic_api）；性能压测需 OpenAI 兼容端点。"
+        return 1
+    fi
+    local url="$base_url" api_key="$key"
 
     # 逐并发 run
     local p
