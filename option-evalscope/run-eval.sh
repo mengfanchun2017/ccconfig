@@ -38,7 +38,7 @@ main() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --preset)   preset="$2"; shift 2 ;;
-            --datasets) shift; while [[ $# -gt 0 && "$1" != --* ]]; do datasets+=("$1"); shift; done ;;
+            --datasets) datasets=(); shift; while [[ $# -gt 0 && "$1" != --* ]]; do datasets+=("$1"); shift; done ;;
             --limit)    limit="$2"; shift 2 ;;
             --collect-perf)   collect_perf=1; shift ;;
             --no-collect-perf) collect_perf=0; shift ;;
@@ -82,7 +82,7 @@ main() {
         --api-url "$base_url"
         --eval-type "$eval_type"
         --datasets "${datasets[@]}"
-        --outputs-dir "$outputs_dir"
+        --work-dir "$outputs_dir"
     )
     [[ -n "$key" ]] && args+=(--api-key "$key")
     [[ -n "$limit" ]] && args+=(--limit "$limit")
