@@ -8,12 +8,11 @@
 #
 # 默认评估 MMLU + GSM8K。--limit 控制每 benchmark 采样数（小跑用 20-50，正式评估去掉）。
 # --collect-perf 会在精度评估同时记录 TTFT/TPOT/throughput（性能+精度一次出）。
-# 端点处理: openai /v1 直连; anthropic|bridge 走 ensure-bridge(8898)，测完恢复原 current。
+# 端点协议: openai_api(OpenAI 兼容) / anthropic_api(/messages)，按 base_url 自动选择并直连。
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
-source "$CCCONFIG_ROOT/lib/ensure-bridge.sh"
 
 usage() {
     echo "用法: bash run-eval.sh --preset <name> [选项]"
@@ -85,29 +84,13 @@ main() {
         --datasets "${datasets[@]}"
         --outputs-dir "$outputs_dir"
     )
-    [[ -n "$api_key" ]] && args+=(--api-key "$api_key")
+    [[ -n "$key" ]] && args+=(--api-key "$key")
     [[ -n "$limit" ]] && args+=(--limit "$limit")
     [[ -n "$work_dir" ]] && args+=(--work-dir "$work_dir")
     if [[ "$collect_perf" == "1" ]]; then args+=(--collect-perf); else args+=(--no-collect-perf); fi
 
     echo -e "\n  \`$EVALSCOPE_BIN eval ${args[*]}\`\n"
     "$EVALSCOPE_BIN" eval "${args[@]}"
-
-    # 恢复原 current 的 bridge（如果切过）
-    if [[ -n "${restore_preset:-}" ]]; then
-        echo -e "\n${CYAN}── 恢复原 current preset 的 bridge ──${NC}"
-        local cur
-        cur="$(tr -d '[:space:]' < "$HOME/.claude/llm-current" 2>/dev/null || echo "$preset")"
-        if [[ -n "$cur" && "$cur" != "$preset" ]]; then
-            local cdata; cdata="$(read_preset "$cfg" "$cur")" || true
-            if [[ -n "$cdata" ]]; then
-                local cub cm ck ch
-                cub="$(echo "$cdata" | sed -n '1p')"; cm="$(echo "$cdata" | sed -n '2p')"
-                ck="$(echo "$cdata" | sed -n '3p')"; ch="$(echo "$cdata" | sed -n '4p')"
-                ensure_bridge "$cub" "$cm" "$ck" "$ch" "$cfg" "$cur" || true
-            fi
-        fi
-    fi
 
     echo -e "\n${CYAN}══ 完成。结果在: $outputs_dir ──${NC}"
 }
