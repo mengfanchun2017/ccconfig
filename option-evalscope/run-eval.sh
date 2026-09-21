@@ -64,9 +64,9 @@ main() {
     host_header="$(echo "$preset_data" | sed -n '4p')"
     use_bridge="$(echo "$preset_data" | sed -n '5p')"
 
-    local etype; etype="$(detect_endpoint_type "$base_url" "$use_bridge")"
+    local etype; etype="$(detect_endpoint_type "$base_url")"
     echo -e "${CYAN}══ 精度评估 preset=$preset model=$model ──${NC}"
-    echo "  端点类型: $etype  benchmark: ${datasets[*]}  limit: ${limit:-<all>}  collect_perf: $collect_perf"
+    echo "  端点协议: $etype  benchmark: ${datasets[*]}  limit: ${limit:-<all>}  collect_perf: $collect_perf"
 
     # 输出目录
     if [[ -z "$outputs_dir" ]]; then
@@ -74,27 +74,14 @@ main() {
     fi
     mkdir -p "$outputs_dir"
 
-    # 决定连接目标
-    local url="" api_key=""
-    case "$etype" in
-        openai)
-            url="$base_url"
-            api_key="$key"
-            ;;
-        anthropic|bridge)
-            ensure_bridge "$base_url" "$model" "$key" "$host_header" "$cfg" "$preset" \
-                || { echo "❌ bridge 切换失败"; return 1; }
-            url="http://127.0.0.1:${BRIDGE_PORT}"
-            api_key="$key"
-            restore_preset="$preset"
-            echo "  bridge: http://127.0.0.1:${BRIDGE_PORT}"
-            ;;
-    esac
+    # 决定 eval 类型：openai_api(OpenAI 兼容) / anthropic_api(/messages)
+    local eval_type="openai_api"
+    [[ "$etype" == "anthropic" ]] && eval_type="anthropic_api"
 
     local args=(
         --model "$model"
-        --api-url "$url"
-        --eval-type openai_api
+        --api-url "$base_url"
+        --eval-type "$eval_type"
         --datasets "${datasets[@]}"
         --outputs-dir "$outputs_dir"
     )
