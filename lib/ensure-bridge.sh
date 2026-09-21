@@ -107,6 +107,16 @@ ensure_bridge() {
     local cfg="${5:-}" preset="${6:-}"
     _bridge_supported "$upstream" || return 1
 
+    # 依赖预检：openai_bridge.py import httpx/fastapi + uvicorn 启动。
+    # 缺了 bridge 静默 ModuleNotFoundError 起不来，且旧版本是"切过去才发现"。
+    # 这里先查，缺就说明装法，不让 ensure_bridge 无头绪失败。
+    if ! python3 -c "import httpx, fastapi, uvicorn" 2>/dev/null; then
+        err "bridge 依赖缺失（httpx/fastapi/uvicorn）"
+        err "  修: pip3 install --break-system-packages --user httpx fastapi uvicorn"
+        err "  或: bash maintain.sh self（init-ubuntu 按 conf/python-requirements.txt 自动装）"
+        return 1
+    fi
+
     # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
     local health
     health=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
