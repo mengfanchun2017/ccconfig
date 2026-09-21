@@ -556,5 +556,6 @@ p.setdefault('disabledMcpServers', []).append('$target')
 case "${1:-status}" in
   status|st) cmd_status ;;
   config|cfg|c|conf) cmd_config ;;
+  config-project|cp) config_project "$PWD" ;;
   keys) bash "$(dirname "$SCRIPT_DIR")/lib/init-mcp.sh" keys ;;
 esac
