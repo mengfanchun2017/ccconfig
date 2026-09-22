@@ -64,7 +64,7 @@ do_status() {
 
     # 读取配置文件信息
     local ready=0 failed=0 dcnt=0
-    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get; do
+    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get headers_str; do
         [[ -z "$name" ]] && continue
         if [[ "$is_disabled" == "true" ]]; then
             dcnt=$((dcnt + 1)); continue
@@ -85,7 +85,7 @@ do_status() {
     fi
     echo ""
 
-    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get; do
+    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get headers_str; do
         [[ -z "$name" ]] && continue
         local ico="" col=""
         if [[ "$is_disabled" == "true" ]]; then
@@ -132,7 +132,7 @@ register_mcp() {
 do_sync() {
     echo -e "\n${CYAN}── 同步 MCP 配置 ──${NC}"
     local installed=0 skipped=0 failed=0
-    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get; do
+    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get headers_str; do
         [[ -z "$name" ]] && continue
         [[ "$is_disabled" == "true" ]] && { skipped=$((skipped + 1)); continue; }
         if ! command -v claude &>/dev/null; then
@@ -157,7 +157,7 @@ for k,v in d.items():
         fi
     done <<< "$(read_mcp_list)"
     echo -e "  注册: ${GREEN}+$installed${NC} 跳过: ${GRAY}$skipped${NC} 失败: ${RED}$failed${NC}"
-    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get; do
+    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get headers_str; do
         [[ -z "$name" ]] && continue; [[ "$is_disabled" == "true" ]] && continue
         if [[ -n "$env_str" ]] && [[ "$env_str" != "{}" ]]; then
             configure_mcp_env "$name" "$env_str" >/dev/null 2>&1 || true
@@ -287,7 +287,7 @@ do_keys() {
 
     # 第一阶段：列出所有有占位符的 MCP
     local idx=0 names=() descs=() env_strs=() how_tos=() disableds=()
-    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get; do
+    while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get headers_str; do
         [[ -z "$name" ]] && continue
         local ph
         ph=$(python3 -c "
@@ -394,7 +394,7 @@ do_toggle() {
     if [[ -z "$name" ]] || [[ -z "$action" ]]; then
         echo "用法: bash init-mcp.sh toggle <name> {on|off|status}"
         echo ""
-        while IFS='|' read -r n desc mtype command args_str env_str is_disabled how_to_get; do
+        while IFS='|' read -r n desc mtype command args_str env_str is_disabled how_to_get headers_str; do
             [[ -z "$n" ]] && continue
             local s="${GREEN}启用${NC}"; [[ "$is_disabled" == "true" ]] && s="${YELLOW}禁用${NC}"
             echo -e "  $n ($s)  $desc"
@@ -404,7 +404,7 @@ do_toggle() {
     local line
     line=$(read_mcp_list | grep "^${name}|" || true)
     [[ -z "$line" ]] && { bad "❌ MCP '$name' 未定义"; return 1; }
-    IFS='|' read -r sname desc mtype command args_str env_str is_disabled how_to_get <<< "$line"
+    IFS='|' read -r sname desc mtype command args_str env_str is_disabled how_to_get headers_str <<< "$line"
     case "$action" in
         status)
             local s="${YELLOW}禁用${NC}"; [[ "$is_disabled" != "true" ]] && s="${GREEN}启用${NC}"
@@ -469,7 +469,7 @@ do_menu() {
             4)
                 echo ""; section "启停 MCP"
                 local mcp_items=() mcp_names=()
-                while IFS='|' read -r n desc mtype command args_str env_str is_disabled how_to_get; do
+                while IFS='|' read -r n desc mtype command args_str env_str is_disabled how_to_get headers_str; do
                     [[ -z "$n" ]] && continue
                     mcp_names+=("$n")
                     local s="启用"; [[ "$is_disabled" == "true" ]] && s="禁用"
