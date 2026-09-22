@@ -31,11 +31,13 @@ for m in data.get('mcp_servers', []):
     command = m.get('command', '')
     args = m.get('args', [])
     env = m.get('env', {})
+    headers = m.get('headers', {})
     disabled = 'true' if m.get('disabled') else 'false'
     how_to_get = m.get('how_to_get', '')
     args_str = ' '.join(args) if isinstance(args, list) else str(args)
     env_str = json.dumps(env, ensure_ascii=False) if env else '{}'
-    print(f"{name}|{desc}|{mtype}|{command}|{args_str}|{env_str}|{disabled}|{how_to_get}")
+    headers_str = json.dumps(headers, ensure_ascii=False) if headers else '{}'
+    print(f"{name}|{desc}|{mtype}|{command}|{args_str}|{env_str}|{disabled}|{how_to_get}|{headers_str}")
 PYEOF
 }
 
