@@ -285,22 +285,24 @@ do_keys() {
     echo -e "\n${CYAN}── 配置 MCP Key ──${NC}"
     echo ""
 
-    # 第一阶段：列出所有有占位符的 MCP
-    local idx=0 names=() descs=() env_strs=() how_tos=() disableds=()
+    # 第一阶段：列出所有有占位符或空值的 MCP（env + headers 都算）
+    local idx=0 names=() descs=() env_strs=() headers_strs=() how_tos=() disableds=()
     while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get headers_str; do
         [[ -z "$name" ]] && continue
         local ph
         ph=$(python3 -c "
 import json, sys
 env = json.loads(sys.argv[1])
-keys = [k for k, v in env.items() if any(x in str(v) for x in ['请填入', '请到', 'your key', 'placeholder', '<your-'])]
+headers = json.loads(sys.argv[2]) if sys.argv[2] != '{}' else {}
+keys = [k for k, v in {**env, **headers}.items() if any(x in str(v) for x in ['请填入', '请到', 'your key', 'placeholder', '<your-'])]
 print(' '.join(keys))
-" "$env_str")
+" "$env_str" "$headers_str")
         [[ -z "$ph" ]] && continue
         idx=$((idx + 1))
         names+=("$name")
         descs+=("$desc")
         env_strs+=("$env_str")
+        headers_strs+=("$headers_str")
         how_tos+=("$how_to_get")
         disableds+=("$is_disabled")
         local st="${GREEN}启用${NC}"; [[ "$is_disabled" == "true" ]] && st="${YELLOW}禁用${NC}"
