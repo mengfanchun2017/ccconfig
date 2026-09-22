@@ -98,8 +98,11 @@ confirm_sync() {
 }
 
 # ── 收集差异 ──
+# 输出 3 组：outdated=真实差异(需人工)、new=本地缺失(新增)、normal=仅占位符差异(正常)
+# conf/*.json 模板存占位符（请填入*/<xxx>）、本地是真实值，这类差异预期且良性，
+# 交给 conf-diff-classify.py 判定，不再当"需要同步"警告。agents/*.md 非 JSON 走 diff。
 collect_diffs() {
-    local -n _outdated="$1" _new="$2"
+    local -n _outdated="$1" _new="$2" _normal="$3"
     local mapping=(
         "templates/agents:agents:.md.example:.md"
         "conf:conf:.json.example:.json"
@@ -119,7 +122,15 @@ collect_diffs() {
             [ -z "$target" ] && continue
             if [ ! -f "$target" ]; then
                 _new+=("$example")
-            elif ! diff -q "$example" "$target" &>/dev/null; then
+                continue
+            fi
+            if diff -q "$example" "$target" &>/dev/null; then
+                continue
+            fi
+            # conf JSON：占位符差异归 normal，真实差异归 outdated
+            if [[ "$example" == *.json.example ]] && python3 "$LIB_DIR/conf-diff-classify.py" "$example" "$target" >/dev/null 2>&1; then
+                _normal+=("$example")
+            else
                 _outdated+=("$example")
             fi
         done
@@ -131,10 +142,18 @@ do_status() {
     section "Example 模板同步状态"
     echo ""
 
-    local -a outdated=() new_files=()
-    collect_diffs outdated new_files
+    local -a outdated=() new_files=() normal=()
+    collect_diffs outdated new_files normal
 
     if [ ${#outdated[@]} -eq 0 ] && [ ${#new_files[@]} -eq 0 ]; then
+        if [ ${#normal[@]} -gt 0 ]; then
+            echo -e "  ${GREEN}${#normal[@]} 个文件仅占位符差异（模板占位符 → 本地真实值，正常）${NC}"
+            for f in "${normal[@]}"; do
+                local rel="${f#$CCCONFIG_ROOT/}"
+                echo -e "    ${GRAY}→${NC} $rel"
+            done
+            echo ""
+        fi
         ok "全部同步"
         return 0
     fi
@@ -154,6 +173,11 @@ do_status() {
         local rel="${f#$CCCONFIG_ROOT/}"
         echo -e "    ${GRAY}→${NC} $rel"
     done
+
+    [ ${#normal[@]} -gt 0 ] && echo -e "  ${GREEN}${#normal[@]} 个文件仅占位符差异（正常，模板占位符 → 本地真实值）${NC}"
+    for f in "${normal[@]}"; do
+        echo -e "    ${GRAY}→${NC} ${f#$CCCONFIG_ROOT/}"
+        done
 
     echo ""
     banner_forward
