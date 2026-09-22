@@ -20,11 +20,10 @@ CAT_NAME[1]="状态"
 CAT_NAME[2]="监控/同步"
 CAT_NAME[3]="更新"
 CAT_NAME[4]="LLM"
-CAT_NAME[5]="用量"
-CAT_NAME[6]="MCP"
-CAT_NAME[7]="飞书/Lark"
-CAT_NAME[8]="getnote"
-CAT_NAME[9]="其他"
+CAT_NAME[5]="MCP"
+CAT_NAME[6]="飞书/Lark"
+CAT_NAME[7]="getnote"
+CAT_NAME[8]="其他"
 
 MENU_ENTRIES=(
     # ── 1: 状态 ──
