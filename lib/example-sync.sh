@@ -343,8 +343,9 @@ do_reverse() {
 
     local -a _out_arr=()
     local -a _new_arr=()
-    collect_diffs _out_arr _new_arr
-    [ ${#_out_arr[@]} -eq 0 ] && { ok "无差异文件，不需要反向同步"; return 0; }
+    local -a _normal_arr=()
+    collect_diffs _out_arr _new_arr _normal_arr
+    [ ${#_out_arr[@]} -eq 0 ] && { ok "无真实差异文件（${#_normal_arr[@]} 个仅占位符差异已跳过，反向会把占位符换成真实值泄密）"; return 0; }
 
     echo ""
     section "反向同步：选择要回灌为模板的 ccprivate 文件"
