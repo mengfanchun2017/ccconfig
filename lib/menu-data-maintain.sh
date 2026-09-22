@@ -5,7 +5,7 @@
 # source 后直接调 menu_loop "ccconfig 运维中心"。
 #
 # ── 结构约定（扁平，无二级菜单）──
-#   一级 = 功能域（状态/监控/更新/LLM/用量/MCP/飞书/getnote/其他）
+#   一级 = 功能域（状态/监控/更新/LLM/MCP/飞书/getnote/其他）
 #   二级 = 该域下的字母项，选中即执行，**没有"返回上层"这一步**
 #
 # ── 条目 schema: cat|letter|title|cmd|action ──
@@ -72,24 +72,24 @@ MENU_ENTRIES=(
 
     # ── 6: 飞书/Lark ──
     # 账号新增即持久化（feishu.json），切换默认持久化（带 -p），不再拆「并持久化」独立项
-    "7|A|账号列表/当前账号|bash option-larkcli/lark-switch.sh --list|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\" --list"
-    "7|B|切换账号（问账号名）|bash option-larkcli/lark-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
-    "7|C|OAuth 授权状态|bash option-larkcli/lark-switch.sh|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
-    "7|D|配置/更新 lark-cli 账号|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
+    "6|A|账号列表/当前账号|bash option-larkcli/lark-switch.sh --list|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\" --list"
+    "6|B|切换账号（问账号名）|bash option-larkcli/lark-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
+    "6|C|OAuth 授权状态|bash option-larkcli/lark-switch.sh|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
+    "6|D|配置/更新 lark-cli 账号|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
 
-    # ── 8: getnote ──
-    "8|A|账号列表|bash option-getnote/getnote-switch.sh --list|bash \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\" --list"
-    "8|B|状态|bash option-getnote/init.sh --status|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" --status"
-    "8|C|添加账号|bash option-getnote/init.sh add|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" add"
-    "8|D|删除账号|bash option-getnote/init.sh remove|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" remove"
-    "8|E|切换账号（问账号名）|bash option-getnote/getnote-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\""
+    # ── 7: getnote ──
+    "7|A|账号列表|bash option-getnote/getnote-switch.sh --list|bash \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\" --list"
+    "7|B|状态|bash option-getnote/init.sh --status|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" --status"
+    "7|C|添加账号|bash option-getnote/init.sh add|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" add"
+    "7|D|删除账号|bash option-getnote/init.sh remove|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" remove"
+    "7|E|切换账号（问账号名）|bash option-getnote/getnote-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\""
 
-    # ── 9: 其他 ──
-    "9|A|GitHub PAT 刷新|./maintain.sh pat|bash \"\$CCCONFIG_DIR/bin/refresh-gh-auth.sh\""
-    "9|B|模板差异|./maintain.sh example status|bash \"\$LIB_DIR/example-sync.sh\" status"
-    # 9C 模板推广已删：promote = 模板覆盖本地，会毁真实 conf 密钥。运行期模板只作
-    # 初始化种子（1B sync 复制新增），跟进差异用 9B 查看 + 手动编辑，无覆盖入口。
-    "9|D|可选组件安装/补装|bash init-option.sh|bash \"\$CCCONFIG_DIR/init-option.sh\""
+    # ── 8: 其他 ──
+    "8|A|GitHub PAT 刷新|./maintain.sh pat|bash \"\$CCCONFIG_DIR/bin/refresh-gh-auth.sh\""
+    "8|B|模板差异|./maintain.sh example status|bash \"\$LIB_DIR/example-sync.sh\" status"
+    # 8C 模板推广已删：promote = 模板覆盖本地，会毁真实 conf 密钥。运行期模板只作
+    # 初始化种子（1B sync 复制新增），跟进差异用 8B 查看 + 手动编辑，无覆盖入口。
+    "8|D|可选组件安装/补装|bash init-option.sh|bash \"\$CCCONFIG_DIR/init-option.sh\""
 
     # ── 0: 退出 ──
     "0| |退出||exit 0"
