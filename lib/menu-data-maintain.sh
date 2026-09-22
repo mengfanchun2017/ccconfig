@@ -65,17 +65,7 @@ MENU_ENTRIES=(
     "4|F|修复 bridge 转 Anthropic|./maintain.sh llm heal|bash \"\$LIB_DIR/init-llm.sh\" heal"
     "4|G|删除预设（问预设名）|./maintain.sh llm delete <名>|ask_run \"要删除的预设名\" \"\$LIB_DIR/init-llm.sh\" delete"
 
-    # ── 5: 用量 ──
-    # 只统计 token 与时间：不算钱（费用以上游账单为准）、不外发（飞书上报已移除）
-    # 归档默认含今天（5C）；截止昨天的增量归档、--force 全量重算低频，合并进 5C 说明，不单占菜单项
-    "5|A|用量统计（跨 LLM）|./maintain.sh token --stats|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --stats"
-    "5|B|按日报告|./maintain.sh token --report|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --report"
-    "5|C|立即归档（含今天）|./maintain.sh token --by-day --include-today|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --by-day --include-today"
-    "5|D|定时器状态|bash option-usage/init.sh status|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" status"
-    "5|E|启用定时器|bash option-usage/init.sh install|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" install"
-    "5|F|停用定时器|bash option-usage/init.sh uninstall|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" uninstall"
-
-    # ── 6: MCP ──
+    # ── 5: MCP ──
     "6|A|MCP 配置（用户级）|./maintain.sh mcp config|bash \"\$LIB_DIR/mcp-manager.sh\" config"
     "6|B|MCP 状态|./maintain.sh mcp status|bash \"\$LIB_DIR/mcp-manager.sh\" status"
     "6|C|配置 MCP Key|./maintain.sh mcp keys|bash \"\$LIB_DIR/mcp-manager.sh\" keys"
