@@ -93,7 +93,8 @@ MENU_ENTRIES=(
     # ── 9: 其他 ──
     "9|A|GitHub PAT 刷新|./maintain.sh pat|bash \"\$CCCONFIG_DIR/bin/refresh-gh-auth.sh\""
     "9|B|模板差异|./maintain.sh example status|bash \"\$LIB_DIR/example-sync.sh\" status"
-    "9|C|模板推广（本机→模板）|./maintain.sh example promote|bash \"\$LIB_DIR/example-sync.sh\" promote"
+    # 9C 模板推广已删：promote = 模板覆盖本地，会毁真实 conf 密钥。运行期模板只作
+    # 初始化种子（1B sync 复制新增），跟进差异用 9B 查看 + 手动编辑，无覆盖入口。
     "9|D|可选组件安装/补装|bash init-option.sh|bash \"\$CCCONFIG_DIR/init-option.sh\""
 
     # ── 0: 退出 ──
