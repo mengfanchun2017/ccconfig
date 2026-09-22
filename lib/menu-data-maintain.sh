@@ -66,11 +66,11 @@ MENU_ENTRIES=(
     "4|G|删除预设（问预设名）|./maintain.sh llm delete <名>|ask_run \"要删除的预设名\" \"\$LIB_DIR/init-llm.sh\" delete"
 
     # ── 5: MCP ──
-    "6|A|MCP 配置（用户级）|./maintain.sh mcp config|bash \"\$LIB_DIR/mcp-manager.sh\" config"
-    "6|B|MCP 状态|./maintain.sh mcp status|bash \"\$LIB_DIR/mcp-manager.sh\" status"
-    "6|C|配置 MCP Key|./maintain.sh mcp keys|bash \"\$LIB_DIR/mcp-manager.sh\" keys"
+    "5|A|MCP 配置（用户级）|./maintain.sh mcp config|bash \"\$LIB_DIR/mcp-manager.sh\" config"
+    "5|B|MCP 状态|./maintain.sh mcp status|bash \"\$LIB_DIR/mcp-manager.sh\" status"
+    "5|C|配置 MCP Key|./maintain.sh mcp keys|bash \"\$LIB_DIR/mcp-manager.sh\" keys"
 
-    # ── 7: 飞书/Lark ──
+    # ── 6: 飞书/Lark ──
     # 账号新增即持久化（feishu.json），切换默认持久化（带 -p），不再拆「并持久化」独立项
     "7|A|账号列表/当前账号|bash option-larkcli/lark-switch.sh --list|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\" --list"
     "7|B|切换账号（问账号名）|bash option-larkcli/lark-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
