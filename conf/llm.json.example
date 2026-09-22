@@ -2,7 +2,7 @@
     "description": "LLM 配置管理 - 支持多后端切换",
     "_note": "复制此文件为 llm.json 并填入你的 API Key。运行 bash ccconfig/init-llm.sh 切换 LLM。模型名称可能变更，请以提供商最新文档为准。",
     "_tailscale_hint": "WSL + Tailscale subnet router 跳板场景：base_url 填内网 IP（如 10.x.x.x:port），bridge 会自动启用 Windows curl.exe 转发。详见 docs/adr/0016-tailscale-subnet-router.md",
-    "_preset_naming": "office-* = 单位直连；home-* = 家里 WSL+tailscale via Windows（含 use_win_curl+host_header）。详见 docs/init-llm.md",
+    "_preset_naming": "office* = 单位直连；home* = 家里 WSL+tailscale via Windows（含 use_win_curl+host_header）。详见 docs/init-llm.md",
     "llms": {
         "minimax": {
             "name": "MiniMax",
@@ -20,39 +20,89 @@
             "small_model": "deepseek-v4-flash",
             "builtin": true
         },
-        "office-deck-flash": {
-            "_comment": "单位办公直连 — base_url 用域名（VPN/内网 DNS 可达）",
-            "name": "Office DeepSeek flash",
-            "base_url": "https://your-internal-llm-domain.example.com/v1",
+        "aliglm52": {
+            "name": "aliglm52",
+            "base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic",
+            "model": "glm-5.2",
+            "key": "请填入你的 Token Plan API Key",
+            "small_model": "qwen3.7-plus",
+            "use_bridge": false
+        },
+        "glm53flash": {
+            "name": "glm53flash",
+            "base_url": "https://open.bigmodel.cn/api/paas/v4",
+            "model": "glm-5.3-flash",
+            "key": "请填入你的 GLM API Key",
+            "small_model": "glm-5.3-flash",
+            "use_bridge": true
+        },
+        "officedsflash": {
+            "_comment": "单位办公直连 — base_url 用内网 LLM 域名（VPN/内网 DNS 可达）",
+            "name": "officedsflash",
+            "base_url": "https://<internal-llm-domain>:port/v1",
             "model": "deepseek-v4-flash",
-            "key": "请填入你的 API Key",
+            "key": "请填入你的单位 LLM API Key",
             "small_model": "deepseek-v4-flash",
             "use_bridge": true
         },
-        "home-deck-flash": {
-            "_comment": "家里 WSL+tailscale via Windows — base_url 用 tailscale IP，host_header 改回证书 SAN 域名",
-            "name": "Home DeepSeek flash",
-            "base_url": "https://<tailscale-ip>:port/v1",
-            "host_header": "your-internal-llm-domain.example.com",
+        "homedsflash": {
+            "_comment": "家里 WSL+tailscale via Windows — base_url 用内网 IP，host_header 改回证书 SAN 域名",
+            "name": "homedsflash",
+            "base_url": "https://<internal-llm-ip>:port/v1",
+            "host_header": "<internal-llm-domain>",
             "use_win_curl": true,
             "model": "deepseek-v4-flash",
-            "key": "请填入你的 API Key",
+            "key": "请填入你的单位 LLM API Key",
             "small_model": "deepseek-v4-flash",
             "use_bridge": true
         },
-        "home-deck-pro": {
+        "officedspro": {
+            "_comment": "单位办公直连 — pro 模型备用",
+            "name": "officedspro",
+            "base_url": "https://<internal-llm-domain>:port/v1",
+            "model": "deepseek-v4-pro-outside",
+            "key": "请填入你的单位 LLM API Key",
+            "small_model": "deepseek-v4-pro-outside",
+            "use_bridge": true
+        },
+        "homedspro": {
             "_comment": "家里 WSL+tailscale via Windows — pro 模型备用",
-            "name": "Home DeepSeek pro",
-            "base_url": "https://<tailscale-ip>:port/v1",
-            "host_header": "your-internal-llm-domain.example.com",
+            "name": "homedspro",
+            "base_url": "https://<internal-llm-ip>:port/v1",
+            "host_header": "<internal-llm-domain>",
             "use_win_curl": true,
-            "model": "deepseek-v4-pro",
-            "key": "请填入你的 API Key",
-            "small_model": "deepseek-v4-pro",
+            "model": "deepseek-v4-pro-outside",
+            "key": "请填入你的单位 LLM API Key",
+            "small_model": "deepseek-v4-pro-outside",
             "use_bridge": true
         }
     },
-    "_fx_note": "fx 字段定义 USD→CNY 汇率（如 7.20），仅作显示用。",
-    "fx": {"usd_to_cny": 7.20},
-    "current": "deepseek_flash"
+    "pricing": {
+        "MiniMax-M3": {
+            "input": 2.1,
+            "output": 8.4,
+            "cache_read": 0.42,
+            "cache_creation": 0.0
+        },
+        "deepseek-v4-flash": {
+            "input": 1.5,
+            "output": 6.0,
+            "cache_read": 0.03,
+            "cache_creation": 0.0
+        },
+        "glm-5.2": {
+            "input": 8.0,
+            "output": 28.0,
+            "cache_read": 2.0,
+            "cache_creation": 0.0
+        },
+        "qwen3.7-plus": {
+            "input": 2.0,
+            "output": 8.0,
+            "cache_read": 0.4,
+            "cache_creation": 0.0
+        }
+    },
+    "_fx_note": "fx 字段定义 USD→CNY 汇率，仅作显示用。",
+    "fx": {"usd_to_cny": 7.2}
 }
