@@ -76,7 +76,13 @@ def collect_real_diff(a, b, path="", notes=None):
     if a == "__PH__" or b == "__PH__":
         return notes
     if isinstance(a, dict) and isinstance(b, dict):
+        # 占位符键 <project-name> 槽 vs 真实键 bwater：视为同槽，跳过该 dict
+        if ("__PH_KEYS__" in a and "__PH_KEYS__" not in b and not any(k.startswith("__") for k in b)) or \
+           ("__PH_KEYS__" in b and "__PH_KEYS__" not in a and not any(k.startswith("__") for k in a)):
+            return notes
         for k in sorted(set(a) | set(b)):
+            if k == "__PH_KEYS__":
+                continue  # 占位符键槽位标记，不参与真实 diff
             kp = f"{path}.{k}" if path else k
             if k not in a:
                 notes.append(f"{kp}: 仅模板有")
