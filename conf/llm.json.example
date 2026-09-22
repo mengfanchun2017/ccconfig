@@ -77,33 +77,6 @@
             "use_bridge": true
         }
     },
-    "pricing": {
-        "MiniMax-M3": {
-            "input": 2.1,
-            "output": 8.4,
-            "cache_read": 0.42,
-            "cache_creation": 0.0
-        },
-        "deepseek-v4-flash": {
-            "input": 1.5,
-            "output": 6.0,
-            "cache_read": 0.03,
-            "cache_creation": 0.0
-        },
-        "glm-5.2": {
-            "input": 8.0,
-            "output": 28.0,
-            "cache_read": 2.0,
-            "cache_creation": 0.0
-        },
-        "qwen3.7-plus": {
-            "input": 2.0,
-            "output": 8.0,
-            "cache_read": 0.4,
-            "cache_creation": 0.0
-        }
-    },
-    "_fx_note": "fx 字段定义 USD→CNY 汇率，仅作显示用。",
     "fx": {"usd_to_cny": 7.2},
     "current": "deepseek_flash"
 }
