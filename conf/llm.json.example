@@ -104,5 +104,6 @@
         }
     },
     "_fx_note": "fx 字段定义 USD→CNY 汇率，仅作显示用。",
-    "fx": {"usd_to_cny": 7.2}
+    "fx": {"usd_to_cny": 7.2},
+    "current": "deepseek_flash"
 }
