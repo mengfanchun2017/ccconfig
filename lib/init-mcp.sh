@@ -330,7 +330,7 @@ print(' '.join(keys))
 
     local updated=0
     for i in "${selected_indices[@]}"; do
-        local name="${names[$i]}" desc="${descs[$i]}" env_str="${env_strs[$i]}" how_to_get="${how_tos[$i]}" is_disabled="${disableds[$i]}"
+        local name="${names[$i]}" desc="${descs[$i]}" env_str="${env_strs[$i]}" headers_str="${headers_strs[$i]}" how_to_get="${how_tos[$i]}" is_disabled="${disableds[$i]}"
         echo -e "\n  ${CYAN}═ $name${NC}  ${GRAY}$desc${NC}"
         [[ -n "$how_to_get" ]] && echo -e "    ${GRAY}$how_to_get${NC}"
 
@@ -343,43 +343,65 @@ print(' '.join(keys))
             fi
         fi
 
-        local ph_keys
-        ph_keys=$(python3 -c "
+        # 待填键:占位符或空值都算,env + headers 合并;附旧值尾 4 位(供提示,未填为空)
+        local keys_info
+        keys_info=$(python3 -c "
 import json, sys
 env = json.loads(sys.argv[1])
-keys = [k for k, v in env.items() if any(x in str(v) for x in ['请填入', '请到', 'your key', 'placeholder', '<your-'])]
-print('\n'.join(keys))
-" "$env_str")
-        local new_env_json="$env_str"
-        while IFS= read -r key; do
+headers = json.loads(sys.argv[2]) if sys.argv[2] != '{}' else {}
+out = {}
+for src, d in (('env', env), ('headers', headers)):
+    for k, v in d.items():
+        s = str(v).strip()
+        if not s or any(x in s for x in ['请填入', '请到', 'your key', 'placeholder', '<your-']):
+            out[k] = (src, s[-4:] if s else '')
+for k, (src, last4) in out.items():
+    print(f'{src}\t{k}\t{last4}')
+" "$env_str" "$headers_str")
+
+        local new_env_json="$env_str" new_headers_json="$headers_str"
+        while IFS=$'\t' read -r src key last4; do
             [[ -z "$key" ]] && continue
-            local val; val=$(prompt "$key")
+            local hint="$key"
+            [[ -n "$last4" ]] && hint="$key（旧值尾4位:$last4）"
+            local val; val=$(prompt "$hint")
             if [[ -n "$val" ]]; then
-                new_env_json=$(echo "$new_env_json" | python3 -c "
+                if [[ "$src" == "headers" ]]; then
+                    new_headers_json=$(python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 d[sys.argv[1]] = sys.argv[2]
 print(json.dumps(d))
-" "$key" "$val")
+" "$key" "$val" <<< "$new_headers_json")
+                else
+                    new_env_json=$(python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+d[sys.argv[1]] = sys.argv[2]
+print(json.dumps(d))
+" "$key" "$val" <<< "$new_env_json")
+                fi
                 changed=true
             fi
-        done <<< "$ph_keys"
+        done <<< "$keys_info"
 
         if ! $changed; then echo -e "  ${GRAY}无变更${NC}"; continue; fi
         python3 -c "
 import json, os, sys
 with open(sys.argv[1]) as f: data = json.load(f)
-name, new_env_str, disabled = sys.argv[2], sys.argv[3], sys.argv[4]
+name, new_env_str, new_headers_str, disabled = sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
 new_env = json.loads(new_env_str) if new_env_str else {}
+new_headers = json.loads(new_headers_str) if new_headers_str else {}
 for s in data['mcp_servers']:
     if s['name'] == name:
         if new_env: s['env'] = {**s.get('env', {}), **new_env}
+        if new_headers: s['headers'] = {**s.get('headers', {}), **new_headers}
         if disabled == 'true': s.pop('disabled', None)
         break
 tmp = sys.argv[1] + '.tmp'
 with open(tmp, 'w') as f: json.dump(data, f, indent=2, ensure_ascii=False); f.write('\n')
 os.replace(tmp, sys.argv[1])
-" "$MCP_CONF_FILE" "$name" "$new_env_json" "$is_disabled"
+" "$MCP_CONF_FILE" "$name" "$new_env_json" "$new_headers_json" "$is_disabled"
         good "  ✅ $name"
         updated=$((updated + 1))
     done
