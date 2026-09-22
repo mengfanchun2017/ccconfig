@@ -30,8 +30,13 @@ MENU_ENTRIES=(
     # 只有两件事：看（1A，只读）和修（1B，把新版本设定全部启用）。
     # 1B 名字与 2F「修复 inotify」/4E「修复 /model 污染」统一为「修复 <对象>」。
     # --quick 快速模式仍在 status.sh 里，但不再单占一个菜单项（菜单只暴露全量 1A）。
+    # 用量并入状态：只读看统计（1C）+ 管理定时器（1D-1F），不单设分类。
     "1|A|检查（只读）|./maintain.sh status|bash \"\$LIB_DIR/status.sh\""
     "1|B|一键修复（全量）|./maintain.sh fix|do_setup"
+    "1|C|用量统计（跨 LLM）|./maintain.sh token --stats|bash \"\$CCCONFIG_DIR/option-usage/token-usage.sh\" --stats"
+    "1|D|用量定时器状态|bash option-usage/init.sh status|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" status"
+    "1|E|用量定时器启用|bash option-usage/init.sh install|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" install"
+    "1|F|用量定时器停用|bash option-usage/init.sh uninstall|bash \"\$CCCONFIG_DIR/option-usage/init.sh\" uninstall"
 
     # ── 2: 监控/同步 ──
     # 重启即停止+启动（2C+2B），不单占项；inotify 修复已含在 1B 一键修复
