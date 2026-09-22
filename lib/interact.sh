@@ -287,10 +287,18 @@ menu_multi() {
     local items=("$@")
     [[ ${#items[@]} -eq 0 ]] && { warn "menu_multi: items 为空"; return 1; }
 
-    echo ""; section "$title（输入序号切换，回车确认）"
+    # 非交互旁路：返回空（caller 当"跳过"处理）
+    if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+        echo ""; return 0
+    fi
+
+    # 菜单输出走 stderr — 避开 `c=$(...)` 把 stdout 截走后菜单列表不显示
+    # （menu_select 已按此约定修过，menu_multi 漏了同名坑）
+    echo "" >&2
+    section "$title（输入序号切换，回车确认）" >&2
     local selected=() i choice
-    for i in "${!items[@]}"; do printf "  %2d) [ ] %s\n" $((i+1)) "${items[$i]}"; done
-    echo ""
+    for i in "${!items[@]}"; do printf "  %2d) [ ] %s\n" $((i+1)) "${items[$i]}" >&2; done
+    echo "" >&2
     while true; do
         read -p "  输入序号（留空确认）: " choice
         [[ -z "$choice" ]] && break
@@ -301,10 +309,10 @@ menu_multi() {
                 local new=()
                 for s in "${selected[@]}"; do [[ "$s" != "$idx" ]] && new+=("$s"); done
                 selected=("${new[@]}")
-                printf "\033[1A\033[2K  %2d) [ ] %s\n" "$choice" "${items[$idx]}"
+                printf "\033[1A\033[2K  %2d) [ ] %s\n" "$choice" "${items[$idx]}" >&2
             else
                 selected+=("$idx")
-                printf "\033[1A\033[2K  %2d) [\e[32m✓\e[0m] %s\n" "$choice" "${items[$idx]}"
+                printf "\033[1A\033[2K  %2d) [\e[32m✓\e[0m] %s\n" "$choice" "${items[$idx]}" >&2
             fi
         fi
     done
