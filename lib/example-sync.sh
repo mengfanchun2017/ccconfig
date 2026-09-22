@@ -128,7 +128,7 @@ collect_diffs() {
                 continue
             fi
             # conf JSON：占位符差异归 normal，真实差异归 outdated
-            if [[ "$example" == *.json.example ]] && python3 "$LIB_DIR/conf-diff-classify.py" "$example" "$target" >/dev/null 2>&1; then
+            if [[ "$example" == *.json.example ]] && python3 "$SCRIPT_DIR/conf-diff-classify.py" "$example" "$target" >/dev/null 2>&1; then
                 _normal+=("$example")
             else
                 _outdated+=("$example")
@@ -393,9 +393,10 @@ do_reverse() {
 
 # ── 非交互自动同步 ──
 do_sync() {
-    local -a _out_arr=() _new_arr=()
-    collect_diffs _out_arr _new_arr
+    local -a _out_arr=() _new_arr=() _normal_arr=()
+    collect_diffs _out_arr _new_arr _normal_arr
     if [ ${#_new_arr[@]} -eq 0 ] && [ ${#_out_arr[@]} -eq 0 ]; then
+        [ ${#_normal_arr[@]} -gt 0 ] && info "${#_normal_arr[@]} 个文件仅占位符差异（正常）"
         ok "模板已是最新"
         return 0
     fi
@@ -404,7 +405,8 @@ do_sync() {
         promote_one "$f" yes > /dev/null 2>&1
         info "新增: $rel"
     done
-    [ ${#_out_arr[@]} -gt 0 ] && warn "${#_out_arr[@]} 个差异文件未覆盖（可能含用户编辑，手动 diff + promote 或 reverse）"
+    [ ${#_normal_arr[@]} -gt 0 ] && info "${#_normal_arr[@]} 个文件仅占位符差异（正常）"
+    [ ${#_out_arr[@]} -gt 0 ] && warn "${#_out_arr[@]} 个真实差异文件未覆盖（可能含用户编辑，手动 diff + promote 或 reverse）"
     ok "模板同步完成"
 }
 
