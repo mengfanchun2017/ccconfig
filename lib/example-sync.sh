@@ -224,10 +224,10 @@ do_diff() {
         return
     fi
 
-    local -a outdated=() new_files=()
-    collect_diffs outdated new_files
+    local -a outdated=() new_files=() normal=()
+    collect_diffs outdated new_files normal
     local all=("${outdated[@]}" "${new_files[@]}")
-    [ ${#all[@]} -eq 0 ] && { ok "无差异"; return 0; }
+    [ ${#all[@]} -eq 0 ] && { ok "无差异（${#normal[@]} 个仅占位符差异）"; return 0; }
 
     for f in "${all[@]}"; do
         _diff_one "$f"
@@ -255,8 +255,8 @@ promote_one() {
 }
 
 do_promote_interactive() {
-    local -a outdated=() new_files=()
-    collect_diffs outdated new_files
+    local -a outdated=() new_files=() normal=()
+    collect_diffs outdated new_files normal
     local all=("${outdated[@]}" "${new_files[@]}")
     [ ${#all[@]} -eq 0 ] && { ok "无待同步文件"; return 0; }
 
