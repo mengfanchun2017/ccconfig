@@ -251,7 +251,7 @@ def drain(sec):
                 return
             buf += d
 drain(0.8)
-os.write(fd, b"9B\n")      # 9B 模板差异：只读、不碰 stdin
+os.write(fd, b"9B\n")      # 9B 无效项：验证无效输入不崩溃、回到菜单
 drain(2.0)
 os.write(fd, b"\n")        # 按回车继续 → 应重绘主菜单
 drain(1.5)
