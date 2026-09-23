@@ -382,7 +382,8 @@ start_watch() {
     done
     sleep 1
 
-    rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
+    # 清掉上一个 loop 的残留 status（degraded/failed 会误导 status_watch），新 loop 再自写
+    rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE" "$STATUS_FILE"
     find "$WATCH_DIR" -maxdepth 2 -name '.monitor-sync.lock' -type d -exec rmdir {} \; 2>/dev/null || true
 
     # Single inotify watching ~/git/, accepting events from any tracked repo.
