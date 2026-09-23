@@ -51,7 +51,7 @@ MENU_ENTRIES=(
     #    含 ccconfig 自更新 + skill 同步（update.sh all 内部步骤，行为不变）。
     # 3C 动的是【所有 git 仓库】（拉 + 脏库提交推送）；它把 ccconfig 也当第一个仓库
     #    处理，所以 3A 的"拉代码+重建链接"已被它涵盖，重跑无害。
-    "3|A|配置仓库更新（ccconfig+skill）|./maintain.sh self config|do_self config"
+    "3|A|配置仓库更新|./maintain.sh self config|do_self config"
     "3|B|tool 更新（Node/Claude）|./maintain.sh upgrade all|bash \"\$LIB_DIR/update.sh\" all"
     "3|C|git 全部更新（所有仓库）|./maintain.sh sync --all|bash \"\$LIB_DIR/sync.sh\" --all"
     # 原 8 区并入：PAT 续期与可选组件都属"环境更新维护"，与更新放一处。
