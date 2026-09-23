@@ -73,7 +73,7 @@ $has_exit && pass "含退出项 (cat=0)" || fail "缺退出项"
 [[ $dupe -eq 0 ]] && pass "无重复键" || fail "重复键 $dupe 处"
 
 cats=$(for k in "${!cat_seen[@]}"; do echo "$k"; done | sort -n | tr '\n' ' ')
-[[ "$cats" == "0 1 2 3 4 5 6 7 8 9 " ]] && pass "分类连续 1-9 + 退出" || fail "分类编号不连续" "$cats"
+[[ "$cats" == "0 1 2 3 4 5 6 7 " ]] && pass "分类连续 1-7 + 退出" || fail "分类编号不连续" "$cats"
 
 # ── 5. cmd 列：非空 + 路径存在 + maintain.sh 子命令存在 ──
 echo "=== 5. cmd 列可跑性 ==="
