@@ -131,11 +131,15 @@ git_push() {
     local repo_dir="$1" branch="$2"
     local attempt=1 max_attempts=3
     local output rc
+    # 记住调用方的 errexit 状态。loop 里是刻意 set +e 的（见 start_watch 注释），
+    # 取完 rc 若无脑 set -e 会把外层"故意关掉"重新打开 —— 之后任意一条非零命令
+    # 就终止 loop 子 shell，systemd 随即 restart（实测每 ~20min 一次，全在 push 之后）
+    local had_e=0; case $- in *e*) had_e=1 ;; esac
     while [ $attempt -le $max_attempts ]; do
         set +e
         output=$(timeout 30 git -C "$repo_dir" push origin "$branch" 2>&1)
         rc=$?
-        set -e
+        if [ "$had_e" = 1 ]; then set -e; fi
         if [ $rc -eq 0 ]; then
             echo "$output"
             return 0
@@ -256,12 +260,14 @@ commit_and_push() {
         else
             local pull_attempt=1 pull_max=2
             local pull_ok=false
+            # 同 git_push：恢复调用方的 errexit，别把 loop 的 set +e 顶掉
+            local pull_had_e=0; case $- in *e*) pull_had_e=1 ;; esac
             while [ $pull_attempt -le $pull_max ]; do
                 local pull_output pull_rc
                 set +e
                 pull_output=$(timeout --kill-after=5 30 git -C "$repo_dir" pull --rebase --autostash origin "$branch" 2>&1)
                 pull_rc=$?
-                set -e
+                if [ "$pull_had_e" = 1 ]; then set -e; fi
                 if [ $pull_rc -eq 0 ]; then
                     if echo "$pull_output" | grep -q "is up to date\|up-to-date\|Already up to date"; then
                         :  # no remote changes
