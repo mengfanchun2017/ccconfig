@@ -212,6 +212,9 @@ import json, sys, os
 conf_json, settings_file = sys.argv[1], sys.argv[2]
 mode = sys.argv[3] if len(sys.argv) > 3 else 'replace'
 with open(conf_json) as f: conf_data = json.load(f)
+if mode == 'merge' and not os.path.exists(settings_file):
+    # 运行时状态文件不存在（还没跑过 setup）→ 不造残缺文件，交给 install 流程建
+    print('skip'); sys.exit(0)
 try:
     with open(settings_file) as f: settings_data = json.load(f)
 except: settings_data = {}
