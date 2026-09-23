@@ -39,10 +39,10 @@ MENU_ENTRIES=(
 
     # ── 2: 监控/同步 ──
     # 重启即停止+启动（2C+2B），不单占项；inotify 修复已含在 1B 一键修复
-    "2|A|监控状态|./maintain.sh monitor status|bash \"\$LIB_DIR/monitor.sh\" status"
-    "2|B|启动监控|./maintain.sh monitor start|bash \"\$LIB_DIR/monitor.sh\" start"
-    "2|C|停止监控|./maintain.sh monitor stop|bash \"\$LIB_DIR/monitor.sh\" stop"
-    "2|D|日志跟踪|./maintain.sh monitor tail|bash \"\$LIB_DIR/monitor.sh\" tail"
+    "2|A|日志跟踪|./maintain.sh monitor tail|bash \"\$LIB_DIR/monitor.sh\" tail"
+    "2|B|监控状态|./maintain.sh monitor status|bash \"\$LIB_DIR/monitor.sh\" status"
+    "2|C|启动监控|./maintain.sh monitor start|bash \"\$LIB_DIR/monitor.sh\" start"
+    "2|D|停止监控|./maintain.sh monitor stop|bash \"\$LIB_DIR/monitor.sh\" stop"
 
     # ── 3: 更新 ──
     # 3A 动的是【配置仓库】：ccprivate 结构升级 → ccconfig 拉代码+重建链接 → skill 同步。
