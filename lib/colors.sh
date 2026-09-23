@@ -17,6 +17,13 @@ GRAY='\033[0;90m'
 DIM='\033[2m'
 NC='\033[0m'
 
+# non-tty（管道/命令替换捕获）时清空色变量：输出纯文本，避免 escape 脏进日志/文件
+# 终端 tty 下色变量保留原样，无行为变化
+if [ ! -t 1 ]; then
+    RED='' GREEN='' LIGHT_BLUE='' YELLOW='' CYAN='' BLUE='' BOLD=''
+    BOLD_BLUE='' BOLD_GREEN='' BOLD_GRAY='' GRAY='' DIM='' NC=''
+fi
+
 ok()    { echo -e "  ${GREEN}✅ $1${NC}"; }
 err()   { echo -e "  ${RED}❌ $1${NC}"; }
 warn()  { echo -e "  ${YELLOW}⚠  $1${NC}"; }
