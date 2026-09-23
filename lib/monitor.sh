@@ -446,9 +446,12 @@ start_watch() {
             if ! kill -0 $event_pid 2>/dev/null; then
                 inotify_restarts=$((inotify_restarts + 1))
                 if [ $inotify_restarts -gt $inotify_max_restarts ]; then
-                    do_log "inotifywait died $inotify_max_restarts times, giving up"
-                    echo "failed" > "$STATUS_FILE"
-                    break
+                    # 超限不停摆：进入 5min 冷却后重置计数再试，WSL inotify 偶发持续崩也能自愈
+                    do_log "inotifywait died $inotify_max_restarts times, cooling down 300s then retry"
+                    echo "degraded:cooldown" > "$STATUS_FILE"
+                    sleep 300
+                    inotify_restarts=0
+                    inotify_backoff=2
                 fi
                 do_log "inotifywait died, restarting (attempt $inotify_restarts/$inotify_max_restarts) after ${inotify_backoff}s backoff..."
                 echo "degraded:restart=$inotify_restarts/$inotify_max_restarts,backoff=${inotify_backoff}s" > "$STATUS_FILE"
