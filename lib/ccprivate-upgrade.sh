@@ -11,6 +11,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
+CCCONFIG_DIR="$CCCONFIG_ROOT"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/interact.sh"
@@ -106,7 +107,9 @@ check_setup_sh_version() {
 }
 
 check_link_content() {
-    local required=("CLAUDE.md" "settings.json" ".config.json")
+    # link/ 只放共享文件 + .example 模板；settings.json/.config.json 是本机文件，
+    # 存在但不跨机同步（gitignore），要求它们在 link/ 下会误报。查 .example 模板即可。
+    local required=("CLAUDE.md" "settings.json.example" ".config.json.example" ".claudeignore.example")
     local missing=()
     for f in "${required[@]}"; do
         [ -f "$CCPRIVATE/link/$f" ] || missing+=("$f")
