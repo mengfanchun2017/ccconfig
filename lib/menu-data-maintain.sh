@@ -5,7 +5,7 @@
 # source 后直接调 menu_loop "ccconfig 运维中心"。
 #
 # ── 结构约定（扁平，无二级菜单）──
-#   一级 = 功能域（状态/监控/更新/LLM/MCP/飞书/getnote/其他）
+#   一级 = 功能域（状态/监控/更新/LLM/MCP/飞书/getnote）
 #   二级 = 该域下的字母项，选中即执行，**没有"返回上层"这一步**
 #
 # ── 条目 schema: cat|letter|title|cmd|action ──
@@ -23,7 +23,6 @@ CAT_NAME[4]="LLM"
 CAT_NAME[5]="MCP"
 CAT_NAME[6]="飞书/Lark"
 CAT_NAME[7]="getnote"
-CAT_NAME[8]="其他"
 
 MENU_ENTRIES=(
     # ── 1: 状态 ──
