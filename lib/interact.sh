@@ -399,10 +399,10 @@ menu_render() {
 menu_help() {
     cat <<'EOF' | sed 's/^/  /'
 输入规则:
-  <cat><letter>  执行该项（如 2A = 监控状态，1C = 用量统计）
+  <cat><letter>  执行该项（如 2A = 日志跟踪，1C = 用量统计）
   <cat>          执行该分类首项
   s              状态检查  (= 1A)
-  t              监控状态  (= 2A)
+  t              日志跟踪  (= 2A)
   r              刷新
   q / 0          退出
   ?              显示帮助

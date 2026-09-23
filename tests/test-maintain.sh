@@ -223,7 +223,7 @@ menu_parse "zzz" ; [[ $? -eq 3 ]] && pass "无效 → 3" || fail "无效输入"
 echo "=== 15. 快捷键映射与文案一致 ==="
 # 历史 bug：t 指向的项与 help 文案写的不是同一个，按 t 会进高风险操作。
 grep -qE 't\|T\)[[:space:]]+_exec_entry 2 A' "$CCCONFIG_DIR/lib/interact.sh" \
-    && pass "t → 2A(监控状态)" || fail "t 快捷键未指向监控"
+    && pass "t → 2A(日志跟踪)" || fail "t 快捷键未指向日志跟踪"
 grep -qE 's\|S\)[[:space:]]+_exec_entry 1 A' "$CCCONFIG_DIR/lib/interact.sh" \
     && pass "s → 1A(状态检查)" || fail "s 快捷键未指向状态检查"
 
