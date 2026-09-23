@@ -743,8 +743,8 @@ colorize_line() {
 
     # 剥内嵌色：log 历史含旧 escape（do_log 已剥，但历史行还在），剥后规则才能匹配
     content=$(echo "$content" | strip_ansi)
-    # 空行丢弃，减少噪声（init-skill/链接脚本输出大量空行）
-    [[ -z "$content" ]] && return
+    # 空行/仅 repo 前缀行丢弃，减少噪声（init-skill/链接脚本输出大量空行）
+    if echo "$content" | grep -qE '^[[:space:]]*$|^\[[a-z_-]+\][[:space:]]*$'; then return; fi
 
     # ERROR (red) — "!!" prefix, failures that need attention
     if echo "$content" | grep -qE '(\!\!|ERROR|UNRESOLVED|aborting)'; then
