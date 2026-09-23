@@ -515,6 +515,7 @@ check_option_components() {
     echo ""
 
     local found=0
+    local -a shown=()
 
     # 分组：与 init-option.sh 保持一致
     local groups=(
@@ -541,6 +542,7 @@ check_option_components() {
 
         for name in $group_items; do
             found=$((found + 1))
+            shown+=("$name")
             icon="" detail=""
             _check_component "$name"
             _print_option "$name" "$icon" "$detail"
@@ -557,12 +559,16 @@ check_option_components() {
     # 自动发现的 option 不在分组中的也显示
     local handled="mcp skill larkcli ccbridge officecli remote cloudflare usage getnote feishu_key bat glow nano"
     for name in "${auto_opts[@]}"; do
-        if ! echo " $handled " | grep -q " $name "; then
-            found=$((found + 1))
-            icon="" detail=""
-            _check_component "$name"
-            _print_option "$name" "$icon" "$detail"
-        fi
+        echo " $handled " | grep -q " $name " && continue
+        # 分组里已列过的不再列：--other-- 组由同一份 ls 生成，此前 evalscope/llmswitch
+        # 会在 --other-- 和这里各出现一次
+        local _dup=false
+        for _s in "${shown[@]}"; do [ "$_s" = "$name" ] && { _dup=true; break; }; done
+        $_dup && continue
+        found=$((found + 1))
+        icon="" detail=""
+        _check_component "$name"
+        _print_option "$name" "$icon" "$detail"
     done
 
     if [ $found -eq 0 ]; then
@@ -614,6 +620,14 @@ else: print("ok|所有 appId/appSecret 已配置")
 PYEOF
 )
             icon="${fk_out%%|*}"; detail="${fk_out#*|}" ;;
+        llmswitch)
+            # 自包含组件：入口是 lib/init-llm.sh + lib/ensure-bridge.sh，本体是
+            # option-llmswitch/openai_bridge.py，本来就没有 init.sh。
+            # 此前落进下面的 *) 分支，被当成"init.sh 缺失"误报 ✗。
+            # 运行时健康由 monitor.sh status 的 Bridge 行负责（这里不重复探网络）。
+            [ -f "$REPO_DIR/option-llmswitch/openai_bridge.py" ] \
+                && { icon="ok"; detail="自包含（bridge，入口 lib/init-llm.sh）"; } \
+                || { icon="miss"; detail="option-llmswitch/openai_bridge.py 缺失"; } ;;
         bat)
             local ver=$(bat --version 2>/dev/null | head -1 || batcat --version 2>/dev/null | head -1 || echo "")
             [ -n "$ver" ] && { icon="ok"; detail="bat 已安装 ($ver)"; } || { icon="miss"; detail="bat 未安装"; } ;;
@@ -632,7 +646,11 @@ PYEOF
                 elif echo "$line" | grep -qi "^WARN"; then icon="warn"; detail="${line#WARN }"
                 elif echo "$line" | grep -qiE "^(MISSING|FAIL)"; then icon="miss"; detail="${line#MISSING }"; detail="${detail#FAIL }"
                 else icon="?"; detail="$line"; fi
-            else icon="miss"; detail="option-$name 目录存在但 init.sh 缺失"; fi ;;
+            elif [ -d "$REPO_DIR/option-$name" ]; then
+                icon="miss"; detail="option-$name 目录存在但 init.sh 缺失"
+            else
+                icon="miss"; detail="option-$name 未安装（目录不存在）"
+            fi ;;
     esac
 }
 
