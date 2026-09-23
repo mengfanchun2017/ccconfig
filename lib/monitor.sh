@@ -11,12 +11,7 @@
 #   monitor            Frontend: show file changes live
 #   tail               Frontend: follow push results
 #
-# Install inotifywait (no sudo):
-#   mkdir -p ~/.local/lib && cd /tmp
-#   curl -sLO http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/inotify-tools_3.22.6.0-4_amd64.deb
-#   dpkg-deb -x inotify-tools_*.deb . && cp usr/bin/inotify* ~/.local/bin/
-#   curl -sLO http://archive.ubuntu.com/ubuntu/pool/universe/i/inotify-tools/libinotifytools0_3.22.6.0-4_amd64.deb
-#   dpkg-deb -x libinotifytools0_*.deb . && cp usr/lib/x86_64-linux-gnu/libinotifytools.so.0 ~/.local/lib/
+# Install inotifywait: bash lib/install-inotify.sh（apt 优先 → 免 sudo deb 提取 + wrapper）
 
 set -euo pipefail
 
@@ -34,7 +29,9 @@ CHANGED_REPOS_FILE="$MONITOR_HOME/.monitor-sync.changed-repos"
 WATCH_DIR="$HOME/git"
 
 export PATH="$HOME/.local/bin:$PATH"
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+$HOME/.local/lib:$LD_LIBRARY_PATH}"
+# 展开必须把 ~/.local/lib 无条件放进去：写成 ${VAR:+$HOME/.local/lib:$VAR} 时
+# VAR 未设 → 整个展开为空，库路径根本没加（免 sudo 装的 libinotifytools.so.0 找不到）
+export LD_LIBRARY_PATH="$HOME/.local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # Colors
 source "$SCRIPT_DIR/colors.sh"
@@ -87,11 +84,32 @@ repo_name() {
     basename "$1"
 }
 
+# inotifywait 是否"真能跑"：command -v 只看得见文件，库缺失时二进制在、
+# 一执行就 "error while loading shared libraries"（免 sudo 装的库在 ~/.local/lib）。
+inotify_usable() {
+    command -v inotifywait &>/dev/null || return 1
+    local probe
+    probe=$(inotifywait --help 2>&1 || true)
+    [[ "$probe" != *"error while loading shared libraries"* &&
+       "$probe" != *"cannot open shared object file"* ]]
+}
+
+# 自动修复（免 sudo 安装）。必须子 shell 里 source：install-inotify.sh 会 source
+# colors.sh，它的 error()/warn() 会顶掉本文件的同名日志函数（那些还要写 LOG_FILE）
+repair_inotify() {
+    ( source "$SCRIPT_DIR/install-inotify.sh"; install_inotify ) >>"$LOG_FILE" 2>&1 || true
+    export PATH="$HOME/.local/bin:$PATH"
+    inotify_usable
+}
+
 check_deps() {
+    inotify_usable && return 0
     if ! command -v inotifywait &>/dev/null; then
-        error "Missing inotifywait (see header for install instructions)"
-        return 1
+        error "缺少 inotifywait — 修复: bash ~/git/ccconfig/maintain.sh fix"
+    else
+        error "inotifywait 无法加载共享库（libinotifytools.so.0）— 修复: bash ~/git/ccconfig/maintain.sh fix"
     fi
+    return 1
 }
 
 # Check if HTTPS_PROXY is alive (2s timeout). Returns 0 if reachable or no proxy configured.
@@ -345,7 +363,16 @@ resurrect_pm2() {
 
 # ========== Start monitoring ==========
 start_watch() {
-    check_deps || return 1
+    if ! check_deps; then
+        # 依赖坏了先自愈：升级/换机后常见"二进制在、库丢了"，直接 return 1 会
+        # 让 systemd Type=forking 起不来，也让人工 start 变成无解
+        warn "inotifywait 不可用，尝试自动修复..."
+        if repair_inotify; then
+            log "inotifywait 已修复: $(command -v inotifywait)"
+        else
+            return 1
+        fi
+    fi
 
     # PIDFile 检查：活的 + 是 monitor.sh 自身 → service 已在跑，exit 0
     # 防止 systemd Type=forking 看到 exit 1 → enable --now 失败
@@ -364,6 +391,14 @@ start_watch() {
     done
     if [ -n "$pid_candidate" ]; then
         do_log "Already running (PID: $pid_candidate) — keep alive"
+        # 幂等返回不等于"没事"：loop 活着但 inotifywait 坏了，此前静默 return 0，
+        # 菜单里选"启动监控"看着像没反应
+        $QUIET_MODE || echo -e "${YELLOW}[SYNC]${NC} monitor 已在运行 (PID: $pid_candidate) — 未重启"
+        if ! inotify_usable; then
+            $QUIET_MODE || echo -e "${RED}[SYNC]${NC} 但 inotifywait 不可用（共享库缺失?）— 修复: bash maintain.sh fix"
+        elif ! pgrep -f "inotifywait.*$WATCH_DIR" &>/dev/null; then
+            $QUIET_MODE || echo -e "${YELLOW}[SYNC]${NC} inotifywait 未在跑 — loop 下个周期会自愈；强制重启: sudo systemctl restart claude-auto-sync"
+        fi
         return 0
     fi
     # PIDFile 残留（指向无关进程或死进程），清理后重启
@@ -444,6 +479,22 @@ start_watch() {
 
         while true; do
             if ! kill -0 $event_pid 2>/dev/null; then
+                # 二进制本身不可用（库丢了）时重拉多少次都白搭——先修；
+                # 修不好走长冷却，别再刷 8 次退避把 30 分钟耗在注定失败的 restart 上
+                if ! inotify_usable; then
+                    do_log "inotifywait 不可用（共享库缺失?）— 尝试自动修复"
+                    echo "degraded:repairing" > "$STATUS_FILE"
+                    repair_inotify || true
+                    if ! inotify_usable; then
+                        do_log "自动修复失败，冷却 300s 后重试（手动: bash maintain.sh fix）"
+                        echo "degraded:inotify-unusable" > "$STATUS_FILE"
+                        sleep 300
+                        continue
+                    fi
+                    do_log "inotifywait 修复成功，重新拉起"
+                    inotify_restarts=0
+                    inotify_backoff=2
+                fi
                 inotify_restarts=$((inotify_restarts + 1))
                 if [ $inotify_restarts -gt $inotify_max_restarts ]; then
                     # 超限不停摆：进入 5min 冷却后回 loop 顶重试，WSL inotify 偶发持续崩也能自愈
@@ -647,6 +698,11 @@ status_watch() {
     local evt_pid=$(pgrep -f "inotifywait.*$WATCH_DIR" 2>/dev/null)
     if [ -n "$evt_pid" ]; then
         echo -e "  ${GREEN}✓${NC} inotifywait (PID: $evt_pid)"
+    elif ! command -v inotifywait &>/dev/null; then
+        echo -e "  ${RED}✗${NC} inotifywait 未安装 — 修复: bash maintain.sh fix"
+    elif ! inotify_usable; then
+        # 二进制在但库丢了：只说 dead 会让人反复 restart，restart 治不了这个
+        echo -e "  ${RED}✗${NC} inotifywait 无法加载共享库（libinotifytools.so.0）— 修复: bash maintain.sh fix"
     else
         echo -e "  ${RED}✗${NC} inotifywait (dead — restart needed)"
     fi

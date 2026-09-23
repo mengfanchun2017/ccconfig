@@ -121,6 +121,16 @@ get_version() {
     eval "$extract" 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?"
 }
 
+# 命令"在"不等于"能跑"。inotifywait 缺 libinotifytools.so.0 时 command -v 通过、
+# 一执行就报 shared libraries，不特判的话状态栏一直显示 ✅（"已安装"是假象）
+dep_runtime_broken() {
+    [ "$1" = "inotifywait" ] || return 1
+    local probe
+    probe=$(inotifywait --help 2>&1 || true)
+    [[ "$probe" == *"error while loading shared libraries"* ||
+       "$probe" == *"cannot open shared object file"* ]]
+}
+
 check_dep() {
     local def="$1"
     local required="$2"
@@ -131,7 +141,12 @@ check_dep() {
     local version=""
     local symbol="$OK_SYM"
 
-    if check_cmd "$bin"; then
+    if check_cmd "$bin" && dep_runtime_broken "$bin"; then
+        status="BROKEN"
+        symbol="$NG_SYM"
+        version="库缺失"
+        MISSING=$((MISSING + 1))
+    elif check_cmd "$bin"; then
         version=$(get_version "$extract_cmd")
         [ -z "$version" ] && version="已安装"
     else
