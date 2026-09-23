@@ -42,9 +42,11 @@ source "$SCRIPT_DIR/colors.sh"
 # Quiet mode for start command
 QUIET_MODE=false
 
-# Log to file (always)
+# Log to file (always). 子进程输出（init-skill/setup-links/git）non-tty 仍带色，统一剥掉存纯文本
+strip_ansi() { sed -r 's/\x1B\[[0-9;]*[mK]//g'; }
+
 do_log() {
-    echo "[$(date '+%H:%M:%S')] $1" >> "$LOG_FILE"
+    { echo "[$(date '+%H:%M:%S')] $1"; } | strip_ansi >> "$LOG_FILE"
 }
 
 # Log to terminal + file
@@ -739,6 +741,11 @@ status_watch() {
 colorize_line() {
     local ts="$1" content="$2"
 
+    # 剥内嵌色：log 历史含旧 escape（do_log 已剥，但历史行还在），剥后规则才能匹配
+    content=$(echo "$content" | strip_ansi)
+    # 空行丢弃，减少噪声（init-skill/链接脚本输出大量空行）
+    [[ -z "$content" ]] && return
+
     # ERROR (red) — "!!" prefix, failures that need attention
     if echo "$content" | grep -qE '(\!\!|ERROR|UNRESOLVED|aborting)'; then
         echo -e "  ${RED}${ts}${NC}  $content"
@@ -751,8 +758,8 @@ colorize_line() {
         return
     fi
 
-    # SUCCESS (green) — "OK" prefix, key milestones
-    if echo "$content" | grep -qE '(OK pushed|OK committed|OK pull|OK links|OK skills|Started|Stopped|Resurrecting)'; then
+    # SUCCESS (green) — OK prefix / ✅ 完成 / key milestones
+    if echo "$content" | grep -qE '(OK pushed|OK committed|OK pull|OK links|OK skills|OK rebase|✅|Started|Stopped|Resurrecting)'; then
         echo -e "  ${GREEN}${ts}${NC}  $content"
         return
     fi
