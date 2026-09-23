@@ -240,8 +240,10 @@ check_ccprivate_structure() {
     fi
 
     # --- link/ 内容 ---
+    # 只查共享文件 + .example 模板；settings.json/.config.json 是本机文件（gitignore），
+    # 不跨机同步，要求它们在 link/ 下会误报。
     local missing_links=()
-    for f in "CLAUDE.md" "settings.json" ".config.json"; do
+    for f in "CLAUDE.md" "settings.json.example" ".config.json.example" ".claudeignore.example"; do
         [ -f "$ccpriv/link/$f" ] || missing_links+=("$f")
     done
     if [ ${#missing_links[@]} -gt 0 ]; then
