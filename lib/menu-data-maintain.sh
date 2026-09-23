@@ -54,6 +54,9 @@ MENU_ENTRIES=(
     "3|A|配置仓库更新（ccconfig+ccprivate+skill）|./maintain.sh self config|do_self config"
     "3|B|tool 更新（Node/Claude/gh/lark-cli/pip…）|./maintain.sh upgrade all|bash \"\$LIB_DIR/update.sh\" all"
     "3|C|git 全部更新（所有仓库拉取+提交）|./maintain.sh sync --all|bash \"\$LIB_DIR/sync.sh\" --all"
+    # 原 8 区并入：PAT 续期与可选组件都属"环境更新维护"，与更新放一处。
+    "3|D|GitHub PAT 刷新|./maintain.sh pat|bash \"\$CCCONFIG_DIR/bin/refresh-gh-auth.sh\""
+    "3|E|可选组件安装/补装|bash init-option.sh|bash \"\$CCCONFIG_DIR/init-option.sh\""
 
     # ── 4: LLM ──
     "4|A|切换预设（交互）|./maintain.sh llm|bash \"\$LIB_DIR/init-llm.sh\""
@@ -82,13 +85,6 @@ MENU_ENTRIES=(
     "7|C|添加账号|bash option-getnote/init.sh add|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" add"
     "7|D|删除账号|bash option-getnote/init.sh remove|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" remove"
     "7|E|切换账号（问账号名）|bash option-getnote/getnote-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\""
-
-    # ── 8: 其他 ──
-    "8|A|GitHub PAT 刷新|./maintain.sh pat|bash \"\$CCCONFIG_DIR/bin/refresh-gh-auth.sh\""
-    "8|B|模板差异|./maintain.sh example status|bash \"\$LIB_DIR/example-sync.sh\" status"
-    # 8C 模板推广已删：promote = 模板覆盖本地，会毁真实 conf 密钥。运行期模板只作
-    # 初始化种子（1B sync 复制新增），跟进差异用 8B 查看 + 手动编辑，无覆盖入口。
-    "8|D|可选组件安装/补装|bash init-option.sh|bash \"\$CCCONFIG_DIR/init-option.sh\""
 
     # ── 0: 退出 ──
     "0| |退出||exit 0"
