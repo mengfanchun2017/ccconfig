@@ -331,6 +331,14 @@ PYEOF
 do_self() {
     local target="${1:-all}"
     case "$target" in
+        config)
+            echo -e "${CYAN}── 配置仓库更新（ccconfig + ccprivate + skill）──${NC}"
+            bash "$LIB_DIR/ccprivate-upgrade.sh" --yes || warn "ccprivate 结构检查异常，继续"
+            echo ""
+            do_self cc || true
+            echo ""
+            do_self skill
+            ;;
         cc|ccconfig)
             echo -e "${CYAN}── ccconfig 更新 ──${NC}"
             if ! git -C "$SCRIPT_DIR" fetch origin main 2>/dev/null; then
@@ -358,7 +366,7 @@ do_self() {
             do_self cc
             echo ""
             do_self skill ;;
-        *) err "未知 self 目标: $target（可用: cc, skill, all）"; return 1 ;;
+        *) err "未知 self 目标: $target（可用: config, cc, skill, all）"; return 1 ;;
     esac
 }
 

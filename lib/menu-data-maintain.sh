@@ -46,15 +46,15 @@ MENU_ENTRIES=(
     "2|D|日志跟踪|./maintain.sh monitor tail|bash \"\$LIB_DIR/monitor.sh\" tail"
 
     # ── 3: 更新 ──
-    # 3A-3C 动的是【配置仓库】（拉代码 / 重建链接 / 私有仓结构迁移）
-    # 3D 动的是【已装的工具版本】（Node/Claude/gh/lark-cli…），不碰 git
-    # 3E 动的是【所有 git 仓库】（拉 + 脏库提交推送）；它把 ccconfig 也当第一个
-    #    仓库处理，所以 3A 的"拉代码+重建链接"已被它涵盖
-    "3|A|ccconfig 自更新+重建链接|./maintain.sh self cc|do_self cc"
-    "3|B|Skill 同步|./maintain.sh self skill|do_self skill"
-    "3|C|ccprivate 升级（结构）|./maintain.sh upgrade-ccprivate|bash \"\$LIB_DIR/ccprivate-upgrade.sh\""
-    "3|D|升级工具链（全部）|./maintain.sh upgrade all|bash \"\$LIB_DIR/update.sh\" all"
-    "3|E|全部仓库 git 同步|./maintain.sh sync --all|bash \"\$LIB_DIR/sync.sh\" --all"
+    # 3A 动的是【配置仓库】：ccprivate 结构升级 → ccconfig 拉代码+重建链接 → skill 同步。
+    #    原 3A/3B/3C 三个单项合并，一次跑完（git pull / skill sync 幂等，重跑无害）。
+    # 3B 动的是【已安装的工具版本】（Node/Claude/gh/lark-cli/pip/MCP 缓存…），不碰 git；
+    #    含 ccconfig 自更新 + skill 同步（update.sh all 内部步骤，行为不变）。
+    # 3C 动的是【所有 git 仓库】（拉 + 脏库提交推送）；它把 ccconfig 也当第一个仓库
+    #    处理，所以 3A 的"拉代码+重建链接"已被它涵盖，重跑无害。
+    "3|A|配置仓库更新（ccconfig+ccprivate+skill）|./maintain.sh self config|do_self config"
+    "3|B|tool 更新（Node/Claude/gh/lark-cli/pip…）|./maintain.sh upgrade all|bash \"\$LIB_DIR/update.sh\" all"
+    "3|C|git 全部更新（所有仓库拉取+提交）|./maintain.sh sync --all|bash \"\$LIB_DIR/sync.sh\" --all"
 
     # ── 4: LLM ──
     "4|A|切换预设（交互）|./maintain.sh llm|bash \"\$LIB_DIR/init-llm.sh\""
