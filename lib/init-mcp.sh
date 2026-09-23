@@ -99,6 +99,38 @@ do_status() {
         fi
         echo -e "  ${col}${ico} ${name}${NC}  ${GRAY}$desc${NC}"
     done <<< "$(read_mcp_list)"
+
+    # 漂移检查：conf（跨机同步）与运行时 .config.json（本机）不一致 = 换机必然踩坑。
+    # 只查启用项；supabase 这类走 {name}.json 桥接文件的已禁用，不会误报
+    local drift
+    drift=$(python3 - "$MCP_CONF_FILE" "$HOME/.claude/.config.json" << 'PYEOF'
+import json, os, sys
+PH = ('请填入', '请到', 'your key', 'placeholder', '<your-')
+def ph(v): return (not str(v).strip()) or any(x in str(v) for x in PH)
+conf_path, live_path = sys.argv[1], sys.argv[2]
+if not os.path.exists(live_path): sys.exit(0)
+with open(conf_path) as f: conf = json.load(f)
+with open(live_path) as f: live = json.load(f)
+live_ms = live.get('mcpServers') or {}
+out = []
+for s in conf.get('mcp_servers', []):
+    if s.get('disabled'): continue
+    name = s.get('name', '')
+    lv = live_ms.get(name) or {}
+    http = s.get('type', 'stdio') == 'http'
+    cenv = (s.get('headers') if http else s.get('env')) or {}
+    lenv = (lv.get('headers') if http else lv.get('env')) or {}
+    for k in set(list(cenv.keys()) + list(lenv.keys())):
+        c, l = cenv.get(k, ''), lenv.get(k, '')
+        if ph(c) and l and not ph(l): out.append(f"{name}（本机有真值，conf 是占位符）")
+        elif c and not ph(c) and ph(l): out.append(f"{name}（conf 有真值，本机没同步）")
+print('; '.join(sorted(set(out))))
+PYEOF
+)
+    if [[ -n "$drift" ]]; then
+        echo -e "  ${YELLOW}⚠${NC}  conf 与本机运行时不一致: $drift"
+        echo -e "     ${GRAY}回写私有仓: bash lib/init-mcp.sh export ｜ 下发生效: bash lib/init-mcp.sh sync${NC}"
+    fi
     echo ""
 }
 
@@ -164,6 +196,9 @@ for k,v in d.items():
         fi
     done <<< "$(read_mcp_list)"
     sync_to_settings "$HOME/.claude/settings.json" >/dev/null 2>&1 && good "  settings.json 已同步" || warn "  settings.json 同步失败"
+    # Claude Code 用户级 MCP 实际读 ~/.claude/.config.json（settings.json 里的 mcpServers 不生效）。
+    # 此前只写 settings.json → 即使 conf 有真 key，同步完运行时仍是占位符，新机必然 401
+    sync_to_settings "$HOME/.claude/.config.json" merge >/dev/null 2>&1 && good "  .config.json（运行时）已同步" || warn "  .config.json 同步失败"
     do_status
     echo -e "  ${GRAY}配置 Key: bash lib/init-mcp.sh keys  管理: maintain.sh mcp config${NC}"
     echo ""
@@ -171,10 +206,11 @@ for k,v in d.items():
 
 # ── 同步到 settings.json ──
 sync_to_settings() {
-    local settings_file="$1"
-    python3 - "$MCP_CONF_FILE" "$settings_file" << 'PYEOF'
+    local settings_file="$1" mode="${2:-replace}"
+    python3 - "$MCP_CONF_FILE" "$settings_file" "$mode" << 'PYEOF'
 import json, sys, os
 conf_json, settings_file = sys.argv[1], sys.argv[2]
+mode = sys.argv[3] if len(sys.argv) > 3 else 'replace'
 with open(conf_json) as f: conf_data = json.load(f)
 try:
     with open(settings_file) as f: settings_data = json.load(f)
@@ -240,7 +276,17 @@ for server in conf_data.get('mcp_servers', []):
     # conf 是 env 的真相源，直接写入 settings
     mcp_servers[name] = entry
 
-settings_data['mcpServers'] = mcp_servers
+if mode == 'merge':
+    # 运行时 .config.json 是 Claude Code 的 state 文件，还存着用户自己 claude mcp add 的服务器：
+    # 只更新 conf 定义过的条目，不动其余
+    cur = settings_data.get('mcpServers') or {}
+    for n, e in mcp_servers.items():
+        merged = dict(cur.get(n, {}))
+        merged.update(e)
+        cur[n] = merged
+    settings_data['mcpServers'] = cur
+else:
+    settings_data['mcpServers'] = mcp_servers
 if disabled_names: settings_data['disabledMcpServers'] = disabled_names
 elif 'disabledMcpServers' in settings_data: del settings_data['disabledMcpServers']
 if 'projects' not in settings_data: settings_data['projects'] = {}
@@ -265,7 +311,7 @@ PYEOF
 configure_mcp_env() {
     local name="$1" env_json="$2"
     local c_env_str="$env_json"
-    # 写 settings.json（运行时 MCP env）
+    # 写 .config.json（Claude Code 实际读取的用户级 MCP env；settings.json 里的不生效）
     python3 -c "
 import json, sys, os
 path, name, env_str = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -277,7 +323,7 @@ if env and name in data.get('mcpServers', {}):
     tmp = real + '.tmp'
     with open(tmp, 'w') as f: json.dump(data, f, indent=2)
     os.replace(tmp, real)
-" "$HOME/.claude/settings.json" "$name" "$c_env_str" 2>/dev/null || true
+" "$HOME/.claude/.config.json" "$name" "$c_env_str" 2>/dev/null || true
 }
 
 # ── 交互填 Key ──
@@ -412,6 +458,46 @@ os.replace(tmp, sys.argv[1])
     fi
 }
 
+# ── 导出 Key：本机运行时 → 跟踪的 conf ──
+# 存在的理由：key 有两条写入路径（init-mcp.sh keys 写 conf；claude mcp add / mcp-manager 写
+# 运行时 .config.json），此前没有任何回流路径。于是"本机跑得好好的、新机全是占位符"。
+do_export() {
+    echo -e "\n${CYAN}── 导出 MCP Key（本机运行时 → conf）──${NC}"
+    echo ""
+    python3 - "$MCP_CONF_FILE" "$HOME/.claude/.config.json" << 'PYEOF'
+import json, os, sys
+conf_path, live_path = sys.argv[1], sys.argv[2]
+if not os.path.exists(live_path):
+    print("  运行时配置不存在，跳过"); sys.exit(0)
+with open(conf_path) as f: conf = json.load(f)
+with open(live_path) as f: live = json.load(f)
+live_ms = live.get('mcpServers') or {}
+changed = []
+for s in conf.get('mcp_servers', []):
+    name = s.get('name', '')
+    lv = live_ms.get(name) or {}
+    if s.get('type', 'stdio') == 'http':
+        for k, v in (lv.get('headers') or {}).items():
+            if not v: continue
+            if (s.setdefault('headers', {}) or {}).get(k) != v:
+                s['headers'][k] = v; changed.append(f"{name}.headers.{k}")
+    else:
+        for k, v in (lv.get('env') or {}).items():
+            if not v: continue
+            if (s.setdefault('env', {}) or {}).get(k) != v:
+                s['env'][k] = v; changed.append(f"{name}.env.{k}")
+if not changed:
+    print("  无变化（conf 与本机运行时一致）"); sys.exit(0)
+tmp = conf_path + '.tmp'
+with open(tmp, 'w') as f:
+    json.dump(conf, f, indent=2, ensure_ascii=False); f.write('\n')
+os.replace(tmp, conf_path)
+for c in changed: print(f"  ✅ {c}")
+print(f"\n  已回写 {len(changed)} 项 → {os.path.basename(conf_path)}")
+PYEOF
+    echo -e "  ${GRAY}conf 在私有仓，auto-sync 会提交；新机执行: bash lib/init-mcp.sh sync${NC}\n"
+}
+
 # ── 启停单个 ──
 do_toggle() {
     local name="${1:-}" action="${2:-}"
@@ -484,7 +570,7 @@ do_menu() {
         do_status
         echo ""
         local cmd
-        cmd=$(menu_select "MCP 配置" "状态" "同步" "配置 Key" "启停 MCP" "退出")
+        cmd=$(menu_select "MCP 配置" "状态" "同步" "配置 Key" "启停 MCP" "导出 Key 到 conf（本机→私有仓）" "退出")
         [[ -z "$cmd" || "$cmd" = "0" ]] && continue
         case "$cmd" in
             1) do_status ;;
@@ -511,7 +597,10 @@ do_menu() {
                 do_toggle "$tname" "$tact"
                 read -p "  按回车继续..." dummy < /dev/tty || true
                 ;;
-            5) echo ""; exit 0 ;;
+            5) do_export
+                read -p "  按回车继续..." dummy < /dev/tty || true
+                ;;
+            6) echo ""; exit 0 ;;
         esac
     done
 }
@@ -521,6 +610,7 @@ if ! command -v claude &>/dev/null; then
     if [[ "${1:-}" == "sync" ]]; then
         warn "claude 未安装，仅同步配置文件"
         sync_to_settings "$HOME/.claude/settings.json" >/dev/null 2>&1 && good "  settings.json 已同步"
+        sync_to_settings "$HOME/.claude/.config.json" merge >/dev/null 2>&1 && good "  .config.json（运行时）已同步"
         exit 0
     fi
 fi
@@ -529,7 +619,8 @@ case "${1:-}" in
     status)   do_status ;;
     sync)     do_sync ;;
     keys)     do_keys ;;
+    export)   do_export ;;
     toggle)   shift; do_toggle "$@" ;;
     ""|menu)  do_menu ;;
-    *)        echo "用法: bash init-mcp.sh [status|sync|keys|toggle]; 无参数=交互菜单"; exit 1 ;;
+    *)        echo "用法: bash init-mcp.sh [status|sync|keys|export|toggle]; 无参数=交互菜单"; exit 1 ;;
 esac
