@@ -277,8 +277,13 @@ check_pat_expiry() {
         return 0
     fi
 
-    if gh api user &>/dev/null 2>&1; then
-        local u; u=$(gh api user --jq '.login' 2>/dev/null || echo "?")
+    # 网络抖动会偶发 timeout（github.com 直连不稳定），重试 2 次避免误报失效
+    local u="?"
+    for _ in 1 2 3; do
+        u=$(gh api user --jq '.login' 2>/dev/null) && break
+        sleep 2
+    done
+    if [ -n "$u" ] && [ "$u" != "?" ]; then
         echo -e "  ${GREEN}✅${NC} 认证有效（$u）"
     else
         echo -e "  ${RED}❌${NC} 认证失效或网络不通"
