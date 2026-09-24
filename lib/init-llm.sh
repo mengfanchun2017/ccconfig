@@ -474,7 +474,7 @@ test_llm() {
     # /rate limit 等）。链路本身是通的 → 不能中止切换，否则上游一忙就切不动 preset
     # （症状：切换时"偶尔报 429"/"overload"、settings.json 不更新、init-llm 闪退）。
     # 注意流式响应经 bridge 后 http_code 恒为 200，必须从 body 识别，不能只看状态码。
-    if printf '%s' "$out" | grep -qiE '"TooManyRequests"|"Server Overloaded"|"overload"|"service unavailable"|"rate.?limit"|"too many requests"|负载已饱和'; then
+    if printf '%s' "$out" | grep -qiE '"TooManyRequests"|"Server Overloaded"|"overload"|"service unavailable"|"rate.?limit"|"too many requests"|"bad_response_status_code"|负载已饱和'; then
         warn "⚠ 上游暂时不可用 — 链路通，非本机/配置问题"
         warn "  网关侧服务降级/容量限流，稍后自动恢复；继续切换"
         return 0
