@@ -569,7 +569,7 @@ do_list() {
     fi
     echo ""
     echo "=== claude plugin list (marketplace 已装) ==="
-    claude plugin list 2>&1 | head -10
+    claude plugin list 2>&1 | head -10 || true
 }
 
 # 检测清单 vs 实际安装的 drift
@@ -759,7 +759,7 @@ do_status() {
 
     echo ""
     echo -e "${CYAN}claude plugin list (marketplace 已装)${NC}"
-    claude plugin list 2>&1 | head -10
+    claude plugin list 2>&1 | head -10 || true
     echo ""
 }
 
