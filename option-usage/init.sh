@@ -143,7 +143,7 @@ print(f'  include_today:   {d.get(\"include_today\", False)}')
     info "$CCPRIVATE/usage/"
     ls -1 "$CCPRIVATE/usage/" 2>/dev/null | head -10 || warn "  空"
     local total
-    total=$(ls "$CCPRIVATE/usage/"*.csv 2>/dev/null | wc -l)
+    total=$(ls "$CCPRIVATE/usage/"*.csv 2>/dev/null | wc -l || true)
     info "总 CSV 文件: $total"
 }
 
