@@ -445,19 +445,55 @@ interactive_menu() {
         local all_idx=$((total_items - 1))            # 全部安装序号
         local exit_idx=$total_items                   # 退出序号
 
-        local choice; choice=$(menu_select "可选组件" "${menu_items[@]}")
-        [[ -z "$choice" || "$choice" == "0" || "$choice" == "$exit_idx" ]] && break
+        # menu_select 是单选契约（空格串 `1 2 6` 匹配失败返 0 被当取消）；
+        # 多选需求改自渲染编号菜单 + read 空格分隔序号，逐项安装
+        printf '\n' >&2
+        echo -e "  ${BOLD_GRAY}--可选组件--${NC}" >&2
+        local mi
+        for mi in "${!menu_items[@]}"; do
+            printf "  ${BOLD_GREEN}%d)${NC}  %s\n" "$((mi+1))" "${menu_items[$mi]}" >&2
+        done
+        printf '\n' >&2
 
-        if [[ "$choice" == "$all_idx" ]]; then
+        local raw sel_nums=() tok saw_cancel=0 saw_all=0
+        if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
+            printf "  ${BOLD_GREEN}选择 [1-${total_items}] (0=取消, 空格多选 如 1 3 5): ${NC}" >&2
+            read -r raw < /dev/tty || true
+        else
+            printf "  ${BOLD_GREEN}选择 [1-${total_items}] (0=取消, 空格多选 如 1 3 5): ${NC}" >&2
+            read -r raw || true
+        fi
+
+        # 解析空格分隔序号：0/退出 → 取消；全部序号 → 全装；其余收进 sel_nums
+        for tok in $raw; do
+            [[ "$tok" =~ ^[0-9]+$ ]] || continue
+            if [[ "$tok" == "0" || "$tok" == "$exit_idx" ]]; then
+                saw_cancel=1
+            elif [[ "$tok" == "$all_idx" ]]; then
+                saw_all=1
+            elif [ "$tok" -ge 1 ] && [ "$tok" -le ${#all_names[@]} ]; then
+                sel_nums+=("$tok")
+            fi
+        done
+
+        [[ "$saw_cancel" == "1" ]] && break
+        if [[ "${#sel_nums[@]}" -eq 0 && "$saw_all" == "0" ]]; then
+            warn "无效选择"
+            echo ""; read -p "按回车继续..." dummy < /dev/tty || true
+            continue
+        fi
+
+        if [[ "$saw_all" == "1" ]]; then
+            # 全装传 --yes 非交互：skill 走 --install 不坠 show_menu；larkcli/getnote 提示手动授权
             for n in "${all_names[@]}"; do
-                install_option "$n"
+                install_option "$n" --yes
             done
             ok "全部安装完成"
-        elif [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#all_names[@]} ]; then
-            local selected="${all_names[$((choice-1))]}"
-            install_option "$selected"
         else
-            warn "无效选择"
+            for tok in "${sel_nums[@]}"; do
+                local selected="${all_names[$((tok-1))]}"
+                install_option "$selected"
+            done
         fi
 
         echo ""; read -p "按回车继续..." dummy < /dev/tty || true
@@ -559,9 +595,8 @@ list_names_compact() {
 }
 
 install_all() {
-    # --yes 非交互：由全局 NONINTERACTIVE 或显式 --yes 触发
-    local yes_flag=""
-    [[ "${NONINTERACTIVE:-false}" == "true" ]] && yes_flag="--yes"
+    # 全装=非交互批量：恒传 --yes。skill 走 --install 不坠 show_menu；larkcli/getnote 需手动授权会提示跳过（可单独交互装）
+    local yes_flag="--yes"
     for group_entry in "${MENU_GROUPS[@]}"; do
         local group_items="${group_entry#*|}"
         for n in $group_items; do
