@@ -219,7 +219,7 @@ selfheal_bridge() {
     #     权威来源是机器本地文件（llm.json.current 只是兼容旧机器的副本，可能过时），
     #     读错会用别的 preset 起 bridge。
     local cur
-    cur="$(tr -d '[:space:]' < "$HOME/.claude/llm-current" 2>/dev/null || true)"
+    cur="$( [[ -f "$HOME/.claude/llm-current" ]] && tr -d '[:space:]' < "$HOME/.claude/llm-current" || true )"
     if [[ -z "$cur" ]]; then
         cur=$(python3 -c "import json; print(json.load(open('$cfg')).get('current',''))" 2>/dev/null) || return 1
     fi
