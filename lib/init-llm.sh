@@ -469,13 +469,14 @@ test_llm() {
     out=$(cat "$body_file" 2>/dev/null); rm -f "$body_file"
     [[ -z "$http_code" ]] && http_code="000"
 
-    # 上游饱和/限流：网关后端容量不足时回 429，或经 bridge 转成
-    # HTTP 200 + error 事件里的 TooManyRequests。链路本身是通的 → 不能中止切换，
-    # 否则上游一忙就切不动 preset（症状：切换时"偶尔报 429"、settings.json 不更新）。
+    # 上游暂时不可用：网关后端过载/限流/维护等场景，bridge 把上游 non-SSE 错误体
+    # 转成 HTTP 200 + error 事件（TooManyRequests/Server Overloaded/service unavailable
+    # /rate limit 等）。链路本身是通的 → 不能中止切换，否则上游一忙就切不动 preset
+    # （症状：切换时"偶尔报 429"/"overload"、settings.json 不更新、init-llm 闪退）。
     # 注意流式响应经 bridge 后 http_code 恒为 200，必须从 body 识别，不能只看状态码。
-    if printf '%s' "$out" | grep -qE '"TooManyRequests"|负载已饱和'; then
-        warn "⚠ 上游负载饱和（429）— 链路通，非本机/配置问题"
-        warn "  网关侧容量限流，稍后自动恢复；继续切换"
+    if printf '%s' "$out" | grep -qiE '"TooManyRequests"|"Server Overloaded"|"overload"|"service unavailable"|"rate.?limit"|"too many requests"|负载已饱和'; then
+        warn "⚠ 上游暂时不可用 — 链路通，非本机/配置问题"
+        warn "  网关侧服务降级/容量限流，稍后自动恢复；继续切换"
         return 0
     fi
 
