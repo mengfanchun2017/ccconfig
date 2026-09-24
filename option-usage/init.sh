@@ -132,7 +132,7 @@ print(f'  include_today:   {d.get(\"include_today\", False)}')
         systemctl status "$TIMER" --no-pager -l 2>/dev/null | head -5
         echo ""
         echo "── 上次执行 ──"
-        systemctl status "$SERVICE" --no-pager -l 2>/dev/null | head -5
+        systemctl status "$SERVICE" --no-pager -l 2>/dev/null | head -5 || true
     else
         warn "$TIMER 未启用"
         info "运行 init.sh install 启用"
