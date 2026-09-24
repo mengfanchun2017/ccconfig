@@ -41,6 +41,8 @@
 | [0030](0030-gateway-deprecation-2026.md) | Gateway 模式废弃 — 删 gateway 层（init.sh/proxy.py/watchdog.sh），保留 openai_bridge.py 作 bridge | 2026-09-17 | ✅ Accepted | LLM 管理 |
 | [0031](0031-init-llm-consolidation-2026.md) | init-llm 收敛：修桥接链路 P0（流式包装器/transport/守护层）+ 探测统一 + 四层守护模型 + 删交互式编辑 | 2026-09-17 | ✅ Accepted | LLM 管理 |
 | [0032](0032-config-layering.md) | 配置分层：共享预设 vs 本机选择 — 切换零写入 + setup.sh 单一模板真相源 + 模板拆分 | 2026-09-17 | ✅ Accepted | LLM 管理 |
+| [0033](0033-bridge-collapse-usage-delta.md) | 收窄 bridge 流式 usage message_delta 为收尾一次 — 逐 token 冗余事件致 CC 误判重试 | 2026-09-20 | ✅ Accepted | Bridge |
+| [0034](0034-bridge-block-index-and-thinking-switch.md) | bridge 块索引唯一化 + 重复投递丢弃 + thinking 开关（enable_thinking） | 2026-09-22 | ✅ Accepted | Bridge |
 
 > **编号 0024 / 0025 未使用**：编号永不重用（见[命名约定](#命名约定)），这两号在 0023 之后被跳过、没有对应文件，也没有正文引用。新增 ADR 从**当前最大号 +1** 起，不要去填这个空档。
 >
