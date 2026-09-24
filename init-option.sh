@@ -306,7 +306,18 @@ install_option() {
         if $yes_mode; then
             case "$name" in
                 larkcli)
-                    warn "跳过 larkcli（需扫码授权: bash init-option.sh larkcli）"
+                    # 已授权则直接安装（幂等，config 存在 + token valid 不会重复扫码）
+                    # status 全量输出大，head 截断会 SIGPIPE 触发 pipefail/set -e 退出整脚本 → 走临时文件
+                    local lk_tmp; lk_tmp=$(mktemp)
+                    bash "$SCRIPT_DIR/option-larkcli/init.sh" --status 2>/dev/null > "$lk_tmp" || true
+                    local lk_line; lk_line=$(head -1 "$lk_tmp")
+                    rm -f "$lk_tmp"
+                    if [[ "$lk_line" == OK*已授权* ]]; then
+                        ok "${lk_line#OK }"
+                        bash "$SCRIPT_DIR/option-larkcli/init.sh" 2>&1 | sed 's/^/  /'
+                    else
+                        warn "跳过 larkcli（需扫码授权: bash init-option.sh larkcli）[$lk_line]"
+                    fi
                     return 0 ;;
                 getnote)
                     warn "跳过 getnote（需配置 API key: bash option-getnote/init.sh menu）"
