@@ -316,7 +316,12 @@ install_option() {
                         ok "${lk_line#OK }"
                         bash "$SCRIPT_DIR/option-larkcli/init.sh" 2>&1 | sed 's/^/  /'
                     else
-                        warn "跳过 larkcli（需扫码授权: bash init-option.sh larkcli）[$lk_line]"
+                        # 未授权：直接跑全包（非交互会打印授权链接不阻塞，扫码后跑交互模式收尾激活）
+                        echo ""
+                        warn "larkcli 未授权，已生成授权链接如下（扫码/点链接授权）[$lk_line]"
+                        bash "$SCRIPT_DIR/option-larkcli/init.sh" 2>&1 | sed 's/^/  /'
+                        echo ""
+                        info "授权后完成激活: bash init-option.sh larkcli（交互模式）"
                     fi
                     return 0 ;;
                 getnote)
