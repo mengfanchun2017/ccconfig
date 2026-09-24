@@ -144,6 +144,13 @@ _do_auth_login() {
     info "    授权链接:"
     echo "    $url"
     echo ""
+
+    if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+        # 非交互（批量 --yes）：不阻塞等扫码，打印链接即返回，扫码后跑交互模式收尾
+        info "    扫码/点链接授权后，再跑: bash init-option.sh larkcli 完成激活"
+        return 0
+    fi
+
     info "    扫码后自动继续..."
 
     lark-cli auth login --device-code "$device_code" 2>&1 | grep -v '^\[lark-cli\]' | grep -v 'AI agent' | grep -v '此命令最长' | grep -v '不要在同一轮' | grep -v '必须生成二维码' | grep -v '**MUST' | grep -v '**CRITICAL' | grep -v '**Display' | grep -v '**URL Output' | grep -v 'For agent' | grep -v '等待用户' | grep -v '必须调用' | grep -v '优先生成' | grep -v '生成后必须' | grep -v '仅生成文件'
