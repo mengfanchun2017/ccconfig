@@ -564,7 +564,8 @@ main() {
 
     # 默认截止到昨天（避免当天的进行中 session 数据不稳定）
     # until=today 作为排他上界：day >= today 被跳过，含昨天
-    if [[ -z "$until" && "$include_today" != true ]]; then
+    # --stats 是"看"不是"写"：实时展示应含今天，否则全在今天的数据显示为 0
+    if [[ -z "$until" && "$include_today" != true && "$stats" != true ]]; then
         until=$(date +%Y-%m-%d)
         info "默认截止到昨天（今天 $until 不写入），加 --include-today 包含今日"
     fi
