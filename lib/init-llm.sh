@@ -485,8 +485,20 @@ test_llm() {
         return 0
     fi
     case "$http_code" in
-        000) error "✗ 不可达 — $probe_url"
-             error "  查 DNS / 出口 / VPN（内网 preset 在家不可达是正常的，切 home preset）" ;;
+        000)
+            # bridge 路径下 000：bridge health OK 但探测时拿不到响应。
+            # 典型场景——bridge 转发上游时上游 hang/slow，bridge 的 streaming response
+            # 不结束，curl max-time 触发 → 000。bridge 链路本身是通的（配置 + 启停
+            # 都 OK），只是上游临时不可用 → 跟 429/overload 一样不该中止切换，
+            # 否则上游一挂就切不动 preset。
+            if (( need_bridge )); then
+                warn "⚠ 上游不可达（$probe_url）— bridge 链路 OK，上游临时 hang/slow"
+                warn "  继续切换；Claude 启动后会重试，若持续失败回滚当前 preset"
+                return 0
+            fi
+            error "✗ 不可达 — $probe_url"
+            error "  查 DNS / 出口 / VPN（内网 preset 在家不可达是正常的，切 home preset）"
+            ;;
         429) warn "⚠ HTTP 429 — 链路通，上游负载饱和（网关侧限流）"; return 0 ;;
         401|403) warn "⚠ HTTP $http_code — 链路通但鉴权失败（key 可能无效）"; return 0 ;;
         *)   if printf '%s' "$out" | grep -q '"type":"error"'; then
