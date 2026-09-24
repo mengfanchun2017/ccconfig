@@ -165,6 +165,17 @@ do_install_cli_deps() {
     local npm_global_bin
     npm_global_bin="$(npm prefix -g 2>/dev/null)/bin"
 
+    # 从 npm 全局 bin 建 ~/.local/bin symlink（已装场景可能缺链，必须补）
+    _link_npm_bin() {
+        local pkg="$1"
+        local bin_name="${pkg##*/}"       # strip @scope/ prefix
+        bin_name="${bin_name#@*/}"         # strip scope if still present
+        if [[ -x "$npm_global_bin/$bin_name" ]]; then
+            mkdir -p "$HOME/.local/bin"
+            run ln -sf "$npm_global_bin/$bin_name" "$HOME/.local/bin/$bin_name"
+        fi
+    }
+
     local installed=0 skipped=0 failed=0
     for key in "${!seen_deps[@]}"; do
         local pkg="${key%%|*}"
@@ -174,19 +185,13 @@ do_install_cli_deps() {
         case "$mgr" in
             npm)
                 if npm list -g "$pkg" --depth=0 2>/dev/null | grep -q "$pkg"; then
+                    _link_npm_bin "$pkg"
                     info "  $pkg: 已装 — $required_by"
                     skipped=$((skipped + 1))
                 else
                     info "  $pkg: 安装中..."
                     if run npm install -g "$pkg" 2>&1 | tail -1; then
-                        # symlink binary to ~/.local/bin
-                        local bin_name="${pkg##*/}"  # strip @scope/ prefix
-                        bin_name="${bin_name#@*/}"    # strip scope if still present
-                        # handle npm binary name (may differ from package name)
-                        if [[ -x "$npm_global_bin/$bin_name" ]]; then
-                            mkdir -p "$HOME/.local/bin"
-                            run ln -sf "$npm_global_bin/$bin_name" "$HOME/.local/bin/$bin_name"
-                        fi
+                        _link_npm_bin "$pkg"
                         good "  $pkg: ✓ — $required_by"
                         installed=$((installed + 1))
                     else
