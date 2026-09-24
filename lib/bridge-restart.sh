@@ -16,7 +16,7 @@ CCCONFIG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cfg="${1:-}"
 [[ -z "$cfg" || ! -f "$cfg" ]] && exit 1
 preset="${2:-}"
-[[ -z "$preset" ]] && preset="$(tr -d '[:space:]' < "$HOME/.claude/llm-current" 2>/dev/null || true)"
+[[ -z "$preset" ]] && preset="$( [[ -f "$HOME/.claude/llm-current" ]] && tr -d '[:space:]' < "$HOME/.claude/llm-current" || true )"
 [[ -z "$preset" ]] && exit 0
 
 # 读 preset 配置；use_bridge 三态 → true/false/空
