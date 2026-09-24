@@ -107,7 +107,7 @@ init_all_steps() {
     #     与 ensure-bridge.sh / bridge-restart.sh 的读法保持一致。
     local llm_json="$ccpriv/conf/llm.json"
     local current_llm
-    current_llm=$(tr -d '[:space:]' < "$HOME/.claude/llm-current" 2>/dev/null || true)
+    current_llm=$( [[ -f "$HOME/.claude/llm-current" ]] && tr -d '[:space:]' < "$HOME/.claude/llm-current" || true )
     if [[ -z "$current_llm" ]]; then
         current_llm=$(python3 -c "import json; print(json.load(open('$llm_json')).get('current',''))" 2>/dev/null || echo "")
     fi
