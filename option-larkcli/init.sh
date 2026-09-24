@@ -414,11 +414,47 @@ print('true' if any(is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')) for
 " 2>/dev/null || echo "false")
     fi
 
-    if [ "$has_ph" = "true" ]; then
-        echo "WARN lark-cli v${ver:-?} (账号: ${acct}) — feishu.json 含占位符"
-    else
-        echo "OK lark-cli v${ver:-?} (账号: ${acct})"
+    # 检查用户 OAuth 授权态（tokenStatus valid 才算）
+    local auth_state="未授权"
+    if [ -n "$acct" ] && [ "$acct" != "-" ]; then
+        local acct_dir
+        acct_dir=$(grep '^configDir=' "$cf" 2>/dev/null | cut -d'=' -f2)
+        acct_dir="${acct_dir/#\~/$HOME}"
+        if [ -z "$acct_dir" ]; then
+            acct_dir=$(python3 -c "
+import json, sys
+with open('$FEISHU_CONF') as f: d = json.load(f)
+for a in d.get('apps', []):
+    if a.get('name') == '$acct' and a.get('larkCli', {}).get('enabled'):
+        print(a['larkCli'].get('configDir', '~/.lark-cli').replace('~', sys.argv[1])); break
+" "$HOME" 2>/dev/null)
+        fi
+        local ast
+        ast=$(LARKSUITE_CLI_CONFIG_DIR="$acct_dir" lark-cli auth status 2>/dev/null | python3 -c "
+import json, sys
+raw = sys.stdin.read()
+s = ''.join(l for l in raw.splitlines() if not l.startswith('[lark-cli]'))
+i, j = s.find('{'), s.rfind('}')
+if i >= 0 and j > i:
+    try:
+        d = json.loads(s[i:j+1])
+        u = d.get('identities', {}).get('user', {})
+        print('ok' if u.get('tokenStatus') == 'valid' else 'no')
+    except Exception:
+        print('no')
+else:
+    print('no')
+" 2>/dev/null || echo "no")
+        [ "$ast" = "ok" ] && auth_state="已授权"
     fi
+
+    local banner
+    if [ "$has_ph" = "true" ]; then
+        banner="WARN lark-cli v${ver:-?} (账号: ${acct}, ${auth_state}) — feishu.json 含占位符"
+    else
+        banner="OK lark-cli v${ver:-?} (账号: ${acct}, ${auth_state})"
+    fi
+    echo "$banner"
 
     # 后续行：彩色详情（--status 直接展示用）
     echo ""
