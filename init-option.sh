@@ -261,6 +261,19 @@ install_option() {
       return 0
     fi
 
+    # getnote 探测：账号在 ccprivate 内单点真源，本机已配则跳过整个 install 路径
+    if [ "$name" = "getnote" ]; then
+        local gn_init="$SCRIPT_DIR/option-getnote/init.sh"
+        if [[ -f "$gn_init" ]]; then
+            local gn_line; gn_line=$(bash "$gn_init" --status 2>/dev/null | head -1)
+            if [[ "$gn_line" == OK* ]]; then
+                ok "${gn_line#OK }"
+                info "管理: bash option-getnote/init.sh menu"
+                return 0
+            fi
+        fi
+    fi
+
     # option-* 目录 + ccbridge 兼容
     if [ "$name" = "larkbridge" ]; then
         local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
