@@ -619,7 +619,7 @@ list_names_compact() {
 }
 
 install_all() {
-    # 全装=非交互批量：恒传 --yes。skill 走 --install 不坠 show_menu；larkcli/getnote 需手动授权会提示跳过（可单独交互装）
+    # 全装=非交互批量：恒传 --yes。skill 走 --install 不坠 show_menu；larkcli 已授权自动装、未授权提示手动；getnote 提示手动 key
     local yes_flag="--yes"
     for group_entry in "${MENU_GROUPS[@]}"; do
         local group_items="${group_entry#*|}"
