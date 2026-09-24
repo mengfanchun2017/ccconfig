@@ -120,7 +120,7 @@ do_install_cli_deps() {
             local dep_file="${skill_dir}deps.txt"
             [[ -f "$dep_file" ]] || continue
             local skill_name=$(basename "$skill_dir")
-            while IFS= read -r line; do
+            while IFS= read -r line || [[ -n "$line" ]]; do
                 [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
                 local pkg=$(echo "$line" | awk '{print $1}')
                 local mgr=$(echo "$line" | awk '{print $2}' | cut -d: -f1)
@@ -467,7 +467,7 @@ _collect_all_deps() {
         for skill_dir in "$src"/*/; do
             local dep_file="${skill_dir}deps.txt"
             [[ -f "$dep_file" ]] || continue
-            while IFS= read -r line; do
+            while IFS= read -r line || [[ -n "$line" ]]; do
                 [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
                 _deps_out+=("$line")
             done < "$dep_file"
