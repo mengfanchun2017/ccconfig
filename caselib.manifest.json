@@ -1,0 +1,303 @@
+{
+  "manifest_version": "v1",
+  "format": "ndjson",
+  "base_token": "THqFbP2MQatl6gsy5HHcpqvinth",
+  "table_id": "tblPAzcKDRW050x0",
+  "rev": 27,
+  "timezone": "Asia/Shanghai",
+  "query_context": {
+    "field_scope": "all_fields",
+    "record_scope": "all_records"
+  },
+  "requested_limit": 2000,
+  "records_count": 2,
+  "page_count": 1,
+  "has_more": false,
+  "record_file": "/home/francis/git/ccconfig/caselib.ndjson",
+  "record_file_size_bytes": 2681,
+  "manifest_file": "/home/francis/git/ccconfig/caselib.manifest.json",
+  "columns": {
+    "record_id": {
+      "physical_type": "string",
+      "stats": {
+        "max_length": 14
+      },
+      "example": "recvw8g2t4PPGF"
+    },
+    "业务职能": {
+      "field_id": "fld6lVSpBe",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 2,
+        "avg_length": 2
+      },
+      "example": [
+        "市场",
+        "IT/数据"
+      ]
+    },
+    "主题领域": {
+      "field_id": "fldS3lsCE8",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 3,
+        "avg_length": 2.5
+      },
+      "example": [
+        "客户细分",
+        "个性化推荐"
+      ]
+    },
+    "公司/品牌": {
+      "field_id": "fldCeQeFJJ",
+      "field_type": "text",
+      "physical_type": "string|null",
+      "stats": {
+        "null_count": 0,
+        "max_length": 11
+      },
+      "example": "Starbucks"
+    },
+    "公司规模(年营收,亿元)": {
+      "field_id": "fldjnavE7S",
+      "field_type": "number",
+      "physical_type": "number|null",
+      "stats": {
+        "null_count": 2
+      },
+      "hint": "All values are empty; type inference may be ambiguous. Avoid analyzing this column unless required."
+    },
+    "内容形态": {
+      "field_id": "flduaygYbI",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 1,
+        "avg_length": 1
+      },
+      "example": [
+        "图文"
+      ]
+    },
+    "分析方法/模型": {
+      "field_id": "fldNLwiWUM",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 2,
+        "avg_length": 2
+      },
+      "example": [
+        "RFM",
+        "聚类"
+      ]
+    },
+    "创建时间": {
+      "field_id": "fldBGMdXFj",
+      "field_type": "created_at",
+      "physical_type": "string|null",
+      "stats": {
+        "null_count": 0,
+        "min": "2026-09-24T18:26:27.000+08:00",
+        "max": "2026-09-24T18:26:27.000+08:00"
+      },
+      "example": "2026-09-24T18:26:27.000+08:00"
+    },
+    "地区": {
+      "field_id": "fld8BEoooO",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 1,
+        "avg_length": 1
+      },
+      "example": [
+        "北美"
+      ]
+    },
+    "子文档列表": {
+      "field_id": "fldci3ep8V",
+      "field_type": "text",
+      "physical_type": "string|null",
+      "stats": {
+        "null_count": 0,
+        "max_length": 104
+      },
+      "example": "[{\"title\":\"Starbucks 商业分析案例\",\"url\":\"https://rcnejwuhyp41.feishu.cn/docx/YTILd3MTAouUFLxWKhgccuGEnMh\"}]"
+    },
+    "教学目的": {
+      "field_id": "fldkQJU6uZ",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 2,
+        "avg_length": 1.5
+      },
+      "example": [
+        "方法演示"
+      ]
+    },
+    "数据源/数据集链接": {
+      "field_id": "fldGRmGeZz",
+      "field_type": "text",
+      "physical_type": "string|null",
+      "stats": {
+        "null_count": 0,
+        "max_length": 168
+      },
+      "example": "[https://digitaldefynd.com/IQ/role-of-business-analytics-in-digital-transformation/](https://digitaldefynd.com/IQ/role-of-busine",
+      "example_truncated": true
+    },
+    "数据能力要求": {
+      "field_id": "fld65kVyZv",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 1,
+        "avg_length": 1
+      },
+      "example": [
+        "中"
+      ]
+    },
+    "方向": {
+      "field_id": "fldBAYgq0U",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 1,
+        "avg_length": 1
+      },
+      "example": [
+        "商业分析"
+      ]
+    },
+    "更新时间": {
+      "field_id": "fld1bk7Ls7",
+      "field_type": "updated_at",
+      "physical_type": "string|null",
+      "stats": {
+        "null_count": 0,
+        "min": "2026-09-24T18:26:27.000+08:00",
+        "max": "2026-09-24T18:26:27.000+08:00"
+      },
+      "example": "2026-09-24T18:26:27.000+08:00"
+    },
+    "案例主文档": {
+      "field_id": "flds7KOCBd",
+      "field_type": "text",
+      "physical_type": "string|null",
+      "stats": {
+        "null_count": 0,
+        "max_length": 130
+      },
+      "example": "[https://rcnejwuhyp41.feishu.cn/docx/YTILd3MTAouUFLxWKhgccuGEnMh](https://rcnejwuhyp41.feishu.cn/docx/YTILd3MTAouUFLxWKhgccuGEnM",
+      "example_truncated": true
+    },
+    "案例年份": {
+      "field_id": "fldltuyh6T",
+      "field_type": "number",
+      "physical_type": "number|null",
+      "stats": {
+        "null_count": 0,
+        "min": 2024,
+        "max": 2024,
+        "avg": 2024
+      },
+      "example": 2024
+    },
+    "案例标题": {
+      "field_id": "fld2fQMGpr",
+      "field_type": "text",
+      "physical_type": "string|null",
+      "stats": {
+        "null_count": 0,
+        "max_length": 18
+      },
+      "example": "Starbucks 商业分析案例"
+    },
+    "案例状态": {
+      "field_id": "fldg7nPDsu",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 1,
+        "avg_length": 1
+      },
+      "example": [
+        "已上线"
+      ]
+    },
+    "案例类型": {
+      "field_id": "fldDdrn53v",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 2,
+        "avg_length": 2
+      },
+      "example": [
+        "数字化转型",
+        "业务增长"
+      ]
+    },
+    "热门": {
+      "field_id": "fldId95iSu",
+      "field_type": "checkbox",
+      "physical_type": "boolean",
+      "stats": {
+        "true_count": 2
+      },
+      "example": true
+    },
+    "简介/摘要": {
+      "field_id": "fldka1hwbZ",
+      "field_type": "text",
+      "physical_type": "string|null",
+      "stats": {
+        "null_count": 0,
+        "max_length": 66
+      },
+      "example": "星巴克应用 RFM 与客户分层的商业分析案例，展示个性化推荐与忠诚度体系。DigitalDefynd 数字转型案例之一。"
+    },
+    "行业": {
+      "field_id": "flddtURTi4",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 2,
+        "avg_length": 2
+      },
+      "example": [
+        "零售",
+        "快消"
+      ]
+    },
+    "难度": {
+      "field_id": "fldFKuw2ZO",
+      "field_type": "select",
+      "physical_type": "array<string>",
+      "stats": {
+        "empty_count": 0,
+        "max_length": 1,
+        "avg_length": 1
+      },
+      "example": [
+        "入门"
+      ]
+    }
+  }
+}
