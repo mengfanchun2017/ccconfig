@@ -497,12 +497,17 @@ case "${1:-}" in
         show_status
         ;;
     --help|-h)
-        echo "用法: $0 [--list|--status|--auth-login <name>]"
+        echo "用法: $0 [--list|--status|--install-skills|--auth-login <name>]"
         echo ""
         echo "  (无参数)    配置所有启用的 lark-cli 账号"
         echo "  --list      列出可用账号"
         echo "  --status    状态检查"
+        echo "  --install-skills     仅安装 lark-* agent skills（幂等，升级/init-skill sync 用）"
         echo "  --auth-login <name>  手动触发 OAuth 授权"
+        ;;
+    --install-skills)
+        # 仅安装 lark-* agent skills（幂等，已装跳过）。升级/init-skill sync 调用，不触 config/OAuth
+        install_lark_skills
         ;;
     --auth-login)
         _cl_auth_name="${2:-}"
