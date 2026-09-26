@@ -451,6 +451,13 @@ do_sync() {
     # Phase 2 (do_ensure_marketplace) 已废弃 — f-* 走 symlink 即装，marketplace 注册与 symlink 双路重复
     # Phase 3 (do_install_third_party) 已废弃 — 2026-07-15
 
+    # lark-* agent skills 是 larksuite/cli 官方 skill，不走自建 plugins/，由 option-larkcli 装。
+    # 升级/init-skill sync 若不补这步，全新或清过 ~/.agents/skills 的机器会静默缺 28 个技能。
+    # 幂等：已装则跳过（option-larkcli/init.sh --install-skills）。
+    if [[ -x "$CCCONFIG_ROOT/option-larkcli/init.sh" ]]; then
+        "$CCCONFIG_ROOT/option-larkcli/init.sh" --install-skills 2>&1 | sed 's/^/  /'
+    fi
+
     if [[ "$quiet" == "1" ]]; then
         local count=$(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l)
         echo -e "  Skills: ${GREEN}${count} 个${NC} → ~/.claude/skills/"
