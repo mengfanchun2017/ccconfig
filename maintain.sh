@@ -128,7 +128,7 @@ do_setup() {
         _fix_step "重建公开符号链接（ccprivate/setup.sh 不可用）" bash "$LIB_DIR/setup-links.sh"
     fi
 
-    local expected_dirs=("skill" "skill-local" "rules" "agents" "commands" "bin" "usage")
+    local expected_dirs=("skill" "skill-local" "rules" "agents" "commands" "bin")
     local created=false
     for d in "${expected_dirs[@]}"; do
         if [[ ! -d "$ccpriv/$d" ]]; then
@@ -461,8 +461,6 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     mcp)     shift; bash "$LIB_DIR/mcp-manager.sh" "$@" ;;
     pat|pat-refresh|gh-auth)
         bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh" ;;
-    token|usage)
-        shift; bash "$CCCONFIG_DIR/option-usage/token-usage.sh" "$@" ;;
     example)
         shift; bash "$LIB_DIR/example-sync.sh" "$@" ;;
     upgrade-ccprivate|upgrade-ccpriv|ccpriv-upgrade)
@@ -474,7 +472,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         _rc=0
         menu_parse "${1:-}" || _rc=$?
         if [[ $_rc -eq 3 ]]; then
-            echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|pat|token|example|upgrade-ccprivate]"
+            echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|pat|example|upgrade-ccprivate]"
             echo "      或菜单编号（如 2e）直接执行对应项"
             exit 1
         fi
