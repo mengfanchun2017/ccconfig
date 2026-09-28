@@ -328,12 +328,41 @@ PYEOF
     [[ "$_fix_failed" -eq 0 ]]
 }
 
+# 拉取一个配置仓库（ccconfig / ccprivate / skill），stderr 透明，失败给真实原因。
+# 3A 包办 3 个配置仓库的拉取（原 3C 并入）；sync.sh 保留供单独命令行调用。
+pull_config_repo() {
+    local dir="$1" name="$2"
+    echo -e "${CYAN}── $name 更新 ──${NC}"
+    local _fout _frc _cur _pout _prc _after
+    _fout="$(git -C "$dir" fetch origin main 2>&1)" || _frc=$?
+    if [[ "${_frc:-0}" -ne 0 ]]; then
+        echo -e "  ${RED}${_fout}${NC}"
+        warn "$name fetch 失败（网络不通/代理问题？）"
+        return 1
+    fi
+    _cur=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null)
+    _pout="$(git -C "$dir" pull --ff-only origin main 2>&1)" || _prc=$?
+    if [[ "${_prc:-0}" -eq 0 ]]; then
+        _after=$(git -C "$dir" rev-parse --short HEAD)
+        [ "$_cur" != "$_after" ] && ok "$name: $_cur → $_after" || ok "$name 已是最新: $_cur"
+    else
+        echo -e "  ${RED}${_pout}${NC}"
+        warn "$name 拉取失败（上方红字为真实原因；本地脏/分叉先处理）"
+        return 1
+    fi
+}
+
 do_self() {
     local target="${1:-all}"
     case "$target" in
         config)
-            echo -e "${CYAN}── 配置仓库更新（ccconfig + ccprivate + skill）──${NC}"
+            echo -e "${CYAN}── 配置仓库更新（3 个库：ccconfig + ccprivate + skill）──${NC}"
             bash "$LIB_DIR/ccprivate-upgrade.sh" --yes || warn "ccprivate 结构检查异常，继续"
+            # 3A 包办 3 个配置仓库的 git 拉取（原 3C 并入此）：顺序 ccprivate → skill → ccconfig
+            echo ""
+            pull_config_repo "$HOME/git/ccprivate" "ccprivate" || true
+            echo ""
+            pull_config_repo "$HOME/git/skill" "skill" || true
             echo ""
             do_self cc || true
             echo ""
