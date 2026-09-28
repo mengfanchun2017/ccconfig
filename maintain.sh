@@ -369,25 +369,7 @@ do_self() {
             do_self skill
             ;;
         cc|ccconfig)
-            echo -e "${CYAN}── ccconfig 更新 ──${NC}"
-            # 拉取失败不吞 stderr：报错要看真实原因（网络/代理/分叉），否则只会猜"有本地改动"
-            local _fout _frc _local_commit _pout _prc _after
-            _fout="$(git -C "$SCRIPT_DIR" fetch origin main 2>&1)" || _frc=$?
-            if [[ "${_frc:-0}" -ne 0 ]]; then
-                echo -e "  ${RED}${_fout}${NC}"
-                warn "git fetch 失败（网络不通/代理问题？），跳过自更新"
-                return 1
-            fi
-            _local_commit=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null)
-            _pout="$(git -C "$SCRIPT_DIR" pull --ff-only origin main 2>&1)" || _prc=$?
-            if [[ "${_prc:-0}" -eq 0 ]]; then
-                _after=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)
-                [ "$_local_commit" != "$_after" ] && ok "ccconfig: $_local_commit → $_after" || ok "ccconfig 已是最新: $_local_commit"
-            else
-                echo -e "  ${RED}${_pout}${NC}"
-                warn "ccconfig 拉取失败（上方红字为真实原因；本地脏/分叉先用 sync 处理）"
-                return 1
-            fi
+            pull_config_repo "$SCRIPT_DIR" "ccconfig"
             echo ""
             bash "$LIB_DIR/setup-links.sh"
             # 修复项目级 memory symlink（真实目录→symlink）
