@@ -45,18 +45,18 @@ MENU_ENTRIES=(
     "2|D|停止监控|./maintain.sh monitor stop|bash \"\$LIB_DIR/monitor.sh\" stop"
 
     # ── 3: 更新 ──
-    # 3A 动的是【配置仓库】：ccprivate 结构升级 → ccconfig 拉代码+重建链接 → skill 同步。
+    # 3A 动的是【配置仓库】：ccprivate 结构升级 → ccconfig 拉代码(含 lib) + 重建链接 → skill 同步。
     #    原 3A/3B/3C 三个单项合并，一次跑完（git pull / skill sync 幂等，重跑无害）。
-    #    与 3C 重合：拉代码+重建链接 3C 的 do_cconfig_post 也做；3A 独有仅 ccprivate 结构
-    #    升级 + skill sync。拉取失败已不吞 stderr，红字即真实原因（网络/分叉/本地脏）。
-    # 3B 动的是【已安装的工具版本】（Node/Claude/gh/lark-cli/pip/MCP 缓存…），不碰 git；
-    #    含 ccconfig 自更新 + skill 同步（update.sh all 内部步骤，行为不变）。
+    #    拉取失败已不吞 stderr，红字即真实原因（网络/分叉/本地脏）。
     # 3C 动的是【所有 git 仓库】（拉 + 脏库提交推送）；它把 ccconfig 也当第一个仓库
-    #    处理，所以 3A 的"拉代码+重建链接"已被它涵盖，重跑无害。
+    #    处理，所以 3C 里 ccconfig 那步在 3A 后是"已最新"重跑无害。
+    # 3B 动的是【已安装的工具版本】（Node/Claude/gh/lark-cli/pip/MCP 缓存…），不碰 git；
+    #    ccconfig 自更新已移出（归 3A 负责），update.sh 保留关键文件自 reload 防旧代码跑新步骤。
     "3|A|配置仓库更新|./maintain.sh self config|do_self config"
     "3|B|tool 更新（Node/Claude）|./maintain.sh upgrade all|bash \"\$LIB_DIR/update.sh\" all"
     "3|C|git 全部更新（所有仓库）|./maintain.sh sync --all|bash \"\$LIB_DIR/sync.sh\" --all"
     # 原 8 区并入：PAT 续期与可选组件都属"环境更新维护"，与更新放一处。
+    # 3D/3E 顺序提前：PAT 与组件补装是环境维护高频操作，紧跟更新的 git/tool 后。
     "3|D|GitHub PAT 刷新|./maintain.sh pat|bash \"\$CCCONFIG_DIR/bin/refresh-gh-auth.sh\""
     "3|E|可选组件安装/补装|bash init-option.sh|bash \"\$CCCONFIG_DIR/init-option.sh\""
 
