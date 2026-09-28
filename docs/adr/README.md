@@ -44,6 +44,7 @@
 | [0033](0033-bridge-collapse-usage-delta.md) | 收窄 bridge 流式 usage message_delta 为收尾一次 — 逐 token 冗余事件致 CC 误判重试 | 2026-09-20 | ✅ Accepted | Bridge |
 | [0034](0034-bridge-block-index-and-thinking-switch.md) | bridge 块索引唯一化 + 重复投递丢弃 + thinking 开关（enable_thinking） | 2026-09-22 | ✅ Accepted | Bridge |
 | [0035](0035-api-aggregator-platform-selection.md) | 数据 API 聚合平台选型 — 用 APIVerve（AnyAPI 备选，apitree 暂缓） | 2026-09-25 | ✅ Accepted | — |
+| [0036](0036-drop-token-usage-feature.md) | 删除本地 Token 用量链路（option-usage / token-usage / bill）— 改用 Claude 自带 usage 统计 | 2026-09-28 | ✅ Accepted | — |
 
 > **编号 0024 / 0025 未使用**：编号永不重用（见[命名约定](#命名约定)），这两号在 0023 之后被跳过、没有对应文件，也没有正文引用。新增 ADR 从**当前最大号 +1** 起，不要去填这个空档。
 >
