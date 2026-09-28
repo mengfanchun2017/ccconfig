@@ -11,7 +11,6 @@
 #   bash init-llm.sh sync            # 修 /model 污染
 #   bash init-llm.sh delete <name>   # 删预设
 #   bash init-llm.sh heal            # bridge 自愈（按 llm-current 重拉）
-#   bash init-llm.sh bill            # 归档用量统计（按 model+day 聚合，不含费用）
 #
 # 新增/修改预设：直接编辑 conf/llm.json（schema 见 docs/init-llm.md §六）
 #
@@ -658,7 +657,6 @@ interactive_select() {
 
         echo -e "  ${BOLD_GRAY}--LLM配置--${NC}"
         printf "  ${BOLD_GREEN}2A${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
-        printf "  ${BOLD_GREEN}2B${NC}  %-26s ${DIM}%s${NC}\n" "用量统计" "按 model+day 聚合 ccprivate/usage/*.csv"
         printf "  ${DIM}新增/修改预设：直接编辑 conf/llm.json 后重进菜单${NC}\n"
         echo -e "  ${BOLD_GREEN}0${NC}  退出"
         printf "  ${BOLD_GREEN}输入 (如 1A, 2D): ${NC}"
@@ -672,8 +670,7 @@ interactive_select() {
             if [[ "$cat" == "2" ]]; then
                 case "$letter_m" in
                     A) delete_preset ;;
-                    B) bash "$SCRIPT_DIR/init-llm-bill.sh" ;;
-                    *) warn "配置: A=删模型 B=用量统计"; continue ;;
+                    *) warn "配置: A=删模型"; continue ;;
                 esac
                 _pause_continue
                 continue
@@ -712,7 +709,6 @@ main() {
             test_llm "${2:-}" ;;
         switch)      switch_llm "${2:-}" ;;
         delete|-d)   delete_preset "${2:-}" ;;
-        bill)        bash "$SCRIPT_DIR/init-llm-bill.sh" "${2:-}" ;;
         sync)        sync_top_model ;;
         heal)
             selfheal_bridge "$CONFIG_FILE" \
@@ -722,7 +718,7 @@ main() {
         "")          interactive_select ;;
         *)
             if [[ "$cmd" =~ ^pr[i1]c[i1]ng$ ]]; then
-                error "价格设定已移除（费用以上游账单为准）。用量统计走: bash init-llm.sh bill"
+                error "价格设定已移除（费用以上游账单为准）"
                 return 1
             fi
             switch_llm "$cmd"
