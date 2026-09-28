@@ -522,7 +522,7 @@ check_option_components() {
         "--os--|bat glow nano"
         "--claude--|mcp skill"
         "--lark--|larkcli ccbridge"
-        "--other--|$(ls -d "$REPO_DIR"/option-*/ 2>/dev/null | xargs -n1 basename | sed 's/^option-//' | grep -vE '^(larkcli|usage|getnote|officecli|remote|cloudflare)$' | tr '\n' ' ')"
+        "--other--|$(ls -d "$REPO_DIR"/option-*/ 2>/dev/null | xargs -n1 basename | sed 's/^option-//' | grep -vE '^(larkcli|getnote|officecli|remote|cloudflare)$' | tr '\n' ' ')"
         "--key--|feishu_key"
     )
 
@@ -557,7 +557,7 @@ check_option_components() {
     done
 
     # 自动发现的 option 不在分组中的也显示
-    local handled="mcp skill larkcli ccbridge officecli remote cloudflare usage getnote feishu_key bat glow nano"
+    local handled="mcp skill larkcli ccbridge officecli remote cloudflare getnote feishu_key bat glow nano"
     for name in "${auto_opts[@]}"; do
         echo " $handled " | grep -q " $name " && continue
         # 分组里已列过的不再列：--other-- 组由同一份 ls 生成，此前 evalscope/llmswitch
