@@ -113,10 +113,43 @@ cleanup_old_snapshots() {
     find "$CCCONFIG_ROOT/.snapshots" -name "versions.json.*" -mtime +30 -delete 2>/dev/null || true
 }
 
-# ========== 1. ccconfig 自更新 ==========
+# ========== 1. ccconfig code reload ==========
+
+# 3B（工具升级）不再主动拉取 ccconfig —— 拉代码归 3A（self config）。
+# 但如果 3A 没跑、update.sh 自身或 lib 已过期，继续用旧代码跑组件升级
+# 可能调错接口（update.sh 拉取后会 re-exec 重载，此处保留该保护）。
+# 这里只 fetch 不 pull：发现关键文件落后即提示先跑 3A。
+ccconfig_reload() {
+    section "ccconfig 代码 reload 检查"
+
+    if ! github_reachable; then
+        warn "无法连接远程（网络不通），跳过检查"; return 0
+    fi
+    timeout 10 git -C "$CCCONFIG_ROOT" fetch origin main 2>/dev/null || { warn "git fetch 失败，跳过检查"; return 0; }
+
+    local local_commit remote
+    local_commit=$(git -C "$CCCONFIG_ROOT" rev-parse --short HEAD 2>/dev/null)
+    remote=$(git -C "$CCCONFIG_ROOT" rev-parse --short origin/main 2>/dev/null)
+
+    if [ "$local_commit" = "$remote" ]; then
+        success "ccconfig 已是最新: $local_commit"
+        return 0
+    fi
+
+    local update_files
+    update_files=$(git -C "$CCCONFIG_ROOT" diff --name-only "$local_commit..origin/main" 2>/dev/null || echo "")
+    if echo "$update_files" | grep -qE "update.sh|lib/path-helper.sh|conf/versions.json"; then
+        warn "ccconfig 有关键文件更新（update.sh/path-helper/versions.json），但 3B 不拉代码"
+        warn "→ 先跑 3A（./maintain.sh self config）再回来升级工具"
+    else
+        warn "ccconfig 有新提交（非关键文件）：$local_commit → $remote"
+        warn "→ 代码更新归 3A 管，本次工具升级用当前代码继续"
+    fi
+    return 0
+}
 
 self_update() {
-    section "ccconfig 自更新"
+    section "ccconfig 自更新（旧入口保留，供交互菜单升级单选项使用）"
 
     info "fetching origin/main..."
     if ! github_reachable; then
