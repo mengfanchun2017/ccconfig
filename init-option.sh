@@ -411,7 +411,7 @@ interactive_menu() {
             local group_items="${group_entry#*|}"
             for name in $group_items; do
                 case "$name" in
-                    mcp|usage) all_names+=("$name") ;;
+                    mcp) all_names+=("$name") ;;
                     batcat|glow) all_names+=("$name") ;;
                     *) has_init_script "$name" && all_names+=("$name") ;;
                 esac
