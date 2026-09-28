@@ -267,16 +267,16 @@ bash lib/init-llm.sh test <preset>      # 真实链路探测（走 bridge + 流�
  4) skill       ✓ 17 个 skill 已安装
 
 --飞书--
- 6) larkcli     ✓ lark-cli 已安装 — 飞书 CLI
+ 5) larkcli     ✓ lark-cli 已安装 — 飞书 CLI
 
 --其他--
- 7) officecli   ✓ OfficeCLI 已安装 — 生成 .pptx/.docx
- 8) remote      ✗ 未配置 — SSH + Tailscale 远程
- 9) cloudflare  ✗ 未配置 — Cloudflare Workers/Pages
-10) getnote     ✗ 未配置 — 得到大脑 MCP 笔记集成
+ 6) officecli   ✓ OfficeCLI 已安装 — 生成 .pptx/.docx
+ 7) remote      ✗ 未配置 — SSH + Tailscale 远程
+ 8) cloudflare  ✗ 未配置 — Cloudflare Workers/Pages
+ 9) getnote     ✗ 未配置 — 得到大脑 MCP 笔记集成
 ...
-11) 全部安装
-12) 退出
+10) 全部安装
+11) 退出
 ```
 
 ### 🔐 公开/私密分离
