@@ -47,6 +47,8 @@ MENU_ENTRIES=(
     # ── 3: 更新 ──
     # 3A 动的是【配置仓库】：ccprivate 结构升级 → ccconfig 拉代码+重建链接 → skill 同步。
     #    原 3A/3B/3C 三个单项合并，一次跑完（git pull / skill sync 幂等，重跑无害）。
+    #    与 3C 重合：拉代码+重建链接 3C 的 do_cconfig_post 也做；3A 独有仅 ccprivate 结构
+    #    升级 + skill sync。拉取失败已不吞 stderr，红字即真实原因（网络/分叉/本地脏）。
     # 3B 动的是【已安装的工具版本】（Node/Claude/gh/lark-cli/pip/MCP 缓存…），不碰 git；
     #    含 ccconfig 自更新 + skill 同步（update.sh all 内部步骤，行为不变）。
     # 3C 动的是【所有 git 仓库】（拉 + 脏库提交推送）；它把 ccconfig 也当第一个仓库
