@@ -194,7 +194,6 @@ ccconfig/
 ├── option-cloudflare/        # 可选：Cloudflare 开发环境
 ├── option-remote/            # 可选：Tailscale + SSH 远程
 ├── option-getnote/           # 可选：得到大脑 MCP 笔记集成
-├── option-usage/             # 可选：Token 用量归档 + 配额监控
 ├── option-skill/             # 可选：Skill 安装（包装 lib/init-skill.sh）
 ├── option-llmswitch/         # 内部：Anthropic↔OpenAI 桥（init-llm.sh 自动管理）
 ├── bin/ccconfig              # CLI 包装（子命令转发到 maintain.sh / init-*.sh）
@@ -243,7 +242,6 @@ bash lib/init-llm.sh <preset>           # 一条命令切
 bash lib/init-llm.sh list               # 列预设
 bash lib/init-llm.sh status             # 链路诊断
 bash lib/init-llm.sh test <preset>      # 真实链路探测（走 bridge + 流式）
-bash lib/init-llm.sh bill               # 用量统计
 ```
 
 - **多预设管理** — MiniMax/DeepSeek 内置，其余在 `conf/llm.json` 里加
@@ -267,7 +265,6 @@ bash lib/init-llm.sh bill               # 用量统计
 --Claude--
  3) mcp         ✗ 未配置（bash init-option.sh mcp）
  4) skill       ✓ 17 个 skill 已安装
- 5) usage       ✓ timer 运行中 — Token 用量追踪
 
 --飞书--
  6) larkcli     ✓ lark-cli 已安装 — 飞书 CLI
@@ -320,7 +317,6 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | `bash maintain.sh llm` | LLM 切换/测试/自愈 |
 | `bash maintain.sh mcp` | MCP 跨项目管理 |
 | `bash maintain.sh pat` | 刷新 fine-grained PAT |
-| `bash maintain.sh token` | Token 用量统计 |
 | `bash maintain.sh example` | 检测 .example 模板差异 |
 | `bash maintain.sh upgrade-ccprivate` | 仅 ccprivate 结构升级（原 3C，保留子命令） |
 | `bash maintain.sh sync --all` | 全部 git 仓库更新（拉取 + 脏库自动提交） |
