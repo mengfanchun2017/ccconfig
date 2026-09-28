@@ -1,9 +1,0 @@
-[Unit]
-Description=ccconfig token-usage daily timer (12:01)
-
-[Timer]
-OnCalendar=*-*-* 12:01:00
-Persistent=true
-
-[Install]
-WantedBy=timers.target
