@@ -57,7 +57,6 @@ bats tests/test-dry-run.bats
 | `test-monitor.sh` | monitor 核心函数 |
 | `test-sync.sh` | sync 核心函数 |
 | `test-json-schema.sh` | JSON 结构兼容性 |
-| `test-token-usage.sh` | token 统计 |
 | `test-bootstrap.sh` | bootstrap 流程 |
 | `test-cross-script-dryrun.sh` | 跨脚本 dry-run |
 | `test-interact.sh` | interact 函数 |

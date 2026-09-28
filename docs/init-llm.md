@@ -48,7 +48,6 @@ flowchart LR
 | 链路探测 | `bash init-llm.sh test <name>` | ✅ | **走真实路径**：bridge preset 经 bridge、流式请求、判终止标记+连接完整性 |
 | 列出预设 | `bash init-llm.sh list` | ✅ | |
 | 删除 preset | 菜单 `2A` / `bash init-llm.sh delete <name>` | ✅ | |
-| 用量统计 | 菜单 `2B` / `bash init-llm.sh bill` | ✅ | 读 `ccprivate/usage/*.csv` 聚合，不输入价格 |
 | bridge 自愈 | `bash init-llm.sh heal` | ✅ | SessionStart hook（`status.sh`）+ `ensure_bridge` |
 | 修 `/model` 污染 | `bash init-llm.sh sync` | ✅ | 顶层 `model` 同步到 `env.ANTHROPIC_MODEL` |
 | ~~Gateway 路由~~ | 菜单 `2D` | ❌ 删 | proxy.py 整套移除（ADR-0030） |
@@ -276,7 +275,6 @@ while true:
 
 - **LLM provider 协议适配**：只接受 Anthropic Messages 协议，OpenAI-only 必须经 bridge
 - **多模型路由 / 负载均衡**：单 preset 单模型
-- **用量计费 / 账单推送飞书**：[`option-usage/`](../option-usage/) 独立模块负责
 - **OpenAI↔Anthropic 双向转换**：openai_bridge.py 只做 Anthropic→OpenAI 方向（让 Claude Code 调 OpenAI-only LLM）
 
 ## 十、相关文档

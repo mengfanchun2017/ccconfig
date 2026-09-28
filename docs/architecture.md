@@ -126,7 +126,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │   │   └── settings.json.example
 │   ├── init-bootstrap.sh   # ccprivate 一键创建向导
 │   ├── hooks/                  # git pre-commit hook
-│   ├── option-*/               # 可选组件（llmswitch/officecli/usage/larkcli/getnote/remote/cloudflare/skill）
+│   ├── option-*/               # 可选组件（llmswitch/officecli/larkcli/getnote/remote/cloudflare/skill）
 │   └── docs/                   # 架构/升级/ADR/进度 文档
 │
 ├── skill/              # ← 用户 clone 这个（或 /plugin marketplace add）
@@ -298,7 +298,6 @@ option-llmswitch/   Anthropic↔OpenAI 桥（内部，由 init-llm.sh 自动管�
 option-cloudflare/  Cloudflare Workers/Pages/D1/R2/AI 开发环境
 option-remote/      Tailscale + SSH 远程访问桌面 tmux session
 option-getnote/     得到大脑 MCP 笔记集成
-option-usage/       Token 用量归档 + 配额监控
 ```
 
 每个组件含 `init.sh`（安装）和 `init.sh --status`（状态检查）。`maintain.sh status` 自动发现所有 `option-*/` 并报告状态。
