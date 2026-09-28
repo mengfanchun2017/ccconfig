@@ -38,7 +38,7 @@ declare -A AUTO_MANAGED
 # 格式: "group_title|item1 item2 ..."
 MENU_GROUPS=(
     "--CLI--|batcat glow"
-    "--Claude--|mcp skill usage"
+    "--Claude--|mcp skill"
     "--飞书--|larkcli"
     "--其他--|officecli remote cloudflare getnote"
 )
@@ -176,7 +176,7 @@ list_all() {
 
         for name in $group_items; do
             case "$name" in
-                mcp|batcat|glow|usage) ;;
+                mcp|batcat|glow) ;;
                 *) has_init_script "$name" || continue ;;
             esac
 
@@ -184,17 +184,6 @@ list_all() {
             local status
             case "$name" in
                 mcp)   status=$(mcp_status) ;;
-                usage)
-                    local ccpriv_conf="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/token-usage.json"
-                    if [ -f "$ccpriv_conf" ]; then
-                        if systemctl is-active ccconfig-token-usage.timer 2>/dev/null | grep -q "active"; then
-                            status="ok|OK|timer 运行中"
-                        else
-                            status="ok|OK|已配置，timer 未启用"
-                        fi
-                    else
-                        status="miss|MISSING|未配置（bash option-usage/init.sh）"
-                    fi ;;
                 *) status=$(option_status "$name") ;;
             esac
 
@@ -235,31 +224,6 @@ install_option() {
         esac
     done
     set -- "${clean_args[@]}"
-
-    # usage 特殊处理：先于 has_init_script 拦截
-    if [ "$name" = "usage" ]; then
-      if $yes_mode; then
-        section "安装 usage → timer"
-        bash "$SCRIPT_DIR/option-usage/init.sh" 2>&1 | sed 's/^/  /'
-        bash "$SCRIPT_DIR/option-usage/init.sh" install 2>&1 | sed 's/^/  /'
-      else
-        while true; do
-          local sub; sub=$(menu_select "usage 管理" \
-            "安装 timer (每天 12:01 归档)" "卸载 timer" \
-            "状态" "手动触发" "返回")
-          case "$sub" in
-            "1") bash "$SCRIPT_DIR/option-usage/init.sh" install ;;
-            "2") bash "$SCRIPT_DIR/option-usage/init.sh" uninstall ;;
-            "3") bash "$SCRIPT_DIR/option-usage/init.sh" status ;;
-            "4") bash "$SCRIPT_DIR/option-usage/token-usage.sh" --by-day ;;
-            *) break ;;
-          esac
-          echo ""
-          read -p "按回车继续..." dummy < /dev/tty || true
-        done
-      fi
-      return 0
-    fi
 
     # getnote 探测：账号在 ccprivate 内单点真源，本机已配则跳过整个 install 路径
     if [ "$name" = "getnote" ]; then
@@ -461,7 +425,6 @@ interactive_menu() {
             case "$n" in
                 mcp) desc="MCP 服务" ;;
                 # larkkey 已移至 option-larkcli/init.sh
-                usage) desc="Token 用量" ;;
                 batcat|glow) ;;
                 *) [ -n "${AUTO_MANAGED[$n]:-}" ] && desc="[auto]" ;;
             esac
@@ -616,7 +579,7 @@ list_names_compact() {
         echo "$group_title"
         for n in $group_items; do
             case "$n" in
-                mcp|batcat|glow|usage) echo "  $n" ;;
+                mcp|batcat|glow) echo "  $n" ;;
                 *) if [ -n "${AUTO_MANAGED[$n]:-}" ] || has_init_script "$n"; then echo "  $n"; fi ;;
             esac
         done
@@ -634,7 +597,6 @@ install_all() {
             case "$n" in
                 mcp) install_option "mcp" $yes_flag ;;
                 batcat|glow) install_option "$n" $yes_flag ;;
-                usage) install_option "usage" $yes_flag ;;
                 *) has_init_script "$n" && install_option "$n" $yes_flag ;;
             esac
         done
