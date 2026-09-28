@@ -866,7 +866,7 @@ update_all() {
         fi
     }
 
-    run_step ""         "ccconfig 自更新"   self_update_in_upgrade
+    run_step ""         "ccconfig 代码 reload 检查"   ccconfig_reload
     run_step "node"     "Node.js"           update_nodejs
     run_step "lark-cli" "lark-cli (npm)"    update_npm_globals
     run_step ""         "Python pip 包"     update_python_packages
