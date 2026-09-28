@@ -98,8 +98,6 @@ flowchart TB
     Skill 安装"]
     optGetnote["option-getnote/
     得到笔记 MCP"]
-    optUsage["option-usage/
-    Token 用量"]
     optLlms["option-llmswitch/
     Anthropic↔OpenAI 桥
     (由 init-llm.sh 自动管理)"]
