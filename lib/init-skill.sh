@@ -110,16 +110,11 @@ title() {
     fi
 }
 
-# 阶段 0：装 CLI 工具依赖
+# 装 CLI 工具依赖
 # 来源：自建 skill 目录下的 deps.txt（per-skill 自声明）
 # 去重：同包名只装一次，required_by 聚合多个 skill 名
-# 参数 $1=bare 时用无编号标题（sync-lite：不与 link-only 的 "阶段1/4" 混编号）
 do_install_cli_deps() {
-    if [[ "${1:-0}" == "1" ]]; then
-        title "CLI 工具依赖（自建 skill deps.txt）"
-    else
-        title "阶段 0/4: CLI 工具依赖（自建 skill deps.txt）"
-    fi
+    title "CLI 工具依赖（自建 skill deps.txt）"
 
     # 收集所有依赖条目（去重 key = pkg|mgr）
     declare -A seen_deps
@@ -252,7 +247,7 @@ do_install_cli_deps() {
     good "  CLI 依赖: $installed 新装, $skipped 已装, $failed 失败"
 }
 
-# 阶段 1：symlink 自建 skill 到 ~/.claude/skills/
+# symlink 自建 skill 到 ~/.claude/skills/
 # 两源：$SKILLS_SRC（公开上游）+ $LOCAL_SKILLS_SRC（私有 ccprivate）
 # 私有同名覆盖公开；公开扫到已指向私有的 symlink 则跳过（私有优先）
 link_skill_dir() {
@@ -296,7 +291,7 @@ link_skill_dir() {
 
 do_link_self_built() {
     local quiet="${INIT_ALL_FLOW:-0}"
-    title "阶段 1/4: symlink 自建 skill → ~/.claude/skills/"
+    title "symlink 自建 skill → ~/.claude/skills/"
 
     mkdir -p "$CLAUDE_SKILLS_DIR"
 
@@ -401,7 +396,7 @@ do_ensure_marketplace() {
         return 0
     fi
 
-    title "阶段 2/4: marketplace 检（$mkt_name）"
+    title "marketplace 检（$mkt_name）"
 
     if ! command -v claude &>/dev/null; then
         [[ "$quiet" != "1" ]] && info "  Claude Code 未安装，跳过 marketplace 注册"
@@ -435,14 +430,10 @@ do_install_third_party() {
     return 0
 }
 
-# 阶段 2.5：ccprivate 配置覆盖（委托 ccprivate/bin/apply-config.sh）
+# ccprivate 配置覆盖（委托 ccprivate/bin/apply-config.sh）
 do_apply_ccprivate_config() {
     local quiet="${INIT_ALL_FLOW:-0}"
-    if [[ "${1:-0}" == "1" ]]; then
-        title "ccprivate 配置覆盖"
-    else
-        title "阶段 2.5/4: ccprivate 配置覆盖"
-    fi
+    title "ccprivate 配置覆盖"
 
     local apply_script="$CCPRIVATE_DIR/bin/apply-config.sh"
     if [[ -x "$apply_script" ]]; then
@@ -462,9 +453,9 @@ do_sync() {
     # 只做 CLI 依赖 + ccprivate 配置覆盖 + lark-cli；标题用无编号小节避免编号跳跃。
     local _lite="${1:-0}"
 
-    do_install_cli_deps "$_lite"
+    do_install_cli_deps
     [[ "$_lite" == "1" ]] || do_link_self_built
-    do_apply_ccprivate_config "$_lite"
+    do_apply_ccprivate_config
     # Phase 2 (do_ensure_marketplace) 已废弃 — f-* 走 symlink 即装，marketplace 注册与 symlink 双路重复
     # Phase 3 (do_install_third_party) 已废弃 — 2026-07-15
 
