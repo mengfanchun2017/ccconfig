@@ -113,8 +113,13 @@ title() {
 # 阶段 0：装 CLI 工具依赖
 # 来源：自建 skill 目录下的 deps.txt（per-skill 自声明）
 # 去重：同包名只装一次，required_by 聚合多个 skill 名
+# 参数 $1=bare 时用无编号标题（sync-lite：不与 link-only 的 "阶段1/4" 混编号）
 do_install_cli_deps() {
-    title "阶段 0/4: CLI 工具依赖（自建 skill deps.txt）"
+    if [[ "${1:-0}" == "1" ]]; then
+        title "CLI 工具依赖（自建 skill deps.txt）"
+    else
+        title "阶段 0/4: CLI 工具依赖（自建 skill deps.txt）"
+    fi
 
     # 收集所有依赖条目（去重 key = pkg|mgr）
     declare -A seen_deps
@@ -433,7 +438,11 @@ do_install_third_party() {
 # 阶段 2.5：ccprivate 配置覆盖（委托 ccprivate/bin/apply-config.sh）
 do_apply_ccprivate_config() {
     local quiet="${INIT_ALL_FLOW:-0}"
-    title "阶段 2.5/4: ccprivate 配置覆盖"
+    if [[ "${1:-0}" == "1" ]]; then
+        title "ccprivate 配置覆盖"
+    else
+        title "阶段 2.5/4: ccprivate 配置覆盖"
+    fi
 
     local apply_script="$CCPRIVATE_DIR/bin/apply-config.sh"
     if [[ -x "$apply_script" ]]; then
@@ -449,10 +458,13 @@ do_apply_ccprivate_config() {
 
 do_sync() {
     local quiet="${INIT_ALL_FLOW:-0}"
+    # sync-lite（$1=1）：跳技能 symlink（已由 ccprivate/setup.sh 的 link-only 完成），
+    # 只做 CLI 依赖 + ccprivate 配置覆盖 + lark-cli；标题用无编号小节避免编号跳跃。
+    local _lite="${1:-0}"
 
-    do_install_cli_deps
-    do_link_self_built
-    do_apply_ccprivate_config
+    do_install_cli_deps "$_lite"
+    [[ "$_lite" == "1" ]] || do_link_self_built
+    do_apply_ccprivate_config "$_lite"
     # Phase 2 (do_ensure_marketplace) 已废弃 — f-* 走 symlink 即装，marketplace 注册与 symlink 双路重复
     # Phase 3 (do_install_third_party) 已废弃 — 2026-07-15
 
@@ -815,6 +827,7 @@ do_link_single() {
 action="${1:-sync}"
 case "$action" in
     sync)       do_sync ;;
+    sync-lite)  do_sync 1 ;;
     update)     do_update ;;
     remove)     do_remove "$2" ;;
     cleanup)    do_cleanup ;;
@@ -823,7 +836,7 @@ case "$action" in
     diff)       do_diff ;;
     link-single) do_link_single "$2" ;;
     link-only)   do_link_self_built ;;
-    *)          echo "用法: $0 {sync|update|remove <name>|cleanup|list|status|diff|link-single <name>|link-only}"; exit 1 ;;
+    *)          echo "用法: $0 {sync|sync-lite|update|remove <name>|cleanup|list|status|diff|link-single <name>|link-only}"; exit 1 ;;
 esac
 
 echo ""
