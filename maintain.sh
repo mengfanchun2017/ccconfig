@@ -391,11 +391,13 @@ do_self() {
         cc|ccconfig)
             pull_config_repo "$SCRIPT_DIR" "ccconfig"
             echo ""
-            bash "$LIB_DIR/setup-links.sh"
-            # 修复项目级 memory symlink（真实目录→symlink）
+            # 链接统一由 ccprivate/setup.sh 承担（内含 setup-links.sh + 私有链接 + 技能 link-only），
+            # 不再单独调 setup-links.sh，避免公开链接建两遍。ccprivate 缺失时 fallback 到公开链接。
             local _mccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
             if [ -x "$_mccpriv/setup.sh" ]; then
                 bash "$_mccpriv/setup.sh" 2>/dev/null && ok "memory symlink 已修复" || warn "memory symlink 部分失败"
+            else
+                bash "$LIB_DIR/setup-links.sh"
             fi
             echo -e "  ${YELLOW}提示: memory symlink 修复后需重启 Claude session 才生效（Claude 仅启动时加载 memory 索引）${NC}"
             ;;
