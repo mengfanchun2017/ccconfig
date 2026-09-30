@@ -173,9 +173,22 @@ commit_and_push() {
 
     local repo=$(repo_name "$repo_dir")
     local lock_dir="$repo_dir/.monitor-sync.lock"
+    local stale_lock=90
     if ! mkdir "$lock_dir" 2>/dev/null; then
-        do_log "[$repo] skip — sync already in progress"
-        return 0
+        # 陈旧锁自愈：进程被 kill 时 trap RETURN 不执行 → 锁永久残留 → 后续全 skip。
+        # 锁只是互斥目录，正常 commit+push 几十秒内释放；超 stale_lock 秒还在 = 持有者已退场。
+        if [ -d "$lock_dir" ] && [ "$(stat -c %Y "$lock_dir" 2>/dev/null)" -lt "$(( $(date +%s) - stale_lock ))" ]; then
+            rmdir "$lock_dir" 2>/dev/null
+            if mkdir "$lock_dir" 2>/dev/null; then
+                do_log "[$repo] cleared stale lock, retrying sync"
+            else
+                do_log "[$repo] skip — sync already in progress"
+                return 0
+            fi
+        else
+            do_log "[$repo] skip — sync already in progress"
+            return 0
+        fi
     fi
     trap "rmdir '$lock_dir' 2>/dev/null" RETURN
 
