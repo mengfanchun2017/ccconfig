@@ -63,7 +63,7 @@ check_generated_dir() {
 }
 
 check_directories() {
-    local expected=("skill" "skill-local" "rules" "agents" "commands" "bin" "usage" "link/memory")
+    local expected=("skill" "skill-local" "rules" "agents" "commands" "bin" "link/memory")
     local missing=()
     for d in "${expected[@]}"; do
         [ -d "$CCPRIVATE/$d" ] || missing+=("$d")
@@ -150,7 +150,7 @@ fix_generated_dir() {
 }
 
 fix_directories() {
-    local dirs=("skill" "skill-local" "rules" "agents" "commands" "bin" "usage" "link/memory")
+    local dirs=("skill" "skill-local" "rules" "agents" "commands" "bin" "link/memory")
     for d in "${dirs[@]}"; do
         if [ ! -d "$CCPRIVATE/$d" ]; then
             mkdir -p "$CCPRIVATE/$d"
