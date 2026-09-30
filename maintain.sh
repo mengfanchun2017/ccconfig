@@ -370,9 +370,11 @@ do_self() {
     local target="${1:-all}"
     case "$target" in
         config)
-            echo -e "${CYAN}── 配置仓库更新（3 个库：ccconfig + ccprivate + skill）──${NC}"
-            # 顺序 ccconfig → ccprivate → skill：cconfig 先出（含自身的符号链接重建），
-            # ccprivate 先拉最新再做结构检查（检查基于新代码，避免旧副本误报缺目录）。
+            # 分区 1：仓库更新 + 本机链接。do_self cc 内含 setup.sh（符号链接/用户级/记忆/
+            # 运行时 + 技能 link-only），ccprivate 先拉最新再做结构检查（避免旧副本误报缺目录）。
+            # 分区 2：技能工具同步（sync-lite）—— setup.sh 已做过技能 symlink，这里只补
+            # CLI 依赖 + ccprivate 配置覆盖 + lark-cli，不重复扫描技能。
+            echo -e "${CYAN}━━ 配置仓库更新（ccconfig / ccprivate / skill）━━${NC}"
             echo ""
             do_self cc || true
             echo ""
@@ -382,7 +384,9 @@ do_self() {
             echo ""
             pull_config_repo "$HOME/git/skill" "skill" || true
             echo ""
-            do_self skill
+            echo -e "${CYAN}━━ 技能工具同步（CLI 依赖 + 配置覆盖 + lark-cli）━━${NC}"
+            echo ""
+            bash "$LIB_DIR/init-skill.sh" sync-lite
             ;;
         cc|ccconfig)
             pull_config_repo "$SCRIPT_DIR" "ccconfig"
