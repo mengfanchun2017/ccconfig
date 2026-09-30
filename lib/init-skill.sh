@@ -23,6 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/dry-run.sh"
+source "$SCRIPT_DIR/net.sh"
 SKILLS_SRC="${SKILL_SRC:-$HOME/git/skill/plugins}"
 SKILL_REPO_DIR="$HOME/git/skill"
 CCPRIVATE_DIR="${CCPRIVATE_HOME:-${CCPRIVATE_DIR:-$HOME/git/ccprivate}}"
@@ -51,6 +52,10 @@ SKILL_UPSTREAM="${SKILL_UPSTREAM:-mengfanchun2017/skill}"
 # 自动 clone skill 仓库（首次初始化时）
 # 策略：用户的 fork 优先 → 回退到上游公共仓库
 ensure_claude_skills() {
+    # github 直连被墙，git pull 会卡到超时（见 lib/net.sh）。无代理时自动注入本机 Clash。
+    local _p
+    _p=$(net_gh_proxy)
+    [ -n "$_p" ] && export HTTPS_PROXY="$_p" https_proxy="$_p" HTTP_PROXY="$_p" http_proxy="$_p"
     if [[ -d "$SKILL_REPO_DIR/.git" ]]; then
         # 仓库已存在，git pull 更新
         git -C "$SKILL_REPO_DIR" pull --ff-only origin main 2>/dev/null || true
