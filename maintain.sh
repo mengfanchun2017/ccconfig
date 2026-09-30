@@ -23,6 +23,7 @@ _nb="$(find_node_bin 2>/dev/null || true)"
 export PATH="$HOME/.local/bin${_nb:+:$_nb}:$PATH"
 source "$LIB_DIR/colors.sh"
 source "$LIB_DIR/interact.sh"
+source "$LIB_DIR/net.sh"
 source "$LIB_DIR/menu-data-maintain.sh"
 
 # ========== 菜单动作 helper ==========
@@ -332,6 +333,16 @@ PYEOF
 # 3A 包办 3 个配置仓库的拉取（原 3C 并入）；sync.sh 保留供单独命令行调用。
 pull_config_repo() {
     local dir="$1" name="$2"
+
+    # github 直连被墙，git fetch 会卡到超时（实测 70-135s）。无代理环境变量时
+    # 自动探测本机 Clash（net_gh_proxy），注入给 git；不污染全局 git config。
+    local _gh_proxy
+    _gh_proxy=$(net_gh_proxy)
+    if [ -n "$_gh_proxy" ]; then
+        export HTTPS_PROXY="$_gh_proxy" https_proxy="$_gh_proxy" HTTP_PROXY="$_gh_proxy" http_proxy="$_gh_proxy"
+    fi
+    unset _gh_proxy
+
     # 分支不写死 main：ccprivate/skill 可能是 master（ccprivate 实测为 master）
     local _branch
     _branch=$(git -C "$dir" branch --show-current) || _branch=main
@@ -360,14 +371,16 @@ do_self() {
     case "$target" in
         config)
             echo -e "${CYAN}── 配置仓库更新（3 个库：ccconfig + ccprivate + skill）──${NC}"
-            bash "$LIB_DIR/ccprivate-upgrade.sh" --yes || warn "ccprivate 结构检查异常，继续"
-            # 3A 包办 3 个配置仓库的 git 拉取（原 3C 并入此）：顺序 ccprivate → skill → ccconfig
+            # 顺序 ccconfig → ccprivate → skill：cconfig 先出（含自身的符号链接重建），
+            # ccprivate 先拉最新再做结构检查（检查基于新代码，避免旧副本误报缺目录）。
+            echo ""
+            do_self cc || true
             echo ""
             pull_config_repo "$HOME/git/ccprivate" "ccprivate" || true
             echo ""
-            pull_config_repo "$HOME/git/skill" "skill" || true
+            bash "$LIB_DIR/ccprivate-upgrade.sh" --yes || warn "ccprivate 结构检查异常，继续"
             echo ""
-            do_self cc || true
+            pull_config_repo "$HOME/git/skill" "skill" || true
             echo ""
             do_self skill
             ;;
