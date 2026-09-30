@@ -5,7 +5,7 @@
 #   - 所有命令入口 case 分支存在
 #   - sync-lite → do_sync 1（跳技能 symlink，避免 3A 里与 link-only 重复扫描）
 #   - do_sync 的 _lite 跳过 do_link_self_built 逻辑在位
-#   - bare 标题分支（sync-lite 用无编号标题，避免 1→0 段号错乱）
+#   - 标题统一无编号（不出现 "阶段 x/4"，避免 1→0 段号错乱）
 #   - 各入口调用的函数体均存在
 #
 # 用法: bash tests/test-skill-init.sh
@@ -54,10 +54,11 @@ grep -q '\[\[ "$_lite" == "1" \]\] || do_link_self_built' "$IS" \
 # do_sync 里 do_link_self_built 是条件调用（非裸调）——保证完整 sync 仍扫技能
 awk '/^do_sync\(\)/,/^}/' "$IS" | grep -q 'do_link_self_built' \
     && pass "do_sync 内仍含技能扫描（条件调用）" || fail "do_sync 技能扫描调用异常"
-# bare 标题分支：do_install_cli_deps / do_apply_ccprivate_config 支持 ${1:-0} 判定
-cnt=$(grep -cE '\[\[ "\$\{1:-0\}" == "1" \]\]' "$IS")
-[[ "$cnt" -ge 2 ]] && pass "bare 标题分支存在（CLI 依赖 + 配置覆盖）($cnt 处)" \
-                    || fail "bare 标题分支不足 (仅 $cnt 处)"
+# 标题统一无编号：CLI 依赖 / 配置覆盖 / 自建 skill 三个标题都不带 "阶段 x/4"
+for t in 'CLI 工具依赖（自建 skill deps.txt）' 'ccprivate 配置覆盖' 'symlink 自建 skill → ~/.claude/skills/'; do
+    grep -Fq "title \"$t\"" "$IS" && pass "无编号标题: $t" || fail "缺少无编号标题: $t"
+done
+grep -q 'title "阶段' "$IS" && fail "仍存阶段编号标题 (title 前缀)" || pass "无残留阶段编号标题"
 
 # ── 4. 函数体存在 ──
 echo "=== 4. 函数体存在 ==="
@@ -76,4 +77,4 @@ if [[ $FAIL -eq 0 ]]; then
 else
     echo -e "\033[0;31mPASS: $PASS  FAIL: $FAIL\033[0m"
     exit 1
-fi
+fibump
