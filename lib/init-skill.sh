@@ -255,13 +255,21 @@ do_install_cli_deps() {
                     warn "  $pkg: pip 管理，但找不到 $first_skill/scripts/setup.sh — 跳过"
                     skipped=$((skipped + 1))
                 else
-                    info "  $pkg: venv 安装中（$setup_script）..."
-                    if run bash "$setup_script" 2>&1 | tail -3; then
-                        good "  $pkg (pip+venv): ✓ — $required_by"
-                        installed=$((installed + 1))
+                    # 幂等探测：venv 已存在且能 import 该包 → 视作已装（避免重复打印"安装中"）
+                    # venv 位置按 skill 约定：~/.${first_skill}-venv/bin/python
+                    local venv_py="$HOME/.${first_skill}-venv/bin/python"
+                    if [[ -x "$venv_py" ]] && "$venv_py" -c "import ${pkg%%[<>=]*}" 2>/dev/null; then
+                        info "  $pkg: 已装（venv） — $required_by"
+                        skipped=$((skipped + 1))
                     else
-                        bad "  $pkg (pip+venv): 失败（手动跑 $setup_script 看详情）"
-                        failed=$((failed + 1))
+                        info "  $pkg: venv 安装中（$setup_script）..."
+                        if run bash "$setup_script" 2>&1 | tail -3; then
+                            good "  $pkg (pip+venv): ✓ — $required_by"
+                            installed=$((installed + 1))
+                        else
+                            bad "  $pkg (pip+venv): 失败（手动跑 $setup_script 看详情）"
+                            failed=$((failed + 1))
+                        fi
                     fi
                 fi
                 ;;
