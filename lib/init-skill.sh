@@ -255,10 +255,10 @@ do_install_cli_deps() {
                     warn "  $pkg: pip 管理，但找不到 $first_skill/scripts/setup.sh — 跳过"
                     skipped=$((skipped + 1))
                 else
-                    # 幂等探测：venv 已存在且能 import 该包 → 视作已装（避免重复打印"安装中"）
-                    # venv 位置按 skill 约定：~/.${first_skill}-venv/bin/python
+                    # 幂等探测：venv 已存在即视为已装（setup.sh 自带幂等补装逻辑，
+# 不强求 import 模块名匹配——PyYAML 之类 pip 名 ≠ import 名会误判漏装）
                     local venv_py="$HOME/.${first_skill}-venv/bin/python"
-                    if [[ -x "$venv_py" ]] && "$venv_py" -c "import ${pkg%%[<>=]*}" 2>/dev/null; then
+                    if [[ -x "$venv_py" ]]; then
                         info "  $pkg: 已装（venv） — $required_by"
                         skipped=$((skipped + 1))
                     else
