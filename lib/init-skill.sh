@@ -236,6 +236,35 @@ do_install_cli_deps() {
                     fi
                 fi
                 ;;
+            pip)
+                # pip 依赖不走系统 Python（apt 管 + PEP-668），
+                # 由对应 skill 的 scripts/setup.sh 建 venv 后再装。
+                # 取首个声明该包的 skill，定位 setup.sh（多 skill 同包时谁先声明谁负责）
+                local first_skill="${required_by%%,*}"
+                local setup_script=""
+                for candidate in \
+                    "$CLAUDE_SKILLS_DIR/$first_skill/scripts/setup.sh" \
+                    "$SKILLS_SRC/$first_skill/scripts/setup.sh" \
+                    "$LOCAL_SKILLS_SRC/$first_skill/scripts/setup.sh"; do
+                    if [[ -x "$candidate" ]]; then
+                        setup_script="$candidate"
+                        break
+                    fi
+                done
+                if [[ -z "$setup_script" ]]; then
+                    warn "  $pkg: pip 管理，但找不到 $first_skill/scripts/setup.sh — 跳过"
+                    skipped=$((skipped + 1))
+                else
+                    info "  $pkg: venv 安装中（$setup_script）..."
+                    if run bash "$setup_script" 2>&1 | tail -3; then
+                        good "  $pkg (pip+venv): ✓ — $required_by"
+                        installed=$((installed + 1))
+                    else
+                        bad "  $pkg (pip+venv): 失败（手动跑 $setup_script 看详情）"
+                        failed=$((failed + 1))
+                    fi
+                fi
+                ;;
             *)
                 warn "  $pkg: 未知管理器 $mgr — 跳过"
                 skipped=$((skipped + 1))
