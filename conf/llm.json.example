@@ -12,8 +12,16 @@
             "small_model": "MiniMax-M3",
             "builtin": true
         },
-        "deepseek_flash": {
-            "name": "DeepSeek4 flash",
+        "minimax31": {
+            "name": "MiniMax3.1",
+            "base_url": "https://api.minimaxi.com/anthropic",
+            "model": "MiniMax-M3.1-Flash-Preview",
+            "key": "请填入你的 MiniMax API Key",
+            "small_model": "MiniMax-M3.1-Flash-Preview",
+            "builtin": true
+        },
+        "deepseek41flash": {
+            "name": "Deepseek4.1flash",
             "base_url": "https://api.deepseek.com/anthropic",
             "model": "deepseek-v4-flash",
             "key": "请填入你的 DeepSeek API Key",
@@ -35,6 +43,13 @@
             "key": "请填入你的 GLM API Key",
             "small_model": "glm-5.3-flash",
             "use_bridge": true
+        },
+        "mimo26flash": {
+            "name": "mimo2.6-flash",
+            "base_url": "https://api.xiaomimimo.com/anthropic",
+            "model": "mimo-v2.6-flash",
+            "key": "请填入你的 MiMo API Key",
+            "small_model": "mimo-v2.6-flash"
         },
         "officedsflash": {
             "_comment": "单位办公直连 — base_url 用内网 LLM 域名（VPN/内网 DNS 可达）",
