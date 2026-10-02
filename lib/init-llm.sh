@@ -39,7 +39,7 @@ LOCAL_CURRENT_FILE="$HOME/.claude/llm-current"
 
 # ccconfig 自带预设 key —— builtin 分类以代码为准，不依赖用户 llm.json 的 builtin 字段
 # 用户 llm.json 可能缺该字段或被手改，会导致菜单内建/自定义分组错乱
-BUILTIN_PRESETS=(minimax deepseek_flash)
+BUILTIN_PRESETS=(minimax minimax31 deepseek41flash)
 
 # ========== 读取配置 ==========
 get_llm_config() {
