@@ -32,7 +32,7 @@ flowchart LR
 |------|------|------------|----------|
 | 单位办公 | 直连内网，WSL + corp VPN | 直连 preset（Anthropic 兼容） | corp VPN |
 | 家里 | WSL + Windows tailscale（**tailscaled 跑在 Windows 侧**）| bridge preset（含 `--use-win-curl`） | Windows tailscale + WSL mirrored 网络栈 |
-| 应急/备用 | 任一 | minimax / deepseek_flash 直连 builtin | 无 |
+| 应急/备用 | 任一 | minimax / deepseek41flash 直连 builtin | 无 |
 
 **关键约束**：
 - **稳定性 > 一切**：当前痛点是"探测 OK 但实际跑挂"（[见 §五](#五核心稳定性要求)）
