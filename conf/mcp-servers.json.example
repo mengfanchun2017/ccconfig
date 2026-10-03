@@ -77,6 +77,8 @@
         "@playwright/mcp@latest",
         "--browser",
         "chromium",
+        "--user-data-dir",
+        "/home/<你的用户名>/.cache/pw-playwright-profile",
         "--headless"
       ],
       "env": {}
