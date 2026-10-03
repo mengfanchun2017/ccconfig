@@ -4,14 +4,6 @@
     "_tailscale_hint": "WSL + Tailscale subnet router 跳板场景：base_url 填内网 IP（如 10.x.x.x:port），bridge 会自动启用 Windows curl.exe 转发。详见 docs/adr/0016-tailscale-subnet-router.md",
     "_preset_naming": "office* = 单位直连；home* = 家里 WSL+tailscale via Windows（含 use_win_curl+host_header）。详见 docs/init-llm.md",
     "llms": {
-        "minimax": {
-            "name": "MiniMax",
-            "base_url": "https://api.minimaxi.com/anthropic",
-            "model": "MiniMax-M3",
-            "key": "请填入你的 MiniMax API Key",
-            "small_model": "MiniMax-M3",
-            "builtin": true
-        },
         "minimax31": {
             "name": "MiniMax3.1",
             "base_url": "https://api.minimaxi.com/anthropic",
@@ -27,14 +19,6 @@
             "key": "请填入你的 DeepSeek API Key",
             "small_model": "deepseek-v4-flash",
             "builtin": true
-        },
-        "aliglm52": {
-            "name": "aliglm52",
-            "base_url": "https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic",
-            "model": "glm-5.2",
-            "key": "请填入你的 Token Plan API Key",
-            "small_model": "qwen3.7-plus",
-            "use_bridge": false
         },
         "glm53flash": {
             "name": "glm53flash",
@@ -92,6 +76,8 @@
             "use_bridge": true
         }
     },
-    "fx": {"usd_to_cny": 7.2},
+    "fx": {
+        "usd_to_cny": 7.2
+    },
     "current": "deepseek41flash"
 }
