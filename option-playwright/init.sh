@@ -42,6 +42,18 @@ deps_installed() {
     "$browser_bin" --version >/dev/null 2>&1
 }
 
+# MCP 配置里 --executable-path 指向稳定 symlink（避免 chromium 升级后路径漂移）。
+# 每次 install/update 后重建 symlink → MCP 配置无需改。
+PW_SYMLINK="${HOME}/.local/state/pw-chromium/chrome"
+refresh_chromium_symlink() {
+    local target
+    target=$(find "$PW_CACHE_DIR" -path '*/chrome-linux64/chrome' 2>/dev/null | head -1)
+    [[ -z "$target" ]] && return 1
+    mkdir -p "$(dirname "$PW_SYMLINK")"
+    ln -sfn "$target" "$PW_SYMLINK"
+    info "chromium symlink → $PW_SYMLINK"
+}
+
 # 判断 MCP 是否已注册：看运行时 .config.json 有没有 playwright 条目
 mcp_registered() {
     local conf="${HOME}/.claude/.config.json"
@@ -90,6 +102,8 @@ do_install() {
             return 1
         fi
     fi
+    # 重建稳定 symlink，MCP --executable-path 指向它（版本漂移不破 MCP）
+    refresh_chromium_symlink || warn "symlink 重建失败（不影响下载，MCP 可能仍指旧版）"
 
     # 3. 系统 .so 依赖（唯一需 sudo 的一步，一次性）
     if deps_installed; then
