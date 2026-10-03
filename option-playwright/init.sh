@@ -78,12 +78,12 @@ do_install() {
         return 1
     fi
 
-    # 2. Chromium 二进制
+    # 2. Chromium 二进制（用国内镜像，微软 CDN 在 WSL 常卡死）
     if chromium_installed; then
         info "Chromium 已装（$PW_CACHE_DIR）"
     else
-        echo -n "→ 下载 Chromium ... "
-        if run npx playwright install chromium; then
+        echo -n "→ 下载 Chromium（npmmirror 镜像）... "
+        if run env PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" npx --yes playwright install chromium; then
             good "ok"
         else
             bad "fail"
@@ -102,7 +102,7 @@ do_install() {
         echo ""
         echo "      sudo env \"PATH=\$PATH\" npx --yes playwright install-deps chromium"
         echo ""
-        echo -e "  ${GRAY}(npx 在 user-local /home/<user>/.local/bin/,sudo 默认 PATH 找不到,必须显式传 PATH 或用绝对路径)${NC}"
+        echo -e "  ${GRAY}(playwright 包已装则这条只 apt 装 .so,很快。npx 在 user-local 路径,sudo 需显式传 PATH)${NC}"
         echo ""
         return 1
     fi
