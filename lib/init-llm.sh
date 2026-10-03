@@ -531,6 +531,46 @@ show_list() {
     fi
 }
 
+# ========== 更新预设 Key ==========
+# 更新单个 preset 的 key（写 llm.json + settings.json env.ANTHROPIC_AUTH_TOKEN）
+# 复用 prompt_key_plain：已有有效 key 回车保持，粘贴新 key 替换
+update_llm_key() {
+    local target="${1:-}"
+
+    if [[ -z "$target" ]]; then
+        local items=() names=()
+        while IFS='|' read -r _ name display _ _ _ _; do
+            [[ -z "$name" ]] && continue
+            names+=("$name")
+            items+=("$display")
+        done < <(list_llms)
+        [[ ${#items[@]} -eq 0 ]] && { info "无预设"; return 0; }
+        items+=("返回上层")
+        local sel; sel=$(menu_select "选择要更新 Key 的模型" "${items[@]}")
+        [[ -z "$sel" || "$sel" == "0" ]] && return 0
+        (( sel == ${#items[@]} )) && return 0
+        target="${names[$((sel-1))]}"
+    fi
+    [[ -z "$target" ]] && { error "未指定预设"; return 1; }
+
+    local config existing
+    config=$(get_llm_config "$target") || { error "未知预设: $target"; return 1; }
+    local base_url model small
+    IFS='|' read -r base_url model existing small <<< "$config"
+
+    local is_ph=0
+    [[ -z "$existing" ]] && is_ph=1
+    [[ "$is_ph" -eq 0 ]] && case "$existing" in *请填入*|*请替换*|*your.key*|*your_key*|*placeholder*|*changeme*) is_ph=1 ;; esac
+
+    local newkey
+    newkey=$(prompt_key_plain "输入 ${target} 的新 API Key（回车保持原 key）" "$existing")
+    [[ -z "$newkey" ]] && { error "未输入 Key，取消"; return 1; }
+
+    # 用 write_llm_config 写回：会复用新 key + 更新 llm.json + settings.json env + top model
+    write_llm_config "$target" "$base_url" "$model" "$small" "$newkey"
+    success "Key 已更新: $target"
+}
+
 # ========== 删预设 ==========
 delete_preset() {
     local target="${1:-}"
