@@ -870,3 +870,5 @@ esac
 echo ""
 good "提示: 新环境先跑 sync (装 CLI 依赖 + symlink 自建)；更新跑 update (CLI 工具)"
 exit 0
+
+# init-skill p>ip 分支：fmashwork 依赖经 skill 自建 venv 安装
