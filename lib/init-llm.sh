@@ -532,8 +532,8 @@ show_list() {
 }
 
 # ========== 更新预设 Key ==========
-# 更新单个 preset 的 key（写 llm.json + settings.json env.ANTHROPIC_AUTH_TOKEN）
-# 复用 prompt_key_plain：已有有效 key 回车保持，粘贴新 key 替换
+# 仅写 llm.json 该 preset 的 key 字段；不动 settings.json / llm-current —— 用户只想改
+# key，不想顺带把当前生效 LLM 切了。复用 prompt_key_plain：已有有效 key 回车保持，粘贴新 key 替换
 update_llm_key() {
     local target="${1:-}"
 
@@ -555,19 +555,32 @@ update_llm_key() {
 
     local config existing
     config=$(get_llm_config "$target") || { error "未知预设: $target"; return 1; }
-    local base_url model small
-    IFS='|' read -r base_url model existing small <<< "$config"
-
-    local is_ph=0
-    [[ -z "$existing" ]] && is_ph=1
-    [[ "$is_ph" -eq 0 ]] && case "$existing" in *请填入*|*请替换*|*your.key*|*your_key*|*placeholder*|*changeme*) is_ph=1 ;; esac
+    local _base_url _model existing
+    IFS='|' read -r _base_url _model existing _ <<< "$config"
 
     local newkey
     newkey=$(prompt_key_plain "输入 ${target} 的新 API Key（回车保持原 key）" "$existing")
     [[ -z "$newkey" ]] && { error "未输入 Key，取消"; return 1; }
 
-    # 用 write_llm_config 写回：会复用新 key + 更新 llm.json + settings.json env + top model
-    write_llm_config "$target" "$base_url" "$model" "$small" "$newkey"
+    # 仅改 llm.json，不动 settings.json / llm-current
+    python3 - "$CONFIG_FILE" "$target" "$newkey" <<'PYEOF'
+import json, sys
+p, name, new_key = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(p) as f: d = json.load(f)
+if name not in d.get('llms', {}):
+    print(f"ERROR: 预设 {name} 不存在"); sys.exit(1)
+d['llms'][name]['key'] = new_key
+blob = json.dumps(d, indent=4, ensure_ascii=False)
+try:
+    with open(p) as f: old = f.read()
+except OSError:
+    old = None
+if old == blob:
+    print("llm.json 无变化，跳过")
+else:
+    with open(p, 'w') as f: f.write(blob)
+    print("llm.json 已更新（provider key）")
+PYEOF
     success "Key 已更新: $target"
 }
 
