@@ -675,31 +675,60 @@ interactive_select() {
     local -a item_name
     local letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
+    # 渲染一组 preset（builtin）或自定义（!builtin），按组内字母编号 A-Z
+    local builtin_item_name=() custom_item_name=()
+    local builtin_idx=0 custom_idx=0
+    local group_title=() group_items=()
+
     while true; do
         clear 2>/dev/null || true
         local lines; lines=$(list_llms)
         local current; current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
         _llm_status_header "$current"
-        item_name=()
-        local idx=0
-        echo -e "  ${BOLD_GRAY}--LLM--${NC}"
+
+        builtin_item_name=(); custom_item_name=()
+        builtin_idx=0; custom_idx=0
+
+        # 预扫描：切分 builtin 与自定义两段（渲染序号需在组内连续）
         while IFS='|' read -r marker name display_name model base_url small is_builtin; do
             [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
+            if [[ "$is_builtin" == "1" ]]; then
+                builtin_item_name+=("$name")
+            else
+                custom_item_name+=("$name")
+            fi
+        done < <(echo "$lines")
+
+        echo -e "  ${BOLD_GRAY}--LLM预设--${NC}"
+        while IFS='|' read -r marker name display_name model base_url small is_builtin; do
+            [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
+            [[ "$is_builtin" != "1" ]] && continue
             local small_str=""
             [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
             local cur_mark=" "
             [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
-            local letter="${letters:$idx:1}"
-            echo -e "  ${BOLD_GREEN}1${letter}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}"
-            item_name+=("$name")
-            idx=$((idx+1))
+            echo -e "  ${BOLD_GREEN}1${letters:$builtin_idx:1}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}"
+            builtin_idx=$((builtin_idx+1))
+        done < <(echo "$lines")
+
+        echo -e "  ${BOLD_GRAY}--LLM自定义--${NC}"
+        while IFS='|' read -r marker name display_name model base_url small is_builtin; do
+            [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
+            [[ "$is_builtin" == "1" ]] && continue
+            local small_str=""
+            [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
+            local cur_mark=" "
+            [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
+            echo -e "  ${BOLD_GREEN}2${letters:$custom_idx:1}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}"
+            custom_idx=$((custom_idx+1))
         done < <(echo "$lines")
 
         echo -e "  ${BOLD_GRAY}--LLM配置--${NC}"
-        printf "  ${BOLD_GREEN}2A${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
+        printf "  ${BOLD_GREEN}3A${NC}  %-26s ${DIM}%s${NC}\n" "更新模型 Key" "更新预设的 API Key（回车保持原 key）"
+        printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
         printf "  ${DIM}新增/修改预设：直接编辑 conf/llm.json 后重进菜单${NC}\n"
         echo -e "  ${BOLD_GREEN}0${NC}  退出"
-        printf "  ${BOLD_GREEN}输入 (如 1A, 2D): ${NC}"
+        printf "  ${BOLD_GREEN}输入 (如 1A, 2D, 3A): ${NC}"
         read -r choice
 
         [[ -z "$choice" || "$choice" == "0" ]] && { info "已退出"; return 0; }
@@ -707,30 +736,43 @@ interactive_select() {
         if [[ "$choice" =~ ^([0-9]+)([A-Za-z])$ ]]; then
             local cat="${BASH_REMATCH[1]}"
             local letter_m="${BASH_REMATCH[2]^^}"
-            if [[ "$cat" == "2" ]]; then
-                case "$letter_m" in
-                    A) delete_preset ;;
-                    *) warn "配置: A=删模型"; continue ;;
-                esac
-                _pause_continue
-                continue
-            fi
-            if [[ "$cat" == "1" ]]; then
-                local pos=-1 j
-                for ((j=0; j<${#letters}; j++)); do
-                    [[ "${letters:$j:1}" == "$letter_m" ]] && { pos=$j; break; }
-                done
-                if (( pos >= 0 && pos < ${#item_name[@]} )); then
-                    switch_llm "${item_name[$pos]}"
+            local pos=-1 j
+            case "$cat" in
+                1)
+                    for ((j=0; j<${#letters}; j++)); do
+                        [[ "${letters:$j:1}" == "$letter_m" ]] && { pos=$j; break; }
+                    done
+                    if (( pos >= 0 && pos < ${#builtin_item_name[@]} )); then
+                        switch_llm "${builtin_item_name[$pos]}"
+                        _pause_continue
+                        continue 2
+                    fi
+                    ;;
+                2)
+                    for ((j=0; j<${#letters}; j++)); do
+                        [[ "${letters:$j:1}" == "$letter_m" ]] && { pos=$j; break; }
+                    done
+                    if (( pos >= 0 && pos < ${#custom_item_name[@]} )); then
+                        switch_llm "${custom_item_name[$pos]}"
+                        _pause_continue
+                        continue 2
+                    fi
+                    ;;
+                3)
+                    case "$letter_m" in
+                        A) update_llm_key ;;
+                        B) delete_preset ;;
+                        *) warn "配置: A=更新Key B=删模型"; continue ;;
+                    esac
                     _pause_continue
-                    continue 2
-                fi
-            fi
+                    continue
+                    ;;
+            esac
             warn "未找到 ${cat}${letter_m}"
             continue
         fi
 
-        warn "无效输入: $choice (格式: 1A, 2D)"
+        warn "无效输入: $choice (格式: 1A, 2B, 3A)"
     done
 }
 

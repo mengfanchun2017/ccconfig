@@ -36,9 +36,9 @@ if [ -f "$CCCONFIG_HOME/lib/monitor.sh" ]; then
     unset _monitor_pid_file
 fi
 
-# claude-mini: 切换到 MiniMax LLM 后启动 Claude
+# claude-mini: 切换到 MiniMax3.1 LLM 后启动 Claude
 claude-mini() {
-    bash "$CCCONFIG_HOME/lib/init-llm.sh" minimax && claude "$@"
+    bash "$CCCONFIG_HOME/lib/init-llm.sh" minimax31 && claude "$@"
 }
 
 # claude-ds: 切换到 DeepSeek LLM 后启动 Claude
