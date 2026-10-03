@@ -100,7 +100,9 @@ do_install() {
         echo -e "  ${GRAY}Playwright 的 chromium 需要 ~20 个系统 .so 库，由 install-deps 自动装。${NC}"
         echo -e "  ${GRAY}WSL 后台无法交互输 sudo 密码，请在终端手动跑一次（一次性）：${NC}"
         echo ""
-        echo "      sudo npx --yes playwright install-deps chromium"
+        echo "      sudo env \"PATH=\$PATH\" npx --yes playwright install-deps chromium"
+        echo ""
+        echo -e "  ${GRAY}(npx 在 user-local /home/<user>/.local/bin/,sudo 默认 PATH 找不到,必须显式传 PATH 或用绝对路径)${NC}"
         echo ""
         return 1
     fi
