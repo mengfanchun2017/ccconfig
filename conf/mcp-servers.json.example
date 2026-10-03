@@ -77,6 +77,8 @@
         "@playwright/mcp@latest",
         "--browser",
         "chromium",
+        "--executable-path",
+        "/home/<你的用户名>/.cache/ms-playwright/chromium-<版本号>/chrome-linux64/chrome",
         "--user-data-dir",
         "/home/<你的用户名>/.cache/pw-playwright-profile",
         "--headless"
