@@ -75,6 +75,8 @@
       "args": [
         "-y",
         "@playwright/mcp@latest",
+        "--browser",
+        "chromium",
         "--headless"
       ],
       "env": {}
