@@ -39,7 +39,7 @@ LOCAL_CURRENT_FILE="$HOME/.claude/llm-current"
 
 # ccconfig 自带预设 key —— builtin 分类以代码为准，不依赖用户 llm.json 的 builtin 字段
 # 用户 llm.json 可能缺该字段或被手改，会导致菜单内建/自定义分组错乱
-BUILTIN_PRESETS=(minimax31 deepseek41flash)
+BUILTIN_PRESETS=(minimax31 deepseek41flash glm53flash mimo26flash)
 
 # ========== 读取配置 ==========
 get_llm_config() {
@@ -686,9 +686,9 @@ _pause_continue() {
 
 interactive_select() {
     local -a item_name
-    local letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    local letters="abcdefghijklmnopqrstuvwxyz"
 
-    # 渲染一组 preset（builtin）或自定义（!builtin），按组内字母编号 A-Z
+    # 渲染一组 preset（builtin）或自定义（!builtin），按组内字母编号 a-z
     local builtin_item_name=() custom_item_name=()
     local builtin_idx=0 custom_idx=0
     local group_title=() group_items=()
@@ -737,18 +737,18 @@ interactive_select() {
         done < <(echo "$lines")
 
         echo -e "  ${BOLD_GRAY}--LLM配置--${NC}"
-        printf "  ${BOLD_GREEN}3A${NC}  %-26s ${DIM}%s${NC}\n" "更新模型 Key" "更新预设的 API Key（回车保持原 key）"
-        printf "  ${BOLD_GREEN}3B${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
+        printf "  ${BOLD_GREEN}3a${NC}  %-26s ${DIM}%s${NC}\n" "更新模型 Key" "更新预设的 API Key（回车保持原 key）"
+        printf "  ${BOLD_GREEN}3b${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
         printf "  ${DIM}新增/修改预设：直接编辑 conf/llm.json 后重进菜单${NC}\n"
         echo -e "  ${BOLD_GREEN}0${NC}  退出"
-        printf "  ${BOLD_GREEN}输入 (如 1A, 2D, 3A): ${NC}"
+        printf "  ${BOLD_GREEN}输入 (如 1a, 2d, 3a): ${NC}"
         read -r choice
 
         [[ -z "$choice" || "$choice" == "0" ]] && { info "已退出"; return 0; }
 
-        if [[ "$choice" =~ ^([0-9]+)([A-Za-z])$ ]]; then
+        if [[ "$choice" =~ ^([0-9]+)([a-z])$ ]]; then
             local cat="${BASH_REMATCH[1]}"
-            local letter_m="${BASH_REMATCH[2]^^}"
+            local letter_m="${BASH_REMATCH[2]}"
             local pos=-1 j
             case "$cat" in
                 1)
@@ -773,9 +773,9 @@ interactive_select() {
                     ;;
                 3)
                     case "$letter_m" in
-                        A) update_llm_key ;;
-                        B) delete_preset ;;
-                        *) warn "配置: A=更新Key B=删模型"; continue ;;
+                        a) update_llm_key ;;
+                        b) delete_preset ;;
+                        *) warn "配置: a=更新Key b=删模型"; continue ;;
                     esac
                     _pause_continue
                     continue
@@ -785,7 +785,7 @@ interactive_select() {
             continue
         fi
 
-        warn "无效输入: $choice (格式: 1A, 2B, 3A)"
+        warn "无效输入: $choice (格式: 1a, 2b, 3a)"
     done
 }
 

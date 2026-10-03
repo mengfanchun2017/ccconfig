@@ -26,14 +26,16 @@
             "model": "glm-5.3-flash",
             "key": "请填入你的 GLM API Key",
             "small_model": "glm-5.3-flash",
-            "use_bridge": true
+            "use_bridge": true,
+            "builtin": true
         },
         "mimo26flash": {
             "name": "mimo2.6-flash",
             "base_url": "https://api.xiaomimimo.com/anthropic",
             "model": "mimo-v2.6-flash",
             "key": "请填入你的 MiMo API Key",
-            "small_model": "mimo-v2.6-flash"
+            "small_model": "mimo-v2.6-flash",
+            "builtin": true
         },
         "officedsflash": {
             "_comment": "单位办公直连 — base_url 用内网 LLM 域名（VPN/内网 DNS 可达）",
