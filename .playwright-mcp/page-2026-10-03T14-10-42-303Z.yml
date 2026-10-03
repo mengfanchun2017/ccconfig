@@ -1,0 +1,111 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - link "新闻" [ref=e9] [cursor=pointer]:
+            - /url: http://news.baidu.com
+          - link "hao123" [ref=e10] [cursor=pointer]:
+            - /url: https://www.hao123.com?src=from_pc
+          - link "地图" [ref=e11] [cursor=pointer]:
+            - /url: http://map.baidu.com
+          - link "贴吧" [ref=e12] [cursor=pointer]:
+            - /url: http://tieba.baidu.com/
+          - link "视频" [ref=e13] [cursor=pointer]:
+            - /url: https://haokan.baidu.com/?sfrom=baidu-top
+          - link "图片" [ref=e14] [cursor=pointer]:
+            - /url: http://image.baidu.com/
+          - link "网盘" [ref=e15] [cursor=pointer]:
+            - /url: https://pan.baidu.com?from=1026962h
+          - link "库库AI" [ref=e16] [cursor=pointer]:
+            - /url: https://kuku.baidu.com/app?utm_source=baidu
+          - link "文心" [ref=e17] [cursor=pointer]:
+            - /url: https://chat.baidu.com/search?isShowHello=1&pd=csaitab&setype=csaitab&extParamsJson=%7B%22enter_type%22%3A%22home_tab%22%7D
+          - link "百度搭子" [ref=e18] [cursor=pointer]:
+            - /url: https://dumate.baidu.com/app/login-bridge?track=1063479e
+        - generic [ref=e19]:
+          - link "更多" [ref=e20] [cursor=pointer]:
+            - /url: http://www.baidu.com/more/
+          - text: 
+      - generic [ref=e21]:
+        - generic [ref=e22] [cursor=pointer]: 设置
+        - link "登录" [ref=e23] [cursor=pointer]:
+          - /url: https://passport.baidu.com/v2/?login&tpl=mn&u=http%3A%2F%2Fwww.baidu.com%2F&sms=5
+    - generic [ref=e26]:
+      - generic [ref=e33]:
+        - generic [ref=e36]:
+          - textbox "洛阳老君山景区发布限流公告" [active] [ref=e38]
+          - generic [ref=e40]:
+            - generic [ref=e41]:
+              - generic [ref=e43] [cursor=pointer]
+              - generic [ref=e54] [cursor=pointer]
+            - button "百度一下" [ref=e59] [cursor=pointer]
+        - link "深度调研、搞创作、搭应用，帮你一键搞定 " [ref=e63] [cursor=pointer]:
+          - /url: https://dumate.baidu.com/app/login-bridge?track=1063479g
+          - generic [ref=e65]:
+            - generic [ref=e66]: 深度调研、搞创作、搭应用，帮你一键搞定
+            - generic [ref=e67]: 
+      - generic [ref=e68]:
+        - generic [ref=e69]:
+          - link "百度热搜":
+            - /url: https://top.baidu.com/board?platform=pc&sa=pcindex_entry
+            - generic "百度热搜" [ref=e70] [cursor=pointer]: 
+          - generic [ref=e71] [cursor=pointer]:
+            - generic [ref=e72]: 
+            - text: 换一换
+        - list:
+          - listitem [ref=e73]:
+            - link " 怀爱国之心 立报国之志" [ref=e74] [cursor=pointer]:
+              - /url: https://www.baidu.com/s?wd=%E6%80%80%E7%88%B1%E5%9B%BD%E4%B9%8B%E5%BF%83+%E7%AB%8B%E6%8A%A5%E5%9B%BD%E4%B9%8B%E5%BF%97&sa=fyb_n_homepage&rsv_dl=fyb_n_homepage&from=super&cl=3&tn=baidutop10&fr=top1000&rsv_idx=2&hisfilter=1
+              - generic [ref=e75]: 
+              - text: 怀爱国之心 立报国之志
+          - listitem [ref=e77]:
+            - link "5 中国队169金89银83铜" [ref=e78] [cursor=pointer]:
+              - /url: https://www.baidu.com/s?wd=%E4%B8%AD%E5%9B%BD%E9%98%9F169%E9%87%9189%E9%93%B683%E9%93%9C&sa=fyb_n_homepage&rsv_dl=fyb_n_homepage&from=super&cl=3&tn=baidutop10&fr=top1000&rsv_idx=2&hisfilter=1
+              - generic [ref=e79]: "5"
+              - text: 中国队169金89银83铜
+          - listitem [ref=e81]:
+            - link "1 巴勒斯坦球员向国足道歉" [ref=e82] [cursor=pointer]:
+              - /url: https://www.baidu.com/s?wd=%E5%B7%B4%E5%8B%92%E6%96%AF%E5%9D%A6%E7%90%83%E5%91%98%E5%90%91%E5%9B%BD%E8%B6%B3%E9%81%93%E6%AD%89&sa=fyb_n_homepage&rsv_dl=fyb_n_homepage&from=super&cl=3&tn=baidutop10&fr=top1000&rsv_idx=2&hisfilter=1
+              - generic [ref=e83]: "1"
+              - text: 巴勒斯坦球员向国足道歉
+            - generic [ref=e84]: 热
+          - listitem [ref=e85]:
+            - link "6 中俄等8国战略演习 普京前往视察" [ref=e86] [cursor=pointer]:
+              - /url: https://www.baidu.com/s?wd=%E4%B8%AD%E4%BF%84%E7%AD%898%E5%9B%BD%E6%88%98%E7%95%A5%E6%BC%94%E4%B9%A0+%E6%99%AE%E4%BA%AC%E5%89%8D%E5%BE%80%E8%A7%86%E5%AF%9F&sa=fyb_n_homepage&rsv_dl=fyb_n_homepage&from=super&cl=3&tn=baidutop10&fr=top1000&rsv_idx=2&hisfilter=1
+              - generic [ref=e87]: "6"
+              - text: 中俄等8国战略演习 普京前往视察
+          - listitem [ref=e89]:
+            - link "2 国庆出游用AI 第一批人已被坑惨" [ref=e90] [cursor=pointer]:
+              - /url: https://www.baidu.com/s?wd=%E5%9B%BD%E5%BA%86%E5%87%BA%E6%B8%B8%E7%94%A8AI+%E7%AC%AC%E4%B8%80%E6%89%B9%E4%BA%BA%E5%B7%B2%E8%A2%AB%E5%9D%91%E6%83%A8&sa=fyb_n_homepage&rsv_dl=fyb_n_homepage&from=super&cl=3&tn=baidutop10&fr=top1000&rsv_idx=2&hisfilter=1
+              - generic [ref=e91]: "2"
+              - text: 国庆出游用AI 第一批人已被坑惨
+          - listitem [ref=e93]:
+            - link "7 中国男足时隔28年再夺亚运铜牌" [ref=e94] [cursor=pointer]:
+              - /url: https://www.baidu.com/s?wd=%E4%B8%AD%E5%9B%BD%E7%94%B7%E8%B6%B3%E6%97%B6%E9%9A%9428%E5%B9%B4%E5%86%8D%E5%A4%BA%E4%BA%9A%E8%BF%90%E9%93%9C%E7%89%8C&sa=fyb_n_homepage&rsv_dl=fyb_n_homepage&from=super&cl=3&tn=baidutop10&fr=top1000&rsv_idx=2&hisfilter=1
+              - generic [ref=e95]: "7"
+              - text: 中国男足时隔28年再夺亚运铜牌
+          - listitem [ref=e97]:
+            - link "3 国庆长假自驾出行 怎么开才安全" [ref=e98] [cursor=pointer]:
+              - /url: https://www.baidu.com/s?wd=%E5%9B%BD%E5%BA%86%E9%95%BF%E5%81%87%E8%87%AA%E9%A9%BE%E5%87%BA%E8%A1%8C+%E6%80%8E%E4%B9%88%E5%BC%80%E6%89%8D%E5%AE%89%E5%85%A8&sa=fyb_n_homepage&rsv_dl=fyb_n_homepage&from=super&cl=3&tn=baidutop10&fr=top1000&rsv_idx=2&hisfilter=1
+              - generic [ref=e99]: "3"
+              - text: 国庆长假自驾出行 怎么开才安全
+          - listitem [ref=e101]:
+            - link "8 特鲁姆普vs吴宜泽" [ref=e102] [cursor=pointer]:
+              - /url: https://www.baidu.com/s?wd=%E7%89%B9%E9%B2%81%E5%A7%86%E6%99%AEvs%E5%90%B4%E5%AE%9C%E6%B3%BD&sa=fyb_n_homepage&rsv_dl=fyb_n_homepage&from=super&cl=3&tn=baidutop10&fr=top1000&rsv_idx=2&hisfilter=1
+              - generic [ref=e103]: "8"
+              - text: 特鲁姆普vs吴宜泽
+          - listitem [ref=e105]:
+            - link "4 越来越多小城“通飞机”了" [ref=e106] [cursor=pointer]:
+              - /url: https://www.baidu.com/s?wd=%E8%B6%8A%E6%9D%A5%E8%B6%8A%E5%A4%9A%E5%B0%8F%E5%9F%8E%E2%80%9C%E9%80%9A%E9%A3%9E%E6%9C%BA%E2%80%9D%E4%BA%86&sa=fyb_n_homepage&rsv_dl=fyb_n_homepage&from=super&cl=3&tn=baidutop10&fr=top1000&rsv_idx=2&hisfilter=1
+              - generic [ref=e107]: "4"
+              - text: 越来越多小城“通飞机”了
+          - listitem [ref=e109]:
+            - link "9 小沈阳回应肿成蜜蜂小狗" [ref=e110] [cursor=pointer]:
+              - /url: https://www.baidu.com/s?wd=%E5%B0%8F%E6%B2%88%E9%98%B3%E5%9B%9E%E5%BA%94%E8%82%BF%E6%88%90%E8%9C%9C%E8%9C%82%E5%B0%8F%E7%8B%97&sa=fyb_n_homepage&rsv_dl=fyb_n_homepage&from=super&cl=3&tn=baidutop10&fr=top1000&rsv_idx=2&hisfilter=1
+              - generic [ref=e111]: "9"
+              - text: 小沈阳回应肿成蜜蜂小狗
+            - generic [ref=e112]: 新
+  - generic [ref=e113]:
+    - generic [ref=e114]: 下载
+    - generic [ref=e120] [cursor=pointer]: 辅助
