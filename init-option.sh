@@ -39,6 +39,7 @@ declare -A AUTO_MANAGED
 MENU_GROUPS=(
     "--CLI--|batcat glow"
     "--Claude--|mcp skill"
+    "--浏览器自动化--|playwright"
     "--飞书--|larkcli"
     "--其他--|officecli remote cloudflare getnote"
 )

@@ -65,6 +65,19 @@
         "GETNOTE_API_KEY": "请到 https://www.biji.com/openapi 获取 API Key（格式：gk_live_xxx）",
         "GETNOTE_CLIENT_ID": "请到 https://www.biji.com/openapi 获取 Client ID（格式：cli_xxx）"
       }
+    },
+    {
+      "name": "playwright",
+      "description": "浏览器自动化（图生3D网页通道、表单操作等）",
+      "how_to_get": "无 Key。装 Chromium：bash ccconfig/option-playwright/init.sh --install",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--headless"
+      ],
+      "env": {}
     }
   ]
 }

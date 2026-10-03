@@ -19,7 +19,7 @@
 #   CCP_NONINTERACTIVE=1        非交互模式
 #   CCP_GH_USER                 GitHub 用户名
 #   CCP_GIT_EMAIL               Git 邮箱
-#   CCP_DEFAULT_LLM             deepseek | minimax | claude
+#   CCP_DEFAULT_LLM             deepseek | minimax31 | claude
 #   CCP_LLM_DEEPSEEK_KEY        DeepSeek API key
 #   CCP_LLM_MINIMAX_KEY         MiniMax API key
 #   CCP_SKIP_FEISHU=1           跳过飞书配置提示（飞书在 init-option.sh 中配置）
@@ -316,14 +316,18 @@ collect_info() {
     if $NONINTERACTIVE; then
         case "${CCP_DEFAULT_LLM:-deepseek}" in
             deepseek|1) DEFAULT_LLM=deepseek ;;
-            minimax|2)  DEFAULT_LLM=minimax ;;
-            *) err "CCP_DEFAULT_LLM 必须是 deepseek|minimax"; return 1 ;;
+            minimax|minimax31|2)  DEFAULT_LLM=minimax31 ;;
+            *) err "CCP_DEFAULT_LLM 必须是 deepseek|minimax31"; return 1 ;;
         esac
         info "默认 LLM: ${GREEN}$DEFAULT_LLM${NC}"
-        local key_var="${DEFAULT_LLM}_KEY"
-        local key_name="${DEFAULT_LLM^^}_KEY"
-        if [[ -z "${!key_var}" ]]; then
-            err "DEFAULT_LLM=$DEFAULT_LLM 但 CCP_${key_name} 未设"
+        # key 变量按 provider 归一：minimax31 也读 MINIMAX_KEY（不产 minimax31_KEY 这种未定义名）
+        local check_key
+        case "$DEFAULT_LLM" in
+            deepseek)  check_key="${DEEPSEEK_KEY:-}" ;;
+            minimax31) check_key="${MINIMAX_KEY:-}" ;;
+        esac
+        if [[ -z "$check_key" ]]; then
+            err "DEFAULT_LLM=$DEFAULT_LLM 但 CCP_LLM_${DEFAULT_LLM^^}_KEY 未设"
             return 1
         fi
     else
@@ -331,7 +335,7 @@ collect_info() {
         llm_choice=$(menu_select "默认 LLM" "DeepSeek" "MiniMax")
         case "$llm_choice" in
             1) DEFAULT_LLM=deepseek; [[ -z "$DEEPSEEK_KEY" ]] && DEEPSEEK_KEY=$(prompt_key_plain "DeepSeek API Key") ;;
-            2) DEFAULT_LLM=minimax;  [[ -z "$MINIMAX_KEY" ]] && MINIMAX_KEY=$(prompt_key_plain "MiniMax API Key") ;;
+            2) DEFAULT_LLM=minimax31;  [[ -z "$MINIMAX_KEY" ]] && MINIMAX_KEY=$(prompt_key_plain "MiniMax API Key") ;;
             0) warn "取消 LLM 选择"; DEFAULT_LLM="${DEFAULT_LLM:-deepseek}" ;;
         esac
 
@@ -359,7 +363,7 @@ for k, v in [("deepseek","DEEPSEEK_KEY"),("minimax","MINIMAX_KEY")]:
     if k == "deepseek":
         llms[k] = {"name":"DeepSeek","base_url":"https://api.deepseek.com/anthropic","model":"deepseek-v4-pro","key":key,"small_model":"deepseek-v4-pro"}
     elif k == "minimax":
-        llms[k] = {"name":"MiniMax","base_url":"https://api.minimaxi.com/anthropic","model":"MiniMax-M3","key":key,"small_model":"MiniMax-M3"}
+        llms["minimax31"] = {"name":"MiniMax3.1","base_url":"https://api.minimaxi.com/anthropic","model":"MiniMax-M3.1-Flash-Preview","key":key,"small_model":"MiniMax-M3.1-Flash-Preview"}
 d = {"llms": llms, "current": os.environ["DEFAULT_LLM"]}
 with open(os.environ["OUT"], "w") as fh:
     json.dump(d, fh, indent=4, ensure_ascii=False)
