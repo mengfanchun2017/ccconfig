@@ -27,18 +27,25 @@ source "$CCCONFIG_ROOT/lib/path-helper.sh"
 # Playwright 的 chromium 缓存目录（判断二进制是否已装）
 PW_CACHE_DIR="${HOME}/.cache/ms-playwright"
 
-# 判断 Chromium 是否已下载（Playwright 下载目录存在且非空）
+# 判断 Chromium 是否已下载（Playwright 下载目录存在且含 chromium-X 版本目录）
 chromium_installed() {
-    [[ -d "$PW_CACHE_DIR" ]] && ls "$PW_CACHE_DIR" | grep -qi "chromium" && return 0
+    [[ -d "$PW_CACHE_DIR" ]] && find "$PW_CACHE_DIR" -maxdepth 1 -type d -name 'chromium-*' | grep -q . && return 0
     return 1
 }
 
 # 判断系统 .so 依赖是否齐全：跑 chromium --version 探活最可靠
+# 注意目录是 chrome-linux64（新 Playwright），兼容旧 chrome-linux
 deps_installed() {
     local browser_bin
-    browser_bin=$(find "$PW_CACHE_DIR" -path '*/chrome-linux/chrome' -o -path '*/chrome-linux/headless_shell' 2>/dev/null | head -1)
+    browser_bin=$(find "$PW_CACHE_DIR" \( -path '*/chrome-linux*/chrome' -o -path '*/chrome-linux*/headless_shell' \) 2>/dev/null | head -1)
     [[ -z "$browser_bin" ]] && return 1  # 没二进制，依赖无从验证
     "$browser_bin" --version >/dev/null 2>&1
+}
+
+# 判断 MCP 是否已注册：看运行时 .config.json 有没有 playwright 条目
+mcp_registered() {
+    local conf="${HOME}/.claude/.config.json"
+    [[ -f "$conf" ]] && grep -q '"playwright"' "$conf"
 }
 
 do_status() {
@@ -49,21 +56,14 @@ do_status() {
         return 1
     fi
 
-    if chromium_installed; then
-        echo -n ""
-    else
-        missing="${missing}chromium "
-    fi
+    chromium_installed || missing="${missing}chromium "
 
-    if deps_installed; then
-        echo -n ""
-    else
-        # 二进制没下时 deps 探活无法区分——但二进制都没了，一并提示装
-        missing="${missing}系统依赖(.so) "
-    fi
+    deps_installed || missing="${missing}系统依赖(.so) "
+
+    mcp_registered || missing="${missing}MCP注册 "
 
     if [[ -z "$missing" ]]; then
-        echo "OK Playwright 就绪（Chromium + 系统依赖齐全）"
+        echo "OK Playwright 就绪（Chromium + 系统依赖 + MCP 齐全）"
     else
         echo "WARN Playwright 缺: ${missing}（运行 --install）"
     fi
