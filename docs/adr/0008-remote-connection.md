@@ -36,11 +36,21 @@ WSL2 `.wslconfig` 中 `networkingMode=mirrored` 下 WSL/Windows 共享网络栈�
 | Windows Terminal | ✅ 理论上行 | 需装 Tailscale |
 | 原生 SSH | ✅ 理论上行 | `ssh user@ts-ip -p 2222` |
 
+### 6. 移动端进入指定 session：`/exit` 回 fleet view + 手动点击，不用 `←`
+
+实测（Pad + Termius，2026-10-04）：Termius 移动端 `←` 切 Claude Code 的 fleet/agent view 不可靠：
+
+- **D1** Termius 后退键方向序列不标准，`←` 无法稳定触发 view 切换
+- **D2** Claude Code 的 `←` 切 view 有前置门槛：仅空输入框触发；v2.1.218+ 防误触要求删除/历史操作后隔 2s 二次确认
+
+统一路径：`/exit` 退出当前 session 回 fleet view → 手动点击/Up-Down+Enter 进入目标 session。全文本命令 + 点击，无方向键依赖，跨终端（含软键盘）一致。
+
 ## Consequences
 
 ### Positive
 
 - ✅ 手机 Termius 实测直连 tmux claude 会话
+- ✅ 移动端进入指定 session 不依赖方向键（`/exit` + 点击）
 - ✅ mirrored 模式自动跳过 portproxy 冲突
 - ✅ 无交互一键入口
 
