@@ -444,7 +444,7 @@ interactive_menu() {
         echo -e "  ${BOLD_GRAY}--可选组件--${NC}" >&2
         local mi
         for mi in "${!menu_items[@]}"; do
-            printf "  ${BOLD_GREEN}%d)${NC}  %s\n" "$((mi+1))" "${menu_items[$mi]}" >&2
+            printf "  ${BOLD_GREEN}%d${NC}  %s\n" "$((mi+1))" "${menu_items[$mi]}" >&2
         done
         printf '\n' >&2
 
