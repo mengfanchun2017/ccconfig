@@ -1,0 +1,10 @@
+[  391421ms] [ERROR] Failed to load resource: net::ERR_HTTP2_PING_FAILED @ https://code.claude.com/docs/en/mcp-quickstart?_rsc=uQmmCWFoyRZDUUtb:0
+[  391425ms] [ERROR] Failed to load resource: net::ERR_HTTP2_PING_FAILED @ https://code.claude.com/docs/en/skills?_rsc=uQmmCWFoyRZDUUtb:0
+[  391428ms] [ERROR] Failed to load resource: net::ERR_HTTP2_PING_FAILED @ https://code.claude.com/docs/en/agent-teams?_rsc=uQmmCWFoyRZDUUtb:0
+[  391429ms] [ERROR] Failed to load resource: net::ERR_HTTP2_PING_FAILED @ https://code.claude.com/docs/en/overview?_rsc=uQmmCWFoyRZDUUtb:0
+[  391432ms] [ERROR] Failed to load resource: net::ERR_HTTP2_PING_FAILED @ https://code.claude.com/docs/en/agents?_rsc=btTWYz9Dkn3SdOVM:0
+[  391433ms] [ERROR] Failed to load resource: net::ERR_HTTP2_PING_FAILED @ https://code.claude.com/docs/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon/favicon.ico:0
+[  391434ms] [ERROR] Failed to load resource: net::ERR_HTTP2_PING_FAILED @ https://code.claude.com/docs/_mintlify/api/v1/e:0
+[  391436ms] [ERROR] Failed to load resource: net::ERR_HTTP2_PING_FAILED @ https://code.claude.com/docs/en/plugins/overview?_rsc=btTWYz9Dkn3SdOVM:0
+[  391437ms] [ERROR] Failed to load resource: net::ERR_HTTP2_PING_FAILED @ https://code.claude.com/docs/en/admin-setup?_rsc=btTWYz9Dkn3SdOVM:0
+[  391437ms] [ERROR] Failed to load resource: net::ERR_HTTP2_PING_FAILED @ https://code.claude.com/docs/en/settings?_rsc=btTWYz9Dkn3SdOVM:0
