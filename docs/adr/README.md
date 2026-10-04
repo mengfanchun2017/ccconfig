@@ -47,7 +47,6 @@
 | [0036](0036-drop-token-usage-feature.md) | 删除本地 Token 用量链路（option-usage / token-usage / bill）— 改用 Claude 自带 usage 统计 | 2026-09-28 | ✅ Accepted | — |
 | [0037](0037-skill-pip-venv-auto-install.md) | Skill pip 依赖经自建 venv 自动安装 — pip 分支改由 skill setup.sh 建隔离 venv，同步即装好 | 2026-10-03 | ✅ Accepted | init 能力 |
 | [0038](0038-playwright-mcp-browser-automation.md) | Playwright MCP 浏览器自动化 — 4 层安装 + `--executable-path` symlink 解耦版本 + headed 登录持久 profile | 2026-10-03 | ✅ Accepted | option-playwright |
-| [0039](0039-pad-remote-enter-session.md) | iPad/平板远程进入指定 session — `/exit` 回 fleet view + 手动点击，不用 `←` | 2026-10-04 | ✅ Accepted | option-remote |
 
 > **编号 0024 / 0025 未使用**：编号永不重用（见[命名约定](#命名约定)），这两号在 0023 之后被跳过、没有对应文件，也没有正文引用。新增 ADR 从**当前最大号 +1** 起，不要去填这个空档。
 >
