@@ -1,9 +1,10 @@
 # 0039. iPad/平板远程进入指定 session：用 /exit 回 fleet view + 手动点击，不用 ←
 
-> **Status**: ✅ Accepted
+> **Status**: ⚠️ Superseded by 0008
 > **日期**: 2026-10-04
 > **关联**: `option-remote`, `docs/adr/0008-remote-connection.md`
 > **模板**: MADR 4.0 极简版
+> **取代说明**: 本 ADR 内容已合并进 [ADR-0008 `0008-remote-connection.md`](0008-remote-connection.md) 的客户端注意事项段。移动端 `←` 切 fleet view 不可靠的经验作为 option-remote 客户端使用备注保留，不再单列决策。
 
 ## Context and Problem Statement
 
@@ -38,7 +39,7 @@
 
 ## Related Decisions
 
-- `ADR-0008`（`0008-remote-connection.md`）— Remote 远程连接方案，SSH/Tailscale 链路
+- `ADR-0008`（`0008-remote-connection.md`）— Remote 远程连接方案，SSH/Tailscale 链路。经验已并入其客户端注意事项段。
 
 ## Notes
 
