@@ -1,0 +1,1068 @@
+- generic [active] [ref=e1]:
+  - blockquote [aria-hidden] [ref=e2]:
+    - heading [level=2] [ref=e3]: Documentation Index
+    - paragraph [ref=e4]:
+      - text: "Fetch the complete documentation index at:"
+      - link [ref=e5] [cursor=pointer]:
+        - /url: /docs/llms.txt
+        - text: /docs/llms.txt
+    - paragraph [ref=e6]: Use this file to discover all available pages before exploring further.
+  - generic [ref=e7]:
+    - link "Skip to main content" [ref=e8] [cursor=pointer]:
+      - /url: "#content-area"
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - banner [ref=e11]:
+          - generic [ref=e14]:
+            - generic [ref=e17]:
+              - generic [ref=e18]:
+                - link "Claude Code Docs home page light logo" [ref=e19] [cursor=pointer]:
+                  - /url: /docs/en/overview
+                  - generic [ref=e20]: Claude Code Docs home page
+                  - img "light logo" [ref=e21]
+                - button "English" [ref=e23] [cursor=pointer]
+              - generic [ref=e27]:
+                - button "Open search" [ref=e28] [cursor=pointer]:
+                  - generic [ref=e29]: Search...
+                  - generic [ref=e34]: ⌘K
+                - button "Toggle assistant panel" [ref=e35] [cursor=pointer]:
+                  - generic [ref=e39]: Ask Assistant
+                  - generic [ref=e40]: ⌘I
+              - generic [ref=e41]:
+                - navigation "Main" [ref=e42]:
+                  - list [ref=e43]:
+                    - listitem [ref=e44]:
+                      - link "Claude Developer Platform" [ref=e45] [cursor=pointer]:
+                        - /url: https://platform.claude.com/
+                    - listitem [ref=e47]:
+                      - link "Open Claude Code" [ref=e48] [cursor=pointer]:
+                        - /url: https://claude.ai/code
+                - button "Change theme preference" [ref=e55] [cursor=pointer]
+            - generic [ref=e61]:
+              - link "Getting started" [ref=e62] [cursor=pointer]:
+                - /url: /docs/en/overview
+              - link "Build with Claude Code" [ref=e64] [cursor=pointer]:
+                - /url: /docs/en/agents
+              - link "Plugins" [ref=e66] [cursor=pointer]:
+                - /url: /docs/en/plugins/overview
+              - link "Administration" [ref=e68] [cursor=pointer]:
+                - /url: /docs/en/admin-setup
+              - link "Configuration" [ref=e70] [cursor=pointer]:
+                - /url: /docs/en/settings
+              - link "Reference" [ref=e72] [cursor=pointer]:
+                - /url: /docs/en/cli-reference
+              - link "Agent SDK" [ref=e74] [cursor=pointer]:
+                - /url: /docs/en/agent-sdk/overview
+              - link "What's New" [ref=e76] [cursor=pointer]:
+                - /url: /docs/en/whats-new
+              - link "Resources" [ref=e78] [cursor=pointer]:
+                - /url: /docs/en/legal-and-compliance
+        - generic [ref=e80]:
+          - navigation "Pages" [ref=e81]:
+            - generic [ref=e84]:
+              - generic [ref=e85]:
+                - heading "Agents and parallel work" [level=3] [ref=e87]
+                - list [ref=e88]:
+                  - listitem [ref=e89]:
+                    - link "Overview" [ref=e90] [cursor=pointer]:
+                      - /url: /docs/en/agents
+                  - listitem [ref=e94]:
+                    - link "Create custom subagents" [ref=e95] [cursor=pointer]:
+                      - /url: /docs/en/sub-agents
+                  - listitem [ref=e99]:
+                    - link "Agent view" [ref=e100] [cursor=pointer]:
+                      - /url: /docs/en/agent-view
+                  - listitem [ref=e104]:
+                    - link "Run agent teams" [ref=e105] [cursor=pointer]:
+                      - /url: /docs/en/agent-teams
+                  - listitem [ref=e109]:
+                    - link "Cross-session messaging" [ref=e110] [cursor=pointer]:
+                      - /url: /docs/en/cross-session-messaging
+                  - listitem [ref=e114]:
+                    - link "Dynamic workflows" [ref=e115] [cursor=pointer]:
+                      - /url: /docs/en/workflows
+                  - listitem [ref=e119]:
+                    - link "Isolate sessions with worktrees" [ref=e120] [cursor=pointer]:
+                      - /url: /docs/en/worktrees
+              - generic [ref=e124]:
+                - heading "MCP" [level=3] [ref=e126]
+                - list [ref=e127]:
+                  - listitem [ref=e128]:
+                    - link "Quickstart" [ref=e129] [cursor=pointer]:
+                      - /url: /docs/en/mcp-quickstart
+                  - listitem [ref=e133]:
+                    - link "Reference" [ref=e134] [cursor=pointer]:
+                      - /url: /docs/en/mcp
+              - generic [ref=e138]:
+                - heading "Skills" [level=3] [ref=e140]
+                - list [ref=e141]:
+                  - listitem [ref=e142]:
+                    - link "Extend Claude with skills" [ref=e143] [cursor=pointer]:
+                      - /url: /docs/en/skills
+              - generic [ref=e147]:
+                - heading "Artifacts" [level=3] [ref=e149]
+                - list [ref=e150]:
+                  - listitem [ref=e151]:
+                    - link "Share session output as artifacts" [ref=e152] [cursor=pointer]:
+                      - /url: /docs/en/artifacts
+              - generic [ref=e156]:
+                - heading "Automation" [level=3] [ref=e158]
+                - list [ref=e159]:
+                  - listitem [ref=e160]:
+                    - link "Automate with hooks" [ref=e161] [cursor=pointer]:
+                      - /url: /docs/en/hooks-guide
+                  - listitem [ref=e165]:
+                    - link "Push external events to Claude" [ref=e166] [cursor=pointer]:
+                      - /url: /docs/en/channels
+                  - listitem [ref=e170]:
+                    - link "Run prompts on a schedule" [ref=e171] [cursor=pointer]:
+                      - /url: /docs/en/scheduled-tasks
+                  - listitem [ref=e175]:
+                    - link "Goals" [ref=e176] [cursor=pointer]:
+                      - /url: /docs/en/goal
+                  - listitem [ref=e180]:
+                    - link "Programmatic usage" [ref=e181] [cursor=pointer]:
+                      - /url: /docs/en/headless
+                  - listitem [ref=e185]:
+                    - link "Launch sessions from links" [ref=e186] [cursor=pointer]:
+                      - /url: /docs/en/deep-links
+              - generic [ref=e190]:
+                - heading "Guides" [level=3] [ref=e192]
+                - list [ref=e193]:
+                  - listitem [ref=e194]:
+                    - link "Monorepos and large repos" [ref=e195] [cursor=pointer]:
+                      - /url: /docs/en/large-codebases
+              - generic [ref=e199]:
+                - heading "Troubleshooting" [level=3] [ref=e201]
+                - list [ref=e202]:
+                  - listitem [ref=e203]:
+                    - link "Troubleshoot installation and login" [ref=e204] [cursor=pointer]:
+                      - /url: /docs/en/troubleshoot-install
+                  - listitem [ref=e208]:
+                    - link "Troubleshoot performance and stability" [ref=e209] [cursor=pointer]:
+                      - /url: /docs/en/troubleshooting
+                  - listitem [ref=e213]:
+                    - link "Debug configuration" [ref=e214] [cursor=pointer]:
+                      - /url: /docs/en/debug-your-config
+                  - listitem [ref=e218]:
+                    - link "Error reference" [ref=e219] [cursor=pointer]:
+                      - /url: /docs/en/errors
+          - main [ref=e223]:
+            - generic [ref=e224]:
+              - navigation [ref=e228]:
+                - heading [level=2] [ref=e229]:
+                  - button "On this page" [ref=e230] [cursor=pointer]
+                - list [ref=e234]:
+                  - listitem [ref=e235]:
+                    - link "Before you begin" [ref=e236] [cursor=pointer]:
+                      - /url: "#before-you-begin"
+                  - listitem [ref=e237]:
+                    - link "Add and verify a server" [ref=e238] [cursor=pointer]:
+                      - /url: "#add-and-verify-a-server"
+                  - listitem [ref=e239]:
+                    - link "Where servers are saved" [ref=e240] [cursor=pointer]:
+                      - /url: "#where-servers-are-saved"
+                    - list [ref=e241]:
+                      - listitem [ref=e242]:
+                        - link "Find your configuration on disk" [ref=e243] [cursor=pointer]:
+                          - /url: "#find-your-configuration-on-disk"
+                  - listitem [ref=e244]:
+                    - link "Change server scope" [ref=e245] [cursor=pointer]:
+                      - /url: "#change-server-scope"
+                    - list [ref=e246]:
+                      - listitem [ref=e247]:
+                        - link "Use a server in all your projects" [ref=e248] [cursor=pointer]:
+                          - /url: "#use-a-server-in-all-your-projects"
+                      - listitem [ref=e249]:
+                        - link "Share a server with your team" [ref=e250] [cursor=pointer]:
+                          - /url: "#share-a-server-with-your-team"
+                  - listitem [ref=e251]:
+                    - link "Additional MCP server examples" [ref=e252] [cursor=pointer]:
+                      - /url: "#additional-mcp-server-examples"
+                    - list [ref=e253]:
+                      - listitem [ref=e254]:
+                        - link "Add a local server" [ref=e255] [cursor=pointer]:
+                          - /url: "#add-a-local-server"
+                      - listitem [ref=e256]:
+                        - link "Connect a server that requires sign-in" [ref=e257] [cursor=pointer]:
+                          - /url: "#connect-a-server-that-requires-sign-in"
+                  - listitem [ref=e258]:
+                    - link "Edit .mcp.json directly" [ref=e259] [cursor=pointer]:
+                      - /url: "#edit-mcp-json-directly"
+                  - listitem [ref=e260]:
+                    - link "Connect from other surfaces" [ref=e261] [cursor=pointer]:
+                      - /url: "#connect-from-other-surfaces"
+                  - listitem [ref=e262]:
+                    - link "Troubleshooting" [ref=e263] [cursor=pointer]:
+                      - /url: "#troubleshooting"
+                  - listitem [ref=e264]:
+                    - link "Next steps" [ref=e265] [cursor=pointer]:
+                      - /url: "#next-steps"
+              - generic [ref=e266]:
+                - generic [ref=e267]:
+                  - generic [ref=e268]:
+                    - generic [ref=e269]: MCP
+                    - generic [ref=e270]:
+                      - heading "Connect to MCP servers" [level=1] [ref=e271]
+                      - generic [ref=e272]:
+                        - button "Copy page" [ref=e273] [cursor=pointer]
+                        - button "More actions" [ref=e280] [cursor=pointer]
+                  - paragraph [ref=e284]: Add an MCP server to Claude Code, verify the connection, and find the configuration on disk.
+                - generic [ref=e285]:
+                  - generic [ref=e286]:
+                    - text: The
+                    - link "Model Context Protocol (MCP)" [ref=e287] [cursor=pointer]:
+                      - /url: https://modelcontextprotocol.io/introduction
+                    - text: lets Claude Code use tools beyond its built-in set, such as searching an issue tracker, querying a database, or controlling a web browser. These tools come from MCP servers, which run on your machine or as hosted services.
+                  - generic [ref=e288]: This guide walks you through connecting one MCP server end to end with the Claude Code CLI. By the end, you’ll have a server connected and responding, know where its configuration lives on disk, and know how to fix the most common connection errors.
+                  - note "Note" [ref=e289]:
+                    - generic [ref=e294]:
+                      - text: You can also add MCP servers from other surfaces, including the desktop app, VS Code, and the web. See
+                      - link "Connect from other surfaces" [ref=e295] [cursor=pointer]:
+                        - /url: "#connect-from-other-surfaces"
+                      - text: .
+                  - generic [ref=e296]:
+                    - text: For every way to connect and configure MCP servers in Claude Code, see the
+                    - link "MCP reference" [ref=e297] [cursor=pointer]:
+                      - /url: /docs/en/mcp
+                    - text: .
+                  - heading "Navigate to header Before you begin" [level=2] [ref=e298]:
+                    - link "Navigate to header" [ref=e299] [cursor=pointer]:
+                      - /url: "#before-you-begin"
+                    - generic [ref=e304] [cursor=pointer]: Before you begin
+                  - generic [ref=e305]: "Make sure you have:"
+                  - list [ref=e306]:
+                    - listitem [ref=e307]:
+                      - link "Claude Code installed" [ref=e308] [cursor=pointer]:
+                        - /url: /docs/en/quickstart
+                      - text: and authenticated
+                    - listitem [ref=e309]: A terminal open in a project directory. Any directory works, including an empty one.
+                  - heading "Navigate to header Add and verify a server" [level=2] [ref=e310]:
+                    - link "Navigate to header" [ref=e311] [cursor=pointer]:
+                      - /url: "#add-and-verify-a-server"
+                    - generic [ref=e316] [cursor=pointer]: Add and verify a server
+                  - generic [ref=e317]:
+                    - text: The example below connects to the
+                    - link "Claude Code documentation MCP server" [ref=e318] [cursor=pointer]:
+                      - /url: https://code.claude.com/docs/mcp
+                    - text: ", a hosted server with full-text search over the Claude Code docs. It doesn’t require authentication or any special configuration, so it works well as a first server to test the setup flow with."
+                  - generic [ref=e319]:
+                    - text: "The steps are the same for any server: add it, check the connection status, then use it in a session, with an optional cleanup step at the end. Some servers add a step, like a browser sign-in, shown in"
+                    - link "Additional MCP server examples" [ref=e320] [cursor=pointer]:
+                      - /url: "#additional-mcp-server-examples"
+                    - text: . For more servers to connect, browse the
+                    - link "Anthropic Directory" [ref=e321] [cursor=pointer]:
+                      - /url: /docs/en/mcp#find-and-build-mcp-servers
+                    - text: .
+                  - list [ref=e322]:
+                    - listitem [ref=e323]:
+                      - generic [ref=e325]: "1"
+                      - generic [ref=e328]:
+                        - paragraph [ref=e329]: Add the MCP server
+                        - generic [ref=e330]:
+                          - generic [ref=e331]:
+                            - text: Register the server with Claude Code. Run this in your terminal, not inside a
+                            - code [ref=e332]: claude
+                            - text: "session: you’re configuring the server before starting a conversation."
+                          - generic [ref=e333]:
+                            - generic [ref=e334]:
+                              - button "Report incorrect code" [ref=e336] [cursor=pointer]
+                              - generic [ref=e340]:
+                                - button "Copy the contents from the code block" [ref=e341] [cursor=pointer]
+                                - status [ref=e345]
+                              - button "Ask Assistant" [ref=e347] [cursor=pointer]
+                            - code [ref=e354]:
+                              - generic [ref=e355]: claude mcp add --transport http claude-code-docs https://code.claude.com/docs/mcp
+                          - generic [ref=e356]: "The parts of the command:"
+                          - list [ref=e357]:
+                            - listitem [ref=e358]:
+                              - code [ref=e359]: claude mcp add
+                              - text: ": registers a server with Claude Code."
+                            - listitem [ref=e360]:
+                              - code [ref=e361]: "--transport http"
+                              - text: ": the server is hosted at a URL rather than run as a local process."
+                            - listitem [ref=e362]:
+                              - code [ref=e363]: claude-code-docs
+                              - text: ": a name you make up. Calling the same server"
+                              - code [ref=e364]: docs
+                              - text: would work identically. Claude Code uses whatever name you pick to label the server’s tools in Claude’s output and to refer to the server in commands like
+                              - code [ref=e365]: claude mcp remove
+                              - text: .
+                            - listitem [ref=e366]:
+                              - code [ref=e367]: https://code.claude.com/docs/mcp
+                              - text: ": the URL where the server is hosted."
+                          - generic [ref=e368]:
+                            - text: The command prints a confirmation like
+                            - code [ref=e369]: "Added HTTP MCP server claude-code-docs with URL: https://code.claude.com/docs/mcp to local config"
+                            - text: ", followed by a"
+                            - code [ref=e370]: "File modified:"
+                            - text: line showing the configuration file it wrote. The
+                            - code [ref=e371]: local config
+                            - text: "part means the server is registered to you, in this project: if you start Claude Code in a different project, this server isn’t active there. To register a server once for all your projects, add it at user scope, covered in"
+                            - link "Change server scope" [ref=e372] [cursor=pointer]:
+                              - /url: "#change-server-scope"
+                            - text: .
+                    - listitem [ref=e373]:
+                      - generic [ref=e375]: "2"
+                      - generic [ref=e378]:
+                        - paragraph [ref=e379]: Check the connection status
+                        - generic [ref=e380]:
+                          - generic [ref=e381]: "Confirm the server appears in your server list and check its status:"
+                          - generic [ref=e382]:
+                            - generic [ref=e383]:
+                              - button "Report incorrect code" [ref=e385] [cursor=pointer]
+                              - generic [ref=e389]:
+                                - button "Copy the contents from the code block" [ref=e390] [cursor=pointer]
+                                - status [ref=e394]
+                              - button "Ask Assistant" [ref=e396] [cursor=pointer]
+                            - code [ref=e403]:
+                              - generic [ref=e404]: claude mcp list
+                          - generic [ref=e405]: "The server appears with a status indicator:"
+                          - region "Scrollable table" [ref=e406]:
+                            - table [ref=e408]:
+                              - rowgroup [ref=e409]:
+                                - row [ref=e410]:
+                                  - columnheader "Status" [ref=e411]
+                                  - columnheader "Meaning" [ref=e412]
+                              - rowgroup [ref=e413]:
+                                - row [ref=e414]:
+                                  - cell [ref=e415]:
+                                    - code [ref=e416]: ✔ Connected
+                                  - cell [ref=e417]:
+                                    - text: Ready to use. This is what you should see for
+                                    - code [ref=e418]: claude-code-docs
+                                - row [ref=e419]:
+                                  - cell [ref=e420]:
+                                    - code [ref=e421]: "! Connected · tools fetch failed"
+                                  - cell [ref=e422]:
+                                    - text: The server connected but couldn’t list its tools. Run
+                                    - code [ref=e423]: claude mcp get <name>
+                                    - text: for the error detail
+                                - row [ref=e424]:
+                                  - cell [ref=e425]:
+                                    - code [ref=e426]: "! Needs authentication"
+                                  - cell [ref=e427]:
+                                    - text: The server is reachable but needs a browser sign-in, or a token passed with
+                                    - code [ref=e428]: "--header"
+                                    - text: . See
+                                    - link "Connect a server that requires sign-in" [ref=e429] [cursor=pointer]:
+                                      - /url: "#connect-a-server-that-requires-sign-in"
+                                - row [ref=e430]:
+                                  - cell [ref=e431]:
+                                    - code [ref=e432]: ✘ Failed to connect
+                                  - cell [ref=e433]:
+                                    - text: Server didn’t respond. See
+                                    - link "Troubleshooting" [ref=e434] [cursor=pointer]:
+                                      - /url: "#troubleshooting"
+                                - row [ref=e435]:
+                                  - cell [ref=e436]:
+                                    - code [ref=e437]: ✘ Connection error
+                                  - cell [ref=e438]:
+                                    - text: The connection attempt threw an error. See
+                                    - link "Troubleshooting" [ref=e439] [cursor=pointer]:
+                                      - /url: "#troubleshooting"
+                                - row [ref=e440]:
+                                  - cell [ref=e441]:
+                                    - code [ref=e442]: "⏸ Pending approval (run `claude` to approve)"
+                                  - cell [ref=e443]:
+                                    - text: A project-scoped server you haven’t approved yet. See
+                                    - link "Edit .mcp.json directly" [ref=e444] [cursor=pointer]:
+                                      - /url: "#edit-mcp-json-directly"
+                                - row [ref=e445]:
+                                  - cell [ref=e446]:
+                                    - code [ref=e447]: ⊘ Disabled for this project (re-enable via /mcp)
+                                  - cell [ref=e448]:
+                                    - text: A server turned off for this project by the project’s
+                                    - code [ref=e449]: disabledMcpServers
+                                    - text: list. See
+                                    - link "Disable a server without removing it" [ref=e450] [cursor=pointer]:
+                                      - /url: /docs/en/mcp#disable-a-server-without-removing-it
+                          - generic [ref=e451]:
+                            - text: Some legacy Windows consoles, such as the default console on Windows 10, don’t support these Unicode glyphs and show
+                            - code [ref=e452]: √
+                            - text: and
+                            - code [ref=e453]: ×
+                            - text: in place of
+                            - code [ref=e454]: ✔
+                            - text: and
+                            - code [ref=e455]: ✘
+                            - text: .
+                    - listitem [ref=e456]:
+                      - generic [ref=e458]: "3"
+                      - generic [ref=e461]:
+                        - paragraph [ref=e462]: Use the server
+                        - generic [ref=e463]:
+                          - generic [ref=e464]: "Start a session and ask Claude to use the new server by name:"
+                          - generic [ref=e465]:
+                            - generic [ref=e466]:
+                              - button "Report incorrect code" [ref=e468] [cursor=pointer]
+                              - generic [ref=e472]:
+                                - button "Copy the contents from the code block" [ref=e473] [cursor=pointer]
+                                - status [ref=e477]
+                              - button "Ask Assistant" [ref=e479] [cursor=pointer]
+                            - code [ref=e486]:
+                              - generic [ref=e487]: claude
+                          - generic [ref=e488]:
+                            - generic [ref=e489]:
+                              - button "Report incorrect code" [ref=e491] [cursor=pointer]
+                              - generic [ref=e495]:
+                                - button "Copy the contents from the code block" [ref=e496] [cursor=pointer]
+                                - status [ref=e500]
+                              - button "Ask Assistant" [ref=e502] [cursor=pointer]
+                            - code [ref=e509]:
+                              - generic [ref=e510]: Use the claude-code-docs server to look up what MCP_TIMEOUT does
+                          - note "Info" [ref=e511]:
+                            - generic [ref=e515]: You don’t normally need to name a server in your prompt, since Claude chooses relevant tools on its own. Naming it here guarantees the demonstration goes through the new server rather than another tool, such as web fetch, that could answer the same question.
+                          - generic [ref=e517]: If Claude Code asks for permission the first time Claude calls the server, approve it. The tool call in Claude’s output is labeled with the server name, which is how you confirm the answer came from the MCP server rather than Claude’s built-in knowledge.
+                    - listitem [ref=e518]:
+                      - generic [ref=e520]: "4"
+                      - generic [ref=e523]:
+                        - paragraph [ref=e524]: Remove the server
+                        - generic [ref=e525]:
+                          - generic [ref=e526]: "This step is optional. When you’re done experimenting, you can remove the server:"
+                          - generic [ref=e527]:
+                            - generic [ref=e528]:
+                              - button "Report incorrect code" [ref=e530] [cursor=pointer]
+                              - generic [ref=e534]:
+                                - button "Copy the contents from the code block" [ref=e535] [cursor=pointer]
+                                - status [ref=e539]
+                              - button "Ask Assistant" [ref=e541] [cursor=pointer]
+                            - code [ref=e548]:
+                              - generic [ref=e549]: claude mcp remove claude-code-docs
+                          - generic [ref=e550]:
+                            - text: The command confirms with
+                            - code [ref=e551]: Removed MCP server "claude-code-docs" from local config
+                            - text: and a
+                            - code [ref=e552]: "File modified:"
+                            - text: line showing the file it updated.
+                          - note "Note" [ref=e553]:
+                            - generic [ref=e558]:
+                              - text: Each connected server takes some space in
+                              - link "Claude’s context window" [ref=e559] [cursor=pointer]:
+                                - /url: /docs/en/how-claude-code-works#the-context-window
+                              - text: because its tool names and server instructions load into every session. Removing servers you no longer use keeps that space free.
+                  - heading "Navigate to header Where servers are saved" [level=2] [ref=e560]:
+                    - link "Navigate to header" [ref=e561] [cursor=pointer]:
+                      - /url: "#where-servers-are-saved"
+                    - generic [ref=e566] [cursor=pointer]: Where servers are saved
+                  - generic [ref=e567]:
+                    - text: The
+                    - code [ref=e568]: claude mcp add
+                    - text: command writes the server’s details to a configuration file. By default it registers the server at
+                    - code [ref=e569]: local
+                    - text: "scope: private to you, active only in the current project. Pass"
+                    - code [ref=e570]: "--scope user"
+                    - text: to register it once for all your projects, or
+                    - code [ref=e571]: "--scope project"
+                    - text: to share it with teammates.
+                    - link "Change server scope" [ref=e572] [cursor=pointer]:
+                      - /url: "#change-server-scope"
+                    - text: walks through both.
+                  - note "Note" [ref=e573]:
+                    - generic [ref=e578]:
+                      - code [ref=e579]: claude mcp add
+                      - text: works the same in every shell, including PowerShell and Command Prompt. Inside a
+                      - code [ref=e580]: claude
+                      - text: session, use the
+                      - code [ref=e581]: /mcp
+                      - text: command to check and manage servers you’ve already added.
+                  - generic [ref=e582]: "There are other ways to add a server, each with its own section:"
+                  - list [ref=e583]:
+                    - listitem [ref=e584]:
+                      - link "Add a local server" [ref=e585] [cursor=pointer]:
+                        - /url: "#add-a-local-server"
+                      - text: ": run a program on your machine instead of connecting to a URL."
+                    - listitem [ref=e586]:
+                      - link [ref=e587] [cursor=pointer]:
+                        - /url: "#edit-mcp-json-directly"
+                        - text: Edit
+                        - code [ref=e588]: .mcp.json
+                        - text: directly
+                      - text: ": write the JSON entry yourself instead of using the command."
+                    - listitem [ref=e589]:
+                      - link "Connect a server that requires sign-in" [ref=e590] [cursor=pointer]:
+                        - /url: "#connect-a-server-that-requires-sign-in"
+                      - text: ": add a hosted server that needs a browser sign-in before its tools work."
+                  - heading "Navigate to header Find your configuration on disk" [level=3] [ref=e591]:
+                    - link "Navigate to header" [ref=e592] [cursor=pointer]:
+                      - /url: "#find-your-configuration-on-disk"
+                    - generic [ref=e597] [cursor=pointer]: Find your configuration on disk
+                  - generic [ref=e598]:
+                    - text: The
+                    - code [ref=e599]: claude mcp add
+                    - text: command writes the server to one of three scopes, stored across two files, depending on the
+                    - code [ref=e600]: "--scope"
+                    - text: flag. You don’t need to edit these files directly, but knowing where they are helps with debugging and version control.
+                  - region "Scrollable table" [ref=e601]:
+                    - table [ref=e603]:
+                      - rowgroup [ref=e604]:
+                        - row [ref=e605]:
+                          - columnheader "Scope" [ref=e606]
+                          - columnheader "File" [ref=e607]
+                          - columnheader "Available to" [ref=e608]
+                      - rowgroup [ref=e609]:
+                        - row [ref=e610]:
+                          - cell [ref=e611]:
+                            - code [ref=e612]: local
+                          - cell [ref=e613]:
+                            - code [ref=e614]: ~/.claude.json
+                            - text: ", under the entry for this project"
+                          - cell "Only you, only this project. The default" [ref=e615]
+                        - row [ref=e616]:
+                          - cell [ref=e617]:
+                            - code [ref=e618]: project
+                          - cell [ref=e619]:
+                            - code [ref=e620]: .mcp.json
+                            - text: in your project root
+                          - cell "Everyone who clones the project" [ref=e621]
+                        - row [ref=e622]:
+                          - cell [ref=e623]:
+                            - code [ref=e624]: user
+                          - cell [ref=e625]:
+                            - code [ref=e626]: ~/.claude.json
+                            - text: ", under the top-level"
+                            - code [ref=e627]: mcpServers
+                            - text: key
+                          - cell "Only you, all projects" [ref=e628]
+                  - generic [ref=e629]:
+                    - text: On Windows,
+                    - code [ref=e630]: ~/.claude.json
+                    - text: resolves to
+                    - code [ref=e631]: "%USERPROFILE%\\.claude.json"
+                    - text: ", typically"
+                    - code [ref=e632]: C:\Users\YourName\.claude.json
+                    - text: . If you’ve set
+                    - link [ref=e633] [cursor=pointer]:
+                      - /url: /docs/en/env-vars
+                      - code [ref=e634]: CLAUDE_CONFIG_DIR
+                    - text: ", Claude Code reads"
+                    - code [ref=e635]: .claude.json
+                    - text: from inside that directory instead.
+                  - generic [ref=e636]:
+                    - text: Run
+                    - code [ref=e637]: claude mcp get claude-code-docs
+                    - text: to see which scope holds a server’s definition. For how the scopes interact when the same server is defined in more than one, see
+                    - link "MCP installation scopes" [ref=e638] [cursor=pointer]:
+                      - /url: /docs/en/mcp#mcp-installation-scopes
+                    - text: .
+                  - heading "Navigate to header Change server scope" [level=2] [ref=e639]:
+                    - link "Navigate to header" [ref=e640] [cursor=pointer]:
+                      - /url: "#change-server-scope"
+                    - generic [ref=e645] [cursor=pointer]: Change server scope
+                  - generic [ref=e646]: "A server’s scope is fixed when you add it, so changing scope means removing the entry and re-adding it at the new one. Both cases below start by removing the local entry from the first walkthrough, so the server has only one definition. If you already removed it at the end of that walkthrough, skip this command:"
+                  - generic [ref=e647]:
+                    - generic [ref=e648]:
+                      - button "Report incorrect code" [ref=e650] [cursor=pointer]
+                      - generic [ref=e654]:
+                        - button "Copy the contents from the code block" [ref=e655] [cursor=pointer]
+                        - status [ref=e659]
+                      - button "Ask Assistant" [ref=e661] [cursor=pointer]
+                    - code [ref=e668]:
+                      - generic [ref=e669]: claude mcp remove claude-code-docs --scope local
+                  - heading "Navigate to header Use a server in all your projects" [level=3] [ref=e670]:
+                    - link "Navigate to header" [ref=e671] [cursor=pointer]:
+                      - /url: "#use-a-server-in-all-your-projects"
+                    - generic [ref=e676] [cursor=pointer]: Use a server in all your projects
+                  - generic [ref=e677]:
+                    - text: Re-add the server at
+                    - code [ref=e678]: user
+                    - text: "scope to make it active in every project you open, still private to you:"
+                  - generic [ref=e679]:
+                    - generic [ref=e680]:
+                      - button "Report incorrect code" [ref=e682] [cursor=pointer]
+                      - generic [ref=e686]:
+                        - button "Copy the contents from the code block" [ref=e687] [cursor=pointer]
+                        - status [ref=e691]
+                      - button "Ask Assistant" [ref=e693] [cursor=pointer]
+                    - code [ref=e700]:
+                      - generic [ref=e701]: claude mcp add --scope user --transport http claude-code-docs https://code.claude.com/docs/mcp
+                  - heading "Navigate to header Share a server with your team" [level=3] [ref=e702]:
+                    - link "Navigate to header" [ref=e703] [cursor=pointer]:
+                      - /url: "#share-a-server-with-your-team"
+                    - generic [ref=e708] [cursor=pointer]: Share a server with your team
+                  - generic [ref=e709]:
+                    - text: Re-add the server at
+                    - code [ref=e710]: project
+                    - text: scope, which writes to
+                    - code [ref=e711]: .mcp.json
+                    - text: "in the project root:"
+                  - generic [ref=e712]:
+                    - generic [ref=e713]:
+                      - button "Report incorrect code" [ref=e715] [cursor=pointer]
+                      - generic [ref=e719]:
+                        - button "Copy the contents from the code block" [ref=e720] [cursor=pointer]
+                        - status [ref=e724]
+                      - button "Ask Assistant" [ref=e726] [cursor=pointer]
+                    - code [ref=e733]:
+                      - generic [ref=e734]: claude mcp add --scope project --transport http claude-code-docs https://code.claude.com/docs/mcp
+                  - generic [ref=e735]:
+                    - text: Commit
+                    - code [ref=e736]: .mcp.json
+                    - text: to version control. Teammates who clone the repository and start Claude Code see a prompt to approve the server, then it connects for them too.
+                  - heading "Navigate to header Additional MCP server examples" [level=2] [ref=e737]:
+                    - link "Navigate to header" [ref=e738] [cursor=pointer]:
+                      - /url: "#additional-mcp-server-examples"
+                    - generic [ref=e743] [cursor=pointer]: Additional MCP server examples
+                  - generic [ref=e744]: The first walkthrough used a hosted server that connects without any sign-in. The examples below cover the other two common shapes, with the same add, check, use flow.
+                  - heading "Navigate to header Add a local server" [level=3] [ref=e745]:
+                    - link "Navigate to header" [ref=e746] [cursor=pointer]:
+                      - /url: "#add-a-local-server"
+                    - generic [ref=e751] [cursor=pointer]: Add a local server
+                  - generic [ref=e752]: A local stdio server is a program Claude Code starts as a subprocess on your machine, rather than a service it reaches over a URL. Use one for tools that need access to local resources like a browser, your filesystem, or a database socket.
+                  - generic [ref=e753]:
+                    - text: The
+                    - link "Playwright MCP server" [ref=e754] [cursor=pointer]:
+                      - /url: https://github.com/microsoft/playwright-mcp
+                    - text: "is a good one to try: it gives Claude a browser it can navigate, click, and read, and it needs no account. It runs through"
+                    - code [ref=e755]: npx
+                    - text: ", so it requires"
+                    - link "Node.js" [ref=e756] [cursor=pointer]:
+                      - /url: https://nodejs.org/en/download
+                    - text: 18 or later.
+                  - list [ref=e757]:
+                    - listitem [ref=e758]:
+                      - generic [ref=e760]: "1"
+                      - generic [ref=e763]:
+                        - paragraph [ref=e764]: Add the Playwright server
+                        - generic [ref=e765]:
+                          - generic [ref=e766]: "Register the server with the command Claude Code should run to start it:"
+                          - generic [ref=e767]:
+                            - generic [ref=e768]:
+                              - button "Report incorrect code" [ref=e770] [cursor=pointer]
+                              - generic [ref=e774]:
+                                - button "Copy the contents from the code block" [ref=e775] [cursor=pointer]
+                                - status [ref=e779]
+                              - button "Ask Assistant" [ref=e781] [cursor=pointer]
+                            - code [ref=e788]:
+                              - generic [ref=e789]: claude mcp add playwright -- npx -y @playwright/mcp@latest
+                          - generic [ref=e790]: "This command differs from the hosted example in three ways:"
+                          - list [ref=e791]:
+                            - listitem [ref=e792]:
+                              - text: There’s no
+                              - code [ref=e793]: "--transport"
+                              - text: flag, because local servers use the default
+                              - code [ref=e794]: stdio
+                              - text: transport.
+                            - listitem [ref=e795]:
+                              - text: Everything after the
+                              - code [ref=e796]: "--"
+                              - text: separator is the command Claude Code runs to start the server.
+                            - listitem [ref=e797]:
+                              - code [ref=e798]: "-y"
+                              - text: tells
+                              - code [ref=e799]: npx
+                              - text: to install the package without prompting.
+                          - generic [ref=e800]:
+                            - text: The command prints a confirmation like
+                            - code [ref=e801]: "Added stdio MCP server playwright with command: npx -y @playwright/mcp@latest to local config"
+                            - text: ", followed by a"
+                            - code [ref=e802]: "File modified:"
+                            - text: line showing the configuration file it wrote.
+                          - generic [ref=e803]:
+                            - text: Playwright drives whichever Chrome is already installed on your machine. To use a different browser, append
+                            - code [ref=e804]: "--browser"
+                            - text: with the browser name, for example
+                            - code [ref=e805]: "--browser firefox"
+                            - text: ", after"
+                            - code [ref=e806]: "@playwright/mcp@latest"
+                            - text: .
+                    - listitem [ref=e807]:
+                      - generic [ref=e809]: "2"
+                      - generic [ref=e812]:
+                        - paragraph [ref=e813]: Check the connection
+                        - generic [ref=e814]:
+                          - generic [ref=e815]:
+                            - text: The
+                            - code [ref=e816]: Added
+                            - text: "confirmation means the entry was saved, not that the command runs. Check the connection:"
+                          - generic [ref=e817]:
+                            - generic [ref=e818]:
+                              - button "Report incorrect code" [ref=e820] [cursor=pointer]
+                              - generic [ref=e824]:
+                                - button "Copy the contents from the code block" [ref=e825] [cursor=pointer]
+                                - status [ref=e829]
+                              - button "Ask Assistant" [ref=e831] [cursor=pointer]
+                            - code [ref=e838]:
+                              - generic [ref=e839]: claude mcp list
+                          - generic [ref=e840]:
+                            - text: The first check can show
+                            - code [ref=e841]: ✘ Failed to connect
+                            - text: while
+                            - code [ref=e842]: npx
+                            - text: downloads the package, so wait a moment and run it again. Once the download finishes, the status changes to
+                            - code [ref=e843]: ✔ Connected
+                            - text: . If it still shows
+                            - code [ref=e844]: ✘ Failed to connect
+                            - text: after a couple of retries, see
+                            - link "Troubleshooting" [ref=e845] [cursor=pointer]:
+                              - /url: "#troubleshooting"
+                            - text: .
+                    - listitem [ref=e846]:
+                      - generic [ref=e848]: "3"
+                      - generic [ref=e851]:
+                        - paragraph [ref=e852]: Use the browser
+                        - generic [ref=e853]:
+                          - generic [ref=e854]: "Give Claude a task that needs the browser:"
+                          - generic [ref=e855]:
+                            - generic [ref=e856]:
+                              - button "Report incorrect code" [ref=e858] [cursor=pointer]
+                              - generic [ref=e862]:
+                                - button "Copy the contents from the code block" [ref=e863] [cursor=pointer]
+                                - status [ref=e867]
+                              - button "Ask Assistant" [ref=e869] [cursor=pointer]
+                            - code [ref=e876]:
+                              - generic [ref=e877]: Use playwright to open https://example.com and tell me the page title
+                          - generic [ref=e878]:
+                            - text: A browser window opens so you can watch it work, and the tool calls in Claude’s output are labeled with the
+                            - code [ref=e879]: playwright
+                            - text: server name and the action, like
+                            - code [ref=e880]: browser_navigate
+                            - text: .
+                          - generic [ref=e881]: Try pointing it at your local dev server to check that a page still renders after a change, or have it walk through a bug report step by step.
+                  - heading "Navigate to header Connect a server that requires sign-in" [level=3] [ref=e882]:
+                    - link "Navigate to header" [ref=e883] [cursor=pointer]:
+                      - /url: "#connect-a-server-that-requires-sign-in"
+                    - generic [ref=e888] [cursor=pointer]: Connect a server that requires sign-in
+                  - generic [ref=e889]: "Hosted services like Sentry, Linear, and Notion run their MCP servers behind OAuth: you add the server’s URL, then sign in through your browser."
+                  - generic [ref=e890]:
+                    - text: The steps below use Sentry as the example. To connect a different service, substitute its URL, which you can find in the
+                    - link "Anthropic Directory" [ref=e891] [cursor=pointer]:
+                      - /url: /docs/en/mcp#find-and-build-mcp-servers
+                    - text: or the service’s documentation.
+                  - list [ref=e892]:
+                    - listitem [ref=e893]:
+                      - generic [ref=e895]: "1"
+                      - generic [ref=e898]:
+                        - paragraph [ref=e899]: Add the server
+                        - generic [ref=e900]:
+                          - generic [ref=e901]:
+                            - text: The
+                            - code [ref=e902]: add
+                            - text: "command is the same as for the docs server, with Sentry’s URL:"
+                          - generic [ref=e903]:
+                            - generic [ref=e904]:
+                              - button "Report incorrect code" [ref=e906] [cursor=pointer]
+                              - generic [ref=e910]:
+                                - button "Copy the contents from the code block" [ref=e911] [cursor=pointer]
+                                - status [ref=e915]
+                              - button "Ask Assistant" [ref=e917] [cursor=pointer]
+                            - code [ref=e924]:
+                              - generic [ref=e925]: claude mcp add --transport http sentry https://mcp.sentry.dev/mcp
+                          - generic [ref=e926]:
+                            - text: After adding,
+                            - code [ref=e927]: claude mcp list
+                            - text: shows the server with
+                            - code [ref=e928]: "! Needs authentication"
+                            - text: ". That’s expected: the next step completes the sign-in."
+                    - listitem [ref=e929]:
+                      - generic [ref=e931]: "2"
+                      - generic [ref=e934]:
+                        - paragraph [ref=e935]: Authenticate in your browser
+                        - generic [ref=e936]:
+                          - generic [ref=e937]: "Start a Claude Code session and open the MCP panel:"
+                          - generic [ref=e938]:
+                            - generic [ref=e939]:
+                              - button "Report incorrect code" [ref=e941] [cursor=pointer]
+                              - generic [ref=e945]:
+                                - button "Copy the contents from the code block" [ref=e946] [cursor=pointer]
+                                - status [ref=e950]
+                              - button "Ask Assistant" [ref=e952] [cursor=pointer]
+                            - code [ref=e959]:
+                              - generic [ref=e960]: /mcp
+                          - generic [ref=e961]:
+                            - text: Select
+                            - code [ref=e962]: sentry
+                            - text: from the list, press Enter, and choose
+                            - code [ref=e963]: Authenticate
+                            - text: . Your browser opens to Sentry’s sign-in page. Approve the connection there.
+                          - generic [ref=e964]:
+                            - text: Back in Claude Code, the server’s status changes to connected. If sign-in fails or the browser doesn’t open, see
+                            - link "Troubleshooting" [ref=e965] [cursor=pointer]:
+                              - /url: "#troubleshooting"
+                            - text: .
+                    - listitem [ref=e966]:
+                      - generic [ref=e968]: "3"
+                      - generic [ref=e971]:
+                        - paragraph [ref=e972]: Use the server
+                        - generic [ref=e974]:
+                          - text: Ask Claude something that needs the service, like
+                          - code [ref=e975]: What Sentry projects do I have access to?
+                          - text: ", and look for tool calls labeled with the"
+                          - code [ref=e976]: sentry
+                          - text: server name in its output.
+                  - generic [ref=e977]:
+                    - text: Servers that authenticate with a static token instead of OAuth take the token at add time with
+                    - code [ref=e978]: "--header \"Authorization: Bearer <token>\""
+                    - text: . See the
+                    - link "GitHub example" [ref=e979] [cursor=pointer]:
+                      - /url: /docs/en/mcp#example-connect-to-github-for-code-reviews
+                    - text: for a worked version.
+                  - heading "Navigate to header Edit .mcp.json directly" [level=2] [ref=e980]:
+                    - link "Navigate to header" [ref=e981] [cursor=pointer]:
+                      - /url: "#edit-mcp-json-directly"
+                    - generic [ref=e986] [cursor=pointer]: Edit .mcp.json directly
+                  - generic [ref=e987]:
+                    - text: Every file in the
+                    - link "scope table" [ref=e988] [cursor=pointer]:
+                      - /url: "#find-your-configuration-on-disk"
+                    - text: uses the same JSON format for server entries. This section edits
+                    - code [ref=e989]: .mcp.json
+                    - text: ", the project-scope file. It’s the one most worth writing by hand because it’s checked into the repository, where it doubles as configuration-as-code for your team."
+                  - generic [ref=e990]:
+                    - text: Create
+                    - code [ref=e991]: .mcp.json
+                    - text: in your project root. The example below defines both servers from this guide, the hosted docs server reached over HTTP and the Playwright server as a local
+                    - code [ref=e992]: stdio
+                    - text: "process:"
+                  - generic [ref=e993]:
+                    - generic [ref=e994]:
+                      - button "Report incorrect code" [ref=e996] [cursor=pointer]
+                      - generic [ref=e1000]:
+                        - button "Copy the contents from the code block" [ref=e1001] [cursor=pointer]
+                        - status [ref=e1005]
+                      - button "Ask Assistant" [ref=e1007] [cursor=pointer]
+                    - code [ref=e1014]:
+                      - generic [ref=e1015]: "{"
+                      - generic [ref=e1016]: "\"mcpServers\": {"
+                      - generic [ref=e1017]: "\"claude-code-docs\": {"
+                      - generic [ref=e1018]: "\"type\": \"http\","
+                      - generic [ref=e1019]: "\"url\": \"https://code.claude.com/docs/mcp\""
+                      - generic [ref=e1020]: "},"
+                      - generic [ref=e1021]: "\"playwright\": {"
+                      - generic [ref=e1022]: "\"type\": \"stdio\","
+                      - generic [ref=e1023]: "\"command\": \"npx\","
+                      - generic [ref=e1024]: "\"args\": [\"-y\", \"@playwright/mcp@latest\"]"
+                      - generic [ref=e1025]: "}"
+                      - generic [ref=e1026]: "}"
+                      - generic [ref=e1027]: "}"
+                  - generic [ref=e1028]: "The fields differ by server type:"
+                  - list [ref=e1029]:
+                    - listitem [ref=e1030]:
+                      - text: For HTTP servers,
+                      - code [ref=e1031]: url
+                      - text: is the endpoint Claude Code connects to.
+                    - listitem [ref=e1032]:
+                      - text: For stdio servers,
+                      - code [ref=e1033]: command
+                      - text: and
+                      - code [ref=e1034]: args
+                      - text: are the program it runs.
+                  - generic [ref=e1035]:
+                    - text: After saving the file, start a new Claude Code session in the project. Claude Code reads
+                    - code [ref=e1036]: .mcp.json
+                    - text: at startup.
+                  - generic [ref=e1037]:
+                    - text: The first time Claude Code sees a project-scoped server, it asks you to approve it. The prompt exists so a repository you clone can’t launch processes on your machine without your consent. Approve the prompt, or run
+                    - code [ref=e1038]: /mcp
+                    - text: to approve later if you missed it.
+                  - generic [ref=e1039]:
+                    - text: Once you’ve approved, run
+                    - code [ref=e1040]: /mcp
+                    - text: and check that the servers show as connected. If one shows an error instead, see
+                    - link "Troubleshooting" [ref=e1041] [cursor=pointer]:
+                      - /url: "#troubleshooting"
+                    - text: .
+                  - heading "Navigate to header Connect from other surfaces" [level=2] [ref=e1042]:
+                    - link "Navigate to header" [ref=e1043] [cursor=pointer]:
+                      - /url: "#connect-from-other-surfaces"
+                    - generic [ref=e1048] [cursor=pointer]: Connect from other surfaces
+                  - generic [ref=e1049]:
+                    - text: This guide uses the
+                    - code [ref=e1050]: claude mcp
+                    - text: "CLI commands, but every Claude Code surface can connect to MCP servers:"
+                  - list [ref=e1051]:
+                    - listitem [ref=e1052]:
+                      - strong [ref=e1053]: Claude Code desktop app
+                      - text: ": add servers through the"
+                      - link "Connectors UI" [ref=e1054] [cursor=pointer]:
+                        - /url: /docs/en/desktop#connect-external-tools
+                      - text: .
+                    - listitem [ref=e1055]:
+                      - strong [ref=e1056]: Claude Desktop chat app
+                      - text: ": a separate app from Claude Code. To copy servers from its"
+                      - code [ref=e1057]: claude_desktop_config.json
+                      - text: into the CLI, run
+                      - code [ref=e1058]: claude mcp add-from-claude-desktop
+                      - text: on macOS or WSL.
+                    - listitem [ref=e1059]:
+                      - strong [ref=e1060]: VS Code
+                      - text: ": see"
+                      - link "Connect to external tools with MCP" [ref=e1061] [cursor=pointer]:
+                        - /url: /docs/en/vs-code#connect-to-external-tools-with-mcp
+                      - text: .
+                    - listitem [ref=e1062]:
+                      - strong [ref=e1063]: Cloud sessions
+                      - text: ": commit a"
+                      - code [ref=e1064]: .mcp.json
+                      - text: to your repository; a session with one repository loads it. See
+                      - link "Edit .mcp.json directly" [ref=e1065] [cursor=pointer]:
+                        - /url: "#edit-mcp-json-directly"
+                      - text: and
+                      - link "What carries over from your setup" [ref=e1066] [cursor=pointer]:
+                        - /url: /docs/en/cloud-environments#what-carries-over-from-your-setup
+                      - text: .
+                    - listitem [ref=e1067]:
+                      - strong [ref=e1068]: Claude.ai
+                      - text: ": connectors you add at"
+                      - link "claude.ai/customize/connectors" [ref=e1069] [cursor=pointer]:
+                        - /url: https://claude.ai/customize/connectors
+                      - text: load automatically in the CLI when you sign in with that account. See
+                      - link "Use MCP servers from Claude.ai" [ref=e1070] [cursor=pointer]:
+                        - /url: /docs/en/mcp#use-mcp-servers-from-claude-ai
+                      - text: .
+                  - heading "Navigate to header Troubleshooting" [level=2] [ref=e1071]:
+                    - link "Navigate to header" [ref=e1072] [cursor=pointer]:
+                      - /url: "#troubleshooting"
+                    - generic [ref=e1077] [cursor=pointer]: Troubleshooting
+                  - generic [ref=e1078]:
+                    - text: If a server doesn’t connect, check its status with
+                    - code [ref=e1079]: /mcp
+                    - text: inside a session or
+                    - code [ref=e1080]: claude mcp list
+                    - text: from your shell, then match the symptom below. The
+                    - code [ref=e1081]: /mcp
+                    - text: panel also lets you reconnect or authenticate without leaving the session.
+                  - generic [ref=e1082]:
+                    - group [ref=e1083]:
+                      - paragraph [ref=e1089] [cursor=pointer]: /mcp shows No MCP servers configured
+                    - group [ref=e1090]:
+                      - paragraph [ref=e1096] [cursor=pointer]: Status shows Failed to connect or Connection error
+                    - group [ref=e1097]:
+                      - paragraph [ref=e1103] [cursor=pointer]: Connection timed out at startup
+                    - group [ref=e1104]:
+                      - paragraph [ref=e1110] [cursor=pointer]: Server already exists
+                    - group [ref=e1111]:
+                      - paragraph [ref=e1117] [cursor=pointer]: Server connects but no tools appear
+                    - group [ref=e1118]:
+                      - paragraph [ref=e1124] [cursor=pointer]: Changes to .mcp.json don't take effect
+                    - group [ref=e1125]:
+                      - paragraph [ref=e1131] [cursor=pointer]: OAuth sign-in fails or browser doesn't open
+                  - heading "Navigate to header Next steps" [level=2] [ref=e1132]:
+                    - link "Navigate to header" [ref=e1133] [cursor=pointer]:
+                      - /url: "#next-steps"
+                    - generic [ref=e1138] [cursor=pointer]: Next steps
+                  - generic [ref=e1139]: "With one server connected, explore the rest of what MCP enables:"
+                  - list [ref=e1140]:
+                    - listitem [ref=e1141]:
+                      - link "Find more MCP servers" [ref=e1142] [cursor=pointer]:
+                        - /url: /docs/en/mcp#find-and-build-mcp-servers
+                      - text: in the Anthropic Directory
+                    - listitem [ref=e1143]:
+                      - link "Share servers with your team" [ref=e1144] [cursor=pointer]:
+                        - /url: /docs/en/mcp#mcp-installation-scopes
+                      - text: using installation scopes
+                    - listitem [ref=e1145]:
+                      - link "Manage MCP access for an organization" [ref=e1146] [cursor=pointer]:
+                        - /url: /docs/en/managed-mcp
+                      - text: with managed settings and policy controls
+                    - listitem [ref=e1147]:
+                      - link "Reference MCP resources" [ref=e1148] [cursor=pointer]:
+                        - /url: /docs/en/mcp#use-mcp-resources
+                      - text: in prompts with @ mentions
+                    - listitem [ref=e1149]:
+                      - link "Run MCP prompts as commands" [ref=e1150] [cursor=pointer]:
+                        - /url: /docs/en/mcp#use-mcp-prompts-as-commands
+                      - text: from the
+                      - code [ref=e1151]: /
+                      - text: menu
+                    - listitem [ref=e1152]:
+                      - link "Build your own server" [ref=e1153] [cursor=pointer]:
+                        - /url: https://modelcontextprotocol.io/quickstart/server
+                      - text: with the MCP SDK
+                - generic [ref=e1155]:
+                  - paragraph [ref=e1156]: Was this page helpful?
+                  - generic [ref=e1158]:
+                    - button "Yes" [ref=e1159] [cursor=pointer]
+                    - button "No" [ref=e1164] [cursor=pointer]
+                - navigation "Pagination" [ref=e1169]:
+                  - 'link "Previous: Isolate sessions with worktrees" [ref=e1170] [cursor=pointer]':
+                    - /url: /docs/en/worktrees
+                    - generic [ref=e1173]: Isolate sessions with worktrees
+                  - 'link "Next: Reference" [ref=e1174] [cursor=pointer]':
+                    - /url: /docs/en/mcp
+                    - generic [ref=e1175]: Reference
+                - generic [ref=e1179]:
+                  - textbox "Ask a question..." [ref=e1180]
+                  - button "Send message" [disabled] [ref=e1181]
+        - contentinfo [ref=e1185]:
+          - generic [ref=e1187]:
+            - generic [ref=e1188]:
+              - link "Claude Code Docs home page light logo" [ref=e1189] [cursor=pointer]:
+                - /url: /docs/en/overview
+                - generic [ref=e1190]: Claude Code Docs home page
+                - img "light logo" [ref=e1191]
+              - generic [ref=e1192]:
+                - link "x" [ref=e1193] [cursor=pointer]:
+                  - /url: https://x.com/AnthropicAI
+                - link "linkedin" [ref=e1196] [cursor=pointer]:
+                  - /url: https://www.linkedin.com/company/anthropicresearch
+            - generic [ref=e1199]:
+              - generic [ref=e1201]:
+                - paragraph [ref=e1202]: Company
+                - link "Anthropic" [ref=e1203] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/company
+                - link "Careers" [ref=e1204] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/careers
+                - link "Economic Futures" [ref=e1205] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/economic-futures
+                - link "Research" [ref=e1206] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/research
+                - link "News" [ref=e1207] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/news
+                - link "Trust center" [ref=e1208] [cursor=pointer]:
+                  - /url: https://trust.anthropic.com/
+                - link "Transparency" [ref=e1209] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/transparency
+              - generic [ref=e1211]:
+                - paragraph [ref=e1212]: Help and security
+                - link "Availability" [ref=e1213] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/supported-countries
+                - link "Status" [ref=e1214] [cursor=pointer]:
+                  - /url: https://status.anthropic.com/
+                - link "Support center" [ref=e1215] [cursor=pointer]:
+                  - /url: https://support.claude.com/
+              - generic [ref=e1217]:
+                - paragraph [ref=e1218]: Learn
+                - link "Courses" [ref=e1219] [cursor=pointer]:
+                  - /url: https://academy.claude.com/
+                - link "MCP connectors" [ref=e1220] [cursor=pointer]:
+                  - /url: https://claude.com/partners/mcp
+                - link "Customer stories" [ref=e1221] [cursor=pointer]:
+                  - /url: https://www.claude.com/customers
+                - link "Engineering blog" [ref=e1222] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/engineering
+                - link "Events" [ref=e1223] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/events
+                - link "Powered by Claude" [ref=e1224] [cursor=pointer]:
+                  - /url: https://claude.com/partners/powered-by-claude
+                - link "Service partners" [ref=e1225] [cursor=pointer]:
+                  - /url: https://claude.com/partners/services
+                - link "Startups program" [ref=e1226] [cursor=pointer]:
+                  - /url: https://claude.com/programs/startups
+              - generic [ref=e1228]:
+                - paragraph [ref=e1229]: Terms and policies
+                - link "Privacy choices" [ref=e1230] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/legal/privacy
+                - link "Privacy policy" [ref=e1231] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/legal/privacy
+                - link "Disclosure policy" [ref=e1232] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/responsible-disclosure-policy
+                - link "Usage policy" [ref=e1233] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/legal/aup
+                - link "Commercial terms" [ref=e1234] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/legal/commercial-terms
+                - link "Consumer terms" [ref=e1235] [cursor=pointer]:
+                  - /url: https://www.anthropic.com/legal/consumer-terms
+      - generic:
+        - generic [ref=e1237]:
+          - generic [ref=e1238]: Assistant
+          - generic [ref=e1243]:
+            - button [ref=e1244] [cursor=pointer]
+            - button [ref=e1250] [cursor=pointer]
+        - generic [ref=e1254]: Responses are generated using AI and may contain mistakes.
+        - generic [ref=e1257]:
+          - textbox [ref=e1258]:
+            - /placeholder: Ask a question...
+          - generic [ref=e1259]:
+            - button [ref=e1260] [cursor=pointer]
+            - button [disabled] [ref=e1263]
