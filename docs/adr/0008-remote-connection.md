@@ -28,19 +28,22 @@ WSL2 `.wslconfig` 中 `networkingMode=mirrored` 下 WSL/Windows 共享网络栈�
 
 `.bashrc` 判断 `SSH_TTY` + `!$TMUX`，SSH 登录自动 attach 或创建 `claude` 会话。
 
-### 5. 客户端选择
+### 5. 客户端选择（按设备拆分）
 
-| 客户端 | 验证 | 备注 |
-|--------|------|------|
-| Termius（手机） | ✅ 实测通过 | iOS/Android 均可用 |
-| Windows Terminal | ✅ 理论上行 | 需装 Tailscale |
-| 原生 SSH | ✅ 理论上行 | `ssh user@ts-ip -p 2222` |
+| 设备 | 客户端 | 验证 | 备注 |
+|------|--------|------|------|
+| 小米 Pad | Termux | ✅ 使用中 | Termius 在小米 Pad 有兼容问题，pad 固定用 Termux |
+| 小米 14 / 其他手机 | Termius | ✅ 实测工作完美（2026-10-05） | iOS/Android 均可 |
+| Windows | Windows Terminal | ✅ 理论上行 | 需装 Tailscale |
+| 任意 | 原生 SSH | ✅ 理论上行 | `ssh user@ts-ip -p 2222` |
+
+> 区分：Pad 与手机是两个独立方案——同设备同方案，不混用。Pad 用 Termux（Termius 兼容问题不解决），手机用 Termius（实测完美）。
 
 ### 6. 移动端进入指定 session：`/exit` 回 fleet view + 手动点击，不用 `←`
 
-实测（Pad + Termius，2026-10-04）：Termius 移动端 `←` 切 Claude Code 的 fleet/agent view 不可靠：
+实测（小米 Pad + Termux，2026-10-04）：终端 `←` 切 Claude Code 的 fleet/agent view 不可靠：
 
-- **D1** Termius 后退键方向序列不标准，`←` 无法稳定触发 view 切换
+- **D1** Termux（小米 Pad）方向键/后退键序列不稳定（Termius 更差，pad 上已弃用），`←` 无法稳定触发 view 切换
 - **D2** Claude Code 的 `←` 切 view 有前置门槛：仅空输入框触发；v2.1.218+ 防误触要求删除/历史操作后隔 2s 二次确认
 
 统一路径：`/exit` 退出当前 session 回 fleet view → 手动点击/Up-Down+Enter 进入目标 session。全文本命令 + 点击，无方向键依赖，跨终端（含软键盘）一致。
@@ -49,7 +52,7 @@ WSL2 `.wslconfig` 中 `networkingMode=mirrored` 下 WSL/Windows 共享网络栈�
 
 ### Positive
 
-- ✅ 手机 Termius 实测直连 tmux claude 会话
+- ✅ 手机 Termius / 小米 Pad Termux 均实测直连 tmux claude 会话
 - ✅ 移动端进入指定 session 不依赖方向键（`/exit` + 点击）
 - ✅ mirrored 模式自动跳过 portproxy 冲突
 - ✅ 无交互一键入口
