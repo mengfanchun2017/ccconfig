@@ -284,18 +284,6 @@ stop_bridge() {
     [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
 }
 
-# 读 use_bridge 标记
-# 返回：True / False（显式设置）/ 空（字段缺失 → 走 auto-bridge 兜底）
-# why: 区分 absent 与 explicit-false，守卫只拦显式 false，缺字段不报错
-get_use_bridge() {
-    python3 - "$CONFIG_FILE" "$1" << 'PYEOF'
-import json, sys
-with open(sys.argv[1]) as f: d = json.load(f)
-v = d.get('llms', {}).get(sys.argv[2], {}).get('use_bridge', '__ABSENT__')
-print('' if v == '__ABSENT__' else v)
-PYEOF
-}
-
 # ========== 切换主入口 ==========
 switch_llm() {
     local name="$1"
@@ -621,14 +609,16 @@ update_llm_key() {
     newkey=$(prompt_key_plain "输入 ${target} 的新 API Key（回车保持原 key）" "$existing")
     [[ -z "$newkey" ]] && { error "未输入 Key，取消"; return 1; }
 
-    # 仅改 llm.json，不动 settings.json / llm-current
-    python3 - "$CONFIG_FILE" "$target" "$newkey" <<'PYEOF'
-import json, sys
-p, name, new_key = sys.argv[1], sys.argv[2], sys.argv[3]
-with open(p) as f: d = json.load(f)
-if name not in d.get('llms', {}):
-    print(f"ERROR: 预设 {name} 不存在"); sys.exit(1)
-d['llms'][name]['key'] = new_key
+    # 仅写 key 文件（llm.json 纯 key），不动 settings.json / llm-current
+    LLM_KEYS_FILE="$LLM_KEYS_FILE" python3 - "$target" "$newkey" <<'PYEOF'
+import json, sys, os
+p = os.environ['LLM_KEYS_FILE']
+name, new_key = sys.argv[1], sys.argv[2]
+try:
+    with open(p) as f: d = json.load(f)
+except Exception:
+    d = {'llms': {}}
+d.setdefault('llms', {})[name] = {"key": new_key}
 blob = json.dumps(d, indent=4, ensure_ascii=False)
 try:
     with open(p) as f: old = f.read()
@@ -639,6 +629,7 @@ if old == blob:
 else:
     with open(p, 'w') as f: f.write(blob)
     print("llm.json 已更新（provider key）")
+PYEOF
 PYEOF
     success "Key 已更新: $target"
 }
