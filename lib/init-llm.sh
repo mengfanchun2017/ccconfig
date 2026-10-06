@@ -721,9 +721,9 @@ _llm_status_header() {
 
     # 一次 python 取齐：预设显示名/model + settings.json 的 env.ANTHROPIC_BASE_URL
     local display model sf_url st _ub um st _ub um
-    IFS='|' read -r display model sf_url < <(CUR="$current" CONFIG_FILE="$CONFIG_FILE" python3 - << 'PYEOF'
+    IFS='|' read -r display model sf_url < <(CUR="$current" LLM_MERGED_CACHE="$LLM_MERGED_CACHE" python3 - << 'PYEOF'
 import json, os
-d = json.load(open(os.environ['CONFIG_FILE']))
+d = json.load(open(os.environ['LLM_MERGED_CACHE']))
 llm = d.get('llms', {}).get(os.environ['CUR'], {})
 try:
     sf = json.load(open(os.path.expanduser('~/.claude/settings.json')))
