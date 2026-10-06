@@ -6,7 +6,7 @@
 
 | 文件 | 执行位置 | 用途 |
 |------|---------|------|
-| `tmux-sshd.sh` | WSL bash | 安装 SSH Server + tmux，配置端口 2222 |
+| `tmux-sshd.sh` | WSL bash | 安装 SSH Server + tmux；端口参数化：`bash tmux-sshd.sh 2223`（缺省 2222） |
 | `tmux-portforward.ps1` | Windows 管理员 PS | 端口转发 0.0.0.0:2222 → WSL |
 | `tmux.conf` | WSL（deploy 自动部署） | tmux 配置（鼠标、快捷键） |
 | `ts-setup.ps1` | Windows 管理员 PS | Tailscale 一键安装 |
