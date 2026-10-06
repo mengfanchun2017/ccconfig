@@ -39,7 +39,10 @@ LOCAL_CURRENT_FILE="$HOME/.claude/llm-current"
 
 # ccconfig 自带预设 key —— builtin 分类以代码为准，不依赖用户 llm.json 的 builtin 字段
 # 用户 llm.json 可能缺该字段或被手改，会导致菜单内建/自定义分组错乱
-BUILTIN_PRESETS=(minimax31 deepseek41flash glm53flash mimo26flash)
+# 含历史 key 别名（旧机 llm.json 里仍是旧命名：minimax/deepseek/deepseek_flash/
+# gateway/aliglm52），保证升级后仍归「预设」组。deepseek41flash 等新 key 见下。
+BUILTIN_PRESETS=(minimax31 deepseek41flash glm53flash mimo26flash \
+                 minimax deepseek deepseek_flash gateway aliglm52)
 
 # ========== 读取配置 ==========
 get_llm_config() {
