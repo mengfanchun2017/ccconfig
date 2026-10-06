@@ -362,6 +362,11 @@ pull_config_repo() {
     else
         echo -e "  ${RED}${_pout}${NC}"
         warn "$name 拉取失败（上方红字为真实原因；本地脏/分叉先处理）"
+        # 分叉（本地有独有提交/改动）时给出可执行处理：读仓库不改则重置，改了则保留并 rebase
+        if echo "$_pout" | grep -qi "fast-forward\|diverging"; then
+            echo -e "  ${DIM}处理：本地没要保留的改动 → ${NC}git -C $dir reset --hard origin/$_branch"
+            echo -e "  ${DIM}本地有改动/提交要保留 → ${NC}git -C $dir stash && git -C $dir rebase origin/$_branch"
+        fi
         return 1
     fi
 }
@@ -395,11 +400,13 @@ do_self() {
             # 不再单独调 setup-links.sh，避免公开链接建两遍。ccprivate 缺失时 fallback 到公开链接。
             local _mccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
             if [ -x "$_mccpriv/setup.sh" ]; then
-                bash "$_mccpriv/setup.sh" 2>/dev/null && ok "memory symlink 已修复" || warn "memory symlink 部分失败"
+                # 不吞 stderr：setup.sh 里的 warn（如 lark 目标缺失）要透传给用户，
+                # 而非静默。setup.sh 无「memory 是否真修」的返回码区分，只报完成。
+                bash "$_mccpriv/setup.sh" && ok "ccprivate setup 完成（memory 等符号链接已核对）" || warn "ccprivate setup 部分失败"
             else
                 bash "$LIB_DIR/setup-links.sh"
             fi
-            echo -e "  ${YELLOW}提示: memory symlink 修复后需重启 Claude session 才生效（Claude 仅启动时加载 memory 索引）${NC}"
+            echo -e "  ${YELLOW}提示: memory symlink 新建后需重启 Claude session 才生效（Claude 仅启动时加载 memory 索引）${NC}"
             ;;
         skill)
             echo -e "${CYAN}── Skill 同步 ──${NC}"
