@@ -61,6 +61,14 @@ Pad ──ssh p=2222 ──▶ WSL claude（用户 A）
 
 `tmux-sshd.sh` 端口参数化：`bash tmux-sshd.sh 2223` 或 `init.sh server --port 2223`。init.sh 的 `--port` 透传给 tmux-sshd.sh；`get_ssh_port()` 统一读端口（用户指定优先，否则 sshd_config）。status/提示均用实际端口。
 
+### 8. 集成 maintain（查看/修改端口）
+
+远程能力从「直接跑 option-remote 脚本」升级为「maintain 运维菜单 8 远程」：
+
+- **8A 查看 SSH 状态/端口** → `init.sh --status`（status.sh 的 check_option_components 本已调它显示端口，菜单再给独立入口）
+- **8B 设置 SSH 端口** → `init.sh set-port <N>`（落盘 sshd_config + `systemctl restart ssh`，幂等）。parse_port 支持 `--port`/`--set-port` 两种 flag + 位置式纯数字（`set-port 2223`），菜单 `ask_run` 追加为位置参数
+- **tmux 覆盖**：在 `lib/deps-check.sh` 已含（`tmux|tmux -V`、`ssh|ssh -V`），`maintain.sh deps` 即覆盖。不在 `update.sh` 工具升级链——tmux 是 apt 系统包，不属版本化工具升级
+
 ## Consequences
 
 ### Positive
@@ -77,8 +85,9 @@ Pad ──ssh p=2222 ──▶ WSL claude（用户 A）
 
 ## Implementation
 
-- `option-remote/init.sh` — 入口重写，新增 --run + mirrored 检测 + SSH 预检 + `--port N` 透传
+- `option-remote/init.sh` — 入口重写，新增 --run + mirrored 检测 + SSH 预检 + `--port N` 透传 + `set-port` 动作（落盘+重启）
 - `option-remote/server/tmux-sshd.sh` — SSH + tmux 安装，端口参数化（`$1` 缺省 2222）
+- `lib/menu-data-maintain.sh` — 新增分类 8 远程（8A 查看 / 8B 设置端口）
 - `option-remote/server/tmux-portforward.ps1` — 端口转发（未改）
 - `option-remote/server/ts-setup.ps1` — Tailscale 安装（未改）
 - `option-remote/deploy.sh` — 部署脚本（未改）
