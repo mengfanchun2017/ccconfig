@@ -792,9 +792,52 @@ interactive_select() {
     done
 }
 
+# 把 example 模板里的内置预设补进本机 llm.json（老机器缺新版预设时用）
+# 只补 builtin:true 的预设（官方预设跨机通用）；不回写已有 key（保留用户配置）。
+# 补进后 key 是占位符，用户 3a 填 key 即可。
+merge_missing_presets() {
+    local example="${CCCONFIG_ROOT}/conf/llm.json.example"
+    [[ -f "$example" ]] || return 0
+    python3 - "$CONFIG_FILE" "$example" <<'PYEOF'
+import json, sys
+p, ex = sys.argv[1], sys.argv[2]
+try:
+    with open(p) as f: d = json.load(f)
+except Exception:
+    return
+try:
+    template = json.load(open(ex))
+except Exception:
+    return
+llms = d.setdefault('llms', {})
+added = []
+for name, spec in template.get('llms', {}).items():
+    if name in llms or not spec.get('builtin'):
+        continue
+    # 只复制内置预设：含 base_url/model/small，key 留占位
+    llms[name] = {
+        "name": spec.get("name", name),
+        "base_url": spec.get("base_url", ""),
+        "model": spec.get("model", ""),
+        "key": spec.get("key", "请填入你的 API Key"),
+        "small_model": spec.get("small_model", spec.get("model", "")),
+        "builtin": True
+    }
+    added.append(name)
+if added:
+    with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
+    print("  ➕ 补入内置预设: " + ", ".join(added))
+PYEOF
+}
+
 # ========== 主流程 ==========
 main() {
     local cmd="${1:-${INIT_LLM_NAME:-}}"
+
+    # 升级衔接：老机 ccprivate/conf/llm.json 缺新版内置预设，进菜单前静默补上
+    if [[ "$cmd" == "" || "$cmd" == "list" ]]; then
+        merge_missing_presets
+    fi
 
     case "$cmd" in
         list)        show_list ;;
