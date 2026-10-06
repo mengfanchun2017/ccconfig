@@ -32,28 +32,30 @@ WSL2 `.wslconfig` 中 `networkingMode=mirrored` 下 WSL/Windows 共享网络栈�
 
 | 设备 | 客户端 | 验证 | 备注 |
 |------|--------|------|------|
-| 小米 Pad | Termux | ✅ 使用中 | Termius 在小米 Pad 有兼容问题，pad 固定用 Termux |
+| 小米 Pad | Termius | ✅ 实测功能全 OK（2026-10-05） | 终端类型须设为 `xterm`，不要用 `linux`，否则按键/显示异常 |
+| 小米 Pad | Termux | ✅ 使用中 | 备用方案 |
 | 小米 14 / 其他手机 | Termius | ✅ 实测工作完美（2026-10-05） | iOS/Android 均可 |
 | Windows | Windows Terminal | ✅ 理论上行 | 需装 Tailscale |
 | 任意 | 原生 SSH | ✅ 理论上行 | `ssh user@ts-ip -p 2222` |
 
-> 区分：Pad 与手机是两个独立方案——同设备同方案，不混用。Pad 用 Termux（Termius 兼容问题不解决），手机用 Termius（实测完美）。
+> 关键：Termius 终端类型（Terminal type）默认 `linux` 在小米 Pad 有兼容问题；改为 `xterm` 后所有功能正常。Pad 与手机可统一用 Termius。
 
-### 6. 移动端进入指定 session：`/exit` 回 fleet view + 手动点击，不用 `←`
+### 6. 移动端进入指定 session：处理中退出用 `/exit` 回 fleet view + 手动点击；等待输入时 `←` 亦可切
 
-实测（小米 Pad + Termux，2026-10-04）：终端 `←` 切 Claude Code 的 fleet/agent view 不可靠：
+实测（小米 Pad + Termius 设 `xterm`，2026-10-05）：方向键/`←` 均正常，所有功能 OK。此前（2026-10-04，Termius 默认 `linux` 终端类型）`←` 切 fleet/agent view 不可靠的根因是终端类型：
 
-- **D1** Termux（小米 Pad）方向键/后退键序列不稳定（Termius 更差，pad 上已弃用），`←` 无法稳定触发 view 切换
+- **D1** Termius 默认终端类型 `linux` 在小米 Pad 上按键序列不标准，`←` 无法稳定触发 view 切换；改为 `xterm` 后修复
 - **D2** Claude Code 的 `←` 切 view 有前置门槛：仅空输入框触发；v2.1.218+ 防误触要求删除/历史操作后隔 2s 二次确认
+- **D3** `←` 仅在等待输入时可切 fleet view；处理中（thinking/streaming）按 `←` 到不了 fleet view（小 bug）
 
-统一路径：`/exit` 退出当前 session 回 fleet view → 手动点击/Up-Down+Enter 进入目标 session。全文本命令 + 点击，无方向键依赖，跨终端（含软键盘）一致。
+统一路径（保持可用）：**处理中要退出用 `/exit`** 退出当前 session 回 fleet view → 手动点击/Up-Down+Enter 进入目标 session。全文本命令 + 点击，无方向键依赖，跨终端（含软键盘）一致。等待输入且空框时 `←` 快捷可切，处理中不适用。
 
 ## Consequences
 
 ### Positive
 
-- ✅ 手机 Termius / 小米 Pad Termux 均实测直连 tmux claude 会话
-- ✅ 移动端进入指定 session 不依赖方向键（`/exit` + 点击）
+- ✅ Pad（Termius 设 `xterm`）与手机（Termius）统一客户端，均实测直连 tmux claude 会话，功能全 OK
+- ✅ `xterm` 终端类型下方向键/`←` 正常（等待输入时空框可切）；处理中退出统一走 `/exit` + 点击
 - ✅ mirrored 模式自动跳过 portproxy 冲突
 - ✅ 无交互一键入口
 
