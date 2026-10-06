@@ -13,6 +13,32 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/dry-run.sh"
 source "$SCRIPT_DIR/../lib/colors.sh"
 
+# ── 参数解析：server/--run 后可选 --port N（默认 2222）──
+SSH_PORT=""
+parse_port() {
+    local args=("$@") port="" i
+    for ((i=0; i<${#args[@]}; i++)); do
+        if [ "${args[$i]}" = "--port" ]; then
+            port="${args[$((i+1))]:-}"
+            break
+        fi
+    done
+    if [ -n "$port" ]; then
+        case "$port" in
+            ''|*[!0-9]*)
+                echo "错误: --port 后需接数字: $port" >&2
+                exit 1
+                ;;
+        esac
+        SSH_PORT="$port"
+    fi
+}
+get_ssh_port() {
+    # 优先用用户指定端口，否则读 sshd_config，缺省 22
+    if [ -n "$SSH_PORT" ]; then echo "$SSH_PORT"; return; fi
+    grep -oP '^Port \K[0-9]+' /etc/ssh/sshd_config 2>/dev/null | head -1 || echo "22"
+}
+
 # ── 状态查询 ──
 do_status() {
     local all_ok=true
@@ -22,7 +48,7 @@ do_status() {
     local ssh_status="未安装"
     if systemctl is-active ssh.socket &>/dev/null 2>&1 || systemctl is-active ssh &>/dev/null 2>&1; then
         local port
-        port=$(grep -oP '^Port \K[0-9]+' /etc/ssh/sshd_config 2>/dev/null || echo "22")
+        port=$(get_ssh_port)
         ssh_status="✓ 端口 $port"
         ssh_ok=true
     elif command -v sshd &>/dev/null; then
@@ -65,7 +91,7 @@ do_status() {
     echo -n "  远程可用 ... "
     if systemctl is-active ssh.socket &>/dev/null 2>&1 || systemctl is-active ssh &>/dev/null 2>&1; then
         local port
-        port=$(grep -oP '^Port \K[0-9]+' /etc/ssh/sshd_config 2>/dev/null || echo "22")
+        port=$(get_ssh_port)
         if [ -n "$ts_ip" ]; then
             echo -e "${GREEN}✓${NC} ssh $USER@$ts_ip -p $port"
         else
@@ -90,13 +116,13 @@ do_server() {
     # 预检：SSH 已就绪则跳过 tmux-sshd.sh（避免 sudo 提示）
     local ssh_ok=false port=""
     if systemctl is-active ssh.socket &>/dev/null 2>&1 || systemctl is-active ssh &>/dev/null 2>&1; then
-        port=$(grep -oP '^Port \K[0-9]+' /etc/ssh/sshd_config 2>/dev/null || echo "")
+        port=$(get_ssh_port)
         [ -n "$port" ] && ssh_ok=true
     fi
 
     if ! $ssh_ok; then
         section "安装 SSH Server + tmux"
-        bash "$SCRIPT_DIR/server/tmux-sshd.sh"
+        bash "$SCRIPT_DIR/server/tmux-sshd.sh" "$SSH_PORT"
     else
         ok "SSH Server 已就绪（端口 $port）"
     fi
@@ -124,7 +150,7 @@ do_all() {
     local ssh_ok=false
     if systemctl is-active ssh.socket &>/dev/null 2>&1 || systemctl is-active ssh &>/dev/null 2>&1; then
         local port
-        port=$(grep -oP '^Port \K[0-9]+' /etc/ssh/sshd_config 2>/dev/null || echo "")
+        port=$(get_ssh_port)
         if [ -n "$port" ]; then
             ssh_ok=true
             ok "SSH Server 已就绪（端口 $port）"
@@ -133,7 +159,7 @@ do_all() {
 
     if ! $ssh_ok; then
         section "安装 SSH Server + tmux"
-        bash "$SCRIPT_DIR/server/tmux-sshd.sh"
+        bash "$SCRIPT_DIR/server/tmux-sshd.sh" "$SSH_PORT"
     fi
 
     if is_mirrored_network; then
@@ -158,9 +184,11 @@ local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
     fi
 
     if [ -f "$ts_exe" ]; then
+        local port
+        port=$(get_ssh_port)
         echo ""
         echo -e "  ${GREEN}✓ 远程连接命令${NC}"
-        echo -e "    ssh <USER>@<Windows_Tailscale_IP> -p 2222"
+        echo -e "    ssh <USER>@<Windows_Tailscale_IP> -p $port"
         echo ""
         echo "  客户端（笔记本）安装 Tailscale 后运行此命令即可连入。"
         echo "  断开: Ctrl+B D（进程保持）"
@@ -174,18 +202,24 @@ case "${1:-menu}" in
         do_status
         ;;
     --run|-r)
+        parse_port "$@"
         do_all
         ;;
     server|--server)
+        parse_port "$@"
         do_server
         ;;
     menu|"")
         echo "option-remote — 远程连接 Claude Code"
         echo ""
         echo "用法:"
-        echo "  bash init.sh --run      一键安装（SSH + tmux + Tailscale 检查）"
-        echo "  bash init.sh --status   查看连接状态"
-        echo "  bash init.sh server     仅安装服务器端组件"
+        echo "  bash init.sh --run                  一键安装（SSH + tmux + Tailscale 检查，端口 2222）"
+        echo "  bash init.sh --run --port 2223      新 WSL 发行版指定端口（多发行版多端口）"
+        echo "  bash init.sh --status               查看连接状态"
+        echo "  bash init.sh server --port 2223     仅安装服务器端组件，端口 2223"
+        echo ""
+        echo "多发行版: 每个 WSL 发行版跑各自 sshd 绑不同端口，Tailscale 在 Windows 侧共享，"
+        echo "新发行版只需传 --port 再跑一次即可。"
         echo ""
         exit 0
         ;;
