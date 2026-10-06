@@ -630,7 +630,6 @@ else:
     with open(p, 'w') as f: f.write(blob)
     print("llm.json 已更新（provider key）")
 PYEOF
-PYEOF
     success "Key 已更新: $target"
 }
 
@@ -638,14 +637,13 @@ PYEOF
 delete_preset() {
     local target="${1:-}"
 
-    # 读 builtin 列表（以代码定义为准，兼容用户 builtin 字段）
-    local builtin_list
-    builtin_list=$(BUILTIN_KEYS="${BUILTIN_PRESETS[*]}" python3 - "$CONFIG_FILE" << 'PYEOF'
-import json, sys, os
-builtin_set = set(os.environ.get('BUILTIN_KEYS','').split())
-with open(sys.argv[1]) as f: d = json.load(f)
-names = [k for k, v in d.get('llms', {}).items() if k in builtin_set or v.get('builtin')]
-print(' '.join(names))
+    # 来源判定：内置（llmnormal，ccconfig 公开）不可删；自定义（llmprivate）可删
+    local src
+    src=$(_llms_merged_py | python3 - "$target" <<'PYEOF'
+import json, sys
+merged = json.load(sys.stdin)
+llm = merged.get(sys.argv[1], {})
+print(llm.get('_src', ''))
 PYEOF
     )
 
@@ -666,24 +664,37 @@ PYEOF
     fi
     [[ -z "$target" ]] && { error "未指定预设"; return 1; }
 
-    if [[ " $builtin_list " == *" $target "* ]]; then
+    if [[ "$src" == "normal" ]]; then
         error "内置预设 '$target' 不可删"; return 1
+    fi
+    if [[ -z "$src" ]]; then
+        error "预设 '$target' 不存在"; return 1
     fi
     if [[ "$(read_local_current)" == "$target" ]]; then
         error "当前正在用 '$target'，先切别的再删"; return 1
     fi
     confirm "确认删除 '$target'？" n || { info "已取消"; return 0; }
 
-    python3 - <<PYEOF
-import json
-p = "${CONFIG_FILE}"
-with open(p) as f: d = json.load(f)
-if "${target}" in d.get('llms', {}):
-    del d['llms']["${target}"]
-    with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
-    print("OK")
-else:
-    print("NOT_FOUND")
+    # 删 llmprivate 定义 + llm.json 里的 key
+    LLM_PRIVATE_FILE="$LLM_PRIVATE_FILE" LLM_KEYS_FILE="$LLM_KEYS_FILE" python3 - "$target" <<'PYEOF'
+import json, sys, os
+name = sys.argv[1]
+pf = os.environ['LLM_PRIVATE_FILE']; kf = os.environ['LLM_KEYS_FILE']
+p_dirty = False
+try:
+    with open(pf) as f: pd = json.load(f)
+    if name in pd.get('llms', {}):
+        del pd['llms'][name]; p_dirty = True
+        with open(pf, 'w') as f: json.dump(pd, f, indent=4, ensure_ascii=False)
+except Exception: pass
+k_dirty = False
+try:
+    with open(kf) as f: kd = json.load(f)
+    if name in kd.get('llms', {}):
+        del kd['llms'][name]; k_dirty = True
+        with open(kf, 'w') as f: json.dump(kd, f, indent=4, ensure_ascii=False)
+except Exception: pass
+print("OK" if (p_dirty or k_dirty) else "NOT_FOUND")
 PYEOF
 }
 
