@@ -118,6 +118,8 @@ do_install_cli_deps() {
 
     # 收集所有依赖条目（去重 key = pkg|mgr）
     declare -A seen_deps
+    # pip 依赖按 setup.sh 去重：同 skill 多个包只跑一次（setup.sh 幂等，跑完装齐全部）
+    declare -A pip_done
 
     local self_deps=0
     if [[ -d "$SKILLS_SRC" ]]; then
@@ -255,21 +257,22 @@ do_install_cli_deps() {
                     warn "  $pkg: pip 管理，但找不到 $first_skill/scripts/setup.sh — 跳过"
                     skipped=$((skipped + 1))
                 else
-                    # 幂等探测：venv 已存在即视为已装（setup.sh 自带幂等补装逻辑，
-# 不强求 import 模块名匹配——PyYAML 之类 pip 名 ≠ import 名会误判漏装）
-                    local venv_py="$HOME/.${first_skill}-venv/bin/python"
-                    if [[ -x "$venv_py" ]]; then
-                        info "  $pkg: 已装（venv） — $required_by"
+                    # 每次跑幂等 setup.sh（自检+补装）。不按「venv 已存在」短路：
+                    # 建一半的 venv 会被误判已装而永远装不上；setup.sh 内部逐包
+                    # import 自检，pip 名≠import 名（PyYAML→yaml）也由其自己处理。
+                    # 同 skill 的多个 pip 包聚合到一个 setup_script，只跑一次。
+                    if [[ -n "${pip_done[$setup_script]:-}" ]]; then
                         skipped=$((skipped + 1))
+                        continue
+                    fi
+                    pip_done[$setup_script]=1
+                    info "  $pkg: venv 检查中（$setup_script）..."
+                    if run bash "$setup_script" 2>&1 | tail -3; then
+                        good "  $pkg (pip+venv): ✓ — $required_by"
+                        installed=$((installed + 1))
                     else
-                        info "  $pkg: venv 安装中（$setup_script）..."
-                        if run bash "$setup_script" 2>&1 | tail -3; then
-                            good "  $pkg (pip+venv): ✓ — $required_by"
-                            installed=$((installed + 1))
-                        else
-                            bad "  $pkg (pip+venv): 失败（手动跑 $setup_script 看详情）"
-                            failed=$((failed + 1))
-                        fi
+                        bad "  $pkg (pip+venv): 失败（手动跑 $setup_script 看详情）"
+                        failed=$((failed + 1))
                     fi
                 fi
                 ;;
