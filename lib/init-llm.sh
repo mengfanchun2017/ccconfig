@@ -134,14 +134,14 @@ PYEOF
 }
 
 # ========== 本地 current 读写（不碰 ccprivate llm.json.current）==========
-# 读本地 llm-current，不存在则 fallback 读 llm.json.current（兼容旧机器）
+# 读本地 llm-current（当前选择仅本机，不跨机同步）
 read_local_current() {
     if [[ -f "$LOCAL_CURRENT_FILE" ]]; then
         cat "$LOCAL_CURRENT_FILE"
     else
         python3 -c "
 import json
-p = '$CONFIG_FILE'
+p = '$LLM_MERGED_CACHE'
 try: print(json.load(open(p)).get('current',''))
 except: pass
 " 2>/dev/null || echo ""
@@ -322,7 +322,7 @@ switch_llm() {
     # 是否走 bridge
     if [[ "$use_bridge" == "True" ]]; then
         info "  用户指定 bridge 代理..."
-        if ensure_bridge "$base_url" "$model" "$key" "$host_header" "$CONFIG_FILE" "$name"; then
+        if ensure_bridge "$base_url" "$model" "$key" "$host_header" "$LLM_MERGED_CACHE" "$name"; then
             base_url="http://127.0.0.1:${BRIDGE_PORT}"
             info "  bridge 就绪 → $base_url"
         else
@@ -341,7 +341,7 @@ switch_llm() {
         fi
         # use_bridge 未显式 False（或缺失）→ 保留旧 auto-bridge 行为
         info "  OpenAI-only 端点 → 启动 bridge..."
-        if ensure_bridge "$base_url" "$model" "$key" "$host_header" "$CONFIG_FILE" "$name"; then
+        if ensure_bridge "$base_url" "$model" "$key" "$host_header" "$LLM_MERGED_CACHE" "$name"; then
             base_url="http://127.0.0.1:${BRIDGE_PORT}"
             info "  bridge 就绪 → $base_url"
         else
@@ -362,7 +362,7 @@ switch_llm() {
         # 上面已 stop_bridge 或 ensure_bridge 换过上游，而 settings.json 仍指向
         # 原 preset 的 127.0.0.1:8898 —— 不回滚就是「bridge 已死 + 会话指向它」，
         # 当前会话立刻不可用。selfheal 按 llm-current（未改动）重拉原 upstream。
-        if selfheal_bridge "$CONFIG_FILE"; then
+        if selfheal_bridge "$LLM_MERGED_CACHE"; then
             info "  已恢复原 preset 的 bridge"
         else
             warn "  原 bridge 恢复失败，跑: bash maintain.sh llm heal"
@@ -501,7 +501,7 @@ test_llm() {
     local probe_url expect resolve_args=""
     if (( need_bridge )); then
         info "  bridge 链路（真实路径）..."
-        ensure_bridge "$base_url" "$model" "$key" "$host_header" "$CONFIG_FILE" "$target" \
+        ensure_bridge "$base_url" "$model" "$key" "$host_header" "$LLM_MERGED_CACHE" "$target" \
             || { error "  ✗ bridge 启动失败 — 查 tail -30 ~/.cache/openai_bridge.log"; return 1; }
         probe_url="http://127.0.0.1:${BRIDGE_PORT}/v1/messages"
         expect="message_stop"
@@ -919,7 +919,7 @@ main() {
         delete|-d)   delete_preset "${2:-}" ;;
         sync)        sync_top_model ;;
         heal)
-            selfheal_bridge "$CONFIG_FILE" \
+            selfheal_bridge "$LLM_MERGED_CACHE" \
                 && success "bridge 健康" \
                 || error "bridge 自愈失败"
             ;;
