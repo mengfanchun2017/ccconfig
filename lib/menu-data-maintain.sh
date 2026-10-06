@@ -23,6 +23,7 @@ CAT_NAME[4]="LLM"
 CAT_NAME[5]="MCP"
 CAT_NAME[6]="飞书/Lark"
 CAT_NAME[7]="getnote"
+CAT_NAME[8]="远程"
 
 MENU_ENTRIES=(
     # ── 1: 状态 ──
@@ -77,6 +78,10 @@ MENU_ENTRIES=(
     "7|C|添加账号|bash option-getnote/init.sh add|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" add"
     "7|D|删除账号|bash option-getnote/init.sh remove|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" remove"
     "7|E|切换账号（问账号名）|bash option-getnote/getnote-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\""
+
+    # ── 8: 远程（SSH + tailscale）──
+    "8|A|查看 SSH 状态/端口|bash option-remote/init.sh --status|bash \"\$CCCONFIG_DIR/option-remote/init.sh\" --status"
+    "8|B|设置 SSH 端口（问端口）|bash option-remote/init.sh set-port <端口>|ask_run \"要设置的 SSH 端口\" \"\$CCCONFIG_DIR/option-remote/init.sh\" set-port"
 
     # ── 0: 退出 ──
     "0| |退出||exit 0"

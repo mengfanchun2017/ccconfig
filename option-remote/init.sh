@@ -18,11 +18,17 @@ SSH_PORT=""
 parse_port() {
     local args=("$@") port="" i
     for ((i=0; i<${#args[@]}; i++)); do
-        if [ "${args[$i]}" = "--port" ]; then
+        if [ "${args[$i]}" = "--port" ] || [ "${args[$i]}" = "--set-port" ]; then
             port="${args[$((i+1))]:-}"
             break
         fi
     done
+    # 位置式：set-port 2223 / server 2223 直接吃第一个纯数字参数
+    if [ -z "$port" ]; then
+        for a in "${args[@]}"; do
+            if [[ "$a" =~ ^[0-9]+$ ]]; then port="$a"; break; fi
+        done
+    fi
     if [ -n "$port" ]; then
         case "$port" in
             ''|*[!0-9]*)
@@ -109,6 +115,22 @@ is_mirrored_network() {
     win_user=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r' || echo "$USER")
     [ -f "/mnt/c/Users/${win_user}/.wslconfig" ] && \
         grep -q "networkingMode=mirrored" "/mnt/c/Users/${win_user}/.wslconfig" 2>/dev/null
+}
+
+# ── 修改 SSH 端口（幂等：落盘 + 重启）──
+do_set_port() {
+    local port="$1"
+    local rc=0
+    sudo sed -i "s/^Port [0-9]*/Port $port/" /etc/ssh/sshd_config
+    grep -q "^Port $port" /etc/ssh/sshd_config || echo "Port $port" | sudo tee -a /etc/ssh/sshd_config
+    sudo systemctl restart ssh || rc=$?
+    if [ $rc -eq 0 ]; then
+        ok "SSH 端口已改为 $port"
+        echo -e "  远程连接: ssh $USER@<Windows-Tailscale-IP> -p $port"
+    else
+        err "ssh 重启失败，请检查配置"
+        return 1
+    fi
 }
 
 # ── 服务器端安装 ──
@@ -201,6 +223,14 @@ case "${1:-menu}" in
     --status|-s)
         do_status
         ;;
+    set-port|--set-port)
+        parse_port "$@"
+        if [ -z "$SSH_PORT" ]; then
+            err "用法: bash init.sh set-port <端口>"
+            exit 1
+        fi
+        do_set_port "$SSH_PORT"
+        ;;
     --run|-r)
         parse_port "$@"
         do_all
@@ -217,6 +247,7 @@ case "${1:-menu}" in
         echo "  bash init.sh --run --port 2223      新 WSL 发行版指定端口（多发行版多端口）"
         echo "  bash init.sh --status               查看连接状态"
         echo "  bash init.sh server --port 2223     仅安装服务器端组件，端口 2223"
+        echo "  bash init.sh set-port <端口>        修改当前发行版 SSH 端口（落盘+重启，幂等）"
         echo ""
         echo "多发行版: 每个 WSL 发行版跑各自 sshd 绑不同端口，Tailscale 在 Windows 侧共享，"
         echo "新发行版只需传 --port 再跑一次即可。"
