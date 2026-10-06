@@ -50,6 +50,17 @@ WSL2 `.wslconfig` 中 `networkingMode=mirrored` 下 WSL/Windows 共享网络栈�
 
 统一路径（保持可用）：**处理中要退出用 `/exit`** 退出当前 session 回 fleet view → **手动点击屏幕上目标 session 位置**进入。全文本命令 + 点击，无方向键依赖，跨终端（含软键盘、含实体键盘）一致。等待输入且空框时 `←` 快捷可切，处理中不适用。
 
+### 7. 多发行版多端口
+
+Windows 同一宿主机可同时跑多个 WSL 发行版。tailscale 跑在 Windows 侧（mirrored 模式），所有发行版共享同一条 tailscale IP。给不同用户隔离环境 = 各发行版 sshd 绑**不同端口**，同一 `ts-ip` 按端口落不同发行版：
+
+```
+Pad ──ssh p=2222 ──▶ WSL claude（用户 A）
+手机 ──ssh p=2223 ──▶ WSL dsh   （用户 B）
+```
+
+`tmux-sshd.sh` 端口参数化：`bash tmux-sshd.sh 2223` 或 `init.sh server --port 2223`。init.sh 的 `--port` 透传给 tmux-sshd.sh；`get_ssh_port()` 统一读端口（用户指定优先，否则 sshd_config）。status/提示均用实际端口。
+
 ## Consequences
 
 ### Positive
@@ -66,8 +77,8 @@ WSL2 `.wslconfig` 中 `networkingMode=mirrored` 下 WSL/Windows 共享网络栈�
 
 ## Implementation
 
-- `option-remote/init.sh` — 入口重写，新增 --run + mirrored 检测 + SSH 预检
-- `option-remote/server/tmux-sshd.sh` — SSH + tmux 安装（未改）
+- `option-remote/init.sh` — 入口重写，新增 --run + mirrored 检测 + SSH 预检 + `--port N` 透传
+- `option-remote/server/tmux-sshd.sh` — SSH + tmux 安装，端口参数化（`$1` 缺省 2222）
 - `option-remote/server/tmux-portforward.ps1` — 端口转发（未改）
 - `option-remote/server/ts-setup.ps1` — Tailscale 安装（未改）
 - `option-remote/deploy.sh` — 部署脚本（未改）
