@@ -5,10 +5,15 @@
 ## 架构
 
 ```
-笔记本 ──SSH──▶ 台式机 Windows (端口转发 :2222) ──▶ WSL2 (SSH Server + tmux)
-        │
-        └─ Tailscale（P2P 优先，境外 DERP 中继兜底）
+Pad/手机 ──SSH(p:2222)──┐
+                        ├──▶ 台式机 Windows ──mirrored──▶ WSL claude（SSH :2222 + tmux）
+第二个用户 ──SSH(p:2223)─┤          (Tailscale 共享)
+                        └──────────────▶ WSL dsh   （SSH :2223 + tmux）
 ```
+
+Tailscale 基于 WireGuard，端到端加密。P2P 打洞成功后不经过中继，同城延迟几毫秒；打洞失败时走境外 DERP 中继兜底。
+
+> **多发行版共享同一条 Tailscale IP**：tailscale 跑在 Windows 侧（mirrored 模式每 WSL 都看到同一 IP）。给不同人开独立环境 = 各自 WSL 发行版跑 sshd 绑**不同端口**，对外 `ssh user@<ts-ip> -p N` 落不同发行版，无需重复配 tailscale。
 
 Tailscale 基于 WireGuard，端到端加密。P2P 打洞成功后不经过中继，同城延迟几毫秒；打洞失败时走境外 DERP 中继兜底。
 
@@ -65,6 +70,27 @@ bash ~/git/ccconfig/option-remote/server/tmux-sshd.sh
 ```
 
 安装 openssh-server、配置端口 2222、配置 tmux 自动 attach。
+
+### 3.1 新增 WSL 发行版给另一人（不同端口）
+
+同一台 Windows 可跑多个 WSL 发行版，tailscale 在 Windows 侧共享。给不同人隔离环境 = 各发行版 sshd 绑不同端口：
+
+```bash
+# 在第二个发行版内（如 dsh），指定端口 2223
+bash ~/git/ccconfig/option-remote/server/tmux-sshd.sh 2223
+# 或通过 init.sh 入口
+bash ~/git/ccconfig/option-remote/init.sh server --port 2223
+```
+
+然后为对方建账号、放公钥（可选，端口隔离 + 账号隔离双保险）：
+
+```bash
+sudo useradd -m -s /bin/bash <name>
+sudo -u <name> mkdir -p /home/<name>/.ssh
+sudo -u <name> sh -c 'echo "<公钥>" >> /home/<name>/.ssh/authorized_keys'
+```
+
+对方连接：`ssh <name>@<Windows-tailscale-IP> -p 2223`（mirrored 模式免端口转发；非 mirrored 需在 Windows 为 2223 再建一条 portproxy）。
 
 ### 4. 端口转发
 
