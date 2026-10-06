@@ -58,10 +58,13 @@ BUILTIN_PRESETS=(minimax31 deepseek41flash glm53flash mimo26flash \
 # 自定义预设：LLM_PRIVATE_FILE（ccprivate）+ key 合并
 # key 统一从 LLM_KEYS_FILE 读（ccprivate，纯 key）
 # 输出：合并后 llms 的 JSON 给调用方（一次 python 取齐，避免多次进程启动）
+LLM_MERGED_CACHE="$HOME/.cache/llm-merged.json"
+
 _llms_merged_py() {
-    python3 - "$LLM_NORMAL_FILE" "$LLM_PRIVATE_FILE" "$LLM_KEYS_FILE" << 'PYEOF'
-import json, sys
+    python3 - "$LLM_NORMAL_FILE" "$LLM_PRIVATE_FILE" "$LLM_KEYS_FILE" "${LLM_MERGED_CACHE}" << 'PYEOF'
+import json, sys, os
 normal_f, priv_f, keys_f = sys.argv[1], sys.argv[2], sys.argv[3]
+cache_f = sys.argv[4] if len(sys.argv) > 4 else ''
 # 定义：内置 + 自定义（自定义优先，同名覆盖内置——用户想改默认上游）
 merged = {}
 for f in (normal_f, priv_f):
@@ -81,6 +84,15 @@ except Exception:
 for name, llm in merged.items():
     k = kd.get('llms', {}).get(name, {})
     llm['key'] = k.get('key', '') if isinstance(k, dict) else str(k)
+# 导出合并快照给 bridge 组件读（本机缓存，不入 git）
+if cache_f:
+    try:
+        os.makedirs(os.path.dirname(cache_f), exist_ok=True)
+        with open(cache_f, 'w') as f:
+            json.dump({"llms": {n: {k: v for k, v in d.items() if k != "_src"}
+                                for n, d in merged.items()}}, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
 print(json.dumps(merged, ensure_ascii=False))
 PYEOF
 }
