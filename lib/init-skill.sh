@@ -262,6 +262,7 @@ do_install_cli_deps() {
                     # import 自检，pip 名≠import 名（PyYAML→yaml）也由其自己处理。
                     # 同 skill 的多个 pip 包聚合到一个 setup_script，只跑一次。
                     if [[ -n "${pip_done[$setup_script]:-}" ]]; then
+                        info "  $pkg: 并入 $first_skill 的 venv（上面已装）"
                         skipped=$((skipped + 1))
                         continue
                     fi
