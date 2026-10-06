@@ -31,25 +31,67 @@ source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/interact.sh"
 source "$SCRIPT_DIR/ensure-bridge.sh"
 
-CONFIG_FILE="$(resolve_conf llm.json)" || exit 1
+# 三层 LLM 配置：
+#   LLM_KEYS_FILE     ccprivate/conf/llm.json        — 纯 key（{llms: {name: {key}}}），私有
+#   LLM_NORMAL_FILE   ccconfig/conf/llmnormal.json   — 内置预设定义（无 key），开源
+#   LLM_PRIVATE_FILE  ccprivate/conf/llmprivate.json — 自定义预设定义（无 key），私有
+# 读取时把 key 合并进定义，渲染菜单/切换。
+LLM_KEYS_FILE="$(resolve_conf llm.json)" || exit 1
+# 内置预设定义模板：ccconfig 仓库（公开）
+LLM_NORMAL_FILE="${CCCONFIG_ROOT}/conf/llmnormal.json"
+# 自定义预设定义：ccprivate（私有）
+LLM_PRIVATE_FILE="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/llmprivate.json"
 CLAUDE_JSON="$HOME/.claude.json"
 
 # 机器本地 current 文件（不参与 ccprivate 同步）
 LOCAL_CURRENT_FILE="$HOME/.claude/llm-current"
 
-# ccconfig 自带预设 key —— builtin 分类以代码为准，不依赖用户 llm.json 的 builtin 字段
-# 用户 llm.json 可能缺该字段或被手改，会导致菜单内建/自定义分组错乱
-# 含历史 key 别名（旧机 llm.json 里仍是旧命名：minimax/deepseek/deepseek_flash/
-# gateway/aliglm52），保证升级后仍归「预设」组。deepseek41flash 等新 key 见下。
+# ccconfig 自带预设 key —— builtin 判定以来源为准：llmnormal.json 里的预设 = 内置
+# （天然 builtin）；llmprivate.json 里的 = 自定义。BUILTIN_PRESETS 退化为历史
+# 兼容标记：旧 llm.json 里命中白名单的 key 视为内置（迁移期用），新结构下
+# 读 llmnormal.json 即可，不需要这份列表。
 BUILTIN_PRESETS=(minimax31 deepseek41flash glm53flash mimo26flash \
                  minimax deepseek deepseek_flash gateway aliglm52)
 
-# ========== 读取配置 ==========
-get_llm_config() {
-    python3 - "$CONFIG_FILE" "$1" << 'PYEOF'
+# ========== 合并读取三层配置 ==========
+# 内置预设：LLM_NORMAL_FILE（ccconfig 开源模板）+ key 合并
+# 自定义预设：LLM_PRIVATE_FILE（ccprivate）+ key 合并
+# key 统一从 LLM_KEYS_FILE 读（ccprivate，纯 key）
+# 输出：合并后 llms 的 JSON 给调用方（一次 python 取齐，避免多次进程启动）
+_llms_merged_py() {
+    python3 - "$LLM_NORMAL_FILE" "$LLM_PRIVATE_FILE" "$LLM_KEYS_FILE" << 'PYEOF'
 import json, sys
-with open(sys.argv[1], 'r') as f: d = json.load(f)
-llm = d.get('llms', {}).get(sys.argv[2])
+normal_f, priv_f, keys_f = sys.argv[1], sys.argv[2], sys.argv[3]
+# 定义：内置 + 自定义（自定义优先，同名覆盖内置——用户想改默认上游）
+merged = {}
+for f in (normal_f, priv_f):
+    try:
+        d = json.load(open(f))
+    except Exception:
+        continue
+    for name, spec in d.get('llms', {}).items():
+        spec = dict(spec); spec.pop('key', None)
+        spec['_src'] = 'normal' if f != priv_f else 'private'
+        merged[name] = spec
+# key：从纯 key 文件读
+try:
+    kd = json.load(open(keys_f))
+except Exception:
+    kd = {}
+for name, llm in merged.items():
+    k = kd.get('llms', {}).get(name, {})
+    llm['key'] = k.get('key', '') if isinstance(k, dict) else str(k)
+print(json.dumps(merged, ensure_ascii=False))
+PYEOF
+}
+
+# 读取配置：合并三层 → 输出 base_url|model|key|small
+get_llm_config() {
+    _llms_merged_py | python3 - "$1" << 'PYEOF'
+import json, sys
+name = sys.argv[1]
+merged = json.load(sys.stdin)
+llm = merged.get(name)
 if not llm: print("ERROR:Unknown LLM"); sys.exit(1)
 small = llm.get('small_model', llm.get('model', ''))
 print(f"{llm.get('base_url','')}|{llm.get('model','')}|{llm.get('key','')}|{small}")
@@ -58,14 +100,24 @@ PYEOF
 
 # 读 provider 的 host_header 字段（可选，tailscale/SSH 透传场景用）
 get_provider_host_header() {
-    python3 - "$CONFIG_FILE" "$1" << 'PYEOF'
+    _llms_merged_py | python3 - "$1" << 'PYEOF'
 import json, sys
-try:
-    with open(sys.argv[1], 'r') as f: d = json.load(f)
-    llm = d.get('llms', {}).get(sys.argv[2], {})
-    print(llm.get('host_header', ''))
-except Exception:
-    print('')
+name = sys.argv[1]
+merged = json.load(sys.stdin)
+llm = merged.get(name, {})
+print(llm.get('host_header', ''))
+PYEOF
+}
+
+# 读 use_bridge 标记（True/False/空）
+get_use_bridge() {
+    _llms_merged_py | python3 - "$1" << 'PYEOF'
+import json, sys
+name = sys.argv[1]
+merged = json.load(sys.stdin)
+llm = merged.get(name, {})
+v = llm.get('use_bridge', '__ABSENT__')
+print('' if v == '__ABSENT__' else v)
 PYEOF
 }
 
@@ -96,18 +148,16 @@ list_llms() {
     local cur
     cur=$(read_local_current)
     export LIST_CUR="$cur"
-    BUILTIN_KEYS="${BUILTIN_PRESETS[*]}" python3 - "$CONFIG_FILE" << 'PYEOF'
+    _llms_merged_py | python3 - << 'PYEOF'
 import json, sys, os
-builtin_set = set(os.environ.get('BUILTIN_KEYS','').split())
-with open(sys.argv[1]) as f: d = json.load(f)
-llms = d.get('llms', {}); cur = os.environ.get('LIST_CUR', d.get('current', ''))
+llms = json.load(sys.stdin); cur = os.environ.get('LIST_CUR', '')
 print(f"TOTAL:{len(llms)}")
 print(f"CURRENT:{cur}")
 for name, llm in llms.items():
     model = llm.get('model', '')
     marker = "◀" if name == cur else " "
     small = llm.get('small_model', '')
-    is_builtin = '1' if (name in builtin_set or llm.get('builtin', False)) else '0'
+    is_builtin = '1' if llm.get('_src') == 'normal' else '0'
     print(f"{marker}|{name}|{llm.get('name', name)}|{model}|{llm.get('base_url','')}|{small}|{is_builtin}")
 PYEOF
 }
@@ -121,7 +171,7 @@ write_llm_config() {
     info "  模型: $model"
     info "  小模型: $small"
 
-    export CONFIG_FILE="$CONFIG_FILE" BASE_URL="$base_url" MODEL_NAME="$model" SMALL_MODEL="$small" API_KEY="$key" NAME="$name"
+    export LLM_KEYS_FILE="$LLM_KEYS_FILE" BASE_URL="$base_url" MODEL_NAME="$model" SMALL_MODEL="$small" API_KEY="$key" NAME="$name"
 
     python3 << 'PYEOF'
 import json, os
@@ -134,13 +184,20 @@ def is_placeholder(v):
 def mask_key(k):
     return f"...{k[-4:]}" if k and len(k) >= 8 else "(空)"
 
-# 复用已有 key
+# 复用已有 key（settings.json 里的 AUTH_TOKEN 或 llm-keys 里已存的）
 api_key = os.environ.get('API_KEY', '')
 existing = ''
 try:
-    with open(os.path.expanduser("~/.claude/settings.json")) as f:
-        existing = json.load(f).get('env', {}).get('ANTHROPIC_AUTH_TOKEN', '')
-except: pass
+    kd = json.load(open(os.environ['LLM_KEYS_FILE']))
+    existing = kd.get('llms', {}).get(os.environ['NAME'], {}).get('key', '') or ''
+except Exception:
+    pass
+if not existing or is_placeholder(existing):
+    existing = ''
+    try:
+        with open(os.path.expanduser("~/.claude/settings.json")) as f:
+            existing = json.load(f).get('env', {}).get('ANTHROPIC_AUTH_TOKEN', '')
+    except: pass
 if api_key and not is_placeholder(api_key):
     final = api_key
     print(f"\033[0;32m  Key: {mask_key(api_key)}\033[0m")
@@ -151,16 +208,15 @@ else:
     final = ''
     print(f"\033[1;33m  Key: 未配置\033[0m")
 
-# 写 llm.json —— 保留 key 同步，但只在内容真变化时落盘
-# why 幂等：无条件重写会让每次切换都 MODIFY 文件，触发 auto-sync 全仓 debounce
-# + pull/push 网络往返；且 A 机写出的内容会 push 给 B 机造成跨机覆盖
-cfg = os.environ['CONFIG_FILE']
-with open(cfg) as f: d = json.load(f)
+# 写纯 key 文件（只存 key，定义在 llmnormal/llmprivate 里）
+cfg = os.environ['LLM_KEYS_FILE']
+try:
+    with open(cfg) as f: d = json.load(f)
+except Exception:
+    d = {}
+d.setdefault('llms', {})
 if final:
-    llms = d.setdefault('llms', {})
-    if os.environ['NAME'] in llms:
-        llms[os.environ['NAME']]['key'] = final
-# current 归属本地 llm-current，清掉历史残留字段（本机选择不跨机同步）
+    d['llms'][os.environ['NAME']] = {"key": final}
 d.pop('current', None)
 blob = json.dumps(d, indent=4, ensure_ascii=False)
 try:
