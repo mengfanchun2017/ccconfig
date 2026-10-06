@@ -803,12 +803,9 @@ import json, sys
 p, ex = sys.argv[1], sys.argv[2]
 try:
     with open(p) as f: d = json.load(f)
-except Exception:
-    return
-try:
     template = json.load(open(ex))
 except Exception:
-    return
+    sys.exit(0)
 llms = d.setdefault('llms', {})
 added = []
 for name, spec in template.get('llms', {}).items():
