@@ -1,6 +1,6 @@
 #!/bin/bash
 # option-evalscope/lib.sh — 供 run-perf.sh / run-eval.sh / run-all.sh source 的共享逻辑
-#   读 llm.json preset → 决定如何连接 evalscope → 生成报告目录名
+#   读三层合并缓存(merged) preset → 决定如何连接 evalscope → 生成报告目录名
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -14,13 +14,19 @@ EVALSCOPE_BIN="$SCRIPT_DIR/.venv/bin/evalscope"
 # 结果输出根目录（可 env 覆盖）
 EVAL_OUTPUT_ROOT="${EVAL_OUTPUT_ROOT:-$HOME/.cache/evalscope}"
 
-# 读 llm.json 配置路径（ccprivate 真实值）
+# 读三层合并缓存（init-llm.sh merge 生成）。缺失先跑 merge 兜底（冷启动）
+# why 三层后 ccprivate/conf/llm.json 是纯 key，base_url/model 在定义文件（llmnormal/llmprivate），
+#     只有 merged 缓存含完整字段。与 ensure-bridge.sh / status.sh 读源一致。
 resolve_llm_json() {
-    resolve_conf llm.json 2>/dev/null
+    local cache="$HOME/.cache/llm-merged.json"
+    if [[ ! -f "$cache" ]]; then
+        bash "$CCCONFIG_ROOT/lib/init-llm.sh" merge >/dev/null 2>&1 || true
+    fi
+    [[ -f "$cache" ]] && echo "$cache" || { resolve_conf llm.json 2>/dev/null; }
 }
 
-# 读取 llm.json 里某 preset 的 base_url|model|key|host_header|use_bridge
-# 用法: read_preset <llm_json> <preset>
+# 读取 merged 缓存里某 preset 的 base_url|model|key|host_header|use_bridge
+# 用法: read_preset <merged_json> <preset>
 # 输出: 每行一个字段，顺序: base_url / model / key / host_header / use_bridge
 read_preset() {
     local cfg="$1" preset="$2"
@@ -39,7 +45,7 @@ except Exception:
 PYEOF
 }
 
-# 列出 llm.json 所有 preset 名
+# 列出 merged 缓存所有 preset 名
 list_presets() {
     local cfg="$1"
     python3 - "$cfg" << 'PYEOF'

@@ -12,10 +12,11 @@
 #   bash init-llm.sh delete <name>   # 删预设
 #   bash init-llm.sh heal            # bridge 自愈（按 llm-current 重拉）
 #
-# 新增/修改预设：直接编辑 conf/llm.json（schema 见 docs/init-llm.md §六）
+# 三层配置：内置预设 conf/llmnormal.json（ccconfig 公开）＋ 自定义预设
+# ccprivate/conf/llmprivate.json ＋ 纯 Key ccprivate/conf/llm.json，读取时合并
 #
 # 设计原则：
-#   - 真相源：llm.json（providers）+ ~/.claude/llm-current（本机当前选择，ADR-0020）
+#   - 真相源：三层定义 + llm.json（纯 Key），读取时合并；~/.claude/llm-current（本机选择，ADR-0020）
 #   - Claude 唯一读 env：settings.json env 段
 #   - bridge 仅在 OpenAI-only 端点自动起，自愈靠 status.sh SessionStart hook
 #   - 切失败不自动回滚（让用户看清楚错误）
@@ -36,29 +37,25 @@ source "$SCRIPT_DIR/ensure-bridge.sh"
 #   LLM_NORMAL_FILE   ccconfig/conf/llmnormal.json   — 内置预设定义（无 key），开源
 #   LLM_PRIVATE_FILE  ccprivate/conf/llmprivate.json — 自定义预设定义（无 key），私有
 # 读取时把 key 合并进定义，渲染菜单/切换。
-LLM_KEYS_FILE="$(resolve_conf llm.json)" || exit 1
+# 三个文件路径均支持环境变量预置（CI/单测覆盖用），未预置时用默认位置
+LLM_KEYS_FILE="${LLM_KEYS_FILE:-$(resolve_conf llm.json)}" || exit 1
 # 内置预设定义模板：ccconfig 仓库（公开）
-LLM_NORMAL_FILE="${CCCONFIG_ROOT}/conf/llmnormal.json"
+LLM_NORMAL_FILE="${LLM_NORMAL_FILE:-${CCCONFIG_ROOT}/conf/llmnormal.json}"
 # 自定义预设定义：ccprivate（私有）
-LLM_PRIVATE_FILE="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/llmprivate.json"
+LLM_PRIVATE_FILE="${LLM_PRIVATE_FILE:-${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/llmprivate.json}"
 CLAUDE_JSON="$HOME/.claude.json"
 
 # 机器本地 current 文件（不参与 ccprivate 同步）
 LOCAL_CURRENT_FILE="$HOME/.claude/llm-current"
 
-# ccconfig 自带预设 key —— builtin 判定以来源为准：llmnormal.json 里的预设 = 内置
-# （天然 builtin）；llmprivate.json 里的 = 自定义。BUILTIN_PRESETS 退化为历史
-# 兼容标记：旧 llm.json 里命中白名单的 key 视为内置（迁移期用），新结构下
-# 读 llmnormal.json 即可，不需要这份列表。
-BUILTIN_PRESETS=(minimax31 deepseek41flash glm53flash mimo26flash \
-                 minimax deepseek deepseek_flash gateway aliglm52)
+# 内置判定以来源为准：llmnormal.json 里的预设 = 内置；llmprivate.json 里的 = 自定义。
 
 # ========== 合并读取三层配置 ==========
 # 内置预设：LLM_NORMAL_FILE（ccconfig 开源模板）+ key 合并
 # 自定义预设：LLM_PRIVATE_FILE（ccprivate）+ key 合并
 # key 统一从 LLM_KEYS_FILE 读（ccprivate，纯 key）
 # 输出：合并后 llms 的 JSON 给调用方（一次 python 取齐，避免多次进程启动）
-LLM_MERGED_CACHE="$HOME/.cache/llm-merged.json"
+LLM_MERGED_CACHE="${LLM_MERGED_CACHE:-$HOME/.cache/llm-merged.json}"
 
 _llms_merged_py() {
     python3 - "$LLM_NORMAL_FILE" "$LLM_PRIVATE_FILE" "$LLM_KEYS_FILE" "${LLM_MERGED_CACHE}" << 'PYEOF'
@@ -76,21 +73,39 @@ for f in (normal_f, priv_f):
         spec = dict(spec); spec.pop('key', None)
         spec['_src'] = 'normal' if f != priv_f else 'private'
         merged[name] = spec
-# key：从纯 key 文件读
+# key：从纯 key 文件读；旧格式兼容——llm.json 带 base_url 的条目视为自定义预设
+# （三层前的 llm.json 是完整配置，升级机器上 keys_f 仍是旧格式，直接收编不丢预设）
 try:
     kd = json.load(open(keys_f))
 except Exception:
     kd = {}
+for name, k in kd.get('llms', {}).items():
+    if not isinstance(k, dict):
+        continue
+    if name in merged:
+        merged[name]['key'] = k.get('key', '')
+    elif k.get('base_url'):
+        spec = {kk: vv for kk, vv in k.items() if kk != 'key'}
+        spec['_src'] = 'private'
+        merged[name] = spec
 for name, llm in merged.items():
-    k = kd.get('llms', {}).get(name, {})
-    llm['key'] = k.get('key', '') if isinstance(k, dict) else str(k)
+    if 'key' not in llm:
+        llm['key'] = ''
 # 导出合并快照给 bridge 组件读（本机缓存，不入 git）
 if cache_f:
     try:
         os.makedirs(os.path.dirname(cache_f), exist_ok=True)
-        with open(cache_f, 'w') as f:
-            json.dump({"llms": {n: {k: v for k, v in d.items() if k != "_src"}
-                                for n, d in merged.items()}}, f, indent=2, ensure_ascii=False)
+        snap = dict(merged)
+        cur_path = os.path.expanduser('~/.claude/llm-current')
+        cur = ''
+        try:
+            with open(cur_path) as f: cur = f.read().strip()
+        except Exception:
+            pass
+        tmp_f = cache_f + '.tmp'
+        with open(tmp_f, 'w') as f:
+            json.dump({"llms": snap, "current": cur}, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_f, cache_f)
     except Exception:
         pass
 print(json.dumps(merged, ensure_ascii=False))
@@ -99,10 +114,11 @@ PYEOF
 
 # 读取配置：合并三层 → 输出 base_url|model|key|small
 get_llm_config() {
-    _llms_merged_py | python3 - "$1" << 'PYEOF'
-import json, sys
+    local merged; merged=$(_llms_merged_py)
+    LLM_MERGED="$merged" python3 - "$1" << 'PYEOF'
+import json, os, sys
 name = sys.argv[1]
-merged = json.load(sys.stdin)
+merged = json.loads(os.environ['LLM_MERGED'])
 llm = merged.get(name)
 if not llm: print("ERROR:Unknown LLM"); sys.exit(1)
 small = llm.get('small_model', llm.get('model', ''))
@@ -112,10 +128,14 @@ PYEOF
 
 # 读 provider 的 host_header 字段（可选，tailscale/SSH 透传场景用）
 get_provider_host_header() {
-    _llms_merged_py | python3 - "$1" << 'PYEOF'
-import json, sys
+    local merged; merged=$(_llms_merged_py)
+    LLM_MERGED="$merged" python3 - "$1" << 'PYEOF'
+import json, os, sys
 name = sys.argv[1]
-merged = json.load(sys.stdin)
+try:
+    merged = json.loads(os.environ['LLM_MERGED'])
+except Exception:
+    merged = {}
 llm = merged.get(name, {})
 print(llm.get('host_header', ''))
 PYEOF
@@ -123,10 +143,14 @@ PYEOF
 
 # 读 use_bridge 标记（True/False/空）
 get_use_bridge() {
-    _llms_merged_py | python3 - "$1" << 'PYEOF'
-import json, sys
+    local merged; merged=$(_llms_merged_py)
+    LLM_MERGED="$merged" python3 - "$1" << 'PYEOF'
+import json, os, sys
 name = sys.argv[1]
-merged = json.load(sys.stdin)
+try:
+    merged = json.loads(os.environ['LLM_MERGED'])
+except Exception:
+    merged = {}
 llm = merged.get(name, {})
 v = llm.get('use_bridge', '__ABSENT__')
 print('' if v == '__ABSENT__' else v)
@@ -157,12 +181,16 @@ write_local_current() {
 }
 
 list_llms() {
-    local cur
+    local cur merged
     cur=$(read_local_current)
-    export LIST_CUR="$cur"
-    _llms_merged_py | python3 - << 'PYEOF'
+    merged=$(_llms_merged_py)
+    LIST_CUR="$cur" LLM_MERGED="$merged" python3 - << 'PYEOF'
 import json, sys, os
-llms = json.load(sys.stdin); cur = os.environ.get('LIST_CUR', '')
+try:
+    llms = json.loads(os.environ['LLM_MERGED'])
+except Exception:
+    llms = {}
+cur = os.environ.get('LIST_CUR', '')
 print(f"TOTAL:{len(llms)}")
 print(f"CURRENT:{cur}")
 for name, llm in llms.items():
@@ -650,10 +678,11 @@ delete_preset() {
     local target="${1:-}"
 
     # 来源判定：内置（llmnormal，ccconfig 公开）不可删；自定义（llmprivate）可删
-    local src
-    src=$(_llms_merged_py | python3 - "$target" <<'PYEOF'
-import json, sys
-merged = json.load(sys.stdin)
+    local src merged
+    merged=$(_llms_merged_py)
+    src=$(LLM_MERGED="$merged" python3 - "$target" <<'PYEOF'
+import json, os, sys
+merged = json.loads(os.environ['LLM_MERGED'])
 llm = merged.get(sys.argv[1], {})
 print(llm.get('_src', ''))
 PYEOF
@@ -723,7 +752,11 @@ _llm_status_header() {
     local display model sf_url st _ub um st _ub um
     IFS='|' read -r display model sf_url < <(CUR="$current" LLM_MERGED_CACHE="$LLM_MERGED_CACHE" python3 - << 'PYEOF'
 import json, os
-d = json.load(open(os.environ['LLM_MERGED_CACHE']))
+try:
+    d = json.load(open(os.environ['LLM_MERGED_CACHE']))
+except Exception:
+    print("||")
+    raise SystemExit(0)
 llm = d.get('llms', {}).get(os.environ['CUR'], {})
 try:
     sf = json.load(open(os.path.expanduser('~/.claude/settings.json')))
@@ -812,10 +845,14 @@ interactive_select() {
         echo -e "  ${BOLD_GRAY}--LLM配置--${NC}"
         printf "  ${BOLD_GREEN}3a${NC}  %-26s ${DIM}%s${NC}\n" "更新模型 Key" "更新预设的 API Key（回车保持原 key）"
         printf "  ${BOLD_GREEN}3b${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
-        printf "  ${DIM}新增/修改预设：直接编辑 conf/llm.json 后重进菜单${NC}\n"
+        printf "  ${DIM}新增/修改预设：ccconfig → conf/llmnormal.json；自定义 → llmprivate.json；Key → llm.json${NC}\n"
         echo -e "  ${BOLD_GREEN}0${NC}  退出"
         printf "  ${BOLD_GREEN}输入 (如 1a, 2d, 3a): ${NC}"
-        read -r choice
+        # 读 /dev/tty 而非 stdin：从 maintain 菜单 eval 进来时 stdin 可能已 EOF/非 tty，
+        # 裸 read 立即 EOF → set -e 退出非零 → maintain 判执行失败刷新 → 表现为"选 4A 没反应"
+        if ! read -r choice < /dev/tty; then
+            info "已退出"; return 0
+        fi
 
         [[ -z "$choice" || "$choice" == "0" ]] && { info "已退出"; return 0; }
 
@@ -880,6 +917,7 @@ main() {
             test_llm "${2:-}" ;;
         switch)      switch_llm "${2:-}" ;;
         delete|-d)   delete_preset "${2:-}" ;;
+        merge)       _llms_merged_py >/dev/null ;;
         sync)        sync_top_model ;;
         heal)
             selfheal_bridge "$LLM_MERGED_CACHE" \

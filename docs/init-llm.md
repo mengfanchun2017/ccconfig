@@ -11,8 +11,9 @@
 ```mermaid
 flowchart LR
     User[用户] -->|bash init-llm.sh preset| Init[init-llm.sh]
-    Init -->|读| LLMJson[ccprivate/conf/llm.json<br/>providers 列表]
-    Init -->|写| Settings[~/.claude/settings.json<br/>env 块]
+    Init -->|读| LLMNormal[conf/llmnormal.json<br/>内置预设定义] & LLMPriv[llmprivate.json<br/>自定义定义] & LLMKeys[llm.json<br/>纯 Key]
+    Init -->|_llms_merged_py 合并| Merged[~/.cache/llm-merged.json<br/>定义+key+_src+current]
+    Merged -->|写| Settings[~/.claude/settings.json<br/>env 块]
     Init -->|写| LLMCurrent[~/.claude/llm-current<br/>当前 preset]
 
     Claude[Claude Code] -->|启动时读| Settings
@@ -21,7 +22,8 @@ flowchart LR
     Claude -->|直连| Direct[Anthropic 兼容上游]
 
     SessionStart[SessionStart hook<br/>status.sh] -->|env guard| Heal[bridge 自愈]
-    Heal -->|ensure_bridge| Bridge
+    Heal -->|ensure_bridge 读 merged| Merged
+    Heal --> Bridge
 
     WD[watchdog<br/>30s 周期] --> Bridge
 ```
@@ -47,18 +49,18 @@ flowchart LR
 | 状态诊断 | `bash init-llm.sh status` | ✅ | llm-current / env / bridge 一致性 |
 | 链路探测 | `bash init-llm.sh test <name>` | ✅ | **走真实路径**：bridge preset 经 bridge、流式请求、判终止标记+连接完整性 |
 | 列出预设 | `bash init-llm.sh list` | ✅ | |
-| 删除 preset | 菜单 `2A` / `bash init-llm.sh delete <name>` | ✅ | |
+| 删除 preset | 菜单 `3b` / `bash init-llm.sh delete <name>` | ✅ | 内置预设（`builtin: true`）拒绝删除 |
 | bridge 自愈 | `bash init-llm.sh heal` | ✅ | SessionStart hook（`status.sh`）+ `ensure_bridge` |
 | 修 `/model` 污染 | `bash init-llm.sh sync` | ✅ | 顶层 `model` 同步到 `env.ANTHROPIC_MODEL` |
 | ~~Gateway 路由~~ | 菜单 `2D` | ❌ 删 | proxy.py 整套移除（ADR-0030） |
 | ~~token 价格输入~~ | `bill` 子命令 | ❌ 删 | 仅记用量，价格由上游账单给（`cost_cny`） |
-| ~~交互式增/改 preset~~ | 菜单 `2A / 2B` | ❌ 删 | 手改 `conf/llm.json` 更直接（schema 见 §六） |
+| ~~交互式增/改 preset~~ | 菜单 `2A / 2B` | ❌ 删 | 手改 `llmprivate.json`（自定义）更直接（schema 见 §六） |
 | ~~批量探测~~ | `test all` | ❌ 删 | 预设变少后价值不大，单个探测足够 |
 | ~~upstream 主动探测~~ | watchdog 内 | ❌ 删 | 探测失败 ≠ bridge 故障，重启修不了网络还打断请求 |
 
-**规模**：`lib/init-llm.sh` 687 行（简化前 927）。有两条回归测试：
+**规模**：`lib/init-llm.sh`（简化前 927 行）。有三条回归测试：
 `tests/test-openai-bridge.sh`（bridge 流式链路）、`tests/test-init-llm-switch.sh`
-（切换写出的 BASE_URL 正确性）。
+（切换写出的 BASE_URL 正确性）、`tests/test-init-llm-merge.sh`（三层合并逻辑）。
 
 ## 四、架构决策（基于 2026-09 调研）
 
@@ -118,7 +120,7 @@ flowchart LR
 
 **关键设计约束**：watchdog **不做 upstream 主动探测**。upstream 探测失败 ≠ bridge 故障；网络问题重启 bridge 修不了，只会杀掉正在服务的进程、打断请求。旧版正是这么把好的 bridge 换掉的。
 
-**watchdog 必须跟随「当前」preset**：wrapper 若绑死启动时的 upstream/model/key，切 preset 后它会拿旧 upstream 覆盖用户刚选的 preset（在家切 tailscale 被打回单位地址）。现改为每次拉起都现场读 `llm-current` + `llm.json`（`lib/bridge-restart.sh`）。
+**watchdog 必须跟随「当前」preset**：wrapper 若绑死启动时的 upstream/model/key，切 preset 后它会拿旧 upstream 覆盖用户刚选的 preset（在家切 tailscale 被打回单位地址）。现改为每次拉起都现场读 `llm-current` + `llm-merged.json` 缓存（`lib/ensure-bridge.sh`）。
 
 ### 5.2 SSE 心跳（防中间设备 idle 断流）
 
@@ -155,7 +157,17 @@ flowchart LR
 
 ## 六、配置 schema
 
-### `llm.json`（同步，ccprivate）
+### 三层配置结构（ADR-LLM3L）
+
+LLM 配置拆三层，key 与预设定义彻底分离：
+
+| 文件 | 位置 | 存什么 | key？ |
+|------|------|--------|-------|
+| `conf/llmnormal.json` | ccconfig（公开，模板） | 内置预设定义（`builtin: true`） | ❌ |
+| `conf/llmprivate.json` | ccprivate（私密） | 自定义预设定义 | ❌ |
+| `conf/llm.json` | ccprivate（私密） | 纯 key：`{"llms": {...}}` | ✅ 只有 key |
+
+定义文件（normal/private）同 schema：
 
 ```json
 {
@@ -165,15 +177,27 @@ flowchart LR
       "base_url": "https://...",
       "model": "<model>",
       "small_model": "<model>",
-      "key": "<api_key>",
       "use_bridge": true | false |缺失,
-      "host_header": "<domain>"
+      "host_header": "<domain>",
+      "builtin": true
     }
   }
 }
 ```
 
-字段语义：
+key 文件（`llm.json`）只管 key，不与预设定义耦合：
+
+```json
+{
+  "llms": {
+    "<preset_name>": "<api_key>"
+  }
+}
+```
+
+**合并规则**：`_llms_merged_py()` 先合并 normal + private（同名 private 覆盖 normal），再按名字把 `llm.json` 的 key 织进定义。合并结果带 `_src` 字段（`normal` / `private`）供菜单分组 + 内置预设不可删判定，并落缓存 `~/.cache/llm-merged.json`（bridge 冷启动 / SessionStart 自愈读它，见 `init-llm.sh merge`）。
+
+字段语义（定义文件）：
 - **`use_bridge` 三态**（memory `use-bridge-absent-vs-false-20260907`）：
   - `"True"` 显式强制走 bridge
   - `"False"` 显式禁 bridge（OpenAI-only + false → 早报错，不静默兜底）
@@ -217,6 +241,7 @@ Claude Code 唯一读取的 LLM 配置：
 | `option-llmswitch/openai_bridge.py` | 628 | ✅ 保留 | Anthropic↔OpenAI 桥 |
 | `lib/init-llm.sh` gateway 相关 | ~120 | ❌ 删 | `switch_to_gateway` / `stop_gateway` / `get_gateway_status` / `BUILTIN_PRESETS` 去 `gateway` |
 | `lib/init-llm-bill.sh` 价格段 | ~140 | ❌ 删 | 改为"用量读取" |
+| `conf/llm.json.example` | 17 | ✅ 删 | 已被 `conf/llmnormal.json`（公开内置预设）取代 |
 
 总删除 ~1760 行（option-llmswitch 1531 + init-llm 120 + bill 140 = 1791）。
 
@@ -264,7 +289,7 @@ while true:
                           → sleep min(5 × 2^(fail-1), 60)
 ```
 
-`bridge-restart.sh` 每次现场读 `llm-current` + `llm.json` 取配置；当前 preset
+`ensure-bridge.sh` 每次现场读 `llm-current` + `llm-merged.json` 缓存取配置；当前 preset
 不需要 bridge（直连 / `use_bridge:false`）时直接返回，不拉起。
 
 > **不做 upstream 主动探测**：探测失败 ≠ bridge 故障，重启修不了网络问题，
@@ -288,7 +313,7 @@ while true:
   - [ADR-0029 init-llm 2026 目标决策](adr/0029-init-llm-target-2026.md)
   - [ADR-0030 Gateway 模式废弃](adr/0030-gateway-deprecation-2026.md)
   - [ADR-0031 init-llm 收敛：桥接链路修复 + 探测统一 + 四层守护模型](adr/0031-init-llm-consolidation-2026.md)
-  - 后续：ADR-0029 init-llm target（本文件落地的决策）
+  - [ADR-0039 三层 LLM 配置](adr/0039-llm-three-tier-config.md)
 - **memory**（核心条目，存于使用者的私有 memory，不随公开仓库分发）：
   `llm-management` / `altllm-split-presets-20260917` /
   `use-bridge-absent-vs-false-20260907` /
@@ -307,7 +332,7 @@ while true:
 
 待办：
 1. ~~合并 `verify_endpoint` 与 `test_llm`~~ ✅ 已完成：删 `verify_endpoint`，切换路径复用 `test_llm` 的流式判据，并补上 HTTP 码识别（401/403 判鉴权、000 判不可达）。
-2. ~~评估 `switch_custom` / `edit_preset`~~ ✅ 已删除（连同菜单入口），改为手改 `conf/llm.json`。
+2. ~~评估 `switch_custom` / `edit_preset`~~ ✅ 已删除（连同菜单入口），改为手改 `llmprivate.json`（自定义 preset）。
 3. ~~`test_all` 与 `show_status` 去重~~ ✅ 已完成：删 `test_all`；bridge 状态检查抽成 `_bridge_health` 供 `show_status` 与菜单头共用。
 3. **`show_status` 与 `status.sh` 的 LLM 段去重**。
 4. ~~重写 `tests/test-init-llm.sh`~~ ✅ 已删除：gateway 时代用例，指向早已不存在的 `option-llmswitch/init.sh`，跑起来第一步就崩；bridge 部分由 `test-openai-bridge.sh` 覆盖，切换链路由 `test-init-llm-switch.sh` 覆盖。

@@ -1,0 +1,34 @@
+{
+    "description": "内置 LLM 预设定义（开源）。key 不在此文件，用户配置 key 通过 3a 更新存 ccprivate/conf/llm.json（纯 key）",
+    "llms": {
+        "minimax31": {
+            "name": "MiniMax3.1",
+            "base_url": "https://api.minimaxi.com/anthropic",
+            "model": "MiniMax-M3.1-Flash-Preview",
+            "small_model": "MiniMax-M3.1-Flash-Preview",
+            "builtin": true
+        },
+        "deepseek41flash": {
+            "name": "Deepseek4.1flash",
+            "base_url": "https://api.deepseek.com/anthropic",
+            "model": "deepseek-v4-flash",
+            "small_model": "deepseek-v4-flash",
+            "builtin": true
+        },
+        "glm53flash": {
+            "name": "glm53flash",
+            "base_url": "https://open.bigmodel.cn/api/paas/v4",
+            "model": "glm-5.3-flash",
+            "small_model": "glm-5.3-flash",
+            "use_bridge": true,
+            "builtin": true
+        },
+        "mimo26flash": {
+            "name": "mimo2.6-flash",
+            "base_url": "https://api.xiaomimimo.com/anthropic",
+            "model": "mimo-v2.6-flash",
+            "small_model": "mimo-v2.6-flash",
+            "builtin": true
+        }
+    }
+}

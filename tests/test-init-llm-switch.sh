@@ -6,8 +6,10 @@
 # (127.0.0.1:PORT) 覆盖回上游地址 → settings.json 写成 OpenAI 端点直连 →
 # Claude Code 拿它当 Anthropic 端点用，报 SSL hostname mismatch / 直接挂。
 #
-# 做法：隔离 HOME + CCPRIVATE_DIR + 非默认端口，起 mock upstream 和真 bridge，
-# 跑真实的 switch_llm，断言写出的 BASE_URL 是 bridge 地址。
+# 三层配置（ADR-LLM3L）：llmnormal(内置定义) + llmprivate(自定义定义) + llm.json(纯 key)
+# 本测试用隔离目录模拟三层文件，source init-llm.sh 后验证：
+#   - 三个文件路径都指向测试隔离位置（不碰真实配置）
+#   - switch_llm 正确合并读取三层 + 只写纯 key 文件 + settings.json BASE_URL
 #
 # 用法: bash ccconfig/tests/test-init-llm-switch.sh [--verbose]
 
@@ -31,7 +33,7 @@ cleanup() {
     for p in $(lsof -ti :"$TEST_BRIDGE_PORT" 2>/dev/null); do kill "$p" 2>/dev/null; done
     # pattern 用 [g] 避开 pgrep -f 匹配到执行本脚本的 shell 自身
     for p in $(pgrep -f "bridge-watchdog[^ ]*$WORKDIR" 2>/dev/null); do [[ "$p" == "$$" ]] && continue; kill "$p" 2>/dev/null; done
-    rm -rf "$WORKDIR"
+    rm -rf "$WORKDIR" "$TEST_HOME/.cache" 2>/dev/null
 }
 trap cleanup EXIT
 
@@ -82,27 +84,41 @@ fi
 TEST_HOME="$WORKDIR/home"
 mkdir -p "$TEST_HOME/.claude" "$WORKDIR/conf"
 
-# 注意 base_url 用 localhost 而非 127.0.0.1：
-# ensure_bridge 的 _bridge_supported 会拒绝含 "://127.0.0.1" 的 upstream
-cat > "$WORKDIR/conf/llm.json" <<JSON
+# 三层配置：llmnormal（ccconfig 内置，模拟）/ llmprivate（自定义）/ llm.json（纯 key）
+# direct = 内置 Anthropic 直连；bridge-preset = 自定义走 bridge
+cat > "$WORKDIR/conf/llmnormal.json" <<JSON
 {
-  "current": "direct",
   "llms": {
     "direct": {
       "name": "Direct",
       "base_url": "http://localhost:${MOCK_PORT}/anthropic",
       "model": "model-d1",
-      "key": "sk-test-direct",
       "small_model": "model-d1"
-    },
+    }
+  }
+}
+JSON
+
+cat > "$WORKDIR/conf/llmprivate.json" <<JSON
+{
+  "llms": {
     "bridge-preset": {
       "name": "Bridge",
       "base_url": "http://localhost:${MOCK_PORT}/v1",
       "model": "model-b1",
-      "key": "sk-test-bridge",
       "small_model": "model-b1",
       "use_bridge": true
     }
+  }
+}
+JSON
+
+# 纯 key：不写 current（ADR-0020 归本机 llm-current），定义字段绝不混入
+cat > "$WORKDIR/conf/llm.json" <<JSON
+{
+  "llms": {
+    "direct": { "key": "sk-test-direct" },
+    "bridge-preset": { "key": "sk-test-bridge" }
   }
 }
 JSON
@@ -112,7 +128,7 @@ cat > "$TEST_HOME/.claude/settings.json" <<'JSON'
 JSON
 
 echo ""
-echo "═══ switch_llm 写出 settings.json 回归测试 ═══"
+echo "═══ switch_llm 写出 settings.json 回归测试（三层 LLM 配置）═══"
 echo "  mock upstream: localhost:$MOCK_PORT   测试 bridge 端口: $TEST_BRIDGE_PORT"
 echo "  隔离 HOME: $TEST_HOME"
 echo ""
@@ -128,6 +144,10 @@ export HOME="$TEST_HOME"
 export PYTHONPATH="${REAL_USER_SITE}${PYTHONPATH:+:$PYTHONPATH}"
 # 注意：resolve_conf 会自行拼 /conf/，所以这里给 ccprivate 根目录而非 conf 目录
 export CCPRIVATE_DIR="$WORKDIR"
+export LLM_NORMAL_FILE="$WORKDIR/conf/llmnormal.json"
+export LLM_PRIVATE_FILE="$WORKDIR/conf/llmprivate.json"
+export LLM_KEYS_FILE="$WORKDIR/conf/llm.json"
+export LLM_MERGED_CACHE="$WORKDIR/llm-merged.json"
 export TEST_MODE=1
 cd "$CCCONFIG_DIR" || exit 1
 
@@ -143,12 +163,16 @@ BRIDGE_PORT="$TEST_BRIDGE_PORT"
 BRIDGE_WD_PID="$TEST_HOME/bridge-watchdog.pid"
 BRIDGE_WD_LOG="$TEST_HOME/bridge-watchdog.log"
 
-# 前置检查：source 后 CONFIG_FILE 应指向测试配置
-if [[ "$CONFIG_FILE" != "$WORKDIR/conf/llm.json" ]]; then
-    _fail "CONFIG_FILE 未隔离到测试配置" "got=$CONFIG_FILE"
+# ── T0: 三个文件路径都已隔离到测试目录 ──
+echo "T0 三层文件路径必须指向隔离测试目录"
+if [[ "$LLM_KEYS_FILE" == "$WORKDIR/conf/llm.json" && \
+      "$LLM_NORMAL_FILE" == "$WORKDIR/conf/llmnormal.json" && \
+      "$LLM_PRIVATE_FILE" == "$WORKDIR/conf/llmprivate.json" ]]; then
+    _pass "三层文件隔离就绪 (KEYS=$LLM_KEYS_FILE)"
+else
+    _fail "三层文件未隔离" "got KEYS=$LLM_KEYS_FILE NORMAL=$LLM_NORMAL_FILE PRIV=$LLM_PRIVATE_FILE"
     exit 1
 fi
-_pass "环境隔离就绪 (CONFIG_FILE=$CONFIG_FILE)"
 
 # ── T1: bridge preset 切换 → BASE_URL 必须是 bridge 地址 ──
 echo "T1 bridge preset → settings.json 的 BASE_URL 应是 http://127.0.0.1:$TEST_BRIDGE_PORT"
@@ -200,26 +224,49 @@ else
     _fail "llm-current 未写入"
 fi
 
-# ── T4: 切换不应反复改写 conf/llm.json ──
+# ── T4: 切换不应反复改写 llm.json（纯 key）──
 # why mtime 而非内容：auto-sync 用 inotify 监听写事件，内容相同但重写文件照样
 # 触发 30s debounce + pull/push 网络往返，且 A 机写出的内容会 push 给 B 机
-echo "T4 切换不应反复改写 conf/llm.json（防 auto-sync 频繁触发）"
-switch_llm "bridge-preset" > /dev/null 2>&1   # 首次可能清掉历史 current 字段（一次性）
-before=$(stat -c %y "$CONFIG_FILE")
+echo "T4 切换不应反复改写 llm.json（防 auto-sync 频繁触发）"
+switch_llm "bridge-preset" > /dev/null 2>&1   # 首次可能写 key（一次性）
+before=$(stat -c %y "$LLM_KEYS_FILE")
 switch_llm "direct" > /dev/null 2>&1
-after=$(stat -c %y "$CONFIG_FILE")
+after=$(stat -c %y "$LLM_KEYS_FILE")
 if [[ "$before" == "$after" ]]; then
     _pass "llm.json 未被改写（mtime 不变）"
 else
     _fail "llm.json 被改写 → 触发 inotify → auto-sync 全仓同步" "before=$before after=$after"
 fi
 
-# ── T5: 本机选择不得留在共享 llm.json 里 ──
-echo "T5 llm.json 不应含 current 字段（本机选择归 ~/.claude/llm-current）"
-if python3 -c "import json,sys; sys.exit(0 if 'current' in json.load(open('$CONFIG_FILE')) else 1)" 2>/dev/null; then
-    _fail "llm.json 仍含 current → 跨机会同步旧选择"
+# ── T5: 本机选择不得留在共享 llm.json 里；定义文件不得被 key 污染 ──
+echo "T5 三层分离：llm.json 无 current/无定义字段；llmnormal/llmprivate 无 key"
+if python3 -c "
+import json
+for p, bad in [('$LLM_KEYS_FILE','current'),('$LLM_NORMAL_FILE','key'),('$LLM_PRIVATE_FILE','key')]:
+    d = json.load(open(p))
+    if bad == 'current':
+        assert 'current' not in d, 'llm.json 含 current'
+    else:
+        for n, c in d.get('llms', {}).items():
+            assert 'key' not in c, f'{n} 含 key'
+print('ok')" 2>/dev/null; then
+    _pass "三层未互相污染"
 else
-    _pass "llm.json 已无 current 字段"
+    _fail "三层结构被破坏（key/current/定义混入）"
+fi
+
+# ── T6: 内置预设（llmnormal，_src=normal）删除必须被拒绝 ──
+echo "T6 内置预设不可删：delete_preset 拒绝 direct 且文件未变"
+before_files="$(md5sum "$LLM_NORMAL_FILE" "$LLM_PRIVATE_FILE" "$LLM_KEYS_FILE")"
+if delete_preset "direct" >/dev/null 2>&1; then
+    _fail "内置预设 'direct' 被删除（应拒绝）"
+else
+    after_files="$(md5sum "$LLM_NORMAL_FILE" "$LLM_PRIVATE_FILE" "$LLM_KEYS_FILE")"
+    if [[ "$before_files" == "$after_files" ]]; then
+        _pass "内置预设删除被拒绝，且三文件未动"
+    else
+        _fail "拒绝时仍改写了文件"
+    fi
 fi
 
 echo ""

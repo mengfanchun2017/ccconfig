@@ -20,7 +20,7 @@ _bridge_wd_log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$BRIDGE_WD_LOG";
 #     反而杀掉正在服务的进程、打断进行中的请求（旧版就是这么把好 bridge 换掉的）。
 # why 每轮读 llm-current 而非启动时绑参：watchdog wrapper 是启动时一次性生成的，
 #     绑参后切 preset 会拿旧 upstream 覆盖用户刚选的 preset。
-# 参数: cfg(llm.json 路径)
+# 参数: cfg(merged 缓存 llm-merged.json 路径，由 init-llm.sh merge 生成)
 start_bridge_watchdog() {
     local cfg="${1:-}"
     local initial_preset="${2:-}"
@@ -84,7 +84,7 @@ _bridge_supported() {
     return 0
 }
 
-# 读 llm.json 预设的 base_url|model|key|host_header（无 upstream_original 兼容）
+# 读 merged 缓存(llm-merged.json)预设的 base_url|model|key|host_header（无 upstream_original 兼容）
 # host_header 可选：tailscale/SSH 透传场景证书 SAN 不匹配 IP 时，把 SNI+Host 改成证书里的真实域名/IP
 read_bridge_config() {
     python3 - "$1" "$2" << 'PYEOF'
@@ -196,7 +196,7 @@ WRAPEOF
 }
 
 # 仅自愈：env 指向 127.0.0.1:8898 但 bridge 死了时拉起
-# 用法: selfheal_bridge <llm.json 路径>
+# 用法: selfheal_bridge <merged 缓存路径>
 # 返回 0=健康或拉起成功 1=拉起失败
 selfheal_bridge() {
     local cfg="$1"

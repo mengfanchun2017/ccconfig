@@ -118,37 +118,26 @@ ccprivate/
 
 ### 3.1 conf/llm.json — LLM API Key（必填）
 
-从 `ccconfig/conf/llm.json.example` 复制模板，填入你的 API Key：
+LLM 配置为三层结构，读取时自动合并：
 
-```bash
-cp ~/git/ccconfig/conf/llm.json.example ~/git/ccprivate/conf/llm.json
-```
+| 文件 | 位置 | 内容 |
+|------|------|------|
+| `llmnormal.json` | `ccconfig/conf/`（开源） | 内置预设定义（MiniMax/DeepSeek/GLM/MiMo），**无 key** |
+| `llmprivate.json` | `ccprivate/conf/`（私有） | 自定义预设定义（如 office*/home*），**无 key** |
+| `llm.json` | `ccprivate/conf/`（私有） | **纯 API Key**，`{llms: {name: {key}}} ` |
 
-编辑 `~/git/ccprivate/conf/llm.json`：
+新用户只填 key——内置预设已随 ccconfig 安装，3a 更新各预设 key 即可：
 
 ```json
 {
     "llms": {
-        "deepseek": {
-            "name": "DeepSeek",
-            "base_url": "https://api.deepseek.com/anthropic",
-            "model": "deepseek-v4-pro",
-            "key": "sk-你的DeepSeek API Key",
-            "small_model": "deepseek-v4-pro"
-        },
-        "minimax": {
-            "name": "MiniMax",
-            "base_url": "https://api.minimaxi.com/anthropic",
-            "model": "MiniMax-M3",
-            "key": "sk-你的MiniMax API Key",
-            "small_model": "MiniMax-M3"
-        }
-    },
-    "current": "deepseek"
+        "minimax31": { "key": "sk-你的 MiniMax Key" },
+        "deepseek41flash": { "key": "sk-你的 DeepSeek Key" }
+    }
 }
 ```
 
-至少填一个 LLM 后端。`current` 设为你日常用的默认后端。
+需要特殊预设（如单位内网端点）时，把定义写进 `ccprivate/conf/llmprivate.json`，key 仍放 `llm.json`。当前预设以本机 `~/.claude/llm-current` 为准。
 
 ### 3.2 conf/mcp-servers.json — MCP 服务器配置
 
