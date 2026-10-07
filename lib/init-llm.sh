@@ -103,7 +103,7 @@ if cache_f:
             pass
         tmp_f = cache_f + '.tmp'
         with open(tmp_f, 'w') as f:
-            json.dump({"llms": snap, "current": cur}, f, indent=2, ensure_ascii=False)
+            json.dump({"llms": snap, "current": cur or kd.get('current', '')}, f, indent=2, ensure_ascii=False)
         os.replace(tmp_f, cache_f)
     except Exception:
         pass
