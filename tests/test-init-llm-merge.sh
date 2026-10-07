@@ -149,6 +149,46 @@ else
     _fail "缓存文件格式错" "got: $cache_ok"
 fi
 
+# ── T6: 旧格式 llm.json 升级兼容 — 带 base_url 的完整条目收编为自定义预设 ──
+echo "T6 旧格式 llm.json（三层前的完整配置）：收编 + key 保留 + current 继承"
+cat > "$WORKDIR/legacy-keys.json" << 'EOF'
+{
+    "llms": {
+        "builtin-a": { "key": "sk-new-format" },
+        "legacy-full": {
+            "name": "LegacyFull",
+            "base_url": "https://api.legacy.example/anthropic",
+            "model": "legacy-model",
+            "small_model": "legacy-small",
+            "key": "sk-legacy-full"
+        }
+    },
+    "current": "legacy-full"
+}
+EOF
+legacy_out=$(run_merge "$WORKDIR/normal.json" "$WORKDIR/private.json" "$WORKDIR/legacy-keys.json" "$WORKDIR/cache4.json" "$WORKDIR/legacy-home")
+legacy_ok=$(printf '%s' "$legacy_out" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+ok = True
+lg = d.get('legacy-full', {})
+if lg.get('_src') != 'private': ok = False
+if lg.get('key') != 'sk-legacy-full': ok = False
+if lg.get('model') != 'legacy-model': ok = False
+if d['builtin-a'].get('key') != 'sk-new-format': ok = False
+print('LEGACYOK' if ok else 'LEGACYBAD')
+")
+cache_cur=$(python3 -c "
+import json
+d = json.load(open('$WORKDIR/cache4.json'))
+print('CUR=' + repr(d.get('current','')))
+")
+if [[ "$legacy_ok" == "LEGACYOK" && "$cache_cur" == "CUR='legacy-full'" ]]; then
+    _pass "旧格式收编：legacy-full 成自定义预设（key/model 保留），current 继承"
+else
+    _fail "旧格式兼容失败" "got: $legacy_ok $cache_cur"
+fi
+
 echo ""
 echo "───────────────────────────────"
 if [[ $FAIL -eq 0 ]]; then
