@@ -139,7 +139,11 @@ flowchart LR
 
 **现行判据**：走 bridge 的 preset 先 `ensure_bridge`、再经 bridge 发**流式**请求；判定 = 收到终止标记（`message_stop` / `[DONE]`）**且**响应无 `"type":"error"` **且** curl 退出码为 0（18 = 连接被掐断）。
 
-**回归测试**：`tests/test-openai-bridge.sh`（用 mock upstream 造出正常/停顿/截断/空响应四种形态）。
+**HTTP 码分发**（`test_llm`）：`429` → warn 但放行（上游负载饱和，可自愈）；`401/403` → **中止切换**（鉴权失败是确定性配置错，key 无效/过期/无该模型权限，旧行为 warn 放行会把一个必然 401 的 key 写进 settings.json，用户到 Claude 里才发现"切过去了但用不了"）。切前先做**占位符拦截**：key 为空或含 `请填入`/`your key` 等占位词，直接 error 返回 1（提示"菜单按 3a 录入该预设的 Key"），不发起探测。
+
+**无 Key 可见性**：`init-llm list` 输出第 8 列 `has_key`（0/1），`list`/菜单/删除/3a 下拉都把无 key 预设标 `[无 Key]`（菜单内置循环带 `[无 Key · 按 3a 录入]`），避免"看着配好了其实没 key"的错觉。
+
+**回归测试**：`tests/test-openai-bridge.sh`（用 mock upstream 造出正常/停顿/截断/空响应四种形态）；`tests/test-init-llm-switch.sh` 的 T7 校验 `list_llms` 8 列契约（`has_key` ∈ {0,1}，内置 + 无 key 各至少出现一次，read 端不吞列）。
 
 ### 5.4 额外坑：WSL2 MTU 1280 杀 tailscale 大包
 
