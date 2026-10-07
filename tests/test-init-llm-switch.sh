@@ -269,6 +269,38 @@ else
     fi
 fi
 
+# ── T7: list_llms 输出列契约（8 列）──
+# why：菜单渲染、删除过滤、key 更新菜单全靠按列位 read。少一个变量时 read 会把
+# 多余字段并进最后一个变量（is_builtin 拿到 "1|1"），过滤静默失效 —— 内置预设
+# 会混进「可删除的模型」。列数变了必须同步所有 read 端，用本测试兜住。
+echo "T7 list_llms 每行 8 列，is_builtin/has_key 均为 0/1"
+python3 - "$LLM_KEYS_FILE" <<'PYEOF'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d.setdefault('llms', {})['direct'] = {'key': '请填入你的测试 Key'}
+json.dump(d, open(p, 'w'), indent=2, ensure_ascii=False)
+PYEOF
+t7_res=$(list_llms | python3 -c "
+import sys
+rows = 0; bad = []; builtin_seen = False; nokey_seen = False
+for ln in sys.stdin.read().splitlines():
+    if not ln or ln.startswith('TOTAL:') or ln.startswith('CURRENT:'): continue
+    f = ln.split('|')
+    if len(f) != 8: bad.append('cols=%d' % len(f)); continue
+    rows += 1
+    if f[6] not in ('0', '1'): bad.append('is_builtin=' + f[6])
+    if f[7] not in ('0', '1'): bad.append('has_key=' + f[7])
+    if f[6] == '1': builtin_seen = True
+    if f[7] == '0': nokey_seen = True
+print('ROWS=%d BUILTIN=%s NOKEY=%s BAD=%s' % (rows, builtin_seen, nokey_seen, bad[:3]))
+")
+if [[ "$t7_res" == *"BAD=[]"* && "$t7_res" == *"BUILTIN=True"* && "$t7_res" == *"NOKEY=True"* ]]; then
+    _pass "list_llms 列契约成立（$t7_res）"
+else
+    _fail "list_llms 列契约被破坏" "got: $t7_res"
+fi
+
 echo ""
 echo "───────────────────────────────"
 if [[ $FAIL -eq 0 ]]; then
