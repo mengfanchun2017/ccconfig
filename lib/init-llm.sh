@@ -704,7 +704,9 @@ PYEOF
 
     if [[ -z "$target" ]]; then
         local items=() names=()
-        while IFS='|' read -r _ name display model _ _ is_builtin; do
+        # 末位 _ 接住第 8 列 has_key：read 会把多余字段并进最后一个变量，
+        # 少了它 is_builtin 会拿到 "1|1" → 内置预设过滤失效（会混进删除菜单）
+        while IFS='|' read -r _ name display model _ _ is_builtin _; do
             [[ -z "$name" ]] && continue
             [[ "$is_builtin" == "1" ]] && continue
             names+=("$name")
