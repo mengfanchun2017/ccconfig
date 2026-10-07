@@ -766,8 +766,10 @@ check_example_sync() {
 # 未用 bridge 的用户（settings.json 不含 127.0.0.1:8898）在 selfheal_bridge 内短路，零开销。
 _bridge_cold_start() {
     local cfg
-    cfg=$(resolve_conf llm.json 2>/dev/null) || return 0
-    [[ -n "$cfg" && -f "$cfg" ]] || return 0
+    cfg="$HOME/.cache/llm-merged.json"
+    # 三层合并缓存可能未生成（冷启动），先生成再看
+    [[ -f "$cfg" ]] || bash "$SCRIPT_DIR/init-llm.sh" merge >/dev/null 2>&1 || true
+    [[ -f "$cfg" ]] || return 0
     source "$SCRIPT_DIR/ensure-bridge.sh"
     selfheal_bridge "$cfg" || true
 }
