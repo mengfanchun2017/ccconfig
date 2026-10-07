@@ -22,10 +22,13 @@ GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC
 
 # 可用的 JSON 文件（实际运行时在 ccprivate，测试可能没有）
 find_json() {
-    # 优先 ccprivate 运行时，其次 .example 模板
+    # 顺序：显式路径 > ccprivate 运行时 > ccconfig 自建 > .example 模板
     local name="$1"
+    [ -n "$name" ] && [ -f "$name" ] && { echo "$name"; return; }
     if [ -f "$CCCONFIG_DIR/../ccprivate/conf/$name" ]; then
         echo "$CCCONFIG_DIR/../ccprivate/conf/$name"
+    elif [ -f "$CCCONFIG_DIR/conf/$name" ]; then
+        echo "$CCCONFIG_DIR/conf/$name"
     elif [ -f "$CCCONFIG_DIR/conf/$name.example" ]; then
         echo "$CCCONFIG_DIR/conf/$name.example"
     else
@@ -33,48 +36,62 @@ find_json() {
     fi
 }
 
-# ═══ llm.json ═══
-test_llm_json_structure() {
-    local f=$(find_json "llm.json")
-    [ -z "$f" ] && { skip "llm.json" "未找到 (ccprivate/conf 或 .example)"; return; }
-    python3 - "$f" << 'PYEOF' >/dev/null 2>&1
+# ═══ LLM 三层配置结构（ADR-LLM3L：定义与 key 分离） ═══
+#   llmnormal.json   内置预设定义（ccconfig 开源，无 key）
+#   llmprivate.json  自定义预设定义（ccprivate 私有，无 key）
+#   llm.json         Pure Key（ccprivate 私有，{llms:{name:{key}}})
+# 读取时三层合并，key 单独存 —— 定义文件绝不能含 key，key 文件绝不能含定义。
+
+# 校验"定义文件"（normal/private）结构：name/base_url/model 必含，绝不能含 key 字段
+test_llm_def_structure() {
+    local path="$1" label="$2"
+    [ -z "$path" ] && { skip "$label" "未找到"; return; }
+    python3 - "$path" << 'PYEOF' >/dev/null 2>&1
 import json, sys
 with open(sys.argv[1]) as f: d = json.load(f)
-# 不要求 current：ADR-0020 后 current 归本机 ~/.claude/llm-current，
-# llm.json 里不该有它（有也是旧机器残留，会被 write_llm_config 清掉）
 llms = d.get('llms', {})
 assert llms, "empty llms"
 for name, cfg in llms.items():
-    for k in ('name', 'base_url', 'model', 'key'):
+    for k in ('name', 'base_url', 'model'):
         assert k in cfg, f"{name} missing {k}"
+    assert 'key' not in cfg, f"{name} 不应含 key（key 在 llm.json）"
 print("OK")
 PYEOF
-    if [ $? -eq 0 ]; then
-        pass "llm.json: llms.{name}.key/base_url/model 齐全"
-    else
-        fail "llm.json" "结构不完整"
-    fi
+    [ $? -eq 0 ] && pass "$label: 定义完整且无 key 泄露" || fail "$label" "缺字段或含 key"
 }
 
-test_llm_json_current_in_llms() {
+test_llmnormal_structure() {
+    local f=$(find_json "llmnormal.json")
+    [ -z "$f" ] && { skip "llmnormal.json" "未找到（ccconfig 自建）"; return; }
+    test_llm_def_structure "$f" "llmnormal.json"
+}
+
+test_llmprivate_structure() {
+    local f=$(find_json "llmprivate.json")
+    test_llm_def_structure "$f" "llmprivate.json"
+}
+
+test_llm_keys_structure() {
     local f=$(find_json "llm.json")
-    [ -z "$f" ] && return
-    # ADR-0020：current 的权威来源是本机 ~/.claude/llm-current（不跨机同步），
-    # llm.json.current 只是兼容旧机器的副本 → 二者取其一，都没有就不校验
-    local local_cur=""
-    [ -f "$HOME/.claude/llm-current" ] && local_cur=$(tr -d '[:space:]' < "$HOME/.claude/llm-current")
-    python3 - "$f" "$local_cur" << 'PYEOF' >/dev/null 2>&1
+    [ -z "$f" ] && { skip "llm.json" "未找到"; return; }
+    python3 - "$f" << 'PYEOF' >/dev/null 2>&1
 import json, sys
 with open(sys.argv[1]) as f: d = json.load(f)
-cur = sys.argv[2] or d.get('current', '')
-if cur:
-    assert cur in d.get('llms', {}), f"current={cur} not in llms"
+# ADR-0020：current 归本机 ~/.claude/llm-current，llm.json 里不该有
+assert 'current' not in d, "llm.json 含 current（应在本机 llm-current）"
+llms = d.get('llms', {})
+assert llms, "empty llms"
+for name, cfg in llms.items():
+    # 纯 key 文件：每个条目只能有 key 字段（可以空、可占位符，等用户 3a 填）
+    extra = [k for k in cfg if k != 'key']
+    assert not extra, f"{name} 混入定义字段 {extra}（应在 llmnormal/llmprivate）"
+    assert 'key' in cfg, f"{name} 缺 key"
 print("OK")
 PYEOF
-    [ $? -eq 0 ] && pass "llm.json: current 指向存在的 provider" || fail "llm.json" "current 不指向任何 provider"
+    [ $? -eq 0 ] && pass "llm.json: 纯 key 结构（无 current/无定义混入）" || fail "llm.json" "结构不符（三层分离被破坏）"
 }
 
-test_llm_json_key_not_placeholder() {
+test_llm_key_not_placeholder() {
     local f=$(find_json "llm.json")
     [ -z "$f" ] && return
     python3 - "$f" << 'PYEOF' >/dev/null 2>&1
@@ -171,9 +188,10 @@ run_tests() {
 }
 
 all_tests=(
-    "desc: llm.json 结构" test_llm_json_structure
-    "desc: llm.json current 指向" test_llm_json_current_in_llms
-    "desc: llm.json 无占位符 key" test_llm_json_key_not_placeholder
+    "desc: llmnormal.json 定义结构" test_llmnormal_structure
+    "desc: llmprivate.json 定义结构" test_llmprivate_structure
+    "desc: llm.json 纯 key 结构" test_llm_keys_structure
+    "desc: llm.json 无占位符 key" test_llm_key_not_placeholder
     "desc: mcp-servers.json mcp_servers" test_mcp-servers.json_mcp_servers
     "desc: settings.json env 合并" test_settings_json_env_merge
     "desc: example 占位符检测" test_example_placeholder_detection

@@ -49,7 +49,9 @@ flowchart TB
 ### 系统配置（JSON，程序消费）
 
 ```
-ccprivate/conf/llm.json ──resolve_conf() 读──→ init-llm.sh 读取──→ ~/.claude/.config.json
+conf/llmnormal.json(公开内置) + ccprivate/conf/llmprivate.json(私有自定义)
+                          + ccprivate/conf/llm.json(纯 key)
+                          ──init-llm.sh _llms_merged_py 合并──→ ~/.cache/llm-merged.json ──→ ~/.claude/.config.json
 ccprivate/conf/claude.json ──resolve_conf() 读──→ init-mcp.sh 读取──→ ~/.claude/.config.json
 ```
 
@@ -81,7 +83,7 @@ templates/.config.json.example   ──cp 一次──→ ~/.claude/.config.json
 templates/.claudeignore.example  ──cp 一次──→ ~/.claude/.claudeignore
 ```
 
-LLM 的 preset 定义（`conf/llm.json`）共享；"本机当前选了哪个"存 `~/.claude/llm-current`，故 A 机切换不影响 B 机。
+LLM 的 preset 定义分三层共享：内置定义 `conf/llmnormal.json`（公开）、自定义定义 `ccprivate/conf/llmprivate.json`（私有）、纯 key `ccprivate/conf/llm.json`（私有）。三层由 `init-llm.sh` 合并成 `~/.cache/llm-merged.json`（见 [ADR-0039](adr/0039-llm-three-tier-config.md)）。"本机当前选了哪个"存 `~/.claude/llm-current`，每机独立，故 A 机切换不影响 B 机。
 
 ### 运行时配置（ccprivate → ~/.claude/）
 

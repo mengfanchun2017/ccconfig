@@ -330,9 +330,8 @@ setup_llm_backend() {
         return 1
     fi
 
-    # 直接切换到 conf-llm.json 中指定的 current LLM（不交互）
-    local llm_conf=$(resolve_conf llm.json) || return 1
-    local current_llm=$(python3 -c "import json; f=open('$llm_conf'); print(json.load(f).get('current',''))" 2>/dev/null || echo "")
+    # 直接切换到当前 LLM（本机 llm-current 为权威来源，ADR-0020）
+    local current_llm=$(cat "$HOME/.claude/llm-current" 2>/dev/null | tr -d '[:space:]' || echo "")
 
     if [[ -n "$current_llm" ]]; then
         info "配置 LLM: $current_llm"

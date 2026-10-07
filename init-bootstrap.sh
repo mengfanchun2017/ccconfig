@@ -352,21 +352,18 @@ collect_info() {
 # ============================================================
 gen_llm_json() {
     local f="$CCPRIVATE_DIR/conf/llm.json"
+    # 三层后 llm.json 是纯 key（{llms:{name:{key}}}），定义在 llmnormal/llmprivate。
+    # preset 名对齐 llmnormal.json 内置名（deepseek41flash / minimax31），current 归 llm-current。
     DEEPSEEK_KEY="${DEEPSEEK_KEY:-}" MINIMAX_KEY="${MINIMAX_KEY:-}" \
-    DEFAULT_LLM="$DEFAULT_LLM" OUT="$f" python3 << 'PYEOF'
+    OUT="$f" python3 << 'PYEOF'
 import json, os
 llms = {}
-for k, v in [("deepseek","DEEPSEEK_KEY"),("minimax","MINIMAX_KEY")]:
-    key = os.environ.get(v, "")
-    if not key:
-        continue
-    if k == "deepseek":
-        llms[k] = {"name":"DeepSeek","base_url":"https://api.deepseek.com/anthropic","model":"deepseek-v4-pro","key":key,"small_model":"deepseek-v4-pro"}
-    elif k == "minimax":
-        llms["minimax31"] = {"name":"MiniMax3.1","base_url":"https://api.minimaxi.com/anthropic","model":"MiniMax-M3.1-Flash-Preview","key":key,"small_model":"MiniMax-M3.1-Flash-Preview"}
-d = {"llms": llms, "current": os.environ["DEFAULT_LLM"]}
+for name, var in [("deepseek41flash","DEEPSEEK_KEY"),("minimax31","MINIMAX_KEY")]:
+    key = os.environ.get(var, "")
+    if key:
+        llms[name] = {"key": key}
 with open(os.environ["OUT"], "w") as fh:
-    json.dump(d, fh, indent=4, ensure_ascii=False)
+    json.dump({"llms": llms}, fh, indent=4, ensure_ascii=False)
     fh.write("\n")
 PYEOF
     ok "conf/llm.json"
