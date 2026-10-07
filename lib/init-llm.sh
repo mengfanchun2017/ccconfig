@@ -192,12 +192,17 @@ except Exception:
 cur = os.environ.get('LIST_CUR', '')
 print(f"TOTAL:{len(llms)}")
 print(f"CURRENT:{cur}")
+PH = ('请填入', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-')
 for name, llm in llms.items():
     model = llm.get('model', '')
     marker = "◀" if name == cur else " "
     small = llm.get('small_model', '')
     is_builtin = '1' if llm.get('_src') == 'normal' else '0'
-    print(f"{marker}|{name}|{llm.get('name', name)}|{model}|{llm.get('base_url','')}|{small}|{is_builtin}")
+    # 第 8 列 has_key：菜单据此标出「无 Key」的预设，避免用户以为已配好却切换失败
+    kv = (llm.get('key') or '')
+    kl = kv.lower()
+    has_key = '0' if (not kv or any(p in kl for p in PH)) else '1'
+    print(f"{marker}|{name}|{llm.get('name', name)}|{model}|{llm.get('base_url','')}|{small}|{is_builtin}|{has_key}")
 PYEOF
 }
 
@@ -509,7 +514,9 @@ test_llm() {
     [[ -z "$key" ]] && _is_ph=1
     [[ $_is_ph -eq 0 ]] && case "$key" in *请填入*|*请替换*|*your.key*|*placeholder*|*changeme*) _is_ph=1 ;; esac
     if [[ $_is_ph -eq 1 ]]; then
-        error "预设 '$target' 无有效 Key"; return 1
+        error "预设 '$target' 无有效 Key（ccprivate/conf/llm.json 里是空或占位符）"
+        error "  修：菜单按 3a 录入该预设的 Key"
+        return 1
     fi
 
     info "测试: $target ($model @ $base_url)"
@@ -585,7 +592,13 @@ test_llm() {
             error "  查 DNS / 出口 / VPN（内网 preset 在家不可达是正常的，切 home preset）"
             ;;
         429) warn "⚠ HTTP 429 — 链路通，上游负载饱和（网关侧限流）"; return 0 ;;
-        401|403) warn "⚠ HTTP $http_code — 链路通但鉴权失败（key 可能无效）"; return 0 ;;
+        401|403)
+            # 鉴权失败是确定性配置错（key 错/过期/无该模型权限），与 429/overload 的
+            # 上游抖动不同：放行会把一个必然 401 的 key 写进 settings.json，用户只能在
+            # Claude 里才发现「切过去了但用不了」→ 中止切换，让错误停在切换这一步
+            error "✗ HTTP $http_code — 鉴权失败：'$target' 的 key 无效/过期/无该模型权限"
+            error "  修：菜单按 3a 重新录入该预设的 Key（当前 key 尾号 ${key: -4}）"
+            return 1 ;;
         *)   if printf '%s' "$out" | grep -q '"type":"error"'; then
                  error "✗ 流式链路报错（upstream 中断或被截断）"
              else
@@ -605,10 +618,11 @@ show_list() {
     local current
     current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
 
-    while IFS='|' read -r marker name display model base small is_builtin; do
+    while IFS='|' read -r marker name display model base small is_builtin has_key; do
         [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
         local info_small=""
         [[ -n "$small" ]] && info_small=" ${DIM}(小: $small)${NC}"
+        [[ "$has_key" == "0" ]] && info_small+=" ${YELLOW}[无 Key]${NC}"
         printf "  %s %-10s %-20s%b\n" "$marker" "$display" "$model" "$info_small"
     done < <(echo "$lines")
     echo ""
@@ -625,9 +639,10 @@ update_llm_key() {
 
     if [[ -z "$target" ]]; then
         local items=() names=()
-        while IFS='|' read -r _ name display _ _ _ _; do
+        while IFS='|' read -r _ name display _ _ _ _ has_key; do
             [[ -z "$name" ]] && continue
             names+=("$name")
+            [[ "$has_key" == "0" ]] && display="$display [无 Key]"
             items+=("$display")
         done < <(list_llms)
         [[ ${#items[@]} -eq 0 ]] && { info "无预设"; return 0; }
@@ -808,7 +823,7 @@ interactive_select() {
         builtin_idx=0; custom_idx=0
 
         # 预扫描：切分 builtin 与自定义两段（渲染序号需在组内连续）
-        while IFS='|' read -r marker name display_name model base_url small is_builtin; do
+        while IFS='|' read -r marker name display_name model base_url small is_builtin has_key; do
             [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
             if [[ "$is_builtin" == "1" ]]; then
                 builtin_item_name+=("$name")
@@ -818,26 +833,30 @@ interactive_select() {
         done < <(echo "$lines")
 
         echo -e "  ${BOLD_GRAY}--LLM预设--${NC}"
-        while IFS='|' read -r marker name display_name model base_url small is_builtin; do
+        while IFS='|' read -r marker name display_name model base_url small is_builtin has_key; do
             [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
             [[ "$is_builtin" != "1" ]] && continue
             local small_str=""
             [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
             local cur_mark=" "
             [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
-            echo -e "  ${BOLD_GREEN}1${letters:$builtin_idx:1}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}"
+            local key_str=""
+            [[ "$has_key" == "0" ]] && key_str=" ${YELLOW}[无 Key · 按 3a 录入]${NC}"
+            echo -e "  ${BOLD_GREEN}1${letters:$builtin_idx:1}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${key_str}"
             builtin_idx=$((builtin_idx+1))
         done < <(echo "$lines")
 
         echo -e "  ${BOLD_GRAY}--LLM自定义--${NC}"
-        while IFS='|' read -r marker name display_name model base_url small is_builtin; do
+        while IFS='|' read -r marker name display_name model base_url small is_builtin has_key; do
             [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
             [[ "$is_builtin" == "1" ]] && continue
             local small_str=""
             [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
             local cur_mark=" "
             [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
-            echo -e "  ${BOLD_GREEN}2${letters:$custom_idx:1}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}"
+            local key_str=""
+            [[ "$has_key" == "0" ]] && key_str=" ${YELLOW}[无 Key · 按 3a 录入]${NC}"
+            echo -e "  ${BOLD_GREEN}2${letters:$custom_idx:1}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${key_str}"
             custom_idx=$((custom_idx+1))
         done < <(echo "$lines")
 
