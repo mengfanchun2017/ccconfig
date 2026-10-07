@@ -85,12 +85,11 @@ for name, k in kd.get('llms', {}).items():
     if name in merged:
         merged[name]['key'] = k.get('key', '')
     elif k.get('base_url'):
-        spec = {kk: vv for kk, vv in k.items() if kk != 'key'}
+        spec = dict(k)
         spec['_src'] = 'private'
         merged[name] = spec
 for name, llm in merged.items():
-    if 'key' not in llm:
-        llm['key'] = ''
+    llm.setdefault('key', '')
 # 导出合并快照给 bridge 组件读（本机缓存，不入 git）
 if cache_f:
     try:
