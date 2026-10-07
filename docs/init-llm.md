@@ -197,6 +197,12 @@ key 文件（`llm.json`）只管 key，不与预设定义耦合：
 
 **合并规则**：`_llms_merged_py()` 先合并 normal + private（同名 private 覆盖 normal），再按名字把 `llm.json` 的 key 织进定义。合并结果带 `_src` 字段（`normal` / `private`）供菜单分组 + 内置预设不可删判定，并落缓存 `~/.cache/llm-merged.json`（bridge 冷启动 / SessionStart 自愈读它，见 `init-llm.sh merge`）。
 
+**旧版升级兼容**（三层前的 `llm.json` 是完整配置，base_url/model/key 同条目）：
+- 条目带 `base_url` 且不在 normal/private 定义里 → 自动收编为自定义预设（`_src=private`），key/model 原样保留
+- 条目只带 `key` 或同名已有定义 → 按 key 织入
+- `llm-current` 本地文件缺失时，缓存 `current` 从旧格式 `llm.json` 的 `current` 字段继承
+- 升级机器无需任何手动迁移，跑任意入口（`list` / `merge`）即完成收敛；缓存写入走 tmp + `os.replace` 原子替换
+
 字段语义（定义文件）：
 - **`use_bridge` 三态**（memory `use-bridge-absent-vs-false-20260907`）：
   - `"True"` 显式强制走 bridge
