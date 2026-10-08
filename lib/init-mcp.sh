@@ -253,20 +253,6 @@ for server in conf_data.get('mcp_servers', []):
         entry['args'] = new_args
     if server.get('disabled'):
         disabled_names.append(name); continue
-    # getnote 多账号：以 getnote_accounts[getnote_default] 为权威 env，跳过下方 claude_data/settings_data merge
-    getnote_overridden = False
-    if name == 'getnote':
-        accounts = conf_data.get('getnote_accounts') or []
-        default_name = conf_data.get('getnote_default') or ''
-        if accounts and default_name:
-            for a in accounts:
-                if a.get('name') == default_name and a.get('enabled', True):
-                    entry['env'] = {
-                        'GETNOTE_API_KEY': a.get('api_key', ''),
-                        'GETNOTE_CLIENT_ID': a.get('client_id', ''),
-                    }
-                    getnote_overridden = True
-                    break
     # conf 是 env 的真相源，直接写入 settings
     mcp_servers[name] = entry
 
