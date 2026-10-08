@@ -92,25 +92,18 @@ do_install() {
         ok "CLI 已安装: $v"
     else
         info "安装 @getnote/cli（需 Node.js 18+）..."
-        if $DRY_RUN; then
-            info "DRY-RUN: npm install -g @getnote/cli@latest"
-        else
-            npm install -g @getnote/cli@latest 2>&1 | sed 's/^/  /'
-        fi
+        dry_run_banner
+        run npm install -g @getnote/cli@latest
         ensure_path
         cli_exists && ok "CLI 安装完成" || { err "CLI 安装失败，检查 npm 输出"; return 1; }
     fi
 
     # 5 个原子 Skill + OAuth 授权（getnote setup 一体化）
     info "安装 5 个原子 Skill 并授权..."
-    if $DRY_RUN; then
-        info "DRY-RUN: getnote setup && getnote auth login"
-    else
-        getnote setup 2>&1 | sed 's/^/  /'
-        echo ""
-        info "开始 OAuth 授权（浏览器确认）..."
-        getnote auth login
-    fi
+    run getnote setup
+    echo ""
+    info "开始 OAuth 授权（浏览器确认）..."
+    run getnote auth login
 
     echo ""
     getnote doctor -o json 2>/dev/null | grep -q '"ready": *true' \
@@ -127,11 +120,7 @@ do_auth() {
     fi
     echo ""
     info "打开浏览器完成得到大脑授权..."
-    if $DRY_RUN; then
-        info "DRY-RUN: getnote auth login"
-    else
-        getnote auth login
-    fi
+    run getnote auth login
     getnote auth status 2>/dev/null | head -1
 }
 
