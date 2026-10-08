@@ -287,17 +287,14 @@ PYEOF
         warn "GitHub PAT 未登录/失效 → ./maintain.sh pat"
         _manual=$((_manual + 1))
     fi
-    # getnote 多账号无 default：选谁当默认是用户偏好
-    local _gn_conf="$ccpriv/conf/mcp-servers.json"
-    if [ -f "$_gn_conf" ] && python3 - "$_gn_conf" << 'PYEOF' 2>/dev/null
-import json,sys
-try: d=json.load(open(sys.argv[1]))
-except: sys.exit(0)
-a=d.get('getnote_accounts') or []
-sys.exit(0 if (len([x for x in a if x.get('enabled',True)]) > 1 and not d.get('getnote_default')) else 1)
-PYEOF
-    then
-        warn "getnote 多账号未设 default → 菜单 8（getnote-switch <名> -p）"
+    # getnote CLI 授权检查：未装/未授权列入需决策项（OAuth 必须本人在浏览器确认）
+    if command -v getnote >/dev/null 2>&1; then
+        if ! getnote auth status 2>/dev/null | grep -q "Authenticated"; then
+            warn "getnote CLI 未授权 → bash ccconfig/option-getnote/init.sh auth"
+            _manual=$((_manual + 1))
+        fi
+    else
+        warn "getnote CLI 未安装 → bash ccconfig/option-getnote/init.sh install"
         _manual=$((_manual + 1))
     fi
     # 各 git 仓库 memory/CLAUDE.md 断链：ccprivate/setup.sh 只管 ccconfig 自己
