@@ -193,7 +193,7 @@ ccconfig/
 ├── option-officecli/         # 可选：Office CLI（PPT/docx/xlsx）
 ├── option-cloudflare/        # 可选：Cloudflare 开发环境
 ├── option-remote/            # 可选：Tailscale + SSH 远程
-├── option-getnote/           # 可选：得到大脑 MCP 笔记集成
+├── option-getnote/           # 可选：得到大脑 CLI + Skill 集成
 ├── option-skill/             # 可选：Skill 安装（包装 lib/init-skill.sh）
 ├── option-llmswitch/         # 内部：Anthropic↔OpenAI 桥（init-llm.sh 自动管理）
 ├── bin/ccconfig              # CLI 包装（子命令转发到 maintain.sh / init-*.sh）
@@ -273,7 +273,7 @@ bash lib/init-llm.sh test <preset>      # 真实链路探测（走 bridge + 流�
  6) officecli   ✓ OfficeCLI 已安装 — 生成 .pptx/.docx
  7) remote      ✗ 未配置 — SSH + Tailscale 远程
  8) cloudflare  ✗ 未配置 — Cloudflare Workers/Pages
- 9) getnote     ✗ 未配置 — 得到大脑 MCP 笔记集成
+ 9) getnote     ✗ 未配置 — 得到大脑 CLI + Skill 集成
 ...
 10) 全部安装
 11) 退出
