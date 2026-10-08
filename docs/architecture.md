@@ -256,7 +256,7 @@ Tier 4: 应用 Skill（最终用户工作流）
   fresearchreport   报告生成 → 委托 fresearchframe + freportstd + ffeishu
   flogme            个人管理系统（OKR/Worklog/Reflect/SUM）
   fmoocrec           慕课推荐（QS 课程 + 学习路径）
-  getnote            得到大脑集成（MCP 驱动）
+  getnote            得到大脑集成（CLI + Skill 驱动，OAuth 授权）
 ```
 
 ### 安装方式
@@ -299,7 +299,7 @@ option-skill/       Skills 安装（包装 lib/init-skill.sh）
 option-llmswitch/   Anthropic↔OpenAI 桥（内部，由 init-llm.sh 自动管理）
 option-cloudflare/  Cloudflare Workers/Pages/D1/R2/AI 开发环境
 option-remote/      Tailscale + SSH 远程访问桌面 tmux session
-option-getnote/     得到大脑 MCP 笔记集成
+option-getnote/     得到大脑 CLI + Skill 集成（OAuth 授权）
 ```
 
 每个组件含 `init.sh`（安装）和 `init.sh --status`（状态检查）。`maintain.sh status` 自动发现所有 `option-*/` 并报告状态。
