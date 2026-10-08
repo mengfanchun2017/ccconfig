@@ -290,7 +290,11 @@ install_option() {
                     fi
                     return 0 ;;
                 getnote)
-                    warn "跳过 getnote（需配置 API key: bash option-getnote/init.sh menu）"
+                    # 装 CLI + 5 Skills，OAuth 授权留给用户（浏览器确认）
+                    section "安装 getnote（CLI + Skill）"
+                    bash "$SCRIPT_DIR/option-getnote/init.sh" install 2>&1 | sed 's/^/  /'
+                    echo ""
+                    warn "OAuth 授权需浏览器确认: bash init-option.sh getnote auth"
                     return 0 ;;
                 remote)
                     section "安装 remote"
