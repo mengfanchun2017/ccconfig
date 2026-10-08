@@ -140,11 +140,7 @@ do_update() {
         return 1
     fi
     info "升级 getnote（CLI + Skills + doctor 验证）..."
-    if $DRY_RUN; then
-        info "DRY-RUN: getnote update"
-    else
-        getnote update
-    fi
+    run getnote update
 }
 
 # ── 主入口 ──
