@@ -221,15 +221,6 @@ except: settings_data = {}
 
 ccpriv_dir = os.path.dirname(conf_json)
 
-# getnote 多账号从独立文件读取
-getnote_path = os.path.join(ccpriv_dir, 'getnote-accounts.json')
-if os.path.exists(getnote_path):
-    try:
-        with open(getnote_path) as gf: gd = json.load(gf)
-        conf_data['getnote_accounts'] = gd.get('getnote_accounts', [])
-        conf_data['getnote_default'] = gd.get('getnote_default', '')
-    except: pass
-
 # supabase 等外部 token 从独立文件读取
 ccpriv_bridge = {}
 for server in conf_data.get('mcp_servers', []):
