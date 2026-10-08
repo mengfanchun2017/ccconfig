@@ -1,12 +1,17 @@
 #!/bin/bash
-# option-getnote/init.sh — 引导添加/删除 getnote 账号
-# 数据写 ccprivate/conf/getnote-accounts.json
+# option-getnote/init.sh — 得到大脑(Get笔记) CLI + Skill 集成引导
+#
+# 官方方案（2026-11 切换）：CLI(`@getnote/cli`) + 5个原子 Skill
+#   凭证：OAuth 浏览器授权 → ~/.getnote/config.json（或 API Key 方式）
+#   不用 MCP server、不用 ccprivate/conf/getnote-accounts.json 多账号
 #
 # 使用：
-#   bash init.sh                  # 交互菜单
-#   bash init.sh add              # 添加新账号
-#   bash init.sh remove <name>    # 删除账号
-#   bash init.sh list             # 列出账号（等价 getnote-switch.sh --list）
+#   bash init.sh                    # 交互菜单
+#   bash init.sh --status           # 状态检查（init-option.sh 消费首行 OK/MISSING）
+#   bash init.sh install            # 装 CLI + 5 Skills + OAuth 授权
+#   bash init.sh auth               # OAuth 授权（浏览器确认）
+#   bash init.sh doctor             # 诊断（getnote doctor -o json）
+#   bash init.sh update             # 升级 CLI + 同步 Skills
 
 set -euo pipefail
 
@@ -17,182 +22,167 @@ source "$CCCONFIG_DIR/lib/dry-run.sh"
 source "$CCCONFIG_DIR/lib/colors.sh"
 source "$CCCONFIG_DIR/lib/interact.sh"
 
-# 账号文件缺失不是错误（首次使用/未配置），只是 --status 要能报 MISSING。
-# 硬 exit 1 会让 `init-option.sh --status` 打出一屏用法文本当状态。
-CONF_FILE="$(resolve_conf getnote-accounts.json 2>/dev/null || true)"
-if [[ -z "$CONF_FILE" ]]; then
-    CONF_FILE="${CCPRIVATE_HOME:-${CCPRIVATE_DIR:-$HOME/git/ccprivate}}/conf/getnote-accounts.json"
-fi
+NPM_GLOBAL_BIN="$(npm prefix -g 2>/dev/null)/bin" || NPM_GLOBAL_BIN=""
+LOCAL_BIN="$HOME/.local/bin"
 
-# ── 添加账号 ──
-do_add() {
+# ── CLI 是否可执行 ──
+cli_exists() { command -v getnote >/dev/null 2>&1; }
+
+# ── 确保 getnote 进 PATH（npm 全局 bin 不在 PATH 时的处理） ──
+ensure_path() {
+    if cli_exists; then return 0; fi
+    local src="$NPM_GLOBAL_BIN/getnote"
+    if [ -f "$src" ] && [ -d "$LOCAL_BIN" ]; then
+        ln -sf "$src" "$LOCAL_BIN/getnote"
+        ln -sf "$NPM_GLOBAL_BIN/gnote" "$LOCAL_BIN/gnote" 2>/dev/null || true
+        info "已在 $LOCAL_BIN 建 getnote 链接"
+        export PATH="$LOCAL_BIN:$PATH"
+    fi
+    cli_exists
+}
+
+# ── 授权状态：读 getnote auth status ──
+auth_status() {
+    if ! ensure_path; then echo "NO_CLI"; return 1; fi
+    local s
+    s=$(getnote auth status 2>/dev/null)
+    if echo "$s" | grep -q "Authenticated"; then
+        echo "AUTHED"
+    elif echo "$s" | grep -q "Not authenticated"; then
+        echo "NOAUTH"
+    else
+        echo "UNKNOWN($s)"
+    fi
+}
+
+# ── 状态检查（首行契约: OK/WARN/MISSING <描述>） ──
+do_status() {
+    if ! ensure_path; then
+        echo "MISSING getnote CLI 未安装 → bash ccconfig/option-getnote/init.sh install"
+        return 0
+    fi
+    local as; as=$(auth_status)
+    case "$as" in
+        AUTHED)
+            if getnote doctor -o json 2>/dev/null | grep -q '"ready": *true'; then
+                echo "OK getnote CLI 已装且已授权（doctor ready）"
+            else
+                echo "WARN getnote 已授权但 doctor 有问题 → bash init.sh doctor"
+            fi
+            ;;
+        NOAUTH)
+            echo "MISSING getnote CLI 已装但未授权 → bash init.sh auth"
+            ;;
+        NO_CLI)
+            echo "MISSING getnote CLI 未安装 → bash init.sh install"
+            ;;
+        *)
+            echo "MISSING getnote 状态未知($as) → bash init.sh doctor"
+            ;;
+    esac
+}
+
+# ── 安装：CLI + Skills + 授权 ──
+do_install() {
     echo ""
-    echo -e "${CYAN}── 添加 getnote 账号 ──${NC}"
+    echo -e "${CYAN}── 安装得到大脑 CLI + Skill ──${NC}"
     echo ""
-    info "获取凭证: https://www.biji.com/openapi → 创建应用 → API Key(gk_live_xxx) + Client ID(cli_xxx)"
+    if cli_exists; then
+        local v; v=$(getnote version 2>/dev/null | head -1)
+        ok "CLI 已安装: $v"
+    else
+        info "安装 @getnote/cli（需 Node.js 18+）..."
+        if $DRY_RUN; then
+            info "DRY-RUN: npm install -g @getnote/cli@latest"
+        else
+            npm install -g @getnote/cli@latest 2>&1 | sed 's/^/  /'
+        fi
+        ensure_path
+        cli_exists && ok "CLI 安装完成" || { err "CLI 安装失败，检查 npm 输出"; return 1; }
+    fi
+
+    # 5 个原子 Skill + OAuth 授权（getnote setup 一体化）
+    info "安装 5 个原子 Skill 并授权..."
+    if $DRY_RUN; then
+        info "DRY-RUN: getnote setup && getnote auth login"
+    else
+        getnote setup 2>&1 | sed 's/^/  /'
+        echo ""
+        info "开始 OAuth 授权（浏览器确认）..."
+        getnote auth login
+    fi
+
     echo ""
-
-    local name; while true; do
-        name=$(prompt "账号名 (personal/work/test)") || true
-        [ -z "$name" ] && { err "账号名不能为空"; continue; }
-        echo "$name" | grep -qE '[^a-zA-Z0-9_-]' && { err "仅允许字母数字_-_"; continue; }
-        python3 - "$CONF_FILE" "$name" 2>/dev/null | grep -q '"name":' || break
-        err "账号 $name 已存在"
-    done
-
-    local api_key; while true; do
-        api_key=$(prompt "GETNOTE_API_KEY (gk_live_xxx)") || true
-        [ -z "$api_key" ] && { err "不能为空"; continue; }
-        break; done
-
-    local client_id; while true; do
-        client_id=$(prompt "GETNOTE_CLIENT_ID (cli_xxx)") || true
-        [ -z "$client_id" ] && { err "不能为空"; continue; }
-        break; done
-
-    local desc; desc=$(prompt "说明（可选）") || true
-
-    local as_default=false
-    local cnt; cnt=$(python3 -c "import json; print(len(json.load(open('$CONF_FILE')).get('getnote_accounts',[])))" 2>/dev/null || echo "0")
-    if [ "$cnt" = "0" ]; then
-        as_default=true; info "首个账号，自动设为默认"
-    elif confirm "设为 ccprivate 默认账号？" n; then
-        as_default=true; fi
-
-    # 写 ccprivate/conf/getnote-accounts.json
-    python3 - "$CONF_FILE" "$name" "$api_key" "$client_id" "$desc" "$as_default" << 'PYEOF'
-import json, os, sys
-path, name, api_key, client_id, desc, as_default = sys.argv[1:7]
-real = os.path.realpath(path)
-with open(real) as f: d = json.load(f)
-d.setdefault('getnote_accounts', [])
-d['getnote_accounts'].append({
-    'name': name,
-    'description': desc,
-    'api_key': api_key,
-    'client_id': client_id,
-    'enabled': True,
-})
-if as_default == 'true' or not d.get('getnote_default'):
-    d['getnote_default'] = name
-
-tmp = real + '.tmp'
-with open(tmp, 'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
-os.replace(tmp, real)
-print('ok')
-PYEOF
-
-    ok "账号 $name 已添加"
-    $as_default && ok "已设为 ccprivate 默认" || info "未设为默认"
-    echo ""
-    info "切换到该账号: bash ccconfig/option-getnote/getnote-switch.sh $name -p"
+    getnote doctor -o json 2>/dev/null | grep -q '"ready": *true' \
+        && ok "得到大脑连接完成（doctor ready）" \
+        || warn "doctor 未全绿 → bash init.sh doctor 排查"
     echo ""
 }
 
-# ── 删除账号 ──
-do_remove() {
-    local target="${1:-}"
-    if [ -z "$target" ]; then
-        echo ""
-        echo -e "${CYAN}── 删除 getnote 账号 ──${NC}"
-        bash "$SCRIPT_DIR/getnote-switch.sh" --list
-        echo ""
-        read -p "  输入要删除的账号名: " target < /dev/tty
-    fi
-
-    local cnt
-    cnt=$(python3 - "$CONF_FILE" "$target" << 'PYEOF'
-import json, sys
-with open(sys.argv[1]) as f: d = json.load(f)
-print(len(d.get('getnote_accounts', [])))
-PYEOF
-    )
-    if [ "$cnt" -eq 0 ]; then
-        err "无 getnote_accounts 配置"; return 1
-    fi
-
-    local default_name
-    default_name=$(python3 -c "
-import json
-with open('$CONF_FILE') as f: d = json.load(f)
-print(d.get('getnote_default', ''))")
-
-    if [ "$target" = "$default_name" ]; then
-        warn "该账号是 ccprivate 默认，删除后需要重新指定默认"
-        if ! confirm "仍要删除？" n; then info "取消"; return 0; fi
-    fi
-    if ! confirm "确认删除 $target？" n; then info "取消"; return 0; fi
-
-    python3 - "$CONF_FILE" "$target" "$default_name" << 'PYEOF'
-import json, os, sys
-path, target, default_name = sys.argv[1], sys.argv[2], sys.argv[3]
-real = os.path.realpath(path)
-with open(real) as f: d = json.load(f)
-before = len(d.get('getnote_accounts', []))
-d['getnote_accounts'] = [a for a in d.get('getnote_accounts', []) if a.get('name') != target]
-after = len(d['getnote_accounts'])
-if before == after:
-    print('not_found'); sys.exit(0)
-if d.get('getnote_default') == target:
-    d['getnote_default'] = d['getnote_accounts'][0]['name'] if d['getnote_accounts'] else ''
-tmp = real + '.tmp'
-with open(tmp, 'w') as f: json.dump(d, f, indent=2, ensure_ascii=False)
-os.replace(tmp, real)
-print('ok')
-PYEOF
-
-    if [ $? -eq 0 ]; then
-        ok "账号 $target 已删除"
-        local new_default
-        new_default=$(python3 -c "import json; print(json.load(open('$CONF_FILE')).get('getnote_default',''))")
-        [ -n "$new_default" ] && info "新默认: $new_default" || warn "无账号剩余，inline env 仍保留旧 key"
-    else
-        err "账号 $target 未找到"
+# ── 授权（OAuth 浏览器） ──
+do_auth() {
+    if ! ensure_path; then
+        err "CLI 未安装，先: bash init.sh install"
         return 1
+    fi
+    echo ""
+    info "打开浏览器完成得到大脑授权..."
+    if $DRY_RUN; then
+        info "DRY-RUN: getnote auth login"
+    else
+        getnote auth login
+    fi
+    getnote auth status 2>/dev/null | head -1
+}
+
+# ── 诊断 ──
+do_doctor() {
+    if ! ensure_path; then
+        err "CLI 未安装，先: bash init.sh install"
+        return 1
+    fi
+    getnote doctor -o json 2>&1 | sed 's/^/  /'
+}
+
+# ── 升级 CLI + 同步 Skills ──
+do_update() {
+    if ! ensure_path; then
+        err "CLI 未安装，先: bash init.sh install"
+        return 1
+    fi
+    info "升级 getnote（CLI + Skills + doctor 验证）..."
+    if $DRY_RUN; then
+        info "DRY-RUN: getnote update"
+    else
+        getnote update
     fi
 }
 
 # ── 主入口 ──
 case "${1:-}" in
-    --status|-s)
-        # 首行契约: OK/WARN/MISSING <描述>（init-option.sh parse_status_line 消费）
-        if [[ -f "$CONF_FILE" ]]; then
-            n=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(len(d.get('getnote_accounts') or []))" "$CONF_FILE" 2>/dev/null || echo 0)
-            if [[ "${n:-0}" -gt 0 ]]; then
-                echo "OK getnote 已配置 $n 个账号"
-            else
-                echo "MISSING getnote 无账号（bash option-getnote/init.sh add）"
-            fi
-        else
-            echo "MISSING getnote 未配置账号"
-        fi
-        ;;
-    add|a)    do_add ;;
-    remove|rm|r) shift; do_remove "${1:-}" ;;
-    list|ls|l) bash "$SCRIPT_DIR/getnote-switch.sh" --list ;;
+    --status|-s)  do_status ;;
+    install|i)    do_install ;;
+    auth|a)       do_auth ;;
+    doctor|d)     do_doctor ;;
+    update|u)     do_update ;;
     ""|menu)
         while true; do
-            c=$(menu_select "getnote 账号管理" \
-                "添加账号" "删除账号" "列出账号" "切换账号")
+            c=$(menu_select "得到大脑 getnote" \
+                "安装/重装 (CLI+Skill+授权)" \
+                "授权 (OAuth 浏览器)" \
+                "诊断 (doctor)" \
+                "升级 (CLI+Skill)" \
+                "状态")
             [[ -z "$c" || "$c" == "0" ]] && exit 0
             case "$c" in
-                1) do_add ;;
-                2) do_remove ;;
-                3) bash "$SCRIPT_DIR/getnote-switch.sh" --list ;;
-                4)
-                    bash "$SCRIPT_DIR/getnote-switch.sh" --list
-                    target=$(prompt "账号名") || continue
-                    if [ -n "$target" ]; then
-                        if confirm "持久化到 ccprivate？" n; then
-                            bash "$SCRIPT_DIR/getnote-switch.sh" "$target" -p
-                        else
-                            bash "$SCRIPT_DIR/getnote-switch.sh" "$target"
-                        fi
-                    fi
-                    ;;
+                1) do_install ;;
+                2) do_auth ;;
+                3) do_doctor ;;
+                4) do_update ;;
+                5) do_status; echo "" ;;
                 *) warn "无效选项" ;;
             esac
         done
         ;;
-    *) err "用法: bash init.sh [add|remove <name>|list|menu]"; exit 1 ;;
+    *) err "用法: bash init.sh [--status|install|auth|doctor|update]"; exit 1 ;;
 esac
