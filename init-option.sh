@@ -226,7 +226,7 @@ install_option() {
     done
     set -- "${clean_args[@]}"
 
-    # getnote 探测：账号在 ccprivate 内单点真源，本机已配则跳过整个 install 路径
+    # getnote 探测：CLI 已装且已授权则跳过整个 install 路径（OAuth 状态在 ~/.getnote/config.json）
     if [ "$name" = "getnote" ]; then
         local gn_init="$SCRIPT_DIR/option-getnote/init.sh"
         if [[ -f "$gn_init" ]]; then
