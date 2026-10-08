@@ -1,6 +1,6 @@
 # 0007. 引入 @getnote/mcp — 得到笔记 MCP 集成
 
-> **Status**: ✅ Accepted
+> **Status**: 🚫 Superseded by [0041](0041-getnote-cli-skill-migration.md)
 > **日期**: 2026-07-30
 > **关联**: getnote skill (`skill/plugins/getnote/`)
 > **模板**: MADR 4.0 极简版
