@@ -26,20 +26,23 @@
 
 ## Considered Options
 
-### A — Taildrop 直落桌面 + WSL 读 `/mnt/c`（选定）
+### A — Taildrop 直落「下载」文件夹 + WSL 读 `/mnt`（选定）
 
-手机 Tailscale app 分享文件 → Taildrop P2P 直传 → Windows 落桌面 → WSL 经 `/mnt/c/Users/<win-user>/Desktop/` 读取处理。
+手机 Tailscale app 分享文件 → Taildrop P2P 直传 → Windows **GUI 自动落「下载」已知文件夹** → WSL 经 `/mnt/<drive>/.../Downloads/` 读取处理。
 
-**实测验证**（2026-10-06）：
+**实测验证**（2026-10-06 ~ 2026-10-09）：
 - WSL ↔ Windows `/mnt/c/Users/<win-user>/Downloads/`、`Desktop/` 双向读写 ✓
 - Taildrop 无文件大小限制（free plan 官方确认，支持断点续传）
 - 全链路 P2P 加密，不经云端
 
 **关键事实**：
 - Taildrop **仅在发送端选目标设备，没有目录选择器**——落点完全由接收端默认目录决定
-- Windows 默认落点 = **`~/Desktop`（桌面）**，不是 Downloads（Tailscale GitHub issue #5934 确认，Windows 是唯一存桌面的平台）
+- **Windows 默认落点 = 「下载」已知文件夹**（`C:\Users\<win-user>\Downloads`，本地可被重定向，见下）。此点已由官方 changelog 更正：Windows 收件目录**早前是桌面，后改为 Downloads**（issue #5934 已 Closed）
+- **落点 = 注册表 known-folder「下载」指向的目录**，未必在 C 盘。若用户把「下载」重定向到别的盘（如 `D:\Downloads`），Taildrop 文件就落在那里——**找文件先查注册表 known-folder，别默认 `C:\...\Downloads`**
+- **Windows GUI 自动收件**，无需手动 `tailscale file get`；`tailscale file get` 也能把 inbox 里滞留文件搬到任意目录
+- **两个接收者会各存一份**：GUI 自动收件（→ Downloads 已知文件夹）与手动 `file get` 循环（→ 指定目录）若同时存在，同一封邮件各落一份，表现为「传一个出现两个」——**是接收端重复，不是手机发了两份**。默认只留 GUI 自动收件即可
 - **Windows 无法改默认落点**：无 GUI 设置、无公开配置项（Linux 有 systemd 可改，Windows 无）
-- 不建 Inbox/watcher：A 方案直接桌面读取，少一层搬运
+- 不建 Inbox/watcher：A 方案直接读「下载」目录，少一层搬运
 
 **适用**：自己账号设备间传（手机→自己台式机）。**不适用**：好友（不同 Tailscale 账号）传——Taildrop 只限自己的设备。
 
@@ -66,26 +69,29 @@
 
 ## Decision
 
-选 **A（Taildrop 直落桌面）为主**，B（飞书）为小文件补充，C（SSH）为好友跨账号备用。
+选 **A（Taildrop 直落「下载」文件夹）为主**，B（飞书）为小文件补充，C（SSH）为好友跨账号备用。
 
-- 手机日常小文件 → **A 或 B**：A 更快（P2P 直落桌面，WSL 直接读），B 适合已走飞书流程的文档
+- 手机日常小文件 → **A 或 B**：A 更快（P2P 直落「下载」，WSL 直接读），B 适合已走飞书流程的文档
 - 自己大文件 → **A**（Taildrop 无上限）
 - 好友传文件 → **C**（scp 直推 / 授权 SSH）
 - >20MB 一律**不走飞书**，走 A 或 C
+
+**找文件固定动作**：用户说「通过 Tailscale 传了个文件，去找」时，**默认去「下载」已知文件夹**（先读注册表 known-folder `{374DE290-123F-4565-9164-39C4925E467B}` 拿真实路径，本机为 `D:\Downloads`）；**不要**默认 `C:\Users\<win-user>\Desktop`（旧版本行为）、也**不要**默认 `C:\Users\<win-user>\Downloads`（可能被重定向到别的盘）。只在 Downloads 找不到时再看桌面。
 
 ## Consequences
 
 ### Positive
 
 - ✅ Taildrop P2P 加密直传，无云端、无大小限制、断点续传
-- ✅ WSL 直接读 `Desktop/Downloads`，agent 无需额外通道
+- ✅ WSL 直接读「下载」目录（`/mnt/<drive>/.../Downloads`），agent 无需额外通道
 - ✅ 手机操作 = 文件分享 → 选设备，两秒完成
 - ✅ 飞书链路已跑通（20MB 内），作为文档工作流自然延伸
 
 ### Negative / Risks
 
 - ❌ Taildrop 仅限自己账号设备，好友需要 C 通道
-- ❌ Windows 落点固定在桌面，无法配置——桌面目录需保持可读
+- ⚠️ Windows 落点固定在「下载」已知文件夹，无法配置；且该文件夹可能被重定向到非 C 盘，找文件需先解析 known-folder
+- ⚠️ GUI 自动收件与手动 `file get` 并存会产生重复副本——只保留其一
 - ⚠️ 手机 Taildrop 需与台式机同账号登录 Tailscale
 - ⚠️ iOS 收件不支持断点续传（发送侧 OK）
 - ⚠️ 移动网络下行时 P2P 走 NAT 穿透，极慢场景可能兜底 relay（Tailscale DERP）
@@ -99,7 +105,9 @@
 
 ## Notes
 
-- Taildrop 默认落点对照：Windows=桌面、macOS=Downloads、Android=Downloads、iOS=App 沙盒（官方文档只写明 macOS，Windows 桌面落点来自官方 GitHub issue #5934）
+- Taildrop 默认落点对照：Windows=「下载」已知文件夹、macOS=Downloads、Android=Downloads、iOS=App 沙盒（官方 changelog 明确 Windows 已由 Desktop 改为 Downloads）
+- Windows GUI 客户端**自动收件**，写入「下载」known-folder（受注册表重定向影响）；`tailscale file get [--loop] [--wait] <dir>` 可手动/循环收件到指定目录（`<dir>` 需 Windows 路径，如 `C:\Users\<win-user>\Desktop`）
+- 重复副本机制：GUI 自动收件 + 手动 `file get` 循环同时存在 → 同一文件各存一份
 - Taildrop 是 alpha 功能，需在 Tailscale 管理台 Settings → General → **Send Files** 开启（一次性，全网络生效）
 - 飞书上传 20MB 边界、附件下载 preview 通道、上传删除带 `--params '{"type":"file"}'` 等坑已固化进 ffeishu skill 的 `references/lark-cli-cheatsheet.md`
 - 收件验证：Windows 系统托盘 Tailscale 收件提示；或 `tailscale file get` 手动收
