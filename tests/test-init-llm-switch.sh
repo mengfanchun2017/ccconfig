@@ -108,6 +108,13 @@ cat > "$WORKDIR/conf/llmprivate.json" <<JSON
       "model": "model-b1",
       "small_model": "model-b1",
       "use_bridge": true
+    },
+    "ctx-preset": {
+      "name": "Ctx",
+      "base_url": "http://localhost:${MOCK_PORT}/anthropic",
+      "model": "model-c1",
+      "small_model": "model-c1",
+      "max_context_tokens": 262144
     }
   }
 }
@@ -118,7 +125,8 @@ cat > "$WORKDIR/conf/llm.json" <<JSON
 {
   "llms": {
     "direct": { "key": "sk-test-direct" },
-    "bridge-preset": { "key": "sk-test-bridge" }
+    "bridge-preset": { "key": "sk-test-bridge" },
+    "ctx-preset": { "key": "sk-test-ctx" }
   }
 }
 JSON
@@ -299,6 +307,24 @@ if [[ "$t7_res" == *"BAD=[]"* && "$t7_res" == *"BUILTIN=True"* && "$t7_res" == *
     _pass "list_llms 列契约成立（$t7_res）"
 else
     _fail "list_llms 列契约被破坏" "got: $t7_res"
+fi
+
+# ── T8: max_context_tokens → CLAUDE_CODE_MAX_CONTEXT_TOKENS（按预设写入/移除）──
+# why：窗口 env 全局生效。声明了窗口的 preset 切换后必须写入；切到未声明的 preset
+# 必须移除，否则把上一个 preset 的窗口假设带过来。
+echo "T8 max_context_tokens 按预设写入/移除 CLAUDE_CODE_MAX_CONTEXT_TOKENS"
+switch_llm "ctx-preset" > /dev/null 2>&1
+ctx_written=$(python3 -c "
+import json
+print(json.load(open('$TEST_HOME/.claude/settings.json')).get('env',{}).get('CLAUDE_CODE_MAX_CONTEXT_TOKENS',''))" 2>/dev/null)
+switch_llm "direct" > /dev/null 2>&1
+ctx_after=$(python3 -c "
+import json
+print(json.load(open('$TEST_HOME/.claude/settings.json')).get('env',{}).get('CLAUDE_CODE_MAX_CONTEXT_TOKENS','<missing>'))" 2>/dev/null)
+if [[ "$ctx_written" == "262144" && "$ctx_after" == "<missing>" ]]; then
+    _pass "窗口按预设写入(262144)并在切走后移除"
+else
+    _fail "窗口 env 写入/移除不符合预期" "written='$ctx_written' after='$ctx_after'"
 fi
 
 echo ""
