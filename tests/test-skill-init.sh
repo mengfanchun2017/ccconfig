@@ -77,4 +77,4 @@ if [[ $FAIL -eq 0 ]]; then
 else
     echo -e "\033[0;31mPASS: $PASS  FAIL: $FAIL\033[0m"
     exit 1
-fibump
+fi
