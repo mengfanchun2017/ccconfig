@@ -156,6 +156,22 @@ print('' if v == '__ABSENT__' else v)
 PYEOF
 }
 
+# 读每预设的上下文窗口（可选，未识别模型用 CLAUDE_CODE_MAX_CONTEXT_TOKENS 声明真实窗口）
+get_max_context_tokens() {
+    local merged; merged=$(_llms_merged_py)
+    LLM_MERGED="$merged" python3 - "$1" << 'PYEOF'
+import json, os, sys
+name = sys.argv[1]
+try:
+    merged = json.loads(os.environ['LLM_MERGED'])
+except Exception:
+    merged = {}
+llm = merged.get(name, {})
+v = llm.get('max_context_tokens', '')
+print('' if v in ('', None) else v)
+PYEOF
+}
+
 # ========== 本地 current 读写（不碰 ccprivate llm.json.current）==========
 # 读本地 llm-current（当前选择仅本机，不跨机同步）
 read_local_current() {
@@ -209,13 +225,14 @@ PYEOF
 # ========== 写配置（settings.json env + llm-current） ==========
 # 占位符 key 检测 + 复用 settings.json 已有 token
 write_llm_config() {
-    local name="$1" base_url="$2" model="$3" small="$4" key="${5:-}"
+    local name="$1" base_url="$2" model="$3" small="$4" key="${5:-}" max_ctx="${6:-}"
 
     info "  API: $base_url"
     info "  模型: $model"
     info "  小模型: $small"
+    [[ -n "$max_ctx" ]] && info "  上下文窗口: $max_ctx"
 
-    export LLM_KEYS_FILE="$LLM_KEYS_FILE" BASE_URL="$base_url" MODEL_NAME="$model" SMALL_MODEL="$small" API_KEY="$key" NAME="$name"
+    export LLM_KEYS_FILE="$LLM_KEYS_FILE" BASE_URL="$base_url" MODEL_NAME="$model" SMALL_MODEL="$small" API_KEY="$key" NAME="$name" MAX_CTX="$max_ctx"
 
     python3 << 'PYEOF'
 import json, os
@@ -286,6 +303,13 @@ env_upd = {
 if final:
     env_upd["ANTHROPIC_AUTH_TOKEN"] = final
 
+# 上下文窗口：未识别模型（非 claude-* 名）默认按 200k 假设，preset 声明的真实窗口
+# 经 CLAUDE_CODE_MAX_CONTEXT_TOKENS 覆盖。该 env 全局生效，切走时必须移除——
+# 否则会把上一个 preset 的窗口假设带给本 preset（可能超过其真实窗口 → 中途被上游截断/报错）
+_max_ctx = os.environ.get('MAX_CTX', '').strip()
+if _max_ctx:
+    env_upd["CLAUDE_CODE_MAX_CONTEXT_TOKENS"] = _max_ctx
+
 sf = os.path.expanduser("~/.claude/settings.json")
 if os.path.islink(sf) and not os.path.exists(sf):
     os.unlink(sf)
@@ -293,6 +317,8 @@ try:
     with open(sf) as f: sd = json.load(f)
 except: sd = {}
 sd.setdefault('env', {}).update(env_upd)
+if not _max_ctx:
+    sd['env'].pop('CLAUDE_CODE_MAX_CONTEXT_TOKENS', None)
 if os.environ['MODEL_NAME']:
     sd['model'] = os.environ['MODEL_NAME']
 with open(sf, 'w') as f: json.dump(sd, f, indent=4, ensure_ascii=False)
@@ -403,7 +429,8 @@ switch_llm() {
         return 1
     }
 
-    write_llm_config "$name" "$base_url" "$model" "$small" "$key"
+    local max_ctx; max_ctx=$(get_max_context_tokens "$name")
+    write_llm_config "$name" "$base_url" "$model" "$small" "$key" "$max_ctx"
 
     # 提示重启 Claude session：settings.json 改了，但当前 claude 进程不 reload 旧连接池
     # why: 不重启会看到 "waiting 4m" 卡顿（旧连接断了重试）— 新 session 才会读新 BASE_URL
