@@ -45,7 +45,7 @@ ffeishu 是文档生命周期统一编排层：
 
 **后续流程**：
 - `fresearchframe` Batch Mode → 深度研究（批量 JSON 输出）
-- `orchreport` → 报告生成（Markdown 汇总）
+- `forchreport` → 报告生成（Markdown 汇总）
 
 详细 → `skills/fresearchframe/SKILL.md` + `memory/search_bilingual.md`
 
@@ -91,7 +91,7 @@ flogme 是 f-worklog 的升级替代，f-worklog 已废弃。
 | 文档 | `fdocx` | Word 生成 |
 | 文档 | `fxlsx` | Excel 生成 |
 | 研究 | `fresearchframe` | 领域研究 / Batch Mode 深度研究 |
-| 研究 | `orchreport` | 报告生成 |
+| 研究 | `forchreport` | 报告生成 |
 | 管理 | `flogme` | 个人管理系统（OKR+Worklog+Reflect+SUM） |
 | 调试 | `diagnosing-bugs` | Bug 诊断 |
 | 架构 | `improve-codebase-architecture` | 架构优化 |

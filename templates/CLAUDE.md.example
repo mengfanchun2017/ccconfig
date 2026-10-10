@@ -16,8 +16,8 @@ CLAUDE.md = AI 行为指南 | settings.json `permissions.allow` = 权限系统
 ## 自然语言触发（无需前缀）
 - "记录工作" / "写日志" / "总结任务" / "OKR" / "目标管理" / "反思" / "生成总结" / "季度报告" / "年度报告" → 自动调用 flogme skill
 - 调研/研究/分析 → 自动调用 fresearchframe skill
-- "写报告" / "出报告" / "分析报告" / "对比报告" / "方案报告" → 自动调用 fresearchframe skill（出报告走 orchreport 工作流，规范 fstd-report）
-- "做课程" / "新增案例" 等撰写需求 → 自动调用 fwriteorch 入口（按体裁派 orchcourse/orchreport/orchcase）
+- "写报告" / "出报告" / "分析报告" / "对比报告" / "方案报告" → 自动调用 fresearchframe skill（出报告走 forchreport 工作流，规范 fstd-report）
+- "做课程" / "新增案例" 等撰写需求 → 自动调用 fwriteorch 入口（按体裁派 forchcourse/forchreport/forchcase）
 - 创建飞书文档/PPT/表格 → 自动调用 ffeishu skill（统一文档入口）
 - 生成PPT/做slides → fpptx skill
 - 画架构图/流程图/时序图 → fdiagram skill
