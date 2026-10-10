@@ -70,4 +70,4 @@ getnote skill 曾以 MCP server（`@getnote/mcp`）驱动，45 个 `mcp__getnote
 
 - 官方 CLI 仓库: https://github.com/iswalle/getnote-cli
 - OpenAPI 文档: https://www.biji.com/openapi?tab=docs
-- 记忆: getnote-mcp-architecture → 已更新为 CLI 时代
+- 记忆: `getnote-cli-skill-architecture`（CLI + 官方原子 Skill 现状）
