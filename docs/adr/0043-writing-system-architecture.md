@@ -49,9 +49,9 @@
 
 ```
 L4 路由层      fwriteorch                       读注册表 → 判体裁 → 派编排器
-L3 编排层      forchcourse / forchreport / forchcase   统一 forchorchestrator 契约（配置+进度+委派表+comm-contract）
+L3 编排层      forchcourse / forchreport / forchcase   统一编排器契约（配置+进度+委派表+comm-contract）
 L2 规范层      fstd-core + fstd-<genre>         飞书格式真相源 + 各体裁内容规范/模板
-L1 工作流层    forch<genre>-<step>（如 forchcourse-lesson）  单步执行
+L1 步骤细则    forch<genre>/references/step-*.md   单步执行（不再独立成 skill）
 L0 机械层      ffeishu / fdiagram / fpptx / fxlsx / fdocx   唯一碰 lark-cli 与 Office
 ```
 
@@ -64,7 +64,7 @@ L0 机械层      ffeishu / fdiagram / fpptx / fxlsx / fdocx   唯一碰 lark-cl
 | L4 路由 | `fwriteorch` | 唯一入口 |
 | L3 编排 | `forch<genre>` | `forchcourse` / `forchreport` / `forchcase` |
 | L2 规范 | `fstd-core` + `fstd-<genre>` | `fstd-core`(共享格式) / `fstd-report` / `fstd-course` / `fstd-case` |
-| L1 步骤 | `forch<genre>-<step>` | 挂编排器下，如 `forchcourse-research` |
+| L1 步骤 | `forch<genre>/references/step-*.md` | 编排器内 references，不再独立成 skill |
 | L0 机械 | 保持 `f*` 工具名 | `ffeishu`/`fdiagram`/`fpptx`/`fxlsx`/`fdocx` |
 
 **一级/二级规范切分**：L2 规范**不**用命名堆叠（`fstd-course-lesson` 易被误读为并列体裁）。改用**目录深度**表达：
