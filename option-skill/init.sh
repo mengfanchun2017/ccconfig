@@ -54,7 +54,7 @@ show_menu() {
     echo ""
     local c; c=$(menu_select "Skills 管理" \
         "安装/同步" "更新" "详细列表" "检测 drift" "返回")
-    [[ -z "$c" ]] && return
+    [[ -z "$c" || "$c" == "0" ]] && return
     case "$c" in
         1) do_install ;;
         2) do_update ;;

@@ -76,7 +76,7 @@ show_menu() {
     echo ""
     local c; c=$(menu_select "evalscope 管理" \
         "安装/重装" "移除 venv" "返回")
-    [[ -z "$c" ]] && return
+    [[ -z "$c" || "$c" == "0" ]] && return
     case "$c" in
         1) do_install ;;
         2) do_remove ;;
