@@ -249,11 +249,11 @@ Tier 2: 编排层（路由 + 文档生命周期）
 
 Tier 3: 领域方法论（领域知识 + 框架）
   fresearchframe    4 领域研究方法论（customer/generic/market/technical）
-  freportstd       报告写作横向规范（4 套模板）
+  fstd-report      报告写作横向规范（4 套模板）
   fsysarchi        系统分析师备考方法论
 
 Tier 4: 应用 Skill（最终用户工作流）
-  fresearchreport   报告生成 → 委托 fresearchframe + freportstd + ffeishu
+  orchreport        报告生成 → 委托 fresearchframe + fstd-report + ffeishu
   flogme            个人管理系统（OKR/Worklog/Reflect/SUM）
   fmoocrec           慕课推荐（QS 课程 + 学习路径）
   getnote            得到大脑集成（CLI + Skill 驱动，OAuth 授权）
