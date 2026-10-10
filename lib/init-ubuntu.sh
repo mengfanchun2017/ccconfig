@@ -142,19 +142,34 @@ setup_nodejs() {
 }
 
 
-# ========== 3.5 Python pip（Ubuntu 24 默认无 pip3） ==========
+# sudo 是否可用（提权装 python3-pip 用）
+# BOOTSTRAP_NOSUDO / 无 sudo → 不可用；缓存了密码(-n 成功) → 可用；
+# 否则仅当 stdin 是 TTY 才允许 sudo 弹密码——避免 init-base all 被 pipe/后台化时卡在密码提示。
+# 与 lib/install-inotify.sh 的 `sudo -n true` 判定保持一致。
+_sudo_ok() {
+    [[ -n "${BOOTSTRAP_NOSUDO:-}" ]] && return 1
+    command -v sudo &>/dev/null || return 1
+    sudo -n true 2>/dev/null && return 0
+    [[ -t 0 ]]
+}
+
+# ========== 3.5 Python pip（Ubuntu 24+ 默认无 pip/pip3） ==========
+# 注：apt 装 python3-pip 会同时提供 /usr/bin/pip 和 /usr/bin/pip3（同一脚本，内容完全相同）。
+#     Debian 把 python3 的 ensurepip 改成死 stub（直接报错让你 apt install python3-pip），
+#     所以无 sudo 时没有可靠的免提权兜底——只能警告。
 ensure_pip() {
     section "Python pip"
     if command -v pip3 &>/dev/null || python3 -m pip --version &>/dev/null 2>&1; then
         success "pip 可用: $(pip3 --version 2>/dev/null || python3 -m pip --version 2>/dev/null | head -1)"
         return 0
     fi
-    warn "pip3 未安装，尝试安装..."
-    if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null; then
+    warn "pip/pip3 未安装，尝试安装..."
+    if _sudo_ok; then
         sudo apt-get install -y -qq --no-install-recommends python3-pip &>/dev/null && success "pip3 已安装" && return 0
     fi
-    python3 -m ensurepip --user 2>/dev/null && success "pip (ensurepip)" && return 0
-    warn "pip 安装失败，Python 包管理功能不可用"
+    # Debian/Ubuntu 的 ensurepip 是死 stub，无 sudo 时无法免提权安装
+    warn "pip 安装失败（无 sudo 权限），Python 包管理功能不可用"
+    warn "  手动: sudo apt install python3-pip"
 }
 
 # ========== 3.6 Python pip 包（init 时安装，update 时升级） ==========
@@ -168,21 +183,20 @@ setup_python_packages() {
         return 0
     fi
 
-    # 确保 pip3 可用（WSL Ubuntu 默认无 python3-pip）
-    if ! command -v pip3 &>/dev/null; then
-        if [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] && command -v sudo &>/dev/null; then
+    # 确保 pip3 可用（Ubuntu 24+ 默认无 python3-pip）
+    if ! command -v pip3 &>/dev/null && ! python3 -m pip --version &>/dev/null 2>&1; then
+        if _sudo_ok; then
             info "安装 python3-pip（apt）..."
-            sudo apt-get install -y -qq --no-install-recommends python3-pip &>/dev/null || {
-                warn "apt 安装失败，尝试 ensurepip..."
-                python3 -m ensurepip --user 2>/dev/null || true
-            }
+            sudo apt-get install -y -qq --no-install-recommends python3-pip &>/dev/null || \
+                warn "apt 安装 python3-pip 失败"
         else
-            info "尝试 python3 -m ensurepip..."
-            python3 -m ensurepip --user 2>/dev/null || true
+            warn "无 sudo 权限且 pip3 缺失，无法安装 Python 包"
+            warn "  手动: sudo apt install python3-pip && pip3 install --user -r $req_file"
+            return 0
         fi
     fi
 
-    if ! command -v pip3 &>/dev/null; then
+    if ! command -v pip3 &>/dev/null && ! python3 -m pip --version &>/dev/null 2>&1; then
         warn "pip3 仍不可用，跳过 Python 包安装"
         warn "  手动: sudo apt install python3-pip && pip3 install --user -r $req_file"
         return 0
@@ -200,7 +214,7 @@ setup_python_packages() {
             # 后续有更多 apt 包的 python 库在这里加
         esac
     done < "$req_file"
-    if [ -n "$apt_pkgs" ]; then
+    if [ -n "$apt_pkgs" ] && _sudo_ok; then
         sudo apt-get install -y -qq --no-install-recommends $apt_pkgs 2>/dev/null || {
             warn "apt 安装失败，跳回 pip 安装"
         }
