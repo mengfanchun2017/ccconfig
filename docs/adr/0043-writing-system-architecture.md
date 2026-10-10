@@ -50,7 +50,7 @@
 ```
 L4 路由层      fworch                       读注册表 → 判体裁 → 派编排器（fworch-<genre>）
 L3 编排层      fworch-course / fworch-report / fworch-case   统一编排器契约（配置+进度+委派表+comm-contract）
-L2 规范层      fstd-<genre>                     各体裁内容规范/模板（飞书格式走 ffeishu）
+L2 规范层      fwstd-<genre>                     各体裁内容规范/模板（飞书格式走 ffeishu）
 L1 步骤细则    fworch-<genre>/references/step-*.md   单步执行（不再独立成 skill）
 L0 机械层      ffeishu / fdiagram / fpptx / fxlsx / fdocx   唯一碰 lark-cli 与 Office
 ```
@@ -63,13 +63,13 @@ L0 机械层      ffeishu / fdiagram / fpptx / fxlsx / fdocx   唯一碰 lark-cl
 |----|------|------|
 | L4 路由 | `fworch` | 唯一入口 |
 | L3 编排 | `fworch-<genre>` | `fworch-course` / `fworch-report` / `fworch-case` |
-| L2 规范 | `fstd-<genre>` | `fstd-report` / `fstd-course` / `fstd-case` |
+| L2 规范 | `fwstd-<genre>` | `fwstd-report` / `fwstd-course` / `fwstd-case` |
 | L1 步骤 | `fworch-<genre>/references/step-*.md` | 编排器内 references，不再独立成 skill |
 | L0 机械 | 保持 `f*` 工具名 | `ffeishu`/`fdiagram`/`fpptx`/`fxlsx`/`fdocx` |
 
-**一级/二级规范切分**：L2 规范**不**用命名堆叠（`fstd-course-lesson` 易被误读为并列体裁）。改用**目录深度**表达：
-- 一级 = `fstd-<genre>/SKILL.md`（体裁规范总纲：内容架构 + 骨架 + 引用规则）
-- 二级 = `fstd-<genre>/references/*.md`（各产物模板）
+**一级/二级规范切分**：L2 规范**不**用命名堆叠（`fwstd-course-lesson` 易被误读为并列体裁）。改用**目录深度**表达：
+- 一级 = `fwstd-<genre>/SKILL.md`（体裁规范总纲：内容架构 + 骨架 + 引用规则）
+- 二级 = `fwstd-<genre>/references/*.md`（各产物模板）
 
 一个体裁一个 skill，模板收 references，层级清晰且 skill 数量不爆炸。
 
@@ -96,15 +96,15 @@ ccprivate/conf/writing/
 | `fcourse` | `fworch-course` | L3 |
 | `fcourse-{research,syllabus,lesson,exercise,summary}` | `fworch-course-{...}` | L1 |
 | `fresearchreport` | `fworch-report` | L3 |
-| `fcaselib` | `fworch-case`（编排/检索） + `fstd-case`（内容规范） | L3/L2 |
-| `freportstd` | `fstd-report` | L2 |
+| `fcaselib` | `fworch-case`（编排/检索） + `fwstd-case`（内容规范） | L3/L2 |
+| `freportstd` | `fwstd-report` | L2 |
 
 不重命名（保留）：`ffeishu`/`fdiagram`/`fpptx`/`fxlsx`/`fdocx`（L0）、`fsearch`/`fresearchframe`（研究支撑）、`flogme`/`fmoocrec`/`fmashwork` 等无关线。
 
 ## Consequences
 
 - ✅ 三条线同构，格式/契约单一真相源，漂移消除。
-- ✅ 需求单入口（`fworch`），新增体裁 = 加一份 `fstd-<genre>` + 一条注册表。
+- ✅ 需求单入口（`fworch`），新增体裁 = 加一份 `fwstd-<genre>` + 一条注册表。
 - ✅ 真实配置集中 `ccprivate/conf/writing/`，公开仓零泄露。
 - ❌ 一次性迁移成本（重命名 + symlink 重建 + 引用更新）。
 - ⚠️ 重命名后 Claude session 需重启注册表才刷新（workflow/ skill 名缓存于 session 启动）。
@@ -113,10 +113,10 @@ ccprivate/conf/writing/
 ## Implementation
 
 - **P1** 本 ADR + `ccprivate/conf/writing/registry.yaml`（声明现状，零行为改动）
-- **P2** 格式规则收敛：初建 `fstd-core` 作真相源，后因与 `ffeishu/references/write-checklist.md` §2 双份而**删除**，真相源定为 write-checklist §2
+- **P2** 格式规则收敛：初建 `fwstd-core` 作真相源，后因与 `ffeishu/references/write-checklist.md` §2 双份而**删除**，真相源定为 write-checklist §2
 - **P3** `lark_env.sh` 共享化（`lark_auth_check`/`lark_call` → 公开 `ffeishu/references/lark_env.sh`）
 - **P4** 建 `fworch` 路由入口
-- **P5** 三线重命名 + 契约统一 + 拆 `fstd-course`/`fstd-case` + `fcourse-research`/`fresearchframe` 划界
+- **P5** 三线重命名 + 契约统一 + 拆 `fwstd-course`/`fwstd-case` + `fcourse-research`/`fresearchframe` 划界
 - **P6（未做）** 注册表 `outputs` 声明驱动的统一多格式导出通道
 
 ## Related Decisions
