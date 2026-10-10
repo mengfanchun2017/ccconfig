@@ -51,7 +51,7 @@
 L4 路由层      fwriteorch                       读注册表 → 判体裁 → 派编排器
 L3 编排层      forchcourse / forchreport / forchcase   统一 forchorchestrator 契约（配置+进度+委派表+comm-contract）
 L2 规范层      fstd-core + fstd-<genre>         飞书格式真相源 + 各体裁内容规范/模板
-L1 工作流层    <orch>-<step>（如 forchcourse-lesson）  单步执行
+L1 工作流层    forch<genre>-<step>（如 forchcourse-lesson）  单步执行
 L0 机械层      ffeishu / fdiagram / fpptx / fxlsx / fdocx   唯一碰 lark-cli 与 Office
 ```
 
