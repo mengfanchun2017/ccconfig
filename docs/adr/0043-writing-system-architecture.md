@@ -49,9 +49,9 @@
 
 ```
 L4 路由层      fwriteorch                       读注册表 → 判体裁 → 派编排器
-L3 编排层      orchcourse / orchreport / orchcase   统一 orchestrator 契约（配置+进度+委派表+comm-contract）
+L3 编排层      forchcourse / forchreport / forchcase   统一 orchestrator 契约（配置+进度+委派表+comm-contract）
 L2 规范层      fstd-core + fstd-<genre>         飞书格式真相源 + 各体裁内容规范/模板
-L1 工作流层    <orch>-<step>（如 orchcourse-lesson）  单步执行
+L1 工作流层    <orch>-<step>（如 forchcourse-lesson）  单步执行
 L0 机械层      ffeishu / fdiagram / fpptx / fxlsx / fdocx   唯一碰 lark-cli 与 Office
 ```
 
@@ -62,9 +62,9 @@ L0 机械层      ffeishu / fdiagram / fpptx / fxlsx / fdocx   唯一碰 lark-cl
 | 层 | 模式 | 成员 |
 |----|------|------|
 | L4 路由 | `fwriteorch` | 唯一入口 |
-| L3 编排 | `orch<genre>` | `orchcourse` / `orchreport` / `orchcase` |
+| L3 编排 | `orch<genre>` | `forchcourse` / `forchreport` / `forchcase` |
 | L2 规范 | `fstd-core` + `fstd-<genre>` | `fstd-core`(共享格式) / `fstd-report` / `fstd-course` / `fstd-case` |
-| L1 步骤 | `<orch>-<step>` | 挂编排器下，如 `orchcourse-research` |
+| L1 步骤 | `<orch>-<step>` | 挂编排器下，如 `forchcourse-research` |
 | L0 机械 | 保持 `f*` 工具名 | `ffeishu`/`fdiagram`/`fpptx`/`fxlsx`/`fdocx` |
 
 **一级/二级规范切分**：L2 规范**不**用命名堆叠（`fstd-course-lesson` 易被误读为并列体裁）。改用**目录深度**表达：
@@ -85,7 +85,7 @@ ccprivate/conf/writing/
   course.yaml      # 课程体裁真值（parent_root_node 等）
 ```
 
-`orchcourse`/`orchreport`/`orchcase`/`fwriteorch` 运行时读对应 yaml；缺失则优雅降级（用内置默认 / 直派）。模式同 `fsyncdoc`（私有映射存在→全开，不存在→降级）。
+`forchcourse`/`forchreport`/`forchcase`/`fwriteorch` 运行时读对应 yaml；缺失则优雅降级（用内置默认 / 直派）。模式同 `fsyncdoc`（私有映射存在→全开，不存在→降级）。
 
 **统一约定（全体裁）**：飞书在线文档 = 唯一真相源；本地 yaml（如 `conf/fcourse/<slug>.yaml`）仅为缓存镜像。
 
@@ -93,10 +93,10 @@ ccprivate/conf/writing/
 
 | 旧名 | 新名 | 层 |
 |------|------|----|
-| `fcourse` | `orchcourse` | L3 |
-| `fcourse-{research,syllabus,lesson,exercise,summary}` | `orchcourse-{...}` | L1 |
-| `fresearchreport` | `orchreport` | L3 |
-| `fcaselib` | `orchcase`（编排/检索） + `fstd-case`（内容规范） | L3/L2 |
+| `fcourse` | `forchcourse` | L3 |
+| `fcourse-{research,syllabus,lesson,exercise,summary}` | `forchcourse-{...}` | L1 |
+| `fresearchreport` | `forchreport` | L3 |
+| `fcaselib` | `forchcase`（编排/检索） + `fstd-case`（内容规范） | L3/L2 |
 | `freportstd` | `fstd-report` | L2 |
 
 不重命名（保留）：`ffeishu`/`fdiagram`/`fpptx`/`fxlsx`/`fdocx`（L0）、`fsearch`/`fresearchframe`（研究支撑）、`flogme`/`fmoocrec`/`fmashwork` 等无关线。
