@@ -53,8 +53,11 @@ ensure_libicu() {
     warn "缺少 libicu（.NET 运行时必需，officecli/fpptx/fdocx/fxlsx 无法启动）"
     info "目标包: $pkg"
 
-    if [[ -n "${BOOTSTRAP_NOSUDO:-}" ]] || ! command -v sudo &>/dev/null; then
-        warn "跳过 sudo（NOSUDO 或无 sudo），手动: sudo apt-get install -y $pkg"
+    # sudo 可用性：NOSUDO/无 sudo → 跳过；-n 成功或有 TTY 才继续
+    # （非交互环境若无缓存凭据会让 sudo 卡在密码提示，故用 -n 预检）
+    if [[ -n "${BOOTSTRAP_NOSUDO:-}" ]] || ! command -v sudo &>/dev/null \
+       || { ! sudo -n true 2>/dev/null && [[ ! -t 0 ]]; }; then
+        warn "跳过 sudo（NOSUDO / 无 sudo / 非交互无缓存凭据），手动: sudo apt-get install -y $pkg"
         return 1
     fi
 
