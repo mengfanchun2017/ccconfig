@@ -129,5 +129,5 @@
 - commit `c6168ed` — ADR-0029
 - commit `2779911` — llm.example 同步
 - commit `e7ff235` — ccprivate preset 合并
-- memory `init-llm-2026-target-doc` — 本次决策汇总
+- [docs/init-llm.md](../init-llm.md) — LLM 链路设计说明（本次决策汇总）
 - memory `windows-tailscale-not-wsl-20260917` — 相关设计假设

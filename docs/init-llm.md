@@ -128,7 +128,7 @@ flowchart LR
 
 **实现**：`openai_bridge.py` `_iter_with_idle_ping()`，每 15s 无 chunk 时注入 `: ping\n\n`（SSE 注释，Anthropic SDK 忽略）。
 
-**实现约束（踩过大坑）**：**绝不能对 `anext()` 套 `asyncio.wait_for`**。超时 cancel 会弄死 async generator 丢数据；流正常结束时的 `StopAsyncIteration` 从 async generator 冒出还会被 CPython 转成 `RuntimeError`，掐断整条流。必须用 queue + 独立 pump task 实现。详见 memory `sse-async-gen-waitfor-pitfall-20260917`。
+**实现约束（踩过大坑）**：**绝不能对 `anext()` 套 `asyncio.wait_for`**。超时 cancel 会弄死 async generator 丢数据；流正常结束时的 `StopAsyncIteration` 从 async generator 冒出还会被 CPython 转成 `RuntimeError`，掐断整条流。必须用 queue + 独立 pump task 实现。详见 memory `bridge-ops`（流式包装器 wait_for 陷阱）。
 
 ### 5.3 探测必须复现真实请求形态
 
@@ -208,7 +208,7 @@ key 文件（`llm.json`）只管 key，不与预设定义耦合：
 - 升级机器无需任何手动迁移，跑任意入口（`list` / `merge`）即完成收敛；缓存写入走 tmp + `os.replace` 原子替换
 
 字段语义（定义文件）：
-- **`use_bridge` 三态**（memory `use-bridge-absent-vs-false-20260907`）：
+- **`use_bridge` 三态**：
   - `"True"` 显式强制走 bridge
   - `"False"` 显式禁 bridge（OpenAI-only + false → 早报错，不静默兜底）
   - **缺失** → OpenAI-only 端点自动起 bridge，Anthropic 端点直连

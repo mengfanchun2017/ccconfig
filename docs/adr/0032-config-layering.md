@@ -128,5 +128,5 @@ Layer 3  模板同步    templates/*.example            新机引导（占位符
 
 ## Related Memory
 
-- `settings-llm-only-local-20260915` — settings.json 仅存 LLM 配置
-- `link-session-state-untie-20260917` — 解除 .config.json/.claudeignore 跨设备跟踪（本 ADR 完成其余执行路径）
+- `claude-config-file-roles-20260919` — settings.json 与 .config.json 的角色区分（settings 仅存本机 LLM 配置）
+- `config-layering-sync-boundary-20260917` — 共享 vs 本机文件的同步边界（.config.json/.claudeignore 跨设备跟踪的解除）
