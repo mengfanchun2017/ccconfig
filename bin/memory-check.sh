@@ -30,7 +30,7 @@ for md in "$MEMORY_DIR"/*.md; do
     status="⚠️  STALE"
     ((stale++))
   else
-    [[ "$1" == "--stale-only" ]] && continue
+    [[ "${1:-}" == "--stale-only" ]] && continue
     status="✅"
     ((fresh++))
   fi
