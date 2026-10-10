@@ -227,6 +227,10 @@ do_install_cli_deps() {
                 if dpkg -s "$pkg" &>/dev/null; then
                     info "  $pkg (apt): 已装 — $required_by"
                     skipped=$((skipped + 1))
+                elif [[ -n "${BOOTSTRAP_NOSUDO:-}" ]] || ! command -v sudo &>/dev/null \
+                     || { ! sudo -n true 2>/dev/null && [[ ! -t 0 ]]; }; then
+                    warn "  $pkg (apt): 跳过（无可用 sudo）— $required_by"
+                    failed=$((failed + 1))
                 else
                     info "  $pkg (apt): 安装中..."
                     if sudo apt-get install -y "$pkg" 2>&1 | tail -1; then
@@ -559,7 +563,14 @@ do_update() {
                 run go install "$pkg" 2>&1 | tail -1
                 ;;
             apt)
-                dpkg -s "$pkg" &>/dev/null || sudo apt-get install -y "$pkg" 2>&1 | tail -1
+                if dpkg -s "$pkg" &>/dev/null; then
+                    :
+                elif [[ -n "${BOOTSTRAP_NOSUDO:-}" ]] || ! command -v sudo &>/dev/null \
+                     || { ! sudo -n true 2>/dev/null && [[ ! -t 0 ]]; }; then
+                    warn "  $pkg (apt): 跳过更新（无可用 sudo）"
+                else
+                    sudo apt-get install -y "$pkg" 2>&1 | tail -1
+                fi
                 ;;
         esac
     done
