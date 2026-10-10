@@ -553,10 +553,9 @@ test_init_config_preflight() {
     mkdir -p "$d/conf"
 
     # 场景 1：配置缺失 → 从 .example 复制并提示
-    # init_all_steps 只检查 llm.json + mcp-servers.json（ubuntu.json 已移除）
+    # init_all_steps 仅检查 mcp-servers.json（llm.json 走 init-llm 流程，无 .example）
     local missing=0
     local configs=(
-        "$d/conf/llm.json"
         "$d/conf/mcp-servers.json"
     )
     for cfg in "${configs[@]}"; do
