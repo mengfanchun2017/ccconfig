@@ -33,22 +33,17 @@ echo "=== Test 2: shebang + 可执行 ==="
 head -1 "$OPT" | grep -q "^#!/bin/bash" && pass "bash shebang" || fail "wrong shebang"
 [ -x "$OPT" ] && pass "executable" || fail "not executable"
 
-# ── Test 3: 交互菜单退出逻辑（exit→break，cancel→break） ──
+# ── Test 3: 交互菜单退出逻辑（多选解析：取消 → break） ──
 echo "=== Test 3: 菜单退出逻辑 ==="
-if grep -q '\[\[ -z "\$choice" || "\$choice" == "0" || "\$choice" == "\$exit_idx" \]\] && break' "$OPT"; then
-    pass "exit/cancel → break"
+if grep -q '\[\[ "\$saw_cancel" == "1" \]\]' "$OPT" && grep -q 'saw_cancel=1' "$OPT"; then
+    pass "cancel/退出(0/exit_idx) → saw_cancel → break"
 else
-    fail "退出逻辑应为 break（含 cancel 0）"
+    fail "取消逻辑应置 saw_cancel 并 break"
 fi
-if ! grep -q '&& continue' "$OPT" || ! grep -q 'exit_idx' "$OPT"; then
+if grep -q 'exit_idx' "$OPT" && ! grep -q 'exit_idx.*&& continue' "$OPT"; then
     pass "无 exit_idx && continue 反模式"
 else
-    # 确认 exit_idx 行用的是 break
-    if grep 'exit_idx' "$OPT" | grep -q 'break'; then
-        pass "exit_idx 行用 break"
-    else
-        fail "exit_idx 行仍用 continue"
-    fi
+    fail "exit_idx 行仍用 continue"
 fi
 
 # ── Test 4: --dry-run 入口解析 ──
