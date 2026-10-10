@@ -473,7 +473,13 @@ interactive_menu() {
             fi
         done
 
-        [[ "$saw_cancel" == "1" ]] && break
+        if [[ "$saw_cancel" == "1" ]]; then
+            break
+        fi
+        # 非交互 stdin 已 EOF：read 空 → 无有效选择，视为取消（否则空转死循环）
+        if [[ -z "$raw" ]]; then
+            break
+        fi
         if [[ "${#sel_nums[@]}" -eq 0 && "$saw_all" == "0" ]]; then
             warn "无效选择"
             echo ""; read -p "按回车继续..." dummy < /dev/tty || true
