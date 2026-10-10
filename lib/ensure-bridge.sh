@@ -177,7 +177,7 @@ exec env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY 
     OPENAI_BRIDGE_HOST="$host_header" \
     python3 option-llmswitch/openai_bridge.py --port "$BRIDGE_PORT" $extra_args $win_curl
 WRAPEOF
-    chmod +x "$wrapper"
+    chmod 700 "$wrapper"
     nohup "$wrapper" > "$HOME/.cache/openai_bridge.log" 2>&1 < /dev/null &
     local bridge_pid=$!
     disown $bridge_pid 2>/dev/null || true
