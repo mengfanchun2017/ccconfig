@@ -41,6 +41,7 @@ claude_job_tmp/
 .claude/skills/
 .claude.json
 .snapshots/
+.playwright-mcp/
 .wrangler/
 openclaw.json
 supabase/.temp/
