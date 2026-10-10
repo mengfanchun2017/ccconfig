@@ -48,10 +48,10 @@
 ### 一、四层架构
 
 ```
-L4 路由层      fworch                       读注册表 → 判体裁 → 派编排器
+L4 路由层      fworch                       读注册表 → 判体裁 → 派编排器（fworch-<genre>）
 L3 编排层      fworch-course / fworch-report / fworch-case   统一编排器契约（配置+进度+委派表+comm-contract）
 L2 规范层      fstd-<genre>                     各体裁内容规范/模板（飞书格式走 ffeishu）
-L1 步骤细则    forch<genre>/references/step-*.md   单步执行（不再独立成 skill）
+L1 步骤细则    fworch-<genre>/references/step-*.md   单步执行（不再独立成 skill）
 L0 机械层      ffeishu / fdiagram / fpptx / fxlsx / fdocx   唯一碰 lark-cli 与 Office
 ```
 
@@ -62,9 +62,9 @@ L0 机械层      ffeishu / fdiagram / fpptx / fxlsx / fdocx   唯一碰 lark-cl
 | 层 | 模式 | 成员 |
 |----|------|------|
 | L4 路由 | `fworch` | 唯一入口 |
-| L3 编排 | `forch<genre>` | `fworch-course` / `fworch-report` / `fworch-case` |
+| L3 编排 | `fworch-<genre>` | `fworch-course` / `fworch-report` / `fworch-case` |
 | L2 规范 | `fstd-<genre>` | `fstd-report` / `fstd-course` / `fstd-case` |
-| L1 步骤 | `forch<genre>/references/step-*.md` | 编排器内 references，不再独立成 skill |
+| L1 步骤 | `fworch-<genre>/references/step-*.md` | 编排器内 references，不再独立成 skill |
 | L0 机械 | 保持 `f*` 工具名 | `ffeishu`/`fdiagram`/`fpptx`/`fxlsx`/`fdocx` |
 
 **一级/二级规范切分**：L2 规范**不**用命名堆叠（`fstd-course-lesson` 易被误读为并列体裁）。改用**目录深度**表达：
