@@ -51,6 +51,7 @@
 | [0040](0040-remote-file-transfer-channels.md) | 远程服务器文件传输通道选型 — Taildrop 直落「下载」文件夹为主，飞书(20MB内)为补充，SSH 为好友跨账号备用 | 2026-10-07 | ✅ Accepted | option-remote |
 | [0041](0041-getnote-cli-skill-migration.md) | 得到大脑集成从 MCP 切换为 CLI + Skill（OAuth 授权）— 卸载 `@getnote/mcp`，改用官方 `@getnote/cli` + 5 原子 Skill | 2026-10-08 | ✅ Accepted | 取代 [0007](0007-introduce-getnote-mcp.md) |
 | [0042](0042-wsl-image-paste-sharex-path.md) | WSL 图像粘贴方案 — ShareX「复制文件路径」规避 WSLg BMP 解码坑，弃 Alt+V/解绑 Ctrl+V | 2026-10-08 | ✅ Accepted | — |
+| [0043](0043-writing-system-architecture.md) | 文档撰写系统架构 — 四层分层（路由/编排/规范/机械）+ 声明式体裁注册表 + 统一命名（orch*/fstd-*） | 2026-10-10 | ✅ Accepted | 撰写系统 |
 
 > **编号 0024 / 0025 未使用**：编号永不重用（见[命名约定](#命名约定)），这两号在 0023 之后被跳过、没有对应文件，也没有正文引用。新增 ADR 从**当前最大号 +1** 起，不要去填这个空档。
 >
