@@ -414,9 +414,17 @@ update_python_packages() {
             python-docx) apt_pkgs="$apt_pkgs python3-docx" ;;
         esac
     done < "$req_file"
-    if [ -n "$apt_pkgs" ]; then
+    if [ -n "$apt_pkgs" ] && [[ -z "${BOOTSTRAP_NOSUDO:-}" ]] \
+       && command -v sudo &>/dev/null && sudo -n true 2>/dev/null; then
         info "升级 apt 版 Python 包..."
         sudo apt-get install -y -qq --no-install-recommends $apt_pkgs 2>/dev/null || true
+    fi
+
+    # pip3 缺失则跳过（Ubuntu 24+ 默认无 python3-pip）
+    if ! command -v pip3 &>/dev/null && ! python3 -m pip --version &>/dev/null 2>&1; then
+        warn "pip3 不可用，跳过 Python 包升级"
+        warn "  手动: sudo apt install python3-pip"
+        return 0
     fi
 
     # 升级前版本
@@ -425,7 +433,11 @@ update_python_packages() {
 
     info "升级 pip 包..."
     local out
-    out=$(pip3 install --upgrade -r "$req_file" 2>&1)
+    out=$(pip3 install --upgrade -r "$req_file" 2>&1) || true
+    if echo "$out" | grep -q "externally-managed-environment"; then
+        info "PEP 668 环境，使用 --break-system-packages..."
+        out=$(pip3 install --break-system-packages --upgrade -r "$req_file" 2>&1) || true
+    fi
 
     # 升级后版本（仅本机只读对比，用于报告）
     local after
