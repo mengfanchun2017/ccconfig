@@ -174,7 +174,7 @@ bridge preset 必须**经 bridge**探测，且一律用 `stream:true`。401/403 
 | 探测假阳性 | 探测必须复现真实请求形态（路径 + 流式 + 连接完整性判据） |
 | httpx 自定义 transport | 传入 transport 后 `verify`/`limits`/`trust_env` 被静默忽略 |
 
-详见 ccprivate memory：`bash-dynamic-scope-read-pollution-20260917`、`pgrep-f-self-match-20260917`、`llm-probe-false-positive-20260917`、`sse-async-gen-waitfor-pitfall-20260917`。
+详见 ccprivate memory：`sh-coding-standards`（bash 动态作用域 / pgrep -f 自匹配）、`llm-probe-false-positive-20260917`、`bridge-ops`（流式包装器 wait_for 陷阱）。
 
 ## 相关
 
