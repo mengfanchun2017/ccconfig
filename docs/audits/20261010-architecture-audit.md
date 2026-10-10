@@ -182,15 +182,24 @@ ADR-0027 承诺 `lib/guard.sh` + `_is_installed/_is_not_file/_is_executed/_mark_
 | `option-remote/server/tmux-portforward.ps1:115` | 用户名 `francis` → `<user>` |
 | `.gitignore` + `git rm --cached` | 停跟踪 `.playwright-mcp/`（6 文件移出索引，工作区保留） |
 
-验证：改动文件 `bash -n` 全过；`py_compile` 过；pre-commit 正则实测已堵；`memory-check.sh` 无参 rc=0；`find_node_bin` 无 node 环境存活；`test-syntax`/`test-interact` 通过。
+### 第二轮（用户确认后）
+
+| 文件 | 变更 |
+|------|------|
+| `lib/update.sh:426-461` | **删除**用本机 `pip3 freeze --user` 回写公开 `conf/python-requirements.txt` 的 python 块；升级改由 `pip3 install --upgrade -r` 从声明文件驱动，公开清单只由人维护（`before`/`after` 仅本机只读对比用于报告） |
+| `init-option.sh:476-484` | 安装循环非交互 EOF（`raw` 空）时 `break`，修 `--dry-run`（无子命令）在无 tty 下**无限挂起** |
+| `tests/test-maintain.sh:76` | 分类断言 `0..7` → `0..8`（菜单已扩到 8 类目） |
+| `tests/test-init-base.sh:558-561` | config 预检断言去掉无 `.example` 的 `llm.json`，仅留 `mcp-servers.json` |
+| `tests/test-init-option.sh:36-52` | Test 3 断言更新为多选契约（`saw_cancel` → `break`），替换过时的 `$choice` 单菜单模式 |
+
+验证：改动文件 `bash -n` 全过；`py_compile` 过；pre-commit 正则实测已堵；`memory-check.sh` 无参 rc=0；`find_node_bin` 无 node 环境存活；**CI 全 10 套单元测试通过**（test-init-option 由 hang 转 16/0、test-init-base 40/0、test-maintain 65/0）。
 
 ---
 
 ## 7. 待办（未修，需决策或较大改动）
 
 **需用户决策**：
-- §1.1 凭据轮换 + 历史重写（不可逆，需停 monitor）
-- `lib/update.sh:428,459` pip-freeze 回写公开文件（改策略：只更新已列出的包名，绝不新增/降级）
+- §1.1 凭据轮换（用户确认：历史中凭据为**已失效的旧 key**，与 ccprivate 现值不同 → 不改写历史；后续提交由已修补的 pre-commit 兜底）
 
 **建议排期**：
 - 重构：抽 `lib/account-switch.sh`（getnote↔lark 同构）、`lib/option-status.sh`（状态契约单点）、收敛颜色层
