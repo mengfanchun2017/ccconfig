@@ -427,40 +427,7 @@ update_python_packages() {
     local out
     out=$(pip3 install --upgrade -r "$req_file" 2>&1)
 
-    # 只更新已列出的包的版本号，保留注释和分组结构
-    python3 - "$req_file" << 'PYEOF'
-import sys, subprocess, re
-
-req_file = sys.argv[1]
-installed = {}
-try:
-    out = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze', '--user'], text=True)
-    for line in out.strip().split('\n'):
-        if '==' in line:
-            pkg, ver = line.split('==', 1)
-            installed[pkg.lower()] = ver.strip()
-except Exception:
-    pass
-
-lines = []
-with open(req_file, 'r') as f:
-    for line in f:
-        m = re.match(r'^([a-zA-Z0-9_-]+)==(.+)$', line.rstrip('\n'))
-        if m:
-            pkg = m.group(1)
-            new_ver = installed.get(pkg.lower())
-            if new_ver:
-                lines.append(f"{pkg}=={new_ver}\n")
-            else:
-                lines.append(line)
-        else:
-            lines.append(line)
-
-with open(req_file, 'w') as f:
-    f.writelines(lines)
-PYEOF
-
-    # 升级后版本
+    # 升级后版本（仅本机只读对比，用于报告）
     local after
     after=$(pip3 freeze --user 2>/dev/null | grep -Ff <(sed -n 's/^\([a-zA-Z0-9_-]*\)==.*/\1/p' "$req_file") | sort)
 
