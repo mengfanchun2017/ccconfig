@@ -568,9 +568,9 @@ do_menu() {
                 local sel; sel=$(menu_select "选择 MCP" "${mcp_items[@]}")
                 [[ -z "$sel" || "$sel" = "0" ]] && continue
                 local tname=""
-                for ((mi=0; mi<${#mcp_items[@]}; mi++)); do
-                    [[ "${mcp_items[$mi]}" == "$sel" ]] && { tname="${mcp_names[$mi]}"; break; }
-                done
+                if [[ "$sel" =~ ^[0-9]+$ ]] && (( sel >= 1 && sel <= ${#mcp_names[@]} )); then
+                    tname="${mcp_names[$((sel-1))]}"
+                fi
                 [ -z "$tname" ] && continue
                 local tact; tact=$(menu_select "操作" "on" "off")
                 [[ -z "$tact" || "$tact" = "0" ]] && continue

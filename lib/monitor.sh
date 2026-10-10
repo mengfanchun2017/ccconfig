@@ -192,7 +192,11 @@ commit_and_push() {
     fi
     trap "rmdir '$lock_dir' 2>/dev/null" RETURN
 
-    rm -f "$repo_dir/.git/index.lock" 2>/dev/null
+    if pgrep -x git >/dev/null 2>&1; then
+        do_log "[$repo] warn — 检测到活跃 git 进程，跳过清理 index.lock"
+    else
+        rm -f "$repo_dir/.git/index.lock" 2>/dev/null
+    fi
 
     local changed_files=$(git -C "$repo_dir" status --porcelain 2>/dev/null)
     if [ -z "$changed_files" ]; then

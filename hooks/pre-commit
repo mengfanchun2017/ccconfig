@@ -51,7 +51,7 @@ if [ -n "$staged" ]; then
     while IFS= read -r f; do
         [ -z "$f" ] && continue
         [ ! -f "$f" ] && continue
-        if grep -qE 'sk-[a-zA-Z0-9]{20,}|gho_[a-zA-Z0-9]{36}|ghp_[a-zA-Z0-9]{36}|eyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}' "$f" 2>/dev/null; then
+        if grep -qE 'sk-[a-zA-Z0-9]{20,}|sk-ant-[a-zA-Z0-9_-]{20,}|gho_[a-zA-Z0-9]{36}|ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{20,}|eyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}' "$f" 2>/dev/null; then
             echo -e "${RED}[pre-commit] BLOCKED: ${f} — 疑似包含 API key / JWT token${NC}"
             blocked=1
         fi

@@ -908,7 +908,10 @@ async def reload(request: Request):
         state["upstream_model"] = data["upstream_model"]
     if "upstream_host" in data:
         state["upstream_host"] = data["upstream_host"]
-    return {"ok": True, "state": dict(state)}
+    safe_state = dict(state)
+    if "upstream_key" in safe_state:
+        safe_state["upstream_key"] = "***"
+    return {"ok": True, "state": safe_state}
 
 
 @app.get("/health")
