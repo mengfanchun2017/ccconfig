@@ -1,9 +1,11 @@
-# ADR-0039 三层 LLM 配置
+# 0039. 三层 LLM 配置
 
-> 状态: ✅ 已落地（2026-10）
-> 关联: [ADR-0020](./0020-llm-current-local-per-machine.md)、[ADR-0032](./0032-config-layering.md)、`lib/init-llm.sh`、`lib/ensure-bridge.sh`
+> **Status**: ✅ Accepted
+> **日期**: 2026-10-07
+> **关联**: [ADR-0020](0020-llm-current-local-per-machine.md)、[ADR-0032](0032-config-layering.md)、`lib/init-llm.sh`、`lib/ensure-bridge.sh`
+> **模板**: MADR 4.0 极简版
 
-## 背景
+## Context and Problem Statement
 
 单文件 `ccprivate/conf/llm.json` 混装预设定义（name/base_url/model/use_bridge）与 API Key，带来三个问题：
 

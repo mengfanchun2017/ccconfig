@@ -17,7 +17,7 @@
 | [0004](0004-officecli-skill-architecture.md) | OfficeCLI skill 架构：base + load_skill | 2026-07-07 | ✅ Accepted | — |
 | [0005](0005-remove-slash-mcp-runtime-command.md) | 废弃运行时 /mcp 命令，迁移至 CLI 子命令 | 2026-07-27 | ✅ Accepted | — |
 | [0006](0006-feishu-communication-strategy.md) | 飞书通信策略：cc-connect + lark-cli，不引入飞书 MCP | 2026-07-29 | ✅ Accepted | — |
-| [0007](0007-introduce-getnote-mcp.md) | 引入 @getnote/mcp — 得到笔记 MCP 集成 | 2026-07-30 | ✅ Accepted | getnote skill |
+| [0007](0007-introduce-getnote-mcp.md) | 引入 @getnote/mcp — 得到笔记 MCP 集成 | 2026-07-30 | 🚫 Superseded by [0041](0041-getnote-cli-skill-migration.md) | getnote skill |
 | [0008](0008-remote-connection.md) | Remote 远程连接方案（自 `adr/001` 迁入） | 2026-07-31 | ✅ Accepted | option-remote |
 | [0009](0009-token-cost-reduction.md) | Token 成本优化：不装 caveman/rtk/headroom | 2026-08-02 | ✅ Accepted | — |
 | [0010](0010-adr-directory-location.md) | ADR 目录位置约定 | 2026-08-02 | ✅ Accepted | — |
@@ -27,7 +27,7 @@
 | [0014](0014-tailscale-jump-server.md) | Tailscale 跳板机部署方案 | 2026-08-21 | ✅ Accepted | — |
 | [0015](0015-llm-0731-deprecation.md) | 废弃 altllm0731 preset — 停止自改 bridge 适配网关不兼容 | 2026-08-23 | ✅ Accepted | — |
 | [0016](0016-tailscale-subnet-router.md) | Tailscale Subnet Router — 适用 WSL + Windows：通过 RFC1918 私有段自动触发 `--use-win-curl` | 2026-08-29 | ✅ Accepted | — |
-| [0017](0017-tailscale-serve-https.md) | Tailscale Serve HTTPS — 内网 LLM API 远程访问（流式兼容） | 2026-08-28 | ⚠️ Superseded by 0016 | — |
+| [0017](0017-tailscale-serve-https.md) | Tailscale Serve HTTPS — 内网 LLM API 远程访问（流式兼容） | 2026-08-28 | ⚠️ Superseded by [0016](0016-tailscale-subnet-router.md) | — |
 | [0018](0018-permission-mode-strategy.md) | 权限模式策略 — defaultMode 用 auto，bypass 仅 flag 触发 | 2026-09-01 | ✅ Accepted | — |
 | [0019](0019-bridge-win-curl-wsl-vpn.md) | OpenAI bridge 三层修复：WSL 网络栈隔离 + DNS 污染 + ARG_MAX 溢出 | 2026-08-14 | ✅ Accepted | — |
 | [0020](0020-llm-current-local-per-machine.md) | LLM 运行时配置本地化 — 每台机器独立选择 LLM | 2026-09-01 | ✅ Accepted | — |
@@ -47,7 +47,9 @@
 | [0036](0036-drop-token-usage-feature.md) | 删除本地 Token 用量链路（option-usage / token-usage / bill）— 改用 Claude 自带 usage 统计 | 2026-09-28 | ✅ Accepted | — |
 | [0037](0037-skill-pip-venv-auto-install.md) | Skill pip 依赖经自建 venv 自动安装 — pip 分支改由 skill setup.sh 建隔离 venv，同步即装好 | 2026-10-03 | ✅ Accepted | init 能力 |
 | [0038](0038-playwright-mcp-browser-automation.md) | Playwright MCP 浏览器自动化 — 4 层安装 + `--executable-path` symlink 解耦版本 + headed 登录持久 profile | 2026-10-03 | ✅ Accepted | option-playwright |
+| [0039](0039-llm-three-tier-config.md) | 三层 LLM 配置 — `llmnormal.json`(公开内置预设) + `llmprivate.json`(私有自定义) + `llm.json`(纯 key)，合并缓存 `~/.cache/llm-merged.json` | 2026-10-07 | ✅ Accepted | LLM 管理 |
 | [0040](0040-remote-file-transfer-channels.md) | 远程服务器文件传输通道选型 — Taildrop 直落「下载」文件夹为主，飞书(20MB内)为补充，SSH 为好友跨账号备用 | 2026-10-07 | ✅ Accepted | option-remote |
+| [0041](0041-getnote-cli-skill-migration.md) | 得到大脑集成从 MCP 切换为 CLI + Skill（OAuth 授权）— 卸载 `@getnote/mcp`，改用官方 `@getnote/cli` + 5 原子 Skill | 2026-10-08 | ✅ Accepted | 取代 [0007](0007-introduce-getnote-mcp.md) |
 | [0042](0042-wsl-image-paste-sharex-path.md) | WSL 图像粘贴方案 — ShareX「复制文件路径」规避 WSLg BMP 解码坑，弃 Alt+V/解绑 Ctrl+V | 2026-10-08 | ✅ Accepted | — |
 
 > **编号 0024 / 0025 未使用**：编号永不重用（见[命名约定](#命名约定)），这两号在 0023 之后被跳过、没有对应文件，也没有正文引用。新增 ADR 从**当前最大号 +1** 起，不要去填这个空档。

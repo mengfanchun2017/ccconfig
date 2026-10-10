@@ -1,7 +1,7 @@
 # 0041. 得到大脑集成从 MCP 切换为 CLI + Skill（OAuth 授权）
 
 > **Status**: ✅ Accepted
-> **日期**: 2026-11-08
+> **日期**: 2026-10-08
 > **关联**: 0007（被废弃，原 MCP 方案）；getnote 官方 CLI（`@getnote/cli` v1.6+）
 > **模板**: MADR 4.0 极简版
 
@@ -9,7 +9,7 @@
 
 getnote skill 曾以 MCP server（`@getnote/mcp`）驱动，45 个 `mcp__getnote__*` tool 覆盖笔记 CRUD、语义搜索、知识库、图片上传、博主、直播。凭证用开放平台 API Key（`gk_live_*`）+ Client ID。
 
-2026-11 官方把主推方案收敛为：**一条命令 `npm install -g @getnote/cli@latest && getnote setup`**——CLI 自动识别本机 AI 平台、装 5 个原子 Skill、引导 OAuth 授权。MCP 降为并列选项。
+2026-10 官方把主推方案收敛为：**一条命令 `npm install -g @getnote/cli@latest && getnote setup`**——CLI 自动识别本机 AI 平台、装 5 个原子 Skill、引导 OAuth 授权。MCP 降为并列选项。
 
 触发切换的直接原因：ccprivate 里存的 API Key（`gk_live_a3b1...`）在服务端失效——curl 直连官方接口（`openapi.biji.com/open/api/v1/...`）也返回 10004 unauthorized / HTTP 401，四个配置源（getnote-accounts.json / settings / mcp-servers / CLI config）key 完全一致，排除配置问题。key 被作废或绑定失效，且无法用命令行恢复，只能 OAuth 或去平台重建。
 
