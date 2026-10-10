@@ -325,11 +325,10 @@ while true:
   - [ADR-0031 init-llm 收敛：桥接链路修复 + 探测统一 + 四层守护模型](adr/0031-init-llm-consolidation-2026.md)
   - [ADR-0039 三层 LLM 配置](adr/0039-llm-three-tier-config.md)
 - **memory**（核心条目，存于使用者的私有 memory，不随公开仓库分发）：
-  `llm-management` / `altllm-split-presets-20260917` /
-  `use-bridge-absent-vs-false-20260907` /
-  `claude-session-restart-after-llm-switch-20260917` /
-  `init-llm-key-discard-on-verify-fail-20260902` /
-  `openai-bridge`（含 0731 SSE bug 教训 + bridge 容错）
+  `openai-bridge-py` / `bridge-ops` / `deepseek-thinking-query` /
+  `llm-menu-refactor-20261003` / `three-tier-upgrade-compat-20261007` /
+  `llm-merged-cache-crash-fix-20261007` / `config-layering-sync-boundary-20260917` /
+  `claude-session-restart-after-llm-switch-20260917`
 
 ## 十一、未来工作
 
