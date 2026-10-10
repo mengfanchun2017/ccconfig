@@ -54,7 +54,7 @@ pip 依赖不由 init-skill.sh 直接装，改由**首个声明该包的 skill**
 ## Related Decisions
 
 - `ADR-0032`（配置分层）— skill 安装时序的既有机制
-- `skill-public-private-cleanup` — skill 维护 / marketplace 要点
+- `skill-source-layering-20260831` — skill 公开/私有分层源目录 + marketplace 维护要点
 
 ## Notes
 

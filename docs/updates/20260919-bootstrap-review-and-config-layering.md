@@ -71,7 +71,7 @@
 
 本机实测：`.config.json` 里 `permissions.deny: ["WebSearch"]` 一直在，但调 WebSearch **正常返回**——`rules/search.md` 的「已 deny」与事实不符。
 
-修复：两个模板按真实角色重写（settings 键归 `settings.json`，`.config.json.example` 只留 user scope `mcpServers`）；`maintain.sh` 迁移方向反转；`permissions` 两份都有时 `allow`/`deny` 求并集（第一版按"丢弃副本"会把白名单整个删，沙箱测试当场抓到，参考 `memory-architecture` 中的"知识分层"原则）；`status.sh` 新增分层检查（本机报出 11 个错位键）。
+修复：两个模板按真实角色重写（settings 键归 `settings.json`，`.config.json.example` 只留 user scope `mcpServers`）；`maintain.sh` 迁移方向反转；`permissions` 两份都有时 `allow`/`deny` 求并集（第一版按"丢弃副本"会把白名单整个删，沙箱测试当场抓到，参考 `ccprivate-memory-projects-public-repo-pattern` 中的"知识分层"原则）；`status.sh` 新增分层检查（本机报出 11 个错位键）。
 
 **用户操作**：`bash maintain.sh fix`，归位后需新 session 让权限白名单与 WebSearch deny 真正生效。
 
