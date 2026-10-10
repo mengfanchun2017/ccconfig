@@ -50,7 +50,7 @@
 ```
 L4 路由层      fwriteorch                       读注册表 → 判体裁 → 派编排器
 L3 编排层      forchcourse / forchreport / forchcase   统一编排器契约（配置+进度+委派表+comm-contract）
-L2 规范层      fstd-core + fstd-<genre>         飞书格式真相源 + 各体裁内容规范/模板
+L2 规范层      fstd-<genre>                     各体裁内容规范/模板（飞书格式走 ffeishu）
 L1 步骤细则    forch<genre>/references/step-*.md   单步执行（不再独立成 skill）
 L0 机械层      ffeishu / fdiagram / fpptx / fxlsx / fdocx   唯一碰 lark-cli 与 Office
 ```
@@ -63,7 +63,7 @@ L0 机械层      ffeishu / fdiagram / fpptx / fxlsx / fdocx   唯一碰 lark-cl
 |----|------|------|
 | L4 路由 | `fwriteorch` | 唯一入口 |
 | L3 编排 | `forch<genre>` | `forchcourse` / `forchreport` / `forchcase` |
-| L2 规范 | `fstd-core` + `fstd-<genre>` | `fstd-core`(共享格式) / `fstd-report` / `fstd-course` / `fstd-case` |
+| L2 规范 | `fstd-<genre>` | `fstd-report` / `fstd-course` / `fstd-case` |
 | L1 步骤 | `forch<genre>/references/step-*.md` | 编排器内 references，不再独立成 skill |
 | L0 机械 | 保持 `f*` 工具名 | `ffeishu`/`fdiagram`/`fpptx`/`fxlsx`/`fdocx` |
 
@@ -113,7 +113,7 @@ ccprivate/conf/writing/
 ## Implementation
 
 - **P1** 本 ADR + `ccprivate/conf/writing/registry.yaml`（声明现状，零行为改动）
-- **P2** 建 `fstd-core`，`ffeishu`/`freportstd`/`fcaselib` 改引用，删重复格式段
+- **P2** 格式规则收敛：初建 `fstd-core` 作真相源，后因与 `ffeishu/references/write-checklist.md` §2 双份而**删除**，真相源定为 write-checklist §2
 - **P3** `lark_env.sh` 共享化（`lark_auth_check`/`lark_call` → 公开 `ffeishu/references/lark_env.sh`）
 - **P4** 建 `fwriteorch` 路由入口
 - **P5** 三线重命名 + 契约统一 + 拆 `fstd-course`/`fstd-case` + `fcourse-research`/`fresearchframe` 划界
