@@ -184,11 +184,11 @@ do_menu() {
     done
 }
 
-case "${1:-menu}" in
+case "${1:-}" in
     --status|status) do_status ;;
-    --install|install) do_install ;;
-    --update|update) do_update ;;
+    --install|-i|install|"") do_install ;;
+    --update|-u|update) do_update ;;
     key|keys) do_key ;;
-    menu|"") do_menu ;;
+    menu) do_menu ;;
     *) echo "用法: bash init.sh [--status|--install|--update|key|menu]"; exit 1 ;;
 esac
