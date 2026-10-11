@@ -35,9 +35,29 @@ import sys
 from urllib.parse import urlparse
 
 from mineru_open_mcp import config as _config
+
+
+def _resolve_token() -> str:
+    """Token from env, else from the private conf (single truth source)."""
+    tok = os.getenv("MINERU_API_TOKEN", "").strip()
+    if tok:
+        return tok
+    conf = os.path.expanduser(os.getenv("MINERU_CONF", "~/git/ccprivate/conf/mineru.json"))
+    try:
+        import json
+        with open(conf) as f:
+            return (json.load(f).get("token") or "").strip()
+    except Exception:
+        return ""
+
+
+# Must be set before importing ./server (it reads config.MINERU_API_TOKEN at import).
+_config.MINERU_API_TOKEN = _resolve_token()
+
+# _parse calls extract_sources via this module's namespace -> patch target.
 from mineru_open_mcp.server import mcp, run_server
 from mineru_open_mcp.tools import extract as extract_mod  # per-mode helpers (_extract_flash/_extract_batch)
-from mineru_open_mcp.tools import tools as tools_mod       # _parse's namespace (patch target)
+from mineru_open_mcp.tools import tools as tools_mod
 
 _FILE_EXTS = {".pdf", ".png", ".jpg", ".jpeg", ".jp2", ".webp", ".gif", ".bmp",
               ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"}
