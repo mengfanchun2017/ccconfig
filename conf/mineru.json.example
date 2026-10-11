@@ -1,0 +1,8 @@
+{
+  "description": "MinerU 文档解析 API 配置（mineru.net）",
+  "_note": "token 用于 Precision API(>20页)；≤20页走免费 Flash/Agent API 无需 token。留空则全程 Flash。",
+  "api_base": "https://mineru.net/api/v4",
+  "token": "请填入你的 MinerU API token（留空则只走免费 Flash）",
+  "flash_page_limit": 20,
+  "flash_size_limit_mb": 10
+}

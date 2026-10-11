@@ -54,7 +54,7 @@
     {
       "name": "mineru",
       "description": "MinerU 文档解析（PDF/图片/Office/网页 → Markdown，自动分级省额度）",
-      "how_to_get": "去 https://mineru.net/apiManage 创建 API token；不填则全程免费 Flash 档（≤20页/10MB）",
+      "how_to_get": "去 https://mineru.net/apiManage 创建 token，跑 bash init-option.sh mineru 填入；不填则全程免费 Flash 档（≤20页/10MB）",
       "type": "stdio",
       "command": "uvx",
       "args": [
@@ -65,9 +65,7 @@
         "python",
         "$HOME/git/ccconfig/option-mineru/mineru_mcp.py"
       ],
-      "env": {
-        "MINERU_API_TOKEN": "请填入你的 MinerU API token（留空则只走免费 Flash）"
-      }
+      "env": {}
     },
     {
       "name": "playwright",
