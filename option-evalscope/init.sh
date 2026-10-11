@@ -13,6 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$CCCONFIG_ROOT/lib/colors.sh"
 source "$CCCONFIG_ROOT/lib/interact.sh"
+source "$CCCONFIG_ROOT/lib/ensure-uv.sh"
 
 VENV_DIR="$SCRIPT_DIR/.venv"
 EVALSCOPE_BIN="$VENV_DIR/bin/evalscope"
@@ -24,7 +25,7 @@ _is_installed() {
 
 do_install() {
     echo -e "${CYAN}── 安装 evalscope（独立 venv py$PY_VER）──${NC}"
-    command -v uv >/dev/null 2>&1 || { err "未找到 uv（需要 uv 管理 venv）: 安装见 https://astral.sh/uv"; return 1; }
+    ensure_uv || { err "uv 不可用（需要 uv 管理 venv）"; return 1; }
 
     if [[ ! -d "$VENV_DIR" ]]; then
         info "创建 venv (python $PY_VER)..."
