@@ -25,6 +25,7 @@ source "$CCCONFIG_ROOT/lib/dry-run.sh"
 source "$CCCONFIG_ROOT/lib/colors.sh"
 source "$CCCONFIG_ROOT/lib/path-helper.sh"
 source "$CCCONFIG_ROOT/lib/interact.sh"
+source "$CCCONFIG_ROOT/lib/ensure-uv.sh"
 
 WRAPPER="$SCRIPT_DIR/mineru_mcp.py"
 CCPRIVATE="${CCPRIVATE_HOME:-${CCPRIVATE_DIR:-$HOME/git/ccprivate}}"
@@ -114,8 +115,8 @@ sync_mcp() {
 do_install() {
     section "安装 mineru"
     if ! has_uvx; then
-        warn "未装 uv/uvx → 无法运行 MCP（uvx 会拉 mineru-open-mcp 依赖）"
-        info "装 uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
+        info "缺 uv/uvx（uvx 用于拉 mineru-open-mcp 依赖，免污染系统 Python）→ 自动安装"
+        ensure_uv || warn "uv 自动安装失败，MCP 将无法启动；手动: curl -LsSf https://astral.sh/uv/install.sh | sh"
     fi
     ensure_conf
     echo ""
