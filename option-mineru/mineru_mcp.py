@@ -89,22 +89,22 @@ def _pages_count(pages: str) -> int:
     return total
 
 
-def _choose_flash(source: str, page_ranges_map, index: int, total_files: int) -> bool:
+def _choose_flash(source: str, page_ranges_map, index: int) -> bool:
     """Decide whether *source* can use the free Flash backend."""
     if DISABLE_FLASH or not _config.MINERU_API_TOKEN:
         return not DISABLE_FLASH and not _config.MINERU_API_TOKEN
     if _is_url(source):
-        return False  # web pages / remote docs -> Precision (MinerU-HTML)
+        # Flash handles PDF URLs; web pages / other remote docs need Precision.
+        return posixpath.splitext(urlparse(source).path)[1].lower() == ".pdf"
     size_mb = None
     pages = None
     try:
         size_mb = os.path.getsize(source) / 1e6
     except OSError:
-        return False  # unreadable file -> let upstream report it
+        return False  # unreadable file -> upstream reports it
     if page_ranges_map and index in page_ranges_map:
         pr = page_ranges_map[index]
-        if isinstance(pr, str) and pr.strip():
-            pages = _pages_count(pr)
+        pages = _pages_count(pr) if isinstance(pr, str) and pr.strip() else None
         if pages:
             return pages <= FLASH_PAGE_LIMIT and size_mb <= FLASH_SIZE_LIMIT_MB
     if source.lower().endswith(".pdf"):
@@ -133,7 +133,7 @@ async def tiered_extract_sources(sources, enable_ocr=None, language="ch", model=
 
     flash_idx, prec_idx = [], []
     for i, s in enumerate(sources):
-        (flash_idx if _choose_flash(s, page_ranges_map, i, len(sources)) else prec_idx).append(i)
+        (flash_idx if _choose_flash(s, page_ranges_map, i) else prec_idx).append(i)
 
     if ctx and ctx.request_context:
         await ctx.info(f"MinerU tiering: {len(flash_idx)} file(s) → Flash (free), "
@@ -173,7 +173,7 @@ def _selfcheck() -> int:
     print(f"token   : {'set' if tok else 'not set (Flash-only mode)'}")
     print(f"flash   : ≤{FLASH_PAGE_LIMIT} pages / ≤{FLASH_SIZE_LIMIT_MB} MB  (disable={DISABLE_FLASH})")
     for s in ("/tmp/x.pdf", "https://a.com/paper.pdf", "https://a.com/article"):
-        print(f"  {s:34s} -> {'Flash' if _choose_flash(s, None, 0, 1) else 'Precision'}")
+        print(f"  {s:34s} -> {'Flash' if _choose_flash(s, None, 0) else 'Precision'}")
     print("selfcheck OK: tiering wrapper active")
     return 0
 
