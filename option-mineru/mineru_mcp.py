@@ -36,7 +36,8 @@ from urllib.parse import urlparse
 
 from mineru_open_mcp import config as _config
 from mineru_open_mcp.server import mcp, run_server
-from mineru_open_mcp.tools import tools as tools_mod
+from mineru_open_mcp.tools import extract as extract_mod  # per-mode helpers (_extract_flash/_extract_batch)
+from mineru_open_mcp.tools import tools as tools_mod       # _parse's namespace (patch target)
 
 _FILE_EXTS = {".pdf", ".png", ".jpg", ".jpeg", ".jp2", ".webp", ".gif", ".bmp",
               ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"}
@@ -139,7 +140,7 @@ async def tiered_extract_sources(sources, enable_ocr=None, language="ch", model=
         await ctx.info(f"MinerU tiering: {len(flash_idx)} file(s) → Flash (free), "
                        f"{len(prec_idx)} → Precision (token)")
 
-    def _sub(indices, flash):
+    def _sub(indices):
         return ([sources[i] for i in indices],
                 {i: page_ranges_map[i] for i in indices if page_ranges_map and i in page_ranges_map} or None)
 
@@ -147,12 +148,16 @@ async def tiered_extract_sources(sources, enable_ocr=None, language="ch", model=
     for indices, is_flash in ((flash_idx, True), (prec_idx, False)):
         if not indices:
             continue
-        sub_src, sub_pr = _sub(indices, is_flash)
-        res = await _orig_extract(
-            sources=sub_src, enable_ocr=enable_ocr, language=language, model=model,
-            page_ranges_map=sub_pr, output_dir=output_dir, ctx=ctx,
-            token=(None if is_flash else eff_token), save_to_file=save_to_file,
-        )
+        sub_src, sub_pr = _sub(indices)
+        # Call upstream helpers directly, NOT extract_sources: upstream does
+        # `token = token or MINERU_API_TOKEN`, so passing token=None can't force Flash.
+        if is_flash:
+            res = await extract_mod._extract_flash(
+                sub_src, language, sub_pr, output_dir, ctx, set(), save_to_file)
+        else:
+            res = await extract_mod._extract_batch(
+                sub_src, enable_ocr, language, model, sub_pr, output_dir, ctx,
+                eff_token, set(), save_to_file)
         for k, r in enumerate(res):
             out[indices[k]] = r
     return [out[i] for i in range(len(sources)) if i in out]
