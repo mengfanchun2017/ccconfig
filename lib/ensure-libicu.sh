@@ -17,11 +17,12 @@
 # 兼容 source 调用（不 exit 主进程）
 
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 用唯一名，别用 SCRIPT_DIR：source 时变量共享作用域，会覆盖调用方的 SCRIPT_DIR
+_ENSURE_LIBICU_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # source 调用时 colors.sh 可能已加载，CLI 调用时需自行 source
 # 检查函数而非命令：裸 PATH 上 /usr/bin/info（texinfo）会让 command -v 误判已加载
 if ! declare -F info >/dev/null 2>&1; then
-    source "$SCRIPT_DIR/colors.sh"
+    source "$_ENSURE_LIBICU_DIR/colors.sh"
 fi
 
 # 探测当前发行版对应的 libicu 包名
