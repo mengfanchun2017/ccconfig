@@ -19,10 +19,11 @@
 # 无 sudo（用户级安装）。兼容 source 调用（不 exit 主进程）。
 
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 用唯一名，别用 SCRIPT_DIR：source 时变量共享作用域，会覆盖调用方的 SCRIPT_DIR
+_ENSURE_UV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 检查函数而非命令：裸 PATH 上 /usr/bin/info（texinfo）会让 command -v 误判已加载
 if ! declare -F info >/dev/null 2>&1; then
-    source "$SCRIPT_DIR/colors.sh"
+    source "$_ENSURE_UV_DIR/colors.sh"
 fi
 
 UV_INSTALL_DIR="${UV_INSTALL_DIR:-$HOME/.local/bin}"
