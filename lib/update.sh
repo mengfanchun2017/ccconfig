@@ -14,6 +14,7 @@
 #   7] Skills 同步           → skill + ccprivate [option]
 #   8] OfficeCLI            → GitHub Release [option]
 #   9] Cloudflare 插件       → claude plugin [option]
+#  10] uv (Python 工具)     → uv self update [option]
 #
 # 使用：
 #   bash ccconfig/update.sh               # 交互式菜单（支持多选，如 "1 3 4"）
@@ -31,6 +32,7 @@ source "$SCRIPT_DIR/path-helper.sh"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/interact.sh"
 source "$SCRIPT_DIR/net.sh"
+source "$SCRIPT_DIR/ensure-uv.sh"
 LOCAL_BIN="$HOME/.local/bin"
 VERSION_FILE="$CCCONFIG_ROOT/conf/versions.json"  # 公开文件，不走 resolve_conf
 LOCK_FILE="/tmp/ccconfig-update.lock"
@@ -682,6 +684,22 @@ PYEOF
     success "MCP 缓存已刷新"
 }
 
+# ========== 8.5 uv（Python 工具运行器） ==========
+
+update_uv() {
+    section "uv"
+    if ! command -v uv &>/dev/null; then
+        ensure_uv || { warn "uv 未安装且自动安装失败"; return 1; }
+    fi
+    info "当前: $(uv --version)"
+    if uv self update 2>&1 | tail -3; then
+        success "uv 已更新: $(uv --version)"
+    else
+        warn "uv self update 失败（可手动: curl -LsSf https://astral.sh/uv/install.sh | sh）"
+        return 1
+    fi
+}
+
 # ========== 9. OfficeCLI ==========
 
 update_officecli() {
@@ -886,6 +904,7 @@ update_all() {
     run_step "claude"   "Claude Code"       update_claude
     run_step ""         "Skills 同步"       update_skills
     run_step ""         "MCP 缓存"          update_mcp
+    run_step ""         "uv (Python 工具)"  update_uv
     run_step ""         "OfficeCLI"          update_officecli
     run_step ""         "Cloudflare 插件"    update_cloudflare_plugin
 
@@ -958,6 +977,7 @@ show_menu() {
     echo -e "   ${BOLD_GREEN}7)${NC} Skills 同步"
     echo -e "   ${BOLD_GREEN}8)${NC} OfficeCLI"
     echo -e "   ${BOLD_GREEN}9)${NC} Cloudflare 插件"
+    echo -e "   ${BOLD_GREEN}10)${NC} uv (Python 工具)"
     echo -e "   ${BOLD_GREEN}0)${NC} 退出"
     echo ""
     echo -e "   ${YELLOW}all${NC} = 升级全部组件"
@@ -990,6 +1010,7 @@ show_menu() {
             7)  update_skills; did_something=1 ;;
             8)  update_officecli; did_something=1 ;;
             9)  update_cloudflare_plugin; did_something=1 ;;
+            10) update_uv; did_something=1 ;;
             *)  echo "无效: $sel" ;;
         esac
     done
@@ -1017,6 +1038,7 @@ case "${1:-menu}" in
     gh)            update_gh ;;
     claude)        update_claude ;;
     mcp)           update_mcp ;;
+    uv)            update_uv ;;
     lark|lark-cli) update_npm_globals ;;
     officecli)     update_officecli ;;
     skills)        update_skills ;;
@@ -1026,7 +1048,7 @@ case "${1:-menu}" in
     --dry-run|--check|check)
         do_dry_run ;;
     *)
-        echo "用法: $0 [all|node|npm|python|gh|claude|mcp|lark|menu]"
+        echo "用法: $0 [all|node|npm|python|gh|claude|mcp|uv|lark|menu]"
         exit 1
         ;;
 esac
