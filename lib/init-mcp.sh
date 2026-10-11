@@ -137,6 +137,8 @@ PYEOF
 # ── 注册 MCP ──
 register_mcp() {
     local name="$1" mtype="$2" cmd="$3" args="$4"
+    # claude mcp add 不展开参数里的 $HOME（值来自变量，不再做二次展开）→ 手动补
+    args="${args//\$\{HOME\}/$HOME}"; args="${args//\$HOME/$HOME}"
     echo -n "  注册 $name ... "
     if [[ "$mtype" == "http" ]]; then
         # http 类型：claude mcp add --transport http <name> <url> -H header
@@ -524,7 +526,8 @@ with open(tmp, 'w') as f: json.dump(data, f, indent=2, ensure_ascii=False); f.wr
 os.replace(tmp, path)
 " "$MCP_CONF_FILE" "$name"
             echo -n "  注册 $name ... "
-            if claude mcp add -s user "$name" -- $command $args_str 2>&1; then good "ok"; else bad "fail"; return 1; fi
+            local _targs="${args_str//\$\{HOME\}/$HOME}"; _targs="${_targs//\$HOME/$HOME}"
+            if claude mcp add -s user "$name" -- $command $_targs 2>&1; then good "ok"; else bad "fail"; return 1; fi
             if [[ "$mtype" == "stdio" ]] && [[ -n "$env_str" ]] && [[ "$env_str" != "{}" ]]; then
                 configure_mcp_env "$name" "$env_str" >/dev/null 2>&1 || true
             fi
