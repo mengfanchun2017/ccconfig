@@ -19,6 +19,12 @@
     "gh": {
       "version": "2.102.0"
     },
+    "uv": {
+      "version": "latest",
+      "install": "curl -LsSf https://astral.sh/uv/install.sh | sh",
+      "update": "uv self update",
+      "_note": "astral.sh 单文件二进制，apt 无此包；UV_INSTALL_DIR 默认 ~/.local/bin。option-mineru/option-evalscope 依赖"
+    },
     "claude_code": {
       "version": "latest",
       "package": "@anthropic-ai/claude-code",
