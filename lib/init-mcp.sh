@@ -242,6 +242,10 @@ for server in conf_data.get('mcp_servers', []):
     if not name: continue
     mtype = server.get('type', 'stdio')
     entry = {'command': server.get('command', ''), 'args': list(server.get('args', [])), 'env': dict(server.get('env', {}))} if mtype == 'stdio' else {'type': mtype, 'url': server.get('url', ''), 'headers': server.get('headers', {})}
+    # 展开 arg 里的 $HOME / ${HOME} —— conf 跨机同步，路径不能写死某台机的 home
+    if mtype == 'stdio':
+        _home = os.path.expanduser('~')
+        entry['args'] = [a.replace('${HOME}', _home).replace('$HOME', _home) if isinstance(a, str) else a for a in entry['args']]
     if name in ccpriv_bridge:
         bridge = ccpriv_bridge[name]; new_args = []; skip_next = False
         for a in entry['args']:
