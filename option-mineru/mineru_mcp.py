@@ -37,16 +37,25 @@ from urllib.parse import urlparse
 from mineru_open_mcp import config as _config
 
 
+_PLACEHOLDER_MARKERS = ("请填入", "请到", "your key", "placeholder", "<your-")
+
+
+def _is_placeholder(v: str) -> bool:
+    s = (v or "").strip()
+    return (not s) or any(m in s for m in _PLACEHOLDER_MARKERS)
+
+
 def _resolve_token() -> str:
     """Token from env, else from the private conf (single truth source)."""
     tok = os.getenv("MINERU_API_TOKEN", "").strip()
-    if tok:
+    if not _is_placeholder(tok):
         return tok
     conf = os.path.expanduser(os.getenv("MINERU_CONF", "~/git/ccprivate/conf/mineru.json"))
     try:
         import json
         with open(conf) as f:
-            return (json.load(f).get("token") or "").strip()
+            t = (json.load(f).get("token") or "").strip()
+        return "" if _is_placeholder(t) else t
     except Exception:
         return ""
 
