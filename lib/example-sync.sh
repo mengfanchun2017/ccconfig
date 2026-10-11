@@ -391,8 +391,37 @@ do_reverse() {
     ok "操作完成"
 }
 
+# ── 把模板里新增的 MCP server 条目并进已存在的 mcp-servers.json ──
+# 整份文件已存在时 collect_diffs 归为 outdated，do_sync 不覆盖（怕丢用户的 Key），
+# 于是上游新增的 server（如 mineru）永远进不了老用户的 conf。这里只做加法：按 name
+# 合并模板中本地缺失的条目，不碰已有条目（Key/disabled 等）。
+merge_new_mcp_servers() {
+    local conf_example="$CCCONFIG_ROOT/conf/mcp-servers.json.example"
+    local conf_live="$CCPRIVATE/conf/mcp-servers.json"
+    [ -f "$conf_example" ] && [ -f "$conf_live" ] || return 0
+    python3 - "$conf_example" "$conf_live" << 'PYEOF'
+import json, os, sys
+tmpl_p, live_p = sys.argv[1], sys.argv[2]
+with open(tmpl_p) as f: tmpl = json.load(f)
+with open(live_p) as f: live = json.load(f)
+have = {m.get('name') for m in live.get('mcp_servers', [])}
+added = [m for m in tmpl.get('mcp_servers', []) if m.get('name') and m['name'] not in have]
+if not added:
+    sys.exit(0)
+live.setdefault('mcp_servers', []).extend(added)
+tmp = live_p + '.tmp'
+with open(tmp, 'w') as f:
+    json.dump(live, f, indent=2, ensure_ascii=False); f.write('\n')
+os.replace(tmp, live_p)
+print(' '.join(m['name'] for m in added))
+PYEOF
+}
+
 # ── 非交互自动同步 ──
 do_sync() {
+    local added_mcp
+    added_mcp=$(merge_new_mcp_servers || true)
+    [ -n "$added_mcp" ] && info "新增 MCP 条目: $added_mcp（用 init-mcp.sh keys 填 Key）"
     local -a _out_arr=() _new_arr=() _normal_arr=()
     collect_diffs _out_arr _new_arr _normal_arr
     if [ ${#_new_arr[@]} -eq 0 ] && [ ${#_out_arr[@]} -eq 0 ]; then
