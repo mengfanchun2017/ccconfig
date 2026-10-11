@@ -20,7 +20,8 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if ! command -v info &>/dev/null; then
+# 检查函数而非命令：裸 PATH 上 /usr/bin/info（texinfo）会让 command -v 误判已加载
+if ! declare -F info >/dev/null 2>&1; then
     source "$SCRIPT_DIR/colors.sh"
 fi
 
