@@ -16,8 +16,8 @@ What this does:
     pages always go Precision + MinerU-HTML (Flash can't do HTML).
 
     Page counts come from the client (per its own instruction to pass pages)
-    when available; otherwise pymupdf counts the local PDF. Files that can't
-    be counted stay on Flash and fall back to Precision if the API rejects them.
+    when available; otherwise pymupdf counts the local PDF. Files whose size or
+    page count can't be determined go to Precision (never fail the free path).
 
 Config (env):
     MINERU_API_TOKEN   - Precision token. Without it, everything runs Flash (free).
@@ -68,9 +68,6 @@ from mineru_open_mcp.server import mcp, run_server
 from mineru_open_mcp.tools import extract as extract_mod  # per-mode helpers (_extract_flash/_extract_batch)
 from mineru_open_mcp.tools import tools as tools_mod
 
-_FILE_EXTS = {".pdf", ".png", ".jpg", ".jpeg", ".jp2", ".webp", ".gif", ".bmp",
-              ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"}
-
 
 def _env_int(name: str, default: int) -> int:
     try:
@@ -86,10 +83,6 @@ DISABLE_FLASH = os.getenv("MINERU_DISABLE_FLASH", "").strip().lower() in ("1", "
 
 def _is_url(source: str) -> bool:
     return source.startswith(("http://", "https://"))
-
-
-def _is_webpage(source: str) -> bool:
-    return _is_url(source) and posixpath.splitext(urlparse(source).path)[1].lower() not in _FILE_EXTS
 
 
 def _pdf_pages(path: str):
