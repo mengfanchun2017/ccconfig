@@ -114,6 +114,7 @@
 
 ## Related
 
+- [0044-agent-smb-file-bridge](0044-agent-smb-file-bridge.md) — agent 主动方向（从来源机拉取 + 回写，SMB C$ 通道）
 - [0008-remote-connection](0008-remote-connection.md) — 远程连接方案（tmux + Termius + 多端口）
 - [Taildrop | Tailscale Docs](https://tailscale.com/docs/features/taildrop)
 - [Taildrop 默认落点 issue #5934](https://github.com/tailscale/tailscale/issues/5934)
