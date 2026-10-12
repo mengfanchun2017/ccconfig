@@ -30,6 +30,7 @@ source "$SCRIPT_DIR/lib/interact.sh"
 declare -A CLI_DESC
 CLI_DESC["batcat"]="cat 替代，语法高亮+行号"
 CLI_DESC["glow"]="终端 Markdown 渲染阅读"
+CLI_DESC["filepull"]="跨机取件（SMB 拉取+回写）"
 
 # 由 init-llm 等外部管理，未 source 时为空
 declare -A AUTO_MANAGED
@@ -42,7 +43,7 @@ MENU_GROUPS=(
     "--浏览器自动化--|playwright"
     "--文档解析--|mineru"
     "--飞书--|larkcli"
-    "--其他--|officecli remote cloudflare getnote"
+    "--其他--|officecli remote cloudflare getnote filepull"
 )
 
 has_init_script() {
