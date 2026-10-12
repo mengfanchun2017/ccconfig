@@ -23,14 +23,16 @@ PS_EXE="/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
 
 # ── 探活：对单主机建 SMB 映射测 C$ 根 ──
 # 输出首行: PROBE_OK | PROBE_DENIED <msg> | PROBE_UNREACH <msg> | PROBE_ERR <msg>
+# ⚠️ 参数走 argv 不走 env：WSL interop 会吞掉自定义环境变量（实测 $env: 为空）
 _probe_one() {
     local ip="$1" user="$2" pw="$3"
     local script='
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
-$path = "\\" + $env:SMBHOST + "\C$"
+$ipaddr=$args[0]; $uname=$args[1]; $pwval=$args[2]
+$path = "\\" + $ipaddr + "\C$"
 Remove-SmbMapping -RemotePath $path -Force -ErrorAction SilentlyContinue | Out-Null
 try {
-  $m = New-SmbMapping -RemotePath $path -UserName $env:SMBUSER -Password $env:SMBPW -Persistent:$false -ErrorAction Stop
+  $m = New-SmbMapping -RemotePath $path -UserName $uname -Password $pwval -Persistent:$false -ErrorAction Stop
   $ok = Test-Path $path
   Remove-SmbMapping -RemotePath $path -Force -ErrorAction SilentlyContinue | Out-Null
   if ($ok) { Write-Output "PROBE_OK" } else { Write-Output "PROBE_ERR Test-Path 返回 false" }
@@ -40,8 +42,8 @@ try {
   elseif ($msg -match "找不到|not find|No network|network path|network name|timed out") { Write-Output "PROBE_UNREACH $msg" }
   else { Write-Output "PROBE_ERR $msg" }
 }'
-    SMBHOST="$ip" SMBUSER="$user" SMBPW="$pw" \
-        timeout 12 "$PS_EXE" -NoProfile -ExecutionPolicy Bypass -Command "$script" 2>&1 | head -1
+    timeout 12 "$PS_EXE" -NoProfile -ExecutionPolicy Bypass -Command "$script" \
+        "$ip" "$user" "$pw" 2>&1 | head -1
 }
 
 # ── 读 conf 输出 "name|ip|user|pass" 每行一条 ──
