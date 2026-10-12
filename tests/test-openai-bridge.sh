@@ -508,7 +508,8 @@ try:
 except Exception as e:
     print(f"FAIL: 抛异常 {type(e).__name__}: {e}"); sys.exit(1)
 fail = []
-if "你好" not in out:
+# 正文被 json.dumps 转义（\uXXXX），用转义形式匹配，别用原字面量
+if json.dumps("你好")[1:-1] not in out:
     fail.append("正文丢失")
 if out.count('"type":"message_stop"') != 1:
     fail.append("缺 message_stop")
