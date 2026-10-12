@@ -33,6 +33,7 @@ _probe_one() {
 import base64, sys
 ip, user, pw = (a.replace("'", "''") for a in sys.argv[1:4])
 ps = f"""
+$ProgressPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $path = '\\\\{ip}\\C$'
 Remove-SmbMapping -RemotePath $path -Force -ErrorAction SilentlyContinue | Out-Null
@@ -51,7 +52,8 @@ try {{
 print(base64.b64encode(ps.encode("utf-16-le")).decode())
 PYEOF
     )
-    timeout 12 "$PS_EXE" -NoProfile -EncodedCommand "$b64" 2>&1 | head -1
+    # EncodedCommand 重定向输出带 "#< CLIXML" 头 + 进度记录；只取 PROBE_ 行
+    timeout 12 "$PS_EXE" -NoProfile -EncodedCommand "$b64" 2>&1 | grep -m1 '^PROBE_' || true
 }
 
 # ── 读 conf 输出 "name|ip|user|pass" 每行一条 ──
