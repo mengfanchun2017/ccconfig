@@ -23,27 +23,35 @@ PS_EXE="/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
 
 # ── 探活：对单主机建 SMB 映射测 C$ 根 ──
 # 输出首行: PROBE_OK | PROBE_DENIED <msg> | PROBE_UNREACH <msg> | PROBE_ERR <msg>
-# ⚠️ 参数走 argv 不走 env：WSL interop 会吞掉自定义环境变量（实测 $env: 为空）
+# ⚠️ 调用方式坑（2026-10-12 实测）：env 会被 WSL interop 吞掉（$env: 为空）；
+# -Command <字符串> 模式后续 argv 被拼进命令文本（不绑 $args）。
+# 故用 python 生成脚本 + -EncodedCommand（base64 UTF-16LE），转义全免疫。
 _probe_one() {
     local ip="$1" user="$2" pw="$3"
-    local script='
+    local b64
+    b64=$(python3 - "$ip" "$user" "$pw" <<'PYEOF'
+import base64, sys
+ip, user, pw = (a.replace("'", "''") for a in sys.argv[1:4])
+ps = f"""
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
-$ipaddr=$args[0]; $uname=$args[1]; $pwval=$args[2]
-$path = "\\" + $ipaddr + "\C$"
+$path = '\\\\{ip}\\C$'
 Remove-SmbMapping -RemotePath $path -Force -ErrorAction SilentlyContinue | Out-Null
-try {
-  $m = New-SmbMapping -RemotePath $path -UserName $uname -Password $pwval -Persistent:$false -ErrorAction Stop
+try {{
+  $m = New-SmbMapping -RemotePath $path -UserName '{user}' -Password '{pw}' -Persistent:$false -ErrorAction Stop
   $ok = Test-Path $path
   Remove-SmbMapping -RemotePath $path -Force -ErrorAction SilentlyContinue | Out-Null
-  if ($ok) { Write-Output "PROBE_OK" } else { Write-Output "PROBE_ERR Test-Path 返回 false" }
-} catch {
-  $msg = $_.Exception.Message -replace "[\r\n]+", " "
-  if ($msg -match "拒绝访问|Access is denied|Unauthorized") { Write-Output "PROBE_DENIED $msg" }
-  elseif ($msg -match "找不到|not find|No network|network path|network name|timed out") { Write-Output "PROBE_UNREACH $msg" }
-  else { Write-Output "PROBE_ERR $msg" }
-}'
-    timeout 12 "$PS_EXE" -NoProfile -ExecutionPolicy Bypass -Command "$script" \
-        "$ip" "$user" "$pw" 2>&1 | head -1
+  if ($ok) {{ Write-Output "PROBE_OK" }} else {{ Write-Output "PROBE_ERR Test-Path false" }}
+}} catch {{
+  $msg = $_.Exception.Message -replace "[\\r\\n]+", " "
+  if ($msg -match "拒绝访问|Access is denied|Unauthorized") {{ Write-Output "PROBE_DENIED $msg" }}
+  elseif ($msg -match "找不到|not find|No network|network path|network name|timed out") {{ Write-Output "PROBE_UNREACH $msg" }}
+  else {{ Write-Output "PROBE_ERR $msg" }}
+}}
+"""
+print(base64.b64encode(ps.encode("utf-16-le")).decode())
+PYEOF
+    )
+    timeout 12 "$PS_EXE" -NoProfile -EncodedCommand "$b64" 2>&1 | head -1
 }
 
 # ── 读 conf 输出 "name|ip|user|pass" 每行一条 ──
