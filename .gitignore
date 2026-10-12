@@ -45,3 +45,11 @@ claude_job_tmp/
 .wrangler/
 openclaw.json
 supabase/.temp/
+
+# 课程下载（版权材料，勿入库）
+downloads/
+
+# 本次会话中间产物（含课程标题/URL，勿入库）
+course-modules.txt
+file-scan.json
+files-meta.json
