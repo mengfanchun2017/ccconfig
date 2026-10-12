@@ -44,8 +44,8 @@ def load_websearch_config():
     结构（私有文件，默认不存在 → 功能关闭）：
         {"enabled": true, "base_url": "https://api.xiaomimimo.com/v1",
          "model": "mimo-v2.6-flash", "key": "sk-..."}
-    或 {"enabled": true, "preset": "mimo26flash"} 从 merged 缓存借 base_url/model，
-    key 仍从 ccprivate/conf/llm.json 取。
+    或 {"enabled": true, "preset": "mimo26flash"} —— base_url/model 从 merged 缓存
+    借，key 从真相源 ccprivate/conf/llm.json 取。
     """
     ccprivate = Path(os.environ.get("CCPRIVATE_HOME", Path.home() / "git" / "ccprivate"))
     try:
@@ -57,13 +57,18 @@ def load_websearch_config():
     base_url = cfg.get("base_url", "")
     model = cfg.get("model", "")
     key = cfg.get("key", "")
-    if not base_url and cfg.get("preset"):
+    preset = cfg.get("preset", "")
+    if preset and not (base_url and model):
         try:
             merged = load_json(Path.home() / ".cache" / "llm-merged.json")
-            spec = (merged.get("llms") or {}).get(cfg["preset"], {})
+            spec = (merged.get("llms") or {}).get(preset, {})
             base_url = base_url or spec.get("base_url", "")
             model = model or spec.get("model", "")
-            key = key or spec.get("key", "")
+        except Exception:
+            pass
+    if preset and not key:
+        try:
+            key = (load_json(ccprivate / "conf" / "llm.json").get("llms") or {}).get(preset, {}).get("key", "")
         except Exception:
             pass
     if not (base_url and model and key):
