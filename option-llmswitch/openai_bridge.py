@@ -419,8 +419,11 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
         #      usage 不丢（仍需累计 output_tokens），只丢内容。
         terminal = state.get("finished") or state.get("stopped")
 
-        for choice in obj.get("choices", []):
-            delta = choice.get("delta", {})
+        for choice in (obj.get("choices") or []):
+            # 显式 null 容错：mimo 等 OpenAI 兼容端点会发 "delta":{... "tool_calls":null
+            # "reasoning_content":null}，`.get(k, default)` 对"缺键"生效但对"显式 null"
+            # 无效 → 迭代 None 抛 TypeError，整条流被自己的异常处理器判成 upstream 断连。
+            delta = choice.get("delta") or {}
             content = delta.get("content")
             if content and terminal:
                 state["dup_blocks"] = state.get("dup_blocks", 0) + 1
@@ -435,7 +438,7 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                 state["text_chars"] = state.get("text_chars", 0) + len(content)
                 out.append(f"event: content_block_delta\ndata: {json.dumps(block_delta, separators=(',', ':'))}\n\n")
 
-            for tc in delta.get("tool_calls", []):
+            for tc in (delta.get("tool_calls") or []):
                 tc_idx = tc.get("index", 0)
                 tc_key = f"tool_{tc_idx}"
 
@@ -528,22 +531,22 @@ async def _iter_complete_lines(stream_iter):
 
 def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> dict:
     """非流式：OpenAI Chat Completions response → Anthropic message。"""
-    choices = openai_body.get("choices", [])
+    choices = openai_body.get("choices") or []
     content = []
     for ch in choices:
-        msg = ch.get("message", {})
+        msg = ch.get("message") or {}
         text = msg.get("content")
         if isinstance(text, str) and text:
             content.append({"type": "text", "text": text})
         for tc in (msg.get("tool_calls") or []):
-            fn = tc.get("function", {})
+            fn = tc.get("function") or {}
             content.append({
                 "type": "tool_use",
                 "id": tc.get("id", ""),
                 "name": fn.get("name", ""),
                 "input": json.loads(fn.get("arguments", "{}")) if fn.get("arguments") else {},
             })
-    usage = openai_body.get("usage", {})
+    usage = openai_body.get("usage") or {}
     finish = None
     if choices:
         fr = choices[0].get("finish_reason", "")
