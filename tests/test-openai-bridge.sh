@@ -487,6 +487,72 @@ PYEOF
 )
 [[ "$t13" == "OK" ]] && _pass "重复投递 0 新事件，仅计 dup_blocks" || _fail "重复投递未被丢弃" "$t13"
 
+# ── T14: 上游显式 null 字段容错（mimo 会发 "tool_calls":null / "reasoning_content":null）──
+echo "T14 上游显式 null 字段不崩"
+t14=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+# mimo 首个 chunk 特征：delta 里 tool_calls / reasoning_content 显式 null
+chunks = [
+    {"id": "1", "choices": [{"index": 0, "delta": {"content": "", "role": "assistant", "tool_calls": None, "reasoning_content": None}, "finish_reason": None}], "usage": None},
+    {"id": "1", "choices": [{"index": 0, "delta": {"content": "你好", "tool_calls": None}, "finish_reason": None}]},
+    {"id": "1", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]},
+]
+st = {"started": False, "finished": False, "block_idx": 0}
+out = ""
+try:
+    for c in chunks:
+        out += m.openai_chunk_to_anthropic_sse("data: " + json.dumps(c) + "\n", "msg_n", "t", st) or ""
+    out += m.openai_chunk_to_anthropic_sse("data: [DONE]\n", "msg_n", "t", st) or ""
+except Exception as e:
+    print(f"FAIL: 抛异常 {type(e).__name__}: {e}"); sys.exit(1)
+fail = []
+if "你好" not in out:
+    fail.append("正文丢失")
+if out.count('"type":"message_stop"') != 1:
+    fail.append("缺 message_stop")
+if st.get("stop_reason") != "end_turn":
+    fail.append(f"stop_reason={st.get('stop_reason')}")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t14" == "OK" ]] && _pass "null 字段容错，正文 + 收尾正常" || _fail "null 字段导致崩溃/丢内容" "$t14"
+
+# ── T15: 服务端 web search 工具转换（native 转 web_search / 非 native 剔除）──
+echo "T15 服务端 web search 工具转换"
+t15=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+body = {"model": "x", "max_tokens": 10, "messages": [{"role": "user", "content": "q"}],
+        "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 8},
+                  {"name": "Read", "input_schema": {"type": "object", "properties": {}}}],
+        "tool_choice": {"type": "auto"}}
+fail = []
+if not m._body_has_websearch(body):
+    fail.append("未识别服务端搜索工具")
+o_native = m.anthropic_to_openai_req(body, "mimo", websearch_native=True)
+if {"type": "web_search"} not in (o_native.get("tools") or []):
+    fail.append("native 模式未转成 web_search")
+if o_native.get("tool_choice"):
+    fail.append("含服务端搜索工具时不应透传 tool_choice")
+o_strip = m.anthropic_to_openai_req(body, "deepseek", websearch_native=False)
+if any(t.get("type") == "web_search" for t in (o_strip.get("tools") or [])):
+    fail.append("非 native 模式未剔除搜索工具")
+# 只剩搜索工具时，tools 键不应出现
+only = {"model": "x", "max_tokens": 10, "messages": [{"role": "user", "content": "q"}],
+        "tools": [{"type": "web_search_20250305", "name": "web_search"}]}
+o_only = m.anthropic_to_openai_req(only, "m", websearch_native=False)
+if "tools" in o_only:
+    fail.append("仅搜索工具且非 native 时仍带空 tools 键")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t15" == "OK" ]] && _pass "native 转换 / 非 native 剔除 / tool_choice 抑制" || _fail "web search 工具转换错误" "$t15"
+
 echo ""
 echo "───────────────────────────────"
 if [[ $FAIL -eq 0 ]]; then
