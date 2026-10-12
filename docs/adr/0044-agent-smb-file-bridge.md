@@ -115,9 +115,15 @@ reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v Loca
 
 ## Implementation
 
-- [ ] `option-filepull/`（命名待定）：`init.sh` 提供 `--status`（探活 conf 中各主机 `C$`）+ `add` 交互（生成密码 → 打印 A 侧 PowerShell 块 → 探活确认）
-- [ ] `init-option.sh` MENU_GROUPS 注册；`lib/status.sh` 自动发现即接入（`--quick` 跳过慢探活）
-- [ ] ADR 0040 Related 互链（已做）
+- [x] `option-filepull/`：`init.sh` 提供 `--status`（EncodedCommand 探活 conf 各主机 `C$`）+ `add` 交互（生成密码 → 打印 A 侧 PowerShell 三行块 → confirm 探活确认）+ `probe [host]` + `--install` 非交互；redmipro 实测 `OK filepull 1/1`
+- [x] `init-option.sh` MENU_GROUPS `--其他--` 注册 + CLI_DESC；`lib/status.sh` 自动发现即接入（实测 maintain status 显示 `filepull ✅`）
+- [x] ADR 0040 Related 互链
+
+### 实现期追加坑（已固化进代码注释与 memory）
+
+- WSL interop **吞自定义环境变量**（`$env:SMBHOST` 为空）；`-Command <字符串>` 模式**后续 argv 被拼进命令文本**不绑 `$args` → 探活改用 python 生成脚本 + `-EncodedCommand`（UTF-16LE base64），转义全免疫
+- `EncodedCommand` + stdout 重定向会包 `#< CLIXML` 头与进度记录（进度记录含密码明文）→ `$ProgressPreference='SilentlyContinue'` + `grep -m1 '^PROBE_'`
+- `New-SmbMapping` 默认**持久映射**会失败 → 必须 `-Persistent:$false`
 
 ## Related
 
