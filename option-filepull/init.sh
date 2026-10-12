@@ -93,19 +93,20 @@ do_status() {
         return 0
     fi
 
-    local ok=0 total=0 fail_names=() ok_names=()
-    echo ""
+    local ok=0 total=0 fail_names=() ok_names=() details=""
     while IFS='|' read -r name ip user pw; do
         [ -z "$name" ] && continue
         total=$((total + 1))
-        if _probe_report "$name" "$ip" "$user" "$pw"; then
+        local detail
+        if detail=$(_probe_report "$name" "$ip" "$user" "$pw"); then
             ok=$((ok + 1)); ok_names+=("$name")
         else
             fail_names+=("$name")
         fi
+        details+="${detail}"$'\n'
     done <<< "$hosts"
 
-    # 首行状态契约（无 ANSI）
+    # 首行状态契约（无 ANSI，init-option/maintain 取 head -1）
     if [ "$ok" -eq "$total" ]; then
         echo "OK filepull $ok/$total 台主机可达 (${ok_names[*]})"
     elif [ "$ok" -gt 0 ]; then
@@ -113,6 +114,8 @@ do_status() {
     else
         echo "MISSING filepull 0/$total 台可达 (${fail_names[*]})"
     fi
+    echo ""
+    printf '%s' "$details"
 }
 
 do_probe() {
@@ -227,8 +230,10 @@ case "${1:-}" in
     add) shift; do_add "$@" ;;
     probe) shift; do_probe "${1:-}" ;;
     --install|--yes|-y)
-        if [ -f "$CONF" ] && [ -n "$(_list_hosts)" ]; then
-            echo "OK filepull 已配置 $((_list_hosts | wc -l)) 台主机"
+        count=0
+        if [ -f "$CONF" ]; then count=$(_list_hosts | grep -c . || true); fi
+        if [ "$count" -gt 0 ]; then
+            echo "OK filepull 已配置 $count 台主机"
         else
             echo "OK filepull 未配置（手动添加: bash option-filepull/init.sh add）"
         fi
