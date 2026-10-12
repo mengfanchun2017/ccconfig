@@ -38,6 +38,39 @@ def load_json(p):
         return json.load(f)
 
 
+def load_websearch_config():
+    """加载「所有 web search 统一路由到指定上游」配置（ccprivate/conf/websearch.json）。
+
+    结构（私有文件，默认不存在 → 功能关闭）：
+        {"enabled": true, "base_url": "https://api.xiaomimimo.com/v1",
+         "model": "mimo-v2.6-flash", "key": "sk-..."}
+    或 {"enabled": true, "preset": "mimo26flash"} 从 merged 缓存借 base_url/model，
+    key 仍从 ccprivate/conf/llm.json 取。
+    """
+    ccprivate = Path(os.environ.get("CCPRIVATE_HOME", Path.home() / "git" / "ccprivate"))
+    try:
+        cfg = load_json(ccprivate / "conf" / "websearch.json")
+    except Exception:
+        return None
+    if not cfg.get("enabled"):
+        return None
+    base_url = cfg.get("base_url", "")
+    model = cfg.get("model", "")
+    key = cfg.get("key", "")
+    if not base_url and cfg.get("preset"):
+        try:
+            merged = load_json(Path.home() / ".cache" / "llm-merged.json")
+            spec = (merged.get("llms") or {}).get(cfg["preset"], {})
+            base_url = base_url or spec.get("base_url", "")
+            model = model or spec.get("model", "")
+            key = key or spec.get("key", "")
+        except Exception:
+            pass
+    if not (base_url and model and key):
+        return None
+    return {"base_url": base_url, "model": model, "key": key}
+
+
 def load_upstream_config():
     """从 llmswitch.json 读 openai_bridge 配置；CLI 参数覆盖。"""
     cfg_path = CCCONFIG / "option-llmswitch" / "conf" / "llmswitch.json"
@@ -75,8 +108,26 @@ def _resolve_upstream(url: str) -> str:
     return None, None
 
 
-def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
-    """Anthropic Messages API body → OpenAI Chat Completions body."""
+def _is_websearch_tool(t) -> bool:
+    """Anthropic 服务端搜索工具判定（type 以 web_search_ 开头，如 web_search_20250305）。
+
+    与客户端工具（带 input_schema、由模型 tool_use 触发）不同，服务端工具由上游
+    自己执行搜索，请求体里只有 type+name。
+    """
+    return isinstance(t, dict) and str(t.get("type", "")).startswith("web_search_")
+
+
+def _body_has_websearch(body: dict) -> bool:
+    return any(_is_websearch_tool(t) for t in (body.get("tools") or []))
+
+
+def anthropic_to_openai_req(anth_body: dict, target_model: str, websearch_native: bool = False) -> dict:
+    """Anthropic Messages API body → OpenAI Chat Completions body.
+
+    websearch_native=True 时把 Anthropic 服务端搜索工具 web_search_20250305 转成
+    OpenAI 的 {"type":"web_search"}（上游原生执行搜索）；False 时剔除该工具
+    （上游不支持服务端搜索，当普通 function 发过去会 400）。
+    """
     messages = []
     system_blocks = anth_body.get("system")
     if isinstance(system_blocks, list):
@@ -180,19 +231,29 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
 
     tools = anth_body.get("tools")
     if tools:
-        openai_body["tools"] = [
-            {
+        out_tools = []
+        for t in tools:
+            if _is_websearch_tool(t):
+                # Anthropic 服务端搜索工具：只有上游原生支持时才转成
+                # {"type":"web_search"} 让它自己搜；否则剔除，避免当 function
+                # 发过去被上游 400，或转成假 function 让模型反复空转。
+                if websearch_native:
+                    out_tools.append({"type": "web_search"})
+                continue
+            out_tools.append({
                 "type": "function",
                 "function": {
                     "name": t.get("name", ""),
                     "description": t.get("description", ""),
                     "parameters": t.get("input_schema", {"type": "object", "properties": {}}),
                 },
-            }
-            for t in tools
-        ]
+            })
+        if out_tools:
+            openai_body["tools"] = out_tools
         tool_choice = anth_body.get("tool_choice")
-        if tool_choice:
+        # web search 是服务端工具，客户端无 tool_choice；转发会与剩余 tools 语义
+        # 冲突（如 tool_choice=auto 但只剩 web_search → 上游报 "tool not found"）
+        if tool_choice and not any(_is_websearch_tool(t) for t in tools):
             if tool_choice.get("type") == "tool":
                 openai_body["tool_choice"] = {"type": "function", "function": {"name": tool_choice.get("name", "")}}
             else:
@@ -501,7 +562,9 @@ def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> d
 
 
 app = FastAPI()
-state = {"upstream": "", "upstream_key": "", "upstream_model": ""}
+# websearch_upstream：非空时，凡请求含服务端 web search 工具的整条请求都改发到此上游
+# （用户选定：不分主模型，所有 web search 统一走小米 mimo）
+state = {"upstream": "", "upstream_key": "", "upstream_model": "", "websearch_upstream": None}
 http_client = None
 
 
@@ -680,13 +743,31 @@ async def on_shutdown():
 async def messages(request: Request):
     body = await request.json()
     stream = bool(body.get("stream"))
-    upstream_body = anthropic_to_openai_req(body, state["upstream_model"])
 
-    headers = {
-        "Authorization": f"Bearer {state['upstream_key']}",
-        "Content-Type": "application/json",
-    }
-    upstream_base = state["upstream"].rstrip("/")
+    # 含服务端 web search 工具 → 整条请求改发 websearch 上游（小米 mimo），由它执行
+    # 搜索。主模型是谁无关；不含搜索工具则照常走主上游。
+    ws = state.get("websearch_upstream")
+    use_ws = bool(ws) and _body_has_websearch(body)
+    if use_ws:
+        upstream_body = anthropic_to_openai_req(body, ws["model"], websearch_native=True)
+        headers = {
+            "Authorization": f"Bearer {ws['key']}",
+            "Content-Type": "application/json",
+        }
+        upstream_base = ws["base_url"].rstrip("/")
+        host_header = ""
+        use_win_curl = False  # 搜索上游是公网 HTTPS，直连即可
+        print(f"[bridge] websearch route → {upstream_base} model={ws['model']}", flush=True)
+    else:
+        upstream_body = anthropic_to_openai_req(body, state["upstream_model"])
+        headers = {
+            "Authorization": f"Bearer {state['upstream_key']}",
+            "Content-Type": "application/json",
+        }
+        upstream_base = state["upstream"].rstrip("/")
+        host_header = state.get("upstream_host")
+        use_win_curl = state.get("use_win_curl", False)
+
     # URL 已含版本段（/v1, /v4, /paas/v4, /openai/v1 等）或完整路径 → 只追加 /chat/completions
     # why: 之前只检测 /v1，遇到智谱 paas/v4 类非标准路径会拼成 /v4/v1/chat/completions → 404
     if re.search(r"/v\d+(/|$)", upstream_base) or "/chat/completions" in upstream_base:
@@ -695,7 +776,6 @@ async def messages(request: Request):
         target_url = upstream_base + "/v1/chat/completions"
 
     # 如果 upstream 用 IP 代替了域名，加 Host header 保 SNI 和路由
-    host_header = state.get("upstream_host")
     extra_ext = {}
     if host_header:
         headers["Host"] = host_header
@@ -703,7 +783,6 @@ async def messages(request: Request):
         extra_ext["sni_hostname"] = host_header
 
     client = http_client
-    use_win_curl = state.get("use_win_curl", False)
 
     if stream:
         _REQ_SEQ[0] += 1
@@ -908,6 +987,8 @@ async def reload(request: Request):
         state["upstream_model"] = data["upstream_model"]
     if "upstream_host" in data:
         state["upstream_host"] = data["upstream_host"]
+    if data.get("reload_websearch"):
+        state["websearch_upstream"] = load_websearch_config()
     safe_state = dict(state)
     if "upstream_key" in safe_state:
         safe_state["upstream_key"] = "***"
@@ -926,6 +1007,8 @@ async def health():
         "upstream_key_set": bool(state.get("upstream_key")),
         "use_win_curl": state.get("use_win_curl", False),
         "skip_tls_verify": state.get("skip_tls_verify", False),
+        "websearch_upstream": (state.get("websearch_upstream") or {}).get("base_url", ""),
+        "websearch_model": (state.get("websearch_upstream") or {}).get("model", ""),
     }
 
 
@@ -956,6 +1039,11 @@ def main():
     state["upstream_model"] = args.upstream_model
     state["upstream_host"] = args.upstream_host or ""
     state["use_win_curl"] = args.use_win_curl
+    # web search 全局路由（ccprivate/conf/websearch.json，不存在=关闭）
+    state["websearch_upstream"] = load_websearch_config()
+    if state["websearch_upstream"]:
+        print(f"[openai-bridge] websearch route enabled → {state['websearch_upstream']['base_url']}"
+              f" model={state['websearch_upstream']['model']}", flush=True)
     # 原始 upstream URL（IP 预解析前的），便于 ensure_bridge 字符串匹配
     state["upstream_original"] = os.environ.get("OPENAI_BRIDGE_UPSTREAM_ORIGINAL", args.upstream)
     state["skip_tls_verify"] = args.skip_tls_verify
