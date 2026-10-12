@@ -30,14 +30,14 @@ _probe_one() {
 $path = "\\" + $env:SMBHOST + "\C$"
 Remove-SmbMapping -RemotePath $path -Force -ErrorAction SilentlyContinue | Out-Null
 try {
-  $m = New-SmbMapping -RemotePath $path -UserName $env:SMBUSER -Password $env:SMBPW -ErrorAction Stop
+  $m = New-SmbMapping -RemotePath $path -UserName $env:SMBUSER -Password $env:SMBPW -Persistent:$false -ErrorAction Stop
   $ok = Test-Path $path
   Remove-SmbMapping -RemotePath $path -Force -ErrorAction SilentlyContinue | Out-Null
   if ($ok) { Write-Output "PROBE_OK" } else { Write-Output "PROBE_ERR Test-Path 返回 false" }
 } catch {
   $msg = $_.Exception.Message -replace "[\r\n]+", " "
   if ($msg -match "拒绝访问|Access is denied|Unauthorized") { Write-Output "PROBE_DENIED $msg" }
-  elseif ($msg -match "找不到|not find|No network|network path|timed out") { Write-Output "PROBE_UNREACH $msg" }
+  elseif ($msg -match "找不到|not find|No network|network path|network name|timed out") { Write-Output "PROBE_UNREACH $msg" }
   else { Write-Output "PROBE_ERR $msg" }
 }'
     SMBHOST="$ip" SMBUSER="$user" SMBPW="$pw" \
