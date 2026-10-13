@@ -55,6 +55,11 @@ for name, cfg in llms.items():
     for k in ('name', 'base_url', 'model'):
         assert k in cfg, f"{name} missing {k}"
     assert 'key' not in cfg, f"{name} 不应含 key（key 在 llm.json）"
+    # max_context_tokens 可选；若含必须是正整数，单位 1000 tokens（400 = 400k）
+    if 'max_context_tokens' in cfg:
+        v = cfg['max_context_tokens']
+        assert isinstance(v, int) and not isinstance(v, bool) and 1 <= v <= 10000, \
+            f"{name} max_context_tokens 非法（应为 1-10000 的整数，单位 k）: {v!r}"
 print("OK")
 PYEOF
     [ $? -eq 0 ] && pass "$label: 定义完整且无 key 泄露" || fail "$label" "缺字段或含 key"
