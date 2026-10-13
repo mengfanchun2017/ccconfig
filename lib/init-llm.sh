@@ -472,7 +472,8 @@ switch_llm() {
         return 1
     }
 
-    local max_ctx; max_ctx=$(get_max_context_tokens "$name")
+    # 传 raw（k 单位，未声明为空）；write_llm_config 内统一 ×1000，空则落全局默认
+    local max_ctx; max_ctx=$(get_max_context_raw "$name")
     write_llm_config "$name" "$base_url" "$model" "$small" "$key" "$max_ctx"
 
     # 提示重启 Claude session：settings.json 改了，但当前 claude 进程不 reload 旧连接池
