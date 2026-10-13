@@ -512,6 +512,10 @@ except: print('||')" 2>/dev/null)
 import json, os
 try: print(json.load(open(os.path.expanduser('~/.claude/settings.json'))).get('model',''))
 except: pass" 2>/dev/null)
+    sett_ctx=$(python3 -c "
+import json, os
+try: print(json.load(open(os.path.expanduser('~/.claude/settings.json'))).get('env',{}).get('CLAUDE_CODE_MAX_CONTEXT_TOKENS',''))
+except: pass" 2>/dev/null)
 
     echo ""
     printf "━━━ LLM 链路诊断 ──\n"
@@ -522,6 +526,12 @@ except: pass" 2>/dev/null)
         [[ -n "$tok" ]] && printf "env.ANTHROPIC_AUTH_TOKEN  : ...%s\n" "${tok: -4}"
     fi
     printf "settings 顶层 model       : %s\n" "${sett_model:-<未设置>}"
+    if [[ -n "$llm_cur" ]]; then
+        local _raw _disp; _raw=$(get_max_context_raw "$llm_cur")
+        _disp="${_raw:+${_raw}k}"; [[ -z "$_disp" ]] && _disp="默认 ${DEFAULT_MAX_CONTEXT_TOKENS}k"
+        printf "上下文窗口 (预设声明)     : %s\n" "$_disp"
+    fi
+    printf "env.MAX_CONTEXT_TOKENS    : %s\n" "${sett_ctx:-<未设置>}"
 
     if [[ "$sett_env" == *"://127.0.0.1:${BRIDGE_PORT}"* ]]; then
         local st ub um
