@@ -184,6 +184,7 @@ LLM 配置拆三层，key 与预设定义彻底分离：
       "small_model": "<model>",
       "use_bridge": true | false |缺失,
       "host_header": "<domain>",
+      "max_context_tokens": 400,
       "builtin": true
     }
   }
