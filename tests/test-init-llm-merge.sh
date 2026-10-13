@@ -189,6 +189,31 @@ else
     _fail "旧格式兼容失败" "got: $legacy_ok $cache_cur"
 fi
 
+# ── T7: 内置薄覆盖 — private 只给 max_context_tokens → 覆盖窗口且 _src 保持 normal ──
+# why：菜单改内置预设窗口写的就是这种薄条目（避免整条复制与 ccconfig 更新漂移）。
+# 若误判成整条重定义（_src=private），内置预设会从"不可删"变成可删。
+echo "T7 内置薄覆盖：private 仅给 max_context_tokens → 覆盖窗口 + _src 保持 normal"
+cat > "$WORKDIR/thin-private.json" << 'JSON'
+{
+  "llms": {
+    "custom-x": { "name": "CustomX", "base_url": "https://x.example", "model": "m-x" },
+    "shared": { "name": "SharedCustom", "base_url": "https://c.example", "model": "m-c" },
+    "builtin-a": { "max_context_tokens": 321 }
+  }
+}
+JSON
+thin_out=$(run_merge "$WORKDIR/normal.json" "$WORKDIR/thin-private.json" "$WORKDIR/keys.json" "$WORKDIR/cache5.json" "$WORKDIR/thin-home")
+thin_res=$(printf '%s' "$thin_out" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+ba = d.get('builtin-a', {})
+print(ba.get('_src',''), ba.get('max_context_tokens',''), ba.get('base_url',''))")
+if [[ "$thin_res" == "normal 321 https://a.example" ]]; then
+    _pass "薄覆盖生效：_src=normal、窗口=321、base_url 保留 normal 值"
+else
+    _fail "薄覆盖行为错" "got: [$thin_res]"
+fi
+
 echo ""
 echo "───────────────────────────────"
 if [[ $FAIL -eq 0 ]]; then
