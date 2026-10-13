@@ -254,10 +254,14 @@ Claude Code 唯一读取的 LLM 配置：
     "ANTHROPIC_AUTH_TOKEN": "<key>",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
-    "ENABLE_PROMPT_CACHING_1H": "1"
+    "ENABLE_PROMPT_CACHING_1H": "1",
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "400000"
   }
 }
 ```
+
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS` 声明 CC 未识别模型的真实窗口（绝对 token，预设 k 值 ×1000），
+由 `switch_llm` 按预设写入（未声明预设落全局默认，见 [ADR-0045](adr/0045-llm-context-window-config.md)）。
 
 `ANTHROPIC_BASE_URL` 指向 `http://127.0.0.1:8898` 时，bridge 自动拉起（SessionStart hook 自愈，ADR-0013）。
 
@@ -347,6 +351,7 @@ while true:
   - [ADR-0030 Gateway 模式废弃](adr/0030-gateway-deprecation-2026.md)
   - [ADR-0031 init-llm 收敛：桥接链路修复 + 探测统一 + 四层守护模型](adr/0031-init-llm-consolidation-2026.md)
   - [ADR-0039 三层 LLM 配置](adr/0039-llm-three-tier-config.md)
+  - [ADR-0045 上下文窗口可配置](adr/0045-llm-context-window-config.md)
 - **memory**（核心条目，存于使用者的私有 memory，不随公开仓库分发）：
   `openai-bridge-py` / `bridge-ops` / `deepseek-thinking-query` /
   `llm-menu-refactor-20261003` / `three-tier-upgrade-compat-20261007` /
