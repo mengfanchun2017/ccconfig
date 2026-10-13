@@ -6,6 +6,7 @@
             "base_url": "https://api.minimaxi.com/anthropic",
             "model": "MiniMax-M3.1-Flash-Preview",
             "small_model": "MiniMax-M3.1-Flash-Preview",
+            "max_context_tokens": 409600,
             "builtin": true
         },
         "deepseek41flash": {
@@ -13,6 +14,7 @@
             "base_url": "https://api.deepseek.com/anthropic",
             "model": "deepseek-v4-flash",
             "small_model": "deepseek-v4-flash",
+            "max_context_tokens": 409600,
             "builtin": true
         },
         "glm53flash": {
@@ -21,6 +23,7 @@
             "model": "glm-5.3-flash",
             "small_model": "glm-5.3-flash",
             "use_bridge": true,
+            "max_context_tokens": 409600,
             "builtin": true
         },
         "mimo26flash": {
@@ -28,6 +31,7 @@
             "base_url": "https://api.xiaomimimo.com/anthropic",
             "model": "mimo-v2.6-flash",
             "small_model": "mimo-v2.6-flash",
+            "max_context_tokens": 409600,
             "builtin": true
         }
     }
