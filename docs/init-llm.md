@@ -215,6 +215,27 @@ key 文件（`llm.json`）只管 key，不与预设定义耦合：
   - `"False"` 显式禁 bridge（OpenAI-only + false → 早报错，不静默兜底）
   - **缺失** → OpenAI-only 端点自动起 bridge，Anthropic 端点直连
 - **`host_header`** 可选（tailscale/SSH 透传场景证书 SAN 不匹配 IP 时，把 SNI + Host 改成证书里的真实域名/IP）
+- **`max_context_tokens`** 可选，单位 **1000 tokens**（`400` = 400k）。写进 CC env
+  `CLAUDE_CODE_MAX_CONTEXT_TOKENS`（×1000 → `400000`）。未声明 → 落全局默认。
+  详见 [ADR-0045](adr/0045-llm-context-window-config.md)。
+
+### 上下文窗口（ADR-0045）
+
+CC 对**未识别模型名**（本项目所有第三方上游）默认按 200k 假设窗口，需用 env
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS` 声明真实窗口（该 env 全局生效，与 preset 无关）。
+本工具把它建模为「预设属性 + 全局默认」：
+
+- **预设属性** `max_context_tokens`（单位 k）。每次 `switch_llm` 都写 env（未声明落默认，
+  **不再 pop**）→ 杜绝残留上一个预设的窗口。
+- **全局默认**：`DEFAULT_MAX_CONTEXT_TOKENS`，优先级 env > 本机文件
+  `~/.claude/llm-context-default` > `400`。
+- **薄覆盖**：改内置预设窗口时在 `llmprivate.json` 写**只含 `max_context_tokens`** 的条目，
+  合并时只覆盖该字段、`_src` 保持 `normal`（内置仍不可删、不与 ccconfig 更新漂移）。
+  含其它字段的 private 同名条目仍是整条重定义（`_src` 翻 `private`）。
+- **界面**：运维菜单 `4H` / LLM 菜单 `3c` / `bash init-llm.sh ctx <name|default> [k]`。
+- **可见性**：`init-llm status`（`4C`）显示预设声明窗口 + `env.MAX_CONTEXT_TOKENS`；
+  交互菜单头显示「窗口 Nk」。
+- **生效**：窗口随切换写入 env；改的是当前预设需重切一次再 `/exit` 重启 Claude。
 
 ### `~/.claude/llm-current`（本地，不入 git）
 
