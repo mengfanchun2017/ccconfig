@@ -346,11 +346,14 @@ if final:
     env_upd["ANTHROPIC_AUTH_TOKEN"] = final
 
 # 上下文窗口：未识别模型（非 claude-* 名）默认按 200k 假设，preset 声明的真实窗口
-# 经 CLAUDE_CODE_MAX_CONTEXT_TOKENS 覆盖。该 env 全局生效，切走时必须移除——
-# 否则会把上一个 preset 的窗口假设带给本 preset（可能超过其真实窗口 → 中途被上游截断/报错）
-_max_ctx = os.environ.get('MAX_CTX', '').strip()
-if _max_ctx:
-    env_upd["CLAUDE_CODE_MAX_CONTEXT_TOKENS"] = _max_ctx
+# 经 CLAUDE_CODE_MAX_CONTEXT_TOKENS 覆盖。该 env 全局生效，**每次切换都显式写**——
+# 未声明的 preset 落全局默认（不 pop），杜绝残留上一个 preset 的窗口值。
+# MAX_CTX 单位是 k（400 → 400k），乘 1000 写绝对 token。
+try:
+    _k = int(os.environ.get('MAX_CTX', '').strip() or os.environ.get('DEFAULT_CTX', '400'))
+except ValueError:
+    _k = 400
+env_upd["CLAUDE_CODE_MAX_CONTEXT_TOKENS"] = str(_k * 1000)
 
 sf = os.path.expanduser("~/.claude/settings.json")
 if os.path.islink(sf) and not os.path.exists(sf):
@@ -359,8 +362,6 @@ try:
     with open(sf) as f: sd = json.load(f)
 except: sd = {}
 sd.setdefault('env', {}).update(env_upd)
-if not _max_ctx:
-    sd['env'].pop('CLAUDE_CODE_MAX_CONTEXT_TOKENS', None)
 if os.environ['MODEL_NAME']:
     sd['model'] = os.environ['MODEL_NAME']
 with open(sf, 'w') as f: json.dump(sd, f, indent=4, ensure_ascii=False)
