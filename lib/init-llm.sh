@@ -817,6 +817,140 @@ print("OK" if (p_dirty or k_dirty) else "NOT_FOUND")
 PYEOF
 }
 
+# ========== 设预设上下文窗口（max_context_tokens，单位 1000 tokens）==========
+# 内置预设（_src=normal）在 llmprivate.json 里写「薄覆盖」条目（只含 max_context_tokens），
+# 不整条复制；自定义预设（_src=private）就地写进本条；其余字段一律不动。
+# 只写定义文件，**不碰** settings.json —— 改动在下次 switch_llm 时随 get_max_context_tokens 生效。
+set_max_context_tokens() {
+    local target="${1:-}"
+
+    if [[ -z "$target" ]]; then
+        local merged; merged=$(_llms_merged_py)
+        local items=() names=()
+        local cur_default_disp="默认 ${DEFAULT_MAX_CONTEXT_TOKENS}k"
+        local cur_name cur_disp cur_line
+        while IFS='|' read -r _ name display _ _ _ _ _; do
+            [[ -z "$name" ]] && continue
+            names+=("$name")
+            cur_line=$(LLM_MERGED="$merged" python3 - "$name" <<'PYEOF'
+import json, os, sys
+try: merged = json.loads(os.environ['LLM_MERGED'])
+except Exception: merged = {}
+v = merged.get(sys.argv[1], {}).get('max_context_tokens', '')
+print('' if v in ('', None) else v)
+PYEOF
+            )
+            cur_disp="${cur_line:+${cur_line}k}"
+            items+=("$display${cur_disp:+ · 当前 ${cur_disp}}")
+        done < <(list_llms)
+        [[ ${#items[@]} -eq 0 ]] && { info "无预设"; return 0; }
+        # 全局默认置顶：选中即改「未声明预设」的默认窗口
+        items=("【全局默认】未声明预设用 $cur_default_disp" "${items[@]}")
+        items+=("返回上层")
+        local sel; sel=$(menu_select "选择要设置上下文窗口的预设" "${items[@]}")
+        [[ -z "$sel" || "$sel" == "0" ]] && return 0
+        (( sel == ${#items[@]} )) && return 0
+        if (( sel == 1 )); then
+            _set_global_default_ctx
+            return 0
+        fi
+        target="${names[$((sel-2))]}"
+    fi
+    [[ -z "$target" ]] && { error "未指定预设"; return 1; }
+    _edit_preset_ctx "$target"
+}
+
+# 改全局默认上下文窗口（写 ~/.claude/llm-context-default，本机级）
+_set_global_default_ctx() {
+    local f="$HOME/.claude/llm-context-default"
+    local cur; cur=$(cat "$f" 2>/dev/null || echo "$DEFAULT_MAX_CONTEXT_TOKENS")
+    local ans; ans=$(prompt "全局默认上下文窗口（单位 k tokens，如 400 = 400k）" "$cur")
+    [[ -z "$ans" ]] && { info "已取消"; return 0; }
+    if ! [[ "$ans" =~ ^[0-9]+$ ]] || (( ans < 1 || ans > 10000 )); then
+        error "非法值: $ans（需为 1-10000 的整数，单位 k）"; return 1
+    fi
+    mkdir -p "$(dirname "$f")"
+    printf '%s' "$ans" > "$f"
+    success "全局默认窗口已设为 ${ans}k（未声明该字段的预设适用）"
+    _ctx_howto_apply
+}
+
+# 改单个预设的窗口；target 不存在则报错
+_edit_preset_ctx() {
+    local target="$1"
+    local merged src raw
+    merged=$(_llms_merged_py)
+    src=$(LLM_MERGED="$merged" python3 - "$target" <<'PYEOF'
+import json, os, sys
+try: merged = json.loads(os.environ['LLM_MERGED'])
+except Exception: merged = {}
+print(merged.get(sys.argv[1], {}).get('_src', ''))
+PYEOF
+    )
+    [[ -z "$src" ]] && { error "预设 '$target' 不存在"; return 1; }
+
+    raw=$(get_max_context_raw "$target")
+    local cur_disp; cur_disp="${raw:+${raw}k}"
+    [[ -z "$cur_disp" ]] && cur_disp="默认 ${DEFAULT_MAX_CONTEXT_TOKENS}k"
+
+    info "  预设: $target"
+    info "  当前窗口: $cur_disp"
+    local ans; ans=$(prompt "新的上下文窗口（单位 k tokens，如 400 = 400k；回车保持不变）" "${raw:-}")
+    [[ -z "$ans" ]] && { info "未改动"; return 0; }
+    if ! [[ "$ans" =~ ^[0-9]+$ ]] || (( ans < 1 || ans > 10000 )); then
+        error "非法值: $ans（需为 1-10000 的整数，单位 k）"; return 1
+    fi
+
+    local rc=0
+    LLM_MERGED="$merged" LLM_PRIVATE_FILE="$LLM_PRIVATE_FILE" python3 - "$target" "$ans" <<'PYEOF' || rc=$?
+import json, sys, os
+target, val = sys.argv[1], int(sys.argv[2])
+try:
+    merged = json.loads(os.environ['LLM_MERGED'])
+except Exception:
+    merged = {}
+src = merged.get(target, {}).get('_src', '')
+pf = os.environ['LLM_PRIVATE_FILE']
+try:
+    with open(pf) as f: pd = json.load(f)
+except Exception:
+    pd = {}
+pd.setdefault('llms', {})
+if src == 'normal':
+    # 内置：薄覆盖条目（只含 max_context_tokens），字段级合并时覆盖 normal 的窗口
+    entry = pd['llms'].get(target, {})
+    entry = dict(entry) if isinstance(entry, dict) else {}
+    entry['max_context_tokens'] = val
+    pd['llms'][target] = entry
+else:
+    entry = pd['llms'].get(target, {})
+    entry = dict(entry) if isinstance(entry, dict) else {}
+    entry['max_context_tokens'] = val
+    pd['llms'][target] = entry
+with open(pf, 'w') as f: json.dump(pd, f, indent=4, ensure_ascii=False)
+print(f"{src or 'private'}")
+PYEOF
+    (( rc != 0 )) && { error "写入 llmprivate.json 失败"; return 1; }
+
+    # 合并缓存需刷新，否则 get_max_context_tokens 读到旧值
+    _llms_merged_py >/dev/null 2>&1 || true
+    success "预设 '$target' 窗口已设为 ${ans}k（${ans}000 tokens）"
+    _ctx_howto_apply
+}
+
+# 提示改动如何生效
+_ctx_howto_apply() {
+    echo ""
+    local cur; cur=$(read_local_current)
+    if [[ -n "$cur" ]]; then
+        info "生效方式：窗口随切预设写入 Claude Code env（CLAUDE_CODE_MAX_CONTEXT_TOKENS）"
+        info "  · 若改的是当前生效预设（$cur）：重切一次 'bash maintain.sh llm $cur' 写入，再 /exit 重启 Claude"
+        info "  · 若改的是其它预设：切到它时自动生效"
+    else
+        info "生效方式：窗口在切换预设时写入 Claude Code env，/exit 重启 Claude 后生效"
+    fi
+}
+
 _llm_status_header() {
     local current="${1:-}"
     echo -e ""
