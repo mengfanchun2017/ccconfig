@@ -10,6 +10,7 @@
 #   bash init-llm.sh test <name>     # 真实链路探测（走 bridge + 流式）
 #   bash init-llm.sh sync            # 修 /model 污染
 #   bash init-llm.sh delete <name>   # 删预设
+#   bash init-llm.sh ctx [name]      # 设上下文窗口（单位 k tokens，400 = 400k）
 #   bash init-llm.sh heal            # bridge 自愈（按 llm-current 重拉）
 #
 # 三层配置：内置预设 conf/llmnormal.json（ccconfig 公开）＋ 自定义预设
