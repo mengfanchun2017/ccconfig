@@ -999,7 +999,10 @@ print(f"{llm.get('name', os.environ['CUR'])}|{llm.get('model','')}|{base}")
 PYEOF
     ) 2>/dev/null
     [[ -z "$display" ]] && display="$current"
-    echo -e "  ${LIGHT_BLUE}生效配置: $display${NC} ${DIM}($model)${NC}"
+    local _ctx_raw; _ctx_raw=$(get_max_context_raw "$current")
+    local _ctx_disp; _ctx_disp="${_ctx_raw:+${_ctx_raw}k}"
+    [[ -z "$_ctx_disp" ]] && _ctx_disp="默认 ${DEFAULT_MAX_CONTEXT_TOKENS}k"
+    echo -e "  ${LIGHT_BLUE}生效配置: $display${NC} ${DIM}($model) · 窗口 ${_ctx_disp}${NC}"
 
     # bridge 状态：仅当 settings.json 的 env 指向 bridge 端口时才有意义
     if [[ "$sf_url" == "http://127.0.0.1:${BRIDGE_PORT}"* ]]; then
