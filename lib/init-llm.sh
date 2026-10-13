@@ -861,12 +861,16 @@ PYEOF
     _edit_preset_ctx "$target"
 }
 
-# 改全局默认上下文窗口（写 ~/.claude/llm-context-default，本机级）
+# 改全局默认上下文窗口（写 ~/.claude/llm-context-default，本机级）。value（可选）免交互
 _set_global_default_ctx() {
+    local arg="${1:-}"
     local f="$HOME/.claude/llm-context-default"
     local cur; cur=$(cat "$f" 2>/dev/null || echo "$DEFAULT_MAX_CONTEXT_TOKENS")
-    local ans; ans=$(prompt "全局默认上下文窗口（单位 k tokens，如 400 = 400k）" "$cur")
-    [[ -z "$ans" ]] && { info "已取消"; return 0; }
+    local ans="$arg"
+    if [[ -z "$ans" ]]; then
+        ans=$(prompt "全局默认上下文窗口（单位 k tokens，如 400 = 400k）" "$cur")
+        [[ -z "$ans" ]] && { info "已取消"; return 0; }
+    fi
     if ! [[ "$ans" =~ ^[0-9]+$ ]] || (( ans < 1 || ans > 10000 )); then
         error "非法值: $ans（需为 1-10000 的整数，单位 k）"; return 1
     fi
