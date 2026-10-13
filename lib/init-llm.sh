@@ -163,8 +163,12 @@ print('' if v == '__ABSENT__' else v)
 PYEOF
 }
 
-# 读每预设的上下文窗口（可选，未识别模型用 CLAUDE_CODE_MAX_CONTEXT_TOKENS 声明真实窗口）
-get_max_context_tokens() {
+# 全局默认上下文窗口（单位：1000 tokens；400 = 400k）。
+# 预设未声明 max_context_tokens 时套用；环境变量可覆盖（测试 / 临时调小）。
+DEFAULT_MAX_CONTEXT_TOKENS="${DEFAULT_MAX_CONTEXT_TOKENS:-400}"
+
+# 读预设声明的窗口原始值（单位：1000 tokens），未声明返回空 —— 菜单据此显示「默认 Xk」
+get_max_context_raw() {
     local merged; merged=$(_llms_merged_py)
     LLM_MERGED="$merged" python3 - "$1" << 'PYEOF'
 import json, os, sys
@@ -173,9 +177,32 @@ try:
     merged = json.loads(os.environ['LLM_MERGED'])
 except Exception:
     merged = {}
-llm = merged.get(name, {})
-v = llm.get('max_context_tokens', '')
+v = merged.get(name, {}).get('max_context_tokens', '')
 print('' if v in ('', None) else v)
+PYEOF
+}
+
+# 读预设上下文窗口，返回**绝对 token 数**（如 400000）写进 CC env。
+# 预设声明值单位是 1000 tokens（400 → 400k）；未声明 → 用全局默认。
+get_max_context_tokens() {
+    local merged; merged=$(_llms_merged_py)
+    LLM_MERGED="$merged" DEFAULT_CTX="$DEFAULT_MAX_CONTEXT_TOKENS" python3 - "$1" << 'PYEOF'
+import json, os, sys
+name = sys.argv[1]
+try:
+    merged = json.loads(os.environ['LLM_MERGED'])
+except Exception:
+    merged = {}
+try:
+    default = int(os.environ.get('DEFAULT_CTX', '400'))
+except ValueError:
+    default = 400
+v = merged.get(name, {}).get('max_context_tokens', '')
+try:
+    k = int(v)
+except (TypeError, ValueError):
+    k = default
+print(k * 1000)
 PYEOF
 }
 
