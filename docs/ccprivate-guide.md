@@ -139,6 +139,10 @@ LLM 配置为三层结构，读取时自动合并：
 
 需要特殊预设（如单位内网端点）时，把定义写进 `ccprivate/conf/llmprivate.json`，key 仍放 `llm.json`。当前预设以本机 `~/.claude/llm-current` 为准。
 
+预设可选字段 `max_context_tokens`（单位 **1000 tokens**，`400` = 400k）声明模型真实上下文窗口；
+未声明落全局默认（`~/.claude/llm-context-default`，默认 400k）。菜单 `4H` / `llm ctx` 可交互设置。
+详见 [ADR-0045](adr/0045-llm-context-window-config.md)。
+
 ### 3.2 conf/mcp-servers.json — MCP 服务器配置
 
 ```bash
