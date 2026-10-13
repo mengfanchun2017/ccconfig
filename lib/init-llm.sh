@@ -64,8 +64,15 @@ import json, sys, os
 normal_f, priv_f, keys_f = sys.argv[1], sys.argv[2], sys.argv[3]
 cache_f = sys.argv[4] if len(sys.argv) > 4 else ''
 # 定义：内置 + 自定义（自定义优先，同名覆盖内置——用户想改默认上游）
+# _src 语义：normal=内置（不可删），private=自定义（可删）。
+# 字段级合并：private 同名条目只覆盖它提供的字段，未提供的保留 normal 值。
+#   · 只含 max_context_tokens 的 private 条目 = 「薄覆盖」→ _src 保持 normal
+#     （菜单改内置窗口走这里，不必整条复制、不与 ccconfig 更新漂移、仍不可删）
+#   · 含其它字段的 private 条目 = 整条重定义 → _src 翻 private（视为自定义预设）
 merged = {}
+srcs = {}
 for f in (normal_f, priv_f):
+    is_priv = (f == priv_f)
     try:
         d = json.load(open(f))
     except Exception:
@@ -73,14 +80,14 @@ for f in (normal_f, priv_f):
     for name, spec in d.get('llms', {}).items():
         spec = dict(spec); spec.pop('key', None)
         if name in merged:
-            # 字段级合并：private 同名条目只覆盖它提供的字段，未提供的保留 normal 值。
-            # 让内置预设能在 llmprivate.json 里只写 max_context_tokens 做「薄覆盖」，
-            # 不必整条复制（整条复制会与 ccconfig 后续更新漂移）。_src 保持首次定义来源。
+            if is_priv and (set(spec.keys()) - {'max_context_tokens'}):
+                srcs[name] = 'private'
             merged[name].update(spec)
         else:
-            # _src 取自「首次定义它的文件」：内置预设即便被 private 薄覆盖，仍是内置（不可删）
-            spec['_src'] = 'private' if f == priv_f else 'normal'
+            srcs[name] = 'private' if is_priv else 'normal'
             merged[name] = spec
+for name, spec in merged.items():
+    spec['_src'] = srcs.get(name, 'private')
 # key：从纯 key 文件读；旧格式兼容——llm.json 带 base_url 的条目视为自定义预设
 # （三层前的 llm.json 是完整配置，升级机器上 keys_f 仍是旧格式，直接收编不丢预设）
 try:
