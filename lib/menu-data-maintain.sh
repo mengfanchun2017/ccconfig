@@ -59,6 +59,7 @@ MENU_ENTRIES=(
     "4|E|修复 /model 污染|./maintain.sh llm sync|bash \"\$LIB_DIR/init-llm.sh\" sync"
     "4|F|修复 bridge 转 Anthropic|./maintain.sh llm heal|bash \"\$LIB_DIR/init-llm.sh\" heal"
     "4|G|删除预设（问预设名）|./maintain.sh llm delete <名>|ask_run \"要删除的预设名\" \"\$LIB_DIR/init-llm.sh\" delete"
+    "4|H|设置上下文窗口|./maintain.sh llm ctx|bash \"\$LIB_DIR/init-llm.sh\" ctx"
 
     # ── 5: MCP ──
     "5|A|MCP 配置（用户级）|./maintain.sh mcp config|bash \"\$LIB_DIR/mcp-manager.sh\" config"
