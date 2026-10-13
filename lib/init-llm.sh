@@ -71,8 +71,17 @@ for f in (normal_f, priv_f):
         continue
     for name, spec in d.get('llms', {}).items():
         spec = dict(spec); spec.pop('key', None)
-        spec['_src'] = 'normal' if f != priv_f else 'private'
-        merged[name] = spec
+        if name in merged:
+            # 字段级合并：private 同名条目只覆盖它提供的字段，未提供的保留 normal 值。
+            # 让内置预设能在 llmprivate.json 里只写 max_context_tokens 做「薄覆盖」，
+            # 不必整条复制（整条复制会与 ccconfig 后续更新漂移）。
+            merged[name].update(spec)
+        else:
+            merged[name] = spec
+            _src_of[name] = 'private' if f == priv_f else 'normal'
+for name, spec in merged.items():
+    # _src 取自「首次定义它的文件」：内置预设即便被 private 薄覆盖，仍是内置（不可删）
+    spec['_src'] = _src_of.get(name, 'private')
 # key：从纯 key 文件读；旧格式兼容——llm.json 带 base_url 的条目视为自定义预设
 # （三层前的 llm.json 是完整配置，升级机器上 keys_f 仍是旧格式，直接收编不丢预设）
 try:
