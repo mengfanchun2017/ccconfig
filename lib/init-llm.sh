@@ -272,7 +272,7 @@ write_llm_config() {
     info "  API: $base_url"
     info "  模型: $model"
     info "  小模型: $small"
-    [[ -n "$max_ctx" ]] && info "  上下文窗口: $max_ctx"
+    info "  上下文窗口: ${max_ctx:-$DEFAULT_MAX_CONTEXT_TOKENS}k"
 
     export LLM_KEYS_FILE="$LLM_KEYS_FILE" BASE_URL="$base_url" MODEL_NAME="$model" SMALL_MODEL="$small" API_KEY="$key" NAME="$name" MAX_CTX="$max_ctx" DEFAULT_CTX="$DEFAULT_MAX_CONTEXT_TOKENS"
 
