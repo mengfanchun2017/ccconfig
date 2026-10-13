@@ -299,6 +299,29 @@ else
     _fail "窗口 env 写入不符合预期" "declared='$ctx_written'(want 400000) default='$ctx_default'(want 400000)"
 fi
 
+# ── T9: ctx 子命令写 max_context_tokens（k 单位）+ 内置薄覆盖 ──
+# why：set_max_context_tokens 把预设窗口写进定义文件。自定义预设就地写本条；
+# 内置预设（_src=normal）写 llmprivate 薄覆盖条目（只含该字段），字段级合并覆盖，
+# 且 _src 保持 normal（内置仍不可删）。写错来源会整条复制内置预设 → 与 ccconfig 漂移。
+echo "T9 ctx 写 max_context_tokens（自定义就地 + 内置薄覆盖，单位 k）"
+set_max_context_tokens "bridge-preset" 256 > /dev/null 2>&1
+set_max_context_tokens "direct" 500 > /dev/null 2>&1
+t9_custom=$(get_max_context_tokens "bridge-preset" 2>/dev/null)
+t9_builtin_raw=$(get_max_context_raw "direct" 2>/dev/null)
+t9_builtin_src=$(LLM_MERGED="$(_llms_merged_py)" python3 -c "
+import json, os
+print(json.loads(os.environ['LLM_MERGED']).get('direct', {}).get('_src', ''))" 2>/dev/null)
+# direct 是内置（normal），薄覆盖条目在 llmprivate 里只应含 max_context_tokens
+t9_thin=$(python3 -c "
+import json
+d = json.load(open('$LLM_PRIVATE_FILE'))
+print(json.dumps(d['llms'].get('direct', {}), sort_keys=True))" 2>/dev/null)
+if [[ "$t9_custom" == "256000" && "$t9_builtin_raw" == "500" && "$t9_builtin_src" == "normal" && "$t9_thin" == '{"max_context_tokens": 500}' ]]; then
+    _pass "自定义就地写入 + 内置薄覆盖，_src 保持 normal"
+else
+    _fail "ctx 写入/薄覆盖不符合预期" "custom=$t9_custom(256000) builtin_raw=$t9_builtin_raw(500) src=$t9_builtin_src(normal) thin=$t9_thin"
+fi
+
 # ── T7: list_llms 输出列契约（8 列）──
 # why：菜单渲染、删除过滤、key 更新菜单全靠按列位 read。少一个变量时 read 会把
 # 多余字段并进最后一个变量（is_builtin 拿到 "1|1"），过滤静默失效 —— 内置预设
