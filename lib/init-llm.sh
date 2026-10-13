@@ -863,7 +863,7 @@ PYEOF
         target="${names[$((sel-2))]}"
     fi
     [[ -z "$target" ]] && { error "未指定预设"; return 1; }
-    _edit_preset_ctx "$target"
+    _edit_preset_ctx "$target" "$value"
 }
 
 # 改全局默认上下文窗口（写 ~/.claude/llm-context-default，本机级）。value（可选）免交互
