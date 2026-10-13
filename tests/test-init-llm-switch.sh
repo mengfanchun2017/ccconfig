@@ -114,7 +114,7 @@ cat > "$WORKDIR/conf/llmprivate.json" <<JSON
       "base_url": "http://localhost:${MOCK_PORT}/anthropic",
       "model": "model-c1",
       "small_model": "model-c1",
-      "max_context_tokens": 262144
+      "max_context_tokens": 400
     }
   }
 }
