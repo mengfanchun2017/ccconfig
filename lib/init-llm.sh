@@ -1061,6 +1061,7 @@ interactive_select() {
         echo -e "  ${BOLD_GRAY}--LLM配置--${NC}"
         printf "  ${BOLD_GREEN}3a${NC}  %-26s ${DIM}%s${NC}\n" "更新模型 Key" "更新预设的 API Key（回车保持原 key）"
         printf "  ${BOLD_GREEN}3b${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
+        printf "  ${BOLD_GREEN}3c${NC}  %-26s ${DIM}%s${NC}\n" "设置上下文窗口" "改预设/全局默认的上下文长度（单位 k）"
         printf "  ${DIM}新增/修改预设：ccconfig → conf/llmnormal.json；自定义 → llmprivate.json；Key → llm.json${NC}\n"
         echo -e "  ${BOLD_GREEN}0${NC}  退出"
         printf "  ${BOLD_GREEN}输入 (如 1a, 2d, 3a): ${NC}"
@@ -1101,7 +1102,8 @@ interactive_select() {
                     case "$letter_m" in
                         a) update_llm_key ;;
                         b) delete_preset ;;
-                        *) warn "配置: a=更新Key b=删模型"; continue ;;
+                        c) set_max_context_tokens ;;
+                        *) warn "配置: a=更新Key b=删模型 c=设窗口"; continue ;;
                     esac
                     _pause_continue
                     continue
