@@ -876,9 +876,9 @@ _set_global_default_ctx() {
     _ctx_howto_apply
 }
 
-# 改单个预设的窗口；target 不存在则报错
+# 改单个预设的窗口；target 不存在则报错。value（可选，单位 k）给定则免交互
 _edit_preset_ctx() {
-    local target="$1"
+    local target="$1" arg="${2:-}"
     local merged src raw
     merged=$(_llms_merged_py)
     src=$(LLM_MERGED="$merged" python3 - "$target" <<'PYEOF'
@@ -894,10 +894,13 @@ PYEOF
     local cur_disp; cur_disp="${raw:+${raw}k}"
     [[ -z "$cur_disp" ]] && cur_disp="默认 ${DEFAULT_MAX_CONTEXT_TOKENS}k"
 
-    info "  预设: $target"
-    info "  当前窗口: $cur_disp"
-    local ans; ans=$(prompt "新的上下文窗口（单位 k tokens，如 400 = 400k；回车保持不变）" "${raw:-}")
-    [[ -z "$ans" ]] && { info "未改动"; return 0; }
+    local ans="$arg"
+    if [[ -z "$arg" ]]; then
+        info "  预设: $target"
+        info "  当前窗口: $cur_disp"
+        ans=$(prompt "新的上下文窗口（单位 k tokens，如 400 = 400k；回车保持不变）" "${raw:-}")
+        [[ -z "$ans" ]] && { info "未改动"; return 0; }
+    fi
     if ! [[ "$ans" =~ ^[0-9]+$ ]] || (( ans < 1 || ans > 10000 )); then
         error "非法值: $ans（需为 1-10000 的整数，单位 k）"; return 1
     fi
