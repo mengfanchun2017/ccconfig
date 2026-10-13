@@ -823,7 +823,12 @@ PYEOF
 # 不整条复制；自定义预设（_src=private）就地写进本条；其余字段一律不动。
 # 只写定义文件，**不碰** settings.json —— 改动在下次 switch_llm 时随 get_max_context_tokens 生效。
 set_max_context_tokens() {
-    local target="${1:-}"
+    local target="${1:-}" value="${2:-}"
+    # 特殊目标 default / global：改全局默认（未声明预设套用它）
+    if [[ "$target" == "default" || "$target" == "global" ]]; then
+        _set_global_default_ctx "$value"
+        return 0
+    fi
 
     if [[ -z "$target" ]]; then
         local merged; merged=$(_llms_merged_py)
