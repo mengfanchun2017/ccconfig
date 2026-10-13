@@ -1135,6 +1135,7 @@ main() {
             test_llm "${2:-}" ;;
         switch)      switch_llm "${2:-}" ;;
         delete|-d)   delete_preset "${2:-}" ;;
+        ctx)         set_max_context_tokens "${2:-}" ;;
         merge)       _llms_merged_py >/dev/null ;;
         sync)        sync_top_model ;;
         heal)
