@@ -164,8 +164,8 @@ PYEOF
 }
 
 # 全局默认上下文窗口（单位：1000 tokens；400 = 400k）。
-# 预设未声明 max_context_tokens 时套用；环境变量可覆盖（测试 / 临时调小）。
-DEFAULT_MAX_CONTEXT_TOKENS="${DEFAULT_MAX_CONTEXT_TOKENS:-400}"
+# 预设未声明 max_context_tokens 时套用；优先 env（测试/临时），其次本机文件，最后 400。
+DEFAULT_MAX_CONTEXT_TOKENS="${DEFAULT_MAX_CONTEXT_TOKENS:-$(cat "$HOME/.claude/llm-context-default" 2>/dev/null || echo 400)}"
 
 # 读预设声明的窗口原始值（单位：1000 tokens），未声明返回空 —— 菜单据此显示「默认 Xk」
 get_max_context_raw() {
