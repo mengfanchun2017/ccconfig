@@ -277,24 +277,26 @@ else
     fi
 fi
 
-# ── T8: max_context_tokens → CLAUDE_CODE_MAX_CONTEXT_TOKENS（按预设写入/移除）──
-# why：窗口 env 全局生效。声明了窗口的 preset 切换后必须写入；切到未声明的 preset
-# 必须移除，否则把上一个 preset 的窗口假设带过来。
+# ── T8: max_context_tokens → CLAUDE_CODE_MAX_CONTEXT_TOKENS（单位 k → 绝对 token）──
+# why：窗口 env 全局生效，每个 preset 切换后都必须写入（不再 pop）。预设声明值单位
+# 是 1000 tokens（400 → 400k = 400000）；未声明的 preset 用全局默认（400 → 400000）。
+# 若某 preset 漏写，env 会残留上一个 preset 的窗口 → 上下文余量算错。
 # 注意放在 T7 之前：T7 会把 direct 的 key 改成占位符，之后 switch_llm direct 会因
 # test_llm 探测到占位符 key 而失败。
-echo "T8 max_context_tokens 按预设写入/移除 CLAUDE_CODE_MAX_CONTEXT_TOKENS"
+echo "T8 max_context_tokens 写 CLAUDE_CODE_MAX_CONTEXT_TOKENS（声明值 + 全局默认）"
 switch_llm "ctx-preset" > /dev/null 2>&1
 ctx_written=$(python3 -c "
 import json
 print(json.load(open('$TEST_HOME/.claude/settings.json')).get('env',{}).get('CLAUDE_CODE_MAX_CONTEXT_TOKENS',''))" 2>/dev/null)
+# direct 未声明 max_context_tokens → 落全局默认 400 → 400000
 switch_llm "direct" > /dev/null 2>&1
-ctx_after=$(python3 -c "
+ctx_default=$(python3 -c "
 import json
 print(json.load(open('$TEST_HOME/.claude/settings.json')).get('env',{}).get('CLAUDE_CODE_MAX_CONTEXT_TOKENS','<missing>'))" 2>/dev/null)
-if [[ "$ctx_written" == "262144" && "$ctx_after" == "<missing>" ]]; then
-    _pass "窗口按预设写入(262144)并在切走后移除"
+if [[ "$ctx_written" == "400000" && "$ctx_default" == "400000" ]]; then
+    _pass "窗口 env 写入正确（声明 400k=400000，未声明落默认 400000）"
 else
-    _fail "窗口 env 写入/移除不符合预期" "written='$ctx_written' after='$ctx_after'"
+    _fail "窗口 env 写入不符合预期" "declared='$ctx_written'(want 400000) default='$ctx_default'(want 400000)"
 fi
 
 # ── T7: list_llms 输出列契约（8 列）──
