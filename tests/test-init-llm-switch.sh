@@ -17,8 +17,8 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-MOCK_PORT=18897
-TEST_BRIDGE_PORT=8896
+MOCK_PORT="${MOCK_PORT:-18897}"
+TEST_BRIDGE_PORT="${TEST_BRIDGE_PORT:-8896}"
 VERBOSE=false
 [[ "${1:-}" == "--verbose" || "${1:-}" == "-v" ]] && VERBOSE=true
 
