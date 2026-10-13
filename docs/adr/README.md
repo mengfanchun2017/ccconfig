@@ -53,6 +53,7 @@
 | [0042](0042-wsl-image-paste-sharex-path.md) | WSL 图像粘贴方案 — ShareX「复制文件路径」规避 WSLg BMP 解码坑，弃 Alt+V/解绑 Ctrl+V | 2026-10-08 | ✅ Accepted | — |
 | [0043](0043-writing-system-architecture.md) | 文档撰写系统架构 — 四层分层（路由/编排/规范/机械）+ 声明式体裁注册表 + 统一命名（fworch/forch*/fwstd-*） | 2026-10-10 | ✅ Accepted | 撰写系统 |
 | [0044](0044-agent-smb-file-bridge.md) | agent 跨机取件通道 — SMB `C$` + tsxfer 专用账户（反向拉取 + 回写），补 0040 的 agent 主动方向 | 2026-10-12 | ✅ Accepted | option-filepull（待建） |
+| [0045](0045-llm-context-window-config.md) | LLM 上下文窗口可配置 — 预设 `max_context_tokens`（单位 k）+ 菜单/CLI 输入 + 全局默认 + 内置薄覆盖 | 2026-10-13 | ✅ Accepted | LLM 管理 |
 
 > **编号 0024 / 0025 未使用**：编号永不重用（见[命名约定](#命名约定)），这两号在 0023 之后被跳过、没有对应文件，也没有正文引用。新增 ADR 从**当前最大号 +1** 起，不要去填这个空档。
 >

@@ -50,6 +50,7 @@ flowchart LR
 | 链路探测 | `bash init-llm.sh test <name>` | ✅ | **走真实路径**：bridge preset 经 bridge、流式请求、判终止标记+连接完整性 |
 | 列出预设 | `bash init-llm.sh list` | ✅ | |
 | 删除 preset | 菜单 `3b` / `bash init-llm.sh delete <name>` | ✅ | 内置预设（`builtin: true`）拒绝删除 |
+| 设上下文窗口 | 菜单 `4H` / LLM 菜单 `3c` / `bash init-llm.sh ctx <name\|default> [k]` | ✅ | 单位 **k tokens**（400 = 400k）；预设属性 + 全局默认（ADR-0045）|
 | bridge 自愈 | `bash init-llm.sh heal` | ✅ | SessionStart hook（`status.sh`）+ `ensure_bridge` |
 | 修 `/model` 污染 | `bash init-llm.sh sync` | ✅ | 顶层 `model` 同步到 `env.ANTHROPIC_MODEL` |
 | ~~Gateway 路由~~ | 菜单 `2D` | ❌ 删 | proxy.py 整套移除（ADR-0030） |
