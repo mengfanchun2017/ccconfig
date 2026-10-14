@@ -63,6 +63,14 @@ Ctrl-b d    暂离（detach，进程继续跑）
 tmux a -t <name>   重新接入指定 session
 ```
 
+**调整分屏边界（窗格大小）**：
+
+```
+Ctrl-b Ctrl+↑ ↓ ← →    每次 1 个字符调整边界（按住 Ctrl 不放、方向键连续按）
+Ctrl-b Alt+↑ ↓ ← →     每次 5 个字符调整边界（很多终端支持）
+Ctrl-b Space            循环切换内置布局（均分 / 主大副小等）快速重排所有窗格
+```
+
 **推荐的分屏键重绑**（规避输入法吃 `%` `"`，写入 `~/.tmux.conf` 后 `tmux source-file ~/.tmux.conf`）：
 
 ```tmux
