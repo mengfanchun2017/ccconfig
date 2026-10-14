@@ -97,6 +97,29 @@ claude --allow-dangerously-skip-permissions
 - ⚠️ auto 对未列新工具自动放行，失去确认时机（单人 WSL 可接受）
 - ⚠️ bypass 仍可用于无人值守，需自觉只在可信环境用
 
+## 附：auto 模式的分类器有独立模型变量（2026-10-14 补）
+
+auto 模式不是纯放行 —— 它对每条命令调一个**分类器模型**判安全：判安全自动过，判不了（超时/报错/响应不兼容）→ **fail-closed 拦截**。分类器模型**不读 `ANTHROPIC_DEFAULT_HAIKU_MODEL`**（haiku 变量只管后台小任务：生成标题、路径补全等），由独立变量控制：
+
+| 变量 | 作用 |
+|------|------|
+| `CLAUDE_CODE_AUTO_MODE_MODEL` | auto 权限模式分类器模型 |
+| `CLAUDE_CODE_BG_CLASSIFIER_MODEL` | 后台分类器模型 |
+
+**外部 LLM + 自建 bridge 场景的坑**：分类器默认走 Anthropic 服务端分类器（模型 `claude-sonnet-5`）。`ANTHROPIC_BASE_URL` 指向 bridge 时，`claude-sonnet-5` 被透传到上游 → 上游无此模型 → 报错 → fail-closed **拦一切命令**（含只读 grep）。症状：`Auto mode could not evaluate this action and is blocking it for safety`。
+
+**修**：`init-llm.sh` 的 `write_llm_config` 切 preset 时一并写 `CLAUDE_CODE_AUTO_MODE_MODEL`（值取 `small_model`，缺省回退主模型），分类器改用真实可用的外部模型名。
+
+**二进制证据（2.1.287）**：
+- 模式排序常量 `acceptEdits:1, plan:2, auto:3, bypassPermissions:4`
+- 决策函数 `Mbt(e){if(e==="auto")return"classify"; if(e==="bypassPermissions")return"allow"; ...}`
+- 分类器日志 `Auto mode classifier: skipping server-configured classifier model`
+- bypass 标注 `(bypasses classifier)` / 字段 `classifierRouted:false`
+
+即 **bypass 直接 allow、完全跳过分类器**；只有 auto 走 classify。这也是日常用 `claudeby`（bypass）可完全绕开此问题的原因。
+
 ## Related
 
 - settings.json `skipDangerousModePermissionPrompt: true` 配合 bypass flag 跳过启动确认提示，保留
+- memory `auto-mode-classifier-model-20261014`（分类器模型变量与本修法）
+- `claudeby` alias（`~/.claude/shell_init.sh`）：`claude --dangerously-skip-permissions`，日常绕过分类器抖动
