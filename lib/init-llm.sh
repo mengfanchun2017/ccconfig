@@ -340,6 +340,9 @@ env_upd = {
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
     "ENABLE_PROMPT_CACHING_1H": "1",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": os.environ.get('SMALL_MODEL') or os.environ['MODEL_NAME'],
+    # auto 权限模式的分类器有自己的模型变量，不读 HAIKU（见 memory auto-mode-classifier-model）。
+    # 不写这条 → 分类器固定发 claude-sonnet-5；外部 endpoint 无此模型 → fail-closed 拦一切命令。
+    "CLAUDE_CODE_AUTO_MODE_MODEL": os.environ.get('SMALL_MODEL') or os.environ['MODEL_NAME'],
     "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT": "1",
 }
 if final:
