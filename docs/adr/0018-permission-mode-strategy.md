@@ -122,4 +122,4 @@ auto 模式不是纯放行 —— 它对每条命令调一个**分类器模型**
 
 - settings.json `skipDangerousModePermissionPrompt: true` 配合 bypass flag 跳过启动确认提示，保留
 - memory `auto-mode-classifier-model-20261014`（分类器模型变量与本修法）
-- `claudeby` alias（`~/.claude/shell_init.sh`）：`claude --dangerously-skip-permissions`，日常绕过分类器抖动
+- `claudeby` alias（`~/.claude/shell_init.sh`）：`claude agents --dangerously-skip-permissions`（2026-10-15 起直进 FleetView，bypass 作 dispatch default，派发 session 启动即 bypass；旧版 `claude --dangerously-skip-permissions` 不给子 session 传 flag，输入文字后回落 auto），日常绕过分类器抖动；维护入口 `./maintain.sh 1C`
