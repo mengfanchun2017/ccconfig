@@ -126,9 +126,20 @@ print(json.dumps(merged, ensure_ascii=False))
 PYEOF
 }
 
+# 合并结果 memo：同进程内多次 get_* 复用一次合并（切换/菜单渲染原来要跑 3-5 遍）。
+# 写配置（key/定义/窗口）后必须 _llm_merged_invalidate，否则菜单显示旧 has_key/旧窗口。
+_LLM_MERGED_MEMO=""
+_llm_merged_invalidate() { _LLM_MERGED_MEMO=""; }
+_merged_json() {
+    if [[ -z "$_LLM_MERGED_MEMO" ]]; then
+        _LLM_MERGED_MEMO=$(_llms_merged_py)
+    fi
+    printf '%s' "$_LLM_MERGED_MEMO"
+}
+
 # 读取配置：合并三层 → 输出 base_url|model|key|small
 get_llm_config() {
-    local merged; merged=$(_llms_merged_py)
+    local merged; merged=$(_merged_json)
     LLM_MERGED="$merged" python3 - "$1" << 'PYEOF'
 import json, os, sys
 name = sys.argv[1]
