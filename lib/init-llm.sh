@@ -10,6 +10,8 @@
 #   bash init-llm.sh test <name>     # 真实链路探测（走 bridge + 流式）
 #   bash init-llm.sh sync            # 修 /model 污染
 #   bash init-llm.sh delete <name>   # 删预设
+#   bash init-llm.sh add             # 交互新增自定义预设
+#   bash init-llm.sh edit [name]     # 交互编辑自定义预设
 #   bash init-llm.sh ctx [name]      # 设上下文窗口（单位 k tokens，400 = 400k）
 #   bash init-llm.sh heal            # bridge 自愈（按 llm-current 重拉）
 #
@@ -781,23 +783,215 @@ else:
     with open(p, 'w') as f: f.write(blob)
     print("llm.json 已更新（provider key）")
 PYEOF
+    _llm_merged_invalidate
     success "Key 已更新: $target"
+}
+
+# ========== 新增/编辑自定义预设 ==========
+# 写 llmprivate.json（定义，无 key）+ llm.json（纯 key）。与手工编辑 JSON 等价，
+# 但走校验（ID 格式/重名/URL 前缀）+ 合并缓存失效，避免手改后菜单显示旧状态。
+_preset_exists() {
+    local merged; merged=$(_merged_json)
+    LLM_MERGED="$merged" python3 - "$1" <<'PYEOF'
+import json, os, sys
+merged = json.loads(os.environ['LLM_MERGED'])
+sys.exit(0 if sys.argv[1] in merged else 1)
+PYEOF
+}
+
+# 读单个预设字段到 stdout（字段名白名单内）
+_get_preset_field() {
+    local merged; merged=$(_merged_json)
+    LLM_MERGED="$merged" python3 - "$1" "$2" <<'PYEOF'
+import json, os, sys
+merged = json.loads(os.environ['LLM_MERGED'])
+llm = merged.get(sys.argv[1], {})
+v = llm.get(sys.argv[2], '')
+if isinstance(v, bool): v = 'true' if v else 'false'
+print('' if v in ('', None) else v)
+PYEOF
+}
+
+# 交互问 use_bridge：auto（省略字段，OpenAI-only 自动起 bridge）/ true / false
+# 输出写进 JSON 的 true/false，auto 输出空串（调用方删字段）
+_prompt_use_bridge() {
+    local cur="$1"  # true/false/空(auto)
+    local cur_disp="auto"; [[ -n "$cur" ]] && cur_disp="$cur"
+    local ans
+    ans=$(prompt "use_bridge（auto=OpenAI-only 自动起 bridge / true=强制 / false=禁用）[$cur_disp]" "")
+    case "$ans" in
+        "")           echo "$cur" ;;
+        auto|Auto)    echo "" ;;
+        true|True|y|Y)  echo "true" ;;
+        false|False|n|N) echo "false" ;;
+        *)            error "非法值: $ans（auto/true/false）"; return 1 ;;
+    esac
+}
+
+# 写定义进 llmprivate.json：$1=name $2=JSON 对象字符串（完整条目）
+_write_private_def() {
+    LLM_PRIVATE_FILE="$LLM_PRIVATE_FILE" python3 - "$1" "$2" <<'PYEOF'
+import json, sys, os
+name, entry_json = sys.argv[1], sys.argv[2]
+pf = os.environ['LLM_PRIVATE_FILE']
+try:
+    with open(pf) as f: pd = json.load(f)
+except Exception:
+    pd = {}
+pd.setdefault('llms', {})[name] = json.loads(entry_json)
+with open(pf, 'w') as f: json.dump(pd, f, indent=4, ensure_ascii=False)
+PYEOF
+}
+
+add_custom_preset() {
+    local name display base_url model small host_header max_ctx use_bridge key
+
+    while true; do
+        name=$(prompt "预设 ID（小写字母/数字，如 homeds41flash）")
+        [[ -z "$name" ]] && { info "已取消"; return 0; }
+        if ! [[ "$name" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+            error "ID 只允许小写字母/数字/下划线/短横，且以字母或数字开头"; continue
+        fi
+        if _preset_exists "$name"; then
+            error "预设 '$name' 已存在（要改请用 3e 编辑）"; continue
+        fi
+        break
+    done
+
+    display=$(prompt "显示名" "$name")
+    while true; do
+        base_url=$(prompt "base_url（https://... 含 /anthropic 走直连，OpenAI 格式 /v1 走 bridge）")
+        [[ -z "$base_url" ]] && { info "已取消"; return 0; }
+        [[ "$base_url" =~ ^https?:// ]] && break
+        error "base_url 需以 http:// 或 https:// 开头"
+    done
+    while true; do
+        model=$(prompt "model（主模型名）")
+        [[ -z "$model" ]] && { info "已取消"; return 0; }
+        break
+    done
+    small=$(prompt "small_model（小模型，回车=同主模型）" "$model")
+    use_bridge=$(_prompt_use_bridge "$(_get_preset_field "$name" use_bridge)") || return 1
+    host_header=$(prompt "host_header（证书域名透传，一般留空；内网 IP+域名证书场景填域名）" "")
+    max_ctx=$(prompt "max_context_tokens（单位 k tokens，如 400 = 400k）" "400")
+    if ! [[ "$max_ctx" =~ ^[0-9]+$ ]] || (( max_ctx < 1 || max_ctx > 10000 )); then
+        error "非法窗口值: $max_ctx（需 1-10000 整数）"; return 1
+    fi
+    key=$(prompt_key_plain "API Key（无则回车跳过，之后 3a 录入）" "")
+    if [[ -z "$key" ]]; then
+        warn "未录入 Key，预设标记为 [无 Key]，切换前需 3a 录入"
+    fi
+
+    # 组装定义条目（无 key 字段）
+    local entry
+    entry=$(NAME="$name" DISPLAY="$display" BASE_URL="$base_url" MODEL="$model" SMALL="$small" \
+        USE_BRIDGE="$use_bridge" HOST_HEADER="$host_header" MAX_CTX="$max_ctx" python3 <<'PYEOF'
+import json, os
+e = {
+    "name": os.environ["DISPLAY"],
+    "base_url": os.environ["BASE_URL"],
+    "model": os.environ["MODEL"],
+    "small_model": os.environ["SMALL"] or os.environ["MODEL"],
+    "max_context_tokens": int(os.environ["MAX_CTX"]),
+}
+if os.environ.get("USE_BRIDGE"):
+    e["use_bridge"] = os.environ["USE_BRIDGE"] == "true"
+if os.environ.get("HOST_HEADER"):
+    e["host_header"] = os.environ["HOST_HEADER"]
+print(json.dumps(e, ensure_ascii=False))
+PYEOF
+    )
+    _write_private_def "$name" "$entry" || { error "写 llmprivate.json 失败"; return 1; }
+
+    if [[ -n "$key" ]]; then
+        LLM_KEYS_FILE="$LLM_KEYS_FILE" python3 - "$name" "$key" <<'PYEOF'
+import json, sys, os
+p = os.environ['LLM_KEYS_FILE']
+name, key = sys.argv[1], sys.argv[2]
+try:
+    with open(p) as f: d = json.load(f)
+except Exception:
+    d = {}
+d.setdefault('llms', {})[name] = {"key": key}
+with open(p, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
+PYEOF
+    fi
+    _llm_merged_invalidate
+    success "自定义预设已创建: $name"
+    info "切过去: ./maintain.sh llm   （菜单 2x）"
+}
+
+edit_custom_preset() {
+    local target="${1:-}"
+    if [[ -z "$target" ]]; then
+        local items=() names=()
+        while IFS='|' read -r _ name display model _ _ is_builtin _; do
+            [[ -z "$name" ]] && continue
+            [[ "$is_builtin" == "1" ]] && continue
+            names+=("$name")
+            items+=("$display ($model)")
+        done < <(list_llms)
+        [[ ${#items[@]} -eq 0 ]] && { info "无自定义预设（先 3d 新增）"; return 0; }
+        items+=("返回上层")
+        local sel; sel=$(menu_select "选择要编辑的自定义预设" "${items[@]}")
+        [[ -z "$sel" || "$sel" == "0" ]] && return 0
+        (( sel == ${#items[@]} )) && return 0
+        target="${names[$((sel-1))]}"
+    fi
+    if ! _preset_exists "$target"; then
+        error "预设 '$target' 不存在"; return 1
+    fi
+    if [[ "$(_get_preset_field "$target" _src)" == "normal" ]]; then
+        error "内置预设 '$target' 不可编辑（改窗口用 3c；改上游需发 PR 到 llmnormal.json）"; return 1
+    fi
+
+    info "逐项编辑 '$target'（回车保持原值，留空字段将移除）"
+    local display base_url model small host_header max_ctx use_bridge
+    display=$(prompt "显示名" "$(_get_preset_field "$target" name)")
+    while true; do
+        base_url=$(prompt "base_url" "$(_get_preset_field "$target" base_url)")
+        [[ "$base_url" =~ ^https?:// ]] && break
+        error "base_url 需以 http:// 或 https:// 开头"
+    done
+    model=$(prompt "model" "$(_get_preset_field "$target" model)")
+    small=$(prompt "small_model（回车=同主模型）" "$(_get_preset_field "$target" small_model)")
+    use_bridge=$(_prompt_use_bridge "$(_get_preset_field "$target" use_bridge)") || return 1
+    host_header=$(prompt "host_header（留空移除）" "$(_get_preset_field "$target" host_header)")
+    max_ctx=$(prompt "max_context_tokens（k tokens）" "$(_get_preset_field "$target" max_context_tokens)")
+    [[ -z "$max_ctx" ]] && max_ctx=400
+    if ! [[ "$max_ctx" =~ ^[0-9]+$ ]] || (( max_ctx < 1 || max_ctx > 10000 )); then
+        error "非法窗口值: $max_ctx"; return 1
+    fi
+
+    local entry
+    entry=$(DISPLAY="$display" BASE_URL="$base_url" MODEL="$model" SMALL="$small" \
+        USE_BRIDGE="$use_bridge" HOST_HEADER="$host_header" MAX_CTX="$max_ctx" python3 <<'PYEOF'
+import json, os
+e = {
+    "name": os.environ["DISPLAY"],
+    "base_url": os.environ["BASE_URL"],
+    "model": os.environ["MODEL"],
+    "small_model": os.environ["SMALL"] or os.environ["MODEL"],
+    "max_context_tokens": int(os.environ["MAX_CTX"]),
+}
+if os.environ.get("USE_BRIDGE"):
+    e["use_bridge"] = os.environ["USE_BRIDGE"] == "true"
+if os.environ.get("HOST_HEADER"):
+    e["host_header"] = os.environ["HOST_HEADER"]
+print(json.dumps(e, ensure_ascii=False))
+PYEOF
+    )
+    _write_private_def "$target" "$entry" || { error "写 llmprivate.json 失败"; return 1; }
+    _llm_merged_invalidate
+    success "已保存: $target"
+    if [[ "$(read_local_current)" == "$target" ]]; then
+        warn "这是当前生效预设 — 重切一次使其生效: ./maintain.sh llm"
+    fi
 }
 
 # ========== 删预设 ==========
 delete_preset() {
     local target="${1:-}"
-
-    # 来源判定：内置（llmnormal，ccconfig 公开）不可删；自定义（llmprivate）可删
-    local src merged
-    merged=$(_merged_json)
-    src=$(LLM_MERGED="$merged" python3 - "$target" <<'PYEOF'
-import json, os, sys
-merged = json.loads(os.environ['LLM_MERGED'])
-llm = merged.get(sys.argv[1], {})
-print(llm.get('_src', ''))
-PYEOF
-    )
 
     if [[ -z "$target" ]]; then
         local items=() names=()
@@ -818,6 +1012,18 @@ PYEOF
     fi
     [[ -z "$target" ]] && { error "未指定预设"; return 1; }
 
+    # 来源判定：内置（llmnormal，ccconfig 公开）不可删；自定义（llmprivate）可删。
+    # why 在 target 确定之后：交互菜单分支 target 到这里才落定，提前算 src 拿到空串 → 误报「不存在」
+    local src merged
+    merged=$(_merged_json)
+    src=$(LLM_MERGED="$merged" python3 - "$target" <<'PYEOF'
+import json, os, sys
+merged = json.loads(os.environ['LLM_MERGED'])
+llm = merged.get(sys.argv[1], {})
+print(llm.get('_src', ''))
+PYEOF
+    )
+
     if [[ "$src" == "normal" ]]; then
         error "内置预设 '$target' 不可删"; return 1
     fi
@@ -830,7 +1036,8 @@ PYEOF
     confirm "确认删除 '$target'？" n || { info "已取消"; return 0; }
 
     # 删 llmprivate 定义 + llm.json 里的 key
-    LLM_PRIVATE_FILE="$LLM_PRIVATE_FILE" LLM_KEYS_FILE="$LLM_KEYS_FILE" python3 - "$target" <<'PYEOF'
+    local del_out
+    del_out=$(LLM_PRIVATE_FILE="$LLM_PRIVATE_FILE" LLM_KEYS_FILE="$LLM_KEYS_FILE" python3 - "$target" <<'PYEOF'
 import json, sys, os
 name = sys.argv[1]
 pf = os.environ['LLM_PRIVATE_FILE']; kf = os.environ['LLM_KEYS_FILE']
@@ -850,6 +1057,13 @@ try:
 except Exception: pass
 print("OK" if (p_dirty or k_dirty) else "NOT_FOUND")
 PYEOF
+    )
+    _llm_merged_invalidate
+    if [[ "$del_out" == "OK" ]]; then
+        success "已删除预设: $target"
+    else
+        warn "定义/Key 均未找到 '$target'（可能已在别处删除）"
+    fi
 }
 
 # ========== 设预设上下文窗口（max_context_tokens，单位 1000 tokens）==========
@@ -980,6 +1194,7 @@ PYEOF
     (( rc != 0 )) && { error "写入 llmprivate.json 失败"; return 1; }
 
     # 合并缓存需刷新，否则 get_max_context_tokens 读到旧值
+    _llm_merged_invalidate
     _llms_merged_py >/dev/null 2>&1 || true
     success "预设 '$target' 窗口已设为 ${ans}k（${ans}000 tokens）"
     _ctx_howto_apply
@@ -1112,7 +1327,9 @@ interactive_select() {
         printf "  ${BOLD_GREEN}3a${NC}  %-26s ${DIM}%s${NC}\n" "更新模型 Key" "更新预设的 API Key（回车保持原 key）"
         printf "  ${BOLD_GREEN}3b${NC}  %-26s ${DIM}%s${NC}\n" "删除模型" "删除已保存预设"
         printf "  ${BOLD_GREEN}3c${NC}  %-26s ${DIM}%s${NC}\n" "设置上下文窗口" "改预设/全局默认的上下文长度（单位 k）"
-        printf "  ${DIM}新增/修改预设：ccconfig → conf/llmnormal.json；自定义 → llmprivate.json；Key → llm.json${NC}\n"
+        printf "  ${BOLD_GREEN}3d${NC}  %-26s ${DIM}%s${NC}\n" "新增自定义预设" "向导录入上游/model/key（写 llmprivate.json）"
+        printf "  ${BOLD_GREEN}3e${NC}  %-26s ${DIM}%s${NC}\n" "编辑自定义预设" "逐项改上游/model/bridge（回车保持）"
+        printf "  ${DIM}内置预设定义：ccconfig/conf/llmnormal.json（改上游需发 PR）${NC}\n"
         echo -e "  ${BOLD_GREEN}0${NC}  退出"
         printf "  ${BOLD_GREEN}输入 (如 1a, 2d, 3a): ${NC}"
         # 读 /dev/tty 而非 stdin：从 maintain 菜单 eval 进来时 stdin 可能已 EOF/非 tty，
@@ -1153,7 +1370,9 @@ interactive_select() {
                         a) update_llm_key ;;
                         b) delete_preset ;;
                         c) set_max_context_tokens ;;
-                        *) warn "配置: a=更新Key b=删模型 c=设窗口"; continue ;;
+                        d) add_custom_preset ;;
+                        e) edit_custom_preset ;;
+                        *) warn "配置: a=更新Key b=删模型 c=设窗口 d=新增自定义 e=编辑自定义"; continue ;;
                     esac
                     _pause_continue
                     continue
@@ -1185,6 +1404,8 @@ main() {
             test_llm "${2:-}" ;;
         switch)      switch_llm "${2:-}" ;;
         delete|-d)   delete_preset "${2:-}" ;;
+        add)         add_custom_preset ;;
+        edit)        edit_custom_preset "${2:-}" ;;
         ctx)         set_max_context_tokens "${2:-}" "${3:-}" ;;
         merge)       _llms_merged_py >/dev/null ;;
         sync)        sync_top_model ;;
