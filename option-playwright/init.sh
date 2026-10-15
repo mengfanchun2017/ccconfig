@@ -63,6 +63,9 @@ refresh_chromium_symlink() {
     [[ -z "$target" ]] && return 1
     mkdir -p "$PW_STATE_DIR"
     ln -sfn "$target" "$PW_CHROME_REAL"
+    # 先删旧 wrapper：$PW_CHROME 可能是上一版指向真二进制的 symlink，
+    # 直接 `cat >` 会穿透 symlink 把 wrapper 写进 chromium 二进制（毁掉它）。
+    rm -f "$PW_CHROME"
     cat > "$PW_CHROME" <<'PWWRAP'
 #!/bin/bash
 # ccconfig option-playwright 生成：设 LD_LIBRARY_PATH 指向用户态解包的 .so，再 exec 真二进制
