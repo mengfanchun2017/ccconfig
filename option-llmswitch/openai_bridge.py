@@ -879,6 +879,8 @@ async def messages(request: Request):
         last_out = [time.monotonic()]
         QUIET_PING = 10.0
 
+        pass_through = use_ws and ws.get("protocol") == "anthropic"
+
         def _render(chunk: str):
             # SSE 注释（idle 心跳，`:` 开头）必须原样透传：喂给
             # openai_chunk_to_anthropic_sse 会因不以 data: 开头被丢掉，
@@ -890,6 +892,14 @@ async def messages(request: Request):
                 raw_buf[0] += chunk
             if DUMP_DIR:
                 dump_chunks.append(chunk)
+            # protocol=anthropic：上游本就回 Anthropic SSE（含 server_tool_use /
+            # web_search_tool_result 块），原样透传给 CC，不做 OpenAI→Anthropic 转换。
+            if pass_through:
+                sse_state["output_bytes"] = sse_state.get("output_bytes", 0) + len(chunk)
+                if '"type":"message_stop"' in chunk:
+                    sse_state["finished"] = True
+                last_out[0] = time.monotonic()
+                return chunk
             out = openai_chunk_to_anthropic_sse(chunk, f"msg_bridge_{req_no}", state["upstream_model"], sse_state)
             if out:
                 last_out[0] = time.monotonic()
