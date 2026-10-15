@@ -1,6 +1,6 @@
 {
   "description": "Single source of truth for all component versions managed by ccconfig. Edit this file to pin versions.",
-  "last_checked": "2026-10-15T17:01:35.127437+08:00",
+  "last_checked": "2026-10-15T17:03:28.352134+08:00",
   "self": {
     "version": "2026.09.19",
     "scheme": "CalVer YYYY.MM.DD",
@@ -47,7 +47,7 @@
       "_note": "Token Plan 官方 CLI"
     },
     "claude": {
-      "version": "2.1.274"
+      "version": "2.1.300"
     }
   },
   "_note": "update.sh reads and writes this file. Other scripts read via path-helper.sh."
