@@ -880,8 +880,6 @@ async def messages(request: Request):
         last_out = [time.monotonic()]
         QUIET_PING = 10.0
 
-        pass_through = use_ws and ws.get("protocol") == "anthropic"
-
         def _render(chunk: str):
             # SSE 注释（idle 心跳，`:` 开头）必须原样透传：喂给
             # openai_chunk_to_anthropic_sse 会因不以 data: 开头被丢掉，
