@@ -76,7 +76,7 @@ def load_websearch_config():
             pass
     if not (base_url and model and key):
         return None
-    return {"base_url": base_url, "model": model, "key": key}
+    return {"base_url": base_url, "model": model, "key": key, "protocol": protocol}
 
 
 def load_upstream_config():
