@@ -8,14 +8,6 @@
                 "TAVILY_API_KEY": "<your-tavily-key>"
             }
         },
-        "getnote": {
-            "command": "npx",
-            "args": ["-y", "@getnote/mcp"],
-            "env": {
-                "GETNOTE_API_KEY": "<your-getnote-api-key>",
-                "GETNOTE_CLIENT_ID": "<your-getnote-client-id>"
-            }
-        },
         "exa": {
             "type": "http",
             "url": "https://mcp.exa.ai/mcp",

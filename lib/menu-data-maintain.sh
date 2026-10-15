@@ -76,12 +76,12 @@ MENU_ENTRIES=(
     "6|C|OAuth 授权状态|bash option-larkcli/lark-switch.sh|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
     "6|D|配置/更新 lark-cli 账号|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
 
-    # ── 7: getnote ──
-    "7|A|账号列表|bash option-getnote/getnote-switch.sh --list|bash \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\" --list"
-    "7|B|状态|bash option-getnote/init.sh --status|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" --status"
-    "7|C|添加账号|bash option-getnote/init.sh add|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" add"
-    "7|D|删除账号|bash option-getnote/init.sh remove|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" remove"
-    "7|E|切换账号（问账号名）|bash option-getnote/getnote-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-getnote/getnote-switch.sh\""
+    # ── 7: getnote（CLI + 官方 Skill，单账号，无切换）──
+    "7|A|状态|bash option-getnote/init.sh --status|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" --status"
+    "7|B|安装（CLI+Skill）|bash option-getnote/init.sh install|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" install"
+    "7|C|OAuth 授权|bash option-getnote/init.sh auth|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" auth"
+    "7|D|诊断（doctor）|bash option-getnote/init.sh doctor|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" doctor"
+    "7|E|升级（CLI+Skill）|bash option-getnote/init.sh update|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" update"
 
     # ── 8: 远程（SSH + tailscale）──
     "8|A|查看 SSH 状态/端口|bash option-remote/init.sh --status|bash \"\$CCCONFIG_DIR/option-remote/init.sh\" --status"

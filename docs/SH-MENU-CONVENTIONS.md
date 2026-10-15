@@ -120,6 +120,24 @@ esac
 - prompt 统一 `(0=取消)`
 - `0`/末项/越界/EOF 一律返回 `"0"`（取消哨值）
 
+## 带状态的列表菜单（列表即菜单）
+
+列表项的**状态**和**可选择性**是同一份渲染，不要再"上方打一遍状态、下方重打一遍编号选项"：
+
+```bash
+# init-option.sh: 一次渲染，附加项接在后面，编号连续
+render_components all_names          # 编号 + 名称 + 状态 + 描述
+printf "  ${BOLD_GREEN}%2d)${NC}  %s\n" "$all_idx" "全部安装"
+printf "  ${BOLD_GREEN}%2d)${NC}  %s\n" "$exit_idx" "退出"
+```
+
+约定：
+- 状态图标与 `status.sh _print_option` 同形：`✅ ok` / `⚠  warn` / `✗  miss`（灰）
+- 名称列 `%-12s` 对齐；`[auto]` 标记跟在名称后
+- 名数组由 `collect_names` 收集，**菜单序号 = 数组下标 + 1**（渲染与解析共用一个顺序）
+- 列表与提示同走 stderr（`{ ... } >&2`），避免 stdout 被重定向时错位
+- 多选直接读空格分隔序号（`1 3 5`），不走 `menu_select`（后者是单选契约，空格串返 `0`）
+
 ## 颜色变量
 
 | 变量 | 用途 | ANSI |
