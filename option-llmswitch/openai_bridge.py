@@ -58,6 +58,9 @@ def load_websearch_config():
     model = cfg.get("model", "")
     key = cfg.get("key", "")
     preset = cfg.get("preset", "")
+    # protocol=anthropic → 上游原生吃 Anthropic Messages 格式（web_search_20250305
+    # 原样透传）；缺省/其他 → 转 OpenAI web_search 发 /chat/completions
+    protocol = cfg.get("protocol", "openai")
     if preset and not (base_url and model):
         try:
             merged = load_json(Path.home() / ".cache" / "llm-merged.json")
