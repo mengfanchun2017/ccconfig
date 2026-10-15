@@ -38,47 +38,6 @@ def load_json(p):
         return json.load(f)
 
 
-def load_websearch_config():
-    """加载「所有 web search 统一路由到指定上游」配置（ccprivate/conf/websearch.json）。
-
-    结构（私有文件，默认不存在 → 功能关闭）：
-        {"enabled": true, "base_url": "https://api.xiaomimimo.com/v1",
-         "model": "mimo-v2.6-flash", "key": "sk-..."}
-    或 {"enabled": true, "preset": "mimo26flash"} —— base_url/model 从 merged 缓存
-    借，key 从真相源 ccprivate/conf/llm.json 取。
-    """
-    ccprivate = Path(os.environ.get("CCPRIVATE_HOME", Path.home() / "git" / "ccprivate"))
-    try:
-        cfg = load_json(ccprivate / "conf" / "websearch.json")
-    except Exception:
-        return None
-    if not cfg.get("enabled"):
-        return None
-    base_url = cfg.get("base_url", "")
-    model = cfg.get("model", "")
-    key = cfg.get("key", "")
-    preset = cfg.get("preset", "")
-    # protocol=anthropic → 上游原生吃 Anthropic Messages 格式（web_search_20250305
-    # 原样透传）；缺省/其他 → 转 OpenAI web_search 发 /chat/completions
-    protocol = cfg.get("protocol", "openai")
-    if preset and not (base_url and model):
-        try:
-            merged = load_json(Path.home() / ".cache" / "llm-merged.json")
-            spec = (merged.get("llms") or {}).get(preset, {})
-            base_url = base_url or spec.get("base_url", "")
-            model = model or spec.get("model", "")
-        except Exception:
-            pass
-    if preset and not key:
-        try:
-            key = (load_json(ccprivate / "conf" / "llm.json").get("llms") or {}).get(preset, {}).get("key", "")
-        except Exception:
-            pass
-    if not (base_url and model and key):
-        return None
-    return {"base_url": base_url, "model": model, "key": key, "protocol": protocol}
-
-
 def load_upstream_config():
     """从 llmswitch.json 读 openai_bridge 配置；CLI 参数覆盖。"""
     cfg_path = CCCONFIG / "option-llmswitch" / "conf" / "llmswitch.json"
@@ -120,21 +79,16 @@ def _is_websearch_tool(t) -> bool:
     """Anthropic 服务端搜索工具判定（type 以 web_search_ 开头，如 web_search_20250305）。
 
     与客户端工具（带 input_schema、由模型 tool_use 触发）不同，服务端工具由上游
-    自己执行搜索，请求体里只有 type+name。
+    自己执行搜索。OpenAI-only 上游不支持，必须剔除，否则当 function 发过去 400。
     """
     return isinstance(t, dict) and str(t.get("type", "")).startswith("web_search_")
 
 
-def _body_has_websearch(body: dict) -> bool:
-    return any(_is_websearch_tool(t) for t in (body.get("tools") or []))
-
-
-def anthropic_to_openai_req(anth_body: dict, target_model: str, websearch_native: bool = False) -> dict:
+def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
     """Anthropic Messages API body → OpenAI Chat Completions body.
 
-    websearch_native=True 时把 Anthropic 服务端搜索工具 web_search_20250305 转成
-    OpenAI 的 {"type":"web_search"}（上游原生执行搜索）；False 时剔除该工具
-    （上游不支持服务端搜索，当普通 function 发过去会 400）。
+    服务端搜索工具（web_search_20250305）剔除——上游不支持，当普通 function
+    发过去会被 400，转成假 function 会让模型反复空转。
     """
     messages = []
     system_blocks = anth_body.get("system")
@@ -242,11 +196,6 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str, websearch_native
         out_tools = []
         for t in tools:
             if _is_websearch_tool(t):
-                # Anthropic 服务端搜索工具：只有上游原生支持时才转成
-                # {"type":"web_search"} 让它自己搜；否则剔除，避免当 function
-                # 发过去被上游 400，或转成假 function 让模型反复空转。
-                if websearch_native:
-                    out_tools.append({"type": "web_search"})
                 continue
             out_tools.append({
                 "type": "function",
