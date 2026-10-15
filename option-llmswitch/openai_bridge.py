@@ -334,8 +334,16 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
             #      CC 在慢速上游下易把海量 usage delta 当异常/超时，触发自动重试
             #      （表现"输出一半回退重新输出"）。只在 [DONE] 发一次，携带最新累计值。
             stop_delta = {"type": "message_delta", "delta": {"stop_reason": anth_reason, "stop_sequence": None, "stop_details": {"type": "stop", "reason": anth_reason}}}
+            _usage = {}
             if state.get("output_tokens"):
-                stop_delta["usage"] = {"output_tokens": state["output_tokens"]}
+                _usage["output_tokens"] = state["output_tokens"]
+            # 补真 input_tokens：上游 usage 通常只在收尾前一个 chunk 才出现（首 chunk
+            # 只有 reasoning_content），message_start 已发出去 0，这里把它修正回真值，
+            # 否则 CC 整个会话都以为输入是空的。
+            if state.get("input_tokens"):
+                _usage["input_tokens"] = state["input_tokens"]
+            if _usage:
+                stop_delta["usage"] = _usage
             out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
             out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
             state["finished"] = True
