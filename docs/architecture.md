@@ -59,8 +59,13 @@ ccconfig 脚本通过 `resolve_conf()` 直接读 `ccprivate/conf/*.json`（路�
 
 ### Skill 配置（YAML，skill 直接读取）
 
+flogme（以及 ffeishu/fpptx/fmashwork/fmoocrec）拆两处存放：
+- **skill 本体**（`SKILL.md` + 脚本）在**公开** skill 仓库 `~/git/skill/plugins/<name>/`，由 `init-skill.sh` symlink 到 `~/.claude/skills/<name>`，可公开
+- **私有配置**（token/URL/table ID）单独存 `ccprivate/skill/<name>.yaml`，不进公开仓库
+
 ```
-ccprivate/skill/flogme.yaml ──apply-config.sh ln -s──→ ~/.claude/skills/flogme/config.yaml
+~/git/skill/plugins/flogme/  ──init-skill.sh ln -s──→  ~/.claude/skills/flogme
+ccprivate/skill/flogme.yaml  ──apply-config.sh ln -s──→  ~/.claude/skills/flogme/config.yaml
                                                           └── flogme/log_write.py open('config.yaml') 读到真实 token
 ```
 
