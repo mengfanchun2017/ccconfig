@@ -121,6 +121,11 @@ ensure_bridge() {
     local health
     health=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
     local old_pid="" need_restart=1
+    # 无条件取占端口的 pid（Why: lsof 无结果时 exit 1 + pipefail + set -e 会顶掉函数，
+    # 所以 || true 兜底）。挂在 health 超时后面的旧版在这里拿不到 pid → 不杀 →
+    # 新进程 EADDRINUSE 起不来，挂死进程永远占着 8898 用旧配置服务
+    old_pid=$( { lsof -ti :${BRIDGE_PORT} 2>/dev/null || true; } | head -1 || true)
+    old_pid="${old_pid:-}"
     if [[ -n "$health" ]]; then
         local cur_upstream cur_model
         cur_upstream=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
@@ -137,9 +142,6 @@ ensure_bridge() {
         else
             info "  upstream 变化 ($cur_upstream → $upstream)，重启 bridge..."
         fi
-        # Why: lsof 无结果时 exit 1 + pipefail + set -e 会让函数直接退出
-        old_pid=$( { lsof -ti :${BRIDGE_PORT} 2>/dev/null || true; } | head -1 || true)
-        old_pid="${old_pid:-}"
     fi
 
     

@@ -69,22 +69,33 @@ _fix_step() {
 # 这条此前**完全无人检查**：status.sh 不查、init-llm show_status 只打印不校验、
 # ensure-bridge 读到空 llm-current 直接 return 0。结果是 llm-current 缺失/指向已删预设时，
 # 一切看起来正常，直到会话起不来。这里只报不修 —— 换 preset 要走探测，不能替用户瞎选。
+# 校验对象是三层合并后的预设全集（llmnormal + llmprivate + llm.json），
+# 不是纯 key 文件 —— 内置预设的 key 未录入 llm.json 时它也不在，但预设本身有效。
 check_llm_current() {
     local cur_file="$HOME/.claude/llm-current"
     local cur=""
     [[ -f "$cur_file" ]] && cur="$(tr -d '[:space:]' < "$cur_file")"
     local conf; conf="$(resolve_conf llm.json 2>/dev/null || true)"
+    local normal_f="$SCRIPT_DIR/conf/llmnormal.json"
+    local private_f="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/llmprivate.json"
 
     if [[ -z "$cur" ]]; then
         warn "LLM 当前选择未设置（$cur_file 缺失或为空）"
         info "  选一个: ./maintain.sh llm   （菜单 4A）"
         return 1
     fi
-    if [[ -n "$conf" ]] && ! python3 -c "
-import json,sys
-sys.exit(0 if '$cur' in json.load(open('$conf')).get('llms', {}) else 1)
-" 2>/dev/null; then
-        warn "LLM 当前选择 '$cur' 不在 llm.json 预设里（预设可能已改名/删除）"
+    if ! CUR="$cur" python3 - "$normal_f" "$private_f" "$conf" <<'PYEOF' 2>/dev/null
+import json, sys
+cur = __import__('os').environ['CUR']
+names = set()
+for f in sys.argv[1:]:
+    if not f: continue
+    try: names.update(json.load(open(f)).get('llms', {}).keys())
+    except Exception: pass
+sys.exit(0 if cur in names else 1)
+PYEOF
+    then
+        warn "LLM 当前选择 '$cur' 不在任何预设定义里（预设可能已改名/删除）"
         info "  重选: ./maintain.sh llm   （菜单 4A）"
         return 1
     fi
