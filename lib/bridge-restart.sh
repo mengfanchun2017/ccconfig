@@ -33,8 +33,13 @@ print(f"{flag}|{llm.get('base_url','')}|{llm.get('model','')}|{llm.get('key','')
 PY
 )"
 
-# 当前 preset 不走 bridge（直连/显式 false/字段缺失）→ 不是故障，不拉起
-[[ "$use_bridge" != "true" ]] && exit 0
+# 拉起判定对齐 init-llm.sh 的自动检测（test_llm/switch 同款）：显式 false /
+# anthropic 原生端点 / 127.0.0.1 → 不需要 bridge；其余（含字段缺失的自动判定型
+# OpenAI-only 预设）→ 拉起。旧版要求必须显式 use_bridge==true，自动判定预设的
+# watchdog 每轮记"拉起"日志但实际 exit 0 不启动，bridge 死了永远起不来。
+if [[ "$use_bridge" == "false" || "$up" == *"/anthropic"* || "$up" == *"://127.0.0.1"* ]]; then
+    exit 0
+fi
 [[ -z "$up" || -z "$key" || -z "$model" ]] && exit 1
 
 port="${BRIDGE_PORT:-8898}"

@@ -110,6 +110,7 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
             messages.append({"role": role, "content": content})
         elif isinstance(content, list):
             text_parts = []
+            content_parts = []  # OpenAI content 数组：text 段 + image_url 段混排
             tool_calls = []
             for blk in content:
                 if not isinstance(blk, dict):
@@ -121,12 +122,12 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
                     if t == "image":
                         src = blk.get("source", {})
                         if src.get("type") == "base64":
-                            text_parts.append({
+                            content_parts.append({
                                 "type": "image_url",
                                 "image_url": {"url": f"data:{src.get('media_type')};base64,{src.get('data','')}"},
                             })
                     else:
-                        text_parts.append(blk)
+                        content_parts.append(blk)
                 elif t == "tool_use":
                     tool_calls.append({
                         "id": blk.get("id", ""),
@@ -144,8 +145,17 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
                     messages.append({"role": "tool", "tool_call_id": tool_id, "content": out or ""})
                 elif t in ("thinking", "redacted_thinking"):
                     continue
-            if text_parts or tool_calls:
-                m = {"role": role, "content": "".join(p for p in text_parts if isinstance(p, str)) or None}
+            if text_parts or content_parts or tool_calls:
+                text = "".join(text_parts)
+                if content_parts:
+                    # 有图片：content 必须走数组（str join 会把 image_url dict 静默丢掉）
+                    segs = []
+                    if text:
+                        segs.append({"type": "text", "text": text})
+                    segs.extend(content_parts)
+                    m = {"role": role, "content": segs}
+                else:
+                    m = {"role": role, "content": text or None}
                 if tool_calls:
                     m["tool_calls"] = tool_calls
                 messages.append(m)
@@ -207,12 +217,18 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
             })
         if out_tools:
             openai_body["tools"] = out_tools
-        tool_choice = anth_body.get("tool_choice")
-        if tool_choice:
-            if tool_choice.get("type") == "tool":
-                openai_body["tool_choice"] = {"type": "function", "function": {"name": tool_choice.get("name", "")}}
-            else:
-                openai_body["tool_choice"] = tool_choice.get("type", "auto")
+            tool_choice = anth_body.get("tool_choice")
+            # tool_choice 只在剩余 tools 存在时发：全部被剔除（如只剩服务端搜索
+            # 工具）时带 tool_choice 无 tools，上游直接 400
+            if tool_choice:
+                if tool_choice.get("type") == "tool":
+                    openai_body["tool_choice"] = {"type": "function", "function": {"name": tool_choice.get("name", "")}}
+                elif tool_choice.get("type") == "any":
+                    # Anthropic "any"（强制至少调一个工具）= OpenAI "required"，
+                    # 原样透传 "any" 上游 400
+                    openai_body["tool_choice"] = "required"
+                else:
+                    openai_body["tool_choice"] = tool_choice.get("type", "auto")
 
     return openai_body
 
@@ -307,6 +323,42 @@ def _close_tool_blocks(state, out):
             state[key] = False
 
 
+def _finalize_sse(state) -> str:
+    """流收尾事件：关块 + message_delta(stop+usage) + message_stop；已收尾返回空串。
+
+    两个调用方：[DONE] 常规路径；gen() 兜底——上游发完 finish_reason 直接断连
+    （无 [DONE]）时 finished=True 会跳过 error 分支，若不补收尾事件 CC 永远等
+    不到 message_stop → 判流截断自动重试（正是"输出回退重输出"的成因之一）。
+    """
+    if state.get("stopped"):
+        return ""
+    out = []
+    # 关块幂等（text_open/tool_*_open 不置位则无输出），未关先补关、已关无副作用
+    _close_text_block(state, out)
+    _close_tool_blocks(state, out)
+    anth_reason = state.get("stop_reason") or "end_turn"
+    # why: 把 usage 并进收尾 delta 一起发——上游（DeepSeek 系）每个 chunk
+    #      都带 usage，逐个转 message_delta 会放大成与 token 数相当的冗余事件流，
+    #      CC 在慢速上游下易把海量 usage delta 当异常/超时，触发自动重试
+    #      （表现"输出一半回退重新输出"）。只发一次，携带最新累计值。
+    stop_delta = {"type": "message_delta", "delta": {"stop_reason": anth_reason, "stop_sequence": None, "stop_details": {"type": "stop", "reason": anth_reason}}}
+    _usage = {}
+    if state.get("output_tokens"):
+        _usage["output_tokens"] = state["output_tokens"]
+    # 补真 input_tokens：上游 usage 通常只在收尾前一个 chunk 才出现（首 chunk
+    # 只有 reasoning_content），message_start 已发出去 0，这里把它修正回真值，
+    # 否则 CC 整个会话都以为输入是空的。
+    if state.get("input_tokens"):
+        _usage["input_tokens"] = state["input_tokens"]
+    if _usage:
+        stop_delta["usage"] = _usage
+    out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
+    out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
+    state["finished"] = True
+    state["stopped"] = True
+    return "".join(out)
+
+
 def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, state=None):
     """OpenAI stream chunk (可能含多行 data:...) → Anthropic SSE 事件集。"""
     if state is None:
@@ -323,31 +375,9 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
         if not payload:
             continue
         if payload == "[DONE]":
-            if state.get("stopped"):
-                continue
-            if not state.get("finished"):
-                _close_text_block(state, out)
-                _close_tool_blocks(state, out)
-            anth_reason = state.get("stop_reason") or "end_turn"
-            # why: 把 usage 并进收尾 delta 一起发——上游（DeepSeek 系）每个 chunk
-            #      都带 usage，逐个转 message_delta 会放大成与 token 数相当的冗余事件流，
-            #      CC 在慢速上游下易把海量 usage delta 当异常/超时，触发自动重试
-            #      （表现"输出一半回退重新输出"）。只在 [DONE] 发一次，携带最新累计值。
-            stop_delta = {"type": "message_delta", "delta": {"stop_reason": anth_reason, "stop_sequence": None, "stop_details": {"type": "stop", "reason": anth_reason}}}
-            _usage = {}
-            if state.get("output_tokens"):
-                _usage["output_tokens"] = state["output_tokens"]
-            # 补真 input_tokens：上游 usage 通常只在收尾前一个 chunk 才出现（首 chunk
-            # 只有 reasoning_content），message_start 已发出去 0，这里把它修正回真值，
-            # 否则 CC 整个会话都以为输入是空的。
-            if state.get("input_tokens"):
-                _usage["input_tokens"] = state["input_tokens"]
-            if _usage:
-                stop_delta["usage"] = _usage
-            out.append(f"event: message_delta\ndata: {json.dumps(stop_delta, separators=(',', ':'))}\n\n")
-            out.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
-            state["finished"] = True
-            state["stopped"] = True
+            fin = _finalize_sse(state)
+            if fin:
+                out.append(fin)
             continue
         try:
             obj = json.loads(payload)
@@ -499,20 +529,28 @@ def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> d
             content.append({"type": "text", "text": text})
         for tc in (msg.get("tool_calls") or []):
             fn = tc.get("function") or {}
+            raw_args = fn.get("arguments") or "{}"
+            try:
+                parsed = json.loads(raw_args)
+                if not isinstance(parsed, dict):
+                    parsed = {"_raw": raw_args}
+            except Exception:
+                # 宽松代理回显非 JSON arguments 时不能让 JSONDecodeError 冒成 500
+                parsed = {"_raw": str(raw_args)}
             content.append({
                 "type": "tool_use",
                 "id": tc.get("id", ""),
                 "name": fn.get("name", ""),
-                "input": json.loads(fn.get("arguments", "{}")) if fn.get("arguments") else {},
+                "input": parsed,
             })
     usage = openai_body.get("usage") or {}
     finish = None
     if choices:
+        # 与流式路径同一映射表：缺 length/content_filter 会让 CC 对截断响应
+        # 判成正常结束、不续写
         fr = choices[0].get("finish_reason", "")
-        if fr == "stop":
-            finish = "end_turn"
-        elif fr == "tool_calls":
-            finish = "tool_use"
+        finish = {"stop": "end_turn", "tool_calls": "tool_use",
+                  "length": "max_tokens", "content_filter": "content_filtered"}.get(fr)
     return {
         "id": openai_body.get("id", msg_id),
         "type": "message",
@@ -593,6 +631,10 @@ async def _post_via_win_curl(url: str, headers: dict, body: dict, host_header: s
     # 非流式路径同样覆盖。
     cmd = ["curl.exe", "-sS", "-k", "--connect-timeout", "15", "--max-time", "300", "-X", "POST", url]
     for hk, hv in headers.items():
+        if hk.lower() == "host":
+            # headers 里已带 Host（SNI 需要），下面 host_header 分支还会补一条——
+            # 循环再带一遍就是双 Host（RFC 7230 下游可能 400/路由错）
+            continue
         cmd += ["-H", f"{hk}: {hv}"]
     if host_header:
         # curl.exe 没有 --resolve，但 -H "Host:" 保上游路由
@@ -641,6 +683,10 @@ async def _stream_via_win_curl(url: str, headers: dict, body: dict, host_header:
     #                  "no [DONE]" → 误报 upstream_incomplete
     cmd = ["curl.exe", "-sS", "-k", "-N", "--connect-timeout", "15", "--max-time", "1800", "-X", "POST", url]
     for hk, hv in headers.items():
+        if hk.lower() == "host":
+            # headers 里已带 Host（SNI 需要），下面 host_header 分支还会补一条——
+            # 循环再带一遍就是双 Host（RFC 7230 下游可能 400/路由错）
+            continue
         cmd += ["-H", f"{hk}: {hv}"]
     if host_header:
         cmd += ["-H", f"Host: {host_header}"]
@@ -889,6 +935,14 @@ async def messages(request: Request):
                 else:
                     print("[bridge] upstream stream ended without [DONE] (truncated or empty)", flush=True)
                     yield _error_frames("upstream_incomplete", "upstream stream ended without completion marker")
+            elif not sse_state.get("stopped"):
+                # finish_reason 已到但上游没发 [DONE] 就断连：finished=True 会让上面
+                # 的 error 分支跳过，若不补收尾 CC 等不到 message_stop → 判截断自动
+                # 重试（"输出回退重输出"成因之一）。补发与 [DONE] 常规收尾同形的事件。
+                print("[bridge] upstream closed after finish_reason without [DONE] (finalize fallback)", flush=True)
+                fin = _finalize_sse(sse_state)
+                if fin:
+                    yield fin
             _dump_and_summary("done" if sse_state.get("finished") else "unfinished")
         return StreamingResponse(gen(), media_type="text/event-stream")
     else:
