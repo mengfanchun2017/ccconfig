@@ -815,6 +815,7 @@ async def messages(request: Request):
         extra_ext["sni_hostname"] = host_header
 
     client = http_client
+    pass_through = use_ws and ws.get("protocol") == "anthropic"
 
     if stream:
         _REQ_SEQ[0] += 1
