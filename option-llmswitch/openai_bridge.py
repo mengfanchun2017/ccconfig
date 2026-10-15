@@ -793,12 +793,19 @@ async def messages(request: Request):
         host_header = state.get("upstream_host")
         use_win_curl = state.get("use_win_curl", False)
 
-    # URL 已含版本段（/v1, /v4, /paas/v4, /openai/v1 等）或完整路径 → 只追加 /chat/completions
-    # why: 之前只检测 /v1，遇到智谱 paas/v4 类非标准路径会拼成 /v4/v1/chat/completions → 404
-    if re.search(r"/v\d+(/|$)", upstream_base) or "/chat/completions" in upstream_base:
-        target_url = upstream_base + "/chat/completions"
+    # protocol=anthropic 的 websearch 上游：base_url 已是 /anthropic 完整端点，直接 +/v1/messages
+    if use_ws and ws.get("protocol") == "anthropic":
+        if upstream_base.endswith("/anthropic"):
+            target_url = upstream_base + "/v1/messages"
+        else:
+            target_url = upstream_base.rstrip("/") + "/v1/messages"
     else:
-        target_url = upstream_base + "/v1/chat/completions"
+        # URL 已含版本段（/v1, /v4, /paas/v4, /openai/v1 等）或完整路径 → 只追加 /chat/completions
+        # why: 之前只检测 /v1，遇到智谱 paas/v4 类非标准路径会拼成 /v4/v1/chat/completions → 404
+        if re.search(r"/v\d+(/|$)", upstream_base) or "/chat/completions" in upstream_base:
+            target_url = upstream_base + "/chat/completions"
+        else:
+            target_url = upstream_base + "/v1/chat/completions"
 
     # 如果 upstream 用 IP 代替了域名，加 Host header 保 SNI 和路由
     extra_ext = {}
