@@ -133,7 +133,15 @@ option_status() {
     echo "miss|MISSING|未知选项: $name"
 }
 
-# ── 收集可选项名（分组顺序，与 list_all 一致） ──
+# ── 可用性判定（内置项恒可用，option-* 需有 init.sh） ──
+_is_valid_item() {
+    case "$1" in
+        mcp|batcat|glow) return 0 ;;
+        *) has_init_script "$1" ;;
+    esac
+}
+
+# ── 收集可选项名（分组顺序，与 render_components 一致） ──
 collect_names() {
     local -n _out="$1"
     _out=()
@@ -141,12 +149,17 @@ collect_names() {
     for group_entry in "${MENU_GROUPS[@]}"; do
         group_items="${group_entry#*|}"
         for name in $group_items; do
-            case "$name" in
-                mcp|batcat|glow) _out+=("$name") ;;
-                *) has_init_script "$name" && _out+=("$name") ;;
-            esac
+            _is_valid_item "$name" && _out+=("$name")
         done
     done
+}
+
+# ── 单项状态（mcp 特殊，其余走 option_status） ──
+item_status() {
+    case "$1" in
+        mcp) mcp_status ;;
+        *)   option_status "$1" ;;
+    esac
 }
 
 # ── 单项状态（mcp 特殊，其余走 option_status） ──
@@ -180,60 +193,46 @@ render_status() {
     esac
 }
 
+# ── 分组渲染：编号 + 名称 + 状态 + 描述（状态列表与交互菜单共用同一份渲染） ──
+# 用法: render_components <nameref 到名字数组>
+# 编号与 collect_names 的顺序严格一致，故菜单序号 = 数组下标 + 1
+render_components() {
+    local -n _names="$1"
+    local idx=0 group_entry group_title group_items name
+    local -a group_avail
+
+    for group_entry in "${MENU_GROUPS[@]}"; do
+        group_title="${group_entry%%|*}"
+        group_items="${group_entry#*|}"
+
+        group_avail=()
+        for name in $group_items; do
+            _is_valid_item "$name" && group_avail+=("$name")
+        done
+        [ "${#group_avail[@]}" -eq 0 ] && continue
+
+        echo -e "  ${BOLD_GRAY}${group_title}${NC}"
+
+        for name in "${group_avail[@]}"; do
+            idx=$((idx + 1))
+            printf "  ${BOLD_GREEN}%2d)${NC}  %-12s " "$idx" "$name"
+            [ -n "${AUTO_MANAGED[$name]:-}" ] && printf "${GRAY}[auto]${NC} "
+            render_status "$(item_status "$name")"
+            local desc="${CLI_DESC[$name]:-}"
+            [ -n "$desc" ] && printf "  ${DIM}- ${desc}${NC}"
+            echo ""
+        done
+    done
+}
+
 list_all() {
     echo -e "${BOLD}${CYAN}▸ 可选组件${NC}"
     echo ""
 
-    local idx=1
-    local -a all_names
+    local -a all_names=()
+    collect_names all_names
+    render_components all_names
 
-    mcp_status() {
-        local conf="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/mcp-servers.json"
-        if [ -f "$conf" ]; then
-            local count=$(python3 -c "import json; d=json.load(open('$conf')); print(len(d.get('mcp_servers',[])))" 2>/dev/null || echo "0")
-            if [ "$count" -gt 0 ]; then
-                echo "ok|OK|$count 个 MCP 服务器已注册"
-            else
-                echo "miss|MISSING|MCP 未配置（bash lib/init-mcp.sh sync）"
-            fi
-        else
-            echo "miss|MISSING|mcp-servers.json 未找到"
-        fi
-    }
-
-    for group_entry in "${MENU_GROUPS[@]}"; do
-        local group_title="${group_entry%%|*}"
-        local group_items="${group_entry#*|}"
-
-        echo -e "  ${GRAY}${group_title}${NC}"
-
-        for name in $group_items; do
-            case "$name" in
-                mcp|batcat|glow) ;;
-                *) has_init_script "$name" || continue ;;
-            esac
-
-            all_names+=("$name")
-            local status
-            case "$name" in
-                mcp)   status=$(mcp_status) ;;
-                *) status=$(option_status "$name") ;;
-            esac
-
-            printf "  %2d) %-12s " "$idx" "$name"
-            if [ -n "${AUTO_MANAGED[$name]:-}" ]; then
-                printf "${GRAY}[auto]${NC} "
-            fi
-            render_status "$status"
-            local desc="${CLI_DESC[$name]:-}"
-            [ -n "$desc" ] && printf "  ${DIM}- ${desc}${NC}"
-            echo ""
-            idx=$((idx + 1))
-        done
-    done
-
-    echo ""
-    echo -e "  ${GRAY}菜单由下方 menu_select 渲染（含「全部安装」「退出」项）${NC}"
     echo ""
 }
 
@@ -435,61 +434,33 @@ install_glow() {
 }
 
 
-# ── 交互菜单 ──
+# ── 交互菜单：列表即菜单，一次渲染，底部直接输序号 ──
 interactive_menu() {
     echo -e "${BOLD}${CYAN}▸ 可选组件安装${NC}"
 
     while true; do
-        list_all
-
-        # 运行时收集 all_names（与 list_all 一致）；=() 每轮重置，避免 local 复用导致菜单堆叠
         local -a all_names=()
-        for group_entry in "${MENU_GROUPS[@]}"; do
-            local group_items="${group_entry#*|}"
-            for name in $group_items; do
-                case "$name" in
-                    mcp) all_names+=("$name") ;;
-                    batcat|glow) all_names+=("$name") ;;
-                    *) has_init_script "$name" && all_names+=("$name") ;;
-                esac
-            done
-        done
+        collect_names all_names
 
-        # menu_select 自动编号，传入纯文本
-        local menu_items=()
-        for n in "${all_names[@]}"; do
-            local desc=""
-            case "$n" in
-                mcp) desc="MCP 服务" ;;
-                # larkkey 已移至 option-larkcli/init.sh
-                batcat|glow) ;;
-                *) [ -n "${AUTO_MANAGED[$n]:-}" ] && desc="[auto]" ;;
-            esac
-            menu_items+=("$n${desc:+ ($desc)}")
-        done
-        menu_items+=("全部安装")
-        menu_items+=("退出")
+        local n_count=${#all_names[@]}
+        local all_idx=$((n_count + 1))     # 「全部安装」
+        local exit_idx=$((n_count + 2))    # 「退出」
+        local total_items=$exit_idx
 
-        local total_items=${#menu_items[@]}          # = all_names + 2
-        local all_idx=$((total_items - 1))            # 全部安装序号
-        local exit_idx=$total_items                   # 退出序号
-
-        # menu_select 是单选契约（空格串 `1 2 6` 匹配失败返 0 被当取消）；
-        # 多选需求改自渲染编号菜单 + read 空格分隔序号，逐项安装
-        printf '\n' >&2
-        echo -e "  ${BOLD_GRAY}--可选组件--${NC}" >&2
-        local mi
-        for mi in "${!menu_items[@]}"; do
-            printf "  ${BOLD_GREEN}%d${NC}  %s\n" "$((mi+1))" "${menu_items[$mi]}" >&2
-        done
-        printf '\n' >&2
+        # 状态列表 + 附加项，共用同一份渲染，编号连续
+        echo ""
+        render_components all_names
+        printf "  ${BOLD_GREEN}%2d)${NC}  %s\n" "$all_idx" "全部安装"
+        printf "  ${BOLD_GREEN}%2d)${NC}  %s\n" "$exit_idx" "退出"
+        echo ""
 
         local raw sel_nums=() tok saw_cancel=0 saw_all=0
+        local prompt="  ${BOLD_GREEN}选择 [1-${total_items}] (0=取消, 空格多选 如 1 3 5): ${NC}"
         if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
-            printf "  ${BOLD_GREEN}选择 [1-${total_items}] (0=取消, 空格多选 如 1 3 5): ${NC}" >&2
+            printf "$prompt" >&2
             read -r raw < /dev/tty || true
         else
-            printf "  ${BOLD_GREEN}选择 [1-${total_items}] (0=取消, 空格多选 如 1 3 5): ${NC}" >&2
+            printf "$prompt" >&2
             read -r raw || true
         fi
 
@@ -500,7 +471,7 @@ interactive_menu() {
                 saw_cancel=1
             elif [[ "$tok" == "$all_idx" ]]; then
                 saw_all=1
-            elif [ "$tok" -ge 1 ] && [ "$tok" -le ${#all_names[@]} ]; then
+            elif [ "$tok" -ge 1 ] && [ "$tok" -le "$n_count" ]; then
                 sel_nums+=("$tok")
             fi
         done
