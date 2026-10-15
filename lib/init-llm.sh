@@ -945,7 +945,7 @@ edit_custom_preset() {
         error "内置预设 '$target' 不可编辑（改窗口用 3c；改上游需发 PR 到 llmnormal.json）"; return 1
     fi
 
-    info "逐项编辑 '$target'（回车保持原值，留空字段将移除）"
+    info "逐项编辑 '$target'（回车保持原值；host_header 输入 clear 移除）"
     local display base_url model small host_header max_ctx use_bridge
     display=$(prompt "显示名" "$(_get_preset_field "$target" name)")
     while true; do
@@ -956,7 +956,8 @@ edit_custom_preset() {
     model=$(prompt "model" "$(_get_preset_field "$target" model)")
     small=$(prompt "small_model（回车=同主模型）" "$(_get_preset_field "$target" small_model)")
     use_bridge=$(_prompt_use_bridge "$(_get_preset_field "$target" use_bridge)") || return 1
-    host_header=$(prompt "host_header（留空移除）" "$(_get_preset_field "$target" host_header)")
+    host_header=$(prompt "host_header（回车保持，输入 clear 移除）" "$(_get_preset_field "$target" host_header)")
+    [[ "$host_header" == "clear" ]] && host_header=""
     max_ctx=$(prompt "max_context_tokens（k tokens）" "$(_get_preset_field "$target" max_context_tokens)")
     [[ -z "$max_ctx" ]] && max_ctx=400
     if ! [[ "$max_ctx" =~ ^[0-9]+$ ]] || (( max_ctx < 1 || max_ctx > 10000 )); then
