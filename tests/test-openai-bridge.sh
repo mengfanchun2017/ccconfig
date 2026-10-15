@@ -551,6 +551,114 @@ PYEOF
 )
 [[ "$t15" == "OK" ]] && _pass "搜索工具剔除 / tool_choice 透传 / 空 tools 键" || _fail "web search 工具剔除错误" "$t15"
 
+# ── T16: 图片消息转 OpenAI content 数组（str join 曾把 image_url dict 静默丢掉）──
+echo "T16 图片消息 content 数组不丢"
+t16=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+body = {"model": "x", "max_tokens": 10, "messages": [
+    {"role": "user", "content": [
+        {"type": "text", "text": "看图"},
+        {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "AAAA"}},
+    ]}]}
+fail = []
+out = m.anthropic_to_openai_req(body, "m")
+c = out["messages"][0]["content"]
+if not (isinstance(c, list) and any(seg.get("type") == "image_url" for seg in c)):
+    fail.append(f"image 段丢失: {c!r}")
+if not any(seg.get("type") == "text" and "看图" in seg.get("text", "") for seg in c):
+    fail.append("text 段丢失")
+# 纯文本仍走 str
+plain = {"model": "x", "max_tokens": 10, "messages": [
+    {"role": "user", "content": [{"type": "text", "text": "hi"}]}]}
+if out := m.anthropic_to_openai_req(plain, "m"):
+    if not isinstance(out["messages"][0]["content"], str):
+        fail.append("纯文本应保持 str content")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t16" == "OK" ]] && _pass "image 数组 / text 保留 / 纯文本 str" || _fail "image content 转换" "$t16"
+
+# ── T17: tool_choice any→required；tools 全被剔除时不发 tool_choice ──
+echo "T17 tool_choice 映射与空 tools 抑制"
+t17=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+fail = []
+b1 = {"model": "x", "max_tokens": 10, "messages": [{"role": "user", "content": "q"}],
+      "tools": [{"name": "Read", "input_schema": {"type": "object"}}],
+      "tool_choice": {"type": "any"}}
+o1 = m.anthropic_to_openai_req(b1, "m")
+if o1.get("tool_choice") != "required":
+    fail.append(f"any 未映射 required: {o1.get('tool_choice')!r}")
+b2 = {"model": "x", "max_tokens": 10, "messages": [{"role": "user", "content": "q"}],
+      "tools": [{"type": "web_search_20250305", "name": "web_search"}],
+      "tool_choice": {"type": "any"}}
+o2 = m.anthropic_to_openai_req(b2, "m")
+if "tool_choice" in o2:
+    fail.append("tools 全剔除后仍带 tool_choice")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t17" == "OK" ]] && _pass "any→required / 空 tools 抑制" || _fail "tool_choice 处理" "$t17"
+
+# ── T18: 非流式 finish_reason 全映射 + 坏 arguments 不 500 ──
+echo "T18 非流式 finish 映射 + 坏 arguments 守卫"
+t18=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+fail = []
+r = m.openai_to_anthropic_resp({"choices": [{"finish_reason": "length", "message": {}}]})
+if r["stop_reason"] != "max_tokens":
+    fail.append(f"length→{r['stop_reason']!r} 应 max_tokens")
+r = m.openai_to_anthropic_resp({"choices": [{"finish_reason": "content_filter", "message": {}}]})
+if r["stop_reason"] != "content_filtered":
+    fail.append(f"content_filter→{r['stop_reason']!r}")
+try:
+    r = m.openai_to_anthropic_resp({"choices": [{"finish_reason": "tool_calls", "message": {
+        "tool_calls": [{"id": "t1", "function": {"name": "Read", "arguments": "not-json{"}}]}}]})
+except Exception as e:
+    fail.append(f"坏 arguments 抛异常: {e}")
+else:
+    if r["content"][0].get("input", {}).get("_raw") is None:
+        fail.append(f"坏 arguments 未落 _raw: {r['content'][0]!r}")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t18" == "OK" ]] && _pass "finish 全映射 / 坏 arguments 落 _raw" || _fail "非流式转换" "$t18"
+
+# ── T19: _finalize_sse —— finish_reason 后无 [DONE] 的收尾兜底 ──
+echo "T19 缺 [DONE] 收尾兜底"
+t19=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+fail = []
+# finish_reason 到达但流直接结束（无 [DONE]）→ finalize 补 message_delta+message_stop
+st = {"started": False, "finished": False, "block_idx": 0, "stop_reason": "tool_use",
+      "output_tokens": 7, "input_tokens": 31}
+chunk = 'data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}\n'
+m.openai_chunk_to_anthropic_sse(chunk, "id", "m", st)  # 触发 finished=True（块收尾）
+if not st.get("stopped"):
+    out = m._finalize_sse(st)
+    if "message_delta" not in out or "message_stop" not in out:
+        fail.append(f"finalize 输出缺事件: {out[:80]!r}")
+    if '"input_tokens":31' not in out:
+        fail.append("finalize 未带真 input_tokens")
+if m._finalize_sse(st) != "":
+    fail.append("重复 finalize 应返回空串")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t19" == "OK" ]] && _pass "补 message_delta+message_stop / 幂等 / input_tokens" || _fail "缺 [DONE] 收尾兜底" "$t19"
+
 echo ""
 echo "───────────────────────────────"
 if [[ $FAIL -eq 0 ]]; then
