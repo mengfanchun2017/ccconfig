@@ -136,6 +136,29 @@ proxy_usable() {
     ! proxy_configured || check_proxy
 }
 
+# Push 失败原因，别再一律 "check network"（分叉/认证也会走到失败分支）
+push_fail_reason() {
+    local r
+    r=$(printf '%s' "$1" | grep -oiE "non-fast-forward|fetch first|rejected|bad credentials|token.*expired|connection|timed out|could not resolve|could not connect|reset by peer" | head -1)
+    printf '%s' "${r:-unknown}"
+}
+
+# pull --rebase --autostash，与 git_push 对称：代理死了剥 env 直连。
+# 抽成独立函数是因为 git_push 遇到 non-fast-forward 时也要调它做自愈。
+git_pull_rebase() {
+    local repo_dir="$1" branch="$2"
+    local penv=()
+    proxy_usable || penv=(env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy)
+    local had_e=0; case $- in *e*) had_e=1 ;; esac
+    set +e
+    local out
+    out=$(timeout --kill-after=5 30 "${penv[@]}" git -C "$repo_dir" pull --rebase --autostash origin "$branch" 2>&1)
+    local rc=$?
+    if [ "$had_e" = 1 ]; then set -e; fi
+    printf '%s' "$out"
+    return $rc
+}
+
 # Push with retry (network intermittent on WSL)
 git_push() {
     local repo_dir="$1" branch="$2"
@@ -171,6 +194,34 @@ git_push() {
                 log "[$(repo_name "$repo_dir")] push attempt $attempt failed, retry in 10s..."
                 sleep 10
             fi
+        elif echo "$output" | grep -qiE "non-fast-forward|fetch first|updates were rejected"; then
+            # 分叉（远程有新提交）→ 非快进被拒。此前只报 "check network"，分叉永远不自愈。
+            # pull --rebase --autostash 后重推；冲突交回调用方（skip_push 语义）由 pull 分支兜底。
+            log "[$(repo_name "$repo_dir")] non-fast-forward → rebase onto origin/$branch"
+            local rebase_out rebase_rc
+            set +e
+            rebase_out=$(git_pull_rebase "$repo_dir" "$branch" 2>&1)
+            rebase_rc=$?
+            if [ -f "$repo_dir/.git/rebase-merge" ] || [ -f "$repo_dir/.git/rebase-apply" ]; then
+                git -C "$repo_dir" rebase --abort 2>/dev/null || true
+                echo "rebase conflict — local conflict state aborted" >&2
+                printf '%s' "$rebase_out" >&2
+                return 1
+            fi
+            if [ $rebase_rc -eq 0 ]; then
+                log "[$(repo_name "$repo_dir")] OK rebase"
+                set +e
+                output=$(timeout 30 "${penv[@]}" git -C "$repo_dir" push origin "$branch" 2>&1)
+                rc=$?
+                if [ $rc -eq 0 ]; then
+                    echo "$output"
+                    return 0
+                fi
+                echo "$output" >&2
+                return $rc
+            fi
+            printf '%s' "$rebase_out" >&2
+            return $rebase_rc
         else
             # Non-network error (conflict, etc.) — don't retry
             echo "$output" >&2
@@ -228,7 +279,7 @@ commit_and_push() {
                 log "[$repo] OK pushed → GitHub ($latest_hash)"
             else
                 echo "$push_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
-                warn "[$repo] !! push failed — check network"
+                warn "[$repo] !! push failed — $(push_fail_reason "$push_output")"
             fi
         else
             log "[$repo] already up to date"
@@ -286,62 +337,56 @@ commit_and_push() {
         local branch=$(git -C "$repo_dir" branch --show-current)
         local skip_push=false
 
-        # Proxy health check: if proxy is configured but down, skip pull (avoids hang on the dead proxy)
-        if ! proxy_usable; then
-            do_log "[$repo] proxy not reachable, skipping pull (will push directly)"
-        else
-            local pull_attempt=1 pull_max=2
-            local pull_ok=false
-            # 同 git_push：恢复调用方的 errexit，别把 loop 的 set +e 顶掉
-            local pull_had_e=0; case $- in *e*) pull_had_e=1 ;; esac
-            while [ $pull_attempt -le $pull_max ]; do
-                local pull_output pull_rc
-                set +e
-                pull_output=$(timeout --kill-after=5 30 git -C "$repo_dir" pull --rebase --autostash origin "$branch" 2>&1)
-                pull_rc=$?
-                if [ "$pull_had_e" = 1 ]; then set -e; fi
-                if [ $pull_rc -eq 0 ]; then
-                    if echo "$pull_output" | grep -q "is up to date\|up-to-date\|Already up to date"; then
-                        :  # no remote changes
-                    else
-                        log "[$repo] OK rebase"
-                    fi
-                    pull_ok=true
-                    break
-                fi
-                # Network/timeout error -> retry; non-network error -> don't retry
-                if [ $pull_rc -eq 124 ] || echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls\|Recv failure"; then
-                    if [ $pull_attempt -lt $pull_max ]; then
-                        log "[$repo] pull attempt $pull_attempt failed, retry in 10s..."
-                        sleep 10
-                    fi
+        # 永远尝试 pull：与 git_push 对称，代理死了就剥 env 直连（git_pull_rebase 内处理）。
+        # 旧版在代理不可达时直接 skip pull → 远程领先时永不 rebase → 永久分叉 → 每次 push
+        # 非快进被拒（还误报 "check network"）。代理健康与否都不该跳过整合远程改动。
+        local pull_attempt=1 pull_max=2
+        local pull_ok=false
+        while [ $pull_attempt -le $pull_max ]; do
+            local pull_output pull_rc
+            pull_output=$(git_pull_rebase "$repo_dir" "$branch" 2>&1)
+            pull_rc=$?
+            if [ $pull_rc -eq 0 ]; then
+                if echo "$pull_output" | grep -q "is up to date\|up-to-date\|Already up to date"; then
+                    :  # no remote changes
                 else
-                    echo "$pull_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
-                    if echo "$pull_output" | grep -qi "unrelated histories"; then
-                        error "[$repo] !! unrelated histories — skip push"
-                        skip_push=true
-                    elif echo "$pull_output" | grep -qi "CONFLICT\|conflict\|could not be applied"; then
-                        # 兜底：reset --hard 前先把本地工作存到 stash，万一 stash pop 失败也能恢复
-                        local safety_stash="ccconfig-monitor-safety-$(date +%s)"
-                        git -C "$repo_dir" stash push -m "$safety_stash" 2>/dev/null || true
-                        git -C "$repo_dir" rebase --abort 2>/dev/null || true
-                        warn "[$repo] !! rebase 冲突 — reset to origin/$branch (本地工作存到 $safety_stash)"
-                        git -C "$repo_dir" reset --hard "origin/$branch" 2>&1 | head -1 >> "$LOG_FILE" || true
-                        # 只在 stash 真的有内容时才 pop
-                        if git -C "$repo_dir" stash list | grep -q "$safety_stash"; then
-                            git -C "$repo_dir" stash pop 2>/dev/null || warn "[$repo] stash pop 失败，存于 $safety_stash（手动恢复）"
-                        fi
-                        skip_push=true
-                    else
-                        warn "[$repo] pull failed: $(echo "$pull_output" | head -1)"
-                    fi
-                    break  # non-network error, don't retry
+                    log "[$repo] OK rebase"
                 fi
-                pull_attempt=$((pull_attempt + 1))
-            done
-            if ! $pull_ok && ! $skip_push; then
-                warn "[$repo] pull failed after $pull_max attempts, pushing directly"
+                pull_ok=true
+                break
             fi
+            # Network/timeout error -> retry; non-network error -> don't retry
+            if [ $pull_rc -eq 124 ] || echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls\|Recv failure"; then
+                if [ $pull_attempt -lt $pull_max ]; then
+                    log "[$repo] pull attempt $pull_attempt failed, retry in 10s..."
+                    sleep 10
+                fi
+            else
+                echo "$pull_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
+                if echo "$pull_output" | grep -qi "unrelated histories"; then
+                    error "[$repo] !! unrelated histories — skip push"
+                    skip_push=true
+                elif echo "$pull_output" | grep -qi "CONFLICT\|conflict\|could not be applied"; then
+                    # 兜底：reset --hard 前先把本地工作存到 stash，万一 stash pop 失败也能恢复
+                    local safety_stash="ccconfig-monitor-safety-$(date +%s)"
+                    git -C "$repo_dir" stash push -m "$safety_stash" 2>/dev/null || true
+                    git -C "$repo_dir" rebase --abort 2>/dev/null || true
+                    warn "[$repo] !! rebase 冲突 — reset to origin/$branch (本地工作存到 $safety_stash)"
+                    git -C "$repo_dir" reset --hard "origin/$branch" 2>&1 | head -1 >> "$LOG_FILE" || true
+                    # 只在 stash 真的有内容时才 pop
+                    if git -C "$repo_dir" stash list | grep -q "$safety_stash"; then
+                        git -C "$repo_dir" stash pop 2>/dev/null || warn "[$repo] stash pop 失败，存于 $safety_stash（手动恢复）"
+                    fi
+                    skip_push=true
+                else
+                    warn "[$repo] pull failed: $(echo "$pull_output" | head -1)"
+                fi
+                break  # non-network error, don't retry
+            fi
+            pull_attempt=$((pull_attempt + 1))
+        done
+        if ! $pull_ok && ! $skip_push; then
+            warn "[$repo] pull failed after $pull_max attempts, pushing directly"
         fi
 
         if ! $skip_push; then
@@ -364,7 +409,7 @@ commit_and_push() {
                 # 已迁移：aiagt deploy → fsyncdoc skill，不再 auto-sync 触发
             else
                 echo "$push_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
-                warn "[$repo] !! push failed — check network"
+                warn "[$repo] !! push failed — $(push_fail_reason "$push_output")"
             fi
         fi
     else
