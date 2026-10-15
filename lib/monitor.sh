@@ -126,6 +126,16 @@ check_proxy() {
     fi
 }
 
+# 是否配置了代理（任一 proxy env 非空）
+proxy_configured() {
+    [ -n "${HTTPS_PROXY:-}${https_proxy:-}${HTTP_PROXY:-}${http_proxy:-}" ]
+}
+
+# 代理可用 = 未配置（直连）或 配置了且可达
+proxy_usable() {
+    ! proxy_configured || check_proxy
+}
+
 # Push with retry (network intermittent on WSL)
 git_push() {
     local repo_dir="$1" branch="$2"
@@ -135,9 +145,14 @@ git_push() {
     # 取完 rc 若无脑 set -e 会把外层"故意关掉"重新打开 —— 之后任意一条非零命令
     # 就终止 loop 子 shell，systemd 随即 restart（实测每 ~20min 一次，全在 push 之后）
     local had_e=0; case $- in *e*) had_e=1 ;; esac
+    # 代理死了就剥掉 proxy env 直连。systemd unit 硬编码 HTTPS_PROXY，Clash 退出后
+    # 那个端口无人监听 → git 走它 0ms connection refused，push 永远失败（日志还会
+    # 假称 "push directly"）。剥离后直连 github.com 正常。
+    local penv=()
+    proxy_usable || penv=(env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy)
     while [ $attempt -le $max_attempts ]; do
         set +e
-        output=$(timeout 30 git -C "$repo_dir" push origin "$branch" 2>&1)
+        output=$(timeout 30 "${penv[@]}" git -C "$repo_dir" push origin "$branch" 2>&1)
         rc=$?
         if [ "$had_e" = 1 ]; then set -e; fi
         if [ $rc -eq 0 ]; then
@@ -271,9 +286,9 @@ commit_and_push() {
         local branch=$(git -C "$repo_dir" branch --show-current)
         local skip_push=false
 
-        # Proxy health check: if proxy is configured but down, skip pull (avoids hang)
-        if [ -n "${HTTPS_PROXY}${https_proxy}${HTTP_PROXY}${http_proxy}" ] && ! check_proxy; then
-            do_log "[$repo] proxy not reachable, skipping pull (push directly)"
+        # Proxy health check: if proxy is configured but down, skip pull (avoids hang on the dead proxy)
+        if ! proxy_usable; then
+            do_log "[$repo] proxy not reachable, skipping pull (will push directly)"
         else
             local pull_attempt=1 pull_max=2
             local pull_ok=false
