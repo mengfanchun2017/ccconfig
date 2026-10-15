@@ -18,6 +18,10 @@ __pycache__/
 .monitor-sync.*
 .auto-sync.*
 
+# 临时探针/测试产物（落仓库根会被 auto-sync 秒推公开库）
+.sync-probe*
+.sync-test-probe
+
 # 临时文件
 *.tmp.*
 .tmp/
