@@ -521,8 +521,8 @@ PYEOF
 )
 [[ "$t14" == "OK" ]] && _pass "null 字段容错，正文 + 收尾正常" || _fail "null 字段导致崩溃/丢内容" "$t14"
 
-# ── T15: 服务端 web search 工具转换（native 转 web_search / 非 native 剔除）──
-echo "T15 服务端 web search 工具转换"
+# ── T15: 服务端 web search 工具剔除（OpenAI 上游不支持，转 function 会 400）──
+echo "T15 服务端 web search 工具剔除"
 t15=$(python3 - "$BRIDGE_PY" <<'PYEOF'
 import importlib.util, sys
 spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
@@ -532,27 +532,24 @@ body = {"model": "x", "max_tokens": 10, "messages": [{"role": "user", "content":
                   {"name": "Read", "input_schema": {"type": "object", "properties": {}}}],
         "tool_choice": {"type": "auto"}}
 fail = []
-if not m._body_has_websearch(body):
+if not m._is_websearch_tool(body["tools"][0]):
     fail.append("未识别服务端搜索工具")
-o_native = m.anthropic_to_openai_req(body, "mimo", websearch_native=True)
-if {"type": "web_search"} not in (o_native.get("tools") or []):
-    fail.append("native 模式未转成 web_search")
-if o_native.get("tool_choice"):
-    fail.append("含服务端搜索工具时不应透传 tool_choice")
-o_strip = m.anthropic_to_openai_req(body, "deepseek", websearch_native=False)
-if any(t.get("type") == "web_search" for t in (o_strip.get("tools") or [])):
-    fail.append("非 native 模式未剔除搜索工具")
+out = m.anthropic_to_openai_req(body, "deepseek")
+if any(t.get("type") == "web_search" for t in (out.get("tools") or [])):
+    fail.append("未剔除搜索工具")
+if not out.get("tool_choice"):
+    fail.append("剩余为普通工具时应透传 tool_choice")
 # 只剩搜索工具时，tools 键不应出现
 only = {"model": "x", "max_tokens": 10, "messages": [{"role": "user", "content": "q"}],
         "tools": [{"type": "web_search_20250305", "name": "web_search"}]}
-o_only = m.anthropic_to_openai_req(only, "m", websearch_native=False)
+o_only = m.anthropic_to_openai_req(only, "m")
 if "tools" in o_only:
-    fail.append("仅搜索工具且非 native 时仍带空 tools 键")
+    fail.append("仅搜索工具时仍带空 tools 键")
 print("OK" if not fail else "FAIL: " + "; ".join(fail))
 sys.exit(0 if not fail else 1)
 PYEOF
 )
-[[ "$t15" == "OK" ]] && _pass "native 转换 / 非 native 剔除 / tool_choice 抑制" || _fail "web search 工具转换错误" "$t15"
+[[ "$t15" == "OK" ]] && _pass "搜索工具剔除 / tool_choice 透传 / 空 tools 键" || _fail "web search 工具剔除错误" "$t15"
 
 echo ""
 echo "───────────────────────────────"
