@@ -202,6 +202,7 @@ git_push() {
             set +e
             rebase_out=$(git_pull_rebase "$repo_dir" "$branch" 2>&1)
             rebase_rc=$?
+            if [ "$had_e" = 1 ]; then set -e; fi
             if [ -f "$repo_dir/.git/rebase-merge" ] || [ -f "$repo_dir/.git/rebase-apply" ]; then
                 git -C "$repo_dir" rebase --abort 2>/dev/null || true
                 echo "rebase conflict — local conflict state aborted" >&2
@@ -213,6 +214,7 @@ git_push() {
                 set +e
                 output=$(timeout 30 "${penv[@]}" git -C "$repo_dir" push origin "$branch" 2>&1)
                 rc=$?
+                if [ "$had_e" = 1 ]; then set -e; fi
                 if [ $rc -eq 0 ]; then
                     echo "$output"
                     return 0
