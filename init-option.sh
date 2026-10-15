@@ -133,7 +133,39 @@ option_status() {
     echo "miss|MISSING|未知选项: $name"
 }
 
-# ── 渲染状态图标 + 详情 ──
+# ── 收集可选项名（分组顺序，与 list_all 一致） ──
+collect_names() {
+    local -n _out="$1"
+    _out=()
+    local group_entry group_items name
+    for group_entry in "${MENU_GROUPS[@]}"; do
+        group_items="${group_entry#*|}"
+        for name in $group_items; do
+            case "$name" in
+                mcp|batcat|glow) _out+=("$name") ;;
+                *) has_init_script "$name" && _out+=("$name") ;;
+            esac
+        done
+    done
+}
+
+# ── 单项状态（mcp 特殊，其余走 option_status） ──
+mcp_status() {
+    local conf="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/mcp-servers.json"
+    if [ -f "$conf" ]; then
+        local count
+        count=$(python3 -c "import json; d=json.load(open('$conf')); print(len(d.get('mcp_servers',[])))" 2>/dev/null || echo "0")
+        if [ "$count" -gt 0 ]; then
+            echo "ok|OK|$count 个 MCP 服务器已注册"
+        else
+            echo "miss|MISSING|MCP 未配置（bash lib/init-mcp.sh sync）"
+        fi
+    else
+        echo "miss|MISSING|mcp-servers.json 未找到"
+    fi
+}
+
+# ── 状态图标 + 详情（与 status.sh _print_option 同形：✅/⚠/✗） ──
 render_status() {
     local icon_state_detail="$1"
     local icon="${icon_state_detail%%|*}"
@@ -141,12 +173,10 @@ render_status() {
     local detail="${rest#*|}"
 
     case "$icon" in
-        ok)       printf "  ${GREEN}✓${NC} %s" "$detail" ;;
-        warn)     printf "  ${YELLOW}!${NC} %s" "$detail" ;;
-        running)  printf "  ${GREEN}●${NC} %s" "$detail" ;;
-        stopped)  printf "  ${YELLOW}○${NC} %s" "$detail" ;;
-        miss)     printf "  ${GRAY}✗${NC} ${GRAY}%s${NC}" "$detail" ;;
-        *)        printf "  ${GRAY}?${NC} %s" "$detail" ;;
+        ok)              printf "${GREEN}✅${NC} %s" "$detail" ;;
+        warn)            printf "${YELLOW}⚠${NC}  %s" "$detail" ;;
+        miss|no_conf|empty) printf "${GRAY}✗${NC}  ${GRAY}%s${NC}" "$detail" ;;
+        *)               printf "${GRAY}?${NC}  %s" "$detail" ;;
     esac
 }
 
