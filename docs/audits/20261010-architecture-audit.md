@@ -124,7 +124,7 @@ ADR-0027 承诺 `lib/guard.sh` + `_is_installed/_is_not_file/_is_executed/_mark_
 - `|| true`：197 处，多数为刻意的 probe/hash 兜底。
 - `while read` 缺 `-r`：4 处（init-skill:627、monitor:222、sync:136、cloudflare/init:91）。
 - 固定名 `/tmp` 路径（无 mktemp 隔离）：update.sh:534/587/266、init-ubuntu.sh:129、officecli/init.sh:78、install-inotify.sh:84、init-option.sh:351/389。
-- 重复代码：`do_status`×9、`getnote-switch ↔ lark-switch` 5 函数近似 copy-paste（~300 行）。
+- 重复代码：`do_status`×9、`getnote-switch ↔ lark-switch` 5 函数近似 copy-paste（~300 行）。（getnote-switch 已于 2026-10-16 随 CLI 迁移删除）
 - 单文件过长：update.sh 1053 / init-llm.sh 986 / monitor.sh 967 行。
 
 ---
@@ -134,7 +134,7 @@ ADR-0027 承诺 `lib/guard.sh` + `_is_installed/_is_not_file/_is_executed/_mark_
 | 文档:行 | 缺陷 | 实际 |
 |---------|------|------|
 | `CLAUDE.md:11-12` | 暗号 `hookstatus`/`pullff` 全库无代码定义（仅文档命中，二者互相矛盾） | 无实现 |
-| `README.md:21,288,337` | 括号拆分"16 f-* + getnote"错误（getnote 非 marketplace 插件） | 实为 16 marketplace + 1 内部 fskillcreat |
+| `README.md:21,288,337` | 括号拆分"16 f-* + getnote"错误（getnote 非 marketplace 插件） | ✅ 已修（2026-10-16）：改为 f-* 系列；getnote 走官方 `@getnote/cli` 原子 Skill |
 | `docs/architecture.md:280`、`docs/ccprivate-guide.md:48,94,110` | 路径写 `link/projects/` | 实为 `link/memory-projects/` |
 | `docs/adr/0027` | 承诺 `lib/guard.sh` + `_is_*` API | 未实现（见 §3.1） |
 | `option-skill/README.md:32-169` | 整篇描述已废弃的第三方 npx skill 流程 | init-skill.sh:32 明确已移除，`conf/third-party-skills.txt` 不存在 |
@@ -202,7 +202,7 @@ ADR-0027 承诺 `lib/guard.sh` + `_is_installed/_is_not_file/_is_executed/_mark_
 - §1.1 凭据轮换（用户确认：历史中凭据为**已失效的旧 key**，与 ccprivate 现值不同 → 不改写历史；后续提交由已修补的 pre-commit 兜底）
 
 **建议排期**：
-- 重构：抽 `lib/account-switch.sh`（getnote↔lark 同构）、`lib/option-status.sh`（状态契约单点）、收敛颜色层
+- 重构：抽 `lib/account-switch.sh`（lark 同构）、`lib/option-status.sh`（状态契约单点）、收敛颜色层
 - 清理死代码（`grep -rn <name>` 复确认后删 §3.2 清单）
 - 让 dry-run 真正接线（sync/ccprivate-upgrade/deploy）或移除其 source
 - bridge 非流式路径修复（image/arguments/finish_reason/choices）

@@ -5,16 +5,21 @@
 # 组成（4 层，WSL 下缺一不可）：
 #   1. @playwright/mcp  npm 包   → npx 自动拉，无需装
 #   2. Chromium 二进制           → npx playwright install chromium → ~/.cache/ms-playwright/
-#   3. 系统 .so 依赖             → npx playwright install-deps chromium（需 sudo apt，跑一次）
+#   3. 系统 .so 依赖             → 免 root 装载到 ~/.local/state/pw-chromium/deps/
+#                                  （apt-get download + dpkg-deb -x，无需 sudo）
 #   4. MCP 注册                  → 已在 conf/mcp-servers.json 定义，init-mcp.sh sync 注册
 #
 # 用法：
 #   bash init.sh --status   状态检查
-#   bash init.sh --install  安装（首次；自动跑 chromium + install-deps）
+#   bash init.sh --install  安装（首次；自动跑 chromium + 依赖）
 #   bash init.sh --update   更新
 #
-# 注意：install-deps 需要 sudo（apt-get）。WSL 后台 agent 无法交互输密码，
-#   首次手动跑一次 `sudo npx playwright install-deps chromium` 后即永久可用。
+# 依赖免 root 装载：
+#   WSL 后台 agent 无法交互输 sudo 密码，install-deps 会卡死。改为：
+#     apt-get download <libs>  → dpkg-deb -x 解包到用户目录
+#     wrapper（$PW_CHROME）设 LD_LIBRARY_PATH 指向解包目录
+#   包名用 `npx playwright install-deps chromium --dry-run` 动态取（随 Playwright
+#   版本变化，不硬编码）。只需 lib*/x11-xkb-utils，字体/xvfb headless 用不到。
 
 set -euo pipefail
 
@@ -27,31 +32,82 @@ source "$CCCONFIG_ROOT/lib/path-helper.sh"
 # Playwright 的 chromium 缓存目录（判断二进制是否已装）
 PW_CACHE_DIR="${HOME}/.cache/ms-playwright"
 
+# 稳定目录（MCP --executable-path 指向此处的 wrapper，chromium 升级不破 MCP）
+PW_STATE_DIR="${HOME}/.local/state/pw-chromium"
+PW_CHROME="$PW_STATE_DIR/chrome"          # wrapper（下方生成，设 LD_LIBRARY_PATH）
+PW_CHROME_REAL="$PW_STATE_DIR/chrome-real" # symlink → 实际 chromium 二进制
+PW_DEPS_DIR="$PW_STATE_DIR/deps"           # 免 root 解包的 .so 依赖
+
 # 判断 Chromium 是否已下载（Playwright 下载目录存在且含 chromium-X 版本目录）
 chromium_installed() {
     [[ -d "$PW_CACHE_DIR" ]] && find "$PW_CACHE_DIR" -maxdepth 1 -type d -name 'chromium-*' | grep -q . && return 0
     return 1
 }
 
-# 判断系统 .so 依赖是否齐全：跑 chromium --version 探活最可靠
-# 注意目录是 chrome-linux64（新 Playwright），兼容旧 chrome-linux
-deps_installed() {
-    local browser_bin
-    browser_bin=$(find "$PW_CACHE_DIR" \( -path '*/chrome-linux*/chrome' -o -path '*/chrome-linux*/headless_shell' \) 2>/dev/null | head -1)
-    [[ -z "$browser_bin" ]] && return 1  # 没二进制，依赖无从验证
-    "$browser_bin" --version >/dev/null 2>&1
+# 定位实际 chromium 二进制（新 Playwright 是 chrome-linux64，兼容旧 chrome-linux）
+chromium_bin() {
+    find "$PW_CACHE_DIR" -path '*/chrome-linux64/chrome' 2>/dev/null | head -1
 }
 
-# MCP 配置里 --executable-path 指向稳定 symlink（避免 chromium 升级后路径漂移）。
-# 每次 install/update 后重建 symlink → MCP 配置无需改。
-PW_SYMLINK="${HOME}/.local/state/pw-chromium/chrome"
+# 判断系统 .so 依赖是否齐全：经 wrapper 跑 chromium --version 探活最可靠
+deps_installed() {
+    [[ -z "$(chromium_bin)" ]] && return 1  # 没二进制，依赖无从验证
+    [[ -x "$PW_CHROME" ]] || return 1       # wrapper 未生成 = 依赖未装载
+    "$PW_CHROME" --version >/dev/null 2>&1
+}
+
+# 重建 wrapper + symlink（chromium 升级后路径漂移不破 MCP）
 refresh_chromium_symlink() {
     local target
-    target=$(find "$PW_CACHE_DIR" -path '*/chrome-linux64/chrome' 2>/dev/null | head -1)
+    target=$(chromium_bin)
     [[ -z "$target" ]] && return 1
-    mkdir -p "$(dirname "$PW_SYMLINK")"
-    ln -sfn "$target" "$PW_SYMLINK"
-    info "chromium symlink → $PW_SYMLINK"
+    mkdir -p "$PW_STATE_DIR"
+    ln -sfn "$target" "$PW_CHROME_REAL"
+    cat > "$PW_CHROME" <<'PWWRAP'
+#!/bin/bash
+# ccconfig option-playwright 生成：设 LD_LIBRARY_PATH 指向用户态解包的 .so，再 exec 真二进制
+DIR="$(dirname "$(readlink -f "$0")")"
+export LD_LIBRARY_PATH="$DIR/deps${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec "$DIR/chrome-real" "$@"
+PWWRAP
+    chmod +x "$PW_CHROME"
+    info "chromium wrapper → $PW_CHROME"
+}
+
+# 取本机 chromium 缺的系统包名（Playwright 官方 dry-run，随版本动态变化）
+missing_deps_pkgs() {
+    timeout 180 npx --yes playwright install-deps chromium --dry-run 2>/dev/null \
+        | sed 's/^[[:space:]]*//' \
+        | grep -E '^(lib|x11-xkb-utils)' | grep -vE 'data$'
+}
+
+# 免 root 装载系统 .so：apt-get download（免 root）→ dpkg-deb -x 解包到 PW_DEPS_DIR
+install_deps_userland() {
+    local pkgs
+    pkgs=$(missing_deps_pkgs)
+    [[ -z "$pkgs" ]] && { info "Playwright 报告无需系统包（或已具备）"; return 0; }
+
+    local tmp; tmp=$(mktemp -d) || return 1
+    echo -n "→ 下载系统依赖（免 root，$(echo "$pkgs" | wc -l) 包）... "
+    if ! ( cd "$tmp" && apt-get download $pkgs ) >/dev/null 2>&1; then
+        bad "fail"
+        warn "apt-get download 失败（源不可达？）"
+        rm -rf "$tmp"; return 1
+    fi
+    good "ok"
+
+    mkdir -p "$PW_DEPS_DIR"
+    local n=0
+    for f in "$tmp"/*.deb; do
+        [[ -f "$f" ]] || continue
+        dpkg-deb -x "$f" "$tmp/root" || { warn "解包失败: $f"; continue; }
+        n=$((n+1))
+    done
+    rm -rf "$PW_DEPS_DIR"
+    mkdir -p "$PW_DEPS_DIR"
+    cp -r "$tmp/root/usr/lib/x86_64-linux-gnu/." "$PW_DEPS_DIR/" 2>/dev/null || true
+    rm -rf "$tmp"
+    info "依赖已装载到 $PW_DEPS_DIR（$n 包免 root）"
 }
 
 # 判断 MCP 是否已注册：看运行时 .config.json 有没有 playwright 条目
@@ -105,20 +161,17 @@ do_install() {
     # 重建稳定 symlink，MCP --executable-path 指向它（版本漂移不破 MCP）
     refresh_chromium_symlink || warn "symlink 重建失败（不影响下载，MCP 可能仍指旧版）"
 
-    # 3. 系统 .so 依赖（唯一需 sudo 的一步，一次性）
+    # 3. 系统 .so 依赖（免 root 装载到用户目录，无需 sudo）
     if deps_installed; then
         info "系统依赖已就绪"
     else
-        echo -e "${YELLOW}→ 需装系统依赖（sudo apt-get）...${NC}"
-        echo ""
-        echo -e "  ${GRAY}Playwright 的 chromium 需要 ~20 个系统 .so 库，由 install-deps 自动装。${NC}"
-        echo -e "  ${GRAY}WSL 后台无法交互输 sudo 密码，请在终端手动跑一次（一次性）：${NC}"
-        echo ""
-        echo "      sudo env \"PATH=\$PATH\" npx --yes playwright install-deps chromium"
-        echo ""
-        echo -e "  ${GRAY}(playwright 包已装则这条只 apt 装 .so,很快。npx 在 user-local 路径,sudo 需显式传 PATH)${NC}"
-        echo ""
-        return 1
+        install_deps_userland || return 1
+        refresh_chromium_symlink || warn "wrapper 重建失败"
+        if ! deps_installed; then
+            warn "依赖装载后 chromium 仍无法启动，请检查 $PW_DEPS_DIR"
+            return 1
+        fi
+        good "chromium 现已可启动（用户态依赖）"
     fi
 
     # 4. 注册 MCP（用 ccconfig 标准机制）

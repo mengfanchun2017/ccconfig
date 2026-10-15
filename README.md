@@ -18,7 +18,7 @@ ccconfig 是 Claude Code 配置基础设施的公开部分。**三仓库模型**
 | 仓库 | 可见性 | 内容 |
 |------|--------|------|
 | **ccconfig** | 公开 | infra 脚本、.example 模板（rules/agents/conf） |
-| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | 17 个 skill 插件（16 个 f-* + getnote） |
+| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | marketplace skill 插件（f-* 系列；getnote 已改用官方 `@getnote/cli` 的原子 Skill） |
 | **ccprivate** | 私有 | API key / Token / 个人配置，symlink 穿透访问 |
 
 ccconfig 本身不含任何密钥。
@@ -285,7 +285,7 @@ bash lib/init-llm.sh test <preset>      # 真实链路探测（走 bridge + 流�
 |------|--------|--------|
 | ccconfig | 脚本、.example 模板 | ✅ 开源 |
 | fancypowershell | Windows PowerShell 工具集 | ✅ 开源 |
-| skill | 17 个 skill 插件（16 个 f-* + getnote） | ✅ marketplace |
+| skill | marketplace skill 插件（f-* 系列） | ✅ marketplace |
 | ccprivate | API key、token、个人配置 | ❌ 私有 |
 
 ### 🔄 Auto-Sync 守护进程
@@ -334,7 +334,7 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 
 ## 自建 Skills
 
-全部 17 个 skill 插件（16 个 f-* + getnote）发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库：ffeishu / fpptx / fdiagram / fdocx / fsearch / flogme 等。
+全部 f-* skill 插件发布在 **[skill](https://github.com/mengfanchun2017/skill)** 仓库：ffeishu / fpptx / fdiagram / fdocx / fsearch / flogme 等。
 `bash lib/init-skill.sh sync` 从 `~/git/skill/plugins/` symlink 到 `~/.claude/skills/`。
 
 ## 环境变量
