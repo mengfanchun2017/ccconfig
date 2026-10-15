@@ -153,7 +153,7 @@ PYEOF
 
 # 读 provider 的 host_header 字段（可选，tailscale/SSH 透传场景用）
 get_provider_host_header() {
-    local merged; merged=$(_llms_merged_py)
+    local merged; merged=$(_merged_json)
     LLM_MERGED="$merged" python3 - "$1" << 'PYEOF'
 import json, os, sys
 name = sys.argv[1]
@@ -168,7 +168,7 @@ PYEOF
 
 # 读 use_bridge 标记（True/False/空）
 get_use_bridge() {
-    local merged; merged=$(_llms_merged_py)
+    local merged; merged=$(_merged_json)
     LLM_MERGED="$merged" python3 - "$1" << 'PYEOF'
 import json, os, sys
 name = sys.argv[1]
@@ -188,7 +188,7 @@ DEFAULT_MAX_CONTEXT_TOKENS="${DEFAULT_MAX_CONTEXT_TOKENS:-$(cat "$HOME/.claude/l
 
 # 读预设声明的窗口原始值（单位：1000 tokens），未声明返回空 —— 菜单据此显示「默认 Xk」
 get_max_context_raw() {
-    local merged; merged=$(_llms_merged_py)
+    local merged; merged=$(_merged_json)
     LLM_MERGED="$merged" python3 - "$1" << 'PYEOF'
 import json, os, sys
 name = sys.argv[1]
@@ -204,7 +204,7 @@ PYEOF
 # 读预设上下文窗口，返回**绝对 token 数**（如 400000）写进 CC env。
 # 预设声明值单位是 1000 tokens（400 → 400k）；未声明 → 用全局默认。
 get_max_context_tokens() {
-    local merged; merged=$(_llms_merged_py)
+    local merged; merged=$(_merged_json)
     LLM_MERGED="$merged" DEFAULT_CTX="$DEFAULT_MAX_CONTEXT_TOKENS" python3 - "$1" << 'PYEOF'
 import json, os, sys
 name = sys.argv[1]
@@ -251,7 +251,7 @@ write_local_current() {
 list_llms() {
     local cur merged
     cur=$(read_local_current)
-    merged=$(_llms_merged_py)
+    merged=$(_merged_json)
     LIST_CUR="$cur" LLM_MERGED="$merged" python3 - << 'PYEOF'
 import json, sys, os
 try:
@@ -382,6 +382,7 @@ with open(sf, 'w') as f: json.dump(sd, f, indent=4, ensure_ascii=False)
 print("settings.json 已更新")
 PYEOF
 
+    _llm_merged_invalidate   # llm.json key 可能刚被写，刷新 memo 供菜单显示
     write_local_current "$name"
     success "LLM 已切换为: $name"
     sync_top_model
@@ -789,7 +790,7 @@ delete_preset() {
 
     # 来源判定：内置（llmnormal，ccconfig 公开）不可删；自定义（llmprivate）可删
     local src merged
-    merged=$(_llms_merged_py)
+    merged=$(_merged_json)
     src=$(LLM_MERGED="$merged" python3 - "$target" <<'PYEOF'
 import json, os, sys
 merged = json.loads(os.environ['LLM_MERGED'])
@@ -864,7 +865,7 @@ set_max_context_tokens() {
     fi
 
     if [[ -z "$target" ]]; then
-        local merged; merged=$(_llms_merged_py)
+        local merged; merged=$(_merged_json)
         local items=() names=()
         local cur_default_disp="默认 ${DEFAULT_MAX_CONTEXT_TOKENS}k"
         local cur_name cur_disp cur_line
@@ -922,7 +923,7 @@ _set_global_default_ctx() {
 _edit_preset_ctx() {
     local target="$1" arg="${2:-}"
     local merged src raw
-    merged=$(_llms_merged_py)
+    merged=$(_merged_json)
     src=$(LLM_MERGED="$merged" python3 - "$target" <<'PYEOF'
 import json, os, sys
 try: merged = json.loads(os.environ['LLM_MERGED'])
