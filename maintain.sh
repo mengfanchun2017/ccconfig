@@ -149,8 +149,27 @@ do_highpriv() {
         warn "~/.bashrc 未加载 shell_init.sh — 手动添加: source ~/.claude/shell_init.sh"
     fi
 
+    # 运行时检查：文件对 ≠ 生效。alias 只在 shell 启动时装载，老 shell 里 claudeby 展开仍是旧命令。
+    # 判据看进程 argv（不看 ps 显示，xxd /proc/pid/cmdline 才是真相）：新式必含 `agents` 子命令。
+    local old_procs new_procs
+    old_procs="$(ps -eo pid=,args= | grep -E '[c]laude --dangerously-skip-permissions' | grep -v ' claude agents ' || true)"
+    new_procs="$(ps -eo pid=,args= | grep -E '[c]laude agents --dangerously-skip-permissions' || true)"
     echo ""
-    echo -e "  ${YELLOW}提示: 改完 source ~/.bashrc 或开新终端生效${NC}"
+    if [[ -n "$old_procs" ]]; then
+        warn "以下 claude 进程是旧式启动（argv 无 agents 子命令）— 它派发的新 session 不继承 bypass:"
+        echo "$old_procs" | awk '{printf "      PID %s\n", $1}'
+        info "  修复: 退出这些 session → 所在终端 source ~/.bashrc → 重新 claudeby"
+        info "  为何: alias 改动后老 shell 不自动重载（启动时装载），文件绿但 shell 内存是旧的"
+    fi
+    if [[ -n "$new_procs" ]]; then
+        ok "新式 claude agents 进程: $(echo "$new_procs" | wc -l | tr -d ' ') 个"
+    fi
+    if [[ -z "$old_procs" && -z "$new_procs" ]]; then
+        info "当前无运行中的 claude 进程（下次 claudeby 前先 source ~/.bashrc）"
+    fi
+
+    echo ""
+    echo -e "  ${YELLOW}提示: 改完 source ~/.bashrc 或开新终端生效 — 老 shell 不会自动重载 alias${NC}"
 }
 
 do_setup() {
