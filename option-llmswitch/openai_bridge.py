@@ -988,6 +988,8 @@ async def messages(request: Request):
             r_status, r_text = await _post_via_win_curl(target_url, headers, upstream_body, host_header)
             if r_status >= 400:
                 return JSONResponse({"error": "upstream error", "body": r_text[:500]}, status_code=r_status)
+            if pass_through:
+                return JSONResponse(json.loads(r_text) if r_text.strip().startswith("{") else {"raw": r_text[:500]})
             try:
                 openai_json = json.loads(r_text)
             except Exception:
@@ -1008,6 +1010,11 @@ async def messages(request: Request):
         except httpx.TransportError as e:
             print(f"[bridge] upstream post error: {type(e).__name__}: {e}", flush=True)
             return JSONResponse({"error": "upstream timeout", "type": type(e).__name__}, status_code=529)
+        if pass_through:
+            try:
+                return JSONResponse(json.loads(r.text))
+            except Exception:
+                return JSONResponse({"error": "upstream non-json", "body": r.text[:500]}, status_code=502)
         try:
             openai_json = r.json()
         except Exception:
