@@ -114,6 +114,45 @@ ensure_runtime_deps() {
     return 0
 }
 
+# 1C 高权限开启：claudeby 说明 + 本机 alias 状态检查。
+# 不自动改用户文件 —— 打印该有的行，让用户自己加/更新（老版本手写在 bashrc 的旧定义尤其要手工换）。
+do_highpriv() {
+    local new_alias="alias claudeby='claude agents --dangerously-skip-permissions'"
+    local si="$HOME/.claude/shell_init.sh"
+    local bc="$HOME/.bashrc"
+
+    section "高权限启动（claudeby）"
+    echo -e "  ${CYAN}alias:${NC} $new_alias"
+    echo -e "  ${GRAY}调用: 终端输 claudeby → 直进 FleetView，派发 session 继承 bypass（启动即 bypass，shift+tab 可切回）${NC}"
+    echo -e "  ${GRAY}定义位置: ~/.claude/shell_init.sh（symlink → ccconfig/lib/shell_init.sh，随仓库自动更新）${NC}"
+    echo ""
+
+    if [[ -L "$si" && -e "$si" ]] && grep -qF "claude agents --dangerously-skip-permissions" "$si" 2>/dev/null; then
+        ok "shell_init.sh 已是新版 alias"
+    elif [[ -f "$si" ]] && grep -qF "alias claudeby=" "$si" 2>/dev/null; then
+        warn "shell_init.sh 还是旧版 claudeby（claude --dangerously-skip-permissions）"
+        info "  更新仓库: ./maintain.sh self config（3A），再 source ~/.bashrc"
+    else
+        warn "shell_init.sh 未定义 claudeby — 手动加一行: $new_alias"
+    fi
+
+    # bashrc 里手写的 claudeby 会盖住 shell_init 的定义（后加载者胜），老版本用户常有
+    local legacy
+    legacy="$(grep -n "^alias claudeby=" "$bc" 2>/dev/null || true)"
+    if [[ -n "$legacy" ]]; then
+        warn "~/.bashrc 有手写 claudeby，会覆盖新定义（第 ${legacy%%:*} 行）:"
+        echo -e "      ${GRAY}$legacy${NC}"
+        info "  改成: $new_alias"
+    fi
+
+    if ! grep -q "shell_init" "$bc" 2>/dev/null; then
+        warn "~/.bashrc 未加载 shell_init.sh — 手动添加: source ~/.claude/shell_init.sh"
+    fi
+
+    echo ""
+    echo -e "  ${YELLOW}提示: 改完 source ~/.bashrc 或开新终端生效${NC}"
+}
+
 do_setup() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}  ccconfig 恢复最新功能 ${NC}"
@@ -479,6 +518,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         menu_loop "ccconfig 运维中心"
         ;;
     status)  shift; bash "$LIB_DIR/status.sh" "$@" ;;
+    highpriv) do_highpriv ;;
     self)    shift; do_self "${1:-all}" ;;
     setup|finalize|first|init|fix)
         shift
@@ -506,7 +546,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         _rc=0
         menu_parse "${1:-}" || _rc=$?
         if [[ $_rc -eq 3 ]]; then
-            echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|pat|example|upgrade-ccprivate]"
+            echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|pat|example|upgrade-ccprivate|highpriv]"
             echo "      或菜单编号（如 2e）直接执行对应项"
             exit 1
         fi
