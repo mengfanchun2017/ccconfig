@@ -236,7 +236,7 @@ list_all() {
     echo ""
 }
 
-# ── Lark Key 配置向导 ──# ── 安装单个 option ──
+# ── 安装单个 option ──
 install_option() {
     local name="$1"
     shift
@@ -447,12 +447,15 @@ interactive_menu() {
         local exit_idx=$((n_count + 2))    # 「退出」
         local total_items=$exit_idx
 
-        # 状态列表 + 附加项，共用同一份渲染，编号连续
-        echo ""
-        render_components all_names
-        printf "  ${BOLD_GREEN}%2d)${NC}  %s\n" "$all_idx" "全部安装"
-        printf "  ${BOLD_GREEN}%2d)${NC}  %s\n" "$exit_idx" "退出"
-        echo ""
+        # 状态列表 + 附加项，共用同一份渲染，编号连续。
+        # 走 stderr：与下方提示同流，避免 stdout 重定向时列表与提示错位
+        {
+            echo ""
+            render_components all_names
+            printf "  ${BOLD_GREEN}%2d)${NC}  %s\n" "$all_idx" "全部安装"
+            printf "  ${BOLD_GREEN}%2d)${NC}  %s\n" "$exit_idx" "退出"
+            echo ""
+        } >&2
 
         local raw sel_nums=() tok saw_cancel=0 saw_all=0
         local prompt="  ${BOLD_GREEN}选择 [1-${total_items}] (0=取消, 空格多选 如 1 3 5): ${NC}"
