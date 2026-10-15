@@ -760,15 +760,29 @@ async def messages(request: Request):
     ws = state.get("websearch_upstream")
     use_ws = bool(ws) and _body_has_websearch(body)
     if use_ws:
-        upstream_body = anthropic_to_openai_req(body, ws["model"], websearch_native=True)
-        headers = {
-            "Authorization": f"Bearer {ws['key']}",
-            "Content-Type": "application/json",
-        }
+        # protocol=anthropic：上游（MiniMax）原生吃 Anthropic Messages 格式，请求体
+        # 原样透传（含 web_search_20250305 服务端工具），只改 model、换 x-api-key 认证。
+        if ws.get("protocol") == "anthropic":
+            upstream_body = dict(body)
+            upstream_body["model"] = ws["model"]
+            headers = {
+                "x-api-key": ws["key"],
+                "Content-Type": "application/json",
+                "anthropic-version": "2023-06-01",
+            }
+            target_suffix = "/v1/messages"
+        else:
+            # protocol=openai（缺省）：转 OpenAI web_search 工具发 /chat/completions
+            upstream_body = anthropic_to_openai_req(body, ws["model"], websearch_native=True)
+            headers = {
+                "Authorization": f"Bearer {ws['key']}",
+                "Content-Type": "application/json",
+            }
+            target_suffix = "/chat/completions"
         upstream_base = ws["base_url"].rstrip("/")
         host_header = ""
         use_win_curl = False  # 搜索上游是公网 HTTPS，直连即可
-        print(f"[bridge] websearch route → {upstream_base} model={ws['model']}", flush=True)
+        print(f"[bridge] websearch route {ws.get('protocol','openai')} → {upstream_base} model={ws['model']}", flush=True)
     else:
         upstream_body = anthropic_to_openai_req(body, state["upstream_model"])
         headers = {
