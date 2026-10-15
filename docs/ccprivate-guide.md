@@ -292,10 +292,11 @@ bash ~/git/ccprivate/setup.sh
 
 ### Skill 私有配置（YAML 覆盖）
 
-部分 skill（flogme、ffeishu、fpptx、fmoocrec）需要私有配置（token/URL/table ID）。这些不走 `conf/*.json`，而是通过 `skill/*.yaml` + symlink 直接注入 skill 目录：
+部分 skill（flogme、ffeishu、fpptx、fmashwork、fmoocrec）需要私有配置（token/URL/table ID）。**skill 本体是公开的**，在 `~/git/skill/plugins/<name>/`；只有这些私有值走 `ccprivate/skill/*.yaml` + symlink 注入 skill 目录：
 
 ```
-ccprivate/skill/flogme.yaml ──apply-config.sh ln -s──→ ~/.claude/skills/flogme/config.yaml
+~/git/skill/plugins/flogme/  ──init-skill.sh ln -s──→  ~/.claude/skills/flogme
+ccprivate/skill/flogme.yaml  ──apply-config.sh ln -s──→  ~/.claude/skills/flogme/config.yaml
 ```
 
 skill 内 Python 脚本 `open('config.yaml')` 自动跟踪 symlink 读到 ccprivate 的真实值。修改 ccprivate 后立即生效，无需重跑脚本。
