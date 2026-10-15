@@ -226,9 +226,10 @@ def _ensure_started(state, out, msg_id, model):
                 "id": msg_id, "type": "message", "role": "assistant",
                 "model": model, "content": [],
                 "stop_reason": None, "stop_sequence": None,
-                # 上游每个 chunk 都带 prompt_tokens，首个 chunk 就有真值。
-                # 恒发 0 会让 CC 以为输入是空的（上下文余量、自动压缩全失灵），
-                # 长会话跑下去撞上游真实窗口才报错。
+                # 上游 usage 出现时机不定：单位网关实测首 chunk 只有 reasoning_content，
+                # prompt_tokens 要到**倒数第二个** chunk（带 finish_reason 那个）才有。
+                # 所以 message_start 通常拿不到真值，恒 0 会让 CC 以为输入是空的
+                # （上下文余量、自动压缩全失灵）。真值由收尾 message_delta 补发，见下。
                 "usage": {"input_tokens": state.get("input_tokens", 0), "output_tokens": 0},
             },
         }
