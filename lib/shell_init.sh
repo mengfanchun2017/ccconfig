@@ -46,9 +46,9 @@ claude-ds() {
     bash "$CCCONFIG_HOME/lib/init-llm.sh" deepseek && claude "$@"
 }
 
-# claudeby: bypass 权限启动（跳过所有 permission 检查含分类器）
-# 外部模型抖动时 spawn agent 不被分类器连带 block；日常用 claude 即可（auto+allow 已覆盖）
-alias claudeby='claude --dangerously-skip-permissions'
+# claudeby: 直进 FleetView（agent view）+ bypass 作 dispatch default
+# 派发的子 session 继承 flag 启动即 bypass（父进程 flag 不传给子 session，见 ADR 0018）
+alias claudeby='claude agents --dangerously-skip-permissions'
 
 # lark-cli: 从 ~/.lark-cli-account 读上次切换的账号（lark-switch.sh 写入）
 # 跨机器持久化靠 ccprivate/link/.lark-default-account symlink（auto-sync 上推）
