@@ -208,9 +208,7 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
         if out_tools:
             openai_body["tools"] = out_tools
         tool_choice = anth_body.get("tool_choice")
-        # web search 是服务端工具，客户端无 tool_choice；转发会与剩余 tools 语义
-        # 冲突（如 tool_choice=auto 但只剩 web_search → 上游报 "tool not found"）
-        if tool_choice and not any(_is_websearch_tool(t) for t in tools):
+        if tool_choice:
             if tool_choice.get("type") == "tool":
                 openai_body["tool_choice"] = {"type": "function", "function": {"name": tool_choice.get("name", "")}}
             else:
@@ -522,9 +520,7 @@ def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> d
 
 
 app = FastAPI()
-# websearch_upstream：非空时，凡请求含服务端 web search 工具的整条请求都改发到此上游
-# （用户选定：不分主模型，所有 web search 统一走小米 mimo）
-state = {"upstream": "", "upstream_key": "", "upstream_model": "", "websearch_upstream": None}
+state = {"upstream": "", "upstream_key": "", "upstream_model": ""}
 http_client = None
 
 
@@ -704,57 +700,21 @@ async def messages(request: Request):
     body = await request.json()
     stream = bool(body.get("stream"))
 
-    # 含服务端 web search 工具 → 整条请求改发 websearch 上游（小米 mimo），由它执行
-    # 搜索。主模型是谁无关；不含搜索工具则照常走主上游。
-    ws = state.get("websearch_upstream")
-    use_ws = bool(ws) and _body_has_websearch(body)
-    if use_ws:
-        # protocol=anthropic：上游（MiniMax）原生吃 Anthropic Messages 格式，请求体
-        # 原样透传（含 web_search_20250305 服务端工具），只改 model、换 x-api-key 认证。
-        if ws.get("protocol") == "anthropic":
-            upstream_body = dict(body)
-            upstream_body["model"] = ws["model"]
-            headers = {
-                "x-api-key": ws["key"],
-                "Content-Type": "application/json",
-                "anthropic-version": "2023-06-01",
-            }
-            target_suffix = "/v1/messages"
-        else:
-            # protocol=openai（缺省）：转 OpenAI web_search 工具发 /chat/completions
-            upstream_body = anthropic_to_openai_req(body, ws["model"], websearch_native=True)
-            headers = {
-                "Authorization": f"Bearer {ws['key']}",
-                "Content-Type": "application/json",
-            }
-            target_suffix = "/chat/completions"
-        upstream_base = ws["base_url"].rstrip("/")
-        host_header = ""
-        use_win_curl = False  # 搜索上游是公网 HTTPS，直连即可
-        print(f"[bridge] websearch route {ws.get('protocol','openai')} → {upstream_base} model={ws['model']}", flush=True)
-    else:
-        upstream_body = anthropic_to_openai_req(body, state["upstream_model"])
-        headers = {
-            "Authorization": f"Bearer {state['upstream_key']}",
-            "Content-Type": "application/json",
-        }
-        upstream_base = state["upstream"].rstrip("/")
-        host_header = state.get("upstream_host")
-        use_win_curl = state.get("use_win_curl", False)
+    upstream_body = anthropic_to_openai_req(body, state["upstream_model"])
+    headers = {
+        "Authorization": f"Bearer {state['upstream_key']}",
+        "Content-Type": "application/json",
+    }
+    upstream_base = state["upstream"].rstrip("/")
+    host_header = state.get("upstream_host")
+    use_win_curl = state.get("use_win_curl", False)
 
-    # protocol=anthropic 的 websearch 上游：base_url 已是 /anthropic 完整端点，直接 +/v1/messages
-    if use_ws and ws.get("protocol") == "anthropic":
-        if upstream_base.endswith("/anthropic"):
-            target_url = upstream_base + "/v1/messages"
-        else:
-            target_url = upstream_base.rstrip("/") + "/v1/messages"
+    # URL 已含版本段（/v1, /v4, /paas/v4, /openai/v1 等）或完整路径 → 只追加 /chat/completions
+    # why: 之前只检测 /v1，遇到智谱 paas/v4 类非标准路径会拼成 /v4/v1/chat/completions → 404
+    if re.search(r"/v\d+(/|$)", upstream_base) or "/chat/completions" in upstream_base:
+        target_url = upstream_base + "/chat/completions"
     else:
-        # URL 已含版本段（/v1, /v4, /paas/v4, /openai/v1 等）或完整路径 → 只追加 /chat/completions
-        # why: 之前只检测 /v1，遇到智谱 paas/v4 类非标准路径会拼成 /v4/v1/chat/completions → 404
-        if re.search(r"/v\d+(/|$)", upstream_base) or "/chat/completions" in upstream_base:
-            target_url = upstream_base + "/chat/completions"
-        else:
-            target_url = upstream_base + "/v1/chat/completions"
+        target_url = upstream_base + "/v1/chat/completions"
 
     # 如果 upstream 用 IP 代替了域名，加 Host header 保 SNI 和路由
     extra_ext = {}
@@ -764,7 +724,6 @@ async def messages(request: Request):
         extra_ext["sni_hostname"] = host_header
 
     client = http_client
-    pass_through = use_ws and ws.get("protocol") == "anthropic"
 
     if stream:
         _REQ_SEQ[0] += 1
