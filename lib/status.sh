@@ -365,37 +365,16 @@ check_mcp() {
     local lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     bash "$lib_dir/mcp-manager.sh" status
 
-    # ── getnote 多账号检查 ──
-    local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
-    local conf="$ccpriv/conf/mcp-servers.json"
-    if [ -f "$conf" ]; then
-        local multi
-        multi=$(python3 - "$conf" << 'PYEOF'
-import json, sys
-try:
-    with open(sys.argv[1]) as f: d = json.load(f)
-except: sys.exit(0)
-accounts = d.get('getnote_accounts') or []
-default = d.get('getnote_default', '')
-enabled_cnt = sum(1 for a in accounts if a.get('enabled', True))
-out = []
-if accounts:
-    out.append(f"{enabled_cnt}/{len(accounts)} enabled")
-if default:
-    out.append(f"default={default}")
-elif enabled_cnt > 1:
-    out.append("WARN: 多账号无 default")
-print(' | '.join(out))
-PYEOF
-        )
-        if [ -n "$multi" ]; then
-            echo "  getnote 账号: $multi"
-            if echo "$multi" | grep -q "WARN"; then
-                echo -e "  ${YELLOW}⚠ 多个 getnote 账号 enabled 但未设置 default：${NC}"
-                echo -e "  ${CYAN}bash ccconfig/option-getnote/getnote-switch.sh --list${NC}"
-                echo -e "  ${CYAN}bash ccconfig/option-getnote/getnote-switch.sh <name> -p${NC}"
-            fi
-        fi
+    # ── getnote CLI 授权状态（2026-10 从 MCP 迁 CLI+Skill，单账号无切换）──
+    local gn_init="$REPO_DIR/option-getnote/init.sh"
+    if [ -f "$gn_init" ]; then
+        local gn_line
+        gn_line=$(bash "$gn_init" --status 2>/dev/null | head -1)
+        case "$gn_line" in
+            OK*)   echo -e "  getnote: ${GREEN}${gn_line#OK }${NC}" ;;
+            WARN*) echo -e "  getnote: ${YELLOW}${gn_line#WARN }${NC}" ;;
+            *)     echo -e "  getnote: ${YELLOW}${gn_line:-未安装}${NC}" ;;
+        esac
     fi
 }
 
