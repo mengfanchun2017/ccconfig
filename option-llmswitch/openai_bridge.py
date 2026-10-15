@@ -799,14 +799,6 @@ async def messages(request: Request):
                 raw_buf[0] += chunk
             if DUMP_DIR:
                 dump_chunks.append(chunk)
-            # protocol=anthropic：上游本就回 Anthropic SSE（含 server_tool_use /
-            # web_search_tool_result 块），原样透传给 CC，不做 OpenAI→Anthropic 转换。
-            if pass_through:
-                sse_state["output_bytes"] = sse_state.get("output_bytes", 0) + len(chunk)
-                if '"type":"message_stop"' in chunk:
-                    sse_state["finished"] = True
-                last_out[0] = time.monotonic()
-                return chunk
             out = openai_chunk_to_anthropic_sse(chunk, f"msg_bridge_{req_no}", state["upstream_model"], sse_state)
             if out:
                 last_out[0] = time.monotonic()
@@ -895,8 +887,6 @@ async def messages(request: Request):
             r_status, r_text = await _post_via_win_curl(target_url, headers, upstream_body, host_header)
             if r_status >= 400:
                 return JSONResponse({"error": "upstream error", "body": r_text[:500]}, status_code=r_status)
-            if pass_through:
-                return JSONResponse(json.loads(r_text) if r_text.strip().startswith("{") else {"raw": r_text[:500]})
             try:
                 openai_json = json.loads(r_text)
             except Exception:
@@ -917,11 +907,6 @@ async def messages(request: Request):
         except httpx.TransportError as e:
             print(f"[bridge] upstream post error: {type(e).__name__}: {e}", flush=True)
             return JSONResponse({"error": "upstream timeout", "type": type(e).__name__}, status_code=529)
-        if pass_through:
-            try:
-                return JSONResponse(json.loads(r.text))
-            except Exception:
-                return JSONResponse({"error": "upstream non-json", "body": r.text[:500]}, status_code=502)
         try:
             openai_json = r.json()
         except Exception:
@@ -943,8 +928,6 @@ async def reload(request: Request):
         state["upstream_model"] = data["upstream_model"]
     if "upstream_host" in data:
         state["upstream_host"] = data["upstream_host"]
-    if data.get("reload_websearch"):
-        state["websearch_upstream"] = load_websearch_config()
     safe_state = dict(state)
     if "upstream_key" in safe_state:
         safe_state["upstream_key"] = "***"
@@ -963,8 +946,6 @@ async def health():
         "upstream_key_set": bool(state.get("upstream_key")),
         "use_win_curl": state.get("use_win_curl", False),
         "skip_tls_verify": state.get("skip_tls_verify", False),
-        "websearch_upstream": (state.get("websearch_upstream") or {}).get("base_url", ""),
-        "websearch_model": (state.get("websearch_upstream") or {}).get("model", ""),
     }
 
 
@@ -995,11 +976,6 @@ def main():
     state["upstream_model"] = args.upstream_model
     state["upstream_host"] = args.upstream_host or ""
     state["use_win_curl"] = args.use_win_curl
-    # web search 全局路由（ccprivate/conf/websearch.json，不存在=关闭）
-    state["websearch_upstream"] = load_websearch_config()
-    if state["websearch_upstream"]:
-        print(f"[openai-bridge] websearch route enabled → {state['websearch_upstream']['base_url']}"
-              f" model={state['websearch_upstream']['model']}", flush=True)
     # 原始 upstream URL（IP 预解析前的），便于 ensure_bridge 字符串匹配
     state["upstream_original"] = os.environ.get("OPENAI_BRIDGE_UPSTREAM_ORIGINAL", args.upstream)
     state["skip_tls_verify"] = args.skip_tls_verify
