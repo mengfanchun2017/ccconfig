@@ -162,6 +162,23 @@ ensure_bridge() {
         win_curl="--use-win-curl"
     fi
 
+    # opt-in：preset 显式声明 force_win_curl 时强制走 Windows 侧
+    # Why: 上面的正则只认字面 IP，域名形式的上游永远拿不到 Windows 通路。
+    # 而 WSL2 网络栈在大 body 上传（~200KB 以上）会断流挂死，同一请求交 curl.exe 则正常 ——
+    # 见 docs/adr/0048-wsl-large-upload-stall.md。域名 + 显式开关是唯一可靠解，
+    # 因为私网段自动判定依赖 DNS，DNS 变化会让行为不可预期。
+    if [[ -z "$win_curl" && -n "$preset" && -n "$cfg" ]] && command -v curl.exe &>/dev/null; then
+        if python3 -c "
+import json, sys
+try:
+    sys.exit(0 if json.load(open(sys.argv[1])).get('llms', {}).get(sys.argv[2], {}).get('force_win_curl') else 1)
+except Exception:
+    sys.exit(1)
+" "$cfg" "$preset" 2>/dev/null; then
+            win_curl="--use-win-curl"
+        fi
+    fi
+
     # 写 wrapper 脚本（与 Bash 父子进程组解耦）
     # Why: 之前 ( cd; nohup ... &; disown ) 子 shell 退出时 python 进程被 SIGHUP 杀
     # wrapper 文件名加随机后缀避免冲突
