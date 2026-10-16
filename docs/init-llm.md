@@ -59,9 +59,12 @@ flowchart LR
 | ~~批量探测~~ | `test all` | ❌ 删 | 预设变少后价值不大，单个探测足够 |
 | ~~upstream 主动探测~~ | watchdog 内 | ❌ 删 | 探测失败 ≠ bridge 故障，重启修不了网络还打断请求 |
 
-**规模**：`lib/init-llm.sh`（简化前 927 行）。有三条回归测试：
-`tests/test-openai-bridge.sh`（bridge 流式链路）、`tests/test-init-llm-switch.sh`
-（切换写出的 BASE_URL 正确性）、`tests/test-init-llm-merge.sh`（三层合并逻辑）。
+**规模**：`lib/init-llm.sh`（简化前 927 行）。回归测试：
+`tests/test-openai-bridge.sh`（bridge 流式链路，mock upstream 端到端）、
+`tests/test-bridge-protocol.py`（协议转换单元：块顺序/usage/tool_calls/
+finish_reason/字段丢失 —— 端到端用例只造 `content+[DONE]` 一种形态，这些缺陷
+全在其盲区外）、`tests/test-init-llm-switch.sh`（切换写出的 BASE_URL 正确性）、
+`tests/test-init-llm-merge.sh`（三层合并逻辑）。
 
 ## 四、架构决策（基于 2026-09 调研）
 
