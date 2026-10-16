@@ -477,6 +477,18 @@ setup_autosync() {
     else
         warn "auto-sync 自启动启用失败（非致命，可手动: sudo systemctl enable --now claude-auto-sync）"
     fi
+
+    # 安装 bridge 守护服务（LLM 走 OpenAI-only 网关时的协议适配进程）。
+    # why 在 init 阶段就装：bridge 是 office*/home* 类 preset 的必需组件，它的存活
+    #     此前只靠 setsid 孤儿 watchdog —— 系统/WSL 重启后与 bridge 一起消失，
+    #     要等下一个 Claude session 的 SessionStart hook 才补，中间是自愈空窗。
+    #     systemd user 服务让它在开机时自拉起、挂了自动重启。
+    # 非致命：systemd 不可用（WSL1/无 systemd）时回退 shell watchdog，功能不受影响。
+    if bash "$CCCONFIG_ROOT/lib/bridge-service.sh" sync &>/dev/null; then
+        success "bridge 守护服务已启用（systemd user）"
+    else
+        warn "bridge 守护服务未启用（systemd 不可用，回退 shell watchdog — 功能不受影响）"
+    fi
 }
 
 # ========== 11. SessionStart Hook ==========

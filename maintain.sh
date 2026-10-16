@@ -325,9 +325,18 @@ PYEOF
     section "6. LLM 当前选择"
     check_llm_current || true
 
-    section "7. bridge 运行态一致性"
-    # 三类不一致旧版完全无人检查：孤儿 bridge（切直连后残留，白占端口）、
-    # 该起没起、bridge 在跑但 watchdog 已失效（挂了不会自愈）。--fix 直接修。
+    section "7. bridge 守护与运行态一致性"
+    # ① 先把守护服务装上/启用（老用户 git pull 后跑到这里即完成迁移）。
+    #    此前 bridge 只有 setsid 孤儿 watchdog 守护，重启后与 bridge 同死，留下自愈空窗。
+    # ② 再做运行态一致性检查（孤儿 bridge / 该起没起 / 无守护），--fix 直接修。
+    # 顺序要紧：先装服务再检查，否则 checker 会把"没有守护"当成待修问题，
+    # 而它自己的修复手段（起 shell watchdog）在新体系下不该再被使用。
+    if bash "$LIB_DIR/bridge-service.sh" sync &>/dev/null; then
+        ok "bridge 守护服务已启用（systemd user）"
+    else
+        info "  bridge 守护服务不可用（systemd 缺失），回退 shell watchdog"
+    fi
+
     local _mcfg="$HOME/.cache/llm-merged.json"
     [[ -f "$_mcfg" ]] || bash "$LIB_DIR/init-llm.sh" merge >/dev/null 2>&1 || true
     if [[ -f "$_mcfg" ]]; then
@@ -479,6 +488,13 @@ do_self() {
             echo -e "${CYAN}━━ 技能工具同步（CLI 依赖 + 配置覆盖 + lark-cli）━━${NC}"
             echo ""
             bash "$LIB_DIR/init-skill.sh" sync-lite
+            echo ""
+            # bridge 守护服务：ccconfig 拉到新版后，老机器需要补装这个 systemd 服务
+            # （bridge 此前只有 setsid 孤儿 watchdog，重启后与 bridge 同死）。
+            # 幂等：已装且内容一致时不重写 unit、不弹 sudo。
+            bash "$LIB_DIR/bridge-service.sh" sync &>/dev/null \
+                && ok "bridge 守护服务已就绪" \
+                || warn "bridge 守护服务未启用（systemd 不可用，回退 shell watchdog）"
             ;;
         cc|ccconfig)
             pull_config_repo "$SCRIPT_DIR" "ccconfig"
