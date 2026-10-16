@@ -49,10 +49,13 @@ sleep 1
 
 extra_args=""
 [[ "$up" == https:* ]] && extra_args="--skip-tls-verify"
-win_curl=""
-if command -v curl.exe &>/dev/null && [[ "$up" =~ ://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.) ]]; then
-    win_curl="--use-win-curl"
-fi
+
+# 传输栈判定必须与首启（ensure_bridge）同源：旧版本文件自己写了一份只有字面 IP
+# 正则的副本，漏了 force_win_curl —— 域名上游首启走 win_curl、watchdog 一重启就
+# 退回 httpx，静默漂移（见 ensure-bridge.sh 的 bridge_win_curl 注释）。
+# 只 source 取函数定义，不触发其中的顶层逻辑。
+source "$CCCONFIG_ROOT/lib/ensure-bridge.sh"
+win_curl="$(bridge_win_curl "$up" "$cfg" "$preset")"
 
 cd "$CCCONFIG_ROOT" || exit 1
 mkdir -p "$HOME/.cache"   # 目录不存在会让重定向失败、bridge 起不来
