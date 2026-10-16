@@ -98,6 +98,34 @@ except Exception:
 PYEOF
 }
 
+# 判定是否走 Windows 侧 curl.exe 转发；命中输出 "--use-win-curl"，否则空串。
+#
+# why 抽成函数：首启（ensure_bridge）与 watchdog 重启（bridge-restart.sh）必须用
+#      同一套判定。旧版两处各写一份，watchdog 那份漏了 force_win_curl 且只有字面 IP
+#      正则 —— 域名上游首启走 win_curl、一重启就退回 httpx，传输栈静默漂移。
+# 用法: bridge_win_curl <upstream> [<cfg>] [<preset>]
+bridge_win_curl() {
+    local upstream="$1" cfg="${2:-}" preset="${3:-}"
+    command -v curl.exe &>/dev/null || return 0
+    # RFC1918 (10/8, 172.16/12, 192.168/16) + tailscale CGNAT (100.64/10)：这些段
+    # 通常是企业内网 / tailscale 跳板，非镜像网络的 WSL 看不到 Windows 侧路由
+    if [[ "$upstream" =~ ://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.) ]]; then
+        echo "--use-win-curl"
+        return 0
+    fi
+    # opt-in：域名形式的上游不命中上面的正则，preset 可显式声明
+    if [[ -n "$cfg" && -n "$preset" ]] && python3 -c "
+import json, sys
+try:
+    sys.exit(0 if json.load(open(sys.argv[1])).get('llms', {}).get(sys.argv[2], {}).get('force_win_curl') else 1)
+except Exception:
+    sys.exit(1)
+" "$cfg" "$preset" 2>/dev/null; then
+        echo "--use-win-curl"
+    fi
+    return 0
+}
+
 # 确保 bridge 跑且 upstream 正确
 # 用法: ensure_bridge <upstream> <model> <key> [<host_header>]
 # host_header 可选：tailscale/SSH 透传场景证书 SAN 不匹配 IP 时，把 SNI+Host 改成证书里的真实域名/IP
@@ -119,29 +147,8 @@ ensure_bridge() {
 
     # win_curl 期望值必须在 health 比较之前算出来：复用分支要拿它比对运行态，
     # 否则改了 force_win_curl 也不会重启 bridge，配置形同虚设。
-    # Why: WSL2 网络栈在大 body 上传（~200KB 以上）会断流挂死，同一请求交
-    # curl.exe 则正常 —— 见 docs/adr/0048-wsl-large-upload-stall.md
-    local win_curl=""
-    # WSL 场景：Windows 侧 tailscale 有 subnet route，但 WSL 看不到
-    # RFC1918 (10/8, 172.16/12, 192.168/16) + tailscale CGNAT (100.64/10) 统一触发 --use-win-curl
-    if command -v curl.exe &>/dev/null && [[ "$upstream" =~ ://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.) ]]; then
-        win_curl="--use-win-curl"
-    fi
-
-    # opt-in：preset 显式声明 force_win_curl 时强制走 Windows 侧。
-    # 私网段自动判定只认字面 IP，域名形式的上游永远拿不到这条通路；
-    # 显式开关也不依赖 DNS，避免上游解析结果变化导致行为不可预期。
-    if [[ -z "$win_curl" && -n "$preset" && -n "$cfg" ]] && command -v curl.exe &>/dev/null; then
-        if python3 -c "
-import json, sys
-try:
-    sys.exit(0 if json.load(open(sys.argv[1])).get('llms', {}).get(sys.argv[2], {}).get('force_win_curl') else 1)
-except Exception:
-    sys.exit(1)
-" "$cfg" "$preset" 2>/dev/null; then
-            win_curl="--use-win-curl"
-        fi
-    fi
+    local win_curl
+    win_curl="$(bridge_win_curl "$upstream" "$cfg" "$preset")"
 
     # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
     local health
@@ -187,23 +194,6 @@ except Exception:
 
     local extra_args=""
     [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
-
-    # opt-in：preset 显式声明 force_win_curl 时强制走 Windows 侧
-    # Why: 上面的正则只认字面 IP，域名形式的上游永远拿不到 Windows 通路。
-    # 而 WSL2 网络栈在大 body 上传（~200KB 以上）会断流挂死，同一请求交 curl.exe 则正常 ——
-    # 见 docs/adr/0048-wsl-large-upload-stall.md。域名 + 显式开关是唯一可靠解，
-    # 因为私网段自动判定依赖 DNS，DNS 变化会让行为不可预期。
-    if [[ -z "$win_curl" && -n "$preset" && -n "$cfg" ]] && command -v curl.exe &>/dev/null; then
-        if python3 -c "
-import json, sys
-try:
-    sys.exit(0 if json.load(open(sys.argv[1])).get('llms', {}).get(sys.argv[2], {}).get('force_win_curl') else 1)
-except Exception:
-    sys.exit(1)
-" "$cfg" "$preset" 2>/dev/null; then
-            win_curl="--use-win-curl"
-        fi
-    fi
 
     # 写 wrapper 脚本（与 Bash 父子进程组解耦）
     # Why: 之前 ( cd; nohup ... &; disown ) 子 shell 退出时 python 进程被 SIGHUP 杀

@@ -14,9 +14,7 @@ import codecs
 import json
 import os
 import re
-import socket
 import time
-import urllib.parse
 from pathlib import Path
 
 import httpx
@@ -46,33 +44,6 @@ def load_upstream_config():
     except Exception:
         cfg = {}
     return cfg.get("openai_bridge", {})
-
-
-def _resolve_upstream(url: str) -> str:
-    """解析 upstream URL 中的域名→IP，绕过 Clash fake-ip DNS 干扰。
-
-    用 socket.getaddrinfo 解析域名，再用 IP 替换 URL 中的域名，
-    同时返回 (resolved_url, host_header) 供 httpx 使用。
-    返回 None 表示解析失败（保持原 URL）。
-    """
-    parsed = urllib.parse.urlparse(url)
-    if not parsed.hostname:
-        return None, None
-    # 已经是 IP 的不处理
-    try:
-        socket.inet_aton(parsed.hostname)
-        return None, None  # 已经是 IP
-    except OSError:
-        pass
-    try:
-        ips = socket.getaddrinfo(parsed.hostname, parsed.port or 443)
-        if ips:
-            ip = ips[0][4][0]
-            resolved = parsed._replace(netloc=f"{ip}:{parsed.port}" if parsed.port else ip)
-            return resolved.geturl(), parsed.hostname
-    except Exception:
-        pass
-    return None, None
 
 
 def _is_websearch_tool(t) -> bool:
@@ -167,9 +138,13 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
         "stream": bool(anth_body.get("stream")),
         "max_tokens": max_tokens_val,
     }
-    for k in ("temperature", "top_p", "stop", "frequency_penalty", "presence_penalty", "n"):
+    for k in ("temperature", "top_p", "frequency_penalty", "presence_penalty", "n"):
         if k in anth_body:
             openai_body[k] = anth_body[k]
+    # Anthropic 的停止序列叫 stop_sequences，OpenAI 叫 stop —— 字段名不同。
+    # 旧版按 "stop" 取，于是客户端设的停止序列从来没有透传上游。
+    if anth_body.get("stop_sequences"):
+        openai_body["stop"] = anth_body["stop_sequences"]
 
     # thinking 开关透传：CC 用 Anth 的 thinking 字段请求思考（2.1.274 发
     # {"type":"adaptive","display":"omitted"}，老版本发 enabled + budget_tokens）。
@@ -375,6 +350,10 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
         if not payload:
             continue
         if payload == "[DONE]":
+            # 必须先补 message_start：整条流只有一个 [DONE]（空补全 / 网关空响应）时
+            # 这里直接收尾，会发出没有 message_start 的 message_delta+message_stop，
+            # 协议非法。_ensure_started 幂等，正常流已有 start 时无副作用。
+            _ensure_started(state, out, msg_id, model)
             fin = _finalize_sse(state)
             if fin:
                 out.append(fin)
@@ -590,19 +569,6 @@ async def on_startup():
     )
 
 
-# 当 upstream URL 用 IP 代替了域名（DNS 预解析后），ssl 握手的 SNI 仍要用域名
-# 否则服务端证书验证失败: certificate is not valid for IP
-# httpx 0.27+ 支持在 request 的 extensions 里指定 sni_hostname
-_SNI_KEY = "sni_hostname"
-
-
-def _inject_sni(headers: dict, host: str) -> dict:
-    """添加 Host header（IP 直连场景下保 SNI/路由）。"""
-    if host:
-        headers["Host"] = host
-    return headers
-
-
 # ========== Windows 侧 curl.exe 转发（WSL 网络受限场景） ==========
 # WSL2 网络栈与 Windows 分离，VPN 在 Windows 上分配的 IP 路由在 WSL 看不到。
 # 让 curl.exe（Windows 子系统）转发 HTTP 请求，由 Windows 走 VPN 网络栈。
@@ -782,7 +748,7 @@ async def messages(request: Request):
 
     if stream:
         _REQ_SEQ[0] += 1
-        sse_state = {"started": False, "block_open": False, "finished": False}
+        sse_state = {"started": False, "finished": False}
 
         async def _iter_with_idle_ping(stream_iter, idle=15.0):
             """upstream 静默 idle 秒后注入 SSE 注释心跳（`:` 开头，Anthropic SDK 忽略）。
@@ -970,6 +936,12 @@ async def messages(request: Request):
         except httpx.TransportError as e:
             print(f"[bridge] upstream post error: {type(e).__name__}: {e}", flush=True)
             return JSONResponse({"error": "upstream timeout", "type": type(e).__name__}, status_code=529)
+        # 与 win_curl 分支对齐：旧版 httpx 分支不查状态码，上游 5xx 若返回合法
+        # ChatCompletion 形状（无 "error" 键）就会一路转成 HTTP 200 + 空 content，
+        # CC 表现为"模型不说话"而不是报错，无从归因。
+        if r.status_code >= 400:
+            print(f"[bridge] upstream http {r.status_code}: {r.text[:300]}", flush=True)
+            return JSONResponse({"error": "upstream_error", "body": r.text[:500]}, status_code=r.status_code)
         try:
             openai_json = r.json()
         except Exception:
