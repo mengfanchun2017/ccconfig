@@ -329,6 +329,21 @@ trim() {
     printf '%s' "$var"
 }
 
+# ========== 暂停等待回车 ==========
+# 统一「按回车继续」：printf + read -r（不用 read -p，后者不渲染 ANSI 且规范禁用）。
+# 从 /dev/tty 读避开管道/重定向导致 read 立即 EOF；EOF 时直接返回不阻塞。
+pause_enter() {
+    local msg="${1:-按回车继续...}"
+    echo ""
+    printf "  ${DIM}%s${NC}" "$msg" >&2
+    if [[ -e /dev/tty && -r /dev/tty ]]; then
+        read -r _ < /dev/tty || true
+    else
+        read -r _ || true
+    fi
+    echo "" >&2
+}
+
 # ========== 数据驱动菜单系统 ==========
 # 数据 schema（**扁平结构：没有二级菜单**）:
 #   declare -a MENU_ENTRIES=(

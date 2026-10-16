@@ -26,6 +26,20 @@ start_bridge_watchdog() {
     local initial_preset="${2:-}"
     [[ -z "$cfg" ]] && return 0
 
+    # systemd user 服务优先：装了服务就交给 systemd 守护 —— 开机自拉起、挂了自动重启，
+    # 不再依赖 setsid 孤儿 watchdog（它和 bridge 一起死于重启，留下自愈空窗）。
+    # 关键：这条路径下**不能**再起 shell watchdog，否则两个 supervisor 同时巡检、
+    # 互相抢 8898（历史上双 watchdog 抖动的成因）。停掉可能残留的 shell watchdog 再返回。
+    if [[ -f "$CCCONFIG_ROOT/lib/bridge-service.sh" ]]; then
+        # shellcheck source=/dev/null
+        source "$CCCONFIG_ROOT/lib/bridge-service.sh"
+        if bridge_service_sync >/dev/null 2>&1; then
+            stop_bridge_watchdog >/dev/null 2>&1 || true
+            _bridge_wd_log "systemd 服务接管守护（shell watchdog 已停）"
+            return 0
+        fi
+    fi
+
     mkdir -p "$HOME/.cache"
     # 整段用 flock 串行化：并发 ensure_bridge（SessionStart 自愈 + 手工切 preset）
     # 交错执行「stop-all 然后 start」会留下两个 watchdog，双双看到端口掉线 →

@@ -3,7 +3,8 @@
 #
 # 用法: bridge-restart.sh <llm.json> [<preset>]
 #   preset 省略时读 ~/.claude/llm-current
-# 返回: 0=已就绪（health 已确认）/ 当前 preset 不需要 bridge
+# 返回: 0=已就绪（health 已确认）
+#       3=当前 preset 不需要 bridge（直连）→ supervisor 据此退出（不该空转）
 #       1=瞬时失败（启动后 health 未起，可重试）
 #       2=永久性错误（preset 已删除 / 配置不可用）→ watchdog 据此长退避
 #
@@ -30,7 +31,7 @@ preset="${2:-}"
 
 # 接入模式：与 switch_llm / test_llm 同源，不再自写一份
 mode="$(preset_bridge_mode "$preset" "$cfg")" || exit 2
-[[ "$mode" == "direct" ]] && exit 0      # 当前 preset 不需要 bridge
+[[ "$mode" == "direct" ]] && exit 3      # 当前 preset 不需要 bridge：让 supervisor 退出，不该空转
 [[ "$mode" == "conflict" ]] && exit 2    # OpenAI-only + 显式直连，重试无意义
 
 bc="$(read_bridge_config "$cfg" "$preset")" || exit 2
