@@ -741,7 +741,8 @@ check_example_sync() {
 }
 
 # ========== bridge 自愈（会话启动时自动恢复） ==========
-# watchdog 只守护运行时；系统/WSL 重启后 watchdog 与 bridge 一起消失，靠这里兜冷启动。
+# 有 systemd 服务时它本应已把 bridge 拉起（开机自启）；这里兜的是「服务没装/被停/起晚了」。
+# 无 systemd 时退回 selfheal_bridge 直接拉起 + shell watchdog。
 # 未用 bridge 的用户（settings.json 不含 127.0.0.1:8898）在 selfheal_bridge 内短路，零开销。
 _bridge_cold_start() {
     local cfg
@@ -749,11 +750,26 @@ _bridge_cold_start() {
     # 三层合并缓存可能未生成（冷启动），先生成再看
     [[ -f "$cfg" ]] || bash "$SCRIPT_DIR/init-llm.sh" merge >/dev/null 2>&1 || true
     [[ -f "$cfg" ]] || return 0
+
+    # 优先交给 systemd 服务：它是唯一能跨重启存活的守护者。装/启是幂等的，
+    # 服务已在跑时几乎零开销。失败（无 systemd）则往下走 shell 回退。
+    if [[ -f "$SCRIPT_DIR/bridge-service.sh" ]]; then
+        # shellcheck source=/dev/null
+        source "$SCRIPT_DIR/bridge-service.sh"
+        if bridge_service_sync >/dev/null 2>&1; then
+            # 服务接管后不必再起 shell watchdog；只在确实需要 bridge 时才提示不一致
+            source "$SCRIPT_DIR/ensure-bridge.sh"
+            bridge_state_check "$cfg" >/dev/null 2>&1 || \
+                echo -e "  ${YELLOW}⚠${NC} bridge 运行态不一致 — 修: ${CYAN}bash maintain.sh fix${NC}"
+            return 0
+        fi
+    fi
+
     source "$SCRIPT_DIR/ensure-bridge.sh"
     selfheal_bridge "$cfg" || true
     # 运行态一致性只报不修：SessionStart 该轻量，修走 `bash maintain.sh fix`
     if ! bridge_state_check "$cfg" >/dev/null 2>&1; then
-        echo -e "  ${YELLOW}⚠${NC} bridge 运行态不一致（孤儿/未拉起/watchdog 失效）— 修: ${CYAN}bash maintain.sh fix${NC}"
+        echo -e "  ${YELLOW}⚠${NC} bridge 运行态不一致（孤儿/未拉起/无守护）— 修: ${CYAN}bash maintain.sh fix${NC}"
     fi
 }
 

@@ -129,6 +129,27 @@ stop_bridge_watchdog() {
     done
 }
 
+# guardian 是否在位：决定「bridge 挂了会不会被自动拉起」。
+# 有效来源有两个，任一成立即可：
+#   ① systemd user 服务 claude-bridge 处于 active（首选，跨重启存活）
+#   ② shell watchdog 进程活着（无 systemd 时的回退）
+# 返回 0=有守护  1=无守护
+#
+# why 不能只看 PID 文件：systemd 模式下 supervisor 由 systemd 跟踪，不写 PID 文件
+#     （写了会和 shell watchdog 混淆）。只查 PID 文件会把「systemd 正在守护」
+#     误报成「无守护」。
+_bridge_guardian_ok() {
+    if [[ -f "$CCCONFIG_ROOT/lib/bridge-service.sh" ]]; then
+        # shellcheck source=/dev/null
+        source "$CCCONFIG_ROOT/lib/bridge-service.sh"
+        bridge_service_active && return 0
+    fi
+    local wd=""
+    [[ -f "$BRIDGE_WD_PID" ]] && wd="$(tr -d '[:space:]' < "$BRIDGE_WD_PID")"
+    [[ -n "$wd" ]] && kill -0 "$wd" 2>/dev/null && return 0
+    return 1
+}
+
 # bridge 运行态一致性检查（只读报告 + 可选修复）。
 # 返回 0=一致  1=有不一致
 # 用法: bridge_state_check [--fix] [<merged_cfg>]
@@ -136,7 +157,7 @@ stop_bridge_watchdog() {
 # 覆盖三类旧版无人检查的不一致：
 #   ① bridge 在跑但当前 preset 是直连（切走后残留的孤儿，占用端口并可能被误连）
 #   ② 当前 preset 需要 bridge 但它没在跑
-#   ③ bridge 在跑但没有有效 watchdog（bridge 挂掉不会自动拉起）
+#   ③ bridge 在跑但没有有效守护（systemd 服务 / shell watchdog 全无 → 挂掉不会自动拉起）
 bridge_state_check() {
     local fix=0 cfg=""
     local a
@@ -163,10 +184,16 @@ bridge_state_check() {
         problems=1
         if (( fix )); then
             stop_bridge_watchdog >/dev/null 2>&1 || true
+            # systemd 服务若在守护这个孤儿，一并停掉，否则它会被立刻重新拉起
+            if [[ -f "$CCCONFIG_ROOT/lib/bridge-service.sh" ]]; then
+                # shellcheck source=/dev/null
+                source "$CCCONFIG_ROOT/lib/bridge-service.sh"
+                bridge_service_stop >/dev/null 2>&1 || true
+            fi
             _kill_by_port "$port"
-            ok "  已停用孤儿 bridge 与 watchdog"
-            running=0   # 必须就地更新：后面判断 watchdog 若还用旧值，会给一个已被
-                        # 停掉的 bridge 起 watchdog，而它随后会按直连 preset 空转
+            ok "  已停用孤儿 bridge 与守护"
+            running=0   # 必须就地更新：后面判断守护若还用旧值，会给一个已被
+                        # 停掉的 bridge 起守护，而它随后会按直连 preset 空转
         fi
     fi
     if (( ! running )) && [[ "$mode" == "bridge" ]]; then
@@ -184,16 +211,14 @@ bridge_state_check() {
             fi
         fi
     fi
-    # watchdog 只在「确实该有 bridge 且它正在跑」时才有意义
+    # 守护只在「确实该有 bridge 且它正在跑」时才有意义
     if (( running )) && [[ "$mode" == "bridge" ]]; then
-        local wd=""
-        [[ -f "$BRIDGE_WD_PID" ]] && wd="$(tr -d '[:space:]' < "$BRIDGE_WD_PID")"
-        if [[ -z "$wd" ]] || ! kill -0 "$wd" 2>/dev/null; then
-            warn "bridge 在跑但没有有效 watchdog — 它挂掉后不会自动拉起"
+        if ! _bridge_guardian_ok; then
+            warn "bridge 在跑但没有有效守护（systemd 服务 / watchdog 全无）— 它挂掉后不会自动拉起"
             problems=1
             if (( fix )); then
                 start_bridge_watchdog "$cfg" "$cur" >/dev/null 2>&1 || true
-                ok "  已重启 watchdog"
+                _bridge_guardian_ok && ok "  已恢复守护" || warn "  守护恢复失败"
             fi
         fi
     fi
@@ -206,9 +231,7 @@ bridge_state_check() {
         [[ "$mode" == "direct" ]] && (( running )) && problems=1
         [[ "$mode" == "bridge" ]] && (( ! running )) && problems=1
         if [[ "$mode" == "bridge" ]] && (( running )); then
-            local _wd2=""
-            [[ -f "$BRIDGE_WD_PID" ]] && _wd2="$(tr -d '[:space:]' < "$BRIDGE_WD_PID")"
-            { [[ -z "$_wd2" ]] || ! kill -0 "$_wd2" 2>/dev/null; } && problems=1
+            _bridge_guardian_ok || problems=1
         fi
     fi
     (( problems )) && return 1
