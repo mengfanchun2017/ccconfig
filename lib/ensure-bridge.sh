@@ -112,9 +112,19 @@ stop_bridge_watchdog() {
         rm -f "$BRIDGE_WD_PID"
     fi
     # PID 文件失联/被覆盖时兜底（pattern 用 [[]] 避免 pgrep 匹配到自己这条命令）
+    # 注意只 match "bridge-watchdog-"（旧 heredoc wrapper 的命名）与 design 中的
+    # 裸 supervisor 启动 —— 不含 systemd 的 unit 名，故不会误停 systemd 服务。
     local p
     for p in $(pgrep -f "bridge-watchdo[g]-" 2>/dev/null || true); do
         [[ "$p" == "$$" ]] && continue
+        kill "$p" 2>/dev/null || true
+    done
+    # 非 systemd 期间由 start_bridge_watchdog 直接起的 supervisor（无 wrapper 文件）
+    # 也要停：它比 PID 文件活得久，不杀会与 systemd 服务并存 → 抢 8898。
+    # systemd 自己的 supervisor 有 INVOCATION_ID，不带这个变量，故不会误杀。
+    for p in $(pgrep -f "bridge-superviso[r].sh" 2>/dev/null || true); do
+        [[ "$p" == "$$" ]] && continue
+        [[ -n "$(tr '\0' '\n' < "/proc/$p/environ" 2>/dev/null | grep '^INVOCATION_ID=')" ]] && continue
         kill "$p" 2>/dev/null || true
     done
 }
