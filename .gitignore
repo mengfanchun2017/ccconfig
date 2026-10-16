@@ -22,6 +22,13 @@ __pycache__/
 .sync-probe*
 .sync-test-probe
 
+# 飞书 Base 导出的真实业务数据（一次性命令产物，落到仓库根会被 auto-sync 推公开库）
+rl.json
+result.json
+rows.json
+base-dump*.json
+*_dump.json
+
 # 临时文件
 *.tmp.*
 .tmp/
