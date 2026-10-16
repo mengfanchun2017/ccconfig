@@ -117,6 +117,32 @@ ensure_bridge() {
         return 1
     fi
 
+    # win_curl 期望值必须在 health 比较之前算出来：复用分支要拿它比对运行态，
+    # 否则改了 force_win_curl 也不会重启 bridge，配置形同虚设。
+    # Why: WSL2 网络栈在大 body 上传（~200KB 以上）会断流挂死，同一请求交
+    # curl.exe 则正常 —— 见 docs/adr/0048-wsl-large-upload-stall.md
+    local win_curl=""
+    # WSL 场景：Windows 侧 tailscale 有 subnet route，但 WSL 看不到
+    # RFC1918 (10/8, 172.16/12, 192.168/16) + tailscale CGNAT (100.64/10) 统一触发 --use-win-curl
+    if command -v curl.exe &>/dev/null && [[ "$upstream" =~ ://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.) ]]; then
+        win_curl="--use-win-curl"
+    fi
+
+    # opt-in：preset 显式声明 force_win_curl 时强制走 Windows 侧。
+    # 私网段自动判定只认字面 IP，域名形式的上游永远拿不到这条通路；
+    # 显式开关也不依赖 DNS，避免上游解析结果变化导致行为不可预期。
+    if [[ -z "$win_curl" && -n "$preset" && -n "$cfg" ]] && command -v curl.exe &>/dev/null; then
+        if python3 -c "
+import json, sys
+try:
+    sys.exit(0 if json.load(open(sys.argv[1])).get('llms', {}).get(sys.argv[2], {}).get('force_win_curl') else 1)
+except Exception:
+    sys.exit(1)
+" "$cfg" "$preset" 2>/dev/null; then
+            win_curl="--use-win-curl"
+        fi
+    fi
+
     # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
     local health
     health=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
@@ -127,24 +153,29 @@ ensure_bridge() {
     old_pid=$( { lsof -ti :${BRIDGE_PORT} 2>/dev/null || true; } | head -1 || true)
     old_pid="${old_pid:-}"
     if [[ -n "$health" ]]; then
-        local cur_upstream cur_model
+        local cur_upstream cur_model cur_wc
         cur_upstream=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream',''))" 2>/dev/null || echo "")
         # 必须同时比对 model：flash/pro 两个 preset 常用同一个 upstream URL
         # （同网关不同模型），只比 upstream 会复用旧 bridge —— 切 pro 实际仍在
         # 用 flash，且探测"通过"是假阳性（测的是旧 model）
         cur_model=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream_model',''))" 2>/dev/null || echo "")
+        cur_wc=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('use_win_curl',False))" 2>/dev/null || echo "")
         if [[ "$cur_upstream" == "$upstream" && "$cur_model" == "$model" ]]; then
-            start_bridge_watchdog "$cfg" "$preset"
-            return 0
-        fi
-        if [[ "$cur_upstream" == "$upstream" ]]; then
+            # 传输栈也要比：upstream/model 都对但 win_curl 跑偏时复用旧 bridge，
+            # 症状是「大 context 必挂」且改配置无效（health 看着一切正常）
+            if [[ -n "$win_curl" && "$cur_wc" != "True" ]]; then
+                info "  win_curl 期望启用但当前关闭，重启 bridge..."
+            else
+                start_bridge_watchdog "$cfg" "$preset"
+                return 0
+            fi
+        elif [[ "$cur_upstream" == "$upstream" ]]; then
             info "  model 变化 ($cur_model → $model)，重启 bridge..."
         else
             info "  upstream 变化 ($cur_upstream → $upstream)，重启 bridge..."
         fi
     fi
 
-    
     # 杀老 bridge（按端口号精确 kill，避免误杀）
     if [[ -n "$old_pid" ]]; then
         kill "$old_pid" 2>/dev/null || true
@@ -153,14 +184,6 @@ ensure_bridge() {
 
     local extra_args=""
     [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
-
-    # WSL 场景：Windows 侧 tailscale 有 subnet route，但 WSL 看不到
-    # RFC1918 (10/8, 172.16/12, 192.168/16) + tailscale CGNAT (100.64/10) 统一触发 --use-win-curl
-    # Why: 这些段通常是企业内网 / tailscale 跳板，WSL 用户多半通过 Windows 侧才能访问
-    local win_curl=""
-    if command -v curl.exe &>/dev/null && [[ "$upstream" =~ ://(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.) ]]; then
-        win_curl="--use-win-curl"
-    fi
 
     # opt-in：preset 显式声明 force_win_curl 时强制走 Windows 侧
     # Why: 上面的正则只认字面 IP，域名形式的上游永远拿不到 Windows 通路。
