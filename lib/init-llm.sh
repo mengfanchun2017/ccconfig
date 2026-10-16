@@ -34,6 +34,7 @@ source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/interact.sh"
 source "$SCRIPT_DIR/ensure-bridge.sh"
+source "$SCRIPT_DIR/tailscale-guard.sh"
 
 # 三层 LLM 配置：
 #   LLM_KEYS_FILE     ccprivate/conf/llm.json        — 纯 key（{llms: {name: {key}}}），私有
@@ -417,6 +418,11 @@ switch_llm() {
     host_header=$(get_provider_host_header "$name")
 
     info "  选定 upstream: $base_url${host_header:+ (host: $host_header)}"
+
+    # tailscale 防护：切到"外部私有内网"型 upstream（office*）时，若本机开着
+    # accept-routes 会形成黑洞（ADR 0051）。此处就地关掉，避免切完才发现连不上。
+    # 公网端点 / tailnet 跳板形态（home*）会自动跳过，无副作用。
+    tailscale_guard_intranet_upstream "$base_url" "$host_header" || true
 
     # 是否走 bridge：判定来源统一到 preset_bridge_mode（ensure-bridge.sh），
     # 不再在本函数里重写一套规则（旧版与 test_llm / bridge-restart 各写一份，会漂移）

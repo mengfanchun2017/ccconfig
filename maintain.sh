@@ -346,6 +346,27 @@ PYEOF
         info "  无 merged 缓存，跳过"
     fi
 
+    # tailscale accept-routes 防护：tailnet 上若有节点广告单位内网段，本机开着
+    # accept-routes 会把去网关的流量拐进隧道 → 静默超时（ADR 0051）。老用户 git pull
+    # 后跑到这里即完成迁移；只对"内网型 upstream"生效，公网/tailnet 端点跳过。
+    source "$LIB_DIR/tailscale-guard.sh"
+    local _ts_url="" _ts_hh=""
+    if [[ -f "$HOME/.claude/llm-current" && -f "$_mcfg" ]]; then
+        IFS=$'\t' read -r _ts_url _ts_hh < <(python3 -c "
+import json
+try:
+    d=json.load(open('$_mcfg')); p=open('$HOME/.claude/llm-current').read().strip()
+    l=d.get('llms',{}).get(p,{})
+    print((l.get('base_url','') or '')+'\t'+(l.get('host_header','') or ''))
+except Exception: print('\t')
+")
+        if [[ -n "$_ts_url" ]] && _upstream_is_private_intranet "$_ts_url" "$_ts_hh"; then
+            tailscale_guard_intranet_upstream "$_ts_url" "$_ts_hh" && ok "tailscale 防护已就绪" || true
+        else
+            info "  tailscale 防护：当前 upstream 非内网型，跳过"
+        fi
+    fi
+
     section "8. auto-sync 与运行依赖"
     # 已在跑就别再 enable —— enable 会重装系统级 systemd unit（要 sudo）。
     # 一键恢复里弹 sudo 认证很烦，而且非 tty（CI/脚本）下必然失败报错。
