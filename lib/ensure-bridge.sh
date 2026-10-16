@@ -26,13 +26,23 @@ start_bridge_watchdog() {
     local initial_preset="${2:-}"
     [[ -z "$cfg" ]] && return 0
 
-    # 无条件清掉残留（旧版只认 PID 文件，被覆盖/失联的老 watchdog 会永久残留）
-    stop_bridge_watchdog >/dev/null 2>&1 || true
-
     mkdir -p "$HOME/.cache"
-    local wrapper="$HOME/.cache/bridge-watchdog-$RANDOM-$$.sh"
-    cat > "$wrapper" << WDEOF
+    # 整段用 flock 串行化：并发 ensure_bridge（SessionStart 自愈 + 手工切 preset）
+    # 交错执行「stop-all 然后 start」会留下两个 watchdog，双双看到端口掉线 →
+    # 互相 kill/spawn 抖动。锁只活在子 shell 里，不污染调用方的 fd。
+    (
+        flock 9 2>/dev/null || true
+
+        # 无条件清掉残留（旧版只认 PID 文件，被覆盖/失联的老 watchdog 会永久残留）
+        stop_bridge_watchdog >/dev/null 2>&1 || true
+
+        local wrapper="$HOME/.cache/bridge-watchdog-$RANDOM-$$.sh"
+        cat > "$wrapper" << WDEOF
 #!/bin/bash
+# 自记 PID：调用方拿到的 \$! 是 setsid 的 pid，而 setsid 在成为进程组长时会 fork，
+# 于是父进程写进 PID 文件的是那个短命进程 —— 文件里的值长期是错的，teardown 只能
+# 靠 pgrep 兜底。让 wrapper 自己写 \$\$ 才是真实 pid。
+echo \$\$ > "${BRIDGE_WD_PID}"
 fail=0
 while true; do
     if curl -s --max-time 3 http://127.0.0.1:${BRIDGE_PORT}/health >/dev/null 2>&1; then
@@ -44,18 +54,32 @@ while true; do
     fail=\$((fail + 1))
     echo "[\$(date '+%Y-%m-%d %H:%M:%S')] bridge 无响应，按当前 preset 拉起 (第 \${fail} 次)" >> "${BRIDGE_WD_LOG}"
     # 传本 wrapper 启动时的 preset 作 fallback：llm-current 缺失时仍能兜住
-    bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${initial_preset}" >> "${BRIDGE_WD_LOG}" 2>&1 || true
+    rc=0
+    bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "${cfg}" "${initial_preset}" >> "${BRIDGE_WD_LOG}" 2>&1 || rc=\$?
+    # rc=2 是永久性错误（preset 已从配置删除 / 配置不可用）：重启一万次也没用，
+    # 旧版在这里以 60s 上限无限空转刷日志。改为长退避，仍保留恢复能力。
+    if [[ \$rc -eq 2 ]]; then
+        echo "[\$(date '+%Y-%m-%d %H:%M:%S')] preset 配置不可用（rc=2），300s 后再试；修: bash maintain.sh llm" >> "${BRIDGE_WD_LOG}"
+        sleep 300
+        continue
+    fi
     sleep_sec=\$(( 5 * (1 << (fail - 1)) ))
     [[ \$sleep_sec -gt 60 ]] && sleep_sec=60
     sleep \$sleep_sec
 done
 WDEOF
-    chmod +x "$wrapper"
-    setsid nohup "$wrapper" > "$BRIDGE_WD_LOG" 2>&1 < /dev/null &
-    local wd_pid=$!
-    disown "$wd_pid" 2>/dev/null || true
-    echo "$wd_pid" > "$BRIDGE_WD_PID"
-    _bridge_wd_log "watchdog 启动 (PID: $wd_pid) cfg=${cfg} preset=${initial_preset:-<llm-current>}"
+        chmod +x "$wrapper"
+        setsid nohup "$wrapper" > "$BRIDGE_WD_LOG" 2>&1 < /dev/null &
+        disown $! 2>/dev/null || true
+        # 等 wrapper 写进它自己的 pid（最多 2s）：不这样，紧接着的 selfheal
+        # 会读到空文件、判定"无 watchdog"而再起一个
+        local _i
+        for _i in 1 2 3 4; do
+            sleep 0.5
+            [[ -s "$BRIDGE_WD_PID" ]] && break
+        done
+        _bridge_wd_log "watchdog 启动 (cfg=${cfg} preset=${initial_preset:-<llm-current>})"
+    ) 9>"$HOME/.cache/bridge-watchdog.lock"
 }
 
 stop_bridge_watchdog() {
@@ -82,6 +106,42 @@ _bridge_supported() {
     [[ "$upstream" == *"/anthropic"* ]] && return 1
     [[ "$upstream" == *"://127.0.0.1"* ]] && return 1
     return 0
+}
+
+# preset 的接入模式判定 —— **唯一来源**。stdout 输出三态之一：
+#   bridge   = 需要 bridge（OpenAI-only 端点）
+#   direct   = 不需要（Anthropic 原生端点 / loopback）
+#   conflict = 配置冲突（use_bridge:false 却是 OpenAI-only 端点，直连必失败）
+# 返回 0=判定成功；1=参数缺失或 preset 不存在
+#
+# why 抽出来：这套判定原本在 4 处各写一份（ensure_bridge / bridge-restart /
+# switch_llm / test_llm），规则已经漂移过一次，每次加字段都得改四处、漏一处就是
+# 静默行为不一致。调用方从"自己判断"改为"读这个函数的结论"。
+# 用法: preset_bridge_mode <preset> <merged_cfg>
+preset_bridge_mode() {
+    local preset="$1" cfg="$2"
+    [[ -n "$preset" && -n "$cfg" ]] || return 1
+    python3 - "$cfg" "$preset" <<'PYEOF'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+llm = d.get('llms', {}).get(sys.argv[2])
+if llm is None:
+    sys.exit(1)
+up = llm.get('base_url') or ''
+ub = llm.get('use_bridge')
+if not up:
+    print('direct'); raise SystemExit(0)
+if ub is True:
+    print('bridge'); raise SystemExit(0)          # 用户显式点名走桥
+if '/anthropic' in up or '://127.0.0.1' in up:
+    print('direct'); raise SystemExit(0)          # 原生端点，桥无意义
+if ub is False:
+    print('conflict'); raise SystemExit(0)        # OpenAI-only + 显式直连 = 必失败
+print('bridge')                                    # OpenAI-only，自动走桥
+PYEOF
 }
 
 # 读 merged 缓存(llm-merged.json)预设的 base_url|model|key|host_header（无 upstream_original 兼容）
@@ -123,6 +183,51 @@ except Exception:
 " "$cfg" "$preset" 2>/dev/null; then
         echo "--use-win-curl"
     fi
+    return 0
+}
+
+# 按端口杀掉占用进程并等端口真正释放。
+# why 循环 kill 而非只 kill head -1：旧版只杀第一个 pid，第二个绑定进程会存活，
+#     新 bridge 于是 EADDRINUSE，而失败原因只落在 openai_bridge.log 里。
+# why 等释放而非裸 sleep 1：内核收回端口有延迟，只 sleep 1 偶发抢不到。
+# 用法: _kill_by_port <port>
+_kill_by_port() {
+    local port="$1" pid i
+    for pid in $( { lsof -ti :"$port" 2>/dev/null || true; } ); do
+        kill "$pid" 2>/dev/null || true
+    done
+    for i in 1 2 3 4 5 6; do
+        [[ -z "$( { lsof -ti :"$port" 2>/dev/null || true; } )" ]] && return 0
+        sleep 0.5
+    done
+    return 0
+}
+
+# 拉起 bridge 进程（不等 health、不碰 watchdog）—— ensure_bridge 与 bridge-restart.sh
+# 共用同一份，避免两处 spawn 逻辑漂移。
+#
+# why setsid 直起而非写 wrapper 脚本：旧版把 env+命令落成 /tmp/*.sh 再执行，起因是
+#     裸 `( cd; nohup ... & )` 的子 shell 退出会 SIGHUP 掉 python。setsid 直接给新
+#     会话（无控制终端 → 收不到 SIGHUP）解决同一问题，同时**不必把 API Key 写进
+#     磁盘**（旧 wrapper 含明文 Key，脚本被中断时就残留在 /tmp）。
+# 用法: _bridge_spawn <upstream> <model> <key> <host_header> <win_curl> [<port>] [<log>]
+_bridge_spawn() {
+    local upstream="$1" model="$2" key="$3" host_header="$4" win_curl="$5"
+    local port="${6:-${BRIDGE_PORT:-8898}}" log="${7:-$HOME/.cache/openai_bridge.log}"
+    local extra_args=""
+    [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
+    mkdir -p "$HOME/.cache"   # 目录不存在会让重定向失败、bridge 根本起不来
+    (
+        cd "$CCCONFIG_ROOT" || exit 1
+        setsid nohup env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy \
+            -u ALL_PROXY -u all_proxy \
+            OPENAI_BRIDGE_UPSTREAM="$upstream" \
+            OPENAI_BRIDGE_KEY="$key" \
+            OPENAI_BRIDGE_MODEL="$model" \
+            OPENAI_BRIDGE_HOST="$host_header" \
+            python3 option-llmswitch/openai_bridge.py --port "$port" $extra_args $win_curl \
+            >> "$log" 2>&1 < /dev/null &
+    )
     return 0
 }
 
@@ -186,65 +291,41 @@ ensure_bridge() {
         fi
     fi
 
-    # 杀老 bridge（按端口号精确 kill，避免误杀）
-    if [[ -n "$old_pid" ]]; then
-        kill "$old_pid" 2>/dev/null || true
-        sleep 1
-    fi
+    # 杀老 bridge 并等端口释放（可能不止一个进程占着）
+    _kill_by_port "$BRIDGE_PORT"
 
-    local extra_args=""
-    [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
-
-    # 写 wrapper 脚本（与 Bash 父子进程组解耦）
-    # Why: 之前 ( cd; nohup ... &; disown ) 子 shell 退出时 python 进程被 SIGHUP 杀
-    # wrapper 文件名加随机后缀避免冲突
-    # why: 日志重定向目标目录不存在会让整个重定向失败、bridge 根本起不来
-    mkdir -p "$HOME/.cache"
-
-    local wrapper="/tmp/ensure-bridge-$RANDOM-$$.sh"
-    cat > "$wrapper" << WRAPEOF
-#!/bin/bash
-cd "$CCCONFIG_ROOT" || exit 1
-exec env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
-    OPENAI_BRIDGE_UPSTREAM="$upstream" \
-    OPENAI_BRIDGE_KEY="$key" \
-    OPENAI_BRIDGE_MODEL="$model" \
-    OPENAI_BRIDGE_HOST="$host_header" \
-    python3 option-llmswitch/openai_bridge.py --port "$BRIDGE_PORT" $extra_args $win_curl
-WRAPEOF
-    chmod 700 "$wrapper"
-    nohup "$wrapper" > "$HOME/.cache/openai_bridge.log" 2>&1 < /dev/null &
-    local bridge_pid=$!
-    disown $bridge_pid 2>/dev/null || true
+    _bridge_spawn "$upstream" "$model" "$key" "$host_header" "$win_curl" "$BRIDGE_PORT"
 
     # 等启动（最多 5s）
-    # Why: 必须等 wrapper 完成 exec python3 再删，否则 bash 子进程会因找不到文件直接退出
     local h=""
     for _ in 1 2 3 4 5; do
         sleep 1
         h=$(curl -s --max-time 2 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
         [[ -n "$h" ]] && break
     done
-    rm -f "$wrapper"
 
     [[ -n "$h" ]] && start_bridge_watchdog "$cfg" "$preset"
 }
 
 # 仅自愈：env 指向 127.0.0.1:8898 但 bridge 死了时拉起
 # 用法: selfheal_bridge <merged 缓存路径>
-# 返回 0=健康或拉起成功 1=拉起失败
+# 返回 0=已检查且健康 / 已成功拉起  1=尝试拉起但失败  10=不适用（未检查，别报"健康"）
+#
+# why 区分 0 与 10：旧版三条"什么都没做"的分支（无 cfg / env 不指向桥 / 取不到
+# preset）也返回 0，调用方于是打印"bridge 健康"—— 其实一次检查都没做，是最难查的
+# 那类假阳性。10 让调用方知道这是"跳过"而非"通过"。
 selfheal_bridge() {
     local cfg="$1"
-    [[ -z "$cfg" ]] && return 0
+    [[ -z "$cfg" ]] && return 10
 
-    # env 不指向 8898 → 不需要 bridge
+    # env 不指向 8898 → 当前 preset 不需要 bridge
     local sf="$HOME/.claude/settings.json"
-    [[ -f "$sf" ]] || return 0
+    [[ -f "$sf" ]] || return 10
     if ! grep -q '127.0.0.1:8898' "$sf" 2>/dev/null; then
-        return 0
+        return 10
     fi
 
-    # bridge 已响应 → OK
+    # 到这里确实该有 bridge：健康就直接过
     if curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" >/dev/null 2>&1; then
         return 0
     fi
@@ -256,15 +337,25 @@ selfheal_bridge() {
     local cur
     cur="$( [[ -f "$HOME/.claude/llm-current" ]] && tr -d '[:space:]' < "$HOME/.claude/llm-current" || true )"
     if [[ -z "$cur" ]]; then
-        cur=$(python3 -c "import json; print(json.load(open('$cfg')).get('current',''))" 2>/dev/null) || return 1
+        cur=$(python3 -c "import json; print(json.load(open('$cfg')).get('current',''))" 2>/dev/null) || true
     fi
-    [[ -z "$cur" ]] && return 0
+    if [[ -z "$cur" ]]; then
+        warn "  bridge 无响应，但取不到当前 preset（llm-current 与缓存都为空）"
+        return 1
+    fi
 
     local bc
-    bc=$(read_bridge_config "$cfg" "$cur") || return 1
+    bc=$(read_bridge_config "$cfg" "$cur") || {
+        warn "  bridge 无响应，且读不到 preset '$cur' 的配置（preset 可能已删除）"
+        return 1
+    }
     # why local：防 bash 动态作用域污染调用者同名变量
     local upstream model key host_header
     IFS='|' read -r upstream model key host_header <<< "$bc"
+    if [[ -z "$upstream" ]]; then
+        warn "  bridge 无响应，preset '$cur' 无 upstream（配置不完整）"
+        return 1
+    fi
 
     warn "  bridge ($BRIDGE_PORT) 未响应，自动拉起 ($cur)..."
     ensure_bridge "$upstream" "$model" "$key" "$host_header" "$cfg" "$cur"

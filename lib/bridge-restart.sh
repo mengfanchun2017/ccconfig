@@ -1,67 +1,51 @@
 #!/bin/bash
-# bridge-restart.sh — 按当前 preset 重启 openai_bridge.py
+# bridge-restart.sh — 按当前 preset 重启 openai_bridge.py（watchdog 专用入口）
 #
 # 用法: bridge-restart.sh <llm.json> [<preset>]
 #   preset 省略时读 ~/.claude/llm-current
-# 返回: 0=已就绪 / 当前 preset 不需要 bridge；1=配置或启动失败
+# 返回: 0=已就绪（health 已确认）/ 当前 preset 不需要 bridge
+#       1=瞬时失败（启动后 health 未起，可重试）
+#       2=永久性错误（preset 已删除 / 配置不可用）→ watchdog 据此长退避
 #
 # why 自动读配置：旧版从调用方命令行取 upstream/model/key，而 watchdog 是启动时
 # 一次性生成 wrapper 的，切 preset 后老 watchdog 仍用旧 upstream 重启 bridge，把
 # 用户刚选的 preset 覆盖掉（在家切 tailscale 后被换成单位地址 → 全挂）。
+#
+# 本文件不自己实现任何判定与 spawn：模式判定用 preset_bridge_mode、传输栈用
+# bridge_win_curl、拉起用 _bridge_spawn，全部来自 ensure-bridge.sh。旧版把
+# 「是否需要 bridge」和 win_curl 正则各抄了一份，已经漂移过一次（域名上游首启
+# 走 win_curl、watchdog 一重启就退回 httpx）。
 
 set -uo pipefail
 
 CCCONFIG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# 只 source 函数定义，不触发其中的顶层逻辑
+source "$CCCONFIG_ROOT/lib/ensure-bridge.sh"
 
 cfg="${1:-}"
-[[ -z "$cfg" || ! -f "$cfg" ]] && exit 1
+[[ -z "$cfg" || ! -f "$cfg" ]] && exit 2   # 缓存缺失：重试无意义
 preset="${2:-}"
 [[ -z "$preset" ]] && preset="$( [[ -f "$HOME/.claude/llm-current" ]] && tr -d '[:space:]' < "$HOME/.claude/llm-current" || true )"
-[[ -z "$preset" ]] && exit 0
+[[ -z "$preset" ]] && exit 2   # 无 preset 可拉起：等 llm-current 被写入
 
-# 读 preset 配置；use_bridge 三态 → true/false/空
-IFS='|' read -r use_bridge up model key hh <<< "$(python3 - "$cfg" "$preset" <<'PY'
-import json, sys
-try:
-    d = json.load(open(sys.argv[1]))
-except Exception:
-    print("|||"); raise SystemExit(0)
-llm = d.get('llms', {}).get(sys.argv[2], {})
-ub = llm.get('use_bridge')
-flag = 'true' if ub is True else ('false' if ub is False else '')
-print(f"{flag}|{llm.get('base_url','')}|{llm.get('model','')}|{llm.get('key','')}|{llm.get('host_header','')}")
-PY
-)"
+# 接入模式：与 switch_llm / test_llm 同源，不再自写一份
+mode="$(preset_bridge_mode "$preset" "$cfg")" || exit 2
+[[ "$mode" == "direct" ]] && exit 0      # 当前 preset 不需要 bridge
+[[ "$mode" == "conflict" ]] && exit 2    # OpenAI-only + 显式直连，重试无意义
 
-# 拉起判定对齐 init-llm.sh 的自动检测（test_llm/switch 同款）：显式 false /
-# anthropic 原生端点 / 127.0.0.1 → 不需要 bridge；其余（含字段缺失的自动判定型
-# OpenAI-only 预设）→ 拉起。旧版要求必须显式 use_bridge==true，自动判定预设的
-# watchdog 每轮记"拉起"日志但实际 exit 0 不启动，bridge 死了永远起不来。
-if [[ "$use_bridge" == "false" || "$up" == *"/anthropic"* || "$up" == *"://127.0.0.1"* ]]; then
-    exit 0
-fi
-[[ -z "$up" || -z "$key" || -z "$model" ]] && exit 1
+bc="$(read_bridge_config "$cfg" "$preset")" || exit 2
+IFS='|' read -r up model key hh <<< "$bc"
+[[ -z "$up" || -z "$key" || -z "$model" ]] && exit 2   # preset 配置不完整/已删除
 
 port="${BRIDGE_PORT:-8898}"
-old=$( { lsof -ti :"$port" 2>/dev/null || true; } | head -1 || true)
-[[ -n "$old" ]] && kill "$old" 2>/dev/null || true
-sleep 1
-
-extra_args=""
-[[ "$up" == https:* ]] && extra_args="--skip-tls-verify"
-
-# 传输栈判定必须与首启（ensure_bridge）同源：旧版本文件自己写了一份只有字面 IP
-# 正则的副本，漏了 force_win_curl —— 域名上游首启走 win_curl、watchdog 一重启就
-# 退回 httpx，静默漂移（见 ensure-bridge.sh 的 bridge_win_curl 注释）。
-# 只 source 取函数定义，不触发其中的顶层逻辑。
-source "$CCCONFIG_ROOT/lib/ensure-bridge.sh"
+_kill_by_port "$port"
 win_curl="$(bridge_win_curl "$up" "$cfg" "$preset")"
+_bridge_spawn "$up" "$model" "$key" "$hh" "$win_curl" "$port"
 
-cd "$CCCONFIG_ROOT" || exit 1
-mkdir -p "$HOME/.cache"   # 目录不存在会让重定向失败、bridge 起不来
-env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy \
-    OPENAI_BRIDGE_UPSTREAM="$up" OPENAI_BRIDGE_KEY="$key" OPENAI_BRIDGE_MODEL="$model" OPENAI_BRIDGE_HOST="$hh" \
-    python3 option-llmswitch/openai_bridge.py --port "$port" $extra_args $win_curl \
-    >> "$HOME/.cache/openai_bridge.log" 2>&1 &
-disown 2>/dev/null || true
-exit 0
+# 等 health 确认真的起来了：旧版无条件 exit 0，watchdog 永远学不到"启动失败"，
+# 只能靠下一轮的 health 间接推断
+for _i in 1 2 3 4 5; do
+    sleep 1
+    curl -s --max-time 2 "http://127.0.0.1:${port}/health" >/dev/null 2>&1 && exit 0
+done
+exit 1
