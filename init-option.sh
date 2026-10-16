@@ -443,22 +443,17 @@ interactive_menu() {
         collect_names all_names
 
         local n_count=${#all_names[@]}
-        local all_idx=$((n_count + 1))     # 「全部安装」
-        local exit_idx=$((n_count + 2))    # 「退出」
-        local total_items=$exit_idx
 
-        # 状态列表 + 附加项，共用同一份渲染，编号连续。
+        # 编号只留给组件本身，「全部安装」/「取消」走 a / 0 键，不占编号。
         # 走 stderr：与下方提示同流，避免 stdout 重定向时列表与提示错位
         {
             echo ""
             render_components all_names
-            printf "  ${BOLD_GREEN}%2d)${NC}  %s\n" "$all_idx" "全部安装"
-            printf "  ${BOLD_GREEN}%2d)${NC}  %s\n" "$exit_idx" "退出"
             echo ""
         } >&2
 
         local raw sel_nums=() tok saw_cancel=0 saw_all=0
-        local prompt="  ${BOLD_GREEN}选择 [1-${total_items}] (0=取消, 空格多选 如 1 3 5): ${NC}"
+        local prompt="  ${BOLD_GREEN}选择 [1-${n_count}] (0 取消，a 全部安装，空格多选 如 1 3 5): ${NC}"
         if [[ -t 2 && -e /dev/tty && -r /dev/tty ]]; then
             printf "$prompt" >&2
             read -r raw < /dev/tty || true
@@ -467,16 +462,16 @@ interactive_menu() {
             read -r raw || true
         fi
 
-        # 解析空格分隔序号：0/退出 → 取消；全部序号 → 全装；其余收进 sel_nums
+        # 解析空格分隔序号：0/q → 取消；a → 全装；其余收进 sel_nums
         for tok in $raw; do
-            [[ "$tok" =~ ^[0-9]+$ ]] || continue
-            if [[ "$tok" == "0" || "$tok" == "$exit_idx" ]]; then
-                saw_cancel=1
-            elif [[ "$tok" == "$all_idx" ]]; then
-                saw_all=1
-            elif [ "$tok" -ge 1 ] && [ "$tok" -le "$n_count" ]; then
-                sel_nums+=("$tok")
-            fi
+            case "$tok" in
+                0|q|Q) saw_cancel=1 ;;
+                a|A)   saw_all=1 ;;
+                *)
+                    [[ "$tok" =~ ^[0-9]+$ ]] || continue
+                    [ "$tok" -ge 1 ] && [ "$tok" -le "$n_count" ] && sel_nums+=("$tok")
+                    ;;
+            esac
         done
 
         if [[ "$saw_cancel" == "1" ]]; then
@@ -488,7 +483,7 @@ interactive_menu() {
         fi
         if [[ "${#sel_nums[@]}" -eq 0 && "$saw_all" == "0" ]]; then
             warn "无效选择"
-            echo ""; read -p "按回车继续..." dummy < /dev/tty || true
+            pause_enter
             continue
         fi
 
@@ -505,7 +500,7 @@ interactive_menu() {
             done
         fi
 
-        echo ""; read -p "按回车继续..." dummy < /dev/tty || true
+        pause_enter
     done
 }
 

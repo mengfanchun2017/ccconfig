@@ -11,7 +11,7 @@ ccconfig 是 Claude Code 配置管理的基础设施。目标：**新机器 10 �
 | 仓库 | 可见性 | 定位 | 用户操作 |
 |------|--------|------|----------|
 | **ccconfig** | 公开 | infra 脚本 + .example 模板（rules/agents/conf） | fork 或 clone，定期 git pull |
-| **skill** | 公开 | 16 个 f-* skill 插件 marketplace | clone 或 `/plugin marketplace add` |
+| **skill** | 公开 | 24 个 f-* skill 插件 marketplace | clone 或 `/plugin marketplace add` |
 | **ccprivate** | 私有 | API key + token + 个人配置 | 运行 `init-bootstrap.sh` 自建 |
 
 ccconfig 本身不含任何密钥，可安全公开。skill 可独立使用（不依赖 ccconfig）。ccprivate 每人自建。
@@ -40,7 +40,7 @@ flowchart TB
   ccprivate -- "setup.sh symlink" --> rules_dir
   ccprivate -- "setup.sh symlink" --> agents_dir
   ccprivate -- "setup.sh symlink" --> commands_dir
-  ccprivate -- "setup.sh symlink" --> settings
+  ccprivate -- "setup.sh 首次 cp" --> settings
   ccprivate -- "setup.sh symlink" --> claude_md
 ```
 
@@ -116,7 +116,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │   │   ├── init-skill.sh       # Skills 同步（4+1 阶段 pipeline）
 │   │   ├── init-autostart.sh   # auto-sync systemd 服务
 │   │   ├── update.sh           # 月度组件升级
-│   │   ├── status.sh           # 11 项状态检查
+│   │   ├── status.sh           # 10 项状态检查
 │   │   ├── monitor.sh          # 多仓库文件监听 + 自动 git 同步
 │   │   ├── sync.sh             # 多仓库智能同步
 │   │   ├── setup-links.sh      # 公开部分符号链接
@@ -133,12 +133,12 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │   │   └── settings.json.example
 │   ├── init-bootstrap.sh   # ccprivate 一键创建向导
 │   ├── hooks/                  # git pre-commit hook
-│   ├── option-*/               # 可选组件（llmswitch/officecli/larkcli/getnote/remote/cloudflare/skill/playwright/evalscope）
+│   ├── option-*/               # 可选组件（llmswitch/officecli/larkcli/getnote/remote/cloudflare/skill/playwright/evalscope/mineru/filepull）
 │   └── docs/                   # 架构/升级/ADR/进度 文档
 │
 ├── skill/              # ← 用户 clone 这个（或 /plugin marketplace add）
 │   ├── .claude-plugin/marketplace.json
-│   └── plugins/                # 16 个 plugin
+│   └── plugins/                # 24 个 plugin
 │
 └── ccprivate/                  # ← 用户运行 init-bootstrap.sh 自建
     ├── conf/*.json             # API key / token 真实值
@@ -160,7 +160,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 阶段 1: OS 基础（apt update + git/curl/wget）
 阶段 2: gh CLI（GitHub 命令行）
 阶段 3: GitHub 认证（Fine-grained PAT，HTTPS + gh credential helper；SSH 为可选加速）
-阶段 4: 克隆三仓库 + init-bootstrap.sh
+阶段 4: 克隆三仓库 + init-bootstrap.sh（gh auth + ccprivate 一体化）
 阶段 5: init-base.sh all（Ubuntu + LLM + 收尾链接/服务）
 阶段 6: 克隆所有项目
 阶段 7: maintain.sh status 验证
@@ -179,7 +179,8 @@ symlink 建立链：
 
 ```
 ccprivate/setup.sh
-  ├── ~/CLAUDE.md, ~/.claude/settings.json → ccprivate/link/
+  ├── ~/CLAUDE.md → ccprivate/link/CLAUDE.md（symlink）
+  ├── ~/.claude/settings.json（首次从 link/settings.json.example cp，之后本机独立）
   ├── ~/.claude/rules → ccprivate/rules
   ├── ~/.claude/agents → ccprivate/agents
   ├── ~/.claude/commands → ccprivate/commands
@@ -201,21 +202,20 @@ systemd user service 守护，开机自启。`monitor.sh status` 查看各仓库
 
 ### 状态检查（maintain.sh status）
 
-每次 Claude Code 启动自动运行（SessionStart hook）。11 项检查，输出用 `━━━ 段落名 ━━━` 段头：
+每次 Claude Code 启动自动运行（SessionStart hook）。10 项检查，输出用 `━━━ 段落名 ━━━` 段头：
 
-1. 配置文件链接（symlinks）
-2. ccprivate 结构
-3. 核心依赖
-4. auto-sync 状态
-5. GitHub PAT 有效期
-6. 仓库（Git 项目状态 + MEMORY + 最后推送）
-7. 飞书 lark-cli
-8. MCP 服务器（并行，24h 缓存）
-9. 可选组件 option-*（含 SSH/Tailscale）
-10. Skills 安装/断链
-11. 模板同步（ccconfig .example vs ccprivate 运行时）
+1. 配置文件链接 + ccprivate 结构（symlinks）
+2. 核心依赖
+3. auto-sync 状态
+4. GitHub PAT 有效期
+5. 仓库（Git 项目状态 + MEMORY + 最后推送）
+6. 飞书 lark-cli
+7. MCP 服务器（并行，24h 缓存）
+8. 可选组件 option-*（含 SSH/Tailscale）
+9. Skills 安装/断链
+10. 模板同步（ccconfig .example vs ccprivate 运行时）
 
-`--quick` 只跑前 6 项 + 飞书。
+`--quick` 只跑前 6 项。
 
 ## 升级策略
 
@@ -243,32 +243,41 @@ Tier 0: CLI/MCP 工具（真正的原语）
 
 Tier 1: 能力 Skill（包装工具加约定）
   fsearch          多源搜索编排（三源并行 + 去重 + 标注）
-  ftransec         科研英文资料翻译流水线（PDF 解析 → 术语库/翻译记忆 → 双语交付）
-  fdiagram         代码驱动图表生成（Mermaid + whiteboard-cli）
+  fdiagram         代码驱动图表生成（Mermaid + 飞书画板）
   fdocx            Word .docx 生成（OfficeCLI 引擎）
   fxlsx            Excel .xlsx 生成（OfficeCLI 引擎）
   fpptx            PPTX 生成（OfficeCLI 引擎 + autofit 后处理）
+  fsyncdoc         源码变更 → 文档/产品页同步
+  fskillcreat      Skill 脚手架生成
+  flibaudit        库/依赖审计
 
 Tier 2: 编排层（路由 + 文档生命周期）
   ffeishu          飞书文档统一入口 → 委托 Tier 1 skill + lark-cli
 
 Tier 3: 领域方法论（领域知识 + 框架）
   fresearchframe    4 领域研究方法论（customer/generic/market/technical）
-  fwstd-report      报告写作横向规范（4 套模板）
   fsysarchi        系统分析师备考方法论
+  fllmpack         多 LLM 打包接入
+  fmashwork        mashwork 方法论
+  flogme           个人管理方法论（OKR/Worklog/Reflect/SUM）
 
 Tier 4: 应用 Skill（最终用户工作流）
-  fworch-report        报告生成 → 委托 fresearchframe + fwstd-report + ffeishu
-  flogme            个人管理系统（OKR/Worklog/Reflect/SUM）
-  fmoocrec           慕课推荐（QS 课程 + 学习路径）
-  getnote            得到大脑集成（CLI + Skill 驱动，OAuth 授权）
+  fworch            撰写系统统一入口 → 按体裁派发
+  fworch-course     课程撰写 → fwstd-course
+  fworch-report     报告撰写 → fresearchframe + fwstd-report + ffeishu
+  fworch-case       案例撰写 → fwstd-case
+  fworch-interview  面试准备 → fwstd-interview
+  fwstd-{course,report,case,interview}  各体裁写作横向规范
+  fmoocrec          慕课推荐（QS 课程 + 学习路径）
 ```
+
+> 得到大脑（getnote）是 `option-getnote/` 可选组件，注册官方 `@getnote/cli` 的原子 Skill，不在 `~/git/skill/plugins/` 下。
 
 ### 安装方式
 
 | 来源 | 安装方式 | 管理 |
 |------|---------|------|
-| 自建 f-*（16 个） | `bash lib/init-skill.sh sync` 从 skill symlink | ccconfig |
+| 自建 f-*（24 个） | `bash lib/init-skill.sh sync` 从 skill symlink | ccconfig |
 | 第三方 | 已废弃，`conf/third-party-skills.txt` 不再存在；所有 skill 统一在 `~/git/skill/plugins/` 管理 | — |
 | 私有覆盖 | `apply-config.sh` ln -s ccprivate/skill/*.yaml | ccprivate |
 
@@ -306,7 +315,9 @@ option-cloudflare/  Cloudflare Workers/Pages/D1/R2/AI 开发环境
 option-remote/      Tailscale + SSH 远程访问桌面 tmux session
 option-getnote/     得到大脑 CLI + Skill 集成（OAuth 授权）
 option-playwright/  Playwright MCP 浏览器自动化
+option-mineru/      MinerU 文档解析（PDF/Office → Markdown）
 option-evalscope/   evalscope LLM 并发/TPS/精度测评
+option-filepull/    跨机取件（SMB C$ + tsxfer）
 ```
 
 每个组件含 `init.sh`（安装）和 `init.sh --status`（状态检查）。`maintain.sh status` 自动发现所有 `option-*/` 并报告状态。

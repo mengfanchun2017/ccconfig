@@ -18,7 +18,7 @@ ccconfig 是 Claude Code 配置基础设施的公开部分。**三仓库模型**
 | 仓库 | 可见性 | 内容 |
 |------|--------|------|
 | **ccconfig** | 公开 | infra 脚本、.example 模板（rules/agents/conf） |
-| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | marketplace skill 插件（f-* 系列；getnote 已改用官方 `@getnote/cli` 的原子 Skill） |
+| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | marketplace skill 插件（24 个 f-* 系列） |
 | **ccprivate** | 私有 | API key / Token / 个人配置，symlink 穿透访问 |
 
 ccconfig 本身不含任何密钥。
@@ -97,7 +97,15 @@ flowchart TB
     optSkill["option-skill/
     Skill 安装"]
     optGetnote["option-getnote/
-    得到笔记 MCP"]
+    得到大脑 CLI + Skill"]
+    optPlaywright["option-playwright/
+    Playwright MCP 浏览器自动化"]
+    optMineru["option-mineru/
+    MinerU 文档解析"]
+    optEvalscope["option-evalscope/
+    LLM 并发/TPS/精度测评"]
+    optFilepull["option-filepull/
+    跨机取件"]
     optLlms["option-llmswitch/
     Anthropic↔OpenAI 桥
     (由 init-llm.sh 自动管理)"]
@@ -122,7 +130,10 @@ flowchart TB
   initOption --> optRemote
   initOption --> optSkill
   initOption --> optGetnote
-  initOption --> optUsage
+  initOption --> optPlaywright
+  initOption --> optMineru
+  initOption --> optEvalscope
+  initOption --> optFilepull
   initOption --> libMcp
   initOption --> libSkill
 
@@ -152,7 +163,7 @@ flowchart TB
 ccconfig/
 ├── bootstrap-gh-auth.sh      # 一行式起步（curl|bash：装 git + clone ccconfig）
 ├── init-base.sh              # 初始化统一入口
-├── maintain.sh               # 运维入口（status/self/setup/upgrade/sync/monitor/deps/llm/mcp/pat/token/example）
+├── maintain.sh               # 运维入口（status/self/setup/upgrade/sync/monitor/deps/llm/mcp/pat/example/upgrade-ccprivate）
 ├── init-option.sh            # 可选组件安装入口（分组菜单）
 │
 ├── lib/                      # 脚本库
@@ -162,7 +173,7 @@ ccconfig/
 │   ├── init-skill.sh         # Skills 同步
 │   ├── init-autostart.sh     # auto-sync systemd 服务
 │   ├── monitor.sh            # inotify 监听 + 自动 git 同步
-│   ├── status.sh             # 11 项状态检查
+│   ├── status.sh             # 10 项状态检查
 │   ├── sync.sh               # 多仓库 Git 同步（内含冲突解决）
 │   ├── update.sh             # 月度组件升级
 │   ├── example-sync.sh       # .example ↔ ccprivate 双向同步
@@ -194,6 +205,10 @@ ccconfig/
 ├── option-cloudflare/        # 可选：Cloudflare 开发环境
 ├── option-remote/            # 可选：Tailscale + SSH 远程
 ├── option-getnote/           # 可选：得到大脑 CLI + Skill 集成
+├── option-playwright/        # 可选：Playwright MCP 浏览器自动化
+├── option-mineru/            # 可选：MinerU 文档解析
+├── option-evalscope/         # 可选：evalscope LLM 测评
+├── option-filepull/          # 可选：跨机取件
 ├── option-skill/             # 可选：Skill 安装（包装 lib/init-skill.sh）
 ├── option-llmswitch/         # 内部：Anthropic↔OpenAI 桥（init-llm.sh 自动管理）
 ├── bin/ccconfig              # CLI 包装（子命令转发到 maintain.sh / init-*.sh）
@@ -244,7 +259,7 @@ bash lib/init-llm.sh status             # 链路诊断
 bash lib/init-llm.sh test <preset>      # 真实链路探测（走 bridge + 流式）
 ```
 
-- **多预设管理** — MiniMax/DeepSeek 内置，其余在 `conf/llm.json` 里加
+- **多预设管理** — 内置 3 个（MiniMax M3.1 / DeepSeek v4 / MiMo v2.6），自定义在 `conf/llmprivate.json` 里加（key 存 `ccprivate/conf/llm.json`）
 - **OpenAI Bridge** — 遇到 OpenAI-only 端点（如内网 LLM 只提供 OpenAI 协议）自动启协议转换
 - **真实链路探测** — `test` 走 Claude Code 实际使用的那条路径（bridge + 流式），
   判定含终止标记与连接完整性，不用"HTTP 200"糊弄
@@ -264,19 +279,26 @@ bash lib/init-llm.sh test <preset>      # 真实链路探测（走 bridge + 流�
 
 --Claude--
  3) mcp         ✗ 未配置（bash init-option.sh mcp）
- 4) skill       ✓ 17 个 skill 已安装
+ 4) skill       ✓ 24 个 skill 已安装
 
 --飞书--
  5) larkcli     ✓ lark-cli 已安装 — 飞书 CLI
 
+--浏览器自动化--
+ 5) playwright  ✓ Playwright MCP 已配置
+
+--文档解析--
+ 6) mineru      ✓ MinerU 已配置 — PDF/Office → Markdown
+
 --其他--
- 6) officecli   ✓ OfficeCLI 已安装 — 生成 .pptx/.docx
- 7) remote      ✗ 未配置 — SSH + Tailscale 远程
- 8) cloudflare  ✗ 未配置 — Cloudflare Workers/Pages
- 9) getnote     ✗ 未配置 — 得到大脑 CLI + Skill 集成
+ 7) officecli   ✓ OfficeCLI 已安装 — 生成 .pptx/.docx
+ 8) remote      ✗ 未配置 — SSH + Tailscale 远程
+ 9) cloudflare  ✗ 未配置 — Cloudflare Workers/Pages
+10) getnote     ✗ 未配置 — 得到大脑 CLI + Skill 集成
+11) filepull    ✗ 未配置 — 跨机取件
 ...
-10) 全部安装
-11) 退出
+12) 全部安装
+13) 退出
 ```
 
 ### 🔐 公开/私密分离
@@ -324,13 +346,13 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | `bash lib/init-llm.sh` | 切换 LLM 后端 |
 | `bash lib/update.sh all` | 月度组件升级（10 步） |
 
-> `bash maintain.sh` 的交互菜单是**扁平结构**：9 个功能域各带字母项，选中即执行，
+> `bash maintain.sh` 的交互菜单是**扁平结构**：8 个功能域各带字母项，选中即执行，
 > 没有二级菜单和"返回上层"。**每一项右侧灰色列就是上表里的直接调用命令**，
 > 可以复制到终端跑 —— 不需要为了记住路径而翻文档。
 
 ## 状态检查
 
-`maintain.sh status` 检查：链接/依赖/auto-sync/Git 推送/Memory/项目/飞书/MCP/可选组件/Skills/模板同步。
+`maintain.sh status` 10 项检查：链接 + ccprivate 结构 / 核心依赖 / auto-sync / PAT 有效期 / 仓库（Git + Memory）/ 飞书 / MCP / 可选组件 / Skills / 模板同步。
 
 ## 自建 Skills
 
