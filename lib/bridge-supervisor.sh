@@ -38,10 +38,30 @@ _wd_log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$BRIDGE_WD_LOG"; }
 # 被守护文件的指纹 —— 用于检出「磁盘代码已更新、内存里跑的还是旧代码」。
 # ccconfig 由 auto-sync 自动 git pull，bridge.py 随时可能被更新；不重启则
 # 旧代码一直服务到进程自然退出，期间行为与新代码不一致且无任何提示。
+#
+# 只指纹 openai_bridge.py —— 它是**常驻进程**加载的代码，改了必须重启才生效。
+# 不能把 ensure-bridge.sh / bridge-restart.sh 也算进来：它们是**每次调用都重新
+# 读盘**的 shell 脚本，本来就实时生效，无需重启 bridge。放进来会造成「改一个 shell
+# 脚本 → supervisor 把好好的 bridge 杀掉重启 → 用户 session 瞬间 ECONNREFUSED」，
+# 而那时根本没有任何请求需要中断（实测踩过）。
 _code_fingerprint() {
-    cat "$CCCONFIG_ROOT/option-llmswitch/openai_bridge.py" \
-        "$CCCONFIG_ROOT/lib/ensure-bridge.sh" \
-        "$CCCONFIG_ROOT/lib/bridge-restart.sh" 2>/dev/null | md5sum | cut -d' ' -f1
+    md5sum < "$CCCONFIG_ROOT/option-llmswitch/openai_bridge.py" 2>/dev/null | cut -d' ' -f1
+}
+
+# 代码漂移的处理策略：**只告警，不自动重启**。
+#
+# why 不自动部署：一个正在正常服务的 bridge 跑旧代码是可接受的代价；为了套用新代码
+#     把它杀掉，代价是「每次 ccconfig git pull 都中断一次用户实时会话」（实测：
+#     auto-sync 拉取 → 重启 bridge → 会话 ECONNREFUSED）。拿"避免静默陈旧"换
+#     "每次拉取都断线"不划算。
+# 新代码何时生效：下次自然重启（崩溃恢复 / 切 preset / 重启机器），或手动
+#     `bash maintain.sh fix` / `bash lib/bridge-service.sh restart`。
+# 告警去重：同一指纹只报一次，避免每 10s 刷一行日志。
+_warn_drift_once() {
+    local fp="$1"
+    [[ "$fp" == "$last_warned_fp" ]] && return 0
+    last_warned_fp="$fp"
+    _wd_log "注: openai_bridge.py 已更新（$fp），运行中的 bridge 仍为旧代码；下次重启生效，或跑 bash maintain.sh fix"
 }
 
 # 冷启动时 merged 缓存可能尚未生成（init-llm merge 还没跑）—— 等它出现而不是退出。
@@ -61,22 +81,14 @@ if ! wait_for_cfg; then
 fi
 
 last_fp="$(_code_fingerprint)"
+last_warned_fp=""
 fail=0
 
 while true; do
     if curl -s --max-time 3 "http://127.0.0.1:${BRIDGE_PORT}/health" >/dev/null 2>&1; then
-        # 代码漂移检查：健康也查，否则「跑着旧代码且不报错」永远发现不了
+        # 代码漂移：只告警不重启（见 _warn_drift_once 的 why）
         cur_fp="$(_code_fingerprint)"
-        if [[ "$cur_fp" != "$last_fp" ]]; then
-            _wd_log "bridge 代码已更新（$last_fp → $cur_fp），重启以加载新代码"
-            last_fp="$cur_fp"
-            rc=0
-            bash "${CCCONFIG_ROOT}/lib/bridge-restart.sh" "$cfg" "$initial_preset" >> "$BRIDGE_WD_LOG" 2>&1 || rc=$?
-            [[ $rc -eq 3 ]] && { _wd_log "当前 preset 不需要 bridge，supervisor 退出"; exit 0; }
-            [[ $rc -eq 0 ]] && fail=0
-            sleep "${BRIDGE_WD_INTERVAL:-10}"
-            continue
-        fi
+        [[ "$cur_fp" != "$last_fp" ]] && _warn_drift_once "$cur_fp"
         [[ $fail -gt 0 ]] && _wd_log "bridge 恢复 (第 ${fail} 次重试)"
         fail=0
         sleep "${BRIDGE_WD_INTERVAL:-10}"
