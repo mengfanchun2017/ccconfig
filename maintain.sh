@@ -118,22 +118,31 @@ ensure_runtime_deps() {
 # 不自动改用户文件 —— 打印该有的行，让用户自己加/更新（老版本手写在 bashrc 的旧定义尤其要手工换）。
 do_highpriv() {
     local new_alias="alias claudeby='claude agents --dangerously-skip-permissions'"
+    local new_alias_s="alias claudebys='claude --dangerously-skip-permissions'"
     local si="$HOME/.claude/shell_init.sh"
     local bc="$HOME/.bashrc"
 
-    section "高权限启动（claudeby）"
+    section "高权限启动（claudeby / claudebys）"
     echo -e "  ${CYAN}alias:${NC} $new_alias"
-    echo -e "  ${GRAY}调用: 终端输 claudeby → 直进 FleetView，派发 session 继承 bypass（启动即 bypass，shift+tab 可切回）${NC}"
+    echo -e "         $new_alias_s"
+    echo -e "  ${GRAY}claudeby  → 直进 FleetView，bypassPermissions 作派发 session 默认模式${NC}"
+    echo -e "  ${GRAY}claudebys → 就地起一个 bypassPermissions 会话（不经 FleetView）${NC}"
     echo -e "  ${GRAY}定义位置: ~/.claude/shell_init.sh（symlink → ccconfig/lib/shell_init.sh，随仓库自动更新）${NC}"
     echo ""
 
     if [[ -L "$si" && -e "$si" ]] && grep -qF "claude agents --dangerously-skip-permissions" "$si" 2>/dev/null; then
-        ok "shell_init.sh 已是新版 alias"
+        ok "shell_init.sh 已是新版 claudeby"
     elif [[ -f "$si" ]] && grep -qF "alias claudeby=" "$si" 2>/dev/null; then
         warn "shell_init.sh 还是旧版 claudeby（claude --dangerously-skip-permissions）"
         info "  更新仓库: ./maintain.sh self config（3A），再 source ~/.bashrc"
     else
         warn "shell_init.sh 未定义 claudeby — 手动加一行: $new_alias"
+    fi
+
+    if [[ -f "$si" ]] && grep -qF "alias claudebys=" "$si" 2>/dev/null; then
+        ok "shell_init.sh 已定义 claudebys"
+    else
+        warn "shell_init.sh 未定义 claudebys — 手动加一行: $new_alias_s"
     fi
 
     # bashrc 里手写的 claudeby 会盖住 shell_init 的定义（后加载者胜），老版本用户常有
