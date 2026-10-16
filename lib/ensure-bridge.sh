@@ -31,7 +31,9 @@ start_bridge_watchdog() {
     # 交错执行「stop-all 然后 start」会留下两个 watchdog，双双看到端口掉线 →
     # 互相 kill/spawn 抖动。锁只活在子 shell 里，不污染调用方的 fd。
     (
-        flock 9 2>/dev/null || true
+        # -w 30：带超时而非无限等。若锁被异常残留的进程占着（见下面 9>&- 的说明），
+        # 这里退化成"跳过本轮"而不是把整个调用方挂死。
+        flock -w 30 9 2>/dev/null || { _bridge_wd_log "watchdog 启动跳过：锁被占用超 30s"; exit 0; }
 
         # 无条件清掉残留（旧版只认 PID 文件，被覆盖/失联的老 watchdog 会永久残留）
         stop_bridge_watchdog >/dev/null 2>&1 || true
@@ -69,7 +71,10 @@ while true; do
 done
 WDEOF
         chmod +x "$wrapper"
-        setsid nohup "$wrapper" > "$BRIDGE_WD_LOG" 2>&1 < /dev/null &
+        # 9>&- 必须带上：不加的话子进程会继承 flock 用的 fd 9。watchdog 是常驻进程，
+        # 于是锁永不释放 —— 下一次 start_bridge_watchdog 直接阻塞在 flock 上挂死
+        # （实测：测试套件卡 7 分钟，根因就是这个）。
+        setsid nohup "$wrapper" > "$BRIDGE_WD_LOG" 2>&1 < /dev/null 9>&- &
         disown $! 2>/dev/null || true
         # 等 wrapper 写进它自己的 pid（最多 2s）：不这样，紧接着的 selfheal
         # 会读到空文件、判定"无 watchdog"而再起一个

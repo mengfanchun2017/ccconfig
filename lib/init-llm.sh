@@ -168,22 +168,6 @@ print(llm.get('host_header', ''))
 PYEOF
 }
 
-# 读 use_bridge 标记（True/False/空）
-get_use_bridge() {
-    local merged; merged=$(_merged_json)
-    LLM_MERGED="$merged" python3 - "$1" << 'PYEOF'
-import json, os, sys
-name = sys.argv[1]
-try:
-    merged = json.loads(os.environ['LLM_MERGED'])
-except Exception:
-    merged = {}
-llm = merged.get(name, {})
-v = llm.get('use_bridge', '__ABSENT__')
-print('' if v == '__ABSENT__' else v)
-PYEOF
-}
-
 # 全局默认上下文窗口（单位：1000 tokens；400 = 400k）。
 # 预设未声明 max_context_tokens 时套用；优先 env（测试/临时），其次本机文件，最后 400。
 DEFAULT_MAX_CONTEXT_TOKENS="${DEFAULT_MAX_CONTEXT_TOKENS:-$(cat "$HOME/.claude/llm-context-default" 2>/dev/null || echo 400)}"

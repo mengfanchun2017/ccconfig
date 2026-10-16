@@ -61,7 +61,8 @@ bats tests/test-dry-run.bats
 | `test-cross-script-dryrun.sh` | 跨脚本 dry-run |
 | `test-interact.sh` | interact 函数 |
 | `test-init-ccprivate-repo.sh` | ccprivate 初始化 |
-| `test-openai-bridge.sh` | Anthropic↔OpenAI bridge 协议转换 |
+| `test-openai-bridge.sh` | Anthropic↔OpenAI bridge 流式链路（端到端，mock upstream） |
+| `test-bridge-protocol.py` | bridge 协议转换单元回归（块顺序/usage/tool_calls/finish_reason/字段丢失）。端到端用例只造 `content+[DONE]` 一种形态，协议层缺陷全在其盲区外，故单独成篇 |
 | `test-syntax.sh` | 语法检查（被 test-syntax.bats 替代） |
 
 ## 添加新测试
