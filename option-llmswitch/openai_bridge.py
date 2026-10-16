@@ -55,6 +55,35 @@ def _is_websearch_tool(t) -> bool:
     return isinstance(t, dict) and str(t.get("type", "")).startswith("web_search_")
 
 
+# OpenAI finish_reason → Anthropic stop_reason。**唯一来源**：流式与非流式共用，
+# 旧版把这张表在流式/非流式各写一遍，改一处必漂移。
+# 上游（one-api 类网关 + 各家模型）会发非标准值，必须显式覆盖：一律回落 end_turn
+# 会把「输出被截断」误报成「正常结束」，CC 不再自动续写（表现为回答半截就停）。
+_FINISH_REASON_MAP = {
+    "stop": "end_turn",
+    "eos": "end_turn",           # vLLM / 部分国内网关
+    "abort": "end_turn",
+    "tool_calls": "tool_use",
+    "tool_call": "tool_use",     # 单数形
+    "function_call": "tool_use",  # 旧 OpenAI 形
+    "length": "max_tokens",
+    "max_tokens": "max_tokens",
+    "content_filter": "content_filtered",
+    "stop_sequence": "stop_sequence",
+}
+
+
+def _map_finish_reason(fr):
+    """映射 stop_reason；未知非空值打告警，便于发现上游新形态。"""
+    if not fr:
+        return None
+    mapped = _FINISH_REASON_MAP.get(fr)
+    if mapped is None:
+        print(f"[bridge] WARN unknown finish_reason={fr!r} → 按 end_turn 处理", flush=True)
+        return "end_turn"
+    return mapped
+
+
 def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
     """Anthropic Messages API body → OpenAI Chat Completions body.
 
@@ -63,14 +92,19 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
     """
     messages = []
     system_blocks = anth_body.get("system")
+    sys_texts = []
     if isinstance(system_blocks, list):
         for blk in system_blocks:
             if isinstance(blk, dict) and blk.get("type") == "text":
-                messages.append({"role": "system", "content": blk.get("text", "")})
+                sys_texts.append(blk.get("text", ""))
             elif isinstance(blk, str):
-                messages.append({"role": "system", "content": blk})
+                sys_texts.append(blk)
     elif isinstance(system_blocks, str):
-        messages.append({"role": "system", "content": system_blocks})
+        sys_texts.append(system_blocks)
+    # 多段 system 必须合并成一条：多数 chat template 只认第一条 system 消息，
+    # 逐段发会让第二段之后的指令在上游静默失效（旧版行为）
+    if sys_texts:
+        messages.append({"role": "system", "content": "\n\n".join(sys_texts)})
 
     for msg in anth_body.get("messages", []):
         role = msg.get("role")
@@ -83,6 +117,7 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
             text_parts = []
             content_parts = []  # OpenAI content 数组：text 段 + image_url 段混排
             tool_calls = []
+            produced = 0  # 本条 Anthropic 消息已产出几条 OpenAI 消息（tool_result 即时 append）
             for blk in content:
                 if not isinstance(blk, dict):
                     continue
@@ -91,12 +126,17 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
                     text_parts.append(blk.get("text", ""))
                 elif t == "image" or t == "image_url":
                     if t == "image":
-                        src = blk.get("source", {})
-                        if src.get("type") == "base64":
+                        src = blk.get("source", {}) or {}
+                        st = src.get("type")
+                        if st == "base64":
                             content_parts.append({
                                 "type": "image_url",
                                 "image_url": {"url": f"data:{src.get('media_type')};base64,{src.get('data','')}"},
                             })
+                        elif st == "url" and src.get("url"):
+                            # Anthropic 也支持 url 型图片源，旧版只认 base64 → url 图整块丢弃
+                            content_parts.append({"type": "image_url", "image_url": {"url": src["url"]}})
+                        # st == "file"（Files API 引用）无 OpenAI 等价物，只能丢
                     else:
                         content_parts.append(blk)
                 elif t == "tool_use":
@@ -110,10 +150,25 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
                     })
                 elif t == "tool_result":
                     tool_id = blk.get("tool_use_id", "")
-                    out = blk.get("content")
-                    if isinstance(out, list):
-                        out = next((b.get("text", "") for b in out if isinstance(b, dict) and b.get("type") == "text"), "")
-                    messages.append({"role": "tool", "tool_call_id": tool_id, "content": out or ""})
+                    out_content = blk.get("content")
+                    if isinstance(out_content, list):
+                        # 旧版 next(...) 只取第一个 text 块，其余内容静默丢失
+                        segs = []
+                        for b in out_content:
+                            if not isinstance(b, dict):
+                                continue
+                            if b.get("type") == "text":
+                                segs.append(b.get("text", ""))
+                            elif b.get("type") == "image":
+                                segs.append("[image]")
+                        out_content = "\n".join(segs)
+                    out_content = out_content if isinstance(out_content, str) else ("" if out_content is None else str(out_content))
+                    # is_error 必须让模型看见：旧版丢弃后模型无法得知工具失败，
+                    # 会把错误结果当正常结果继续推理
+                    if blk.get("is_error"):
+                        out_content = f"[tool_error] {out_content}"
+                    messages.append({"role": "tool", "tool_call_id": tool_id, "content": out_content})
+                    produced += 1
                 elif t in ("thinking", "redacted_thinking"):
                     continue
             if text_parts or content_parts or tool_calls:
@@ -130,14 +185,28 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
                 if tool_calls:
                     m["tool_calls"] = tool_calls
                 messages.append(m)
+                produced += 1
+            if produced == 0 and role == "user":
+                # 用户消息的块全被丢弃（不支持的块类型）→ 补占位。旧版直接不 append，
+                # 这一轮在上游消失，后续对话轮次错位
+                messages.append({"role": "user", "content": "[unsupported content]"})
 
-    max_tokens_val = anth_body.get("max_tokens", 4096)
+    max_tokens_val = anth_body.get("max_tokens")
+    if not isinstance(max_tokens_val, int) or max_tokens_val <= 0:
+        # Anthropic 的 max_tokens 是必填；显式 null / 非法值时 get(k, 默认) 不生效
+        # （缺键才生效），把 null 原样传上游会被 400
+        max_tokens_val = 4096
+    streaming = bool(anth_body.get("stream"))
     openai_body = {
         "model": target_model,
         "messages": messages,
-        "stream": bool(anth_body.get("stream")),
+        "stream": streaming,
         "max_tokens": max_tokens_val,
     }
+    if streaming:
+        # 主动索取 usage：不设它，遵循 OpenAI 规范的上游可能整场不发 usage，
+        # input_tokens 恒 0 → CC 的上下文余量与自动压缩全部失灵
+        openai_body["stream_options"] = {"include_usage": True}
     for k in ("temperature", "top_p", "frequency_penalty", "presence_penalty", "n"):
         if k in anth_body:
             openai_body[k] = anth_body[k]
@@ -334,6 +403,19 @@ def _finalize_sse(state) -> str:
     return "".join(out)
 
 
+def _close_open_blocks(state) -> str:
+    """关掉所有仍开着的块，返回事件串（**不**补 message_delta/message_stop）。
+
+    错误路径专用：上游断流/超时时若有块未闭合，CC 收到的是悬空的
+    content_block_start 而没有对应 stop。先补关再报错，客户端拿到的半个
+    响应至少结构完整。
+    """
+    out = []
+    _close_text_block(state, out)
+    _close_tool_blocks(state, out)
+    return "".join(out)
+
+
 def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, state=None):
     """OpenAI stream chunk (可能含多行 data:...) → Anthropic SSE 事件集。"""
     if state is None:
@@ -376,7 +458,12 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
         # → 表现"输出一半回退重输出"。因此 usage 只记账，收尾时合并成一次 message_delta。
         usage = obj.get("usage")
         if usage:
-            state["output_tokens"] = usage.get("completion_tokens", 0)
+            # 取 max 而非覆盖：上游可能先发只带 prompt_tokens 的 chunk
+            # （缺失的 completion_tokens 取默认 0），覆盖会把已累计的输出量清零，
+            # 收尾时 output_tokens 直接消失
+            _ct = usage.get("completion_tokens")
+            if isinstance(_ct, int) and _ct > state.get("output_tokens", 0):
+                state["output_tokens"] = _ct
             if usage.get("prompt_tokens"):
                 state["input_tokens"] = usage["prompt_tokens"]
 
@@ -397,6 +484,9 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                 state["dup_blocks"] = state.get("dup_blocks", 0) + 1
             elif content:
                 if not state.get("text_open"):
+                    # 同一时刻只允许一个块开着：正文与工具块交替时不先关对方，
+                    # 两个块会交错收尾（Anthropic 要求块严格顺序 start→stop）
+                    _close_tool_blocks(state, out)
                     _open_text_block(state, out)
                 block_delta = {
                     "type": "content_block_delta",
@@ -407,29 +497,51 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
                 out.append(f"event: content_block_delta\ndata: {json.dumps(block_delta, separators=(',', ':'))}\n\n")
 
             for tc in (delta.get("tool_calls") or []):
-                tc_idx = tc.get("index", 0)
+                raw_idx = tc.get("index")
+                if raw_idx is None:
+                    # 部分 OpenAI 兼容端点的流式响应不带 tool_calls[].index，只能靠
+                    # 数组位置。旧版统一兜 0 → 多个并行工具全落到 tool_0，name 互相
+                    # 覆盖、arguments 首尾拼接 → 工具参数 JSON 损坏或调错工具。
+                    # 有 id 的按 id 首次出现分配槽位；无 id 的只能归到最后一个已知槽。
+                    tid = tc.get("id")
+                    slots = state.setdefault("_tool_ids", {})
+                    if tid:
+                        if tid not in slots:
+                            slots[tid] = len(slots)
+                        tc_idx = slots[tid]
+                    else:
+                        tc_idx = max(len(slots) - 1, 0)
+                else:
+                    tc_idx = raw_idx
                 tc_key = f"tool_{tc_idx}"
 
-                if tc_key not in state:
-                    state[tc_key] = {
+                existing = state.get(tc_key)
+                # 守卫必须在 _alloc_idx 之前：旧版先建条目（吃掉一个 index）再判
+                # terminal/已关闭，被丢弃的调用仍占号 → 下游 index 出现空洞。
+                # 该工具块已关闭/已收尾后又被投递 → 上游重复投递，再发一次 start 会让
+                # CC 重放该工具块并**再执行一次**（副作用翻倍），直接丢。
+                if terminal or (existing is not None and existing["index"] in state.get("_closed_idx", set())):
+                    state["dup_blocks"] = state.get("dup_blocks", 0) + 1
+                    continue
+
+                if existing is None:
+                    _close_text_block(state, out)  # 保块严格顺序，见上
+                    existing = state[tc_key] = {
                         "index": _alloc_idx(state),
-                        "id": tc.get("id", ""),
+                        "id": tc.get("id") or "",
                         "name": "",
                         "args": "",
                     }
-
-                tc_info = state[tc_key]
-                # 该工具块已关闭后又被投递 → 上游重复投递/收尾后补发。再发一次 start
-                # 会让 CC 重放该工具块并**再执行一次**（副作用翻倍），直接丢。
-                if terminal or tc_info["index"] in state.get("_closed_idx", set()):
-                    state["dup_blocks"] = state.get("dup_blocks", 0) + 1
-                    continue
+                tc_info = existing
                 if "id" in tc and tc["id"]:
                     tc_info["id"] = tc["id"]
-                fn = tc.get("function", {})
+                # 显式 null 容错：部分端点发 "function":null，.get(k, {}) 对缺键生效
+                # 但对 null 无效 → fn.get 抛 AttributeError，被 gen() 兜成
+                # "stream interrupted"，真实原因被掩盖
+                fn = tc.get("function") or {}
                 if "name" in fn and fn["name"]:
                     tc_info["name"] = fn["name"]
-                if "arguments" in fn:
+                if "arguments" in fn and fn["arguments"]:
                     tc_info["args"] += fn["arguments"]
 
                 if not state.get(f"{tc_key}_open"):
@@ -455,13 +567,12 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
             if _fr:
                 _close_text_block(state, out)
                 _close_tool_blocks(state, out)
-                _fr_map = {"stop": "end_turn", "tool_calls": "tool_use", "length": "max_tokens", "content_filter": "content_filtered"}
                 # why: 不在此处发 message_delta —— 上游（DeepSeek 系）带 finish_reason 的
                 #      chunk 后面还跟着 usage-only chunk，那个 delta 的 stop_reason 是 None，
                 #      会把真实 stop_reason（max_tokens/tool_use）覆盖成 null/end_turn，
                 #      导致 CC 收到被截断的输出时误判正常结束、不自动续写。
                 #      记下来，等 [DONE] 时作为流内最后一个 message_delta 发出。
-                state["stop_reason"] = _fr_map.get(_fr, "end_turn")
+                state["stop_reason"] = _map_finish_reason(_fr)
                 state["finished"] = True
 
     return "".join(out) if out else None
@@ -525,11 +636,9 @@ def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> d
     usage = openai_body.get("usage") or {}
     finish = None
     if choices:
-        # 与流式路径同一映射表：缺 length/content_filter 会让 CC 对截断响应
-        # 判成正常结束、不续写
-        fr = choices[0].get("finish_reason", "")
-        finish = {"stop": "end_turn", "tool_calls": "tool_use",
-                  "length": "max_tokens", "content_filter": "content_filtered"}.get(fr)
+        # 与流式路径共用 _FINISH_REASON_MAP（旧版各写一份，改一处必漂移）；
+        # 缺 length/content_filter 会让 CC 对截断响应判成正常结束、不续写
+        finish = _map_finish_reason(choices[0].get("finish_reason"))
     return {
         "id": openai_body.get("id", msg_id),
         "type": "message",
@@ -539,8 +648,8 @@ def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> d
         "stop_reason": finish,
         "stop_sequence": None,
         "usage": {
-            "input_tokens": usage.get("prompt_tokens", 0),
-            "output_tokens": usage.get("completion_tokens", 0),
+            "input_tokens": usage.get("prompt_tokens", 0) or 0,
+            "output_tokens": usage.get("completion_tokens", 0) or 0,
         },
     }
 
@@ -879,6 +988,10 @@ async def messages(request: Request):
                 print(f"[bridge] upstream stream error: {type(e).__name__}: {e}", flush=True)
                 # yield SSE error event 让 Claude Code 立刻看到错误（不等 4 分钟）
                 sse_state["finished"] = True
+                # 先补关未闭合的块：错误事件之后不该再留悬空的 content_block_start
+                tail = _close_open_blocks(sse_state)
+                if tail:
+                    yield tail
                 # 区分"curl.exe 启动失败/连不上"（stderr 有诊断信息）和"中途断连"：
                 # 前者归因 upstream_error 带 stderr 原文，后者归因 upstream_disconnected
                 if isinstance(e, _WinCurlUpstreamError):
@@ -891,6 +1004,9 @@ async def messages(request: Request):
             # why: 否则客户端只拿到半条流且无从判断，探测也只能靠"缺少 message_stop"
             #      间接推断；显式 error 让两边都能确定地识别失败
             if not sse_state.get("finished"):
+                tail = _close_open_blocks(sse_state)  # 同上：报错前先闭块
+                if tail:
+                    yield tail
                 if "data:" not in raw_buf[0] and raw_buf[0].strip():
                     # 一整个 data: 行都没出现过 → upstream 回的不是 SSE。
                     # one-api 类网关对"模型无可用渠道/额度不足"就是 HTTP 200 + 裸 JSON
