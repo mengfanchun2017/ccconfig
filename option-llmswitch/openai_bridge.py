@@ -825,6 +825,39 @@ async def on_shutdown():
         await http_client.aclose()
 
 
+# ========== 传输层统一入口 ==========
+# why：win_curl / httpx 两种传输原本在 messages() 里按「流式 × 传输」展开成四个
+# 分支，非流式的 JSON 解析与错误归因因此逐字重复了一份（改一处必漏另一处，历史上
+# 就漏过状态码检查）。抽成下面两个函数后协议层只剩一条路径，传输退化为参数。
+
+
+async def _upstream_stream(target_url, headers, body, host_header, extra_ext, use_win_curl):
+    """流式：yield 上游原始文本 chunk（未解析）。"""
+    if use_win_curl:
+        async for chunk in _stream_via_win_curl(target_url, headers, body, host_header):
+            yield chunk
+        return
+    async with http_client.stream(
+        "POST", target_url, headers=headers, json=body, extensions=extra_ext or None,
+    ) as r:
+        async for chunk in r.aiter_text():
+            yield chunk
+
+
+async def _upstream_post(target_url, headers, body, host_header, extra_ext, use_win_curl) -> tuple:
+    """非流式：返回 (status, text)。status=0 表示传输层失败，text 为诊断文本。"""
+    if use_win_curl:
+        return await _post_via_win_curl(target_url, headers, body, host_header)
+    try:
+        r = await http_client.post(
+            target_url, headers=headers, json=body, extensions=extra_ext or None,
+        )
+    except httpx.TransportError as e:
+        print(f"[bridge] upstream post error: {type(e).__name__}: {e}", flush=True)
+        return 0, f"{type(e).__name__}: {e}"
+    return r.status_code, r.text
+
+
 @app.post("/v1/messages")
 async def messages(request: Request):
     body = await request.json()
@@ -852,8 +885,6 @@ async def messages(request: Request):
         headers["Host"] = host_header
         # SSL 握手时 SNI 用域名（让服务端证书验证通过）
         extra_ext["sni_hostname"] = host_header
-
-    client = http_client
 
     if stream:
         _REQ_SEQ[0] += 1
@@ -963,24 +994,11 @@ async def messages(request: Request):
             # 捕获 upstream 间歇性超时/断连：log + 结束 stream，不让异常杀进程
             # Claude Code 收到不完整响应会自动重试，比 bridge 整个死掉强
             try:
-                if use_win_curl:
-                    src = _stream_via_win_curl(target_url, headers, upstream_body, host_header)
-                    async for chunk in _iter_with_idle_ping(_iter_complete_lines(src)):
-                        sse_out = _render(chunk)
-                        if sse_out:
-                            yield sse_out
-                else:
-                    async with client.stream(
-                        "POST",
-                        target_url,
-                        headers=headers,
-                        json=upstream_body,
-                        extensions=extra_ext or None,
-                    ) as r:
-                        async for chunk in _iter_with_idle_ping(_iter_complete_lines(r.aiter_text())):
-                            sse_out = _render(chunk)
-                            if sse_out:
-                                yield sse_out
+                src = _upstream_stream(target_url, headers, upstream_body, host_header, extra_ext, use_win_curl)
+                async for chunk in _iter_with_idle_ping(_iter_complete_lines(src)):
+                    sse_out = _render(chunk)
+                    if sse_out:
+                        yield sse_out
             except Exception as e:
                 # why Exception 而非 httpx.TransportError：win_curl 路径抛的是
                 # OSError/ConnectionResetError 之类，漏掉会让异常直接逃出 gen() ——
@@ -1028,44 +1046,27 @@ async def messages(request: Request):
             _dump_and_summary("done" if sse_state.get("finished") else "unfinished")
         return StreamingResponse(gen(), media_type="text/event-stream")
     else:
-        if use_win_curl:
-            r_status, r_text = await _post_via_win_curl(target_url, headers, upstream_body, host_header)
-            if r_status >= 400:
-                return JSONResponse({"error": "upstream error", "body": r_text[:500]}, status_code=r_status)
-            try:
-                openai_json = json.loads(r_text)
-            except Exception:
-                return JSONResponse({"error": "upstream non-json", "body": r_text[:500]}, status_code=502)
-            # 网关 HTTP 200 + {"error":...} 拒绝（无可用渠道/额度不足）时，
-            # openai_to_anthropic_resp 会产出空消息，表现为"模型不说话"而非报错
-            if isinstance(openai_json, dict) and "error" in openai_json:
-                return JSONResponse({"error": "upstream_error", "body": r_text[:500]}, status_code=502)
-            anth = openai_to_anthropic_resp(openai_json)
-            return JSONResponse(anth)
+        r_status, r_text = await _upstream_post(
+            target_url, headers, upstream_body, host_header, extra_ext, use_win_curl
+        )
+        # status=0 是传输层失败（连不上/超时），与"上游明确回了个 4xx/5xx"要分开归因
+        if r_status == 0:
+            return JSONResponse({"error": "upstream timeout", "body": r_text[:300]}, status_code=529)
+        # 旧版 httpx 分支不查状态码（win_curl 分支查），上游 5xx 若返回合法
+        # ChatCompletion 形状（无 "error" 键）会被一路转成 HTTP 200 + 空 content，
+        # CC 表现为"模型不说话"而不是报错，无从归因
+        if r_status >= 400:
+            print(f"[bridge] upstream http {r_status}: {r_text[:300]}", flush=True)
+            return JSONResponse({"error": "upstream_error", "body": r_text[:500]}, status_code=r_status)
         try:
-            r = await client.post(
-                target_url,
-                headers=headers,
-                json=upstream_body,
-                extensions=extra_ext or None,
-            )
-        except httpx.TransportError as e:
-            print(f"[bridge] upstream post error: {type(e).__name__}: {e}", flush=True)
-            return JSONResponse({"error": "upstream timeout", "type": type(e).__name__}, status_code=529)
-        # 与 win_curl 分支对齐：旧版 httpx 分支不查状态码，上游 5xx 若返回合法
-        # ChatCompletion 形状（无 "error" 键）就会一路转成 HTTP 200 + 空 content，
-        # CC 表现为"模型不说话"而不是报错，无从归因。
-        if r.status_code >= 400:
-            print(f"[bridge] upstream http {r.status_code}: {r.text[:300]}", flush=True)
-            return JSONResponse({"error": "upstream_error", "body": r.text[:500]}, status_code=r.status_code)
-        try:
-            openai_json = r.json()
+            openai_json = json.loads(r_text)
         except Exception:
-            return JSONResponse({"error": "upstream non-json", "body": r.text[:500]}, status_code=502)
+            return JSONResponse({"error": "upstream non-json", "body": r_text[:500]}, status_code=502)
+        # 网关 HTTP 200 + {"error":...} 拒绝（无可用渠道/额度不足）时，
+        # openai_to_anthropic_resp 会产出空消息，表现为"模型不说话"而非报错
         if isinstance(openai_json, dict) and "error" in openai_json:
-            return JSONResponse({"error": "upstream_error", "body": r.text[:500]}, status_code=502)
-        anth = openai_to_anthropic_resp(openai_json)
-        return JSONResponse(anth)
+            return JSONResponse({"error": "upstream_error", "body": r_text[:500]}, status_code=502)
+        return JSONResponse(openai_to_anthropic_resp(openai_json))
 
 
 @app.post("/admin/reload")
