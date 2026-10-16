@@ -46,9 +46,19 @@ claude-ds() {
     bash "$CCCONFIG_HOME/lib/init-llm.sh" deepseek && claude "$@"
 }
 
-# claudeby: 直进 FleetView（agent view）+ bypass 作 dispatch default
-# 派发的子 session 继承 flag 启动即 bypass（父进程 flag 不传给子 session，见 ADR 0018）
+# claudeby: 直进 FleetView（agent view），并把 bypassPermissions 设为派发 session 的默认模式
+# `--dangerously-skip-permissions` 在 `claude agents` 下即 `--permission-mode bypassPermissions`
+# 的作用域是「派发 session 的默认模式」（见 `claude agents --help`），不是 agent view 自己。
+# why bypass 而非 auto：auto 每条命令要调分类器模型，外部 LLM + 慢网关场景必然超时 →
+# fail-closed 拦命令（见 ADR 0018 附节）。bypass 直接 allow，完全不碰分类器。
+# ⚠️ 别名改后老 shell 不重载，必须开新终端或 source ~/.bashrc（检查: ./maintain.sh 1C）
 alias claudeby='claude agents --dangerously-skip-permissions'
+
+# claudebys: 直接开一个 bypassPermissions 会话（不经 FleetView）
+# 用途：单会话高权限场景；FleetView 不可用 / 只想开一个 bypass 终端时用
+# 与 claudeby 的区别：claudeby 进多会话管理界面并把 bypass 作为派发默认值；
+# claudebys 就地起一个 bypass 会话，输入即执行，无中间界面
+alias claudebys='claude --dangerously-skip-permissions'
 
 # lark-cli: 从 ~/.lark-cli-account 读上次切换的账号（lark-switch.sh 写入）
 # 跨机器持久化靠 ccprivate/link/.lark-default-account symlink（auto-sync 上推）
