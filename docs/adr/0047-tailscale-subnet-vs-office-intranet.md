@@ -87,6 +87,7 @@ Find-NetRoute -RemoteIPAddress <单位网关内网IP> | Format-Table IPAddress,I
 ## Related Decisions
 
 - [0019](0019-bridge-win-curl-wsl-vpn.md) — bridge win-curl 双模式（本文档在其之上定位本因，未修改其设计）
+- [0048](0048-gateway-large-body-threshold.md) — 网关 ~200KB 请求体硬阈值（同一次故障的**第二层**根因，排完路由层继续查传输层）
 - [0040](0040-remote-file-transfer-channels.md) — 远程文件传输通道（同为 tailscale + 多网络环境运维）
 - [0046](0046-remote-multi-window-tmux.md) — 多窗口远程会话（同为 WSL/Windows 网络栈协同问题域）
 
