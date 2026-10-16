@@ -434,13 +434,13 @@ switch_llm() {
 
     info "  选定 upstream: $base_url${host_header:+ (host: $host_header)}"
 
-    # 读 use_bridge 标记
-    local use_bridge
-    use_bridge=$(get_use_bridge "$name")
-
-    # 是否走 bridge
-    if [[ "$use_bridge" == "True" ]]; then
-        info "  用户指定 bridge 代理..."
+    # 是否走 bridge：判定来源统一到 preset_bridge_mode（ensure-bridge.sh），
+    # 不再在本函数里重写一套规则（旧版与 test_llm / bridge-restart 各写一份，会漂移）
+    local _mode
+    _mode="$(preset_bridge_mode "$name" "$LLM_MERGED_CACHE")" || _mode="direct"
+    case "$_mode" in
+    bridge)
+        info "  经 bridge 代理（OpenAI-only 端点）..."
         if ensure_bridge "$base_url" "$model" "$key" "$host_header" "$LLM_MERGED_CACHE" "$name"; then
             base_url="http://127.0.0.1:${BRIDGE_PORT}"
             info "  bridge 就绪 → $base_url"
@@ -448,41 +448,52 @@ switch_llm() {
             error "  bridge 启动失败，查 log: tail -30 ~/.cache/openai_bridge.log"
             return 1
         fi
-    elif [[ "$base_url" != *"/anthropic"* ]] && [[ "$base_url" != *"://127.0.0.1"* ]]; then
-        # OpenAI-only 端点
-        if [[ "$use_bridge" == "False" ]]; then
-            # why: use_bridge:false 显式要直连，但 Claude Code 只支持 Anthropic Messages 格式
-            # OpenAI-only URL（如 paas/v4）直连必失败 → 早报错，避免静默走 auto-bridge 违背用户意图
-            error "  base_url '$base_url' 是 OpenAI-only 端点 + use_bridge:false → 不兼容"
-            error "  Claude Code 只支持 Anthropic Messages 格式，直连必失败"
-            error "  修：use_bridge:true 走 bridge / 换含 /anthropic 的 Anthropic 兼容 URL"
-            return 1
-        fi
-        # use_bridge 未显式 False（或缺失）→ 保留旧 auto-bridge 行为
-        info "  OpenAI-only 端点 → 启动 bridge..."
-        if ensure_bridge "$base_url" "$model" "$key" "$host_header" "$LLM_MERGED_CACHE" "$name"; then
-            base_url="http://127.0.0.1:${BRIDGE_PORT}"
-            info "  bridge 就绪 → $base_url"
-        else
-            error "  bridge 启动失败，查 log: tail -30 ~/.cache/openai_bridge.log"
-            return 1
-        fi
-    else
+        ;;
+    conflict)
+        # use_bridge:false 显式要直连，但 Claude Code 只支持 Anthropic Messages 格式，
+        # OpenAI-only URL（如 paas/v4）直连必失败 → 早报错，避免静默走 bridge 违背用户意图
+        error "  base_url '$base_url' 是 OpenAI-only 端点 + use_bridge:false → 不兼容"
+        error "  Claude Code 只支持 Anthropic Messages 格式，直连必失败"
+        error "  修：use_bridge:true 走 bridge / 换含 /anthropic 的 Anthropic 兼容 URL"
+        return 1
+        ;;
+    *)
         # 直连 → 停 bridge（如有）
         stop_bridge
-    fi
+        ;;
+    esac
 
     info "切换到: $name"
+
+    # llm-current 必须早于 test_llm 落盘：上面的 ensure_bridge 已经把 bridge 换成新
+    # upstream，而 llm-current 还是旧 preset —— 这个窗口内 bridge 一旦死掉，watchdog
+    # 会按**旧** preset 把它复活；等 settings.json 写完，就变成「会话指向 8898、桥跑的
+    # 却是上一个上游」，全程无任何告警。先写 + 探测失败再回滚，语义与原来等价。
+    local _prev_cur
+    _prev_cur="$(read_local_current 2>/dev/null || true)"
+    mkdir -p "$(dirname "$LOCAL_CURRENT_FILE")"
+    printf '%s' "$name" > "$LOCAL_CURRENT_FILE"
 
     # 真实链路探测：test_llm 会走 bridge（若需要）+ 流式请求 + 完整判据。
     # 探测不通过就中止切换，避免切到一个实际跑不通的配置。
     test_llm "$name" || {
         warn "流式链路探测未通过，切换中止（settings.json 未改动）"
+        # 回滚提前写的 llm-current，否则 selfheal 会按新 preset 重拉，
+        # 而 settings.json 仍指向原 preset 的 127.0.0.1:8898
+        if [[ -n "$_prev_cur" ]]; then
+            printf '%s' "$_prev_cur" > "$LOCAL_CURRENT_FILE"
+        else
+            rm -f "$LOCAL_CURRENT_FILE"
+        fi
         # 上面已 stop_bridge 或 ensure_bridge 换过上游，而 settings.json 仍指向
         # 原 preset 的 127.0.0.1:8898 —— 不回滚就是「bridge 已死 + 会话指向它」，
         # 当前会话立刻不可用。selfheal 按 llm-current（未改动）重拉原 upstream。
-        if selfheal_bridge "$LLM_MERGED_CACHE"; then
+        local _heal_rc=0
+        selfheal_bridge "$LLM_MERGED_CACHE" || _heal_rc=$?
+        if [[ "$_heal_rc" == "0" ]]; then
             info "  已恢复原 preset 的 bridge"
+        elif [[ "$_heal_rc" == "10" ]]; then
+            info "  原 preset 不需要 bridge，无需恢复"
         else
             warn "  原 bridge 恢复失败，跑: bash maintain.sh llm heal"
         fi
@@ -623,13 +634,10 @@ test_llm() {
 
     # 走 Claude Code 真实路径：走 bridge 的 preset 必须经 bridge 测，否则测的是上游
     # 直连（能通）而非 bridge 转换链路（真正会挂的地方）
-    local use_bridge need_bridge=0
-    use_bridge=$(get_use_bridge "$target")
-    if [[ "$use_bridge" == "True" ]]; then
-        need_bridge=1
-    elif [[ "$use_bridge" != "False" && "$base_url" != *"/anthropic"* && "$base_url" != *"://127.0.0.1"* ]]; then
-        need_bridge=1
-    fi
+    # 判定来源统一到 preset_bridge_mode（见 ensure-bridge.sh），与 switch_llm 同源
+    local need_bridge=0 _mode
+    _mode="$(preset_bridge_mode "$target" "$LLM_MERGED_CACHE")" || _mode="direct"
+    [[ "$_mode" == "bridge" ]] && need_bridge=1
 
     local probe_url expect resolve_args=""
     if (( need_bridge )); then
@@ -1411,9 +1419,15 @@ main() {
         merge)       _llms_merged_py >/dev/null ;;
         sync)        sync_top_model ;;
         heal)
-            selfheal_bridge "$LLM_MERGED_CACHE" \
-                && success "bridge 健康" \
-                || error "bridge 自愈失败"
+            # 三态：0=真检查过且健康/已恢复；10=当前 preset 不走 bridge（跳过，
+            # 旧版把这种情况也报成"失败"或"健康"，两个方向都是错的）
+            local _rc=0
+            selfheal_bridge "$LLM_MERGED_CACHE" || _rc=$?
+            case "$_rc" in
+                0)  success "bridge 健康或已恢复" ;;
+                10) info "当前 preset 不走 bridge，无需自愈" ;;
+                *)  error "bridge 自愈失败" ;;
+            esac
             ;;
         "")          interactive_select ;;
         *)
