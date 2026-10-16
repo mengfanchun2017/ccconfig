@@ -761,6 +761,7 @@ _bridge_cold_start() {
             source "$SCRIPT_DIR/ensure-bridge.sh"
             bridge_state_check "$cfg" >/dev/null 2>&1 || \
                 echo -e "  ${YELLOW}⚠${NC} bridge 运行态不一致 — 修: ${CYAN}bash maintain.sh fix${NC}"
+            _tailscale_guard_report_line "$cfg"
             return 0
         fi
     fi
@@ -771,6 +772,31 @@ _bridge_cold_start() {
     if ! bridge_state_check "$cfg" >/dev/null 2>&1; then
         echo -e "  ${YELLOW}⚠${NC} bridge 运行态不一致（孤儿/未拉起/无守护）— 修: ${CYAN}bash maintain.sh fix${NC}"
     fi
+    _tailscale_guard_report_line "$cfg"
+}
+
+# tailscale accept-routes 风险一行提示（只报不修：SessionStart 该轻量）。
+# 仅当「tailscale 在跑 + accept-routes=true + upstream 是内网型」才提示 —— 其余静默，
+# 避免每次会话启动都刷一行无关内容。
+_tailscale_guard_report_line() {
+    local cfg="${1:-$HOME/.cache/llm-merged.json}"
+    [[ -f "$SCRIPT_DIR/tailscale-guard.sh" ]] || return 0
+    source "$SCRIPT_DIR/tailscale-guard.sh"
+    tailscale_available || return 0
+    _tailscale_accept_routes || return 0        # 已关，无需提示
+    local url="" hh=""
+    if [[ -f "$HOME/.claude/llm-current" && -f "$cfg" ]]; then
+        IFS=$'\t' read -r url hh < <(python3 -c "
+import json
+try:
+    d=json.load(open('$cfg')); p=open('$HOME/.claude/llm-current').read().strip()
+    l=d.get('llms',{}).get(p,{})
+    print((l.get('base_url','') or '')+'\t'+(l.get('host_header','') or ''))
+except Exception: print('\t')
+")
+    fi
+    _upstream_is_private_intranet "$url" "$hh" || return 0
+    echo -e "  ${YELLOW}⚠${NC} tailscale accept-routes 开启 + 内网 upstream → 黑洞风险 — 修: ${CYAN}bash lib/tailscale-guard.sh fix${NC}"
 }
 
 # ========== 执行所有检查 ==========
