@@ -1,9 +1,11 @@
 # 0019. OpenAI bridge 三层修复：WSL 网络栈隔离 + DNS 污染 + ARG_MAX 溢出
 
-> **Status**: ✅ Accepted
+> **Status**: ✅ Accepted（⚠️ 正文与当前代码有漂移，见下方「代码漂移提示」）
 > **日期**: 2026-08-14
 > **关联**: `lib/ensure-bridge.sh`、`option-llmswitch/openai_bridge.py`、`conf/llm.json`
 > **模板**: MADR 4.0 极简版
+
+> ⚠️ **代码漂移提示（2026-10-16 核实）**：下文 §Decision 第 1 项「PowerShell DNS 预解析」与第 3 项前半「WSL 网络可达性 5s 探测」在当前代码中**已不存在**（`lib/` 与 `option-llmswitch/` 全仓 grep 无命中）。win-curl 启用条件现为 `lib/ensure-bridge.sh` 中对 upstream **字面 IP** 的私网段正则匹配，因此域名形式的上游拿不到 Windows 侧通路（见 [0047](0047-tailscale-subnet-vs-office-intranet.md) 的 Considered Options 2）。§Decision 第 4 项 stdin pipe 喂 body 仍然有效。
 
 ## Context and Problem Statement
 
