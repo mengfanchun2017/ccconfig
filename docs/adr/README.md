@@ -56,7 +56,7 @@
 | [0045](0045-llm-context-window-config.md) | LLM 上下文窗口可配置 — 预设 `max_context_tokens`（单位 k）+ 菜单/CLI 输入 + 全局默认 + 内置薄覆盖 | 2026-10-13 | ✅ Accepted | LLM 管理 |
 | [0046](0046-remote-multi-window-tmux.md) | 远程多窗口连接 — Tailscale SSH + tmux（`new -A -s` 复用 session）+ PowerShell 客户端封装；多连接用不同 `-s` 名各自独立 | 2026-10-14 | ✅ Accepted | — |
 | [0047](0047-tailscale-subnet-vs-office-intranet.md) | 开发机不做 tailscale subnet router — subnet 模式抢走单位内网路由致 office* LLM 慢/报错（DNS 通 + TCP `conn=0` 黑洞判据）；先查 `Find-NetRoute` 而非 bridge | 2026-10-16 | ✅ Accepted | — |
-| [0048](0048-wsl-large-upload-stall.md) | WSL2 大 body 上传断流（>200KB 挂死）— 限 WSL 栈非网关：加 `force_win_curl` opt-in + 复用分支比对传输栈；附归因方法论（对照组须正交） | 2026-10-16 | ✅ Accepted | — |
+| [0048](0048-wsl-large-upload-stall.md) | ⚠️ 证伪：「WSL2 大 body 断流」实为超时误判 — 各传输栈均 ~90s，瓶颈是网关后端 ~3.3KB/s；撤销 force_win_curl，附「失败须先确证是真失败」归因教材 | 2026-10-16 | ⚠️ 原结论已推翻 | — |
 | [0049](0049-auto-mode-discards-allow-rules.md) | auto 模式丢弃宽泛 allow 规则（`Bash(*)` 在 auto 下失效 → 一切命令送分类器被拦）→ 改 `bypassPermissions` + 补全 allowlist；新增 `claudebys` 别名 | 2026-10-16 | ✅ Accepted | — |
 
 > **编号 0024 / 0025 未使用**：编号永不重用（见[命名约定](#命名约定)），这两号在 0023 之后被跳过、没有对应文件，也没有正文引用。新增 ADR 从**当前最大号 +1** 起，不要去填这个空档。
