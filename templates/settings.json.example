@@ -14,16 +14,36 @@
     "permissions": {
         "allow": [
             "Bash(*)",
-            "Edit(**/*)",
-            "Read(**/*)",
+            "Edit",
+            "Write",
+            "Read",
+            "Glob",
+            "Grep",
+            "NotebookEdit",
             "WebFetch",
             "Skill(*)",
-            "Agent"
+            "Agent",
+            "TodoWrite",
+            "TaskCreate",
+            "TaskGet",
+            "TaskList",
+            "TaskUpdate",
+            "TaskOutput",
+            "TaskStop",
+            "Workflow",
+            "ToolSearch",
+            "Cd",
+            "EnterWorktree",
+            "ExitPlanMode",
+            "mcp__tavily",
+            "mcp__exa",
+            "mcp__mineru",
+            "mcp__playwright"
         ],
         "deny": [
             "WebSearch"
         ],
-        "defaultMode": "auto"
+        "defaultMode": "bypassPermissions"
     },
     "hooks": {
         "SessionStart": [
