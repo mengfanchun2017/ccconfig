@@ -751,6 +751,10 @@ _bridge_cold_start() {
     [[ -f "$cfg" ]] || return 0
     source "$SCRIPT_DIR/ensure-bridge.sh"
     selfheal_bridge "$cfg" || true
+    # 运行态一致性只报不修：SessionStart 该轻量，修走 `bash maintain.sh fix`
+    if ! bridge_state_check "$cfg" >/dev/null 2>&1; then
+        echo -e "  ${YELLOW}⚠${NC} bridge 运行态不一致（孤儿/未拉起/watchdog 失效）— 修: ${CYAN}bash maintain.sh fix${NC}"
+    fi
 }
 
 # ========== 执行所有检查 ==========

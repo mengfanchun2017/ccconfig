@@ -325,7 +325,19 @@ PYEOF
     section "6. LLM 当前选择"
     check_llm_current || true
 
-    section "7. auto-sync 与运行依赖"
+    section "7. bridge 运行态一致性"
+    # 三类不一致旧版完全无人检查：孤儿 bridge（切直连后残留，白占端口）、
+    # 该起没起、bridge 在跑但 watchdog 已失效（挂了不会自愈）。--fix 直接修。
+    local _mcfg="$HOME/.cache/llm-merged.json"
+    [[ -f "$_mcfg" ]] || bash "$LIB_DIR/init-llm.sh" merge >/dev/null 2>&1 || true
+    if [[ -f "$_mcfg" ]]; then
+        source "$LIB_DIR/ensure-bridge.sh"
+        bridge_state_check --fix "$_mcfg" && ok "bridge 与当前 preset 一致"
+    else
+        info "  无 merged 缓存，跳过"
+    fi
+
+    section "8. auto-sync 与运行依赖"
     # 已在跑就别再 enable —— enable 会重装系统级 systemd unit（要 sudo）。
     # 一键恢复里弹 sudo 认证很烦，而且非 tty（CI/脚本）下必然失败报错。
     # 先取变量再比，不要写成 `... | grep -q`：grep -q 一匹配就关管道，

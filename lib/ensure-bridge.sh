@@ -100,6 +100,93 @@ stop_bridge_watchdog() {
     done
 }
 
+# bridge 运行态一致性检查（只读报告 + 可选修复）。
+# 返回 0=一致  1=有不一致
+# 用法: bridge_state_check [--fix] [<merged_cfg>]
+#
+# 覆盖三类旧版无人检查的不一致：
+#   ① bridge 在跑但当前 preset 是直连（切走后残留的孤儿，占用端口并可能被误连）
+#   ② 当前 preset 需要 bridge 但它没在跑
+#   ③ bridge 在跑但没有有效 watchdog（bridge 挂掉不会自动拉起）
+bridge_state_check() {
+    local fix=0 cfg=""
+    local a
+    for a in "$@"; do
+        case "$a" in
+            --fix) fix=1 ;;
+            *) [[ -n "$a" ]] && cfg="$a" ;;
+        esac
+    done
+    local port="${BRIDGE_PORT:-8898}"
+    local running=0
+    curl -s --max-time 2 "http://127.0.0.1:${port}/health" >/dev/null 2>&1 && running=1
+
+    local cur=""
+    [[ -f "$HOME/.claude/llm-current" ]] && cur="$(tr -d '[:space:]' < "$HOME/.claude/llm-current")"
+    local mode=""
+    if [[ -n "$cur" && -n "$cfg" && -f "$cfg" ]]; then
+        mode="$(preset_bridge_mode "$cur" "$cfg" 2>/dev/null)" || mode=""
+    fi
+
+    local problems=0
+    if (( running )) && [[ "$mode" == "direct" ]]; then
+        warn "bridge($port) 在跑，但当前 preset '${cur:-?}' 是直连 → 孤儿进程"
+        problems=1
+        if (( fix )); then
+            stop_bridge_watchdog >/dev/null 2>&1 || true
+            _kill_by_port "$port"
+            ok "  已停用孤儿 bridge 与 watchdog"
+            running=0   # 必须就地更新：后面判断 watchdog 若还用旧值，会给一个已被
+                        # 停掉的 bridge 起 watchdog，而它随后会按直连 preset 空转
+        fi
+    fi
+    if (( ! running )) && [[ "$mode" == "bridge" ]]; then
+        warn "当前 preset '$cur' 需要 bridge，但 bridge($port) 没在跑"
+        problems=1
+        if (( fix )); then
+            local bc up model key hh
+            bc="$(read_bridge_config "$cfg" "$cur" 2>/dev/null)" || bc=""
+            IFS='|' read -r up model key hh <<< "$bc"
+            if [[ -n "$up" ]] && ensure_bridge "$up" "$model" "$key" "$hh" "$cfg" "$cur" >/dev/null 2>&1; then
+                ok "  已拉起 bridge"
+                running=1
+            else
+                warn "  拉起失败 — tail -30 ~/.cache/openai_bridge.log"
+            fi
+        fi
+    fi
+    # watchdog 只在「确实该有 bridge 且它正在跑」时才有意义
+    if (( running )) && [[ "$mode" == "bridge" ]]; then
+        local wd=""
+        [[ -f "$BRIDGE_WD_PID" ]] && wd="$(tr -d '[:space:]' < "$BRIDGE_WD_PID")"
+        if [[ -z "$wd" ]] || ! kill -0 "$wd" 2>/dev/null; then
+            warn "bridge 在跑但没有有效 watchdog — 它挂掉后不会自动拉起"
+            problems=1
+            if (( fix )); then
+                start_bridge_watchdog "$cfg" "$cur" >/dev/null 2>&1 || true
+                ok "  已重启 watchdog"
+            fi
+        fi
+    fi
+    # --fix 之后按修完的实态重算：已修好的项不该继续算作"遗留问题"，
+    # 否则 `fix && ok` 永远不成立，调用方无法区分"修好了"和"没修好"
+    if (( fix )); then
+        problems=0
+        running=0
+        curl -s --max-time 2 "http://127.0.0.1:${port}/health" >/dev/null 2>&1 && running=1
+        [[ "$mode" == "direct" ]] && (( running )) && problems=1
+        [[ "$mode" == "bridge" ]] && (( ! running )) && problems=1
+        if [[ "$mode" == "bridge" ]] && (( running )); then
+            local _wd2=""
+            [[ -f "$BRIDGE_WD_PID" ]] && _wd2="$(tr -d '[:space:]' < "$BRIDGE_WD_PID")"
+            { [[ -z "$_wd2" ]] || ! kill -0 "$_wd2" 2>/dev/null; } && problems=1
+        fi
+    fi
+    (( problems )) && return 1
+    return 0
+}
+
+
 _bridge_supported() {
     local upstream="$1"
     [[ -z "$upstream" ]] && return 1
