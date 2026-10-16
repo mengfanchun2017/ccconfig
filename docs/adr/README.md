@@ -59,6 +59,7 @@
 | [0048](0048-wsl-large-upload-stall.md) | ⚠️ 证伪：「WSL2 大 body 断流」实为超时误判 — 各传输栈均 ~90s，瓶颈是网关后端 ~3.3KB/s；撤销 force_win_curl，附「失败须先确证是真失败」归因教材 | 2026-10-16 | ⚠️ 原结论已推翻 | — |
 | [0049](0049-auto-mode-discards-allow-rules.md) | auto 模式丢弃宽泛 allow 规则（`Bash(*)` 在 auto 下失效 → 一切命令送分类器被拦）→ 改 `bypassPermissions` + 补全 allowlist；新增 `claudebys` 别名 | 2026-10-16 | ✅ Accepted | — |
 | [0050](0050-bridge-structural-refactor.md) | bridge 结构性重构 — 传输/协议分离、判定单点化（4份→1）、spawn 共用（setsid 取代 /tmp wrapper，不再落明文 Key）、协议层 8 类缺陷修复 + 新增 26 项单测 | 2026-10-16 | ✅ Accepted | — |
+| [0051](0051-tailscale-accept-routes-blackholes-office-intranet.md) | tailscale accept-routes 让单位内网变黑洞（0047 的反向：查了 AdvertiseRoutes 漏了 RouteAll）— 新增 `lib/tailscale-guard.sh` 按 preset 自动关 accept-routes，接入 switch_llm / maintain fix / status / option-remote | 2026-10-16 | ✅ Accepted | — |
 
 > **编号 0024 / 0025 未使用**：编号永不重用（见[命名约定](#命名约定)），这两号在 0023 之后被跳过、没有对应文件，也没有正文引用。新增 ADR 从**当前最大号 +1** 起，不要去填这个空档。
 >

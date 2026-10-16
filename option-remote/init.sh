@@ -216,6 +216,14 @@ local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
         echo "  断开: Ctrl+B D（进程保持）"
         echo "  重连: ssh ...（自动 attach tmux）"
     fi
+
+    # accept-routes 防护：启用了 tailscale 远程访问的机器，若同时要直连单位内网
+    # LLM（office* 型 preset），accept-routes 会把内网流量拐进隧道形成黑洞（ADR 0051）。
+    # 这里按当前 preset 判定并按需关闭，避免"开完 tailscale 后 office* 就挂"。
+    local _tg="$SCRIPT_DIR/../lib/tailscale-guard.sh"
+    if [ -f "$_tg" ]; then
+        bash "$_tg" fix 2>/dev/null || true
+    fi
 }
 
 # ── 入口 ──
