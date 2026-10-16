@@ -25,8 +25,14 @@ source "$CCCONFIG_ROOT/lib/ensure-bridge.sh"
 
 cfg="${1:-}"
 [[ -z "$cfg" || ! -f "$cfg" ]] && exit 2   # 缓存缺失：重试无意义
-preset="${2:-}"
-[[ -z "$preset" ]] && preset="$( [[ -f "$HOME/.claude/llm-current" ]] && tr -d '[:space:]' < "$HOME/.claude/llm-current" || true )"
+
+# preset 解析：**llm-current 优先，$2 只作兜底**。
+# why 不能反过来（$2 优先）：supervisor 是长驻进程，它的 $2 是「启动那一刻」的 preset。
+#     若 $2 覆盖 llm-current，用户切 preset 后 supervisor 仍拿旧 preset 重启 bridge，
+#     把刚选的覆盖掉（症状：切到新 preset 却仍连旧上游，且探测"通过"是假阳性）。
+#     $2 仅在 llm-current 缺失时兜底（冷启动早期）。
+preset="$( [[ -f "$HOME/.claude/llm-current" ]] && tr -d '[:space:]' < "$HOME/.claude/llm-current" || true )"
+[[ -z "$preset" ]] && preset="${2:-}"
 [[ -z "$preset" ]] && exit 2   # 无 preset 可拉起：等 llm-current 被写入
 
 # 接入模式：与 switch_llm / test_llm 同源，不再自写一份
