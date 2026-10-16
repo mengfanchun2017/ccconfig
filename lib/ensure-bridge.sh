@@ -161,10 +161,13 @@ except Exception:
         cur_model=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream_model',''))" 2>/dev/null || echo "")
         cur_wc=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('use_win_curl',False))" 2>/dev/null || echo "")
         if [[ "$cur_upstream" == "$upstream" && "$cur_model" == "$model" ]]; then
-            # 传输栈也要比：upstream/model 都对但 win_curl 跑偏时复用旧 bridge，
-            # 症状是「大 context 必挂」且改配置无效（health 看着一切正常）
-            if [[ -n "$win_curl" && "$cur_wc" != "True" ]]; then
-                info "  win_curl 期望启用但当前关闭，重启 bridge..."
+            # 传输栈也要比，且必须**双向**比：只查「期望开、实际关」会漏掉反向
+            # （运行中的 win_curl 残留时换了不该用它上游 → 上游只在 WSL 可达就挂）。
+            # 两边任一不符都重启，判据是 health 里的 use_win_curl。
+            local want_wc="False"
+            [[ -n "$win_curl" ]] && want_wc="True"
+            if [[ -n "$cur_wc" && "$cur_wc" != "$want_wc" ]]; then
+                info "  win_curl 模式不符（期望 $want_wc，实际 $cur_wc），重启 bridge..."
             else
                 start_bridge_watchdog "$cfg" "$preset"
                 return 0
