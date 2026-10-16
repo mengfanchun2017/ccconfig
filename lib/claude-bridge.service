@@ -1,0 +1,24 @@
+[Unit]
+Description=Claude Code OpenAI Bridge (Anthropic<->OpenAI 协议适配, port 8898)
+# 本文件是模板：路径占位符由 bridge-service.sh 安装时按本机实际路径替换
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=<CCCONFIG_ROOT>
+Environment=PATH=<HOME>/.local/bin:/usr/local/bin:/usr/bin:/bin
+# 代理变量显式清空：bridge 是内网直连，继承到死的 http_proxy 会把它导向不可达的代理
+Environment=HTTP_PROXY=
+Environment=HTTPS_PROXY=
+Environment=ALL_PROXY=
+ExecStart=/bin/bash <CCCONFIG_ROOT>/lib/bridge-supervisor.sh <HOME>/.cache/llm-merged.json
+# on-failure 而非 always：supervisor 在「当前 preset 直连」时主动 exit 0，
+# 用 always 会立刻把它拉起来再退出 → 无谓的重启风暴。异常退出才重启。
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:<HOME>/.cache/claude-bridge-service.log
+StandardError=append:<HOME>/.cache/claude-bridge-service.log
+
+[Install]
+WantedBy=default.target

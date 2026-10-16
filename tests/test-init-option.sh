@@ -33,17 +33,24 @@ echo "=== Test 2: shebang + 可执行 ==="
 head -1 "$OPT" | grep -q "^#!/bin/bash" && pass "bash shebang" || fail "wrong shebang"
 [ -x "$OPT" ] && pass "executable" || fail "not executable"
 
-# ── Test 3: 交互菜单退出逻辑（多选解析：取消 → break） ──
-echo "=== Test 3: 菜单退出逻辑 ==="
+# ── Test 3: 交互菜单退出逻辑（按键式：0/q 取消，a 全装，编号只给组件） ──
+echo "=== Test 3: 菜单退出/全装按键 ==="
 if grep -q '\[\[ "\$saw_cancel" == "1" \]\]' "$OPT" && grep -q 'saw_cancel=1' "$OPT"; then
-    pass "cancel/退出(0/exit_idx) → saw_cancel → break"
+    pass "cancel(0/q) → saw_cancel → break"
 else
     fail "取消逻辑应置 saw_cancel 并 break"
 fi
-if grep -q 'exit_idx' "$OPT" && ! grep -q 'exit_idx.*&& continue' "$OPT"; then
-    pass "无 exit_idx && continue 反模式"
+if grep -qE '^[[:space:]]*(0\|q\|Q)\)[[:space:]]*saw_cancel=1' "$OPT" && \
+   grep -qE '^[[:space:]]*(a\|A)\)[[:space:]]*saw_all=1' "$OPT"; then
+    pass "0/q=取消, a=全部安装（按键式，不占编号）"
 else
-    fail "exit_idx 行仍用 continue"
+    fail "缺少 0/q 取消 或 a 全装 的按键分支"
+fi
+# 编号只留给组件：不再有 all_idx/exit_idx 占位行
+if ! grep -q 'all_idx\|exit_idx' "$OPT"; then
+    pass "无 all_idx/exit_idx 占位（编号只给组件）"
+else
+    fail "仍有 all_idx/exit_idx 占位行"
 fi
 
 # ── Test 4: --dry-run 入口解析 ──
