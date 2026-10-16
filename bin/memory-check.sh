@@ -4,7 +4,7 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MEMORY_DIR="$HOME/.claude/projects/-$(echo "$HOME/git" | sed 's|^/||; s|/|-|g')/memory"
+MEMORY_DIR="$HOME/.claude/projects/-$(echo "$HOME/git/ccconfig" | sed 's|^/||; s|/|-|g')/memory"
 INDEX="$MEMORY_DIR/MEMORY.md"
 NOW=$(date +%s)
 
@@ -28,18 +28,18 @@ for md in "$MEMORY_DIR"/*.md; do
   # Determine staleness
   if [[ $age_days -gt 180 ]]; then
     status="⚠️  STALE"
-    ((stale++))
+    stale=$((stale + 1))
   else
     [[ "${1:-}" == "--stale-only" ]] && continue
     status="✅"
-    ((fresh++))
+    fresh=$((fresh + 1))
   fi
 
   # Orphan check
   orphan_mark=""
   if ! grep -qF "($fname)" "$INDEX" 2>/dev/null; then
     orphan_mark=" [ORPHAN]"
-    ((orphan++))
+    orphan=$((orphan + 1))
   fi
 
   printf "  %s  %4dd  %s%s\n" "$status" "$age_days" "$fname" "$orphan_mark"

@@ -420,9 +420,18 @@ check_feishu() {
             echo -e "${YELLOW}○${NC} 未配置"
         fi
 
-        # 检查授权
+        # 检查授权：config 里残留 users 字段 ≠ token 有效，须查 auth status 的 user.available
         echo -n "  授权 ... "
-        if LARKSUITE_CLI_CONFIG_DIR="$_lark_config_dir" lark-cli config show 2>/dev/null | grep -q "users"; then
+        local _auth_json
+        _auth_json=$(LARKSUITE_CLI_CONFIG_DIR="$_lark_config_dir" lark-cli auth status 2>/dev/null || true)
+        if echo "$_auth_json" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+sys.exit(0 if d.get('identities', {}).get('user', {}).get('available') else 1)
+" 2>/dev/null; then
             echo -e "${GREEN}✅${NC}"
         else
             echo -e "${YELLOW}○${NC} 未授权"
