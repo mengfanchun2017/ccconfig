@@ -19,7 +19,14 @@ set -uo pipefail
 
 CCCONFIG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# 端口解析与 ensure-bridge.sh 同源（本脚本不 source 它：那是函数库，顶层有逻辑）。
+# mirrored 多发行版并存时各发行版需不同端口，见 ensure-bridge.sh 顶部说明。
+_bridge_port_file="$HOME/.claude/bridge-port"
+if [[ -z "${BRIDGE_PORT:-}" && -r "$_bridge_port_file" ]]; then
+    BRIDGE_PORT="$(tr -d '[:space:]' < "$_bridge_port_file")"
+fi
 BRIDGE_PORT="${BRIDGE_PORT:-8898}"
+unset _bridge_port_file
 BRIDGE_WD_PID="${BRIDGE_WD_PID:-$HOME/.cache/bridge-watchdog.pid}"
 BRIDGE_WD_LOG="${BRIDGE_WD_LOG:-$HOME/.cache/bridge-watchdog.log}"
 
