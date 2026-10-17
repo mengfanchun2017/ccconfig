@@ -26,6 +26,31 @@ export PATH="$(find_node_bin):${HOME}/.local/bin:$PATH"
 export LARK_CLI_NO_PROXY=1
 
 
+# ========== 授权状态 ==========
+# 唯一可信字段是 auth status 的 identities.user.available。
+# ❌ 别用 tokenStatus —— auth status 不返回它（那是 auth list 的字段），
+#    grep 它永远落空 → 永远判「未授权」→ 每次跑都强制重授权。
+#    $1 = LARKSUITE_CLI_CONFIG_DIR（可选，默认取当前 env）
+#    rc=0 已授权 / rc=1 未授权
+lark_user_ready() {
+    local cfg="${1:-${LARKSUITE_CLI_CONFIG_DIR:-}}"
+    local raw
+    if [ -n "$cfg" ]; then
+        raw=$(LARKSUITE_CLI_CONFIG_DIR="$cfg" lark-cli auth status 2>/dev/null || true)
+    else
+        raw=$(lark-cli auth status 2>/dev/null || true)
+    fi
+    [ -z "$raw" ] && return 1
+    printf '%s' "$raw" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+sys.exit(0 if d.get('identities', {}).get('user', {}).get('available') else 1)
+" 2>/dev/null
+}
+
 # ========== JSON 读取 ==========
 get_apps() {
     python3 - "$FEISHU_CONF" << 'PYEOF' 2>/dev/null
@@ -104,7 +129,7 @@ setup_lark_cli_account() {
     if [ -f "$cf" ]; then
         good "  ✓ ${name}"
         # 检测 auth，未授权则自动拉起
-        if ! lark-cli auth status 2>/dev/null | grep -q "tokenStatus.*valid"; then
+        if ! lark_user_ready "$config_dir"; then
             warn "    ○ 待授权，自动发起 OAuth 授权..."
             _do_auth_login "$config_dir" "$name"
         fi
@@ -114,7 +139,7 @@ setup_lark_cli_account() {
     echo "$app_secret" | lark-cli config init --app-id "$app_id" --app-secret-stdin --brand "$brand" 2>&1 && good "✅" || bad "❌"
     # 配置完成后检测 auth
     if [ -f "$cf" ]; then
-        if ! lark-cli auth status 2>/dev/null | grep -q "tokenStatus.*valid"; then
+        if ! lark_user_ready "$config_dir"; then
             echo ""
             warn "  ○ 配置完成，需 OAuth 授权"
             _do_auth_login "$config_dir" "$name"
@@ -155,7 +180,7 @@ _do_auth_login() {
 
     lark-cli auth login --device-code "$device_code" 2>&1 | grep -v '^\[lark-cli\]' | grep -v 'AI agent' | grep -v '此命令最长' | grep -v '不要在同一轮' | grep -v '必须生成二维码' | grep -v '**MUST' | grep -v '**CRITICAL' | grep -v '**Display' | grep -v '**URL Output' | grep -v 'For agent' | grep -v '等待用户' | grep -v '必须调用' | grep -v '优先生成' | grep -v '生成后必须' | grep -v '仅生成文件'
 
-    if lark-cli auth status 2>/dev/null | grep -q "tokenStatus.*valid"; then
+    if lark_user_ready "$config_dir"; then
         good "  ✅ ${name} OAuth 授权成功"
     else
         warn "  ○ 授权未完成，稍后可手动执行:"
@@ -421,7 +446,7 @@ print('true' if any(is_ph(a.get('appId','')) or is_ph(a.get('appSecret','')) for
 " 2>/dev/null || echo "false")
     fi
 
-    # 检查用户 OAuth 授权态（tokenStatus valid 才算）
+    # 检查用户 OAuth 授权态（真 token 才算，见 lark_user_ready 注释）
     local auth_state="未授权"
     if [ -n "$acct" ] && [ "$acct" != "-" ]; then
         local acct_dir
