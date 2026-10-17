@@ -215,6 +215,7 @@ ccconfig/
 ├── bin/refresh-gh-auth.sh    # 刷新 fine-grained PAT
 ├── bin/test-bootstrap.sh     # 启动引导自检
 ├── bin/memory-check.sh       # Memory 过期检查
+├── bin/check-context-budget.sh  # rules 预算实测（超限非零退出）
 ├── hooks/pre-commit          # 防私密文件误提交
 ├── tests/                    # 自动化测试（mock 隔离，零网络）
 ├── docs/                     # 设计文档 + ADR（docs/adr/）
