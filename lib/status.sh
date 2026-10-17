@@ -168,7 +168,20 @@ PY
     # rules (条件规则)
     if [ -L "$HOME/.claude/rules" ] && [ -d "$HOME/.claude/rules" ]; then
         local rule_count=$(ls "$HOME/.claude/rules/"*.md 2>/dev/null | wc -l)
-        echo -e "  ${GREEN}✅${NC} rules ($rule_count 个)"
+        # 预算检查：超限报 warning（手写数字必漂移，故实测）
+        local budget_line=""
+        if [ -x "$CCCONFIG_ROOT/bin/check-context-budget.sh" ]; then
+            local _b_always _b_total
+            _b_always=$(bash "$CCCONFIG_ROOT/bin/check-context-budget.sh" --json 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)['always_kb'])" 2>/dev/null || true)
+            _b_total=$(bash "$CCCONFIG_ROOT/bin/check-context-budget.sh" --json 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)['total_kb'])" 2>/dev/null || true)
+            if bash "$CCCONFIG_ROOT/bin/check-context-budget.sh" --quiet >/dev/null 2>&1; then
+                [ -n "$_b_always" ] && budget_line=" ${GRAY}[${_b_always}/${_b_total}KB]${NC}"
+            else
+                budget_line=" ${YELLOW}⚠ 预算超限${NC}"
+                issues=$((issues + 1))
+            fi
+        fi
+        echo -e "  ${GREEN}✅${NC} rules ($rule_count 个)${budget_line}"
     else
         echo -e "  ${YELLOW}○${NC} rules (未链接)"
         issues=$((issues + 1))
