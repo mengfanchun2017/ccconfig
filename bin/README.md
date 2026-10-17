@@ -9,6 +9,7 @@
 | `test-bootstrap.sh` | 新机引导自检（WSL 内单跑） |
 | `test-bootstrap.ps1` | 同上，Windows PowerShell 侧入口 |
 | `memory-check.sh` | MEMORY.md 过期/孤立条目检测 |
+| `check-context-budget.sh` | rules context 预算实测（always-loaded <15KB / 总计 <20KB，超限 rc=1；`--quiet`/`--json`） |
 
 与 `lib/` 的区别：
 - `bin/` — 用户交互工具
