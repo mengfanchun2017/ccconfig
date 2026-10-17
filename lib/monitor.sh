@@ -840,11 +840,12 @@ status_watch() {
         echo -e "${YELLOW}未配置${NC}"
     fi
 
-    # Bridge (8898) — 仅在 settings.json 指向 bridge 时检查
-    if grep -q '127.0.0.1:8898' "$HOME/.claude/settings.json" 2>/dev/null; then
-        echo -n "  Bridge (8898) ... "
-        if curl -s --max-time 2 http://127.0.0.1:8898/health >/dev/null 2>&1; then
-            local up=$(curl -s --max-time 1 http://127.0.0.1:8898/health 2>/dev/null | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
+    # Bridge — 端口用 BRIDGE_PORT（mirrored 多发行版并存时各发行版不同，见 ensure-bridge.sh）
+    local bport="${BRIDGE_PORT:-8898}"
+    if grep -q "127.0.0.1:${bport}" "$HOME/.claude/settings.json" 2>/dev/null; then
+        echo -n "  Bridge (${bport}) ... "
+        if curl -s --max-time 2 "http://127.0.0.1:${bport}/health" >/dev/null 2>&1; then
+            local up=$(curl -s --max-time 1 "http://127.0.0.1:${bport}/health" 2>/dev/null | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('upstream_model','?'))" 2>/dev/null || echo "?")
             echo -e "${GREEN}✅${NC} → $up"
         else
             echo -e "${RED}❌${NC} — bash init-llm.sh heal"

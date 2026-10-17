@@ -8,7 +8,17 @@
 # 依赖: 调用方已 source lib/colors.sh（info/warn）
 
 CCCONFIG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BRIDGE_PORT=8898
+# 可被覆盖：mirrored 网络模式下同一台 Windows 上的多个 WSL 发行版**共享 localhost**，
+# 都用 8898 会互抢端口（后起者 EADDRINUSE，watchdog 却看到"健康"—— 那是别人的桥，
+# 于是静默借用对方 upstream）。优先级：env BRIDGE_PORT > ~/.claude/bridge-port > 8898。
+# 文件路径与 ~/.claude/llm-current 同惯例；文件方式更稳（settings.json env 不保证
+# 传给所有调用方，如 monitor.sh 的 systemd 服务）。
+_bridge_port_file="$HOME/.claude/bridge-port"
+if [[ -z "${BRIDGE_PORT:-}" && -r "$_bridge_port_file" ]]; then
+    BRIDGE_PORT="$(tr -d '[:space:]' < "$_bridge_port_file")"
+fi
+BRIDGE_PORT="${BRIDGE_PORT:-8898}"
+unset _bridge_port_file
 BRIDGE_WD_PID="$HOME/.cache/bridge-watchdog.pid"
 BRIDGE_WD_LOG="$HOME/.cache/bridge-watchdog.log"
 
@@ -457,10 +467,10 @@ selfheal_bridge() {
     local cfg="$1"
     [[ -z "$cfg" ]] && return 10
 
-    # env 不指向 8898 → 当前 preset 不需要 bridge
+    # env 不指向 bridge → 当前 preset 不需要 bridge（端口可能被 BRIDGE_PORT 覆盖）
     local sf="$HOME/.claude/settings.json"
     [[ -f "$sf" ]] || return 10
-    if ! grep -q '127.0.0.1:8898' "$sf" 2>/dev/null; then
+    if ! grep -q "127.0.0.1:${BRIDGE_PORT}" "$sf" 2>/dev/null; then
         return 10
     fi
 
