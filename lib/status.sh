@@ -168,17 +168,23 @@ PY
     # rules (条件规则)
     if [ -L "$HOME/.claude/rules" ] && [ -d "$HOME/.claude/rules" ]; then
         local rule_count=$(ls "$HOME/.claude/rules/"*.md 2>/dev/null | wc -l)
-        # 预算检查：超限报 warning（手写数字必漂移，故实测）
+        # 预算检查：超限报 warning（手写数字必漂移，故实测）。单次调用取全部字段。
         local budget_line=""
         if [ -x "$CCCONFIG_ROOT/bin/check-context-budget.sh" ]; then
-            local _b_always _b_total
-            _b_always=$(bash "$CCCONFIG_ROOT/bin/check-context-budget.sh" --json 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)['always_kb'])" 2>/dev/null || true)
-            _b_total=$(bash "$CCCONFIG_ROOT/bin/check-context-budget.sh" --json 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)['total_kb'])" 2>/dev/null || true)
-            if bash "$CCCONFIG_ROOT/bin/check-context-budget.sh" --quiet >/dev/null 2>&1; then
-                [ -n "$_b_always" ] && budget_line=" ${GRAY}[${_b_always}/${_b_total}KB]${NC}"
-            else
-                budget_line=" ${YELLOW}⚠ 预算超限${NC}"
-                issues=$((issues + 1))
+            local _bj
+            _bj=$(bash "$CCCONFIG_ROOT/bin/check-context-budget.sh" --json 2>/dev/null || true)
+            if [ -n "$_bj" ]; then
+                read -r _b_ok _b_always _b_total < <(printf '%s' "$_bj" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(int(d['ok']), d['always_kb'], d['total_kb'])
+" 2>/dev/null) || true
+                if [ "${_b_ok:-0}" = "1" ]; then
+                    budget_line=" ${GRAY}[${_b_always}/${_b_total}KB]${NC}"
+                else
+                    budget_line=" ${YELLOW}⚠ 预算超限${NC}"
+                    issues=$((issues + 1))
+                fi
             fi
         fi
         echo -e "  ${GREEN}✅${NC} rules ($rule_count 个)${budget_line}"
