@@ -23,6 +23,25 @@ DEFAULT_FILE="$HOME/.lark-default-account"
 # 颜色（colors.sh 可选 source，缺失时 fallback）
 source "$CCCONFIG_DIR/lib/colors.sh"
 
+# ========== 真实授权状态 ==========
+# config.json 里的 users[] 是「登录过的用户记录」，token 过期后仍残留，
+# 拿它判授权会永远报"已授权"（假阳性）。唯一可信来源是 auth status 的
+# identities.user.available。$1=config 目录；echo yes/no/unknown
+lark_user_authorized() {
+    local cfg_dir="$1" raw
+    raw=$(LARKSUITE_CLI_CONFIG_DIR="$cfg_dir" lark-cli auth status 2>/dev/null || true)
+    [ -z "$raw" ] && { echo "unknown"; return; }
+    printf '%s' "$raw" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    print('unknown'); sys.exit()
+u = d.get('identities', {}).get('user', {})
+print('yes' if u.get('available') else 'no')
+" 2>/dev/null || echo "unknown"
+}
+
 # ========== 从 feishu.json apps[] 读取账号列表 ==========
 get_apps() {
     python3 - "$FEISHU_CONF" << 'PYEOF'
@@ -149,9 +168,11 @@ show_current() {
             echo -e "  appId:  ${GRAY}${app_id}${NC}"
 
             local has_user
-            has_user=$(python3 -c "import json; d=json.load(open('$config_file')); print('yes' if d.get('apps',[{}])[0].get('users') else 'no')" 2>/dev/null || echo "?")
+            has_user=$(lark_user_authorized "$current_dir")
             if [ "$has_user" = "yes" ]; then
                 echo -e "  授权:   ${GREEN}已授权${NC}"
+            elif [ "$has_user" = "unknown" ]; then
+                echo -e "  授权:   ${GRAY}未知（lark-cli auth status 无输出）${NC}"
             else
                 echo -e "  授权:   ${YELLOW}未授权 — lark-cli auth login --recommend${NC}"
             fi
@@ -285,15 +306,10 @@ switch_account() {
         fi
     fi
 
-    # 检查授权状态
-    local auth_status="unknown"
-    if [ -f "$config_file" ]; then
-        if python3 -c "import json; d=json.load(open('$config_file')); exit(0 if d.get('apps',[{}])[0].get('users') else 1)" 2>/dev/null; then
-            auth_status="authorized"
-        else
-            auth_status="not_authorized"
-        fi
-    fi
+    # 检查授权状态（查真实 token，非 config 里的 users 记录）
+    local auth_status="not_authorized"
+    local _auth="$(lark_user_authorized "$config_dir")"
+    [ "$_auth" = "yes" ] && auth_status="authorized"
 
     # 写 marker 文件
     cat > "$MARKER_FILE" << EOF

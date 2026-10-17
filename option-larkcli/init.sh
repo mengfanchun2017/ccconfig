@@ -445,8 +445,10 @@ i, j = s.find('{'), s.rfind('}')
 if i >= 0 and j > i:
     try:
         d = json.loads(s[i:j+1])
+        # 真值字段是 available（真 token）。tokenStatus 只在 auth list 里，
+        # auth status 不返回 → 查它必得 None → 永远误报"未授权"。
         u = d.get('identities', {}).get('user', {})
-        print('ok' if u.get('tokenStatus') == 'valid' else 'no')
+        print('ok' if u.get('available') else 'no')
     except Exception:
         print('no')
 else:
