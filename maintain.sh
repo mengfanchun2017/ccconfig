@@ -500,7 +500,9 @@ do_self() {
             echo ""
             do_self cc || true
             echo ""
-            pull_config_repo "$HOME/git/ccprivate" "ccprivate" || true
+            # 用 $CCPRIVATE_HOME（path-helper 已 export）而非硬编码 —— 与本文件其余
+            # 5 处及 path-helper 的 resolve_conf 保持同一口径；自定义路径时才不会拉错目录
+            pull_config_repo "${CCPRIVATE_HOME:-$HOME/git/ccprivate}" "ccprivate" || true
             echo ""
             bash "$LIB_DIR/ccprivate-upgrade.sh" --yes || warn "ccprivate 结构检查异常，继续"
             echo ""
