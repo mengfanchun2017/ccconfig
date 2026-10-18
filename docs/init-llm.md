@@ -235,8 +235,8 @@ CC 对**未识别模型名**（本项目所有第三方上游）默认按 200k �
 - **薄覆盖**：改内置预设窗口时在 `llmprivate.json` 写**只含 `max_context_tokens`** 的条目，
   合并时只覆盖该字段、`_src` 保持 `normal`（内置仍不可删、不与 ccconfig 更新漂移）。
   含其它字段的 private 同名条目仍是整条重定义（`_src` 翻 `private`）。
-- **界面**：运维菜单 `4H` / LLM 菜单 `3c` / `bash init-llm.sh ctx <name|default> [k]`。
-- **可见性**：`init-llm status`（`4C`）显示预设声明窗口 + `env.MAX_CONTEXT_TOKENS`；
+- **界面**：运维菜单 `3F` / LLM 菜单 `3c` / `bash init-llm.sh ctx <name|default> [k]`。
+- **可见性**：`init-llm status`（`3C`）显示预设声明窗口 + `env.MAX_CONTEXT_TOKENS`；
   交互菜单头显示「窗口 Nk」。
 - **生效**：窗口随切换写入 env；改的是当前预设需重切一次再 `/exit` 重启 Claude。
 

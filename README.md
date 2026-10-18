@@ -336,16 +336,16 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | `bash maintain.sh monitor start` | 启动 auto-sync |
 | `bash maintain.sh monitor restart` | 重启 auto-sync |
 | `bash maintain.sh self config` | 配置仓库更新：ccprivate 结构 + ccconfig 拉取/重建链接 + skills |
-| `bash maintain.sh self cc` | 仅 ccconfig 拉取 + 重建链接（原 3A，保留子命令） |
+| `bash maintain.sh self cc` | 仅 ccconfig 拉取 + 重建链接（菜单 2A 的子命令） |
 | `bash maintain.sh llm` | LLM 切换/测试/自愈 |
 | `bash maintain.sh mcp` | MCP 跨项目管理 |
 | `bash maintain.sh pat` | 刷新 fine-grained PAT |
 | `bash maintain.sh example` | 检测 .example 模板差异 |
-| `bash maintain.sh upgrade-ccprivate` | 仅 ccprivate 结构升级（原 3C，保留子命令） |
+| `bash maintain.sh upgrade-ccprivate` | 仅 ccprivate 结构升级（菜单 2A 的子命令） |
 | `bash maintain.sh sync --all` | 全部 git 仓库更新（拉取 + 脏库自动提交） |
 | `bash maintain.sh deps` | 依赖完整性检查 |
 | `bash lib/init-llm.sh` | 切换 LLM 后端 |
-| `bash lib/update.sh all` | 月度组件升级（10 步） |
+| `bash lib/update.sh all` | 月度组件升级（菜单 2B，11 步） |
 
 > `bash maintain.sh` 的交互菜单是**扁平结构**：8 个功能域各带字母项，选中即执行，
 > 没有二级菜单和"返回上层"。**每一项右侧灰色列就是上表里的直接调用命令**，

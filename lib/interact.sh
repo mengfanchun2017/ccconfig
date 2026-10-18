@@ -355,7 +355,7 @@ pause_enter() {
 #       "cat|letter|title|cmd|action"
 #       ...
 #   )
-#   declare -A CAT_NAME=([1]="状态" [2]="监控/同步" ...)
+#   declare -A CAT_NAME=([1]="状态/同步" [2]="更新" ...)
 #
 # cat    : 全局分类 ID（1-N，唯一，连续不跳号）
 # letter : 分类内字母（A-Z）。输入 <cat><letter> 直接执行
