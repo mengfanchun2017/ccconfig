@@ -44,4 +44,4 @@
 | `init-mcp.sh` | MCP 初始化 |
 | `init-skill.sh` | Skill 安装 |
 | `init-autostart.sh` | 自启动配置 |
-| `claude-auto-sync.service` | systemd user service 模板（被 init-autostart.sh 使用） |
+| `claude-auto-sync.service` | systemd **system** service 模板（`/etc/systemd/system/`，被 init-autostart.sh 使用） |

@@ -790,20 +790,20 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 |------|------|------|
 | `/skills` 菜单看不到新加的 skill | Claude Code 启动时缓存 skill 列表，**不重扫** | **新开一个 session**（`claude` 新窗口或 `claude -c`） |
 | `bash lib/init-skill.sh sync` 显示"本地已有，跳过" | `~/.claude/skills/<name>` 是真目录不是 symlink | `rm -rf ~/.claude/skills/<name>` 再跑 sync |
-| `./lib/monitor.sh status` 显示 stopped | systemd user service 没起来 | `systemctl --user status ccconfig-monitor.service` 看原因；`bash lib/init-autostart.sh` 重装 |
+| `./lib/monitor.sh status` 显示 stopped | systemd 服务没起来 | `systemctl status claude-auto-sync` 看原因（**system 级**，非 `--user`）；`bash lib/init-autostart.sh` 重装 |
 | LLM 切了但 Claude 还是用旧的 | `conf/llm.json` 改了但 settings.json 没更新 | `bash lib/init-llm.sh <backend>` 重写 settings.json |
 | 飞书操作报 token 过期 | 跨账号 / 长效 token 过期 | 重新跑 `bash option-larkcli/init.sh` |
 
 ### 状态检查发现问题的应对
 
-`bash maintain.sh status` 11 项检查，**任何一项 ✗ 都先看该项的命令**：
+`bash maintain.sh status` 10 项检查，**任何一项 ✗ 都先看该项的命令**：
 
 | 失败项 | 修命令 |
 |--------|--------|
 | 配置文件链接 | `bash ~/git/ccprivate/setup.sh` |
 | 核心依赖 | `apt install` 对应包 |
 | auto-sync | `bash lib/init-autostart.sh` |
-| 最后推送 >24h | `systemctl --user start ccconfig-monitor` 或 `./lib/monitor.sh start` |
+| 最后推送 >24h | `sudo systemctl restart claude-auto-sync` 或 `./lib/monitor.sh start` |
 | 飞书 / OfficeCLI | 对应 `option-*/init.sh` 重装 |
 
 
