@@ -43,7 +43,7 @@ MENU_GROUPS=(
     "--浏览器自动化--|playwright"
     "--文档解析--|mineru"
     "--飞书--|larkcli"
-    "--其他--|officecli remote cloudflare getnote filepull"
+    "--其他--|officecli remote cloudflare getnote filepull evalscope"
 )
 
 has_init_script() {
