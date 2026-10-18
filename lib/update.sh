@@ -7,14 +7,18 @@
 # 升级组件：
 #   1] ccconfig 自更新       → git fetch + pull --ff-only
 #   2] Node.js + pip 包      → Node.js 最新 LTS + pip 包
-#   3] lark-cli              → npm install -g @larksuite/cli
+#   3] npm 全局包            → @larksuite/cli + mmx-cli
 #   4] GitHub CLI            → GitHub Release
 #   5] Claude Code           → claude install
 #   6] MCP 缓存              → 刷新 npx 缓存
 #   7] Skills 同步           → skill + ccprivate [option]
-#   8] OfficeCLI            → GitHub Release [option]
-#   9] Cloudflare 插件       → claude plugin [option]
+#   8] OfficeCLI            → option-officecli/init.sh --update [option]
+#   9] Cloudflare 插件       → option-cloudflare/init.sh --update [option]
 #  10] uv (Python 工具)     → uv self update [option]
+#  11] getnote              → option-getnote/init.sh update [option]
+#
+# 老机器更新走 3A（配置仓库）+ 3B（本脚本）即覆盖全部组件 —— 各 option 的升级
+# 都委派到本脚本，不再散落在各自的分区菜单里单独占项。
 #
 # 使用：
 #   bash ccconfig/update.sh               # 交互式菜单（支持多选，如 "1 3 4"）
@@ -721,6 +725,23 @@ update_skills() {
     bash "$CCCONFIG_ROOT/lib/init-skill.sh" sync
 }
 
+# ========== 12. getnote（CLI + 官方 Skill） ==========
+
+# 与 officecli/cloudflare 同模式：委派给 option 自己的 --update。
+# 升级动作曾单独占着 maintain 菜单 7E，但它是纯粹的"工具版本更新" —— 与 3B 里
+# 其余组件同类。并入后，老机器跑 3A + 3B 即完成全部更新，不必再翻 7 分区。
+# 未安装时静默跳过（update 无意义），不报错。
+update_getnote() {
+    local gn_init="$CCCONFIG_ROOT/option-getnote/init.sh"
+    [ -f "$gn_init" ] || { info "getnote 未安装（无 option-getnote/init.sh），跳过"; return 0; }
+    if ! command -v getnote &>/dev/null; then
+        info "getnote CLI 未安装，跳过（装: 菜单 3D 或 bash option-getnote/init.sh install）"
+        return 0
+    fi
+    section "getnote (CLI + Skill)"
+    bash "$gn_init" update
+}
+
 
 # ========== 版本信息收集 ==========
 
@@ -907,6 +928,7 @@ update_all() {
     run_step ""         "uv (Python 工具)"  update_uv
     run_step ""         "OfficeCLI"          update_officecli
     run_step ""         "Cloudflare 插件"    update_cloudflare_plugin
+    run_step ""         "getnote (CLI+Skill)" update_getnote
 
     # 后快照
     take_snapshot "after" > /dev/null
@@ -971,7 +993,7 @@ show_menu() {
     # 编号左对齐无括号，与 lib/interact.sh 一致：1 / 10 同列起名
     echo -e "   ${BOLD_GREEN}1 ${NC}  ccconfig 自更新"
     echo -e "   ${BOLD_GREEN}2 ${NC}  Node.js + pip 包"
-    echo -e "   ${BOLD_GREEN}3 ${NC}  lark-cli"
+    echo -e "   ${BOLD_GREEN}3 ${NC}  npm 全局包（lark-cli / mmx-cli）"
     echo -e "   ${BOLD_GREEN}4 ${NC}  GitHub CLI"
     echo -e "   ${BOLD_GREEN}5 ${NC}  Claude Code"
     echo -e "   ${BOLD_GREEN}6 ${NC}  MCP 缓存刷新"
@@ -979,6 +1001,7 @@ show_menu() {
     echo -e "   ${BOLD_GREEN}8 ${NC}  OfficeCLI"
     echo -e "   ${BOLD_GREEN}9 ${NC}  Cloudflare 插件（user 级，装后按项目启用）"
     echo -e "   ${BOLD_GREEN}10${NC}  uv (Python 工具)"
+    echo -e "   ${BOLD_GREEN}11${NC}  getnote (CLI + Skill)"
     echo -e "   ${BOLD_GREEN}0 ${NC}  退出"
     echo ""
     echo -e "   ${YELLOW}all${NC} = 升级全部组件"
@@ -986,7 +1009,7 @@ show_menu() {
     echo ""
 
     local choice
-    read -p "  选择 [0-9]: " choice </dev/tty || true
+    read -p "  选择 [0-11]（多选用空格分隔，如 2 4 5）: " choice </dev/tty || true
     [[ -z "$choice" ]] && { show_menu; return; }
 
     if [[ "$choice" == "0" ]]; then
@@ -1012,6 +1035,7 @@ show_menu() {
             8)  update_officecli; did_something=1 ;;
             9)  update_cloudflare_plugin; did_something=1 ;;
             10) update_uv; did_something=1 ;;
+            11) update_getnote; did_something=1 ;;
             *)  echo "无效: $sel" ;;
         esac
     done
@@ -1044,12 +1068,13 @@ case "${1:-menu}" in
     officecli)     update_officecli ;;
     skills)        update_skills ;;
     cloudflare)    update_cloudflare_plugin ;;
+    getnote)       update_getnote ;;
     menu|"")
         show_menu ;;
     --dry-run|--check|check)
         do_dry_run ;;
     *)
-        echo "用法: $0 [all|node|npm|python|gh|claude|mcp|uv|lark|menu]"
+        echo "用法: $0 [all|node|npm|python|gh|claude|mcp|uv|lark|officecli|skills|cloudflare|getnote|menu]"
         exit 1
         ;;
 esac

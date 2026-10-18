@@ -76,8 +76,17 @@ do_status() {
     else
         local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
         if [ -f "$ts_exe" ]; then
-            ts_status="✓ Windows 已安装"
             ts_ok=true
+            # ts_ip 必须一并取到 —— 下面「远程可用」那行判的是 ts_ip 而非 ts_ok。
+            # WSL 里没有 tailscale0 网口（tailscaled 跑在 Windows 宿主）时若只置
+            # ts_ok，第一行报 OK 而「远程可用」报未就绪，两行自相矛盾。
+            # tailscale.exe ip -4 从 Windows 侧取，WSL 可执行。
+            ts_ip=$("$ts_exe" ip -4 2>/dev/null | head -1 | tr -d '\r' || true)
+            if [ -n "$ts_ip" ]; then
+                ts_status="✓ Windows 侧 $ts_ip"
+            else
+                ts_status="✓ Windows 已安装（未登录，取不到 IP）"
+            fi
         fi
     fi
 
@@ -196,11 +205,16 @@ do_all() {
     if [ -n "$ts_iface" ]; then
         ts_ip="$ts_iface"
     fi
-local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
+    local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
+    # WSL 内无 tailscale0 时从 Windows 侧取 IP（tailscaled 在宿主上跑），
+    # 否则这里只能打占位符 <Windows_Tailscale_IP>，用户还得自己去查。
+    if [ -z "$ts_ip" ] && [ -f "$ts_exe" ]; then
+        ts_ip=$("$ts_exe" ip -4 2>/dev/null | head -1 | tr -d '\r' || true)
+    fi
     if [ -n "$ts_ip" ]; then
         ok "Tailscale 已连接: $ts_ip"
     elif [ -f "$ts_exe" ]; then
-        ok "Tailscale 已在 Windows 安装"
+        ok "Tailscale 已在 Windows 安装（未登录，取不到 IP）"
     else
         warn "Tailscale 未安装"
     fi
@@ -210,7 +224,11 @@ local ts_exe="/mnt/c/Program Files/Tailscale/tailscale.exe"
         port=$(get_ssh_port)
         echo ""
         echo -e "  ${GREEN}✓ 远程连接命令${NC}"
-        echo -e "    ssh <USER>@<Windows_Tailscale_IP> -p $port"
+        if [ -n "$ts_ip" ]; then
+            echo -e "    ssh $USER@$ts_ip -p $port"
+        else
+            echo -e "    ssh <USER>@<Windows_Tailscale_IP> -p $port"
+        fi
         echo ""
         echo "  客户端（笔记本）安装 Tailscale 后运行此命令即可连入。"
         echo "  断开: Ctrl+B D（进程保持）"
