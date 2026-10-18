@@ -53,16 +53,20 @@ MENU_ENTRIES=(
     "3|D|可选组件安装/补装|bash init-option.sh|bash \"\$CCCONFIG_DIR/init-option.sh\""
 
     # ── 4: LLM ──
+    # 原 4E「修复 /model 污染」、4F「修复 bridge 转 Anthropic」已删：
+    #   4E 是静默 no-op —— 只在 env.ANTHROPIC_MODEL 与顶层 model 不一致时才写，
+    #     正常状态下零输出零退出（"选了没反馈"）；而且每次切预设 switch_llm 末尾
+    #     已自动调 sync_top_model，手动入口冗余。函数保留，仅去掉菜单项。
+    #   4F 的自愈逻辑（selfheal_bridge）仍由 status.sh 会话冷启动调用，函数保留；
+    #     它此前作为独立菜单项暴露的价值不大（bridge 挂了由 supervisor/1B 兜底）。
     "4|A|切换预设（交互）|./maintain.sh llm|bash \"\$LIB_DIR/init-llm.sh\""
     "4|B|列出预设|./maintain.sh llm list|bash \"\$LIB_DIR/init-llm.sh\" list"
     "4|C|链路诊断（当前生效）|./maintain.sh llm status|bash \"\$LIB_DIR/init-llm.sh\" status"
     "4|D|真实探测（问预设名）|./maintain.sh llm test <名>|ask_run \"预设名（4B 可查）\" \"\$LIB_DIR/init-llm.sh\" test"
-    "4|E|修复 /model 污染|./maintain.sh llm sync|bash \"\$LIB_DIR/init-llm.sh\" sync"
-    "4|F|修复 bridge 转 Anthropic|./maintain.sh llm heal|bash \"\$LIB_DIR/init-llm.sh\" heal"
-    "4|G|删除预设（问预设名）|./maintain.sh llm delete <名>|ask_run \"要删除的预设名\" \"\$LIB_DIR/init-llm.sh\" delete"
-    "4|H|设置上下文窗口|./maintain.sh llm ctx|bash \"\$LIB_DIR/init-llm.sh\" ctx"
-    "4|J|新增自定义预设|./maintain.sh llm add|bash \"\$LIB_DIR/init-llm.sh\" add"
-    "4|K|编辑自定义预设|./maintain.sh llm edit|bash \"\$LIB_DIR/init-llm.sh\" edit"
+    "4|E|删除预设（问预设名）|./maintain.sh llm delete <名>|ask_run \"要删除的预设名\" \"\$LIB_DIR/init-llm.sh\" delete"
+    "4|F|设置上下文窗口|./maintain.sh llm ctx|bash \"\$LIB_DIR/init-llm.sh\" ctx"
+    "4|G|新增自定义预设|./maintain.sh llm add|bash \"\$LIB_DIR/init-llm.sh\" add"
+    "4|H|编辑自定义预设|./maintain.sh llm edit|bash \"\$LIB_DIR/init-llm.sh\" edit"
 
     # ── 5: MCP ──
     # 5D 注册同步：从 conf/mcp-servers.json 把服务器写进 .config.json。
@@ -81,11 +85,14 @@ MENU_ENTRIES=(
     "6|D|配置/更新 lark-cli 账号|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
 
     # ── 7: getnote（CLI + 官方 Skill，单账号，无切换）──
+    # 原 7B「安装」已删：首次安装走 3D 可选组件列表里的 getnote 项（同一个
+    #   option-getnote/init.sh install，3D 已装时会短路提示）。
+    # 原 7D「诊断 doctor」已删：doctor 的原始 JSON 只在排查时看，日常无用；
+    #   7A 状态本身就取 doctor 的 "ready" 字段判定，保留 7A 足够。
+    # 原 7E「升级」已删：升级并入 3B（update.sh），与 officecli/cloudflare 同模式
+    #   —— 老机器跑 3A + 3B 即完成全部更新。
     "7|A|状态|bash option-getnote/init.sh --status|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" --status"
-    "7|B|安装（CLI+Skill）|bash option-getnote/init.sh install|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" install"
-    "7|C|OAuth 授权|bash option-getnote/init.sh auth|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" auth"
-    "7|D|诊断（doctor）|bash option-getnote/init.sh doctor|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" doctor"
-    "7|E|升级（CLI+Skill）|bash option-getnote/init.sh update|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" update"
+    "7|B|OAuth 授权|bash option-getnote/init.sh auth|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" auth"
 
     # ── 8: 远程（SSH + tailscale）──
     "8|A|查看 SSH 状态/端口|bash option-remote/init.sh --status|bash \"\$CCCONFIG_DIR/option-remote/init.sh\" --status"
