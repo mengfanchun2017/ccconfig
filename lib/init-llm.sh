@@ -1426,8 +1426,7 @@ main() {
             # 此时明确报错退出，让调用方的 run_step 记失败继续，而不是静默卡住。
             if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
                 err "非交互模式但未指定 LLM preset（INIT_LLM_NAME 为空）—— 无法进交互菜单"
-                info "  先设好当前预设: write_llm_current 或 export INIT_LLM_NAME=<预设名>"
-                info "  或手动跑: bash lib/init-llm.sh <预设名>"
+                info "  手动跑: bash lib/init-llm.sh <预设名>   （3B 列预设，或 bash lib/init-llm.sh list）"
                 return 1
             fi
             interactive_select ;;
