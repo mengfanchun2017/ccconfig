@@ -105,7 +105,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 ```
 ~/git/
 ├── ccconfig/                   # ← 用户 fork/clone 这个
-│   ├── bootstrap-gh-auth.sh    # Step 2: 装 gh + GitHub 认证
+│   ├── bootstrap-gh-auth.sh    # 一行式起步：装 git + clone ccconfig（认证归 init-bootstrap.sh）
 │   ├── init-base.sh                 # 统一入口（交互式二级菜单）
 │   ├── maintain.sh             # 统一运维入口
 │   ├── conf/               # 配置模板（*.example，不包含真实密钥）
@@ -198,7 +198,7 @@ inotify 监听 ~/git/ 下所有仓库
   → 30s push 超时 + 3x 重试
 ```
 
-systemd user service 守护，开机自启。`monitor.sh status` 查看各仓库状态。
+systemd **system** service（`claude-auto-sync.service`，装到 `/etc/systemd/system/`）守护，开机自启。`monitor.sh status` 查看各仓库状态。
 
 ### 状态检查（maintain.sh status）
 

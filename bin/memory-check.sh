@@ -48,6 +48,15 @@ done
 echo ""
 echo "---"
 echo "stale (>180d): $stale | fresh: $fresh | orphan: $orphan"
+
+# MEMORY.md 条目数上限（rules/context-budget.md 定 <40）。
+# 此前无人检查：条目堆到 84 条、索引重复也无人报警，规则形同虚设。
+# 这里只报数不自动删 —— 删哪些是用户判断。
+entries=$(grep -cE '^- \[' "$INDEX" 2>/dev/null || echo 0)
+echo "MEMORY.md 条目: $entries（上限 40）"
+if [[ $entries -gt 40 ]]; then
+  echo "⚠️  超上限 $((entries - 40)) 条 — 按 rules/context-budget.md 做季度 review 合并/归档"
+fi
 echo ""
 
 if [[ $stale -gt 0 ]]; then

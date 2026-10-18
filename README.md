@@ -345,11 +345,13 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | `bash maintain.sh sync --all` | 全部 git 仓库更新（拉取 + 脏库自动提交） |
 | `bash maintain.sh deps` | 依赖完整性检查 |
 | `bash lib/init-llm.sh` | 切换 LLM 后端 |
-| `bash lib/update.sh all` | 月度组件升级（菜单 2B，11 步） |
+| `bash lib/update.sh all` | 月度组件升级（菜单 2B，12 步） |
 
-> `bash maintain.sh` 的交互菜单是**扁平结构**：8 个功能域各带字母项，选中即执行，
+> `bash maintain.sh` 的交互菜单是**扁平结构**：6 个功能域各带字母项，选中即执行，
 > 没有二级菜单和"返回上层"。**每一项右侧灰色列就是上表里的直接调用命令**，
 > 可以复制到终端跑 —— 不需要为了记住路径而翻文档。
+>
+> 6 个功能域：`状态/同步` `更新` `LLM` `MCP` `rag` `远程`。
 
 ## 状态检查
 

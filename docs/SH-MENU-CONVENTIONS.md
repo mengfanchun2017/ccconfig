@@ -32,7 +32,8 @@ MENU_ENTRIES=(
 
 **没有二级菜单，因此没有"返回上层"。**
 
-- 一级 = 功能域（状态/监控/更新/LLM/MCP/飞书/getnote/其他）
+- 一级 = 功能域（`menu-data-maintain.sh` 的 `CAT_NAME`，当前 6 个：
+  状态/同步、更新、LLM、MCP、rag、远程）
 - 二级 = 该域下的字母项，**选中即执行**
 - 需要用户输一个参数的叶子动作（删预设、切账号），用 `maintain.sh` 里的
   `ask_run` / `ask_run_p` helper 就地 prompt，**不要为此再开一层菜单**
