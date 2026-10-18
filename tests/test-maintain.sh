@@ -73,7 +73,7 @@ $has_exit && pass "含退出项 (cat=0)" || fail "缺退出项"
 [[ $dupe -eq 0 ]] && pass "无重复键" || fail "重复键 $dupe 处"
 
 cats=$(for k in "${!cat_seen[@]}"; do echo "$k"; done | sort -n | tr '\n' ' ')
-[[ "$cats" == "0 1 2 3 4 5 6 7 8 " ]] && pass "分类连续 1-8 + 退出" || fail "分类编号不连续" "$cats"
+[[ "$cats" == "0 1 2 3 4 5 6 " ]] && pass "分类连续 1-6 + 退出" || fail "分类编号不连续" "$cats"
 
 # ── 5. cmd 列：非空 + 路径存在 + maintain.sh 子命令存在 ──
 echo "=== 5. cmd 列可跑性 ==="
@@ -222,8 +222,9 @@ menu_parse "zzz" ; [[ $? -eq 3 ]] && pass "无效 → 3" || fail "无效输入"
 
 echo "=== 15. 快捷键映射与文案一致 ==="
 # 历史 bug：t 指向的项与 help 文案写的不是同一个，按 t 会进高风险操作。
-grep -qE 't\|T\)[[:space:]]+_exec_entry 2 A' "$CCCONFIG_DIR/lib/interact.sh" \
-    && pass "t → 2A(日志跟踪)" || fail "t 快捷键未指向日志跟踪"
+# 2026-10-18 板块重构后日志跟踪从 2A 移到 1B（监控并入状态分区）。
+grep -qE 't\|T\)[[:space:]]+_exec_entry 1 B' "$CCCONFIG_DIR/lib/interact.sh" \
+    && pass "t → 1B(日志跟踪)" || fail "t 快捷键未指向日志跟踪"
 grep -qE 's\|S\)[[:space:]]+_exec_entry 1 A' "$CCCONFIG_DIR/lib/interact.sh" \
     && pass "s → 1A(状态检查)" || fail "s 快捷键未指向状态检查"
 
@@ -280,7 +281,7 @@ if [[ $banner_count -ge 2 ]]; then
 else
     fail "动作后未回到菜单（banner ×$banner_count）—— set -e 退出回归？"
 fi
-echo "$pty_out" | grep -q -- '--4 LLM--' && pass "菜单含 LLM 分类" || fail "菜单缺 LLM 分类"
+echo "$pty_out" | grep -q -- '--3 LLM--' && pass "菜单含 LLM 分类" || fail "菜单缺 LLM 分类"
 echo "$pty_out" | grep -q '退出' && pass "菜单含退出项" || fail "无退出项"
 
 echo "=== 17. 非交互不死循环 ==="

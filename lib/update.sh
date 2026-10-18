@@ -17,7 +17,7 @@
 #  10] uv (Python 工具)     → uv self update [option]
 #  11] getnote              → option-getnote/init.sh update [option]
 #
-# 老机器更新走 3A（配置仓库）+ 3B（本脚本）即覆盖全部组件 —— 各 option 的升级
+# 老机器更新走 2A（配置仓库）+ 2B（本脚本）即覆盖全部组件 —— 各 option 的升级
 # 都委派到本脚本，不再散落在各自的分区菜单里单独占项。
 #
 # 使用：
@@ -121,10 +121,10 @@ cleanup_old_snapshots() {
 
 # ========== 1. ccconfig code reload ==========
 
-# 3B（工具升级）不再主动拉取 ccconfig —— 拉代码归 3A（self config）。
-# 但如果 3A 没跑、update.sh 自身或 lib 已过期，继续用旧代码跑组件升级
+# 2B（工具升级）不再主动拉取 ccconfig —— 拉代码归 2A（self config）。
+# 但如果 2A 没跑、update.sh 自身或 lib 已过期，继续用旧代码跑组件升级
 # 可能调错接口（update.sh 拉取后会 re-exec 重载，此处保留该保护）。
-# 这里只 fetch 不 pull：发现关键文件落后即提示先跑 3A。
+# 这里只 fetch 不 pull：发现关键文件落后即提示先跑 2A。
 ccconfig_reload() {
     section "ccconfig 代码 reload 检查"
 
@@ -145,11 +145,11 @@ ccconfig_reload() {
     local update_files
     update_files=$(git -C "$CCCONFIG_ROOT" diff --name-only "$local_commit..origin/main" 2>/dev/null || echo "")
     if echo "$update_files" | grep -qE "update.sh|lib/path-helper.sh|conf/versions.json"; then
-        warn "ccconfig 有关键文件更新（update.sh/path-helper/versions.json），但 3B 不拉代码"
-        warn "→ 先跑 3A（./maintain.sh self config）再回来升级工具"
+        warn "ccconfig 有关键文件更新（update.sh/path-helper/versions.json），但 2B 不拉代码"
+        warn "→ 先跑 2A（./maintain.sh self config）再回来升级工具"
     else
         warn "ccconfig 有新提交（非关键文件）：$local_commit → $remote"
-        warn "→ 代码更新归 3A 管，本次工具升级用当前代码继续"
+        warn "→ 代码更新归 2A 管，本次工具升级用当前代码继续"
     fi
     return 0
 }
@@ -728,8 +728,8 @@ update_skills() {
 # ========== 12. getnote（CLI + 官方 Skill） ==========
 
 # 与 officecli/cloudflare 同模式：委派给 option 自己的 --update。
-# 升级动作曾单独占着 maintain 菜单 7E，但它是纯粹的"工具版本更新" —— 与 3B 里
-# 其余组件同类。并入后，老机器跑 3A + 3B 即完成全部更新，不必再翻 7 分区。
+# 升级动作曾单独占着 maintain 菜单 7E，但它是纯粹的"工具版本更新" —— 与 2B 里
+# 其余组件同类。并入后，老机器跑 2A + 2B 即完成全部更新，不必再翻 7 分区。
 # 未安装时静默跳过（update 无意义），不报错。
 update_getnote() {
     local gn_init="$CCCONFIG_ROOT/option-getnote/init.sh"
