@@ -368,7 +368,7 @@ pause_enter() {
 # 不要为了收参数再开一层菜单。
 #
 # 系统快捷键（与数据无关，常驻可用）:
-#   s=1A(状态检查)  t=2A(日志跟踪)  r=刷新  q/0=退出  ?=帮助
+#   s=1A(状态检查)  t=1B(日志跟踪)  r=刷新  q/0=退出  ?=帮助
 
 # 显示宽度：CJK 等非 ASCII 占 2 列。
 # 不能用 printf %-Ns 补位 —— bash 按**字节**补，中文标题宽度会参差。
@@ -419,10 +419,10 @@ menu_render() {
 menu_help() {
     cat <<'EOF' | sed 's/^/  /'
 输入规则:
-  <cat><letter>  执行该项（如 2A = 日志跟踪，1C = 用量统计）
+  <cat><letter>  执行该项（如 1B = 日志跟踪，3A = 切换预设）
   <cat>          执行该分类首项
   s              状态检查  (= 1A)
-  t              日志跟踪  (= 2A)
+  t              日志跟踪  (= 1B)
   r              刷新
   q / 0          退出
   ?              显示帮助
@@ -489,7 +489,7 @@ menu_parse() {
         r|R|fs|fresh)     return 1 ;;
         \?|h|H|help|HELP) menu_help || true; return 0 ;;
         s|S)              _exec_entry 1 A || rc=$?; return "$rc" ;;
-        t|T)              _exec_entry 2 A || rc=$?; return "$rc" ;;
+        t|T)              _exec_entry 1 B || rc=$?; return "$rc" ;;
     esac
 
     # cat + letter 组合（如 1A, 4H, 12C）

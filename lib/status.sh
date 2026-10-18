@@ -858,5 +858,5 @@ fi
 # 问题可一键全修，但 status 本身只读不修 —— 末尾给总入口
 # （--quick 也保留，SessionStart hook 跑的是 quick，用户常看的就是它）
 echo ""
-echo -e "  ${GRAY}发现问题? 一键全修: ${CYAN}bash maintain.sh fix${NC}${GRAY}（1B）${NC}"
+echo -e "  ${GRAY}发现问题? 一键全修: ${CYAN}bash maintain.sh fix${NC}${GRAY}（2E）${NC}"
 echo ""

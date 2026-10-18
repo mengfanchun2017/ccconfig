@@ -81,7 +81,7 @@ check_llm_current() {
 
     if [[ -z "$cur" ]]; then
         warn "LLM 当前选择未设置（$cur_file 缺失或为空）"
-        info "  选一个: ./maintain.sh llm   （菜单 4A）"
+        info "  选一个: ./maintain.sh llm   （菜单 3A）"
         return 1
     fi
     if ! CUR="$cur" python3 - "$normal_f" "$private_f" "$conf" <<'PYEOF' 2>/dev/null
@@ -96,7 +96,7 @@ sys.exit(0 if cur in names else 1)
 PYEOF
     then
         warn "LLM 当前选择 '$cur' 不在任何预设定义里（预设可能已改名/删除）"
-        info "  重选: ./maintain.sh llm   （菜单 4A）"
+        info "  重选: ./maintain.sh llm   （菜单 3A）"
         return 1
     fi
     ok "LLM 当前选择: $cur"
