@@ -246,7 +246,56 @@ if diff: print(' '.join(sorted(diff)))
     fi
   fi
   echo ""
+  show_plugin_mcps
+  echo ""
   echo -e "  ${GRAY}入口: maintain.sh mcp config → 配置 | init-mcp.sh keys → 填 Key${NC}"
+}
+
+# ── 插件自带 MCP（plugin:xxx:yyy）──
+# 这些不在 .config.json 的 mcpServers 里 —— 由 Claude 插件系统托管，注册名是
+# plugin:<marketplace>:<server>。上面几栏只读 mcpServers，所以插件 MCP 一直不可见
+# （用户装了 cloudflare 却在 MCP 分区找不到，根因在此）。
+# 纯文件读取（installed_plugins.json + 缓存里的 mcp.json），不调 claude mcp list
+# —— 后者每次 ~3s 全量健康探测，这里只为"看得见"，不值得。
+show_plugin_mcps() {
+  local inst="$HOME/.claude/plugins/installed_plugins.json"
+  [ -f "$inst" ] || return 0
+  local out
+  out=$(python3 - "$inst" "$HOME/.claude/plugins/cache" <<'PYEOF' 2>/dev/null
+import json, os, sys
+inst_path, cache = sys.argv[1], sys.argv[2]
+try:
+    d = json.load(open(inst_path))
+except Exception:
+    sys.exit(0)
+rows = []
+for name, entries in (d.get('plugins') or {}).items():
+    if not isinstance(entries, list):
+        entries = [entries]
+    for e in entries:
+        ip = (e or {}).get('installPath', '')
+        ver = (e or {}).get('version', '')
+        servers = []
+        try:
+            mcp = json.load(open(os.path.join(ip, 'mcp.json')))
+            servers = list((mcp.get('mcpServers') or {}).keys())
+        except Exception:
+            pass
+        rows.append((name, ver, ','.join(servers) if servers else ''))
+for name, ver, servers in rows:
+    print(f"{name}\t{ver}\t{servers}")
+PYEOF
+)
+  [ -z "$out" ] && return 0
+  echo -e "  ${BOLD}插件自带 MCP:${NC} ${GRAY}(plugin:<marketplace>:<server>，不写入 mcpServers)${NC}"
+  while IFS=$'\t' read -r pname pver pservers; do
+    [ -z "$pname" ] && continue
+    if [ -n "$pservers" ]; then
+      echo -e "    ${GREEN}✓${NC} plugin:${pname#*@}:${pservers} ${DIM}(${pname} v${pver})${NC}"
+    else
+      echo -e "    ${GRAY}·${NC} ${pname} v${pver} ${DIM}(无 MCP)${NC}"
+    fi
+  done <<< "$out"
 }
 
 # ── config 子命令 ──

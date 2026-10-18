@@ -201,6 +201,10 @@ render_components() {
     local idx=0 group_entry group_title group_items name
     local -a group_avail
 
+    # 编号左对齐无括号（1 batcat / 10 cloudflare）：%2d 右对齐会让 1 比 10 多缩进一格，
+    # 名字列跟着错位。宽度 = 最大序号的位数。
+    local num_w=${#_names[@]}; num_w=${#num_w}
+
     for group_entry in "${MENU_GROUPS[@]}"; do
         group_title="${group_entry%%|*}"
         group_items="${group_entry#*|}"
@@ -215,7 +219,7 @@ render_components() {
 
         for name in "${group_avail[@]}"; do
             idx=$((idx + 1))
-            printf "  ${BOLD_GREEN}%2d)${NC}  %-12s " "$idx" "$name"
+            printf "  ${BOLD_GREEN}%-${num_w}d${NC}  %-12s " "$idx" "$name"
             [ -n "${AUTO_MANAGED[$name]:-}" ] && printf "${GRAY}[auto]${NC} "
             render_status "$(item_status "$name")"
             local desc="${CLI_DESC[$name]:-}"

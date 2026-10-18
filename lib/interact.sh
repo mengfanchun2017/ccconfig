@@ -120,8 +120,11 @@ menu_select() {
     printf '\n' >&2
     echo -e "  ${BOLD_GRAY}--${title}--${NC}" >&2
     local i sel=""
+    # 编号左对齐无括号（1 item / 10 item）：%2d 右对齐会让 1 比 10 多缩进一格。
+    # 宽度 = 最大序号的位数，1 位与 2 位数字同列起名。
+    local num_w=${#items[@]}; num_w=${#num_w}
     for i in "${!items[@]}"; do
-        printf "  ${BOLD_GREEN}%d)${NC}  %s\n" "$((i+1))" "${items[$i]}" >&2
+        printf "  ${BOLD_GREEN}%-${num_w}d${NC}  %s\n" "$((i+1))" "${items[$i]}" >&2
     done
     printf '\n' >&2
     # 从 /dev/tty 读，避开 stdin 被管道/重定向导致的 read 阻塞/失败

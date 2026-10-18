@@ -271,18 +271,18 @@ do_promote_interactive() {
     for f in "${outdated[@]}"; do
         local rel="${f#$CCCONFIG_ROOT/}"
         local tag=""; [[ "$rel" == conf/* ]] && tag=" ${DIM}(conf)${NC}"
-        echo -e "  ${BOLD}${idx})${NC} $rel  ${YELLOW}(差异)${NC}$tag"
+        echo -e "  ${BOLD}${idx}${NC}  $rel  ${YELLOW}(差异)${NC}$tag"
         choices[$idx]="$f"
         idx=$((idx + 1))
     done
     for f in "${new_files[@]}"; do
         local rel="${f#$CCCONFIG_ROOT/}"
-        echo -e "  ${BOLD}${idx})${NC} $rel  ${CYAN}(新增)${NC}"
+        echo -e "  ${BOLD}${idx}${NC}  $rel  ${CYAN}(新增)${NC}"
         choices[$idx]="$f"
         idx=$((idx + 1))
     done
-    echo "  a) 全部"
-    echo "  0) 取消"
+    echo "  a  全部"
+    echo "  0  取消"
     echo ""
 
     read -p "选择: " sel < /dev/tty || sel=""
@@ -358,12 +358,12 @@ do_reverse() {
     for f in "${_out_arr[@]}"; do
         local rel="${f#$CCCONFIG_ROOT/}"
         local tag=""; [[ "$rel" == conf/* ]] && tag=" ${RED}(敏感⚠)${NC}"
-        echo -e "  ${BOLD}${idx})${NC} $rel$tag"
+        echo -e "  ${BOLD}${idx}${NC}  $rel$tag"
         choices[$idx]="$f"
         idx=$((idx + 1))
     done
-    echo "  a) 全部"
-    echo "  0) 取消"
+    echo "  a  全部"
+    echo "  0  取消"
     echo ""
 
     read -p "选择: " sel < /dev/tty || sel=""

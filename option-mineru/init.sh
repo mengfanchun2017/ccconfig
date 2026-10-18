@@ -53,11 +53,17 @@ has_uvx() { command -v uvx &>/dev/null; }
 do_status() {
     local token; token="$(read_token)"
     local mcp_state="未注册"
-    if command -v claude &>/dev/null && claude mcp list 2>/dev/null | grep -q "^mineru:"; then
-        if claude mcp list 2>/dev/null | grep "^mineru:" | grep -q "✔"; then
-            mcp_state="已连"
-        else
-            mcp_state="已注册(未连)"
+    # claude mcp list 会对每个 server 做健康探测，一次 ~3s。此前调两遍 = 6s，
+    # 是整个 init-option 状态列表最大的单点开销。取一次输出，两次 grep 共用。
+    if command -v claude &>/dev/null; then
+        local mcp_out; mcp_out="$(claude mcp list 2>/dev/null || true)"
+        local mcp_line; mcp_line="$(printf '%s\n' "$mcp_out" | grep "^mineru:" || true)"
+        if [ -n "$mcp_line" ]; then
+            if printf '%s\n' "$mcp_line" | grep -q "✔"; then
+                mcp_state="已连"
+            else
+                mcp_state="已注册(未连)"
+            fi
         fi
     fi
     local flash="≤20页/≤10MB 免费 Flash"
