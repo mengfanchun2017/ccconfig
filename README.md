@@ -275,28 +275,28 @@ bash lib/init-llm.sh test <preset>      # 真实链路探测（走 bridge + 流�
 
 ```
 --CLI--
- 1) batcat      ✓ 已安装 — cat 替代，语法高亮+行号
- 2) glow        ✓ 已安装 — 终端 Markdown 渲染阅读
+1  batcat      ✓ 已安装 — cat 替代，语法高亮+行号
+2  glow        ✓ 已安装 — 终端 Markdown 渲染阅读
 
 --Claude--
- 3) mcp         ✗ 未配置（bash init-option.sh mcp）
- 4) skill       ✓ 24 个 skill 已安装
+3  mcp         ✗ 未配置（bash init-option.sh mcp）
+4  skill       ✓ 24 个 skill 已安装
 
 --飞书--
- 5) larkcli     ✓ lark-cli 已安装 — 飞书 CLI
+5  larkcli     ✓ lark-cli 已安装 — 飞书 CLI
 
 --浏览器自动化--
- 5) playwright  ✓ Playwright MCP 已配置
+5  playwright  ✓ Playwright MCP 已配置
 
 --文档解析--
- 6) mineru      ✓ MinerU 已配置 — PDF/Office → Markdown
+6  mineru      ✓ MinerU 已配置 — PDF/Office → Markdown
 
 --其他--
- 7) officecli   ✓ OfficeCLI 已安装 — 生成 .pptx/.docx
- 8) remote      ✗ 未配置 — SSH + Tailscale 远程
- 9) cloudflare  ✗ 未配置 — Cloudflare Workers/Pages
-10) getnote     ✗ 未配置 — 得到大脑 CLI + Skill 集成
-11) filepull    ✗ 未配置 — 跨机取件
+7  officecli   ✓ OfficeCLI 已安装 — 生成 .pptx/.docx
+8  remote      ✗ 未配置 — SSH + Tailscale 远程
+9  cloudflare  ✗ 未配置（user 级插件，装后按项目启用）
+10 getnote     ✗ 未配置 — 得到大脑 CLI + Skill 集成
+11 filepull    ✗ 未配置 — 跨机取件
 ...
 12) 全部安装
 13) 退出

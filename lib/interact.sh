@@ -18,7 +18,8 @@
 #     confirm "删除？" n && rm file
 #
 # menu_select [title] [item1] [item2] ... [itemN]
-#   单选菜单。items 必须是纯文本（不带数字前缀），菜单自动加 "1) 2) 3)"。
+#   单选菜单。items 必须是纯文本（不带数字前缀），菜单自动加 "1 2 3" 序号
+#   （左对齐无括号，1 与 10 同列起名）。
 #   返回选中项的**序号字符串**（如 "5"）。末项返回其序号 ${#items[@]}。
 #   "0" = 取消哨值：用户输入空/非法/越界/EOF/显式输入 0，stdout 输出 "0"。
 #   调用方判取消：[[ -z "$c" || "$c" = "0" ]]（-z 为兼容兜底，新契约下恒为 "0"）。
@@ -96,7 +97,7 @@ confirm() {
 }
 
 # ========== 单选菜单 ==========
-# 调用方传纯文本 items（不带数字前缀），本函数自动加 "1) 2) 3)" 序号。
+# 调用方传纯文本 items（不带数字前缀），本函数自动加 "1 2 3" 序号（无括号，左对齐）。
 # 返回: 选中项的序号字符串（如 "5"）；0 表示「返回/取消」（用户输入空、非法、越界）。
 # 用法: c=$(menu_select "title" "item1" "item2" "返回"); case "$c" in 1) ... ;; 0) return ;; esac
 # 真实终端探测：/dev/tty 可打开才算交互可用。
@@ -300,7 +301,8 @@ menu_multi() {
     echo "" >&2
     section "$title（输入序号切换，回车确认）" >&2
     local selected=() i choice
-    for i in "${!items[@]}"; do printf "  %2d) [ ] %s\n" $((i+1)) "${items[$i]}" >&2; done
+    local num_w=${#items[@]}; num_w=${#num_w}
+    for i in "${!items[@]}"; do printf "  %-${num_w}d  [ ] %s\n" $((i+1)) "${items[$i]}" >&2; done
     echo "" >&2
     while true; do
         read -p "  输入序号（留空确认）: " choice
@@ -312,10 +314,10 @@ menu_multi() {
                 local new=()
                 for s in "${selected[@]}"; do [[ "$s" != "$idx" ]] && new+=("$s"); done
                 selected=("${new[@]}")
-                printf "\033[1A\033[2K  %2d) [ ] %s\n" "$choice" "${items[$idx]}" >&2
+                printf "\033[1A\033[2K  %-${num_w}d  [ ] %s\n" "$choice" "${items[$idx]}" >&2
             else
                 selected+=("$idx")
-                printf "\033[1A\033[2K  %2d) [\e[32m✓\e[0m] %s\n" "$choice" "${items[$idx]}" >&2
+                printf "\033[1A\033[2K  %-${num_w}d  [\e[32m✓\e[0m] %s\n" "$choice" "${items[$idx]}" >&2
             fi
         fi
     done

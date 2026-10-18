@@ -607,4 +607,5 @@ case "${1:-status}" in
   config|cfg|c|conf) cmd_config ;;
   config-project|cp) config_project "$PWD" ;;
   keys) bash "$(dirname "$SCRIPT_DIR")/lib/init-mcp.sh" keys ;;
+  sync) bash "$(dirname "$SCRIPT_DIR")/lib/init-mcp.sh" sync ;;
 esac

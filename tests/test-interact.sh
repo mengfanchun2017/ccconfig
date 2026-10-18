@@ -79,19 +79,28 @@ out=$(printf "\n" | menu_select "title" "a" "b" "c" 2>/dev/null)
 # ── Test 6: menu_select items 重复数字回归 ──
 echo "=== Test 6: items double-number regression ==="
 # 旧版: caller 传 "1) item1" → 输出 "1) 1) item1"（双前缀）
-# 新版: caller 传纯文本 "item1" → 输出 "1) item1"
+# 新版: caller 传纯文本 "item1" → 输出 "1  item1"（无括号，左对齐）
 out=$(menu_select "title" "item1" "item2" "item3" </dev/null 2>&1 >/dev/null)
 out_plain=$(echo "$out" | sed 's/\x1b\[[0-9;]*m//g')
-if echo "$out_plain" | grep -qE "^\s+1\)\s+1\)\s"; then
+if echo "$out_plain" | grep -qE "^\s+1\s+1\s"; then
     fail "double number detected: $out_plain"
 else
     pass "items rendered correctly (no double number)"
 fi
-if echo "$out_plain" | grep -qE "^\s+1\)\s+item1\s*$"; then
-    pass "item1 rendered as '1) item1'"
+if echo "$out_plain" | grep -qE "^\s+1\s+item1\s*$"; then
+    pass "item1 rendered as '1  item1'"
 else
     fail "item1 missing: $out_plain"
 fi
+
+# ── Test 6b: 编号跨 1 位/2 位左对齐（历史 bug：%2d 右对齐让 1 多缩进一格）──
+echo "=== Test 6b: 1/10 编号左对齐 ==="
+out=$(menu_select "title" $(seq 1 12 | sed 's/^/item/') </dev/null 2>&1 >/dev/null)
+cols=$(echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -E '^\s+[0-9]+\s+item' | \
+       sed 's/[^ ].*//' | awk '{print length}' | sort -u | tr '\n' ' ')
+[[ "$(echo "$cols" | wc -w)" -eq 1 ]] \
+    && pass "1-12 序号起始列一致（cols=$cols）" \
+    || fail "序号起始列不齐: $cols"
 
 # ── Test 7: confirm EOF fallback (默认 n) ──
 echo "=== Test 7: confirm EOF ==="
@@ -160,7 +169,7 @@ out_stdout=$(printf "2\n" | menu_select "title" "a" "b" "c" 2>/dev/null)
 out_stderr=$(printf "2\n" | menu_select "title" "a" "b" "c" 2>&1 >/dev/null)
 out_stderr_plain=$(echo "$out_stderr" | sed 's/\x1b\[[0-9;]*m//g')
 [[ "$out_stdout" == "2" ]] && pass "stdout contains number" || fail "stdout got: '$out_stdout'"
-if echo "$out_stderr_plain" | grep -qE "1\)\s+a"; then
+if echo "$out_stderr_plain" | grep -qE "^\s+1\s+a"; then
     pass "stderr contains menu"
 else
     fail "stderr missing menu: $out_stderr_plain"
