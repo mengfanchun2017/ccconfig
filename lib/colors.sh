@@ -19,7 +19,9 @@ NC='\033[0m'
 
 # non-tty（管道/命令替换捕获）时清空色变量：输出纯文本，避免 escape 脏进日志/文件
 # 终端 tty 下色变量保留原样，无行为变化
-if [ ! -t 1 ]; then
+# CCCONFIG_FORCE_COLOR=1 强制保留颜色 —— 供测试断言真实色码（bats `run` 会捕获 stdout），
+# 以及用户想把带色输出重定向/管道给阅读器时使用。
+if [ ! -t 1 ] && [ -z "${CCCONFIG_FORCE_COLOR:-}" ]; then
     RED='' GREEN='' LIGHT_BLUE='' YELLOW='' CYAN='' BLUE='' BOLD=''
     BOLD_BLUE='' BOLD_GREEN='' BOLD_GRAY='' GRAY='' DIM='' NC=''
 fi

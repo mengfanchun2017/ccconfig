@@ -6,6 +6,9 @@
 load "setup"
 
 setup() {
+    # bats 的 `run` 把 stdout 捕获进管道 → 非 tty → colors.sh 默认清空色变量。
+    # 断言色码的用例需要强制保留，故此处设 CCCONFIG_FORCE_COLOR。
+    export CCCONFIG_FORCE_COLOR=1
     source "$LIB_DIR/colors.sh"
 }
 
