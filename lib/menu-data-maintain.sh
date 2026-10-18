@@ -65,9 +65,13 @@ MENU_ENTRIES=(
     "4|K|编辑自定义预设|./maintain.sh llm edit|bash \"\$LIB_DIR/init-llm.sh\" edit"
 
     # ── 5: MCP ──
+    # 5D 注册同步：从 conf/mcp-servers.json 把服务器写进 .config.json。
+    # 此前这个动作只以「mcp」之名挂在 3D 可选组件菜单里（3D 是装组件的地方，
+    # 而它做的是注册同步），MCP 域自己反而没有入口 —— 归位到 5。
     "5|A|MCP 配置（用户级）|./maintain.sh mcp config|bash \"\$LIB_DIR/mcp-manager.sh\" config"
     "5|B|MCP 状态|./maintain.sh mcp status|bash \"\$LIB_DIR/mcp-manager.sh\" status"
     "5|C|MCP Key 配置|./maintain.sh mcp keys|bash \"\$LIB_DIR/mcp-manager.sh\" keys"
+    "5|D|MCP 注册同步|./maintain.sh mcp sync|bash \"\$LIB_DIR/mcp-manager.sh\" sync"
 
     # ── 6: 飞书/Lark ──
     # 账号新增即持久化（feishu.json），切换默认持久化（带 -p），不再拆「并持久化」独立项

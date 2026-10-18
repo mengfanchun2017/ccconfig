@@ -88,14 +88,48 @@ do_status() {
     echo ""
 
     if [ "$pl_ok" = true ]; then
-        echo -e "${CYAN}── MCP 服务器状态 ──${NC}"
-        claude mcp list 2>/dev/null | grep "plugin:cloudflare" | while read line; do
-            local name=$(echo "$line" | awk '{print $1}')
-            local status_mark=$(echo "$line" | grep -q "Connected" && echo "${GREEN}✓${NC}" || echo "${YELLOW}○${NC}")
-            echo "  $status_mark $name"
+        echo -e "${CYAN}── MCP 服务器 ──${NC}"
+        # 不调 claude mcp list —— 它逐个 server 做健康探测，一次 ~3s，而状态检查
+        # 不必等网络。授权与否读 .config.json 的 mcpNeedsAuthNoticed 即可（OAuth
+        # 未完成的 server 会被 Claude 记在那里）。
+        local servers needs_auth=""
+        servers=$(python3 - "$HOME" <<'PYEOF' 2>/dev/null
+import json, os, sys
+home = sys.argv[1]
+try:
+    inst = json.load(open(os.path.join(home, '.claude/plugins/installed_plugins.json')))
+    ent = inst['plugins']['cloudflare@cloudflare']
+    ent = ent[0] if isinstance(ent, list) else ent
+    mcp = json.load(open(os.path.join(ent['installPath'], 'mcp.json')))
+    print(' '.join((mcp.get('mcpServers') or {}).keys()))
+except Exception:
+    print('cloudflare')
+PYEOF
+)
+        if python3 - "$HOME" <<'PYEOF' 2>/dev/null | grep -q "plugin:cloudflare"
+import json, os, sys
+try:
+    d = json.load(open(os.path.join(sys.argv[1], '.claude/.config.json')))
+    print(' '.join(d.get('mcpNeedsAuthNoticed') or []))
+except Exception:
+    pass
+PYEOF
+        then
+            needs_auth="yes"
+        fi
+
+        for s in $servers; do
+            if [ -n "$needs_auth" ]; then
+                echo -e "  ${YELLOW}○${NC} plugin:cloudflare:$s ${DIM}(待 OAuth)${NC}"
+            else
+                echo -e "  ${GREEN}✓${NC} plugin:cloudflare:$s"
+            fi
         done
         echo ""
-        echo -e "${GRAY}  4/5 需 OAuth（首次调用自动触发），详见 README.md${NC}"
+        if [ -n "$needs_auth" ]; then
+            echo -e "${GRAY}  待 OAuth：首次调用该 MCP 时浏览器弹窗授权，详见 README.md${NC}"
+        fi
+        echo -e "${GRAY}  安装范围 user 级；启用/停用按项目在 .claude/settings.json 的 enabledPlugins 里控制${NC}"
     fi
 }
 
