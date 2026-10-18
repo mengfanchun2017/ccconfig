@@ -32,6 +32,7 @@ banner() {
     echo "Cloudflare Plugin — Workers/Pages/D1/R2/AI"
     echo "═════════════════════════════════════════"
     echo "    11 skills + 2 commands + 5 MCP 服务器"
+    echo "    安装范围：user 级（~/.claude/plugins/）— 装完按项目需要再启用"
     echo "$NC"
 }
 
