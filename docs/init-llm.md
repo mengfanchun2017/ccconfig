@@ -10,7 +10,7 @@
 
 ```mermaid
 flowchart LR
-    User[用户] -->|bash init-llm.sh preset| Init[init-llm.sh]
+    User[用户] -->|bash init-llm.sh <预设名>| Init[init-llm.sh]
     Init -->|读| LLMNormal[conf/llmnormal.json<br/>内置预设定义] & LLMPriv[llmprivate.json<br/>自定义定义] & LLMKeys[llm.json<br/>纯 Key]
     Init -->|_llms_merged_py 合并| Merged[~/.cache/llm-merged.json<br/>定义+key+_src+current]
     Merged -->|写| Settings[~/.claude/settings.json<br/>env 块]
