@@ -29,19 +29,21 @@ bash ~/git/ccconfig/lib/init-autostart.sh
 bash ~/git/ccconfig/lib/update.sh all
 ```
 
-这一步会自动（顺序同 `lib/update.sh` 的 `update_all()`）：
-1. **ccconfig 自更新** — 拉最新脚本（关键文件变更会自动 re-exec 续跑）
-2. **Node.js** — 升级到 conf/versions.json 锁定的版本
+这一步会自动跑 12 步（顺序同 `lib/update.sh` 的 `update_all()`）：
+1. **ccconfig 代码 reload 检查** — 只 fetch 不全量 pull（拉代码归 2A；关键文件落后会提示先跑 `self config`）
+2. **Node.js** — 升级到 conf/versions.json 锁定的 LTS
 3. **lark-cli** — npm 全局升级
 4. **Python pip 包** — 升级到 conf/python-requirements.txt 最新
 5. **GitHub CLI** — 升级到最新 release
 6. **Claude Code** — `claude install --force` 升级
 7. **Skills 同步** — 重建 skill symlink
-8. **MCP 缓存** — 刷新（24h 内已刷新则跳过）
-9. **OfficeCLI** — 升级
-10. **Cloudflare 插件** — 升级
+8. **MCP 缓存** — 刷新
+9. **uv** — Python 工具运行器更新
+10. **OfficeCLI** — 升级
+11. **Cloudflare 插件** — 升级
+12. **getnote（CLI + Skill）** — 升级
 
-升级前自动创建版本快照（`.snapshots/`），保留 90 天。升级后显示版本对比表。
+升级前自动创建版本快照（`.snapshots/`，保留 30 天）。升级后显示版本对比表。
 
 ```bash
 # 只看不升（兼容性预检查）
