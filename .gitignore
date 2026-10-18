@@ -47,6 +47,9 @@ claude_job_tmp/
 # 编辑器
 *:Zone.Identifier
 
+# 包安装产物（bats 等免 root 测试工具的 apt-get download 落点）
+*.deb
+
 # 其他
 .agents/
 .claude/skills/
