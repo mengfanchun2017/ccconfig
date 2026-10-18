@@ -106,7 +106,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 ~/git/
 ├── ccconfig/                   # ← 用户 fork/clone 这个
 │   ├── bootstrap-gh-auth.sh    # 一行式起步：装 git + clone ccconfig（认证归 init-bootstrap.sh）
-│   ├── init-base.sh                 # 统一入口（交互式二级菜单）
+│   ├── init-base.sh            # 统一入口（Ubuntu → LLM → 链接/服务 三步）
 │   ├── maintain.sh             # 统一运维入口
 │   ├── conf/               # 配置模板（*.example，不包含真实密钥）
 │   ├── lib/                    # 脚本库 + 子脚本
@@ -114,18 +114,25 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │   │   ├── init-llm.sh         # LLM 后端切换
 │   │   ├── init-mcp.sh         # MCP 服务器管理
 │   │   ├── init-skill.sh       # Skills 同步（4+1 阶段 pipeline）
-│   │   ├── init-autostart.sh   # auto-sync systemd 服务
-│   │   ├── update.sh           # 月度组件升级
+│   │   ├── init-autostart.sh   # auto-sync systemd 服务（system 级）
+│   │   ├── update.sh           # 月度组件升级（12 步）
 │   │   ├── status.sh           # 10 项状态检查
 │   │   ├── monitor.sh          # 多仓库文件监听 + 自动 git 同步
 │   │   ├── sync.sh             # 多仓库智能同步
+│   │   ├── menu-data-maintain.sh # maintain.sh 菜单数据层
 │   │   ├── setup-links.sh      # 公开部分符号链接
 │   │   ├── deps-check.sh       # 依赖完整性检查
 │   │   ├── path-helper.sh      # 动态路径解析库
 │   │   ├── colors.sh           # 终端颜色定义
 │   │   ├── interact.sh         # 统一交互菜单库
+│   │   ├── net.sh              # 网络探测
+│   │   ├── safe-exit.sh        # trap 清理
 │   │   ├── install-inotify.sh  # inotify-tools 安装
 │   │   ├── mcp-manager.sh      # MCP 配置管理器
+│   │   ├── ensure-bridge.sh    # Anthropic↔OpenAI 桥看门狗
+│   │   ├── bridge-{restart,service,supervisor}.sh # bridge 生命周期
+│   │   ├── ensure-{uv,libicu}.sh # 工具依赖确保
+│   │   ├── tailscale-guard.sh  # Tailscale 路由守卫
 │   │   └── shell_init.sh       # Shell 环境初始化片段
 │   ├── templates/              # .example 模板目录（运行时在 ccprivate）
 │   │   ├── rules/              # 条件规则模板（9 个，.md.example）

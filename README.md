@@ -171,23 +171,35 @@ ccconfig/
 │   ├── init-llm.sh           # LLM 后端切换（多预设 + bridge 自动管理）
 │   ├── init-mcp.sh           # MCP 服务器注册管理
 │   ├── init-skill.sh         # Skills 同步
-│   ├── init-autostart.sh     # auto-sync systemd 服务
+│   ├── init-autostart.sh     # auto-sync systemd 服务（system 级）
 │   ├── monitor.sh            # inotify 监听 + 自动 git 同步
 │   ├── status.sh             # 10 项状态检查
 │   ├── sync.sh               # 多仓库 Git 同步（内含冲突解决）
 │   ├── update.sh             # 月度组件升级
-│   ├── example-sync.sh       # .example ↔ ccprivate 双向同步
+│   ├── example-sync.sh       # .example ↔ ccprivate 差异检测
 │   ├── ccprivate-upgrade.sh  # ccprivate 结构升级
 │   ├── deps-check.sh         # 依赖检查
 │   ├── setup-links.sh        # 公开符号链接
 │   ├── path-helper.sh        # 路径解析 + 版本文件读写
-│   ├── colors.sh              # 颜色变量
-│   ├── dry-run.sh             # 预览模式
+│   ├── colors.sh             # 颜色变量（non-tty 自动净化，CCCONFIG_FORCE_COLOR 可强制保留）
+│   ├── dry-run.sh            # 预览模式（guard_* 幂等写）
 │   ├── interact.sh           # 统一交互菜单库（confirm/menu_select/prompt）
+│   ├── net.sh                # 网络探测（check_proxy/check_tcp）
+│   ├── safe-exit.sh          # 统一 trap 清理
 │   ├── install-inotify.sh    # inotify-tools 安装
-│   ├── mcp-manager.sh        # MCP 配置管理器
+│   ├── mcp-manager.sh        # MCP 配置管理器（maintain.sh mcp 子命令）
+│   ├── menu-data-maintain.sh # maintain.sh 菜单数据层（CAT_NAME/MENU_ENTRIES）
 │   ├── shell_init.sh         # Shell 环境初始化片段
-│   └── claude-auto-sync.service # systemd service 模板（被 init-autostart.sh 使用）
+│   ├── ensure-bridge.sh      # Anthropic↔OpenAI 桥看门狗
+│   ├── bridge-restart.sh     # bridge 重启（watchdog 与冷启动共用）
+│   ├── bridge-service.sh     # bridge systemd 服务管理
+│   ├── bridge-supervisor.sh  # bridge 前台 supervisor（systemd + shell 两路共用）
+│   ├── ensure-uv.sh          # uv 安装确保（Python 工具隔离运行器）
+│   ├── ensure-libicu.sh      # ICU 依赖（Playwright/OfficeCLI 用）
+│   ├── tailscale-guard.sh    # Tailscale 路由守卫（防内网黑洞）
+│   ├── conf-diff-classify.py # .example 差异分类（example-sync 用）
+│   ├── claude-auto-sync.service  # auto-sync systemd 模板
+│   └── claude-bridge.service     # bridge systemd 模板
 │
 ├── conf/                     # 公开配置模板
 │   ├── *.json.example        # 模板（复制到 ccprivate/conf/ 后编辑）
