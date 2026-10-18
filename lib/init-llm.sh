@@ -1419,7 +1419,18 @@ main() {
                 *)  error "bridge 自愈失败" ;;
             esac
             ;;
-        "")          interactive_select ;;
+        "")
+            # 无预设名（INIT_LLM_NAME 空 + 无参数）→ 正常进交互菜单让用户挑。
+            # 但非交互模式（init-base all --yes / CI）下没有 tty 可读，进了菜单就
+            # 永久挂起（read /dev/tty 阻塞）—— 全自动流程卡死且无人能看见。
+            # 此时明确报错退出，让调用方的 run_step 记失败继续，而不是静默卡住。
+            if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then
+                err "非交互模式但未指定 LLM preset（INIT_LLM_NAME 为空）—— 无法进交互菜单"
+                info "  先设好当前预设: write_llm_current 或 export INIT_LLM_NAME=<预设名>"
+                info "  或手动跑: bash lib/init-llm.sh <预设名>"
+                return 1
+            fi
+            interactive_select ;;
         *)
             if [[ "$cmd" =~ ^pr[i1]c[i1]ng$ ]]; then
                 error "价格设定已移除（费用以上游账单为准）"
