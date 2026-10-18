@@ -52,7 +52,8 @@ MENU_ENTRIES=(
     "2|E|一键修复|./maintain.sh fix|do_setup"
 
     # ── 3: LLM ──
-    # 原 4E「修复 /model 污染」、4F「修复 bridge 转 Anthropic」已删：
+    # 原「修复 /model 污染」「修复 bridge 转 Anthropic」两个菜单项已删
+    # （删前编号 4E/4F，重构后 3 分区）：
     #   4E 是静默 no-op —— 只在 env.ANTHROPIC_MODEL 与顶层 model 不一致时才写，
     #     正常状态下零输出零退出（"选了没反馈"）；而且每次切预设 switch_llm 末尾
     #     已自动调 sync_top_model，手动入口冗余。函数保留，仅去掉菜单项。
@@ -83,7 +84,7 @@ MENU_ENTRIES=(
     #   标题里的"当前账号"是冗余描述。
     # getnote 侧只留两项（安装已归 2D，诊断/升级见下方注释）。
     "5|A|lark 账号列表|bash option-larkcli/lark-switch.sh --list|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\" --list"
-    "5|B|lark 切换账号（问账号名）|bash option-larkcli/lark-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
+    "5|B|lark 切换账号|bash option-larkcli/lark-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
     "5|C|lark OAuth 授权|bash option-larkcli/lark-switch.sh|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
     "5|D|lark 配置/更新账号|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
     "5|E|getnote 状态|bash option-getnote/init.sh --status|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" --status"
