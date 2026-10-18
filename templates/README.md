@@ -13,7 +13,8 @@
 | `.config.json.example` | 会话配置模板（permissions / hooks / statusLine / mcpServers） |
 | `.claudeignore.example` | context 策略模板 |
 | `ccprivate-setup.sh` | **setup.sh 唯一真相源**（bootstrap 与 upgrade 都 cp 它） |
-| `skills/` | skill 说明占位（skill 开发在独立 skill 仓进行） |
+
+> skill 不在本目录：skill 开发在独立 [skill](https://github.com/mengfanchun2017/skill) 仓进行。
 
 > 规则目录索引（`rules/*.md.example` 每个文件的加载模式、大小、内容）见 [CATALOG.md](CATALOG.md)。
 
