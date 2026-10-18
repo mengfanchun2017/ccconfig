@@ -92,7 +92,7 @@ cd ~/git/ccconfig && git pull
 bash ~/git/ccprivate/setup.sh
 ```
 
-`update.sh all` 开头自动 `git pull` ccconfig，通常不需要手动拉。如果本地有未提交改动，`update.sh` 会显示冲突处理菜单。
+`update.sh all` 开头只 **fetch 检查** ccconfig 代码是否落后，发现关键文件过期会提示先跑 `bash maintain.sh self config`（拉代码归 2A，见 [docs/updates/20261018-menu-restructure.md](updates/20261018-menu-restructure.md)）。要更新代码本身，跑 2A 或 `git pull`。
 
 ## 大版本升级
 
