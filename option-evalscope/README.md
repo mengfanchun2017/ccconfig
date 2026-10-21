@@ -12,7 +12,17 @@
 bash ccconfig/option-evalscope/init.sh --install
 ```
 
-用 `uv` 建独立 Python 3.11 venv（`.venv/`）装 evalscope，**不污染**系统 Python 3.14。装完 `init.sh --status` 显示 OK 即就绪。
+用 `uv` 建独立 Python 3.11 venv（`.venv/`）装 `evalscope[perf]`，**不污染**系统 Python 3.14。
+
+装的是 `[perf]` extra 而非裸 `evalscope`：core 包不含 `uvicorn`/`fastapi`/`transformers`，缺了 `run-perf.sh` 会 `ModuleNotFoundError`。一个 venv 同时覆盖压测 + 精度。
+
+`init.sh --status` 首行三态：
+
+| 输出 | 含义 |
+|------|------|
+| `OK` | 齐全，压测 + 精度都可用 |
+| `WARN` | 二进制就绪但缺 perf 依赖（uvicorn 不可用）→ 精度可用，压测不可用，重跑 `--install` 修 |
+| `MISSING` | 未安装 |
 
 ## 用法
 
