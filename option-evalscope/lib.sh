@@ -85,3 +85,15 @@ check_installed() {
     fi
     return 0
 }
+
+# perf 子命令额外依赖（evalscope core 不含 uvicorn）
+# 旧版 init.sh 装的是裸 evalscope，二进制在但 perf 跑不起来 —— 这里显式检出。
+check_perf_ready() {
+    local py="$VENV_DIR/bin/python"
+    if [[ ! -x "$py" ]] || ! "$py" -c "import uvicorn" >/dev/null 2>&1; then
+        echo "❌ evalscope 缺 perf 依赖（uvicorn 不可用），压测跑不了。" >&2
+        echo "   修复: bash ccconfig/option-evalscope/init.sh --install（会装 evalscope[perf]）" >&2
+        return 1
+    fi
+    return 0
+}
