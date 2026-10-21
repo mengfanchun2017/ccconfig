@@ -18,9 +18,18 @@ source "$CCCONFIG_ROOT/lib/ensure-uv.sh"
 VENV_DIR="$SCRIPT_DIR/.venv"
 EVALSCOPE_BIN="$VENV_DIR/bin/evalscope"
 PY_VER=3.11
+# 装 [perf] extra：core 包不含 uvicorn/fastapi 等，缺了 run-perf.sh 会
+# ModuleNotFoundError。一个 venv 覆盖 压测 + 精度 两个功能。
+EVALSCOPE_SPEC="evalscope[perf]"
 
 _is_installed() {
     [[ -x "$EVALSCOPE_BIN" ]] && "$EVALSCOPE_BIN" --version >/dev/null 2>&1
+}
+
+# perf extra 是否就绪（uvicorn 是 evalscope perf 子命令的入口依赖）
+_perf_ready() {
+    [[ -x "$VENV_DIR/bin/python" ]] \
+        && "$VENV_DIR/bin/python" -c "import uvicorn" >/dev/null 2>&1
 }
 
 do_install() {
@@ -32,8 +41,8 @@ do_install() {
         uv venv --python "$PY_VER" "$VENV_DIR"
     fi
 
-    info "安装 evalscope（首次会下载较多依赖，需几分钟）..."
-    if ! uv pip install --python "$VENV_DIR/bin/python" evalscope; then
+    info "安装 $EVALSCOPE_SPEC（首次会下载较多依赖，含 fastapi/uvicorn/transformers，需几分钟）..."
+    if ! uv pip install --python "$VENV_DIR/bin/python" "$EVALSCOPE_SPEC"; then
         err "evalscope 安装失败"; return 1
     fi
 
@@ -58,7 +67,12 @@ do_status() {
     if _is_installed; then
         local ver
         ver="$("$EVALSCOPE_BIN" --version 2>&1)"
-        echo "OK evalscope $ver (venv py$PY_VER)"
+        if _perf_ready; then
+            echo "OK evalscope $ver (venv py$PY_VER)"
+        else
+            echo "WARN evalscope $ver 就绪，但缺 perf 依赖（精度可用，压测不可用）"
+            echo "  修复: bash option-evalscope/init.sh --install"
+        fi
     else
         echo "MISSING evalscope 未安装（bash option-evalscope/init.sh --install）"
     fi
