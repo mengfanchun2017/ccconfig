@@ -68,3 +68,7 @@ course-modules.txt
 file-scan.json
 files-meta.json
 deep-scan.json
+
+# 误写的重定向产物（shell 把 > <stdin> 当字面文件名，内容常是 ~/.claude.json 全量转储）
+<stdin>
+<stdout>
