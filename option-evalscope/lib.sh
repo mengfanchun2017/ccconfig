@@ -9,7 +9,8 @@ source "$CCCONFIG_ROOT/lib/path-helper.sh"
 source "$CCCONFIG_ROOT/lib/colors.sh"
 
 # 独立 venv 里的 evalscope
-EVALSCOPE_BIN="$SCRIPT_DIR/.venv/bin/evalscope"
+VENV_DIR="$SCRIPT_DIR/.venv"
+EVALSCOPE_BIN="$VENV_DIR/bin/evalscope"
 
 # 结果输出根目录（可 env 覆盖）
 EVAL_OUTPUT_ROOT="${EVAL_OUTPUT_ROOT:-$HOME/.cache/evalscope}"
