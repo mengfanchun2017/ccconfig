@@ -14,6 +14,12 @@ conftemp/
 *.pyc
 __pycache__/
 
+# 隔离 venv（option-evalscope/.venv 等）。不靠 uv 自建的 .venv/.gitignore 挡：
+# 那是工具生成的隐式依赖，一旦 uv 换行为整个 venv 会裸进公开库。
+# 另有隐患：venv/bin/python 是指向 uv 真实解释器的 symlink，
+# cp -r 复制后再往 bin/python 写会顺着链接写穿、毁掉共享解释器（勿在仓库内造 venv）。
+.venv/
+
 # 运行时文件
 .monitor-sync.*
 .auto-sync.*
