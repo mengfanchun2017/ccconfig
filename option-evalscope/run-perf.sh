@@ -53,6 +53,7 @@ main() {
     done
 
     check_installed || return 1
+    check_perf_ready || return 1
     [[ -z "$preset" ]] && { echo "❌ 缺 --preset"; usage 1; }
     local cfg; cfg="$(resolve_llm_json)" || return 1
     [[ "$preset" == "__list__" ]] && { do_list; return 0; }
