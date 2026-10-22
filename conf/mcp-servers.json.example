@@ -68,6 +68,16 @@
       "env": {}
     },
     {
+      "name": "cloudflare",
+      "description": "Cloudflare MCP（docs 搜索 / search / execute / whoami）",
+      "how_to_get": "去 https://dash.cloudflare.com/profile/api-tokens 创建 token，写入 conf/cloudflare.json 的 tokens.claude",
+      "type": "http",
+      "url": "https://mcp.cloudflare.com/mcp",
+      "headers": {
+        "Authorization": "Bearer 请填入你的 Cloudflare API token"
+      }
+    },
+    {
       "name": "playwright",
       "description": "浏览器自动化（图生3D网页通道、表单操作等）",
       "how_to_get": "无 Key。装 Chromium：bash ccconfig/option-playwright/init.sh --install",
