@@ -1,0 +1,11 @@
+{
+  "_note": "chmod 600。token 名对应 MCP 服务器条目：<name> → conf/cloudflare.json 的 tokens.<name>",
+  "_guide": [
+    "去 https://dash.cloudflare.com/profile/api-tokens 创建 API token",
+    "权限至少给：Account → Account Settings → Read（whoami 用）；按用途再加",
+    "填入 tokens.claude（或任意名字，与 mcp-servers.json 条目对应）"
+  ],
+  "tokens": {
+    "claude": "请填入你的 Cloudflare API token"
+  }
+}
