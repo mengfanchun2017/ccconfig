@@ -31,7 +31,7 @@ banner() {
     echo -e "${CYAN}"
     echo "Cloudflare Plugin — Workers/Pages/D1/R2/AI"
     echo "═════════════════════════════════════════"
-    echo "    11 skills + 2 commands + 5 MCP 服务器"
+    echo "    19 skills + 1 rule + 1 MCP 服务器（v1.0.2）"
     echo "    安装范围：user 级（~/.claude/plugins/）— 装完按项目需要再启用"
     echo "$NC"
 }
@@ -100,8 +100,18 @@ try:
     inst = json.load(open(os.path.join(home, '.claude/plugins/installed_plugins.json')))
     ent = inst['plugins']['cloudflare@cloudflare']
     ent = ent[0] if isinstance(ent, list) else ent
-    mcp = json.load(open(os.path.join(ent['installPath'], 'mcp.json')))
-    print(' '.join((mcp.get('mcpServers') or {}).keys()))
+    # 插件实装的 MCP 定义是 .mcp.json（点号）；本目录另有非点号的 mcp.json 是
+    # agent-plugins schema 文件，不含 mcpServers。优先读 .mcp.json。
+    for fname in ('.mcp.json', 'mcp.json'):
+        p = os.path.join(ent['installPath'], fname)
+        if os.path.exists(p):
+            mcp = json.load(open(p))
+            srv = (mcp.get('mcpServers') or {})
+            if srv:
+                print(' '.join(srv.keys()))
+                break
+    else:
+        print('cloudflare')
 except Exception:
     print('cloudflare')
 PYEOF
@@ -118,15 +128,36 @@ PYEOF
             needs_auth="yes"
         fi
 
+        # 同名 user 级 server 会覆盖插件自带的那个（Claude Code 同名时 user 优先）。
+        # 覆盖生效后插件那个不再连接，也就不会再要求 OAuth —— 这时状态该报「user 覆盖」，
+        # 而不是照抄 needs_auth 报「待 OAuth」。
+        local shadowed="no"
+        if python3 - "$HOME" <<'PYEOF' 2>/dev/null | grep -q "^yes$"
+import json, os, sys
+try:
+    d = json.load(open(os.path.join(sys.argv[1], '.claude/.config.json')))
+    ms = d.get('mcpServers') or {}
+    print('yes' if 'cloudflare' in ms and 'cloudflare' not in (d.get('disabledMcpServers') or []) else 'no')
+except Exception:
+    print('no')
+PYEOF
+        then
+            shadowed="yes"
+        fi
+
         for s in $servers; do
-            if [ -n "$needs_auth" ]; then
+            if [ "$shadowed" = "yes" ]; then
+                echo -e "  ${GREEN}✓${NC} plugin:cloudflare:$s ${DIM}(被 user 级同名 server 覆盖)${NC}"
+            elif [ -n "$needs_auth" ]; then
                 echo -e "  ${YELLOW}○${NC} plugin:cloudflare:$s ${DIM}(待 OAuth)${NC}"
             else
                 echo -e "  ${GREEN}✓${NC} plugin:cloudflare:$s"
             fi
         done
         echo ""
-        if [ -n "$needs_auth" ]; then
+        if [ "$shadowed" = "yes" ]; then
+            echo -e "${GRAY}  user 级 cloudflare（API token）已接管；插件自带那个不再连接，无需 OAuth${NC}"
+        elif [ -n "$needs_auth" ]; then
             echo -e "${GRAY}  待 OAuth：首次调用该 MCP 时浏览器弹窗授权，详见 README.md${NC}"
         fi
         echo -e "${GRAY}  安装范围 user 级；启用/停用按项目在 .claude/settings.json 的 enabledPlugins 里控制${NC}"
@@ -324,12 +355,12 @@ do_interactive() {
     echo ""
     echo -e "  ${CYAN}组件说明:${NC}"
     echo -e "    ${BOLD}marketplace${NC} (cloudflare/skills)"
-    echo "      11 个 skills（cloudflare/wrangler/agents-sdk/durable-objects 等）"
+    echo "      19 个 skills（cloudflare/wrangler/agents-sdk/durable-objects 等）"
     echo "      按需加载，~600-800 tokens"
     echo ""
     echo -e "    ${BOLD}plugin${NC} (cloudflare@cloudflare)"
-    echo "      2 commands (/cloudflare:build-agent, /cloudflare:build-mcp)"
-    echo "      5 MCP 服务器（api/docs/bindings/builds/observability，4/5 需 OAuth）"
+    echo "      19 skills + 1 rule (workers.mdc) + 1 MCP 服务器"
+    echo "      MCP: cloudflare → https://mcp.cloudflare.com/mcp（OAuth 或 API token）"
     echo "      ~2-3k tokens"
     echo ""
     local choice; choice=$(menu_select "Cloudflare" \
