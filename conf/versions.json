@@ -1,6 +1,6 @@
 {
   "description": "Single source of truth for all component versions managed by ccconfig. Edit this file to pin versions.",
-  "last_checked": "2026-10-22T17:06:47.888254+08:00",
+  "last_checked": "2026-10-22T22:39:21.729694+08:00",
   "self": {
     "version": "2026.09.19",
     "scheme": "CalVer YYYY.MM.DD",
@@ -17,7 +17,7 @@
       "lts_only": true
     },
     "gh": {
-      "version": "2.102.0"
+      "version": "2.103.0"
     },
     "uv": {
       "version": "latest",
