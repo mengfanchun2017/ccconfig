@@ -4,8 +4,8 @@
     "minimax31": {
       "name": "minimax3.1",
       "base_url": "https://api.minimaxi.com/anthropic",
-      "model": "MiniMax-M3.1-Flash-Preview",
-      "small_model": "MiniMax-M3.1-Flash-Preview",
+      "model": "MiniMax-M3.1-Flash",
+      "small_model": "MiniMax-M3.1-Flash",
       "max_context_tokens": 400,
       "builtin": true
     },
