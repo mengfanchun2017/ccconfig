@@ -382,6 +382,12 @@ except Exception: print('\t')
     fi
     ensure_runtime_deps
 
+    # uv 镜像：deps-check 只看 uv 二进制在不在，不看 PyPI 装包快不快。直连 pypi
+    # 掉速会让 uvx 拉 MCP（mineru ~110MB）超过 Claude Code 的 30s 连接超时，
+    # MCP 面板恒显 ✘ —— 光有 uv 救不了。这里显式跑一次（幂等：已有 [[index]] 则跳过）。
+    source "$LIB_DIR/ensure-uv.sh"
+    _fix_step "uv 镜像（PyPI 下载提速）" ensure_uv
+
     echo ""
     if [[ "$_fix_failed" -eq 0 ]]; then
         echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
