@@ -128,47 +128,48 @@ ensure_path_officecli() {
 install_officecli_binary() {
     local asset; asset=$(_detect_asset)
     local proxy; proxy=$(net_gh_proxy)
-    [ -z "$proxy" ] && warn "  未取到本机代理，直连 GitHub 大概率超时"
+    [ -z "$proxy" ] && warn "未取到本机代理，直连 GitHub 大概率超时"
 
-    # 先拿候选 tag：API（走代理可达）→ latest
+    # 候选 tag：API 最新 → latest（GitHub 的 latest 重定向不一定落对资产）
     local -a tags=()
     local api_tag
     api_tag=$(curl -s --max-time 15 ${proxy:+-x "$proxy"} \
         "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null \
         | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || true)
     [ -n "$api_tag" ] && tags+=("$api_tag")
+    tags+=("latest")
 
     mkdir -p "$HOME/.local/bin"
     local tmp="$HOME/.local/bin/.officecli.tmp"
-
-    local url
-    for tag in "${tags[@]}" "latest"; do
+    local url tag
+    for tag in "${tags[@]}"; do
         url="https://github.com/${GITHUB_REPO}/releases/download/${tag}/${asset}"
-        echo -n "  下载 ($tag, $asset) ... "
-        if curl -L ${proxy:+-x "$proxy"} --connect-timeout 15 ${proxy:--m 300} \
-             --max-time 600 --progress-bar -C - -o "$tmp" "$url" 2>&1 | tail -1 | sed 's/^/    /'; then
-            local size; size=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
-            if [ "$size" -lt 3000000 ]; then
-                bad "❌ 文件异常小 ($size bytes，非完整二进制)"
-                rm -f "$tmp"; continue
-            fi
-            chmod +x "$tmp"
-            if timeout 15 "$tmp" --version >/dev/null 2>&1; then
-                mv "$tmp" "$OFFICECLI_BIN"
-                good "✅ ($(numfmt --to=iec "$size" 2>/dev/null || echo "$size")) $(_cli_version)"
-                return 0
-            fi
-            bad "❌ 下载物无法执行"
-            rm -f "$tmp"
-        else
-            bad "❌ 下载失败"
+        rm -f "$tmp"   # 每次全新下载：断点续传(-C -)遇到半截文件会写坏
+        info "下载 ($tag, $asset) ..."
+        if ! curl -L ${proxy:+-x "$proxy"} --connect-timeout 15 --max-time 300 \
+                --progress-bar -o "$tmp" "$url"; then
+            bad "下载失败"
+            continue
         fi
+        local size; size=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
+        if [ "$size" -lt 3000000 ]; then
+            bad "文件异常小 ($size bytes，非完整二进制)"
+            continue
+        fi
+        chmod +x "$tmp"
+        if ! timeout 15 "$tmp" --version >/dev/null 2>&1; then
+            bad "下载物无法执行"
+            continue
+        fi
+        mv -f "$tmp" "$OFFICECLI_BIN"
+        good "已装 ($(numfmt --to=iec "$size" 2>/dev/null || echo "$size")) $(_cli_version)"
+        return 0
     done
 
     rm -f "$tmp"
-    err "❌ OfficeCLI 安装失败"
-    warn "  手动: curl -L -x http://127.0.0.1:7897 \\"
-    warn "    https://github.com/${GITHUB_REPO}/releases/download/<tag>/${asset} -o ~/.local/bin/officecli"
+    err "OfficeCLI 安装失败"
+    info "  手动: curl -L -x ${proxy:-http://127.0.0.1:7897} \\"
+    info "    https://github.com/${GITHUB_REPO}/releases/download/<tag>/${asset} -o ~/.local/bin/officecli"
     return 1
 }
 
@@ -211,8 +212,6 @@ show_status() {
     local ready=true ver="" mcp_out=""
     if _officli_ready; then
         ver=$(_cli_version)
-    elif [ -x "$OFFICECLI_BIN" ]; then
-        ready=false
         # MCP 自检也带超时：shim 懒下载会把这里拖死
         mcp_out=$(timeout 10 "$OFFICECLI_BIN" mcp list 2>/dev/null || true)
     else
