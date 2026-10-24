@@ -703,15 +703,25 @@ check_skills() {
     fi
 
     if [[ -d "$skills_dir" ]]; then
-        local broken=0 linked=0
+        # 视图条目来自三个源，必须分类显示才能与"自建 N 个"对上账：
+        # 只报"已链接"会让总数（含 lark-* 第三方链接 + getnote 实体目录）对不上。
+        local broken=0 linked=0 third=0 real=0 total=0 d target
         for d in "$skills_dir"/*; do
-            if [[ -L "$d" ]] && [[ ! -e "$d" ]]; then
+            [[ -e "$d" || -L "$d" ]] || continue
+            total=$((total + 1))
+            if [[ ! -L "$d" ]]; then
+                real=$((real + 1))
+            elif [[ ! -e "$d" ]]; then
                 broken=$((broken + 1))
-            elif [[ -L "$d" ]]; then
-                linked=$((linked + 1))
+            else
+                target=$(readlink -f "$d")
+                case "$target" in
+                    "$skills_src"/*) linked=$((linked + 1)) ;;
+                    *)               third=$((third + 1)) ;;
+                esac
             fi
         done
-        echo -e "  已链接: ${GREEN}${linked}${NC} 个"
+        echo -e "  视图: ${GREEN}${total}${NC} 个（本仓链接 ${linked} / 第三方链接 ${third} / 实体目录 ${real}）"
         if [[ $broken -gt 0 ]]; then
             echo -e "  ${RED}断链: ${broken}${NC} 个 → bash maintain.sh fix"
             ok=false
