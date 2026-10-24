@@ -1066,6 +1066,8 @@ case "${1:-menu}" in
     all)
         echo -e "${CYAN}ccconfig 组件升级（全部）${NC}"
         take_snapshot "pre" > /dev/null
+        # 文件级快照（可回滚）。update.sh 自带的 take_snapshot 只存版本号，改坏了退不回去。
+        [ -x "$SCRIPT_DIR/snapshot.sh" ] && bash "$SCRIPT_DIR/snapshot.sh" take pre-upgrade >/dev/null 2>&1 || true
         update_all
         ;;
     node)          update_nodejs ;;

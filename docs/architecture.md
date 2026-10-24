@@ -126,7 +126,6 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │   │   ├── colors.sh           # 终端颜色定义
 │   │   ├── interact.sh         # 统一交互菜单库
 │   │   ├── net.sh              # 网络探测
-│   │   ├── safe-exit.sh        # trap 清理
 │   │   ├── install-inotify.sh  # inotify-tools 安装
 │   │   ├── mcp-manager.sh      # MCP 配置管理器
 │   │   ├── ensure-bridge.sh    # Anthropic↔OpenAI 桥看门狗

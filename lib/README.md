@@ -6,7 +6,6 @@
 | `colors.sh` | 颜色输出：ok/err/warn/info/section |
 | `interact.sh` | 交互菜单：confirm/menu_select/spinner/prompt |
 | `dry-run.sh` | 干运行支持：would/run |
-| `safe-exit.sh` | 统一 trap 清理：safe_exit/_register_temp |
 | `path-helper.sh` | 路径解析：resolve_conf/find_node_bin/get_version |
 | `net.sh` | 网络探测：check_proxy/check_tcp |
 | `deps-check.sh` | 依赖检查 |
@@ -19,8 +18,6 @@
 | `guard_append_line <file> <line>` | dry-run.sh | 幂等追加行（dry-run 感知） |
 | `guard_write_file <file> <content>` | dry-run.sh | 幂等写入（内容不同才覆盖，dry-run 感知） |
 | `atomic_write <file>` | dry-run.sh | 原子写入（mktemp + mv，防写一半断掉） |
-| `safe_exit [code]` | safe-exit.sh | 统一清理退出（注册 trap 后用） |
-| `_register_temp <path>` | safe-exit.sh | 注册清理目标 |
 
 ## 内部实现（仅 maintain.sh / 入口脚本调用）
 | 文件 | 用途 |

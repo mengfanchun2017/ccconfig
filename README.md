@@ -185,7 +185,6 @@ ccconfig/
 │   ├── dry-run.sh            # 预览模式（guard_* 幂等写）
 │   ├── interact.sh           # 统一交互菜单库（confirm/menu_select/prompt）
 │   ├── net.sh                # 网络探测（check_proxy/check_tcp）
-│   ├── safe-exit.sh          # 统一 trap 清理
 │   ├── install-inotify.sh    # inotify-tools 安装
 │   ├── mcp-manager.sh        # MCP 配置管理器（maintain.sh mcp 子命令）
 │   ├── menu-data-maintain.sh # maintain.sh 菜单数据层（CAT_NAME/MENU_ENTRIES）
