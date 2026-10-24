@@ -244,8 +244,14 @@ echo "=== Test 23: 本机文件补齐模板基线键 ==="
 # 旧逻辑"已存在即跳过"→ permissions/hooks/statusLine 永不写入，status 还报绿
 grep -q '补齐缺失键' "$SETUP_TPL" \
   && pass "install_user_file 补齐缺失基线键" || fail "install_user_file 仍一律跳过"
-grep -q 'missing = \[k for k in t if k not in d\]' "$SETUP_TPL" \
-  && pass "只补顶层缺失键、不覆盖已有键" || fail "补齐逻辑缺失或会覆盖已有键"
+# 行为断言而非实现断言：旧版只比顶层键（permissions 空壳也算"已就绪"），
+# 现在必须下钻一层补 permissions.allow 这类嵌套缺键。断言 fill()/missing_paths
+# 递归结构存在即可，不锁死具体表达式（改实现时不该误报）。
+grep -qE 'def fill|def missing_paths' "$SETUP_TPL" \
+  && pass "补齐逻辑下钻嵌套（补 permissions.allow 这类）" || fail "补齐仍是顶层键粒度"
+# 且必须仍保留"不覆盖已有键"的语义（模板里有、本机已改的不动）
+grep -qE 'k not in dst_d|k not in d' "$SETUP_TPL" \
+  && pass "只补缺失键、不覆盖已有键" || fail "补齐逻辑会覆盖已有键"
 
 echo "=== Test 24: clone 模式也配 git 身份 ==="
 # 缺这一步，恢复回来的机器没有 user.name/email，auto-sync 提交会失败
