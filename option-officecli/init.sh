@@ -208,10 +208,19 @@ update_officecli() {
 
 # ========== 状态检查 ==========
 show_status() {
-    local ready=true
-    _officli_ready || ready=false
+    local ready=true ver="" mcp_out=""
+    if _officli_ready; then
+        ver=$(_cli_version)
+    elif [ -x "$OFFICECLI_BIN" ]; then
+        ready=false
+        # MCP 自检也带超时：shim 懒下载会把这里拖死
+        mcp_out=$(timeout 10 "$OFFICECLI_BIN" mcp list 2>/dev/null || true)
+    else
+        ready=false
+    fi
+
     if $ready; then
-        echo "OK OfficeCLI 已安装（$(_cli_version)）"
+        echo "OK OfficeCLI 已安装（$ver）"
     elif [ -x "$OFFICECLI_BIN" ]; then
         echo "WARN OfficeCLI 存在但无法运行 → bash option-officecli/init.sh --install"
     else
@@ -222,31 +231,30 @@ show_status() {
 
     echo -n "  二进制 ... "
     if $ready; then
-        good "✅ $(_cli_version)"
+        good "$ver"
     elif [ -x "$OFFICECLI_BIN" ]; then
-        bad "❌ 存在但跑不起来（平台二进制缺失，npm shim 会静默懒下载）"
+        bad "存在但跑不起来（平台二进制缺失，npm shim 会静默懒下载）"
     else
-        bad "❌ 未安装"
+        bad "未安装"
     fi
 
     echo -n "  libicu ... "
     if ldconfig -p 2>/dev/null | grep -q "libicuuc\.so"; then
-        good "✅"
+        good "已装"
     else
-        warn "○ 缺 libicu（.NET 二进制无法启动）"
-        warn "  安装: sudo apt-get install -y libicu78"
+        warn "缺 libicu（.NET 二进制无法启动）"
+        info "  安装: sudo apt-get install -y libicu78"
     fi
 
-    # MCP 检查必须带超时：shim 懒下载会把这里也拖死
     echo -n "  MCP 注册 ... "
-    local mcp_out
-    mcp_out=$(timeout 10 "$OFFICECLI_BIN" mcp list 2>/dev/null || true)
-    if echo "$mcp_out" | grep -q "Claude Code.*registered"; then
-        good "✅"
+    if ! $ready; then
+        info "跳过（CLI 不可用）"
+    elif echo "$mcp_out" | grep -q "Claude Code.*registered"; then
+        good "已注册"
     elif echo "$mcp_out" | grep -q "Claude Code"; then
-        warn "○ 未注册"
+        warn "未注册"
     else
-        info "○ 未检查"
+        info "未检查"
     fi
 
     echo ""
