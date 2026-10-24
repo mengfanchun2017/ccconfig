@@ -52,8 +52,14 @@ try {{
 print(base64.b64encode(ps.encode("utf-16-le")).decode())
 PYEOF
     )
-    # EncodedCommand 重定向输出带 "#< CLIXML" 头 + 进度记录；只取 PROBE_ 行
-    timeout 12 "$PS_EXE" -NoProfile -EncodedCommand "$b64" 2>&1 | grep -m1 '^PROBE_' || true
+    # WSL interop 冷启动首调可能返回空（实测 8 次中第 1 次空、其后正常）：
+    # 空输出重试一次再判失败，避免把"没起来"误报成"无输出"。
+    local out
+    out=$(timeout 12 "$PS_EXE" -NoProfile -EncodedCommand "$b64" 2>&1 | grep -m1 '^PROBE_' || true)
+    if [ -z "$out" ]; then
+        out=$(timeout 12 "$PS_EXE" -NoProfile -EncodedCommand "$b64" 2>&1 | grep -m1 '^PROBE_' || true)
+    fi
+    printf '%s' "$out"
 }
 
 # ── 读 conf 输出 "name|ip|user|pass" 每行一条 ──
@@ -87,6 +93,9 @@ _probe_report() {
         PROBE_UNREACH*)
             echo -e "  ${RED}✗${NC} $name ($ip) 不可达 — 目标机 tailscale 离线或 445 未开"
             return 2 ;;
+        "")
+            echo -e "  ${RED}✗${NC} $name ($ip) 探活无输出（powershell interop 冷启动失败，重试: bash option-filepull/init.sh probe $name）"
+            return 3 ;;
         *)
             echo -e "  ${RED}✗${NC} $name ($ip) ${out:-无输出}"
             return 3 ;;
@@ -242,6 +251,7 @@ case "${1:-}" in
     add) shift; do_add "$@" ;;
     probe) shift; do_probe "${1:-}" ;;
     --install|--yes|-y)
+        # 非交互：已配置即 OK，否则提示手动 add（凭据需人工在 A 侧建账户）
         count=0
         if [ -f "$CONF" ]; then count=$(_list_hosts | grep -c . || true); fi
         if [ "$count" -gt 0 ]; then
@@ -250,15 +260,20 @@ case "${1:-}" in
             echo "OK filepull 未配置（手动添加: bash option-filepull/init.sh add）"
         fi
         ;;
-    ""|menu|--menu)
-        do_status || true
-        echo ""
-        sel=$(menu_select "跨机取件" "添加主机" "探活全部" "返回")
-        case "$sel" in
-            "1") do_add ;;
-            "2") do_probe ;;
-            *) : ;;
-        esac
+    ""|menu)
+        # 常驻菜单：只在直接调用时用（init-option.sh --install 不落这里）
+        while true; do
+            do_status || true
+            echo ""
+            sel=$(menu_select "跨机取件" "添加主机" "探活全部" "返回")
+            [[ "$sel" == "0" ]] && break
+            case "$sel" in
+                "1") do_add ;;
+                "2") do_probe ;;
+                *) break ;;
+            esac
+            echo ""; pause_enter 2>/dev/null || read -rp "  按回车返回..." _ </dev/tty || true
+        done
         ;;
     *) usage; exit 1 ;;
 esac

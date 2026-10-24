@@ -240,6 +240,20 @@ list_all() {
     echo ""
 }
 
+# ── 交互式安装派发：name → 一次性安装子命令 ──
+# 裸调用 option-$name/init.sh 会坠入对方自己的常驻菜单（getnote 是 while true，
+# evalscope/skill 是递归 show_menu，cloudflare 的"退出"直接 exit 0 会杀掉整个
+# 安装流程），装完停在对方界面、不返回本菜单继续装下一个。
+# 这里显式派发到一次性子命令；返回空串 = 该项没有"装完即返回"的子命令（见调用处）。
+_interactive_install_args() {
+    case "$1" in
+        getnote)  echo "install" ;;
+        evalscope|skill|officecli|mineru|playwright|cloudflare|filepull)
+                  echo "--install" ;;
+        *)        echo "" ;;
+    esac
+}
+
 # ── 安装单个 option ──
 install_option() {
     local name="$1"
@@ -342,10 +356,20 @@ install_option() {
             esac
         fi
         # 交互模式：remote 无参数默认 --run
-        if [ "$name" = "remote" ] && [ ${#@} -eq 0 ]; then
+        if [ "$name" = "remote" ] && [ $# -eq 0 ]; then
             section "安装 remote"
             bash "$SCRIPT_DIR/option-$name/init.sh" --run
             return $?
+        fi
+        # 交互模式：走一次性子命令，装完返回本菜单（否则坠入对方常驻菜单）
+        if [ $# -eq 0 ]; then
+            local sub
+            sub=$(_interactive_install_args "$name")
+            if [ -n "$sub" ]; then
+                section "安装 $name"
+                bash "$SCRIPT_DIR/option-$name/init.sh" "$sub"
+                return $?
+            fi
         fi
         section "安装 $name"
         bash "$SCRIPT_DIR/option-$name/init.sh" "$@"
