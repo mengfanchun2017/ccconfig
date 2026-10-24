@@ -170,6 +170,7 @@ fix_setup_sh() {
         cp "$CCPRIVATE/setup.sh" "$_bak"
         info "已备份: $(basename "$_bak")"
     fi
+    mark_init_version 2>/dev/null || true
 
     # 本机改过的 setup.sh（与模板不同且非已知旧版）不直接覆盖 —— 静默丢弃用户的
     # 自定义会连带丢功能（如项目级记忆 symlink）。改为另存 .new 让人工合并，或确认后覆盖。

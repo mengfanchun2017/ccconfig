@@ -21,6 +21,7 @@ CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 CCPRIVATE="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/interact.sh"
+source "$SCRIPT_DIR/secret-patterns.sh"
 
 source "$SCRIPT_DIR/colors.sh"
 
@@ -325,11 +326,34 @@ reverse_one() {
         return 1
     fi
 
+    # 密钥硬闸：反向同步是把私密真值搬进【公开】仓库的 .example，一旦写进去
+# pre-commit 不会拦（它按文件名放行 *.example），只靠一行 warn 等于没防。
+    # 命中即中止，需人工确认（--force-reverse 可越过）。
+    local hits
+    hits=$(grep -oE "$SECRET_RE" "$ccprivate_file" 2>/dev/null | sort -u | head -8 || true)
+    if [ -n "$hits" ]; then
+        if [ "${FORCE_REVERSE:-0}" != "1" ]; then
+            err "反向同步中止：检测到疑似真实密钥/凭据"
+            printf '%s\n' "$hits" | while IFS= read -r h; do
+                echo -e "    ${RED}${h:0:12}…${NC} ${GRAY}(已打码)${NC}"
+            done
+            info "先手工脱敏（换成占位符）后再同步；确实要原样反向: FORCE_REVERSE=1 bash maintain.sh example reverse"
+            return 1
+        fi
+        warn "FORCE_REVERSE=1，忽略密钥告警继续"
+    fi
     [[ "$rel" == conf/* ]] && warn "conf 文件可能含密钥/token，确认 diff 中无敏感值再继续"
 
     confirm_sync "$ccprivate_file" "$example" "反向: ccprivate → 模板" || return 0
 
+    # 写后复检：确认落进公开库的内容不含密钥（防脱敏不彻底）
     run cp "$ccprivate_file" "$example"
+    if [ "${FORCE_REVERSE:-0}" != "1" ] && grep -qE "$SECRET_RE" "$example" 2>/dev/null; then
+        err "写入后复检仍发现密钥痕迹，已回滚 $example"
+        git -C "$CCCONFIG_ROOT" checkout -- "${example#$CCCONFIG_ROOT/}" 2>/dev/null || \
+            warn "回滚失败，请手动检查 $example"
+        return 1
+    fi
     ok "$ccprivate_file → $example"
     info "记得 git add + commit + push"
 }

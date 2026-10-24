@@ -674,6 +674,27 @@ do_clone() {
     ensure_setup_sh || return 1
     bash "$CCPRIVATE_DIR/setup.sh"
 
+    # 恢复本机 LLM 选择：llm-current 是 gitignore 的本机文件，clone 到的 ccprivate
+    # 里没有；llm.json 也已不写 current。不补则 init-base.sh all 拿不到 preset 名，
+    # init-llm.sh 掉进交互菜单，无人值守（NONINTERACTIVE）安装卡死。
+    if [[ ! -f "$HOME/.claude/llm-current" ]]; then
+        local _def_llm=""
+        _def_llm=$(python3 -c "
+import json
+try:
+    d=json.load(open('$CCPRIVATE_DIR/conf/llm.json'))
+    c=d.get('current') or ''
+    if not c:
+        l=d.get('llms') or {}
+        c=next(iter(l), '')
+    print(c)
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
+        [[ -n "$_def_llm" ]] && write_local_current "$_def_llm" || \
+            warn "未能确定默认 LLM preset，init-base.sh 的 LLM 步骤会进交互菜单"
+    fi
+
     ok "ccprivate 就绪"
     echo ""
     echo -e "  ${GREEN}下一步:${NC} bash $CCCONFIG_DIR/init-base.sh all"
