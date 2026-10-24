@@ -208,6 +208,57 @@ resolve_conf() {
     return 1
 }
 
+# ========== Windows 已知文件夹 / 交付物落点解析 ==========
+#
+# 为什么不在 conf 里写死每台机的路径：本机是 i7，但同样的仓库要跑在 i3/redmipro
+# 等任意 Windows 机上，每台的盘符、用户名、是否重定向「下载」都不同。写死必然漂移。
+# 这些都**能在运行时从系统问出来**，所以做成函数，不落配置。
+
+# 「下载」已知文件夹的真实路径（Taildrop 落点）
+# 关键：Windows 的「下载」可被重定向（本机 i7 就在 D:\Downloads，不是 C:\Users\...\Downloads），
+# 必须问注册表 known-folder，不能猜。返回 Windows 路径（如 D:\Downloads）。
+# 用法: win_downloads_dir   # 拿不到返回空
+win_downloads_dir() {
+    local ps="/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+    [ -x "$ps" ] || return 1
+    # shell:Downloads 由 Shell 解析，天然跟随重定向，比手解注册表更稳
+    timeout 15 "$ps" -NoProfile -Command \
+        "(New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path" \
+        2>/dev/null | tr -d '\r' | head -1
+}
+
+# 把 Windows 路径转成 WSL 路径（D:\Downloads → /mnt/d/Downloads）
+# 用法: win_path_to_wsl 'D:\Downloads'
+win_path_to_wsl() {
+    local win="$1"
+    [ -z "$win" ] && return 1
+    if command -v wslpath >/dev/null 2>&1; then
+        wslpath -u "$win" 2>/dev/null && return 0
+    fi
+    # wslpath 不可用时的退化：手转盘符
+    local drive="${win%%:*}"
+    local rest="${win#*:}"
+    drive=$(printf '%s' "$drive" | tr '[:upper:]' '[:lower:]')
+    rest="${rest//\\//}"
+    printf '/mnt/%s%s\n' "$drive" "$rest"
+}
+
+# 小米云盘同步根（异步交换通道的落点）
+# 每台机位置不同（i7=D:\小米云盘；别处可能 C:\micloud 或别的盘），故扫所有挂载盘找。
+# 只保留"真目录 + 名字是小米云盘/micloud"的候选，取第一个。
+# 用法: micloud_root   # 找不到返回空（该机没装/没同步）
+micloud_root() {
+    # 显式覆盖优先（个别机器名字特殊时用）
+    if [ -n "${MICLOUD_DIR:-}" ] && [ -d "$MICLOUD_DIR" ]; then
+        echo "$MICLOUD_DIR"; return 0
+    fi
+    local d
+    for d in /mnt/*/小米云盘 /mnt/*/micloud /mnt/*/*/小米云盘; do
+        [ -d "$d" ] && { echo "$d"; return 0; }
+    done
+    return 1
+}
+
 # ========== ccbridge 路径解析 ==========
 
 # 验证 CCBRIDGE_HOME 存在

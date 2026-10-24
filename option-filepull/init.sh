@@ -17,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/dry-run.sh" 2>/dev/null || true
 source "$SCRIPT_DIR/../lib/colors.sh"
 source "$SCRIPT_DIR/../lib/interact.sh" 2>/dev/null || true
+source "$SCRIPT_DIR/../lib/path-helper.sh" 2>/dev/null || true
 
 CONF="${CCPRIVATE_HOME:-$HOME/git/ccprivate}/conf/smb.json"
 PS_EXE="/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
@@ -141,14 +142,20 @@ do_status() {
     echo ""
     printf '%s' "$details"
 
-    # 一台都不通时给出替代通道提示：小米云盘是异步交换（双方各跑客户端），
-    # 不需要 SMB/445/凭据，适合"用户主动放文件"；filepull 才是 agent 主动取任意路径。
-    # 之前只在 ADR 里写了对比，用户端看不到 —— 这里落到运行时提示，别让用户空转。
+    # 一台都不通时列出本机可用的**替代通道**（都从系统实时解析，不写死路径）。
+    # 这些通道不需要 SMB/445/凭据，是"用户主动放文件"的路子；filepull 则是
+    # agent 主动取**任意路径**。用户最容易踩的坑是不知道文件该放哪 —— 直接报出来。
     if [ "$ok" -eq 0 ]; then
-        local micloud="${MICLOUD_DIR:-/mnt/d/小米云盘}"
-        if [ -d "$micloud" ]; then
-            info "  替代通道: 该机没配 SMB 时，可把文件放进小米云盘（本机落点 $micloud/claudefiles/），"
-            info "            在另一侧同步后说一声即可，无需 ssh/445/凭据。"
+        local dl micloud
+        dl=$(win_downloads_dir 2>/dev/null || true)
+        micloud=$(micloud_root 2>/dev/null || true)
+        [ -n "$dl" ] && info "  替代通道1(Taildrop): 手机分享→本机，落点 $(win_path_to_wsl "$dl" 2>/dev/null || echo "$dl")"
+        if [ -n "$micloud" ]; then
+            info "  替代通道2(小米云盘): 从任一台有客户端的机器放进云盘，"
+            info "            本机同步落点 $micloud/claudefiles/"
+        else
+            info "  替代通道2(小米云盘): 本机未发现云盘同步根（WSL 无法跑云盘客户端，"
+            info "            只能在有客户端的机器上放，再由那里同步过来）"
         fi
     fi
 }
