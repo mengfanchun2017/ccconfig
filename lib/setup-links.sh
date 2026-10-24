@@ -70,17 +70,25 @@ setup_symlinks() {
     # ~/.claude/agents → ccprivate/agents
     # ~/.claude/commands → ccprivate/commands
 
-    # git pre-commit hook（防私密文件意外提交）
-    local git_hook="$CCCONFIG_ROOT/.git/hooks/pre-commit"
+    # git pre-commit hook（防私密文件/密钥意外提交到【公开】仓库）
+    # ccconfig 与 skill 都是公开仓 → 两个都要装。ccprivate 是私密仓（本来就存 key），
+    # 不装，避免自拦截。
     local hook_src="$CCCONFIG_ROOT/hooks/pre-commit"
     if [[ -f "$hook_src" ]]; then
-        if [[ -L "$git_hook" ]] && [[ -e "$git_hook" ]] && [[ "$(readlink -f "$git_hook")" == "$(readlink -f "$hook_src")" ]]; then
-            info "pre-commit hook: 已链接，跳过"
-        else
-            [[ -e "$git_hook" ]] && run rm -f "$git_hook"
-            run ln -sf "$hook_src" "$git_hook"
-            ok "pre-commit hook: 已安装"
-        fi
+        local _repo
+        for _repo in "$CCCONFIG_ROOT" "${SKILL_SRC:-$HOME/git/skill}"; do
+            [ -d "$_repo/.git" ] || continue
+            local git_hook="$_repo/.git/hooks/pre-commit"
+            if [[ -L "$git_hook" ]] && [[ -e "$git_hook" ]] && \
+               [[ "$(readlink -f "$git_hook")" == "$(readlink -f "$hook_src")" ]]; then
+                info "pre-commit hook ($(basename "$_repo")): 已链接，跳过"
+            else
+                [[ -e "$git_hook" ]] && run rm -f "$git_hook"
+                run ln -sf "$hook_src" "$git_hook"
+                ok "pre-commit hook ($(basename "$_repo")): 已安装"
+            fi
+        done
+        unset _repo
     fi
 }
 

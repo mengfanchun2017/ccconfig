@@ -39,7 +39,7 @@ source "$SCRIPT_DIR/net.sh"
 source "$SCRIPT_DIR/ensure-uv.sh"
 LOCAL_BIN="$HOME/.local/bin"
 VERSION_FILE="$CCCONFIG_ROOT/conf/versions.json"  # 公开文件，不走 resolve_conf
-LOCK_FILE="/tmp/ccconfig-update.lock"
+LOCK_FILE="${XDG_RUNTIME_DIR:-/tmp}/ccconfig-update-$(id -u).lock"
 
 source "$SCRIPT_DIR/colors.sh"
 

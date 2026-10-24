@@ -13,7 +13,14 @@ blocked=0
 # 获取 staged 文件列表
 staged=$(git diff --cached --name-only --diff-filter=ACM)
 
+# 仓库识别：本 hook 同时装在 ccconfig 与公开的 skill 仓。
+# 规则 1/2 是 ccconfig 专有（私有 link 文件、conf 目录约束），
+# skill 仓没有这些路径，但密钥/凭据扫描（规则 3）两个公开仓都要。
+REPO_TOP=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+REPO_NAME=$(basename "$REPO_TOP" 2>/dev/null || echo "")
+
 # === 规则 1: conf/*.json 只能有 .example 模板和 versions.json ===
+if [ "$REPO_NAME" = "ccconfig" ]; then
 conf_json=$(echo "$staged" | grep '^conf/.*\.json$' || true)
 if [ -n "$conf_json" ]; then
     while IFS= read -r f; do
@@ -31,8 +38,10 @@ if [ -n "$conf_json" ]; then
         esac
     done <<< "$conf_json"
 fi
+fi  # end ccconfig-only
 
-# === 规则 2: 禁止私有 link 文件 ===
+# === 规则 2: 禁止私有 link 文件（ccconfig 专有） ===
+if [ "$REPO_NAME" = "ccconfig" ]; then
 for forbidden in \
     "link/CLAUDE.md" \
     "link/settings.json" \
@@ -45,8 +54,9 @@ do
         blocked=1
     fi
 done
+fi  # end ccconfig-only rule 2
 
-# === 规则 3: 密钥模式扫描 ===
+# === 规则 3: 密钥模式扫描（所有公开仓生效） ===
 # 每个 MCP/服务的 key 前缀各不同，只认 sk- 会放过 tavily/cfut/sbp/Exa 那几类
 # （实测：旧正则漏掉 tavily、console cloudflare、supabase、Exa 四个 key）。
 KEY_RE='sk-[a-zA-Z0-9]{20,}|sk-ant-[a-zA-Z0-9_-]{20,}|gho_[a-zA-Z0-9]{36}|ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{20,}|eyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}|tvly-[A-Za-z0-9-]{16,}|cfut_[A-Za-z0-9]{16,}|sbp_[A-Fa-f0-9]{16,}|"x-api-key"[[:space:]]*:[[:space:]]*"[a-f0-9-]{36}"'
