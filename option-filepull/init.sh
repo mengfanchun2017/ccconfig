@@ -1,7 +1,24 @@
 #!/bin/bash
 # option-filepull/init.sh — 跨机取件（SMB C$ + tsxfer 专用账户）
 #
-# agent 从任意 tailnet 客户机拉取/回写文件的主机与凭据管理。
+# ── 这个组件到底"装"了什么（常见误解澄清）──
+# 它**不在本机装任何东西**，也不给本机新增接收通道。它做的是：
+#   1. 管理一份**本机 → 其他 Windows 机**的取件凭据（ccprivate/conf/smb.json）
+#   2. 为每台目标机打印一次性的"开户三命令"（在那台机上跑）
+#   3. 探活验证通道是否通
+# 真正的"接收"动作是 agent 在需要时**临场**执行的（build 一次 powershell
+# -EncodedCommand 建 SMB 映射再 Copy-Item），不需要常驻服务/daemon/watcher。
+# 依赖全为系统自带：WSL interop 的 powershell.exe + 目标机 445 + tailnet，无第三方包。
+#
+# ── 和其他三条通道的关系（别混为一谈）──
+#   A. Taildrop（0040）：手机→本机，**被动收件**，落「下载」已知文件夹（本机=D:\Downloads）
+#   B. 小米云盘：**异步交换**，两侧各跑客户端同步；WSL 里没有云盘客户端，
+#      所以本机只能"看"到另一台同步过来的文件，不能主动从本机发起
+#   C. filepull（本脚本，0044）：**agent 主动**去目标 Windows 机取任意路径 + 回写
+#   D. scp/Termius：兜底
+# 关键区别：A/B 都要"用户先把文件放进去"；只有 C 能做到"agent 一句话去取任意路径"。
+# 全部通道与落点见 docs/adr/0040 + 0044。
+#
 # ADR: docs/adr/0044-agent-smb-file-bridge.md
 # 凭据真相源: ccprivate/conf/smb.json（跨机 git 同步）
 #
@@ -258,12 +275,17 @@ usage() {
     cat <<'EOF'
 option-filepull — 跨机取件（SMB C$ + tsxfer）
 
+  本机无需安装任何东西：只用系统自带 powershell.exe + 目标机 445/tailnet。
+  它管的是「去别的 Windows 机取件」的凭据，不提供手机→本机的收件通道。
+
   bash init.sh --status     探活所有主机（maintain status 自动调用）
   bash init.sh add          添加主机（生成密码 + 打印 A 侧 PowerShell 命令）
   bash init.sh probe [host] 探活（缺省全部）
   bash init.sh --install    非交互：已配置则 OK
 
-凭据: ccprivate/conf/smb.json ｜ ADR: docs/adr/0044-agent-smb-file-bridge.md
+手机→本机收件请走 Taildrop（落「下载」已知文件夹，本机 = D:\Downloads）或小米云盘，
+见 docs/adr/0040；本通道(agent 主动取件)见 docs/adr/0044。
+凭据: ccprivate/conf/smb.json
 EOF
 }
 
