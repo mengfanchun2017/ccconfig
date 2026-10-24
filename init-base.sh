@@ -127,6 +127,15 @@ init_all_steps() {
         run_step "收尾（私有链接）" "$ccpriv/setup.sh" true         \
             "ccprivate 私有链接（CLAUDE.md / MEMORY.md / settings.json 等 symlink）"         \
             "10 s"
+
+        # 账号级数据下发：MCP 的 API key 真相源在 ccprivate/conf/mcp-servers.json，
+        # 必须 sync 进运行时 ~/.claude/.config.json —— 否则换新机只能从占位符起步，
+        # 账号级的 tavily/exa 等 key 一条都不过去（此前只有手动 maintain fix 才跑）。
+        if [[ -x "$SCRIPT_DIR/lib/init-mcp.sh" ]]; then
+            run_step "MCP 配置下发" "$SCRIPT_DIR/lib/init-mcp.sh" sync         \
+                "把 ccprivate/conf/mcp-servers.json 的 key 同步进运行时"         \
+                "5 s"
+        fi
     else
         echo ""
         err "找不到 $ccpriv/setup.sh"

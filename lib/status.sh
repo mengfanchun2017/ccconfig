@@ -96,12 +96,27 @@ misfiled = [k for k in KEYS if k in cd]
 # 而上面的错位检查照样报绿。这条让"配了但没配全"也能被看见。
 missing = []
 tpl_path = os.environ.get("TPL", "")
+
+def missing_paths(sd, t, prefix=""):
+    """下钻一层：permissions 顶层键常在（哪怕空壳），permissions.allow 缺失
+    才是"白名单没生效"的真正症状。只比顶层会把这种情况误判为已就绪。"""
+    out = []
+    for k, v in t.items():
+        if k not in sd:
+            out.append(prefix + k)
+        elif isinstance(v, dict) and isinstance(sd.get(k), dict):
+            out.extend(missing_paths(sd[k], v, prefix + k + "."))
+        elif isinstance(v, list) and k in ("allow", "deny", "ask") and isinstance(sd.get(k), list):
+            if any(x not in sd[k] for x in v):
+                out.append(prefix + k)
+    return out
+
 try:
     if os.path.isfile(tpl_path):
         t = json.load(open(tpl_path))
         with open(sf) as f:
             sd = json.load(f)
-        missing = [k for k in t if k not in sd]
+        missing = missing_paths(sd, t)
 except Exception:
     pass
 
@@ -757,6 +772,40 @@ check_skills() {
     $ok && echo -e "  ${GREEN}✓ Skills 正常${NC}"
 }
 
+# ========== 本机初始化代次（模板水位） ==========
+# settings.json/.config.json/.claudeignore 是本机独立文件，模板更新后各机不会自动跟。
+# 用 ~/.claude/.ccconfig-init 里记的 template_hash 与当前模板比，判断"这台机落后了"。
+check_init_watermark() {
+    local marker="$HOME/.claude/.ccconfig-init"
+    local tdir="$CCCONFIG_ROOT/templates"
+
+    echo ""
+    echo -e "${CYAN}━━━ 本机配置代次━━━${NC}"
+
+    if [ ! -f "$marker" ]; then
+        echo -e "  ${YELLOW}○${NC} 无代次标记（从未跑过 setup.sh 的新版）"
+        echo -e "  ${GRAY}    修复: bash ~/git/ccprivate/setup.sh${NC}"
+        return 0
+    fi
+
+    local rec_hash cur_hash rec_ver
+    rec_hash=$(grep '^template_hash=' "$marker" 2>/dev/null | cut -d= -f2)
+    rec_ver=$(grep '^version=' "$marker" 2>/dev/null | cut -d= -f2)
+    if command -v sha256sum >/dev/null 2>&1 && [ -d "$tdir" ]; then
+        cur_hash=$(cat "$tdir"/settings.json.example "$tdir"/.config.json.example 2>/dev/null | sha256sum | cut -c1-16)
+    fi
+
+    if [ -z "$rec_hash" ] || [ -z "$cur_hash" ]; then
+        echo -e "  ${GRAY}○${NC} 代次 ${rec_ver:-unknown}（无法比对模板 hash）"
+    elif [ "$rec_hash" = "$cur_hash" ]; then
+        echo -e "  ${GREEN}✅${NC} 代次 ${rec_ver:-unknown}（模板一致）"
+    else
+        echo -e "  ${YELLOW}○${NC} 本机配置模板已过期（本机 ${rec_hash} ≠ 当前 ${cur_hash}，代次 ${rec_ver:-unknown}）"
+        echo -e "  ${GRAY}    模板新键不会自动补 → 跑: bash ~/git/ccprivate/setup.sh（只补缺键，不覆盖已有）${NC}"
+    fi
+    return 0
+}
+
 # ========== Example 模板同步检查 ==========
 check_example_sync() {
     local ccconfig_example="$CCCONFIG_ROOT/templates"
@@ -888,6 +937,7 @@ check_repos
 check_feishu
 
 if ! $QUICK_MODE; then
+    check_init_watermark
     check_mcp
     check_option_components
     check_skills

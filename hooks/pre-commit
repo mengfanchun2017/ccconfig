@@ -50,6 +50,8 @@ done
 # 每个 MCP/服务的 key 前缀各不同，只认 sk- 会放过 tavily/cfut/sbp/Exa 那几类
 # （实测：旧正则漏掉 tavily、console cloudflare、supabase、Exa 四个 key）。
 KEY_RE='sk-[a-zA-Z0-9]{20,}|sk-ant-[a-zA-Z0-9_-]{20,}|gho_[a-zA-Z0-9]{36}|ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{20,}|eyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}|tvly-[A-Za-z0-9-]{16,}|cfut_[A-Za-z0-9]{16,}|sbp_[A-Fa-f0-9]{16,}|"x-api-key"[[:space:]]*:[[:space:]]*"[a-f0-9-]{36}"'
+# 与 lib/secret-patterns.sh 保持同源（本 hook 独立运行，不能 source 仓库文件 ——
+# 提交时工作区可能处于任意状态）。改前缀请两处一起改，或改用 lib/secret-patterns.sh 的值。
 if [ -n "$staged" ]; then
     while IFS= read -r f; do
         [ -z "$f" ] && continue

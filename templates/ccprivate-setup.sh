@@ -39,6 +39,23 @@ source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
     warn()    { echo -e "${YELLOW}⚠️  $1${NC}"; }
 }
 
+# 初始化代次水位：记录"这台机的本机配置文件是用哪一代模板生成的"。
+# settings.json/.config.json/.claudeignore 是每机独立文件，模板更新后没有任何机制
+# 知道某台机落后了 —— status 只查基线键存在性，不查内容过期。有这个标记才能告警。
+mark_init_version() {
+    local tdir="$CCCONFIG_DIR/templates"
+    local ver="unknown" h=""
+    if [ -f "$CCCONFIG_DIR/conf/versions.json" ]; then
+        ver=$(python3 -c "import json;print(json.load(open('$CCCONFIG_DIR/conf/versions.json')).get('self',{}).get('version','unknown'))" 2>/dev/null || echo unknown)
+    fi
+    if command -v sha256sum >/dev/null 2>&1 && [ -d "$tdir" ]; then
+        h=$(cat "$tdir"/settings.json.example "$tdir"/.config.json.example 2>/dev/null | sha256sum | cut -c1-16)
+    fi
+    printf 'version=%s\napplied_at=%s\ntemplate_hash=%s\n' \
+        "$ver" "$(date --iso-8601=seconds 2>/dev/null || date)" "$h" \
+        > "$CLAUDE_DIR/.ccconfig-init" 2>/dev/null || true
+}
+
 setup_link() {
     local link="$1"
     local target="$2"
@@ -110,15 +127,33 @@ except Exception:
     raise SystemExit(0)          # 非 JSON（如 .claudeignore）→ 不适用，视为已就绪
 if not isinstance(t, dict) or not isinstance(d, dict):
     raise SystemExit(0)
-missing = [k for k in t if k not in d]
-if not missing:
+
+# 只比顶层键不够：settings.json 里 permissions 顶层键常在（哪怕是 {} 空壳），
+# 而 permissions.allow 26 条规则缺失也判"已就绪" → 换机后白名单静默没生效。
+# 因此对 dict 值下钻一层，对 allow/deny/ask 这类列表值取并集。
+added = []
+def fill(dst_d, tpl_d, prefix=""):
+    for k, v in tpl_d.items():
+        if k not in dst_d:
+            dst_d[k] = v
+            added.append(prefix + k)
+            continue
+        if isinstance(v, dict) and isinstance(dst_d.get(k), dict):
+            fill(dst_d[k], v, prefix + k + ".")
+        elif isinstance(v, list) and isinstance(dst_d.get(k), list) and k in ("allow", "deny", "ask"):
+            # 权限列表取并集：补上模板里有、本机没有的条目（不删本机已有）
+            extra = [x for x in v if x not in dst_d[k]]
+            if extra:
+                dst_d[k].extend(extra)
+                added.append(prefix + k + f"(+{len(extra)})")
+
+fill(d, t)
+if not added:
     raise SystemExit(0)
-for k in missing:
-    d[k] = t[k]
 with open(dst, "w") as f:
     json.dump(d, f, indent=4, ensure_ascii=False)
     f.write("\n")
-print(" ".join(missing))
+print(" ".join(added))
 PYEOF
         ) || added=""
         if [ -n "$added" ]; then
@@ -219,6 +254,9 @@ if [ -x "$CCCONFIG_DIR/lib/init-skill.sh" ] && [ -d "$SCRIPT_DIR/skill-local" ] 
     info "私有 skill → ~/.claude/skills/"
     bash "$CCCONFIG_DIR/lib/init-skill.sh" link-only
 fi
+
+# 记录本次初始化代次（供 status 判断"这台机落后了几代模板"）
+mark_init_version
 
 echo ""
 ok "ccprivate setup 完成"
