@@ -80,23 +80,24 @@ do_status() {
 }
 
 show_menu() {
-    echo ""
-    echo -e "${CYAN}── Skills 可选组件 ──${NC}"
-    echo ""
-    bash "$LIB_DIR/init-skill.sh" status
-    echo ""
-    local c; c=$(menu_select "Skills 管理" \
-        "安装/同步" "更新" "详细列表" "检测 drift" "返回")
-    [[ -z "$c" || "$c" == "0" ]] && return
-    case "$c" in
-        1) do_install ;;
-        2) do_update ;;
-        3) bash "$LIB_DIR/init-skill.sh" list ;;
-        4) bash "$LIB_DIR/init-skill.sh" diff ;;
-        5) return ;;
-    esac
-    echo ""; read -p "按回车返回..." dummy < /dev/tty || true
-    show_menu
+    # 用 while 循环重绘，不要尾调 show_menu —— 递归会每次操作套一层调用栈。
+    while true; do
+        echo ""
+        echo -e "${CYAN}── Skills 可选组件 ──${NC}"
+        echo ""
+        bash "$LIB_DIR/init-skill.sh" status
+        echo ""
+        local c; c=$(menu_select "Skills 管理" \
+            "安装/同步" "更新" "详细列表" "检测 drift" "返回")
+        [[ -z "$c" || "$c" == "0" || "$c" == "5" ]] && return
+        case "$c" in
+            1) do_install ;;
+            2) do_update ;;
+            3) bash "$LIB_DIR/init-skill.sh" list ;;
+            4) bash "$LIB_DIR/init-skill.sh" diff ;;
+        esac
+        echo ""; read -p "按回车返回..." dummy < /dev/tty || return
+    done
 }
 
 case "${1:-menu}" in

@@ -97,7 +97,7 @@ install_officecli() {
     ensure_path_officecli
     if _officli_ready; then
         echo -n "  OfficeCLI ... "
-        good "✅ $(_cli_version)"
+        good "$(_cli_version)"
         return 0
     fi
 
@@ -149,33 +149,39 @@ install_officecli_binary() {
         "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null \
         | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || true)
     [ -n "$api_tag" ] && tags+=("$api_tag")
-    tags+=("latest")
+    # API 拿不到 tag 才用 latest 兜底（GitHub 的 /releases/latest/ 会重定向到非
+    # 二进制页，实测只回 9 字节 HTML，不能当主路径）
+    [ ${#tags[@]} -eq 0 ] && tags+=("latest")
 
     mkdir -p "$HOME/.local/bin"
     local tmp="$HOME/.local/bin/.officecli.tmp"
-    local url tag
+    local url tag attempt size
+    # 只对已解析出的 tag 重试；"latest" 不够（GitHub 的 latest 重定向会落到
+    # 非二进制页，拿到 9 字节 HTML），除 API 完全拿不到 tag 时才当兜底。
     for tag in "${tags[@]}"; do
         url="https://github.com/${GITHUB_REPO}/releases/download/${tag}/${asset}"
-        rm -f "$tmp"   # 每次全新下载：断点续传(-C -)遇到半截文件会写坏
-        info "下载 ($tag, $asset) ..."
-        if ! curl -L ${proxy:+-x "$proxy"} --connect-timeout 15 --max-time 300 \
-                --progress-bar -o "$tmp" "$url"; then
-            bad "下载失败"
-            continue
-        fi
-        local size; size=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
-        if [ "$size" -lt 3000000 ]; then
-            bad "文件异常小 ($size bytes，非完整二进制)"
-            continue
-        fi
-        chmod +x "$tmp"
-        if ! timeout 15 "$tmp" --version >/dev/null 2>&1; then
-            bad "下载物无法执行"
-            continue
-        fi
-        mv -f "$tmp" "$OFFICECLI_BIN"
-        good "已装 ($(numfmt --to=iec "$size" 2>/dev/null || echo "$size")) $(_cli_version)"
-        return 0
+        for attempt in 1 2; do
+            rm -f "$tmp"   # 每次全新下载：断点续传(-C -)遇到半截文件会写坏
+            info "下载 ($tag, $asset)${attempt:+ 第${attempt}次} ..."
+            if ! curl -L ${proxy:+-x "$proxy"} --connect-timeout 15 --max-time 300 \
+                    --progress-bar -o "$tmp" "$url"; then
+                bad "下载失败（网络/代理）"
+                continue
+            fi
+            size=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
+            if [ "$size" -lt 3000000 ]; then
+                bad "文件异常小 ($size bytes，非完整二进制)"
+                break   # 大小不对是 tag 的问题，重试同 tag 无意义
+            fi
+            chmod +x "$tmp"
+            if ! timeout 15 "$tmp" --version >/dev/null 2>&1; then
+                bad "下载物无法执行"
+                continue
+            fi
+            mv -f "$tmp" "$OFFICECLI_BIN"
+            good "已装 ($(numfmt --to=iec "$size" 2>/dev/null || echo "$size")) $(_cli_version)"
+            return 0
+        done
     done
 
     rm -f "$tmp"
@@ -308,7 +314,7 @@ interactive_mode() {
     fi
 
     echo ""
-    good "✅ OfficeCLI 就绪"
+    good "OfficeCLI 就绪"
     echo ""
     echo "后续操作:"
     echo "  创建 PPT:   officecli create deck.pptx"
@@ -323,7 +329,7 @@ main() {
         --install|-i)
             install_officecli
             echo ""
-            good "✅ OfficeCLI 安装完成"
+            good "OfficeCLI 安装完成"
             ;;
         --update|-u)
             update_officecli
@@ -343,7 +349,7 @@ main() {
             interactive_mode
             ;;
         *)
-            bad "❌ 未知参数: $1"; exit 1
+            bad "未知参数: $1"; exit 1
             ;;
     esac
 }

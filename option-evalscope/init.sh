@@ -79,26 +79,28 @@ do_status() {
 }
 
 show_menu() {
-    echo ""
-    echo -e "${CYAN}── evalscope 可选组件 ──${NC}"
-    echo ""
-    do_status
-    echo ""
-    echo "说明：按 llm.json preset 跑性能压测 / 精度评估"
-    echo "  run-perf.sh --preset <name>   性能（并发/TPS/延迟）"
-    echo "  run-eval.sh --preset <name>   精度（MMLU/GSM8K）"
-    echo "  run-all.sh  --preset <name>   一键 性能+精度"
-    echo ""
-    local c; c=$(menu_select "evalscope 管理" \
-        "安装/重装" "移除 venv" "返回")
-    [[ -z "$c" || "$c" == "0" ]] && return
-    case "$c" in
-        1) do_install ;;
-        2) do_remove ;;
-        3) return ;;
-    esac
-    echo ""; read -p "按回车返回..." dummy < /dev/tty || true
-    show_menu
+    # 用 while 循环重绘菜单，不要尾调 show_menu —— 递归会无限加深调用栈
+    # （每操作一次套一层），长会话下迟早栈溢出。
+    while true; do
+        echo ""
+        echo -e "${CYAN}── evalscope 可选组件 ──${NC}"
+        echo ""
+        do_status
+        echo ""
+        echo "说明：按 llm.json preset 跑性能压测 / 精度评估"
+        echo "  run-perf.sh --preset <name>   性能（并发/TPS/延迟）"
+        echo "  run-eval.sh --preset <name>   精度（MMLU/GSM8K）"
+        echo "  run-all.sh  --preset <name>   一键 性能+精度"
+        echo ""
+        local c; c=$(menu_select "evalscope 管理" \
+            "安装/重装" "移除 venv" "返回")
+        [[ -z "$c" || "$c" == "0" || "$c" == "3" ]] && return
+        case "$c" in
+            1) do_install ;;
+            2) do_remove ;;
+        esac
+        echo ""; read -p "按回车返回..." dummy < /dev/tty || return
+    done
 }
 
 case "${1:-menu}" in
