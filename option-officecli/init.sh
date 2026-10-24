@@ -25,20 +25,40 @@ source "$CCCONFIG_DIR/lib/interact.sh"
 
 OFFICECLI_BIN="$HOME/.local/bin/officecli"
 GITHUB_REPO="iOfficeAI/OfficeCLI"
+MIRROR_BASE="https://d.officecli.ai"
+NPM_PKG="@officecli/officecli"
 
-_detect_platform() {
+# ── 发行版资产名（与 npm 包 detectAsset 一致：linux glibc/musl 分档）──
+_detect_asset() {
     local os arch
     os=$(uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')
     arch=$(uname -m 2>/dev/null)
-    case "$arch" in x86_64) arch="x64" ;; aarch64|arm64) arch="arm64" ;; esac
+    case "$arch" in x86_64|amd64) arch="x64" ;; aarch64|arm64) arch="arm64" ;; esac
     case "$os" in
-        linux)  echo "linux-${arch}" ;;
-        darwin) echo "macos-${arch}" ;;
-        mingw*|msys*|cygwin*) echo "win-${arch}.exe" ;;
-        *)      echo "linux-${arch}" ;;  # fallback
+        linux)
+            if ldd --version 2>&1 | grep -qi musl || [ -f /etc/alpine-release ]; then
+                echo "officecli-linux-alpine-${arch}"
+            else
+                echo "officecli-linux-${arch}"
+            fi ;;
+        darwin) echo "officecli-mac-${arch}" ;;
+        mingw*|msys*|cygwin*) echo "officecli-win-${arch}.exe" ;;
+        *)      echo "officecli-linux-${arch}" ;;
     esac
 }
-DOWNLOAD_URL="https://github.com/iOfficeAI/OfficeCLI/releases/latest/download/OfficeCLI-$(_detect_platform)"
+
+# ── 就绪判定：必须能真跑出版本号 ──
+# ⚠️ 只判 -x 不够：npm 的 officecli 是 JS shim，平台二进制缺失时会**懒下载**，
+# 从 d.officecli.ai 拉（国内限速到 ~250B/s）→ 每个调用静默卡死几分钟。
+# 这正是"2D 装 officecli 卡住"的直接原因，故用带超时的版本探测做就绪条件。
+_officli_ready() {
+    [ -x "$OFFICECLI_BIN" ] || return 1
+    timeout 8 "$OFFICECLI_BIN" --version >/dev/null 2>&1
+}
+
+_cli_version() {
+    timeout 8 "$OFFICECLI_BIN" --version 2>/dev/null | head -1 | tr -d '\r'
+}
 
 banner() {
     echo -e "${CYAN}"
@@ -59,47 +79,97 @@ get_latest_version() {
 source "$CCCONFIG_DIR/lib/ensure-libicu.sh"
 
 # ========== 安装 ==========
+# 两条路，按顺序试：
+#   1) npm 全局装 @officecli/officecli（shim + postinstall 抓平台二进制；
+#      postinstall 走 d.officecli.ai，国内慢但能过）
+#   2) npm 失败 → 直接用 Clash 代理从 GitHub releases 下平台二进制到 ~/.local/bin
+#      （逐个 tag 试，因为 latest 在 GitHub 上被代理重定向后不一定解析得对）
 install_officecli() {
     echo -e "${CYAN}── 安装 OfficeCLI ──${NC}"
 
     ensure_libicu || true
 
-    if [ -x "$OFFICECLI_BIN" ]; then
-        local ver=$("$OFFICECLI_BIN" --version 2>/dev/null || true)
+    if _officli_ready; then
         echo -n "  OfficeCLI ... "
-        good "✅ $ver"
+        good "✅ $(_cli_version)"
         return 0
     fi
 
-    local latest=$(get_latest_version)
-    [ -n "$latest" ] && info "  最新版本: $latest"
-
-    echo -n "  下载 ... "
-    local tmp="/tmp/officecli-$(date +%s)"
-    local proxy; proxy=$(net_gh_proxy)
-    if curl -L ${proxy:+-x "$proxy"} --connect-timeout 10 --max-time 300 --progress-bar -o "$tmp" "$DOWNLOAD_URL" 2>&1; then
-        local size=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
-        if [ "$size" -lt 1000000 ]; then
-            bad "❌ 下载文件异常小 ($size bytes)"
-            rm -f "$tmp"
-            return 1
-        fi
-        good "✅ ($(numfmt --to=iec $size 2>/dev/null || echo ${size} bytes))"
-    else
-        bad "❌ 下载失败"
-        warn "  手动: curl -L $DOWNLOAD_URL -o $OFFICECLI_BIN"
-        rm -f "$tmp"
-        return 1
+    if [ -x "$OFFICECLI_BIN" ]; then
+        warn "  officecli 存在但无法运行（二进制缺失，npm shim 会静默懒下载卡死）→ 重装"
     fi
 
-    echo -n "  安装到 ~/.local/bin ... "
-    mkdir -p "$HOME/.local/bin"
-    mv "$tmp" "$OFFICECLI_BIN"
-    chmod +x "$OFFICECLI_BIN"
-    good "✅"
+    # ── 路 1: npm ──
+    if command -v npm >/dev/null 2>&1; then
+        info "  npm install -g $NPM_PKG ..."
+        if timeout 600 npm install -g "$NPM_PKG" 2>&1 | tail -5 | sed 's/^/    /'; then
+            ensure_path_officecli
+            _officli_ready && { good "✅ 已装（npm）: $(_cli_version)"; return 0; }
+            warn "  npm 装完但仍无法运行（平台二进制没抓到），改走代理直下"
+        else
+            warn "  npm 安装失败，改走代理直下二进制"
+        fi
+    fi
 
-    local ver=$("$OFFICECLI_BIN" --version 2>/dev/null || true)
-    info "  版本: $ver"
+    # ── 路 2: 代理直下 GitHub 二进制 ──
+    install_officecli_binary
+}
+
+# 把 npm 全局 bin 里的 officecli 链到 ~/.local/bin（PATH 兜底）
+ensure_path_officecli() {
+    command -v officecli >/dev/null 2>&1 && return 0
+    local npm_bin; npm_bin="$(npm prefix -g 2>/dev/null)/bin"
+    if [ -x "$npm_bin/officecli" ] && [ -d "$HOME/.local/bin" ]; then
+        ln -sf "$npm_bin/officecli" "$OFFICECLI_BIN"
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+}
+
+install_officecli_binary() {
+    local asset; asset=$(_detect_asset)
+    local proxy; proxy=$(net_gh_proxy)
+    [ -z "$proxy" ] && warn "  未取到本机代理，直连 GitHub 大概率超时"
+
+    # 先拿候选 tag：API（走代理可达）→ latest
+    local -a tags=()
+    local api_tag
+    api_tag=$(curl -s --max-time 15 ${proxy:+-x "$proxy"} \
+        "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null \
+        | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || true)
+    [ -n "$api_tag" ] && tags+=("$api_tag")
+
+    mkdir -p "$HOME/.local/bin"
+    local tmp="$HOME/.local/bin/.officecli.tmp"
+
+    local url
+    for tag in "${tags[@]}" "latest"; do
+        url="https://github.com/${GITHUB_REPO}/releases/download/${tag}/${asset}"
+        echo -n "  下载 ($tag, $asset) ... "
+        if curl -L ${proxy:+-x "$proxy"} --connect-timeout 15 ${proxy:--m 300} \
+             --max-time 600 --progress-bar -C - -o "$tmp" "$url" 2>&1 | tail -1 | sed 's/^/    /'; then
+            local size; size=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
+            if [ "$size" -lt 3000000 ]; then
+                bad "❌ 文件异常小 ($size bytes，非完整二进制)"
+                rm -f "$tmp"; continue
+            fi
+            chmod +x "$tmp"
+            if timeout 15 "$tmp" --version >/dev/null 2>&1; then
+                mv "$tmp" "$OFFICECLI_BIN"
+                good "✅ ($(numfmt --to=iec "$size" 2>/dev/null || echo "$size")) $(_cli_version)"
+                return 0
+            fi
+            bad "❌ 下载物无法执行"
+            rm -f "$tmp"
+        else
+            bad "❌ 下载失败"
+        fi
+    done
+
+    rm -f "$tmp"
+    err "❌ OfficeCLI 安装失败"
+    warn "  手动: curl -L -x http://127.0.0.1:7897 \\"
+    warn "    https://github.com/${GITHUB_REPO}/releases/download/<tag>/${asset} -o ~/.local/bin/officecli"
+    return 1
 }
 
 # ========== 更新 ==========
@@ -108,31 +178,29 @@ update_officecli() {
 
     # 网络预检（直连被 GFW 阻断时自动走本机 Clash 代理）
     if ! github_reachable; then
-        warn "GitHub 不可达，跳过=="
+        warn "GitHub 不可达，跳过"
         return 0
     fi
 
     ensure_libicu || true
 
     local current=""
-    if [ -x "$OFFICECLI_BIN" ]; then
-        current=$("$OFFICECLI_BIN" --version 2>/dev/null || true)
-    fi
-    info "  当前版本: ${current:-未安装}"
+    _officli_ready && current=$(_cli_version)
+    info "  当前版本: ${current:-未安装/不可用}"
 
-    local latest=$(get_latest_version)
+    local latest; latest=$(get_latest_version)
     [ -z "$latest" ] && { bad "无法获取最新版本"; return 1; }
     info "  最新版本: $latest"
 
     # tag_name 带 v 前缀（v1.0.143），本地版本不带 → 统一去 v 比较
-    if [ "${current#v}" = "${latest#v}" ]; then
+    if [ -n "$current" ] && [ "${current#v}" = "${latest#v}" ]; then
         good "  已是最新"
         return 0
     fi
 
-    # 备份旧版本
-    if [ -x "$OFFICECLI_BIN" ]; then
-        cp "$OFFICECLI_BIN" "${OFFICECLI_BIN}.bak.${current}"
+    # 备份旧版本（仅当它能跑，避免备份一个懒惰下载的 shim）
+    if _officli_ready; then
+        cp "$OFFICECLI_BIN" "${OFFICECLI_BIN}.bak.${current}" 2>/dev/null || true
     fi
 
     install_officecli
@@ -140,16 +208,23 @@ update_officecli() {
 
 # ========== 状态检查 ==========
 show_status() {
-    local ok=true
-    [ -x "$OFFICECLI_BIN" ] || ok=false
-    if $ok; then echo "OK OfficeCLI 已安装"; else echo "MISSING OfficeCLI 未安装"; fi
+    local ready=true
+    _officli_ready || ready=false
+    if $ready; then
+        echo "OK OfficeCLI 已安装（$(_cli_version)）"
+    elif [ -x "$OFFICECLI_BIN" ]; then
+        echo "WARN OfficeCLI 存在但无法运行 → bash option-officecli/init.sh --install"
+    else
+        echo "MISSING OfficeCLI 未安装"
+    fi
 
     echo -e "${CYAN}── OfficeCLI 状态 ──${NC}"
 
     echo -n "  二进制 ... "
-    if [ -x "$OFFICECLI_BIN" ]; then
-        local ver=$("$OFFICECLI_BIN" --version 2>/dev/null || true)
-        good "✅ $ver"
+    if $ready; then
+        good "✅ $(_cli_version)"
+    elif [ -x "$OFFICECLI_BIN" ]; then
+        bad "❌ 存在但跑不起来（平台二进制缺失，npm shim 会静默懒下载）"
     else
         bad "❌ 未安装"
     fi
@@ -158,21 +233,24 @@ show_status() {
     if ldconfig -p 2>/dev/null | grep -q "libicuuc\.so"; then
         good "✅"
     else
-        bad "❌ 缺 libicu（officecli 无法启动）"
+        warn "○ 缺 libicu（.NET 二进制无法启动）"
         warn "  安装: sudo apt-get install -y libicu78"
     fi
 
+    # MCP 检查必须带超时：shim 懒下载会把这里也拖死
     echo -n "  MCP 注册 ... "
-    if "$OFFICECLI_BIN" mcp list 2>/dev/null | grep -q "Claude Code.*registered"; then
+    local mcp_out
+    mcp_out=$(timeout 10 "$OFFICECLI_BIN" mcp list 2>/dev/null || true)
+    if echo "$mcp_out" | grep -q "Claude Code.*registered"; then
         good "✅"
-    elif "$OFFICECLI_BIN" mcp list 2>/dev/null | grep -q "Claude Code"; then
+    elif echo "$mcp_out" | grep -q "Claude Code"; then
         warn "○ 未注册"
     else
         info "○ 未检查"
     fi
 
     echo ""
-    $ok || return 1
+    $ready || return 1
 }
 
 # ========== 交互式 ==========
