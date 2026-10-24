@@ -112,6 +112,31 @@
 - 飞书上传 20MB 边界、附件下载 preview 通道、上传删除带 `--params '{"type":"file"}'` 等坑已固化进 ffeishu skill 的 `references/lark-cli-cheatsheet.md`
 - 收件验证：Windows 系统托盘 Tailscale 收件提示；或 `tailscale file get` 手动收
 
+## 补充（2026-10-24）：通道全景与"每台机路径不同"的处理
+
+本 ADR 只讲**被动收件**（手机→本机）。实测中容易把四条通道混为一谈，补一张全景：
+
+| 通道 | 方向 | 本机要装什么 | 落点 | 能否 agent 主动发起 |
+|---|---|---|---|---|
+| A Taildrop | 手机/同账号设备 → 本机 | Tailscale 客户端（已装） | 「下载」已知文件夹（**本机 = `D:\Downloads`**，非 `C:\Users\...\Downloads`） | ✗ 被动 |
+| B 小米云盘 | 有客户端的机器 ⇄ 云 ⇄ 本机 | **无 Linux 客户端 → WSL 装不了**；只能在别的（Windows）机装 | 各机不同（本机 = `/mnt/d/小米云盘`；他机曾见 `C:\micloud`） | ✗ 被动（同步到达） |
+| C filepull（[0044](0044-agent-smb-file-bridge.md)） | 本机 agent → 目标 Windows 机 | **不装**，只用系统自带 `powershell.exe` + 目标机 445/tailnet | 目标机任意路径（`\\<ts-ip>\C$\...`），产物回写 | ✅ 主动，任意路径 |
+| D scp/Termius | 任意 → 本机 `~/inbox` | 无 | `~/inbox/` | 半主动（需在 A 端敲命令） |
+
+**关键**：B 的小米云盘在 WSL 里**没有客户端**，所以"本机能主动把文件传给别人"是不成立的 ——
+只有另一端（跑着客户端的 Windows 机）能发起同步，本机只是"看到同步结果"。别把它当成
+agent 可以主动用的通道。
+
+**每台机路径不同 → 不写死、运行时解析**（新增 `lib/path-helper.sh`）：
+
+- `win_downloads_dir` —— 「下载」已知文件夹真实路径。**必须问 `shell:Downloads` 或注册表
+  known-folder**，因为 Windows 允许重定向（本机 i7 就是 `D:\Downloads`）。猜 `C:\Users\...\Downloads` 必错
+- `win_path_to_wsl` —— `D:\Downloads` → `/mnt/d/Downloads`（`wslpath -u`，退化手转盘符）
+- `micloud_root` —— 扫所有挂载盘找 `小米云盘`/`micloud`（各机盘符/命名不同），
+  支持 `MICLOUD_DIR` 显式覆盖；找不到返回空（该机没装客户端）
+
+这样同一份 ccconfig 在 i7/i3/redmipro 上都能自动定位，不需要在 conf 里登记每台机的路径。
+
 ## Related
 
 - [0044-agent-smb-file-bridge](0044-agent-smb-file-bridge.md) — agent 主动方向（从来源机拉取 + 回写，SMB C$ 通道）
