@@ -92,18 +92,16 @@ check_setup_sh_version() {
         return 1
     fi
 
-    # 检查是否含 v3 关键特征
-    if grep -q 'resolve_conf' "$CCPRIVATE/setup.sh" 2>/dev/null && \
-       grep -q 'link/memory' "$CCPRIVATE/setup.sh" 2>/dev/null; then
+    # 与模板逐字节比对才是"最新"的唯一判据。
+    # 旧逻辑用 grep 'resolve_conf'/'link/memory' 判 v3 —— 这两个串在注释里就命中，
+    # 于是任何被本机改过的 setup.sh 都被误判"已是最新"，自定义改动静默留在原地，
+    # 直到上游改注释才突然被判 fix → 无条件 cp 覆盖，自定义消失。
+    if diff -q "$CCCONFIG_DIR/templates/ccprivate-setup.sh" "$CCPRIVATE/setup.sh" &>/dev/null; then
         return 0
     fi
 
-    # 结构不同但无明确 v2 特征 → 可能是用户修改版
-    if ! diff -q "$CCCONFIG_DIR/templates/ccprivate-setup.sh" "$CCPRIVATE/setup.sh" &>/dev/null; then
-        echo -e "  ${YELLOW}⚠${NC}  setup.sh 与当前模板不同（可能已自定义）"
-        return 1
-    fi
-    return 0
+    echo -e "  ${YELLOW}⚠${NC}  setup.sh 与模板不同（本机有修改，或模板已更新）"
+    return 1
 }
 
 check_link_content() {
@@ -166,9 +164,29 @@ fix_setup_sh() {
         return 1
     fi
     if [ -f "$CCPRIVATE/setup.sh" ]; then
-        cp "$CCPRIVATE/setup.sh" "$CCPRIVATE/setup.sh.bak.$(date +%Y%m%d)"
-        info "已备份: setup.sh.bak.$(date +%Y%m%d)"
+        # 备份带时分秒：旧写法只到日，同一天第二次升级会覆盖当天备份，
+        # 恰好把"升级前那一版"弄丢。后缀同时被 ccprivate/.gitignore 的 setup.sh.bak.* 挡住。
+        local _bak="$CCPRIVATE/setup.sh.bak.$(date +%Y%m%d-%H%M%S)"
+        cp "$CCPRIVATE/setup.sh" "$_bak"
+        info "已备份: $(basename "$_bak")"
     fi
+
+    # 本机改过的 setup.sh（与模板不同且非已知旧版）不直接覆盖 —— 静默丢弃用户的
+    # 自定义会连带丢功能（如项目级记忆 symlink）。改为另存 .new 让人工合并，或确认后覆盖。
+    if [ -f "$CCPRIVATE/setup.sh" ] && ! diff -q "$tpl" "$CCPRIVATE/setup.sh" &>/dev/null; then
+        if [ "${CCPRIVATE_SETUP_FORCE:-0}" = "1" ]; then
+            cp "$tpl" "$CCPRIVATE/setup.sh"
+            chmod +x "$CCPRIVATE/setup.sh"
+            ok "setup.sh 已强制覆盖（CCPRIVATE_SETUP_FORCE=1）"
+        else
+            cp "$tpl" "$CCPRIVATE/setup.sh.new"
+            warn "setup.sh 本机有修改，未覆盖 —— 新版已存为 setup.sh.new"
+            info "  合并: diff $CCPRIVATE/setup.sh $CCPRIVATE/setup.sh.new"
+            info "  放弃本机改动: CCPRIVATE_SETUP_FORCE=1 bash maintain.sh fix"
+        fi
+        return 0
+    fi
+
     cp "$tpl" "$CCPRIVATE/setup.sh"
     chmod +x "$CCPRIVATE/setup.sh"
     ok "setup.sh 已更新（来自 templates/ccprivate-setup.sh）"

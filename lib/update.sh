@@ -304,11 +304,22 @@ update_nodejs() {
     # 更新版本文件（保留 pin 等字段）
     save_version "node" "$target"
 
-    # 清理旧 Node
-    if [ -n "$old_node_dir" ] && [ -d "$old_node_dir" ] && [ "$old_node_dir" != "$new_node_dir" ]; then
-        info "清理旧 Node: $old_node_dir"
-        run rm -rf "$old_node_dir" 2>/dev/null || warn "无法完全删除旧 Node 目录（可能在使用）"
-    fi
+    # 清理旧 Node。
+    # 必须 white-list：find_node_bin 策略 4 会回退输出 $HOME/.local/bin，dirname 即
+    # $HOME/.local —— 用它做 rm -rf 会抹掉整个 ~/.local（claude/gh/uv/lark-cli/libinotifytools
+    # 都在里面，连 auto-sync 一起删）。只有确实形如 node-v*-linux-x64 的目录才允许删。
+    case "$old_node_dir" in
+        "$HOME"/.local/node-v*-linux-x64)
+            if [ -d "$old_node_dir" ] && [ "$old_node_dir" != "$new_node_dir" ]; then
+                info "清理旧 Node: $old_node_dir"
+                run rm -rf "$old_node_dir" 2>/dev/null || warn "无法完全删除旧 Node 目录（可能在使用）"
+            fi
+            ;;
+        *)
+            [ -n "$old_node_dir" ] && [ "$old_node_dir" != "$new_node_dir" ] && \
+                warn "跳过旧 Node 清理（路径不在 ~/.local/node-v*-linux-x64 白名单）: $old_node_dir"
+            ;;
+    esac
 
     success "Node.js: v$current → v$target"
 }

@@ -156,6 +156,20 @@ setup_link "$CLAUDE_DIR/projects/$_cconfig_id/memory" "$SCRIPT_DIR/link/memory" 
 unset _cconfig_id
 
 # ============================================================
+# 3b. 项目级记忆（公开项目走 ccprivate 集中存储，不能进项目仓库）
+# 私有项目直接在项目内 .claude/memory/ 即可，无需在这里登记
+# ============================================================
+if [ -d "$SCRIPT_DIR/link/memory-projects" ]; then
+    for _mp_dir in "$SCRIPT_DIR/link/memory-projects/"*/; do
+        [ -d "$_mp_dir" ] || continue
+        _mp_name=$(basename "$_mp_dir")
+        _mp_id="$(echo "$HOME/git/$_mp_name" | tr '/' '-')"
+        setup_link "$CLAUDE_DIR/projects/$_mp_id/memory" "$_mp_dir" "memory-projects/$_mp_name → ccprivate"
+    done
+    unset _mp_dir _mp_name _mp_id
+fi
+
+# ============================================================
 # 4. 运行时链接（rules/agents/commands → ccprivate，用户可自定义）
 # ============================================================
 section "运行时链接"
