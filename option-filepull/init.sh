@@ -140,6 +140,17 @@ do_status() {
     fi
     echo ""
     printf '%s' "$details"
+
+    # 一台都不通时给出替代通道提示：小米云盘是异步交换（双方各跑客户端），
+    # 不需要 SMB/445/凭据，适合"用户主动放文件"；filepull 才是 agent 主动取任意路径。
+    # 之前只在 ADR 里写了对比，用户端看不到 —— 这里落到运行时提示，别让用户空转。
+    if [ "$ok" -eq 0 ]; then
+        local micloud="${MICLOUD_DIR:-/mnt/d/小米云盘}"
+        if [ -d "$micloud" ]; then
+            info "  替代通道: 该机没配 SMB 时，可把文件放进小米云盘（本机落点 $micloud/claudefiles/），"
+            info "            在另一侧同步后说一声即可，无需 ssh/445/凭据。"
+        fi
+    fi
 }
 
 do_probe() {
