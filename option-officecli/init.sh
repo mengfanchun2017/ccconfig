@@ -47,12 +47,15 @@ _detect_asset() {
     esac
 }
 
-# ── 就绪判定：必须能真跑出版本号 ──
+# ── 就绪判定：尽量用平台二进制真跑出版本号 ──
 # ⚠️ 只判 -x 不够：npm 的 officecli 是 JS shim，平台二进制缺失时会**懒下载**，
-# 从 d.officecli.ai 拉（国内限速到 ~250B/s）→ 每个调用静默卡死几分钟。
-# 这正是"2D 装 officecli 卡住"的直接原因，故用带超时的版本探测做就绪条件。
+# 从 d.officecli.ai 拉（国内限速到 ~250B/s）→ 每个调用静默卡死几分钟（"2D 装
+# officecli 卡住"的直接原因）。
+# 另外 ~/.local/bin/officecli 可能被 lib/init-skill.sh 的 npm 链接步骤指向 shim
+# （fdocx/ffeishu/fpptx/fxlsx 都在 deps.txt 里声明了 @officecli/officecli）。
+# shim 一旦懒下载成功，后续就不卡了 —— 所以"能跑出版本号"才是唯一可靠判据，
+# 是不是 ELF 不重要。
 _officli_ready() {
-    [ -x "$OFFICECLI_BIN" ] || return 1
     timeout 8 "$OFFICECLI_BIN" --version >/dev/null 2>&1
 }
 

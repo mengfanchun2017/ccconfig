@@ -173,13 +173,23 @@ do_install_cli_deps() {
     npm_global_bin="$(npm prefix -g 2>/dev/null)/bin"
 
     # 从 npm 全局 bin 建 ~/.local/bin symlink（已装场景可能缺链，必须补）
+    # ⚠️ 绝不覆盖已存在的**实体文件**：某些包（如 @officecli/officecli）只是 npm
+    # shim，平台二进制靠 postinstall 另外下载；用户可能已把真正的独立二进制放在
+    # ~/.local/bin/officecli。无脑 ln -sf 会把好二进制替换成会"懒下载"的 shim
+    # （d.officecli.ai 国内限速 → 每次调用静默卡死）。只补链：目标缺失或本就是
+    # symlink 时才重指。
     _link_npm_bin() {
         local pkg="$1"
         local bin_name="${pkg##*/}"       # strip @scope/ prefix
         bin_name="${bin_name#@*/}"         # strip scope if still present
+        local dest="$HOME/.local/bin/$bin_name"
         if [[ -x "$npm_global_bin/$bin_name" ]]; then
+            if [[ -e "$dest" && ! -L "$dest" ]]; then
+                info "  $bin_name: ~/.local/bin 已有实体文件，保留（不覆盖为 npm shim）"
+                return 0
+            fi
             mkdir -p "$HOME/.local/bin"
-            run ln -sf "$npm_global_bin/$bin_name" "$HOME/.local/bin/$bin_name"
+            run ln -sf "$npm_global_bin/$bin_name" "$dest"
         fi
     }
 
