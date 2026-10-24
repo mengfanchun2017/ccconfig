@@ -32,17 +32,50 @@ do_update() {
 }
 
 do_status() {
-    local count=0 pub_count=0 priv_count=0
-    [[ -d "$CLAUDE_SKILLS_DIR" ]] && count=$(ls "$CLAUDE_SKILLS_DIR" 2>/dev/null | wc -l)
-    [[ -d "$SKILLS_SRC" ]] && pub_count=$(find "$SKILLS_SRC" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
-    [[ -d "$LOCAL_SKILLS_SRC" ]] && priv_count=$(find "$LOCAL_SKILLS_SRC" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+    # 视图里的条目来自三个互相独立的源，"总数"必须按类拆开，否则对不上账：
+    #   公开 = 指向 $SKILLS_SRC 的 symlink
+    #   私有 = 指向 $LOCAL_SKILLS_SRC 的 symlink
+    #   第三方 = 其余 symlink（lark-* → ~/.agents/skills/，非本仓库管理）
+    #   实体 = 真实目录（getnote 的 5 个 skill 由 CLI 直接写进视图）
+    # 此前只报"公开/私有"，58 个总数减掉 25 公开还剩 33 无处交代 → 数字对不上。
+    local total=0 pub=0 priv=0 third=0 real=0 broken=0
+    if [[ -d "$CLAUDE_SKILLS_DIR" ]]; then
+        local d target
+        for d in "$CLAUDE_SKILLS_DIR"/*; do
+            [[ -e "$d" || -L "$d" ]] || continue
+            total=$((total + 1))
+            if [[ -L "$d" ]]; then
+                if [[ ! -e "$d" ]]; then
+                    broken=$((broken + 1))
+                else
+                    target=$(readlink -f "$d")
+                    case "$target" in
+                        "$SKILLS_SRC"/*)      pub=$((pub + 1)) ;;
+                        "$LOCAL_SKILLS_SRC"/*) priv=$((priv + 1)) ;;
+                        *)                    third=$((third + 1)) ;;
+                    esac
+                fi
+            else
+                real=$((real + 1))
+            fi
+        done
+    fi
+    [[ -d "$SKILLS_SRC" ]] && local _p; _p=$(find "$SKILLS_SRC" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+    local src_pub=${_p:-0}
 
-    if [[ $count -gt 0 ]]; then
-        echo "OK Skills ${count}个已安装（公开 ${pub_count} / 私有 ${priv_count}）"
-    elif [[ $pub_count -gt 0 || $priv_count -gt 0 ]]; then
+    if [[ $total -gt 0 ]]; then
+        echo "OK Skills ${total}个（公开 ${pub} / 私有 ${priv} / 第三方 ${third} / 实体 ${real}）"
+    elif [[ $src_pub -gt 0 ]]; then
         echo "WARN Skills 源存在但未链接（运行 --install）"
     else
         echo "MISSING Skills 源不存在（bash ccconfig/option-skill/init.sh --install）"
+    fi
+    if [[ $broken -gt 0 ]]; then
+        info "  断链 ${broken} 个 → bash maintain.sh fix"
+    fi
+    # 源与视图数量不一致（公开源有 N 个 skill，视图里只链上 M 个）单独提示
+    if [[ $src_pub -gt 0 && $pub -ne $src_pub ]]; then
+        info "  注意: 公开源 ${src_pub} 个 ≠ 视图链接 ${pub} 个 → bash lib/init-skill.sh diff"
     fi
 }
 

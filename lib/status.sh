@@ -524,12 +524,21 @@ check_option_components() {
     local found=0
     local -a shown=()
 
+    # --other-- 组 = 自动发现但没在别的分组里列过的 option；下面的 handled 复用
+    # 这一份清单，避免两处各写一份排除名单、改一处忘另一处（曾导致 officecli/
+    # remote/cloudflare/getnote 被 --other-- 排除、又漏在 handled 里 → 完全不显示；
+    # 且 skill 同时出现在 --claude-- 和 --other-- → 重复显示）。
+    local other_list=""
+    other_list=$(ls -d "$REPO_DIR"/option-*/ 2>/dev/null | xargs -n1 basename 2>/dev/null \
+        | sed 's/^option-//' \
+        | grep -vE '^(larkcli|getnote|officecli|remote|cloudflare|skill)$' | tr '\n' ' ')
+
     # 分组：与 init-option.sh 保持一致
     local groups=(
         "--os--|bat glow nano"
         "--claude--|mcp skill"
         "--lark--|larkcli ccbridge"
-        "--other--|$(ls -d "$REPO_DIR"/option-*/ 2>/dev/null | xargs -n1 basename | sed 's/^option-//' | grep -vE '^(larkcli|getnote|officecli|remote|cloudflare)$' | tr '\n' ' ')"
+        "--other--|${other_list}"
         "--key--|feishu_key"
     )
 
@@ -563,8 +572,12 @@ check_option_components() {
         done
     done
 
-    # 自动发现的 option 不在分组中的也显示
-    local handled="mcp skill larkcli ccbridge officecli remote cloudflare getnote feishu_key bat glow nano"
+    # 自动发现的 option 不在分组中的也显示。
+    # handled 必须覆盖**所有**已在上面分组里出现过的名字，否则会被这里再列一遍；
+    # 反之若某个 option 被 --other-- 排除且不在 handled 里，就会一个都不显示。
+    # 从"分组里实际列过的 shown"派生，而不是手写名单 —— 手写必然与分组漂移。
+    local handled=" feishu_key " _s
+    for _s in "${shown[@]}"; do handled+="$_s "; done
     for name in "${auto_opts[@]}"; do
         echo " $handled " | grep -q " $name " && continue
         # 分组里已列过的不再列：--other-- 组由同一份 ls 生成，此前 evalscope/llmswitch
