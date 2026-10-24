@@ -134,8 +134,15 @@ do_install_cli_deps() {
     declare -A pip_done
 
     local self_deps=0
-    if [[ -d "$SKILLS_SRC" ]]; then
-        for skill_dir in "$SKILLS_SRC"/*/; do
+    # 公开源 + 私有源都扫。此前只扫 $SKILLS_SRC，ccprivate/skill-local/ 自建 skill
+    # 声明的 npm/apt/pip 依赖被静默跳过（而 _collect_all_deps 与 do_link_self_built
+    # 都是两源，口径不一致 → sync 装不全私有 skill 的依赖）。
+    local _dep_srcs=()
+    [[ -d "$SKILLS_SRC" ]]       && _dep_srcs+=("$SKILLS_SRC")
+    [[ -d "$LOCAL_SKILLS_SRC" ]] && _dep_srcs+=("$LOCAL_SKILLS_SRC")
+    if [ ${#_dep_srcs[@]} -gt 0 ]; then
+        for _src in "${_dep_srcs[@]}"; do
+        for skill_dir in "$_src"/*/; do
             local dep_file="${skill_dir}deps.txt"
             [[ -f "$dep_file" ]] || continue
             local skill_name=$(basename "$skill_dir")
@@ -167,7 +174,10 @@ do_install_cli_deps() {
                 fi
             done < "$dep_file"
         done
+        done
+        unset _src
     fi
+    unset _dep_srcs
     info "  扫描 $self_deps 个唯一依赖"
 
     [[ $self_deps -eq 0 ]] && info "  无 CLI 依赖" && return 0
@@ -246,6 +256,17 @@ do_install_cli_deps() {
                 fi
                 ;;
             apt)
+                # libicu78 这类包名带发行版号：Ubuntu 24.04 只有 libicu74，直接装
+                # libicu78 会失败（.NET 二进制随后报 Couldn't find a valid ICU package）。
+                # 按实际可用版本改写包名，与 lib/ensure-libicu.sh 同一口径。
+                if [[ "$pkg" =~ ^libicu[0-9]+$ ]]; then
+                    local _icu
+                    _icu=$(apt-cache search --names-only '^libicu[0-9]+$' 2>/dev/null | awk '{print $1}' | sort -V | tail -1)
+                    if [[ -n "$_icu" && "$_icu" != "$pkg" ]]; then
+                        info "  $pkg → $_icu（本发行版可用版本）"
+                        pkg="$_icu"
+                    fi
+                fi
                 if dpkg -s "$pkg" &>/dev/null; then
                     info "  $pkg (apt): 已装 — $required_by"
                     skipped=$((skipped + 1))
