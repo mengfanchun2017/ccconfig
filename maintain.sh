@@ -220,6 +220,12 @@ do_setup() {
 
     section "3. 新配置模板跟进（conf/ + agents/）"
     _fix_step "把新模板复制到 ccprivate" bash "$LIB_DIR/example-sync.sh" sync
+    # 本机配置模板水位：把 ~/.claude 三件套补到当前模板（只补缺键，不覆盖已有），
+    # 并刷新 ~/.claude/.ccconfig-init 代次。此前只有跑 setup.sh 才补，fix 不管。
+    if [ -x "${CCPRIVATE_HOME:-$HOME/git/ccprivate}/setup.sh" ]; then
+        _fix_step "本机配置补到当前模板（settings/.config/.claudeignore）" \
+            bash "${CCPRIVATE_HOME:-$HOME/git/ccprivate}/setup.sh"
+    fi
 
     section "4. MCP 注册 + Skill 同步"
     _fix_step "MCP 注册缺失项 + 同步 settings" bash "$LIB_DIR/init-mcp.sh" sync
