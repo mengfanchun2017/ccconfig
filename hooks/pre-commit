@@ -66,6 +66,12 @@ if [ -n "$staged" ]; then
     while IFS= read -r f; do
         [ -z "$f" ] && continue
         [ ! -f "$f" ] && continue
+        # 测试文件例外：它们需要密钥形状的样本才能验证扫描逻辑（否则测试无法存在）。
+        # 代价是测试文件本身成为盲区 —— 因此约定样本运行时拼装，不写字面量密钥，
+        # 且 test-secret-patterns.sh 有自查断言保这条约定。
+        case "$f" in
+            tests/*|*/tests/*|*test*.sh|*test*.bats|*test*.py) continue ;;
+        esac
         if grep -qE "$KEY_RE" "$f" 2>/dev/null; then
             echo -e "${RED}[pre-commit] BLOCKED: ${f} — 疑似包含 API key / JWT token${NC}"
             blocked=1
