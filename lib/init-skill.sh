@@ -57,6 +57,18 @@ ensure_claude_skills() {
     _p=$(net_gh_proxy)
     [ -n "$_p" ] && export HTTPS_PROXY="$_p" https_proxy="$_p" HTTP_PROXY="$_p" http_proxy="$_p"
     if [[ -d "$SKILL_REPO_DIR/.git" ]]; then
+        # 仓库已存在 → 先做账号一致性守卫：remote 必须属于当前 gh 账号（或是上游公共仓）。
+        # 否则换账号后仍用旧 remote + 旧 PAT pull，失败被下面的 || true 吞掉，
+        # 新账号静默拿不到 skill 仓库（换机/换账号复用同一 HOME 时的真实场景）。
+        local _acct _remote _rem_owner
+        _acct=$(_github_user)
+        _remote=$(git -C "$SKILL_REPO_DIR" remote get-url origin 2>/dev/null || echo "")
+        _rem_owner=$(printf '%s' "$_remote" | sed 's#.*github.com[:/]##; s#/.*##')
+        if [[ -n "$_acct" && -n "$_rem_owner" && "$_rem_owner" != "$_acct" && \
+              "$_rem_owner" != "${SKILL_UPSTREAM%%/*}" ]]; then
+            warn "skill 仓 remote 属主($_rem_owner) ≠ 当前账号($_acct)，改用 $_acct/skill"
+            git -C "$SKILL_REPO_DIR" remote set-url origin "https://github.com/$_acct/skill.git" 2>/dev/null || true
+        fi
         # 仓库已存在，git pull 更新
         git -C "$SKILL_REPO_DIR" pull --ff-only origin main 2>/dev/null || true
         return 0

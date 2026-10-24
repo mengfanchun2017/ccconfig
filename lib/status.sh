@@ -358,6 +358,23 @@ check_repos() {
 
     [ $found -eq 0 ] && echo -e "  ${GRAY}(~/git/ 下无项目)${NC}"
 
+    # 账号一致性：三仓 remote 属主必须与当前 gh 账号一致。
+    # 不一致时 pull/push 会用旧 remote + 旧 PAT，失败常被 || true 吞掉 →
+    # 换账号后静默不同步（skill 仓的 remote 换址见 init-skill.sh ensure_claude_skills）。
+    _acct=$(gh api user --jq '.login' 2>/dev/null || echo "")
+    if [ -n "$_acct" ]; then
+        for _r in ccconfig ccprivate skill; do
+            _rd="$HOME/git/$_r"
+            [ -d "$_rd/.git" ] || continue
+            _ro=$(git -C "$_rd" remote get-url origin 2>/dev/null | sed 's#.*github.com[:/]##; s#/.*##')
+            if [ -n "$_ro" ] && [ "$_ro" != "$_acct" ]; then
+                echo -e "  ${YELLOW}⚠${NC} $_r remote 属主=$_ro ≠ 当前账号=$_acct（换账号残留）"
+            fi
+        done
+        unset _r _rd _ro
+    fi
+    unset _acct
+
     # memory 概览（只算有 memory 的项目）
     local projects_dir="$HOME/.claude/projects"
     if [[ -d "$projects_dir" ]]; then

@@ -54,17 +54,38 @@ would() {
 
 # 通用 run 包装
 # 模拟时打印 would: 行；真跑时执行
-# 接收 --dry-run 参数自动剥离
+# 只认全局 CCC_DRY_RUN —— 不要把被包装命令自己的参数当开关：run rm -rf foo 里
+# 的 "$@" 是 rm 的参数，从中找 --dry-run 永远找不到，而 run 的第一项常是
+# rm/npm/apt 这类动词，本就不该被当作 dry-run 标志。
 run() {
-    if _dry_run_enabled "$@"; then
-        local stripped
-        stripped=$(_dry_run_strip "$@")
-        local verb="${stripped%% *}"
-        printf 'would: %s\n' "$stripped"
+    if _dry_run_enabled; then
+        printf 'would: %s\n' "$*"
     else
         command "$@"
     fi
 }
+
+# 把脚本自身的 --dry-run 命令行参数转成全局开关。
+# 不靠各脚本记得调用：bash 的 source 不带参数，被 source 的文件直接继承调用者的 "$@"，
+# 所以这里自动跑一次即覆盖全部 30 个 source 了 dry-run.sh 的入口脚本。
+# 缺了这一步，「bash lib/x.sh --dry-run」把 --dry-run 当普通位置参数传下去，
+# 真操作照跑（曾因此让 init-skill 的 sudo apt-get / npm -g 在"预览"下真装）。
+dry_run_parse_argv() {
+    local arg
+    for arg in "$@"; do
+        [[ "$arg" == "--dry-run" ]] && export CCC_DRY_RUN=1
+    done
+    return 0
+}
+
+# bash/zsh source 时调用者参数不会进 $@，但调用者的 "$@" 仍可通过 ${BASH_ARGV}
+# 或直接读进程参数拿到 —— 用 /proc 读自身，避开 shell 差异。
+dry_run_parse_argv "$@"
+if [ -r /proc/$$/cmdline ]; then
+    _dry_args=$(tr '\0' '\n' < /proc/$$/cmdline 2>/dev/null | grep -x -- '--dry-run' || true)
+    [ -n "$_dry_args" ] && export CCC_DRY_RUN=1
+    unset _dry_args
+fi
 
 dry_run_banner() {
     if _dry_run_enabled; then
