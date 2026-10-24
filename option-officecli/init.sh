@@ -92,30 +92,39 @@ install_officecli() {
 
     ensure_libicu || true
 
+    # 已有 CLI symlink（lib/init-skill.sh 建的）指向 npm shim：shim 会把真正的
+    # 平台二进制下到自己的 vendor/ 里。若那份已经能跑，就复用它，别重下。
+    ensure_path_officecli
     if _officli_ready; then
         echo -n "  OfficeCLI ... "
         good "✅ $(_cli_version)"
         return 0
     fi
 
-    if [ -x "$OFFICECLI_BIN" ]; then
-        warn "  officecli 存在但无法运行（二进制缺失，npm shim 会静默懒下载卡死）→ 重装"
+    if [ -x "$OFFICECLI_BIN" ] || [ -L "$OFFICECLI_BIN" ]; then
+        warn "  officecli 存在但跑不起来（二进制缺失）→ 重装"
     fi
 
-    # ── 路 1: npm ──
+    # ── 路 1: 代理直下 GitHub 平台二进制（实测 34MB/11s，最可靠）──
+    # 放最前面：npm 的 postinstall 走 d.officecli.ai，国内被限速到 ~250B/s，
+    # 35MB 要下几小时，且 npm 会一直挂着不超时 → 这才是"2D 装 officecli 卡住"。
+    if install_officecli_binary; then
+        return 0
+    fi
+
+    # ── 路 2: npm 兜底 ──
+    # 跳过 postinstall 的平台下载（OFFICECLI_SKIP_BINARY_DOWNLOAD=1），
+    # 否则又会挂在限速镜像上。装完只得到 shim，由用户在能通的网络上首次运行补齐。
     if command -v npm >/dev/null 2>&1; then
-        info "  npm install -g $NPM_PKG ..."
-        if timeout 600 npm install -g "$NPM_PKG" 2>&1 | tail -5 | sed 's/^/    /'; then
+        warn "  代理直下失败，退到 npm 安装（跳过其慢速二进制下载）..."
+        if timeout 120 env OFFICECLI_SKIP_BINARY_DOWNLOAD=1 npm install -g "$NPM_PKG" 2>&1 | tail -3 | sed 's/^/    /'; then
             ensure_path_officecli
-            _officli_ready && { good "✅ 已装（npm）: $(_cli_version)"; return 0; }
-            warn "  npm 装完但仍无法运行（平台二进制没抓到），改走代理直下"
-        else
-            warn "  npm 安装失败，改走代理直下二进制"
+            warn "  已装 npm 包，但平台二进制仍需首次运行时下载（国内镜像很慢）"
         fi
     fi
 
-    # ── 路 2: 代理直下 GitHub 二进制 ──
-    install_officecli_binary
+    err "OfficeCLI 未能就绪"
+    return 1
 }
 
 # 把 npm 全局 bin 里的 officecli 链到 ~/.local/bin（PATH 兜底）
