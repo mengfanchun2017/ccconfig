@@ -133,7 +133,10 @@ do_status() {
     elif [ "$ok" -gt 0 ]; then
         echo "WARN filepull $ok/$total 台可达: ${ok_names[*]:-} ✓ / ${fail_names[*]} ✗"
     else
-        echo "MISSING filepull 0/$total 台可达 (${fail_names[*]})"
+        # 已配置但当前一台都不通：这是"暂时不可达"，不是"没装"。
+        # 用 MISSING 会让 maintain status 报 ✗（与未安装混淆，且目标机休眠/离线时
+        # 天天误报），降级成 WARN 语义才准 —— 通道是好的，只是对端今天没上线。
+        echo "WARN filepull 已配置 $total 台，当前 0 台可达 (${fail_names[*]})"
     fi
     echo ""
     printf '%s' "$details"
