@@ -390,3 +390,47 @@ grep 确认**没有任何地方**把 argv 转成 `CCC_DRY_RUN`。于是文档承
 **已做的处置**：删 `scheme`（不实现）与 `version`（无人比较），保留 `_note` 把上面这套说清楚；
 水位 `version=` 改记 HEAD 短 sha（人读时能看出"对齐于哪次提交"）；
 README「版本里程碑」段改掉假声明并指向真正的落后检测机制。
+
+### 8.11 2B「tool 更新」里 claude 慢 —— 根因与修复（实测）
+
+用户问：`maintain.sh` 2B（`lib/update.sh all`）升级时 claude 那步很慢，为什么、能不能优化。
+
+**实测各步耗时**：`node 1s / npm-globals 2s / pip 0s / gh 1s / skills 0s / mcp 0s / uv 1s`
+→ **claude 是唯一慢点**，其余合计 5s。
+
+#### 根因（三条叠加）
+
+1. **`claude install --force` 没有"只检查"模式**，每次无条件重下完整 native 二进制
+   （实测 `content-length: 291638640` = **278 MiB**）。哪怕已经是最新版也照下。
+2. **`downloads.claude.ai` 直连不通**。实测直连 `http=000`、0 字节挂死；
+   走代理 `127.0.0.1:7897` 才通（3.23 MB/s → 278MB ≈ 86s）。
+   而 `claude install` **不做代理发现**，`update.sh` 只给 gh 注了代理
+   （`update_gh` 用 `net_gh_proxy`），**没给 claude 注**。
+3. 交互 shell 里**没有 proxy env**（只有 systemd 单元有）→ 于是走直连 →
+   实测报 `Failed to fetch version from …/stable after 3 attempt(s): canceled`，
+   **3 次重试耗 95s 才放弃**，然后才回退 npm。
+
+#### 修复（`lib/update.sh`）
+
+| 改动 | 效果 |
+|---|---|
+| 先读 `…/claude-code-releases/stable` 清单比版本，只在真落后时下载 | 已最新时**不再白下 278MB** |
+| 清单目标用 **stable** 而非 latest | `claude install` 不带 target 装的是 stable；实测 stable `2.1.308` ≠ latest `2.1.310`，拿 latest 比会**永远追不平**（判定落后→下载→装回 stable→循环） |
+| 加**不降级保护** | 本机领先 stable 时保持不动（`claude install --force` 会把它拉回去，等于替用户降版本） |
+| 代理用 `net_gh_proxy` 显式传给孩子进程 | 从"95s 失败后回退"变成直接走可用路径 |
+| 新增 `cleanup_old_claude_versions` | 旧二进制每个 240-280MB，实测攒三代 = **797MB** → 清理后 557MB（保留当前 + 上一版可回退）；带版本号正则白名单，不误删 |
+
+**实测效果**：`update_claude` 从 **95s（失败）** → **1.355s（已最新直接返回）**。
+真升级时走代理下载约 86s（278MB，物理下限）。
+
+#### 顺带修正一处自身副作用
+
+排查中我用 `claude install --force`（不带 target）测代理可用性 —— 它装的是 **stable 2.1.308**，
+把本机从 `2.1.310` **降级**了。已用 `claude install --force latest` 恢复到 `2.1.310`。
+教训：`claude install` 的默认 target 是 stable，不带参数的 `--force` 是个降级操作。
+
+#### 回归测试
+
+新增 `tests/test-claude-update.sh`（13 例）：以 stable 清单比对、不走 latest、
+有跳过分支、有不降级保护、版本比较用 `sort -V`、代理显式传递、cleanup 白名单 +
+隔离 HOME 下的真实清理行为（保留当前+上一版、删更旧、保护非版本文件）。
