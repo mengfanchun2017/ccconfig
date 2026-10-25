@@ -267,3 +267,101 @@ grep 确认**没有任何地方**把 argv 转成 `CCC_DRY_RUN`。于是文档承
 | `.git/hooks/pre-commit` | 新装（公开仓密钥防线） |
 
 **验证**：全部 shell 测试 0 失败（含 6 个 bats 文件 57 例 + 20 个 shell 测试文件）；skill 仓 CI 三项本地通过（config 卫生 / marketplace JSON / description 无漂移）；30 个入口 `bash -n` 通过。
+
+---
+
+## 8. 复审追加（2026-10-25 第二轮 `/review`）
+
+对三仓再做一遍端到端质量复核（新装路径 / 老终端升级路径 / 架构边界 / 功能合并）。
+本节只记**本轮新增**的发现与处理，不重复上面各节。
+
+### 8.1 本轮最重要的发现：auto-sync 曾被本文档自己卡死
+
+- **现象**：ccconfig 积压 30 个文件不提交，push 停在 `966b407e`，GitHub CI 连续 4 次红。
+- **根因**：上一轮我写本审计的 §6 表格时，把 Supabase 旧 key 写成**完整未截断**字符串
+  （另两行用 `…` 截断了，这行漏了）。`hooks/pre-commit` 的 `sbp_` 规则命中 → 每次
+  debounce 都 `BLOCKED` → commit 永远失败 → push 永远不触发。
+- **为什么难发现**：monitor 的失败只写进 `~/git/ccconfig/.monitor-sync.log` 的 `WARN:` 行，
+  systemd 单元 `StandardOutput=null`，`journalctl` 看不到。终端上表现为"改了文件但远端不动"。
+- **修复**：§6 表格改为**按服务描述 + 轮换状态**，不再出现任何可匹配的凭据形状字符串
+  （连截断前缀都去掉 —— `github_pat_` 后缀 20 字符就足以触发规则）。
+- **已核实**：改动后 monitor 恢复，`OK pushed → GitHub`，c轮 CI 转绿（commit `29146813`）。
+- **教训**：**审计文档本身就是公开仓内容**，写安全审计时最容易把凭据写成可匹配样本。
+
+### 8.2 P0 —— 公开仓真实标识泄露（本轮新发现，已修）
+
+| 位置 | 泄露内容 | 处理 |
+|---|---|---|
+| `docs/updates/20260920-drop-ccbridge-menu-entries.md:32-35` | 真实飞书账号别名 + 完整 `appId: cli_a97077e327b89bd6` + `/home/francis/.lark-cli-ailab` | 全部换 `<account-alias>` / `cli_xxxxxxxxxxxxxxxx` / `~/.lark-cli-<account-alias>` |
+| `docs/adr/0034-bridge-block-index-and-thinking-switch.md:12` | `~/.claude/projects/-home-francis-git-ccconfig/…`（真实用户名） | `-home-<user>-git-ccconfig/<session-id>` |
+| `docs/SH-MENU-CONVENTIONS.md:113` | 真实账号别名出现在菜单渲染示例 | `<account-a>` / `<account-b>` |
+| `docs/audits/20261010-architecture-audit.md:187` | 记录"真实用户名 `francis`"（复述即泄露） | 改为"真实用户名 → `<user>`" |
+| `tests/test-git-pull.sh:31` | `source /home/francis/git/ccconfig/lib/git-pull.sh`（绝对路径，公开仓暴露用户名 + 换机器即坏） | `source "$CCCONFIG_DIR/lib/git-pull.sh"`（从 `BASH_SOURCE` 推导） |
+
+- **扫描方法**：`git ls-files -z | xargs -0 grep -InE '([0-9]{1,3}\.){3}[0-9]{1,3}|[email]|/home/[a-z]+/|10\.|192\.168\.|172\.(1[6-9]|…)\.'`
+  排除回环/文档占位符；再单独扫真实用户名与账号别名。
+- **残留评估**：仓库所有者的 GitHub 用户名（`mengfanchun2017`）出现在 README/BOOTSTRAP 的
+  clone URL 与 badge 里 —— 这是**有意公开**（仓库地址本身），不算泄露。真实内网 IP 0 命中。
+
+### 8.3 P1 —— 已修的功能缺陷
+
+| 缺陷 | 证据 | 修复 |
+|---|---|---|
+| `lib/mcp-manager.sh` `py_write` 裸插变量进 `python3 -c` | 8 处调用点把 `$name`/`$desc`/`$target`/`$escaped_path` 直接拼进单引号字面量；名字含 `'` 即 SyntaxError → 菜单报"已注册"但 `.config.json` 没变 | 加 `py_str()` 转义（先 `\`→`\\` 再 `'`→`\'`），7 处调用点全部改为 `'$(py_str "$x")'`。新增 `tests/test-mcp-pywrite.sh`（13 例，含"反例确实崩"的有效性断言） |
+| `lib/init-mcp.sh` `configure_mcp_env` 结尾 `\|\| true` | 函数返回值恒 0，调用方无法发现 key 没写进去（症状：报"已配置"但运行时 401） | 删 `\|\| true`，失败向上传播；2 个调用点加 `warn` 提示 |
+| `lib/init-skill.sh do_diff()` 对已废弃清单发假警报 | `conf/third-party-skills.txt` 已删，函数仍按空清单比对 → 33 条 "untracked drift" 全是正常安装的 lark-*/getnote-* | 文件缺失时提前返回，打印一句废弃说明 + 指向 `list`/`status`；`do_remove` 同步跳过 |
+| `lib/README.md` 仍把 4 个 `guard_*` 列为规范 API | 生产零调用（见 8.4） | 表格只留 `atomic_write`，并说明"统一封装已决议放弃" |
+
+### 8.4 ADR-0027 幽灵 API —— 决议删除
+
+- **实证**：`guard_mkdir` / `guard_symlink` / `guard_append_line` / `guard_write_file` /
+  `guard_command_exists` 五个封装，**生产代码零调用**，只有 `tests/test-guard.bats` 引用。
+  `lib/guard.sh` 从不存在，`_is_installed` 等四个函数全库零命中。
+- **决议**：删 5 个函数 + 5 个对应用例；`atomic_write` 保留（`lib/ensure-uv.sh:68` 有真实调用）。
+  ADR-0027 改 **Superseded**，README 索引与 1010 审计 §3.1 同步。
+- **理由**：统一封装带来的间接层收益低于阅读成本（`rules/code.md`「三个相似行优于过早抽象」）；
+  幂等逻辑各脚本自己写是当前有意做法，不是遗漏。
+
+### 8.5 死代码清理
+
+| 位置 | 内容 | 处理 |
+|---|---|---|
+| `init-option.sh:535-613` | `_feishu_add_app` / `_feishu_edit_key` / `_feishu_delete_app`（79 行，零调用） | 删除，687 → 607 行；复查该文件已无零调用函数 |
+| `lib/dry-run.sh:128-170` | 5 个 `guard_*` | 删除（见 8.4） |
+| `lib/colors.sh:41-54` | fallback 块 `if ! type ok` 位于 `ok` 定义（第 29 行）之后 → **恒假** | **未删**：该块与 `BASH_SOURCE` guard 属同一设计取舍（零 guard 是 ccconfig 现状），单独删颜色文件会与全仓风格不一致；已在审计记录，留给"颜色层单点"整项一起处理 |
+
+### 8.6 前一轮的误报（本轮更正）
+
+- **1010 §4 暗号条目**：「`CLAUDE.md` 暗号 `hookstatus`/`pullff` 无实现」= **误报**。
+  这两个是**给 Claude 读的自然语言暗号**（`CLAUDE.md` 明写"暗号 → 行为"映射），本就无需
+  代码实现；`BOOTSTRAP.md:744,781` 记载的是它们展开成的真实命令（`maintain.sh status` /
+  `sync.sh --pull`）。已在本轮更正该行，标注"非缺陷"。
+- 这与 1025 §6 的凭据结论同源：**文档里"缺失的实现"要先确认它到底该不该是代码**。
+
+### 8.7 架构边界复核结论（本轮为实证，非推断）
+
+- **可见性**：ccconfig `PUBLIC`、skill `PUBLIC`、ccprivate `PRIVATE` —— 经 `gh repo view` 实测。
+- **公开仓无私有数据**：`conf/` 只跟踪 `.example` + `versions.json` + `llmnormal.json`
+  （后者文件内 description 明示"内置 LLM 预设定义（开源）。key 不在此文件"，实测无 key 字段）。
+- **account-invariant**：三仓 remote owner 一致性检查已在 `lib/status.sh` 落地；
+  `ccprivate` 路径可被 `CCPRIVATE_HOME` 覆盖；skill 源可被 `SKILLS_SRC` 覆盖。
+- **依赖方向**：ccconfig → (symlink) → ccprivate/skill 单向；`ccprivate/setup.sh` 只 `source`
+  ccconfig 的 `lib/`，不反向依赖 ccconfig 的 git 状态。三仓缺任一时的降级路径见 BOOTSTRAP。
+
+### 8.8 CI 状态
+
+- 本地：**21/21 shell 测试文件通过**（含新增 `test-mcp-pywrite.sh`）；所有改动文件 `bash -n` 通过。
+- 远程：修复 push 阻塞后，`29146813` 起 CI 转绿（9 job：syntax/lint/json/python/bats/unit/links/deps）。
+- `tests/test-guard.bats` 本地无法执行（未装 `bats`），由 CI 的 `bats` job 覆盖。
+
+### 8.9 仍未做（有明确理由，需用户定夺）
+
+| 项 | 理由 |
+|---|---|
+| memory 63 条 vs 上限 40 | 达标需继续并中小簇或删"内容已进 ADR"的条目 —— 属判断问题，不硬凑 |
+| `monitor.sh` rebase 冲突后 `reset --hard` | 已有 stash 兜底，但冲突解仍可能丢本地改动；重新设计需单独排期 |
+| `spinner()` 丢 `wait` 返回码（`lib/interact.sh:280-285`） | 生产零调用（无脚本用 spinner），改它没有实际收益 |
+| `monitor.sh` 重定义 `warn/info/error` 遮蔽 colors.sh | monitor 是独立常驻进程，重定义是为了写 LOG_FILE；需先把颜色层单点化才谈得上统一 |
+| `lib/init-mcp.sh`(613) 与 `lib/mcp-manager.sh`(611) 合并 | 两者职责可分（前者同步模板→运行时，后者交互管理），合并前需先确认谁是谁的入口 |
+| `lib/colors.sh` fallback 死块 | 见 8.5 |
+| CalVer 真相源断裂 | `versions.json` 声明 tag 是 CalVer 真相源，但仓库只有 SemVer tag（`v1.6.0`），零 CalVer tag；水位实际靠 `.ccconfig-init` 的 `template_hash` 工作。**需用户决定**：补 CalVer tag，还是改掉这句声明 |
