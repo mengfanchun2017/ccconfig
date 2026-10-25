@@ -149,7 +149,7 @@ for path, p in d.get('projects', {}).items():
         'name': name,
         'path': path,
         'active': project_active,
-        'current': path == '$current',
+        'current': path == '$(py_str "$current")',
     })
 
 # 排序：当前排第一，其余按名字
