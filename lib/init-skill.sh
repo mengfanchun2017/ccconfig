@@ -14,7 +14,7 @@
 #   bash ccconfig/init-skill.sh cleanup          # 单独清 ~/.claude/skills/ 断链
 #   bash ccconfig/init-skill.sh list             # 查看已安装 skills（symlink + plugin）
 #   bash ccconfig/init-skill.sh status           # 状态总览
-#   bash ccconfig/init-skill.sh diff             # 检测第三方 skill 清单 drift
+#   bash ccconfig/init-skill.sh diff             # 检测第三方 skill 清单 drift（清单已废弃，现报一句说明）
 
 export PATH="$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 set -euo pipefail
@@ -809,7 +809,7 @@ do_remove() {
         good "  ✓ 已从 ~/.claude/skills/ 删除"
     fi
 
-    # 3. 从 third-party-skills.txt 中移除
+    # 3. 从 third-party-skills.txt 中移除（清单已废弃：文件不存在时跳过，不再报"不在清单"）
     if [[ -f "$THIRD_PARTY_CONF" ]]; then
         if grep -qE "^[^#]*  $skill\$" "$THIRD_PARTY_CONF"; then
             local tmpfile=$(mktemp)

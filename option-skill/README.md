@@ -21,7 +21,7 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
 | 仓库 | 角色 | 可见性 |
 |------|------|--------|
 | `~/git/ccconfig` | 安装/更新/初始化脚本、规则、代理 | 公开 |
-| `~/git/skill` | 16 个自建 f-* skill 实体（SKILL.md）、marketplace 注册表 | 公开 |
+| `~/git/skill` | 26 个自建 f-* skill 实体（SKILL.md）、marketplace 注册表 | 公开 |
 | `~/git/ccprivate` | API key、token、个人配置覆盖 | 私有 |
 
 ## Skill 分类
@@ -29,7 +29,7 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
 | 类型 | 来源 | 安装方式 | 管理 |
 |------|------|---------|------|
 | **自建 f-*** | `skill/plugins/` | symlink 到 `~/.claude/skills/` | git 仓库（skill） |
-| **第三方 (npx)** | 上游 GitHub 仓库 | `npx skills add` → `~/.agents/skills/` → auto symlink（流程已废弃：`conf/third-party-skills.txt` 已移除，统一在 `~/git/skill/plugins/` 管理） | — |
+| **第三方** | 上游 GitHub 仓库 / larksuite monorepo | `npx skills add` → `~/.agents/skills/` → auto symlink。**清单机制已废弃**（`conf/third-party-skills.txt` 已删），第三方 skill 不进 ccconfig 清单管理 | 用户自管 |
 | **私有配置** | `ccprivate/skill/` | symlink `config.yaml` 覆盖 skill 默认配置 | ccprivate 仓库 |
 
 ## 命令速查
@@ -38,11 +38,11 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
 |------|------|------|
 | 完整安装 | `bash init-skill.sh sync` | CLI 依赖 + symlink 自建 + 配置覆盖 + 装第三方 |
 | 更新 | `bash init-skill.sh update` | 更新 CLI 工具 + npx skills |
-| 卸载 | `bash init-skill.sh remove <name>` | 从清单和磁盘删第三方 skill |
+| 卸载 | `bash init-skill.sh remove <name>` | 从磁盘删第三方 skill |
 | 清理断链 | `bash init-skill.sh cleanup` | 删 ~/.claude/skills/ 中断链 |
 | 查看列表 | `bash init-skill.sh list` | 已安装 skills + 来源标注 |
 | 状态总览 | `bash init-skill.sh status` | 自建数量 + 链接状态 + marketplace |
-| 漂移检测 | `bash init-skill.sh diff` | third-party-skills.txt vs 实际安装 |
+| 漂移检测（已废弃） | `bash init-skill.sh diff` | 清单文件已删，现只打印一句说明 |
 | 发布自建 skill | 在 skill 仓库 PR + pull | skill/plugins/ → ~/.claude/skills/ |
 | 月度升级（含 skills） | `bash update.sh all` | 包含 skills sync |
 | 单独 skill 升级 | `bash update.sh skills` | 只跑 init-skill.sh sync |
@@ -66,7 +66,7 @@ ccprivate (private) ──config overlay──> ~/.claude/skills/*/config.yaml
   └─ ccprivate/bin/apply-config.sh → config.yaml symlink
 
 阶段 3: 第三方 skill (npx)
-  └─ 读 conf/third-party-skills.txt → npx skills add（幂等）
+  └─ npx skills add（幂等）。清单文件已废弃，第三方 skill 不进 ccconfig 管理
 ```
 
 ### 触发时机
@@ -97,7 +97,7 @@ npx skills update -g -y            # 等效直接命令
 ```
 1. 检查是否为自建 skill → 是则拒绝（由 skill 仓库管理）
 2. 删除 ~/.claude/skills/<name>
-3. 从 conf/third-party-skills.txt 移除对应行
+3. （清单存在时）从 conf/third-party-skills.txt 移除对应行 —— 该文件已废弃，通常跳过
 4. 提示 ~/.agents/skills/<name> 需手动清理
 ```
 
@@ -132,32 +132,23 @@ github.com/example/tool go
 - 去重 key = `package|manager`，同包被多个 skill 依赖只装一次
 - npm 包还自动 symlink binary 到 `~/.local/bin/`
 
-## 第三方 skill 清单（`conf/third-party-skills.txt`）
+## 第三方 skill 清单（已废弃）
 
-```
-# 格式：<source>  <skill-name>（两个空格分隔）
-# 注释行（#开头）和空行被忽略
+`conf/third-party-skills.txt` 曾用于登记 npx 安装的第三方 skill。**已删除** —— 原因：
 
-mattpocock/skills  diagnosing-bugs
-mattpocock/skills  grill-me
-mattpocock/skills  improve-codebase-architecture
-mattpocock/skills  writing-great-skills
-iofficeai/officecli  officecli
-```
+- 第三方 skill（larksuite monorepo 的 28 个 lark-*、getnote 的 5 个）现由各 skill 自带的
+  `config.yaml.example` + 用户自管，不需要 ccconfig 维护一份平行清单
+- 清单没了以后 `init-skill.sh diff` 若继续按空清单比对，会把每个正常安装的第三方 skill
+  报成 `untracked drift`（实测 33 条假警报）→ 现已改为打印一句说明并退出
 
-- `init-skill.sh diff` 对比此清单与实际 `~/.claude/skills/` 内容
-- 添加第三方 skill：在此文件加一行 → `init-skill.sh sync`
-- 移除第三方 skill：`init-skill.sh remove <name>`（自动更新此文件）
+替代手段：
+- 看安装视图 → `bash lib/init-skill.sh list`
+- 看本机计数（自建/第三方/实体）→ `bash lib/init-skill.sh status` 或 `bash maintain.sh status`
 
-## 漂移检测（`init-skill.sh diff`）
+## 漂移检测（`init-skill.sh diff`）— 已废弃
 
-三类检测：
-
-| 类别 | 含义 | 处理 |
-|------|------|------|
-| 清单有但未装 | third-party-skills.txt 有，~/.claude/skills/ 无 | `init-skill.sh sync` |
-| 已装但不在清单 | ~/.claude/skills/ 有，但不在清单也不在自建 | 手动加清单或删文件 |
-| 自建 skill | skill/plugins/ 中的，不在清单管理范围 | 正常，无操作 |
+清单文件删除后本命令不再做比对，只输出一行废弃说明。第三方 skill 的健康检查改由
+`status` 的「插件视图」段承担（自建 26 / 第三方 N / 实体 M）。
 
 ## 状态检查（`maintain.sh status` 第 12 项）
 
@@ -178,6 +169,7 @@ SessionStart 自动运行，检查：
 | marketplace add 失败 | GITHUB_USER 未设 | `export GITHUB_USER=<your-username>` 或 `gh auth login` |
 | 第三方 skill 更新后 dialog 仍显示旧内容 | Claude Code 缓存 | 重启 Claude Code |
 | `maintain.sh status` 报告断链 | skill 源目录被移动/删除 | `init-skill.sh cleanup` |
+| `init-skill.sh diff` 只打印一句"清单已废弃" | 预期行为（`conf/third-party-skills.txt` 已删） | 用 `init-skill.sh status` 看计数 |
 
 ## Rules 三层模型
 
