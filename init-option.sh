@@ -532,7 +532,6 @@ interactive_menu() {
     done
 }
 
-
 list_names_compact() {
     for group_entry in "${MENU_GROUPS[@]}"; do
         local group_title="${group_entry%%|*}"
