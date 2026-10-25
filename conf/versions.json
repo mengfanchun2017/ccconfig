@@ -2,9 +2,7 @@
   "description": "Single source of truth for all component versions managed by ccconfig. Edit this file to pin versions.",
   "last_checked": "2026-10-24T22:02:34.030387+08:00",
   "self": {
-    "version": "2026.09.19",
-    "scheme": "CalVer YYYY.MM.DD",
-    "_note": "ccconfig 自身版本，真相源是 git tag（CalVer YYYY.MM.DD）。变更流见 docs/updates/。下方 components 才是被 ccconfig 管理的第三方组件版本。"
+    "_note": "此处**不记自身版本号**。发布真相源是 git tag（现存 SemVer v1.x 系列；docs/updates/ 是变更流）。曾经的 CalVer scheme 字段已删：仓库从未打过 CalVer tag，也无任何代码读 tag —— 那是句假声明。本机代次水位改由 ~/.claude/.ccconfig-init 的 template_hash 承担（见 templates/ccprivate-setup.sh 的 mark_init_version + lib/status.sh 的 check_init_watermark），version 字段仅作人读日志标签、不参与任何比较。下方 components 才是被 ccconfig 管理的第三方组件版本，且是代码真读的字段。"
   },
   "components": {
     "node": {

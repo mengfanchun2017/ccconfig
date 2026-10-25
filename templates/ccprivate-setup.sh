@@ -44,9 +44,12 @@ source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
 # 知道某台机落后了 —— status 只查基线键存在性，不查内容过期。有这个标记才能告警。
 mark_init_version() {
     local tdir="$CCCONFIG_DIR/templates"
+    # version= 只是人读日志标签：取当前 HEAD 短 sha，一眼看出"这台机上次对齐的是哪次提交"。
+    # 此前取 versions.json 的 self.version —— 那个字段已删（仓库无 CalVer tag，也没人读它）。
+    # 真正承重的判定是 template_hash（下面的 sha256），version 不参与任何比较。
     local ver="unknown" h=""
-    if [ -f "$CCCONFIG_DIR/conf/versions.json" ]; then
-        ver=$(python3 -c "import json;print(json.load(open('$CCCONFIG_DIR/conf/versions.json')).get('self',{}).get('version','unknown'))" 2>/dev/null || echo unknown)
+    if [ -d "$CCCONFIG_DIR/.git" ]; then
+        ver=$(git -C "$CCCONFIG_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
     fi
     if command -v sha256sum >/dev/null 2>&1 && [ -d "$tdir" ]; then
         h=$(cat "$tdir"/settings.json.example "$tdir"/.config.json.example 2>/dev/null | sha256sum | cut -c1-16)
