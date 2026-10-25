@@ -365,3 +365,28 @@ grep 确认**没有任何地方**把 argv 转成 `CCC_DRY_RUN`。于是文档承
 | `lib/init-mcp.sh`(613) 与 `lib/mcp-manager.sh`(611) 合并 | 两者职责可分（前者同步模板→运行时，后者交互管理），合并前需先确认谁是谁的入口 |
 | `lib/colors.sh` fallback 死块 | 见 8.5 |
 | CalVer 真相源断裂 | ✅ 已处理（2026-10-25）：删掉 `versions.json` 的 `self.scheme`/`self.version`，只留 `_note` 说明。**实证它对"老版本升级卡"零作用** —— `self.version` 全库仅 1 处读者（`templates/ccprivate-setup.sh` 写水位标签），该标签无人比较（`status.sh` 只比 `template_hash`）；全库无 `git tag`/`git describe` 调用；无任何版本门禁。真正的防卡机制见下节 |
+### 8.10 「老终端升级会不会卡」到底靠什么机制
+
+用户问：`versions.json` 的版本号声明是不是为了「避免老版本升级时卡住」？
+
+**实证结论：不是，那个字段对此零作用。** 真正防卡的机制是另外四层，全部实测在代码里：
+
+| 机制 | 位置 | 作用 |
+|---|---|---|
+| **本机配置水位** | `~/.claude/.ccconfig-init` 的 `template_hash`（sha256） | 本机文件（settings/.config/.claudeignore）是否落后于当前模板。`status.sh` 比对并提示跑 `setup.sh` 补缺键。**比内容 hash，不比版本号** |
+| **幂等安装** | 各 `install_user_file` / `setup_link` / `guard` 式 check-before-act | 重复执行不损坏（`setup_link` 用 `[ -L ] && [ -e ]` 区分死链，`install_user_file` 只补缺键不覆盖已有） |
+| **快照回滚** | `lib/snapshot.sh`（`~/.claude/ccconfig-snapshots/`） | 升级前存 settings/.config/.claudeignore/.ccconfig-init/llm-current/ccprivate setup.sh/conf。升级出错可回退 |
+| **旧格式兼容层** | `lib/init-llm.sh _llms_merged_py` 收编旧格式 `llm.json`；`init-bootstrap.sh` `default_branch()` 兼容 `master` 分支 | 让**新代码读旧配置不崩** —— 这才是真正的"版本偏差"防护（ccprivate 新配置先到旧机器时） |
+
+**反向证据（没有的东西）**：
+- 全库无 `git tag` / `git describe` 调用 → 没有任何代码读 tag 来决定行为
+- 无 `version -lt` / 「版本落后就拒绝」式门禁 → 不存在"版本太旧→卡住"的路径
+- 升级路径（`update.sh` / `ccprivate-upgrade.sh` / `sync.sh`）不比对自身版本号
+
+**为什么这个字段当初被加**：见 `docs/updates/20260919-bootstrap-review-and-config-layering.md` #43 ——
+当时有「README v3.x 里程碑 + CHANGELOG 停在 1.5.0 + versions.json 无自身版本 + tag 已 v1.6.0」
+**四方打架**，加 `self` 块是为了给文档一个统一说法。它是**文档一致性标签**，不是升级机制。
+
+**已做的处置**：删 `scheme`（不实现）与 `version`（无人比较），保留 `_note` 把上面这套说清楚；
+水位 `version=` 改记 HEAD 短 sha（人读时能看出"对齐于哪次提交"）；
+README「版本里程碑」段改掉假声明并指向真正的落后检测机制。
