@@ -644,29 +644,41 @@ update_claude() {
     #      只有 systemd 单元有 → 2B 就是在这条路上白等 95s 再回退 npm。
     #   2. 即使网络通，已是最新时也白下 278MB、耗 ~86s（实测 3.2MB/s）。
     # 所以改成：先读清单比版本 → 只在真落后时下载。清单请求极小，可加短超时。
-    local manifest="https://downloads.claude.ai/claude-code-releases/latest"
-    local proxy latest=""
+    #
+    # ⚠️ 清单必须用 stable（不是 latest）—— `claude install` 不带 target 时装的是
+    # **stable**。实测两者会不一致（stable 2.1.308 / latest 2.1.310）：
+    # 拿 latest 比会导致「本机 = stable < latest」被误判成落后 → 每次白下 278MB，
+    # 然后 claude install 又装回 stable，永远追不平。
+    local manifest="https://downloads.claude.ai/claude-code-releases/stable"
+    local proxy target=""
     proxy=$(net_gh_proxy)
-    latest=$(curl -fsSL --connect-timeout 5 --max-time 15 ${proxy:+-x "$proxy"} "$manifest" 2>/dev/null | tr -d '[:space:]' || true)
+    target=$(curl -fsSL --connect-timeout 5 --max-time 20 ${proxy:+-x "$proxy"} "$manifest" 2>/dev/null | tr -d '[:space:]' || true)
 
-    # 清单取不到（无代理且被墙，或 CDN 抖动）不回退重下：走 npm 只读版本比较
-    if [ -z "$latest" ]; then
+    # 清单取不到（无代理且被墙，或 CDN 抖动）→ 走 npm 只读版本比较，不盲目重下
+    if [ -z "$target" ]; then
         info "下载源清单不可达（无可用代理？），改用 npm registry 比对版本"
         install_claude_via_npm "$before"
         return $?
     fi
 
-    if [ "$before" = "$latest" ]; then
-        success "Claude Code 已是最新 ($latest) — 跳过下载（省 278MB）"
+    if [ "$before" = "$target" ]; then
+        success "Claude Code 已是最新稳定版 ($target) — 跳过下载（省 278MB）"
         return 0
     fi
 
-    info "发现新版本 $latest（当前 $before），下载中…"
+    # 本机领先于 stable（吃了未发布版 / 早先装过 latest）→ 不要降级。
+    # `claude install --force` 会把它拉回 stable，等于替用户降版本。
+    if [ "$before" != "?" ] && [ "$(printf '%s\n%s\n' "$before" "$target" | sort -V | tail -1)" = "$before" ]; then
+        info "本机 $before 领先于 stable $target — 保持不动（如需回到 stable: claude install stable）"
+        return 0
+    fi
+
+    info "发现新版本 $target（当前 $before），下载中…（约 278MB）"
     set +e
-    # 必须把代理显式传给子进程：claude install 自己不做代理发现，
-    # 而本机 downloads.claude.ai 直连不通（见上）
+    # 必须把代理显式传给子进程：claude install 自己不做代理发现（见上），
+    # 而本机 downloads.claude.ai 直连不通
     env ${proxy:+HTTPS_PROXY="$proxy" HTTP_PROXY="$proxy" https_proxy="$proxy" http_proxy="$proxy"} \
-        claude install --force >/dev/null 2>&1
+        claude install --force stable >/dev/null 2>&1
     local install_rc=$?
     set -e
 
