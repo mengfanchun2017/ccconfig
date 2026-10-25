@@ -4,6 +4,7 @@
 > **日期**: 2026-10-16
 > **关联**: `option-llmswitch/openai_bridge.py`、`lib/ensure-bridge.sh`、`lib/bridge-restart.sh`、`lib/init-llm.sh`、`lib/status.sh`、`maintain.sh`、`tests/test-bridge-protocol.py`
 > **模板**: MADR 4.0 极简版
+> **2026-10-25 复核**: 「不再写 `/tmp/*.sh` wrapper」结论需限定 —— `_bridge_spawn` 确实改为 setsid 直起、不落明文 Key；但**看门狗层**仍生成 `~/.cache/bridge-watchdog-*.sh` wrapper（`lib/ensure-bridge.sh`），该 wrapper 只用于自记 PID，**不含 Key**。另：文中行数矩阵（`ensure-bridge.sh 454` 等）为当时快照，现已增长。
 
 ## Context and Problem Statement
 

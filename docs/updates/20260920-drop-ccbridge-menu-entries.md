@@ -29,10 +29,10 @@ ccbridge 已独立成仓（`~/git/ccbridge`），飞书 ↔ Claude Code 通道�
 
 ```
   飞书账号列表
- ▶ ailab (当前)
-     appId: cli_a97077e327b89bd6
-     配置: /home/francis/.lark-cli-ailab
-     说明: AI Lab Bot
+ ▶ <account-alias> (当前)
+     appId: cli_xxxxxxxxxxxxxxxx
+     配置: ~/.lark-cli-<account-alias>
+     说明: <account-description>
 ```
 
 7A–7E 保留，覆盖：列账号 / 切账号（session）/ 切账号（持久化）/ OAuth 状态 / 重置 lark-cli 配置。

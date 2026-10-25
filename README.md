@@ -18,7 +18,7 @@ ccconfig 是 Claude Code 配置基础设施的公开部分。**三仓库模型**
 | 仓库 | 可见性 | 内容 |
 |------|--------|------|
 | **ccconfig** | 公开 | infra 脚本、.example 模板（rules/agents/conf） |
-| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | marketplace skill 插件（24 个 f-* 系列） |
+| **[skill](https://github.com/mengfanchun2017/skill)** | 公开 | marketplace skill 插件（26 个 f-* 系列） |
 | **ccprivate** | 私有 | API key / Token / 个人配置，symlink 穿透访问 |
 
 ccconfig 本身不含任何密钥。
@@ -291,7 +291,7 @@ bash lib/init-llm.sh test <preset>      # 真实链路探测（走 bridge + 流�
 
 --Claude--
 3  mcp         ✗ 未配置（bash init-option.sh mcp）
-4  skill       ✓ 24 个 skill 已安装
+4  skill       ✓ 26 个 skill 已安装
 
 --飞书--
 5  larkcli     ✓ lark-cli 已安装 — 飞书 CLI

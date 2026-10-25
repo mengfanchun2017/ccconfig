@@ -91,7 +91,7 @@ cd ~/git/ccprivate
 # 创建子目录
 mkdir -p conf
 mkdir -p skill
-mkdir -p link/projects
+mkdir -p link/memory-projects
 ```
 
 最终结构：

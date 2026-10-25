@@ -110,8 +110,8 @@ esac
 渲染格式：
 ```
   --飞书账号--
-  1   ailab
-  2   test
+  1   <account-a>
+  2   <account-b>
   3   返回
 
   选择 [1-3] (0=取消):

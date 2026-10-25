@@ -8,6 +8,11 @@
 
 > 说明：本报告所有行号基于审计当日 HEAD。已修复项标注 ✅。
 
+> ⚠️ **部分结论已被 [20261025 三仓联合 review](20261025-three-repo-review.md) 确认或取代。**
+> 该报告承接本报告的未决项并新增发现（P0 地雷 / dry-run 真根因 / 多机一致性机制）。
+> **本报告仍是「未决项」的权威来源** —— 20261025 只处理了其中一部分，剩余项见下方
+> [§8 未决项追踪](#8-未决项追踪2026-10-25-状态)。
+
 ---
 
 ## 0. 执行摘要
@@ -179,7 +184,7 @@ ADR-0027 承诺 `lib/guard.sh` + `_is_installed/_is_not_file/_is_executed/_mark_
 | `lib/monitor.sh:195` | 删 index.lock 前检查活跃 git 进程（`pgrep -x git`） |
 | `option-llmswitch/openai_bridge.py:911` | `/admin/reload` 脱敏 `upstream_key` |
 | `lib/ensure-bridge.sh:180` | wrapper 权限 `chmod +x` → `chmod 700`（含 key 明文） |
-| `option-remote/server/tmux-portforward.ps1:115` | 用户名 `francis` → `<user>` |
+| `option-remote/server/tmux-portforward.ps1:115` | 真实用户名 → `<user>` |
 | `.gitignore` + `git rm --cached` | 停跟踪 `.playwright-mcp/`（6 文件移出索引，工作区保留） |
 
 ### 第二轮（用户确认后）
@@ -207,3 +212,48 @@ ADR-0027 承诺 `lib/guard.sh` + `_is_installed/_is_not_file/_is_executed/_mark_
 - 让 dry-run 真正接线（sync/ccprivate-upgrade/deploy）或移除其 source
 - bridge 非流式路径修复（image/arguments/finish_reason/choices）
 - 文档重写：`option-skill/README.md`（第三方流程）、`docs/architecture.md`（memory-projects 路径 / 项数）、`BOOTSTRAP.md`（服务名）、ADR-0027 标注 Superseded
+
+---
+
+## 8. 未决项追踪（2026-10-25 状态）
+
+2026-10-25 三仓联合 review 复核后，本报告各项的**当前状态**。<br>
+不要因"本报告已被取代"而忽略下表 —— 这些是**仍未修**的活跃待办。
+
+### 已解决 ✅
+
+| 原编号 | 项 | 解决方式 |
+|---|---|---|
+| §1.2 | pre-commit 密钥正则漏检 | 抽 `lib/secret-patterns.sh` 单一真相源，补 tavily/cfut/sbp/Exa 四类，装到两个公开仓 |
+| §1.3 | `find_node_bin` 与 `set -e` 不兼容 | 已加 `\|\| true`；**但下游暴露新 P0**（见下） |
+| §2 | pip freeze 回写公开 conf | 已删，改只读对比 |
+| §2 | `openai_bridge.py` image 块静默丢弃 / 非流式 arguments 无 try / `/admin/reload` 泄露 key | 均已修 |
+| §2 | `memory-check.sh --stale-only` unbound | 已修 |
+| §2 | `init-mcp.sh` menu_select 序号契约 | 已修 |
+| §3.4 | dry-run「半真」 | **找到真根因并修**（`run()` 在被包装命令参数里找开关 → 永远找不到；现自动解析 argv） |
+
+### 仍未解决 ❌（活跃待办）
+
+| 原编号 | 项 | 证据（2026-10-25） | 备注 |
+|---|---|---|---|
+| §1.3 下游 | `update.sh` 可能 `rm -rf ~/.local` | 已修 + 白名单测试 | ✅ 20261025 已修 |
+| §2 | `monitor.sh` rebase 冲突 `reset --hard` 丢本地改动 | `lib/monitor.sh`（`reset --hard` + `\|\| true` 仍在） | 需重新设计兜底 |
+| §2 | `mcp-manager.sh` `python3 -c` 字符串拼接注入 | `py_write` 仍裸插 `'$name'`/`'$desc'` | 输入来自本地用户，风险低但应修 |
+| §2 | `init-mcp.sh` `configure_mcp_env … \|\| true` 吞 Key 写入失败 | 「key 填了但 MCP 仍 401」不可见 | 与 20261025 §2.2 同源 |
+| §2 | `interact.sh` spinner 丢 `wait` 返回码 | `wait "$pid"; printf ✓` 无返回值检查 | |
+| §3.1 | 幂等 guard 未落地 | `lib/guard.sh` 不存在；`guard_*` 零调用（ADR-0027 已标注） | 要么迁移要么删 |
+| §3.2 | 剩余死代码 | `init-option.sh` 的 `_feishu_*` 3 个函数零调用；`colors.sh` fallback 块恒假 | |
+| §3.3 | 颜色层未单点 | `monitor.sh` 仍重定义 `warn/info/error` 遮蔽 colors.sh | |
+| §3.6 | `while read` 缺 `-r`（3 处）/ 固定 `/tmp`（3 处） | | 20261025 已修 update 锁 |
+| §4 | `CLAUDE.md` 暗号 `hookstatus`/`pullff` 无实现 | 全库 grep 仅文档命中 | |
+| §4 | `docs/architecture.md` 写 `link/projects/` | 实际是 `link/memory-projects/` | |
+| §4 | `option-skill/README.md` 整篇过时（npx 流程） | 9 处 `third-party-skills.txt`/`npx skills` | |
+| §4 | `docs/architecture.md` 计数 24 vs 实际 26 | skill plugins = 26 | |
+
+### 20261025 新增发现（本报告未覆盖）
+
+- P0 `rm -rf ~/.local`、setup.sh 无条件覆盖、换账号 remote 残留
+- P1 `--dry-run` 假生效、MCP key 不入新机、`llm-current` 缺致挂起、嵌套缺键补不上
+- P2 无版本水位、无回滚、6 套拉取实现重复
+
+详见 [20261025-three-repo-review.md](20261025-three-repo-review.md)。

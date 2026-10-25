@@ -24,6 +24,7 @@ export PATH="$HOME/.local/bin${_nb:+:$_nb}:$PATH"
 source "$LIB_DIR/colors.sh"
 source "$LIB_DIR/interact.sh"
 source "$LIB_DIR/net.sh"
+source "$LIB_DIR/git-pull.sh"
 source "$LIB_DIR/menu-data-maintain.sh"
 
 # ========== 菜单动作 helper ==========
@@ -460,42 +461,23 @@ except Exception: print('\t')
 
 # 拉取一个配置仓库（ccconfig / ccprivate / skill），stderr 透明，失败给真实原因。
 # 3A 包办 3 个配置仓库的拉取（原 3C 并入）；sync.sh 保留供单独命令行调用。
+# 底层走单点实现 lib/git-pull.sh（代理注入/剥死代理 + 分支自适应 + 冲突回滚）。
 pull_config_repo() {
     local dir="$1" name="$2"
-
-    # github 直连被墙，git fetch 会卡到超时（实测 70-135s）。无代理环境变量时
-    # 自动探测本机 Clash（net_gh_proxy），注入给 git；不污染全局 git config。
-    local _gh_proxy
-    _gh_proxy=$(net_gh_proxy)
-    if [ -n "$_gh_proxy" ]; then
-        export HTTPS_PROXY="$_gh_proxy" https_proxy="$_gh_proxy" HTTP_PROXY="$_gh_proxy" http_proxy="$_gh_proxy"
-    fi
-    unset _gh_proxy
-
-    # 分支不写死 main：ccprivate/skill 可能是 master（ccprivate 实测为 master）
     local _branch
-    _branch=$(git -C "$dir" branch --show-current) || _branch=main
+    _branch=$(git -C "$dir" branch --show-current 2>/dev/null) || _branch=main
     echo -e "${CYAN}── $name 更新 ──${NC}"
-    local _fout _frc _cur _pout _prc _after
-    _fout="$(git -C "$dir" fetch origin "$_branch" 2>&1)" || _frc=$?
-    if [[ "${_frc:-0}" -ne 0 ]]; then
-        echo -e "  ${RED}${_fout}${NC}"
-        warn "$name fetch 失败（网络不通/代理问题？）"
-        return 1
-    fi
+    local _cur _after _rc=0
     _cur=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null)
-    _pout="$(git -C "$dir" pull --ff-only origin "$_branch" 2>&1)" || _prc=$?
-    if [[ "${_prc:-0}" -eq 0 ]]; then
-        _after=$(git -C "$dir" rev-parse --short HEAD)
+    git_pull_repo "$dir" --ff-only 2>&1 || _rc=$?
+    if [ "$_rc" -eq 0 ]; then
+        _after=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null)
         [ "$_cur" != "$_after" ] && ok "$name: $_cur → $_after" || ok "$name 已是最新: $_cur"
     else
-        echo -e "  ${RED}${_pout}${NC}"
         warn "$name 拉取失败（上方红字为真实原因；本地脏/分叉先处理）"
         # 分叉（本地有独有提交/改动）时给出可执行处理：读仓库不改则重置，改了则保留并 rebase
-        if echo "$_pout" | grep -qi "fast-forward\|diverging"; then
-            echo -e "  ${DIM}处理：本地没要保留的改动 → ${NC}git -C $dir reset --hard origin/$_branch"
-            echo -e "  ${DIM}本地有改动/提交要保留 → ${NC}git -C $dir stash && git -C $dir rebase origin/$_branch"
-        fi
+        echo -e "  ${DIM}处理：本地没要保留的改动 → ${NC}git -C $dir reset --hard origin/$_branch"
+        echo -e "  ${DIM}本地有改动/提交要保留 → ${NC}git -C $dir stash && git -C $dir rebase origin/$_branch"
         return 1
     fi
 }

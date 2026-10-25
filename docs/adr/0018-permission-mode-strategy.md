@@ -1,7 +1,11 @@
 # 0018. 权限模式策略 — defaultMode 用 auto，bypass 仅 flag 触发
 
-> **Status**: ✅ Accepted
+> **Status**: ⚠️ Superseded（模式选择部分）by [0049](./0049-auto-mode-discards-allow-rules.md)
 > **日期**: 2026-09-01
+> **注**: 本 ADR 的「日常用 auto」结论**已被推翻** —— 实测 auto 模式主动丢弃 `Bash(*)` 等宽泛
+> allow 规则，一切命令送分类器被拦。2026-10-16 由 [0049](./0049-auto-mode-discards-allow-rules.md)
+> 改为 `bypassPermissions` + 补全 allowlist（`templates/settings.json.example` 已按新结论落盘）。
+> 本 ADR 保留：权限模式分层思路、为什么不能「配了就算」的分析仍成立。
 > **模板**: MADR 4.0 极简版
 > **目的**: 纠正 settings.json `defaultMode: bypassPermissions` 无效配置，确立日常用 auto、bypass 按需 flag 启用的策略
 

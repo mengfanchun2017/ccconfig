@@ -4,6 +4,9 @@
 > **日期**: 2026-10-03
 > **关联**: `lib/init-skill.sh`（pip 分支）、`skill/plugins/fmashwork/scripts/setup.sh`、`skill/plugins/fmashwork/deps.txt`
 > **模板**: MADR 4.0 极简版
+> **2026-10-25 复核（两处与代码相反）**:
+> 1. 原「缺 ensurepip 时打印唯一一条 sudo 命令并退出、agent 转人工」→ 实际 `fmashwork/scripts/setup.sh` **已自动** `sudo apt-get install python3.<minor>-venv`（人工边界已自动化）。
+> 2. 原「幂等探测 = venv 可执行文件存在，而非 import 测试」→ **已反过来**：`lib/init-skill.sh` 明确「不按『venv 已存在』短路」，改由 setup.sh 内逐包 import 自检。即**现在正是 import 测试**。
 > **取代**: 旧行为「pip 依赖 → 未知管理器 → 跳过」
 
 ## Context and Problem Statement

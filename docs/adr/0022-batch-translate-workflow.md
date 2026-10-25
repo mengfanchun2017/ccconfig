@@ -4,6 +4,7 @@
 > **日期**: 2026-09-01
 > **关联**: python-docx → init-option 安装
 > **模板**: MADR 4.0 极简版
+> **2026-10-25 复核**: 本 ADR 描述的 `translate-weekly.js` **已不存在**。批量翻译现由工作流 `transliter`（`ccprivate/workflows/transliter/`，symlink 到 `~/.claude/workflows/`）承担，机制（DOCX 中间格式 + python-docx 原地替换）沿用。
 
 ## Context and Problem Statement
 

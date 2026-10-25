@@ -23,6 +23,7 @@ CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/path-helper.sh"
+source "$SCRIPT_DIR/git-pull.sh"
 REPO_DIR="$CCCONFIG_ROOT"
 
 # --quick: 跳过慢检查（MCP、option 组件、模板对比）
@@ -34,19 +35,23 @@ git_pull() {
     if [ ! -d "$REPO_DIR/.git" ]; then
         return 0
     fi
-    if timeout 30 git -C "$REPO_DIR" fetch origin main 2>/dev/null; then
-        local updates=$(git -C "$REPO_DIR" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
+    # 走单点实现（lib/git-pull.sh）：分支自适应 + 代理注入/剥死代理 + 冲突回滚。
+    # 旧版写死 origin main，在 master 分支仓上会静默失败。
+    local _b; _b=$(git -C "$REPO_DIR" branch --show-current 2>/dev/null || echo main)
+    if timeout 30 git -C "$REPO_DIR" fetch origin "$_b" 2>/dev/null; then
+        local updates=$(git -C "$REPO_DIR" rev-list --count "HEAD..origin/$_b" 2>/dev/null || echo 0)
         if [ "$updates" -gt 0 ]; then
             echo -e "${CYAN}[Git]${NC} 发现 $updates 个更新，正在拉取..."
             # 失败必须处理：本函数由 SessionStart hook 自动跑，--rebase 撞冲突会
             # 把仓库留在中间态，而 2>/dev/null 让用户完全看不到发生了什么
-            if ! timeout 30 git -C "$REPO_DIR" pull --rebase origin main 2>&1 | tail -3; then
-                if [ -d "$REPO_DIR/.git/rebase-merge" ] || [ -d "$REPO_DIR/.git/rebase-apply" ]; then
-                    git -C "$REPO_DIR" rebase --abort 2>/dev/null || true
-                    echo -e "  ${YELLOW}⚠ 拉取冲突，已回滚到拉取前状态${NC}"
-                fi
-                echo -e "  ${GRAY}手动: cd $REPO_DIR && git pull --rebase origin main${NC}"
+            local _rc=0
+            git_pull_repo "$REPO_DIR" --rebase --quiet 2>/dev/null || _rc=$?
+            if [ "$_rc" -eq 2 ]; then
+                echo -e "  ${YELLOW}⚠ 拉取冲突，已回滚到拉取前状态${NC}"
+            elif [ "$_rc" -ne 0 ]; then
+                echo -e "  ${YELLOW}⚠ 拉取失败${NC}"
             fi
+            [ "$_rc" -ne 0 ] && echo -e "  ${GRAY}手动: cd $REPO_DIR && git pull --rebase origin $_b${NC}"
         fi
     fi
 }

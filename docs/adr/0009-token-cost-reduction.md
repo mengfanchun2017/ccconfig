@@ -4,6 +4,7 @@
 > **日期**: 2026-08-02
 > **关联**: `templates/.claudeignore.example`、`commands/should-compact.md`、ccprivate `link/settings.json` + `setup.sh`
 > **模板**: MADR 4.0 极简版
+> **2026-10-25 复核**: 本 ADR 提到的 `commands/should-compact.md` 与 `/should-compact` 命令**已不存在**（ccconfig 与 ccprivate 的 `commands/` 均只剩 `.gitkeep`）。「不装 caveman/rtk/headroom」的成本决策仍成立。
 > **备注**: 原 `adr/002-token-cost-reduction.md`（3 位编号，误放仓库根 `adr/`），2026-08-02 迁回 `docs/adr/` 统一目录，编号改 4 位 0009。见 [[0010-adr-directory-location]](0010-adr-directory-location.md)。
 
 ## Context and Problem Statement

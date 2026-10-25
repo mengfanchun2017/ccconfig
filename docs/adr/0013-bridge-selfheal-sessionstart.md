@@ -1,6 +1,6 @@
 # 0013. OpenAI bridge 自愈：SessionStart hook + env guard
 
-> **Status**: ✅ Accepted
+> **Status**: ⚠️ 部分 Superseded by [0031](./0031-init-llm-consolidation-2026.md)（自愈执行点；env guard 设计沿用本 ADR）
 > **日期**: 2026-08-13
 > **关联**: `lib/ensure-bridge.sh`、`lib/status.sh`、`lib/init-llm.sh`、`option-llmswitch/openai_bridge.py`
 > **模板**: MADR 4.0 极简版

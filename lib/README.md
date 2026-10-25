@@ -11,6 +11,11 @@
 | `deps-check.sh` | 依赖检查 |
 
 ## 函数 API
+
+> ⚠️ 下表 `guard_*` / `atomic_write` 除 `atomic_write`（`ensure-uv.sh` 在用）外**生产脚本零调用**，
+> 只有 `tests/test-guard.bats` 引用。属"定义了但没接线"的空转设施（ADR-0027 承诺的统一 API 未落地）。
+> 新增幂等逻辑时**不要默认它可用** —— 先确认调用点，否则会以为有保护而实际是裸操作。
+
 | 函数 | 所在文件 | 用途 |
 |------|---------|------|
 | `guard_mkdir <dir>` | dry-run.sh | 幂等创建目录（等价 mkdir -p，dry-run 感知） |

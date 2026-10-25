@@ -19,6 +19,15 @@ ccconfig SH 脚本缺乏系统性测试，现有测试散落在两种形式：
 
 ## Decision
 
+> ⚠️ **本节三条 Decision 均与现状不符（2026-10-25 复核）**，保留原文如下并在每条后标注实际做法：
+> 1. 「bats 作为**唯一**框架」→ 实际 **6 个 `.bats` + 20 个 `test_*.sh` 并存**（手写 `.sh` 测试未迁移完，也未再强推迁移）
+> 2. 「统一目录 `test/`」→ 实际目录是 **`tests/`**（复数）
+> 3. 「用 `bats_run` 代替 `run`」→ **全库零命中 `bats_run`**，`.bats` 里直接裸用 `run`（bats 原生关键字）
+> 4. 「`npm test` 入口」→ 无 `package.json`
+>
+> 仍然成立的部分：bats 作为**新测试**的首选框架（`tests/README.md` 仍要求"新测试一律用 bats"）、
+> 不写依赖真实配置的测试。即：**方向保留，强制性与具体命名未落地**。
+
 ### 框架：bats（Bash Automated Testing System）
 
 - bats-core（https://github.com/bats-core/bats-core）作为唯一 SH 测试框架。

@@ -82,7 +82,7 @@
 
 ## Related Decisions
 
-- 单列 `0036-api-aggregator-comparison.md`（若后续把 OpenRouter 与数据 API 平台对比写成 ADR）
+- 若后续把 OpenRouter 与数据 API 平台对比写成 ADR，**另起新编号**（原写的 `0036-api-aggregator-comparison.md` 不存在；0036 号已被 [0036-drop-token-usage-feature](./0036-drop-token-usage-feature.md) 占用 —— 编号永不重用，见 [README 命名约定](./README.md)）
 - 模型网关选型（OpenRouter）→ 另行调研记录
 
 ## Notes

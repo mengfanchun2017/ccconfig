@@ -1,7 +1,9 @@
 # 0047. 开发机不做 tailscale subnet router（与单位内网访问互斥）
 
-> **Status**: ✅ Accepted
+> **Status**: ⚠️ 结论部分被 [0051](./0051-tailscale-accept-routes-blackholes-office-intranet.md) 修正
 > **日期**: 2026-10-16
+> **注**: 本 ADR 只查了 `AdvertiseRoutes`（往外广告），漏了 **`RouteAll`（accept-routes，往里接受）** ——
+> 后者才是单位内网变黑洞的复发真凶。两方向都要查，见 [0051](./0051-tailscale-accept-routes-blackholes-office-intranet.md)。
 > **关联**: `lib/ensure-bridge.sh`、`option-llmswitch/openai_bridge.py`、`docs/adr/0019-bridge-win-curl-wsl-vpn.md`
 > **模板**: MADR 4.0 极简版
 

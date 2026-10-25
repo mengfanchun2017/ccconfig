@@ -4,6 +4,7 @@
 > **日期**: 2026-07-29
 > **关联**: [决策时间线 § 2026-07-29](../adr/README.md#决策时间线worklog-提取按日期倒序)
 > **模板**: MADR 4.0 极简版
+> **2026-10-25 复核**: 本 ADR 的 `cc-connect` 组件与 `option-cconnect/` 目录**已不存在**（`ls -d option-cconnect` 无此目录，全库 grep 无实现，`init-option.sh` 只剩旧的 `larkbridge` 分支）。**仍然成立**：不引入飞书 MCP 的策略，以及后续由 `lark-cli`（`option-larkcli/`）承担飞书通信的实际做法。
 
 ## Context and Problem Statement
 

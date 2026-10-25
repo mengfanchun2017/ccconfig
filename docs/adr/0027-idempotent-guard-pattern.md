@@ -20,6 +20,14 @@ ccconfig 的 SH 脚本执行非幂等操作（install / config write / symlink /
 
 ### Guard 函数 API
 
+> ⚠️ **2026-10-25 复核：本 ADR 承诺的 API 从未落地。**
+> `lib/guard.sh` **不存在**；`guard_mkdir/guard_symlink/guard_append_line/guard_write_file`
+> 定义在 `lib/dry-run.sh` 但**生产脚本零调用**（只有 `tests/test-guard.bats` 引用）；
+> `atomic_write` 仅 `lib/ensure-uv.sh` 与 dry-run 内部用到。
+> 各脚本至今各写各的幂等 guard（`setup_link` / `bridge_service_install` / `write_llm_config` 三处
+> 是事实上的参考实现）。**待办：要么全量迁移到 guard_*，要么删掉这套空转设施**（1010 / 1025 两轮审计均点名）。
+> 下文 Decision 保留原文。
+
 在 `lib/guard.sh`（或 `lib/colors.sh` 内新增 guard 部分——根据实际大小决定）中定义统一 guard 模式：
 
 ```bash

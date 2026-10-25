@@ -36,6 +36,7 @@ source "$SCRIPT_DIR/path-helper.sh"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/interact.sh"
 source "$SCRIPT_DIR/net.sh"
+source "$SCRIPT_DIR/git-pull.sh"
 source "$SCRIPT_DIR/ensure-uv.sh"
 LOCAL_BIN="$HOME/.local/bin"
 VERSION_FILE="$CCCONFIG_ROOT/conf/versions.json"  # 公开文件，不走 resolve_conf
@@ -172,10 +173,10 @@ self_update() {
     fi
 
     # 尝试 fast-forward
-    local pull_output pull_ok=true
+    local pull_output pull_status
     set +e
-    pull_output=$(git -C "$CCCONFIG_ROOT" pull --ff-only origin main 2>&1)
-    local pull_status=$?
+    pull_output=$(git_pull_repo "$CCCONFIG_ROOT" --ff-only 2>&1)
+    pull_status=$?
     set -e
 
     if [ $pull_status -eq 0 ]; then

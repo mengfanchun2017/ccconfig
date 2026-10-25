@@ -9,7 +9,7 @@
 用内网 LLM 网关（OpenAI 协议，`deepseek-v4-flash`）经 `openai_bridge.py` 接 Claude Code 跑 agent 任务，三个症状：
 
 1. **输出一段文字后回退、再输出一次**；`tool_use` 被**执行两次**（Read 两次、Bash 两次，副作用翻倍）。
-   现场 transcript（`~/.claude/projects/-home-francis-git-ccconfig/2c94fe32-*.jsonl`）证据：
+   现场 transcript（`~/.claude/projects/-home-<user>-git-ccconfig/<session-id>.jsonl`）证据：
    连续两条 assistant 记录 `msgid=msg_bridge`、`apiBlockIndex=0`、**同一个 tool_use id**、同一 usage，
    间隔 34ms；对照正常直连会话每条记录的 `apiBlockIndex` 逐块递增（0/1/2）。
 2. **模型把思维链当正文吐出来**，并在里面卡成重复循环

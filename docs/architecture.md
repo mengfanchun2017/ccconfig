@@ -11,7 +11,7 @@ ccconfig 是 Claude Code 配置管理的基础设施。目标：**新机器 10 �
 | 仓库 | 可见性 | 定位 | 用户操作 |
 |------|--------|------|----------|
 | **ccconfig** | 公开 | infra 脚本 + .example 模板（rules/agents/conf） | fork 或 clone，定期 git pull |
-| **skill** | 公开 | 24 个 f-* skill 插件 marketplace | clone 或 `/plugin marketplace add` |
+| **skill** | 公开 | 26 个 f-* skill 插件 marketplace | clone 或 `/plugin marketplace add` |
 | **ccprivate** | 私有 | API key + token + 个人配置 | 运行 `init-bootstrap.sh` 自建 |
 
 ccconfig 本身不含任何密钥，可安全公开。skill 可独立使用（不依赖 ccconfig）。ccprivate 每人自建。
@@ -144,7 +144,7 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │
 ├── skill/              # ← 用户 clone 这个（或 /plugin marketplace add）
 │   ├── .claude-plugin/marketplace.json
-│   └── plugins/                # 24 个 plugin
+│   └── plugins/                # 26 个 plugin
 │
 └── ccprivate/                  # ← 用户运行 init-bootstrap.sh 自建
     ├── conf/*.json             # API key / token 真实值
@@ -208,20 +208,25 @@ systemd **system** service（`claude-auto-sync.service`，装到 `/etc/systemd/s
 
 ### 状态检查（maintain.sh status）
 
-每次 Claude Code 启动自动运行（SessionStart hook）。10 项检查，输出用 `━━━ 段落名 ━━━` 段头：
+每次 Claude Code 启动自动运行（SessionStart hook），输出用 `━━━ 段落名 ━━━` 段头。
+（准确清单以 `lib/status.sh` 末尾的调用序列为准，此处按当前实现列。）
 
+**`--quick`（SessionStart 跑的就是它）**：
 1. 配置文件链接 + ccprivate 结构（symlinks）
 2. 核心依赖
 3. auto-sync 状态
 4. GitHub PAT 有效期
-5. 仓库（Git 项目状态 + MEMORY + 最后推送）
+5. 仓库（Git 项目状态 + MEMORY + 最后推送 + **三仓 remote 账号一致性**）
 6. 飞书 lark-cli
-7. MCP 服务器（并行，24h 缓存）
-8. 可选组件 option-*（含 SSH/Tailscale）
-9. Skills 安装/断链
-10. 模板同步（ccconfig .example vs ccprivate 运行时）
 
-`--quick` 只跑前 6 项。
+**仅完整模式（`maintain.sh status`）追加**：
+7. 本机配置代次（`~/.claude/.ccconfig-init` vs 模板 hash）
+8. MCP 服务器（并行，24h 缓存）
+9. 可选组件 option-*（含 SSH/Tailscale）
+10. Skills 安装/断链
+11. 模板同步（ccconfig .example vs ccprivate 运行时）
+
+（另有 `git_pull` 与 `_bridge_cold_start` 两个前置动作，非检查项。）
 
 ## 升级策略
 
@@ -283,7 +288,7 @@ Tier 4: 应用 Skill（最终用户工作流）
 
 | 来源 | 安装方式 | 管理 |
 |------|---------|------|
-| 自建 f-*（24 个） | `bash lib/init-skill.sh sync` 从 skill symlink | ccconfig |
+| 自建 f-*（26 个） | `bash lib/init-skill.sh sync` 从 skill symlink | ccconfig |
 | 第三方 | 已废弃，`conf/third-party-skills.txt` 不再存在；所有 skill 统一在 `~/git/skill/plugins/` 管理 | — |
 | 私有覆盖 | `apply-config.sh` ln -s ccprivate/skill/*.yaml | ccprivate |
 
@@ -297,7 +302,7 @@ skill 的 `config.yaml` 实际是 symlink → `ccprivate/skill/<skill>.yaml`。s
 |------|---------|--------|
 | API key / Token | ccprivate/conf/*.json | 私有仓库 |
 | 个人 CLAUDE.md / settings | ccprivate/link/ | 私有仓库 |
-| 项目 memory | ccprivate/link/projects/ | 私有仓库 |
+| 项目 memory | ccprivate/link/memory-projects/ | 私有仓库 |
 | Skill 私有配置 | ccprivate/skill/*.yaml | 私有仓库 |
 | infra 脚本 | ccconfig/*.sh | 公开 |
 | rules / agents / commands 模板 | ccconfig/templates/（.example） | 公开 |

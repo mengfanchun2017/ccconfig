@@ -20,6 +20,7 @@ CCCONFIG_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/colors.sh"
 source "$SCRIPT_DIR/interact.sh"
+source "$SCRIPT_DIR/git-pull.sh"
 
 # ========== 仓库列表 ==========
 list_repos() {
@@ -294,9 +295,8 @@ git_conflict_menu() {
             if ! git -C "$repo_dir" diff --quiet 2>/dev/null || ! git -C "$repo_dir" diff --cached --quiet 2>/dev/null; then
                 git -C "$repo_dir" stash push -m "sync-rebase-auto-stash" 2>/dev/null || true
             fi
-            if ! git -C "$repo_dir" pull --rebase origin "$branch" 2>&1; then
+            if ! git_pull_repo "$repo_dir" --rebase --branch "$branch"; then
                 echo -e "  ${RED}❌ Rebase 冲突，需要手动解决${NC}"
-                git -C "$repo_dir" rebase --abort 2>/dev/null || true
                 git -C "$repo_dir" stash pop 2>/dev/null || true
                 return 1
             fi
@@ -383,9 +383,9 @@ sync_one_repo() {
     echo -e "  ${CYAN}$before → $after${NC}"
 
     set +e
-    local pull_output
-    pull_output=$(git -C "$repo_dir" pull --ff-only origin "$branch" 2>&1)
-    local pull_status=$?
+    local pull_output pull_status
+    pull_output=$(git_pull_repo "$repo_dir" --ff-only --branch "$branch" 2>&1)
+    pull_status=$?
     set -e
 
     if [ $pull_status -eq 0 ]; then

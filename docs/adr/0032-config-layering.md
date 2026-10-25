@@ -76,7 +76,19 @@ Layer 3  模板同步    templates/*.example            新机引导（占位符
 
 `templates/ccprivate-setup.sh` 是 setup.sh 的唯一内容来源，`init-bootstrap.sh`（新机）与 `lib/ccprivate-upgrade.sh`（老机）都 `cp` 它，删除两处内嵌副本（合计 -199 行）。
 
-### 4. 模板按分层拆分
+### 4. 模板分层：**不拆**（原「拆」决策已撤销）
+
+> ⚠️ **2026-10-25 修正**：本节原决策是「`templates/settings.json.example` 只留 LLM `env`；
+> permissions / hooks / statusLine / mcpServers 移到 `templates/.config.json.example`」。
+> **该决策是错的，且从未实施** —— `permissions` / `hooks` / `statusLine` 写进 `.config.json`
+> **完全不读且静默失效**（见 `maintain.sh` 的归位逻辑，它专门把这类键从 `.config.json` 搬回
+> `settings.json`）。照原决策做会把权限白名单/钩子变成死配置。
+>
+> **实际做法（正确）**：`templates/settings.json.example` 保留 permissions / hooks / statusLine
+> （这些是 settings 类键，只能放 settings.json）；`templates/.config.json.example` 只承担
+> 全局配置类键。两者都不含真实密钥 —— 密钥留在 `ccprivate/conf/*.json`，运行时由脚本注入。
+
+### 4'. 模板分层的原始表述（历史，已撤销）
 
 - `templates/settings.json.example` → 只留 LLM `env`
 - `templates/.config.json.example` → permissions / hooks / statusLine / mcpServers

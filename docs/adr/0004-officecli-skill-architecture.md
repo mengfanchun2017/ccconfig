@@ -4,6 +4,7 @@
 > **日期**: 2026-07-07
 > **关联**: [决策时间线 § 2026-07-07](../adr/README.md#决策时间线worklog-提取按日期倒序)
 > **模板**: MADR 4.0 极简版
+> **2026-10-25 复核**: 本 ADR 的「经 `npx` 安装 `officecli base`」部分**已失效** —— `init-skill.sh` 的第三方 npx 流程已整体移除，`option-officecli/` 只剩 `init.sh` + `README.md`。**仍然成立**：base + 运行时 `load_skill pptx/word/excel` 的架构概念。
 
 ## Context and Problem Statement
 
