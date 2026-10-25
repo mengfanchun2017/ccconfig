@@ -1,6 +1,18 @@
 # 0027. 幂等 guard 模式
 
-> **Status**: ✅ Accepted
+> **Status**: ⛔ Superseded（2026-10-25）
+
+> **2026-10-25 决议（三仓 review）**：本 ADR 的两条 Decision 均**未落地且已放弃**，改判 Superseded。
+>
+> - **统一 guard API**：`guard_mkdir` / `guard_symlink` / `guard_append_line` / `guard_write_file`
+>   四个封装生产代码**零调用**（只有 `tests/test-guard.bats` 引用）。**已删除**，连同 5 个对应用例。
+>   `atomic_write` 因有真实调用（`lib/ensure-uv.sh`）保留。
+> - **`lib/guard.sh` + `_is_installed/_is_not_file/_is_executed/_mark_executed`**：文件从不存在，
+>   四个函数全库零命中。不再计划创建。
+> - **现状是有意为之**：幂等逻辑各脚本自己写（`setup_link` / `bridge_service_install` /
+>   `write_llm_config` 三处是事实上的参考实现）。统一封装带来的间接层收益低于其阅读成本 ——
+>   小仓库里"三个相似行优于过早抽象"（`rules/code.md`）。
+> - 本 ADR 保留作归因：它解释了为什么代码里曾有一批没人调用的 `guard_*` 函数。
 > **日期**: 2026-09-03
 > **关联**: SH 编码规范
 > **模板**: MADR 4.0 极简版
@@ -20,13 +32,12 @@ ccconfig 的 SH 脚本执行非幂等操作（install / config write / symlink /
 
 ### Guard 函数 API
 
-> ⚠️ **2026-10-25 复核：本 ADR 承诺的 API 从未落地。**
+> ⚠️ **2026-10-25 复核：本 ADR 承诺的 API 从未落地，且已决议放弃（见上方 Status）。**
+> 下文 Decision 仅作历史原文保留 —— 不要按它写新代码。
 > `lib/guard.sh` **不存在**；`guard_mkdir/guard_symlink/guard_append_line/guard_write_file`
-> 定义在 `lib/dry-run.sh` 但**生产脚本零调用**（只有 `tests/test-guard.bats` 引用）；
-> `atomic_write` 仅 `lib/ensure-uv.sh` 与 dry-run 内部用到。
-> 各脚本至今各写各的幂等 guard（`setup_link` / `bridge_service_install` / `write_llm_config` 三处
-> 是事实上的参考实现）。**待办：要么全量迁移到 guard_*，要么删掉这套空转设施**（1010 / 1025 两轮审计均点名）。
-> 下文 Decision 保留原文。
+> **已从 `lib/dry-run.sh` 删除**；`atomic_write` 保留（`lib/ensure-uv.sh` 在用）。
+> 各脚本各写各的幂等 guard（`setup_link` / `bridge_service_install` / `write_llm_config` 三处
+> 是事实上的参考实现），这是当前有意采用的做法。
 
 在 `lib/guard.sh`（或 `lib/colors.sh` 内新增 guard 部分——根据实际大小决定）中定义统一 guard 模式：
 

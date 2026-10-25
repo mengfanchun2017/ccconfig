@@ -241,7 +241,7 @@ ADR-0027 承诺 `lib/guard.sh` + `_is_installed/_is_not_file/_is_executed/_mark_
 | §2 | `mcp-manager.sh` `python3 -c` 字符串拼接注入 | `py_write` 仍裸插 `'$name'`/`'$desc'` | 输入来自本地用户，风险低但应修 |
 | §2 | `init-mcp.sh` `configure_mcp_env … \|\| true` 吞 Key 写入失败 | 「key 填了但 MCP 仍 401」不可见 | 与 20261025 §2.2 同源 |
 | §2 | `interact.sh` spinner 丢 `wait` 返回码 | `wait "$pid"; printf ✓` 无返回值检查 | |
-| §3.1 | 幂等 guard 未落地 | `lib/guard.sh` 不存在；`guard_*` 零调用（ADR-0027 已标注） | 要么迁移要么删 |
+| §3.1 | 幂等 guard 未落地 | ✅ 20261025 已决议删除 `guard_*`（保 `atomic_write`），ADR-0027 改 Superseded | 已处理 |
 | §3.2 | 剩余死代码 | `init-option.sh` 的 `_feishu_*` 3 个函数零调用；`colors.sh` fallback 块恒假 | |
 | §3.3 | 颜色层未单点 | `monitor.sh` 仍重定义 `warn/info/error` 遮蔽 colors.sh | |
 | §3.6 | `while read` 缺 `-r`（3 处）/ 固定 `/tmp`（3 处） | | 20261025 已修 update 锁 |

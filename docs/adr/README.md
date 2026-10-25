@@ -35,7 +35,7 @@
 | [0022](0022-batch-translate-workflow.md) | 批量文档翻译工作流 — DOCX 中间格式 + python-docx 原地替换文本 | 2026-09-01 | ✅ Accepted | python-docx → init-option |
 | [0023](0023-pat-expiry-on-failure-only.md) | GitHub PAT 失效检测改为 on-failure-only — 删主动过期天数巡检 | 2026-09-02 | ✅ Accepted | supersedes 0011 Layer 1 |
 | [0026](0026-bats-test-framework.md) | bats 测试框架引入 — bats_run 代替 run，test/ 统一测试目录 | 2026-09-03 | ⚠️ 已复核：三条 Decision 与现状不符（见正文）。方向保留 | 测试 |
-| [0027](0027-idempotent-guard-pattern.md) | 幂等 guard 模式 — _is_installed/_is_not_file/atomic_write 统一 API | 2026-09-03 | ⚠️ API 未落地（零调用，见正文） | SH 编码规范 |
+| [0027](0027-idempotent-guard-pattern.md) | 幂等 guard 模式 — _is_installed/_is_not_file/atomic_write 统一 API | 2026-09-03 | ⛔ Superseded（2026-10-25：`guard_*` 已删） | — |
 | [0028](0028-unified-cli-entry.md) | 统一 CLI 入口 — bin/ccconfig subcommand 路由 | 2026-09-03 | ✅ Accepted | CLI 基础设施 |
 | [0029](0029-init-llm-target-2026.md) | init-llm 目标文档化 + 删 gateway 整层 + 3 个稳定性增强 + bill 简化为用量读取 + 合并 altllm preset 4→2 | 2026-09-17 | ✅ Accepted | LLM 管理 |
 | [0030](0030-gateway-deprecation-2026.md) | Gateway 模式废弃 — 删 gateway 层（init.sh/proxy.py/watchdog.sh），保留 openai_bridge.py 作 bridge | 2026-09-17 | ✅ Accepted | LLM 管理 |
@@ -80,7 +80,7 @@
 | [0018](0018-permission-mode-strategy.md) | 「日常用 auto」结论 | **已被 0049 推翻**（auto 丢弃宽泛 allow）→ 改 `bypassPermissions` |
 | [0022](0022-batch-translate-workflow.md) | `translate-weekly.js` | 不存在；现为工作流 `transliter` |
 | [0026](0026-bats-test-framework.md) | 三条 Decision（唯一框架 / `test/` / `bats_run`） | **全部与现状不符**（6 `.bats` + 20 `.sh`、`tests/`、零 `bats_run`） |
-| [0027](0027-idempotent-guard-pattern.md) | 承诺 `lib/guard.sh` + `guard_*` 统一 API | **从未落地**（`guard.sh` 不存在，`guard_*` 零调用） |
+| [0027](0027-idempotent-guard-pattern.md) | 承诺 `lib/guard.sh` + `guard_*` 统一 API | **已 Superseded（2026-10-25）**：`guard_*` 已删除（`atomic_write` 保留）；统一封装决议放弃 |
 | [0029](0029-init-llm-target-2026.md) | `lib/init-llm-bill.sh` | 随 0036 删除整条用量链 |
 | [0032](0032-config-layering.md) | Decision 4「模板拆分」 | **决策本身是错的且从未实施**，已改「不拆」 |
 | [0035](0035-api-aggregator-platform-selection.md) | 交叉引用 `0036-api-aggregator-comparison.md` | 该文件不存在（0036 号被占用），已改指新编号 |

@@ -1,53 +1,20 @@
 #!/usr/bin/env bats
-# test-guard.bats — lib/dry-run.sh guard 幂等函数测试
+# test-guard.bats — lib/dry-run.sh 原子写入测试
 #
 # 注意：dry-run.sh 定义了 run() 覆盖 bats 内置 run。
 # 测试中不用 bats 的 run 命令，用 $() 或直接断言。
+#
+# 历史：本文件曾测 5 个 guard_* 幂等函数（ADR-0027 描述的 guard 模式）。
+# 2026-10-25 三仓 review 实证：guard_mkdir/guard_symlink/guard_append_line/
+# guard_write_file/guard_command_exists 生产代码零调用（仅本测试引用），
+# ADR-0027 从未落地 —— 已删除那 5 个函数与其用例。atomic_write 有生产调用
+# （lib/ensure-uv.sh），保留并继续测。ADR-0027 已标注 Superseded。
 
 load "setup"
 
 setup() {
     unset CCC_DRY_RUN
     source "$LIB_DIR/dry-run.sh"
-}
-
-@test "guard_mkdir creates directory if missing" {
-    local d; d=$(mktemp -d)
-    local sub="$d/new-dir"
-    guard_mkdir "$sub"
-    [ -d "$sub" ]
-    rm -rf "$d"
-}
-
-@test "guard_mkdir no-op if directory exists" {
-    local d; d=$(mktemp -d)
-    guard_mkdir "$d"
-    [ -d "$d" ]
-    rm -rf "$d"
-}
-
-@test "guard_append_line adds line if absent" {
-    local f; f=$(mktemp)
-    guard_append_line "$f" "test-line"
-    grep -qxF "test-line" "$f"
-    rm -f "$f"
-}
-
-@test "guard_append_line no-op if line exists" {
-    local f; f=$(mktemp)
-    printf 'existing-line\n' > "$f"
-    guard_append_line "$f" "existing-line"
-    local count; count=$(wc -l < "$f")
-    [ "$count" = "1" ]
-    rm -f "$f"
-}
-
-@test "guard_command_exists returns 0 for existing command" {
-    guard_command_exists bash
-}
-
-@test "guard_command_exists returns 1 for missing command" {
-    ! guard_command_exists nonexistent-cmd-xyz
 }
 
 @test "atomic_write writes content atomically" {
@@ -59,32 +26,18 @@ setup() {
     rm -f "$f"
 }
 
-@test "guard_symlink creates symlink" {
-    local d; d=$(mktemp -d)
-    local target="$d/target" link="$d/link"
-    touch "$target"
-    guard_symlink "$target" "$link"
-    [ -L "$link" ]
-    [ "$(readlink "$link")" = "$target" ]
-    rm -rf "$d"
+@test "atomic_write replaces existing file" {
+    local f; f=$(mktemp)
+    printf 'old' > "$f"
+    printf 'new' | atomic_write "$f"
+    [ "$(cat "$f")" = "new" ]
+    rm -f "$f"
 }
 
-@test "guard_symlink updates stale symlink" {
+@test "atomic_write leaves no temp residue" {
     local d; d=$(mktemp -d)
-    local old="$d/old" new="$d/new" link="$d/link"
-    touch "$old" "$new"
-    ln -s "$old" "$link"
-    guard_symlink "$new" "$link"
-    [ "$(readlink "$link")" = "$new" ]
-    rm -rf "$d"
-}
-
-@test "guard_symlink no-op if already correct" {
-    local d; d=$(mktemp -d)
-    local target="$d/target" link="$d/link"
-    touch "$target"
-    ln -s "$target" "$link"
-    guard_symlink "$target" "$link"
-    [ -L "$link" ]
+    printf 'x' | atomic_write "$d/out"
+    local extra; extra=$(find "$d" -name 'out.*' | wc -l)
+    [ "$extra" = "0" ]
     rm -rf "$d"
 }

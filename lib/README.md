@@ -12,17 +12,15 @@
 
 ## 函数 API
 
-> ⚠️ 下表 `guard_*` / `atomic_write` 除 `atomic_write`（`ensure-uv.sh` 在用）外**生产脚本零调用**，
-> 只有 `tests/test-guard.bats` 引用。属"定义了但没接线"的空转设施（ADR-0027 承诺的统一 API 未落地）。
-> 新增幂等逻辑时**不要默认它可用** —— 先确认调用点，否则会以为有保护而实际是裸操作。
-
 | 函数 | 所在文件 | 用途 |
 |------|---------|------|
-| `guard_mkdir <dir>` | dry-run.sh | 幂等创建目录（等价 mkdir -p，dry-run 感知） |
-| `guard_symlink <target> <link>` | dry-run.sh | 幂等符号链接（dry-run 感知） |
-| `guard_append_line <file> <line>` | dry-run.sh | 幂等追加行（dry-run 感知） |
-| `guard_write_file <file> <content>` | dry-run.sh | 幂等写入（内容不同才覆盖，dry-run 感知） |
-| `atomic_write <file>` | dry-run.sh | 原子写入（mktemp + mv，防写一半断掉） |
+| `atomic_write <file>` | dry-run.sh | 原子写入（mktemp + mv，防写一半断掉）；`ensure-uv.sh` 在用 |
+
+> 历史：`guard_mkdir` / `guard_symlink` / `guard_append_line` / `guard_write_file`
+> 四个幂等封装是 ADR-0027 承诺的统一 API，但**从未接线**（生产零调用，只有测试引用）。
+> 2026-10-25 三仓 review 确认后**已删除**（连同 5 个对应用例），ADR-0027 标注 Superseded。
+> 幂等逻辑现在各脚本自己写 `[ -e ]` / `ln -sf` / `grep -q`，没有统一封装 —— 这是有意的，
+> 不是遗漏。
 
 ## 内部实现（仅 maintain.sh / 入口脚本调用）
 | 文件 | 用途 |
