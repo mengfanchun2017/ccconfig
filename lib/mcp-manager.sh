@@ -33,6 +33,17 @@ json.dump(d, open('$CONFIG_JSON', 'w'), indent=2, ensure_ascii=False)
 " 2>&1 || err "写入 .config.json 失败"
 }
 
+# python 单引号字面量转义
+# why：调用方把 $name/$desc/$target/$escaped_path 直接拼进上面的 python -c 字符串，
+# 名字里带单引号（或反斜杠）就会 SyntaxError，退化成"静默写入失败"——
+# 表现是菜单报"已注册"但 .config.json 没变。转义后字面量始终合法。
+py_str() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\'/\\\'}"
+  printf '%s' "$s"
+}
+
 # 获取当前项目路径（从 CWD 找最近的 git 仓库）
 current_project() {
   local dir="$PWD"
@@ -455,8 +466,8 @@ config_register() {
   if claude mcp add -s user "$name" -- $cmd $args_raw 2>&1; then
     [ -n "$desc" ] && py_write "
 for s in d.get('mcp_servers', []):
-    if s.get('name') == '$name':
-        s['description'] = '$desc'
+    if s.get('name') == '$(py_str "$name")':
+        s['description'] = '$(py_str "$desc")'
         break
 "
     echo -e "  ${GREEN}✅ $name 已注册${NC}"
@@ -504,14 +515,14 @@ config_toggle_global() {
   if [ "$currently_disabled" = true ]; then
     py_write "
 d.setdefault('disabledMcpServers', [])
-d['disabledMcpServers'] = [m for m in d['disabledMcpServers'] if m != '$target']
+d['disabledMcpServers'] = [m for m in d['disabledMcpServers'] if m != '$(py_str "$target")']
 "
     echo -e "  ${GREEN}已开启 $target (移出全局禁用)${NC}"
   else
     py_write "
 d.setdefault('disabledMcpServers', [])
-if '$target' not in d['disabledMcpServers']:
-    d['disabledMcpServers'].append('$target')
+if '$(py_str "$target")' not in d['disabledMcpServers']:
+    d['disabledMcpServers'].append('$(py_str "$target")')
 "
     echo -e "  ${YELLOW}已关闭 $target (加入全局禁用)${NC}"
   fi
@@ -565,15 +576,15 @@ config_project() {
   if [ "$currently_enabled" = true ]; then
     # 从项目启用 → 恢复为继承
     py_write "
-p = d.setdefault('projects', {}).setdefault('$escaped_path', {})
-p['enabledMcpjsonServers'] = [m for m in p.get('enabledMcpjsonServers', []) if m != '$target']
+p = d.setdefault('projects', {}).setdefault('$(py_str "$escaped_path")', {})
+p['enabledMcpjsonServers'] = [m for m in p.get('enabledMcpjsonServers', []) if m != '$(py_str "$target")']
 "
     echo -e "  ${YELLOW}$target 改为继承用户级${NC}"
   elif [ "$currently_disabled" = true ]; then
     # 从项目关闭 → 恢复为继承
     py_write "
-p = d.setdefault('projects', {}).setdefault('$escaped_path', {})
-p['disabledMcpServers'] = [m for m in p.get('disabledMcpServers', []) if m != '$target']
+p = d.setdefault('projects', {}).setdefault('$(py_str "$escaped_path")', {})
+p['disabledMcpServers'] = [m for m in p.get('disabledMcpServers', []) if m != '$(py_str "$target")']
 "
     echo -e "  ${YELLOW}$target 改为继承用户级${NC}"
   else
@@ -583,15 +594,15 @@ p['disabledMcpServers'] = [m for m in p.get('disabledMcpServers', []) if m != '$
     case "$mode" in
       1)
         py_write "
-p = d.setdefault('projects', {}).setdefault('$escaped_path', {})
-p.setdefault('enabledMcpjsonServers', []).append('$target')
+p = d.setdefault('projects', {}).setdefault('$(py_str "$escaped_path")', {})
+p.setdefault('enabledMcpjsonServers', []).append('$(py_str "$target")')
 "
         echo -e "  ${GREEN}$target 已设为项目特开${NC}"
         ;;
       2)
         py_write "
-p = d.setdefault('projects', {}).setdefault('$escaped_path', {})
-p.setdefault('disabledMcpServers', []).append('$target')
+p = d.setdefault('projects', {}).setdefault('$(py_str "$escaped_path")', {})
+p.setdefault('disabledMcpServers', []).append('$(py_str "$target")')
 "
         echo -e "  ${RED}$target 已设为项目特关${NC}"
         ;;
