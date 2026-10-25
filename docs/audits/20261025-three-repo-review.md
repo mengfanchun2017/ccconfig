@@ -364,4 +364,4 @@ grep 确认**没有任何地方**把 argv 转成 `CCC_DRY_RUN`。于是文档承
 | `monitor.sh` 重定义 `warn/info/error` 遮蔽 colors.sh | monitor 是独立常驻进程，重定义是为了写 LOG_FILE；需先把颜色层单点化才谈得上统一 |
 | `lib/init-mcp.sh`(613) 与 `lib/mcp-manager.sh`(611) 合并 | 两者职责可分（前者同步模板→运行时，后者交互管理），合并前需先确认谁是谁的入口 |
 | `lib/colors.sh` fallback 死块 | 见 8.5 |
-| CalVer 真相源断裂 | `versions.json` 声明 tag 是 CalVer 真相源，但仓库只有 SemVer tag（`v1.6.0`），零 CalVer tag；水位实际靠 `.ccconfig-init` 的 `template_hash` 工作。**需用户决定**：补 CalVer tag，还是改掉这句声明 |
+| CalVer 真相源断裂 | ✅ 已处理（2026-10-25）：删掉 `versions.json` 的 `self.scheme`/`self.version`，只留 `_note` 说明。**实证它对"老版本升级卡"零作用** —— `self.version` 全库仅 1 处读者（`templates/ccprivate-setup.sh` 写水位标签），该标签无人比较（`status.sh` 只比 `template_hash`）；全库无 `git tag`/`git describe` 调用；无任何版本门禁。真正的防卡机制见下节 |

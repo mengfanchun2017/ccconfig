@@ -382,8 +382,13 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 
 ## 版本里程碑
 
-> 发布版本号用 CalVer `YYYY.MM.DD`（真相源是 git tag）。变更流见 [docs/updates/](docs/updates/)。
+> 发布版本真相源是 **git tag**（现存 SemVer `v1.x` 系列）。变更流见 [docs/updates/](docs/updates/)。
+> 曾计划改用 CalVer `YYYY.MM.DD`，**未落地也已放弃** —— 仓库从没打过 CalVer tag，代码里也没有任何读 tag 的地方。
 > 下面的「里程碑」是**开发阶段代号**，不代表发布版本。
+>
+> **本机配置落后检测**走另一条路：`~/.claude/.ccconfig-init` 记模板 sha256，
+> `bash maintain.sh status` 比对后提示「本机配置模板已过期」（见「本机配置代次」段）。
+> 它比的是**模板内容 hash**，不是版本号 —— 所以"老终端升级会不会卡"与版本号无关。
 
 ### 交互菜单 API 收口（2026-08-10）
 
