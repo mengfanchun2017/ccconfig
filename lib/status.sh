@@ -780,6 +780,7 @@ check_skills() {
 # ========== 本机初始化代次（模板水位） ==========
 # settings.json/.config.json/.claudeignore 是本机独立文件，模板更新后各机不会自动跟。
 # 用 ~/.claude/.ccconfig-init 里记的 template_hash 与当前模板比，判断"这台机落后了"。
+# version 字段（HEAD 短 sha）只用于把"哪次提交"打出来，不参与判定 —— 判定只看 hash。
 check_init_watermark() {
     local marker="$HOME/.claude/.ccconfig-init"
     local tdir="$CCCONFIG_ROOT/templates"
@@ -788,7 +789,7 @@ check_init_watermark() {
     echo -e "${CYAN}━━━ 本机配置代次━━━${NC}"
 
     if [ ! -f "$marker" ]; then
-        echo -e "  ${YELLOW}○${NC} 无代次标记（从未跑过 setup.sh 的新版）"
+        echo -e "  ${YELLOW}○${NC} 无代次标记（从未跑过 setup.sh）"
         echo -e "  ${GRAY}    修复: bash ~/git/ccprivate/setup.sh${NC}"
         return 0
     fi
@@ -801,11 +802,11 @@ check_init_watermark() {
     fi
 
     if [ -z "$rec_hash" ] || [ -z "$cur_hash" ]; then
-        echo -e "  ${GRAY}○${NC} 代次 ${rec_ver:-unknown}（无法比对模板 hash）"
+        echo -e "  ${GRAY}○${NC} 对齐于提交 ${rec_ver:-unknown}（无法比对模板 hash）"
     elif [ "$rec_hash" = "$cur_hash" ]; then
-        echo -e "  ${GREEN}✅${NC} 代次 ${rec_ver:-unknown}（模板一致）"
+        echo -e "  ${GREEN}✅${NC} 对齐于提交 ${rec_ver:-unknown}（模板一致）"
     else
-        echo -e "  ${YELLOW}○${NC} 本机配置模板已过期（本机 ${rec_hash} ≠ 当前 ${cur_hash}，代次 ${rec_ver:-unknown}）"
+        echo -e "  ${YELLOW}○${NC} 本机配置模板已过期（对齐于 ${rec_ver:-unknown}：本机 ${rec_hash} ≠ 当前 ${cur_hash}）"
         echo -e "  ${GRAY}    模板新键不会自动补 → 跑: bash ~/git/ccprivate/setup.sh（只补缺键，不覆盖已有）${NC}"
     fi
     return 0
