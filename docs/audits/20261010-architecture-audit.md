@@ -138,7 +138,7 @@ ADR-0027 承诺 `lib/guard.sh` + `_is_installed/_is_not_file/_is_executed/_mark_
 
 | 文档:行 | 缺陷 | 实际 |
 |---------|------|------|
-| `CLAUDE.md:11-12` | 暗号 `hookstatus`/`pullff` 全库无代码定义（仅文档命中，二者互相矛盾） | 无实现 |
+| `CLAUDE.md:11-12` | 暗号 `hookstatus`/`pullff` 全库无代码定义 | **本报告误判（2026-10-25 更正）**：这两个是**给 Claude 读的自然语言暗号**（`CLAUDE.md` 明示"暗号 → 行为"映射，由会话中的 Claude 解释执行），本就不需要代码实现。`BOOTSTRAP.md:744,781` 记载的是它们展开成的真实命令（`maintain.sh status` / `sync.sh --pull`）。**无需修，非缺陷** |
 | `README.md:21,288,337` | 括号拆分"16 f-* + getnote"错误（getnote 非 marketplace 插件） | ✅ 已修（2026-10-16）：改为 f-* 系列；getnote 走官方 `@getnote/cli` 原子 Skill |
 | `docs/architecture.md:280`、`docs/ccprivate-guide.md:48,94,110` | 路径写 `link/projects/` | 实为 `link/memory-projects/` |
 | `docs/adr/0027` | 承诺 `lib/guard.sh` + `_is_*` API | 未实现（见 §3.1） |
@@ -245,7 +245,7 @@ ADR-0027 承诺 `lib/guard.sh` + `_is_installed/_is_not_file/_is_executed/_mark_
 | §3.2 | 剩余死代码 | `init-option.sh` 的 `_feishu_*` 3 个函数零调用；`colors.sh` fallback 块恒假 | |
 | §3.3 | 颜色层未单点 | `monitor.sh` 仍重定义 `warn/info/error` 遮蔽 colors.sh | |
 | §3.6 | `while read` 缺 `-r`（3 处）/ 固定 `/tmp`（3 处） | | 20261025 已修 update 锁 |
-| §4 | `CLAUDE.md` 暗号 `hookstatus`/`pullff` 无实现 | 全库 grep 仅文档命中 | |
+| §4 | `CLAUDE.md` 暗号 `hookstatus`/`pullff` 无实现 | ✅ 误报已更正：暗号由 Claude 解释，非代码命令 | 非缺陷 |
 | §4 | `docs/architecture.md` 写 `link/projects/` | 实际是 `link/memory-projects/` | |
 | §4 | `option-skill/README.md` 整篇过时（npx 流程） | 9 处 `third-party-skills.txt`/`npx skills` | |
 | §4 | `docs/architecture.md` 计数 24 vs 实际 26 | skill plugins = 26 | |
