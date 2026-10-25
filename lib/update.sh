@@ -627,15 +627,46 @@ update_claude() {
         return 0
     fi
 
+    local vdir="$HOME/.local/share/claude/versions"
+
     # 清残留 0 字节半成品（之前 claude install 下载失败留下的）
-    find "$HOME/.local/share/claude/versions/" -maxdepth 1 -type f -size 0 -delete 2>/dev/null || true
+    find "$vdir/" -maxdepth 1 -type f -size 0 -delete 2>/dev/null || true
 
     local before
     before=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
     info "当前版本: $before"
 
+    # ── 为什么不再无条件 `claude install --force` ──
+    # 该命令没有"只检查"模式：--force 每次无条件重下完整 native 二进制（实测 278 MiB）。
+    # 两个后果：
+    #   1. downloads.claude.ai 直连不通（本机实测 0 字节挂死，3 次重试 ~95s 后报
+    #      "Failed to fetch version … canceled"）。交互 shell 没有 proxy env，
+    #      只有 systemd 单元有 → 2B 就是在这条路上白等 95s 再回退 npm。
+    #   2. 即使网络通，已是最新时也白下 278MB、耗 ~86s（实测 3.2MB/s）。
+    # 所以改成：先读清单比版本 → 只在真落后时下载。清单请求极小，可加短超时。
+    local manifest="https://downloads.claude.ai/claude-code-releases/latest"
+    local proxy latest=""
+    proxy=$(net_gh_proxy)
+    latest=$(curl -fsSL --connect-timeout 5 --max-time 15 ${proxy:+-x "$proxy"} "$manifest" 2>/dev/null | tr -d '[:space:]' || true)
+
+    # 清单取不到（无代理且被墙，或 CDN 抖动）不回退重下：走 npm 只读版本比较
+    if [ -z "$latest" ]; then
+        info "下载源清单不可达（无可用代理？），改用 npm registry 比对版本"
+        install_claude_via_npm "$before"
+        return $?
+    fi
+
+    if [ "$before" = "$latest" ]; then
+        success "Claude Code 已是最新 ($latest) — 跳过下载（省 278MB）"
+        return 0
+    fi
+
+    info "发现新版本 $latest（当前 $before），下载中…"
     set +e
-    claude install --force >/dev/null 2>&1
+    # 必须把代理显式传给子进程：claude install 自己不做代理发现，
+    # 而本机 downloads.claude.ai 直连不通（见上）
+    env ${proxy:+HTTPS_PROXY="$proxy" HTTP_PROXY="$proxy" https_proxy="$proxy" http_proxy="$proxy"} \
+        claude install --force >/dev/null 2>&1
     local install_rc=$?
     set -e
 
@@ -643,6 +674,7 @@ update_claude() {
     after=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
     if [ "$before" != "$after" ]; then
         success "Claude Code: $before → $after"
+        cleanup_old_claude_versions "$after"
         return 0
     fi
 
@@ -652,7 +684,32 @@ update_claude() {
     fi
 
     # CDN 不可达，回退到 npm registry
+    warn "native 下载失败（代理不可用？），回退 npm registry"
     install_claude_via_npm "$before"
+}
+
+# 清理旧 native 二进制：每个 ~240-280MB，实测攒到 3 代 = 797MB。
+# 只保留当前版本 + 最近 1 个（留一个可回退），并且必须白名单 —— 只删形如
+# <数字>.<数字>.<数字> 的常规文件，避免误删 symlink/非版本文件。
+cleanup_old_claude_versions() {
+    local keep="$1" vdir="$HOME/.local/share/claude/versions"
+    [ -d "$vdir" ] || return 0
+
+    # 按版本号排序，保留最新两个（含当前）
+    local all
+    all=$(find "$vdir" -maxdepth 1 -type f -regextype posix-extended \
+        -regex '.*/[0-9]+\.[0-9]+\.[0-9]+' -printf '%f\n' 2>/dev/null | sort -V -r)
+    local n=0
+    while IFS= read -r v; do
+        [ -z "$v" ] && continue
+        n=$((n + 1))
+        # 当前版本永远保留，不占"最近"名额
+        [ "$v" = "$keep" ] && continue
+        [ $n -le 2 ] && continue
+        local sz
+        sz=$(du -h "$vdir/$v" 2>/dev/null | cut -f1)
+        rm -f "$vdir/$v" 2>/dev/null && info "  清理旧版本 $v（释放 $sz）"
+    done <<< "$all"
 }
 
 
