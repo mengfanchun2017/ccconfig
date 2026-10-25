@@ -358,7 +358,7 @@ grep 确认**没有任何地方**把 argv 转成 `CCC_DRY_RUN`。于是文档承
 
 | 项 | 理由 |
 |---|---|
-| memory 63 条 vs 上限 40 | 达标需继续并中小簇或删"内容已进 ADR"的条目 —— 属判断问题，不硬凑 |
+| memory 46 条 vs 上限 40 | 已做 8 组同主题合并（63 → 46，全文保留、索引条目减少）。距上限差 6 条；再往下需拆 `*-ops.md` 总集或删条目，收益递减 |
 | `monitor.sh` rebase 冲突后 `reset --hard` | 已有 stash 兜底，但冲突解仍可能丢本地改动；重新设计需单独排期 |
 | `spinner()` 丢 `wait` 返回码（`lib/interact.sh:280-285`） | 生产零调用（无脚本用 spinner），改它没有实际收益 |
 | `monitor.sh` 重定义 `warn/info/error` 遮蔽 colors.sh | monitor 是独立常驻进程，重定义是为了写 LOG_FILE；需先把颜色层单点化才谈得上统一 |
