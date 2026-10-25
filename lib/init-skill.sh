@@ -687,6 +687,19 @@ do_list() {
 # 检测清单 vs 实际安装的 drift
 # 输出：清单有但未装、已装但不在清单、自建 skill（不在清单管理的范围）
 do_diff() {
+    # 清单机制已废弃：third-party skill 现统一由 ccprivate/skill/ + 各 skill 自带
+    # config.yaml.example 管理，conf/third-party-skills.txt 不再存在。缺文件时若继续按
+    # 空清单比对，每个正常安装的第三方 skill 都会被报成 untracked drift（实测 33 条假警报）。
+    if [[ ! -f "$THIRD_PARTY_CONF" ]]; then
+        title "Skills Drift 检测"
+        warn "清单机制已废弃：$THIRD_PARTY_CONF 不存在"
+        echo ""
+        info "  第三方 skill 现由各 skill 自带 config.yaml.example 管理，不再走 npx 清单。"
+        info "  当前安装视图请用: bash lib/init-skill.sh list"
+        info "  本机自建/第三方计数请用: bash lib/init-skill.sh status"
+        return 0
+    fi
+
     title "Skills Drift 检测（conf/third-party-skills.txt vs ~/.claude/skills/）"
 
     # 1. 解析清单中的第三方 skill
