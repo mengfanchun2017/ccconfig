@@ -194,7 +194,7 @@ for k,v in d.items():
     while IFS='|' read -r name desc mtype command args_str env_str is_disabled how_to_get headers_str; do
         [[ -z "$name" ]] && continue; [[ "$is_disabled" == "true" ]] && continue
         if [[ -n "$env_str" ]] && [[ "$env_str" != "{}" ]]; then
-            configure_mcp_env "$name" "$env_str" >/dev/null 2>&1 || true
+            configure_mcp_env "$name" "$env_str" >/dev/null 2>&1 || warn "  $name 的 env 写入 .config.json 失败（key 可能未生效）"
         fi
     done <<< "$(read_mcp_list)"
     sync_to_settings "$HOME/.claude/settings.json" >/dev/null 2>&1 && good "  settings.json 已同步" || warn "  settings.json 同步失败"
@@ -309,7 +309,9 @@ if env and name in data.get('mcpServers', {}):
     tmp = real + '.tmp'
     with open(tmp, 'w') as f: json.dump(data, f, indent=2)
     os.replace(tmp, real)
-" "$HOME/.claude/.config.json" "$name" "$c_env_str" 2>/dev/null || true
+" "$HOME/.claude/.config.json" "$name" "$c_env_str"
+    # 不吞返回值：此前结尾 `|| true` 让本函数恒返回 0，调用方无法发现 key 没写进去
+    # （症状：菜单报"已配置"，运行时 MCP 仍 401）。现在失败向上传播。
 }
 
 # ── 交互填 Key ──
@@ -529,7 +531,7 @@ os.replace(tmp, path)
             local _targs="${args_str//\$\{HOME\}/$HOME}"; _targs="${_targs//\$HOME/$HOME}"
             if claude mcp add -s user "$name" -- $command $_targs 2>&1; then good "ok"; else bad "fail"; return 1; fi
             if [[ "$mtype" == "stdio" ]] && [[ -n "$env_str" ]] && [[ "$env_str" != "{}" ]]; then
-                configure_mcp_env "$name" "$env_str" >/dev/null 2>&1 || true
+                configure_mcp_env "$name" "$env_str" >/dev/null 2>&1 || warn "  $name 的 env 写入 .config.json 失败（key 可能未生效）"
             fi
             ;;
         off)
