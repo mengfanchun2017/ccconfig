@@ -33,14 +33,15 @@ flowchart LR
 | 场景 | 网络 | preset 类型 | 关键依赖 |
 |------|------|------------|----------|
 | 单位办公 | 直连内网，WSL + corp VPN | 直连 preset（Anthropic 兼容） | corp VPN |
-| 家里 | WSL + Windows tailscale（**tailscaled 跑在 Windows 侧**）| 公网 preset 直连（`deepseek41flash` / `minimax31`）；`home*` 需追加：**对端链路可用** | 见下 ⚠️ |
+| 家里 | WSL + Windows tailscale（**tailscaled 跑在 Windows 侧**）| 公网 preset 直连（`deepseek41flash` / `minimax31`）；`home*` 需追加：**该接入点能 P2P** | 见下 ⚠️ |
 | 应急/备用 | 任一 | minimax31 / deepseek41flash 直连 builtin | 无 |
 
 **关键约束**：
-- ⚠️ **`home*` preset 在家不一定可用**：它依赖 tailnet 跳板机的出口质量。若跳板机对端是对称 NAT
-  且国际出口被封，流量只能落回境外 DERP 中继，实测封顶 ~18KB/s（上行），100KB 请求即 6-10s、
-  并发会断流报 529。判据与决策见 [ADR 0053](adr/0053-home-preset-unusable-on-cgnat-derp-cap.md)。
-  **在家首选公网 preset**，不要先怀疑 bridge / 超时 / DNS。
+- ⚠️ **`home*` preset 是"接入点相关"的**：它要求所在网络能跟 tailnet 跳板机 P2P。接入点若有多层
+  NAT（含运营商 CGNAT）+ 对端对称 NAT，就只能落回境外 DERP 中继，实测封顶 ~18KB/s（上行），
+  并发时整条断流报 529。判据与决策见 [ADR 0053](adr/0053-home-preset-derp-only-network-cap.md)。
+  **这类接入点首选公网 preset**；必须用 `home*` 时由 preset 的 `max_concurrency`（`home*`=1）
+  串行排队保可靠。不要先怀疑 bridge / 超时 / DNS。
 - **稳定性 > 一切**：当前痛点是"探测 OK 但实际跑挂"（[见 §五](#五核心稳定性要求)）
 - **家里只用 1 种模型**：合并 altllm*_tail 系列按需启用
 - **单位 vs 家里是离散二元环境**：环境由人显式选（不搞自动探测，见 [ADR-0029](../docs/adr/0029-init-llm-target-2026.md)、[ADR-0031](../docs/adr/0031-init-llm-consolidation-2026.md)）

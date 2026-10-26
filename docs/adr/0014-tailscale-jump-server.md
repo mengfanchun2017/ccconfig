@@ -91,7 +91,7 @@
 
 ## Related
 
-- [0053](0053-home-preset-unusable-on-cgnat-derp-cap.md) — 跳板机的**可用性前提**：跳板机自身需要有可用出口；对端对称 NAT + 国际出口被封时，只能落回境外 DERP 中继（~18KB/s），跳板形同虚设
+- [0053](0053-home-preset-derp-only-network-cap.md) — 跳板机的**可用性前提**：跳板机自身需要有可用出口；对端对称 NAT + 国际出口被封时，只能落回境外 DERP 中继（~18KB/s），跳板形同虚设
 - [Auth keys](https://tailscale.com/docs/features/access-control/auth-keys)
 - [Tags](https://tailscale.com/docs/features/tags)
 - [Key expiry](https://tailscale.com/docs/features/access-control/key-expiry)
