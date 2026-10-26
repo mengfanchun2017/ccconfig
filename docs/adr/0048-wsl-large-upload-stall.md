@@ -78,6 +78,7 @@ home\* 的 `base_url` 是字面 tailscale IP，命中私网段正则自动启用
 - [0047](0047-tailscale-subnet-vs-office-intranet.md) — tailscale subnet 抢路由（同一次故障的第一层，结论仍成立）
 - [0049](0049-auto-mode-discards-allow-rules.md) — auto 模式丢弃 allow 规则（同环境另一层问题）
 - [0019](0019-bridge-win-curl-wsl-vpn.md) — bridge win-curl 双模式（win_curl 机制来源，本 ADR 未推翻其设计）
+- [0053](0053-home-preset-unusable-on-cgnat-derp-cap.md) — 同类归因陷阱的对偶：本案把"慢"当"断"，0053 把"断"当"慢"；纪律一致（失败须先确认真失败 + 对照维度正交）
 
 ## Notes
 

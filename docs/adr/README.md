@@ -61,6 +61,7 @@
 | [0050](0050-bridge-structural-refactor.md) | bridge 结构性重构 — 传输/协议分离、判定单点化（4份→1）、spawn 共用（setsid 取代 /tmp wrapper，不再落明文 Key）、协议层 8 类缺陷修复 + 新增 26 项单测 | 2026-10-16 | ✅ Accepted | — |
 | [0051](0051-tailscale-accept-routes-blackholes-office-intranet.md) | tailscale accept-routes 让单位内网变黑洞（0047 的反向：查了 AdvertiseRoutes 漏了 RouteAll）— 新增 `lib/tailscale-guard.sh` 按 preset 自动关 accept-routes，接入 switch_llm / maintain fix / status / option-remote | 2026-10-16 | ✅ Accepted | — |
 | [0052](0052-option-submenu-return-contract.md) | option 子菜单不再坠入 — `init-option.sh` 交互分支显式派发一次性子命令（getnote `install` / evalscope·skill·officecli·… `--install`），evalscope·skill 尾递归改 while，filepull 补 `--install` 且「已配置但离线」由 MISSING 降 WARN；顺带修 status 组件漏项与 `skill` 重复 | 2026-10-24 | ✅ Accepted | — |
+| [0053](0053-home-preset-unusable-on-cgnat-derp-cap.md) | 家里用 home\* preset 不可用 — 对端对称 NAT（打洞原理上无解）+ 对端国际出口被封（境外测速 0B/s），只能走境外 DERP 中继、封顶 ~18KB/s；换 DERP 区域与放宽超时均实测无效 → 家里改用公网 preset，`home*` 仅在单位用，附「一分钟判据」 | 2026-10-27 | ✅ Accepted | — |
 
 > **编号 0024 / 0025 未使用**：编号永不重用（见[命名约定](#命名约定)），这两号在 0023 之后被跳过、没有对应文件，也没有正文引用。新增 ADR 从**当前最大号 +1** 起，不要去填这个空档。
 >
