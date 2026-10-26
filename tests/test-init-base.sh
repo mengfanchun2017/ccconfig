@@ -5,9 +5,9 @@
 # 零网络调用，纯本地，秒级完成。
 #
 # 用法：
-#   bash ccconfig/tests/test-init.sh           # 全部测试
-#   bash ccconfig/tests/test-init.sh --verbose # 详细输出
-#   bash ccconfig/tests/test-init.sh --list    # 仅列出测试用例
+#   bash ccconfig/tests/test-init-base.sh           # 全部测试
+#   bash ccconfig/tests/test-init-base.sh --verbose # 详细输出
+#   bash ccconfig/tests/test-init-base.sh --list    # 仅列出测试用例
 
 set -euo pipefail
 

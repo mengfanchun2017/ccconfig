@@ -271,7 +271,7 @@ bash lib/init-llm.sh status             # 链路诊断
 bash lib/init-llm.sh test <preset>      # 真实链路探测（走 bridge + 流式）
 ```
 
-- **多预设管理** — 内置 3 个（MiniMax M3.1 / DeepSeek v4 / MiMo v2.6），自定义在 `conf/llmprivate.json` 里加（key 存 `ccprivate/conf/llm.json`）
+- **多预设管理** — 内置 3 个（MiniMax M3.1 / DeepSeek v4 / MiMo v2.6），自定义在 `ccprivate/conf/llmprivate.json` 里加（key 存 `ccprivate/conf/llm.json`）
 - **OpenAI Bridge** — 遇到 OpenAI-only 端点（如内网 LLM 只提供 OpenAI 协议）自动启协议转换
 - **真实链路探测** — `test` 走 Claude Code 实际使用的那条路径（bridge + 流式），
   判定含终止标记与连接完整性，不用"HTTP 200"糊弄

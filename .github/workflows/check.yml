@@ -45,7 +45,7 @@ jobs:
         run: sudo apt-get install -y -qq python3-jsonschema
       - name: validate conf/*.json
         run: |
-          for f in conf/*.json; do
+          for f in conf/*.json conf/schema/*.json; do
             [ -f "$f" ] || continue
             python3 -c "import json,sys; json.load(open('$f'))" || { echo "INVALID JSON: $f"; exit 1; }
           done
@@ -81,18 +81,30 @@ jobs:
       - name: unit tests (mock isolated)
         run: bash tests/test-init-base.sh --verbose
       # 其余 test-*.sh 此前从不进 CI，坏了没人知道（test-init-llm.sh 曾长期假失败）
+      # 2026-10-26 补全：此前仍有 13 个测试不在任何 runner 里，其中 9 个被 ADR 明确
+      # 宣称"有回归覆盖"（0033/0034/0045/0050/0031/0032 + docs/init-llm.md）。
+      # 尤其 test-secret-patterns.sh —— hooks/pre-commit 依赖它的自查断言守住
+      # 密钥扫描的 tests/ 例外盲区，不跑等于那道护栏从未生效。
       - name: other unit suites
         run: |
           rc=0
           for f in tests/test-init-option.sh tests/test-maintain.sh tests/test-sync.sh \
                    tests/test-setup-link.sh tests/test-init-ccprivate-repo.sh \
                    tests/test-json-schema.sh tests/test-interact.sh tests/test-syntax.sh \
-                   tests/test-cross-script-dryrun.sh; do
+                   tests/test-cross-script-dryrun.sh \
+                   tests/test-bootstrap.sh tests/test-monitor.sh tests/test-claude-update.sh \
+                   tests/test-dry-run-argv.sh tests/test-git-pull.sh \
+                   tests/test-init-llm-merge.sh tests/test-init-llm-switch.sh \
+                   tests/test-mcp-pywrite.sh tests/test-node-cleanup-guard.sh \
+                   tests/test-openai-bridge.sh tests/test-secret-patterns.sh \
+                   tests/test-skill-init.sh; do
             echo "::group::$f"
             bash "$f" || { echo "FAILED: $f"; rc=1; }
             echo "::endgroup::"
           done
           exit $rc
+      - name: bridge protocol unit (python)
+        run: python3 tests/test-bridge-protocol.py
 
   links:
     runs-on: ubuntu-26.04
@@ -111,6 +123,20 @@ jobs:
               [ -e "$dir/$target" ] || { echo "BROKEN: $f -> $link"; rc=1; }
             done < <(grep -oE '\]\([^)]+\)' "$f" | sed 's/^](//; s/)$//' | sort -u)
           done < <(git ls-files '*.md')
+          exit $rc
+
+  symlink:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v4
+      # 公开仓禁止跟踪 symlink：symlink 的"内容"只是一个路径字符串，
+      # 既能暴露私有路径（/home/<user>/git/ccprivate/...），clone 后还是死链，
+      # 且能绕过 pre-commit 的 conf/ 白名单与密钥正则 → 等于免检通道。
+      # 2026-10-26：conf/schema/mcp.schema.json 曾以 symlink 提交进公开库。
+      - name: 公开仓不跟踪 symlink
+        run: |
+          rc=0
+          git ls-files -s | awk '$1=="120000" {print "SYMLINK: " $4; found=1} END {exit found?1:0}'
           exit $rc
 
   deps:

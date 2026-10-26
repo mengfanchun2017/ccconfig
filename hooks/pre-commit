@@ -79,6 +79,24 @@ if [ -n "$staged" ]; then
     done <<< "$staged"
 fi
 
+# === 规则 4: 公开仓禁止跟踪 symlink（所有公开仓生效） ===
+# 背景（2026-10-26）：conf/schema/mcp.schema.json 曾以 symlink 形式提交进公开库，
+# 内容是绝对路径 /home/francis/git/ccprivate/conf/schema/mcp.schema.json。
+# 三重问题：① clone 后是死链 ② 暴露私有路径+用户名 ③ symlink 的"内容"只是路径字符串，
+# 规则 1 的 conf/schema/*.json 白名单和规则 3 的 KEY_RE 都拦不住它 —— 等于开了免检通道。
+if [ -n "$staged" ]; then
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        mode=$(git ls-files -s -- "$f" 2>/dev/null | awk '{print $1}' | head -1)
+        if [ "$mode" = "120000" ]; then
+            echo -e "${RED}[pre-commit] BLOCKED: ${f} — 公开仓不跟踪 symlink${NC}"
+            echo "  指向: $(git cat-file -p :"$f" 2>/dev/null | head -1)"
+            echo "  改为提交真实文件内容（若内容私密则移到 ccprivate/）。"
+            blocked=1
+        fi
+    done <<< "$staged"
+fi
+
 if [ $blocked -eq 1 ]; then
     echo ""
     echo "提交被阻止。修复方式："

@@ -22,7 +22,7 @@ Tailscale 基于 WireGuard，端到端加密。P2P 打洞成功后不经过中�
 ```
 option-remote/
 ├── deploy.sh
-├── readme.md
+├── README.md
 ├── server/                    台式机
 │   ├── tmux-sshd.sh           SSH Server + tmux（WSL）
 │   ├── tmux-portforward.ps1   端口转发（管理员 PS）

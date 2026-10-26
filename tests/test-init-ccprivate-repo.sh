@@ -1,5 +1,6 @@
 #!/bin/bash
-# test-init-ccprivate-repo.sh — unit tests for bin/init-ccprivate-repo.sh config generation + migration
+# test-init-ccprivate-repo.sh — unit tests for ccprivate 仓库配置生成 + 迁移
+# （对应实现：lib/ccprivate-upgrade.sh + templates/ccprivate-setup.sh）
 set -euo pipefail
 
 TMPDIR=$(mktemp -d)

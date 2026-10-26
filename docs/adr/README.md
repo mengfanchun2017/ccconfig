@@ -95,7 +95,7 @@
 ## 决策时间线（worklog 提取，按日期倒序）
 
 > 此前在 `docs/tech-decisions.md` 自动维护，已合并至此。轻量变更只在此处一行记录，重大决策进 [索引](#索引) 段。
-> 数据来源: Worklog Base（配置见 `conf/flogme.json`），flogme skill 自动同步。
+> 数据来源: Worklog Base（配置见 `ccprivate/conf/flogme.json`），flogme skill 自动同步。
 > 更新机制: worklog → `flogme extract-decisions` → 本段。
 >
 > ⚠️ **本段已滞后**：最后一条停在 2026-07-29，而[索引](#索引)已有到 2026-09-17 的 ADR。这一段时间的轻量决策没有回填，属已知缺口 —— 补全需重跑 `flogme extract-decisions`（或手工补齐）。不要据此认为 7 月底之后没做过决策。

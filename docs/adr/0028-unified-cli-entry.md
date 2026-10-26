@@ -1,9 +1,14 @@
 # 0028. 统一 CLI 入口
 
-> **Status**: ✅ Accepted
+> **Status**: ✅ Accepted（**部分未落地**，2026-10-26 复核）
 > **日期**: 2026-09-03
 > **关联**: CLI 基础设施
 > **模板**: MADR 4.0 极简版
+> **未落地项**：下文「实际入口路径」表与「统一后」命令清单描述的是**设计稿**，实际未按此实现。
+> 现 `bin/ccconfig` 的子命令只有 `init` / `bootstrap` / `init-option` / `maintain` / `init-ccprivate` / `help`；
+> 表中的 `bin/init-base.sh`（实际在仓库根 `init-base.sh`）、`scripts/sync-marketplace.py`
+> （该目录不存在，同步逻辑在 skill 仓 `scripts/sync-marketplace.py`）、`ccconfig sync-market`
+> 子命令均不存在。**照抄本表会失败**。
 
 ## Context and Problem Statement
 

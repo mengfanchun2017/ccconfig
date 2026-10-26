@@ -172,7 +172,12 @@ cp ~/git/ccconfig/conf/mcp-servers.json.example ~/git/ccprivate/conf/mcp-servers
 | `conf/supabase.json` | Supabase 数据库 token | 用 Supabase 才需要 |
 | `conf/f-moocrec.yaml` | 慕课推荐配置（已迁到 ccprivate/skill/fmoocrec.yaml） | 用课程推荐才需要 |
 
-每个都有对应的 `.example` 模板在 `ccconfig/conf/` 下，复制后编辑即可。
+**不是每个都有 `.example` 模板**。`ccconfig/conf/` 下现存的只有
+`feishu.json.example` / `cloudflare.json.example` / `mcp-servers.json.example` /
+`mineru.json.example` / `supabase.json.example`。
+`flogme.json` / `ffeishu.json` / `fpptx.json` **无模板**（配置由对应 skill 侧维护，
+见 `ccprivate/skill/`），`f-moocrec.yaml` 已迁走。缺模板时照着
+[conf/README.md](../conf/README.md) 的表新建即可。
 
 ---
 

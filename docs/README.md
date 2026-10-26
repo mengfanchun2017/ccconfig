@@ -12,7 +12,7 @@
 | `upgrade-guide.md` | 升级策略与指南 |
 | `ccprivate-guide.md` | ccprivate 私有配置仓库详细指南（ccprivate 仓库阅读） |
 | `docs/adr/` | 架构决策记录（MADR 4.0 格式）+ 决策时间线（worklog 提取） |
-| `docs/updates/` | 变更流日志（每次大改动一篇 `YYYYMMDD-主要内容.md`） |
+| `docs/updates/` | 变更流日志（每次大改动一篇 `YYYYMMDD-主要内容.md`），索引见 [updates/README.md](updates/README.md) |
 | `docs/audits/` | 审计报告（全仓库体检；最新 [20261025 三仓联合 review](audits/20261025-three-repo-review.md)，前序 [20261010](audits/20261010-architecture-audit.md) 的未决项追踪在后者 §8） |
 
 ## 组件专属文档（已下放）

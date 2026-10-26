@@ -150,10 +150,10 @@ cc-connect 已升级至 1.4.0，下载 URL 模板和 binary 名均已在 `conf/v
 
 实际代码：
 
-- `option-larkbridge/init.sh` → npm install -g @larksuiteoapi/lark-channel-bridge + systemd profile 管理
 - `option-larkcli/init.sh` + `option-larkcli/lark-switch.sh` → 多账号 lark-cli
-- `conf/versions.json` → `lark_cli` 走 npm，`lark_channel_bridge` 由 init.sh 内置
-- `init-option.sh` → AUTO_MANAGED 包含 `llmswitch`，可选项含 `larkcli` / `officecli` / `cloudflare` / `remote` / `skill` / `usage`；`larkbridge` 委托独立仓 [ccbridge](https://github.com/mengfanchun2017/ccbridge)
+- `conf/versions.json` → `lark_cli` 走 npm
+- `init-option.sh` → 可选项含 `larkcli` / `officecli` / `cloudflare` / `remote` / `skill`；`llmswitch` 已内嵌为 `lib/init-llm.sh`；`usage` 已按 [ADR-0036](0036-drop-token-usage-feature.md) 整条删除
+- `larkbridge` 委托独立仓 [ccbridge](https://github.com/mengfanchun2017/ccbridge)（本仓无 `option-larkbridge/`）
 
 ### ADR-0006 历史结论保留
 
