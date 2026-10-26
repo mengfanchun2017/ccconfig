@@ -203,7 +203,7 @@ ccconfig/
 ├── conf/                     # 公开配置模板
 │   ├── *.json.example        # 模板（复制到 ccprivate/conf/ 后编辑）
 │   ├── versions.json         # 组件版本文件（npm 包为 latest）
-│   ├── schema/mcp.schema.json # MCP 配置校验
+│   ├── schema/mcp.schema.json # MCP 配置结构（JSON Schema，参考用）
 │   └── python-requirements.txt
 │
 ├── templates/                # .example 模板目录

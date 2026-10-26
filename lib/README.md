@@ -44,4 +44,12 @@
 | `init-mcp.sh` | MCP 初始化 |
 | `init-skill.sh` | Skill 安装 |
 | `init-autostart.sh` | 自启动配置 |
+| `git-pull.sh` | 仓库拉取单点实现（各仓 pull 统一走这里） |
+| `secret-patterns.sh` | 疑似凭据的统一正则（`$SECRET_RE`，pre-commit 与 example-sync 共用） |
+| `snapshot.sh` | 关键配置快照 + 回滚（`take`/`list`/`restore`/`prune`） |
+| `ensure-uv.sh` | 确保 uv/uvx 可用（Python 工具隔离运行器） |
+| `bridge-service.sh` | bridge 的 systemd user 服务管理 |
+| `bridge-supervisor.sh` | bridge 前台守护循环（两路共用） |
+| `tailscale-guard.sh` | tailscale accept-routes 防护（防单位内网被黑洞） |
+| `conf-diff-classify.py` | conf 差异分类（供 example-sync 判断哪些字段需脱敏） |
 | `claude-auto-sync.service` | systemd **system** service 模板（`/etc/systemd/system/`，被 init-autostart.sh 使用） |

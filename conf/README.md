@@ -8,7 +8,9 @@
 | 文件 | 用途 | 状态 |
 |------|------|------|
 | `versions.json` | 组件版本、Node.js pin | ✅ 公开，git 跟踪 |
+| `llmnormal.json` | 内置 LLM 预设（公开 endpoint + model，**无 key**；key 在 ccprivate/conf/llm.json） | ✅ 公开，git 跟踪 |
 | `*.json.example` | 配置模板（占位符） | ✅ 公开，git 跟踪 |
+| `schema/mcp.schema.json` | MCP 配置结构定义（JSON Schema） | ✅ 公开，git 跟踪 |
 | `python-requirements.txt` | Python pip 包清单 | ✅ 公开 |
 
 ## 新用户

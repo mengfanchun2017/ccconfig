@@ -1,8 +1,12 @@
 # tests/ — ccconfig 自动化测试
 
-## 测试框架：bats（Bash Automated Testing System）
+## 测试框架
 
-**新测试一律用 bats**（`.bats` 文件），不再写自定义 `pass()`/`fail()` 函数。
+**两种并存**：6 个 `.bats`（Bash Automated Testing System）+ 22 个 `.sh`（自写 `pass()`/`fail()` 计数）。
+`.bats` 适合纯函数单测，`.sh` 适合需要 mock 环境/多段断言的流程回归 —— 现状是 `.sh` 占多数。
+
+**新增纯函数单测用 bats**（`.bats`）；流程/端到端回归可继续用 `.sh`（照抄现有 `.sh` 的
+`PASS=0; FAIL=0` + `pass()`/`fail()` 约定，不要自创第三种风格）。
 
 ### bats 测试示例
 
@@ -52,18 +56,44 @@ bats tests/test-dry-run.bats
 |------|------|
 | `test-init-base.sh` | init 流程回归（mock 隔离环境） |
 | `test-init-llm-switch.sh` | LLM 切换端到端（含本机/共享分层、mtime 断言） |
+| `test-init-llm-merge.sh` | 三层 LLM 配置合并读取单元测试 |
 | `test-init-option.sh` | option 语法检查 |
 | `test-maintain.sh` | maintain 菜单回归 |
 | `test-monitor.sh` | monitor 核心函数 |
 | `test-sync.sh` | sync 核心函数 |
 | `test-json-schema.sh` | JSON 结构兼容性 |
 | `test-bootstrap.sh` | bootstrap 流程 |
+| `test-claude-update.sh` | update.sh 的 claude 更新路径 |
 | `test-cross-script-dryrun.sh` | 跨脚本 dry-run |
+| `test-dry-run-argv.sh` | `dry_run_parse_argv` 让 `bash lib/x.sh --dry-run` 真正生效 |
+| `test-git-pull.sh` | lib/git-pull.sh 单点拉取实现 |
 | `test-interact.sh` | interact 函数 |
 | `test-init-ccprivate-repo.sh` | ccprivate 初始化 |
+| `test-mcp-pywrite.sh` | mcp-manager.sh 的 py_write 变量转义 |
+| `test-node-cleanup-guard.sh` | update.sh 的旧 Node 清理白名单 |
 | `test-openai-bridge.sh` | Anthropic↔OpenAI bridge 流式链路（端到端，mock upstream） |
+| `test-secret-patterns.sh` | 密钥正则单一真相源 + 消费方接线 |
+| `test-setup-link.sh` | setup_link 死链处理回归 |
+| `test-skill-init.sh` | init-skill.sh 命令入口完整性 |
 | `test-bridge-protocol.py` | bridge 协议转换单元回归（块顺序/usage/tool_calls/finish_reason/字段丢失）。端到端用例只造 `content+[DONE]` 一种形态，协议层缺陷全在其盲区外，故单独成篇 |
 | `test-syntax.sh` | 语法检查（被 test-syntax.bats 替代） |
+
+## bats 测试
+
+| 文件 | 覆盖 |
+|------|------|
+| `test-colors.bats` | lib/colors.sh 单元测试 |
+| `test-guard.bats` | lib/dry-run.sh 原子写入测试 |
+| `test-interact.bats` | lib/interact.sh 单元测试 |
+| `test-path-helper.bats` | lib/path-helper.sh 单元测试 |
+| `test-syntax.bats` | 全仓 shell 语法检查 |
+| `test-dry-run.bats` | dry-run 行为 |
+
+## CI 覆盖现状
+
+`.github/workflows/check.yml` 的 unit job 只显式列了部分 `.sh`，其余靠 `bats tests/*.bats` glob。
+**没进 CI 的 `.sh` 测试坏了没人知道**（`test-init-llm.sh` 曾长期假失败）。补进 CI 时加到
+unit job 的显式列表即可。
 
 ## 添加新测试
 

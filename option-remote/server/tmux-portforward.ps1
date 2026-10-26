@@ -114,5 +114,5 @@ Write-Host "下一步:" -ForegroundColor Cyan
 Write-Host "  1. 两台 Windows 安装 Tailscale 或 ZeroTier（如果不在同一局域网）" -ForegroundColor White
 Write-Host "  2. 笔记本终端执行: ssh -p $Port <user>@<台式机IP>" -ForegroundColor White
 Write-Host ""
-Write-Host "详细说明见: ~/git/ccconfig/ssh/README.md" -ForegroundColor DarkGray
+Write-Host "详细说明见: ~/git/ccconfig/option-remote/README.md" -ForegroundColor DarkGray
 pause
