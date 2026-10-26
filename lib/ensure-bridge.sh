@@ -359,10 +359,11 @@ _kill_by_port() {
 #     裸 `( cd; nohup ... & )` 的子 shell 退出会 SIGHUP 掉 python。setsid 直接给新
 #     会话（无控制终端 → 收不到 SIGHUP）解决同一问题，同时**不必把 API Key 写进
 #     磁盘**（旧 wrapper 含明文 Key，脚本被中断时就残留在 /tmp）。
-# 用法: _bridge_spawn <upstream> <model> <key> <host_header> <win_curl> [<port>] [<log>]
+# 用法: _bridge_spawn <upstream> <model> <key> <host_header> <win_curl> [<port>] [<log>] [<max_conc>]
 _bridge_spawn() {
     local upstream="$1" model="$2" key="$3" host_header="$4" win_curl="$5"
     local port="${6:-${BRIDGE_PORT:-8898}}" log="${7:-$HOME/.cache/openai_bridge.log}"
+    local max_conc="${8:-0}"
     local extra_args=""
     [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
     mkdir -p "$HOME/.cache"   # 目录不存在会让重定向失败、bridge 根本起不来
@@ -374,10 +375,28 @@ _bridge_spawn() {
             OPENAI_BRIDGE_KEY="$key" \
             OPENAI_BRIDGE_MODEL="$model" \
             OPENAI_BRIDGE_HOST="$host_header" \
+            OPENAI_BRIDGE_MAX_CONCURRENCY="$max_conc" \
             python3 option-llmswitch/openai_bridge.py --port "$port" $extra_args $win_curl \
             >> "$log" 2>&1 < /dev/null &
     )
     return 0
+}
+
+# 读 preset 的 max_concurrency（并发闸，0/空=不限）。空输出表示未配置。
+# why 用 preset 字段而非全局：只有慢链路（境外中继、内网透传）需要排队，
+#     公网 preset 限并发纯属拖慢。
+# 用法: bridge_max_concurrency <merged_cfg> <preset>
+bridge_max_concurrency() {
+    local cfg="$1" preset="$2"
+    [[ -n "$cfg" && -n "$preset" ]] || return 0
+    python3 -c "
+import json, sys
+try:
+    v = json.load(open(sys.argv[1])).get('llms', {}).get(sys.argv[2], {}).get('max_concurrency')
+    print(int(v) if v else '')
+except Exception:
+    print('')
+" "$cfg" "$preset" 2>/dev/null
 }
 
 # 确保 bridge 跑且 upstream 正确
@@ -403,6 +422,9 @@ ensure_bridge() {
     # 否则改了 force_win_curl 也不会重启 bridge，配置形同虚设。
     local win_curl
     win_curl="$(bridge_win_curl "$upstream" "$cfg" "$preset")"
+    # 并发闸同理：值变了要重启才生效（运行态在 /health 里报 max_concurrency）
+    local max_conc
+    max_conc="$(bridge_max_concurrency "$cfg" "$preset")"
 
     # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
     local health
@@ -427,7 +449,12 @@ ensure_bridge() {
             # 两边任一不符都重启，判据是 health 里的 use_win_curl。
             local want_wc="False"
             [[ -n "$win_curl" ]] && want_wc="True"
-            if [[ -n "$cur_wc" && "$cur_wc" != "$want_wc" ]]; then
+            local cur_mc
+            cur_mc=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('max_concurrency',0))" 2>/dev/null || echo "")
+            local want_mc="${max_conc:-0}"
+            if [[ -n "$cur_mc" && "$cur_mc" != "$want_mc" ]]; then
+                info "  max_concurrency 不符（期望 $want_mc，实际 $cur_mc），重启 bridge..."
+            elif [[ -n "$cur_wc" && "$cur_wc" != "$want_wc" ]]; then
                 info "  win_curl 模式不符（期望 $want_wc，实际 $cur_wc），重启 bridge..."
             else
                 start_bridge_watchdog "$cfg" "$preset"
@@ -443,7 +470,8 @@ ensure_bridge() {
     # 杀老 bridge 并等端口释放（可能不止一个进程占着）
     _kill_by_port "$BRIDGE_PORT"
 
-    _bridge_spawn "$upstream" "$model" "$key" "$host_header" "$win_curl" "$BRIDGE_PORT"
+    _bridge_spawn "$upstream" "$model" "$key" "$host_header" "$win_curl" "$BRIDGE_PORT" \
+        "$HOME/.cache/openai_bridge.log" "$max_conc"
 
     # 等启动（最多 5s）
     local h=""

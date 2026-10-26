@@ -47,7 +47,9 @@ IFS='|' read -r up model key hh <<< "$bc"
 port="${BRIDGE_PORT:-8898}"
 _kill_by_port "$port"
 win_curl="$(bridge_win_curl "$up" "$cfg" "$preset")"
-_bridge_spawn "$up" "$model" "$key" "$hh" "$win_curl" "$port"
+max_conc="$(bridge_max_concurrency "$cfg" "$preset")"
+_bridge_spawn "$up" "$model" "$key" "$hh" "$win_curl" "$port" \
+    "$HOME/.cache/openai_bridge.log" "$max_conc"
 
 # 等 health 确认真的起来了：旧版无条件 exit 0，watchdog 永远学不到"启动失败"，
 # 只能靠下一轮的 health 间接推断

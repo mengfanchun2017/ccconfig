@@ -658,6 +658,46 @@ app = FastAPI()
 state = {"upstream": "", "upstream_key": "", "upstream_model": ""}
 http_client = None
 
+# 并发闸（0 = 不限）。slow 链路（境外 DERP 中继等）在途字节一多就整体断流：
+# 实测单路 120KB 稳定，2×100KB 双双失败。用排队换可靠性，闸值来自 preset 的
+# max_concurrency，由 ensure-bridge.sh 经 env 传入。
+_gate_obj = None
+_gate_owner = -1
+
+
+def _gate():
+    n = int(state.get("max_concurrency") or 0)
+    if n <= 0:
+        return None
+    global _gate_obj, _gate_owner
+    if _gate_obj is None or _gate_owner != n:
+        _gate_obj, _gate_owner = asyncio.Semaphore(n), n
+    return _gate_obj
+
+
+async def _gated(agen):
+    """把流式响应包进闸门，闸门持有到**第一个回包**为止。
+
+    why 不持有整条流：瓶颈是请求体上行（Claude 每轮几十~几百 KB），token 回流只有
+    几 KB/s 量级。上传完成即释放，多路响应流可以重叠，排队成本最小。
+    """
+    gate = _gate()
+    if gate is None:
+        async for item in agen:
+            yield item
+        return
+    await gate.acquire()
+    held = True
+    try:
+        async for item in agen:
+            if held:
+                gate.release()
+                held = False
+            yield item
+    finally:
+        if held:
+            gate.release()
+
 
 @app.on_event("startup")
 async def on_startup():
@@ -1044,11 +1084,18 @@ async def messages(request: Request):
                 if fin:
                     yield fin
             _dump_and_summary("done" if sse_state.get("finished") else "unfinished")
-        return StreamingResponse(gen(), media_type="text/event-stream")
+        return StreamingResponse(_gated(gen()), media_type="text/event-stream")
     else:
-        r_status, r_text = await _upstream_post(
-            target_url, headers, upstream_body, host_header, extra_ext, use_win_curl
-        )
+        gate = _gate()
+        if gate is not None:
+            await gate.acquire()
+        try:
+            r_status, r_text = await _upstream_post(
+                target_url, headers, upstream_body, host_header, extra_ext, use_win_curl
+            )
+        finally:
+            if gate is not None:
+                gate.release()
         # status=0 是传输层失败（连不上/超时），与"上游明确回了个 4xx/5xx"要分开归因
         if r_status == 0:
             return JSONResponse({"error": "upstream timeout", "body": r_text[:300]}, status_code=529)
@@ -1098,6 +1145,7 @@ async def health():
         "upstream_key_set": bool(state.get("upstream_key")),
         "use_win_curl": state.get("use_win_curl", False),
         "skip_tls_verify": state.get("skip_tls_verify", False),
+        "max_concurrency": int(state.get("max_concurrency") or 0),
     }
 
 
@@ -1115,6 +1163,9 @@ def main():
     parser.add_argument("--skip-tls-verify", action="store_true",
                         default=os.environ.get("OPENAI_BRIDGE_SKIP_TLS_VERIFY", "").lower() in ("1", "true", "yes"),
                         help="跳过 upstream TLS 证书验证（SSH 隧道场景，hostname 是 127.0.0.1 但证书签给域名）")
+    parser.add_argument("--max-concurrency", type=int,
+                        default=int(os.environ.get("OPENAI_BRIDGE_MAX_CONCURRENCY", "0") or 0),
+                        help="同时在途的上游请求上限（0=不限）；慢链路用排队换可靠性")
     args = parser.parse_args()
 
     if not args.upstream:
@@ -1131,8 +1182,9 @@ def main():
     # 原始 upstream URL（IP 预解析前的），便于 ensure_bridge 字符串匹配
     state["upstream_original"] = os.environ.get("OPENAI_BRIDGE_UPSTREAM_ORIGINAL", args.upstream)
     state["skip_tls_verify"] = args.skip_tls_verify
+    state["max_concurrency"] = args.max_concurrency
 
-    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl} skip_tls_verify={args.skip_tls_verify}", flush=True)
+    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl} skip_tls_verify={args.skip_tls_verify} max_conc={args.max_concurrency}", flush=True)
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
