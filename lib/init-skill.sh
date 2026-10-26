@@ -369,7 +369,7 @@ link_skill_dir() {
         echo "skip"
     else
         run ln -s "$skill_dir" "$target"
-        [[ "$quiet" != "1" ]] && good "  $name: ✓" >&2
+        [[ "$quiet" != "1" ]] && good "  $name: ✓ 新建链接" >&2
         echo "link"
     fi
 }

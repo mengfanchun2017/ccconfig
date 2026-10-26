@@ -65,7 +65,9 @@ gh_latest_tag() {
         resp=$(curl -s --connect-timeout 5 --max-time 15 \
             "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null) || resp=""
         # 有 message 字段 = 401/403（限流/凭据问题），不是"仓库没有 release"
-        printf '%s' "$resp" | grep -q '"message"' && return 1
+        if printf '%s' "$resp" | grep -q '"message"'; then
+            return 1
+        fi
         tag=$(printf '%s' "$resp" | python3 -c \
             "import json,sys; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null) || tag=""
     fi
