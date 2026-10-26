@@ -512,10 +512,10 @@ update_gh() {
     info "当前版本: $current"
 
     local latest
-    latest=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/cli/cli/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "")
+    latest=$(gh_latest_tag cli/cli) || latest=""
 
     if [ -z "$latest" ]; then
-        warn "无法获取最新 GitHub CLI 版本（可能被限流），跳过"
+        warn "无法获取最新 GitHub CLI 版本（GitHub API 不可达或被限流），跳过"
         return 0
     fi
 
@@ -878,7 +878,7 @@ compatibility_check() {
     # gh: 检查新版本
     local gh_current gh_latest
     gh_current=$(get_live_version "gh")
-    gh_latest=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/cli/cli/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "")
+    gh_latest=$(gh_latest_tag cli/cli) || gh_latest=""
     if [ -n "$gh_current" ] && [ -n "$gh_latest" ] && [ "$gh_current" != "$gh_latest" ]; then
         info "GitHub CLI: $gh_current → v$gh_latest"
     fi
@@ -935,7 +935,7 @@ do_dry_run() {
     # gh
     local gh_current gh_target
     gh_current=$(get_live_version "gh")
-    gh_target=$(curl -s --connect-timeout 5 --max-time 10 https://api.github.com/repos/cli/cli/releases/latest 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name','').lstrip('v'))" 2>/dev/null || echo "?")
+    gh_target=$(gh_latest_tag cli/cli) || gh_target="?"
     check_component "GitHub CLI" "$gh_current" "$gh_target"
 
     # Claude Code

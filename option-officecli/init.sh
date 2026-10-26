@@ -72,9 +72,11 @@ banner() {
 }
 
 # ========== 获取最新版本 ==========
+# 走 lib/net.sh 的 gh_latest_tag：优先 gh api（已登录，5000 次/小时），
+# 匿名 curl 的 60 次/小时/IP 配额在"多 WSL + 多步骤共用出口 IP"下会被打爆，
+# 表现为 403 rate limit → 空 tag → 误报"无法获取最新版本"。
 get_latest_version() {
-    curl -sL --max-time 15 "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null | \
-        python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || echo ""
+    gh_latest_tag "$GITHUB_REPO" 1 || echo ""
 }
 
 # ========== libicu 依赖 ==========
@@ -145,9 +147,7 @@ install_officecli_binary() {
     # 候选 tag：API 最新 → latest（GitHub 的 latest 重定向不一定落对资产）
     local -a tags=()
     local api_tag
-    api_tag=$(curl -s --max-time 15 ${proxy:+-x "$proxy"} \
-        "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null \
-        | python3 -c "import json,sys; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || true)
+    api_tag=$(gh_latest_tag "$GITHUB_REPO" 1) || true
     [ -n "$api_tag" ] && tags+=("$api_tag")
     # API 拿不到 tag 才用 latest 兜底（GitHub 的 /releases/latest/ 会重定向到非
     # 二进制页，实测只回 9 字节 HTML，不能当主路径）
@@ -208,7 +208,12 @@ update_officecli() {
     info "  当前版本: ${current:-未安装/不可用}"
 
     local latest; latest=$(get_latest_version)
-    [ -z "$latest" ] && { bad "无法获取最新版本"; return 1; }
+    if [ -z "$latest" ]; then
+        # 区分"取不到 tag"与"真的没发布"：匿名 API 限流是最常见原因
+        bad "无法获取最新版本（GitHub API 不可达或被限流）"
+        info "  重试: gh auth status 确认已登录，或稍后再试"
+        return 1
+    fi
     info "  最新版本: $latest"
 
     # tag_name 带 v 前缀（v1.0.143），本地版本不带 → 统一去 v 比较
