@@ -34,6 +34,11 @@ result.json
 rows.json
 base-dump*.json
 *_dump.json
+# lark-cli Base 导出：文件名为 <table_id>_<日期>_<时间>_<序号>.{ndjson,manifest.json}
+# （2026-10-25 该类文件曾落到仓库根被 auto-sync 推上公开库，含真实 base_token/record_id/课程数据）
+tbl*_*.ndjson
+tbl*_*.manifest.json
+*.manifest.json
 
 # 临时文件
 *.tmp.*
