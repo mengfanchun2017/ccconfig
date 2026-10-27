@@ -99,7 +99,9 @@ jobs:
                    tests/test-openai-bridge.sh tests/test-secret-patterns.sh \
                    tests/test-skill-init.sh \
                    tests/test-ccprivate-boundary.sh \
-                   tests/test-ccprivate-sandbox-e2e.sh; do
+                   tests/test-ccprivate-sandbox-e2e.sh \
+                   tests/test-plugin-env-parity.sh \
+                   tests/test-plugin-install-e2e.sh; do
             echo "::group::$f"
             bash "$f" || { echo "FAILED: $f"; rc=1; }
             echo "::endgroup::"

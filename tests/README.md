@@ -77,6 +77,8 @@ bats tests/test-dry-run.bats
 | `test-skill-init.sh` | init-skill.sh 命令入口完整性 |
 | `test-ccprivate-boundary.sh` | 公开/私有仓边界：已删项（skill-local / templates/agents / usage / link 副本）不得复活，公开仓无凭据形状 |
 | `test-ccprivate-sandbox-e2e.sh` | 假 HOME + 假 ccprivate 跑真实 setup.sh：新机安装落盘本机三件套、幂等不覆盖用户键、老机升级清理残留副本并刷新 setup.sh |
+| `test-plugin-env-parity.sh` | 配置解析双语一致性：plugin_env.sh（bash）与 config_env.py（python）对 8 级优先级的每一级给出相同结果 |
+| `test-plugin-install-e2e.sh` | 真实 `/plugin install` 端到端（沙箱 CLAUDE_CONFIG_DIR）：27 个 plugin 全装、逐个认出自己、userConfig 值可读、缓存内无旧 config.yaml |
 | `test-bridge-protocol.py` | bridge 协议转换单元回归（块顺序/usage/tool_calls/finish_reason/字段丢失）。端到端用例只造 `content+[DONE]` 一种形态，协议层缺陷全在其盲区外，故单独成篇 |
 | `test-syntax.sh` | 语法检查（被 test-syntax.bats 替代） |
 
