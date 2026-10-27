@@ -55,7 +55,7 @@ grep -q '\[\[ "$_lite" == "1" \]\] || do_link_self_built' "$IS" \
 awk '/^do_sync\(\)/,/^}/' "$IS" | grep -q 'do_link_self_built' \
     && pass "do_sync 内仍含技能扫描（条件调用）" || fail "do_sync 技能扫描调用异常"
 # 标题统一无编号：CLI 依赖 / 配置覆盖 / 自建 skill 三个标题都不带 "阶段 x/4"
-for t in 'CLI 工具依赖（自建 skill deps.txt）' 'ccprivate 配置覆盖' 'symlink 自建 skill → ~/.claude/skills/'; do
+for t in 'CLI 工具依赖（自建 skill deps.txt）' 'ccprivate 配置接入' 'symlink 自建 skill → ~/.claude/skills/'; do
     grep -Fq "title \"$t\"" "$IS" && pass "无编号标题: $t" || fail "缺少无编号标题: $t"
 done
 grep -q 'title "阶段' "$IS" && fail "仍存阶段编号标题 (title 前缀)" || pass "无残留阶段编号标题"

@@ -504,10 +504,17 @@ do_install_third_party() {
     return 0
 }
 
-# ccprivate 配置覆盖（委托 ccprivate/bin/apply-config.sh）
+# ccprivate 配置接入（2026-10-27 起不再建 symlink）
+#
+# 旧做法是 apply-config.sh 把 ccprivate/skill/<name>.yaml symlink 到
+# <skill>/config.yaml。该通道对 `/plugin install` 用户必断（cache 副本里没有这个
+# symlink，git 也不跟踪它），故配置改由 ffeishu/references/plugin_env.sh 的
+# 8 级解析链直接读取 —— **无需安装期建链**。
+#
+# 现在只需调 apply-config.sh 清理老机器上遗留的旧 symlink（它已改成清理器）。
 do_apply_ccprivate_config() {
     local quiet="${INIT_ALL_FLOW:-0}"
-    title "ccprivate 配置覆盖"
+    title "ccprivate 配置接入"
 
     local apply_script="$CCPRIVATE_DIR/bin/apply-config.sh"
     if [[ -x "$apply_script" ]]; then
