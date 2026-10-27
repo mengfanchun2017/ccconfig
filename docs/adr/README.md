@@ -62,6 +62,7 @@
 | [0051](0051-tailscale-accept-routes-blackholes-office-intranet.md) | tailscale accept-routes 让单位内网变黑洞（0047 的反向：查了 AdvertiseRoutes 漏了 RouteAll）— 新增 `lib/tailscale-guard.sh` 按 preset 自动关 accept-routes，接入 switch_llm / maintain fix / status / option-remote | 2026-10-16 | ✅ Accepted | — |
 | [0052](0052-option-submenu-return-contract.md) | option 子菜单不再坠入 — `init-option.sh` 交互分支显式派发一次性子命令（getnote `install` / evalscope·skill·officecli·… `--install`），evalscope·skill 尾递归改 while，filepull 补 `--install` 且「已配置但离线」由 MISSING 降 WARN；顺带修 status 组件漏项与 `skill` 重复 | 2026-10-24 | ✅ Accepted | — |
 | [0053](0053-home-preset-derp-only-network-cap.md) | 某些网络位置下 home\* preset 只能走 DERP（~18KB/s）— 三层 NAT（两层本地 + 运营商 CGNAT）+ 对端对称 NAT + 对端国际出口被封 → P2P 无解；换 DERP 区/放宽超时均实测无效；新增 preset 字段 **`max_concurrency`**（bridge 并发闸，`home*`=1）把"并发必挂"变成"排队可用"（4×100KB：50% 失败 → 4/4），附一分钟判据 | 2026-10-27 | ✅ Accepted | — |
+| [0054](0054-external-harness-bridge-anthropic-only.md) | 外部 harness 接内网 LLM 只能走 bridge — 404 `{"detail":"Not Found"}`（FastAPI 签名）实为协议选错（`openai-responses` 打 bridge 无此路由）；https+IP 直连的死因是 **pi-ai 走官方 SDK、无 TLS 参数**且 dsh 源码硬拒 `NODE_TLS_REJECT_UNAUTHORIZED` 等 CA/TLS 名（连 home `.env` 都拒）→ 校验关不掉；定案 `api: anthropic-messages` + `http://127.0.0.1:<bridge-port>`（WSL mirrored 网络直达），附 `PI_AI_ERROR` 是兜底码、model 须用别名两条坑 | 2026-10-27 | ✅ Accepted | — |
 
 > **编号 0024 / 0025 未使用**：编号永不重用（见[命名约定](#命名约定)），这两号在 0023 之后被跳过、没有对应文件，也没有正文引用。新增 ADR 从**当前最大号 +1** 起，不要去填这个空档。
 >
