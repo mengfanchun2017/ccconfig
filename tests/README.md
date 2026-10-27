@@ -75,6 +75,8 @@ bats tests/test-dry-run.bats
 | `test-secret-patterns.sh` | 密钥正则单一真相源 + 消费方接线 |
 | `test-setup-link.sh` | setup_link 死链处理回归 |
 | `test-skill-init.sh` | init-skill.sh 命令入口完整性 |
+| `test-ccprivate-boundary.sh` | 公开/私有仓边界：已删项（skill-local / templates/agents / usage / link 副本）不得复活，公开仓无凭据形状 |
+| `test-ccprivate-sandbox-e2e.sh` | 假 HOME + 假 ccprivate 跑真实 setup.sh：新机安装落盘本机三件套、幂等不覆盖用户键、老机升级清理残留副本并刷新 setup.sh |
 | `test-bridge-protocol.py` | bridge 协议转换单元回归（块顺序/usage/tool_calls/finish_reason/字段丢失）。端到端用例只造 `content+[DONE]` 一种形态，协议层缺陷全在其盲区外，故单独成篇 |
 | `test-syntax.sh` | 语法检查（被 test-syntax.bats 替代） |
 
