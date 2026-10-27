@@ -111,12 +111,20 @@ check_link_content() {
     # ccconfig/templates/*.example 一次性 cp，不在本仓（要求它们在这会误报）。
     # 2026-10-27 起 link/*.example 副本已删 —— 模板唯一真相源 = ccconfig/templates/。
     local required=("CLAUDE.md")
-    local missing=()
+    local missing=() stale=()
     for f in "${required[@]}"; do
         [ -f "$CCPRIVATE/link/$f" ] || missing+=("$f")
     done
+    # 已废弃模板副本也算"需修"——否则老机器上的残留永远不会被清（见下方 fix）。
+    for f in settings.json .config.json .claudeignore; do
+        [ -f "$CCPRIVATE/link/$f.example" ] && stale+=("$f.example")
+    done
     if [ ${#missing[@]} -gt 0 ]; then
         echo -e "  ${YELLOW}⚠${NC}  link/ 缺少: ${missing[*]}"
+        return 1
+    fi
+    if [ ${#stale[@]} -gt 0 ]; then
+        echo -e "  ${YELLOW}⚠${NC}  link/ 有已废弃模板副本: ${stale[*]}"
         return 1
     fi
     return 0
@@ -314,7 +322,7 @@ if ! $AUTO_YES; then
     [ "${check_results[generated]}" = "fix" ] && echo "  • 迁移 conf/.generated/ → conf/"
     [ "${check_results[dirs]}" = "fix" ] && echo "  • 创建缺失目录"
     [ "${check_results[setup]}" = "fix" ] && echo "  • 更新 setup.sh (备份为 .bak)"
-    [ "${check_results[link]}" = "fix" ] && echo "  • 创建缺失的 link/ 文件"
+    [ "${check_results[link]}" = "fix" ] && echo "  • 补齐 link/ 文件 + 清理已废弃模板副本"
     echo "  • 重建所有符号链接"
     echo ""
     confirm "是否修复？" y || { info "已取消"; exit 0; }
