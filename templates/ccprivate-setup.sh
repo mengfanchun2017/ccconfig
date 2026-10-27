@@ -257,8 +257,11 @@ else
 fi
 
 # skill 实体 → ~/.claude/skills/（单源 ~/git/skill/plugins；skill-local 层已于 2026-10-27 删除）
-# link-only = 只建 symlink 不扫依赖，避免 init 阶段重复装包
-if [ -x "$CCCONFIG_DIR/lib/init-skill.sh" ]; then
+# link-only = 只建 symlink 不扫依赖，避免 init 阶段重复装包。
+# ⚠️ 必须用目录是否存在做守卫，不能用「目录非空」：init-skill 内部会 ensure_claude_skills
+# 去 git clone 源仓，源目录不存在时这一跳要等网络超时（实测离线机 +60s），
+# 而 setup.sh 的职责只是建链接 —— clone 该由 init-skill sync 自己做。
+if [ -x "$CCCONFIG_DIR/lib/init-skill.sh" ] && [ -d "${SKILL_SRC:-$HOME/git/skill/plugins}" ]; then
     bash "$CCCONFIG_DIR/lib/init-skill.sh" link-only
 fi
 

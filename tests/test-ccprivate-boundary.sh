@@ -46,6 +46,12 @@ _TPL="$REPO/templates/ccprivate-setup.sh"
 _no_pat "$_TPL" 'mkdir -p .*skill-local'   "setup.sh 模板不再 mkdir skill-local"
 _has_pat "$_TPL" 'install_user_file.*_TDIR|install_user_file.*templates' "setup.sh 模板从 ccconfig/templates 取本机文件模板"
 _no_pat "$_TPL" 'install_user_file.*SCRIPT_DIR/link/' "setup.sh 模板不再指 link/*.example"
+# link-only 调用必须带源目录守卫：init-skill 内部会 git clone 源仓，
+# 源目录不存在时裸调用要等网络超时（实测离线机 setup.sh 慢 60s）。
+_has_pat "$_TPL" 'link-only' "setup.sh 仍调用 link-only 建 skill 链接"
+# 守卫与调用不同行，故匹配 if 行本身（-x init-skill.sh 之后必须还有 -d 源目录条件）
+_has_pat "$_TPL" '\[ -x .*init-skill\.sh.*\] && \[ -d .*skill/plugins' \
+    "setup.sh 的 link-only 调用带源目录守卫（防离线超时）"
 
 _UPG="$REPO/lib/ccprivate-upgrade.sh"
 _no_pat "$_UPG" 'expected=.*skill-local'  "ccprivate-upgrade 不再把 skill-local 列为必备目录"
