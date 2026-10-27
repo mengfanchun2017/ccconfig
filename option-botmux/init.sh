@@ -100,22 +100,30 @@ do_status() {
 # ── 安装 ──
 do_install() {
     # section 标题由调用方（init-option.sh）打印，此处不再重复
+    # dry-run 判定放最前：已安装时也要能 dry-run 出"本该做什么"，
+    # 不能被 has_botmux 的 early-return 吃掉（否则 --dry-run 静默跑真实补链逻辑）。
+    if _dry_run_enabled "$@"; then
+        if has_botmux; then
+            echo "would: keep botmux $(botmux_version)（已装）"
+        else
+            echo "would: npm install -g botmux"
+        fi
+        echo "would: link ~/.local/bin/botmux"
+        return 0
+    fi
+
     if has_botmux; then
         ok "已安装: $(botmux_version)"
     else
         # npm 官方分发：主包是纯分发壳，真正的 133MB 单文件二进制由平台子包
         # （botmux-linux-x64）提供，走 optionalDependencies。装包较大且较慢。
-        if _dry_run_enabled "$@"; then
-            echo "would: npm install -g botmux"
-        else
-            info "npm install -g botmux（含 ~130MB 平台二进制，需 1-2 分钟）…"
-            run npm install -g botmux --no-audit --no-fund || {
-                err "npm 安装失败"
-                info "备用: curl -fsSL https://raw.githubusercontent.com/deepcoldy/botmux/master/install.sh | sh"
-                return 1
-            }
-            ok "安装完成: $(botmux_version)"
-        fi
+        info "npm install -g botmux（含 ~130MB 平台二进制，需 1-2 分钟）…"
+        run npm install -g botmux --no-audit --no-fund || {
+            err "npm 安装失败"
+            info "备用: curl -fsSL https://raw.githubusercontent.com/deepcoldy/botmux/master/install.sh | sh"
+            return 1
+        }
+        ok "安装完成: $(botmux_version)"
     fi
 
     # npm prefix bin 不一定在 PATH（ccconfig 约定 ~/.local/bin），补链接
