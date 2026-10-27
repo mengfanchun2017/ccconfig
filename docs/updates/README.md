@@ -12,3 +12,4 @@
 | 2026-09-20 | [状态域恢复分类](20260920-status-restore-category.md) | 「状态」域重构 + 一键恢复。⚠️ 菜单编号已被 [20261018 菜单重构](20261018-menu-restructure.md) 推翻，保留作设计记录 |
 | 2026-09-20 | [移除 ccbridge 菜单项](20260920-drop-ccbridge-menu-entries.md) | 删 `lib/menu-feishu.sh`，ccbridge 转独立仓 |
 | 2026-10-18 | [菜单重构](20261018-menu-restructure.md) | 6 域 31 项的新菜单结构（取代 20260920 的编号） |
+| 2026-10-27 | [新增 option-botmux](20261027-add-option-botmux.md) | 飞书 ↔ AI 编程 CLI 桥接入；弃用 ccbridge（上游停更 2 月、272 open issues），ccbridge 仓保留作参考 |

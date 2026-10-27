@@ -403,6 +403,39 @@ update_npm_globals() {
         info "mmx-cli 未安装，跳过"
     fi
 
+    # botmux：飞书 ↔ AI 编程 CLI 桥（option-botmux）。同 lark-cli/mmx 模式：
+    # npm 全局包 + $LOCAL_BIN symlink（Node 升级后 symlink 会断，需重建）。
+    # 优先走 botmux 自带 upgrade（会校验平台子包/自更新通道），失败再回落 npm。
+    if command -v botmux &>/dev/null || [ -L "$LOCAL_BIN/botmux" ]; then
+        local bm_before bm_latest
+        bm_before=$(botmux --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+        info "botmux 当前: $bm_before"
+        bm_latest=$(npm view botmux version 2>/dev/null || echo "")
+        if [ -n "$bm_latest" ] && [ "$bm_before" = "$bm_latest" ] && [ "$bm_before" != "?" ]; then
+            success "botmux 已是最新: $bm_latest"
+        elif run botmux upgrade 2>&1 | tail -3; then
+            local bm_after
+            bm_after=$(botmux --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "?")
+            if [ "$bm_before" != "$bm_after" ]; then
+                success "botmux: $bm_before → $bm_after"
+                updated=$((updated + 1))
+            else
+                success "botmux 已是最新: $bm_after"
+            fi
+        elif ! npm install -g botmux@latest 2>&1 | tail -3; then
+            warn "botmux 更新失败（可试 npm install -g botmux --force）"
+        else
+            success "botmux 已通过 npm 更新"
+        fi
+        # npm 把可执行文件放在当前 Node 的 bin 下，$LOCAL_BIN 的 symlink 需重指
+        if [ -x "$node_bin/botmux" ]; then
+            run rm -f "$LOCAL_BIN/botmux"
+            run ln -sf "$node_bin/botmux" "$LOCAL_BIN/botmux"
+        fi
+    else
+        info "botmux 未安装，跳过"
+    fi
+
     echo ""
     if [ $updated -gt 0 ]; then
         success "npm 全局包更新完成"

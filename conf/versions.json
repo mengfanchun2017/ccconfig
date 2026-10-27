@@ -44,6 +44,13 @@
       "check_url": "https://registry.npmjs.org/mmx-cli",
       "_note": "Token Plan 官方 CLI"
     },
+    "botmux": {
+      "version": "latest",
+      "package": "botmux",
+      "install": "npm install -g botmux",
+      "check_url": "https://registry.npmjs.org/botmux",
+      "_note": "飞书 ↔ AI 编程 CLI 桥（option-botmux）。主包为分发壳，二进制由平台子包 botmux-linux-x64 提供；运行不依赖本机 Node。升级亦可 botmux upgrade"
+    },
     "claude": {
       "version": "2.1.310"
     }
