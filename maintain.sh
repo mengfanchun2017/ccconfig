@@ -115,6 +115,13 @@ ensure_runtime_deps() {
     return 0
 }
 
+# 5G botmux 桥状态。吞掉 option 的三态退出码（OK=0/WARN=1/MISSING=2）——
+# WARN 是「已装未配置/daemon 没跑」的正常表述，不是失败，不该让菜单报
+# 「执行失败」（见 SH-MENU-CONVENTIONS 的 set -e 陷阱）。
+do_botmux_status() {
+    bash "$CCCONFIG_DIR/option-botmux/init.sh" --status || true
+}
+
 # 1C 高权限开启：claudeby 说明 + 本机 alias 状态检查。
 # 不自动改用户文件 —— 打印该有的行，让用户自己加/更新（老版本手写在 bashrc 的旧定义尤其要手工换）。
 do_highpriv() {

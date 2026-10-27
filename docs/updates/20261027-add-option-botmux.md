@@ -44,6 +44,12 @@ ccbridge 是 npm 包 `lark-channel-bridge` 的管理壳，其上游 **已停更�
 
 **新增 `tests/test-botmux-option.sh`**（18 项）：语法/可执行、`--status` 契约（首行格式 + 退出码 0/1/2 + 无 ANSI）、接线完整性、旧名转发、ccbridge 已摘除、dry-run 安全、非 TTY 不阻塞。
 
+## 接线途中修掉的两处坑
+
+1. **`other_list` 重复显示**：`lib/status.sh` 的 `--other--` 组由 `ls option-*/` 自动发现，排除名单是手写的 `grep -vE '^(larkcli|getnote|…)$'`。新增 botmux 后没加进排除名单 → 它同时出现在 `--lark--` 和 `--other--`。已补 `botmux`。
+
+2. **菜单 action 里不能出现 `|`**：botmux 状态项要把三态退出码（WARN=1/MISSING=2）吞掉，否则菜单报「执行失败」。第一版写成 `… --status || true` —— **`|` 是 `MENU_ENTRIES` 的 5 字段分隔符**，直接撕裂 schema（`tests/test-maintain.sh` §4 抓出"字段数不对"）。第二版写 `bash -c "…; exit 0"` 也不行：§6 校验 action 首词必须是**已定义函数名**或 `bash "$VAR/path"` 形式。最终解 = 在 `maintain.sh` 定义 `do_botmux_status()` 包装函数（吞退出码），action 引用它 —— 与既有 `do_highpriv` / `do_self` 同模式。
+
 ## ccbridge 的处置
 
 **仓库保留不动**（`~/git/ccbridge`，用户要求作参考）；`lib/sync.sh` 的 `PERSONAL_REPOS` 仍含 `ccbridge`（仓库还在、仍会同步）。ccconfig 侧**不再有任何 ccbridge 接线**，仅 `init-option.sh` 保留一条旧名 `larkbridge` → botmux 的转发（防既有脚本/肌肉记忆报"未知选项"）。

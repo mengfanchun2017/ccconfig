@@ -91,10 +91,9 @@ MENU_ENTRIES=(
     "5|F|getnote OAuth 授权|bash option-getnote/init.sh auth|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" auth"
     # botmux = 飞书 ↔ AI 编程 CLI 桥（取代已停更的 ccbridge）。通信/会话归 botmux daemon，
     # 这里是运维入口：状态、启动、会话、Dashboard。
-    # 状态项：WARN（未配置/daemon 没跑）是正常输出而非失败。action 里不能写
-    # 「|| true」的管道式兜底 —— '|' 是 MENU_ENTRIES 的字段分隔符，会撕裂 schema。
-    # 改用外层 bash -c 包裹（命令里不再出现裸 '|'）。
-    "5|G|botmux 桥状态|bash option-botmux/init.sh --status|bash -c \"bash \\\"\$CCCONFIG_DIR/option-botmux/init.sh\\\" --status; exit 0\""
+    # 状态项：WARN（未配置/daemon 没跑）是正常输出而非失败。action 走 do_botmux_status
+    # 包装函数（吞三态退出码）—— 不能写「|| true」，'|' 会撕裂 MENU_ENTRIES 的字段 schema。
+    "5|G|botmux 桥状态|bash option-botmux/init.sh --status|do_botmux_status"
     "5|H|botmux 启动|bash option-botmux/init.sh start|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" start"
     "5|I|botmux 会话列表|bash option-botmux/init.sh sessions|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" sessions"
 
