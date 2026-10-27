@@ -164,21 +164,18 @@ PY
 
     # MEMORY.md — 检查项目级 memory 基础设施
     # memory 内容由 Claude Code 自动管理，这里只检查 symlink 链路是否就绪
+    # 实际链路（2026-10-27 核对 setup.sh）：ccprivate/link/memory →
+    # ~/.claude/projects/<ccconfig-id>/memory，**不是** 整个 projects 目录。
+    # 旧代码查 link/projects（v2 写法，早已不存在）→ 恒判失败，误导排查。
     local mem_ok=false
-    if [ -L "$HOME/.claude/projects" ]; then
-        # ccprivate 创建的 symlink：~/.claude/projects → ccprivate/link/projects
-        local mem_target=$(readlink "$HOME/.claude/projects" 2>/dev/null)
-        if [ -d "$HOME/.claude/projects" ]; then
-            mem_ok=true
-        fi
-    elif [ -d "$HOME/.claude/projects" ]; then
-        # Claude Code 自动创建了 projects 目录
+    local _cid; _cid="$(echo "$HOME/git/ccconfig" | tr '/' '-')"
+    if [ -L "$HOME/.claude/projects/$_cid/memory" ] && [ -e "$HOME/.claude/projects/$_cid/memory" ]; then
         mem_ok=true
-    elif [ -d "$CCPRIVATE_HOME/link/projects" ]; then
-        # ccprivate/link/projects 链路存在
-        # ~/.claude/projects 尚未创建（新装，Claude Code 未运行过）
+    elif [ -d "$CCPRIVATE_HOME/link/memory" ] && [ ! -d "$HOME/.claude/projects/$_cid/memory" ]; then
+        # ccprivate 侧就绪，但 ~/.claude 侧链接未建（新装 / Claude 未运行过）
         mem_ok=true
     fi
+    unset _cid
     if $mem_ok; then
         echo -e "  ${GREEN}✅${NC} MEMORY.md"
     else
@@ -279,14 +276,25 @@ check_ccprivate_structure() {
     fi
 
     # --- link/ 内容 ---
-    # 只查共享文件 + .example 模板；settings.json/.config.json 是本机文件（gitignore），
-    # 不跨机同步，要求它们在 link/ 下会误报。
+    # 只查共享文件。本机三件套（settings.json/.config.json/.claudeignore）**不在本仓**：
+    # 模板唯一真相源是 ccconfig/templates/*.example，setup.sh 直接从那里 cp 到 ~/.claude/。
+    # 2026-10-27 起 link/*.example 副本已删 —— 此前本检查把那些副本当"必需"，
+    # 而 ccprivate-upgrade 把同样的文件当"废弃副本"报警，两处口径直接矛盾（会反复报修不好）。
     local missing_links=()
-    for f in "CLAUDE.md" "settings.json.example" ".config.json.example" ".claudeignore.example"; do
+    for f in "CLAUDE.md"; do
         [ -f "$ccpriv/link/$f" ] || missing_links+=("$f")
     done
     if [ ${#missing_links[@]} -gt 0 ]; then
         echo -e "  ${YELLOW}⚠${NC}  link/ 缺少: ${missing_links[*]}"
+        issues=$((issues + 1))
+    fi
+    # 反向检查：已废弃的模板副本若还在，提示清理（老机器升级后会残留）
+    local stale_links=()
+    for f in settings.json .config.json .claudeignore; do
+        [ -f "$ccpriv/link/$f.example" ] && stale_links+=("$f.example")
+    done
+    if [ ${#stale_links[@]} -gt 0 ]; then
+        echo -e "  ${YELLOW}⚠${NC}  link/ 有已废弃模板副本: ${stale_links[*]}（bash maintain.sh fix 清理）"
         issues=$((issues + 1))
     fi
 

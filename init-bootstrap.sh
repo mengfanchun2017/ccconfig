@@ -558,12 +558,14 @@ do_create() {
     collect_info || return 1
 
     section "创建目录结构"
+    # 与 ccprivate-upgrade.sh 的 expected 列表保持一致（两处都改才算对齐）。
+    # link/projects 是 v2 写法，setup.sh 早已改链 <id>/memory；skill-config 是个
+    # 从未被读过的空目录（真实配置统一在 conf/），都不再创建。
     mkdir -p "$CCPRIVATE_DIR/conf"
-    mkdir -p "$CCPRIVATE_DIR/skill-config"
     mkdir -p "$CCPRIVATE_DIR/rules"
     mkdir -p "$CCPRIVATE_DIR/agents"
     mkdir -p "$CCPRIVATE_DIR/commands"
-    mkdir -p "$CCPRIVATE_DIR/link/projects"
+    mkdir -p "$CCPRIVATE_DIR/bin"
     mkdir -p "$CCPRIVATE_DIR/link/memory"
     touch "$CCPRIVATE_DIR/link/memory/.gitkeep"
 

@@ -25,6 +25,12 @@ for arg in "${@}"; do
     case "$arg" in
         --check-only) CHECK_ONLY=true ;;
         --yes|-y) AUTO_YES=true ;;
+        # 未知参数必须报错退出：此前静默忽略，把 `--check`（少个 -only）当成
+        # "无参数 = 修复模式" → 本意只读的检查把文件真删了（实测踩过）。
+        -h|--help)
+            sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
+            exit 0 ;;
+        *) echo "未知参数: $arg（支持 --check-only / --yes）" >&2; exit 2 ;;
     esac
 done
 
