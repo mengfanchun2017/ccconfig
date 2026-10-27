@@ -592,13 +592,8 @@ do_create() {
         fi
     done
 
-    # 复制 agents 模板
-    for example in "$CCCONFIG_DIR"/templates/agents/*.md.example; do
-        [[ -f "$example" ]] || continue
-        local base; base=$(basename "$example" .md.example)
-        local target="$CCPRIVATE_DIR/agents/$base.md"
-        [[ ! -f "$target" ]] && cp "$example" "$target" && info "agents/$base.md (从模板)"
-    done
+    # agents 模板链已删（2026-10-27）：agent 实体放公开 skill plugin，
+    # 不再从 templates/agents 复制到私有仓。
 
     section "初始化 Git"
     # 确保 git 身份已配

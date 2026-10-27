@@ -193,10 +193,11 @@ do_setup() {
     local ccpriv="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
     _fix_failed=0
 
-    # 顺序要紧：必须先升级 ccprivate 结构与模板，再跑 setup.sh。
-    # setup.sh 补 settings 缺键用的是 ccprivate/link/settings.json.example，
-    # 那份模板只有 ccprivate-upgrade 会刷新 —— 反过来的话，status 用新模板
-    # 报缺键、setup 用旧模板补不上，键看着"修了"其实没进来。
+    # 顺序要紧：必须先升级 ccprivate 结构，再跑 setup.sh（setup.sh 本身来自
+    # templates/ccprivate-setup.sh，由本步 cp 刷新）。
+    # 本机文件模板唯一真相源是 ccconfig/templates/*.example，setup.sh 直接从那里取；
+    # 此前 link/*.example 是独立副本，两边会漂移（status 用新模板报缺键、setup 用旧
+    # 模板补不上），2026-10-27 已删副本，这个失配面随之消失。
     section "1. ccprivate 结构与模板刷新（前置）"
     _fix_step "ccprivate 结构升级" bash "$LIB_DIR/ccprivate-upgrade.sh" --yes
 
@@ -208,7 +209,7 @@ do_setup() {
         _fix_step "重建公开符号链接（ccprivate/setup.sh 不可用）" bash "$LIB_DIR/setup-links.sh"
     fi
 
-    local expected_dirs=("skill" "skill-local" "rules" "agents" "commands" "bin")
+    local expected_dirs=("skill" "rules" "agents" "commands" "bin")
     local created=false
     for d in "${expected_dirs[@]}"; do
         if [[ ! -d "$ccpriv/$d" ]]; then

@@ -167,20 +167,24 @@ PYEOF
     fi
 }
 
-install_user_file "$CLAUDE_DIR/.config.json"  "$SCRIPT_DIR/link/.config.json.example"  ".config.json"
-install_user_file "$CLAUDE_DIR/.claudeignore" "$SCRIPT_DIR/link/.claudeignore.example" ".claudeignore"
-install_user_file "$CLAUDE_DIR/settings.json" "$SCRIPT_DIR/link/settings.json.example" "settings.json"
+# 模板唯一真相源 = ccconfig/templates/*.example（公开、可演进）。
+# ccprivate/link/*.example 是历史遗留副本，实测与 templates 逐字节相同（2026-10-27 已删），
+# setup.sh 不再从那里取 —— 否则 cp 不到就直接跳过本机文件，新机静默缺 settings.json。
+_TDIR="$CCCONFIG_DIR/templates"
+if [ ! -d "$_TDIR" ]; then
+    warn "模板目录不存在（$_TDIR），本机文件跳过；先确认 ccconfig 已 clone"
+fi
+
+install_user_file "$CLAUDE_DIR/.config.json"  "$_TDIR/.config.json.example"  ".config.json"
+install_user_file "$CLAUDE_DIR/.claudeignore" "$_TDIR/.claudeignore.example" ".claudeignore"
+install_user_file "$CLAUDE_DIR/settings.json" "$_TDIR/settings.json.example" "settings.json"
+unset _TDIR
 
 # ============================================================
 # 2. ccprivate 私有配置 — 由 resolve_conf() 直接读 ccprivate/conf/
 #    无需中间目录。ccconfig/ 零 symlink。
 # ============================================================
 info "ccconfig 私有配置: ccconfig 脚本通过 resolve_conf() 直接读 ccprivate/conf/"
-
-# 私有 skill 实体目录（不开源，跨机器同步）
-mkdir -p "$SCRIPT_DIR/skill-local"
-[ -f "$SCRIPT_DIR/skill-local/.gitkeep" ] || touch "$SCRIPT_DIR/skill-local/.gitkeep"
-info "私有 skill 目录: $SCRIPT_DIR/skill-local/（用户自建 skill 存放处）"
 
 # ============================================================
 # 3. 用户级 memory symlink（动态计算 project ID，不硬编码用户名）
@@ -252,9 +256,9 @@ else
     warn "ccconfig/lib/setup-links.sh 不存在，跳过（请确认 ccconfig 已 clone）"
 fi
 
-# 注册私有 skill 到 ~/.claude/skills/
-if [ -x "$CCCONFIG_DIR/lib/init-skill.sh" ] && [ -d "$SCRIPT_DIR/skill-local" ] && ls "$SCRIPT_DIR/skill-local"/*/ &>/dev/null; then
-    info "私有 skill → ~/.claude/skills/"
+# skill 实体 → ~/.claude/skills/（单源 ~/git/skill/plugins；skill-local 层已于 2026-10-27 删除）
+# link-only = 只建 symlink 不扫依赖，避免 init 阶段重复装包
+if [ -x "$CCCONFIG_DIR/lib/init-skill.sh" ]; then
     bash "$CCCONFIG_DIR/lib/init-skill.sh" link-only
 fi
 

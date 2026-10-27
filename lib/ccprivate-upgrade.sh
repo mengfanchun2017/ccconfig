@@ -63,7 +63,9 @@ check_generated_dir() {
 }
 
 check_directories() {
-    local expected=("skill" "skill-local" "rules" "agents" "commands" "bin" "link/memory")
+    # skill-local 已删（2026-10-27）：私有 skill 机制从未被使用（目录长期只有 .gitkeep），
+    # 实体统一放公开的 ~/git/skill/plugins。此处再要求它会每次 status 报缺目录。
+    local expected=("skill" "rules" "agents" "commands" "bin" "link/memory")
     local missing=()
     for d in "${expected[@]}"; do
         [ -d "$CCPRIVATE/$d" ] || missing+=("$d")
@@ -105,9 +107,10 @@ check_setup_sh_version() {
 }
 
 check_link_content() {
-    # link/ 只放共享文件 + .example 模板；settings.json/.config.json 是本机文件，
-    # 存在但不跨机同步（gitignore），要求它们在 link/ 下会误报。查 .example 模板即可。
-    local required=("CLAUDE.md" "settings.json.example" ".config.json.example" ".claudeignore.example")
+    # link/ 只放共享文件；settings.json/.config.json/.claudeignore 是本机文件，从
+    # ccconfig/templates/*.example 一次性 cp，不在本仓（要求它们在这会误报）。
+    # 2026-10-27 起 link/*.example 副本已删 —— 模板唯一真相源 = ccconfig/templates/。
+    local required=("CLAUDE.md")
     local missing=()
     for f in "${required[@]}"; do
         [ -f "$CCPRIVATE/link/$f" ] || missing+=("$f")
@@ -148,7 +151,7 @@ fix_generated_dir() {
 }
 
 fix_directories() {
-    local dirs=("skill" "skill-local" "rules" "agents" "commands" "bin" "link/memory")
+    local dirs=("skill" "rules" "agents" "commands" "bin" "link/memory")
     for d in "${dirs[@]}"; do
         if [ ! -d "$CCPRIVATE/$d" ]; then
             mkdir -p "$CCPRIVATE/$d"
@@ -204,16 +207,15 @@ fix_link_content() {
             return 1
         fi
     fi
-    # 本机文件（LLM 选择/会话配置/context 策略）不跨机同步，只放 .example 模板
+    # 本机文件（LLM 选择/会话配置/context 策略）的模板唯一真相源是
+    # ccconfig/templates/*.example，setup.sh 直接从那里 cp。此前这里往
+    # ccprivate/link/ 复制一份副本 → 两处模板必然漂移，2026-10-27 已删副本。
+    # 残留清理：老机器升级时把历史副本移除（setup.sh 已不读它们）。
     local f
     for f in settings.json .config.json .claudeignore; do
-        if [ -f "$CCCONFIG_DIR/templates/$f.example" ]; then
-            cp "$CCCONFIG_DIR/templates/$f.example" "$CCPRIVATE/link/$f.example"
-        else
-            warn "模板缺失: $CCCONFIG_DIR/templates/$f.example"
-        fi
+        [ -f "$CCPRIVATE/link/$f.example" ] && rm -f "$CCPRIVATE/link/$f.example"
     done
-    ok "link/*.example 模板就绪"
+    ok "link/ 就绪（模板统一走 ccconfig/templates/）"
 }
 
 fix_symlinks() {

@@ -12,8 +12,8 @@
 #   bash ccconfig/lib/example-sync.sh sync              # 非交互自动同步（仅新增）
 #
 # 文件匹配规则：
-#   ccconfig/templates/agents/<name>.md.example →  ccprivate/agents/<name>.md
 #   ccconfig/conf/<name>.json.example       →  ccprivate/conf/<name>
+# （templates/agents 这条链已删，2026-10-27 —— agent 实体放公开 skill 仓，不再走模板）
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,10 +31,7 @@ source "$SCRIPT_DIR/colors.sh"
 derive_ccprivate() {
     local example="$1"
     local rel="${example#$CCCONFIG_ROOT/}"
-    if [[ "$rel" == templates/agents/*.md.example ]]; then
-        local base; base=$(basename "$example" .md.example)
-        echo "$CCPRIVATE/agents/${base}.md"
-    elif [[ "$rel" == conf/*.example ]]; then
+    if [[ "$rel" == conf/*.example ]]; then
         local base; base=$(basename "$example" .example)
         echo "$CCPRIVATE/conf/$base"
     fi
@@ -44,10 +41,7 @@ derive_ccprivate() {
 derive_example() {
     local ccprivate_file="$1"
     local rel="${ccprivate_file#$CCPRIVATE/}"
-    if [[ "$rel" == agents/*.md ]]; then
-        local base; base=$(basename "$ccprivate_file" .md)
-        echo "$CCCONFIG_ROOT/templates/agents/${base}.md.example"
-    elif [[ "$rel" == conf/* ]]; then
+    if [[ "$rel" == conf/* ]]; then
         local base; base=$(basename "$ccprivate_file")
         echo "$CCCONFIG_ROOT/conf/${base}.example"
     fi
@@ -104,8 +98,9 @@ confirm_sync() {
 # 交给 conf-diff-classify.py 判定，不再当"需要同步"警告。agents/*.md 非 JSON 走 diff。
 collect_diffs() {
     local -n _outdated="$1" _new="$2" _normal="$3"
+    # templates/agents 已删（2026-10-27）：agent 实体统一放公开的 ~/git/skill plugin，
+    # 纯个人 agent 直接写 ccprivate/agents/，不再走"模板→私有"这条同步链。
     local mapping=(
-        "templates/agents:agents:.md.example:.md"
         "conf:conf:.json.example:.json"
     )
 

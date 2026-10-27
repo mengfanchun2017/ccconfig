@@ -820,36 +820,17 @@ check_example_sync() {
     echo ""
     echo -e "${CYAN}━━━ 模板同步━━━${NC}"
 
-    # agents 检查
-    local agents_outdated=0 agents_new=0 agents_added=0
-    for example in "$ccconfig_example/agents/"*.md.example; do
-        [ -f "$example" ] || continue
-        local base=$(basename "$example" .md.example)
-        local target="$ccpriv/agents/${base}.md"
-        if [ ! -f "$target" ]; then
-            agents_new=$((agents_new + 1))
-        elif ! diff -q "$example" "$target" &>/dev/null; then
-            agents_outdated=$((agents_outdated + 1))
-        fi
-    done
-    agents_added=0
+    # agents 检查：模板链已删（2026-10-27）。ccprivate/agents/ 现在是"直接维护"目录，
+    # 不做模板 diff（无模板可比）。只报数量，避免静默空目录。
+    local agents_count=0
     for f in "$ccpriv/agents/"*.md; do
         [ -f "$f" ] || continue
-        base=$(basename "$f" .md)
-        [ -f "$ccconfig_example/agents/${base}.md.example" ] || agents_added=$((agents_added + 1))
+        agents_count=$((agents_count + 1))
     done
-
-    local out=""
-    [ $agents_outdated -gt 0 ] && out="${out}${YELLOW}${agents_outdated} 过期${NC} "
-    [ $agents_new -gt 0 ] && out="${out}${CYAN}${agents_new} 新增${NC} "
-    [ $agents_added -gt 0 ] && out="${out}${GRAY}${agents_added} 独有${NC} "
-    [ -z "$out" ] && out="${GREEN}✅ 同步${NC}"
-    echo -e "  agents: $out"
-
-    local needs_action=$((agents_outdated + agents_new))
-    if [ $needs_action -gt 0 ]; then
-        echo ""
-        echo -e "  ${GRAY}运行: bash maintain.sh example promote${NC}"
+    if [ $agents_count -eq 0 ]; then
+        echo -e "  agents: ${GRAY}空（agent 实体建议放 ~/git/skill plugin）${NC}"
+    else
+        echo -e "  agents: ${GRAY}${agents_count} 个（直接维护，无模板链）${NC}"
     fi
 
     # conf 新增模板检测

@@ -75,20 +75,8 @@ do_cconfig_post() {
     [ $found -eq 0 ] && echo -e "  ${GRAY}无新配置模板${NC}" || echo -e "  ${YELLOW}⚠️ 请编辑新配置文件填入个人凭证${NC}"
 
 
-    # agents 新模板检测
-    local agents_found=0
-    for example in "$CCCONFIG_ROOT"/templates/agents/*.md.example; do
-        [ -f "$example" ] || continue
-        local base=$(basename "$example" .md.example)
-        local target="$ccpriv/agents/$base.md"
-        if [ ! -f "$target" ]; then
-            mkdir -p "$ccpriv/agents"
-            cp "$example" "$target"
-            echo -e "  ${GREEN}✅${NC} 新建 agents/$base.md (→ ccprivate/agents/)"
-            agents_found=1
-        fi
-    done
-    [ $agents_found -eq 0 ] || echo -e "  ${GRAY}agents 新模板已复制到 ccprivate${NC}"
+    # agents 模板链已删（2026-10-27）：agent 实体统一放公开 skill plugin 或
+    # 直接写 ccprivate/agents/，不再有"公开模板 → 私有实例"这一步。
     echo ""
     echo -e "${CYAN}── 依赖检查 ──${NC}"
     [ -x "$SCRIPT_DIR/deps-check.sh" ] && bash "$SCRIPT_DIR/deps-check.sh" --required

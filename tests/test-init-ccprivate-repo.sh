@@ -174,8 +174,13 @@ grep -q '.lark-default-account' "$SETUP_TPL" \
   && pass "模板含 .lark-default-account" || fail "模板缺 .lark-default-account"
 grep -q '.claudeignore' "$SETUP_TPL" \
   && pass "模板含 .claudeignore" || fail "模板缺 .claudeignore"
-grep -q 'skill-local' "$SETUP_TPL" \
-  && pass "模板含 skill-local" || fail "模板缺 skill-local"
+# 反向断言：skill-local 层已废弃（2026-10-27 删）。模板不得再 mkdir 它 ——
+# 只允许在注释里提及"已删除"。下面匹配的是真正的建目录调用。
+grep -qE 'mkdir -p .*skill-local' "$SETUP_TPL" \
+  && fail "模板仍创建已废弃的 skill-local 目录" || pass "模板不再创建 skill-local（已删）"
+# 反向断言：本机文件模板唯一真相源是 ccconfig/templates/，不得再指 link/*.example
+grep -qE 'install_user_file.*SCRIPT_DIR/link/' "$SETUP_TPL" \
+  && fail "模板仍从 link/*.example 取模板（应走 templates/）" || pass "模板从 templates/ 取本机文件模板"
 grep -q "tr '/' '-'" "$SETUP_TPL" \
   && pass "模板 memory 用 tr 动态 ID" || fail "模板 memory 未用 tr 动态 ID"
 # 反向断言：should-compact.md 已废弃（ccconfig/commands/ 目录已删），模板不应再建其链接
