@@ -259,22 +259,9 @@ micloud_root() {
     return 1
 }
 
-# ========== ccbridge 路径解析 ==========
+# ========== 飞书桥路径解析 ==========
 
-# 验证 CCBRIDGE_HOME 存在
-# 用法: CCBRIDGE_HOME="$(resolve_ccbridge)" 或直接 ${CCBRIDGE_HOME:-$HOME/git/ccbridge}
-# 返回: 输出绝对路径; 找不到则报错
-resolve_ccbridge() {
-    local dir="${CCBRIDGE_HOME:-$HOME/git/ccbridge}"
-    if [ -f "$dir/init.sh" ]; then
-        echo "$dir"
-        return 0
-    fi
-    echo "" >&2
-    echo "[path-helper] ccbridge 未安装: $dir" >&2
-    echo "[path-helper] 请先克隆: git clone https://github.com/mengfanchun2017/ccbridge.git $dir" >&2
-    echo "" >&2
-    return 1
-}
+# botmux 由 npm 全局安装（自包含二进制），无需路径解析 —— 走 PATH 查找即可（command -v botmux）。
+# 已弃用的 ccbridge（~/git/ccbridge）不再被 ccconfig 引用；旧 resolve_ccbridge 无调用方，已移除。
 
 # 确保 PATH 包含正确的 Node 和 local bin

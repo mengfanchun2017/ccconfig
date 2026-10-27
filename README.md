@@ -88,6 +88,8 @@ flowchart TB
   subgraph optDir["option-*/ — 可选组件"]
     optLarkcli["option-larkcli/
     飞书 CLI"]
+    optBotmux["option-botmux/
+    飞书↔AI CLI 桥"]
     optOfficecli["option-officecli/
     Office 工具"]
     optCloudflare["option-cloudflare/
@@ -123,8 +125,9 @@ flowchart TB
   maintain --> ccprivUp
   maintain --> exampleSync
 
-  %% init-option 调用关系（larkbridge 委托外部仓 ccbridge，此处不画）
+  %% init-option 调用关系
   initOption --> optLarkcli
+  initOption --> optBotmux
   initOption --> optOfficecli
   initOption --> optCloudflare
   initOption --> optRemote
@@ -212,6 +215,7 @@ ccconfig/
 │   └── settings.json.example # Claude Code 配置模板
 │
 ├── option-larkcli/           # 可选：飞书 lark-cli
+├── option-botmux/            # 可选：botmux 飞书 ↔ AI 编程 CLI 桥
 ├── option-officecli/         # 可选：Office CLI（PPT/docx/xlsx）
 ├── option-cloudflare/        # 可选：Cloudflare 开发环境
 ├── option-remote/            # 可选：Tailscale + SSH 远程

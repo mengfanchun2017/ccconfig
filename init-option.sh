@@ -42,7 +42,7 @@ MENU_GROUPS=(
     "--Claude--|skill"
     "--浏览器自动化--|playwright"
     "--文档解析--|mineru"
-    "--飞书--|larkcli"
+    "--飞书--|larkcli botmux"
     "--其他--|officecli remote cloudflare getnote filepull evalscope"
 )
 
@@ -248,7 +248,7 @@ list_all() {
 _interactive_install_args() {
     case "$1" in
         getnote)  echo "install" ;;
-        evalscope|skill|officecli|mineru|playwright|cloudflare|filepull)
+        evalscope|skill|officecli|mineru|playwright|cloudflare|filepull|botmux)
                   echo "--install" ;;
         *)        echo "" ;;
     esac
@@ -288,30 +288,11 @@ install_option() {
         fi
     fi
 
-    # option-* 目录 + ccbridge 兼容
+    # 旧名 larkbridge → 已由 botmux 取代（ccbridge 上游停更 2 月，仅作参考保留）。
+    # 保留旧名转发，避免既有脚本/肌肉记忆调用直接报"未知选项"。
     if [ "$name" = "larkbridge" ]; then
-        local ccbridge_init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
-        if [ ! -f "$ccbridge_init" ]; then
-            warn "ccbridge 未安装（git clone ~/git/ccbridge）"
-            return 1
-        fi
-        if [ ${#@} -eq 0 ]; then
-            echo ""
-            bash "$ccbridge_init" --status 2>&1 | grep -v '^$'
-            echo ""
-            local lb_sub; lb_sub=$(menu_select "larkbridge" \
-                "前台启动" "后台启动" "停止" "看日志" "返回")
-            [[ -z "$lb_sub" ]] && return 0
-            case "$lb_sub" in
-                "1") bash "$ccbridge_init" --run ;;
-                "2") bash "$ccbridge_init" --bg ;;
-                "3") bash "$ccbridge_init" --stop ;;
-                "4") bash "$ccbridge_init" --logs ;;
-                *) return 0 ;;
-            esac
-            return $?
-        fi
-        bash "$ccbridge_init" "$@"
+        warn "larkbridge 已弃用 → 转 botmux（ccbridge 上游 lark-coding-agent-bridge 已停更）"
+        install_option "botmux" "$@"
         return $?
     fi
 
@@ -344,6 +325,11 @@ install_option() {
                     bash "$SCRIPT_DIR/option-getnote/init.sh" install 2>&1 | sed 's/^/  /'
                     echo ""
                     warn "OAuth 授权需浏览器确认: bash init-option.sh getnote auth"
+                    return 0 ;;
+                botmux)
+                    # 装二进制即可，扫码建应用留给用户（--yes 下不能扫码）
+                    section "安装 botmux"
+                    bash "$SCRIPT_DIR/option-botmux/init.sh" --install 2>&1 | sed 's/^/  /'
                     return 0 ;;
                 remote)
                     section "安装 remote"

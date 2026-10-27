@@ -86,7 +86,7 @@ OPTIONAL_DEPS=(
     "uv|uv --version|uv|Python 工具运行器 (option-mineru/option-evalscope)"
     "lark-cli|lark-cli --version|lark-cli|飞书 CLI (option-larkcli)"
     "officecli|officecli --version 2>/dev/null|officecli|OfficeCLI (option-officecli)"
-    "lark-channel-bridge|lark-channel-bridge --version 2>/dev/null|lark-bridge|飞书 Bridge (ccbridge)"
+    "botmux|botmux --version 2>/dev/null|botmux|飞书↔AI CLI 桥 (option-botmux)"
 )
 
 # Python 包

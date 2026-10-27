@@ -523,21 +523,19 @@ PYEOF
 
     echo -e "  ${GRAY}切换账号: bash ccconfig/option-larkcli/lark-switch.sh <name>${NC}"
 
-    # lark-channel-bridge 状态
-    echo -n "  lark-bridge ... "
-    if command -v lark-channel-bridge &> /dev/null; then
-        if systemctl --user is-active lark-channel-bridge.service &>/dev/null 2>&1; then
-            echo -e "${GREEN}✅${NC} (systemd 运行中)"
-        elif pgrep -f "lark-channel-bridge" > /dev/null 2>&1; then
-            echo -e "${GREEN}✅${NC} (进程运行中)"
-        else
-            echo -e "${YELLOW}○${NC} (已装未运行)"
-        fi
+    # botmux 状态（飞书 ↔ AI 编程 CLI 桥）
+    echo -n "  botmux ... "
+    if command -v botmux &> /dev/null; then
+        local _bm_line; _bm_line=$(bash "$REPO_DIR/option-botmux/init.sh" --status 2>/dev/null | head -1 | sed 's/\x1b\[[0-9;]*[mK]//g') || true
+        case "$_bm_line" in
+            OK*)   echo -e "${GREEN}✅${NC} ${_bm_line#OK }" ;;
+            WARN*) echo -e "${YELLOW}○${NC} ${_bm_line#WARN }" ;;
+            *)     echo -e "${GRAY}－${NC} 未安装" ;;
+        esac
     else
         echo -e "${GRAY}－${NC} (未安装)"
     fi
-    echo -e "  ${GRAY}安装/启动: bash ~/git/ccbridge/init.sh --run${NC}"
-    echo -e "  ${GRAY}后台服务: bash ~/git/ccbridge/init.sh --start${NC}"
+    echo -e "  ${GRAY}配置: bash option-botmux/init.sh setup   启动: bash option-botmux/init.sh start${NC}"
 }
 
 # ========== 2. 依赖检查 ==========
@@ -574,7 +572,7 @@ check_option_components() {
     local groups=(
         "--os--|bat glow nano"
         "--claude--|mcp skill"
-        "--lark--|larkcli ccbridge"
+        "--lark--|larkcli botmux"
         "--other--|${other_list}"
         "--key--|feishu_key"
     )
@@ -646,18 +644,17 @@ _check_component() {
             else
                 icon="miss"; detail="mcp-servers.json 未找到"
             fi ;;
-        ccbridge)
-            local init="${CCBRIDGE_HOME:-$HOME/git/ccbridge}/init.sh"
-            if [ -f "$init" ]; then
-                local jout; jout=$(bash "$init" --status --json 2>/dev/null) || true
-                if [ -n "$jout" ]; then
-                    local installed=$(echo "$jout" | python3 -c "import json,sys; print(json.load(sys.stdin).get('installed',False))" 2>/dev/null || echo "False")
-                    local v=$(echo "$jout" | python3 -c "import json,sys; print(json.load(sys.stdin).get('version',''))" 2>/dev/null || echo "?")
-                    local pc=$(echo "$jout" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('profiles',[])))" 2>/dev/null || echo "0")
-                    if [ "$installed" = "True" ]; then icon="ok"; detail="[$v] $pc profile(s)"
-                    else icon="warn"; detail="[$v] 未启动"; fi
-                else icon="?"; detail="ccbridge 已安装"; fi
-            else icon="miss"; detail="ccbridge 未安装（git clone ~/git/ccbridge）"; fi ;;
+        botmux)
+            # 飞书 ↔ AI 编程 CLI 桥（option-botmux/）。非交互安全：只读状态，不触发扫码
+            local bm_init="$REPO_DIR/option-botmux/init.sh"
+            if [ -f "$bm_init" ]; then
+                local bm_line; bm_line=$(bash "$bm_init" --status 2>/dev/null | head -1 | sed 's/\x1b\[[0-9;]*[mK]//g') || true
+                case "$bm_line" in
+                    OK*)   icon="ok";   detail="${bm_line#OK }" ;;
+                    WARN*) icon="warn"; detail="${bm_line#WARN }" ;;
+                    *)     icon="miss"; detail="${bm_line#MISSING }" ;;
+                esac
+            else icon="miss"; detail="option-botmux 缺失"; fi ;;
         feishu_key)
             local feishu_conf; feishu_conf=$(resolve_conf feishu.json 2>/dev/null) || { icon="miss"; detail="ccprivate/conf/feishu.json 不存在"; return; }
             local fk_out

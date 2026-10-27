@@ -89,6 +89,11 @@ MENU_ENTRIES=(
     "5|D|lark 配置/更新账号|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
     "5|E|getnote 状态|bash option-getnote/init.sh --status|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" --status"
     "5|F|getnote OAuth 授权|bash option-getnote/init.sh auth|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" auth"
+    # botmux = 飞书 ↔ AI 编程 CLI 桥（取代已停更的 ccbridge）。通信/会话归 botmux daemon，
+    # 这里是运维入口：状态、启动、会话、Dashboard。
+    "5|G|botmux 桥状态|bash option-botmux/init.sh --status|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" --status"
+    "5|H|botmux 启动|bash option-botmux/init.sh start|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" start"
+    "5|I|botmux 会话列表|bash option-botmux/init.sh sessions|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" sessions"
 
     # ── 6: 远程（SSH + tailscale）──
     "6|A|查看 SSH 状态/端口|bash option-remote/init.sh --status|bash \"\$CCCONFIG_DIR/option-remote/init.sh\" --status"

@@ -607,6 +607,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     deps)    bash "$LIB_DIR/deps-check.sh" ;;
     llm)     shift; bash "$LIB_DIR/init-llm.sh" "$@" ;;
     mcp)     shift; bash "$LIB_DIR/mcp-manager.sh" "$@" ;;
+    botmux)  shift; bash "$CCCONFIG_DIR/option-botmux/init.sh" "$@" ;;
     pat|pat-refresh|gh-auth)
         bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh" ;;
     example)
@@ -620,7 +621,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         _rc=0
         menu_parse "${1:-}" || _rc=$?
         if [[ $_rc -eq 3 ]]; then
-            echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|pat|example|upgrade-ccprivate|highpriv]"
+            echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|botmux|pat|example|upgrade-ccprivate|highpriv]"
             echo "      或菜单编号（如 2e）直接执行对应项"
             exit 1
         fi
