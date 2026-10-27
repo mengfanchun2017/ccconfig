@@ -566,7 +566,7 @@ check_option_components() {
     local other_list=""
     other_list=$(ls -d "$REPO_DIR"/option-*/ 2>/dev/null | xargs -n1 basename 2>/dev/null \
         | sed 's/^option-//' \
-        | grep -vE '^(larkcli|getnote|officecli|remote|cloudflare|skill)$' | tr '\n' ' ')
+        | grep -vE '^(larkcli|botmux|getnote|officecli|remote|cloudflare|skill)$' | tr '\n' ' ')
 
     # 分组：与 init-option.sh 保持一致
     local groups=(
