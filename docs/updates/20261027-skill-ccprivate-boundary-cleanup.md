@@ -64,3 +64,23 @@
 - `lib/secret-patterns.sh` 扫描：公开仓无凭据形状命中
 - 沙箱 e2e：假 HOME + 假 ccprivate 跑真实 `setup.sh`（新装 / 二次幂等 / 老机升级）
 - 两个新测试已加入 `.github/workflows/check.yml` 的 unit job 显式列表
+
+## 七、后续修正（同日，用户指出）
+
+用户升级老终端时看到 `link/ 有已废弃模板副本` 告警后追问，查出三处**检查口径互相矛盾**：
+
+| 位置 | 原行为 | 问题 |
+|---|---|---|
+| `lib/status.sh` link 检查 | 把 `link/*.example` 当**必需** | 与 `ccprivate-upgrade` 的"废弃副本"判定**直接矛盾** —— 一个报缺、一个报多，用户怎么修都有一头报警 |
+| `lib/status.sh` MEMORY 检查 | 查 `link/projects` | v2 写法，setup.sh 早已改链 `projects/<id>/memory` → **恒判失败**，误导排查方向 |
+| `init-bootstrap.sh` 建目录 | 创建 `link/projects` 与 `skill-config` | 前者是 v2 残留，后者是**从未被读过的空目录**（真实配置统一在 `conf/`） |
+
+**修法**：status 的 link 检查改为只要求 `CLAUDE.md`，并**反向**检查废弃副本（与 upgrade 同口径）；
+MEMORY 检查改查 `link/memory`；init-bootstrap 不再创建那两个废弃目录。
+`expected_dirs` 三处（maintain / ccprivate-upgrade / status）核对一致。
+
+**另修一个真 bug**：`lib/ccprivate-upgrade.sh` 的参数解析**静默忽略未知参数** ——
+传 `--check`（少个 `-only`）会被当成"无参数 = 修复模式"，**文档说只读的检查把文件真删了**（实测复现）。
+改为未知参数报错退出（rc=2），并加 `-h/--help`。
+
+回归断言已补进 `tests/test-ccprivate-boundary.sh`（32 断言）。

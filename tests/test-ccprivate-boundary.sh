@@ -79,6 +79,29 @@ echo "── 3. status 检查项 ──"
 _ST="$REPO/lib/status.sh"
 _no_pat "$_ST" 'ccconfig_example/agents' "status 不再比对已删的 agents 模板"
 _has_pat "$_ST" 'agents_count' "status 改报 agents 数量"
+# link/*.example 已删：status 不得再把它们列为"必需"（否则与 ccprivate-upgrade 的
+# "废弃副本"判定直接矛盾 —— 一个报缺一个报多，用户修不好）
+_no_pat "$_ST" 'for f in "CLAUDE\.md" "settings\.json\.example"' \
+    "status 不再把 link/*.example 当必需文件"
+_has_pat "$_ST" 'stale_links' "status 反向检查废弃模板副本"
+# link/projects 是 v2 写法；实际链路是 link/memory → projects/<id>/memory。
+# status 的 MEMORY 检查不得再查 link/projects（会恒判失败）。
+_no_pat "$_ST" '\[ -d "\$CCPRIVATE_HOME/link/projects" \]' \
+    "status 的 MEMORY 检查不再查已废弃的 link/projects"
+_has_pat "$_ST" 'link/memory' "status 的 MEMORY 检查走 link/memory"
+
+# ── 3b. init-bootstrap 不得创建已废弃目录 ──
+echo ""
+echo "── 3b. 初始化不得创建废弃目录 ──"
+_BOOT2="$REPO/init-bootstrap.sh"
+_no_pat "$_BOOT2" 'mkdir -p "\$CCPRIVATE_DIR/link/projects"' \
+    "init-bootstrap 不再创建 link/projects（v2 写法）"
+_no_pat "$_BOOT2" 'mkdir -p "\$CCPRIVATE_DIR/skill-config"' \
+    "init-bootstrap 不再创建 skill-config（从未被读过的空目录）"
+
+# ── 3c. 参数校验：未知参数必须报错（防只读模式被静默当修复模式）──
+_UPG2="$REPO/lib/ccprivate-upgrade.sh"
+_has_pat "$_UPG2" '未知参数' "ccprivate-upgrade 对未知参数报错（防 --check 静默变修复）"
 
 # ── 4. skill 层只剩单源 ──
 echo ""
