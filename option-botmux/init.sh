@@ -99,7 +99,7 @@ do_status() {
 
 # ── 安装 ──
 do_install() {
-    section "安装 botmux"
+    # section 标题由调用方（init-option.sh）打印，此处不再重复
     if has_botmux; then
         ok "已安装: $(botmux_version)"
     else
