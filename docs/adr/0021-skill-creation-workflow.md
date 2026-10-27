@@ -3,6 +3,12 @@
 > **Status**: ✅ Accepted
 > **日期**: 2026-09-01
 > **模板**: MADR 4.0 极简版
+>
+> ⚠️ **2026-10-27 部分失效**：本文的「公开/私有双归属」（`ccprivate/skill-local/` 作为
+> 私有 skill 层）已废弃 —— 该层从未放过 skill，目录已删。skill 实体一律放公开的
+> `~/git/skill/plugins`；需要私有的只有**真值**（token/配置），走 `ccprivate/conf/`
+> 或 `ccprivate/skill/*.yaml`。本文其余部分（fskillcreat 交互、link-single 增量注册）
+> 仍然有效。详见 `docs/updates/20261027-skill-ccprivate-boundary-cleanup.md`。
 
 ## Context and Problem Statement
 

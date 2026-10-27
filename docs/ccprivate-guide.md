@@ -43,12 +43,16 @@ ccprivate/                         ccconfig/
 │
 ├── link/                          ~/
 │   ├── CLAUDE.md       ──symlink──→ ~/CLAUDE.md
-│   ├── settings.json   # 本机文件，cp 一次不做 symlink（ADR-0032）
-│   ├── .config.json    # 本机文件，cp 一次不做 symlink（ADR-0032）
-│   └── projects/       ──symlink──→ ~/.claude/projects/ (memory)
+│   ├── memory/         ──symlink──→ ~/.claude/projects/<ccconfig-id>/memory
+│   └── memory-projects/ ──symlink──→ 公开项目的项目级 memory
 │
 └── setup.sh            调用  →    ccconfig/setup-links.sh
 ```
+
+本机文件（`settings.json` / `.config.json` / `.claudeignore`）**不在 ccprivate**：
+它们随机器不同，symlink 会跨机覆盖（ADR-0032），改为从
+`ccconfig/templates/*.example` 一次性 cp 到 `~/.claude/`，之后各机独立。
+（曾有的 `ccprivate/link/*.example` 副本与模板逐字节相同，2026-10-27 已删。）
 
 **原则**：ccprivate 存真实值，ccconfig 存模板（`.example`）和脚本。你 fork ccconfig，自己建 ccprivate。
 
@@ -100,14 +104,14 @@ mkdir -p link/memory-projects
 ccprivate/
 ├── conf/                 # 真实配置文件（含 API Key）
 ├── rules/                # 运行时条件规则
-├── agents/               # 运行时 agent
+├── agents/               # 运行时 agent（空占位；实体优先放公开 skill plugin）
 ├── commands/             # 运行时自定义命令
-├── skill/         # Skill 配置 YAML（供 apply-config.sh symlink）
+├── skill/                # Skill 配置 YAML（供 apply-config.sh symlink）
 ├── link/                 # 个人 Claude Code 配置
 │   ├── CLAUDE.md         # 你的全局 AI 行为指南
-│   ├── settings.json     # Claude Code 权限设置
-│   ├── .config.json      # Claude Code 扩展配置
-│   └── projects/         # 项目级 memory
+│   ├── memory/           # 共享的项目记忆
+│   └── memory-projects/  # 公开项目的项目级 memory
+├── workflows/            # Claude Workflow
 ├── bin/                  # 运维脚本
 └── setup.sh              # 一键建立所有 symlink
 ```
@@ -321,7 +325,7 @@ skill 内 Python 脚本 `open('config.yaml')` 自动跟踪 symlink 读到 ccpriv
 |------|------|--------|------|
 | 系统配置 | JSON（conf/*.json） | ccconfig init 脚本 | ccprivate/conf/ → ccconfig/conf/ |
 | Skill 配置 | YAML（skill/*.yaml） | skill Python 脚本 | ccprivate/skill/ → ~/.claude/skills/*/config.yaml |
-| 个人配置 | 直接文件 | Claude Code 自身 | ccprivate/link/ → ~/
+| 个人配置 | 直接文件 | Claude Code 自身 | ccprivate/link/ → ~/（本机三件套除外） |
 
 ---
 
@@ -334,7 +338,7 @@ A: ccprivate 和 ccconfig 是完全不同的仓库。ccconfig 是公开的工具
 A: 可以。用 `bash ccconfig/init-bootstrap.sh` 交互式配置向导，手动输入 API Key。但 ccprivate 方式更方便——一次配置，多机复用，`git pull` 即可恢复。
 
 ### Q: ccprivate/setup.sh 和 ccconfig/setup-links.sh 的关系？
-A: `ccprivate/setup.sh` 做私有链接（CLAUDE.md + rules + agents + commands；settings.json / .config.json / .claudeignore 是本机文件，从 `.example` cp 一次），然后调用 `ccconfig/lib/setup-links.sh` 做 shell_init + pre-commit hook。一步到位。
+A: `ccprivate/setup.sh` 做私有链接（CLAUDE.md + memory + rules + agents + commands + workflows；settings.json / .config.json / .claudeignore 是本机文件，从 `ccconfig/templates/*.example` cp 一次），然后调用 `ccconfig/lib/setup-links.sh` 做 shell_init + pre-commit hook。一步到位。
 
 ### Q: conf/ 文件是 symlink，git 会跟踪吗？
 A: ccconfig 的 `.gitignore` 已忽略 `conf/*.json`（除 `.example` 和 `versions.json`），symlink 不会被 commit。`hooks/pre-commit` 也会拦截。

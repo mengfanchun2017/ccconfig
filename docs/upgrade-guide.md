@@ -67,7 +67,8 @@ bash ~/git/ccconfig/lib/init-skill.sh status
 ```
 
 skill 同步流程（2 阶段）：
-1. symlink 自建 f-* skill（`~/git/skill/plugins` + ccprivate/skill-local → ~/.claude/skills/）
+1. symlink skill 实体（`~/git/skill/plugins` → `~/.claude/skills/`，单源；
+   私有 `ccprivate/skill-local/` 层已于 2026-10-27 删除 —— 层内从未放过 skill）
 2. ccprivate 配置覆盖（ccprivate/skill/*.yaml → ~/.claude/skills/<skill>/config.yaml）
 
 > 早期的第 3 阶段「`npx skills` 装第三方 skill」已废弃：所有 skill 统一在

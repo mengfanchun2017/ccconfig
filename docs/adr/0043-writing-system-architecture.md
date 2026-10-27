@@ -1,6 +1,11 @@
 # 0043. 文档撰写系统架构 — 四层分层 + 声明式体裁注册表 + 统一命名
 
 > **Status**: ✅ Accepted
+>
+> ⚠️ **2026-10-27 部分失效**：关联项里的 `~/git/ccprivate/skill-local/`（私有 skill 层）
+> 已删除 —— 该层从未放过 skill。撰写系统的 4 个 orchestrator/spec skill 实体在
+> `~/git/skill/plugins/`（公开），真值在 `ccprivate/conf/writing/`（私有），这一分工
+> 不变。详见 `docs/updates/20261027-skill-ccprivate-boundary-cleanup.md`。
 > **日期**: 2026-10-10
 > **关联**: `~/git/skill/plugins/`（公开 skill）、`~/git/ccprivate/skill-local/`（私有 skill）、`~/git/ccprivate/conf/writing/`（注册表真值）、`lib/init-skill.sh`
 > **模板**: MADR 4.0 极简版

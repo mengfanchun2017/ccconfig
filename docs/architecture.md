@@ -135,8 +135,9 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 │   │   └── shell_init.sh       # Shell 环境初始化片段
 │   ├── templates/              # .example 模板目录（运行时在 ccprivate）
 │   │   ├── rules/              # 条件规则模板（9 个，.md.example）
-│   │   ├── agents/             # 意图路由 agent 模板（.md.example）
-│   │   └── settings.json.example
+│   │   └── settings.json.example + .config.json.example + .claudeignore.example
+│   │                           # 本机文件模板唯一真相源（.example 副本已删，2026-10-27）
+│   │                           # agents/ 模板链已删：agent 实体放 ~/git/skill plugin
 │   ├── init-bootstrap.sh   # ccprivate 一键创建向导
 │   ├── hooks/                  # git pre-commit hook
 │   ├── option-*/               # 可选组件（llmswitch/officecli/larkcli/getnote/remote/cloudflare/skill/playwright/evalscope/mineru/filepull）
@@ -149,10 +150,11 @@ ccconfig/templates/ 存放 `.example` 模板（如 `rules/code.md.example`），
 └── ccprivate/                  # ← 用户运行 init-bootstrap.sh 自建
     ├── conf/*.json             # API key / token 真实值
     ├── rules/*.md              # 运行时条件规则
-    ├── agents/*.md             # 运行时 agent
+    ├── agents/                 # 运行时 agent（空占位；实体优先放公开 skill plugin）
     ├── commands/                # 运行时自定义命令
     ├── skill/*.yaml     # skill 私有配置覆盖
-    ├── link/                   # 个人 CLAUDE.md + settings.json + memory
+    ├── link/                   # 个人 CLAUDE.md + memory + memory-projects
+    ├── workflows/              # Claude Workflow（如 transliter）
     ├── setup.sh                # 私有+公开 symlink 一键建立
     └── bin/apply-config.sh     # skill config.yaml 覆盖
 ```
