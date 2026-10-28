@@ -306,20 +306,20 @@ echo "────────────────────────�
 # ── 废弃 env 键清理（5b）──
 # 老机残留清不掉是真实问题：install_user_file 只补缺键、从不删（有意为之），
 # 故我们发过的错误配置永远留着且无提醒。5b 用显式废弃表精确清除。
-if grep -q '废弃 env 键清理' "$REPO/maintain.sh"; then
-    _pass "maintain fix 含废弃 env 键清理（5b）"
+if grep -q '废弃 env 键清理' "$CCCONFIG_DIR/maintain.sh"; then
+    pass "maintain fix 含废弃 env 键清理（5b）"
 else
-    _fail "maintain fix 缺废弃 env 键清理"
+    fail "maintain fix 缺废弃 env 键清理"
 fi
-if grep -q 'DEPRECATED_ENV' "$REPO/maintain.sh"; then
-    _pass "用显式废弃表（避免通用 diff 误杀用户自加变量）"
+if grep -q 'DEPRECATED_ENV' "$CCCONFIG_DIR/maintain.sh"; then
+    pass "用显式废弃表（避免通用 diff 误杀用户自加变量）"
 else
-    _fail "未用显式废弃表"
+    fail "未用显式废弃表"
 fi
-if grep -q 'CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT' "$REPO/maintain.sh"; then
-    _pass "废弃表含 CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT"
+if grep -q 'CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT' "$CCCONFIG_DIR/maintain.sh"; then
+    pass "废弃表含 CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT"
 else
-    _fail "废弃表缺该变量"
+    fail "废弃表缺该变量"
 fi
 # 实测：注入残留 → fix 后应清掉，且用户自加变量幸存
 _tmp_home="$(mktemp -d)"; mkdir -p "$_tmp_home/.claude"
@@ -343,9 +343,9 @@ print(('gone' if 'CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT' not in e
       ('kept' if e.get('MY_OWN_VAR')=='keep' else 'lost'))")"
 rm -rf "$_tmp_home"
 if [[ "$_res" == "gone kept" ]]; then
-    _pass "实测: 废弃键清掉、用户自加变量幸存"
+    pass "实测: 废弃键清掉、用户自加变量幸存"
 else
-    _fail "实测异常: $_res"
+    fail "实测异常: $_res"
 fi
 
 
