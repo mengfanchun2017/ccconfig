@@ -281,13 +281,32 @@ do_guide() {
 
     # 3) 扫码建应用（这一步要用户拿手机扫）
     echo ""
-    echo -e "  ${BOLD}第 2 步 / 3：扫码创建飞书应用${NC}"
+    echo -e "  ${BOLD}第 2 步 / 3：创建飞书应用${NC}"
     echo -e "  ${GRAY}接下来终端会显示一个二维码 ——${NC}"
     echo -e "  ${YELLOW}  请用手机飞书 App 扫码${NC}，在手机上确认创建应用。"
     echo -e "  ${GRAY}  · 链接 10 分钟内有效、单人单次，请当场扫完${NC}"
     echo -e "  ${GRAY}  · 扫码后 botmux 会自动配齐权限、长连接事件、发版${NC}"
     echo -e "  ${GRAY}  · 新建的应用是**专用的**，不会和你 lark-cli 的 app 冲突${NC}"
     echo ""
+
+    # SSH / 远端场景：二维码画在远端终端里，手机扫不到屏幕。
+    # botmux 二进制不提供"输出登录链接"的开关（实测：TTY 与非 TTY 下都只给二维码），
+    # 故给出两条可行的替代路径，而不是让用户对着扫不到的二维码干等。
+    local _remote=0
+    [ -n "${SSH_CONNECTION:-}${SSH_CLIENT:-}${SSH_TTY:-}" ] && _remote=1
+    if [ "$_remote" = "1" ]; then
+        echo -e "  ${YELLOW}检测到你在 SSH / 远端会话里${NC} —— 终端里的二维码手机扫不到屏幕。"
+        echo -e "  两个选择："
+        echo -e "  ${BOLD}  A) 在本机终端直接跑${NC}（二维码画在你面前，最省事）："
+        echo -e "  ${GRAY}       bash ~/git/ccconfig/init-option.sh botmux guide${NC}"
+        echo -e "  ${BOLD}  B) 手动建应用、不走扫码${NC}（全程浏览器 + 粘贴凭证）："
+        echo -e "  ${GRAY}       1. 打开 https://open.feishu.cn/app 建「企业自建应用」${NC}"
+        echo -e "  ${GRAY}       2. 「凭证与基础信息」复制 App ID / App Secret${NC}"
+        echo -e "  ${GRAY}       3. 回来跑：bash init-option.sh botmux manual${NC}"
+        echo -e "  ${GRAY}      （权限 JSON 在 ~/.botmux/lark-scopes.json，setup 会打印一键复制命令）${NC}"
+        echo ""
+    fi
+
     confirm "现在开始扫码建应用？" y || { info "已跳过（之后可跑: bash init-option.sh botmux guide）"; return 1; }
 
     echo ""
