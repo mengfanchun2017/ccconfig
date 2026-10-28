@@ -136,3 +136,28 @@ pty 实测（模拟真实交互）：`init-option.sh botmux` → 答 y 进引导
 - README 增「SSH / 远端会话怎么建应用」一节。
 
 回归断言见 `tests/test-botmux-option.sh` 第 8/9 组（31 断言）。
+
+## 补充修正 2（2026-10-28，CJK 字体下载超时）
+
+**症状**：启动 daemon 时报 `⚠️ 字体下载失败 [CJK]: 下载超时 (60000ms):
+https://github.com/notofonts/noto-cjk/raw/.../NotoSansMonoCJKsc-Regular.otf`
+
+**根因**：botmux 的 Web 终端要在浏览器里渲染中文，需要 CJK 字体；它按固定 Linux 路径
+找系统字体，找不到就去 GitHub 下（约 16MB）。而 **WSL 默认没有任何 CJK 字体**
+（实测 `fc-list :lang=zh` 返回 0，89 个字体全是 DejaVu/Ubuntu），github 直连在受限网络下
+60 秒超时。
+
+从二进制提取出它真正查找的路径：
+```
+/usr/share/fonts/{opentype/noto,noto-cjk,google-noto-cjk}/NotoSansCJK-{Regular,Bold}.ttc
+```
+（它自己也建议 `sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji`）
+
+**修法**：新增 `ensure_cjk_font()` 预检（`_guide_start_and_autostart` 里调用），
+缺字体时提示装 `fonts-noto-cjk` —— 装完命中它查找的路径，**永不再下载**。
+字体缺失只提示不阻断启动（只是慢 + 告警）。
+
+**注意**：WSL 可读 `/mnt/c/Windows/Fonts/`（555 个文件，含微软雅黑/宋体），但 botmux 只查
+Linux 路径，**不会**读 Windows 目录 —— 拷 Windows 字体不是有效修法。
+
+回归断言见 `tests/test-botmux-option.sh` 第 10 组（37 断言）。

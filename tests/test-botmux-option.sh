@@ -214,6 +214,37 @@ else
     fail "未沉淀 botmux 无链接开关这一实测结论"
 fi
 
+# ── 10. CJK 字体预检 ──
+section "10. CJK 字体预检"
+# botmux 启动时要 CJK 字体渲染中文；WSL 默认没有（fc-list :lang=zh 为空），
+# 它会去 GitHub 下 16MB → 受限网络 60 秒超时。预检应提前提示装 apt 包。
+if grep -q 'ensure_cjk_font' "$INIT"; then
+    pass "有 CJK 字体预检函数"
+else
+    fail "无字体预检 —— 用户会撞上 GitHub 下载超时"
+fi
+# 必须查 botmux 真正认的那几条路径（否则装了字体也命不中）
+for p in 'opentype/noto/NotoSansCJK-Regular.ttc' 'noto-cjk/NotoSansCJK-Regular.ttc' \
+         'google-noto-cjk/NotoSansCJK-Regular.ttc'; do
+    if grep -q "$p" "$INIT"; then
+        pass "预检查 botmux 认的路径: $p"
+    else
+        fail "预检漏了路径: $p"
+    fi
+done
+# 提示必须给出 apt 方案（正统修法），而不是让人去配代理或拷 Windows 字体
+if grep -q 'fonts-noto-cjk' "$INIT"; then
+    pass "提示装 fonts-noto-cjk（resp. botmux 查找路径）"
+else
+    fail "未提示 fonts-noto-cjk"
+fi
+# 字体缺失不应阻断启动（只慢/告警）
+if grep -qE 'ensure_cjk_font \|\| true' "$INIT"; then
+    pass "字体缺失不阻断启动（仅提示）"
+else
+    fail "字体预检可能阻断启动"
+fi
+
 echo ""
 echo "────────────────────────────"
 echo "  PASS: $PASS  FAIL: $FAIL"

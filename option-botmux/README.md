@@ -58,6 +58,31 @@ bash init-option.sh botmux menu       # 完整管理菜单（启停/日志/会�
 
 菜单入口：`bash maintain.sh` → `5G` 状态 / `5H` 引导 / `5I` 管理菜单。
 
+## 中文字体（WSL 必看）
+
+botmux 的 Web 终端要在浏览器里渲染中文，需要一份 CJK 字体。它按**固定 Linux 路径**查找：
+
+```
+/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc
+/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc
+```
+
+**WSL 默认一个 CJK 字体都没有**（`fc-list :lang=zh` 返回空），于是 botmux 会去 GitHub
+下 Noto Sans Mono CJK（约 16MB）—— 受限网络下 60 秒超时，启动时挂一个
+`字体下载失败 [CJK]: 下载超时 (60000ms)` 警告。
+
+**装一次永久解决**（装到它认的路径上）：
+
+```bash
+sudo apt-get install -y fonts-noto-cjk
+```
+
+> 注意：WSL 里能读到 `/mnt/c/Windows/Fonts/`（微软雅黑等），但 botmux 是编译好的二进制，
+> **只查上面那几条 Linux 路径**，不会去读 Windows 目录 —— 所以"拷 Windows 字体"不是它的路径。
+
+引导（`guide`）在启动前会做预检，缺字体时直接提示上面这条 apt 命令。
+
 ## 前提
 
 - **Linux / macOS（x64 / arm64）**；Windows 请走 WSL2（WSL2 上报为 linux）

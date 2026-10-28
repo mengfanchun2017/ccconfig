@@ -359,8 +359,37 @@ do_guide() {
     return 0
 }
 
+# CJK 字体预检 —— botmux 的 Web 终端要在浏览器里渲染中文，需要一份 CJK 字体。
+# 它按【固定的 Linux 路径】找系统字体，找不到就去 GitHub 下 NotoSansMonoCJK（约 16MB）。
+# 实测：WSL 默认没有 CJK 字体（fc-list :lang=zh 为空），而 github 直连在受限网络下
+# 60 秒超时 → 启动时挂出一个「字体下载失败」警告并拖慢启动。
+#
+# 它认的路径（从二进制里提取）：
+#   /usr/share/fonts/{opentype/noto,noto-cjk,google-noto-cjk}/NotoSansCJK-{Regular,Bold}.ttc
+# 故正统修法是装 apt 包 fonts-noto-cjk —— 装完命中，永不再下载。
+# 注意：WSL 里能读到 /mnt/c/Windows/Fonts（微软雅黑等），但 botmux 只查上面那些
+# Linux 路径，不会去读 Windows 目录，所以拷 Windows 字体并不是它的路径。
+ensure_cjk_font() {
+    # 已装 → 静默跳过（这一步应零打扰）
+    if ls /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc \
+          /usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc \
+          /usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc >/dev/null 2>&1; then
+        return 0
+    fi
+    # 系统里已有别的 CJK 字体也无妨？——不，botmux 只认上面那几条路径，故仍需提示。
+    echo ""
+    warn "未装 CJK 字体 —— botmux 启动时会去 GitHub 下载（约 16MB），"
+    echo -e "  ${GRAY}受限网络下会 60 秒超时并告警。装一次即可永久解决：${NC}"
+    echo -e "  ${BOLD}    sudo apt-get install -y fonts-noto-cjk${NC}"
+    echo -e "  ${GRAY}（装到 /usr/share/fonts/opentype/noto/，正是 botmux 查找的路径）${NC}"
+    echo ""
+    return 1
+}
+
 # 启动 daemon + 询问开机自启
 _guide_start_and_autostart() {
+    # 字体缺失只是"慢 + 告警"，不阻断启动；故预检结果只提示不 return
+    ensure_cjk_font || true
     if daemon_running; then
         ok "daemon 已在运行"
     else
