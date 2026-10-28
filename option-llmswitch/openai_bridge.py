@@ -84,6 +84,27 @@ def _map_finish_reason(fr):
     return mapped
 
 
+def _image_part(blk: dict):
+    """Anthropic 图片块 → OpenAI image_url 段；无等价物（file 引用）返回 None。
+
+    两处调用（消息顶层、tool_result 内层）共用，避免 URL/base64 的构造逻辑各写一遍。
+    """
+    if blk.get("type") == "image_url":
+        return blk if blk.get("image_url") else None
+    src = blk.get("source", {}) or {}
+    st = src.get("type")
+    if st == "base64" and src.get("data"):
+        return {
+            "type": "image_url",
+            "image_url": {"url": f"data:{src.get('media_type')};base64,{src.get('data')}"},
+        }
+    if st == "url" and src.get("url"):
+        # Anthropic 也支持 url 型图片源，旧版只认 base64 → url 图整块丢弃
+        return {"type": "image_url", "image_url": {"url": src["url"]}}
+    # st == "file"（Files API 引用）无 OpenAI 等价物，只能丢
+    return None
+
+
 def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
     """Anthropic Messages API body → OpenAI Chat Completions body.
 
@@ -117,6 +138,7 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
             text_parts = []
             content_parts = []  # OpenAI content 数组：text 段 + image_url 段混排
             tool_calls = []
+            hoisted_images = []  # tool_result 里的图片，见下方 tool_result 分支说明
             produced = 0  # 本条 Anthropic 消息已产出几条 OpenAI 消息（tool_result 即时 append）
             for blk in content:
                 if not isinstance(blk, dict):
@@ -125,20 +147,9 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
                 if t == "text":
                     text_parts.append(blk.get("text", ""))
                 elif t == "image" or t == "image_url":
-                    if t == "image":
-                        src = blk.get("source", {}) or {}
-                        st = src.get("type")
-                        if st == "base64":
-                            content_parts.append({
-                                "type": "image_url",
-                                "image_url": {"url": f"data:{src.get('media_type')};base64,{src.get('data','')}"},
-                            })
-                        elif st == "url" and src.get("url"):
-                            # Anthropic 也支持 url 型图片源，旧版只认 base64 → url 图整块丢弃
-                            content_parts.append({"type": "image_url", "image_url": {"url": src["url"]}})
-                        # st == "file"（Files API 引用）无 OpenAI 等价物，只能丢
-                    else:
-                        content_parts.append(blk)
+                    part = _image_part(blk)
+                    if part:
+                        content_parts.append(part)
                 elif t == "tool_use":
                     tool_calls.append({
                         "id": blk.get("id", ""),
@@ -159,8 +170,14 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
                                 continue
                             if b.get("type") == "text":
                                 segs.append(b.get("text", ""))
-                            elif b.get("type") == "image":
+                            elif b.get("type") in ("image", "image_url"):
+                                # OpenAI 的 role=tool 只吃字符串 content，塞数组会被上游当
+                                # 无参数调用处理 → 模型看不到图，还会空转到 max_tokens。
+                                # 只能先占位，把图挂到紧随其后的 user 消息上（见下方 hoisted）。
                                 segs.append("[image]")
+                                part = _image_part(b)
+                                if part:
+                                    hoisted_images.append(part)
                         out_content = "\n".join(segs)
                     out_content = out_content if isinstance(out_content, str) else ("" if out_content is None else str(out_content))
                     # is_error 必须让模型看见：旧版丢弃后模型无法得知工具失败，
@@ -185,6 +202,13 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
                 if tool_calls:
                     m["tool_calls"] = tool_calls
                 messages.append(m)
+                produced += 1
+            if hoisted_images:
+                # tool_result 的图补挂到本条消息末尾：必须在 tool 消息之后，否则
+                # 上游会因「tool 未被响应」直接 400
+                segs = [{"type": "text", "text": "Tool result image:"}]
+                segs.extend(hoisted_images)
+                messages.append({"role": "user", "content": segs})
                 produced += 1
             if produced == 0 and role == "user":
                 # 用户消息的块全被丢弃（不支持的块类型）→ 补占位。旧版直接不 append，
