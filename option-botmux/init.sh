@@ -448,21 +448,3 @@ case "${1:-}" in
         echo "用法: bash init.sh [--status|--install|--update|guide|setup|start|stop|restart|logs|sessions|dashboard|menu]"
         exit 1 ;;
 esac
-
-case "${1:-}" in
-    --status|status)    shift 2>/dev/null || true; do_status ;;
-    --install|-i|install)
-                        shift 2>/dev/null || true; do_install "$@" ;;
-    --update|-u|update) shift 2>/dev/null || true; do_update ;;
-    setup)              shift; do_setup "$@" ;;
-    start|--start)      shift; do_start "$@" ;;
-    stop|--stop)        shift; do_stop "$@" ;;
-    restart|--restart)  shift; do_restart "$@" ;;
-    logs|--logs)        shift; do_logs "$@" ;;
-    sessions|list)      shift; do_sessions "$@" ;;
-    dashboard)          shift; do_dashboard "$@" ;;
-    menu|"")            do_menu ;;
-    *)
-        echo "用法: bash init.sh [--status|--install|--update|setup|start|stop|restart|logs|sessions|dashboard|menu]"
-        exit 1 ;;
-esac

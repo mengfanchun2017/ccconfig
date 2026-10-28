@@ -107,8 +107,56 @@ else
     fail "--install --dry-run 未走 dry-run 路径: $(printf '%s' "$out" | head -1)"
 fi
 
-# ── 6. 非 TTY 不阻塞 ──
-section "6. 非 TTY 不阻塞"
+# ── 6. 引导向导 ──
+section "6. 引导向导（guide）"
+# 6a. 非 TTY 必须明确拒绝，不能静默挂起
+out="$(timeout 15 bash "$INIT" guide </dev/null 2>&1)"; rc=$?
+if [ $rc -eq 124 ]; then
+    fail "guide 非 TTY 挂起（应明确拒绝）"
+elif printf '%s' "$out" | grep -q '非交互终端'; then
+    pass "guide 非 TTY 明确拒绝并给出指引"
+else
+    fail "guide 非 TTY 行为不明: $(printf '%s' "$out" | head -1)"
+fi
+# 6b. dispatch 里有 guide 分支
+if grep -qE '^\s*guide\|wizard\|--guide\)' "$INIT"; then
+    pass "dispatch 含 guide 分支"
+else
+    fail "dispatch 缺 guide 分支"
+fi
+# 6c. 装完即引导：_offer_setup_and_start 被 do_install 调用
+# （do_install 体较长，取到下一个顶层函数定义为止）
+if awk '/^do_install\(\)/{f=1} f&&/^[a-z_]+\(\)/{if(NR>1&&!/^do_install/)exit} f' "$INIT" \
+     | grep -q '_offer_setup_and_start'; then
+    pass "do_install 末尾调用引导询问"
+else
+    fail "do_install 未接引导询问"
+fi
+# 6d. NONINTERACTIVE 下不弹询问（--yes 批处理安全）
+out="$(NONINTERACTIVE=true timeout 15 bash "$INIT" --install </dev/null 2>&1)"; rc=$?
+if [ $rc -eq 124 ]; then
+    fail "--install NONINTERACTIVE 挂起"
+elif printf '%s' "$out" | grep -q '现在就配置'; then
+    fail "--install NONINTERACTIVE 仍弹交互询问"
+else
+    pass "--install NONINTERACTIVE 不弹询问（批处理安全）"
+fi
+# 6e. 只能有一个 dispatch case 块（重复 case 会让所有子命令静默落进 menu）
+ncase="$(grep -c '^case "\${1' "$INIT")"
+if [ "$ncase" -eq 1 ]; then
+    pass "dispatch case 块唯一（无重复）"
+else
+    fail "dispatch 有 $ncase 个 case 块（重复会导致子命令静默进 menu）"
+fi
+# 6f. 菜单含引导项
+if grep -q '一条龙引导' "$INIT"; then
+    pass "交互菜单含「一条龙引导」项"
+else
+    fail "交互菜单缺引导项"
+fi
+
+# ── 7. 非 TTY 不阻塞 ──
+section "7. 非 TTY 不阻塞"
 # sessions 在无 tty 下应走 --plain，且不挂起（用 < /dev/null 模拟）
 if timeout 15 bash "$INIT" sessions </dev/null >/dev/null 2>&1; then
     pass "sessions 非 TTY 快速返回（未阻塞）"

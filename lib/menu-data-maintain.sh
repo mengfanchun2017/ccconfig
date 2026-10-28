@@ -94,8 +94,8 @@ MENU_ENTRIES=(
     # 状态项：WARN（未配置/daemon 没跑）是正常输出而非失败。action 走 do_botmux_status
     # 包装函数（吞三态退出码）—— 不能写「|| true」，'|' 会撕裂 MENU_ENTRIES 的字段 schema。
     "5|G|botmux 桥状态|bash option-botmux/init.sh --status|do_botmux_status"
-    "5|H|botmux 启动|bash option-botmux/init.sh start|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" start"
-    "5|I|botmux 会话列表|bash option-botmux/init.sh sessions|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" sessions"
+    "5|H|botmux 桥配置（引导）|bash option-botmux/init.sh guide|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" guide"
+    "5|I|botmux 管理菜单|bash option-botmux/init.sh menu|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" menu"
 
     # ── 6: 远程（SSH + tailscale）──
     "6|A|查看 SSH 状态/端口|bash option-remote/init.sh --status|bash \"\$CCCONFIG_DIR/option-remote/init.sh\" --status"
