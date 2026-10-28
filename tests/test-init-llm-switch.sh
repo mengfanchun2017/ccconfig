@@ -81,6 +81,7 @@ if ! curl -s --max-time 3 -X POST "http://localhost:${MOCK_PORT}/anthropic/v1/me
 fi
 
 # ── 隔离环境（HOME + CCPRIVATE_DIR 都在临时目录，绝不碰真实的）──
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEST_HOME="$WORKDIR/home"
 mkdir -p "$TEST_HOME/.claude" "$WORKDIR/conf"
 
@@ -352,6 +353,38 @@ if [[ "$t7_res" == *"BAD=[]"* && "$t7_res" == *"BUILTIN=True"* && "$t7_res" == *
     _pass "list_llms 列契约成立（$t7_res）"
 else
     _fail "list_llms 列契约被破坏" "got: $t7_res"
+fi
+
+# ── T10: 不得写 CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT ──
+# why：该变量把"auto-compact keeps within <MAX_CONTEXT_TOKENS>"整条关掉，回到
+# "等 API 报窗口"旧行为。中转 API 从不主动报窗口 → auto-compact 永不触发，
+# 会话一路涨过声明窗口才被硬上限拦住（实测 400k 声明、涨到 419.7k 未压缩）。
+# 对不以 claude- 开头的未识别 ID，CLAUDE_CODE_MAX_CONTEXT_TOKENS 单独即生效
+# （官方文档 model-config#correct-the-window-for-a-gateway-or-custom-model-id）。
+echo "T10 不写 DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT（会抵消窗口声明）"
+t10_val=$(python3 -c "
+import json
+d = json.load(open('$TEST_HOME/.claude/settings.json')).get('env', {})
+print(d.get('CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT', '<absent>'))" 2>/dev/null)
+if [[ "$t10_val" == "<absent>" ]]; then
+    _pass "切 LLM 后不写该变量（auto-compact 按声明窗口触发）"
+else
+    _fail "切换后写入了 CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=$t10_val（会使 auto-compact 失效）"
+fi
+# 声明窗口必须仍在（它才是生效的那条）
+t10_ctx=$(python3 -c "
+import json
+print(json.load(open('$TEST_HOME/.claude/settings.json')).get('env',{}).get('CLAUDE_CODE_MAX_CONTEXT_TOKENS','<missing>'))" 2>/dev/null)
+if [[ "$t10_ctx" != "<missing>" && "$t10_ctx" != "" ]]; then
+    _pass "CLAUDE_CODE_MAX_CONTEXT_TOKENS 仍在（$t10_ctx）"
+else
+    _fail "CLAUDE_CODE_MAX_CONTEXT_TOKENS 丢失"
+fi
+# 模板也不得含（新机从模板 cp 会带进去）
+if grep -q 'DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT' "$REPO/templates/settings.json.example" 2>/dev/null; then
+    _fail "templates/settings.json.example 仍含该变量（新机装机即失效）"
+else
+    _pass "模板不含该变量"
 fi
 
 echo ""
