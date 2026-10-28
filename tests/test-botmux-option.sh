@@ -11,6 +11,7 @@
 
 set -uo pipefail
 CCCONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO="$CCCONFIG_DIR"
 INIT="$CCCONFIG_DIR/option-botmux/init.sh"
 
 PASS=0; FAIL=0
@@ -251,6 +252,24 @@ if grep -q 'fonts-noto-color-emoji' "$INIT"; then
     pass "提示装 fonts-noto-color-emoji"
 else
     fail "未提示 fonts-noto-color-emoji（Emoji 缺了截图里表情成方块）"
+fi
+# 判定必须"任一命中即可"：写成 `ls A B C || missing+=` 会在只装一个候选时误报缺
+if grep -q '_any_font' "$INIT"; then
+    pass "字体判定用 _any_font（任一命中即可）"
+else
+    fail "字体判定用 ls 多路径 —— 只装一个候选会误报缺"
+fi
+if grep -qE 'ls /usr/share/fonts/.*NotoSansCJK.*>\?/dev/null.*\|\|' "$INIT"; then
+    fail "仍有 ls 多路径判定（任一不存在即误判）"
+else
+    pass "无 ls 多路径误判写法"
+fi
+# 实测断言：已装字体时预检必须静默通过
+if bash -c "source '$REPO/lib/colors.sh'; source '$REPO/lib/interact.sh'; \
+   $(sed -n '/^ensure_cjk_font()/,/^}/p' "$INIT"); ensure_cjk_font" >/dev/null 2>&1; then
+    pass "已装字体时预检静默通过（实测）"
+else
+    fail "已装字体却仍报缺（实测失败）"
 fi
 # 字体缺失不应阻断启动（只慢/告警）
 if grep -qE 'ensure_cjk_font \|\| true' "$INIT"; then

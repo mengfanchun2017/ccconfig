@@ -375,16 +375,15 @@ ensure_cjk_font() {
     #   Emoji → NotoColorEmoji.ttf            （渲染表情；缺了"飞书截图里表情成方块"）
     # 它按固定 Linux 路径找系统字体，找到就不下。两条都要查。
     local missing=()
-    # CJK（任一命中即可）
-    ls /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc \
-       /usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc \
-       /usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc >/dev/null 2>&1 \
-       || missing+=("CJK")
-    # Emoji（任一命中即可）
-    ls /usr/share/fonts/truetype/noto/NotoColorEmoji.ttf \
-       /usr/share/fonts/noto/NotoColorEmoji.ttf \
-       /usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf >/dev/null 2>&1 \
-       || missing+=("Emoji")
+    # ⚠️ 判定必须"任一命中即可"。写成 `ls A B C >/dev/null || missing+=` 是错的：
+    # ls 只要【任一个】路径不存在就返回非零（实测：三个候选只装了一个 → 误报缺字体）。
+    _any_font() { local p; for p in "$@"; do [ -f "$p" ] && return 0; done; return 1; }
+    _any_font /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc \
+              /usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc \
+              /usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc || missing+=("CJK")
+    _any_font /usr/share/fonts/truetype/noto/NotoColorEmoji.ttf \
+              /usr/share/fonts/noto/NotoColorEmoji.ttf \
+              /usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf || missing+=("Emoji")
 
     [ ${#missing[@]} -eq 0 ] && return 0
 
