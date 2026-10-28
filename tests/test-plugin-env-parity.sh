@@ -55,6 +55,7 @@ mk_all_sources() {
     # 5/6 私有仓（用显式 CCPRIVATE_HOME 指向沙箱，避免碰到真实仓）
     mkdir -p "$WORK/priv/conf" "$WORK/priv/skill"
     echo 'k: L5-ccprivate-conf'  > "$WORK/priv/conf/probe.yaml"
+    printf 'wiki_nodes:\n  default: NODE-OK\n' >> "$WORK/priv/conf/probe.yaml"
     echo 'k: L6-ccprivate-skill' > "$WORK/priv/skill/probe.yaml"
     # 7 skill-config
     echo 'k: L7-skill-config' > "$FAKE_HOME/.claude/skill-config/probe.yaml"
@@ -65,6 +66,13 @@ mk_all_sources() {
 # 两者取值（都返回 stdout 单行）
 run_sh() { HOME="$FAKE_HOME" CLAUDE_PLUGIN_ROOT="$PLUGIN" CCPRIVATE_HOME="$WORK/priv" \
            bash -c "source '$PLUGIN/references/plugin_env.sh'; skillconf_get k" 2>/dev/null; }
+run_sh_dotted() { HOME="$FAKE_HOME" CLAUDE_PLUGIN_ROOT="$PLUGIN" CCPRIVATE_HOME="$WORK/priv" \
+           bash -c "source '$PLUGIN/references/plugin_env.sh'; skillconf_get wiki_nodes.default" 2>/dev/null; }
+run_py_dotted() { HOME="$FAKE_HOME" CLAUDE_PLUGIN_ROOT="$PLUGIN" CCPRIVATE_HOME="$WORK/priv" \
+           python3 -c "
+import sys; sys.path.insert(0, '$PLUGIN/references')
+from config_env import get; print(get('wiki_nodes.default') or '')
+" 2>/dev/null; }
 run_py() { HOME="$FAKE_HOME" CLAUDE_PLUGIN_ROOT="$PLUGIN" CCPRIVATE_HOME="$WORK/priv" \
            python3 -c "
 import sys; sys.path.insert(0, '$PLUGIN/references')
@@ -133,6 +141,31 @@ if [ "$a" = "L1-env" ] && [ "$b" = "L1-env" ]; then
     _pass "env 覆盖 8 源 → 两者都取 L1-env"
 else
     _fail "env 覆盖失败 / bash='$a' python='$b'"
+fi
+
+echo ""
+echo "── 点号键（wiki_nodes.default）──"
+# 点号键曾构造出 SKILLCONF_WIKI_NODES.DEFAULT → Bash "invalid variable name" 直接中止。
+# 这是常用形态（wiki_nodes.default 几乎每个 skill 都用），必须两实现都能取到。
+mk_all_sources
+a="$(run_sh_dotted)"; b="$(run_py_dotted)"
+if [ "$a" = "NODE-OK" ] && [ "$b" = "NODE-OK" ]; then
+    _pass "点号键两实现都能取到"
+else
+    _fail "点号键失败 / bash='$a' python='$b'"
+fi
+# env 覆盖点号键也必须两实现一致
+a="$(HOME="$FAKE_HOME" CCPRIVATE_HOME="$WORK/priv" SKILLCONF_WIKI_NODES_DEFAULT=ENV-DOT \
+     bash -c "source '$PLUGIN/references/plugin_env.sh'; skillconf_get wiki_nodes.default" 2>/dev/null)"
+b="$(HOME="$FAKE_HOME" CCPRIVATE_HOME="$WORK/priv" SKILLCONF_WIKI_NODES_DEFAULT=ENV-DOT \
+     python3 -c "
+import sys; sys.path.insert(0, '$PLUGIN/references')
+from config_env import get; print(get('wiki_nodes.default') or '')
+" 2>/dev/null)"
+if [ "$a" = "ENV-DOT" ] && [ "$b" = "ENV-DOT" ]; then
+    _pass "点号键的 env 覆盖两实现一致"
+else
+    _fail "点号键 env 覆盖 / bash='$a' python='$b'"
 fi
 
 echo ""
