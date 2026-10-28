@@ -214,8 +214,8 @@ else
     fail "未沉淀 botmux 无链接开关这一实测结论"
 fi
 
-# ── 10. CJK 字体预检 ──
-section "10. CJK 字体预检"
+# ── 10. CJK + Emoji 字体预检 ──
+section "10. CJK + Emoji 字体预检"
 # botmux 启动时要 CJK 字体渲染中文；WSL 默认没有（fc-list :lang=zh 为空），
 # 它会去 GitHub 下 16MB → 受限网络 60 秒超时。预检应提前提示装 apt 包。
 if grep -q 'ensure_cjk_font' "$INIT"; then
@@ -237,6 +237,20 @@ if grep -q 'fonts-noto-cjk' "$INIT"; then
     pass "提示装 fonts-noto-cjk（resp. botmux 查找路径）"
 else
     fail "未提示 fonts-noto-cjk"
+fi
+# Emoji 字体同样要查 —— 实测 botmux 对 CJK 与 Emoji 各下一次、各自 60s 超时
+for p in 'truetype/noto/NotoColorEmoji.ttf' 'noto/NotoColorEmoji.ttf' \
+         'google-noto-emoji/NotoColorEmoji.ttf'; do
+    if grep -q "$p" "$INIT"; then
+        pass "预检查 Emoji 路径: $p"
+    else
+        fail "预检漏了 Emoji 路径: $p"
+    fi
+done
+if grep -q 'fonts-noto-color-emoji' "$INIT"; then
+    pass "提示装 fonts-noto-color-emoji"
+else
+    fail "未提示 fonts-noto-color-emoji（Emoji 缺了截图里表情成方块）"
 fi
 # 字体缺失不应阻断启动（只慢/告警）
 if grep -qE 'ensure_cjk_font \|\| true' "$INIT"; then

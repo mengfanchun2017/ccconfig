@@ -370,18 +370,31 @@ do_guide() {
 # 注意：WSL 里能读到 /mnt/c/Windows/Fonts（微软雅黑等），但 botmux 只查上面那些
 # Linux 路径，不会去读 Windows 目录，所以拷 Windows 字体并不是它的路径。
 ensure_cjk_font() {
-    # 已装 → 静默跳过（这一步应零打扰）
-    if ls /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc \
-          /usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc \
-          /usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc >/dev/null 2>&1; then
-        return 0
-    fi
-    # 系统里已有别的 CJK 字体也无妨？——不，botmux 只认上面那几条路径，故仍需提示。
+    # botmux 需要两类字体，各自去 GitHub 下一份、各自 60s 超时（实测两个都失败）：
+    #   CJK   → NotoSansMonoCJKsc-Regular.otf （渲染中文；缺了中文显示成方块）
+    #   Emoji → NotoColorEmoji.ttf            （渲染表情；缺了"飞书截图里表情成方块"）
+    # 它按固定 Linux 路径找系统字体，找到就不下。两条都要查。
+    local missing=()
+    # CJK（任一命中即可）
+    ls /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc \
+       /usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc \
+       /usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc >/dev/null 2>&1 \
+       || missing+=("CJK")
+    # Emoji（任一命中即可）
+    ls /usr/share/fonts/truetype/noto/NotoColorEmoji.ttf \
+       /usr/share/fonts/noto/NotoColorEmoji.ttf \
+       /usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf >/dev/null 2>&1 \
+       || missing+=("Emoji")
+
+    [ ${#missing[@]} -eq 0 ] && return 0
+
     echo ""
-    warn "未装 CJK 字体 —— botmux 启动时会去 GitHub 下载（约 16MB），"
-    echo -e "  ${GRAY}受限网络下会 60 秒超时并告警。装一次即可永久解决：${NC}"
-    echo -e "  ${BOLD}    sudo apt-get install -y fonts-noto-cjk${NC}"
-    echo -e "  ${GRAY}（装到 /usr/share/fonts/opentype/noto/，正是 botmux 查找的路径）${NC}"
+    warn "缺少 ${missing[*]} 字体 —— botmux 启动时会去 GitHub 下载，"
+    echo -e "  ${GRAY}受限网络下每项 60 秒超时并告警（实测 CJK 与 Emoji 都会失败）。${NC}"
+    echo -e "  ${GRAY}装一次即可永久解决（走 Ubuntu 源，不经 GitHub）：${NC}"
+    echo -e "  ${BOLD}    sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji${NC}"
+    echo -e "  ${GRAY}（分别装到 /usr/share/fonts/opentype/noto/ 与 truetype/noto/，"
+    echo -e "    正是 botmux 查找的路径）${NC}"
     echo ""
     return 1
 }
