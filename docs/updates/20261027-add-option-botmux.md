@@ -74,3 +74,42 @@ bash init-option.sh botmux setup    # 扫码建飞书应用（用专用 app，�
 bash init-option.sh botmux start    # 启动 daemon
 botmux autostart enable             # 开机自启
 ```
+
+---
+
+# 追加（2026-10-28）：一条龙引导 —— 消除「手动跑 setup」这道坎
+
+> 起因：用户反馈「botmux 显示未配置飞书应用，需要手动执行，太麻烦了」。
+> 目标：`maintain 2D` 装完 botmux 后，**能选择直接进配置流程**，并引导走完。
+
+## 加了什么
+
+**`option-botmux/init.sh` 新增 `do_guide`（一条龙引导）**，三步：
+
+1. **收 owner**（`_read_owner`）—— botmux 的 `--allowed-users` 是必填且不交互询问，故引导自己收集。
+   校验接受 `邮箱 / 手机号 / on_xxx union_id`；**拒绝 `ou_xxx`**（open_id 是别的 app 签发的，新建应用认不出）。
+   格式错**重问**（最多 3 次），不打断整个引导。
+2. **扫码建应用** —— 前置 `has_tty` 检查（非 TTY 下 botmux setup 直接退出、不产二维码）；打印扫码须知（链接 10 分钟有效、单人单次、自动配权限发版、应用是专用的）。
+3. **启动 daemon + 问开机自启**。
+
+**接在装完处**：`do_install` 末尾调 `_offer_setup_and_start` —— 交互环境问「现在就配置飞书应用（扫码→启动→自启一次做完）？[Y/n]」，非 TTY / NONINTERACTIVE 只打印指引不问（批处理安全）。
+
+**入口**：`bash init-option.sh botmux guide`（或 `maintain.sh` 菜单 5H）；`init.sh menu` 第 1 项也是引导。
+
+## 途中修掉的 3 个真 bug
+
+1. **P0 — `option-botmux/init.sh` 有两个 `case "${1:-}"` dispatch 块**（编辑时旧块没被替换掉）。第一个块 `exit 1` 落到第二个块，而 `$1` 已被 `shift` 成空 → 匹配 `menu|""` → **所有 `init.sh <子命令>` 静默变成进菜单**。测试 6e 加了「dispatch case 块唯一」守卫。
+2. **owner 校验漏判** —— 第一版只匹配 `ou_` **开头**，`bad_openid_ou_xxx` 这种中间含 `ou_` 的漏过去了。改成白名单式（邮箱/手机号/on_ 三选一，其余拒绝）。
+3. **升级瞬间误报「未安装」** —— `botmux upgrade` / `npm i -g` 期间 `$LOCAL_BIN` 的 symlink 有短暂失效窗口，裸 `command -v` 会判成未装（实测撞到过：菜单显示 ✗ 而同一条命令直调正常）。新增 `_botmux_bin()` 两级兜底（PATH → npm prefix launcher → 平台子包二进制），所有调用改走 `bmx()` 包装。
+
+## 测试
+
+`tests/test-botmux-option.sh` 从 18 项扩到 **24 项**，新增第 6 节「引导向导」：
+非 TTY 明确拒绝、dispatch 含 guide 分支、`do_install` 末尾接引导、NONINTERACTIVE 不弹询问、**dispatch case 块唯一**、菜单含引导项。
+
+```
+bash tests/test-botmux-option.sh  → PASS 24 / FAIL 0
+全 33 个测试套件                   → 全部通过
+```
+
+pty 实测（模拟真实交互）：`init-option.sh botmux` → 答 y 进引导 → owner 输入两次错误格式（`ou_xxx` / `garbage`）被拒并重问 → 第三次 `me@example.com` 通过 → 进入扫码步骤。全程无卡顿、无残留配置。

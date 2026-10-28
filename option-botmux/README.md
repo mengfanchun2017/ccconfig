@@ -17,16 +17,29 @@
 | 会话模型 | 单发 `claude -p`，每轮冷启动 | 每会话独立常驻进程，可接管/旁观 |
 | 建应用 | 手工申请 scope（自带 feishu-perms.sh） | 一次扫码自动建应用+配权限+发版 |
 
-## 安装
+## 安装（推荐：一条龙引导）
 
 ```bash
-bash init-option.sh botmux            # 装二进制（npm -g botmux + ~/.local/bin 链接）
-bash init-option.sh botmux setup      # 扫码建飞书应用（自动配权限 + 发版）
-bash init-option.sh botmux start      # 启动 daemon
-botmux autostart enable               # 开机自启
+bash init-option.sh botmux            # 装二进制；装完直接问「现在配置吗？」
+# 或在运维菜单: bash maintain.sh → 5H（botmux 桥配置（引导））
 ```
 
-或经运维菜单：`bash maintain.sh` → `5G/5H/5I`。
+**引导一次走完三步**，不用自己拼命令：
+
+1. **指定 owner** —— 谁有权用这个 bot（完整邮箱 / 手机号 / `on_xxx`）。填错会重问，格式错会提示。
+2. **扫码创建飞书应用** —— 终端出二维码，手机飞书 App 扫一下；botmux 自动配齐权限、长连接事件、发版。
+3. **启动 daemon + 询问开机自启**。
+
+完成即可在飞书里私聊该 bot。单步命令（按需）：
+
+```bash
+bash init-option.sh botmux guide      # 只跑引导（幂等：已有 bot 则直接到启动步）
+bash init-option.sh botmux setup      # 只建应用（botmux setup 原始交互）
+bash init-option.sh botmux start      # 只启动
+bash init-option.sh botmux menu       # 完整管理菜单（启停/日志/会话/Dashboard/升级）
+```
+
+菜单入口：`bash maintain.sh` → `5G` 状态 / `5H` 引导 / `5I` 管理菜单。
 
 ## 前提
 
@@ -41,15 +54,28 @@ botmux autostart enable               # 开机自启
 
 ```bash
 bash init.sh --status      # 状态（首行 OK/WARN/MISSING，供 init-option 解析）
-bash init.sh --install     # 装/补链
+bash init.sh --install     # 装/补链；装完问「现在配置吗」→ y 直接进引导
 bash init.sh --update      # 升级（botmux upgrade）
-bash init.sh setup         # 扫码建应用
+bash init.sh guide         # 一条龙引导（建应用→启动→自启）
+bash init.sh setup         # 只建应用（原始 setup）
 bash init.sh start|stop|restart
 bash init.sh logs          # 看日志
 bash init.sh sessions      # 会话列表（非 TTY 自动 --plain）
 bash init.sh dashboard     # Web Dashboard 登录链接
-bash init.sh menu          # 交互菜单
+bash init.sh menu          # 交互菜单（菜单第 1 项即引导）
 ```
+
+### owner 怎么填
+
+`--allowed-users`（owner = 谁有权用这个 bot）是 botmux 的**必填**参数，且它不会交互询问 —— 所以引导自己收集。接受三种：
+
+| 格式 | 例 | 说明 |
+|------|-----|------|
+| 完整邮箱 | `name@company.com` | **最推荐** |
+| 手机号 | `+8613800138000` | 带不带 `+` 都行 |
+| union_id | `on_xxxxxxxx` | 飞书通讯录里的 union_id |
+
+⚠️ **`ou_` 开头的 open_id 不能用** —— 那是**别的应用**签发的，新建应用认不出它。引导会拒绝并让你重填。
 
 ## 状态语义
 
