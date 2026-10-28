@@ -302,9 +302,6 @@ done
 
 echo ""
 echo "────────────────────────────────────"
-printf "  ${GREEN}PASS${NC}: %d  ${RED}FAIL${NC}: %d\n" "$PASS" "$FAIL"
-echo "────────────────────────────────────"
-[[ "$FAIL" -eq 0 ]] && exit 0 || exit 1
 
 # ── 废弃 env 键清理（5b）──
 # 老机残留清不掉是真实问题：install_user_file 只补缺键、从不删（有意为之），
@@ -351,3 +348,8 @@ else
     _fail "实测异常: $_res"
 fi
 
+
+
+printf "  ${GREEN}PASS${NC}: %d  ${RED}FAIL${NC}: %d\n" "$PASS" "$FAIL"
+echo "────────────────────────────────────"
+[[ "$FAIL" -eq 0 ]] && exit 0 || exit 1
