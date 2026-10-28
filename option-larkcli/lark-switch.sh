@@ -22,6 +22,10 @@ DEFAULT_FILE="$HOME/.lark-default-account"
 
 # 颜色（colors.sh 可选 source，缺失时 fallback）
 source "$CCCONFIG_DIR/lib/colors.sh"
+# 交互（confirm/menu_select）。5C 现场补授权、5B 选账号都要用 ——
+# 此处必须 source：曾只在 pick_account 内部按需 source，导致 show_current 的
+# 未授权分支裸调 confirm → "command not found"（静默跳过补授权入口）。
+source "$CCCONFIG_DIR/lib/interact.sh"
 
 # ========== 真实授权状态 ==========
 # config.json 里的 users[] 是「登录过的用户记录」，token 过期后仍残留，
@@ -288,7 +292,7 @@ pick_account() {
 
     if [ ${#names[@]} -eq 1 ]; then
         info "只有一个账号：${names[0]}"
-        switch_account "${names[0]}"
+        switch_account "${names[0]}" -p
         return $?
     fi
 
@@ -299,7 +303,6 @@ pick_account() {
         return 1
     fi
 
-    source "$CCCONFIG_DIR/lib/interact.sh"
     local choice
     choice=$(menu_select "选择账号（切换并持久化）" "${items[@]}") || return 1
     [[ -z "$choice" || "$choice" = "0" ]] && { info "已取消"; return 0; }
