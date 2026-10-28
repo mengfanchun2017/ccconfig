@@ -291,11 +291,22 @@ do_guide() {
     confirm "现在开始扫码建应用？" y || { info "已跳过（之后可跑: bash init-option.sh botmux guide）"; return 1; }
 
     echo ""
-    local out rc
     # --create-app 走扫码；--allowed-users 必填；默认（不加 --no-open-platform-auto）
-    # 会继续自动配权限/事件/发版。输出混着二维码，故整段捕获后再判 JSON。
-    out="$(bmx setup add --create-app --allowed-users "$_OWNER" 2>&1)"; rc=$?
-    printf '%s\n' "$out"
+    # 会继续自动配权限/事件/发版。
+    #
+    # ⚠️ 二维码走的是 **stderr**（实测），所以不能用 out="$(bmx ... 2>&1)" 整段捕获：
+    #    命令替换会把两股流一起缓冲进变量，二维码要等命令【结束】才打印 —— 而命令
+    #    正在等扫码 → 用户死等到链接 10 分钟过期，二维码才吐出来，早已失效
+    #    （实测症状："等了 1 分钟才出二维码，但已经失效"）。
+    # 正确做法：让它直接写终端（二维码【实时】可见），同时用 tee 落一份到临时文件
+    # 供后面解析 JSON。注意只 tee stdout（JSON），stderr 原样透传不落盘。
+    local out rc _jsonf
+    _jsonf="$(mktemp)"
+    # tee 让扫描的人立刻看到二维码；stderr 直接进终端（不缓冲）
+    bmx setup add --create-app --allowed-users "$_OWNER" 2>&1 | tee "$_jsonf"; rc=${PIPESTATUS[0]}
+    out="$(cat "$_jsonf")"
+    rm -f "$_jsonf"
+    # tee 已经实时打印过，这里不再重复 printf
 
     echo ""
     if _setup_json_ok "$out"; then
