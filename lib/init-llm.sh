@@ -341,7 +341,13 @@ env_upd = {
     # auto 权限模式的分类器有自己的模型变量，不读 HAIKU（见 memory auto-mode-classifier-model）。
     # 不写这条 → 分类器固定发 claude-sonnet-5；外部 endpoint 无此模型 → fail-closed 拦一切命令。
     "CLAUDE_CODE_AUTO_MODE_MODEL": os.environ.get('SMALL_MODEL') or os.environ['MODEL_NAME'],
-    "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT": "1",
+    # ⚠️ 不要写 CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1。
+    # 实测语义（2.1.308 二进制原文）：该变量把"auto-compact keeps this session within
+    # <MAX_CONTEXT_TOKENS>" 这条**整个关掉**，回到"等 API 报窗口"的旧行为。而中转
+    # API 从不主动报窗口 → auto-compact 永不触发，会话一路涨到硬上限被拦。
+    # 对不以 claude- 开头的未识别 ID，CLAUDE_CODE_MAX_CONTEXT_TOKENS 单独即生效
+    # （官方文档 model-config#correct-the-window-for-a-gateway-or-custom-model-id），
+    # 用不着这个变量 —— 写了它反而抵消掉窗口声明。
 }
 if final:
     env_upd["ANTHROPIC_AUTH_TOKEN"] = final
