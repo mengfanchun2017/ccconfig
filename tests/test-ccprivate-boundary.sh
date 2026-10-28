@@ -99,6 +99,15 @@ _no_pat "$_BOOT2" 'mkdir -p "\$CCPRIVATE_DIR/link/projects"' \
 _no_pat "$_BOOT2" 'mkdir -p "\$CCPRIVATE_DIR/skill-config"' \
     "init-bootstrap 不再创建 skill-config（从未被读过的空目录）"
 
+# ── 3d. ccprivate 根目录列表不得再含 skill/（已并入 conf/）──
+# 四处 expected_dirs 曾都含 "skill"，导致 maintain fix 反复重建这个空目录。
+for _xf in lib/ccprivate-upgrade.sh lib/status.sh "$REPO/maintain.sh"; do
+    _no_pat "$REPO/$_xf" 'expected(_dirs)?=\([^)]*"skill"' \
+        "$(basename "$_xf") 的 expected 目录不含已并入的 skill/"
+done
+_no_pat "$REPO/lib/ccprivate-upgrade.sh" 'dirs=\([^)]*"skill"' \
+    "ccprivate-upgrade 的 fix_directories 不重建 skill/"
+
 # ── 3c. 参数校验：未知参数必须报错（防只读模式被静默当修复模式）──
 _UPG2="$REPO/lib/ccprivate-upgrade.sh"
 _has_pat "$_UPG2" '未知参数' "ccprivate-upgrade 对未知参数报错（防 --check 静默变修复）"
