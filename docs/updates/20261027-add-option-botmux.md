@@ -113,3 +113,26 @@ bash tests/test-botmux-option.sh  → PASS 24 / FAIL 0
 ```
 
 pty 实测（模拟真实交互）：`init-option.sh botmux` → 答 y 进引导 → owner 输入两次错误格式（`ou_xxx` / `garbage`）被拒并重问 → 第三次 `me@example.com` 通过 → 进入扫码步骤。全程无卡顿、无残留配置。
+
+## 补充修正（2026-10-28，用户报告"二维码等 1 分钟才出、出来就失效"）
+
+**根因**（实测复现）：
+
+1. **二维码走 stderr**。原实现 `out="$(bmx setup add --create-app ... 2>&1)"` 把 stdout+stderr
+   一起**缓冲**进变量 → 二维码要等命令**结束**才 printf 出来。而命令正在等扫码，
+   于是死等到链接 10 分钟过期，二维码才吐出来（已失效）。
+2. **botmux 二进制不提供"输出登录链接"的开关** —— 查遍 `setup help` / 顶层 `--help` /
+   二进制内字符串，TTY 与非 TTY 下都**只画二维码**，最多附一句
+   "如果当前环境无法扫码，可加 `--no-open-platform-auto` 跳过自动配置"。
+
+**修法**：
+
+- `do_guide` 改为 `bmx setup add ... 2>&1 | tee "$_jsonf"` —— 二维码**实时**透传终端，
+  同时落一份供解析 JSON（`rc=${PIPESTATUS[0]}` 保住退出码）。tee 后不再重复 printf。
+- 引导检测 `SSH_CONNECTION`/`SSH_CLIENT`/`SSH_TTY`：命中则主动说明"二维码画在远端扫不到"，
+  给出两条路 —— ① 本机终端跑引导 ② `botmux manual` 手动建应用。
+- 新增 **`manual` 子命令**：浏览器去 open.feishu.cn 建「企业自建应用」→ 粘 App ID/Secret
+  （`bmx setup add --app-id --app-secret`，**不扫码**）。这是 SSH 场景真正可用的路径。
+- README 增「SSH / 远端会话怎么建应用」一节。
+
+回归断言见 `tests/test-botmux-option.sh` 第 8/9 组（31 断言）。
