@@ -216,9 +216,24 @@ except Exception: print('')" 2>/dev/null || true)"
     v="$(prompt '你的飞书邮箱或手机号（owner）' '')"
     v="$(printf '%s' "$v" | tr -d '[:space:]')"
     [ -z "$v" ] && { warn "未输入 owner —— 没有它建出来的 bot 拒绝任何人发消息"; return 1; }
-    case "$v" in
-        ou_*) warn "ou_ 开头是 open_id，新建应用不认；请改用完整邮箱或手机号"; return 1 ;;
-    esac
+
+    # 校验：接受 union_id(on_xxx) / 邮箱 / 手机号；明确拒绝 open_id(ou_xxx)。
+    # botmux 对新建应用只认 on_ / 邮箱 / 手机号 —— ou_ 是**别的 app** 签发的，跨应用无效。
+    if printf '%s' "$v" | grep -qE '^on_[A-Za-z0-9]+$'; then
+        :                                   # union_id，可以
+    elif printf '%s' "$v" | grep -qE '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'; then
+        :                                   # 邮箱，可以
+    elif printf '%s' "$v" | grep -qE '^\+?[0-9]{6,15}$'; then
+        :                                   # 手机号，可以
+    elif printf '%s' "$v" | grep -qE 'ou_'; then
+        warn "这是 open_id（ou_ 开头/含 ou_），新建应用不认；请改用完整邮箱或手机号"
+        return 1
+    else
+        warn "不认识的格式: $v"
+        info "owner 要填「完整邮箱」或「手机号」或 union_id(on_xxx)"
+        info "例: name@company.com   /   +8613800138000   /   on_xxxxxxxx"
+        return 1
+    fi
     _OWNER="$v"
     return 0
 }
@@ -253,10 +268,15 @@ do_guide() {
         return 1
     fi
 
-    # 2) 收 owner
+    # 2) 收 owner（格式错就重问，别把整个引导打断）
     echo ""
     echo -e "  ${BOLD}第 1 步 / 3：指定管理员（owner）${NC}"
-    _read_owner || return 1
+    local _try=0
+    while ! _read_owner; do
+        _try=$((_try + 1))
+        [ "$_try" -ge 3 ] && { warn "已试 $_try 次，先退出。稍后重跑: bash init-option.sh botmux guide"; return 1; }
+        echo -e "  ${GRAY}再输一次（或 Ctrl-C 退出）${NC}"
+    done
     ok "owner: $_OWNER"
 
     # 3) 扫码建应用（这一步要用户拿手机扫）
