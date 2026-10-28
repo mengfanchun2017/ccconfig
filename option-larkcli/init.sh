@@ -147,6 +147,14 @@ setup_lark_cli_account() {
     fi
 }
 
+# ── 授权二维码 ──
+# ASCII 直接进终端，省掉"生成 PNG → 找文件 → 打开"三步，也不受 WSL 路径问题影响。
+_print_auth_qr() {
+    local url="$1"
+    command -v lark-cli >/dev/null 2>&1 || return 0
+    lark-cli auth qrcode "$url" --ascii 2>/dev/null | sed 's/^/    /'
+}
+
 # ── 自动 OAuth 授权 ──
 _do_auth_login() {
     local config_dir="$1" name="$2"
@@ -166,8 +174,10 @@ _do_auth_login() {
     fi
 
     echo ""
-    info "    授权链接:"
-    echo "    $url"
+    info "    授权链接（点击整条跳转，无需框选复制）:"
+    echo -n "    "; link "$url"
+    echo -e "    ${GRAY}或扫二维码:${NC}"
+    _print_auth_qr "$url"
     echo ""
 
     if [[ "${NONINTERACTIVE:-false}" == "true" ]]; then

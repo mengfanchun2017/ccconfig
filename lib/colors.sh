@@ -38,6 +38,19 @@ bad()   { err "$@"; }
 success() { ok "$@"; }
 error()   { err "$@"; }
 
+# OSC 8 超链接：终端里 URL 被折行时，鼠标框选只能复制到一行 → 链接传一半。
+# 包成 OSC 8 后点击即整条跳转，不受视觉折行影响。
+#   参数: <url> [显示文本]   不传文本则显示 url 本身
+# 非 tty 或 CCCONFIG_NO_HYPERLINK=1 时退化为纯文本（日志/管道里不留 escape）。
+link() {
+    local url="$1" text="${2:-$1}"
+    if [ -t 1 ] && [ -z "${CCCONFIG_NO_HYPERLINK:-}" ]; then
+        printf '\033]8;;%s\033\\%s\033]8;;\033\\\n' "$url" "$text"
+    else
+        printf '%s\n' "$url"
+    fi
+}
+
 # 自备 fallback：当被非 tty 环境 source 时确保函数可用
 # caller 不再需要写 2>/dev/null || { RED='...' ... }
 if ! type ok &>/dev/null; then
@@ -51,4 +64,12 @@ if ! type ok &>/dev/null; then
     info()  { echo -e "  ${GRAY}$1${NC}"; }
     section() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}"; }
     banner() { echo -e "${BOLD}━━━ $1 ━━━${NC}"; }
+    link() {
+        local url="$1" text="${2:-$1}"
+        if [ -t 1 ] && [ -z "${CCCONFIG_NO_HYPERLINK:-}" ]; then
+            printf '\033]8;;%s\033\\%s\033]8;;\033\\\n' "$url" "$text"
+        else
+            printf '%s\n' "$url"
+        fi
+    }
 fi
