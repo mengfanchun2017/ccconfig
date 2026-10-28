@@ -27,17 +27,34 @@ bash init-option.sh botmux            # 装二进制；装完直接问「现在�
 **引导一次走完三步**，不用自己拼命令：
 
 1. **指定 owner** —— 谁有权用这个 bot（完整邮箱 / 手机号 / `on_xxx`）。填错会重问，格式错会提示。
-2. **扫码创建飞书应用** —— 终端出二维码，手机飞书 App 扫一下；botmux 自动配齐权限、长连接事件、发版。
+2. **创建飞书应用** —— 终端出二维码，手机飞书 App 扫一下；botmux 自动配齐权限、长连接事件、发版。
+   二维码是**实时**画出来的（走 stderr 直通终端），见到就当场扫，别等。
 3. **启动 daemon + 询问开机自启**。
 
 完成即可在飞书里私聊该 bot。单步命令（按需）：
 
 ```bash
 bash init-option.sh botmux guide      # 只跑引导（幂等：已有 bot 则直接到启动步）
+bash init-option.sh botmux manual     # 手动建应用（不走扫码）—— SSH/远端场景用
 bash init-option.sh botmux setup      # 只建应用（botmux setup 原始交互）
 bash init-option.sh botmux start      # 只启动
 bash init-option.sh botmux menu       # 完整管理菜单（启停/日志/会话/Dashboard/升级）
 ```
+
+### SSH / 远端会话怎么建应用
+
+二维码画在**远端**终端里，手机扫不到那块屏幕；而 botmux 二进制**不提供"输出登录链接"的开关**
+（实测：TTY 与非 TTY 下都只给二维码 + 一句"如果无法扫码，可加 `--no-open-platform-auto`"）。
+故有两条件用路径，引导会在检测到 `SSH_CONNECTION` 时主动列出：
+
+- **A. 本机终端跑引导**（最省事）—— 二维码直接画在你面前的屏幕上
+  `bash ~/git/ccconfig/init-option.sh botmux guide`
+- **B. 手动建应用，全程浏览器**：
+  1. https://open.feishu.cn/app → 创建「企业自建应用」
+  2. 「凭证与基础信息」复制 App ID / App Secret
+  3. `bash init-option.sh botmux manual` 粘贴两个值（Secret 不回显）
+
+权限如需手动导入，JSON 在 `~/.botmux/lark-scopes.json`。
 
 菜单入口：`bash maintain.sh` → `5G` 状态 / `5H` 引导 / `5I` 管理菜单。
 

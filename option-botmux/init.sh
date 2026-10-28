@@ -437,6 +437,46 @@ do_stop() {
     bmx stop "$@"
 }
 
+# 手动建应用（不走扫码）—— SSH / 无法扫码场景的可用路径。
+# botmux 二进制只给二维码、不输出登录链接（实测 TTY 与非 TTY 都一样），
+# 故远端会话靠这条落地：浏览器建应用 → 粘贴凭证。
+do_manual() {
+    section "botmux 手动建应用（无扫码）"
+    has_botmux || { err "botmux 未安装，先跑 --install"; return 1; }
+
+    echo -e "  ${GRAY}1. 浏览器打开 https://open.feishu.cn/app → 创建「企业自建应用」${NC}"
+    echo -e "  ${GRAY}2. 「凭证与基础信息」复制 App ID（cli_xxx）与 App Secret${NC}"
+    echo -e "  ${GRAY}3. 把两个值填到下面（Secret 不回显）${NC}"
+    echo ""
+
+    local app_id app_secret
+    app_id="$(prompt "App ID (cli_xxx)")"
+    app_secret="$(prompt_password "App Secret")"
+    [ -n "$app_id" ] && [ -n "$app_secret" ] || { err "App ID / Secret 不能为空"; return 1; }
+    _read_owner || return 1
+
+    echo ""
+    info "写盘前会用凭证校验（失败不写盘）..."
+    local out rc
+    out="$(bmx setup add --app-id "$app_id" --app-secret "$app_secret" \
+           --allowed-users "$_OWNER" --open-platform-auto 2>&1)"; rc=$?
+    printf '%s\n' "$out"
+    echo ""
+    if _setup_json_ok "$out"; then
+        ok "应用已添加"
+        info "权限 JSON（手动配权限时用）: ~/.botmux/lark-scopes.json"
+    else
+        local jrc=$?
+        [ $jrc -eq 1 ] && err "添加失败（看上面 JSON 的 error 字段）" \
+                       || warn "未抓到结果 JSON —— 用 botmux setup list 复核"
+        _guide_failure_hints "$out"
+        return 1
+    fi
+    echo ""
+    info "下一步: bash init-option.sh botmux start && botmux autostart enable"
+    return 0
+}
+
 do_restart() {
     section "重启 botmux daemon"
     has_botmux || { err "botmux 未安装"; return 1; }
@@ -505,6 +545,7 @@ case "${1:-}" in
                         shift 2>/dev/null || true; do_install "$@" ;;
     --update|-u|update) shift 2>/dev/null || true; do_update ;;
     guide|wizard|--guide) shift 2>/dev/null || true; do_guide "$@" ;;
+    manual|--manual)    shift 2>/dev/null || true; do_manual "$@" ;;
     setup)              shift; do_setup "$@" ;;
     start|--start)      shift; do_start "$@" ;;
     stop|--stop)        shift; do_stop "$@" ;;
@@ -514,6 +555,7 @@ case "${1:-}" in
     dashboard)          shift; do_dashboard "$@" ;;
     menu|"")            do_menu ;;
     *)
-        echo "用法: bash init.sh [--status|--install|--update|guide|setup|start|stop|restart|logs|sessions|dashboard|menu]"
+        echo "用法: bash init.sh [--status|--install|--update|guide|manual|setup|start|stop|restart|logs|sessions|dashboard|menu]"
+        echo "  manual  手动建飞书应用（不走扫码）—— SSH/远端场景用"
         exit 1 ;;
 esac

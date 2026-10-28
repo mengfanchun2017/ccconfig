@@ -166,6 +166,54 @@ else
 fi
 if grep -q 'has_tty' "$INIT"; then pass "sessions 有 TTY 判定分支"; else fail "sessions 无 TTY 判定"; fi
 
+# ── 8. 二维码实时流式（防"等一分钟才出二维码"回归）──
+section "8. 二维码实时流式"
+# 根因：二维码走 stderr，而 out="$(bmx ... 2>&1)" 会把两股流一起缓冲进变量，
+# 命令结束才打印 —— 命令正在等扫码，于是死等到链接过期。
+# 断言：setup add 的调用必须走 tee（实时透传），不得用命令替换整段捕获。
+if grep -qE 'bmx setup add --create-app.*\|\s*tee' "$INIT"; then
+    pass "setup add 走 tee 实时透传（二维码立即可见）"
+else
+    fail "setup add 未走 tee —— 二维码会被缓冲到命令结束才显示"
+fi
+if grep -qE 'out="\$\(bmx setup add --create-app' "$INIT"; then
+    fail "setup add 仍用命令替换整段捕获（二维码会被扣住）"
+else
+    pass "setup add 不再整段捕获"
+fi
+# tee 之后仍要能解析 JSON（否则建应用成功却判失败）
+if grep -q '_setup_json_ok' "$INIT" && grep -qE 'out="\$\(cat ' "$INIT"; then
+    pass "tee 落盘后仍解析 JSON 结果"
+else
+    fail "tee 后未保留 JSON 解析"
+fi
+
+# ── 9. SSH / 远端场景 ──
+section "9. SSH 远端场景"
+if grep -q 'SSH_CONNECTION' "$INIT"; then
+    pass "引导检测 SSH 会话并给出替代路径"
+else
+    fail "引导未检测 SSH（远端用户会对着扫不到的二维码干等）"
+fi
+# botmux 二进制不提供输出链接的开关，故必须有"手动建应用"这条可用路径
+if grep -qE '^\s*manual\|--manual\)' "$INIT"; then
+    pass "dispatch 含 manual 分支（浏览器建应用、不走扫码）"
+else
+    fail "dispatch 缺 manual 分支 —— SSH 场景无可用的浏览器路径"
+fi
+if awk '/^do_manual\(\)/{f=1} f&&/^[a-z_]+\(\)/{if(NR>1&&!/^do_manual/)exit} f' "$INIT" \
+     | grep -q '\-\-app-id'; then
+    pass "do_manual 走 --app-id/--app-secret（无需扫码）"
+else
+    fail "do_manual 未用 app-id/app-secret 路径"
+fi
+# 非 TTY 下 botmux 只给二维码、不给链接 —— 这条实测结论要有注释沉淀，防后人再试
+if grep -q '不提供' "$INIT" || grep -q '不输出' "$INIT"; then
+    pass "代码内注明 botmux 不提供链接输出（防重复试错）"
+else
+    fail "未沉淀 botmux 无链接开关这一实测结论"
+fi
+
 echo ""
 echo "────────────────────────────"
 echo "  PASS: $PASS  FAIL: $FAIL"
