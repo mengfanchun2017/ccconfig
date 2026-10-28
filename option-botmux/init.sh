@@ -35,17 +35,36 @@ NPM_PREFIX="$(npm config get prefix 2>/dev/null || echo "")"
 NODE_BIN="$(find_node_bin 2>/dev/null || true)"
 export PATH="$HOME/.local/bin${NODE_BIN:+:$NODE_BIN}:$PATH"
 
-has_botmux() { command -v botmux &>/dev/null; }
+# 解析可用的 botmux 可执行文件。优先 PATH，其次直接摸 npm prefix 与平台子包 ——
+# 自升级（botmux upgrade / npm i -g）过程中 $LOCAL_BIN 的 symlink 会有短暂失效窗口，
+# 只靠 command -v 会误报「未安装」（实测撞到过）。故加两级兜底。
+_botmux_bin() {
+    local c
+    c="$(command -v botmux 2>/dev/null)" && [ -n "$c" ] && { echo "$c"; return 0; }
+    # npm prefix 下的 launcher
+    if [ -n "$NPM_PREFIX" ] && [ -x "$NPM_PREFIX/bin/botmux" ]; then echo "$NPM_PREFIX/bin/botmux"; return 0; fi
+    # 平台子包里的自包含二进制（launcher 失效时的最后一跳）
+    local p
+    for p in "$NPM_PREFIX"/lib/node_modules/botmux/node_modules/botmux-linux-*/botmux; do
+        [ -x "$p" ] && { echo "$p"; return 0; }
+    done
+    return 1
+}
+
+has_botmux() { _botmux_bin >/dev/null 2>&1; }
+
+# 统一调用入口：用解析出的真实路径跑（而非裸名，避开 PATH 抖动）
+bmx() { local bin; bin="$(_botmux_bin)" || return 1; "$bin" "$@"; }
 
 botmux_version() {
-    has_botmux || { echo ""; return; }
-    botmux --version 2>/dev/null | head -1 | tr -d '\n' || echo ""
+    local bin; bin="$(_botmux_bin)" || { echo ""; return; }
+    "$bin" --version 2>/dev/null | head -1 | tr -d '\n' || echo ""
 }
 
 # daemon 是否在跑（botmux status 输出含"运行中"；未跑时明确说"未在运行"）
 daemon_running() {
     has_botmux || return 1
-    local out; out="$(botmux status 2>&1 || true)"
+    local out; out="$(bmx status 2>&1 || true)"
     printf '%s' "$out" | grep -qv "未在运行" && printf '%s' "$out" | grep -qE "运行中|running|pid"
 }
 
@@ -53,7 +72,7 @@ daemon_running() {
 bot_count() {
     has_botmux || { echo "0"; return; }
     local raw
-    raw="$(botmux setup list --json 2>/dev/null || true)"
+    raw="$(bmx setup list --json 2>/dev/null || true)"
     [ -z "$raw" ] && { echo "0"; return; }
     printf '%s' "$raw" | python3 -c "
 import json, sys
@@ -93,7 +112,7 @@ do_status() {
     echo "  配置:   $BOTMUX_HOME $([ -d "$BOTMUX_HOME" ] && echo ✓ || echo '✗（未建）')"
     echo "  Bot:    $bots 个$([ "$bots" = "0" ] && echo '（未配置，跑 setup 扫码建应用）' || echo '')"
     echo "  daemon: $([ "$running" = "yes" ] && echo '运行中' || echo '未运行')"
-    echo "  自启:   $(botmux autostart status 2>/dev/null | head -1 || echo '未知')"
+    echo "  自启:   $(bmx autostart status 2>/dev/null | head -1 || echo '未知')"
     return $rc
 }
 
@@ -145,7 +164,7 @@ do_update() {
     section "更新 botmux"
     has_botmux || { err "botmux 未安装"; return 1; }
     info "当前: $(botmux_version)"
-    run botmux upgrade || { err "升级失败（可试 npm install -g botmux --force）"; return 1; }
+    run bmx upgrade || { err "升级失败（可试 npm install -g botmux --force）"; return 1; }
     ok "更新后: $(botmux_version)"
     echo ""
 }
@@ -157,7 +176,7 @@ do_setup() {
     info "默认走内置 Web QR 登录，自动导入权限/redirect 并发版；"
     info "如需跳过平台自动化: botmux setup --no-open-platform-auto"
     echo ""
-    botmux setup "$@"
+    bmx setup "$@"
 }
 
 # ── 引导向导 ──────────────────────────────────────────────────────────
@@ -255,7 +274,7 @@ do_guide() {
     local out rc
     # --create-app 走扫码；--allowed-users 必填；默认（不加 --no-open-platform-auto）
     # 会继续自动配权限/事件/发版。输出混着二维码，故整段捕获后再判 JSON。
-    out="$(botmux setup add --create-app --allowed-users "$_OWNER" 2>&1)"; rc=$?
+    out="$(bmx setup add --create-app --allowed-users "$_OWNER" 2>&1)"; rc=$?
     printf '%s\n' "$out"
 
     echo ""
@@ -295,16 +314,16 @@ _guide_start_and_autostart() {
     if daemon_running; then
         ok "daemon 已在运行"
     else
-        botmux start 2>&1 | sed 's/^/  /' || { err "daemon 启动失败，看日志: bash init-option.sh botmux logs"; return 1; }
+        bmx start 2>&1 | sed 's/^/  /' || { err "daemon 启动失败，看日志: bash init-option.sh botmux logs"; return 1; }
         sleep 2
         daemon_running && ok "daemon 已启动" || warn "daemon 未确认在跑，稍后用 5G 复查"
     fi
     echo ""
-    if botmux autostart status 2>/dev/null | grep -qiE "enabled|已启用|已开启|active"; then
+    if bmx autostart status 2>/dev/null | grep -qiE "enabled|已启用|已开启|active"; then
         info "开机自启已开启"
     else
         if confirm "设置开机自启（systemd --user，无需 sudo）？" y; then
-            botmux autostart enable 2>&1 | sed 's/^/  /' && ok "已设开机自启" || warn "自启设置失败（可手动: botmux autostart enable）"
+            bmx autostart enable 2>&1 | sed 's/^/  /' && ok "已设开机自启" || warn "自启设置失败（可手动: botmux autostart enable）"
         else
             info "已跳过自启（之后: botmux autostart enable）"
         fi
@@ -357,7 +376,7 @@ do_start() {
         warn "没有已配置的 bot，先跑 setup 扫码建应用"
         return 1
     fi
-    botmux start "$@"
+    bmx start "$@"
     echo ""
     info "开机自启: botmux autostart enable"
 }
@@ -365,33 +384,33 @@ do_start() {
 do_stop() {
     section "停止 botmux daemon"
     has_botmux || { err "botmux 未安装"; return 1; }
-    botmux stop "$@"
+    bmx stop "$@"
 }
 
 do_restart() {
     section "重启 botmux daemon"
     has_botmux || { err "botmux 未安装"; return 1; }
-    botmux restart "$@"
+    bmx restart "$@"
 }
 
 do_logs() {
     has_botmux || { err "botmux 未安装"; return 1; }
-    botmux logs "$@"
+    bmx logs "$@"
 }
 
 do_sessions() {
     has_botmux || { err "botmux 未安装"; return 1; }
     # list 在非交互下需要 --plain 才不打 TUI
     if has_tty; then
-        botmux list "$@"
+        bmx list "$@"
     else
-        botmux list --plain "$@"
+        bmx list --plain "$@"
     fi
 }
 
 do_dashboard() {
     has_botmux || { err "botmux 未安装"; return 1; }
-    botmux dashboard current "$@"
+    bmx dashboard current "$@"
 }
 
 # ── 交互菜单 ──
