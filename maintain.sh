@@ -216,7 +216,7 @@ do_setup() {
         _fix_step "重建公开符号链接（ccprivate/setup.sh 不可用）" bash "$LIB_DIR/setup-links.sh"
     fi
 
-    local expected_dirs=("skill" "rules" "agents" "commands" "bin")
+    local expected_dirs=("rules" "agents" "commands" "bin")
     local created=false
     for d in "${expected_dirs[@]}"; do
         if [[ ! -d "$ccpriv/$d" ]]; then

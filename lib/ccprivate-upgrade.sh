@@ -71,7 +71,7 @@ check_generated_dir() {
 check_directories() {
     # skill-local 已删（2026-10-27）：私有 skill 机制从未被使用（目录长期只有 .gitkeep），
     # 实体统一放公开的 ~/git/skill/plugins。此处再要求它会每次 status 报缺目录。
-    local expected=("skill" "rules" "agents" "commands" "bin" "link/memory")
+    local expected=("rules" "agents" "commands" "bin" "link/memory")
     local missing=()
     for d in "${expected[@]}"; do
         [ -d "$CCPRIVATE/$d" ] || missing+=("$d")
@@ -165,7 +165,7 @@ fix_generated_dir() {
 }
 
 fix_directories() {
-    local dirs=("skill" "rules" "agents" "commands" "bin" "link/memory")
+    local dirs=("rules" "agents" "commands" "bin" "link/memory")
     for d in "${dirs[@]}"; do
         if [ ! -d "$CCPRIVATE/$d" ]; then
             mkdir -p "$CCPRIVATE/$d"
