@@ -349,6 +349,74 @@ else
 fi
 
 
+echo ""
+echo "────────────────────────────────────"
+# ── 5 rag 区（2026-10-29 用户反馈三修）──
+# 回归锁：这三处都是"能用但难用/走不通"的静默体验缺陷，不会有报错，只能靠断言盯住。
+_LS="$CCCONFIG_DIR/option-larkcli/lark-switch.sh"
+
+# 5B 不该让人手输账号名（5A 能看到哪些，5B 就该能选哪些）
+if grep -q '5|B|lark 切换账号|.*--pick' "$CCCONFIG_DIR/lib/menu-data-maintain.sh" \
+   && ! grep -q '5|B|.*|ask_run_p' "$CCCONFIG_DIR/lib/menu-data-maintain.sh"; then
+    pass "5B 走 pick（选择）而非 ask_run（手输）"
+else
+    fail "5B 仍是手输账号名"
+fi
+
+# 5A 列表必须报授权态（选账号时最关键的一列）
+if grep -q '授权:' "$_LS" && grep -q 'lark_user_authorized "$config_dir"' "$_LS"; then
+    pass "5A 列表含授权列"
+else
+    fail "5A 列表缺授权列"
+fi
+
+# 5C 未授权时必须给出口（此前只提示、无处补授权）
+if grep -q '现在授权' "$_LS" && grep -q -- '--auth-login' "$_LS"; then
+    pass "5C 未授权时提供现场授权入口"
+else
+    fail "5C 未授权时没有可执行动作"
+fi
+
+# confirm/menu_select 来自 interact.sh —— 漏 source 会 "command not found" 静默跳过
+if grep -q 'source "\$CCCONFIG_DIR/lib/interact.sh"' "$_LS"; then
+    pass "lark-switch.sh source 了 interact.sh"
+else
+    fail "lark-switch.sh 未 source interact.sh（confirm 会 command not found）"
+fi
+
+# 5C/5D 标题必须可区分（都叫"授权/配置"时用户分不清）
+if grep -q '"5|C|lark 查看/授权当前账号' "$CCCONFIG_DIR/lib/menu-data-maintain.sh" \
+   && grep -q '"5|D|lark 安装/重配全部账号' "$CCCONFIG_DIR/lib/menu-data-maintain.sh"; then
+    pass "5C/5D 标题可区分（读 vs 写）"
+else
+    fail "5C/5D 标题仍易混"
+fi
+
+# OSC 8 超链接：URL 折行时框选只能复制一半，包 hyperlink 后整条可点
+if grep -q 'link()' "$CCCONFIG_DIR/lib/colors.sh"; then
+    # link() 以 [ -t 1 ] 判终端 —— 断言必须在真 pty 里跑（脚本里直接调是非 tty，
+    # 只会走退化分支，测不到 OSC 8）。用 script 造 pty。
+    _hl=$(script -qec "bash -c \"source '$CCCONFIG_DIR/lib/colors.sh'; link 'https://x.test/a?b=1' 'T'\"" /dev/null 2>/dev/null | cat -v)
+    if [[ "$_hl" == *']8;;https://x.test/a?b=1'* ]]; then
+        pass "link() 在 pty 下输出 OSC 8"
+    else
+        fail "link() 未输出 OSC 8: $_hl"
+    fi
+    # 非 tty 必须退化纯文本（日志/管道不留 escape）
+    _plain=$(bash -c "source '$CCCONFIG_DIR/lib/colors.sh'; link 'https://x.test/a?b=1'" 2>/dev/null)
+    [[ "$_plain" == "https://x.test/a?b=1" ]] && pass "link() 非 tty 退化纯文本" || fail "link() 非 tty 残留 escape"
+else
+    fail "colors.sh 缺 link()"
+fi
+
+# 授权链接走 link + ASCII 二维码（省掉"生成 PNG → 找文件 → 打开"）
+if grep -q '_print_auth_qr' "$CCCONFIG_DIR/option-larkcli/init.sh" \
+   && grep -q 'link "\$url"' "$CCCONFIG_DIR/option-larkcli/init.sh"; then
+    pass "5D 授权链接用 link + ASCII 二维码"
+else
+    fail "5D 未用 link/二维码"
+fi
+
 
 printf "  ${GREEN}PASS${NC}: %d  ${RED}FAIL${NC}: %d\n" "$PASS" "$FAIL"
 echo "────────────────────────────────────"
