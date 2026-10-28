@@ -169,12 +169,20 @@ show_current() {
 
             local has_user
             has_user=$(lark_user_authorized "$current_dir")
-            if [ "$has_user" = "yes" ]; then
-                echo -e "  授权:   ${GREEN}已授权${NC}"
-            elif [ "$has_user" = "unknown" ]; then
-                echo -e "  授权:   ${GRAY}未知（lark-cli auth status 无输出）${NC}"
-            else
-                echo -e "  授权:   ${YELLOW}未授权 — lark-cli auth login --recommend${NC}"
+            case "$has_user" in
+                yes) echo -e "  授权:   ${GREEN}已授权${NC}" ;;
+                unknown) echo -e "  授权:   ${GRAY}未知（lark-cli auth status 无输出）${NC}" ;;
+                *) echo -e "  授权:   ${YELLOW}未授权${NC}" ;;
+            esac
+            # 未授权时当场给出口 —— 此前只提示"未授权"，没有可执行的动作，
+            # 用户找不到地方补授权（只能去翻文档）。这里直接问要不要现在授权。
+            if [ "$has_user" != "yes" ] && [[ "${NONINTERACTIVE:-false}" != "true" ]] && [[ -r /dev/tty ]]; then
+                echo ""
+                if confirm "现在授权 ${current_name}？（浏览器/飞书扫码，1 分钟）" y; then
+                    bash "$SCRIPT_DIR/init.sh" --auth-login "$current_name"
+                    return $?
+                fi
+                info "已跳过。稍后可在此菜单重跑本项，或: bash option-larkcli/init.sh --auth-login ${current_name}"
             fi
         else
             echo -e "  状态:   ${YELLOW}未初始化${NC}"
@@ -228,7 +236,15 @@ list_accounts() {
         config_dir="${config_dir/#\~/$HOME}"
         desc="${desc:-}"
 
-        local marker="  "
+        # 授权态：唯一可信来源是 auth status 的 identities.user.available。
+        # 列表里就报出来 —— 否则"选哪个账号"这个决定缺了最关键的一列信息。
+        local auth_mark
+        case "$(lark_user_authorized "$config_dir")" in
+            yes) auth_mark="${GREEN}已授权${NC}" ;;
+            no)  auth_mark="${YELLOW}未授权${NC}" ;;
+            *)   auth_mark="${GRAY}未知${NC}" ;;
+        esac
+
         if [ "$name" = "$current_name" ] && [ -n "$current_name" ]; then
             echo -e "${GREEN} ▶ ${name}${NC} ${GRAY}(当前)${NC}"
         else
@@ -236,11 +252,59 @@ list_accounts() {
         fi
         echo -e "     ${GRAY}appId:${NC} ${app_id}"
         echo -e "     ${GRAY}配置:${NC} ${config_dir}"
+        echo -e "     ${GRAY}授权:${NC} ${auth_mark}"
         if [ -n "$desc" ]; then
             echo -e "     ${GRAY}说明:${NC} ${desc}"
         fi
         echo ""
     done < <(get_apps)
+}
+
+# ========== 选择账号（5B）==========
+# 5A 列出什么，这里就选什么 —— 同一份数据源（get_apps），不额外维护一份名单。
+# 非交互环境（NONINTERACTIVE / 无 /dev/tty）退化为打印列表 + 提示走命令行。
+pick_account() {
+    local current_name
+    current_name=$(detect_current)
+
+    local -a names=() items=()
+    local line name desc
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        IFS='|' read -r name _ _ _ _ desc <<< "$(echo "$line" | parse_app)"
+        [ -z "$name" ] && continue
+        names+=("$name")
+        if [ "$name" = "$current_name" ]; then
+            items+=("${name}（当前）")
+        else
+            items+=("${name}${desc:+ — $desc}")
+        fi
+    done < <(get_apps)
+
+    if [ ${#names[@]} -eq 0 ]; then
+        warn "feishu.json 里没有启用的 lark-cli 账号"
+        return 1
+    fi
+
+    if [ ${#names[@]} -eq 1 ]; then
+        info "只有一个账号：${names[0]}"
+        switch_account "${names[0]}"
+        return $?
+    fi
+
+    if [[ "${NONINTERACTIVE:-false}" == "true" ]] || [[ ! -r /dev/tty ]]; then
+        warn "非交互环境，无法选择账号。可用:"
+        printf '    %s\n' "${names[@]}"
+        info "  命令行: bash option-larkcli/lark-switch.sh <账号名> -p"
+        return 1
+    fi
+
+    source "$CCCONFIG_DIR/lib/interact.sh"
+    local choice
+    choice=$(menu_select "选择账号（切换并持久化）" "${items[@]}") || return 1
+    [[ -z "$choice" || "$choice" = "0" ]] && { info "已取消"; return 0; }
+
+    switch_account "${names[$((choice-1))]}" -p
 }
 
 # ========== 切换账号 ==========
@@ -340,7 +404,7 @@ EOF
         echo -e "  授权:     ${YELLOW}未授权${NC}"
         echo ""
         echo -e "  ${YELLOW}⚠ 需要 OAuth 授权才能以用户身份操作飞书：${NC}"
-        echo -e "  ${CYAN}lark-cli auth login --recommend${NC}"
+        echo -e "  ${CYAN}bash option-larkcli/init.sh --auth-login ${target_name}${NC}"
         echo ""
         echo -e "  ${GRAY}config init = 配置 app 凭证（已完成）${NC}"
         echo -e "  ${GRAY}auth login  = OAuth 用户授权（待完成）← 编辑文档必须${NC}"
@@ -362,13 +426,17 @@ main() {
         --list|-l)
             list_accounts
             ;;
+        --pick|-p-select)
+            pick_account
+            ;;
         --help|-h)
-            echo "用法: lark-switch.sh [name] [-p] [--list]"
+            echo "用法: lark-switch.sh [name] [-p] [--list|--pick]"
             echo ""
             echo "  name        切换到指定账号（仅当前 session）"
             echo "  name -p     切换并持久化到 ccprivate/link/.lark-default-account"
-            echo "  --list      列出所有账号"
-            echo "  (无参数)    显示当前账号"
+            echo "  --list      列出所有账号（5A）"
+            echo "  --pick      交互式选择账号并持久化（5B）"
+            echo "  (无参数)    显示当前账号，未授权时可直接授权（5C）"
             ;;
         "")
             show_current

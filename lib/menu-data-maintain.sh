@@ -82,11 +82,18 @@ MENU_ENTRIES=(
     # getnote），避免同名项（两边都有"OAuth 授权""状态"）分不清。
     # 原 6A「账号列表/当前账号」删去"当前账号"后缀：进入即列出全部并标出当前，
     #   标题里的"当前账号"是冗余描述。
+    # 2026-10-29 用户反馈三处修正：
+    #   5B 不该让人【手输】账号名 —— 5A 能看到哪些账号，5B 就该能【选】哪些。
+    #     改为 `--pick`（menu_select 驱动，数据源与 5A 同一份 get_apps）。
+    #   5A 列表补「授权」列 —— 选账号时最关键的信息（已授权/未授权）此前不在列表里。
+    #   5C「只提示未授权、没地方补授权」→ 现状检测到未授权时当场 confirm 并拉起授权。
+    #   5C/5D 名字太像（都叫"授权/配置"）易混 → 按 读/写 分工重命名：
+    #     5C = 查看当前账号（只读，未授权可现场授权）  5D = 安装/重配全部账号（写）
     # getnote 侧只留两项（安装已归 2D，诊断/升级见下方注释）。
     "5|A|lark 账号列表|bash option-larkcli/lark-switch.sh --list|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\" --list"
-    "5|B|lark 切换账号|bash option-larkcli/lark-switch.sh <名> -p|ask_run_p \"账号名\" \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
-    "5|C|lark OAuth 授权|bash option-larkcli/lark-switch.sh|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
-    "5|D|lark 配置/更新账号|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
+    "5|B|lark 切换账号|bash option-larkcli/lark-switch.sh --pick|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\" --pick"
+    "5|C|lark 查看/授权当前账号|bash option-larkcli/lark-switch.sh|bash \"\$CCCONFIG_DIR/option-larkcli/lark-switch.sh\""
+    "5|D|lark 安装/重配全部账号|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
     "5|E|getnote 状态|bash option-getnote/init.sh --status|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" --status"
     "5|F|getnote OAuth 授权|bash option-getnote/init.sh auth|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" auth"
     # botmux = 飞书 ↔ AI 编程 CLI 桥（取代已停更的 ccbridge）。通信/会话归 botmux daemon，
