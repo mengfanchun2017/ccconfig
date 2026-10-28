@@ -337,6 +337,62 @@ if wrong:
     print(f"  ⚠️  {', '.join(wrong)} 只能放在 .config.json，在 settings.json 里无效")
 PYEOF
 
+    # 废弃 env 键清理（声明式，2026-10-28 起）
+    #
+    # 为何需要：ccprivate/setup.sh 的 install_user_file 只【补】模板缺键，从不【删】
+    # 已发出去的废弃键（那是有意的——尊重用户自主裁剪）。代价是**我们发过的错误配置
+    # 永远清不掉**：新机从模板 cp 干净，老机一直带着，且没有任何机制会提醒。
+    #
+    # 为何用显式表而非"模板里没有就删"：用户可能在 env 里加了自己的变量，
+    # 通用 diff 会误杀。显式表精确、可审计、每条附原因。
+    section "5b. 废弃 env 键清理"
+    python3 << 'PYEOF'
+import json, os
+
+DEPRECATED_ENV = {
+    # 关掉它才让 auto-compact 按 CLAUDE_CODE_MAX_CONTEXT_TOKENS 触发。
+    # 实测：它把"auto-compact keeps within <declared window>"整条关掉，回到
+    # "等 API 报窗口"旧行为；中转 API 从不主动报窗口 → auto-compact 永不触发，
+    # 会话一路涨过声明窗口才被硬上限拦住（400k 声明涨到 419.7k）。
+    # 对不以 claude- 开头的未识别 ID，CLAUDE_CODE_MAX_CONTEXT_TOKENS 单独即生效。
+    "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT":
+        "会使 auto-compact 失效（改由 CLAUDE_CODE_MAX_CONTEXT_TOKENS 声明窗口）",
+}
+
+sf = os.path.expanduser("~/.claude/settings.json")
+try:
+    with open(sf) as f:
+        sd = json.load(f)
+except Exception:
+    sd = None
+
+if not isinstance(sd, dict):
+    print("  ⚠️  settings.json 不可读，跳过")
+else:
+    env = sd.get("env")
+    removed = []
+    if isinstance(env, dict):
+        for k, why in DEPRECATED_ENV.items():
+            if k in env:
+                env.pop(k)
+                removed.append((k, why))
+    if removed:
+        bak = sf + ".bak-deprecated"
+        try:
+            import shutil; shutil.copy2(sf, bak)
+        except Exception:
+            pass
+        with open(sf, "w") as f:
+            json.dump(sd, f, indent=4, ensure_ascii=False)
+            f.write("\n")
+        print(f"  ✓ 清理 {len(removed)} 个废弃 env 键（备份 {os.path.basename(bak)}）")
+        for k, why in removed:
+            print(f"      {k} — {why}")
+        print("      注：env 在启动时读入，需重启 Claude session 生效")
+    else:
+        print("  ✓ 无废弃 env 键")
+PYEOF
+
     section "6. LLM 当前选择"
     check_llm_current || true
 
