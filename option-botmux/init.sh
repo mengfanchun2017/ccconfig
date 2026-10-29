@@ -155,9 +155,43 @@ do_install() {
         fi
     fi
 
+    # 装完即提醒底层 CLI —— botmux 只桥接、不装 CLI。缺 CLI 是「静默失败」
+    # 重灾区：daemon 全绿、飞书零反馈（实测故障）。这里只提示不代装，
+    # 因为选哪个 CLI 是用户的路由决策，ccconfig 不替他定。
+    _bmx_hint_base_cli
+
     echo ""
     # 装完即引导：不留「手动跑 setup」这道坎 —— 交互环境直接问要不要现在做完。
     _offer_setup_and_start
+}
+
+# 底层 CLI 提示：botmux 开箱默认 cliId=claude-code，缺了它就等于装了个空桥。
+# 只报事实 + 给命令，不擅自装（换 CLI 是用户决策）。
+_bmx_hint_base_cli() {
+    local missing=() c pkg
+    for pair in "claude:@anthropic-ai/claude-code" \
+                "codex:@openai/codex" \
+                "gemini:@google/gemini-cli" \
+                "opencode:opencode-ai"; do
+        c="${pair%%:*}"; pkg="${pair#*:}"
+        command -v "$c" >/dev/null 2>&1 || missing+=("$c|$pkg")
+    done
+    # claude 是默认 cliId，它在不在决定"装完能不能直接用"
+    command -v claude >/dev/null 2>&1 && return 0
+
+    echo ""
+    warn "未检测到 claude —— botmux 默认 cliId=claude-code，缺它则每次消息都起不来 CLI"
+    info "（表现：daemon 与长连接全绿，但飞书里发消息【完全无反馈】）"
+    info "装一个即可: npm install -g @anthropic-ai/claude-code"
+    [ ${#missing[@]} -gt 1 ] && {
+        info "其他可选底层 CLI（botmux 适配器已内建，装了即可切换）:"
+        for pair in "${missing[@]}"; do
+            [ "${pair%%|*}" = "claude" ] && continue
+            info "  npm install -g ${pair#*|}   → 之后 /botconfig set cli ${pair%%|*}"
+        done
+    }
+    info "装完体检: bash option-botmux/init.sh doctor"
+    return 0
 }
 
 # ── 更新 ──

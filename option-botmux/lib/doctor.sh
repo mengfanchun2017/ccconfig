@@ -49,7 +49,35 @@ _bmx_bin_real() {
     return 0
 }
 
-# 取 bots 配置（无则输出 []）。--json 输出里含 appSecret，本函数只保留非敏感字段。
+# ── CLI 依赖：cliId → 公开 npm 安装包 ──
+# botmux 只桥接，不负责装底层 CLI —— 装了 botmux 但没装 CLI 是「静默失败」
+# 的重灾区（daemon 全绿、飞书零反馈）。
+#
+# 返回：
+#   <包名>      可用 npm 公开安装
+#   __INTERNAL__  仅内部渠道（本机无法从公网装）—— 只提示，不给命令
+#   __NONE__    非 CLI 型适配器（桌面 App / Web API / 内建 agent）
+#
+# 包名均为实测 `npm view <pkg> version` 可解析者；未验证的一律标 __INTERNAL__
+# 或留空，宁可不给命令，也不给一条装不上的命令。
+_bmx_cli_install_pkg() {
+    case "$1" in
+        claude-code) echo "@anthropic-ai/claude-code" ;;
+        codex)       echo "@openai/codex" ;;
+        gemini)      echo "@google/gemini-cli" ;;
+        opencode)    echo "opencode-ai" ;;
+        mtr)         echo "@metamove-code/mtr-cli" ;;
+        # 以下为内部渠道发行（字节 bytedcli 生态 / 未公开上架）——
+        # botmux 公开文档明确不提供其安装说明，本机内部源亦不可达。
+        aiden)       echo "__INTERNAL__" ;;
+        coco)        echo "__INTERNAL__" ;;
+        traex)       echo "__INTERNAL__" ;;
+        codex-app)   echo "__NONE__" ;;   # 桌面 App
+        mira)        echo "__NONE__" ;;   # Web API
+        riff)        echo "__NONE__" ;;   # 内建云 agent
+        *)           echo "__UNVERIFIED__" ;;
+    esac
+}
 _bmx_bots_json() {
     local raw
     raw="$(bmx setup list --json 2>/dev/null || true)"
@@ -90,12 +118,17 @@ _bmx_check_bots() {
         esac
     done < <(printf '%s' "$bots_json" | python3 -c '
 import json,sys,shutil
-# cliId -> 可执行名；空串 = 非本机 CLI
+# cliId -> 可执行名；空串 = 非本机 CLI（桌面 App / Web API / 内建 agent）
 EXEC={"claude-code":"claude","codex":"codex","codex-app":"","mira":"",
       "aiden":"aiden","traex":"traex","coco":"coco","gemini":"gemini",
       "opencode":"opencode","opencode2":"opencode2","cursor":"cursor",
       "mir":"mircli","oh-my-pi":"oh-my-pi","pi":"pi",
       "dsh":"dsh","dsh-tui":"dsh-tui","riff":""}
+# cliId -> 公开 npm 安装包；"" = 非 CLI 型；"INTERNAL" = 仅内部渠道
+PKG={"claude-code":"@anthropic-ai/claude-code","codex":"@openai/codex",
+     "gemini":"@google/gemini-cli","opencode":"opencode-ai",
+     "mtr":"@metamove-code/mtr-cli",
+     "aiden":"INTERNAL","traex":"INTERNAL","coco":"INTERNAL"}
 try:
     bots=json.load(sys.stdin)
 except Exception:
@@ -116,12 +149,14 @@ for b in bots:
     if rt:
         print(f"WARN|  cliId={cid} 走自定义 cliRuntime —— 可执行性无法静态判定，跳过")
     elif pathov:
-        if shutil.which(pathov) or __import__("os").path.isfile(pathov) and __import__("os").access(pathov,__import__("os").X_OK):
+        import os
+        if shutil.which(pathov) or (os.path.isfile(pathov) and os.access(pathov,os.X_OK)):
             print(f"PASS|  cliPathOverride: {pathov}")
         else:
             print(f"ERR|  cliPathOverride 不存在或不可执行: {pathov} → 会话起不来")
     else:
         exe=EXEC.get(cid,"__UNKNOWN__")
+        pkg=PKG.get(cid,"")
         if exe=="__UNKNOWN__":
             print(f"WARN|  未知 cliId={cid}（botmux 可能比本脚本新）")
         elif exe=="":
@@ -132,7 +167,16 @@ for b in bots:
             print(f"ERR|  cliId={cid} 需要命令 [{exe}]，但本机【未安装】")
             print(f"ERR|    → 最隐蔽的坑：daemon 与长连接都显示正常，")
             print(f"ERR|      但每次消息都起不来 CLI，飞书里表现为【完全无反馈】")
-            print(f"ERR|    → 修：装 {exe} 或改回已装 CLI（见 fix）")
+            if pkg and pkg not in ("INTERNAL",""):
+                print(f"ERR|    → 修 A) npm install -g {pkg}")
+                print(f"ERR|      修 B) 改回已装 CLI：飞书里 /botconfig set cli claude-code")
+            elif pkg=="INTERNAL":
+                print(f"ERR|    → [{exe}] 仅内部渠道发行，botmux 公开文档未给安装方式，")
+                print(f"ERR|      本机也无可达内部源 —— 请按内部文档自行安装")
+                print(f"ERR|      或改回已装 CLI：飞书里 /botconfig set cli claude-code")
+            else:
+                print(f"ERR|    → 修 A) 自行安装 {exe}")
+                print(f"ERR|      修 B) 改回已装 CLI：飞书里 /botconfig set cli claude-code")
     if wrap:
         print(f"WARN|  wrapperCli={wrap}（网关包装：须已完成该网关登录，底层 {cid} 也须已装）")
     if lm:
@@ -351,31 +395,50 @@ bmx_doctor_fix() {
     echo "自动修复"
 
     # 修复 1：cliId 指向未安装的 CLI（本次故障的触发条件）
+    # 输出 cid|exe|pkg，pkg 为空 = 无公开安装包（内部渠道/未知）
     local broken
     broken="$(printf '%s' "$(_bmx_bots_json)" | python3 -c '
 import json,sys,shutil
 EXEC={"claude-code":"claude","codex":"codex","aiden":"aiden","traex":"traex","coco":"coco",
       "gemini":"gemini","opencode":"opencode","opencode2":"opencode2","cursor":"cursor",
       "mir":"mircli","oh-my-pi":"oh-my-pi","pi":"pi"}
+PKG={"claude-code":"@anthropic-ai/claude-code","codex":"@openai/codex",
+     "gemini":"@google/gemini-cli","opencode":"opencode-ai",
+     "mtr":"@metamove-code/mtr-cli"}
+# 仅内部渠道发行，无公开包 —— 与"未知"区分，避免给出装不上的命令
+INTERNAL={"aiden","traex","coco"}
 try:
     bots=json.load(sys.stdin)
 except Exception:
     bots=[]
 for b in bots:
     if b.get("cliRuntime") or b.get("cliPathOverride"): continue
-    cid=b.get("cliId","")
+    cid=b.get("cliId","") or ""
     exe=EXEC.get(cid)
-    if exe and shutil.which(exe) is None:
-        print(b.get("larkAppId","") + "|" + cid + "|" + exe)
+    if not exe or shutil.which(exe): continue
+    pkg=PKG.get(cid,"")
+    if not pkg and cid in INTERNAL: pkg=""
+    print(cid + "|" + exe + "|" + pkg)
 ' 2>/dev/null || true)"
 
     if [ -n "$broken" ]; then
-        local app cid exe
-        while IFS='|' read -r app cid exe; do
+        local cid exe pkg
+        while IFS='|' read -r cid exe pkg; do
             [ -z "$cid" ] && continue
             warn "cliId=$cid 需要的 [$exe] 未安装"
-            info "  修法 A) 安装 $exe"
-            info "  修法 B) 改回已装的 CLI：飞书里对 bot 发  /botconfig set cli claude-code"
+            if [ -n "$pkg" ]; then
+                info "  修法 A) 装它: npm install -g $pkg"
+                if [ "${NONINTERACTIVE:-false}" != "true" ] && has_tty \
+                   && confirm "  现在就装 $pkg ？" n; then
+                    run npm install -g "$pkg" --no-audit --no-fund \
+                        && ok "已装 $pkg（重开会话后生效）" \
+                        || err "安装失败，手动试: npm install -g $pkg"
+                fi
+            else
+                info "  修法 A) [$exe] 仅内部渠道发行，botmux 公开文档未提供安装方式，"
+                info "          本机也无可达内部源 —— 请按内部文档自行安装"
+            fi
+            info "  修法 B) 改回已装的 CLI: 飞书里对 bot 发  /botconfig set cli claude-code"
         done <<< "$broken"
     else
         ok "无 cliId 指向未安装 CLI 的问题"
