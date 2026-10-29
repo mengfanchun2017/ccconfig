@@ -98,6 +98,16 @@ setup_link() {
     local target="$2"
     local label="$3"
     mkdir -p "$(dirname "$link")"
+    # 「先删后弃」防护（2026-10-30 事故）：目标缺失时不得动【健康】链接。
+    # 事故实况——残缺/临时 ccprivate 副本缺 link/ 文件时跑一次 setup，旧实现先把
+    # 健康的 ~/CLAUDE.md rm 掉、才 warn "目标不存在，跳过"，链接凭空消失（不是变死链，
+    # 是没了）→ 全局规则静默失效。删了又不重建 = 净损失，故先拦。
+    # 注意只保护【健康】链接：目标缺失且链接本就断了，仍要按下面分支清理掉
+    # （否则死链留着，下次运行又会被 readlink -f 判成"已链接"，回到老 bug）。
+    if [ ! -e "$target" ] && [ -e "$link" ]; then
+        warn "$label: 目标不存在，跳过（保留现有健康链接，$target）"
+        return 0
+    fi
     # 必须 [ -e "$link" ] 才算健康：readlink -f 对死链也返回规范路径字符串（非空，
     # 退出码 0），只看字符串相等会把死链判成"已链接" → 永远不修，症状是
     # maintain 反复报 memory 断链却怎么修都不好
@@ -115,11 +125,6 @@ setup_link() {
         rm -f "$link"
     elif [ -e "$link" ]; then
         rm -rf "$link"
-    fi
-    # 目标不存在时不建链：建出的死链会让问题更隐蔽（下次运行还会被判"已链接"）
-    if [ ! -e "$target" ]; then
-        warn "$label: 目标不存在，跳过（$target）"
-        return 0
     fi
     ln -s "$target" "$link"
     ok "$label"

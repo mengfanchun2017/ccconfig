@@ -42,7 +42,7 @@ t=35   sync 完成         → rm -f DEBOUNCE_FILE   ← B 的触发被抹掉
 被写入，一直脏到次日早上手动触发同步才被提交。
 
 **竞态 B —— 紧接上次 push 的改动被忘掉。**
-`min_push_gap`（=debounce=30s）的跳过分支同样 `rm` 掉触发文件：
+`min_push_gap` 的跳过分支同样 `rm` 掉触发文件（当时该值与 debounce 同取 30s）：
 
 ```
 [08:51:58] OK pushed
@@ -86,34 +86,76 @@ t=35   sync 完成         → rm -f DEBOUNCE_FILE   ← B 的触发被抹掉
      重新武装 debounce，语义从"丢事件"变"延后一轮"
    - `min_push_gap` 跳过分支：**不再 rm**，保留 `DEBOUNCE_FILE` 与 `pending`，下一 tick
      重算 gap，够了就同步 → 从"丢弃"变"延后"
-2. **空闲兜底 12h → 5min（150 ticks × 2s）**，日志改为 `Heartbeat sync (5min idle)`（解 D2 的一半）
+2. **空闲兜底 12h → 心跳（`heartbeat_secs=300`，按 wall-clock 计）**，
+   日志改为 `Heartbeat sync (300s wall-clock)`（解 D2 的一半）
+   - **必须按 wall-clock，不能按"暂无文件事件"**：原实现用的计数器只在
+     `DEBOUNCE_FILE` 不存在时递增、一有事件即清零 → 语义实为"本地空闲才收敛"。
+     而收敛需求跟本机是否空闲无关 —— 两端都在高频编辑时恰恰最需要对端提交可见
+     （实测 8 分钟零收敛动作）。
+   - **且必须放在 `if [ ! -f "$DEBOUNCE_FILE" ]` 之外**：只改 wall-clock 而仍留在该
+     分支内，持续编辑会让文件一直存在 → 整段被跳过，同样永不触发。
 3. **"无本地改动"路径补 fetch + 按需整合**（解 D2 的另一半，也是关键的一半）
    - 先显式 `fetch origin <branch>`（复用 `proxy_usable` 的代理/直连双路径）
-   - 再由 `origin/<branch>` **缓存**算出落后量 —— 必须 fetch 在前，否则落后量恒 0
+   - **再由 fetch 后的缓存**算落后量 —— 不 fetch 算就恒 0（纯远程领先时会误报
+     `already up to date`）
    - **确有对端新提交才** `git_pull_rebase`（跳过时不产生第二次网络往返）；工作区干净 →
      `autostash` 不生效，快进即"纯取回对端改动"
    - 本地**没有**本地改动，所以这次整合不可能与本地内容冲突
+4. **`min_push_gap` 与 debounce 解耦**（30s → 10s）。它是纯节流，不承担"合并编辑"
+   职责（那是 debounce 的活）；同值会让"30s debounce 后再判 30s gap"等于二次等待，
+   连续操作时每一拍都被 Defer。
+5. **`status` 增加"双端同步"一节**（`check_repos` 内）：fetch 后列出每仓的
+   未推 / 落后（其他终端）/ 工作区脏。全绿时给一行显式 ✅（什么都不显示会让人
+   分不清"查过了没事"与"根本没查"）。fetch 受 `QUICK_MODE` 保护以免拖慢 SessionStart，
+   并重试一次 —— monitor 正在同仓做 fetch/rebase 时并发 fetch 会瞬时失败。
 
-### 关键实现约束（踩过两次）
+### 关键实现约束（踩过四次）
 
 - **errexit 必须用 `had_e` 保护**，不能在取完 rc 后无脑 `set -e`。
   实测违反后果：心跳触发后 **11 秒主 loop 自杀**，systemd `Restart=always` 立刻拉起
-  （`NRestarts` +1，每 ~5min 一次重启风暴）。此坑 `git_push` 里已有注释警告，本次是重犯。
+  （`NRestarts` +1）。此坑 `git_push` 里已有注释警告，本次是重犯。
+- **`set +e` 不关 `set -u`** —— 这是「心跳后 loop 必死」的真根因，见下一节。
 - **落后量必须在 pull 之前算**。pull 成功会把它归零，算在事后就永远是 0 →
   日志会误报 `already up to date`（实测整合了 1 个提交却打这句）。
 - **只 fetch 不自动合并**：`pull --rebase` 的 `autostash` 是保底，不用于"替用户决定"。
   该路径只在工作区**干净**时走，因此不违反 D6。
 
+### 心跳后 loop 必死：真根因是 `set -u`，不是 errexit
+
+心跳上线后立刻暴露一个**先于本次改动就存在**的缺陷：每次全量同步后 11~12 秒主 loop
+必死、systemd 每 ~5min 重启一次（`NRestarts` 3 小时内 2 → 47）。用旧的 12h 兜底也能
+复现（`15:07:03 Periodic sync` → `15:08:44 Monitor started`），说明它一直在，
+只是 12h 才暴露一次；心跳把频率放大成了肉眼可见的风暴。
+
+诊断手法（值得复用）：`Result=success` 说明退出码为 0，而唯一 exit-0 的路径是 TERM
+trap；给 TERM 与 EXIT 两个 trap 各加一行留痕后，日志打出
+`Monitor loop EXIT trap (PID …, last cmd rc=1)` —— **rc=1，不是 TERM**。转向找
+"哪条命令返回 1"，锁定 `sync_repos()`：
+
+```
+sync_repos() { local repos_arg="$1" ... }   # ← 裸 "$1"
+sync_repos                                   # ← 心跳/initial-scan/help 的官方无参调用
+```
+
+文件级 `set -u`（nounset）**在循环的 `set +e` 下依然生效** —— `set +e` 只关 errexit。
+无参调用 → `$1: unbound variable` → 立即退出 rc=1。而"无参 = 全量"正是官方语义
+（`show_help` 与 initial scan 都用），所以**所有全量同步路径都会打挂 loop**。
+
+修法：`local repos_arg="${1:-}"`（并在 for 前补 `local repo_dir`）。同类排查已做：
+其余吃 `$1` 的函数（`do_log` / `repo_name` / `git_pull_rebase` / `git_push` /
+`commit_and_push` / `colorize_line`）均无裸调用点。
+
 ## Consequences
 
 - ✅ 窗口内写入的改动不再丢失，改为**延后一轮**被提交（实测：写于窗口内的文件自动补齐）
 - ✅ 紧接上次 push 的写入不再被忘掉（`Deferred` 日志可辨识）
-- ✅ 多终端收敛窗口从 **12h 降到 ≤5min**（心跳），且本地有改动时**即时**收敛
+- ✅ 多终端收敛窗口从 **12h 降到 ≤300s**（wall-clock 心跳，且不再被本地空闲度门控），
+  本地有改动时**即时**收敛
 - ✅ 对端提交可见：纯远程领先时日志报 `up to date locally, but N commit(s) behind remote`
   或 `整合其他终端 N 个提交（pull --rebase）`，不再一律 `already up to date`
 - ✅ `pull` 失败落真实 rc + 原始输出（此前全历史约 50 次失败**无一条证据**）
 - ✅ `skip_push`（冲突兜底/unrelated histories）不再静默 —— 显性报出未推送 commit 数
-- ❌ 空闲期每 5min 对每个已跟踪仓库各做一次 `fetch`，网络往返频率上升（换取 D2）
+- ❌ 每 300s 对每个已跟踪仓库各做一次 `fetch`（无论本地是否在编辑），网络往返频率上升（换取 D2）
 - ⚠️ **冲突兜底仍未改**：`unrelated histories` 或 rebase 冲突时走
   `stash push`（**不带 `-u`**，未跟踪文件不入 stash）→ `rebase --abort` →
   `reset --hard origin/<branch>` → `stash pop` → `skip_push=true`。
@@ -144,15 +186,24 @@ t=35   sync 完成         → rm -f DEBOUNCE_FILE   ← B 的触发被抹掉
 - `lib/monitor.sh`
   - debounce 块：`rm -f "$DEBOUNCE_FILE"` 前置到 `sync_repos` 之前
   - `min_push_gap` 分支：改 `Deferred: ...`，保留触发文件与 `pending`
-  - 心跳：`idle_ticks -ge 21600` → `-ge 150`，日志 `Heartbeat sync (5min idle)`
+  - 心跳：`idle_ticks`（本地空闲计数）→ `heartbeat_secs=300` + `heartbeat_ts`（wall-clock），
+    且移出 `if [ ! -f "$DEBOUNCE_FILE" ]` 分支；日志 `Heartbeat sync (300s wall-clock)`
+  - `sync_repos`：`local repos_arg="$1"` → `"${1:-}"`（set -u 下无参调用必崩）
+  - `min_push_gap`：30s → 10s（与 debounce 解耦）
+  - TERM/EXIT 两个 trap 各加一行留痕（把隐形死亡变成可诊断）
   - `commit_and_push` 无改动路径：`fetch` → 算 `behind` → 按需 `git_pull_rebase`
     （`had_e` 保护 errexit）
   - pull 重试分支：落 `pull rc=$pull_rc err: ...`
   - `skip_push` 分支：报未推送 commit 数
-- `tests/test-monitor.sh` 新增 6 组断言（共 23 项 / 35 断言，全绿）：
+- `lib/status.sh`：`check_repos` 增加"双端同步"一节（fetch + 重试，受 `QUICK_MODE` 保护）
+- `lib/monitor.sh` `show_help()` 与 `docs/architecture.md` 同步新流程（心跳 / 推前整合 / status 自查）
+- `tests/test-monitor.sh` 新增断言（共 26 项 / 45 断言，全绿）：
   `test_debounce_race_guard`（`rm` 行号 < `sync_repos` 行号）、
   `test_min_gap_defer_not_drop`（有 `Deferred`、无多余 `rm`）、
-  `test_heartbeat_convergence`（间隔 ≤300 ticks + 日志可辨识）、
+  `test_min_gap_independent`（节流值 < debounce）、
+  `test_heartbeat_convergence`（wall-clock + 无 `idle_ticks` 残留 + 位于 DEBOUNCE 判断之外）、
+  `test_sync_repos_noarg_safe`（`${1:-}` 且无参调用实测 rc=0）、
+  `test_status_reports_sync_state`（双端同步一节 + QUICK_MODE 保护 + 重试）、
   `test_remote_ahead_detected`（含 `git_pull_rebase`、`behind`、`had_e`）、
   `test_pull_failure_evidence`、`test_skip_push_visible`
 - 端到端验证（假裸远程 + 双克隆，在 `~/git` 之外建，避免触发本机 monitor）：
