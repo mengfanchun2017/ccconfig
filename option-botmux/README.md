@@ -38,8 +38,60 @@ bash init-option.sh botmux guide      # 只跑引导（幂等：已有 bot 则�
 bash init-option.sh botmux manual     # 手动建应用（不走扫码）—— SSH/远端场景用
 bash init-option.sh botmux setup      # 只建应用（botmux setup 原始交互）
 bash init-option.sh botmux start      # 只启动
+bash init-option.sh botmux doctor     # 体检（飞书发消息无反馈时先跑这个）
+bash init-option.sh botmux fix        # 体检 + 自动修复
 bash init-option.sh botmux menu       # 完整管理菜单（启停/日志/会话/Dashboard/升级）
 ```
+
+## 飞书发消息没反馈？先跑体检
+
+**这是本 option 最容易踩的坑，且 botmux 自带命令看不出来。**
+
+`botmux status` / `botmux list` 只反映 **daemon 与 supervisor 存活**，不反映
+「会话能不能真的干活」。2026-10-29 实测故障：`status` 全程显示两个进程 `online`、
+长连接正常，但飞书里发消息**毫无反应**。真因是会话的 worker 卡死
+（`D` 状态不可中断 I/O，`SIGKILL` 都杀不掉）+ tmux pane 已死，消息只堆进
+`~/.botmux/data/queues/*.jsonl` 无人消费。
+
+```bash
+bash init-option.sh botmux doctor     # 只体检
+bash init-option.sh botmux fix        # 体检 + 自动修复（会先问再改）
+# 运维菜单: bash maintain.sh → 5J
+```
+
+体检覆盖四类盲区：
+
+| 检查项 | 抓什么 |
+|---|---|
+| 配置 | `allowedUsers` 是否为空；`cliId` 指向的 CLI **本机是否真装了**；`cliPathOverride` 是否有效 |
+| 会话健康 | tmux pane 是否已死；worker 是否卡 `D` 状态 |
+| 队列积压 | 无活跃会话却堆着消息 = 死锁的直接症状 |
+| 上游 | 飞书长连接是否建立（`WSClient started`）；先前是否出现 worker SIGTERM 无响应 |
+
+`fix` 只做安全且确定的动作，改配置前一律先问；非交互环境只提示不动手。
+
+> **最隐蔽的一种**：`cliId` 指向一个本机没装的 CLI（例如在飞书里
+> `/botconfig set cli aiden` 但没装 aiden）。daemon 与长连接都显示正常，
+> 每次消息都起不来 CLI —— 表现就是**完全无反馈**。体检会直接点名报错。
+> 修法：装那个 CLI，或 `/botconfig set cli claude-code` 改回已装的。
+
+## 配置输入输出显示
+
+飞书里对 bot 发 `/botconfig` 查看/修改（写盘即热更新，无需重启）：
+
+| 字段 | 作用 |
+|---|---|
+| `cliId` | 底层驱动哪个 CLI。可取值见 `botmux doctor` 的漂移检测段 |
+| `cliPathOverride` | 覆盖 CLI 可执行路径（网关/wrapper 场景用） |
+| `wrapperCli` / `cliLaunchMode` | 网关包装（如 `aiden x claude`），底层 CLI 仍需已装 |
+| `replyCardMode` | `legacy`=两张卡 / `unified`=一张卡 |
+| `disableStreamingCard` | 关掉流式卡片（改用固定卡） |
+| `cotEnabled` | 思维链显示 |
+| `brandLabel` / `showUsageInCardFooter` | 卡片页脚品牌与用量 |
+| `lang` / `model` | 语言与模型 |
+| `backendType` | `tmux` / `pty` / `herdr` / `zellij` |
+
+完整字段表见上游文档：https://deepcoldy.github.io/botmux/
 
 ### SSH / 远端会话怎么建应用
 
@@ -56,7 +108,7 @@ bash init-option.sh botmux menu       # 完整管理菜单（启停/日志/会�
 
 权限如需手动导入，JSON 在 `~/.botmux/lark-scopes.json`。
 
-菜单入口：`bash maintain.sh` → `5G` 状态 / `5H` 引导 / `5I` 管理菜单。
+菜单入口：`bash maintain.sh` → `5G` 状态 / `5H` 引导 / `5I` 管理菜单 / `5J` 体检。
 
 ## 中文字体（WSL 必看）
 

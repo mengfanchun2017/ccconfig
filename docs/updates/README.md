@@ -13,3 +13,4 @@
 | 2026-09-20 | [移除 ccbridge 菜单项](20260920-drop-ccbridge-menu-entries.md) | 删 `lib/menu-feishu.sh`，ccbridge 转独立仓 |
 | 2026-10-18 | [菜单重构](20261018-menu-restructure.md) | 6 域 31 项的新菜单结构（取代 20260920 的编号） |
 | 2026-10-27 | [新增 option-botmux](20261027-add-option-botmux.md) | 飞书 ↔ AI 编程 CLI 桥接入；弃用 ccbridge（上游停更 2 月、272 open issues），ccbridge 仓保留作参考 |
+| 2026-10-29 | [botmux 健康体检](20261029-botmux-doctor.md) | 「飞书发消息零反馈」故障归因（worker 卡 D 状态 + pane 已死 + cliId 指向未装 CLI）；新增 doctor/fix，补上 `botmux status` 看不见的会话健康盲区 |
