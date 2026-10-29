@@ -23,7 +23,7 @@ CAT_NAME[2]="更新"
 CAT_NAME[3]="LLM"
 CAT_NAME[4]="MCP"
 CAT_NAME[5]="rag"
-CAT_NAME[6]="远程"
+CAT_NAME[6]="远程/桥接"
 
 MENU_ENTRIES=(
     # ── 1: 状态/同步（原 1 状态 + 原 2 监控/同步 合并）──
@@ -96,20 +96,24 @@ MENU_ENTRIES=(
     "5|D|lark 安装/重配全部账号|bash option-larkcli/init.sh|bash \"\$CCCONFIG_DIR/option-larkcli/init.sh\""
     "5|E|getnote 状态|bash option-getnote/init.sh --status|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" --status"
     "5|F|getnote OAuth 授权|bash option-getnote/init.sh auth|bash \"\$CCCONFIG_DIR/option-getnote/init.sh\" auth"
-    # botmux = 飞书 ↔ AI 编程 CLI 桥（取代已停更的 ccbridge）。通信/会话归 botmux daemon，
-    # 这里是运维入口：状态、启动、会话、Dashboard。
-    # 状态项：WARN（未配置/daemon 没跑）是正常输出而非失败。action 走 do_botmux_status
-    # 包装函数（吞三态退出码）—— 不能写「|| true」，'|' 会撕裂 MENU_ENTRIES 的字段 schema。
-    "5|G|botmux 桥状态|bash option-botmux/init.sh --status|do_botmux_status"
-    "5|H|botmux 桥配置（引导）|bash option-botmux/init.sh guide|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" guide"
-    "5|I|botmux 管理菜单|bash option-botmux/init.sh menu|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" menu"
-    # 消息无反馈时的首查项：体检覆盖「会话健康/队列积压/长连接/cliId 可执行性」
-    # —— 这些是 botmux 自带 status/list 看不见的盲区（2026-10-29 实测故障）
-    "5|J|botmux 体检（无反馈）|bash option-botmux/init.sh doctor|do_botmux_doctor"
 
-    # ── 6: 远程（SSH + tailscale）──
+    # ── 6: 远程/桥接（SSH + tailscale + botmux 飞书桥）──
+    # botmux 归这里而非 5 rag：它的本质是「从飞书这个远程端遥控本机 CLI」，
+    # 与 SSH/tailscale 是同一类「远端接入本机」的能力；5 rag 留给检索类（lark/getnote）。
+    # 状态项：WARN（未配置/daemon 没跑）是正常输出而非失败 —— action 走包装函数
+    # 吞三态退出码（不能写「|| true」，'|' 会撕裂 MENU_ENTRIES 的字段 schema）。
     "6|A|查看 SSH 状态/端口|bash option-remote/init.sh --status|bash \"\$CCCONFIG_DIR/option-remote/init.sh\" --status"
     "6|B|设置 SSH 端口（问端口）|bash option-remote/init.sh set-port <端口>|ask_run \"要设置的 SSH 端口\" \"\$CCCONFIG_DIR/option-remote/init.sh\" set-port"
+
+    # ── 6: botmux 飞书桥（合并为两项）──
+    # 合并理由（原 5G/5H/5I/5J 四项）：
+    #   · 桥状态 = 体检的头部信息，单列纯属重复 → 并入体检项
+    #   · 桥配置（引导）本就只在「还没建应用」时用；建完后再点它只会到「已在运行」
+    #     → 并入管理菜单（菜单第 1 项就是一条龙引导）
+    #   故 状态+体检 合一、配置+管理 合一，四项降为两项。
+    # 体检项标「无反馈」关键词：这是用户实际会遇到的症状入口（2026-10-29 故障）。
+    "6|C|botmux 桥状态体检|bash option-botmux/init.sh doctor|do_botmux_doctor"
+    "6|D|botmux 桥配置管理|bash option-botmux/init.sh menu|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" menu"
 
     # ── 0: 退出 ──
     "0| |退出||exit 0"

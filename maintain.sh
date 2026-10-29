@@ -122,8 +122,12 @@ do_botmux_status() {
     bash "$CCCONFIG_DIR/option-botmux/init.sh" --status || true
 }
 
-# 5J botmux 体检。rc 1 = 有错误，同样要吞掉（理由同 5G 的 set -e 陷阱）。
+# 6C botmux 桥状态体检 —— 合并原 5G「桥状态」+ 5J「体检」两项。
+# 二者本就是一件事：状态那行（OK/WARN/MISSING + 版本 + bot 数）只是体检的头部摘要，
+# 单列一项纯重复。这里先打状态行（用户要一眼看结论），再打体检明细。
+# rc 1 = 有错误，吞掉（set -e 陷阱；WARN 是正常输出而非失败）。
 do_botmux_doctor() {
+    bash "$CCCONFIG_DIR/option-botmux/init.sh" --status 2>/dev/null | head -1 || true
     bash "$CCCONFIG_DIR/option-botmux/init.sh" doctor || true
 }
 
