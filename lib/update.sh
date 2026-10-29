@@ -432,6 +432,19 @@ update_npm_globals() {
             run rm -f "$LOCAL_BIN/botmux"
             run ln -sf "$node_bin/botmux" "$LOCAL_BIN/botmux"
         fi
+        # 升级后必查：botmux 自带 status 只反映 daemon 存活，不反映会话能否干活。
+        # 且升级会换二进制，配置/会话可能失配（2026-10-29 实测：升级窗口内
+        # symlink 短暂失效导致误报"未安装"）。体检 + 卡死自动清理放这里最省事。
+        local bm_doc="$CCCONFIG_ROOT/option-botmux/lib/doctor.sh"
+        if [ -f "$bm_doc" ]; then
+            local bm_rc=0
+            NONINTERACTIVE=true bash "$CCCONFIG_ROOT/option-botmux/init.sh" doctor >/dev/null 2>&1 || bm_rc=$?
+            if [ "$bm_rc" -eq 0 ]; then
+                success "botmux 体检通过"
+            else
+                warn "botmux 体检有问题 → bash option-botmux/init.sh doctor"
+            fi
+        fi
     else
         info "botmux 未安装，跳过"
     fi
