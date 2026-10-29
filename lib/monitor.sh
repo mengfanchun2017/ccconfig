@@ -553,6 +553,21 @@ start_watch() {
             fi
         fi
     done
+    # PIDFile 兜底：两个 PIDFile 都不存在/失效时，仅凭它们是【唯一】判据会漏判——
+    # 实测：$PID_FILE（ccconfig/.monitor-sync.pid）被 loop 退出 trap 删掉，
+    # 而 /run 那份又可能只在 systemd 场景写；此时 pid_candidate 为空，
+    # 一次手动 `monitor.sh start` 就能起出第二个 loop 与现有实例抢同一批仓库。
+    # status_watch 早有同样的 pgrep 兜底（第 878 行），start 侧却缺，属不对称。
+    # 排除自身：本脚本及其子 shell 的 cmdline 同样含 "monitor.sh start"
+    # （event_pid 读 inotify 的管道、monitor_pid 跑 debounce loop），
+    # 不排除会把调用者自己当成"已有实例"。
+    if [ -z "$pid_candidate" ]; then
+        local live_pid
+        live_pid=$(pgrep -f 'monitor\.sh start' 2>/dev/null | grep -vx "$$" | head -1)
+        if [ -n "$live_pid" ] && kill -0 "$live_pid" 2>/dev/null; then
+            pid_candidate="$live_pid"
+        fi
+    fi
     if [ -n "$pid_candidate" ]; then
         do_log "Already running (PID: $pid_candidate) — keep alive"
         # 幂等返回不等于"没事"：loop 活着但 inotifywait 坏了，此前静默 return 0，
