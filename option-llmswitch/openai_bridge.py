@@ -678,6 +678,44 @@ def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> d
     }
 
 
+async def _non_stream_fallback(target_url, headers, upstream_body, host_header, extra_ext,
+                               use_win_curl, req_no) -> str:
+    """流式失败时回落非流式，返回等价 SSE 帧串；失败返回空串。
+
+    两种触发场景（内网网关实测）：
+    1. 空流：`deepseek-v4.1-flash-outside` 流式恒 HTTP 200 + 仅 `data: [DONE]`；
+    2. 502 饱和：`ModelArts.81114 上游负载已饱和`，同一请求非流式重试常能成功。
+
+    why 重试：502 是间歇的（10 次采样 7 次失败但成功那 3 次正常），
+    让 CC 自己重试会重跑整个请求（含已完成的部分），在 bridge 里退避重试更省。
+    """
+    fb_body = dict(upstream_body)
+    fb_body["stream"] = False
+    fb_body.pop("stream_options", None)
+    for attempt in range(3):
+        try:
+            fb_status, fb_text = await _upstream_post(
+                target_url, headers, fb_body, host_header, extra_ext, use_win_curl
+            )
+            if fb_status == 200:
+                try:
+                    return anthropic_resp_to_sse(
+                        openai_to_anthropic_resp(json.loads(fb_text), f"msg_bridge_{req_no}")
+                    )
+                except Exception as e:
+                    print(f"[bridge] fallback JSON parse failed: {type(e).__name__}: {e}", flush=True)
+                    return ""
+            print(f"[bridge] non-stream fallback failed: status={fb_status} {fb_text[:200]}", flush=True)
+            # 只对上游过载类错误重试；其他状态码重试无意义
+            if fb_status not in (429, 502, 503, 504):
+                return ""
+        except Exception as e:
+            print(f"[bridge] non-stream fallback error: {type(e).__name__}: {e}", flush=True)
+        if attempt < 2:
+            await asyncio.sleep(1.5 * (attempt + 1))
+    return ""
+
+
 def anthropic_resp_to_sse(resp: dict) -> str:
     """非流式 Anthropic message → 等价 SSE 帧序列。
 
@@ -1132,22 +1170,9 @@ async def messages(request: Request):
             # 回落非流式取完整结果转成 SSE，客户端无感。
             if pending and not (sse_state.get("text_blocks") or sse_state.get("tool_blocks")):
                 print("[bridge] upstream stream had zero content blocks, falling back to non-stream", flush=True)
-                fallback = None
-                try:
-                    fb_body = dict(upstream_body)
-                    fb_body["stream"] = False
-                    fb_body.pop("stream_options", None)
-                    fb_status, fb_text = await _upstream_post(
-                        target_url, headers, fb_body, host_header, extra_ext, use_win_curl
-                    )
-                    if fb_status == 200:
-                        fallback = anthropic_resp_to_sse(
-                            openai_to_anthropic_resp(json.loads(fb_text), f"msg_bridge_{req_no}")
-                        )
-                    else:
-                        print(f"[bridge] non-stream fallback failed: status={fb_status} {fb_text[:200]}", flush=True)
-                except Exception as e:
-                    print(f"[bridge] non-stream fallback error: {type(e).__name__}: {e}", flush=True)
+                fallback = await _non_stream_fallback(
+                    target_url, headers, upstream_body, host_header, extra_ext, use_win_curl, req_no
+                )
                 if fallback:
                     yield fallback
                     _dump_and_summary("fallback")
