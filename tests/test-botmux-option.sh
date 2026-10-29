@@ -340,6 +340,45 @@ if grep -q 'NONINTERACTIVE' "$DOC"; then pass "fix 尊重 NONINTERACTIVE（非�
 grep -q 'do_botmux_doctor' "$CCCONFIG_DIR/maintain.sh" && pass "maintain.sh 有 do_botmux_doctor" || fail "maintain.sh 缺 do_botmux_doctor"
 grep -q 'botmux 体检' "$CCCONFIG_DIR/lib/menu-data-maintain.sh" && pass "菜单含 botmux 体检项" || fail "菜单缺体检项"
 
+# ── 13. 底层 CLI 依赖（botmux 只桥接、不装 CLI）──
+# 装了 botmux 但没装底层 CLI = 静默失败：daemon 全绿、飞书零反馈。
+# 修法必须区分「公开可装」与「仅内部渠道」—— 给内部渠道发 npm install 是错的。
+section "13. 底层 CLI 依赖"
+grep -q '_bmx_cli_install_pkg' "$DOC" && pass "有 CLI 安装包映射表" || fail "缺 CLI 安装包映射"
+grep -q 'npm install -g @anthropic-ai/claude-code' "$INIT" && pass "提示装默认 claude" || fail "未提示装 claude"
+grep -q '_bmx_hint_base_cli' "$INIT" && pass "安装后提示底层 CLI" || fail "安装后无 CLI 提示"
+# aiden/traex/coco 是内部渠道，绝不能给出装不上的 npm 包名
+grep -q '__INTERNAL__' "$DOC" && pass "内部渠道适配器单列（不给假包名）" || fail "未区分内部渠道"
+grep -q '仅内部渠道发行' "$DOC" && pass "内部渠道给明确说明" || fail "内部渠道无说明"
+# 已装 claude 时提示必须静默（否则每次安装都刷一堆无用警告）
+if grep -A3 'command -v claude' "$INIT" | grep -q 'return 0'; then
+    pass "claude 已装则提示静默"
+else
+    fail "claude 已装仍会刷提示"
+fi
+# fix 里装 CLI 必须先确认、且尊重 NONINTERACTIVE
+if grep -q 'NONINTERACTIVE.*true.*has_tty' "$DOC" || grep -qE 'NONINTERACTIVE:-false.*!=.*true' "$DOC"; then
+    pass "fix 装 CLI 尊重 NONINTERACTIVE"
+else
+    fail "fix 装 CLI 未防非交互"
+fi
+# 实测：内部渠道适配器不产出可执行 npm 命令
+_tmppkg="$(bash -c '
+source "'"$CCCONFIG_DIR"'/lib/colors.sh" 2>/dev/null
+source "'"$CCCONFIG_DIR"'/option-botmux/lib/doctor.sh" 2>/dev/null
+for c in aiden traex coco; do _bmx_cli_install_pkg "$c"; echo; done
+' 2>/dev/null | tr "\n" " ")"
+case "$_tmppkg" in
+    *__INTERNAL__*) pass "aiden/traex/coco → __INTERNAL__（不发假包名）" ;;
+    *) fail "内部渠道适配器映射错误: $_tmppkg" ;;
+esac
+_tmppkg2="$(bash -c '
+source "'"$CCCONFIG_DIR"'/lib/colors.sh" 2>/dev/null
+source "'"$CCCONFIG_DIR"'/option-botmux/lib/doctor.sh" 2>/dev/null
+_bmx_cli_install_pkg claude-code
+' 2>/dev/null)"
+[ "$_tmppkg2" = "@anthropic-ai/claude-code" ] && pass "claude-code → @anthropic-ai/claude-code" || fail "claude-code 映射错: $_tmppkg2"
+
 echo ""
 echo "────────────────────────────"
 echo "  PASS: $PASS  FAIL: $FAIL"
