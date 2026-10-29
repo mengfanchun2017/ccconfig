@@ -1139,7 +1139,7 @@ async def messages(request: Request):
                     detail = raw_buf[0].strip()[:500]
                     print(f"[bridge] upstream returned non-SSE body: {detail}", flush=True)
                     yield _error_frames("upstream_error", detail)
-                elif sse_state.get("empty_stream") or not (sse_state.get("text_blocks") or sse_state.get("tool_blocks")):
+                elif pending and not (sse_state.get("text_blocks") or sse_state.get("tool_blocks")):
                     # 上游回的是合法 SSE 但一个内容块都没有（实测内网网关
                     # deepseek-v4.1-flash-outside：HTTP 200 + 仅 data: [DONE]）。
                     # 报 incomplete 只会让 CC 反复重试同一个必然失败的流式请求；
