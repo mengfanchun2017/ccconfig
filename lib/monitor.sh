@@ -361,6 +361,10 @@ commit_and_push() {
             if [ $pull_rc -eq 124 ] || echo "$pull_output" | grep -qi "connection\|network\|kex_exchange\|could not read from remote\|gnutls\|Recv failure"; then
                 if [ $pull_attempt -lt $pull_max ]; then
                     log "[$repo] pull attempt $pull_attempt failed, retry in 10s..."
+                    # 必须落真实报错：此前网络类分支只打上面那句通用消息，
+                    # pull_output 被丢弃 → 事后无法判定是超时/代理/DNS/协议。
+                    # 全历史约 50 次 pull failed 全是这样丢证据的（rc=$pull_rc）。
+                    do_log "[$repo]   pull rc=$pull_rc err: $(printf '%s' "$pull_output" | head -3 | tr '\n' ' ')"
                     sleep 10
                 fi
             else
@@ -412,6 +416,17 @@ commit_and_push() {
             else
                 echo "$push_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
                 warn "[$repo] !! push failed — $(push_fail_reason "$push_output")"
+            fi
+        else
+            # skip_push 走到这里 = unrelated histories 或 rebase 冲突兜底。
+            # 此前静默返回 → 本地已提交但未推送的 commit 无限期搁浅，无人知晓。
+            # 显式报出未推送数量，把"静默搁浅"变成"可见告警"。
+            local _unpushed
+            _unpushed=$(git -C "$repo_dir" rev-list --count "origin/$branch..HEAD" 2>/dev/null || echo 0)
+            if [ "${_unpushed:-0}" -gt 0 ]; then
+                error "[$repo] !! 跳过推送 — ${_unpushed} 个 commit 未推送（远程领先或冲突未解）。查看: git -C $repo_dir log origin/$branch..HEAD"
+            else
+                warn "[$repo] !! 跳过推送（无未推送 commit，仅本地改动未落盘）"
             fi
         fi
     else
@@ -625,13 +640,18 @@ start_watch() {
             fi
             if [ ! -f "$DEBOUNCE_FILE" ]; then
                 idle_ticks=$((idle_ticks + 1))
-                # Periodic full sync every 12h idle (21600 ticks × 2s)
-                if [ $idle_ticks -ge 21600 ]; then
+                # 心跳全量同步：5 分钟（150 ticks × 2s）。原来 12h 是纯兜底，
+                # 但 monitor 只看本机文件事件、从不轮询远程 —— 多终端并行时，
+                # 对端推上来的新提交本机永远感知不到（要等自己碰文件才顺带 pull）。
+                # 5min 心跳让"喂给另一终端"的收敛窗口从 12h 降到 5min。
+                # commit_and_push 幂等：无改动且已同步时只打 "already up to date"，
+                # 不产生噪音提交（实测）。
+                if [ $idle_ticks -ge 150 ]; then
                     idle_ticks=0
                     now=$(date +%s)
                     gap=$((now - last_push_time))
                     if [ "$last_push_time" -eq 0 ] || [ "$gap" -ge "$min_push_gap" ]; then
-                        do_log "Periodic sync (12h idle)"
+                        do_log "Heartbeat sync (5min idle) — 收敛其他终端的改动"
                         sync_repos
                         last_push_time=$(date +%s)
                     fi
@@ -662,6 +682,13 @@ start_watch() {
 
                 # 去重改动 repo 列表，sync_repos 不传 = 全量（fallback 行为）
                 changed=$(sort -u "$CHANGED_REPOS_FILE" 2>/dev/null | grep -v '^$' || true)
+                # 先清触发文件再同步：sync_repos 要跑 4~24s，期间 inotify 若重建
+                # DEBOUNCE_FILE（用户正在编辑），它之前会被下面那行 rm 抹掉 ——
+                # 那次改动要等下一个无关文件事件才被带走（实测复现：写于 sync 窗口内的
+                # 文件持续 200s+ 保持未提交）。改成先清 → 期间的新事件重新武装 debounce，
+                # 语义从"丢事件"变成"延后一轮"。
+                rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
+                pending=0
                 if [ -z "$changed" ]; then
                     do_log "Debounce done, no changed repos recorded — syncing all (fallback)"
                     sync_repos
@@ -669,9 +696,7 @@ start_watch() {
                     do_log "Debounce done, syncing $(echo "$changed" | wc -l) changed repo(s)..."
                     sync_repos "$changed"
                 fi
-                pending=0
                 last_push_time=$(date +%s)
-                rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
             fi
         done
     } &

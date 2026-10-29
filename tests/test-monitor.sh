@@ -297,6 +297,60 @@ test_monitor_sh_syntax() {
     fi
 }
 
+# ========== 多终端并发（race 修复 + 心跳） ==========
+
+test_debounce_race_guard() {
+    # 竞态回归：曾经 rm DEBOUNCE_FILE 在 sync_repos 之后 → 同步窗口内到达的新事件
+    # 被抹掉，那份改动要等下一个无关事件才提交（实测写于窗口内的文件 200s+ 仍脏）。
+    # 判据：rm 必须出现在 sync_repos 调用之前。
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    local rm_line sync_line
+    rm_line=$(awk '/^                rm -f "\$DEBOUNCE_FILE" "\$CHANGED_REPOS_FILE"$/{print NR; exit}' "$mon")
+    sync_line=$(awk '/^                    sync_repos/{print NR; exit}' "$mon")
+    if [ -n "$rm_line" ] && [ -n "$sync_line" ] && [ "$rm_line" -lt "$sync_line" ]; then
+        pass "race: debounce 触发文件在 sync_repos 之前清除（rm@$rm_line < sync@$sync_line）"
+    else
+        fail "race" "rm@${rm_line:-?} 未在 sync_repos@${sync_line:-?} 之前 — 窗口内事件会被丢"
+    fi
+}
+
+test_heartbeat_convergence() {
+    # 多终端收敛：monitor 只看本机文件事件、从不轮询远程，对端推上来的提交
+    # 本机要等自己碰文件才顺带 pull。心跳把收敛窗口从 12h 压到 5min。
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    local ticks
+    ticks=$(grep -m1 'idle_ticks -ge ' "$mon" | grep -oE '[0-9]+' | head -1)
+    if [ "${ticks:-0}" -gt 0 ] && [ "${ticks:-0}" -le 300 ]; then
+        pass "heartbeat: 空闲心跳 ${ticks} ticks（×2s = $((ticks * 2))s）≤ 5min"
+    else
+        fail "heartbeat" "心跳间隔 ${ticks:-?} ticks 过长，多终端收敛会滞后"
+    fi
+    grep -q 'Heartbeat sync' "$mon" \
+        && pass "heartbeat: 日志可辨识（不再是 Periodic sync）" \
+        || fail "heartbeat" "心跳日志无辨识度"
+}
+
+test_pull_failure_evidence() {
+    # pull 失败必须落真实报错：此前网络类分支只打通用 "attempt N failed"，
+    # pull_output 被丢弃 → 全历史约 50 次失败全是无证据的。
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    awk '/pull attempt \$pull_attempt failed, retry in 10s/,/sleep 10/' "$mon" | grep -q 'pull rc=' \
+        && pass "pull-err: 网络类失败落 rc + 原始输出" \
+        || fail "pull-err" "pull 失败仍丢错误详情"
+}
+
+test_skip_push_visible() {
+    # skip_push 静默返回会让未推送 commit 无限期搁浅（冲突兜底/unrelated histories）。
+    # 必须显性报出未推送数量。
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    grep -q 'skip_push 走到这里' "$mon" \
+        && pass "skip-push: 有显性告警分支" \
+        || fail "skip-push" "skip_push 仍静默"
+    awk '/skip_push 走到这里/,/^        fi$/' "$mon" | grep -q 'rev-list --count' \
+        && pass "skip-push: 报告未推送 commit 数" \
+        || fail "skip-push" "未量化未推送 commit"
+}
+
 # ========== 主流程 ==========
 
 all_tests=(
@@ -316,6 +370,10 @@ all_tests=(
     "desc: max_restart 9 > 8 → 放弃"                 test_max_restart_giveup
     "desc: 提交信息带摘要（monitor + sync）"          test_commit_message_has_summary
     "desc: 初始扫描可见且显式传仓库"                  test_initial_scan_observable
+    "desc: race — debounce 触发文件先清后同步"        test_debounce_race_guard
+    "desc: heartbeat — 5min 空闲收敛其他终端"        test_heartbeat_convergence
+    "desc: pull 失败落真实报错"                      test_pull_failure_evidence
+    "desc: skip_push 显性告警未推送 commit"           test_skip_push_visible
     "desc: monitor.sh 语法检查"                      test_monitor_sh_syntax
 )
 
