@@ -548,36 +548,81 @@ resurrect_pm2() {
 }
 
 # ========== Start monitoring ==========
-# 找出存活 monitor loop 的 PID；无则回空。start_watch / status_watch 共用同一判据，
-# 避免两边漂移（此前 start 只看 PIDFile、status 另有 pgrep 兜底，是不对称的）。
+# 找出存活 monitor loop 的 PID；无则回空。start_watch / status_watch 共用。
 #
-# 判据优先级：
-#   1. PIDFile（systemd 写 /run/claude-auto-sync/monitor.pid，手动实例写 $MONITOR_HOME/.monitor-sync.pid）
-#      —— 必须校验 cmdline 含 monitor.sh，防止 PID 复用/残留指向无关进程
-#   2. pgrep 兜底 —— PIDFile 被 loop 退出 trap 删掉（实测 $MONITOR_HOME/.monitor-sync.pid
-#      会消失，此时仅凭 PIDFile 会漏判，一次手动 start 就起出第二个 loop 抢同一批仓库）
+# 难点：daemon 与「一次性调用」的 cmdline 无法用子串区分。
+#   - daemon 的父 bash 与它 fork 的 loop 子 shell，cmdline 都是
+#     `/bin/bash /path/to/monitor.sh start`
+#   - 而 `timeout 25 bash monitor.sh start`、`sudo systemctl ...`、
+#     `bash -c '... monitor.sh start ...'`、`monitor.sh status|tail|log` 这些
+#     一次性调用，cmdline 里【同样】含 "monitor.sh"，甚至含 "monitor.sh start"
 #
-# 排除自身：本脚本及它 disown 的子 shell（event_pid 读 inotify 管道、monitor_pid 跑
-# debounce loop）cmdline 同样含 "monitor.sh start"，不排除会把调用者当成"已有实例"，
-# 于是 start 永远认为自己已在运行 → 起不来。
+# 实测事故（2026-10-30，两次都踩在这上面）：
+#   ① 一条诊断命令 `bash -c '... monitor.sh start ...'` 把自己认成实例
+#      → start_watch 提前 return 【不写 PIDFile】→ systemd Type=forking 报
+#      "Can't open PID file after start: No such file or directory" → Result=protocol
+#      → 每 10s 重启的死循环（服务彻底起不来）。
+#   ② 改用「必须有子进程」当 daemon 特征后，`timeout bash monitor.sh start` 又因
+#      它是包装器、有子进程而被误判，同样复发。
+#
+# 因此判据改成【整条 cmdline 锚定匹配】：只认 cmdline 恰好是
+#   `bash <path>/monitor.sh start`（前后无其它参数/命令）的进程。
+# 包装器（timeout/sudo/env/nice/setsid/bash -c/系统 shell-snapshot 包装）的 cmdline
+# 都不是这个形状，一次性子命令（status/tail/log）也不是 → 一并排除。
+# 另排除 $$ 与 $PPID（自身 + 直接调用者），双保险。
+#
+# 宁漏不误判：漏判的代价是 systemd 多起一个实例（旧 loop 会在下个周期被拒启后收敛），
+# 误判的代价是【服务起不来】。方向必须偏向前者。
+_monitor_cmdline_is_daemon() {
+    local cmd
+    cmd=$(cat "/proc/$1/cmdline" 2>/dev/null | tr '\0' ' ')
+    cmd="${cmd%"${cmd##*[![:space:]]}"}"   # 去掉 tr 留下的尾随空格
+    # 按词判等，而不是正则：cmdline 必须**恰好**是 `<bash> <脚本路径> start` 三个词。
+    # 不用 `[[ =~ ]]` 的理由有两条 —— 一是 `[^ ]` 里的字面空格会直接打断 `[[ ]]` 的
+    # 正则解析（实测报 `syntax error in conditional expression`）；二是正则的 `.*`
+    # 会把 `bash -c 'sleep 5; /path/monitor.sh start'` 这种包装器一并认成 daemon
+    # （它同样以 `bash ` 开头、以 `monitor.sh start` 结尾）。词数恰好为 3 天然排除
+    # 一切包装器（-c / timeout / sudo / 系统 shell-snapshot 包装都会多出词）。
+    local -a parts
+    read -r -a parts <<< "$cmd"
+    [ "${#parts[@]}" -eq 3 ] || return 1
+    [[ "${parts[0]}" == "bash" || "${parts[0]}" == "/bin/bash" ]] || return 1
+    [[ "${parts[1]}" == *monitor.sh ]] || return 1
+    [[ "${parts[2]}" == "start" ]] || return 1
+    return 0
+}
+
 find_live_monitor_pid() {
     local pf pid cmd
+    # 1) PIDFile：权威且低成本，依次校验手动那份与 systemd 那份
     for pf in "$PID_FILE" "$SYSTEMD_PID_FILE"; do
         [ -f "$pf" ] || continue
         pid=$(cat "$pf" 2>/dev/null) || continue
         [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || continue
-        cmd=$(cat "/proc/$pid/cmdline" 2>/dev/null | tr '\0' ' ')
-        if [[ "$cmd" == *"monitor.sh"* ]]; then
+        if _monitor_cmdline_is_daemon "$pid"; then
             echo "$pid"
             return 0
         fi
     done
-    local live_pid
-    live_pid=$(pgrep -f 'monitor\.sh start' 2>/dev/null | grep -vx "$$" | head -1)
-    if [ -n "$live_pid" ] && kill -0 "$live_pid" 2>/dev/null; then
-        echo "$live_pid"
-        return 0
-    fi
+    # 2) pgrep 兜底：PIDFile 已被 loop 退出 trap 删掉的情形（实测会发生）
+    local cand
+    while read -r cand; do
+        [ -n "$cand" ] || continue
+        # ⚠️ BASHPID 必须一起排除，只排 $$ 不够（2026-10-30 第三次踩坑）：
+        # 调用处是 `pid_candidate=$(find_live_monitor_pid)` —— 命令替换会 fork 一个
+        # 子 shell，而这个子 shell 的 cmdline **恰好就是** `bash <path>/monitor.sh start`
+        # （3 词、与真 daemon 无法区分）。`$$` 在子 shell 里取的是**父** PID，所以
+        # `[ "$cand" = "$$" ]` 排不掉它 → 函数返回自己的子 shell PID → start_watch
+        # 认为"已在运行" → 永不启动（systemd 场景即 Result=protocol 死循环）。
+        # $BASHPID 才是「当前这个 shell 的真实 PID」，子 shell 里它≠$$，正好排掉。
+        [ "$cand" = "$$" ] && continue
+        [ "$cand" = "$BASHPID" ] && continue
+        [ "$cand" = "$PPID" ] && continue
+        if _monitor_cmdline_is_daemon "$cand"; then
+            echo "$cand"
+            return 0
+        fi
+    done < <(pgrep -f 'monitor\.sh start' 2>/dev/null)
     return 1
 }
 
@@ -593,14 +638,32 @@ start_watch() {
         fi
     fi
 
+    # `|| true` 不可省：find_live_monitor_pid 在【无实例】时按约定返回 1，而裸的
+    # 赋值 `x=$(...)` 会把子命令的退出码当作自身退出码，`set -e`（本文件顶部）随即
+    # 终止 start_watch —— 表现为"start 退出码 1、零输出、什么都不起"。
+    # 这个坑此前被掩盖：那时函数有 bug 永远返回 0，反而"跑得下去"。
     local pid_candidate
-    pid_candidate=$(find_live_monitor_pid)
+    pid_candidate=$(find_live_monitor_pid || true)
 
     if [ -n "$pid_candidate" ]; then
         do_log "Already running (PID: $pid_candidate) — keep alive"
         # 幂等返回不等于"没事"：loop 活着但 inotifywait 坏了，此前静默 return 0，
         # 菜单里选"启动监控"看着像没反应
         $QUIET_MODE || echo -e "${YELLOW}[SYNC]${NC} monitor 已在运行 (PID: $pid_candidate) — 未重启"
+        # ⚠️ Type=forking 契约：即便判定"已在运行"，也必须确保 PIDFile 存在且内容正确。
+        # 这条路径此前直接 return，不写 PIDFile；而 PIDFile 可能已被 loop 退出 trap
+        # 删除（或本来就缺失）→ systemd 报
+        #   "Can't open PID file ... (yet?) after start: No such file or directory"
+        # → Result=protocol → 每 10s 重启一次的死循环（2026-10-30 实测事故，根因是
+        # 上面 find_live_monitor_pid 曾把调用者误认成实例，但契约缺失本身是独立的坑：
+        # 只要 PIDFile 丢了，哪怕认对了实例也同样起不来）。
+        # 补写 PIDFile，让 systemd 始终能取到 MainPID。systemd 场景下它读的是
+        # $SYSTEMD_PID_FILE（unit 里 MONITOR_PID_FILE 指过来），顺手两个都补齐。
+        for pf in "$PID_FILE" "$SYSTEMD_PID_FILE"; do
+            [ -n "$pf" ] || continue
+            mkdir -p "$(dirname "$pf")" 2>/dev/null || true
+            [ "$(cat "$pf" 2>/dev/null)" = "$pid_candidate" ] || echo "$pid_candidate" > "$pf" 2>/dev/null || true
+        done
         if ! inotify_usable; then
             $QUIET_MODE || echo -e "${RED}[SYNC]${NC} 但 inotifywait 不可用（共享库缺失?）— 修复: bash maintain.sh fix"
         elif ! pgrep -f "inotifywait.*$WATCH_DIR" &>/dev/null; then
