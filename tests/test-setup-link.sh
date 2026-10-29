@@ -153,6 +153,7 @@ echo "T9 目标缺失但链接健康时应保留（先删后弃防护）"
 # 注意不能「先建链再删目标」来构造：那会让链接变悬空，与 T2 成为同一种状态，
 # 届时删除链接是正确行为，测不出这里要测的东西。
 mkdir -p "$WORK/t9/targetA"
+eval "$(sed -n '/^setup_link() {/,/^}/p' "$TPL")"   # 恢复到模板版（T7/T8 段把它覆盖成了 setup-links 版）
 setup_link "$WORK/t9/link" "$WORK/t9/targetA" "T9" >/dev/null 2>&1
 [ -e "$WORK/t9/link" ] || _fail "前置构造失败：T9 链接未建立"
 inode_before=$(stat -c %i "$WORK/t9/link")
@@ -161,6 +162,20 @@ if [ -e "$WORK/t9/link" ] && [ "$(stat -c %i "$WORK/t9/link" 2>/dev/null || echo
     _pass "健康链接被保留（旧实现会删掉它）"
 else
     _fail "健康链接被删除或替换 —— 先删后弃 bug 回归"
+fi
+
+# ── T10: lib/setup-links.sh 的同名函数也要同样防护（第二处）──
+echo "T10 [setup-links] 目标缺失但链接健康时应保留"
+eval "$(sed -n '/^setup_link() {/,/^}/p' "$SL")"
+mkdir -p "$WORK/t10/targetA"
+setup_link "$WORK/t10/link" "$WORK/t10/targetA" "T10" >/dev/null 2>&1
+[ -e "$WORK/t10/link" ] || _fail "前置构造失败：T10 链接未建立"
+inode_before=$(stat -c %i "$WORK/t10/link")
+setup_link "$WORK/t10/link" "$WORK/t10/targetNonexistent" "T10" >/dev/null 2>&1
+if [ -e "$WORK/t10/link" ] && [ "$(stat -c %i "$WORK/t10/link" 2>/dev/null || echo gone)" = "$inode_before" ]; then
+    _pass "健康链接被保留（该文件此前有同一 bug）"
+else
+    _fail "健康链接被删除 —— setup-links.sh 的先删后弃 bug 回归"
 fi
 
 echo ""

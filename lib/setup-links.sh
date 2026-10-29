@@ -26,6 +26,15 @@ setup_link() {
     local name="$3"
 
     run mkdir -p "$(dirname "$link")"
+    # 「先删后弃」防护（2026-10-30 事故，与 templates/ccprivate-setup.sh 同源缺陷）：
+    # 目标缺失时不得动【健康】链接。旧顺序是先 rm 掉健康链接、才 warn "目标不存在，
+    # 跳过"，残缺副本跑一次就把 ~/CLAUDE.md 这类全局链接凭空删掉（不是变死链，是没了）。
+    # 只保护【健康】链接：目标缺失且链接本就断了，仍要按下面分支清理，否则死链留着
+    # 下次又被 readlink -f 判成"已链接"，回到老 bug。
+    if [[ ! -e "$target" ]] && [[ -e "$link" ]]; then
+        warn "$name: 目标不存在，跳过（保留现有健康链接，$target）"
+        return 0
+    fi
     # 死链必须 [ -e ] 才排除：readlink -f 对死链返回规范路径字符串（非空），
     # 只比字符串会把死链判成"已链接，跳过" → 永远不修
     if [[ -L "$link" ]] && [[ -e "$link" ]]; then
