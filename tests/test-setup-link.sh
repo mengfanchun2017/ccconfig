@@ -147,13 +147,17 @@ inode_b=$(stat -c %i "$WORK/t8/link")
 # 与 T2/T3 的张力：目标缺失 + 链接【已断】仍要清理（T2），
 # 只有【健康】链接才受此保护 —— 两者必须同时成立。
 echo "T9 目标缺失但链接健康时应保留（先删后弃防护）"
-mkdir -p "$WORK/t9/target"
-setup_link "$WORK/t9/link" "$WORK/t9/target" "T9" >/dev/null 2>&1
+# 忠实复现事故：链接本身健康地指向 A（A 存在），但这次调用要求改指到不存在的 B
+# （残缺/临时 ccprivate 副本缺 link/ 的那份）。旧实现会先 rm 掉健康链接、
+# 再 warn "目标不存在，跳过" → 链接凭空消失。
+# 注意不能「先建链再删目标」来构造：那会让链接变悬空，与 T2 成为同一种状态，
+# 届时删除链接是正确行为，测不出这里要测的东西。
+mkdir -p "$WORK/t9/targetA"
+setup_link "$WORK/t9/link" "$WORK/t9/targetA" "T9" >/dev/null 2>&1
 [ -e "$WORK/t9/link" ] || _fail "前置构造失败：T9 链接未建立"
 inode_before=$(stat -c %i "$WORK/t9/link")
-rmdir "$WORK/t9/target"                     # 目标消失（模拟残缺副本）
-setup_link "$WORK/t9/link" "$WORK/t9/target" "T9" >/dev/null 2>&1
-if [ -L "$WORK/t9/link" ] && [ "$(stat -c %i "$WORK/t9/link" 2>/dev/null || echo gone)" = "$inode_before" ]; then
+setup_link "$WORK/t9/link" "$WORK/t9/targetNonexistent" "T9" >/dev/null 2>&1
+if [ -e "$WORK/t9/link" ] && [ "$(stat -c %i "$WORK/t9/link" 2>/dev/null || echo gone)" = "$inode_before" ]; then
     _pass "健康链接被保留（旧实现会删掉它）"
 else
     _fail "健康链接被删除或替换 —— 先删后弃 bug 回归"
