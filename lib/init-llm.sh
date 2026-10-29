@@ -669,7 +669,14 @@ test_llm() {
     # /rate limit 等）。链路本身是通的 → 不能中止切换，否则上游一忙就切不动 preset
     # （症状：切换时"偶尔报 429"/"overload"、settings.json 不更新、init-llm 闪退）。
     # 注意流式响应经 bridge 后 http_code 恒为 200，必须从 body 识别，不能只看状态码。
-    if printf '%s' "$out" | grep -qiE '"TooManyRequests"|"Server Overloaded"|"overload"|"service unavailable"|"rate.?limit"|"too many requests"|"bad_response_status_code"|负载已饱和'; then
+    #
+    # why 先去反斜杠：bridge 把上游错误 JSON **再包一层**塞进 SSE 的 message 字段，
+    # 引号被转义成 \" —— 原文是 \"code\":\"bad_response_status_code\"，
+    # 而下面的模式要求 "bad_response_status_code"（带引号）→ 匹配不上 →
+    # 网关侧 502 被当成致命错误 → 切换中止。实测症状：office* 预设选完"闪一下自动退出"
+    # （网关 502 是间歇性的，通的时候好、抽风的时候挂）。
+    local out_plain; out_plain=$(printf '%s' "$out" | tr -d '\\')
+    if printf '%s' "$out_plain" | grep -qiE '"TooManyRequests"|"Server Overloaded"|"overload"|"service unavailable"|"rate.?limit"|"too many requests"|"bad_response_status_code"|负载已饱和'; then
         warn "⚠ 上游暂时不可用 — 链路通，非本机/配置问题"
         warn "  网关侧服务降级/容量限流，稍后自动恢复；继续切换"
         return 0
@@ -1348,14 +1355,18 @@ interactive_select() {
         if [[ "$choice" =~ ^([0-9]+)([a-z])$ ]]; then
             local cat="${BASH_REMATCH[1]}"
             local letter_m="${BASH_REMATCH[2]}"
-            local pos=-1 j
+            local pos=-1 j rc=0
+            # why 每个动作都 || rc=$?：本脚本 set -euo pipefail，动作失败（探测不通过、
+            # key 无效…）裸调会当场杀掉整个脚本 → 菜单消失、回不到列表，用户只看到
+            # "闪一下自动退出"。捕获后照常回到菜单，失败原因由动作自己打印。
             case "$cat" in
                 1)
                     for ((j=0; j<${#letters}; j++)); do
                         [[ "${letters:$j:1}" == "$letter_m" ]] && { pos=$j; break; }
                     done
                     if (( pos >= 0 && pos < ${#builtin_item_name[@]} )); then
-                        switch_llm "${builtin_item_name[$pos]}"
+                        switch_llm "${builtin_item_name[$pos]}" || rc=$?
+                        if (( rc != 0 )); then warn "  切换未完成（详见上方原因），当前 preset 未变"; fi
                         _pause_continue
                         continue 2
                     fi
@@ -1365,18 +1376,19 @@ interactive_select() {
                         [[ "${letters:$j:1}" == "$letter_m" ]] && { pos=$j; break; }
                     done
                     if (( pos >= 0 && pos < ${#custom_item_name[@]} )); then
-                        switch_llm "${custom_item_name[$pos]}"
+                        switch_llm "${custom_item_name[$pos]}" || rc=$?
+                        if (( rc != 0 )); then warn "  切换未完成（详见上方原因），当前 preset 未变"; fi
                         _pause_continue
                         continue 2
                     fi
                     ;;
                 3)
                     case "$letter_m" in
-                        a) update_llm_key ;;
-                        b) delete_preset ;;
-                        c) set_max_context_tokens ;;
-                        d) add_custom_preset ;;
-                        e) edit_custom_preset ;;
+                        a) update_llm_key || rc=$? ;;
+                        b) delete_preset || rc=$? ;;
+                        c) set_max_context_tokens || rc=$? ;;
+                        d) add_custom_preset || rc=$? ;;
+                        e) edit_custom_preset || rc=$? ;;
                         *) warn "配置: a=更新Key b=删模型 c=设窗口 d=新增自定义 e=编辑自定义"; continue ;;
                     esac
                     _pause_continue
