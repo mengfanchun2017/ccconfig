@@ -33,9 +33,12 @@ MENU_ENTRIES=(
     "1|A|检查（只读）|./maintain.sh status|bash \"\$LIB_DIR/status.sh\""
     "1|B|日志跟踪|./maintain.sh monitor tail|bash \"\$LIB_DIR/monitor.sh\" tail"
     "1|C|监控状态|./maintain.sh monitor status|bash \"\$LIB_DIR/monitor.sh\" status"
-    "1|D|启动监控|./maintain.sh monitor start|bash \"\$LIB_DIR/monitor.sh\" start"
-    "1|E|停止监控|./maintain.sh monitor stop|bash \"\$LIB_DIR/monitor.sh\" stop"
-    "1|F|高权限开启（claudeby）|./maintain.sh highpriv|do_highpriv"
+    # 原 1D 启动监控 + 1E 停止监控 → 合并为 1D 重启监控。
+    # 为何合并：systemd 托管下（本机常态）start 是幂等空操作、stop 只剥 inotify 并
+    # 提示你手动 sudo restart —— 两个入口都退化成"说一句然后让你自己去敲命令"，
+    # 用户按提示敲了 restart 才发现服务起不来。真正需要的动作只有一个：重启。
+    "1|D|重启监控|./maintain.sh monitor restart|bash \"\$LIB_DIR/monitor.sh\" restart"
+    "1|E|高权限开启（claudeby）|./maintain.sh highpriv|do_highpriv"
 
     # ── 2: 更新 ──
     # 2A 动的是【3 个配置仓库】：ccprivate 结构升级 → 拉取 ccprivate/skill/ccconfig 3 个库

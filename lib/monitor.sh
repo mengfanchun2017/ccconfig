@@ -894,7 +894,8 @@ start_watch() {
     disown $monitor_pid 2>/dev/null || true
     disown $event_pid 2>/dev/null || true
 
-    echo $monitor_pid > "$PID_FILE"
+    mkdir -p "$(dirname "$PID_FILE")" 2>/dev/null || true
+    echo $monitor_pid > "$PID_FILE" 2>/dev/null || true
     do_log "Monitor started (monitor: $monitor_pid, events: $event_pid)"
     $QUIET_MODE || echo -e "${GREEN}[SYNC]${NC} Started (monitor: $monitor_pid, events: $event_pid)"
     $QUIET_MODE || echo -e "${GRAY}Use: status | log | tail${NC}"
@@ -962,10 +963,24 @@ stop_watch() {
 }
 
 # ========== Restart ==========
+# systemd 托管下这是【唯一】能真正重建 loop 的动作（start 幂等空转、stop 只剥 inotify）。
+# 本函数直接执行 systemctl restart，而不是像旧版那样打印一行"请自己敲 sudo…"——
+# 让用户按提示去敲，正是 2026-10-30 那次"敲完发现服务起不来"暴露的体验断点。
 restart_watch() {
     if is_systemd_managed; then
-        echo -e "${YELLOW}[SYNC]${NC} systemd 托管，重启请走 systemctl:"
-        echo -e "${GRAY}  sudo systemctl restart claude-auto-sync${NC}"
+        echo -e "${CYAN}[SYNC]${NC} systemd 托管 → systemctl restart claude-auto-sync"
+        if sudo -n systemctl restart claude-auto-sync 2>/dev/null; then
+            echo -e "${GREEN}[SYNC]${NC} 已重启"
+        elif command -v systemctl >/dev/null 2>&1 && sudo systemctl restart claude-auto-sync; then
+            echo -e "${GREEN}[SYNC]${NC} 已重启"
+        else
+            # sudo 需要交互密码而当前无 TTY（后台 job / 管道调用）
+            echo -e "${YELLOW}[SYNC]${NC} 需要密码或权限不足，请在有 TTY 的终端执行:"
+            echo -e "${GRAY}  sudo systemctl restart claude-auto-sync${NC}"
+            return 1
+        fi
+        sleep 2
+        status_watch
         return 0
     fi
     stop_watch
