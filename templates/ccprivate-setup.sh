@@ -31,30 +31,26 @@ CLAUDE_DIR="$HOME/.claude"
 # agents,commands}、<project>/memory 共 6 条链接全被指进 /tmp；tmp 被 GC 后集体成死链，
 # 表现是「所有项目丢失全局规则、切换脚本报 account 未配置」。
 # 症状能靠 setup_link 的死链自愈修，但根因不修就还会重演 —— 所以在此硬拦。
-# 判据：SCRIPT_DIR 落在 /tmp、/var/tmp 或 $TMPDIR 下 = 临时副本。
-# 沙箱（tests/test-ccprivate-sandbox-e2e.sh）走 HOME=$FAKE_HOME 已天然被下面 skip 覆盖，
-# 不受影响；需要刻意越界时用 CCPRIVATE_SETUP_FORCE=1 显式声明。
-_ccpriv_root="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+# 判据：SCRIPT_DIR 落在 /tmp、/var/tmp 或 $TMPDIR 下 = 临时副本；且 $HOME 就是
+# 【passwd 里的真实登录家目录】= 这次运行会写到用户的真实 ~/.claude。
+# 用 passwd 而不是比较 CLAUDE_DIR 与 ccprivate 的路径关系 —— 后者会把合法的
+# 沙箱（HOME 与 ccprivate 是兄弟目录，如 tests/test-ccprivate-sandbox-e2e.sh 的
+# $WORK/home + $WORK/ccprivate）误判成越界，把测试直接拦死。
+# 沙箱里 HOME 已被重指成非 passwd 家目录，天然放行；需要刻意越界用
+# CCPRIVATE_SETUP_FORCE=1 显式声明。
+_ccpriv_real_home="$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6)"
 case "$SCRIPT_DIR" in
     /tmp/*|/var/tmp/*|"${TMPDIR:-/nonexistent}"/*)
-        _force=0
-        [ "${CCPRIVATE_SETUP_FORCE:-0}" = "1" ] && _force=1
-        # force 之外再放行一种合法情形：沙箱恰好在临时目录，但目标链接也在沙箱内
-        # （即路径同根），此时写不到真实 HOME 的外部资产。
-        if [ "$_force" -eq 0 ] && [ "$CLAUDE_DIR" != "$SCRIPT_DIR" ]; then
-            case "$CLAUDE_DIR" in
-                "$_ccpriv_root"/*) : ;;
-                "$SCRIPT_DIR"/*)   : ;;
-                *)
-                    echo -e "\n\033[0;31m❌ 拒绝执行：setup.sh 正从临时目录运行，但目标是真实 \$HOME\033[0m"
-                    echo -e "\033[0;33m   脚本位置: $SCRIPT_DIR\033[0m"
-                    echo -e "\033[0;33m   链接目标: $CLAUDE_DIR\033[0m"
-                    echo -e "\033[0;33m   继续会把 ~/.claude 的全局链接指进 /tmp，tmp 清理后全部变死链\033[0m"
-                    echo -e "\033[0;33m   修法: 导出沙箱 HOME（HOME=<沙箱> CCPRIVATE_HOME=<沙箱>/ccprivate）\033[0m"
-                    echo -e "\033[0;33m   确要越界: CCPRIVATE_SETUP_FORCE=1 bash $0\033[0m\n"
-                    exit 1
-                    ;;
-            esac
+        if [ "${CCPRIVATE_SETUP_FORCE:-0}" != "1" ] \
+           && [ -n "$_ccpriv_real_home" ] \
+           && [ "$HOME" = "$_ccpriv_real_home" ]; then
+            echo -e "\n\033[0;31m❌ 拒绝执行：setup.sh 正从临时目录运行，但目标是真实 \$HOME\033[0m"
+            echo -e "\033[0;33m   脚本位置: $SCRIPT_DIR\033[0m"
+            echo -e "\033[0;33m   家目录:   $HOME（passwd 中的真实登录家目录）\033[0m"
+            echo -e "\033[0;33m   继续会把 ~/.claude 的全局链接指进 /tmp，tmp 清理后全部变死链\033[0m"
+            echo -e "\033[0;33m   修法: 导出沙箱 HOME（HOME=<沙箱> CCPRIVATE_HOME=<沙箱>/ccprivate）\033[0m"
+            echo -e "\033[0;33m   确要越界: CCPRIVATE_SETUP_FORCE=1 bash $0\033[0m\n"
+            exit 1
         fi
         ;;
 esac
@@ -125,6 +121,13 @@ setup_link() {
         rm -f "$link"
     elif [ -e "$link" ]; then
         rm -rf "$link"
+    fi
+    # 目标不存在时不建链：建出的死链会让问题更隐蔽（下次运行还会被判"已链接"）
+    # 注意这一步与上面的「先删后弃」防护分工不同：上面护的是【已有健康链接】，
+    # 这里挡的是【本就没有链接时不要新建死链】。两者缺一都会回归出 bug。
+    if [ ! -e "$target" ]; then
+        warn "$label: 目标不存在，跳过（$target）"
+        return 0
     fi
     ln -s "$target" "$link"
     ok "$label"

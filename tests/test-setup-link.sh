@@ -140,6 +140,25 @@ setup_link "$WORK/t8/link" "$WORK/t8/target" "T8" >/dev/null 2>&1
 inode_b=$(stat -c %i "$WORK/t8/link")
 [ "$inode_a" = "$inode_b" ] && _pass "未重建" || _fail "重复调用重建了链接"
 
+# ── T9: 目标缺失 + 链接健康 → 必须保留链接（不得先删后弃）──
+# 2026-10-30 事故：残缺/临时 ccprivate 副本缺 link/ 文件时跑一次 setup，
+# 旧实现先 rm 掉健康的 ~/CLAUDE.md、才 warn "目标不存在，跳过"，
+# 链接凭空消失（不是变死链，是没了）→ 所有项目静默丢失全局规则。
+# 与 T2/T3 的张力：目标缺失 + 链接【已断】仍要清理（T2），
+# 只有【健康】链接才受此保护 —— 两者必须同时成立。
+echo "T9 目标缺失但链接健康时应保留（先删后弃防护）"
+mkdir -p "$WORK/t9/target"
+setup_link "$WORK/t9/link" "$WORK/t9/target" "T9" >/dev/null 2>&1
+[ -e "$WORK/t9/link" ] || _fail "前置构造失败：T9 链接未建立"
+inode_before=$(stat -c %i "$WORK/t9/link")
+rmdir "$WORK/t9/target"                     # 目标消失（模拟残缺副本）
+setup_link "$WORK/t9/link" "$WORK/t9/target" "T9" >/dev/null 2>&1
+if [ -L "$WORK/t9/link" ] && [ "$(stat -c %i "$WORK/t9/link" 2>/dev/null || echo gone)" = "$inode_before" ]; then
+    _pass "健康链接被保留（旧实现会删掉它）"
+else
+    _fail "健康链接被删除或替换 —— 先删后弃 bug 回归"
+fi
+
 echo ""
 echo "───────────────────────────────"
 if [ "$FAIL" -eq 0 ]; then
