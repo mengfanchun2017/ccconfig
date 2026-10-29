@@ -1090,12 +1090,22 @@ async def messages(request: Request):
         async def gen():
             # 捕获 upstream 间歇性超时/断连：log + 结束 stream，不让异常杀进程
             # Claude Code 收到不完整响应会自动重试，比 bridge 整个死掉强
+            # 尚无内容块时暂存的帧：空流场景（上游只回 [DONE]）这些帧要整体丢弃，
+            # 换成非流式兜底；一旦出现真内容就按序放行。
+            pending = []
             try:
                 src = _upstream_stream(target_url, headers, upstream_body, host_header, extra_ext, use_win_curl)
                 async for chunk in _iter_with_idle_ping(_iter_complete_lines(src)):
                     sse_out = _render(chunk)
-                    if sse_out:
-                        yield sse_out
+                    if not sse_out:
+                        continue
+                    if not (sse_state.get("text_blocks") or sse_state.get("tool_blocks")):
+                        pending.append(sse_out)
+                        continue
+                    if pending:
+                        yield "".join(pending)
+                        pending.clear()
+                    yield sse_out
             except Exception as e:
                 # why Exception 而非 httpx.TransportError：win_curl 路径抛的是
                 # OSError/ConnectionResetError 之类，漏掉会让异常直接逃出 gen() ——
