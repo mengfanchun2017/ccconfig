@@ -103,6 +103,9 @@ MENU_ENTRIES=(
     "5|G|botmux 桥状态|bash option-botmux/init.sh --status|do_botmux_status"
     "5|H|botmux 桥配置（引导）|bash option-botmux/init.sh guide|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" guide"
     "5|I|botmux 管理菜单|bash option-botmux/init.sh menu|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" menu"
+    # 消息无反馈时的首查项：体检覆盖「会话健康/队列积压/长连接/cliId 可执行性」
+    # —— 这些是 botmux 自带 status/list 看不见的盲区（2026-10-29 实测故障）
+    "5|J|botmux 体检（消息无反馈先跑）|bash option-botmux/init.sh doctor|do_botmux_doctor"
 
     # ── 6: 远程（SSH + tailscale）──
     "6|A|查看 SSH 状态/端口|bash option-remote/init.sh --status|bash \"\$CCCONFIG_DIR/option-remote/init.sh\" --status"

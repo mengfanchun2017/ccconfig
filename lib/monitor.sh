@@ -282,13 +282,16 @@ commit_and_push() {
         pull_out=$(git_pull_rebase "$repo_dir" "$branch" 2>&1)
         pull_rc=$?
         if [ "$had_e" = 1 ]; then set -e; fi
-        local behind=0
-        behind=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
-        if [ "$pull_rc" -ne 0 ] && [ "${behind:-0}" -gt 0 ]; then
-            warn "[$repo] !! 整合对端改动失败（rc=$pull_rc, 落后 ${behind}）"
+        # 整合前后各算一次落后量：pull 成功时 behind 会归零，只算事后就永远是 0 →
+        # 日志会误报 "already up to date"（实测整合了 1 个提交却打这句）。
+        local behind_before behind_after
+        behind_before=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
+        if [ "$pull_rc" -eq 0 ]; then
+            log "[$repo] 整合其他终端 ${behind_before} 个提交（pull --rebase）"
+        else
+            behind_after=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
+            warn "[$repo] !! 整合对端改动失败（rc=$pull_rc, 仍落后 ${behind_after}）"
             do_log "[$repo]   pull err: $(printf '%s' "$pull_out" | head -3 | tr '\n' ' ')"
-        elif [ "${behind:-0}" -gt 0 ]; then
-            log "[$repo] remote ahead by ${behind} commit(s) — 本地未整合（远程领先且无共同基线，需人工处理）"
         fi
         local unpushed=$(git -C "$repo_dir" log origin/"$branch".."$branch" --oneline 2>/dev/null)
         if [ -n "$unpushed" ]; then

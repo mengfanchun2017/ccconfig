@@ -122,6 +122,11 @@ do_botmux_status() {
     bash "$CCCONFIG_DIR/option-botmux/init.sh" --status || true
 }
 
+# 5J botmux 体检。rc 1 = 有错误，同样要吞掉（理由同 5G 的 set -e 陷阱）。
+do_botmux_doctor() {
+    bash "$CCCONFIG_DIR/option-botmux/init.sh" doctor || true
+}
+
 # 1C 高权限开启：claudeby 说明 + 本机 alias 状态检查。
 # 不自动改用户文件 —— 打印该有的行，让用户自己加/更新（老版本手写在 bashrc 的旧定义尤其要手工换）。
 do_highpriv() {
