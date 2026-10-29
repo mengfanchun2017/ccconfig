@@ -200,6 +200,7 @@ test_start_watch_stale_pidfile() {
 # 测的是测试自己而非代码，新增判据（pgrep 兜底）根本没被覆盖到。
 
 test_find_live_monitor_pid_pidfile() {
+    eval "$(sed -n '/^_monitor_cmdline_is_daemon() {/,/^}/p' "$CCCONFIG_DIR/lib/monitor.sh")"
     eval "$(sed -n '/^find_live_monitor_pid() {/,/^}/p' "$CCCONFIG_DIR/lib/monitor.sh")"
     if ! declare -F find_live_monitor_pid &>/dev/null; then
         fail "find_live_monitor_pid" "无法从 monitor.sh 提取函数体"
@@ -209,7 +210,15 @@ test_find_live_monitor_pid_pidfile() {
     # 造一个 cmdline 含 monitor.sh 的存活进程：后台 sleep 后改名不可行，
     # 改用本脚本自身进程 —— 其 cmdline 是 "bash tests/test-monitor.sh"，不含 monitor.sh，
     # 故这里显式起一个 bash -c 包装，令 /proc/PID/cmdline 命中 "monitor.sh"。
-    bash -c 'exec -a "bash $CCCONFIG_DIR/lib/monitor.sh start" sleep 30' &
+    # 假 daemon 必须造出【真 daemon 形状】的 cmdline：恰好 `bash <路径> start` 三词。
+    # 用 exec -a 改名会让 cmdline 变成 `bash <路径> start <exec的argv>`（4 词），
+    # 新判据（词数==3）会正确拒绝它 —— 测试后会挂，那不是判据错，是造法错。
+    # 真形状只有让 bash 去执行那个脚本路径才会出现：把 monitor.sh 复制成桩，
+    # 桩里长时间 sleep，于是 `/proc/PID/cmdline` = `bash <桩路径> start`。
+    local stub="$TEST_HOME/monitor.sh"
+    printf '#!/bin/bash\nsleep 30\n' > "$stub"
+    chmod +x "$stub"
+    bash "$stub" start &
     local fake=$!
     sleep 0.3
     PID_FILE="$TEST_HOME/monitor.pid"
@@ -226,6 +235,7 @@ test_find_live_monitor_pid_pidfile() {
 }
 
 test_find_live_monitor_pid_pgrep_fallback() {
+    eval "$(sed -n '/^_monitor_cmdline_is_daemon() {/,/^}/p' "$CCCONFIG_DIR/lib/monitor.sh")"
     eval "$(sed -n '/^find_live_monitor_pid() {/,/^}/p' "$CCCONFIG_DIR/lib/monitor.sh")"
     setup_isolated_env
     # 两个 PIDFile 都指向不存在的路径 —— 这是唯一能真正隔离「兜底」的构造：
@@ -233,7 +243,10 @@ test_find_live_monitor_pid_pgrep_fallback() {
     # 旧逻辑照样能命中它，于是测不出兜底缺失（实测反例：反向验证误判 PASS）。
     PID_FILE="$TEST_HOME/monitor.pid"
     SYSTEMD_PID_FILE="$TEST_HOME/systemd-monitor.pid"
-    bash -c 'exec -a "bash $CCCONFIG_DIR/lib/monitor.sh start" sleep 30' &
+    local stub="$TEST_HOME/monitor.sh"
+    printf '#!/bin/bash\nsleep 30\n' > "$stub"
+    chmod +x "$stub"
+    bash "$stub" start &
     local fake=$!
     sleep 0.3
     # 关键回归点：PIDFile 缺失时必须靠 pgrep 兜底认出实例。
@@ -252,6 +265,7 @@ test_find_live_monitor_pid_pgrep_fallback() {
 }
 
 test_find_live_monitor_pid_excludes_self() {
+    eval "$(sed -n '/^_monitor_cmdline_is_daemon() {/,/^}/p' "$CCCONFIG_DIR/lib/monitor.sh")"
     eval "$(sed -n '/^find_live_monitor_pid() {/,/^}/p' "$CCCONFIG_DIR/lib/monitor.sh")"
     setup_isolated_env
     PID_FILE="$TEST_HOME/monitor.pid"
