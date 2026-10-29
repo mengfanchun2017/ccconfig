@@ -499,13 +499,19 @@ commit_and_push() {
 # Sync a list of repos (one per line). Empty arg = sync all.
 # 默认全量（旧终端 / pub 路径），debounce 路径传改动列表
 sync_repos() {
-    local repos_arg="$1"
+    # ${1:-} 不能写成 "$1"：文件级 set -u 在循环的 set +e 下**依然生效**
+    # （set +e 只关 errexit，不关 nounset）。裸 "$1" 会让无参调用当场
+    # "$1: unbound variable" 退出 rc=1 —— 而"无参 = 全量"是官方语义
+    # （help 与 initial scan 都用它）。实测：这就是 monitor loop 在每次
+    # 全量同步后 11 秒内死掉、systemd 每 ~5min 重启一次的根因。
+    local repos_arg="${1:-}"
     local repos
     if [ -n "$repos_arg" ]; then
         repos="$repos_arg"
     else
         repos=$(list_repos)
     fi
+    local repo_dir
     for repo_dir in $repos; do
         [ -d "$repo_dir" ] || continue
         commit_and_push "$repo_dir"

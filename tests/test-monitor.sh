@@ -379,6 +379,36 @@ test_min_gap_independent() {
     fi
 }
 
+test_sync_repos_noarg_safe() {
+    # "无参 = 全量" 是 sync_repos 的官方语义（help 与 initial scan 都用）。
+    # 但文件级 `set -u` 在循环的 `set +e` 下**依然生效**（set +e 只关 errexit，
+    # 不关 nounset），所以裸 `local repos_arg="$1"` 会让无参调用当场
+    # "$1: unbound variable" 退出 rc=1 —— 这就是 monitor loop 每次全量同步后
+    # 11 秒内死掉、systemd 每 ~5min 重启一次的根因（全部全量路径都崩塌）。
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    grep -q 'local repos_arg="${1:-}"' "$mon" \
+        && pass "sync_repos: 无参调用安全（\${1:-} 而非 \$1）" \
+        || fail "sync_repos" '裸 $1 → 无参调用在 set -u 下必崩'
+    # 真正的行为验证：隔离环境里无参调用必须返回 0
+    setup_isolated_env
+    mkdir -p "$HOME/.tmpmon/lib"
+    sed '/^# ========== Main ==========$/,$d' "$mon" > "$HOME/.tmpmon/lib/mon.sh"
+    mkdir -p "$HOME/.tmpmon/watch"
+    local rc=0
+    ( set -euo pipefail
+      export WATCH_DIR="$HOME/.tmpmon/watch" MONITOR_HOME="$HOME/.tmpmon"
+      export MONITOR_PID_FILE="$HOME/.tmpmon/m.pid" QUIET_MODE=true
+      source "$HOME/.tmpmon/lib/mon.sh"
+      set +e
+      sync_repos
+      exit $?
+    ) >/dev/null 2>&1 || rc=$?
+    [ "$rc" -eq 0 ] \
+        && pass "sync_repos: 无参调用实测 rc=0" \
+        || fail "sync_repos" "无参调用 rc=$rc（应为 0）"
+    teardown_isolated_env
+}
+
 test_status_reports_sync_state() {
     # B3：status 必须能让用户自查双端收敛（未推/落后/工作区脏）。
     # 没有它，多终端用户在"本机不碰文件"时完全无从知道对端推到哪了 ——
@@ -467,6 +497,7 @@ all_tests=(
     "desc: min-gap — 跳过改延后不丢触发"              test_min_gap_defer_not_drop
     "desc: min-gap — 节流值独立于 debounce"           test_min_gap_independent
     "desc: heartbeat — wall-clock 收敛其他终端"       test_heartbeat_convergence
+    "desc: sync_repos 无参调用安全（set -u 地雷）"    test_sync_repos_noarg_safe
     "desc: status — 报表双端收敛（未推/落后/脏）"     test_status_reports_sync_state
     "desc: converge — 无改动分支 fetch 且报落后"      test_remote_ahead_detected
     "desc: pull 失败落真实报错"                      test_pull_failure_evidence
