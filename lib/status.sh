@@ -438,6 +438,11 @@ check_repos() {
         [ "${_dirty:-0}" -gt 0 ] && _line="${_line}${YELLOW}工作区脏 $_dirty${NC} "
         echo -e "${_line}$_s"
     done
+    # 全绿时也要有一行：什么都不显示会让人分不清"查过了没事"与"根本没查"，
+    # 这正是用户"看不出两边有没有收敛"的一部分。--quick 不 fetch，故不显示该行。
+    if ! $_sync_shown && ! $QUICK_MODE; then
+        echo -e "  ${GRAY}双端同步:${NC} ${GREEN}✅${NC} 三仓均已同步（无未推 / 无落后 / 工作区干净）"
+    fi
     unset _s _sd _sb _ah _bh _dirty _line
 
     # memory 概览（只算有 memory 的项目）
