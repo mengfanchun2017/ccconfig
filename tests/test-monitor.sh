@@ -314,6 +314,22 @@ test_debounce_race_guard() {
     fi
 }
 
+test_min_gap_defer_not_drop() {
+    # 第二处同类 bug：紧接上次 push 的写入会被 min_push_gap 判 "Skipped" 并 rm 掉
+    # DEBOUNCE_FILE → 那份改动被忘掉，要等下一个无关事件才提交
+    # （实测 08:51:58 push → 08:52:00 写入 → 08:52:25 skip → 文件持续脏）。
+    # 判据：该分支保留触发文件（无 rm），且 pending 未清零 → 下一 tick 会重试。
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    local blk
+    blk=$(awk '/min_push_gap}s since last push/,/^                fi$/' "$mon")
+    echo "$blk" | grep -q 'Deferred' \
+        && pass "min-gap: 改为延后（Deferred）而非丢弃" \
+        || fail "min-gap" "仍是 Skipped 语义"
+    echo "$blk" | grep -q 'rm -f "\$DEBOUNCE_FILE"' \
+        && fail "min-gap" "跳过分支仍 rm 触发文件 → 会丢改动" \
+        || pass "min-gap: 跳过分支保留触发文件（下 tick 重试）"
+}
+
 test_heartbeat_convergence() {
     # 多终端收敛：monitor 只看本机文件事件、从不轮询远程，对端推上来的提交
     # 本机要等自己碰文件才顺带 pull。心跳把收敛窗口从 12h 压到 5min。
@@ -371,6 +387,7 @@ all_tests=(
     "desc: 提交信息带摘要（monitor + sync）"          test_commit_message_has_summary
     "desc: 初始扫描可见且显式传仓库"                  test_initial_scan_observable
     "desc: race — debounce 触发文件先清后同步"        test_debounce_race_guard
+    "desc: min-gap — 跳过改延后不丢触发"              test_min_gap_defer_not_drop
     "desc: heartbeat — 5min 空闲收敛其他终端"        test_heartbeat_convergence
     "desc: pull 失败落真实报错"                      test_pull_failure_evidence
     "desc: skip_push 显性告警未推送 commit"           test_skip_push_visible

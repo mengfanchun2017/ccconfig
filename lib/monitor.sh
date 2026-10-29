@@ -674,9 +674,12 @@ start_watch() {
             if [ "$pending" -eq 1 ] && [ $elapsed -ge $debounce ]; then
                 gap=$((now - last_push_time))
                 if [ "$last_push_time" -gt 0 ] && [ "$gap" -lt "$min_push_gap" ]; then
-                    do_log "Skipped: <${min_push_gap}s since last push"
-                    pending=0
-                    rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
+                    # 不丢触发：原来这里 rm 掉 DEBOUNCE_FILE 就相当于把这次改动忘了 ——
+                    # 紧接上次 push 写入的文件会一直脏着，要等下一个无关事件才被带走
+                    # （实测：08:51:58 push → 08:52:00 写入 → 08:52:25 判 skip → 文件
+                    # 持续未提交）。保留 DEBOUNCE_FILE 与 pending，下一 tick 重算 gap，
+                    # 够了就同步 —— 语义从"丢弃"变"延后"。
+                    do_log "Deferred: <${min_push_gap}s since last push — 待 gap 满足后同步"
                     continue
                 fi
 
