@@ -277,19 +277,23 @@ commit_and_push() {
         # 子 shell 立刻退出（实测：心跳触发后 11s 主 loop 就重启，NRestarts+1）。
         # 沿用 git_push 的 had_e 手法只保护本段，不把外层刻意关掉的 errexit 重新打开。
         local had_e=0; case $- in *e*) had_e=1 ;; esac
+        # 落后量必须在 pull 之前算：pull 成功会把它归零，算在事后就永远是 0，
+        # 日志会误报 "already up to date"（实测整合了 1 个提交却打这句）。
+        # 不在 pull 前 fetch 也算得对 —— git_pull_rebase 内部先 fetch，但那时已太晚。
+        local behind_before
+        behind_before=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
         local pull_out pull_rc
         set +e
         pull_out=$(git_pull_rebase "$repo_dir" "$branch" 2>&1)
         pull_rc=$?
         if [ "$had_e" = 1 ]; then set -e; fi
-        # 整合前后各算一次落后量：pull 成功时 behind 会归零，只算事后就永远是 0 →
-        # 日志会误报 "already up to date"（实测整合了 1 个提交却打这句）。
-        local behind_before behind_after
-        behind_before=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
+        local behind_after
+        behind_after=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
         if [ "$pull_rc" -eq 0 ]; then
-            log "[$repo] 整合其他终端 ${behind_before} 个提交（pull --rebase）"
+            if [ "${behind_before:-0}" -gt 0 ]; then
+                log "[$repo] 整合其他终端 ${behind_before} 个提交（pull --rebase）"
+            fi
         else
-            behind_after=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
             warn "[$repo] !! 整合对端改动失败（rc=$pull_rc, 仍落后 ${behind_after}）"
             do_log "[$repo]   pull err: $(printf '%s' "$pull_out" | head -3 | tr '\n' ' ')"
         fi
