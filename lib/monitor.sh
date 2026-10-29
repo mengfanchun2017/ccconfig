@@ -269,6 +269,28 @@ commit_and_push() {
     local changed_files=$(git -C "$repo_dir" status --porcelain 2>/dev/null)
     if [ -z "$changed_files" ]; then
         local branch=$(git -C "$repo_dir" branch --show-current)
+        # 先 fetch 再判 unpushed：不做这步时，多终端场景下"对端推了新提交、本机无改动"
+        # 会走进 else 打 already up to date —— 本机永远看不见对端进展（心跳也只是
+        # 更频繁地重复这句），收敛根本不成立。只 fetch 不动工作区：远程领先就报出来
+        # 并留下"下次有改动时会 rebase 整合"的线索，不做自动合并（避免背着我改本地文件）。
+        local fetch_out
+        set +e
+        if proxy_usable; then
+            fetch_out=$(timeout 30 git -C "$repo_dir" fetch origin "$branch" 2>&1)
+        else
+            fetch_out=$(timeout 30 env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy git -C "$repo_dir" fetch origin "$branch" 2>&1)
+        fi
+        local fetch_rc=$?
+        set -e
+        if [ $fetch_rc -eq 0 ]; then
+            local behind
+            behind=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
+            if [ "${behind:-0}" -gt 0 ]; then
+                log "[$repo] remote ahead by ${behind} commit(s) — 其他终端推送了改动，本地未整合（下次本地有改动时 rebase 合并）"
+            fi
+        else
+            do_log "[$repo]   fetch rc=$fetch_rc err: $(printf '%s' "$fetch_out" | head -2 | tr '\n' ' ')"
+        fi
         local unpushed=$(git -C "$repo_dir" log origin/"$branch".."$branch" --oneline 2>/dev/null)
         if [ -n "$unpushed" ]; then
             local count=$(echo "$unpushed" | wc -l)
@@ -284,7 +306,13 @@ commit_and_push() {
                 warn "[$repo] !! push failed — $(push_fail_reason "$push_output")"
             fi
         else
-            log "[$repo] already up to date"
+            # 区分"真同步了"与"本机落后远程"：只打同一句会让心跳在真正落后时
+            # 也显得一切正常（用户实测就是看不出双端有没有收敛）。
+            if [ "${behind:-0}" -gt 0 ]; then
+                log "[$repo] up to date locally, but ${behind} commit(s) behind remote — 未整合其他终端的改动"
+            else
+                log "[$repo] already up to date"
+            fi
         fi
         return 0
     fi

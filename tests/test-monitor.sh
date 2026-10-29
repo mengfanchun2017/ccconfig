@@ -346,6 +346,21 @@ test_heartbeat_convergence() {
         || fail "heartbeat" "心跳日志无辨识度"
 }
 
+test_remote_ahead_detected() {
+    # 只有心跳不够：「无本地改动」分支若不 fetch，纯远程领先时永远走 already up to date
+    # → 对端推了新提交本机看不见（心跳只是更频繁重复同一句），收敛不成立。
+    # 判据：该分支内必须有一次 fetch，且落后时打出 behind 信息。
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    local blk
+    blk=$(awk '/local changed_files=\$\(git -C "\$repo_dir" status --porcelain/,/^    fi$/' "$mon")
+    echo "$blk" | grep -q 'git -C "\$repo_dir" fetch origin "\$branch"' \
+        && pass "converge: 无本地改动分支先 fetch（能看见对端提交）" \
+        || fail "converge" "该分支不 fetch → 纯远程领先永不收敛"
+    echo "$blk" | grep -q 'behind' \
+        && pass "converge: 落后远程时区分日志（非 already up to date）" \
+        || fail "converge" "落后远程仍报 already up to date"
+}
+
 test_pull_failure_evidence() {
     # pull 失败必须落真实报错：此前网络类分支只打通用 "attempt N failed"，
     # pull_output 被丢弃 → 全历史约 50 次失败全是无证据的。
@@ -389,6 +404,7 @@ all_tests=(
     "desc: race — debounce 触发文件先清后同步"        test_debounce_race_guard
     "desc: min-gap — 跳过改延后不丢触发"              test_min_gap_defer_not_drop
     "desc: heartbeat — 5min 空闲收敛其他终端"        test_heartbeat_convergence
+    "desc: converge — 无改动分支 fetch 且报落后"      test_remote_ahead_detected
     "desc: pull 失败落真实报错"                      test_pull_failure_evidence
     "desc: skip_push 显性告警未推送 commit"           test_skip_push_visible
     "desc: monitor.sh 语法检查"                      test_monitor_sh_syntax
