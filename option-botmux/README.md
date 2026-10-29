@@ -96,30 +96,9 @@ npm install -g @anthropic-ai/claude-code
 | `gemini` | `npm i -g @google/gemini-cli` | |
 | `opencode` | `npm i -g opencode-ai` | |
 | `mtr` | `npm i -g @metamove-code/mtr-cli` | 社区贡献 |
-| `codem` | 官方脚本（见下） | **飞书官方** AI 研发智能体 CLI |
 | `aiden` | ⚠️ **内部渠道** | 字节内部工具（bytedcli 生态），botmux 公开文档明确不提供安装方式，公网 npm 上的 `aiden` 是**同名无关包**，别装 |
 | `coco` / `traex` | ⚠️ **内部渠道** | TRAE 系，非公开 npm |
 | `codex-app` / `mira` / `riff` | — | 非本地 CLI（桌面 App / Web API / 内建 agent），无需装 |
-
-### CodeM（飞书官方）
-
-想要「飞书内遥控 + 官方出品」，用 CodeM —— 它是飞书（Lark）官方的 AI 研发智能体，
-公网可装，botmux **已内建适配器** `cliId: "codem"`：
-
-```bash
-curl -fsSL https://codem-public.tos-cn-beijing.volces.com/codem/install.sh | bash -s -- --no-sudo
-codem login          # 扫码/浏览器授权（需企业已开通 CodeM 权益）
-codem auth status    # 确认 loggedIn: true
-codem daemon         # 常驻
-```
-
-装完 botmux **无需额外配置 PATH** —— 它的 codem 适配器直接探
-`existsSync(~/.codem/bin/codem) ? 该路径 : "codem"`（路径优先、PATH 兜底）。
-之后飞书里 `/botconfig set cli codem` 即可切换。
-
-**取舍**：CodeM 稳（官方原生，不像第三方桥会被上游改版打断），但**模型通道锁定**
-（不能用你自己的 Claude），且**需企业购买权益**（官方标注「预览」）。
-`claude-code` 则相反：可自带模型、免费，但属第三方桥接。
 
 > **注意**：`npm i -g aiden` 会装到 `aiden@0.0.3`（2025-01，作者 ebeloded）
 > —— 那是个无关项目，不是 botmux 要的 Aiden。`doctor` 对这类内部渠道适配器

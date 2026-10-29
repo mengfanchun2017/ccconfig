@@ -395,18 +395,6 @@ _bmx_cli_install_pkg claude-code
 ' 2>/dev/null)"
 [ "$_tmppkg2" = "@anthropic-ai/claude-code" ] && pass "claude-code → @anthropic-ai/claude-code" || fail "claude-code 映射错: $_tmppkg2"
 
-# CodeM = 飞书官方 CLI，走官方 install.sh（非 npm -g：它装进版本化目录
-# ~/.codem/runtime/versions/<ver>/ + 指针启动器，npm -g 造不出那个布局）
-_tmpcodem="$(bash -c '
-source "'"$CCCONFIG_DIR"'/lib/colors.sh" 2>/dev/null
-source "'"$CCCONFIG_DIR"'/option-botmux/lib/doctor.sh" 2>/dev/null
-_bmx_cli_install_pkg codem
-' 2>/dev/null)"
-[ "$_tmpcodem" = "__CODEM_SH__" ] && pass "codem → __CODEM_SH__（走官方脚本）" || fail "codem 映射错: $_tmpcodem"
-grep -q 'codem-public.tos-cn-beijing' "$DOC" && pass "doctor 给出 CodeM 官方安装脚本" || fail "缺 CodeM 安装命令"
-# botmux 适配器表必须认 codem（否则这层白写）
-grep -q '"codem":"codem"' "$DOC" && pass "doctor 的 EXEC 表含 codem" || fail "EXEC 表缺 codem"
-
 echo ""
 echo "────────────────────────────"
 echo "  PASS: $PASS  FAIL: $FAIL"
