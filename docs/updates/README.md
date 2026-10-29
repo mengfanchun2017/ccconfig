@@ -14,4 +14,4 @@
 | 2026-10-18 | [菜单重构](20261018-menu-restructure.md) | 6 域 31 项的新菜单结构（取代 20260920 的编号） |
 | 2026-10-27 | [新增 option-botmux](20261027-add-option-botmux.md) | 飞书 ↔ AI 编程 CLI 桥接入；弃用 ccbridge（上游停更 2 月、272 open issues），ccbridge 仓保留作参考 |
 | 2026-10-29 | [botmux 移入远程/桥接并合并菜单项](20261029-menu-botmux-to-remote.md) | botmux 归 `6 远程/桥接`（本质=从飞书远端遥控本机，与 SSH 同类，非 5 rag 检索类）；4 项压成 6C 状态体检 + 6D 配置管理 |
-| 2026-10-29 | [botmux 健康体检](20261029-botmux-doctor.md) | 「飞书发消息零反馈」故障归因（worker 卡 D 状态 + pane 已死 + cliId 指向未装 CLI）；新增 doctor/fix，补上 `botmux status` 看不见的会话健康盲区；含底层 CLI 依赖层（botmux 只桥接不装 CLI；aiden/traex/coco 属内部渠道，公网 `aiden` 是同名无关包） |
+| 2026-10-29 | [botmux 健康体检](20261029-botmux-doctor.md) | 「飞书发消息零反馈」故障归因（worker 卡 D 状态 + pane 已死 + cliId 指向未装 CLI）；新增 doctor/fix，补上 `botmux status` 看不见的会话健康盲区；含底层 CLI 依赖层（botmux 只桥接不装 CLI）；**aiden 深查结论**（内部网关层、公开文档刻意不给、内网 DNS 不通 → 装不上）+ **CodeM 接入**（飞书官方、公网可装、botmux 已内建适配器） |
