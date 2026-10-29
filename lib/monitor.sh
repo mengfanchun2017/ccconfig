@@ -277,25 +277,42 @@ commit_and_push() {
         # 子 shell 立刻退出（实测：心跳触发后 11s 主 loop 就重启，NRestarts+1）。
         # 沿用 git_push 的 had_e 手法只保护本段，不把外层刻意关掉的 errexit 重新打开。
         local had_e=0; case $- in *e*) had_e=1 ;; esac
-        # 落后量必须在 pull 之前算：pull 成功会把它归零，算在事后就永远是 0，
-        # 日志会误报 "already up to date"（实测整合了 1 个提交却打这句）。
-        # 不在 pull 前 fetch 也算得对 —— git_pull_rebase 内部先 fetch，但那时已太晚。
-        local behind_before
-        behind_before=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
-        local pull_out pull_rc
+        # 1) 显式 fetch。必须先 fetch 才算得出落后量：origin/$branch 是上次 fetch 的
+        #    缓存，不 fetch 就永远是 0（实测纯远程领先时报 already up to date）。
+        #    多终端场景下这里是"本机能否看见对端"的唯一入口。
+        local fetch_out fetch_rc
         set +e
-        pull_out=$(git_pull_rebase "$repo_dir" "$branch" 2>&1)
-        pull_rc=$?
-        if [ "$had_e" = 1 ]; then set -e; fi
-        local behind_after
-        behind_after=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
-        if [ "$pull_rc" -eq 0 ]; then
-            if [ "${behind_before:-0}" -gt 0 ]; then
-                log "[$repo] 整合其他终端 ${behind_before} 个提交（pull --rebase）"
-            fi
+        if proxy_usable; then
+            fetch_out=$(timeout 30 git -C "$repo_dir" fetch origin "$branch" 2>&1)
         else
-            warn "[$repo] !! 整合对端改动失败（rc=$pull_rc, 仍落后 ${behind_after}）"
-            do_log "[$repo]   pull err: $(printf '%s' "$pull_out" | head -3 | tr '\n' ' ')"
+            fetch_out=$(timeout 30 env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy git -C "$repo_dir" fetch origin "$branch" 2>&1)
+        fi
+        fetch_rc=$?
+        if [ "$had_e" = 1 ]; then set -e; fi
+
+        local behind=0
+        if [ $fetch_rc -eq 0 ]; then
+            behind=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
+        else
+            warn "[$repo] !! fetch 失败（rc=$fetch_rc）— 无法判断对端进展"
+            do_log "[$repo]   fetch err: $(printf '%s' "$fetch_out" | head -2 | tr '\n' ' ')"
+        fi
+
+        # 2) 确有对端新提交才整合（跳过时不产生第二次网络往返）。
+        #    工作区干净 → autostash 不生效，快进即"纯取回对端改动"。
+        if [ "${behind:-0}" -gt 0 ]; then
+            local pull_out pull_rc
+            set +e
+            pull_out=$(git_pull_rebase "$repo_dir" "$branch" 2>&1)
+            pull_rc=$?
+            if [ "$had_e" = 1 ]; then set -e; fi
+            if [ "$pull_rc" -eq 0 ]; then
+                log "[$repo] 整合其他终端 ${behind} 个提交（pull --rebase）"
+                behind=0
+            else
+                warn "[$repo] !! 整合对端改动失败（rc=$pull_rc, 仍落后 ${behind}）"
+                do_log "[$repo]   pull err: $(printf '%s' "$pull_out" | head -3 | tr '\n' ' ')"
+            fi
         fi
         local unpushed=$(git -C "$repo_dir" log origin/"$branch".."$branch" --oneline 2>/dev/null)
         if [ -n "$unpushed" ]; then
