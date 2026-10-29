@@ -67,6 +67,11 @@ _bmx_cli_install_pkg() {
         gemini)      echo "@google/gemini-cli" ;;
         opencode)    echo "opencode-ai" ;;
         mtr)         echo "@metamove-code/mtr-cli" ;;
+        # CodeM = 飞书官方 AI 研发智能体 CLI（serverUrl codem.feishu.cn），
+        # 公网可装。走官方 install.sh 而非 npm：它把 CLI + core 运行时装进
+        # 版本化目录 ~/.codem/runtime/versions/<ver>/，并用 ~/.codem/bin/codem
+        # 做指针解析启动器 —— 直接 npm -g 装不成那个布局。
+        codem)       echo "__CODEM_SH__" ;;
         # 以下为内部渠道发行（字节 bytedcli 生态 / 未公开上架）——
         # botmux 公开文档明确不提供其安装说明，本机内部源亦不可达。
         aiden)       echo "__INTERNAL__" ;;
@@ -123,11 +128,13 @@ EXEC={"claude-code":"claude","codex":"codex","codex-app":"","mira":"",
       "aiden":"aiden","traex":"traex","coco":"coco","gemini":"gemini",
       "opencode":"opencode","opencode2":"opencode2","cursor":"cursor",
       "mir":"mircli","oh-my-pi":"oh-my-pi","pi":"pi",
-      "dsh":"dsh","dsh-tui":"dsh-tui","riff":""}
+      "dsh":"dsh","dsh-tui":"dsh-tui","riff":"",
+      "codem":"codem"}
 # cliId -> 公开 npm 安装包；"" = 非 CLI 型；"INTERNAL" = 仅内部渠道
 PKG={"claude-code":"@anthropic-ai/claude-code","codex":"@openai/codex",
      "gemini":"@google/gemini-cli","opencode":"opencode-ai",
      "mtr":"@metamove-code/mtr-cli",
+     "codem":"CODEM_SH",
      "aiden":"INTERNAL","traex":"INTERNAL","coco":"INTERNAL"}
 try:
     bots=json.load(sys.stdin)
@@ -167,7 +174,13 @@ for b in bots:
             print(f"ERR|  cliId={cid} 需要命令 [{exe}]，但本机【未安装】")
             print(f"ERR|    → 最隐蔽的坑：daemon 与长连接都显示正常，")
             print(f"ERR|      但每次消息都起不来 CLI，飞书里表现为【完全无反馈】")
-            if pkg and pkg not in ("INTERNAL",""):
+            if pkg == "CODEM_SH":
+                print(f"ERR|    → 修 A) CodeM 是飞书官方 CLI，走官方脚本装（非 npm -g）:")
+                print(f"ERR|       curl -fsSL https://codem-public.tos-cn-beijing.volces.com/codem/install.sh | bash -s -- --no-sudo")
+                print(f"ERR|       装完 codem login（扫码），再 botmux restart")
+                print(f"ERR|       （botmux 会自动探测 ~/.codem/bin/codem，无需加 PATH）")
+                print(f"ERR|      修 B) 改回已装 CLI：飞书里 /botconfig set cli claude-code")
+            elif pkg and pkg not in ("INTERNAL",""):
                 print(f"ERR|    → 修 A) npm install -g {pkg}")
                 print(f"ERR|      修 B) 改回已装 CLI：飞书里 /botconfig set cli claude-code")
             elif pkg=="INTERNAL":
@@ -404,7 +417,7 @@ EXEC={"claude-code":"claude","codex":"codex","aiden":"aiden","traex":"traex","co
       "mir":"mircli","oh-my-pi":"oh-my-pi","pi":"pi"}
 PKG={"claude-code":"@anthropic-ai/claude-code","codex":"@openai/codex",
      "gemini":"@google/gemini-cli","opencode":"opencode-ai",
-     "mtr":"@metamove-code/mtr-cli"}
+     "mtr":"@metamove-code/mtr-cli","codem":"CODEM_SH"}
 # 仅内部渠道发行，无公开包 —— 与"未知"区分，避免给出装不上的命令
 INTERNAL={"aiden","traex","coco"}
 try:
@@ -426,7 +439,11 @@ for b in bots:
         while IFS='|' read -r cid exe pkg; do
             [ -z "$cid" ] && continue
             warn "cliId=$cid 需要的 [$exe] 未安装"
-            if [ -n "$pkg" ]; then
+            if [ "$pkg" = "CODEM_SH" ]; then
+                info "  修法 A) 装 CodeM（飞书官方 CLI，走官方脚本）:"
+                info "      curl -fsSL https://codem-public.tos-cn-beijing.volces.com/codem/install.sh | bash -s -- --no-sudo"
+                info "      装完 codem login 扫码；botmux 自动探测 ~/.codem/bin/codem"
+            elif [ -n "$pkg" ]; then
                 info "  修法 A) 装它: npm install -g $pkg"
                 if [ "${NONINTERACTIVE:-false}" != "true" ] && has_tty \
                    && confirm "  现在就装 $pkg ？" n; then
