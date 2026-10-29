@@ -25,6 +25,40 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CCCONFIG_DIR="${CCCONFIG_DIR:-$HOME/git/ccconfig}"
 CLAUDE_DIR="$HOME/.claude"
 
+# 护栏（2026-10-30 事故）：只有「常驻 ccprivate 仓」的 setup.sh 才允许写真实 ~/.claude。
+# 事故实况——用户在 /tmp/tmp.XXXXXX/{home,ccprivate} 里手动搭沙箱，忘了把 HOME 重指，
+# 跑的是临时副本的 setup.sh，于是 ~/CLAUDE.md、~/.lark-default-account、~/.claude/{rules,
+# agents,commands}、<project>/memory 共 6 条链接全被指进 /tmp；tmp 被 GC 后集体成死链，
+# 表现是「所有项目丢失全局规则、切换脚本报 account 未配置」。
+# 症状能靠 setup_link 的死链自愈修，但根因不修就还会重演 —— 所以在此硬拦。
+# 判据：SCRIPT_DIR 落在 /tmp、/var/tmp 或 $TMPDIR 下 = 临时副本。
+# 沙箱（tests/test-ccprivate-sandbox-e2e.sh）走 HOME=$FAKE_HOME 已天然被下面 skip 覆盖，
+# 不受影响；需要刻意越界时用 CCPRIVATE_SETUP_FORCE=1 显式声明。
+_ccpriv_root="${CCPRIVATE_HOME:-$HOME/git/ccprivate}"
+case "$SCRIPT_DIR" in
+    /tmp/*|/var/tmp/*|"${TMPDIR:-/nonexistent}"/*)
+        _force=0
+        [ "${CCPRIVATE_SETUP_FORCE:-0}" = "1" ] && _force=1
+        # force 之外再放行一种合法情形：沙箱恰好在临时目录，但目标链接也在沙箱内
+        # （即路径同根），此时写不到真实 HOME 的外部资产。
+        if [ "$_force" -eq 0 ] && [ "$CLAUDE_DIR" != "$SCRIPT_DIR" ]; then
+            case "$CLAUDE_DIR" in
+                "$_ccpriv_root"/*) : ;;
+                "$SCRIPT_DIR"/*)   : ;;
+                *)
+                    echo -e "\n\033[0;31m❌ 拒绝执行：setup.sh 正从临时目录运行，但目标是真实 \$HOME\033[0m"
+                    echo -e "\033[0;33m   脚本位置: $SCRIPT_DIR\033[0m"
+                    echo -e "\033[0;33m   链接目标: $CLAUDE_DIR\033[0m"
+                    echo -e "\033[0;33m   继续会把 ~/.claude 的全局链接指进 /tmp，tmp 清理后全部变死链\033[0m"
+                    echo -e "\033[0;33m   修法: 导出沙箱 HOME（HOME=<沙箱> CCPRIVATE_HOME=<沙箱>/ccprivate）\033[0m"
+                    echo -e "\033[0;33m   确要越界: CCPRIVATE_SETUP_FORCE=1 bash $0\033[0m\n"
+                    exit 1
+                    ;;
+            esac
+        fi
+        ;;
+esac
+
 # 从 ccconfig 借 colors.sh；缺失时用本地 ANSI 兜底
 source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
     GREEN='\033[0;32m'
