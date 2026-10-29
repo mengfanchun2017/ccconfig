@@ -59,11 +59,27 @@ if grep -q 'botmux)' "$CCCONFIG_DIR/maintain.sh"; then
 else
     fail "maintain.sh 缺 botmux 子命令"
 fi
-if grep -q '5|G|botmux' "$CCCONFIG_DIR/lib/menu-data-maintain.sh"; then
-    pass "主菜单含 botmux 项（5G）"
+# botmux 归 6 远程/桥接（本质是「从飞书这个远端遥控本机 CLI」，与 SSH 同类），
+# 不在 5 rag（那是检索类 lark/getnote）。四项已并为 6C 状态体检 + 6D 配置管理。
+if grep -q '6|C|botmux 桥状态体检' "$CCCONFIG_DIR/lib/menu-data-maintain.sh"; then
+    pass "主菜单含 botmux 桥状态体检（6C）"
 else
-    fail "主菜单缺 botmux 项"
+    fail "主菜单缺 botmux 桥状态体检"
 fi
+if grep -q '6|D|botmux 桥配置管理' "$CCCONFIG_DIR/lib/menu-data-maintain.sh"; then
+    pass "主菜单含 botmux 桥配置管理（6D）"
+else
+    fail "主菜单缺 botmux 桥配置管理"
+fi
+# botmux 不得再出现在 5 rag 段（旧 5G-5J）
+if grep -qE '5\|[A-Z]\|botmux' "$CCCONFIG_DIR/lib/menu-data-maintain.sh"; then
+    fail "botmux 仍留在 5 rag 段"
+else
+    pass "botmux 已移出 5 rag"
+fi
+# 四项并为两项：状态并入体检、配置并入管理
+[[ $(grep -c 'botmux' "$CCCONFIG_DIR/lib/menu-data-maintain.sh") -le 6 ]] \
+    && pass "botmux 菜单项已合并（≤2 项 + 注释）" || fail "botmux 菜单项未合并"
 if grep -q '"botmux|botmux --version' "$CCCONFIG_DIR/lib/deps-check.sh"; then
     pass "deps-check 含 botmux 依赖项"
 else
@@ -338,7 +354,7 @@ if grep -q 'NONINTERACTIVE' "$DOC"; then pass "fix 尊重 NONINTERACTIVE（非�
 
 # 接线进 maintain 生态
 grep -q 'do_botmux_doctor' "$CCCONFIG_DIR/maintain.sh" && pass "maintain.sh 有 do_botmux_doctor" || fail "maintain.sh 缺 do_botmux_doctor"
-grep -q 'botmux 体检' "$CCCONFIG_DIR/lib/menu-data-maintain.sh" && pass "菜单含 botmux 体检项" || fail "菜单缺体检项"
+grep -q 'botmux 桥状态体检' "$CCCONFIG_DIR/lib/menu-data-maintain.sh" && pass "菜单含 botmux 桥状态体检项" || fail "菜单缺体检项"
 
 # ── 13. 底层 CLI 依赖（botmux 只桥接、不装 CLI）──
 # 装了 botmux 但没装底层 CLI = 静默失败：daemon 全绿、飞书零反馈。

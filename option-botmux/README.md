@@ -21,7 +21,7 @@
 
 ```bash
 bash init-option.sh botmux            # 装二进制；装完直接问「现在配置吗？」
-# 或在运维菜单: bash maintain.sh → 5H（botmux 桥配置（引导））
+# 或在运维菜单: bash maintain.sh → 6D（botmux 桥配置管理）
 ```
 
 **引导一次走完三步**，不用自己拼命令：
@@ -56,7 +56,7 @@ bash init-option.sh botmux menu       # 完整管理菜单（启停/日志/会�
 ```bash
 bash init-option.sh botmux doctor     # 只体检
 bash init-option.sh botmux fix        # 体检 + 自动修复（会先问再改）
-# 运维菜单: bash maintain.sh → 5J
+# 运维菜单: bash maintain.sh → 6C
 ```
 
 体检覆盖四类盲区：
@@ -137,7 +137,7 @@ npm install -g @anthropic-ai/claude-code
 
 权限如需手动导入，JSON 在 `~/.botmux/lark-scopes.json`。
 
-菜单入口：`bash maintain.sh` → `5G` 状态 / `5H` 引导 / `5I` 管理菜单 / `5J` 体检。
+菜单入口：`bash maintain.sh` → `6C` 桥状态体检 / `6D` 桥配置管理（均在「6 远程/桥接」下）。
 
 ## 中文字体（WSL 必看）
 

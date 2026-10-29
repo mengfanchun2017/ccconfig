@@ -442,7 +442,7 @@ _guide_start_and_autostart() {
     else
         bmx start 2>&1 | sed 's/^/  /' || { err "daemon 启动失败，看日志: bash init-option.sh botmux logs"; return 1; }
         sleep 2
-        daemon_running && ok "daemon 已启动" || warn "daemon 未确认在跑，稍后用 5G 复查"
+        daemon_running && ok "daemon 已启动" || warn "daemon 未确认在跑，稍后用 6C 复查"
     fi
     echo ""
     if bmx autostart status 2>/dev/null | grep -qiE "enabled|已启用|已开启|active"; then

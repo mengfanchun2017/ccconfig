@@ -115,9 +115,10 @@ ensure_runtime_deps() {
     return 0
 }
 
-# 5G botmux 桥状态。吞掉 option 的三态退出码（OK=0/WARN=1/MISSING=2）——
+# botmux 三态状态行。吞掉 option 的三态退出码（OK=0/WARN=1/MISSING=2）——
 # WARN 是「已装未配置/daemon 没跑」的正常表述，不是失败，不该让菜单报
 # 「执行失败」（见 SH-MENU-CONVENTIONS 的 set -e 陷阱）。
+# 已合并进 do_botmux_doctor（状态行是体检的头部摘要），此处保留供单独调用。
 do_botmux_status() {
     bash "$CCCONFIG_DIR/option-botmux/init.sh" --status || true
 }
