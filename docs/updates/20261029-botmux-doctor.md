@@ -94,6 +94,42 @@
 但会出现在二进制的 `cliId:"…"` 文本里，故漂移检测的白名单需包含它们，
 否则误报「未收录」。
 
+## 追加：底层 CLI 依赖层
+
+`aiden` 那条次因暴露了一个更普遍的问题：**botmux 只桥接，不负责装它要驱动的 CLI**。
+装了 botmux 但没装底层 CLI = 静默失败（daemon 全绿、飞书零反馈），新用户踩中概率高。
+
+### aiden 是什么（调查结论）
+
+- botmux 内建的**本地 CLI 适配器**，`resolvedBin` = 命令 `aiden`
+- 字节内部工具：源码 `src/adapters/cli/aiden.ts`；二进制里 `authPaths` 含
+  `~/.local/share/bytedcli`、`byted-cloud-auth.json`（字节统一登录 bytedcli 生态）
+- 启动参数 `--permission-mode agentFull`（非 Claude 的 `--dangerously-skip-permissions`）
+- 内建 `bytedcli` 登录流程与 login-shell PATH identity shim
+
+**⚠️ 装不了，且不能乱装**：botmux 公开文档在「套 wrapper / 网关」一节明确写
+「**不在公开仓库内放内部文档链接或复制原文**」，适配器表里 aiden 也只有一行
+「Aiden 本地进程」——**整个公开文档没有任何安装说明**。本机实测：
+`bnpm.byted.org` / `registry.npm.byted.org` 等内部源全部不可达（HTTP `000`）。
+而**公网 npm 上的 `aiden@0.0.3`（2025-01，作者 ebeloded）是同名无关包**——
+`npm i -g aiden` 会装错东西。
+
+### 变更
+
+| 位置 | 变更 |
+|---|---|
+| `lib/doctor.sh` | 新增 `_bmx_cli_install_pkg`（cliId → 公开 npm 包）；检查项区分「公开可装 / 仅内部渠道 / 非 CLI 型」；`fix` 可确认后自动 `npm install -g` |
+| `init.sh` | 新增 `_bmx_hint_base_cli`：`do_install` 装完检测底层 CLI，缺 claude 则提示 + 列出可选 CLI 命令；已装则静默 |
+| `README.md` | 新增「底层 CLI 是前置依赖」表，标注内部渠道与同名包陷阱 |
+| `tests/test-botmux-option.sh` | 新增第 13 组 9 项（含「内部渠道不得发假包名」的实测断言） |
+
+### 设计取舍
+
+- **不代装 CLI**：选哪个 CLI 是用户的路由决策（涉及内网网关、成本、合规），
+  cconfig 不替他定。`do_install` 只提示，`fix` 要先确认。
+- **宁可不说，不给错命令**：只有实测 `npm view <pkg> version` 可解析的包才写进表；
+  内部渠道单列 `__INTERNAL__`，未知的单列 `__UNVERIFIED__`。
+
 ## 实测踩坑（本次新增）
 
 1. **`IFS=$'\t'` 不能用来解析含空字段的 TSV** —— tab 属空白字符，`read` 会把
@@ -112,3 +148,6 @@
    被 `test-maintain.sh` 第 10 组抓到。新菜单项标题宽度必须 ≤24 显示列（CJK 记 2）。
 7. **worker 卡 D 状态时 `botmux delete` 会超时** —— 信号无效，命令挂住
    （实测 `timeout 30 botmux delete` 被 kill）。**唯一解是重启 daemon**。
+8. **`npm i -g aiden` 会装到无关包** —— 公网 `aiden@0.0.3`（作者 ebeloded）与
+   botmux 要的字节 Aiden 毫无关系。**内部渠道适配器绝不给 npm 命令**，
+   只报「仅仅内部渠道发行」。

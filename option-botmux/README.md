@@ -75,6 +75,35 @@ bash init-option.sh botmux fix        # 体检 + 自动修复（会先问再改�
 > 每次消息都起不来 CLI —— 表现就是**完全无反馈**。体检会直接点名报错。
 > 修法：装那个 CLI，或 `/botconfig set cli claude-code` 改回已装的。
 
+## 底层 CLI 是前置依赖（botmux 只桥接，不装 CLI）
+
+**botmux 不负责安装它要驱动的 CLI。** 装完 botmux 但没装底层 CLI =
+静默失败：daemon 与长连接全绿，飞书里发消息零反馈。`do_install` 会在装完时
+检测并提示，`doctor` 会直接点名报错。
+
+默认 `cliId` 是 `claude-code`，所以**至少要装 claude**：
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+其他可选底层 CLI（botmux 适配器已内建，装了即可 `/botconfig set cli <cliId>` 切换）：
+
+| cliId | 安装 | 说明 |
+|---|---|---|
+| `claude-code` | `npm i -g @anthropic-ai/claude-code` | **默认** |
+| `codex` | `npm i -g @openai/codex` | |
+| `gemini` | `npm i -g @google/gemini-cli` | |
+| `opencode` | `npm i -g opencode-ai` | |
+| `mtr` | `npm i -g @metamove-code/mtr-cli` | 社区贡献 |
+| `aiden` | ⚠️ **内部渠道** | 字节内部工具（bytedcli 生态），botmux 公开文档明确不提供安装方式，公网 npm 上的 `aiden` 是**同名无关包**，别装 |
+| `coco` / `traex` | ⚠️ **内部渠道** | TRAE 系，非公开 npm |
+| `codex-app` / `mira` / `riff` | — | 非本地 CLI（桌面 App / Web API / 内建 agent），无需装 |
+
+> **注意**：`npm i -g aiden` 会装到 `aiden@0.0.3`（2025-01，作者 ebeloded）
+> —— 那是个无关项目，不是 botmux 要的 Aiden。`doctor` 对这类内部渠道适配器
+> 只报「仅仅内部渠道发行」并拒绝给出 npm 命令，避免把人带沟里。
+
 ## 配置输入输出显示
 
 飞书里对 bot 发 `/botconfig` 查看/修改（写盘即热更新，无需重启）：
