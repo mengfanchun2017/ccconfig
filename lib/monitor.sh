@@ -48,6 +48,9 @@ do_log() {
 
 # Log to terminal + file
 log()    { do_log "$1"; $QUIET_MODE && return; echo -e "${GREEN}[SYNC]${NC} $1"; }
+# 仅写日志文件、不刷终端：常规无变化用。心跳（每 5min × 每仓）会把
+# "already up to date" 刷成噪音，但它仍是排查时的时间锚点，故不删只降级。
+logq()   { do_log "$1"; }
 warn()   { do_log "WARN: $1"; $QUIET_MODE && return; echo -e "${YELLOW}[SYNC]${NC} $1"; }
 info()   { do_log "$1"; $QUIET_MODE && return; echo -e "${CYAN}[SYNC]${NC} $1"; }
 error()  { do_log "ERROR: $1"; $QUIET_MODE && return; echo -e "${RED}[SYNC]${NC} $1"; }
@@ -291,6 +294,7 @@ commit_and_push() {
         if [ "$had_e" = 1 ]; then set -e; fi
 
         local behind=0
+        local just_integrated=0   # 本轮是否已整合过（抑制紧随其后的重复 "already up to date"）
         if [ $fetch_rc -eq 0 ]; then
             behind=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
         else
@@ -308,6 +312,7 @@ commit_and_push() {
             if [ "$had_e" = 1 ]; then set -e; fi
             if [ "$pull_rc" -eq 0 ]; then
                 log "[$repo] 整合其他终端 ${behind} 个提交（pull --rebase）"
+                just_integrated=1
                 behind=0
             else
                 warn "[$repo] !! 整合对端改动失败（rc=$pull_rc, 仍落后 ${behind}）"
@@ -331,10 +336,12 @@ commit_and_push() {
         else
             # 区分"真同步了"与"本机落后远程"：只打同一句会让心跳在真正落后时
             # 也显得一切正常（用户实测就是看不出双端有没有收敛）。
+            # 刚整合过就不再补一句 already up to date —— 同一次调用里说两遍
+            # 同一件事纯属冗余（曾出现 "整合其他终端 1 个提交" + "already up to date"）。
             if [ "${behind:-0}" -gt 0 ]; then
                 log "[$repo] up to date locally, but ${behind} commit(s) behind remote — 未整合其他终端的改动"
-            else
-                log "[$repo] already up to date"
+            elif [ "${just_integrated:-0}" -eq 0 ]; then
+                logq "[$repo] already up to date"
             fi
         fi
         return 0
@@ -575,9 +582,15 @@ start_watch() {
     # Single inotify watching ~/git/, accepting events from any tracked repo.
     # Debounce triggers sync_repos with only the changed repo list (L2 优化).
     # 30s：session 已不再自己 commit（见 CLAUDE.md 约束），改完要尽快落盘，
-    #   太长会让连续编辑攒成一坨。两个值同步改，别只改一个。
+    #   太长会让连续编辑攒成一坨。
     local debounce=30
-    local min_push_gap=30
+    # min_push_gap 是纯节流，不承担"合并编辑"职责（那是 debounce 的活）。
+    # 与 debounce 同值 30s 会让"30s debounce 后再判 30s gap"二次等待，
+    # 连续操作时每一拍都被 Defer 一轮。独立取 10s 只防同步风暴。
+    local min_push_gap=10
+    # 心跳周期（秒）。它替代了原来的 12h 空闲兜底，是"对端提交本机可见"的唯一
+    # 兜底通道 —— 所以按 wall-clock 计，不能按"暂无文件事件"计（见循环内注释）。
+    local heartbeat_secs=300
 
     inotifywait -m -r -q \
         --exclude '(\.git/|_ext/|\.snapshots/|node_modules/|\.tmp\.)' \
@@ -617,7 +630,7 @@ start_watch() {
 
         pending=0
         last_push_time=0
-        idle_ticks=0
+        heartbeat_ts=0   # 心跳上次触发时刻（epoch）；0 = 尚未起跳
         local inotify_restarts=0
         local inotify_backoff=2  # 初始退避秒数
         local inotify_max_restarts=8
@@ -689,27 +702,31 @@ start_watch() {
                 inotify_backoff=2
                 echo "ok" > "$STATUS_FILE"
             fi
-            if [ ! -f "$DEBOUNCE_FILE" ]; then
-                idle_ticks=$((idle_ticks + 1))
-                # 心跳全量同步：5 分钟（150 ticks × 2s）。原来 12h 是纯兜底，
-                # 但 monitor 只看本机文件事件、从不轮询远程 —— 多终端并行时，
-                # 对端推上来的新提交本机永远感知不到（要等自己碰文件才顺带 pull）。
-                # 5min 心跳让"喂给另一终端"的收敛窗口从 12h 降到 5min。
-                # commit_and_push 幂等：无改动且已同步时只打 "already up to date"，
-                # 不产生噪音提交（实测）。
-                if [ $idle_ticks -ge 150 ]; then
-                    idle_ticks=0
-                    now=$(date +%s)
-                    gap=$((now - last_push_time))
-                    if [ "$last_push_time" -eq 0 ] || [ "$gap" -ge "$min_push_gap" ]; then
-                        do_log "Heartbeat sync (5min idle) — 收敛其他终端的改动"
-                        sync_repos
-                        last_push_time=$(date +%s)
-                    fi
+            # 心跳：按 wall-clock 计，且必须在 DEBOUNCE 判断之外。
+            # 两个"必须在外面"的理由：
+            #   1) 原实现用 idle_ticks（只在 DEBOUNCE_FILE 不存在时递增、一有事件即清零）
+            #      → 语义其实是"本地空闲 5min 才收敛"。而收敛需求跟本机是否空闲毫无关系：
+            #      两端都在高频编辑时恰恰最需要对端提交可见，心跳却永不触发
+            #      （实测 8 分钟零收敛动作）。
+            #   2) 即便改成 wall-clock，只要仍留在 `if [ ! -f "$DEBOUNCE_FILE" ]` 内，
+            #      持续编辑会让该文件一直存在 → 整段被跳过，心跳同样永不触发。
+            # 心跳自带 last_push_time 门控，与 debounce 路径互不干扰。
+            now=$(date +%s)
+            if [ "$heartbeat_ts" -eq 0 ]; then
+                heartbeat_ts=$now
+            elif [ $((now - heartbeat_ts)) -ge "$heartbeat_secs" ]; then
+                gap=$((now - last_push_time))
+                if [ "$last_push_time" -eq 0 ] || [ "$gap" -ge "$min_push_gap" ]; then
+                    heartbeat_ts=$now
+                    do_log "Heartbeat sync (${heartbeat_secs}s wall-clock) — 收敛其他终端的改动"
+                    sync_repos
+                    last_push_time=$(date +%s)
                 fi
+            fi
+
+            if [ ! -f "$DEBOUNCE_FILE" ]; then
                 continue
             fi
-            idle_ticks=0
             evt_ts=$(cat "$DEBOUNCE_FILE" 2>/dev/null)
             if [ -z "$evt_ts" ]; then
                 continue

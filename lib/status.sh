@@ -403,6 +403,43 @@ check_repos() {
     fi
     unset _acct
 
+    # 双端同步状态（多终端自查的唯一入口）。
+    # monitor 只在文件事件/心跳时收敛，本机不碰文件时用户无从知道"另一终端推到哪了" ——
+    # 这是"看不出两边有没有收敛"的直接原因。此处 fetch 后显式列出 ahead/behind。
+    # 只有慢速模式做 fetch：--quick 供 SessionStart 用，不能在这里引入网络等待。
+    local _sync_shown=false
+    for _s in ccconfig ccprivate skill; do
+        local _sd="$HOME/git/$_s"
+        [ -d "$_sd/.git" ] || continue
+        local _sb
+        _sb=$(git -C "$_sd" branch --show-current 2>/dev/null) || continue
+        [ -n "$_sb" ] || continue
+
+        if ! $QUICK_MODE; then
+            if ! timeout 10 git -C "$_sd" fetch origin "$_sb" >/dev/null 2>&1; then
+                $_sync_shown || { echo -e "  ${GRAY}双端同步:${NC}"; _sync_shown=true; }
+                echo -e "    ${YELLOW}⚠${NC} $_s — fetch 失败（无法判断对端进展）"
+                continue
+            fi
+        fi
+
+        local _ah _bh _dirty
+        _ah=$(git -C "$_sd" rev-list --count "origin/$_sb..HEAD" 2>/dev/null || echo 0)
+        _bh=$(git -C "$_sd" rev-list --count "HEAD..origin/$_sb" 2>/dev/null || echo 0)
+        _dirty=$(git -C "$_sd" status --porcelain 2>/dev/null | wc -l)
+
+        if [ "${_ah:-0}" -eq 0 ] && [ "${_bh:-0}" -eq 0 ] && [ "${_dirty:-0}" -eq 0 ]; then
+            continue   # 三绿不占屏
+        fi
+        $_sync_shown || { echo -e "  ${GRAY}双端同步:${NC}"; _sync_shown=true; }
+        local _line="    "
+        [ "${_ah:-0}" -gt 0 ] && _line="${_line}${YELLOW}未推 $_ah${NC} "
+        [ "${_bh:-0}" -gt 0 ] && _line="${_line}${CYAN}落后 $_bh（其他终端）${NC} "
+        [ "${_dirty:-0}" -gt 0 ] && _line="${_line}${YELLOW}工作区脏 $_dirty${NC} "
+        echo -e "${_line}$_s"
+    done
+    unset _s _sd _sb _ah _bh _dirty _line
+
     # memory 概览（只算有 memory 的项目）
     local projects_dir="$HOME/.claude/projects"
     if [[ -d "$projects_dir" ]]; then
