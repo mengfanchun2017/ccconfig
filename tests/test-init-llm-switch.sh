@@ -387,6 +387,43 @@ else
     _pass "模板不含该变量"
 fi
 
+# ── T11: 网关侧临时错误（502/过载）不得被当成致命错误 ──
+# 防的是什么：bridge 把上游错误 JSON 再包一层塞进 SSE message，引号被转义成 \"。
+# 白名单模式要求 "bad_response_status_code"（带引号）→ 匹配不上 → 网关 502 被当成
+# 致命错误 → 切换中止 → init-llm 在 set -e 下整体退出（症状：菜单"闪一下自动退出"）。
+echo "T11 网关侧临时错误（转义错误体）应判为上游临时不可用"
+_t11_body='event: error
+data: {"type":"error","error":{"type":"upstream_error","message":"{\"error\":{\"message\":\" (request id: 20261029)\",\"type\":\"upstream_error\",\"param\":\"502\",\"code\":\"bad_response_status_code\"}}"}}
+'
+if _llm_upstream_transient_error "$_t11_body"; then
+    _pass "转义错误体（网关 502）判为上游临时不可用 → 切换继续"
+else
+    _fail "转义错误体（网关 502）未判为临时不可用" "会导致切换中止 + set -e 杀掉菜单"
+fi
+
+# 鉴权失败是确定性配置错，绝不能被白名单放过去（放行 = 把坏 key 写进 settings.json）
+_t11_auth='event: error
+data: {"type":"error","error":{"type":"invalid_request_error","message":"{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"incorrect api key provided\"}}"}}
+'
+if _llm_upstream_transient_error "$_t11_auth"; then
+    _fail "鉴权失败错误体被误判为临时不可用" "会把无效 key 放行写进 settings.json"
+else
+    _pass "鉴权失败错误体不被误判为临时不可用"
+fi
+
+# 正常流式响应也不能被误判
+_t11_ok='event: message_start
+data: {"type":"message_start"}
+
+event: message_stop
+data: {"type":"message_stop"}
+'
+if _llm_upstream_transient_error "$_t11_ok"; then
+    _fail "正常流式响应被误判为临时不可用"
+else
+    _pass "正常流式响应不被误判"
+fi
+
 echo ""
 echo "───────────────────────────────"
 if [[ $FAIL -eq 0 ]]; then

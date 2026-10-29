@@ -605,6 +605,22 @@ _probe_resolve_args() {
     echo "--resolve ${host_header}:${port}:${ip_part}"
 }
 
+# 判断响应体是否属于「上游临时不可用」（网关过载/限流/维护）而非本机或配置问题。
+# 返回 0=是（不该中止切换） 1=否（按探测失败处理）。
+#
+# why 先去反斜杠再匹配：bridge 把上游错误 JSON **再包一层**塞进 SSE 的 message 字段，
+# 引号被转义成 \" —— body 里是 \"code\":\"bad_response_status_code\"，
+# 而白名单模式要求 "bad_response_status_code"（带引号）→ 匹配不上 →
+# 网关侧 502 被当成致命错误 → 切换中止。实测症状：office* 预设选完"闪一下自动退出"
+# （网关 502 间歇性发作，通的时候好、抽风的时候挂）。
+# 抽成独立函数是为了能单测（tests/test-init-llm-switch.sh T11）。
+_llm_upstream_transient_error() {
+    local body="${1:-}"
+    [[ -z "$body" ]] && return 1
+    local plain; plain=$(printf '%s' "$body" | tr -d '\\')
+    printf '%s' "$plain" | grep -qiE '"TooManyRequests"|"Server Overloaded"|"overload"|"service unavailable"|"rate.?limit"|"too many requests"|"bad_response_status_code"|负载已饱和'
+}
+
 test_llm() {
     local target="${1:-}"
     [[ -z "$target" ]] && { error "用法: init-llm.sh test <preset>"; return 1; }
@@ -669,14 +685,7 @@ test_llm() {
     # /rate limit 等）。链路本身是通的 → 不能中止切换，否则上游一忙就切不动 preset
     # （症状：切换时"偶尔报 429"/"overload"、settings.json 不更新、init-llm 闪退）。
     # 注意流式响应经 bridge 后 http_code 恒为 200，必须从 body 识别，不能只看状态码。
-    #
-    # why 先去反斜杠：bridge 把上游错误 JSON **再包一层**塞进 SSE 的 message 字段，
-    # 引号被转义成 \" —— 原文是 \"code\":\"bad_response_status_code\"，
-    # 而下面的模式要求 "bad_response_status_code"（带引号）→ 匹配不上 →
-    # 网关侧 502 被当成致命错误 → 切换中止。实测症状：office* 预设选完"闪一下自动退出"
-    # （网关 502 是间歇性的，通的时候好、抽风的时候挂）。
-    local out_plain; out_plain=$(printf '%s' "$out" | tr -d '\\')
-    if printf '%s' "$out_plain" | grep -qiE '"TooManyRequests"|"Server Overloaded"|"overload"|"service unavailable"|"rate.?limit"|"too many requests"|"bad_response_status_code"|负载已饱和'; then
+    if _llm_upstream_transient_error "$out"; then
         warn "⚠ 上游暂时不可用 — 链路通，非本机/配置问题"
         warn "  网关侧服务降级/容量限流，稍后自动恢复；继续切换"
         return 0
