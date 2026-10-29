@@ -1125,6 +1125,37 @@ async def messages(request: Request):
                     yield _error_frames("upstream_disconnected", "stream interrupted")
                 _dump_and_summary("error")
                 return
+            # 空流兜底：上游回了合法 SSE 却零内容块（实测内网网关
+            # deepseek-v4.1-flash-outside 恒为 HTTP 200 + 仅 data: [DONE]）。
+            # 必须在 finished 判定**之前**——[DONE] 已把 finished 置 True，
+            # 落到下面的 error 分支就永远进不来。该模型非流式正常，
+            # 回落非流式取完整结果转成 SSE，客户端无感。
+            if pending and not (sse_state.get("text_blocks") or sse_state.get("tool_blocks")):
+                print("[bridge] upstream stream had zero content blocks, falling back to non-stream", flush=True)
+                fallback = None
+                try:
+                    fb_body = dict(upstream_body)
+                    fb_body["stream"] = False
+                    fb_body.pop("stream_options", None)
+                    fb_status, fb_text = await _upstream_post(
+                        target_url, headers, fb_body, host_header, extra_ext, use_win_curl
+                    )
+                    if fb_status == 200:
+                        fallback = anthropic_resp_to_sse(
+                            openai_to_anthropic_resp(json.loads(fb_text), f"msg_bridge_{req_no}")
+                        )
+                    else:
+                        print(f"[bridge] non-stream fallback failed: status={fb_status} {fb_text[:200]}", flush=True)
+                except Exception as e:
+                    print(f"[bridge] non-stream fallback error: {type(e).__name__}: {e}", flush=True)
+                if fallback:
+                    yield fallback
+                    _dump_and_summary("fallback")
+                    return
+                # 兜底失败：放回暂存帧，让下面的既有逻辑照常报错/收尾
+                for p in pending:
+                    yield p
+                pending = []
             # upstream 结束却没给终止标记（截断 / 空响应）→ 显式报错
             # why: 否则客户端只拿到半条流且无从判断，探测也只能靠"缺少 message_stop"
             #      间接推断；显式 error 让两边都能确定地识别失败
@@ -1139,36 +1170,6 @@ async def messages(request: Request):
                     detail = raw_buf[0].strip()[:500]
                     print(f"[bridge] upstream returned non-SSE body: {detail}", flush=True)
                     yield _error_frames("upstream_error", detail)
-                elif pending and not (sse_state.get("text_blocks") or sse_state.get("tool_blocks")):
-                    # 上游回的是合法 SSE 但一个内容块都没有（实测内网网关
-                    # deepseek-v4.1-flash-outside：HTTP 200 + 仅 data: [DONE]）。
-                    # 报 incomplete 只会让 CC 反复重试同一个必然失败的流式请求；
-                    # 该模型非流式正常 → 回落非流式取完整结果，转成 SSE 下发。
-                    print("[bridge] upstream stream had zero content blocks, falling back to non-stream", flush=True)
-                    fallback = None
-                    try:
-                        fb_body = dict(upstream_body)
-                        fb_body["stream"] = False
-                        fb_body.pop("stream_options", None)
-                        fb_status, fb_text = await _upstream_post(
-                            target_url, headers, fb_body, host_header, extra_ext, use_win_curl
-                        )
-                        if fb_status == 200:
-                            fallback = anthropic_resp_to_sse(
-                                openai_to_anthropic_resp(json.loads(fb_text), f"msg_bridge_{req_no}")
-                            )
-                        else:
-                            print(f"[bridge] non-stream fallback failed: status={fb_status} {fb_text[:200]}", flush=True)
-                    except Exception as e:
-                        print(f"[bridge] non-stream fallback error: {type(e).__name__}: {e}", flush=True)
-                    if fallback:
-                        sse_state["finished"] = True
-                        sse_state["stopped"] = True
-                        yield fallback
-                    else:
-                        # 兜底也失败：把之前暂存的正常收尾帧放出去（至少协议完整）
-                        yield "".join(pending)
-                        yield _error_frames("upstream_incomplete", "upstream stream ended without completion marker")
                 else:
                     print("[bridge] upstream stream ended without [DONE] (truncated or empty)", flush=True)
                     yield _error_frames("upstream_incomplete", "upstream stream ended without completion marker")
