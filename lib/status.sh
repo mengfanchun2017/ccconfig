@@ -415,11 +415,22 @@ check_repos() {
         _sb=$(git -C "$_sd" branch --show-current 2>/dev/null) || continue
         [ -n "$_sb" ] || continue
 
+        local _ferr=""
         if ! $QUICK_MODE; then
-            # 30s 配 30s 超时：fetch 本身经代理约 1s，10s 会误伤首次握手/代理冷启
-            if ! timeout 30 git -C "$_sd" fetch origin "$_sb" >/dev/null 2>&1; then
+            # 重试一次：monitor 正在同一仓库做 fetch/rebase，并发 fetch 会瞬时失败
+            # （实测 ccconfig/ccprivate 各出现过一次，手动复跑即通）→ 单次失败不足以
+            # 判定"对端不可达"，报出来只会变成假警报。
+            local _fok=false _try
+            for _try in 1 2; do
+                if _ferr=$(timeout 30 git -C "$_sd" fetch origin "$_sb" 2>&1); then
+                    _fok=true; break
+                fi
+                [ "$_try" -eq 1 ] && sleep 2
+            done
+            if ! $_fok; then
                 $_sync_shown || { echo -e "  ${GRAY}双端同步:${NC}"; _sync_shown=true; }
-                echo -e "    ${YELLOW}⚠${NC} $_s — fetch 失败（无法判断对端进展）"
+                echo -e "    ${YELLOW}⚠${NC} $_s — fetch 失败两次（无法判断对端进展）"
+                echo -e "      ${GRAY}$(printf '%s' "$_ferr" | tail -2 | tr '\n' ' ')${NC}"
                 continue
             fi
         fi
