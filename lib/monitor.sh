@@ -624,7 +624,9 @@ start_watch() {
     {
         trap 'kill $event_pid 2>/dev/null; pkill -P $event_pid 2>/dev/null; rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE" "$PID_FILE"; exit' EXIT
         # systemd stop / Ctrl+C：快速干净退出，避免 stop-sigterm 90s 超时被 KILL
-        trap 'exit 0' TERM INT
+        # 留痕：此前这个 trap 静默吞掉 TERM，loop 每 ~5min 被杀一次却查不到死因
+        # （systemd 只报 Result=success，因为 exit 0）。记一行才能定位谁在发 TERM。
+        trap 'do_log "Monitor loop received TERM/INT — exiting (PID $$)"; exit 0' TERM INT
         # sync 里 git 命令偶发非零，不能 let set -e 终止整个 loop → systemd 疯狂 restart
         set +e
 
