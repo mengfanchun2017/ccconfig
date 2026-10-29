@@ -657,13 +657,18 @@ start_watch() {
         # → Result=protocol → 每 10s 重启一次的死循环（2026-10-30 实测事故，根因是
         # 上面 find_live_monitor_pid 曾把调用者误认成实例，但契约缺失本身是独立的坑：
         # 只要 PIDFile 丢了，哪怕认对了实例也同样起不来）。
-        # 补写 PIDFile，让 systemd 始终能取到 MainPID。systemd 场景下它读的是
-        # $SYSTEMD_PID_FILE（unit 里 MONITOR_PID_FILE 指过来），顺手两个都补齐。
-        for pf in "$PID_FILE" "$SYSTEMD_PID_FILE"; do
-            [ -n "$pf" ] || continue
-            mkdir -p "$(dirname "$pf")" 2>/dev/null || true
-            [ "$(cat "$pf" 2>/dev/null)" = "$pid_candidate" ] || echo "$pid_candidate" > "$pf" 2>/dev/null || true
-        done
+        # 补写 PIDFile，让 systemd 始终能取到 MainPID。
+        # 只写 $PID_FILE，不要顺手也写 $SYSTEMD_PID_FILE：后者默认就是
+        # /run/claude-auto-sync/monitor.pid，而 unit 里 RuntimeDirectoryMode=1777
+        # 让该目录全局可写 —— 手动运行一次就会把 francis 拥有的 pid 文件塞进 systemd
+        # 的运行时目录，systemd 随即拒绝："PID file is owned by 1000 (must be owned by 0)"。
+        # systemd 模式下 unit 已设 MONITOR_PID_FILE=/run/...，$PID_FILE 本就是那个路径，
+        # 写它即可满足 Type=forking；手动模式下写 $MONITOR_HOME 那份，二者互不污染。
+        if [ -n "$PID_FILE" ]; then
+            mkdir -p "$(dirname "$PID_FILE")" 2>/dev/null || true
+            [ "$(cat "$PID_FILE" 2>/dev/null)" = "$pid_candidate" ] \
+                || echo "$pid_candidate" > "$PID_FILE" 2>/dev/null || true
+        fi
         if ! inotify_usable; then
             $QUIET_MODE || echo -e "${RED}[SYNC]${NC} 但 inotifywait 不可用（共享库缺失?）— 修复: bash maintain.sh fix"
         elif ! pgrep -f "inotifywait.*$WATCH_DIR" &>/dev/null; then
