@@ -347,18 +347,23 @@ test_heartbeat_convergence() {
 }
 
 test_remote_ahead_detected() {
-    # 只有心跳不够：「无本地改动」分支若不 fetch，纯远程领先时永远走 already up to date
+    # 只有心跳不够：「无本地改动」分支若不整合远程，纯远程领先时永远走 already up to date
     # → 对端推了新提交本机看不见（心跳只是更频繁重复同一句），收敛不成立。
-    # 判据：该分支内必须有一次 fetch，且落后时打出 behind 信息。
+    # 判据：该分支内必须整合远程（git_pull_rebase）且落后时打出 behind 信息。
     local mon="$CCCONFIG_DIR/lib/monitor.sh"
     local blk
     blk=$(awk '/local changed_files=\$\(git -C "\$repo_dir" status --porcelain/,/^    fi$/' "$mon")
-    echo "$blk" | grep -q 'git -C "\$repo_dir" fetch origin "\$branch"' \
-        && pass "converge: 无本地改动分支先 fetch（能看见对端提交）" \
-        || fail "converge" "该分支不 fetch → 纯远程领先永不收敛"
+    echo "$blk" | grep -q 'git_pull_rebase "\$repo_dir" "\$branch"' \
+        && pass "converge: 无本地改动分支整合远程（能取回对端提交）" \
+        || fail "converge" "该分支不整合远程 → 纯远程领先永不收敛"
     echo "$blk" | grep -q 'behind' \
         && pass "converge: 落后远程时区分日志（非 already up to date）" \
         || fail "converge" "落后远程仍报 already up to date"
+    # errexit 回归：本段必须在恢复 errexit 前捕获 rc（沿用 git_push 的 had_e 手法）。
+    # 违反时实测后果是 fetch/pull 成功后 2s 内主 loop 自杀 → systemd 每 ~5min 重启一次。
+    echo "$blk" | grep -q 'had_e' \
+        && pass "converge: 用 had_e 保护 errexit（不把外层 set +e 重开）" \
+        || fail "converge" "缺 had_e 保护 → 心跳会打死 monitor loop"
 }
 
 test_pull_failure_evidence() {
