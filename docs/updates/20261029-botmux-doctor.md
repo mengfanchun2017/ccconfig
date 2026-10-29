@@ -130,75 +130,35 @@
 - **宁可不说，不给错命令**：只有实测 `npm view <pkg> version` 可解析的包才写进表；
   内部渠道单列 `__INTERNAL__`，未知的单列 `__UNVERIFIED__`。
 
-## 追加 2：aiden 深查结论 + CodeM 接入
+## 追加 2：aiden 深查结论（含 botmux 3.55.0 复核）
 
-用户反馈「botmux UI 里**有** aiden 这个选项，我切了报错要安装，你却说没有」——
-这个矛盾查清了。
+用户反馈「botmux UI 里**有** aiden 这个选项，切了报错要安装」——矛盾查清：
 
-### 矛盾的解释
+1. **UI 只列适配器 + 只探测，不代装**。3.54.0 与 **3.55.0 均无** `installCli`/`autoInstall`；
+   它跑 `$SHELL -lc/-ic` + `command -v <exe>`，缺了标 unavailable + 文案
+   `botOnboarding.cliMissingHint`「当前机器找不到 {command}，请先安装或修正 daemon 的 PATH」。
+   **选项是静态适配器清单，报错是探测结果。**
+2. **`/login bytedcli` 是身份注入，不是装 CLI**。原文：「这是 ByteCloud 的授权，
+   **和飞书 /login 是两回事**」。注入凭据到 `~/.botmux/data/bytedcli-home/<openId>`，
+   **不产生可执行文件**。
 
-botmux 的 UI 与「装 CLI」是两件事：
+**aiden 三条硬墙**：① 公开文档刻意不给（`adapters.md` 原文「不在公开仓库内放内部文档
+链接或复制原文」）；② 公网 npm 无（`aiden` = ebeloded 的**同名无关包**）；③ **本机内网
+域名解析不了**（`bnpm.byted.org` 无 DNS，resolv.conf 只指 Tailscale）。
 
-1. **UI 只列适配器、只做可用性探测，不代装**。二进制里搜不到 `installCli` /
-   `autoInstall`。它对每个适配器跑 `$SHELL -lc/-ic` + `command -v <exe>`，
-   找不到就标 unavailable，并用文案 `botOnboarding.cliMissingHint`「当前机器找不到
-   {command}，请先安装或修正 daemon 的 PATH；未就绪前不能创建 Bot」。
-   （对比：它对 lark-cli 缺失会提示 `npm i -g @larksuite/cli` —— 那是**文案**，不是自动装。）
-2. **`/login bytedcli` 不是装 CLI，是身份注入**。文案原文：「这是 **ByteCloud
-   的授权，和飞书 /login 是两回事**，两边都要授权一次」；登录态约 3 周，
-   派生 JWT 1~2 小时。它给 session 注入 `BYTEDCLI_USER_CLOUD_JWT` 等凭据
-   （每人独立 HOME `~/.botmux/data/bytedcli-home/<openId>`），**不产生任何可执行文件**。
+**aiden 真身**：字节内部**网关/装配启动器**（非普通 CLI）—— `Aiden × Claude` 底层
+仍是 `cliId=claude-code`，只加启动前缀 `aiden x claude`。故即便到手，**正确接法是
+setup 里的「Aiden × Claude」，不是 `cliId: aiden`**。
 
-所以「有选项」≠「能装」：选项是适配器清单（静态内置），报错是探测结果（缺 `aiden` 文件）。
+**升级复核（3.54.0 → 3.55.0）**：aiden 适配器定义**逐字未变**
+（`resolvedBin='aiden'`、`--permission-mode agentFull`、`authPaths` 含 `~/.local/share/bytedcli`
++ `byted-cloud-auth.json`）。**结论不因升级改变。**
 
-### aiden 为什么装不上（三条硬墙）
-
-| 墙 | 证据 |
-|---|---|
-| 公开文档刻意不给 | botmux `adapters.md` 原文：「各网关的**具体 wrapper 脚本**…**这里不在公开仓库内放内部文档链接或复制原文**」。适配器表里 aiden 唯独没有 `docs/xxx.md` 链接 |
-| 公网 npm 不存在 | `aiden` = v0.0.3/ebeloded「AI-powered CLI tool」（**同名无关**）；`aiden-cli` / `cjadk` / `@bytedance-dev/bytedcli` 全 404 |
-| 本机内网不通 | `bnpm.byted.org` / `bnpm.bytedance.com` **无 DNS 解析**（本机 resolv.conf 只指 Tailscale `10.255.255.254` + tailnet search domain）。内网 IP `10.150.224.182:18080` 端口虽通，但**内网域名解析不了** → 装不了内网 npm 包 |
-
-**aiden 的真身**：字节内部「网关/装配启动器」，**不是普通 CLI**。源码
-`src/setup/cli-selection.ts` 注释：`Aiden × Claude → 底层 cliId=claude-code，
-启动前缀 aiden x claude`；`Aiden × Codex → cliId=codex + aiden x codex`。
-即它是**套在真 CLI 外面的模型/网关层**（所以 botmux 专门写逻辑剥掉它拒收的
-`--settings`、`-c`）。同族内部 CLI：`kaboo-cli` / `aiden-cli` / `cjadk` / `bytedcli`
-（四个平级，登录态写 keychain，全在内网）。
-
-> **重要**：即便某天 aiden 到手，正确接法是 botmux `setup` 里的
-> **「Aiden × Claude」**选项（= `cliId: claude-code` + `wrapperCli: "aiden x claude"`），
-> **不是** `cliId: aiden` —— 后者走它的原生 agent 模式，另一套参数。
-> 且 aiden 不给 claude-code 加任何新能力，它的价值只是**拿内部额度调模型**。
-
-### CodeM 接入（新增可行路径）
-
-用户直觉「飞书自己的兼容性会更好」——**对的**，且这条路公网可装：
-
-- **CodeM** = 飞书官方 AI 研发智能体（CLI + Bot + 桌面 App + Web 后台，2026-07 发布）
-- 实测可达：安装脚本 `codem-public.tos-cn-beijing.volces.com/codem/install.sh`
-  **HTTP 200**（102KB）；npm `@lark-codem/codem-cli` **200**（实装到 0.1.249）
-- **botmux 已内建一等适配器**：源码 `SEH()` 做
-  `existsSync(~/.codem/bin/codem) ? 该路径 : "codem"`（**路径优先、PATH 兜底**），
-  `authPaths: ["~/.codem"]`。故装完 botmux 无需配 PATH 就能认。
-
-已在本机实装验证：`~/.codem/bin/codem` → `0.1.249 (CodeM)`，
-`codem auth status` → `{"loggedIn": false, "serverUrl": "https://codem.feishu.cn"}`
-（**登录需企业已开通 CodeM 权益 + 扫码**，无法代做）。
-
-doctor/init 的 CLI 依赖层已把 codem 单列 `__CODEM_SH__`（走官方脚本而非
-`npm -g` —— 它装进版本化目录 `~/.codem/runtime/versions/<ver>/` + 指针启动器，
-`npm -g` 造不出那个布局）。
-
-### 取舍对比
-
-| | botmux + claude-code | botmux + CodeM | aiden |
-|---|---|---|---|
-| 可装性 | ✅ 已跑通 | ✅ 公网可装（需企业权益） | ❌ 内网 + 内部文档 |
-| 模型 | **自带**（可换任何） | **锁定 CodeM 通道** | 内部额度（唯一诱因） |
-| 兼容性 | 第三方桥，上游改版会断 | **官方原生，Bot 在飞书内** | 官方内部 |
-| 成本 | 免费 | 企业付费（预览期） | 内部额度 |
-| 成熟度 | 稳 | 官方标「预览」，迭代快 | 活跃内部件 |
+> 升级过程踩坑：`botmux upgrade` 内部走 `npm install botmux@latest`，与**正在运行的
+> daemon 抢同一个 130MB 二进制** → `Text file busy` + 留下半成品目录
+> （`.botmux-*`）。且 npm 从 registry.npmjs.org 拉大文件**极慢**（实测卡 12 分钟无进展）。
+> 正确姿势：先停 daemon → 清 `.botmux-*` 临目录 → 官方源（**不能用 npmmirror**，
+> 它没同步平台子包 `botmux-linux-x64`，会报 `no prebuilt binary package`）重装。
 
 ## 实测踩坑（本次新增）
 
