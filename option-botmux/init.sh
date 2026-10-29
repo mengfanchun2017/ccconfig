@@ -29,6 +29,7 @@ source "$CCCONFIG_ROOT/lib/dry-run.sh"
 source "$CCCONFIG_ROOT/lib/colors.sh"
 source "$CCCONFIG_ROOT/lib/path-helper.sh" 2>/dev/null || true
 source "$CCCONFIG_ROOT/lib/interact.sh"
+source "$SCRIPT_DIR/lib/doctor.sh"
 
 BOTMUX_HOME="$HOME/.botmux"
 NPM_PREFIX="$(npm config get prefix 2>/dev/null || echo "")"
@@ -544,6 +545,20 @@ do_dashboard() {
     bmx dashboard current "$@"
 }
 
+# ── 体检 / 修复 ──
+# 补的是 botmux 自带状态命令的盲区：daemon/supervisor「在线」≠ 会话能干活。
+# 2026-10-29 实测故障：状态全绿，飞书发消息零反馈（worker 卡死 + pane 已死 +
+# 队列积压）。故体检项覆盖「会话健康 / 队列积压 / 长连接 / cliId 可执行性」。
+do_doctor() {
+    has_botmux || { err "botmux 未安装"; return 1; }
+    bmx_doctor "$@"
+}
+
+do_fix() {
+    has_botmux || { err "botmux 未安装"; return 1; }
+    bmx_doctor --fix
+}
+
 # ── 交互菜单 ──
 do_menu() {
     while true; do
@@ -551,6 +566,7 @@ do_menu() {
         echo ""
         local cmd
         cmd=$(menu_select "botmux" \
+            "体检 + 自动修复（消息无反馈先跑这个）" \
             "一条龙引导（建应用→启动→自启）" \
             "启动 daemon" \
             "重启 daemon" \
@@ -564,18 +580,19 @@ do_menu() {
             "仅建应用（setup 原始命令）" \
             "退出")
         case "$cmd" in
-            1)  do_guide;               pause_enter ;;
-            2)  do_start;               pause_enter ;;
-            3)  do_restart;             pause_enter ;;
-            4)  do_stop;                pause_enter ;;
-            5)  botmux status 2>&1 || true;  pause_enter ;;
-            6)  do_logs --no-follow --lines 40; pause_enter ;;
-            7)  do_sessions;             pause_enter ;;
-            8)  do_dashboard;           pause_enter ;;
-            9)  do_update;              pause_enter ;;
-            10) do_install;             pause_enter ;;
-            11) do_setup;               pause_enter ;;
-            ""|0|12) return 0 ;;
+            1)  do_doctor;              pause_enter ;;
+            2)  do_guide;               pause_enter ;;
+            3)  do_start;               pause_enter ;;
+            4)  do_restart;             pause_enter ;;
+            5)  do_stop;                pause_enter ;;
+            6)  botmux status 2>&1 || true;  pause_enter ;;
+            7)  do_logs --no-follow --lines 40; pause_enter ;;
+            8)  do_sessions;             pause_enter ;;
+            9)  do_dashboard;           pause_enter ;;
+            10) do_update;              pause_enter ;;
+            11) do_install;             pause_enter ;;
+            12) do_setup;               pause_enter ;;
+            ""|0|13) return 0 ;;
         esac
     done
 }
@@ -594,9 +611,13 @@ case "${1:-}" in
     logs|--logs)        shift; do_logs "$@" ;;
     sessions|list)      shift; do_sessions "$@" ;;
     dashboard)          shift; do_dashboard "$@" ;;
+    doctor|--doctor|check) shift 2>/dev/null || true; do_doctor "$@" ;;
+    fix|--fix|repair)   shift 2>/dev/null || true; do_fix "$@" ;;
     menu|"")            do_menu ;;
     *)
-        echo "用法: bash init.sh [--status|--install|--update|guide|manual|setup|start|stop|restart|logs|sessions|dashboard|menu]"
+        echo "用法: bash init.sh [--status|--install|--update|guide|manual|setup|start|stop|restart|logs|sessions|dashboard|doctor|fix|menu]"
         echo "  manual  手动建飞书应用（不走扫码）—— SSH/远端场景用"
+        echo "  doctor  体检（含会话健康/队列积压/长连接/cliId 可执行性）—— 飞书发消息无反馈先跑这个"
+        echo "  fix     体检 + 自动修复"
         exit 1 ;;
 esac
