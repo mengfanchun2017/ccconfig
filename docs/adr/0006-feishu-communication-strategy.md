@@ -1,10 +1,11 @@
 # 0006. 飞书通信策略：cc-connect + lark-cli，不引入飞书 MCP
 
-> **Status**: ✅ Accepted
+> **Status**: ✅ Accepted（「bridge 组件」部分 ⚠️ 已被 [ADR-0057](0057-feishu-cli-bridge-selection.md) 取代）
 > **日期**: 2026-07-29
 > **关联**: [决策时间线 § 2026-07-29](../adr/README.md#决策时间线worklog-提取按日期倒序)
 > **模板**: MADR 4.0 极简版
 > **2026-10-25 复核**: 本 ADR 的 `cc-connect` 组件与 `option-cconnect/` 目录**已不存在**（`ls -d option-cconnect` 无此目录，全库 grep 无实现，`init-option.sh` 只剩旧的 `larkbridge` 分支）。**仍然成立**：不引入飞书 MCP 的策略，以及后续由 `lark-cli`（`option-larkcli/`）承担飞书通信的实际做法。
+> **2026-10-29 复核**: bridge 选型已换代 —— `ccbridge`（上游 `lark-coding-agent-bridge` 停更 2 月、272 open issues）由 **botmux**（`option-botmux/`）取代，见 [ADR-0057](0057-feishu-cli-bridge-selection.md)。**本 ADR 仍成立的部分**：不引入飞书 MCP、`lark-cli` 承担飞书操作入口、「双组件策略（lark-cli + bridge）」这个**结论**本身；**被取代的部分**：bridge 的具体实现（ccbridge → botmux）。
 
 ## Context and Problem Statement
 

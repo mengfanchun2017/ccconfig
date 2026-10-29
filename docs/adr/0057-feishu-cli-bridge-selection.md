@@ -2,9 +2,9 @@
 
 > **Status**: ✅ Accepted
 > **日期**: 2026-10-29
-> **关联**: `option-botmux/`（`init.sh`、`lib/doctor.sh`、`README.md`）、`init-option.sh`、`maintain.sh`、`lib/menu-data-maintain.sh`、`lib/status.sh`、`lib/update.sh`
+> **关联**: `option-botmux/`（`init.sh`、`lib/doctor.sh`、`README.md`）、`init-option.sh`、`maintain.sh`、`lib/menu-data-maintain.sh`、`lib/status.sh`、`lib/update.sh`、ADR [0006](0006-feishu-communication-strategy.md)、[0050](0050-bridge-structural-refactor.md)、[0054](0054-external-harness-bridge-anthropic-only.md)
 > **模板**: MADR 4.0 极简版
-> **取代**: `ADR-0006`（飞书通信策略）中关于「ccbridge 作为飞书↔CLI 桥」的部分
+> **取代**: [ADR-0006](0006-feishu-communication-strategy.md) 中关于「ccbridge 作为飞书↔CLI 桥」的部分
 
 ## Context and Problem Statement
 
@@ -138,9 +138,9 @@ CodeM = 飞书官方企业级 AI 研发智能体（CLI + Bot + 桌面 App + Web 
 
 ## Related Decisions
 
-- `ADR-0006`（`0006-feishu-communication-strategy.md`）— 本 ADR 取代其中「ccbridge 作为飞书↔CLI 桥」的部分；飞书通信的其他结论（lark-cli 作为飞书操作入口）不受影响。
-- `ADR-0050`（`0050-bridge-structural-refactor.md`）— 同为 bridge 类重构；那个针对 LLM protocol bridge（`openai_bridge.py`），与本 ADR 的 IM↔CLI 桥是**不同层的两件事**。
-- `ADR-0054`（`0054-external-harness-bridge-anthropic-only.md`）— 外部 harness 走内网 LLM 的接法；与本 ADR 同属「本机与外部通道对接」问题域。
+- [ADR-0006](0006-feishu-communication-strategy.md)（`0006-feishu-communication-strategy.md`）— 本 ADR 取代其中「ccbridge 作为飞书↔CLI 桥」的部分；飞书通信的其他结论（lark-cli 作为飞书操作入口、不引入飞书 MCP）不受影响。已在 0006 头部加取代标注。
+- [ADR-0050](0050-bridge-structural-refactor.md)（`0050-bridge-structural-refactor.md`）— 同为 bridge 类重构；那个针对 LLM protocol bridge（`openai_bridge.py`），与本 ADR 的 IM↔CLI 桥是**不同层的两件事**。
+- [ADR-0054](0054-external-harness-bridge-anthropic-only.md)（`0054-external-harness-bridge-anthropic-only.md`）— 外部 harness 走内网 LLM 的接法；与本 ADR 同属「本机与外部通道对接」问题域。
 
 ## Notes
 

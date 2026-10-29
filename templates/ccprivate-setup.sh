@@ -236,8 +236,13 @@ _cconfig_id="$(echo "$HOME/git/ccconfig" | tr '/' '-')"
 # git 不跟踪空目录：新账号的 ccprivate 里可能没有 link/memory/，
 # 不先建目录就会链接到一个不存在的目标（死链）
 mkdir -p "$SCRIPT_DIR/link/memory"
-setup_link "$CLAUDE_DIR/projects/$_cconfig_id/memory" "$SCRIPT_DIR/link/memory" "memory → ccprivate/link/memory"
-unset _cconfig_id
+# realpath：$SCRIPT_DIR 自身可能是 symlink（如 /tmp/tmp.XXXX/ccprivate → 真实仓）。
+# 指向字面路径时，调用方一旦按「字面路径 + 子路径」写文件（Write 工具即如此，
+# 它不走 symlink 解析），文件会落到临时目录、随 tmp 清理蒸发 —— 症状是
+# memory 明明写着却读不到。解析成规范路径后，两种写法都命中同一个真实目录。
+_mem_target="$(realpath "$SCRIPT_DIR/link/memory" 2>/dev/null || echo "$SCRIPT_DIR/link/memory")"
+setup_link "$CLAUDE_DIR/projects/$_cconfig_id/memory" "$_mem_target" "memory → ccprivate/link/memory"
+unset _cconfig_id _mem_target
 
 # ============================================================
 # 3b. 项目级记忆（公开项目走 ccprivate 集中存储，不能进项目仓库）
