@@ -27,6 +27,11 @@ setup_isolated_env() {
     TEST_HOME=$(mktemp -d)
     export HOME="$TEST_HOME"
     mkdir -p "$HOME/.local/bin" "$HOME/.cache"
+    # 两个 PIDFile 都指向沙箱内不存在的路径：既不碰开发机上真实的 systemd
+    # PIDFile（否则兜底路径永远测不到 —— 实测会误判 PASS），也避免 set -u 下
+    # 引用未定义变量导致函数静默失败。
+    export PID_FILE="$TEST_HOME/.monitor-sync.pid"
+    export SYSTEMD_PID_FILE="$TEST_HOME/systemd-monitor.pid"
 }
 
 teardown_isolated_env() {
@@ -187,6 +192,78 @@ test_start_watch_stale_pidfile() {
         pass "start_watch: 死 PIDFile 检测"
     fi
     rm -f "$pid_file"
+    teardown_isolated_env
+}
+
+# ========== find_live_monitor_pid（单例判据，start/status 共用）==========
+# 直接 eval 真实函数体，不复制粘贴 —— 上面 test_start_watch_* 是内联重写检查逻辑，
+# 测的是测试自己而非代码，新增判据（pgrep 兜底）根本没被覆盖到。
+
+test_find_live_monitor_pid_pidfile() {
+    eval "$(sed -n '/^find_live_monitor_pid() {/,/^}/p' "$CCCONFIG_DIR/lib/monitor.sh")"
+    if ! declare -F find_live_monitor_pid &>/dev/null; then
+        fail "find_live_monitor_pid" "无法从 monitor.sh 提取函数体"
+        return
+    fi
+    setup_isolated_env
+    # 造一个 cmdline 含 monitor.sh 的存活进程：后台 sleep 后改名不可行，
+    # 改用本脚本自身进程 —— 其 cmdline 是 "bash tests/test-monitor.sh"，不含 monitor.sh，
+    # 故这里显式起一个 bash -c 包装，令 /proc/PID/cmdline 命中 "monitor.sh"。
+    bash -c 'exec -a "bash $CCCONFIG_DIR/lib/monitor.sh start" sleep 30' &
+    local fake=$!
+    sleep 0.3
+    PID_FILE="$TEST_HOME/monitor.pid"
+    echo "$fake" > "$PID_FILE"
+    local got; got=$(find_live_monitor_pid)
+    if [ "$got" = "$fake" ]; then
+        pass "find_live_monitor_pid: PIDFile 命中 ($fake)"
+    else
+        fail "find_live_monitor_pid" "PIDFile 存活却返回 '$got'（期望 $fake）"
+    fi
+    kill "$fake" 2>/dev/null || true
+    rm -f "$PID_FILE"
+    teardown_isolated_env
+}
+
+test_find_live_monitor_pid_pgrep_fallback() {
+    eval "$(sed -n '/^find_live_monitor_pid() {/,/^}/p' "$CCCONFIG_DIR/lib/monitor.sh")"
+    setup_isolated_env
+    # 两个 PIDFile 都指向不存在的路径 —— 这是唯一能真正隔离「兜底」的构造：
+    # 只置空 $PID_FILE 不够，systemd 那份（/run/...）在开发机上真实存在，
+    # 旧逻辑照样能命中它，于是测不出兜底缺失（实测反例：反向验证误判 PASS）。
+    PID_FILE="$TEST_HOME/monitor.pid"
+    SYSTEMD_PID_FILE="$TEST_HOME/systemd-monitor.pid"
+    bash -c 'exec -a "bash $CCCONFIG_DIR/lib/monitor.sh start" sleep 30' &
+    local fake=$!
+    sleep 0.3
+    # 关键回归点：PIDFile 缺失时必须靠 pgrep 兜底认出实例。
+    # 旧实现只看 PIDFile → 返回空 → start_watch 起第二份 loop 抢同一批仓库。
+    # 注意断言的是【契约】而非具体 PID：开发机/CI 上可能本来就有真实例在跑，
+    # 此时返回真实例也是正确行为；只要求"非空且确实是个 monitor 进程"。
+    local got; got=$(find_live_monitor_pid) || true
+    if [ -n "$got" ] && [ -r "/proc/$got/cmdline" ] \
+       && tr '\0' ' ' < "/proc/$got/cmdline" | grep -q 'monitor\.sh'; then
+        pass "find_live_monitor_pid: PIDFile 缺失时兜底命中 monitor 进程 ($got)"
+    else
+        fail "find_live_monitor_pid" "PIDFile 缺失时未兜底，返回 '$got'"
+    fi
+    kill "$fake" 2>/dev/null || true
+    teardown_isolated_env
+}
+
+test_find_live_monitor_pid_excludes_self() {
+    eval "$(sed -n '/^find_live_monitor_pid() {/,/^}/p' "$CCCONFIG_DIR/lib/monitor.sh")"
+    setup_isolated_env
+    PID_FILE="$TEST_HOME/monitor.pid"
+    # 绝不能把调用者自身判为"已有实例" —— 否则 start_watch 永远认为自己已在运行，
+    # 于是在没有任何实例的机器上反而起不来（比漏判更糟的失效方向）。
+    # 同样只断言契约：返回值不得是自身或其父进程。
+    local got; got=$(find_live_monitor_pid) || true
+    if [ -z "$got" ] || { [ "$got" != "$$" ] && [ "$got" != "$PPID" ]; }; then
+        pass "find_live_monitor_pid: 未把调用者自身当实例 (got='${got:-空}')"
+    else
+        fail "find_live_monitor_pid" "把调用者自身判成了实例 (got=$got)"
+    fi
     teardown_isolated_env
 }
 
@@ -487,6 +564,9 @@ all_tests=(
     "desc: commit_and_push 检测未解决冲突"           test_commit_and_push_unresolved_conflict
     "desc: start_watch PIDFile 有效"                 test_start_watch_pidfile_alive
     "desc: start_watch 死 PIDFile 检测"              test_start_watch_stale_pidfile
+    "desc: find_live_monitor_pid PIDFile 命中"       test_find_live_monitor_pid_pidfile
+    "desc: find_live_monitor_pid PIDFile 缺失时兜底"  test_find_live_monitor_pid_pgrep_fallback
+    "desc: find_live_monitor_pid 排除自身"           test_find_live_monitor_pid_excludes_self
     "desc: status_watch 无 PIDFile → 未运行"         test_status_watch_no_pid
     "desc: debounce 30s 内重复 → 跳过"               test_debounce_window
     "desc: backoff 2→...→300 cap"                    test_exponential_backoff

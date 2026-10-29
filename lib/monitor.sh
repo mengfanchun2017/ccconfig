@@ -23,6 +23,10 @@ else
     MONITOR_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
 fi
 PID_FILE="${MONITOR_PID_FILE:-$MONITOR_HOME/.monitor-sync.pid}"
+# systemd 实例写的 PIDFile（unit 里 MONITOR_PID_FILE=/run/claude-auto-sync/monitor.pid）。
+# 可覆盖：测试要隔离「两个 PIDFile 都不存在 → 只能靠 pgrep 兜底」这条路径，
+# 硬编码路径会让开发机上真实存在的那份永远命中，测不出兜底。
+SYSTEMD_PID_FILE="${MONITOR_SYSTEMD_PID_FILE:-/run/claude-auto-sync/monitor.pid}"
 LOG_FILE="$MONITOR_HOME/.monitor-sync.log"
 DEBOUNCE_FILE="$MONITOR_HOME/.monitor-sync.debounce"
 CHANGED_REPOS_FILE="$MONITOR_HOME/.monitor-sync.changed-repos"
@@ -526,6 +530,39 @@ resurrect_pm2() {
 }
 
 # ========== Start monitoring ==========
+# 找出存活 monitor loop 的 PID；无则回空。start_watch / status_watch 共用同一判据，
+# 避免两边漂移（此前 start 只看 PIDFile、status 另有 pgrep 兜底，是不对称的）。
+#
+# 判据优先级：
+#   1. PIDFile（systemd 写 /run/claude-auto-sync/monitor.pid，手动实例写 $MONITOR_HOME/.monitor-sync.pid）
+#      —— 必须校验 cmdline 含 monitor.sh，防止 PID 复用/残留指向无关进程
+#   2. pgrep 兜底 —— PIDFile 被 loop 退出 trap 删掉（实测 $MONITOR_HOME/.monitor-sync.pid
+#      会消失，此时仅凭 PIDFile 会漏判，一次手动 start 就起出第二个 loop 抢同一批仓库）
+#
+# 排除自身：本脚本及它 disown 的子 shell（event_pid 读 inotify 管道、monitor_pid 跑
+# debounce loop）cmdline 同样含 "monitor.sh start"，不排除会把调用者当成"已有实例"，
+# 于是 start 永远认为自己已在运行 → 起不来。
+find_live_monitor_pid() {
+    local pf pid cmd
+    for pf in "$PID_FILE" "$SYSTEMD_PID_FILE"; do
+        [ -f "$pf" ] || continue
+        pid=$(cat "$pf" 2>/dev/null) || continue
+        [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || continue
+        cmd=$(cat "/proc/$pid/cmdline" 2>/dev/null | tr '\0' ' ')
+        if [[ "$cmd" == *"monitor.sh"* ]]; then
+            echo "$pid"
+            return 0
+        fi
+    done
+    local live_pid
+    live_pid=$(pgrep -f 'monitor\.sh start' 2>/dev/null | grep -vx "$$" | head -1)
+    if [ -n "$live_pid" ] && kill -0 "$live_pid" 2>/dev/null; then
+        echo "$live_pid"
+        return 0
+    fi
+    return 1
+}
+
 start_watch() {
     if ! check_deps; then
         # 依赖坏了先自愈：升级/换机后常见"二进制在、库丢了"，直接 return 1 会
@@ -538,36 +575,9 @@ start_watch() {
         fi
     fi
 
-    # PIDFile 检查：活的 + 是 monitor.sh 自身 → service 已在跑，exit 0
-    # 防止 systemd Type=forking 看到 exit 1 → enable --now 失败
-    # 幂等：任一 PIDFile 指向存活 monitor → 已有实例，直接返回
-    # systemd 实例写 /run/...，手动实例写默认路径，两个都查，避免重复 start 互不知情
-    local pid_candidate=""
-    for pf in "$PID_FILE" /run/claude-auto-sync/monitor.pid; do
-        if [ -f "$pf" ] && kill -0 "$(cat "$pf" 2>/dev/null)" 2>/dev/null; then
-            local existing_cmd
-            existing_cmd=$(cat "/proc/$(cat "$pf" 2>/dev/null)/cmdline" 2>/dev/null | tr '\0' ' ')
-            if [[ "$existing_cmd" == *"monitor.sh"* ]]; then
-                pid_candidate="$(cat "$pf" 2>/dev/null)"
-                break
-            fi
-        fi
-    done
-    # PIDFile 兜底：两个 PIDFile 都不存在/失效时，仅凭它们是【唯一】判据会漏判——
-    # 实测：$PID_FILE（ccconfig/.monitor-sync.pid）被 loop 退出 trap 删掉，
-    # 而 /run 那份又可能只在 systemd 场景写；此时 pid_candidate 为空，
-    # 一次手动 `monitor.sh start` 就能起出第二个 loop 与现有实例抢同一批仓库。
-    # status_watch 早有同样的 pgrep 兜底（第 878 行），start 侧却缺，属不对称。
-    # 排除自身：本脚本及其子 shell 的 cmdline 同样含 "monitor.sh start"
-    # （event_pid 读 inotify 的管道、monitor_pid 跑 debounce loop），
-    # 不排除会把调用者自己当成"已有实例"。
-    if [ -z "$pid_candidate" ]; then
-        local live_pid
-        live_pid=$(pgrep -f 'monitor\.sh start' 2>/dev/null | grep -vx "$$" | head -1)
-        if [ -n "$live_pid" ] && kill -0 "$live_pid" 2>/dev/null; then
-            pid_candidate="$live_pid"
-        fi
-    fi
+    local pid_candidate
+    pid_candidate=$(find_live_monitor_pid)
+
     if [ -n "$pid_candidate" ]; then
         do_log "Already running (PID: $pid_candidate) — keep alive"
         # 幂等返回不等于"没事"：loop 活着但 inotifywait 坏了，此前静默 return 0，
@@ -581,7 +591,7 @@ start_watch() {
         return 0
     fi
     # PIDFile 残留（指向无关进程或死进程），清理后重启
-    for pf in "$PID_FILE" /run/claude-auto-sync/monitor.pid; do
+    for pf in "$PID_FILE" "$SYSTEMD_PID_FILE"; do
         [ -f "$pf" ] && rm -f "$pf"
     done
 
@@ -829,7 +839,7 @@ start_watch() {
 # 不能 kill（systemd Restart=always 立即拉起，start_watch 又被 Already running 挡）。
 # 非 systemd 场景再走裸 stop_watch 旧逻辑。
 is_systemd_managed() {
-    local pf=/run/claude-auto-sync/monitor.pid
+    local pf="$SYSTEMD_PID_FILE"
     [ -f "$pf" ] || return 1
     local pid; pid=$(cat "$pf" 2>/dev/null)
     [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || return 1
@@ -883,17 +893,9 @@ status_watch() {
     echo -e "${CYAN}[monitor-sync] Status${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-        local mon_pid=$(cat "$PID_FILE")
+    local mon_pid
+    if mon_pid=$(find_live_monitor_pid); then
         echo -e "  ${GREEN}✓${NC} Monitor loop (PID: $mon_pid)"
-    elif [ -f /run/claude-auto-sync/monitor.pid ] && kill -0 "$(cat /run/claude-auto-sync/monitor.pid)" 2>/dev/null; then
-        # systemd 启动时把 PID 写到 /run/claude-auto-sync/monitor.pid
-        local mon_pid=$(cat /run/claude-auto-sync/monitor.pid)
-        echo -e "  ${GREEN}✓${NC} Monitor loop (PID: $mon_pid, via systemd PIDFile)"
-    elif pgrep -f 'monitor.sh start' &>/dev/null; then
-        # 最后兜底：直接 pgrep
-        local mon_pid=$(pgrep -f 'monitor.sh start' | head -1)
-        echo -e "  ${GREEN}✓${NC} Monitor loop (PID: $mon_pid, pgrep fallback)"
     else
         echo -e "  ${RED}✗${NC} Not running"
         return
