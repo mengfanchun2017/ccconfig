@@ -544,6 +544,7 @@ PYEOF
         echo -e "${GRAY}－${NC} (未安装)"
     fi
     echo -e "  ${GRAY}配置: bash option-botmux/init.sh setup   启动: bash option-botmux/init.sh start${NC}"
+    echo -e "  ${GRAY}飞书发消息无反馈: bash option-botmux/init.sh doctor  （status 只反映 daemon 存活，体检才查会话/队列）${NC}"
 }
 
 # ========== 2. 依赖检查 ==========
@@ -662,6 +663,17 @@ _check_component() {
                     WARN*) icon="warn"; detail="${bm_line#WARN }" ;;
                     *)     icon="miss"; detail="${bm_line#MISSING }" ;;
                 esac
+                # OK 只代表 daemon 活着。会话卡死（worker D 状态/pane 已死）时
+                # status 仍报 OK，但飞书里零反馈 —— 补一句指向体检，别让人被误导。
+                if [ "$icon" = "ok" ] && command -v botmux >/dev/null 2>&1; then
+                    local _q=0 _f
+                    for _f in "$HOME"/.botmux/data/queues/*.jsonl; do
+                        [ -e "$_f" ] && _q=$((_q + $(wc -l < "$_f" 2>/dev/null || echo 0)))
+                    done
+                    if [ "$_q" -gt 0 ]; then
+                        icon="warn"; detail="$detail（队列积压 ${_q} 条 → 跑 doctor）"
+                    fi
+                fi
             else icon="miss"; detail="option-botmux 缺失"; fi ;;
         feishu_key)
             local feishu_conf; feishu_conf=$(resolve_conf feishu.json 2>/dev/null) || { icon="miss"; detail="ccprivate/conf/feishu.json 不存在"; return; }

@@ -278,6 +278,68 @@ else
     fail "字体预检可能阻断启动"
 fi
 
+# ── 12. doctor 体检（2026-10-29 故障：状态全绿但飞书零反馈）──
+# 结构性教训：botmux 自带的 status/list 只反映 daemon 存活，不反映会话能否干活。
+# doctor 必须覆盖「会话健康 / 队列积压 / 长连接 / cliId 可执行性」四类盲区。
+section "12. doctor 体检"
+DOC="$CCCONFIG_DIR/option-botmux/lib/doctor.sh"
+if [ -f "$DOC" ]; then pass "doctor 模块存在"; else fail "doctor 模块缺失"; fi
+if bash -n "$DOC" 2>/dev/null; then pass "doctor bash -n 语法 OK"; else fail "doctor 语法错误"; fi
+
+# 分发器接线
+# 注意：-E 下交替用 |，写成 \| 会被当字面竖线（实测踩到）
+grep -qE '^ *doctor\b' "$INIT" && pass "init.sh 有 doctor 分发" || fail "init.sh 缺 doctor 分发"
+grep -qE '^ *fix\b' "$INIT" && pass "init.sh 有 fix 分发" || fail "init.sh 缺 fix 分发"
+
+# 四类盲区检查项齐备
+for fn in _bmx_check_bots _bmx_check_sessions _bmx_check_queue _bmx_check_upstream _bmx_check_version_drift; do
+    grep -q "^$fn()" "$DOC" && pass "体检项存在: $fn" || fail "体检项缺失: $fn"
+done
+
+# 会话健康必须查「pane 已死」与「worker D 状态」——本次故障的两个硬信号
+grep -q 'pane_dead' "$DOC" && pass "检查 tmux pane 是否已死" || fail "未检查 pane 死活"
+grep -qE "st.*=.*\"D\"|/proc/\\\$pid/stat" "$DOC" && pass "检查 worker 是否卡 D 状态" || fail "未检查 worker D 状态"
+grep -q 'Daemon WSClient started' "$DOC" && pass "检查飞书长连接是否建立" || fail "未检查长连接"
+
+# cliId 可执行性：本次故障的触发条件（cliId=aiden 但未装）
+grep -q 'cliPathOverride' "$DOC" && pass "认 cliPathOverride 覆盖字段" || fail "未处理 cliPathOverride"
+grep -q 'cliRuntime' "$DOC" && pass "cliRuntime 跳过而非误报" || fail "未处理 cliRuntime"
+grep -q '需要命令' "$DOC" && pass "报告 cliId 指向未安装 CLI" || fail "未报告 cliId 未装"
+
+# 版本漂移：本脚本 cliId 表 vs 已装 botmux（官方加适配器时能发现）
+grep -q '_bmx_check_version_drift' "$DOC" && pass "有 cliId 表漂移检测" || fail "缺漂移检测"
+grep -q 'dsh' "$DOC" && pass "cliId 表含 dsh（DeepSeek Harness）" || fail "cliId 表缺 dsh"
+
+# 计数器跨子 shell 陷阱：while 必须走 < <(...) 而非管道，否则 ERR/WARN 计数丢失
+if grep -qE '\| while .*read' "$DOC"; then
+    fail "用管道 while 读（计数会丢在子 shell 里）"
+else
+    pass "无管道 while（计数能回到父 shell）"
+fi
+
+# set -e 安全：检查函数末尾必须 return 0，否则 [ -n ] && ... 会静默中止整个脚本
+for fn in _bmx_check_bots _bmx_check_sessions _bmx_check_queue _bmx_check_upstream; do
+    if awk "/^$fn\(\)/{f=1} f&&/^}/{print;exit} f" "$DOC" | grep -q 'return 0'; then
+        pass "$fn 末尾 return 0（set -e 安全）"
+    else
+        fail "$fn 缺末尾 return 0（set -e 下会静默中止）"
+    fi
+done
+
+# 实测：doctor 可跑且输出体检标题（不依赖 botmux 是否装好）
+if command -v botmux >/dev/null 2>&1 || [ -x "$HOME/.local/bin/botmux" ]; then
+    dout="$(PATH="$HOME/.local/bin:$PATH" bash "$INIT" doctor 2>&1 || true)"
+    printf '%s' "$dout" | grep -q 'botmux 体检' && pass "doctor 实跑输出体检标题" || fail "doctor 无输出"
+    printf '%s' "$dout" | grep -q '会话健康' && pass "doctor 实跑含会话健康段" || fail "doctor 缺会话健康段"
+fi
+
+# fix 非交互不得阻塞、不得擅改用户配置
+if grep -q 'NONINTERACTIVE' "$DOC"; then pass "fix 尊重 NONINTERACTIVE（非交互不阻塞）"; else fail "fix 缺 NONINTERACTIVE 保护"; fi
+
+# 接线进 maintain 生态
+grep -q 'do_botmux_doctor' "$CCCONFIG_DIR/maintain.sh" && pass "maintain.sh 有 do_botmux_doctor" || fail "maintain.sh 缺 do_botmux_doctor"
+grep -q 'botmux 体检' "$CCCONFIG_DIR/lib/menu-data-maintain.sh" && pass "菜单含 botmux 体检项" || fail "菜单缺体检项"
+
 echo ""
 echo "────────────────────────────"
 echo "  PASS: $PASS  FAIL: $FAIL"
