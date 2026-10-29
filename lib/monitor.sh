@@ -288,14 +288,32 @@ commit_and_push() {
         #    缓存，不 fetch 就永远是 0（实测纯远程领先时报 already up to date）。
         #    多终端场景下这里是"本机能否看见对端"的唯一入口。
         local fetch_out fetch_rc
-        set +e
-        if proxy_usable; then
-            fetch_out=$(timeout 30 git -C "$repo_dir" fetch origin "$branch" 2>&1)
-        else
-            fetch_out=$(timeout 30 env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy git -C "$repo_dir" fetch origin "$branch" 2>&1)
-        fi
-        fetch_rc=$?
-        if [ "$had_e" = 1 ]; then set -e; fi
+        local fetch_attempt=1 fetch_max=2
+        # git_push 早有 3× 重试，fetch 此前一次失败就放弃 —— 代理链路的 TLS
+        # handshake / HTTP2 framing 抖动是**瞬时**的（实测同一分钟内 5 个仓库
+        # 里 2 个失败、下一轮心跳全成功），不重试等于白白丢掉一轮对端可见性。
+        # 取 2 次而非 3 次：fetch 在一轮里要跑 N 个仓库，失败多是代理整体抖动，
+        # 每个仓库都重试 3 次会把"代理宕了"放大成 3 倍等待；2 次已能吃掉瞬时抖动。
+        while [ $fetch_attempt -le $fetch_max ]; do
+            set +e
+            if proxy_usable; then
+                fetch_out=$(timeout 30 git -C "$repo_dir" fetch origin "$branch" 2>&1)
+            else
+                fetch_out=$(timeout 30 env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy git -C "$repo_dir" fetch origin "$branch" 2>&1)
+            fi
+            fetch_rc=$?
+            if [ "$had_e" = 1 ]; then set -e; fi
+            [ $fetch_rc -eq 0 ] && break
+            # 只对网络类错误重试；认证/仓库不存在等重试无意义，重试只是拖慢
+            if ! printf '%s' "$fetch_out" | grep -qiE "connection|network|GnuTLS|handshake|framing|reset by peer|timeout|Could not resolve"; then
+                break
+            fi
+            if [ $fetch_attempt -lt $fetch_max ]; then
+                do_log "[$repo] fetch attempt $fetch_attempt failed, retry in 5s..."
+                sleep 5
+            fi
+            fetch_attempt=$((fetch_attempt + 1))
+        done
 
         local behind=0
         local just_integrated=0   # 本轮是否已整合过（抑制紧随其后的重复 "already up to date"）
