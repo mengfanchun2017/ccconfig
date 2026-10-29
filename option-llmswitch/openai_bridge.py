@@ -678,6 +678,39 @@ def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> d
     }
 
 
+def anthropic_resp_to_sse(resp: dict) -> str:
+    """非流式 Anthropic message → 等价 SSE 帧序列。
+
+    why: 部分上游（实测内网网关 deepseek-v4.1-flash-outside）流式恒回 HTTP 200 +
+    仅 `data: [DONE]`（零 chunk），非流式却正常。此时报 upstream_incomplete 只会让
+    CC 反复重试同一个必然失败的请求；把非流式结果转成 SSE 帧下发，功能可用且
+    客户端无感（只是没有逐字流式效果）。
+    """
+    msg_id = resp.get("id", "msg_bridge")
+    model = resp.get("model", "")
+    usage = resp.get("usage") or {}
+    events = []
+    start_msg = dict(resp)
+    start_msg["content"] = []
+    start_msg["stop_reason"] = None
+    start_msg["usage"] = {"input_tokens": usage.get("input_tokens", 0), "output_tokens": 0}
+    events.append(f"event: message_start\ndata: {json.dumps({'type': 'message_start', 'message': start_msg}, ensure_ascii=False, separators=(',', ':'))}\n\n")
+    events.append('event: ping\ndata: {"type":"ping"}\n\n')
+    for idx, blk in enumerate(resp.get("content") or []):
+        if blk.get("type") == "text":
+            events.append(f"event: content_block_start\ndata: {json.dumps({'type': 'content_block_start', 'index': idx, 'content_block': {'type': 'text', 'text': ''}}, separators=(',', ':'))}\n\n")
+            events.append(f"event: content_block_delta\ndata: {json.dumps({'type': 'content_block_delta', 'index': idx, 'delta': {'type': 'text_delta', 'text': blk.get('text', '')}}, ensure_ascii=False, separators=(',', ':'))}\n\n")
+            events.append(f"event: content_block_stop\ndata: {json.dumps({'type': 'content_block_stop', 'index': idx}, separators=(',', ':'))}\n\n")
+        elif blk.get("type") == "tool_use":
+            events.append(f"event: content_block_start\ndata: {json.dumps({'type': 'content_block_start', 'index': idx, 'content_block': {'type': 'tool_use', 'id': blk.get('id', ''), 'name': blk.get('name', ''), 'input': {}}}, ensure_ascii=False, separators=(',', ':'))}\n\n")
+            events.append(f"event: content_block_delta\ndata: {json.dumps({'type': 'content_block_delta', 'index': idx, 'delta': {'type': 'input_json_delta', 'partial_json': json.dumps(blk.get('input') or {}, ensure_ascii=False)}}, ensure_ascii=False, separators=(',', ':'))}\n\n")
+            events.append(f"event: content_block_stop\ndata: {json.dumps({'type': 'content_block_stop', 'index': idx}, separators=(',', ':'))}\n\n")
+    stop_reason = resp.get("stop_reason") or "end_turn"
+    events.append(f"event: message_delta\ndata: {json.dumps({'type': 'message_delta', 'delta': {'stop_reason': stop_reason, 'stop_sequence': None, 'stop_details': {'type': 'stop', 'reason': stop_reason}}, 'usage': {'input_tokens': usage.get('input_tokens', 0), 'output_tokens': usage.get('output_tokens', 0)}}, ensure_ascii=False, separators=(',', ':'))}\n\n")
+    events.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
+    return "".join(events)
+
+
 app = FastAPI()
 state = {"upstream": "", "upstream_key": "", "upstream_model": ""}
 http_client = None
@@ -1096,6 +1129,34 @@ async def messages(request: Request):
                     detail = raw_buf[0].strip()[:500]
                     print(f"[bridge] upstream returned non-SSE body: {detail}", flush=True)
                     yield _error_frames("upstream_error", detail)
+                elif not sse_state.get("text_blocks") and not sse_state.get("tool_blocks"):
+                    # 上游回的是合法 SSE 但一个内容块都没有（实测内网网关
+                    # deepseek-v4.1-flash-outside：HTTP 200 + 仅 data: [DONE]）。
+                    # 报 incomplete 只会让 CC 反复重试同一个必然失败的流式请求；
+                    # 该模型非流式正常 → 回落非流式取完整结果，转成 SSE 下发。
+                    print("[bridge] upstream stream had zero content blocks, falling back to non-stream", flush=True)
+                    fallback = None
+                    try:
+                        fb_body = dict(upstream_body)
+                        fb_body["stream"] = False
+                        fb_body.pop("stream_options", None)
+                        fb_status, fb_text = await _upstream_post(
+                            target_url, headers, fb_body, host_header, extra_ext, use_win_curl
+                        )
+                        if fb_status == 200:
+                            fallback = anthropic_resp_to_sse(
+                                openai_to_anthropic_resp(json.loads(fb_text), f"msg_bridge_{req_no}")
+                            )
+                        else:
+                            print(f"[bridge] non-stream fallback failed: status={fb_status} {fb_text[:200]}", flush=True)
+                    except Exception as e:
+                        print(f"[bridge] non-stream fallback error: {type(e).__name__}: {e}", flush=True)
+                    if fallback:
+                        sse_state["finished"] = True
+                        sse_state["stopped"] = True
+                        yield fallback
+                    else:
+                        yield _error_frames("upstream_incomplete", "upstream stream ended without completion marker")
                 else:
                     print("[bridge] upstream stream ended without [DONE] (truncated or empty)", flush=True)
                     yield _error_frames("upstream_incomplete", "upstream stream ended without completion marker")
