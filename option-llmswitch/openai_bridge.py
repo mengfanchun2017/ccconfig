@@ -1194,6 +1194,17 @@ async def messages(request: Request):
                     # error，报 upstream_incomplete 会把人引向查网络，其实是上游拒绝
                     detail = raw_buf[0].strip()[:500]
                     print(f"[bridge] upstream returned non-SSE body: {detail}", flush=True)
+                    # 该错误体是"上游过载"（ModelArts 负载饱和 / 502）→ 非流式重试
+                    # 常能成功（网关侧间歇性），比把错误直接甩给 CC 让它整轮重跑强
+                    if not (sse_state.get("text_blocks") or sse_state.get("tool_blocks")) and re.search(
+                        r'负载已饱和|overload|service.?unavailable|bad_response_status_code', detail, re.I):
+                        fb = await _non_stream_fallback(
+                            target_url, headers, upstream_body, host_header, extra_ext, use_win_curl, req_no
+                        )
+                        if fb:
+                            yield fb
+                            _dump_and_summary("fallback")
+                            return
                     yield _error_frames("upstream_error", detail)
                 else:
                     print("[bridge] upstream stream ended without [DONE] (truncated or empty)", flush=True)
