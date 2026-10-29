@@ -456,6 +456,13 @@ def openai_chunk_to_anthropic_sse(chunk_text: str, msg_id: str, model: str, stat
         if not payload:
             continue
         if payload == "[DONE]":
+            # 零内容块的整条流（实测内网网关 deepseek-v4.1-flash-outside 恒如此）：
+            # 不在此收尾，交给 gen() 回落非流式——这里收尾会让 CC 拿到一条
+            # "合法但完全为空"的消息（表现为 Stream ended without finish_reason /
+            # 模型不说话），比明确报错更难归因。
+            if not state.get("text_blocks") and not state.get("tool_blocks"):
+                state["empty_stream"] = True
+                continue
             # 必须先补 message_start：整条流只有一个 [DONE]（空补全 / 网关空响应）时
             # 这里直接收尾，会发出没有 message_start 的 message_delta+message_stop，
             # 协议非法。_ensure_started 幂等，正常流已有 start 时无副作用。
@@ -1129,7 +1136,7 @@ async def messages(request: Request):
                     detail = raw_buf[0].strip()[:500]
                     print(f"[bridge] upstream returned non-SSE body: {detail}", flush=True)
                     yield _error_frames("upstream_error", detail)
-                elif not sse_state.get("text_blocks") and not sse_state.get("tool_blocks"):
+                elif sse_state.get("empty_stream") or not (sse_state.get("text_blocks") or sse_state.get("tool_blocks")):
                     # 上游回的是合法 SSE 但一个内容块都没有（实测内网网关
                     # deepseek-v4.1-flash-outside：HTTP 200 + 仅 data: [DONE]）。
                     # 报 incomplete 只会让 CC 反复重试同一个必然失败的流式请求；
