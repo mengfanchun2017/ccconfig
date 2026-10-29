@@ -269,27 +269,26 @@ commit_and_push() {
     local changed_files=$(git -C "$repo_dir" status --porcelain 2>/dev/null)
     if [ -z "$changed_files" ]; then
         local branch=$(git -C "$repo_dir" branch --show-current)
-        # 先 fetch 再判 unpushed：不做这步时，多终端场景下"对端推了新提交、本机无改动"
+        # 先把远程状态拉下来：不做这步时，多终端场景下"对端推了新提交、本机无改动"
         # 会走进 else 打 already up to date —— 本机永远看不见对端进展（心跳也只是
-        # 更频繁地重复这句），收敛根本不成立。只 fetch 不动工作区：远程领先就报出来
-        # 并留下"下次有改动时会 rebase 整合"的线索，不做自动合并（避免背着我改本地文件）。
-        local fetch_out
+        # 更频繁地重复这句），收敛根本不成立。这里走 git_pull_rebase（autostash 保底），
+        # 与有改动路径同一条整合逻辑：工作区本就干净，快进就是纯"取回对端改动"。
+        # 注意 errexit：Git Bash 的 set -e 会与 wait 的 SIGCHLD 交互，fetch 成功也会让
+        # 子 shell 立刻退出（实测：心跳触发后 11s 主 loop 就重启，NRestarts+1）。
+        # 沿用 git_push 的 had_e 手法只保护本段，不把外层刻意关掉的 errexit 重新打开。
+        local had_e=0; case $- in *e*) had_e=1 ;; esac
+        local pull_out pull_rc
         set +e
-        if proxy_usable; then
-            fetch_out=$(timeout 30 git -C "$repo_dir" fetch origin "$branch" 2>&1)
-        else
-            fetch_out=$(timeout 30 env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy git -C "$repo_dir" fetch origin "$branch" 2>&1)
-        fi
-        local fetch_rc=$?
-        set -e
-        if [ $fetch_rc -eq 0 ]; then
-            local behind
-            behind=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
-            if [ "${behind:-0}" -gt 0 ]; then
-                log "[$repo] remote ahead by ${behind} commit(s) — 其他终端推送了改动，本地未整合（下次本地有改动时 rebase 合并）"
-            fi
-        else
-            do_log "[$repo]   fetch rc=$fetch_rc err: $(printf '%s' "$fetch_out" | head -2 | tr '\n' ' ')"
+        pull_out=$(git_pull_rebase "$repo_dir" "$branch" 2>&1)
+        pull_rc=$?
+        if [ "$had_e" = 1 ]; then set -e; fi
+        local behind=0
+        behind=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
+        if [ "$pull_rc" -ne 0 ] && [ "${behind:-0}" -gt 0 ]; then
+            warn "[$repo] !! 整合对端改动失败（rc=$pull_rc, 落后 ${behind}）"
+            do_log "[$repo]   pull err: $(printf '%s' "$pull_out" | head -3 | tr '\n' ' ')"
+        elif [ "${behind:-0}" -gt 0 ]; then
+            log "[$repo] remote ahead by ${behind} commit(s) — 本地未整合（远程领先且无共同基线，需人工处理）"
         fi
         local unpushed=$(git -C "$repo_dir" log origin/"$branch".."$branch" --oneline 2>/dev/null)
         if [ -n "$unpushed" ]; then
