@@ -622,7 +622,7 @@ start_watch() {
     # 退避序列: 2s → 4s → 8s → 16s → 32s → ... → 300s (5min cap)
     # 连续 8 次失败 (累计 ~10min) 后放弃，避免 panic loop
     {
-        trap 'kill $event_pid 2>/dev/null; pkill -P $event_pid 2>/dev/null; rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE" "$PID_FILE"; exit' EXIT
+        trap 'do_log "Monitor loop EXIT trap (PID $$, last cmd rc=$?)"; kill $event_pid 2>/dev/null; pkill -P $event_pid 2>/dev/null; rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE" "$PID_FILE"; exit' EXIT
         # systemd stop / Ctrl+C：快速干净退出，避免 stop-sigterm 90s 超时被 KILL
         # 留痕：此前这个 trap 静默吞掉 TERM，loop 每 ~5min 被杀一次却查不到死因
         # （systemd 只报 Result=success，因为 exit 0）。记一行才能定位谁在发 TERM。
