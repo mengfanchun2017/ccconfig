@@ -219,14 +219,15 @@ test_debounce_window() {
     grep -q "→ ${debounce}s debounce" "$mon" \
         && pass "debounce: 帮助文案与真值一致" || fail "debounce" "帮助文案与 ${debounce}s 不符"
 
-    [[ -n "$min_push_gap" && "$min_push_gap" == "$debounce" ]] \
-        && pass "debounce: debounce 与 min_push_gap 同值" \
-        || fail "debounce" "debounce=${debounce} vs min_push_gap=${min_push_gap}"
+    [[ -n "$min_push_gap" && "$min_push_gap" -lt "$debounce" ]] \
+        && pass "debounce: min_push_gap(${min_push_gap}s) 独立于 debounce(${debounce}s)" \
+        || fail "debounce" "min_push_gap=${min_push_gap} 未与 debounce=${debounce} 解耦"
 
-    local last_push_time=$(( $(date +%s) - 10 ))
+    # 用比真值更小的 gap 做判据（gap=1），避免 boundary 恰好等于 min_push_gap 时翻转
+    local last_push_time=$(( $(date +%s) - 1 ))
     local gap=$(( $(date +%s) - last_push_time ))
     [ "$gap" -lt "$min_push_gap" ] \
-        && pass "debounce: ${gap}s 内重复 → 跳过" || fail "debounce" "误判"
+        && pass "debounce: ${gap}s 内重复 → 延后（Deferred）" || fail "debounce" "gap=${gap}s 未判为需节流"
 }
 
 # ========== exponential backoff ==========
@@ -306,7 +307,9 @@ test_debounce_race_guard() {
     local mon="$CCCONFIG_DIR/lib/monitor.sh"
     local rm_line sync_line
     rm_line=$(awk '/^                rm -f "\$DEBOUNCE_FILE" "\$CHANGED_REPOS_FILE"$/{print NR; exit}' "$mon")
-    sync_line=$(awk '/^                    sync_repos/{print NR; exit}' "$mon")
+    # 精确定位 debounce 块自己那次 sync_repos（锚在 "Debounce done" 的下一段），
+    # 不能用第一个 sync_repos —— 心跳的调用现在更靠前，会误判成"顺序颠倒"。
+    sync_line=$(awk '/Debounce done, no changed repos recorded/{ found=NR } found && /^                    sync_repos/{print NR; exit}' "$mon")
     if [ -n "$rm_line" ] && [ -n "$sync_line" ] && [ "$rm_line" -lt "$sync_line" ]; then
         pass "race: debounce 触发文件在 sync_repos 之前清除（rm@$rm_line < sync@$sync_line）"
     else
@@ -332,18 +335,72 @@ test_min_gap_defer_not_drop() {
 
 test_heartbeat_convergence() {
     # 多终端收敛：monitor 只看本机文件事件、从不轮询远程，对端推上来的提交
-    # 本机要等自己碰文件才顺带 pull。心跳把收敛窗口从 12h 压到 5min。
+    # 本机要等自己碰文件才顺带 pull。心跳把收敛窗口压到 heartbeat_secs。
     local mon="$CCCONFIG_DIR/lib/monitor.sh"
-    local ticks
-    ticks=$(grep -m1 'idle_ticks -ge ' "$mon" | grep -oE '[0-9]+' | head -1)
-    if [ "${ticks:-0}" -gt 0 ] && [ "${ticks:-0}" -le 300 ]; then
-        pass "heartbeat: 空闲心跳 ${ticks} ticks（×2s = $((ticks * 2))s）≤ 5min"
+    local hb
+    hb=$(grep -m1 '^    local heartbeat_secs=' "$mon" | grep -oE '[0-9]+')
+    if [ "${hb:-0}" -gt 0 ] && [ "${hb:-0}" -le 600 ]; then
+        pass "heartbeat: 周期 ${hb}s ≤ 10min"
     else
-        fail "heartbeat" "心跳间隔 ${ticks:-?} ticks 过长，多终端收敛会滞后"
+        fail "heartbeat" "心跳周期 ${hb:-?}s 过长，多终端收敛会滞后"
     fi
     grep -q 'Heartbeat sync' "$mon" \
         && pass "heartbeat: 日志可辨识（不再是 Periodic sync）" \
         || fail "heartbeat" "心跳日志无辨识度"
+
+    # 关键回归：心跳必须按 wall-clock 且在 DEBOUNCE 判断之外。
+    # 原实现用 idle_ticks（无事件才递增、一有事件即清零）→ 实为"本地空闲才收敛"，
+    # 高频编辑时永不触发；仅改成 wall-clock 但仍留在 `if [ ! -f DEBOUNCE_FILE ]` 内
+    # 同样永不触发（持续编辑让该文件一直存在）。两条都必须成立。
+    grep -q 'idle_ticks' "$mon" \
+        && fail "heartbeat" "idle_ticks 残留 → 心跳仍被本地空闲度门控" \
+        || pass "heartbeat: 已弃用 idle_ticks（改 wall-clock）"
+    local hb_line deb_line
+    hb_line=$(grep -n "^            elif \[ \$((now - heartbeat_ts))" "$mon" | cut -d: -f1 | head -1)
+    deb_line=$(grep -n '^            if \[ ! -f "\$DEBOUNCE_FILE" \]; then' "$mon" | cut -d: -f1 | head -1)
+    if [ -n "$hb_line" ] && [ -n "$deb_line" ] && [ "$hb_line" -lt "$deb_line" ]; then
+        pass "heartbeat: 位于 DEBOUNCE 判断之外（hb@$hb_line < debounce@$deb_line）"
+    else
+        fail "heartbeat" "hb@${hb_line:-?} 未在 DEBOUNCE@${deb_line:-?} 之外 → 持续编辑时永不触发"
+    fi
+}
+
+test_min_gap_independent() {
+    # min_push_gap 是纯节流，不该与 debounce 同值：30s debounce 后再判 30s gap
+    # = 二次等待，连续操作时每拍都被 Defer。
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    local deb gap
+    deb=$(grep -m1 '^    local debounce=' "$mon" | grep -oE '[0-9]+')
+    gap=$(grep -m1 '^    local min_push_gap=' "$mon" | grep -oE '[0-9]+')
+    if [ -n "$gap" ] && [ "${gap:-0}" -lt "${deb:-0}" ]; then
+        pass "min-gap: ${gap}s < debounce ${deb}s（不再二次等待）"
+    else
+        fail "min-gap" "min_push_gap=${gap:-?} ≥ debounce=${deb:-?} → 连续操作每拍都被 Defer"
+    fi
+}
+
+test_status_reports_sync_state() {
+    # B3：status 必须能让用户自查双端收敛（未推/落后/工作区脏）。
+    # 没有它，多终端用户在"本机不碰文件"时完全无从知道对端推到哪了 ——
+    # 这正是原始提问"看不出两边有没有收敛"的直接来源。
+    local st="$CCCONFIG_DIR/lib/status.sh"
+    grep -q '双端同步' "$st" \
+        && pass "status: 有'双端同步'一节" \
+        || fail "status" "status 不展示双端收敛状态"
+    grep -q '落后 \${\?_bh' "$st" \
+        && pass "status: 显式列出落后（其他终端）" \
+        || fail "status" "未列出 behind"
+    grep -q '工作区脏' "$st" \
+        && pass "status: 显式列出工作区脏文件数" \
+        || fail "status" "未列出 dirty"
+    # --quick 供 SessionStart 用，不能引入网络等待
+    grep -q 'if ! \$QUICK_MODE; then' "$st" \
+        && pass "status: fetch 受 QUICK_MODE 保护（--quick 不走网络）" \
+        || fail "status" "--quick 也会 fetch → SessionStart 被拖慢"
+    # 失败重试：monitor 并发 fetch 同一仓库会瞬时失败，单次失败不足以判定不可达
+    grep -q 'for _try in 1 2' "$st" \
+        && pass "status: fetch 失败重试一次（抗 monitor 并发抖动）" \
+        || fail "status" "单次 fetch 失败即报错 → 假警报"
 }
 
 test_remote_ahead_detected() {
@@ -408,7 +465,9 @@ all_tests=(
     "desc: 初始扫描可见且显式传仓库"                  test_initial_scan_observable
     "desc: race — debounce 触发文件先清后同步"        test_debounce_race_guard
     "desc: min-gap — 跳过改延后不丢触发"              test_min_gap_defer_not_drop
-    "desc: heartbeat — 5min 空闲收敛其他终端"        test_heartbeat_convergence
+    "desc: min-gap — 节流值独立于 debounce"           test_min_gap_independent
+    "desc: heartbeat — wall-clock 收敛其他终端"       test_heartbeat_convergence
+    "desc: status — 报表双端收敛（未推/落后/脏）"     test_status_reports_sync_state
     "desc: converge — 无改动分支 fetch 且报落后"      test_remote_ahead_detected
     "desc: pull 失败落真实报错"                      test_pull_failure_evidence
     "desc: skip_push 显性告警未推送 commit"           test_skip_push_visible

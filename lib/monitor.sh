@@ -704,10 +704,10 @@ start_watch() {
             fi
             # 心跳：按 wall-clock 计，且必须在 DEBOUNCE 判断之外。
             # 两个"必须在外面"的理由：
-            #   1) 原实现用 idle_ticks（只在 DEBOUNCE_FILE 不存在时递增、一有事件即清零）
-            #      → 语义其实是"本地空闲 5min 才收敛"。而收敛需求跟本机是否空闲毫无关系：
-            #      两端都在高频编辑时恰恰最需要对端提交可见，心跳却永不触发
-            #      （实测 8 分钟零收敛动作）。
+            #   1) 原实现用"无事件 tick 计数"（只在 DEBOUNCE_FILE 不存在时递增、
+            #      一有事件即清零）→ 语义其实是"本地空闲 5min 才收敛"。而收敛需求
+            #      跟本机是否空闲毫无关系：两端都在高频编辑时恰恰最需要对端提交可见，
+            #      心跳却永不触发（实测 8 分钟零收敛动作）。
             #   2) 即便改成 wall-clock，只要仍留在 `if [ ! -f "$DEBOUNCE_FILE" ]` 内，
             #      持续编辑会让该文件一直存在 → 整段被跳过，心跳同样永不触发。
             # 心跳自带 last_push_time 门控，与 debounce 路径互不干扰。
@@ -1111,6 +1111,8 @@ show_help() {
     echo ""
     echo -e "${GREEN}Flow:${NC}"
     echo "  Watch ~/git/ → 30s debounce → sync only repos with changes"
+    echo "  Push 前先 pull --rebase（多终端安全）+ 心跳每 5min 收敛对端提交"
+    echo "  ${GRAY}查看双端收敛状态: bash maintain.sh status${NC}"
     echo ""
 }
 

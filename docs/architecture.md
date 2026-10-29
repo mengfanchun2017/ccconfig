@@ -201,12 +201,19 @@ ccprivate/setup.sh
 
 ```
 inotify 监听 ~/git/ 下所有仓库
-  → 文件变化 → 30s debounce → git add + commit + push
+  → 文件变化 → 30s debounce → git add + commit
+  → pull --rebase（推前先整合，多终端安全）→ push
   → 仅 push 真正改动的仓库
   → 30s push 超时 + 3x 重试
+  → 心跳：每 5min（wall-clock，与本地是否空闲无关）收敛其他终端的提交
 ```
 
 systemd **system** service（`claude-auto-sync.service`，装到 `/etc/systemd/system/`）守护，开机自启。`monitor.sh status` 查看各仓库状态。
+
+**多终端**（同一账号在不同终端操作）的安全性依赖"push 前 pull --rebase"：改不同文件、
+或同一文件的不同位置都不会冲突；只有**同一文件的同一行**会走冲突兜底。收敛是**延迟**的
+（本机空闲时最长一个心跳周期 5min，有改动时即时报），`maintain.sh status` 的"双端同步"
+一节可自查未推/落后/工作区脏。详见 [ADR-0056](adr/0056-multi-terminal-concurrent-sync.md)。
 
 ### 状态检查（maintain.sh status）
 
