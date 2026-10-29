@@ -1166,6 +1166,8 @@ async def messages(request: Request):
                         sse_state["stopped"] = True
                         yield fallback
                     else:
+                        # 兜底也失败：把之前暂存的正常收尾帧放出去（至少协议完整）
+                        yield "".join(pending)
                         yield _error_frames("upstream_incomplete", "upstream stream ended without completion marker")
                 else:
                     print("[bridge] upstream stream ended without [DONE] (truncated or empty)", flush=True)
