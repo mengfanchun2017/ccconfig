@@ -269,6 +269,18 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
         else:
             openai_body["reasoning_effort"] = "high"
 
+    # preset 级强制档位（llmprivate.json 里该预设的 reasoning_effort 字段）。
+    # why 存在：某些上游模型（实测 deepseek-v4.1-flash-outside）默认疯狂思考，
+    # max_tokens=400 时 155 个 reasoning 块只产出 1 个正文块、finish_reason=length
+    # —— 思考把预算烧光，而 bridge 按设计丢弃 reasoning_content，CC 收到空回复
+    # 反复重试。传 reasoning_effort=none 实测 reasoning 块 168→37、正文块 1→116。
+    # 注意 "none" 是上游字段值，Claude Code 的 /effort 只有 low/medium/high/max，
+    # 所以只能在这里按 preset 覆盖，不能指望用户在 /effort 里选。
+    # 覆盖优先级最高：这是运维对特定 preset 的显式设定。
+    _eo = state.get("reasoning_effort_override") or ""
+    if _eo:
+        openai_body["reasoning_effort"] = _eo
+
     tools = anth_body.get("tools")
     if tools:
         out_tools = []
