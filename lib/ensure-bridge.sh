@@ -477,8 +477,15 @@ ensure_bridge() {
             local cur_mc
             cur_mc=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('max_concurrency',0))" 2>/dev/null || echo "")
             local want_mc="${max_conc:-0}"
+            # 思考档位覆盖也要比：从配了的 preset 切到没配的 preset 时必须重启，
+            # 否则残留的 none 会继续压制新 preset 的思考（配置"切不回来"）
+            local cur_re
+            cur_re=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('reasoning_effort_override',''))" 2>/dev/null || echo "")
+            local want_re="${reason_effort:-}"
             if [[ -n "$cur_mc" && "$cur_mc" != "$want_mc" ]]; then
                 info "  max_concurrency 不符（期望 $want_mc，实际 $cur_mc），重启 bridge..."
+            elif [[ "$cur_re" != "$want_re" ]]; then
+                info "  reasoning_effort 覆盖不符（期望 '${want_re:-空}'，实际 '${cur_re:-空}'），重启 bridge..."
             elif [[ -n "$cur_wc" && "$cur_wc" != "$want_wc" ]]; then
                 info "  win_curl 模式不符（期望 $want_wc，实际 $cur_wc），重启 bridge..."
             else
@@ -496,7 +503,7 @@ ensure_bridge() {
     _kill_by_port "$BRIDGE_PORT"
 
     _bridge_spawn "$upstream" "$model" "$key" "$host_header" "$win_curl" "$BRIDGE_PORT" \
-        "$HOME/.cache/openai_bridge.log" "$max_conc"
+        "$HOME/.cache/openai_bridge.log" "$max_conc" "$reason_effort"
 
     # 等启动（最多 5s）
     local h=""
