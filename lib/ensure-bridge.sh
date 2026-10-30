@@ -359,7 +359,7 @@ _kill_by_port() {
 #     裸 `( cd; nohup ... & )` 的子 shell 退出会 SIGHUP 掉 python。setsid 直接给新
 #     会话（无控制终端 → 收不到 SIGHUP）解决同一问题，同时**不必把 API Key 写进
 #     磁盘**（旧 wrapper 含明文 Key，脚本被中断时就残留在 /tmp）。
-# 用法: _bridge_spawn <upstream> <model> <key> <host_header> <win_curl> [<port>] [<log>] [<max_conc>]
+# 用法: _bridge_spawn <upstream> <model> <key> <host_header> <win_curl> [<port>] [<log>] [<max_conc>] [<reason_effort>]
 _bridge_spawn() {
     local upstream="$1" model="$2" key="$3" host_header="$4" win_curl="$5"
     local port="${6:-${BRIDGE_PORT:-8898}}" log="${7:-$HOME/.cache/openai_bridge.log}"
