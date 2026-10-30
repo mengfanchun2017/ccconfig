@@ -43,8 +43,21 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         n = int(self.headers.get('Content-Length', 0) or 0)
-        self.rfile.read(n)
+        body = self.rfile.read(n)
         mode = self.path.strip('/').split('/')[0]
+
+        # 非流式请求（bridge 的兜底会改发 stream=false）：单独应答
+        if b'"stream":false' in body.replace(b' ', b''):
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            payload = ('{"id":"1","model":"test-model","choices":[{"index":0,'
+                       '"message":{"role":"assistant","content":"Recovered"},'
+                       '"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":2}}')
+            self.wfile.write(payload.encode())
+            self.wfile.flush()
+            return
+
         self.send_response(200)
         self.send_header('Content-Type', 'text/event-stream')
         self.end_headers()
@@ -67,6 +80,15 @@ class H(BaseHTTPRequestHandler):
         elif mode == 'apierr':
             # 复刻 one-api 类网关的拒绝方式：HTTP 200 + 裸 JSON error（根本不是 SSE）
             self.wfile.write(b'{"error":{"message":"no available channel for model test-model","type":"one_api_error"}}')
+            self.wfile.flush()
+        elif mode == 'emptystream':
+            # 复刻实测内网网关 deepseek-v4.1-flash-outside：流式恒 HTTP 200 + 仅 [DONE]
+            self.wfile.write(b'data: [DONE]\n\n')
+            self.wfile.flush()
+        elif mode == 'sat502':
+            # 复刻实测内网网关 502 饱和：HTTP 200 但 body 是裸 JSON 错误体
+            #（code=bad_response_status_code），根本不是 SSE
+            self.wfile.write(b'{"error":{"message":" (request id: 123)","type":"upstream_error","param":"502","code":"bad_response_status_code"}}')
             self.wfile.flush()
         elif mode == 'frag':
             # 每 7 字节 flush 一次：复刻 curl.exe stdout / httpx aiter_text 的
@@ -658,6 +680,114 @@ sys.exit(0 if not fail else 1)
 PYEOF
 )
 [[ "$t19" == "OK" ]] && _pass "补 message_delta+message_stop / 幂等 / input_tokens" || _fail "缺 [DONE] 收尾兜底" "$t19"
+
+# ── T20: 上游空流（仅 [DONE]）→ 回落非流式兜底，不能把空回复甩给 CC ──
+# 2026-10-30 实测：内网网关 deepseek-v4.1-flash-outside 流式恒 HTTP 200 + 仅
+# data: [DONE]，零内容块；非流式正常返回完整正文。旧版 bridge 有「零内容块 →
+# 回落非流式」兜底，10-30 10:53 的提交把它连同 pending 帧机制一起删了 →
+# outside 预设直接空回复（CC 侧表现为「输入后即停」）。
+echo "T20 上游空流（仅 [DONE]）→ 回落非流式，正文不为空"
+if start_bridge "http://127.0.0.1:${MOCK_PORT}/emptystream/v1"; then
+    out=$(request_stream); rc=$?
+    text=$(printf '%s' "$out" | extract_text)
+    if [[ "$text" == "Recovered" ]] && printf '%s' "$out" | grep -q 'message_stop'; then
+        _pass "空流已回落非流式（text='$text' + message_stop）"
+    else
+        _fail "空流未兜底" "期望 text='Recovered'，实得 '$text'（curl rc=$rc）"
+        $VERBOSE && printf '%s\n' "$out" | head -8 | sed 's/^/      /'
+    fi
+else
+    _fail "bridge 启动失败"
+fi
+
+# ── T21: 上游 502 饱和（裸 JSON 错误体，非 SSE）→ 回落非流式重试 ──
+# 2026-10-30 实测：内网网关 deepseek-v4.1-flash 走网关间歇回裸 JSON 错误体
+# （code=bad_response_status_code，HTTP 200），bridge 按「非 SSE body」判为
+# upstream_error 直接甩给 CC → 表现为随机失败/「输入后即停」。
+# 兜底必须把它转成可用的非流式结果，而不是直接报错。
+echo "T21 上游 502 饱和（裸 JSON 错误体）→ 回落非流式，不直接报错"
+if start_bridge "http://127.0.0.1:${MOCK_PORT}/sat502/v1"; then
+    out=$(request_stream); rc=$?
+    text=$(printf '%s' "$out" | extract_text)
+    if [[ "$text" == "Recovered" ]] && ! printf '%s' "$out" | grep -q '"type":"error"'; then
+        _pass "502 已回落非流式（text='$text'，无 error 事件）"
+    else
+        _fail "502 未兜底" "期望 text='Recovered' 无 error，实得 '$text'"
+        $VERBOSE && printf '%s\n' "$out" | head -8 | sed 's/^/      /'
+    fi
+else
+    _fail "bridge 启动失败"
+fi
+
+# ── T22: preset 级 reasoning_effort 是「默认档」而非「强制覆盖」 ──
+# 2026-10-30 实测：单位网关完全忽略 reasoning_effort（24 次配对采样，三组
+# 思考率 95%/95%/95% 无差异）。旧实现取最高优先级 → 客户端 /effort 设定被
+# 吃掉，「思考开/关两种情况都要能工作」被破坏。改为默认档后，客户端显式
+# 设定优先，客户端没表态时才用 preset 值。
+echo "T22 preset reasoning_effort = 默认档（客户端显式设定优先）"
+t22=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+fail = []
+m.state["reasoning_effort_override"] = "none"
+# 客户端显式 effort=high → 应保留 high（不被 preset 的 none 覆盖）
+b = m.anthropic_to_openai_req(
+    {"model": "x", "max_tokens": 100, "messages": [],
+     "thinking": {"type": "adaptive"}, "output_config": {"effort": "high"}}, "m")
+if b.get("reasoning_effort") != "high":
+    fail.append(f"客户端 effort=high 被 preset 覆盖成 {b.get('reasoning_effort')!r}")
+# 客户端没表态 → 用 preset 默认档 none
+b2 = m.anthropic_to_openai_req({"model": "x", "max_tokens": 100, "messages": []}, "m")
+if b2.get("reasoning_effort") != "none":
+    fail.append(f"客户端未表态时应取 preset 默认档，实际 {b2.get('reasoning_effort')!r}")
+# 无 preset 覆盖 → 不注入该字段
+m.state["reasoning_effort_override"] = ""
+b3 = m.anthropic_to_openai_req({"model": "x", "max_tokens": 100, "messages": []}, "m")
+if "reasoning_effort" in b3:
+    fail.append("无 preset 覆盖时不应注入 reasoning_effort")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t22" == "OK" ]] && _pass "客户端设定优先 / preset 仅作默认档 / 无覆盖不注入" || _fail "preset 档位语义" "$t22"
+
+# ── T23: 双路由 —— 客户端关思考时走不思考路由 ──
+# 2026-10-30 实测：单位网关完全忽略 reasoning_effort / enable_thinking，发参数
+# 关不掉思考；唯一有效的是换路由（xf-deepseek-v4-flash-waiwang 实测 rt 恒 0、
+# 工具 3/3、12/12 稳定）。故 preset 配 model_no_think，bridge 按客户端 thinking
+# 开关选路由：关思考 → 不思考路由（且不发思考参数）；要思考 → 主模型。
+echo "T23 双路由：关思考走 no_think 路由 + 不发思考参数"
+t23=$(python3 - "$BRIDGE_PY" <<'PYEOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("ob", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+fail = []
+m.state["upstream_model"] = "think-model"
+m.state["upstream_model_no_think"] = "nothink-model"
+# 客户端要思考 → allow_thinking=True，且模型是主模型
+if not m._client_wants_thinking({"thinking": {"type": "adaptive"}}):
+    fail.append("adaptive 应判为要思考")
+if not m._client_wants_thinking({"thinking": {"type": "enabled", "budget_tokens": 100}}):
+    fail.append("enabled 应判为要思考")
+if m._client_wants_thinking({"thinking": {"type": "disabled"}}):
+    fail.append("disabled 应判为不要思考")
+if m._client_wants_thinking({}):
+    fail.append("无 thinking 字段应判为不要思考")
+# 不思考路由时一个思考参数都不发
+b = m.anthropic_to_openai_req(
+    {"model": "x", "max_tokens": 100, "messages": [],
+     "thinking": {"type": "disabled"}}, "nothink-model", allow_thinking=False)
+if "enable_thinking" in b or "reasoning_effort" in b:
+    fail.append(f"不思考路由仍发了思考参数: {b.get('enable_thinking')}/{b.get('reasoning_effort')}")
+# 不思考路由的模型名要落到请求体
+if b.get("model") != "nothink-model":
+    fail.append(f"model 未透传: {b.get('model')!r}")
+print("OK" if not fail else "FAIL: " + "; ".join(fail))
+sys.exit(0 if not fail else 1)
+PYEOF
+)
+[[ "$t23" == "OK" ]] && _pass "thinking 开关判定 / 不思考路由不发思考参数 / model 透传" || _fail "双路由选择" "$t23"
 
 echo ""
 echo "───────────────────────────────"
