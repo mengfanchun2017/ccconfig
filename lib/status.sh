@@ -38,7 +38,20 @@ git_pull() {
     # 走单点实现（lib/git-pull.sh）：分支自适应 + 代理注入/剥死代理 + 冲突回滚。
     # 旧版写死 origin main，在 master 分支仓上会静默失败。
     local _b; _b=$(git -C "$REPO_DIR" branch --show-current 2>/dev/null || echo main)
-    if timeout 30 git -C "$REPO_DIR" fetch origin "$_b" 2>/dev/null; then
+    # 代理决策必须与 git_pull_repo 同源：这里曾经是裸 `git fetch`，github 直连被墙时
+    # 每次都撞满 timeout 卡住 → SessionStart hook 停在「running SessionStart hooks 1/2」
+    # 十几秒甚至更久（用户体感"切过去要等很久"）。实测裸 fetch 5 次 1 次超时 20s，
+    # 走代理 5 次全成功。
+    local _penv=() _pdec _pval
+    _pdec=$(_gp_proxy_env)
+    case "$_pdec" in
+        KEEP)  : ;;
+        STRIP) _penv=(env -u HTTPS_PROXY -u https_proxy -u HTTP_PROXY -u http_proxy -u ALL_PROXY -u all_proxy) ;;
+        SET*)  _pval="${_pdec#SET }"
+               export HTTPS_PROXY="$_pval" https_proxy="$_pval" HTTP_PROXY="$_pval" http_proxy="$_pval" ;;
+        *)     : ;;
+    esac
+    if timeout 20 "${_penv[@]}" git -C "$REPO_DIR" fetch origin "$_b" 2>/dev/null; then
         local updates=$(git -C "$REPO_DIR" rev-list --count "HEAD..origin/$_b" 2>/dev/null || echo 0)
         if [ "$updates" -gt 0 ]; then
             echo -e "${CYAN}[Git]${NC} 发现 $updates 个更新，正在拉取..."
