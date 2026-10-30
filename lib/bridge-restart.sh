@@ -48,8 +48,11 @@ port="${BRIDGE_PORT:-8898}"
 _kill_by_port "$port"
 win_curl="$(bridge_win_curl "$up" "$cfg" "$preset")"
 max_conc="$(bridge_max_concurrency "$cfg" "$preset")"
+# watchdog 重启同样要带上 preset 的思考档位覆盖，否则 bridge 挂了重启后
+# 覆盖静默丢失，退回"客户端 thinking 决定"→ 又变回疯狂思考
+reason_effort="$(bridge_reasoning_effort "$cfg" "$preset")"
 _bridge_spawn "$up" "$model" "$key" "$hh" "$win_curl" "$port" \
-    "$HOME/.cache/openai_bridge.log" "$max_conc"
+    "$HOME/.cache/openai_bridge.log" "$max_conc" "$reason_effort"
 
 # 等 health 确认真的起来了：旧版无条件 exit 0，watchdog 永远学不到"启动失败"，
 # 只能靠下一轮的 health 间接推断
