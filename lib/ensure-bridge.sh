@@ -376,6 +376,7 @@ _bridge_spawn() {
             OPENAI_BRIDGE_MODEL="$model" \
             OPENAI_BRIDGE_HOST="$host_header" \
             OPENAI_BRIDGE_MAX_CONCURRENCY="$max_conc" \
+            OPENAI_BRIDGE_REASONING_EFFORT="$reason_effort" \
             python3 option-llmswitch/openai_bridge.py --port "$port" $extra_args $win_curl \
             >> "$log" 2>&1 < /dev/null &
     )

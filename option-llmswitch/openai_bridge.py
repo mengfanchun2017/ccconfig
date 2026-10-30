@@ -691,7 +691,8 @@ def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> d
 
 
 app = FastAPI()
-state = {"upstream": "", "upstream_key": "", "upstream_model": ""}
+state = {"upstream": "", "upstream_key": "", "upstream_model": "",
+         "reasoning_effort_override": ""}
 http_client = None
 
 # 并发闸（0 = 不限）。slow 链路（境外 DERP 中继等）在途字节一多就整体断流：
@@ -1182,6 +1183,7 @@ async def health():
         "use_win_curl": state.get("use_win_curl", False),
         "skip_tls_verify": state.get("skip_tls_verify", False),
         "max_concurrency": int(state.get("max_concurrency") or 0),
+        "reasoning_effort_override": state.get("reasoning_effort_override", ""),
     }
 
 
@@ -1202,6 +1204,9 @@ def main():
     parser.add_argument("--max-concurrency", type=int,
                         default=int(os.environ.get("OPENAI_BRIDGE_MAX_CONCURRENCY", "0") or 0),
                         help="同时在途的上游请求上限（0=不限）；慢链路用排队换可靠性")
+    parser.add_argument("--reasoning-effort-override", default=os.environ.get("OPENAI_BRIDGE_REASONING_EFFORT", ""),
+                        help="强制覆盖 reasoning_effort（none/low/medium/high）；空=不覆盖，"
+                             "由客户端 thinking/output_config 决定。用于压制疯狂思考的模型")
     args = parser.parse_args()
 
     if not args.upstream:
@@ -1219,6 +1224,7 @@ def main():
     state["upstream_original"] = os.environ.get("OPENAI_BRIDGE_UPSTREAM_ORIGINAL", args.upstream)
     state["skip_tls_verify"] = args.skip_tls_verify
     state["max_concurrency"] = args.max_concurrency
+    state["reasoning_effort_override"] = (args.reasoning_effort_override or "").strip()
 
     print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl} skip_tls_verify={args.skip_tls_verify} max_conc={args.max_concurrency}", flush=True)
     import uvicorn
