@@ -245,6 +245,7 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
     # 实测单位网关：只发 reasoning_effort 时 reasoning_tokens 恒为 0（模型不思考，
     # 反而把思路当正文吐出来 → "我现在执行。发送！"式空转循环）；带上本开关才有
     # 真实 reasoning。深度另由下面的 reasoning_effort 控制。
+    print(f"[SNIFF] thinking={anth_body.get('thinking')} output_config={anth_body.get('output_config')}", flush=True)
     th = anth_body.get("thinking") or {}
     if th.get("type") in ("enabled", "adaptive"):
         openai_body["enable_thinking"] = True
