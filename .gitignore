@@ -34,10 +34,13 @@ result.json
 rows.json
 base-dump*.json
 *_dump.json
-# lark-cli Base 导出：文件名为 <table_id>_<日期>_<时间>_<序号>.{ndjson,manifest.json}
+# lark-cli Base 导出：文件名为 <table_id 或 表名>_<日期>_<时间>_<序号>.{ndjson,manifest.json}
 # （2026-10-25 该类文件曾落到仓库根被 auto-sync 推上公开库，含真实 base_token/record_id/课程数据）
+# ⚠ 只匹配 tbl* 会漏：按表名调用（--table-id oKR）时文件名用表名，不是 table_id。
 tbl*_*.ndjson
 tbl*_*.manifest.json
+*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9].ndjson
+*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9].manifest.json
 *.manifest.json
 
 # 临时文件
