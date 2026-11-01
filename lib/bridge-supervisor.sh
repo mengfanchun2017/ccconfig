@@ -92,7 +92,7 @@ last_warned_fp=""
 fail=0
 
 while true; do
-    if curl -s --max-time 3 "http://127.0.0.1:${BRIDGE_PORT}/health" >/dev/null 2>&1; then
+    if curl -s --noproxy '*' --fail --max-time 3 "http://127.0.0.1:${BRIDGE_PORT}/health" >/dev/null 2>&1; then
         # 代码漂移：只告警不重启（见 _warn_drift_once 的 why）
         cur_fp="$(_code_fingerprint)"
         [[ "$cur_fp" != "$last_fp" ]] && _warn_drift_once "$cur_fp"

@@ -510,7 +510,7 @@ switch_llm() {
 # show_status 与菜单头共用，避免两处各写一遍解析
 _bridge_health() {
     local h
-    h=$(curl -s --max-time 2 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
+    h=$(curl -s --noproxy '*' --fail --max-time 2 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
     if [[ -z "$h" ]]; then
         printf 'down||'
         return

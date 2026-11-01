@@ -55,6 +55,6 @@ _bridge_spawn "$up" "$model" "$key" "$hh" "$win_curl" "$port" \
 # 只能靠下一轮的 health 间接推断
 for _i in 1 2 3 4 5; do
     sleep 1
-    curl -s --max-time 2 "http://127.0.0.1:${port}/health" >/dev/null 2>&1 && exit 0
+    curl -s --noproxy '*' --fail --max-time 2 "http://127.0.0.1:${port}/health" >/dev/null 2>&1 && exit 0
 done
 exit 1

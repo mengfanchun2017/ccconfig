@@ -24,6 +24,20 @@ BRIDGE_WD_LOG="$HOME/.cache/bridge-watchdog.log"
 
 _bridge_wd_log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$BRIDGE_WD_LOG"; }
 
+# 统一健康检查 —— 加 --noproxy '*' 防代理劫持（curl 不认 127.* 通配）。
+# WSL + Clash 注入 http_proxy 时，不走代理的 127.0.0.1 请求会被送进代理，
+# 代理回 502 Bad Gateway → curl -s 仍返回 0（http error ≠ curl error），
+# 导致 bridge 已死被误判为"在跑"、health 空壳被当成 JSON 提前跳出等待循环。
+# --fail 让 HTTP 错误（502/503）也返回非零退出码，彻底消除假阳性。
+# 用法: bridge_health [port] [timeout]
+# 返回 stdout=health body（空=不可用）; 退出码 0=健康可用 >0=不可用
+bridge_health() {
+    local port="${1:-${BRIDGE_PORT:-8898}}"
+    local timeout="${2:-2}"
+    curl -s --noproxy '*' --fail --max-time "$timeout" \
+        "http://127.0.0.1:${port}/health" 2>/dev/null
+}
+
 # bridge watchdog：只守护进程存活 —— bridge 没了就按「当前」preset 拉起
 #
 # why 不做 upstream 主动探测：探测失败 ≠ bridge 故障。网络断了重启 bridge 修不了，
@@ -71,7 +85,7 @@ start_bridge_watchdog() {
 echo \$\$ > "${BRIDGE_WD_PID}"
 fail=0
 while true; do
-    if curl -s --max-time 3 http://127.0.0.1:${BRIDGE_PORT}/health >/dev/null 2>&1; then
+    if curl -s --noproxy '*' --fail --max-time 3 "http://127.0.0.1:${BRIDGE_PORT}/health" >/dev/null 2>&1; then
         [[ \$fail -gt 0 ]] && echo "[\$(date '+%Y-%m-%d %H:%M:%S')] bridge 恢复 (第 \${fail} 次重试)" >> "${BRIDGE_WD_LOG}"
         fail=0
         sleep ${BRIDGE_WD_INTERVAL:-10}
@@ -179,7 +193,7 @@ bridge_state_check() {
     done
     local port="${BRIDGE_PORT:-8898}"
     local running=0
-    curl -s --max-time 2 "http://127.0.0.1:${port}/health" >/dev/null 2>&1 && running=1
+    bridge_health "$port" 2 >/dev/null 2>&1 && running=1
 
     local cur=""
     [[ -f "$HOME/.claude/llm-current" ]] && cur="$(tr -d '[:space:]' < "$HOME/.claude/llm-current")"
@@ -237,7 +251,7 @@ bridge_state_check() {
     if (( fix )); then
         problems=0
         running=0
-        curl -s --max-time 2 "http://127.0.0.1:${port}/health" >/dev/null 2>&1 && running=1
+        bridge_health "$port" 2 >/dev/null 2>&1 && running=1
         [[ "$mode" == "direct" ]] && (( running )) && problems=1
         [[ "$mode" == "bridge" ]] && (( ! running )) && problems=1
         if [[ "$mode" == "bridge" ]] && (( running )); then
@@ -428,7 +442,7 @@ ensure_bridge() {
 
     # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
     local health
-    health=$(curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
+    health="$(bridge_health "$BRIDGE_PORT" 1)" || true
     local old_pid="" need_restart=1
     # 无条件取占端口的 pid（Why: lsof 无结果时 exit 1 + pipefail + set -e 会顶掉函数，
     # 所以 || true 兜底）。挂在 health 超时后面的旧版在这里拿不到 pid → 不杀 →
@@ -477,7 +491,7 @@ ensure_bridge() {
     local h=""
     for _ in 1 2 3 4 5; do
         sleep 1
-        h=$(curl -s --max-time 2 "http://127.0.0.1:${BRIDGE_PORT}/health" 2>/dev/null) || true
+        h=$(bridge_health "$BRIDGE_PORT" 2) || true
         [[ -n "$h" ]] && break
     done
 
@@ -503,7 +517,7 @@ selfheal_bridge() {
     fi
 
     # 到这里确实该有 bridge：健康就直接过
-    if curl -s --max-time 1 "http://127.0.0.1:${BRIDGE_PORT}/health" >/dev/null 2>&1; then
+    if bridge_health "$BRIDGE_PORT" 1 >/dev/null 2>&1; then
         return 0
     fi
 
