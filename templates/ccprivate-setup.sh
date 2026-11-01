@@ -93,6 +93,9 @@ setup_link() {
     local link="$1"
     local target="$2"
     local label="$3"
+    local optional=false
+    # $4 可传 "--optional"：目标缺失时用 info 而非 warn（未配置飞书等正常情况）
+    [ "${4:-}" = "--optional" ] && optional=true
     mkdir -p "$(dirname "$link")"
     # 「先删后弃」防护（2026-10-30 事故）：目标缺失时不得动【健康】链接。
     # 事故实况——残缺/临时 ccprivate 副本缺 link/ 文件时跑一次 setup，旧实现先把
@@ -126,7 +129,11 @@ setup_link() {
     # 注意这一步与上面的「先删后弃」防护分工不同：上面护的是【已有健康链接】，
     # 这里挡的是【本就没有链接时不要新建死链】。两者缺一都会回归出 bug。
     if [ ! -e "$target" ]; then
-        warn "$label: 目标不存在，跳过（$target）"
+        if $optional; then
+            info "$label: 目标不存在，跳过（$target）"
+        else
+            warn "$label: 目标不存在，跳过（$target）"
+        fi
         return 0
     fi
     ln -s "$target" "$link"
@@ -138,7 +145,7 @@ setup_link() {
 # ============================================================
 section "用户级链接"
 setup_link "$HOME/CLAUDE.md"           "$SCRIPT_DIR/link/CLAUDE.md"     "~/CLAUDE.md"
-setup_link "$HOME/.lark-default-account" "$SCRIPT_DIR/link/.lark-default-account" ".lark-default-account → ccprivate"
+setup_link "$HOME/.lark-default-account" "$SCRIPT_DIR/link/.lark-default-account" ".lark-default-account → ccprivate" --optional
 # should-compact.md 已废弃（ccconfig/commands/ 整个目录已删），不要再建它的链接
 
 # 以下三文件是本机状态（LLM 选择 / 会话配置 / context 策略），symlink 会跨机覆盖
