@@ -380,16 +380,26 @@ check_repos() {
             issues="${issues}CLAUDE.md断链 "
         fi
 
-        # Memory 问题
+        # Memory 问题：仅对 ccprivate 登记的项目要求 symlink。
+        # 私有项目直接在项目内 .claude/memory/（setup.sh §3b 注释：private repo
+        # 无需在 ccprivate/link/memory-projects 登记），本地目录是正确姿态。
+        local _mp_listed=false
+        if [ -d "$HOME/git/ccprivate/link/memory-projects" ]; then
+            for _mp in "$HOME/git/ccprivate/link/memory-projects/"*/; do
+                [ "$(basename "$_mp")" = "$name" ] && _mp_listed=true && break
+            done
+            unset _mp
+        fi
         local rel_path="${git_dir#/}"
         rel_path="${rel_path%/}"
         local proj_id="-${rel_path//\//-}"
         local mem="$HOME/.claude/projects/$proj_id/memory"
         if [ -L "$mem" ] && [ ! -d "$mem" ]; then
             issues="${issues}memory断链 "
-        elif [ -d "$mem" ] && [ ! -L "$mem" ]; then
+        elif [ -d "$mem" ] && [ ! -L "$mem" ] && $_mp_listed; then
             issues="${issues}memory应为symlink "
         fi
+        unset _mp_listed
 
 
         if [ -n "$issues" ]; then
@@ -402,19 +412,22 @@ check_repos() {
     # 账号一致性：三仓 remote 属主必须与当前 gh 账号一致。
     # 不一致时 pull/push 会用旧 remote + 旧 PAT，失败常被 || true 吞掉 →
     # 换账号后静默不同步（skill 仓的 remote 换址见 init-skill.sh ensure_claude_skills）。
+    # 已知上游（mengfanchun2017）不受此限：下游 clone 用户 remote 就是上游、
+    # fork 后 remote 是用户自己的账号 → 只有「既不是用户自己、也不是上游」才告警。
+    _KNOWN_UPSTREAM_OWNER="mengfanchun2017"
     _acct=$(gh api user --jq '.login' 2>/dev/null || echo "")
     if [ -n "$_acct" ]; then
         for _r in ccconfig ccprivate skill; do
             _rd="$HOME/git/$_r"
             [ -d "$_rd/.git" ] || continue
             _ro=$(git -C "$_rd" remote get-url origin 2>/dev/null | sed 's#.*github.com[:/]##; s#/.*##')
-            if [ -n "$_ro" ] && [ "$_ro" != "$_acct" ]; then
+            if [ -n "$_ro" ] && [ "$_ro" != "$_acct" ] && [ "$_ro" != "$_KNOWN_UPSTREAM_OWNER" ]; then
                 echo -e "  ${YELLOW}⚠${NC} $_r remote 属主=$_ro ≠ 当前账号=$_acct（换账号残留）"
             fi
         done
         unset _r _rd _ro
     fi
-    unset _acct
+    unset _acct _KNOWN_UPSTREAM_OWNER
 
     # 双端同步状态（多终端自查的唯一入口）。
     # monitor 只在文件事件/心跳时收敛，本机不碰文件时用户无从知道"另一终端推到哪了" ——
