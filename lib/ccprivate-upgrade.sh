@@ -192,17 +192,29 @@ fix_setup_sh() {
     # 本机改过的 setup.sh（与模板不同且非已知旧版）不直接覆盖 —— 静默丢弃用户的
     # 自定义会连带丢功能（如项目级记忆 symlink）。改为另存 .new 让人工合并，或确认后覆盖。
     if [ -f "$CCPRIVATE/setup.sh" ] && ! diff -q "$tpl" "$CCPRIVATE/setup.sh" &>/dev/null; then
+        # 用 git status 判定"本机有修改"是真用户改过，还是只是模板旧了：
+        #   porcelain 空 → 与 HEAD 一致（只是模板旧了），直接覆盖
+        #   non-empty   → 用户确实改过本地副本，另存 .new
+        local dirty=""
+        dirty="$(git -C "$CCPRIVATE" status --porcelain -- setup.sh 2>/dev/null || true)"
+        if [ -z "$dirty" ]; then
+            cp "$tpl" "$CCPRIVATE/setup.sh"
+            chmod +x "$CCPRIVATE/setup.sh"
+            ok "setup.sh 已更新（旧版 → 当前模板）"
+            return 0
+        fi
+
         if [ "${CCPRIVATE_SETUP_FORCE:-0}" = "1" ]; then
             cp "$tpl" "$CCPRIVATE/setup.sh"
             chmod +x "$CCPRIVATE/setup.sh"
             ok "setup.sh 已强制覆盖（CCPRIVATE_SETUP_FORCE=1）"
         else
             cp "$tpl" "$CCPRIVATE/setup.sh.new"
-            warn "setup.sh 本机有修改，未覆盖 —— 新版已存为 setup.sh.new"
+            warn "setup.sh 有本地修改，未覆盖 —— 新版已存为 setup.sh.new"
             info "  合并: diff $CCPRIVATE/setup.sh $CCPRIVATE/setup.sh.new"
             info "  放弃本机改动: CCPRIVATE_SETUP_FORCE=1 bash maintain.sh fix"
         fi
-        return 0
+        return 2  # 让调用方知道是待处理状态，不打印 ✅
     fi
 
     cp "$tpl" "$CCPRIVATE/setup.sh"
