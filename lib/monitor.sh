@@ -705,6 +705,9 @@ start_watch() {
     # 与 debounce 同值 30s 会让"30s debounce 后再判 30s gap"二次等待，
     # 连续操作时每一拍都被 Defer 一轮。独立取 10s 只防同步风暴。
     local min_push_gap=10
+    # 仅用于"Deferred 只报一次"：每 tick 都写会把这条刷成 2s 一行的噪音
+    # （tail 里实测连刷 5 行），而它表达的是同一件事 —— 延后，不是新事件。
+    local deferred_logged=0
     # 心跳周期（秒）。它替代了原来的 12h 空闲兜底，是"对端提交本机可见"的唯一
     # 兜底通道 —— 所以按 wall-clock 计，不能按"暂无文件事件"计（见循环内注释）。
     local heartbeat_secs=300
@@ -866,7 +869,10 @@ start_watch() {
                     # （实测：08:51:58 push → 08:52:00 写入 → 08:52:25 判 skip → 文件
                     # 持续未提交）。保留 DEBOUNCE_FILE 与 pending，下一 tick 重算 gap，
                     # 够了就同步 —— 语义从"丢弃"变"延后"。
-                    do_log "Deferred: <${min_push_gap}s since last push — 待 gap 满足后同步"
+                    if [ "$deferred_logged" -eq 0 ]; then
+                        do_log "Deferred: <${min_push_gap}s since last push — 待 gap 满足后同步"
+                        deferred_logged=1
+                    fi
                     continue
                 fi
 
@@ -879,6 +885,7 @@ start_watch() {
                 # 语义从"丢事件"变成"延后一轮"。
                 rm -f "$DEBOUNCE_FILE" "$CHANGED_REPOS_FILE"
                 pending=0
+                deferred_logged=0
                 if [ -z "$changed" ]; then
                     do_log "Debounce done, no changed repos recorded — syncing all (fallback)"
                     sync_repos
