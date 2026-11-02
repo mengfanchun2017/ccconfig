@@ -184,7 +184,7 @@ ccconfig/
 │   ├── deps-check.sh         # 依赖检查
 │   ├── setup-links.sh        # 公开符号链接
 │   ├── path-helper.sh        # 路径解析 + 版本文件读写
-│   ├── colors.sh             # 颜色变量（non-tty 自动净化，CCCONFIG_FORCE_COLOR 可强制保留）
+│   ├── colors.sh             # 颜色变量（256 色优先/16 色兜底，non-tty 自动净化，尊重 NO_COLOR）
 │   ├── dry-run.sh            # 预览模式（guard_* 幂等写）
 │   ├── interact.sh           # 统一交互菜单库（confirm/menu_select/prompt）
 │   ├── net.sh                # 网络探测（check_proxy/check_tcp）
