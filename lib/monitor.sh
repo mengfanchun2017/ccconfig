@@ -1107,40 +1107,54 @@ status_watch() {
 }
 
 # ========== Log line colorizer ==========
+# 给「整行正文」上色，而不只是时间戳 —— 旧实现只染 8 字符的时间戳、$content
+# 裸输出，用户看到的所谓「成功/失败/警告都是白的」是字面事实：有色的只有时间戳。
+#
+# 规则顺序有语义：先判噪声、再 ERROR、再 WARN、再 SUCCESS。旧实现把 ERROR 的
+# `!!` 匹配排在 WARN 之前，导致 `WARN: [x] !! fetch 失败` 被刷成红色 ——
+# 警告显示成错误，用户对颜色失去信任。warn() 落盘时带 `WARN:` 前缀，
+# 它是作者显式标注的级别，必须压过正文里的 `!!`。
 colorize_line() {
-    local ts="$1" content="$2"
+    local ts="$1" content="$2" color
 
     # 剥内嵌色：log 历史含旧 escape（do_log 已剥，但历史行还在），剥后规则才能匹配
     content=$(echo "$content" | strip_ansi)
     # 空行/仅 repo 前缀行丢弃，减少噪声（init-skill/链接脚本输出大量空行）
     if echo "$content" | grep -qE '^[[:space:]]*$|^\[[a-z_-]+\][[:space:]]*$'; then return; fi
 
-    # ERROR (red) — "!!" prefix, failures that need attention
-    if echo "$content" | grep -qE '(\!\!|ERROR|UNRESOLVED|aborting)'; then
-        echo -e "  ${RED}${ts}${NC}  $content"
+    # NOISE（极暗）— 每 5min × 每仓的心跳产物，占全日志 5782 行。压到几乎看不见，
+    # 但不删：它仍是排查时的「monitor 什么时候还活着」时间锚点。
+    if echo "$content" | grep -qE '(^\[[a-z_-]+\][[:space:]]+already up to date|Heartbeat sync|^Initial scan done|  (fetch|pull) err:)'; then
+        echo -e "  ${TS_DIM}${ts}${NC}  ${NOISE}${content}${NC}"
         return
     fi
 
-    # WARNING (yellow) — skipped, nothing to commit, warn prefix
-    if echo "$content" | grep -qE '(WARN|Skipped|nothing to commit)'; then
-        echo -e "  ${YELLOW}${ts}${NC}  $content"
+    # ERROR（柔红）— 需要动手处理：冲突、push 失败、PAT 失效
+    if echo "$content" | grep -qE '(ERROR|UNRESOLVED|push failed|UNRESOLVED|aborting|❌|401|auth error)'; then
+        echo -e "  ${TS_DIM}${ts}${NC}  ${RED}${content}${NC}"
         return
     fi
 
-    # SUCCESS (green) — OK prefix / ✅ 完成 / key milestones
-    if echo "$content" | grep -qE '(OK pushed|OK committed|OK pull|OK links|OK skills|OK rebase|✅|Started|Stopped|Resurrecting)'; then
-        echo -e "  ${GREEN}${ts}${NC}  $content"
+    # WARN（琥珀）— 降级但可继续：重试中、fetch/pull 失败、跳过
+    if echo "$content" | grep -qE '(WARN|Skipped|nothing to commit|attempt [0-9]+ failed|fail(ed)? after|跳过|冲突|warn —|behind remote)'; then
+        echo -e "  ${TS_DIM}${ts}${NC}  ${YELLOW}${content}${NC}"
         return
     fi
 
-    # ACTIVITY (cyan) — changes, debounce, sync progress
-    if echo "$content" | grep -qE '(\* changes detected|Change detected|Debounce done|syncing |MOVED_TO|DELETED|CREATED|MODIFY)'; then
-        echo -e "  ${CYAN}${ts}${NC}  $content"
+    # SUCCESS（柔绿）— 真的产生了效果
+    if echo "$content" | grep -qE '(OK pushed|OK committed|OK pull|OK links|OK skills|OK rebase|✅|Started|Stopped|Resurrecting|整合其他终端|修复成功)'; then
+        echo -e "  ${TS_DIM}${ts}${NC}  ${GREEN}${content}${NC}"
         return
     fi
 
-    # DEFAULT (gray) — file listings, misc
-    echo -e "  ${GRAY}${ts}${NC}  $content"
+    # ACTIVITY（柔青）— 有动静但还没结果：检测到改动、debounce、同步中
+    if echo "$content" | grep -qE '(\* changes detected|Change detected|Debounce done|syncing |MOVED_TO|DELETED|CREATED|MODIFY|cleared stale lock|no local changes)'; then
+        echo -e "  ${TS_DIM}${ts}${NC}  ${CYAN}${content}${NC}"
+        return
+    fi
+
+    # DEFAULT — 其余正文保持终端默认前景色，只有时间戳暗下去
+    echo -e "  ${TS_DIM}${ts}${NC}  $content"
 }
 
 # ========== Log viewer (formatted) ==========
