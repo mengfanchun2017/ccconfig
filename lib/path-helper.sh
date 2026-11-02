@@ -157,7 +157,7 @@ ensure_config() {
     local example_file="${config_file}.example"
     if [ -f "$example_file" ]; then
         echo ""
-        echo -e "\033[1;33m⚠️  配置文件不存在: ${friendly_name}\033[0m"
+        echo -e "\033[38;5;179m⚠️  配置文件不存在: ${friendly_name}\033[0m"
         echo -e "   从模板复制: ${example_file}"
         cp "$example_file" "$config_file"
         echo ""

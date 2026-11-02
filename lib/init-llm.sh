@@ -307,7 +307,7 @@ elif existing and not is_placeholder(existing):
     print(f"\033[0;32m  Key: 复用已有 ...{existing[-4:]}\033[0m")
 else:
     final = ''
-    print(f"\033[1;33m  Key: 未配置\033[0m")
+    print(f"\033[38;5;179m  Key: 未配置\033[0m")
 
 # 写纯 key 文件（只存 key，定义在 llmnormal/llmprivate 里）
 cfg = os.environ['LLM_KEYS_FILE']
