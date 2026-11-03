@@ -544,6 +544,26 @@ test_remote_ahead_detected() {
         || fail "converge" "缺 had_e 保护 → 心跳会打死 monitor loop"
 }
 
+test_fetch_fail_no_fake_green() {
+    # fetch 失败时 behind 在失败分支恒为 0（没取到远程就比不出落后量），
+    # 旧代码照样落到 else 分支打 "already up to date" —— 实测日志同秒出现
+    # 「WARN !! fetch 失败」+「already up to date」，用户无从判断到底同步没同步。
+    # 判据：already up to date 那句必须受 fetch_failed 保护。
+    local mon="$CCCONFIG_DIR/lib/monitor.sh"
+    local blk
+    blk=$(awk '/local changed_files=\$\(git -C "\$repo_dir" status --porcelain/,/^    fi$/' "$mon")
+    echo "$blk" | grep -q 'fetch_failed=1' \
+        && pass "fake-green: fetch 失败置标志位" \
+        || fail "fake-green" "失败分支不留标志 → 下游照打 already up to date"
+    echo "$blk" | grep -q 'fetch_failed:-0}" -eq 1' \
+        && pass "fake-green: already up to date 受 fetch_failed 保护" \
+        || fail "fake-green" "fetch 失败仍报 already up to date（假绿）"
+    # 远程仓库被删是终止态，重试无意义 —— 必须和"代理抖动"分开报，否则每轮心跳刷同一条
+    echo "$blk" | grep -q 'Repository not found' \
+        && pass "fake-green: 远程不存在与网络抖动分开报" \
+        || fail "fake-green" "删库场景仍报'无法判断对端进展'（信息量为零且刷屏）"
+}
+
 test_pull_failure_evidence() {
     # pull 失败必须落真实报错：此前网络类分支只打通用 "attempt N failed"，
     # pull_output 被丢弃 → 全历史约 50 次失败全是无证据的。
@@ -594,6 +614,7 @@ all_tests=(
     "desc: sync_repos 无参调用安全（set -u 地雷）"    test_sync_repos_noarg_safe
     "desc: status — 报表双端收敛（未推/落后/脏）"     test_status_reports_sync_state
     "desc: converge — 无改动分支 fetch 且报落后"      test_remote_ahead_detected
+    "desc: fetch 失败不报 already up to date"        test_fetch_fail_no_fake_green
     "desc: pull 失败落真实报错"                      test_pull_failure_evidence
     "desc: skip_push 显性告警未推送 commit"           test_skip_push_visible
     "desc: monitor.sh 语法检查"                      test_monitor_sh_syntax
