@@ -317,11 +317,20 @@ commit_and_push() {
 
         local behind=0
         local just_integrated=0   # 本轮是否已整合过（抑制紧随其后的重复 "already up to date"）
+        local fetch_failed=0
         if [ $fetch_rc -eq 0 ]; then
             behind=$(git -C "$repo_dir" rev-list --count "HEAD..origin/$branch" 2>/dev/null || echo 0)
         else
-            warn "[$repo] !! fetch 失败（rc=$fetch_rc）— 无法判断对端进展"
+            # 远程仓库已被删除（GitHub 上删了项目、本地目录还在）：这是**终止态**，
+            # 不是抖动 —— 重试无意义、每轮心跳报警只会淹没真问题（实测 ccbridge 删库后
+            # 每 5 分钟一条 WARN，38 次全是无信息量的）。只报一次"请清理本地目录"。
+            if printf '%s' "$fetch_out" | grep -qiE "Repository not found|not found"; then
+                warn "[$repo] !! 远程仓库不存在（rc=$fetch_rc）— 本地目录可删除或移出 $WATCH_DIR"
+            else
+                warn "[$repo] !! fetch 失败（rc=$fetch_rc）— 无法判断对端进展"
+            fi
             do_log "[$repo]   fetch err: $(printf '%s' "$fetch_out" | head -2 | tr '\n' ' ')"
+            fetch_failed=1
         fi
 
         # 2) 确有对端新提交才整合（跳过时不产生第二次网络往返）。
@@ -360,7 +369,12 @@ commit_and_push() {
             # 也显得一切正常（用户实测就是看不出双端有没有收敛）。
             # 刚整合过就不再补一句 already up to date —— 同一次调用里说两遍
             # 同一件事纯属冗余（曾出现 "整合其他终端 1 个提交" + "already up to date"）。
-            if [ "${behind:-0}" -gt 0 ]; then
+            # fetch 失败时不打 "already up to date"：behind 在失败分支恒为 0（没取到远程
+            # 就比不出落后量），照旧打印会得到「WARN fetch 失败」紧跟「already up to date」
+            # 的同秒假绿 —— 用户看到的就是"到底同步没同步"。已在上面 WARN 过，这里静默。
+            if [ "${fetch_failed:-0}" -eq 1 ]; then
+                :
+            elif [ "${behind:-0}" -gt 0 ]; then
                 log "[$repo] up to date locally, but ${behind} commit(s) behind remote — 未整合其他终端的改动"
             elif [ "${just_integrated:-0}" -eq 0 ]; then
                 logq "[$repo] already up to date"
