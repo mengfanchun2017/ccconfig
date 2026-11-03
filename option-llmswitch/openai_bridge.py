@@ -1129,12 +1129,22 @@ async def messages(request: Request):
         async def gen():
             # 捕获 upstream 间歇性超时/断连：log + 结束 stream，不让异常杀进程
             # Claude Code 收到不完整响应会自动重试，比 bridge 整个死掉强
+            # 尚无内容块时暂存的帧：空流场景（上游只回 [DONE]）这些帧要整体丢弃，
+            # 换成非流式兜底；一旦出现真内容就按序放行。
+            pending = []
             try:
                 src = _upstream_stream(target_url, headers, upstream_body, host_header, extra_ext, use_win_curl)
                 async for chunk in _iter_with_idle_ping(_iter_complete_lines(src)):
                     sse_out = _render(chunk)
-                    if sse_out:
-                        yield sse_out
+                    if not sse_out:
+                        continue
+                    if not (sse_state.get("text_blocks") or sse_state.get("tool_blocks")):
+                        pending.append(sse_out)
+                        continue
+                    if pending:
+                        yield "".join(pending)
+                        pending.clear()
+                    yield sse_out
             except Exception as e:
                 # why Exception 而非 httpx.TransportError：win_curl 路径抛的是
                 # OSError/ConnectionResetError 之类，漏掉会让异常直接逃出 gen() ——
@@ -1154,6 +1164,24 @@ async def messages(request: Request):
                     yield _error_frames("upstream_disconnected", "stream interrupted")
                 _dump_and_summary("error")
                 return
+            # 空流兜底：上游回了合法 SSE 却零内容块（实测内网网关
+            # deepseek-v4.1-flash-outside 恒为 HTTP 200 + 仅 data: [DONE]）。
+            # 必须在 finished 判定**之前**——[DONE] 已把 finished 置 True，
+            # 落到下面的 error 分支就永远进不来。该模型非流式正常，
+            # 回落非流式取完整结果转成 SSE，客户端无感。
+            if pending and not (sse_state.get("text_blocks") or sse_state.get("tool_blocks")):
+                print("[bridge] upstream stream had zero content blocks, falling back to non-stream", flush=True)
+                fallback = await _non_stream_fallback(
+                    target_url, headers, upstream_body, host_header, extra_ext, use_win_curl, req_no
+                )
+                if fallback:
+                    yield fallback
+                    _dump_and_summary("fallback")
+                    return
+                # 兜底失败：放回暂存帧，让下面的既有逻辑照常报错/收尾
+                for p in pending:
+                    yield p
+                pending = []
             # upstream 结束却没给终止标记（截断 / 空响应）→ 显式报错
             # why: 否则客户端只拿到半条流且无从判断，探测也只能靠"缺少 message_stop"
             #      间接推断；显式 error 让两边都能确定地识别失败
@@ -1167,6 +1195,17 @@ async def messages(request: Request):
                     # error，报 upstream_incomplete 会把人引向查网络，其实是上游拒绝
                     detail = raw_buf[0].strip()[:500]
                     print(f"[bridge] upstream returned non-SSE body: {detail}", flush=True)
+                    # 该错误体是"上游过载"（ModelArts 负载饱和 / 502）→ 非流式重试
+                    # 常能成功（网关侧间歇性），比把错误直接甩给 CC 让它整轮重跑强
+                    if not (sse_state.get("text_blocks") or sse_state.get("tool_blocks")) and re.search(
+                        r'负载已饱和|overload|service.?unavailable|bad_response_status_code', detail, re.I):
+                        fb = await _non_stream_fallback(
+                            target_url, headers, upstream_body, host_header, extra_ext, use_win_curl, req_no
+                        )
+                        if fb:
+                            yield fb
+                            _dump_and_summary("fallback")
+                            return
                     yield _error_frames("upstream_error", detail)
                 else:
                     print("[bridge] upstream stream ended without [DONE] (truncated or empty)", flush=True)
