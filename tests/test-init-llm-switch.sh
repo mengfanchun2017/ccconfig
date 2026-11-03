@@ -167,6 +167,12 @@ if ! source lib/init-llm.sh > "$WORKDIR/source.log" 2>&1; then
     exit 1
 fi
 
+# init-llm.sh 自带 `set -euo pipefail`，source 进来就污染了本测试的 shell 选项。
+# 后果：switch_llm 返回 1（环境缺依赖等）时 errexit 直接杀掉测试进程，
+# 下面的 `switch_rc=$?` 永远执行不到 —— 症状是「T1 打印完就 FAILED，没有断言」。
+# 本测试要的是「收集失败并继续跑完」，故 source 后立刻关掉 errexit。
+set +e
+
 # 覆盖为测试用端口/路径，确保不与生产 bridge 冲突
 BRIDGE_PORT="$TEST_BRIDGE_PORT"
 BRIDGE_WD_PID="$TEST_HOME/bridge-watchdog.pid"
