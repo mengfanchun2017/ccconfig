@@ -105,11 +105,27 @@ def _image_part(blk: dict):
     return None
 
 
-def anthropic_to_openai_req(anth_body: dict, target_model: str) -> dict:
+def _client_wants_thinking(anth_body: dict) -> bool:
+    """客户端是否明确要求思考。
+
+    Anthropic 的 thinking 字段：adaptive/enabled = 要，disabled/缺失 = 不要。
+    why 缺失也算不要：Claude Code 的 /effort 关闭思考时干脆不发该字段，
+    只有开启才发。据此选路由，避免对不思考的请求白跑思考模型。
+    """
+    th = anth_body.get("thinking") or {}
+    return isinstance(th, dict) and th.get("type") in ("enabled", "adaptive")
+
+
+def anthropic_to_openai_req(anth_body: dict, target_model: str,
+                             allow_thinking: bool = True) -> dict:
     """Anthropic Messages API body → OpenAI Chat Completions body.
 
     服务端搜索工具（web_search_20250305）剔除——上游不支持，当普通 function
     发过去会被 400，转成假 function 会让模型反复空转。
+
+    allow_thinking=False（走不思考路由）时一个思考参数都不发：实测单位网关
+    完全忽略 reasoning_effort / enable_thinking，发参数关不掉思考，唯一有效
+    的开关是换路由。
     """
     messages = []
     system_blocks = anth_body.get("system")
