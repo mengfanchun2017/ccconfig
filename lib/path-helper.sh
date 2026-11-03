@@ -262,6 +262,7 @@ micloud_root() {
 # ========== 飞书桥路径解析 ==========
 
 # botmux 由 npm 全局安装（自包含二进制），无需路径解析 —— 走 PATH 查找即可（command -v botmux）。
-# 已弃用的 ccbridge（~/git/ccbridge）不再被 ccconfig 引用；旧 resolve_ccbridge 无调用方，已移除。
+# 已退役的 ccbridge 不再被 ccconfig 引用；旧 resolve_ccbridge 无调用方，已移除。
+# 2026-11-03：GitHub 仓库已删除、本地目录移至 ~/backups/retired-ccbridge-20261103。
 
 # 确保 PATH 包含正确的 Node 和 local bin

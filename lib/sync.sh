@@ -598,7 +598,7 @@ case "${1:-}" in
         echo ""
         echo -e "${CYAN}🔃 全部仓库同步...${NC}"
         # 个人仓库列表：脏工作区自动 commit+push
-        PERSONAL_REPOS="ccprivate ccbridge skill aiagt fancypowershell"
+        PERSONAL_REPOS="ccprivate skill aiagt fancypowershell"
         repos_data=$(list_repos)
         while IFS='|' read -r name dir mode; do
             [ -z "$name" ] && continue
