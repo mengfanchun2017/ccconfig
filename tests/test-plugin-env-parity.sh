@@ -24,6 +24,19 @@ echo "═══ 配置解析双语一致性（plugin_env.sh vs config_env.py）�
 echo "  $REF"
 echo ""
 
+# 被测实现住在 skill 仓（另一个 repo）。CI 只 checkout ccconfig，没有它 →
+# 跳过而不是失败：这是"环境不具备"，不是"代码坏了"。旧版直接 _fail + exit 1，
+# 让整个 check job 永远红，真回归反而被淹没。设 SKILL_REPO_REQUIRED=1 可强制失败。
+if [ ! -d "$SKILL_REPO" ]; then
+    if [ -n "${SKILL_REPO_REQUIRED:-}" ]; then
+        _fail "实现缺失: 找不到 skill 仓 $SKILL_REPO"
+        echo; exit 1
+    fi
+    echo "  ⚠  跳过：skill 仓不在 $SKILL_REPO（跨仓依赖，CI 里属预期）"
+    echo "     本机跑: SKILL_SRC=/path/to/skill bash tests/test-plugin-env-parity.sh"
+    echo ""
+    exit 0
+fi
 for f in "$SH" "$PY"; do
     [ -f "$f" ] || { _fail "实现缺失: $f"; echo; exit 1; }
 done

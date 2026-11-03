@@ -78,6 +78,12 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
+      # bridge 的端到端测试会真的拉起 openai_bridge.py，它 import httpx/fastapi/uvicorn。
+      # 缺了 ensure_bridge 的依赖预检直接 return 1 → switch_llm 中止 → 测试脚本在
+      # set -e 下整段退出（症状：T1 之后直接 FAILED，没有任何失败断言）。本机装了
+      # 这些包所以本地永远绿、CI 永远红。依赖单一真相源是 conf/python-requirements.txt。
+      - name: install bridge deps
+        run: pip3 install --break-system-packages -q -r conf/python-requirements.txt
       - name: unit tests (mock isolated)
         run: bash tests/test-init-base.sh --verbose
       # 其余 test-*.sh 此前从不进 CI，坏了没人知道（test-init-llm.sh 曾长期假失败）

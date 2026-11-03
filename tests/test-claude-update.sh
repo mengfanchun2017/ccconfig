@@ -45,7 +45,10 @@ echo "$CLN" | grep -q 'regex' && pass "清理有版本号正则白名单" || fai
 echo "$CLN" | grep -q 'keep' && pass "清理保留当前版本" || fail "清理不保留当前版本"
 
 # 6. 功能实测：cleanup 在假 versions 目录下只留 2 个（隔离 HOME）
-T="$CLAUDE_JOB_DIR/tmp/claude-vers-test.$$"
+# 用 mktemp -d 而不是 $CLAUDE_JOB_DIR：后者是 Claude Code 后台任务才有的环境变量，
+# 命令行/CI 里不存在，set -u 下直接 unbound variable 把整个测试顶掉（exit 1）。
+T="$(mktemp -d "${TMPDIR:-/tmp}/claude-vers-test.XXXXXX")"
+trap 'rm -rf "$T"' EXIT
 mkdir -p "$T/.local/share/claude/versions"
 for v in 1.0.0 1.0.1 1.0.2 1.0.3; do echo x > "$T/.local/share/claude/versions/$v"; done
 echo junk > "$T/.local/share/claude/versions/notaversion"
