@@ -349,6 +349,43 @@ except Exception:
     return 0
 }
 
+# 读 preset 的 reasoning_effort（思考档默认值）。空输出=不注入。
+# why 用 preset 字段：某些模型（实测 deepseek-v4.1-flash-outside）默认疯狂思考，
+#     思考烧光 max_tokens 导致正文零产出；其余 preset 不该被这个设定牵连。
+# 注意语义是**默认档**：客户端 /effort 显式设了就以客户端为准，只有客户端未
+#     表态时才落到这里。值域 none/low/medium/high —— none 只能在 preset 里写，
+#     Claude Code 的 /effort 不提供该选项。
+# 用法: bridge_reasoning_effort <merged_cfg> <preset>
+bridge_reasoning_effort() {
+    local cfg="$1" preset="$2"
+    [[ -n "$cfg" && -n "$preset" ]] || return 0
+    python3 -c "
+import json, sys
+try:
+    v = json.load(open(sys.argv[1])).get('llms', {}).get(sys.argv[2], {}).get('reasoning_effort')
+    print(str(v).strip() if v else '')
+except Exception:
+    print('')
+" "$cfg" "$preset" 2>/dev/null
+}
+
+# 读 preset 的 model_no_think（不思考路由的模型名）。空=不启用双路由。
+# why 换路由而不是发参数：单位网关完全忽略 reasoning_effort/enable_thinking，
+#     发参数关不掉思考；只有换成 no-think 模型才真的不思考。
+# 用法: bridge_model_no_think <merged_cfg> <preset>
+bridge_model_no_think() {
+    local cfg="$1" preset="$2"
+    [[ -n "$cfg" && -n "$preset" ]] || return 0
+    python3 -c "
+import json, sys
+try:
+    v = json.load(open(sys.argv[1])).get('llms', {}).get(sys.argv[2], {}).get('model_no_think')
+    print(str(v).strip() if v else '')
+except Exception:
+    print('')
+" "$cfg" "$preset" 2>/dev/null
+}
+
 # 按端口杀掉占用进程并等端口真正释放。
 # why 循环 kill 而非只 kill head -1：旧版只杀第一个 pid，第二个绑定进程会存活，
 #     新 bridge 于是 EADDRINUSE，而失败原因只落在 openai_bridge.log 里。
@@ -373,11 +410,11 @@ _kill_by_port() {
 #     裸 `( cd; nohup ... & )` 的子 shell 退出会 SIGHUP 掉 python。setsid 直接给新
 #     会话（无控制终端 → 收不到 SIGHUP）解决同一问题，同时**不必把 API Key 写进
 #     磁盘**（旧 wrapper 含明文 Key，脚本被中断时就残留在 /tmp）。
-# 用法: _bridge_spawn <upstream> <model> <key> <host_header> <win_curl> [<port>] [<log>] [<max_conc>]
+# 用法: _bridge_spawn <upstream> <model> <key> <host_header> <win_curl> [<port>] [<log>] [<max_conc>] [<reason_effort>] [<model_no_think>]
 _bridge_spawn() {
     local upstream="$1" model="$2" key="$3" host_header="$4" win_curl="$5"
     local port="${6:-${BRIDGE_PORT:-8898}}" log="${7:-$HOME/.cache/openai_bridge.log}"
-    local max_conc="${8:-0}"
+    local max_conc="${8:-0}" reason_effort="${9:-}" model_no_think="${10:-}"
     local extra_args=""
     [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
     mkdir -p "$HOME/.cache"   # 目录不存在会让重定向失败、bridge 根本起不来
@@ -388,6 +425,8 @@ _bridge_spawn() {
             OPENAI_BRIDGE_UPSTREAM="$upstream" \
             OPENAI_BRIDGE_KEY="$key" \
             OPENAI_BRIDGE_MODEL="$model" \
+            OPENAI_BRIDGE_MODEL_NO_THINK="$model_no_think" \
+            OPENAI_BRIDGE_REASONING_EFFORT="$reason_effort" \
             OPENAI_BRIDGE_HOST="$host_header" \
             OPENAI_BRIDGE_MAX_CONCURRENCY="$max_conc" \
             python3 option-llmswitch/openai_bridge.py --port "$port" $extra_args $win_curl \
@@ -439,6 +478,10 @@ ensure_bridge() {
     # 并发闸同理：值变了要重启才生效（运行态在 /health 里报 max_concurrency）
     local max_conc
     max_conc="$(bridge_max_concurrency "$cfg" "$preset")"
+    # 思考默认档 / 不思考路由：值变了要重启才生效（运行态在 /health 里报）
+    local reason_effort model_no_think
+    reason_effort="$(bridge_reasoning_effort "$cfg" "$preset")"
+    model_no_think="$(bridge_model_no_think "$cfg" "$preset")"
 
     # 已健康且 upstream 匹配 → 确保 watchdog 在跑后返回
     local health
