@@ -678,8 +678,80 @@ def openai_to_anthropic_resp(openai_body: dict, msg_id: str = "msg_bridge") -> d
     }
 
 
+async def _non_stream_fallback(target_url, headers, upstream_body, host_header, extra_ext,
+                               use_win_curl, req_no) -> str:
+    """流式失败时回落非流式，返回等价 SSE 帧串；失败返回空串。
+
+    两种触发场景（内网网关实测）：
+    1. 空流：`deepseek-v4.1-flash-outside` 流式恒 HTTP 200 + 仅 `data: [DONE]`；
+    2. 502 饱和：`ModelArts.81114 上游负载已饱和`，同一请求非流式重试常能成功。
+
+    why 重试：502 是间歇的（10 次采样 7 次失败但成功那 3 次正常），
+    让 CC 自己重试会重跑整个请求（含已完成的部分），在 bridge 里退避重试更省。
+    """
+    fb_body = dict(upstream_body)
+    fb_body["stream"] = False
+    fb_body.pop("stream_options", None)
+    for attempt in range(3):
+        try:
+            fb_status, fb_text = await _upstream_post(
+                target_url, headers, fb_body, host_header, extra_ext, use_win_curl
+            )
+            if fb_status == 200:
+                try:
+                    return anthropic_resp_to_sse(
+                        openai_to_anthropic_resp(json.loads(fb_text), f"msg_bridge_{req_no}")
+                    )
+                except Exception as e:
+                    print(f"[bridge] fallback JSON parse failed: {type(e).__name__}: {e}", flush=True)
+                    return ""
+            print(f"[bridge] non-stream fallback failed: status={fb_status} {fb_text[:200]}", flush=True)
+            # 只对上游过载类错误重试；其他状态码重试无意义
+            if fb_status not in (429, 502, 503, 504):
+                return ""
+        except Exception as e:
+            print(f"[bridge] non-stream fallback error: {type(e).__name__}: {e}", flush=True)
+        if attempt < 2:
+            await asyncio.sleep(1.5 * (attempt + 1))
+    return ""
+
+
+def anthropic_resp_to_sse(resp: dict) -> str:
+    """非流式 Anthropic message → 等价 SSE 帧序列。
+
+    why: 部分上游（实测内网网关 deepseek-v4.1-flash-outside）流式恒回 HTTP 200 +
+    仅 `data: [DONE]`（零 chunk），非流式却正常。此时报 upstream_incomplete 只会让
+    CC 反复重试同一个必然失败的请求；把非流式结果转成 SSE 帧下发，功能可用且
+    客户端无感（只是没有逐字流式效果）。
+    """
+    msg_id = resp.get("id", "msg_bridge")
+    model = resp.get("model", "")
+    usage = resp.get("usage") or {}
+    events = []
+    start_msg = dict(resp)
+    start_msg["content"] = []
+    start_msg["stop_reason"] = None
+    start_msg["usage"] = {"input_tokens": usage.get("input_tokens", 0), "output_tokens": 0}
+    events.append(f"event: message_start\ndata: {json.dumps({'type': 'message_start', 'message': start_msg}, ensure_ascii=False, separators=(',', ':'))}\n\n")
+    events.append('event: ping\ndata: {"type":"ping"}\n\n')
+    for idx, blk in enumerate(resp.get("content") or []):
+        if blk.get("type") == "text":
+            events.append(f"event: content_block_start\ndata: {json.dumps({'type': 'content_block_start', 'index': idx, 'content_block': {'type': 'text', 'text': ''}}, separators=(',', ':'))}\n\n")
+            events.append(f"event: content_block_delta\ndata: {json.dumps({'type': 'content_block_delta', 'index': idx, 'delta': {'type': 'text_delta', 'text': blk.get('text', '')}}, ensure_ascii=False, separators=(',', ':'))}\n\n")
+            events.append(f"event: content_block_stop\ndata: {json.dumps({'type': 'content_block_stop', 'index': idx}, separators=(',', ':'))}\n\n")
+        elif blk.get("type") == "tool_use":
+            events.append(f"event: content_block_start\ndata: {json.dumps({'type': 'content_block_start', 'index': idx, 'content_block': {'type': 'tool_use', 'id': blk.get('id', ''), 'name': blk.get('name', ''), 'input': {}}}, ensure_ascii=False, separators=(',', ':'))}\n\n")
+            events.append(f"event: content_block_delta\ndata: {json.dumps({'type': 'content_block_delta', 'index': idx, 'delta': {'type': 'input_json_delta', 'partial_json': json.dumps(blk.get('input') or {}, ensure_ascii=False)}}, ensure_ascii=False, separators=(',', ':'))}\n\n")
+            events.append(f"event: content_block_stop\ndata: {json.dumps({'type': 'content_block_stop', 'index': idx}, separators=(',', ':'))}\n\n")
+    stop_reason = resp.get("stop_reason") or "end_turn"
+    events.append(f"event: message_delta\ndata: {json.dumps({'type': 'message_delta', 'delta': {'stop_reason': stop_reason, 'stop_sequence': None, 'stop_details': {'type': 'stop', 'reason': stop_reason}}, 'usage': {'input_tokens': usage.get('input_tokens', 0), 'output_tokens': usage.get('output_tokens', 0)}}, ensure_ascii=False, separators=(',', ':'))}\n\n")
+    events.append('event: message_stop\ndata: {"type":"message_stop"}\n\n')
+    return "".join(events)
+
+
 app = FastAPI()
-state = {"upstream": "", "upstream_key": "", "upstream_model": ""}
+state = {"upstream": "", "upstream_key": "", "upstream_model": "",
+         "upstream_model_no_think": "", "reasoning_effort_override": ""}
 http_client = None
 
 # 并发闸（0 = 不限）。slow 链路（境外 DERP 中继等）在途字节一多就整体断流：
