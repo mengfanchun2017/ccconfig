@@ -255,35 +255,44 @@ def anthropic_to_openai_req(anth_body: dict, target_model: str,
     if anth_body.get("stop_sequences"):
         openai_body["stop"] = anth_body["stop_sequences"]
 
-    # thinking 开关透传：CC 用 Anth 的 thinking 字段请求思考（2.1.274 发
-    # {"type":"adaptive","display":"omitted"}，老版本发 enabled + budget_tokens）。
-    # 上游 OpenAI 协议里开关叫 enable_thinking（vLLM/SGLang 系 chat template 认这个）。
-    # 实测单位网关：只发 reasoning_effort 时 reasoning_tokens 恒为 0（模型不思考，
-    # 反而把思路当正文吐出来 → "我现在执行。发送！"式空转循环）；带上本开关才有
-    # 真实 reasoning。深度另由下面的 reasoning_effort 控制。
     th = anth_body.get("thinking") or {}
-    if th.get("type") in ("enabled", "adaptive"):
-        openai_body["enable_thinking"] = True
-
-    # effort 透传：Claude Code 的 effort 设定（/effort、CLAUDE_EFFORT）→ Anth output_config
-    # → OpenAI reasoning_effort。缺了它上游用默认档，表现"模型变傻"。
-    # 优先级高于 thinking 推导值：output_config 是用户显式设定。
     oc = anth_body.get("output_config") or {}
-    if oc.get("effort") in ("low", "medium", "high"):
-        openai_body["reasoning_effort"] = oc["effort"]
+    if allow_thinking:
+        # thinking 开关透传：CC 用 Anth 的 thinking 字段请求思考（2.1.274 发
+        # {"type":"adaptive","display":"omitted"}，老版本发 enabled + budget_tokens）。
+        # 上游 OpenAI 协议里开关叫 enable_thinking（vLLM/SGLang 系 chat template 认这个）。
+        # 实测单位网关：只发 reasoning_effort 时 reasoning_tokens 恒为 0（模型不思考，
+        # 反而把思路当正文吐出来 → "我现在执行。发送！"式空转循环）；带上本开关才有
+        # 真实 reasoning。深度另由下面的 reasoning_effort 控制。
+        if th.get("type") in ("enabled", "adaptive"):
+            openai_body["enable_thinking"] = True
 
-    # thinking 预算兜底：老 CC 只用 thinking.budget_tokens 表达思考深度，
-    # 没有 output_config 时按预算离散映射（缺省=高，<8k=低，<20k=中，>=20k=高）。
-    if "reasoning_effort" not in openai_body and th.get("type") == "enabled":
-        budget = th.get("budget_tokens")
-        if budget is None:
-            openai_body["reasoning_effort"] = "high"
-        elif budget < 8000:
-            openai_body["reasoning_effort"] = "low"
-        elif budget < 20000:
-            openai_body["reasoning_effort"] = "medium"
-        else:
-            openai_body["reasoning_effort"] = "high"
+        # effort 透传：Claude Code 的 effort 设定（/effort、CLAUDE_EFFORT）→ Anth output_config
+        # → OpenAI reasoning_effort。缺了它上游用默认档，表现"模型变傻"。
+        # 优先级高于 thinking 推导值：output_config 是用户显式设定。
+        if oc.get("effort") in ("low", "medium", "high"):
+            openai_body["reasoning_effort"] = oc["effort"]
+
+        # thinking 预算兜底：老 CC 只用 thinking.budget_tokens 表达思考深度，
+        # 没有 output_config 时按预算离散映射（缺省=高，<8k=低，<20k=中，>=20k=高）。
+        if "reasoning_effort" not in openai_body and th.get("type") == "enabled":
+            budget = th.get("budget_tokens")
+            if budget is None:
+                openai_body["reasoning_effort"] = "high"
+            elif budget < 8000:
+                openai_body["reasoning_effort"] = "low"
+            elif budget < 20000:
+                openai_body["reasoning_effort"] = "medium"
+            else:
+                openai_body["reasoning_effort"] = "high"
+
+    # preset 级 reasoning_effort 是**默认档**，不是强制覆盖：客户端显式设了
+    # （output_config.effort）就听客户端的，没表态才落到 preset。
+    # why 不再强制覆盖：单位网关实测完全忽略该参数（24 次配对采样三档思考率
+    # 95%/95%/95%），强制覆盖只会吃掉用户的 /effort 设定而毫无收益。
+    _eo = state.get("reasoning_effort_override") or ""
+    if _eo and allow_thinking and "reasoning_effort" not in openai_body:
+        openai_body["reasoning_effort"] = _eo
 
     tools = anth_body.get("tools")
     if tools:
@@ -1015,7 +1024,14 @@ async def messages(request: Request):
     body = await request.json()
     stream = bool(body.get("stream"))
 
-    upstream_body = anthropic_to_openai_req(body, state["upstream_model"])
+    # 双路由：客户端关思考时走不思考模型（preset 配了 model_no_think 才生效）。
+    # why 换路由而不是发参数：实测单位网关完全忽略 reasoning_effort/enable_thinking，
+    # 关不掉思考；换成 no-think 路由后实测 reasoning_tokens 恒 0、工具调用稳定。
+    _wants_think = _client_wants_thinking(body)
+    _target_model = state["upstream_model"]
+    if not _wants_think and state.get("upstream_model_no_think"):
+        _target_model = state["upstream_model_no_think"]
+    upstream_body = anthropic_to_openai_req(body, _target_model, allow_thinking=_wants_think)
     headers = {
         "Authorization": f"Bearer {state['upstream_key']}",
         "Content-Type": "application/json",
@@ -1317,6 +1333,13 @@ def main():
     parser.add_argument("--max-concurrency", type=int,
                         default=int(os.environ.get("OPENAI_BRIDGE_MAX_CONCURRENCY", "0") or 0),
                         help="同时在途的上游请求上限（0=不限）；慢链路用排队换可靠性")
+    parser.add_argument("--reasoning-effort-override",
+                        default=os.environ.get("OPENAI_BRIDGE_REASONING_EFFORT", ""),
+                        help="preset 默认思考档（none/low/medium/high）；仅当客户端未表态时生效，"
+                             "空=不注入。用于压制默认疯狂思考的模型")
+    parser.add_argument("--upstream-model-no-think",
+                        default=os.environ.get("OPENAI_BRIDGE_MODEL_NO_THINK", ""),
+                        help="不思考路由用的模型名；空=不启用双路由（关思考时仍走主模型）")
     args = parser.parse_args()
 
     if not args.upstream:
@@ -1334,8 +1357,10 @@ def main():
     state["upstream_original"] = os.environ.get("OPENAI_BRIDGE_UPSTREAM_ORIGINAL", args.upstream)
     state["skip_tls_verify"] = args.skip_tls_verify
     state["max_concurrency"] = args.max_concurrency
+    state["reasoning_effort_override"] = (args.reasoning_effort_override or "").strip()
+    state["upstream_model_no_think"] = (args.upstream_model_no_think or "").strip()
 
-    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl} skip_tls_verify={args.skip_tls_verify} max_conc={args.max_concurrency}", flush=True)
+    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} model_no_think={args.upstream_model_no_think or '(none)'} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl} skip_tls_verify={args.skip_tls_verify} max_conc={args.max_concurrency} reason_effort={args.reasoning_effort_override or '(client)'}", flush=True)
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
