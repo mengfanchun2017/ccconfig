@@ -509,8 +509,17 @@ ensure_bridge() {
             local cur_mc
             cur_mc=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('max_concurrency',0))" 2>/dev/null || echo "")
             local want_mc="${max_conc:-0}"
+            local cur_re cur_mnt
+            cur_re=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('reasoning_effort_override',''))" 2>/dev/null || echo "")
+            cur_mnt=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream_model_no_think',''))" 2>/dev/null || echo "")
+            # 思考档 / 不思考路由也要比：从配了的 preset 切到没配的 preset 时必须重启，
+            # 否则残留的 none 或旧 no-think 模型会继续压制新 preset（配置"切不回来"）
             if [[ -n "$cur_mc" && "$cur_mc" != "$want_mc" ]]; then
                 info "  max_concurrency 不符（期望 $want_mc，实际 $cur_mc），重启 bridge..."
+            elif [[ "$cur_re" != "${reason_effort:-}" ]]; then
+                info "  reasoning_effort 不符（期望 '${reason_effort:-空}'，实际 '${cur_re:-空}'），重启 bridge..."
+            elif [[ "$cur_mnt" != "${model_no_think:-}" ]]; then
+                info "  model_no_think 不符（期望 '${model_no_think:-空}'，实际 '${cur_mnt:-空}'），重启 bridge..."
             elif [[ -n "$cur_wc" && "$cur_wc" != "$want_wc" ]]; then
                 info "  win_curl 模式不符（期望 $want_wc，实际 $cur_wc），重启 bridge..."
             else
@@ -528,7 +537,7 @@ ensure_bridge() {
     _kill_by_port "$BRIDGE_PORT"
 
     _bridge_spawn "$upstream" "$model" "$key" "$host_header" "$win_curl" "$BRIDGE_PORT" \
-        "$HOME/.cache/openai_bridge.log" "$max_conc"
+        "$HOME/.cache/openai_bridge.log" "$max_conc" "$reason_effort" "$model_no_think"
 
     # 等启动（最多 5s）
     local h=""

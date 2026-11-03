@@ -1313,6 +1313,8 @@ async def health():
         "use_win_curl": state.get("use_win_curl", False),
         "skip_tls_verify": state.get("skip_tls_verify", False),
         "max_concurrency": int(state.get("max_concurrency") or 0),
+        "reasoning_effort_override": state.get("reasoning_effort_override", ""),
+        "upstream_model_no_think": state.get("upstream_model_no_think", ""),
     }
 
 
