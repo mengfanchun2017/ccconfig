@@ -110,19 +110,6 @@ for pdir in "$PLUGINS"/*/; do
             drift=$((drift + 1))
         fi
     done
-
-    # fcore boot stub（独立的一份，源在 fcore）
-    if [[ -f "$FCORE_SRC" && "$pname" != "$FCORE_PLUGIN" ]]; then
-        if [[ -f "$dst/$FCORE_STUB" ]] && cmp -s "$FCORE_SRC" "$dst/$FCORE_STUB"; then
-            uptodate=$((uptodate + 1))
-        elif [[ $CHECK_ONLY -eq 1 ]]; then
-            err "  $pname/$FCORE_STUB 缺失或与源不一致"
-            drift=$((drift + 1))
-        else
-            cp "$FCORE_SRC" "$dst/$FCORE_STUB"
-            copied=$((copied + 1))
-        fi
-    fi
 done
 
 section "结果"
