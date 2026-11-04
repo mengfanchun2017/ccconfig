@@ -1384,6 +1384,12 @@ def main():
     parser.add_argument("--vision-model",
                         default=os.environ.get("OPENAI_BRIDGE_VISION_MODEL", ""),
                         help="视觉路由用的模型名；请求含图片时改发它。空=不启用（图片直接发主模型）")
+    parser.add_argument("--vision-upstream",
+                        default=os.environ.get("OPENAI_BRIDGE_VISION_UPSTREAM", ""),
+                        help="视觉路由的上游 base_url；空=复用主上游。用于视觉侧跨供应商")
+    parser.add_argument("--vision-key",
+                        default=os.environ.get("OPENAI_BRIDGE_VISION_KEY", ""),
+                        help="视觉路由的上游 key；空=复用主上游 key")
     args = parser.parse_args()
 
     if not args.upstream:
@@ -1404,6 +1410,8 @@ def main():
     state["reasoning_effort_override"] = (args.reasoning_effort_override or "").strip()
     state["upstream_model_no_think"] = (args.upstream_model_no_think or "").strip()
     state["vision_model"] = (args.vision_model or "").strip()
+    state["vision_upstream"] = (args.vision_upstream or "").strip()
+    state["vision_key"] = (args.vision_key or "").strip()
 
     print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} model_no_think={args.upstream_model_no_think or '(none)'} vision_model={args.vision_model or '(none)'} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl} skip_tls_verify={args.skip_tls_verify} max_conc={args.max_concurrency} reason_effort={args.reasoning_effort_override or '(client)'}", flush=True)
     import uvicorn
