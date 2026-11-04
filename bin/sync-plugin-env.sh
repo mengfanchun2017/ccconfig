@@ -34,6 +34,13 @@ STUBS=("_skillconf_boot.sh" "_skillconf_boot.py")
 # 单一实现本体：只在 ffeishu 维护，**不**分发（分发它会退化成 N 份实现）
 IMPL=("plugin_env.sh" "config_env.py")
 
+# fcore（机械内核）的 boot stub 单独分发：源在 fcore/references/_boot.sh。
+# 与上面 ffeishu 的 stub 是两套不同实现（fcore 是 CLI+lib，ffeishu 是 8 级链函数库），
+# 并存是为了不破坏已在跑的机器；新代码一律用 fcore。
+FCORE_PLUGIN="fcore"
+FCORE_STUB="_boot.sh"
+FCORE_SRC="$PLUGINS/$FCORE_PLUGIN/references/$FCORE_STUB"
+
 SRC_DIR="$PLUGINS/$SRC_PLUGIN/references"
 [[ -d "$SRC_DIR" ]] || { err "源目录不存在: $SRC_DIR"; exit 1; }
 [[ -d "$PLUGINS" ]] || { err "plugins 目录不存在: $PLUGINS"; exit 1; }
@@ -83,6 +90,19 @@ for pdir in "$PLUGINS"/*/; do
             drift=$((drift + 1))
         fi
     done
+
+    # fcore boot stub（独立的一份，源在 fcore）
+    if [[ -f "$FCORE_SRC" && "$pname" != "$FCORE_PLUGIN" ]]; then
+        if [[ -f "$dst/$FCORE_STUB" ]] && cmp -s "$FCORE_SRC" "$dst/$FCORE_STUB"; then
+            uptodate=$((uptodate + 1))
+        elif [[ $CHECK_ONLY -eq 1 ]]; then
+            err "  $pname/$FCORE_STUB 缺失或与源不一致"
+            drift=$((drift + 1))
+        else
+            cp "$FCORE_SRC" "$dst/$FCORE_STUB"
+            copied=$((copied + 1))
+        fi
+    fi
 done
 
 section "结果"
