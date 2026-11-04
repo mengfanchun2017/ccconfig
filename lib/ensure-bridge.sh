@@ -374,17 +374,28 @@ except Exception:
 #     上游收到 image_url 会静默丢图并编造内容、不报错。视觉模型可独立指定
 #     （如 glm-4.6v-flash），也可指向同上游另一个多模态模型。
 # 用法: bridge_vision_model <merged_cfg> <preset>
-bridge_vision_model() {
-    local cfg="$1" preset="$2"
+bridge_vision_field() {
+    local cfg="$1" preset="$2" field="$3"
     [[ -n "$cfg" && -n "$preset" ]] || return 0
     python3 -c "
 import json, sys
 try:
-    v = json.load(open(sys.argv[1])).get('llms', {}).get(sys.argv[2], {}).get('vision_model')
+    v = json.load(open(sys.argv[1])).get('llms', {}).get(sys.argv[2], {}).get(sys.argv[3])
     print(str(v).strip() if v else '')
 except Exception:
     print('')
-" "$cfg" "$preset" 2>/dev/null
+" "$cfg" "$preset" "$field" 2>/dev/null
+}
+
+bridge_vision_model() { bridge_vision_field "$1" "$2" vision_model; }
+bridge_vision_upstream() { bridge_vision_field "$1" "$2" vision_upstream; }
+# vision_key 不明文存定义（定义要能进公开仓）：定义里只写 vision_key_preset，
+# 指向另一个 preset 的 key（同一把 key 复用）。桥按该 preset 去 merged 里取真 key。
+bridge_vision_key() {
+    local cfg="$1" preset="$2"
+    local ref; ref="$(bridge_vision_field "$cfg" "$preset" vision_key_preset)"
+    [[ -z "$ref" ]] && return 0
+    bridge_vision_field "$cfg" "$ref" key
 }
 
 # 读 preset 的 model_no_think（不思考路由的模型名）。空=不启用双路由。
@@ -428,11 +439,11 @@ _kill_by_port() {
 #     裸 `( cd; nohup ... & )` 的子 shell 退出会 SIGHUP 掉 python。setsid 直接给新
 #     会话（无控制终端 → 收不到 SIGHUP）解决同一问题，同时**不必把 API Key 写进
 #     磁盘**（旧 wrapper 含明文 Key，脚本被中断时就残留在 /tmp）。
-# 用法: _bridge_spawn <upstream> <model> <key> <host_header> <win_curl> [<port>] [<log>] [<max_conc>] [<reason_effort>] [<model_no_think>] [<vision_model>]
+# 用法: _bridge_spawn <upstream> <model> <key> <host_header> <win_curl> [<port>] [<log>] [<max_conc>] [<reason_effort>] [<model_no_think>] [<vision_model>] [<vision_upstream>] [<vision_key>]
 _bridge_spawn() {
     local upstream="$1" model="$2" key="$3" host_header="$4" win_curl="$5"
     local port="${6:-${BRIDGE_PORT:-8898}}" log="${7:-$HOME/.cache/openai_bridge.log}"
-    local max_conc="${8:-0}" reason_effort="${9:-}" model_no_think="${10:-}" vision_model="${11:-}"
+    local max_conc="${8:-0}" reason_effort="${9:-}" model_no_think="${10:-}" vision_model="${11:-}" vision_upstream="${12:-}" vision_key="${13:-}"
     local extra_args=""
     [[ "$upstream" == https:* ]] && extra_args="--skip-tls-verify"
     mkdir -p "$HOME/.cache"   # 目录不存在会让重定向失败、bridge 根本起不来
@@ -445,6 +456,8 @@ _bridge_spawn() {
             OPENAI_BRIDGE_MODEL="$model" \
             OPENAI_BRIDGE_MODEL_NO_THINK="$model_no_think" \
             OPENAI_BRIDGE_VISION_MODEL="$vision_model" \
+            OPENAI_BRIDGE_VISION_UPSTREAM="$vision_upstream" \
+            OPENAI_BRIDGE_VISION_KEY="$vision_key" \
             OPENAI_BRIDGE_REASONING_EFFORT="$reason_effort" \
             OPENAI_BRIDGE_HOST="$host_header" \
             OPENAI_BRIDGE_MAX_CONCURRENCY="$max_conc" \
@@ -498,8 +511,10 @@ ensure_bridge() {
     local max_conc
     max_conc="$(bridge_max_concurrency "$cfg" "$preset")"
     # 思考默认档 / 不思考路由：值变了要重启才生效（运行态在 /health 里报）
-    local reason_effort model_no_think vision_model
+    local reason_effort model_no_think vision_model vision_upstream vision_key
     vision_model="$(bridge_vision_model "$cfg" "$preset")"
+    vision_upstream="$(bridge_vision_upstream "$cfg" "$preset")"
+    vision_key="$(bridge_vision_key "$cfg" "$preset")"
     reason_effort="$(bridge_reasoning_effort "$cfg" "$preset")"
     model_no_think="$(bridge_model_no_think "$cfg" "$preset")"
 
@@ -529,10 +544,11 @@ ensure_bridge() {
             local cur_mc
             cur_mc=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('max_concurrency',0))" 2>/dev/null || echo "")
             local want_mc="${max_conc:-0}"
-            local cur_re cur_mnt cur_vm
+            local cur_re cur_mnt cur_vm cur_vu
             cur_re=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('reasoning_effort_override',''))" 2>/dev/null || echo "")
             cur_mnt=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('upstream_model_no_think',''))" 2>/dev/null || echo "")
             cur_vm=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('vision_model',''))" 2>/dev/null || echo "")
+            cur_vu=$(echo "$health" | python3 -c "import json,sys; print(json.load(sys.stdin).get('vision_upstream_set',''))" 2>/dev/null || echo "")
             # 思考档 / 不思考路由也要比：从配了的 preset 切到没配的 preset 时必须重启，
             # 否则残留的 none 或旧 no-think 模型会继续压制新 preset（配置"切不回来"）
             if [[ -n "$cur_mc" && "$cur_mc" != "$want_mc" ]]; then
@@ -541,7 +557,7 @@ ensure_bridge() {
                 info "  reasoning_effort 不符（期望 '${reason_effort:-空}'，实际 '${cur_re:-空}'），重启 bridge..."
             elif [[ "$cur_mnt" != "${model_no_think:-}" ]]; then
                 info "  model_no_think 不符（期望 '${model_no_think:-空}'，实际 '${cur_mnt:-空}'），重启 bridge..."
-            elif [[ "$cur_vm" != "${vision_model:-}" ]]; then
+            elif [[ "$cur_vm" != "${vision_model:-}" ]] || [[ "$cur_vu" != "$( [[ -n "${vision_upstream:-}" ]] && echo True || echo False )" ]]; then
                 info "  vision_model 不符（期望 '${vision_model:-空}'，实际 '${cur_vm:-空}'），重启 bridge..."
             elif [[ -n "$cur_wc" && "$cur_wc" != "$want_wc" ]]; then
                 info "  win_curl 模式不符（期望 $want_wc，实际 $cur_wc），重启 bridge..."
@@ -560,7 +576,7 @@ ensure_bridge() {
     _kill_by_port "$BRIDGE_PORT"
 
     _bridge_spawn "$upstream" "$model" "$key" "$host_header" "$win_curl" "$BRIDGE_PORT" \
-        "$HOME/.cache/openai_bridge.log" "$max_conc" "$reason_effort" "$model_no_think" "$vision_model"
+        "$HOME/.cache/openai_bridge.log" "$max_conc" "$reason_effort" "$model_no_think" "$vision_model" "$vision_upstream" "$vision_key"
 
     # 等启动（最多 5s）
     local h=""

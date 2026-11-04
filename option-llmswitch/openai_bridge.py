@@ -1354,6 +1354,9 @@ async def health():
         "max_concurrency": int(state.get("max_concurrency") or 0),
         "reasoning_effort_override": state.get("reasoning_effort_override", ""),
         "upstream_model_no_think": state.get("upstream_model_no_think", ""),
+        "vision_model": state.get("vision_model", ""),
+        "vision_upstream_set": bool(state.get("vision_upstream")),
+        "vision_key_set": bool(state.get("vision_key")),
     }
 
 
