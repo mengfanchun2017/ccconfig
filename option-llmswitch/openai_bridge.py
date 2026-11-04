@@ -105,6 +105,31 @@ def _image_part(blk: dict):
     return None
 
 
+def _body_has_image(anth_body: dict) -> bool:
+    """请求里是否含图片块（顶层消息或 tool_result 内层都算）。
+
+    why 需要：主模型是纯文本时（如 deepseek-v4.1-flash），上游收到 image_url
+    会**静默丢弃**不报错，模型于是凭空编造图片内容（实测返回"白底圆角矩形里写着0"
+    vs 真实"深紫底粉色像素人"）。检测到图片就换到视觉模型是唯一可靠的兜底。
+    """
+    for m in anth_body.get("messages") or []:
+        c = m.get("content")
+        if not isinstance(c, list):
+            continue
+        for blk in c:
+            if not isinstance(blk, dict):
+                continue
+            if blk.get("type") in ("image", "image_url"):
+                return True
+            if blk.get("type") == "tool_result":
+                inner = blk.get("content")
+                if isinstance(inner, list) and any(
+                        isinstance(b, dict) and b.get("type") in ("image", "image_url")
+                        for b in inner):
+                    return True
+    return False
+
+
 def _client_wants_thinking(anth_body: dict) -> bool:
     """客户端是否明确要求思考。
 
@@ -1031,6 +1056,12 @@ async def messages(request: Request):
     _target_model = state["upstream_model"]
     if not _wants_think and state.get("upstream_model_no_think"):
         _target_model = state["upstream_model_no_think"]
+    # 视觉路由：请求含图片且 preset 配了 vision_model 时改发视觉模型。
+    # why 优先级高于 no_think：纯文本模型收到 image_url 会静默丢图并编造内容，
+    # 保住"能看见"比省思考 token 重要。客户端显式关思考仍生效（allow_thinking
+    # 照旧传下去），只是模型名换成视觉的。
+    if state.get("vision_model") and _body_has_image(body):
+        _target_model = state["vision_model"]
     upstream_body = anthropic_to_openai_req(body, _target_model, allow_thinking=_wants_think)
     headers = {
         "Authorization": f"Bearer {state['upstream_key']}",
