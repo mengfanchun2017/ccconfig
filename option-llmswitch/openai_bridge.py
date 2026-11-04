@@ -801,7 +801,8 @@ def anthropic_resp_to_sse(resp: dict) -> str:
 
 app = FastAPI()
 state = {"upstream": "", "upstream_key": "", "upstream_model": "",
-         "upstream_model_no_think": "", "reasoning_effort_override": ""}
+         "upstream_model_no_think": "", "reasoning_effort_override": "",
+         "vision_model": ""}
 http_client = None
 
 # 并发闸（0 = 不限）。slow 链路（境外 DERP 中继等）在途字节一多就整体断流：
@@ -1373,6 +1374,9 @@ def main():
     parser.add_argument("--upstream-model-no-think",
                         default=os.environ.get("OPENAI_BRIDGE_MODEL_NO_THINK", ""),
                         help="不思考路由用的模型名；空=不启用双路由（关思考时仍走主模型）")
+    parser.add_argument("--vision-model",
+                        default=os.environ.get("OPENAI_BRIDGE_VISION_MODEL", ""),
+                        help="视觉路由用的模型名；请求含图片时改发它。空=不启用（图片直接发主模型）")
     args = parser.parse_args()
 
     if not args.upstream:
@@ -1392,8 +1396,9 @@ def main():
     state["max_concurrency"] = args.max_concurrency
     state["reasoning_effort_override"] = (args.reasoning_effort_override or "").strip()
     state["upstream_model_no_think"] = (args.upstream_model_no_think or "").strip()
+    state["vision_model"] = (args.vision_model or "").strip()
 
-    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} model_no_think={args.upstream_model_no_think or '(none)'} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl} skip_tls_verify={args.skip_tls_verify} max_conc={args.max_concurrency} reason_effort={args.reasoning_effort_override or '(client)'}", flush=True)
+    print(f"[openai-bridge] upstream={args.upstream} model={args.upstream_model} model_no_think={args.upstream_model_no_think or '(none)'} vision_model={args.vision_model or '(none)'} host_header={args.upstream_host or '(none)'} win_curl={args.use_win_curl} skip_tls_verify={args.skip_tls_verify} max_conc={args.max_concurrency} reason_effort={args.reasoning_effort_override or '(client)'}", flush=True)
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 

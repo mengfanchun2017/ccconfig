@@ -369,6 +369,24 @@ except Exception:
 " "$cfg" "$preset" 2>/dev/null
 }
 
+# 读 preset 的 vision_model（视觉路由模型名）。空=不启用视觉路由。
+# why 单列字段而非复用 model：主模型多半是纯文本（deepseek-*/glm-*-flash 等），
+#     上游收到 image_url 会静默丢图并编造内容、不报错。视觉模型可独立指定
+#     （如 glm-4.6v-flash），也可指向同上游另一个多模态模型。
+# 用法: bridge_vision_model <merged_cfg> <preset>
+bridge_vision_model() {
+    local cfg="$1" preset="$2"
+    [[ -n "$cfg" && -n "$preset" ]] || return 0
+    python3 -c "
+import json, sys
+try:
+    v = json.load(open(sys.argv[1])).get('llms', {}).get(sys.argv[2], {}).get('vision_model')
+    print(str(v).strip() if v else '')
+except Exception:
+    print('')
+" "$cfg" "$preset" 2>/dev/null
+}
+
 # 读 preset 的 model_no_think（不思考路由的模型名）。空=不启用双路由。
 # why 换路由而不是发参数：单位网关完全忽略 reasoning_effort/enable_thinking，
 #     发参数关不掉思考；只有换成 no-think 模型才真的不思考。
