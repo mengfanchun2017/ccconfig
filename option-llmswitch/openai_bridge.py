@@ -802,7 +802,7 @@ def anthropic_resp_to_sse(resp: dict) -> str:
 app = FastAPI()
 state = {"upstream": "", "upstream_key": "", "upstream_model": "",
          "upstream_model_no_think": "", "reasoning_effort_override": "",
-         "vision_model": ""}
+         "vision_model": "", "vision_upstream": "", "vision_key": ""}
 http_client = None
 
 # 并发闸（0 = 不限）。slow 链路（境外 DERP 中继等）在途字节一多就整体断流：
@@ -1061,14 +1061,21 @@ async def messages(request: Request):
     # why 优先级高于 no_think：纯文本模型收到 image_url 会静默丢图并编造内容，
     # 保住"能看见"比省思考 token 重要。客户端显式关思考仍生效（allow_thinking
     # 照旧传下去），只是模型名换成视觉的。
-    if state.get("vision_model") and _body_has_image(body):
+    _is_vision_route = bool(state.get("vision_model")) and _body_has_image(body)
+    if _is_vision_route:
         _target_model = state["vision_model"]
     upstream_body = anthropic_to_openai_req(body, _target_model, allow_thinking=_wants_think)
+    # 视觉路由可指向别的供应商（主模型内网 deepseek + 视觉公网智谱）：
+    # vision_upstream / vision_key 独立配置，缺省则复用主上游。
+    _v_up = (state.get("vision_upstream") or "").strip()
+    _v_key = (state.get("vision_key") or "").strip()
+    _up_base = (_v_up if (_is_vision_route and _v_up) else state["upstream"])
+    _up_key = (_v_key if (_is_vision_route and _v_key) else state["upstream_key"])
     headers = {
-        "Authorization": f"Bearer {state['upstream_key']}",
+        "Authorization": f"Bearer {_up_key}",
         "Content-Type": "application/json",
     }
-    upstream_base = state["upstream"].rstrip("/")
+    upstream_base = _up_base.rstrip("/")
     host_header = state.get("upstream_host")
     use_win_curl = state.get("use_win_curl", False)
 
