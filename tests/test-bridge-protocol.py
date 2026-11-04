@@ -143,6 +143,29 @@ def main():
     ck("url 型图片不丢", any(s.get("image_url", {}).get("url") == "https://x/y.png"
                            for m in urlmsgs for s in m["content"]), str(urlmsgs))
 
+    print("== 视觉路由检测：请求含图才切视觉模型 ==")
+    # why：主模型是纯文本时（内网 deepseek、glm-*-flash-text 等），上游收到
+    # image_url 会**静默丢弃不报错**，模型于是凭空编造图片内容。实测把同一张
+    # PNG 发给纯文本主模型，返回"白底圆角矩形里写着 0"，而真图是深紫底粉色像素人。
+    # 判据只能是「请求里有没有图片块」，所以这里逐种形态钉死。
+    ck("纯文本请求不算含图", not ob._body_has_image({"messages": [{"role": "user", "content": "hi"}]}))
+    ck("顶层 base64 图算含图", ob._body_has_image({"messages": [{"role": "user", "content": [
+        {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "x"}}]}]}))
+    ck("顶层 url 图算含图", ob._body_has_image({"messages": [{"role": "user", "content": [
+        {"type": "image", "source": {"type": "url", "url": "https://x/y.png"}}]}]}))
+    ck("image_url 形态也算", ob._body_has_image({"messages": [{"role": "user", "content": [
+        {"type": "image_url", "image_url": {"url": "https://x/y.png"}}]}]}))
+    # tool_result 里嵌的图同样要触发（截图工具返回值常见）
+    ck("tool_result 内层图算含图", ob._body_has_image({"messages": [{"role": "user", "content": [
+        {"type": "tool_result", "tool_use_id": "t1", "content": [
+            {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "x"}}]}]}]}))
+    ck("tool_result 无图不算", not ob._body_has_image({"messages": [{"role": "user", "content": [
+        {"type": "tool_result", "tool_use_id": "t1", "content": [{"type": "text", "text": "ok"}]}]}]}))
+    ck("历史轮含图也算", ob._body_has_image({"messages": [
+        {"role": "user", "content": [{"type": "image", "source": {"type": "base64", "data": "x"}}]},
+        {"role": "assistant", "content": "嗯"},
+        {"role": "user", "content": "继续"}]}))
+
     print("== stream_options 仅在流式时带 ==")
     ck("stream=True 带 include_usage",
        ob.anthropic_to_openai_req({"stream": True, "messages": []}, "m").get("stream_options") == {"include_usage": True})
