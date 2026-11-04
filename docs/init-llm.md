@@ -193,6 +193,9 @@ LLM 配置拆三层，key 与预设定义彻底分离：
       "use_bridge": true | false |缺失,
       "host_header": "<domain>",
       "max_context_tokens": 400,
+      "vision_model": "<视觉模型名>",
+      "vision_upstream": "<视觉侧 base_url>",
+      "vision_key_preset": "<借哪个 preset 的 key>",
       "builtin": true
     }
   }
@@ -223,6 +226,19 @@ key 文件（`llm.json`）只管 key，不与预设定义耦合：
   - `"False"` 显式禁 bridge（OpenAI-only + false → 早报错，不静默兜底）
   - **缺失** → OpenAI-only 端点自动起 bridge，Anthropic 端点直连
 - **`host_header`** 可选（tailscale/SSH 透传场景证书 SAN 不匹配 IP 时，把 SNI + Host 改成证书里的真实域名/IP）
+- **`vision_model`** 可选，视觉路由。主模型是纯文本时（内网 `deepseek-*`、`glm-*-flash` 等），
+  上游收到 `image_url` 会**静默丢弃且不报错**，模型于是凭空编造图片内容（实测：同一张 PNG
+  发给纯文本主模型，返回"白底圆角矩形里写着 0"，真图是深紫底粉色像素人；流式则回"我看不到
+  你提到的图片"，`input_tokens` 只有 16 而整图该上千）。配了 `vision_model` 后，**请求含图**
+  （含 `tool_result` 内层图）就改发视觉模型，其余仍走主模型。默认不启用=保持原行为。
+- **`vision_upstream`** 可选，视觉侧 base_url。留空=复用主上游；**跨供应商才填**
+  （主模型内网 + 视觉公网智谱是最常见组合）。
+- **`vision_key_preset`** 可选，视觉侧 key 取哪个 preset 的。留空=同本 preset。
+  **定义里绝不写明文 key** —— 定义要能进公开仓（见 [[ccconfig-open-source]]）。
+
+> ⚠️ Anthropic 兼容端点（如智谱 `open.bigmodel.cn/api/anthropic`）**不透传图片**：
+> 实测同一张图走该端点返回"白背景、主体圆形"（幻觉），走 `/api/paas/v4` 才答对。
+> 所以视觉侧要走 **OpenAI 格式 + bridge**，不能图省事用 Anthropic 端点直连。
 - **`max_context_tokens`** 可选，单位 **1000 tokens**（`400` = 400k）。写进 CC env
   `CLAUDE_CODE_MAX_CONTEXT_TOKENS`（×1000 → `400000`）。未声明 → 落全局默认。
   详见 [ADR-0045](adr/0045-llm-context-window-config.md)。

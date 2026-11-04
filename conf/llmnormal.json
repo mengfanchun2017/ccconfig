@@ -1,5 +1,5 @@
 {
-  "description": "内置 LLM 预设定义（开源）。key 不在此文件，用户配置 key 通过 3a 更新存 ccprivate/conf/llm.json（纯 key）。max_context_tokens 单位 1000 tokens（400 = 400k），可被 llmprivate.json 同名薄覆盖。",
+  "description": "内置 LLM 预设定义（开源）。key 不在此文件，用户配置 key 通过 3a 更新存 ccprivate/conf/llm.json（纯 key）。max_context_tokens 单位 1000 tokens（400 = 400k），可被 llmprivate.json 同名薄覆盖。vision_model/vision_upstream/vision_key_preset 为视觉路由（主模型纯文本时带图请求改发视觉模型），vision_key_preset 指向某个 preset 取其 key，定义里不放明文 key。",
   "llms": {
     "minimax31": {
       "name": "minimax3.1",
@@ -23,6 +23,17 @@
       "model": "mimo-v2.6-flash",
       "small_model": "mimo-v2.6-flash",
       "max_context_tokens": 400,
+      "builtin": true
+    },
+    "glm46vflash": {
+      "name": "glm4.6v-flash",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "glm-4.6v-flash",
+      "small_model": "glm-4.6v-flash",
+      "vision_model": "glm-4.6v-flash",
+      "max_context_tokens": 128,
+      "max_concurrency": 1,
+      "use_bridge": true,
       "builtin": true
     }
   }
