@@ -52,8 +52,14 @@ max_conc="$(bridge_max_concurrency "$cfg" "$preset")"
 # 重启后设定静默丢失，退回"客户端 thinking 决定"→ 又变回疯狂思考
 reason_effort="$(bridge_reasoning_effort "$cfg" "$preset")"
 model_no_think="$(bridge_model_no_think "$cfg" "$preset")"
+# 视觉路由同理：漏了这三个，桥挂掉被 watchdog 重启后视觉路由静默消失，
+# 表现回「纯文本模型收到图开始编造」——而 health 只报主上游，看不出掉过配置
+vision_model="$(bridge_vision_model "$cfg" "$preset")"
+vision_upstream="$(bridge_vision_upstream "$cfg" "$preset")"
+vision_key="$(bridge_vision_key "$cfg" "$preset")"
 _bridge_spawn "$up" "$model" "$key" "$hh" "$win_curl" "$port" \
-    "$HOME/.cache/openai_bridge.log" "$max_conc" "$reason_effort" "$model_no_think"
+    "$HOME/.cache/openai_bridge.log" "$max_conc" "$reason_effort" "$model_no_think" \
+    "$vision_model" "$vision_upstream" "$vision_key"
 
 # 等 health 确认真的起来了：旧版无条件 exit 0，watchdog 永远学不到"启动失败"，
 # 只能靠下一轮的 health 间接推断
