@@ -863,8 +863,25 @@ with open(pf, 'w') as f: json.dump(pd, f, indent=4, ensure_ascii=False)
 PYEOF
 }
 
+# 视觉路由三问。输出到全局 VISION_MODEL / VISION_UPSTREAM / VISION_KEY_PRESET。
+# why 全局而非 local：调用方在同一个函数里用 $() 组装 entry，local 变量跨不过去。
+# 空输入一律视为「不启用」（返回空串），组装时字段被省略 —— 用户想关掉视觉路由
+# 就清空，不必记特殊词（旧版 host_header 用 clear 关键字，这里统一为清空即禁用）。
+_prompt_vision_fields() {
+    local cur_model="${1:-}" cur_up="${2:-}" cur_key="${3:-}"
+    VISION_MODEL=""; VISION_UPSTREAM=""; VISION_KEY_PRESET=""
+
+    echo -e "  ${DIM}视觉路由（可选）：主模型是纯文本时，带图请求改发视觉模型。留空=不启用${NC}" >&2
+    VISION_MODEL=$(prompt "  vision_model（视觉模型名，如 glm-4.6v-flash）" "$cur_model")
+    [[ -z "$VISION_MODEL" ]] && return 0
+    VISION_UPSTREAM=$(prompt "  vision_upstream（视觉侧 base_url，留空=同主上游；跨供应商才填）" "$cur_up")
+    VISION_KEY_PRESET=$(prompt "  vision_key_preset（哪个 preset 的 key 给视觉用，留空=同本 preset）" "$cur_key")
+    return 0
+}
+
 add_custom_preset() {
     local name display base_url model small host_header max_ctx use_bridge key
+    local VISION_MODEL="" VISION_UPSTREAM="" VISION_KEY_PRESET=""
 
     while true; do
         name=$(prompt "预设 ID（小写字母/数字，如 homeds41flash）")
@@ -897,6 +914,7 @@ add_custom_preset() {
     if ! [[ "$max_ctx" =~ ^[0-9]+$ ]] || (( max_ctx < 1 || max_ctx > 10000 )); then
         error "非法窗口值: $max_ctx（需 1-10000 整数）"; return 1
     fi
+    _prompt_vision_fields "" "" ""
     key=$(prompt_key_plain "API Key（无则回车跳过，之后 3a 录入）" "")
     if [[ -z "$key" ]]; then
         warn "未录入 Key，预设标记为 [无 Key]，切换前需 3a 录入"
@@ -905,7 +923,9 @@ add_custom_preset() {
     # 组装定义条目（无 key 字段）
     local entry
     entry=$(NAME="$name" DISPLAY="$display" BASE_URL="$base_url" MODEL="$model" SMALL="$small" \
-        USE_BRIDGE="$use_bridge" HOST_HEADER="$host_header" MAX_CTX="$max_ctx" python3 <<'PYEOF'
+        USE_BRIDGE="$use_bridge" HOST_HEADER="$host_header" MAX_CTX="$max_ctx" \
+        VISION_MODEL="$VISION_MODEL" VISION_UPSTREAM="$VISION_UPSTREAM" VISION_KEY_PRESET="$VISION_KEY_PRESET" \
+        python3 <<'PYEOF'
 import json, os
 e = {
     "name": os.environ["DISPLAY"],
@@ -918,6 +938,13 @@ if os.environ.get("USE_BRIDGE"):
     e["use_bridge"] = os.environ["USE_BRIDGE"] == "true"
 if os.environ.get("HOST_HEADER"):
     e["host_header"] = os.environ["HOST_HEADER"]
+# 视觉路由（可选）：主模型纯文本时，把带图请求改发视觉模型。
+# vision_key_preset 指向另一个 preset 拿 key —— 定义里不写明文 key（定义要能进公开仓）
+for _k, _env in (("vision_model", "VISION_MODEL"),
+                 ("vision_upstream", "VISION_UPSTREAM"),
+                 ("vision_key_preset", "VISION_KEY_PRESET")):
+    if os.environ.get(_env):
+        e[_k] = os.environ[_env]
 print(json.dumps(e, ensure_ascii=False))
 PYEOF
     )
@@ -967,6 +994,7 @@ edit_custom_preset() {
 
     info "逐项编辑 '$target'（回车保持原值；host_header 输入 clear 移除）"
     local display base_url model small host_header max_ctx use_bridge
+    local VISION_MODEL="" VISION_UPSTREAM="" VISION_KEY_PRESET=""
     display=$(prompt "显示名" "$(_get_preset_field "$target" name)")
     while true; do
         base_url=$(prompt "base_url" "$(_get_preset_field "$target" base_url)")
@@ -983,10 +1011,15 @@ edit_custom_preset() {
     if ! [[ "$max_ctx" =~ ^[0-9]+$ ]] || (( max_ctx < 1 || max_ctx > 10000 )); then
         error "非法窗口值: $max_ctx"; return 1
     fi
+    _prompt_vision_fields "$(_get_preset_field "$target" vision_model)" \
+        "$(_get_preset_field "$target" vision_upstream)" \
+        "$(_get_preset_field "$target" vision_key_preset)"
 
     local entry
     entry=$(DISPLAY="$display" BASE_URL="$base_url" MODEL="$model" SMALL="$small" \
-        USE_BRIDGE="$use_bridge" HOST_HEADER="$host_header" MAX_CTX="$max_ctx" python3 <<'PYEOF'
+        USE_BRIDGE="$use_bridge" HOST_HEADER="$host_header" MAX_CTX="$max_ctx" \
+        VISION_MODEL="$VISION_MODEL" VISION_UPSTREAM="$VISION_UPSTREAM" VISION_KEY_PRESET="$VISION_KEY_PRESET" \
+        python3 <<'PYEOF'
 import json, os
 e = {
     "name": os.environ["DISPLAY"],
@@ -999,6 +1032,13 @@ if os.environ.get("USE_BRIDGE"):
     e["use_bridge"] = os.environ["USE_BRIDGE"] == "true"
 if os.environ.get("HOST_HEADER"):
     e["host_header"] = os.environ["HOST_HEADER"]
+# 视觉路由（可选）：主模型纯文本时，把带图请求改发视觉模型。
+# vision_key_preset 指向另一个 preset 拿 key —— 定义里不写明文 key（定义要能进公开仓）
+for _k, _env in (("vision_model", "VISION_MODEL"),
+                 ("vision_upstream", "VISION_UPSTREAM"),
+                 ("vision_key_preset", "VISION_KEY_PRESET")):
+    if os.environ.get(_env):
+        e[_k] = os.environ[_env]
 print(json.dumps(e, ensure_ascii=False))
 PYEOF
     )
