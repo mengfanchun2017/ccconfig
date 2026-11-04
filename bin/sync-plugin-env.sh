@@ -52,6 +52,26 @@ done
 section "分发 boot stub（源: $SRC_PLUGIN/references）"
 
 drift=0; copied=0; uptodate=0
+
+# fcore boot stub 先单独分发到**所有** plugin（含 ffeishu，它是 ffeishu stub 的源
+# 但同样是 fcore stub 的接收方 —— 下面那个循环用 continue 跳过 SRC_PLUGIN，
+# 若放在循环内，ffeishu 永远拿不到 fcore stub，实测漏过一次）。
+if [[ -f "$FCORE_SRC" ]]; then
+    for pdir in "$PLUGINS"/*/; do
+        pname="$(basename "${pdir%/}")"
+        [[ "$pname" == "$FCORE_PLUGIN" ]] && continue
+        dst="$pdir/references"
+        [[ -d "$dst" ]] || { [[ $CHECK_ONLY -eq 1 ]] && { err "  $pname: 无 references/"; drift=$((drift + 1)); continue; }; mkdir -p "$dst"; }
+        if [[ -f "$dst/$FCORE_STUB" ]] && cmp -s "$FCORE_SRC" "$dst/$FCORE_STUB"; then
+            uptodate=$((uptodate + 1))
+        elif [[ $CHECK_ONLY -eq 1 ]]; then
+            err "  $pname/$FCORE_STUB 缺失或与源不一致"; drift=$((drift + 1))
+        else
+            cp "$FCORE_SRC" "$dst/$FCORE_STUB"; copied=$((copied + 1))
+        fi
+    done
+fi
+
 for pdir in "$PLUGINS"/*/; do
     pname="$(basename "${pdir%/}")"
     [[ "$pname" == "$SRC_PLUGIN" ]] && continue
