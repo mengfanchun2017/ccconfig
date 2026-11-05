@@ -741,11 +741,12 @@ show_list() {
     local current
     current=$(echo "$lines" | grep "^CURRENT:" | cut -d: -f2)
 
-    while IFS='|' read -r marker name display model base small is_builtin has_key; do
+    while IFS='|' read -r marker name display model base small is_builtin has_key tag; do
         [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
         local info_small=""
         [[ -n "$small" ]] && info_small=" ${DIM}(小: $small)${NC}"
         [[ "$has_key" == "0" ]] && info_small+=" ${YELLOW}[无 Key]${NC}"
+        [[ -n "$tag" ]] && info_small+=" ${CYAN}${tag}${NC}"
         printf "  %s %-10s %-20s%b\n" "$marker" "$display" "$model" "$info_small"
     done < <(echo "$lines")
     echo ""
