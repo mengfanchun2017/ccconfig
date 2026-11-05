@@ -262,6 +262,80 @@ for k in order:
     printf '%s' "${names[$((sel-1))]}"
 }
 
+
+# ==================== 多模态 MLayer v2 ====================
+# 三类动作：status（只读总览）/ vision（配视觉）/ docparse（配文档解析）。
+# 配置入口学 LLM 管理结构但不照搬：按领域列可用选项 → 选后显示 key 尾号 → 更新/清除/启用。
+#
+# 数据源：
+#   vision 领域：llmnormal/llmprivate/llm.json 的 preset 中 vision_model 非空的
+#   docparse 领域：当前只 mineru，token 在 ccprivate/conf/mineru.json
+
+# 读合并配置字段
+_ml_field() {
+    local preset="$1" field="$2"
+    [[ -f "$_ML_CFG" ]] || return 0
+    python3 -c "
+import json,sys
+try:
+    d=json.load(open(sys.argv[1])).get('llms',{}).get(sys.argv[2],{})
+    print(d.get(sys.argv[3],'') or '')
+except Exception: print('')" "$_ML_CFG" "$preset" "$field" 2>/dev/null
+}
+
+# 从 llm.json 读某预设的 key
+_ml_key() {
+    local preset="$1"
+    local lf; lf="$(source "$LIB_DIR/path-helper.sh" 2>/dev/null; resolve_conf llm.json 2>/dev/null)" || return 0
+    python3 -c "
+import json,sys
+try:
+    d=json.load(open(sys.argv[1])).get('llms',{}).get(sys.argv[2],{})
+    print(d.get('key','') or '')
+except Exception: print('')" "$lf" "$preset" 2>/dev/null
+}
+
+# 写 key 到 llm.json
+_ml_write_key() {
+    local preset="$1" key="$2"
+    local lf; lf="$(source "$LIB_DIR/path-helper.sh" 2>/dev/null; resolve_conf llm.json 2>/dev/null)" || return 1
+    python3 -c "
+import json, sys
+p=sys.argv[1]; n=sys.argv[2]; k=sys.argv[3]
+try: d=json.load(open(p))
+except: d={}
+d.setdefault('llms',{})[n]={'key':k}
+json.dump(d, open(p,'w'), indent=4, ensure_ascii=False)
+print('ok')" "$lf" "$preset" "$key" 2>/dev/null | grep -q ok
+}
+
+# 掩码 key：只留尾 4 位，占位符/空 → 空
+_ml_mask() {
+    local v="$1"
+    [[ -z "$v" ]] && return 0
+    case "$v" in *请填入*|*请替换*|*your.key*|*your_key*|*placeholder*|*changeme*|*"<your-"*) return 0 ;; esac
+    (( ${#v} >= 8 )) && printf '...%s' "${v: -4}" || printf '(过短)'
+}
+
+# 列全部视觉预设（vision_model 非空）= glm46vflash + 任何自定义带 vision_model 的
+_ml_vision_list() {
+    python3 -c "
+import json,sys,os
+d=json.load(open(sys.argv[1])).get('llms',{})
+lf=sys.argv[2]
+try: lk=json.load(open(lf)).get('llms',{})
+except: lk={}
+for k,v in sorted(d.items()):
+    vm=v.get('vision_model','')
+    if not vm: continue
+    vkp=v.get('vision_key_preset','') or k
+    kraw=(lk.get(vkp,{}) or lk.get(k,{})).get('key','') or ''
+    mk=('...'+kraw[-4:]) if kraw and len(kraw)>=8 and '请填入' not in kraw else '(无 key)'
+    src=v.get('_src','?')
+    print(f\"{k}|${{v.get('name',k)}}|${{vm}}|${{vkp}}|${{mk}}|${{src}}\")
+" "$_ML_CFG" "$(source "$LIB_DIR/path-helper.sh" 2>/dev/null; resolve_conf llm.json 2>/dev/null)" 2>/dev/null
+}
+
 do_mlayer() {
     local action="${1:-status}"
     _ML_CFG="$HOME/.cache/llm-merged.json"
@@ -272,214 +346,247 @@ do_mlayer() {
     case "$action" in
         status)
             section "多模态状态总览"
-            echo -e "  当前预设: ${CYAN}${_ML_CUR:-（无）}${NC}"
+            local cur_name; cur_name="$(_ml_field "$_ML_CUR" name)"
+            local cur_model; cur_model="$(_ml_field "$_ML_CUR" model)"
+            echo -e "  当前预设: ${CYAN}$_ML_CUR${NC} (${cur_model:-?})"
             echo ""
-            # ---- 视觉 ----
-            local vm vu vkp
-            vm="$(_ml_field "$_ML_CUR" vision_model)"
-            vu="$(_ml_field "$_ML_CUR" vision_upstream)"
-            vkp="$(_ml_field "$_ML_CUR" vision_key_preset)"
+
+            # ――― 视觉 ―――
+            local vm; vm="$(_ml_field "$_ML_CUR" vision_model)"
+            echo -e "  ${BOLD_GRAY}▎视觉${NC}"
             if [[ -n "$vm" ]]; then
-                echo -e "  ${BOLD_GREEN}视觉${NC}  ${CYAN}$vm${NC}"
-                [[ -n "$vu" ]] && echo -e "        ${DIM}上游: $vu${NC}"
+                echo -e "    状态: ${GREEN}已启用${NC}  model=${CYAN}$vm${NC}"
+                local vkp; vkp="$(_ml_field "$_ML_CUR" vision_key_preset)"
                 local kp="${vkp:-$_ML_CUR}"
-                local vk; vk="$(bash "$LIB_DIR/init-llm.sh" list 2>/dev/null >/dev/null; true)"
-                local kraw; kraw=$(python3 -c "
-import json,sys
-try:
-    d=json.load(open(sys.argv[1])).get('llms',{}).get(sys.argv[2],{})
-    print(d.get('key','') or '')
-except Exception: print('')
-" "$(source "$LIB_DIR/path-helper.sh" 2>/dev/null; resolve_conf llm.json 2>/dev/null)" "$kp" 2>/dev/null)
-                echo -e "        ${DIM}key 取自预设 '$kp'${NC}"
+                local kraw; kraw="$(_ml_key "$kp")"
                 local mk; mk="$(_ml_mask "$kraw")"
-                if [[ -n "$mk" ]]; then echo -e "        key: ${GREEN}$mk${NC}"
-                else echo -e "        key: ${YELLOW}(未配置)${NC}"; fi
+                echo -e "    key:  ${mk:+${GREEN}$mk${NC}}${mk:-${YELLOW}(未配置)${NC}}  (预设 $kp)"
             else
-                echo -e "  ${BOLD_GRAY}视觉${NC}  ${DIM}(当前预设未启用 — 7B 配置)${NC}"
+                echo -e "    状态: ${YELLOW}未启用${NC}（当前预设无 vision_model）"
             fi
+            # 列出可用的视觉预设
+            local vrows; vrows="$(_ml_vision_list)"
+            if [[ -n "$vrows" ]]; then
+                echo -e "    可用视觉预设:"
+                while IFS='|' read -r vname vdisp vmodel vkp vmk vsrc; do
+                    [[ -z "$vname" ]] && continue
+                    local mark=" "; [[ "$vname" == "$_ML_CUR" ]] && mark="◀"
+                    echo -e "      $mark ${CYAN}$vname${NC} ($vmodel)  key=${vmk}"
+                done <<< "$vrows"
+            fi
+            echo -e "    配置: 7B"
             echo ""
-            # ---- 文档解析 ----
+
+            # ――― 文档解析 ―――
             local ocr; ocr="$(_ml_field "$_ML_CUR" ocr_backend)"
+            echo -e "  ${BOLD_GRAY}▎文档解析${NC}"
             if [[ -n "$ocr" ]]; then
-                echo -e "  ${BOLD_GREEN}文档解析${NC}  ${CYAN}$ocr${NC}"
+                echo -e "    状态: ${GREEN}已启用${NC}  后端=${CYAN}$ocr${NC}"
             else
-                echo -e "  ${BOLD_GRAY}文档解析${NC}  ${DIM}(当前预设未启用 — 7C 配置)${NC}"
+                echo -e "    状态: ${YELLOW}未启用${NC}（当前预设无 ocr_backend）"
             fi
+            # MinerU 状态
             local mu_conf="$HOME/git/ccprivate/conf/mineru.json"
             local mu_raw=""
-            [[ -f "$mu_conf" ]] && mu_raw=$(python3 -c "
-import json
-try: print(json.load(open('$mu_conf')).get('token','') or '')
-except Exception: print('')
-" 2>/dev/null)
+            [[ -f "$mu_conf" ]] && mu_raw=$(python3 -c "import json; print(json.load(open('$mu_conf')).get('token','') or '')" 2>/dev/null)
             local mm; mm="$(_ml_mask "$mu_raw")"
-            if [[ -n "$mm" ]]; then echo -e "        MinerU token: ${GREEN}$mm${NC}"
-            else echo -e "        MinerU token: ${YELLOW}(未配置)${NC}"; fi
+            echo -e "    MinerU:${mm:+ ${GREEN}key $mm${NC}}${mm:- ${YELLOW}key 未配置${NC}}"
             command -v uvx &>/dev/null \
-                && echo -e "        uvx: ${GREEN}可用${NC}" \
-                || echo -e "        uvx: ${RED}不可用（需装 uv）${NC}"
+                && echo -e "    uvx:    ${GREEN}可用${NC}" \
+                || echo -e "    uvx:   ${RED}不可用${NC}"
+            echo -e "    配置: 7C"
             echo ""
-            # ---- bridge 运行态（只列正式端口，避免临时测试桥混进来）----
-            echo -e "  ${BOLD_GRAY}bridge${NC}"
-            local port="${BRIDGE_PORT:-8898}"
-            local h; h=$(curl -s --noproxy '*' --max-time 2 "http://127.0.0.1:${port}/health" 2>/dev/null || true)
-            if [[ -n "$h" ]]; then
-                local hv; hv=$(echo "$h" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('vision_model') or '(无)')" 2>/dev/null)
-                echo -e "        :${port} ${GREEN}运行中${NC}  vision_model=${CYAN}$hv${NC}"
+
+            # ――― bridge 运行态 ―――
+            echo -e "  ${BOLD_GRAY}▎bridge${NC}"
+            local bport="${BRIDGE_PORT:-8898}"
+            local bh; bh=$(curl -s --noproxy '*' --max-time 2 "http://127.0.0.1:${bport}/health" 2>/dev/null || true)
+            if [[ -n "$bh" ]]; then
+                local bm; bm=$(echo "$bh" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('upstream_model','?'))" 2>/dev/null)
+                local bv; bv=$(echo "$bh" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('vision_model') or '(无)')" 2>/dev/null)
+                echo -e "    :${bport} ${GREEN}运行中${NC}  模型=${bm}  vision=${bv}"
             else
-                echo -e "        :${port} ${YELLOW}未运行${NC}（当前预设若是桥接模式，起会话时会自动拉起）"
-            fi
-            # 其他端口上的桥（非 BRIDGE_PORT）：只提示存在，供排查残留
-            local others
-            others=$( { pgrep -af "openai_bridge.py --port" 2>/dev/null || true; } \
-                | { grep -v "port ${port}\b" || true; } \
-                | sed -E 's/.*--port ([0-9]+).*/\1/' | sort -u | tr '\n' ' ' || true)
-            if [[ -n "${others// /}" ]]; then
-                echo -e "        ${YELLOW}另有残留桥占用端口: $others（排查用，可能是测试遗留）${NC}"
+                echo -e "    :${bport} ${YELLOW}未运行${NC}"
             fi
             ;;
 
         vision)
             section "配置视觉"
-            local preset; preset="$(_ml_pick_preset "${2:-}")" || { info "已取消"; return 0; }
-            local vm vu vkp
-            vm="$(_ml_field "$preset" vision_model)"
-            vu="$(_ml_field "$preset" vision_upstream)"
-            vkp="$(_ml_field "$preset" vision_key_preset)"
-            echo ""
-            echo -e "  预设: ${CYAN}$preset${NC}"
-            # 模板兜底：预设没配 vision_model 时给默认值（glm46vflash）
-            if [[ -z "$vm" ]]; then
-                echo -e "  ${YELLOW}该预设未启用视觉${NC}"
+            # 列出视觉预设
+            local rows; rows="$(_ml_vision_list)"
+            if [[ -z "$rows" ]]; then
+                warn "无视觉预设（没有预设定义 vision_model 字段）"
+                echo -e "  ${DIM}内置视觉预设: glm46vflash（切到它就能用）${NC}"
+                return 0
+            fi
+            local items=() names=()
+            while IFS='|' read -r name disp model kp mk src; do
+                [[ -z "$name" ]] && continue
+                names+=("$name")
+                local mark=" "; [[ "$name" == "$_ML_CUR" ]] && mark="◀"
+                items+=("$mark $disp ($model)  key=$mk")
+            done <<< "$rows"
+            items+=("启用视觉（在某个预设上启用）")
+            items+=("返回")
+            local sel; sel=$(menu_select "视觉预设（选择更新 key / 查看详情）" "${items[@]}") || return 0
+            [[ -z "$sel" || "$sel" == "0" ]] && return 0
+            (( sel == ${#items[@]} )) && return 0
+
+            # 最后一项 = "启用视觉"
+            local add_idx=$(( ${#items[@]} - 2 ))  # items has 2 extras: "启用" + "返回"
+            if (( sel == add_idx )); then
+                # 选一个预设，给它加 vision_model
+                local psel; psel="$(_ml_pick_preset "")" || { info "已取消"; return 0; }
+                local pvm; pvm="$(_ml_field "$psel" vision_model)"
+                if [[ -n "$pvm" ]]; then
+                    info "预设 '$psel' 已有 vision_model=$pvm"
+                    return 0
+                fi
                 local dflt; dflt=$(python3 -c "
 import json
 try:
     d=json.load(open('$_ML_CFG')).get('llms',{}).get('glm46vflash',{})
-    print(d.get('vision_model','') or 'glm-4.6v-flash')
-except Exception: print('glm-4.6v-flash')
-" 2>/dev/null)
-                echo -e "  ${DIM}默认模板（来自 glm46vflash）: vision_model=$dflt${NC}"
-                if confirm "把该预设启用视觉（写入 vision_model=$dflt）？"; then
+    print(d.get('vision_model','glm-4.6v-flash'))
+except: print('glm-4.6v-flash')" 2>/dev/null)
+                if confirm "在 '$psel' 上启用视觉 (vision_model=$dflt)？"; then
                     python3 -c "
 import json
 p='$HOME/git/ccprivate/conf/llmprivate.json'
 try: d=json.load(open(p))
-except Exception: d={'llms':{}}
-l=d.setdefault('llms',{}).setdefault('$preset',{})
+except: d={'llms':{}}
+l=d.setdefault('llms',{}).setdefault('$psel',{})
 l['vision_model']='$dflt'
-l.setdefault('vision_upstream','https://open.bigmodel.cn/api/paas/v4')
-l.setdefault('vision_key_preset','glm46vflash')
+l['vision_upstream']='https://open.bigmodel.cn/api/paas/v4'
+l['vision_key_preset']='glm46vflash'
 json.dump(d, open(p,'w'), indent=4, ensure_ascii=False)
 " 2>/dev/null && ok "已启用视觉（$dflt）" || err "写入失败"
                     bash "$LIB_DIR/init-llm.sh" merge >/dev/null 2>&1 || true
-                    _ml_field() {
-                        python3 -c "
-import json,sys
-try:
-    d=json.load(open(sys.argv[1])).get('llms',{}).get(sys.argv[2],{})
-    print(d.get(sys.argv[3],'') or '')
-except Exception: print('')
-" "$_ML_CFG" "$@" 2>/dev/null
-                    }
-                    vm="$(_ml_field "$preset" vision_model)"
-                    vu="$(_ml_field "$preset" vision_upstream)"
-                    vkp="$(_ml_field "$preset" vision_key_preset)"
-                else
-                    info "已取消"; return 0
+                    info "key 可以接着在 7B 配置"
                 fi
+                return 0
             fi
-            echo -e "  vision_model:    ${CYAN}$vm${NC}"
-            echo -e "  vision_upstream: ${CYAN}${vu:-（复用主上游）}${NC}"
-            local kp="${vkp:-$preset}"
-            echo -e "  key 取自预设:    ${CYAN}$kp${NC}"
+
+            local target="${names[$((sel-1))]}"
+            local tdisp tmodel tkp tmk tsrc
+            while IFS='|' read -r n d m kp mk s; do
+                [[ "$n" == "$target" ]] && { tdisp="$d"; tmodel="$m"; tkp="$kp"; tmk="$mk"; tsrc="$s"; }
+            done <<< "$rows"
+
             echo ""
-            # key 配置（学 LLM 管理：显示尾号，回车保持，粘贴替换）
-            local lf; lf="$(source "$LIB_DIR/path-helper.sh" 2>/dev/null; resolve_conf llm.json 2>/dev/null)"
-            local cur_key; cur_key=$(python3 -c "
-import json,sys
-try:
-    print(json.load(open(sys.argv[1])).get('llms',{}).get(sys.argv[2],{}).get('key','') or '')
-except Exception: print('')
-" "$lf" "$kp" 2>/dev/null)
-            local newkey
-            newkey=$(prompt_key_plain "视觉 key（预设 $kp）" "$cur_key")
-            if [[ -n "$newkey" && "$newkey" != "$cur_key" ]]; then
-                python3 -c "
-import json,sys
-p=sys.argv[1]; n=sys.argv[2]; k=sys.argv[3]
-try: d=json.load(open(p))
-except Exception: d={'llms':{}}
-d.setdefault('llms',{}).setdefault(n,{})['key']=k
-json.dump(d, open(p,'w'), indent=4, ensure_ascii=False)
-" "$lf" "$kp" "$newkey" 2>/dev/null \
-                    && ok "key 已保存（$kp）: $(_ml_mask "$newkey")" \
-                    || err "key 写入失败"
-            else
-                if [[ -n "$(_ml_mask "$cur_key")" ]]; then
-                    ok "key 保持不变: $(_ml_mask "$cur_key")"
-                else
-                    warn "尚未配置 key —— 视觉请求会失败"
-                fi
-            fi
+            echo -e "  ${CYAN}$target${NC} ($tdisp)"
+            echo -e "  vision_model:    $tmodel"
+            echo -e "  key 取自预设:   $tkp  当前: ${tmk}"
             echo ""
-            info "切到该预设: ./maintain.sh llm   （菜单 3A）"
+
+            local actions=("更新 key（替换）")
+            # 内置预设不可清除 key（它本来就没定义 key，key 在同名的 llm.json 条目里）
+            [[ "$tsrc" != "normal" ]] && actions+=("清除 key（从 llm.json 删除）")
+            actions+=("返回")
+            local asel; asel=$(menu_select "操作" "${actions[@]}") || return 0
+            [[ -z "$asel" || "$asel" == "0" ]] && return 0
+            (( asel == ${#actions[@]} )) && return 0
+
+            case "$asel" in
+                1)  # 更新 key
+                    local cur_key; cur_key="$(_ml_key "$tkp")"
+                    local newkey
+                    newkey=$(prompt_key_plain "视觉 key（预设 $tkp）" "$cur_key")
+                    if [[ -n "$newkey" ]]; then
+                        if [[ "$newkey" != "$cur_key" ]]; then
+                            _ml_write_key "$tkp" "$newkey" \
+                                && ok "key 已保存: $(_ml_mask "$newkey")" \
+                                || err "写入失败"
+                        else
+                            ok "key 保持不变: $(_ml_mask "$cur_key")"
+                        fi
+                    else
+                        info "已取消"
+                    fi
+                    ;;
+                2)  # 清除 key
+                    if confirm "确定清除 '$tkp' 的 key？"; then
+                        _ml_write_key "$tkp" "" \
+                            && ok "key 已清除" || err "清除失败"
+                    fi
+                    ;;
+            esac
             ;;
 
         docparse)
             section "配置文档解析"
-            local preset; preset="$(_ml_pick_preset "${2:-}")" || { info "已取消"; return 0; }
-            local ocr; ocr="$(_ml_field "$preset" ocr_backend)"
+            local mu_conf="$HOME/git/ccprivate/conf/mineru.json"
+            local cur_tok=""
+            [[ -f "$mu_conf" ]] && cur_tok=$(python3 -c "import json; print(json.load(open('$mu_conf')).get('token','') or '')" 2>/dev/null)
+            local mm; mm="$(_ml_mask "$cur_tok")"
+
+            echo -e "  后端: ${CYAN}mineru${NC}"
+            echo -e "  token:${mm:+ ${GREEN}$mm${NC}}${mm:- ${YELLOW}(未配置)${NC}}"
+            command -v uvx &>/dev/null \
+                && echo -e "  uvx:  ${GREEN}可用${NC}" \
+                || echo -e "  uvx: ${RED}不可用（需装 uv）${NC}"
             echo ""
-            echo -e "  预设: ${CYAN}$preset${NC}"
+
+            # 为当前预设启用（如果还没配 ocr_backend）
+            local ocr; ocr="$(_ml_field "$_ML_CUR" ocr_backend)"
             if [[ -z "$ocr" ]]; then
-                echo -e "  ${YELLOW}该预设未启用文档解析${NC}"
-                echo -e "  ${DIM}默认模板: ocr_backend=mineru（MinerU 解析 PDF/图片文字）${NC}"
-                if confirm "把该预设启用文档解析（ocr_backend=mineru）？"; then
+                if confirm "在预设 '$_ML_CUR' 上启用文档解析 (ocr_backend=mineru)？"; then
                     python3 -c "
 import json
 p='$HOME/git/ccprivate/conf/llmprivate.json'
 try: d=json.load(open(p))
-except Exception: d={'llms':{}}
-d.setdefault('llms',{}).setdefault('$preset',{})['ocr_backend']='mineru'
+except: d={'llms':{}}
+d.setdefault('llms',{}).setdefault('$_ML_CUR',{})['ocr_backend']='mineru'
 json.dump(d, open(p,'w'), indent=4, ensure_ascii=False)
-" 2>/dev/null && ok "已启用文档解析（mineru）" || err "写入失败"
+" 2>/dev/null && ok "已启用" || err "写入失败"
                     bash "$LIB_DIR/init-llm.sh" merge >/dev/null 2>&1 || true
-                    ocr="mineru"
-                else
-                    info "已取消"; return 0
                 fi
+                echo ""
             fi
-            echo -e "  ocr_backend:     ${CYAN}$ocr${NC}"
-            echo ""
-            # MinerU token（学 LLM 管理：显示尾号，回车保持，粘贴替换）
-            local mu_conf="$HOME/git/ccprivate/conf/mineru.json"
-            local cur_tok=""
-            [[ -f "$mu_conf" ]] && cur_tok=$(python3 -c "
-import json
-try: print(json.load(open('$mu_conf')).get('token','') or '')
-except Exception: print('')
-" 2>/dev/null)
-            local newtok
-            newtok=$(prompt_key_plain "MinerU token" "$cur_tok")
-            if [[ -n "$newtok" && "$newtok" != "$cur_tok" ]]; then
-                python3 -c "
+
+            # token 管理
+            local actions=("更新/设置 token")
+            if [[ -n "$(_ml_mask "$cur_tok")" ]]; then
+                actions+=("清除 token")
+            fi
+            actions+=("返回")
+            local asel; asel=$(menu_select "MinerU 操作" "${actions[@]}") || return 0
+            [[ -z "$asel" || "$asel" == "0" ]] && return 0
+            (( asel == ${#actions[@]} )) && return 0
+
+            case "$asel" in
+                1)
+                    local newtok
+                    newtok=$(prompt_key_plain "MinerU token" "$cur_tok")
+                    if [[ -n "$newtok" ]]; then
+                        if [[ "$newtok" != "$cur_tok" ]]; then
+                            python3 -c "
 import json,sys
 p=sys.argv[1]; k=sys.argv[2]
 try: d=json.load(open(p))
-except Exception: d={}
+except: d={}
 d['token']=k
-json.dump(d, open(p,'w'), indent=4, ensure_ascii=False)
-" "$mu_conf" "$newtok" 2>/dev/null \
-                    && ok "MinerU token 已保存: $(_ml_mask "$newtok")" \
-                    || err "token 写入失败"
-            else
-                if [[ -n "$(_ml_mask "$cur_tok")" ]]; then
-                    ok "MinerU token 保持不变: $(_ml_mask "$cur_tok")"
-                else
-                    warn "尚未配置 MinerU token —— >20 页走 Precision 会失败（≤20 页走免费通道不需要）"
-                fi
-            fi
+json.dump(d, open(p,'w'), indent=4, ensure_ascii=False)" "$mu_conf" "$newtok" 2>/dev/null \
+                                && ok "MinerU token 已保存: $(_ml_mask "$newtok")" \
+                                || err "写入失败"
+                        else
+                            ok "token 保持不变: $mm"
+                        fi
+                    else
+                        info "已取消"
+                    fi
+                    ;;
+                2)
+                    if confirm "确定清除 MinerU token？"; then
+                        python3 -c "
+import json
+try: d=json.load(open('$mu_conf'))
+except: d={}
+d['token']=''
+json.dump(d, open('$mu_conf','w'), indent=4, ensure_ascii=False)" 2>/dev/null \
+                            && ok "token 已清除" || err "清除失败"
+                    fi
+                    ;;
+            esac
             ;;
 
         *)
