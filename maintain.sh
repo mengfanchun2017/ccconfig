@@ -227,34 +227,36 @@ _ml_mask() {
     if (( ${#v} >= 8 )); then printf '...%s' "${v: -4}"; else printf '(过短)'; fi
 }
 
-# 预设选择器：返回预设名到 stdout。无参 → 当前生效的（确认后）；有参 → 直接用。
+# 预设选择器：输出选中预设名。无参 → 列全部预设让选（当前生效的排最前并标注）。
+# 直接读合并配置构造列表 —— 不复用 list_llms（它带菜单副作用，且要 source init-llm.sh）。
 _ml_pick_preset() {
     local want="$1"
-    if [[ -n "$want" ]]; then printf '%s' "$want"; return 0; fi
+    [[ -n "$want" ]] && { printf '%s' "$want"; return 0; }
+    [[ -f "$_ML_CFG" ]] || return 1
+    local rows
+    rows=$(python3 -c "
+import json,sys
+cfg, cur = sys.argv[1], sys.argv[2]
+d = json.load(open(cfg)).get('llms', {})
+def tags(v):
+    t = []
+    if v.get('vision_model'): t.append('视觉')
+    if v.get('ocr_backend'): t.append('文档解析')
+    return (' '+'|'.join(t)) if t else ''
+order = ([cur] if cur in d else []) + [k for k in d if k != cur]
+for k in order:
+    v = d[k]
+    mark = '◀ ' if k == cur else '  '
+    print(f\"{k}|{mark}{v.get('name',k)} ({v.get('model','')}){tags(v)}\")
+" "$_ML_CFG" "${_ML_CUR:-}" 2>/dev/null)
+    [[ -z "$rows" ]] && return 1
     local items=() names=()
-    while IFS='|' read -r _ name display model _ _ _ has_key tag; do
+    while IFS='|' read -r name label; do
         [[ -z "$name" ]] && continue
-        local extra=""
-        [[ "$has_key" == "0" ]] && extra=" [无 Key]"
-        [[ -n "$tag" ]] && extra+=" ${tag}"
-        names+=("$name"); items+=("$display ($model)${extra}")
-    done < <(bash "$LIB_DIR/init-llm.sh" list 2>/dev/null | sed -n '/--LLM预设--/,/--LLM自定义--/p' | grep -v '^--' || true)
-    # 上面拿不到结构化行，退回直接用 list_llms 的 python 侧
-    if [[ ${#names[@]} -eq 0 ]]; then
-        local lines; lines=$(LIST_CUR="$_ML_CUR" LLM_MERGED="$(python3 -c "
-import json
-print(json.dumps(json.load(open('$_ML_CFG')).get('llms',{}), ensure_ascii=False))
-" 2>/dev/null)" bash -c 'source "'"$LIB_DIR"'/init-llm.sh" 2>/dev/null; list_llms' 2>/dev/null || true)
-        while IFS='|' read -r _ name display model _ _ _ has_key; do
-            [[ -z "$name" || "$name" == "TOTAL:"* || "$name" == "CURRENT:"* ]] && continue
-            local extra=""
-            [[ "$has_key" == "0" ]] && extra=" [无 Key]"
-            names+=("$name"); items+=("$display ($model)${extra}")
-        done <<< "$lines"
-    fi
-    [[ ${#names[@]} -eq 0 ]] && return 1
+        names+=("$name"); items+=("$label")
+    done <<< "$rows"
     items+=("返回")
-    local sel; sel=$(menu_select "选择预设（默认当前生效: ${_ML_CUR:-无}）" "${items[@]}") || return 1
+    local sel; sel=$(menu_select "选择预设（当前生效: ${_ML_CUR:-无}）" "${items[@]}") || return 1
     [[ -z "$sel" || "$sel" == "0" ]] && return 1
     (( sel == ${#items[@]} )) && return 1
     printf '%s' "${names[$((sel-1))]}"
