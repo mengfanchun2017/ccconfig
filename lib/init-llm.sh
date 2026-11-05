@@ -879,9 +879,18 @@ _prompt_vision_fields() {
     return 0
 }
 
+_prompt_ocr_fields() {
+    local cur_backend="${1:-}"
+    OCR_BACKEND=""
+    echo -e "  ${DIM}OCR 后端（可选）：预设关联文档解析/OCR 能力。留空=不启用${NC}" >&2
+    OCR_BACKEND=$(prompt "  ocr_backend（mineru / 留空禁用）" "$cur_backend")
+    return 0
+}
+
 add_custom_preset() {
     local name display base_url model small host_header max_ctx use_bridge key
     local VISION_MODEL="" VISION_UPSTREAM="" VISION_KEY_PRESET=""
+    local OCR_BACKEND=""
 
     while true; do
         name=$(prompt "预设 ID（小写字母/数字，如 homeds41flash）")
@@ -915,6 +924,7 @@ add_custom_preset() {
         error "非法窗口值: $max_ctx（需 1-10000 整数）"; return 1
     fi
     _prompt_vision_fields "" "" ""
+    _prompt_ocr_fields ""
     key=$(prompt_key_plain "API Key（无则回车跳过，之后 3a 录入）" "")
     if [[ -z "$key" ]]; then
         warn "未录入 Key，预设标记为 [无 Key]，切换前需 3a 录入"
@@ -995,6 +1005,7 @@ edit_custom_preset() {
     info "逐项编辑 '$target'（回车保持原值；host_header 输入 clear 移除）"
     local display base_url model small host_header max_ctx use_bridge
     local VISION_MODEL="" VISION_UPSTREAM="" VISION_KEY_PRESET=""
+    local OCR_BACKEND=""
     display=$(prompt "显示名" "$(_get_preset_field "$target" name)")
     while true; do
         base_url=$(prompt "base_url" "$(_get_preset_field "$target" base_url)")
