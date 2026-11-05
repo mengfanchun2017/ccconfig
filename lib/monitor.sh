@@ -515,7 +515,7 @@ commit_and_push() {
                     skip_push=true
                 fi
             fi
-            if ! $skip_push; then
+            # (內层 skip_push 检查已合并到外层)
             local push_output push_rc
             push_output=$(git_push "$repo_dir" "$branch" 2>&1)
             push_rc=$?
