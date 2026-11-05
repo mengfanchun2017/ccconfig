@@ -465,6 +465,11 @@ do_setup() {
     _fix_step "MCP 注册缺失项 + 同步 settings" bash "$LIB_DIR/init-mcp.sh" sync
     _fix_step "Skill 全量同步（链接 + CLI 依赖）" bash "$LIB_DIR/init-skill.sh" sync
 
+    section "5. Skill 运行时体检 + 自动修复"
+    if [ -x "$HOME/.claude/skills/fcore/bin/fcore" ]; then
+        _fix_step "fcore doctor --fix" "$HOME/.claude/skills/fcore/bin/fcore" fix
+    fi
+
     section "5. settings 键归位（.config.json → settings.json）"
     python3 << 'PYEOF'
 import json, os, sys
