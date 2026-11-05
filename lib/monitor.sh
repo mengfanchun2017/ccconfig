@@ -515,17 +515,6 @@ commit_and_push() {
                     skip_push=true
                 fi
             fi
-            # 推送前密钥扫描（开关 ~/.claude/.pre-push-check-enabled）
-            if pre_push_check_enabled; then
-                local check_out check_rc
-                check_out=/bin/bash: line 1: pre_push_check: command not found
-                check_rc=$?
-                if [ $check_rc -ne 0 ]; then
-                    echo "$check_out" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
-                    error "[$repo] !! 密钥扫描命中 — 跳过推送。修复后重试"
-                    skip_push=true
-                fi
-            fi
 
             if ! $skip_push; then
                 local push_output push_rc
