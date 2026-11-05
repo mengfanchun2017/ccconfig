@@ -554,6 +554,12 @@ do_sync() {
         echo ""
         good "完成。验证: bash init-skill.sh status"
     fi
+
+    # sync 后自动跑 fcore doctor（新装/升级后体检一次）
+    if [ -x "$CLAUDE_SKILLS_DIR/fcore/bin/fcore" ]; then
+        echo ""
+        "$CLAUDE_SKILLS_DIR/fcore/bin/fcore" doctor 2>&1 || true
+    fi
 }
 
 # 更新所有（CLI 工具 + npx skills）
