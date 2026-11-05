@@ -516,17 +516,6 @@ commit_and_push() {
                     warn "[$repo] links failed"
                 fi
             fi
-            # 推送前密钥扫描（开关 ~/.claude/.pre-push-check-enabled）
-            if pre_push_check_enabled; then
-                local check_out check_rc
-                check_out=$(pre_push_check "$repo_dir" 2>&1)
-                check_rc=$?
-                if [ $check_rc -ne 0 ]; then
-                    echo "$check_out" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
-                    error "[$repo] !! 密钥扫描命中 — 跳过推送。修复后重试"
-                    skip_push=true
-                fi
-            fi
         else
             # skip_push = unrelated histories / rebase conflict / secret scan hit
             local _unpushed
