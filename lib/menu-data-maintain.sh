@@ -40,6 +40,7 @@ MENU_ENTRIES=(
     # 用户按提示敲了 restart 才发现服务起不来。真正需要的动作只有一个：重启。
     "1|D|重启监控|./maintain.sh monitor restart|bash \"\$LIB_DIR/monitor.sh\" restart"
     "1|E|高权限开启（claudeby）|./maintain.sh highpriv|do_highpriv"
+    "1|F|推送前密钥扫描|./maintain.sh secret|source \"\$LIB_DIR/pre-push-check.sh\" \&\& pre_push_check_toggle"
 
     # ── 2: 更新 ──
     # 2A 动的是【3 个配置仓库】：ccprivate 结构升级 → 拉取 ccprivate/skill/ccconfig 3 个库
