@@ -1372,7 +1372,7 @@ interactive_select() {
         builtin_idx=0; custom_idx=0
 
         # 预扫描：切分 builtin 与自定义两段（渲染序号需在组内连续）
-        while IFS='|' read -r marker name display_name model base_url small is_builtin has_key; do
+        while IFS='|' read -r marker name display_name model base_url small is_builtin has_key tag; do
             [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
             if [[ "$is_builtin" == "1" ]]; then
                 builtin_item_name+=("$name")
@@ -1382,7 +1382,7 @@ interactive_select() {
         done < <(echo "$lines")
 
         echo -e "  ${BOLD_GRAY}--LLM预设--${NC}"
-        while IFS='|' read -r marker name display_name model base_url small is_builtin has_key; do
+        while IFS='|' read -r marker name display_name model base_url small is_builtin has_key tag; do
             [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
             [[ "$is_builtin" != "1" ]] && continue
             local small_str=""
@@ -1391,12 +1391,14 @@ interactive_select() {
             [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
             local key_str=""
             [[ "$has_key" == "0" ]] && key_str=" ${YELLOW}[无 Key · 按 3a 录入]${NC}"
-            echo -e "  ${BOLD_GREEN}1${letters:$builtin_idx:1}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${key_str}"
+            local tag_str=""
+            [[ -n "$tag" ]] && tag_str=" ${CYAN}${tag}${NC}"
+            echo -e "  ${BOLD_GREEN}1${letters:$builtin_idx:1}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${key_str}${tag_str}"
             builtin_idx=$((builtin_idx+1))
         done < <(echo "$lines")
 
         echo -e "  ${BOLD_GRAY}--LLM自定义--${NC}"
-        while IFS='|' read -r marker name display_name model base_url small is_builtin has_key; do
+        while IFS='|' read -r marker name display_name model base_url small is_builtin has_key tag; do
             [[ "$marker" == "TOTAL:"* || "$marker" == "CURRENT:"* || -z "$name" ]] && continue
             [[ "$is_builtin" == "1" ]] && continue
             local small_str=""
@@ -1405,7 +1407,9 @@ interactive_select() {
             [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
             local key_str=""
             [[ "$has_key" == "0" ]] && key_str=" ${YELLOW}[无 Key · 按 3a 录入]${NC}"
-            echo -e "  ${BOLD_GREEN}2${letters:$custom_idx:1}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${key_str}"
+            local tag_str=""
+            [[ -n "$tag" ]] && tag_str=" ${CYAN}${tag}${NC}"
+            echo -e "  ${BOLD_GREEN}2${letters:$custom_idx:1}${NC} ${cur_mark} ${display_name} ${DIM}${model}${NC}${small_str}${key_str}${tag_str}"
             custom_idx=$((custom_idx+1))
         done < <(echo "$lines")
 
