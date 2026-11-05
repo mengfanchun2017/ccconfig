@@ -16,12 +16,15 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/pre-push-check.sh" 2>/dev/null || true
 source "$SCRIPT_DIR/dry-run.sh"
 if [ -d "$SCRIPT_DIR/.git" ]; then
     MONITOR_HOME="$SCRIPT_DIR"
 else
     MONITOR_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
 fi
+
+export PATH="$HOME/.local/bin:$PATH"
 PID_FILE="${MONITOR_PID_FILE:-$MONITOR_HOME/.monitor-sync.pid}"
 # systemd 实例写的 PIDFile（unit 里 MONITOR_PID_FILE=/run/claude-auto-sync/monitor.pid）。
 # 可覆盖：测试要隔离「两个 PIDFile 都不存在 → 只能靠 pgrep 兜底」这条路径，
