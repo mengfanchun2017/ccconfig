@@ -935,6 +935,7 @@ add_custom_preset() {
     entry=$(NAME="$name" DISPLAY="$display" BASE_URL="$base_url" MODEL="$model" SMALL="$small" \
         USE_BRIDGE="$use_bridge" HOST_HEADER="$host_header" MAX_CTX="$max_ctx" \
         VISION_MODEL="$VISION_MODEL" VISION_UPSTREAM="$VISION_UPSTREAM" VISION_KEY_PRESET="$VISION_KEY_PRESET" \
+        OCR_BACKEND="$OCR_BACKEND" \
         python3 <<'PYEOF'
 import json, os
 e = {
@@ -955,6 +956,9 @@ for _k, _env in (("vision_model", "VISION_MODEL"),
                  ("vision_key_preset", "VISION_KEY_PRESET")):
     if os.environ.get(_env):
         e[_k] = os.environ[_env]
+# OCR 后端（可选）：预设关联的文档解析/OCR 能力。
+if os.environ.get("OCR_BACKEND"):
+    e["ocr_backend"] = os.environ["OCR_BACKEND"]
 print(json.dumps(e, ensure_ascii=False))
 PYEOF
     )

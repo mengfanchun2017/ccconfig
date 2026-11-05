@@ -515,28 +515,16 @@ commit_and_push() {
                     skip_push=true
                 fi
             fi
-
-            if ! $skip_push; then
-                local push_output push_rc
-                push_output=$(git_push "$repo_dir" "$branch" 2>&1)
-                push_rc=$?
-                if [ $push_rc -eq 0 ]; then
-                    log "[$repo] OK pushed → GitHub ($commit_hash)"
-                    # 已迁移：aiagt deploy → fsyncdoc skill，不再 auto-sync 触发
-                else
-                    echo "$push_output" | while IFS= read -r errline; do do_log "[$repo] $errline"; done
-                    warn "[$repo] !! push failed — $(push_fail_reason "$push_output")"
-                fi
+        else
+            # skip_push = unrelated histories / rebase conflict / secret scan hit
+            local _unpushed
+            _unpushed=$(git -C "$repo_dir" rev-list --count "origin/$branch..HEAD" 2>/dev/null || echo 0)
+            if [ "${_unpushed:-0}" -gt 0 ]; then
+                error "[$repo] !! 跳过推送 — ${_unpushed} 个 commit 未推送（远程领先/冲突/密钥拦截）。查看: git -C $repo_dir log origin/$branch..HEAD"
             else
-                # skip_push = unrelated histories / rebase conflict / secret scan hit
-                local _unpushed
-                _unpushed=$(git -C "$repo_dir" rev-list --count "origin/$branch..HEAD" 2>/dev/null || echo 0)
-                if [ "${_unpushed:-0}" -gt 0 ]; then
-                    error "[$repo] !! 跳过推送 — ${_unpushed} 个 commit 未推送（远程领先/冲突/密钥拦截）。查看: git -C $repo_dir log origin/$branch..HEAD"
-                else
-                    warn "[$repo] !! 跳过推送（无未推送 commit，仅本地改动未落盘）"
-                fi
+                warn "[$repo] !! 跳过推送（无未推送 commit，仅本地改动未落盘）"
             fi
+        fi
     else
         if echo "$commit_output" | grep -q "nothing to commit"; then
             :  # not an error
