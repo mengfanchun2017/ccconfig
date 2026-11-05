@@ -24,6 +24,7 @@ CAT_NAME[3]="LLM"
 CAT_NAME[4]="MCP"
 CAT_NAME[5]="rag"
 CAT_NAME[6]="远程/桥接"
+CAT_NAME[7]="多模态 MLayer"
 
 MENU_ENTRIES=(
     # ── 1: 状态/同步（原 1 状态 + 原 2 监控/同步 合并）──
