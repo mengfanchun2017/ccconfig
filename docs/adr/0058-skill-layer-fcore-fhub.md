@@ -4,7 +4,7 @@
 > **日期**: 2026-11-04
 > **关联**: `~/git/skill/plugins/fcore`、`~/git/skill/plugins/fhub`、`~/git/ccprivate/conf/fcore.yaml`、`bin/sync-plugin-env.sh`、ADR-0043（撰写系统四层）
 > **模板**: MADR 4.0 极简版
-> **取代**: 部分取代 ADR-0043 的 L4 路由层（fworch 职责并入 fcore genre）
+> **取代**: 部分取代 ADR-0043 的 L4 路由层（forch 职责并入 fcore genre）
 
 ## Context and Problem Statement
 
@@ -16,7 +16,7 @@
 2. **17/28 个 skill 零脚本**：模型每次要照抄 5-10 行 lark-cli 命令。上面 3 个 bug 就是抄错的产物。
 3. **SKILL.md 体积 85.7k token**（6013 行全量进上下文），其中 18% 是可推迟的机械命令与安装/故障段。
 4. **触发词三处真相源已漂移**：`~/CLAUDE.md` 曾写「写报告 → fresearchframe」而实际该派
-   fworch-report；`registry.yaml` 与各 SKILL.md 的 description 又各写一份。
+   forch-report；`registry.yaml` 与各 SKILL.md 的 description 又各写一份。
 
 同时用户提出三个硬需求：
 - 技能是**开源**的，隐私内容（token/文档链接/记录/配置）必须在 ccprivate；
@@ -50,8 +50,8 @@
 L0  fcore      机械内核 —— 路径/配置/auth/文档/格式/派发匹配。唯一碰 lark-cli 命令的层
 L1  fhub       总入口 —— 判断需求属哪个子技能，派发过去。不执行业务
 L1  各域技能   ffeishu / fpdf / fdigest / fresearchframe / flogme / fpptx ...
-L2  fwstd-*    内容规范 —— 什么算好，无命令
-L3  fworch-*   编排 —— 什么时候做哪一步
+L2  fstander-*    内容规范 —— 什么算好，无命令
+L3  forch-*   编排 —— 什么时候做哪一步
 ```
 
 ### 二、fcore 提供什么
@@ -61,7 +61,7 @@ L3  fworch-*   编排 —— 什么时候做哪一步
 | `fcore auth` | 5 处手写 auth 预检（3 处是错的） |
 | `fcore conf get/set/path/require` | `plugin_env.sh` + 27 份 boot stub |
 | `fcore data / data-ls` | 课程进度这类用户数据的路径拼接 |
-| `fcore genre / genres` | fworch 的注册表读取 + 判体裁 + 派发 |
+| `fcore genre / genres` | forch 的注册表读取 + 判体裁 + 派发 |
 | `fcore doc create/get/ids`、`upload`、`search` | 各 SKILL.md 里照抄的 lark-cli 命令 |
 | `fcore fmt-xml / fmt-md` | write-checklist 里可机械判定的部分 |
 | `fcore where` | 散落各处的排障命令 |
@@ -95,7 +95,7 @@ L3  fworch-*   编排 —— 什么时候做哪一步
 
 区别：配置是键值对（`skillconf_get` 按 key 查）；用户数据是结构自由的文件
 （课程配置有嵌套的 lesson_docs 列表，需要整个文件读写）。
-此前 fworch-course 有 4 处、fworch-interview 有 4 处用 `skillconf_file` 读用户数据，
+此前 forch-course 有 4 处、forch-interview 有 4 处用 `skillconf_file` 读用户数据，
 而它只查 ccprivate —— 独立用户直接失效。
 
 ### 五、总入口派发
@@ -108,7 +108,7 @@ fcore genre "<用户原话>"     # 输出 domain/genre → 该派哪个技能
 
 匹配两级：① 完整触发短语命中（长词加权）；② **中文二元组词元兜底**。
 第二级是关键 —— 注册表没写"PDF排到飞书"，但 `PDF`+`飞书` 词元能拼出来。
-实测 11 条口语化需求全部正确派发（"帮我写个行业报告"→fworch-report、
+实测 11 条口语化需求全部正确派发（"帮我写个行业报告"→forch-report、
 "把这个PDF排到飞书"→fpdf、"画个架构图"→ffeishu、"读这份年报总结"→fdigest）。
 
 **为什么不用中文分词库**：正则 `[一-鿿]{2,}` 贪婪匹配会把整句连成一个词元
@@ -134,9 +134,9 @@ fcore genre "<用户原话>"     # 输出 domain/genre → 该派哪个技能
   保留旧的只为不破坏已在跑的机器；新代码一律用 fcore，旧的在后续批次迁完再删。
 - 30 个 skill 各带一份 `_boot.sh`（40 行生成物）。这是 `/plugin install` 只复制自身目录
   的必然代价，实现仍只有 fcore 一处。
-- `fworch` 未删除，只标为「建议改走 fhub」。删除要等 fhub 跑稳（避免用户肌肉记忆断掉）。
+- `forch` 未删除，只标为「建议改走 fhub」。删除要等 fhub 跑稳（避免用户肌肉记忆断掉）。
 
 **未做（下一批）**
 - 六个大 skill 的 SKILL.md 减肥（85.9k → 36.2k token，实测可减 58%）。
 - 154 处硬编码 `~/.claude/skills/` 改为经 `_boot.sh` 解析。
-- fworch 删除、命名统一（f-doc/f-write）。
+- forch 删除、命名统一（f-doc/f-write）。

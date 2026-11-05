@@ -282,12 +282,12 @@ Tier 3: 领域方法论（领域知识 + 框架）
   flogme           个人管理方法论（OKR/Worklog/Reflect/SUM）
 
 Tier 4: 应用 Skill（最终用户工作流）
-  fworch            撰写系统统一入口 → 按体裁派发
-  fworch-course     课程撰写 → fwstd-course
-  fworch-report     报告撰写 → fresearchframe + fwstd-report + ffeishu
-  fworch-case       案例撰写 → fwstd-case
-  fworch-interview  面试准备 → fwstd-interview
-  fwstd-{course,report,case,interview}  各体裁写作横向规范
+  forch            撰写系统统一入口 → 按体裁派发
+  forch-course     课程撰写 → fstander-course
+  forch-report     报告撰写 → fresearchframe + fstander-report + ffeishu
+  forch-case       案例撰写 → fstander-case
+  forch-interview  面试准备 → fstander-interview
+  fstander-{course,report,case,interview}  各体裁写作横向规范
   fmoocrec          慕课推荐（QS 课程 + 学习路径）
 ```
 

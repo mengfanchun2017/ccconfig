@@ -51,7 +51,7 @@
 | [0040](0040-remote-file-transfer-channels.md) | 远程服务器文件传输通道选型 — Taildrop 直落「下载」文件夹为主，飞书(20MB内)为补充，SSH 为好友跨账号备用 | 2026-10-07 | ✅ Accepted | option-remote |
 | [0041](0041-getnote-cli-skill-migration.md) | 得到大脑集成从 MCP 切换为 CLI + Skill（OAuth 授权）— 卸载 `@getnote/mcp`，改用官方 `@getnote/cli` + 5 原子 Skill | 2026-10-08 | ✅ Accepted | 取代 [0007](0007-introduce-getnote-mcp.md) |
 | [0042](0042-wsl-image-paste-sharex-path.md) | WSL 图像粘贴方案 — ShareX「复制文件路径」规避 WSLg BMP 解码坑，弃 Alt+V/解绑 Ctrl+V | 2026-10-08 | ✅ Accepted | — |
-| [0043](0043-writing-system-architecture.md) | 文档撰写系统架构 — 四层分层（路由/编排/规范/机械）+ 声明式体裁注册表 + 统一命名（fworch/forch*/fwstd-*） | 2026-10-10 | ✅ Accepted | 撰写系统 |
+| [0043](0043-writing-system-architecture.md) | 文档撰写系统架构 — 四层分层（路由/编排/规范/机械）+ 声明式体裁注册表 + 统一命名（forch/forch*/fstander-*） | 2026-10-10 | ✅ Accepted | 撰写系统 |
 | [0044](0044-agent-smb-file-bridge.md) | agent 跨机取件通道 — SMB `C$` + tsxfer 专用账户（反向拉取 + 回写），补 0040 的 agent 主动方向 | 2026-10-12 | ✅ Accepted | option-filepull（待建） |
 | [0045](0045-llm-context-window-config.md) | LLM 上下文窗口可配置 — 预设 `max_context_tokens`（单位 k）+ 菜单/CLI 输入 + 全局默认 + 内置薄覆盖 | 2026-10-13 | ✅ Accepted | LLM 管理 |
 | [0046](0046-remote-multi-window-tmux.md) | 远程多窗口连接 — Tailscale SSH + tmux（`new -A -s` 复用 session）+ PowerShell 客户端封装；多连接用不同 `-s` 名各自独立 | 2026-10-14 | ✅ Accepted | — |

@@ -155,7 +155,7 @@ grep 确认**没有任何地方**把 argv 转成 `CCC_DRY_RUN`。于是文档承
 
 ### 3.4 ✅ 4 个 `config.yaml.example` 指向不存在的路径
 
-`ccprivate/config/<x>.yaml` → 实际是 `ccprivate/skill/<name>.yaml`（`apply-config.sh:17` 的 `CCPRIVATE_CONFIG=$CCPRIVATE_DIR/skill`）。影响 fsearch / fresearchframe / fsysarchi / fworch-report。
+`ccprivate/config/<x>.yaml` → 实际是 `ccprivate/skill/<name>.yaml`（`apply-config.sh:17` 的 `CCPRIVATE_CONFIG=$CCPRIVATE_DIR/skill`）。影响 fsearch / fresearchframe / fsysarchi / forch-report。
 
 **修复** ✅。
 
@@ -173,7 +173,7 @@ grep 确认**没有任何地方**把 argv 转成 `CCC_DRY_RUN`。于是文档承
 
 ### 3.7 ✅ 其他
 
-- `~/git/ccprivate` 硬编码改 `${CCPRIVATE_HOME:-$HOME/git/ccprivate}`（fworch-course / fworch-interview 及其 comm-contract）
+- `~/git/ccprivate` 硬编码改 `${CCPRIVATE_HOME:-$HOME/git/ccprivate}`（forch-course / forch-interview 及其 comm-contract）
 - README/CLAUDE.md 的 plugin 计数 24 → 26
 - 删死代码：`lib/safe-exit.sh`（零引用）、`sv_ct.html`（492KB tracked 页面 dump）、`lib/__pycache__/`
 - `update.sh` 锁文件 `/tmp/ccconfig-update.lock` → `${XDG_RUNTIME_DIR:-/tmp}/ccconfig-update-$(id -u).lock`（避免多用户共享 `/tmp` 时 PID 复用误判）
@@ -259,8 +259,8 @@ grep 确认**没有任何地方**把 argv 转成 `CCC_DRY_RUN`。于是文档承
 | `plugins/{fdocx,fxlsx,ffeishu,fmoocrec,fsysarchi}/SKILL.md` | description 去英文 `Use when` |
 | `plugins/fskillcreat/SKILL.md` | 删手动 git 提交指引 |
 | `plugins/fsecretcheck/SKILL.md` | **新增**：密钥泄露检查 skill（第 26 个 plugin） |
-| `plugins/{fsearch,fresearchframe,fsysarchi,fworch-report}/config.yaml.example` | 修正指向不存在的路径 |
-| `plugins/{fworch-course,fworch-interview}/**` | `~/git/ccprivate` → `${CCPRIVATE_HOME:-…}` |
+| `plugins/{fsearch,fresearchframe,fsysarchi,forch-report}/config.yaml.example` | 修正指向不存在的路径 |
+| `plugins/{forch-course,forch-interview}/**` | `~/git/ccprivate` → `${CCPRIVATE_HOME:-…}` |
 | `scripts/sync-marketplace.py` | 自动登记新插件 |
 | `.claude-plugin/marketplace.json` | 26 plugin，version 0.14.0 |
 | `CHANGELOG.md` / `README.md` / `CLAUDE.md` | 0.14.0 条目；计数 24 → 26 |
