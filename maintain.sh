@@ -470,7 +470,7 @@ do_setup() {
         _fix_step "fcore doctor --fix" "$HOME/.claude/skills/fcore/bin/fcore" fix
     fi
 
-    section "5. settings 键归位（.config.json → settings.json）"
+    section "6. settings 键归位（.config.json → settings.json）"
     python3 << 'PYEOF'
 import json, os, sys
 
@@ -575,7 +575,7 @@ PYEOF
     #
     # 为何用显式表而非"模板里没有就删"：用户可能在 env 里加了自己的变量，
     # 通用 diff 会误杀。显式表精确、可审计、每条附原因。
-    section "5b. 废弃 env 键清理"
+    section "6b. 废弃 env 键清理"
     python3 << 'PYEOF'
 import json, os
 
@@ -623,10 +623,10 @@ else:
         print("  ✓ 无废弃 env 键")
 PYEOF
 
-    section "6. LLM 当前选择"
+    section "7. LLM 当前选择"
     check_llm_current || true
 
-    section "7. bridge 守护与运行态一致性"
+    section "8. bridge 守护与运行态一致性"
     # ① 先把守护服务装上/启用（老用户 git pull 后跑到这里即完成迁移）。
     #    此前 bridge 只有 setsid 孤儿 watchdog 守护，重启后与 bridge 同死，留下自愈空窗。
     # ② 再做运行态一致性检查（孤儿 bridge / 该起没起 / 无守护），--fix 直接修。
@@ -668,7 +668,7 @@ except Exception: print('\t')
         fi
     fi
 
-    section "8. auto-sync 与运行依赖"
+    section "9. auto-sync 与运行依赖"
     # 已在跑就别再 enable —— enable 会重装系统级 systemd unit（要 sudo）。
     # 一键恢复里弹 sudo 认证很烦，而且非 tty（CI/脚本）下必然失败报错。
     # 先取变量再比，不要写成 `... | grep -q`：grep -q 一匹配就关管道，
