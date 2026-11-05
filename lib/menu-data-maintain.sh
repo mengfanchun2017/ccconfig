@@ -121,16 +121,12 @@ MENU_ENTRIES=(
     "6|D|botmux 桥配置管理|bash option-botmux/init.sh menu|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" menu"
 
     # ── 7: 多模态 MLayer（视觉/OCR/语音/图形/视频）──
-    # 多模态能力通过 preset 字段 + MCP 服务按需加载，不固定绑定到某一路线。
-    # 视觉：走 bridge vision_model 路由（glm46vflash 等视觉预设），检测请求含图时
-    #       自动切视觉模型，纯文本请求不走视觉。
-    # OCR：走预设 ocr_backend 字段 + MinerU MCP 服务，文档解析/图片文字提取。
-    # 扩展方案：未来加语音用 whisper MCP、加视频用 frame-extract MCP 等 ── 每类
-    # 只扩字段 + 加条目，不拆区块。
-    "7|A|视觉状态/诊断|./maintain.sh mlayer vision|do_mlayer vision"
-    "7|B|OCR 状态/诊断（MinerU）|./maintain.sh mlayer ocr|do_mlayer ocr"
-    "7|C|多模态 MCP 状态（全部）|./maintain.sh mlayer mcp|do_mlayer mcp"
-    "7|D|多模态预设列表|./maintain.sh mlayer presets|do_mlayer presets"
+    # 配置入口：诊断当前预设的多模态能力 + 交互配置 key（默认复用当前 LLM key）。
+    # 不单独问 vision_model/ocr_backend —— 这些在 preset 定义里，切 preset 就换。
+    # 选预设（切视觉预设）走 3A LLM 切换，MLayer 只管配通。
+    "7|A|视觉配置（当前预设 vision_model 诊断+key 配置）|./maintain.sh mlayer vision|do_mlayer vision"
+    "7|B|OCR 配置（MinerU key 配置+诊断）|./maintain.sh mlayer ocr|do_mlayer ocr"
+    "7|C|多模态预设列表|./maintain.sh mlayer presets|do_mlayer presets"
 
     # ── 0: 退出 ──
     "0| |退出||exit 0"
