@@ -555,8 +555,9 @@ do_sync() {
         good "完成。验证: bash init-skill.sh status"
     fi
 
-    # sync 后自动跑 fcore doctor（新装/升级后体检一次）
-    if [ -x "$CLAUDE_SKILLS_DIR/fcore/bin/fcore" ]; then
+    # sync 后自动跑 fcore doctor（新装/升级后体检一次）。
+    # sync-lite（跳 symlink）时不做：那个路径由 auto-sync 触发，skills 已在，不打扰。
+    if [[ "$_lite" == "0" ]] && [ -x "$CLAUDE_SKILLS_DIR/fcore/bin/fcore" ]; then
         echo ""
         "$CLAUDE_SKILLS_DIR/fcore/bin/fcore" doctor 2>&1 || true
     fi
