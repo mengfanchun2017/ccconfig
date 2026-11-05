@@ -25,16 +25,12 @@
       "max_context_tokens": 400,
       "builtin": true
     },
-    "glm46vflash": {
-      "name": "glm4.6v-flash",
-      "base_url": "https://open.bigmodel.cn/api/paas/v4",
-      "model": "glm-4.6v-flash",
-      "small_model": "glm-4.6v-flash",
-      "vision_model": "glm-4.6v-flash",
-      "ocr_backend": "mineru",
-      "max_context_tokens": 128,
-      "max_concurrency": 1,
-      "use_bridge": true,
+    "longcat": {
+      "name": "longcat-2.5",
+      "base_url": "https://api.longcat.chat/anthropic",
+      "model": "LongCat-2.5",
+      "small_model": "LongCat-2.5",
+      "max_context_tokens": 1000,
       "builtin": true
     }
   }
