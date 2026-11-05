@@ -120,13 +120,13 @@ MENU_ENTRIES=(
     "6|C|botmux 桥状态体检|bash option-botmux/init.sh doctor|do_botmux_doctor"
     "6|D|botmux 桥配置管理|bash option-botmux/init.sh menu|bash \"\$CCCONFIG_DIR/option-botmux/init.sh\" menu"
 
-    # ── 7: 多模态 MLayer（视觉/OCR/语音/图形/视频）──
-    # 配置入口：诊断当前预设的多模态能力 + 交互配置 key（默认复用当前 LLM key）。
-    # 不单独问 vision_model/ocr_backend —— 这些在 preset 定义里，切 preset 就换。
-    # 选预设（切视觉预设）走 3A LLM 切换，MLayer 只管配通。
-    "7|A|视觉配置（当前预设 vision_model 诊断+key 配置）|./maintain.sh mlayer vision|do_mlayer vision"
-    "7|B|OCR 配置（MinerU key 配置+诊断）|./maintain.sh mlayer ocr|do_mlayer ocr"
-    "7|C|多模态预设列表|./maintain.sh mlayer presets|do_mlayer presets"
+    # ── 7: 多模态 MLayer（视觉/文档解析，未来扩语音/视频）──
+    # 结构 = 状态总览（A，只读）+ 每类能力一个配置入口（B/C，写）。
+    # 配置入口学 LLM 管理：选预设（默认当前生效的）→ 显示 key 尾号 → 回车保持 / 粘新 key。
+    # 不在这里列 MCP —— MCP 注册状态归 4 区，重复列出只会互相漂移。
+    "7|A|多模态状态总览（视觉/文档解析）|./maintain.sh mlayer status|do_mlayer status"
+    "7|B|配置视觉（预设 + key）|./maintain.sh mlayer vision|do_mlayer vision"
+    "7|C|配置文档解析（预设 + key）|./maintain.sh mlayer docparse|do_mlayer docparse"
 
     # ── 0: 退出 ──
     "0| |退出||exit 0"
