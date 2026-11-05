@@ -258,7 +258,11 @@ for name, llm in llms.items():
     kv = (llm.get('key') or '')
     kl = kv.lower()
     has_key = '0' if (not kv or any(p in kl for p in PH)) else '1'
-    print(f"{marker}|{name}|{llm.get('name', name)}|{model}|{llm.get('base_url','')}|{small}|{is_builtin}|{has_key}")
+    print(f"{marker}|{name}|{llm.get('name', name)}|{model}|{llm.get('base_url','')}|{small}|{is_builtin}|{has_key}")|{tag_str}
+    tags = []
+    if llm.get("vision_model"): tags.append("📷")
+    if llm.get("ocr_backend"): tags.append("📄")
+    tag_str = " ".join(tags) if tags else ""
 PYEOF
 }
 
