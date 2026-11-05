@@ -804,6 +804,8 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh" ;;
     example)
         shift; bash "$LIB_DIR/example-sync.sh" "$@" ;;
+    mlayer)
+        shift; do_mlayer "${1:-vision}" ;;
     upgrade-ccprivate|upgrade-ccpriv|ccpriv-upgrade)
         shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
     *)
