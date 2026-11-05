@@ -332,7 +332,9 @@ except Exception: print('')
             fi
             # 其他端口上的桥（非 BRIDGE_PORT）：只提示存在，供排查残留
             local others
-            others=$(pgrep -af "openai_bridge.py --port" 2>/dev/null | grep -v "port ${port}\b" | sed -E 's/.*--port ([0-9]+).*/\1/' | sort -u | tr '\n' ' ')
+            others=$( { pgrep -af "openai_bridge.py --port" 2>/dev/null || true; } \
+                | { grep -v "port ${port}\b" || true; } \
+                | sed -E 's/.*--port ([0-9]+).*/\1/' | sort -u | tr '\n' ' ' || true)
             if [[ -n "${others// /}" ]]; then
                 echo -e "        ${YELLOW}另有残留桥占用端口: $others（排查用，可能是测试遗留）${NC}"
             fi
@@ -980,7 +982,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     example)
         shift; bash "$LIB_DIR/example-sync.sh" "$@" ;;
     mlayer)
-        shift; do_mlayer "${1:-vision}" ;;
+        shift; do_mlayer "${1:-status}" ;;
     upgrade-ccprivate|upgrade-ccpriv|ccpriv-upgrade)
         shift; bash "$LIB_DIR/ccprivate-upgrade.sh" "$@" ;;
     *)
