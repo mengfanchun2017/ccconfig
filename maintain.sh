@@ -319,21 +319,24 @@ _ml_mask() {
 
 # 列全部视觉预设（vision_model 非空）= glm46vflash + 任何自定义带 vision_model 的
 _ml_vision_list() {
-    python3 -c "
-import json,sys,os
-d=json.load(open(sys.argv[1])).get('llms',{})
-lf=sys.argv[2]
-try: lk=json.load(open(lf)).get('llms',{})
-except: lk={}
-for k,v in sorted(d.items()):
-    vm=v.get('vision_model','')
+    local lf; lf="$(source "$LIB_DIR/path-helper.sh" 2>/dev/null; resolve_conf llm.json 2>/dev/null)" || return 0
+    python3 - "$_ML_CFG" "$lf" <<'PYEOF'
+import json, sys
+cfg, lf = sys.argv[1], sys.argv[2]
+d = json.load(open(cfg)).get('llms', {})
+try: lk = json.load(open(lf)).get('llms', {})
+except: lk = {}
+for k in sorted(d):
+    v = d[k]
+    vm = v.get('vision_model', '')
     if not vm: continue
-    vkp=v.get('vision_key_preset','') or k
-    kraw=(lk.get(vkp,{}) or lk.get(k,{})).get('key','') or ''
-    mk=('...'+kraw[-4:]) if kraw and len(kraw)>=8 and '请填入' not in kraw else '(无 key)'
-    src=v.get('_src','?')
-    print(f\"{k}|${{v.get('name',k)}}|${{vm}}|${{vkp}}|${{mk}}|${{src}}\")
-" "$_ML_CFG" "$(source "$LIB_DIR/path-helper.sh" 2>/dev/null; resolve_conf llm.json 2>/dev/null)" 2>/dev/null
+    vkp = v.get('vision_key_preset', '') or k
+    kraw = (lk.get(vkp, {}) or lk.get(k, {})).get('key', '') or ''
+    mk = ('...' + kraw[-4:]) if kraw and len(kraw) >= 8 and '请填入' not in kraw else '(无 key)'
+    src = v.get('_src', '?')
+    nm = v.get('name', k)
+    print(f"{k}|{nm}|{vm}|{vkp}|{mk}|{src}")
+PYEOF
 }
 
 do_mlayer() {
