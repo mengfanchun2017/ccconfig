@@ -1029,6 +1029,7 @@ edit_custom_preset() {
     _prompt_vision_fields "$(_get_preset_field "$target" vision_model)" \
         "$(_get_preset_field "$target" vision_upstream)" \
         "$(_get_preset_field "$target" vision_key_preset)"
+    _prompt_ocr_fields "$(_get_preset_field "$target" ocr_backend)"
 
     local entry
     entry=$(DISPLAY="$display" BASE_URL="$base_url" MODEL="$model" SMALL="$small" \
