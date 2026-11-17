@@ -398,6 +398,10 @@ menu_render() {
                 printf "  ${BOLD_GRAY}--退出--${NC}\n"
             else
                 printf "  ${BOLD_GRAY}--%s %s--${NC}\n" "$cat" "${CAT_NAME[$cat]:-}"
+                # 动态状态（menu_render_hook 由 caller 定义，显示该区关键摘要）
+                if declare -F menu_render_hook &>/dev/null; then
+                    menu_render_hook "$cat"
+                fi
             fi
             current_cat="$cat"
         fi

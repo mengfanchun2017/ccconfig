@@ -398,6 +398,51 @@ bridge_vision_key() {
     bridge_vision_field "$cfg" "$ref" key
 }
 
+# 全局视觉配置（7B 设定，ccprivate/conf/vision.json，与 LLM 预设正交）。
+# why 覆盖 per-preset 字段：视觉是全局维度，7B 是唯一配置点；per-preset
+#     vision_* 字段只作 vision.json 缺失时的回落（fresh 机器 / 旧配置兼容）。
+# 仅 provider=zhipu 生效 —— trae provider 只存在于 8899 网关内部（keep_images
+# 直发），8898 OpenAI 协议侧无 Trae 通道。
+# provider=trae 时返回 2：调用方应清空 8898 视觉路由（否则 per-preset 旧字段
+# 会在 7B 已选 Trae 订阅后仍把带图请求暗投外部智谱，违背 7B 唯一开关语义）。
+# 用法: bridge_vision_global <cmd: model|upstream|key> <fallback_key_preset>
+bridge_vision_global() {
+    local cmd="$1" fb_ref="$2"
+    local vconf="$HOME/git/ccprivate/conf/vision.json"
+    [[ -f "$vconf" ]] || return 1
+    python3 -c "
+import json, sys
+cmd, fb = sys.argv[1], sys.argv[2]
+try:
+    v = json.load(open(sys.argv[3]))
+except Exception:
+    sys.exit(1)
+p = v.get('provider')
+if p == 'zhipu':
+    pass
+elif p == 'trae':
+    sys.exit(2)
+else:
+    sys.exit(1)
+if cmd == 'model':
+    print(v.get('model', '') or '')
+elif cmd == 'upstream':
+    print(v.get('upstream', '') or '')
+elif cmd == 'key':
+    ref = v.get('key_preset') or fb
+    if not ref:
+        sys.exit(0)
+    for kf in ('$HOME/git/ccprivate/conf/mlayer.json', '$HOME/git/ccprivate/conf/llm.json'):
+        try:
+            k = json.load(open(kf)).get('llms', {}).get(ref, {}).get('key', '')
+            if k:
+                print(k)
+                break
+        except Exception:
+            pass
+" "$cmd" "$fb_ref" "$vconf" 2>/dev/null
+}
+
 # 读 preset 的 model_no_think（不思考路由的模型名）。空=不启用双路由。
 # why 换路由而不是发参数：单位网关完全忽略 reasoning_effort/enable_thinking，
 #     发参数关不掉思考；只有换成 no-think 模型才真的不思考。
@@ -515,6 +560,21 @@ ensure_bridge() {
     vision_model="$(bridge_vision_model "$cfg" "$preset")"
     vision_upstream="$(bridge_vision_upstream "$cfg" "$preset")"
     vision_key="$(bridge_vision_key "$cfg" "$preset")"
+    # 全局 vision.json（7B）覆盖 per-preset 旧字段。rc2=7B 选了 trae 视觉
+    # （8898 无 Trae 通道）→ 显式清空视觉路由，不让旧字段暗投外部智谱。
+    # rc1=vision.json 缺失/损坏 → 保留 per-preset 字段回落（fresh 机器兼容）。
+    local fb_ref gvm gvu gvk grc
+    fb_ref="$(bridge_vision_field "$cfg" "$preset" vision_key_preset)"
+    gvm="$(bridge_vision_global model "$fb_ref")"; grc=$?
+    if (( grc == 0 )); then
+        gvu="$(bridge_vision_global upstream '')" || gvu=""
+        gvk="$(bridge_vision_global key "$fb_ref")" || gvk=""
+        [[ -n "$gvm" ]] && vision_model="$gvm"
+        [[ -n "$gvu" ]] && vision_upstream="$gvu"
+        [[ -n "$gvk" ]] && vision_key="$gvk"
+    elif (( grc == 2 )); then
+        vision_model=""; vision_upstream=""; vision_key=""
+    fi
     reason_effort="$(bridge_reasoning_effort "$cfg" "$preset")"
     model_no_think="$(bridge_model_no_think "$cfg" "$preset")"
 

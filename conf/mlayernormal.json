@@ -1,0 +1,17 @@
+{
+  "description": "内置 MLLM 预设定义（开源）。key 不在此文件，用户配置 key 通过 7 区更新存 ccprivate/conf/mlayer.json（纯 key）。这些是多模态模型，不显示在 LLM 菜单（3区），通过 7 区 MLayer 管理。供 LLM 预设的 vision_key_preset 引用。",
+  "llms": {
+    "glm46vflash": {
+      "name": "glm4.6v-flash",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "glm-4.6v-flash",
+      "small_model": "glm-4.6v-flash",
+      "vision_model": "glm-4.6v-flash",
+      "ocr_backend": "mineru",
+      "max_context_tokens": 128,
+      "max_concurrency": 1,
+      "use_bridge": true,
+      "builtin": true
+    }
+  }
+}

@@ -200,78 +200,17 @@ do_highpriv() {
 }
 
 # ==================== 多模态 MLayer ====================
-# ==================== 多模态 MLayer ====================
 # 三类动作：status（只读总览）/ vision（配视觉）/ docparse（配文档解析）。
-# 配置入口学 LLM 管理：先选预设（默认当前生效的）→ 显示 key 尾号 → 回车保持 / 粘新 key。
-# why 不在这里列 MCP：MCP 注册状态归 4 区，两处各列一份必然漂移。
-
-# 读合并配置里某预设的字段；空 → 输出空
-_ml_field() {
-    local preset="$1" field="$2"
-    [[ -f "$_ML_CFG" ]] || return 0
-    python3 -c "
-import json,sys
-try:
-    d=json.load(open(sys.argv[1])).get('llms',{}).get(sys.argv[2],{})
-    print(d.get(sys.argv[3],'') or '')
-except Exception:
-    print('')
-" "$_ML_CFG" "$preset" "$field" 2>/dev/null
-}
-
-# 掩码：只留尾 4 位。占位符/空 → 空
-_ml_mask() {
-    local v="$1"
-    [[ -z "$v" ]] && return 0
-    case "$v" in *请填入*|*请替换*|*your.key*|*your_key*|*placeholder*|*changeme*|*"<your-"*) return 0 ;; esac
-    if (( ${#v} >= 8 )); then printf '...%s' "${v: -4}"; else printf '(过短)'; fi
-}
-
-# 预设选择器：输出选中预设名。无参 → 列全部预设让选（当前生效的排最前并标注）。
-# 直接读合并配置构造列表 —— 不复用 list_llms（它带菜单副作用，且要 source init-llm.sh）。
-_ml_pick_preset() {
-    local want="$1"
-    [[ -n "$want" ]] && { printf '%s' "$want"; return 0; }
-    [[ -f "$_ML_CFG" ]] || return 1
-    local rows
-    rows=$(python3 -c "
-import json,sys
-cfg, cur = sys.argv[1], sys.argv[2]
-d = json.load(open(cfg)).get('llms', {})
-def tags(v):
-    t = []
-    if v.get('vision_model'): t.append('视觉')
-    if v.get('ocr_backend'): t.append('文档解析')
-    return (' '+'|'.join(t)) if t else ''
-order = ([cur] if cur in d else []) + [k for k in d if k != cur]
-for k in order:
-    v = d[k]
-    mark = '◀ ' if k == cur else '  '
-    print(f\"{k}|{mark}{v.get('name',k)} ({v.get('model','')}){tags(v)}\")
-" "$_ML_CFG" "${_ML_CUR:-}" 2>/dev/null)
-    [[ -z "$rows" ]] && return 1
-    local items=() names=()
-    while IFS='|' read -r name label; do
-        [[ -z "$name" ]] && continue
-        names+=("$name"); items+=("$label")
-    done <<< "$rows"
-    items+=("返回")
-    local sel; sel=$(menu_select "选择预设（当前生效: ${_ML_CUR:-无}）" "${items[@]}") || return 1
-    [[ -z "$sel" || "$sel" == "0" ]] && return 1
-    (( sel == ${#items[@]} )) && return 1
-    printf '%s' "${names[$((sel-1))]}"
-}
-
-
-# ==================== 多模态 MLayer v2 ====================
-# 三类动作：status（只读总览）/ vision（配视觉）/ docparse（配文档解析）。
-# 配置入口学 LLM 管理结构但不照搬：按领域列可用选项 → 选后显示 key 尾号 → 更新/清除/启用。
+#
+# 架构（2026-11-17 定案）：视觉是全局设定，跟 LLM 预设正交。
+#   3A 管 LLM 预设（主模型走哪个端点），7B 只管视觉后端（带图请求改发给谁）。
+#   不做「每个 LLM 预设各自配视觉」的排列组合 —— 主模型切什么都不影响视觉选择。
 #
 # 数据源：
-#   vision 领域：llmnormal/llmprivate/llm.json 的 preset 中 vision_model 非空的
-#   docparse 领域：当前只 mineru，token 在 ccprivate/conf/mineru.json
+#   视觉: ccprivate/conf/vision.json（全局唯一）provider/model/upstream/key_preset
+#   文档解析: ccprivate/conf/mineru.json（全局，后端仅 mineru）
 
-# 读合并配置字段
+# 读合并配置里某预设的字段；空 → 输出空
 _ml_field() {
     local preset="$1" field="$2"
     [[ -f "$_ML_CFG" ]] || return 0
@@ -283,33 +222,7 @@ try:
 except Exception: print('')" "$_ML_CFG" "$preset" "$field" 2>/dev/null
 }
 
-# 从 llm.json 读某预设的 key
-_ml_key() {
-    local preset="$1"
-    local lf; lf="$(source "$LIB_DIR/path-helper.sh" 2>/dev/null; resolve_conf llm.json 2>/dev/null)" || return 0
-    python3 -c "
-import json,sys
-try:
-    d=json.load(open(sys.argv[1])).get('llms',{}).get(sys.argv[2],{})
-    print(d.get('key','') or '')
-except Exception: print('')" "$lf" "$preset" 2>/dev/null
-}
-
-# 写 key 到 llm.json
-_ml_write_key() {
-    local preset="$1" key="$2"
-    local lf; lf="$(source "$LIB_DIR/path-helper.sh" 2>/dev/null; resolve_conf llm.json 2>/dev/null)" || return 1
-    python3 -c "
-import json, sys
-p=sys.argv[1]; n=sys.argv[2]; k=sys.argv[3]
-try: d=json.load(open(p))
-except: d={}
-d.setdefault('llms',{})[n]={'key':k}
-json.dump(d, open(p,'w'), indent=4, ensure_ascii=False)
-print('ok')" "$lf" "$preset" "$key" 2>/dev/null | grep -q ok
-}
-
-# 掩码 key：只留尾 4 位，占位符/空 → 空
+# 掩码：只留尾 4 位。占位符/空 → 空
 _ml_mask() {
     local v="$1"
     [[ -z "$v" ]] && return 0
@@ -317,27 +230,69 @@ _ml_mask() {
     (( ${#v} >= 8 )) && printf '...%s' "${v: -4}" || printf '(过短)'
 }
 
-# 列全部视觉预设（vision_model 非空）= glm46vflash + 任何自定义带 vision_model 的
-_ml_vision_list() {
-    local lf; lf="$(source "$LIB_DIR/path-helper.sh" 2>/dev/null; resolve_conf llm.json 2>/dev/null)" || return 0
-    python3 - "$_ML_CFG" "$lf" <<'PYEOF'
-import json, sys
-cfg, lf = sys.argv[1], sys.argv[2]
-d = json.load(open(cfg)).get('llms', {})
-try: lk = json.load(open(lf)).get('llms', {})
-except: lk = {}
-for k in sorted(d):
-    v = d[k]
-    vm = v.get('vision_model', '')
-    if not vm: continue
-    vkp = v.get('vision_key_preset', '') or k
-    kraw = (lk.get(vkp, {}) or lk.get(k, {})).get('key', '') or ''
-    mk = ('...' + kraw[-4:]) if kraw and len(kraw) >= 8 and '请填入' not in kraw else '(无 key)'
-    src = v.get('_src', '?')
-    nm = v.get('name', k)
-    print(f"{k}|{nm}|{vm}|{vkp}|{mk}|{src}")
-PYEOF
+# 全局视觉配置。vision.json 只在 ccprivate（公开仓禁真值）。
+# 读: _ml_vision_cfg <field>   写: _ml_vision_write <provider> <model> [key_preset]
+_ML_VISION_CONF="$HOME/git/ccprivate/conf/vision.json"
+_ml_vision_cfg() {
+    local field="$1"
+    [[ -f "$_ML_VISION_CONF" ]] || return 0
+    python3 -c "
+import json,sys
+try: print(json.load(open(sys.argv[1])).get(sys.argv[2],'') or '')
+except Exception: print('')" "$_ML_VISION_CONF" "$field" 2>/dev/null
 }
+_ml_vision_write() {
+    python3 -c "
+import json, sys, os
+p = sys.argv[1]
+d = {'provider': sys.argv[2], 'model': sys.argv[3]}
+# zhipu 必须带 key_preset：trae_bridge._load_vision 靠它在 mlayer.json 找 key，
+# 缺了会静默走空 key → 401
+if sys.argv[2] == 'zhipu': d['key_preset'] = sys.argv[4] or 'glm46vflash'
+d['upstream'] = 'https://open.bigmodel.cn/api/paas/v4' if sys.argv[2] == 'zhipu' else ''
+tmp = p + '.tmp'
+with open(tmp, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
+os.replace(tmp, p)
+print('ok')" "$_ML_VISION_CONF" "$1" "$2" "" "${3:-}" 2>/dev/null | grep -q ok
+}
+
+# 视觉 key 读写（zhipu provider 用）：mlayer.json 优先，llm.json 兜底
+_ml_vision_key_read() {
+    local kp="${1:-glm46vflash}"
+    for kf in mlayer.json llm.json; do
+        local k
+        k="$(python3 -c "
+import json,sys
+try: print(json.load(open(sys.argv[1])).get('llms',{}).get(sys.argv[2],{}).get('key','') or '')
+except Exception: print('')" "$HOME/git/ccprivate/conf/$kf" "$kp" 2>/dev/null)"
+        [[ -n "$k" ]] && { printf '%s' "$k"; return 0; }
+    done
+    return 0
+}
+_ml_vision_key_write() {
+    local kp="$1" key="$2"
+    local f="$HOME/git/ccprivate/conf/mlayer.json"
+    [[ -f "$f" ]] || f="$HOME/git/ccprivate/conf/llm.json"
+    [[ -f "$f" ]] || { mkdir -p "$HOME/git/ccprivate/conf"; echo '{"llms":{}}' > "$f"; }
+    python3 -c "
+import json, sys, os
+p, n, k = sys.argv[1], sys.argv[2], sys.argv[3]
+try: d = json.load(open(p))
+except Exception: d = {}
+d.setdefault('llms', {})[n] = {'key': k}
+tmp = p + '.tmp'
+with open(tmp, 'w') as fh: json.dump(d, fh, indent=4, ensure_ascii=False)
+os.replace(tmp, p)
+print('ok')" "$f" "$kp" "$key" 2>/dev/null | grep -q ok
+}
+
+# 视觉后端清单（7B 菜单项）—— 固定两条，不做预设排列组合
+# zhipu = 外部智谱 glm-4.6v-flash（key 在 mlayer.json，免费额度限流 1305 频发）
+# trae  = Trae 订阅内视觉模型（实测看图 8/8；deepseek/glm 系报参数错误不吃图）
+_ML_VISION_CHOICES=(
+    "zhipu|glm-4.6v-flash|外部智谱 glm-4.6v-flash（独立 key，免费额度限流）"
+    "trae|deepseek-v4.1-flash|Trae 订阅 deepseek-v4.1-flash（走订阅额度，无需 key，走 solo_work_remote 通道）"
+)
 
 do_mlayer() {
     local action="${1:-status}"
@@ -351,168 +306,109 @@ do_mlayer() {
             section "多模态状态总览"
             local cur_name; cur_name="$(_ml_field "$_ML_CUR" name)"
             local cur_model; cur_model="$(_ml_field "$_ML_CUR" model)"
-            echo -e "  当前预设: ${CYAN}$_ML_CUR${NC} (${cur_model:-?})"
+            echo -e "  LLM 预设: ${CYAN}$_ML_CUR${NC} (${cur_model:-?})  ${DIM}← 3A 配置${NC}"
             echo ""
 
-            # ――― 视觉 ―――
-            local vm; vm="$(_ml_field "$_ML_CUR" vision_model)"
-            echo -e "  ${BOLD_GRAY}▎视觉${NC}"
-            if [[ -n "$vm" ]]; then
-                echo -e "    状态: ${GREEN}已启用${NC}  model=${CYAN}$vm${NC}"
-                local vkp; vkp="$(_ml_field "$_ML_CUR" vision_key_preset)"
-                local kp="${vkp:-$_ML_CUR}"
-                local kraw; kraw="$(_ml_key "$kp")"
-                local mk; mk="$(_ml_mask "$kraw")"
-                echo -e "    key:  ${mk:+${GREEN}$mk${NC}}${mk:-${YELLOW}(未配置)${NC}}  (预设 $kp)"
+            # ――― 视觉（全局设定）―――
+            echo -e "  ${BOLD_GRAY}▎视觉${NC}  ${DIM}(全局设定) ← 7B 配置${NC}"
+            local vp; vp="$(_ml_vision_cfg provider)"
+            local vmod; vmod="$(_ml_vision_cfg model)"
+            if [[ -z "$vp" ]]; then
+                echo -e "    状态: ${YELLOW}未启用${NC}（未选视觉后端，7B 选择）"
             else
-                echo -e "    状态: ${YELLOW}未启用${NC}（当前预设无 vision_model）"
-            fi
-            # 列出可用的视觉预设
-            local vrows; vrows="$(_ml_vision_list)"
-            if [[ -n "$vrows" ]]; then
-                echo -e "    可用视觉预设:"
-                while IFS='|' read -r vname vdisp vmodel vkp vmk vsrc; do
-                    [[ -z "$vname" ]] && continue
-                    local mark=" "; [[ "$vname" == "$_ML_CUR" ]] && mark="◀"
-                    echo -e "      $mark ${CYAN}$vname${NC} ($vmodel)  key=${vmk}"
-                done <<< "$vrows"
+                echo -e "    后端: ${GREEN}$vmod${NC}  ${DIM}(provider=$vp)${NC}"
+                if [[ "$vp" == "zhipu" ]]; then
+                    local kp; kp="$(_ml_vision_cfg key_preset)"
+                    local kraw; kraw="$(_ml_vision_key_read "${kp:-glm46vflash}")"
+                    local mk; mk="$(_ml_mask "$kraw")"
+                    if [[ -n "$mk" ]]; then
+                        echo -e "    key:  ${GREEN}$mk${NC}  (预设 ${kp:-glm46vflash})"
+                    else
+                        echo -e "    key:  ${YELLOW}(未配置)${NC}  (预设 ${kp:-glm46vflash})"
+                    fi
+                fi
             fi
             echo -e "    配置: 7B"
             echo ""
 
-            # ――― 文档解析 ―――
-            local ocr; ocr="$(_ml_field "$_ML_CUR" ocr_backend)"
-            echo -e "  ${BOLD_GRAY}▎文档解析${NC}"
-            if [[ -n "$ocr" ]]; then
-                echo -e "    状态: ${GREEN}已启用${NC}  后端=${CYAN}$ocr${NC}"
-            else
-                echo -e "    状态: ${YELLOW}未启用${NC}（当前预设无 ocr_backend）"
-            fi
-            # MinerU 状态
+            # ――― 文档解析（全局设定）―――
+            echo -e "  ${BOLD_GRAY}▎文档解析${NC}  ${DIM}(全局设定) ← 7C 配置${NC}"
             local mu_conf="$HOME/git/ccprivate/conf/mineru.json"
             local mu_raw=""
             [[ -f "$mu_conf" ]] && mu_raw=$(python3 -c "import json; print(json.load(open('$mu_conf')).get('token','') or '')" 2>/dev/null)
             local mm; mm="$(_ml_mask "$mu_raw")"
-            echo -e "    MinerU:${mm:+ ${GREEN}key $mm${NC}}${mm:- ${YELLOW}key 未配置${NC}}"
+            echo -e "    后端: ${CYAN}mineru${NC}"
+            if [[ -n "$mm" ]]; then echo -e "    token: ${GREEN}$mm${NC}"; else echo -e "    token: ${YELLOW}(未配置)${NC}"; fi
             command -v uvx &>/dev/null \
                 && echo -e "    uvx:    ${GREEN}可用${NC}" \
                 || echo -e "    uvx:   ${RED}不可用${NC}"
             echo -e "    配置: 7C"
             echo ""
 
-            # ――― bridge 运行态 ―――
-            echo -e "  ${BOLD_GRAY}▎bridge${NC}"
+            # ――― 网关运行态 ―――
+            echo -e "  ${BOLD_GRAY}▎网关${NC}"
             local bport="${BRIDGE_PORT:-8898}"
             local bh; bh=$(curl -s --noproxy '*' --max-time 2 "http://127.0.0.1:${bport}/health" 2>/dev/null || true)
             if [[ -n "$bh" ]]; then
                 local bm; bm=$(echo "$bh" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('upstream_model','?'))" 2>/dev/null)
                 local bv; bv=$(echo "$bh" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('vision_model') or '(无)')" 2>/dev/null)
-                echo -e "    :${bport} ${GREEN}运行中${NC}  模型=${bm}  vision=${bv}"
+                echo -e "    :${bport} openai_bridge ${GREEN}运行中${NC}  模型=${bm}  vision=${bv}"
             else
-                echo -e "    :${bport} ${YELLOW}未运行${NC}"
+                echo -e "    :${bport} openai_bridge ${YELLOW}未运行${NC}  ${DIM}(OpenAI 协议预设才需要)${NC}"
+            fi
+            local th; th=$(curl -s --noproxy '*' --max-time 2 "http://127.0.0.1:8899/health" 2>/dev/null || true)
+            if [[ -n "$th" ]]; then
+                echo -e "    :8899 trae_bridge ${GREEN}运行中${NC}"
+            else
+                echo -e "    :8899 trae_bridge ${YELLOW}未运行${NC}  ${DIM}(systemctl --user restart trae-bridge)${NC}"
             fi
             ;;
 
         vision)
-            section "配置视觉"
-            # 列出视觉预设
-            local rows; rows="$(_ml_vision_list)"
-            if [[ -z "$rows" ]]; then
-                warn "无视觉预设（没有预设定义 vision_model 字段）"
-                echo -e "  ${DIM}内置视觉预设: glm46vflash（切到它就能用）${NC}"
-                return 0
-            fi
-            local items=() names=()
-            while IFS='|' read -r name disp model kp mk src; do
-                [[ -z "$name" ]] && continue
-                names+=("$name")
-                local mark=" "; [[ "$name" == "$_ML_CUR" ]] && mark="◀"
-                items+=("$mark $disp ($model)  key=$mk")
-            done <<< "$rows"
-            items+=("启用视觉（在某个预设上启用）")
+            section "配置视觉（全局，与 LLM 预设无关）"
+            echo -e "  ${DIM}带图请求改发给视觉后端，纯文本照常走当前 LLM 预设。${NC}"
+            echo ""
+            local cur_p; cur_p="$(_ml_vision_cfg provider)"
+            local cur_m; cur_m="$(_ml_vision_cfg model)"
+            local items=()
+            for c in "${_ML_VISION_CHOICES[@]}"; do
+                IFS='|' read -r p m desc <<< "$c"
+                local mark="  "
+                [[ "$p" == "$cur_p" ]] && mark="◀ "
+                items+=("$mark$desc")
+            done
             items+=("返回")
-            local sel; sel=$(menu_select "视觉预设（选择更新 key / 查看详情）" "${items[@]}") || return 0
+            local sel; sel=$(menu_select "视觉后端（当前: ${cur_m:-未配置}）" "${items[@]}") || return 0
             [[ -z "$sel" || "$sel" == "0" ]] && return 0
             (( sel == ${#items[@]} )) && return 0
 
-            # 最后一项 = "启用视觉"
-            local add_idx=$(( ${#items[@]} - 2 ))  # items has 2 extras: "启用" + "返回"
-            if (( sel == add_idx )); then
-                # 选一个预设，给它加 vision_model
-                local psel; psel="$(_ml_pick_preset "")" || { info "已取消"; return 0; }
-                local pvm; pvm="$(_ml_field "$psel" vision_model)"
-                if [[ -n "$pvm" ]]; then
-                    info "预设 '$psel' 已有 vision_model=$pvm"
-                    return 0
-                fi
-                local dflt; dflt=$(python3 -c "
-import json
-try:
-    d=json.load(open('$_ML_CFG')).get('llms',{}).get('glm46vflash',{})
-    print(d.get('vision_model','glm-4.6v-flash'))
-except: print('glm-4.6v-flash')" 2>/dev/null)
-                if confirm "在 '$psel' 上启用视觉 (vision_model=$dflt)？"; then
-                    python3 -c "
-import json
-p='$HOME/git/ccprivate/conf/llmprivate.json'
-try: d=json.load(open(p))
-except: d={'llms':{}}
-l=d.setdefault('llms',{}).setdefault('$psel',{})
-l['vision_model']='$dflt'
-l['vision_upstream']='https://open.bigmodel.cn/api/paas/v4'
-l['vision_key_preset']='glm46vflash'
-json.dump(d, open(p,'w'), indent=4, ensure_ascii=False)
-" 2>/dev/null && ok "已启用视觉（$dflt）" || err "写入失败"
-                    bash "$LIB_DIR/init-llm.sh" merge >/dev/null 2>&1 || true
-                    info "key 可以接着在 7B 配置"
-                fi
+            local chosen_p chosen_m
+            IFS='|' read -r chosen_p chosen_m _ <<< "${_ML_VISION_CHOICES[$((sel-1))]}"
+            if [[ "$chosen_p" == "$cur_p" && "$chosen_m" == "$cur_m" ]]; then
+                info "已是当前配置（$chosen_m）"
+            elif _ml_vision_write "$chosen_p" "$chosen_m"; then
+                ok "视觉后端已设为 $chosen_m (provider=$chosen_p)"
+            else
+                err "写入失败"
                 return 0
             fi
 
-            local target="${names[$((sel-1))]}"
-            local tdisp tmodel tkp tmk tsrc
-            while IFS='|' read -r n d m kp mk s; do
-                [[ "$n" == "$target" ]] && { tdisp="$d"; tmodel="$m"; tkp="$kp"; tmk="$mk"; tsrc="$s"; }
-            done <<< "$rows"
-
-            echo ""
-            echo -e "  ${CYAN}$target${NC} ($tdisp)"
-            echo -e "  vision_model:    $tmodel"
-            echo -e "  key 取自预设:   $tkp  当前: ${tmk}"
-            echo ""
-
-            local actions=("更新 key（替换）")
-            # 内置预设不可清除 key（它本来就没定义 key，key 在同名的 llm.json 条目里）
-            [[ "$tsrc" != "normal" ]] && actions+=("清除 key（从 llm.json 删除）")
-            actions+=("返回")
-            local asel; asel=$(menu_select "操作" "${actions[@]}") || return 0
-            [[ -z "$asel" || "$asel" == "0" ]] && return 0
-            (( asel == ${#actions[@]} )) && return 0
-
-            case "$asel" in
-                1)  # 更新 key
-                    local cur_key; cur_key="$(_ml_key "$tkp")"
+            # zhipu 需要确认 key；trae 走订阅无需 key
+            if [[ "$chosen_p" == "zhipu" ]]; then
+                local kp; kp="$(_ml_vision_cfg key_preset)"
+                local kraw; kraw="$(_ml_vision_key_read "${kp:-glm46vflash}")"
+                if [[ -z "$kraw" ]]; then
+                    warn "智谱 key 未配置（mlayer.json 无 ${kp:-glm46vflash} 条目）"
                     local newkey
-                    newkey=$(prompt_key_plain "视觉 key（预设 $tkp）" "$cur_key")
-                    if [[ -n "$newkey" ]]; then
-                        if [[ "$newkey" != "$cur_key" ]]; then
-                            _ml_write_key "$tkp" "$newkey" \
-                                && ok "key 已保存: $(_ml_mask "$newkey")" \
-                                || err "写入失败"
-                        else
-                            ok "key 保持不变: $(_ml_mask "$cur_key")"
-                        fi
-                    else
-                        info "已取消"
-                    fi
-                    ;;
-                2)  # 清除 key
-                    if confirm "确定清除 '$tkp' 的 key？"; then
-                        _ml_write_key "$tkp" "" \
-                            && ok "key 已清除" || err "清除失败"
-                    fi
-                    ;;
-            esac
+                    newkey=$(prompt_key_plain "智谱 API key" "")
+                    [[ -n "$newkey" ]] && _ml_vision_key_write "${kp:-glm46vflash}" "$newkey" \
+                        && ok "key 已保存: $(_ml_mask "$newkey")" || info "跳过 key 配置"
+                fi
+            fi
+            # trae_bridge 启动时读一次 vision.json → 改完必须重启才生效
+            systemctl --user is-active trae-bridge.service &>/dev/null \
+                && { systemctl --user restart trae-bridge.service; ok "trae-bridge 已重启（配置仅启动时读）"; } \
+                || info "trae-bridge 未运行；下次启动会读新配置"
             ;;
 
         docparse)
@@ -522,37 +418,26 @@ json.dump(d, open(p,'w'), indent=4, ensure_ascii=False)
             [[ -f "$mu_conf" ]] && cur_tok=$(python3 -c "import json; print(json.load(open('$mu_conf')).get('token','') or '')" 2>/dev/null)
             local mm; mm="$(_ml_mask "$cur_tok")"
 
-            echo -e "  后端: ${CYAN}mineru${NC}"
-            echo -e "  token:${mm:+ ${GREEN}$mm${NC}}${mm:- ${YELLOW}(未配置)${NC}}"
-            command -v uvx &>/dev/null \
-                && echo -e "  uvx:  ${GREEN}可用${NC}" \
-                || echo -e "  uvx: ${RED}不可用（需装 uv）${NC}"
+            echo -e "  ${BOLD_GRAY}▎可用文档解析后端${NC}"
             echo ""
-
-            # 为当前预设启用（如果还没配 ocr_backend）
-            local ocr; ocr="$(_ml_field "$_ML_CUR" ocr_backend)"
-            if [[ -z "$ocr" ]]; then
-                if confirm "在预设 '$_ML_CUR' 上启用文档解析 (ocr_backend=mineru)？"; then
-                    python3 -c "
-import json
-p='$HOME/git/ccprivate/conf/llmprivate.json'
-try: d=json.load(open(p))
-except: d={'llms':{}}
-d.setdefault('llms',{}).setdefault('$_ML_CUR',{})['ocr_backend']='mineru'
-json.dump(d, open(p,'w'), indent=4, ensure_ascii=False)
-" 2>/dev/null && ok "已启用" || err "写入失败"
-                    bash "$LIB_DIR/init-llm.sh" merge >/dev/null 2>&1 || true
-                fi
-                echo ""
+            echo -e "  ${BOLD_GREEN}1${NC}  mineru"
+            if [[ -n "$mm" ]]; then
+                echo -e "       token: ${GREEN}$mm${NC}"
+            else
+                echo -e "       token: ${YELLOW}(未配置)${NC}"
             fi
+            command -v uvx &>/dev/null \
+                && echo -e "       uvx:   ${GREEN}可用${NC}" \
+                || echo -e "       uvx:   ${RED}不可用${NC}"
+            echo ""
+            echo -e "  ${DIM}文档解析是全局设定，不绑定 preset。启用后任何预设都可用此后端。${NC}"
 
-            # token 管理
-            local actions=("更新/设置 token")
-            if [[ -n "$(_ml_mask "$cur_tok")" ]]; then
-                actions+=("清除 token")
+            local actions=("更新/设置 MinerU token")
+            if [[ -n "$mm" ]]; then
+                actions+=("清除 MinerU token")
             fi
             actions+=("返回")
-            local asel; asel=$(menu_select "MinerU 操作" "${actions[@]}") || return 0
+            local asel; asel=$(menu_select "文档解析操作" "${actions[@]}") || return 0
             [[ -z "$asel" || "$asel" == "0" ]] && return 0
             (( asel == ${#actions[@]} )) && return 0
 
@@ -895,9 +780,14 @@ except Exception: print('\t')
     # 否则 status 复查又报一遍，用户还得回头翻命令。
     section "未自动修项（需你决策）"
     local _manual=0
-    # PAT：失效要重新登录，必须本人给 token（或走 gh 交互）
-    if ! gh auth status &>/dev/null 2>&1; then
-        warn "GitHub PAT 未登录/失效 → ./maintain.sh pat"
+    # GitHub 认证：GCM / PAT 任一可用即 OK；都不可用才需人工配置
+    source "$LIB_DIR/git-auth.sh" >/dev/null 2>&1 || true
+    local _ga_path="" _ga_gcm _ga_pat
+    _ga_path=$(_find_gcm_path) || true
+    _ga_gcm=$(_gcm_status "$_ga_path")
+    _ga_pat=$(_pat_status)
+    if [[ "$_ga_gcm" != "ok" && "$_ga_pat" != "logged_in" ]]; then
+        warn "GitHub 认证未配置（GCM/PAT 都不可用）→ ./maintain.sh git-auth"
         _manual=$((_manual + 1))
     fi
     # getnote CLI 授权检查：未装/未授权列入需决策项（OAuth 必须本人在浏览器确认）
@@ -1087,7 +977,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     llm)     shift; bash "$LIB_DIR/init-llm.sh" "$@" ;;
     mcp)     shift; bash "$LIB_DIR/mcp-manager.sh" "$@" ;;
     botmux)  shift; bash "$CCCONFIG_DIR/option-botmux/init.sh" "$@" ;;
-    pat|pat-refresh|gh-auth)
+    git-auth|gh-auth)
+        shift; bash "$LIB_DIR/git-auth.sh" "${1:-interactive}" ;;
+    pat|pat-refresh)
         bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh" ;;
     example)
         shift; bash "$LIB_DIR/example-sync.sh" "$@" ;;

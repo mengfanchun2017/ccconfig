@@ -43,6 +43,10 @@ source "$SCRIPT_DIR/tailscale-guard.sh"
 # 读取时把 key 合并进定义，渲染菜单/切换。
 # 三个文件路径均支持环境变量预置（CI/单测覆盖用），未预置时用默认位置
 LLM_KEYS_FILE="${LLM_KEYS_FILE:-$(resolve_conf llm.json)}" || exit 1
+# MLLM 纯 key 文件（ccprivate，多模态模型 key 独立管理，不与 LLM key 互相影响）
+MLAYER_KEYS_FILE="${MLAYER_KEYS_FILE:-$(resolve_conf mlayer.json 2>/dev/null || echo '')}"
+# 内置 MLLM 预设定义：ccconfig 仓库（公开）
+MLAYER_NORMAL_FILE="${MLAYER_NORMAL_FILE:-${CCCONFIG_ROOT}/conf/mlayernormal.json}"
 # 内置预设定义模板：ccconfig 仓库（公开）
 LLM_NORMAL_FILE="${LLM_NORMAL_FILE:-${CCCONFIG_ROOT}/conf/llmnormal.json}"
 # 自定义预设定义：ccprivate（私有）
@@ -62,10 +66,12 @@ LOCAL_CURRENT_FILE="$HOME/.claude/llm-current"
 LLM_MERGED_CACHE="${LLM_MERGED_CACHE:-$HOME/.cache/llm-merged.json}"
 
 _llms_merged_py() {
-    python3 - "$LLM_NORMAL_FILE" "$LLM_PRIVATE_FILE" "$LLM_KEYS_FILE" "${LLM_MERGED_CACHE}" << 'PYEOF'
+    python3 - "$LLM_NORMAL_FILE" "$LLM_PRIVATE_FILE" "$LLM_KEYS_FILE" \
+             "$MLAYER_NORMAL_FILE" "$MLAYER_KEYS_FILE" "${LLM_MERGED_CACHE}" << 'PYEOF'
 import json, sys, os
 normal_f, priv_f, keys_f = sys.argv[1], sys.argv[2], sys.argv[3]
-cache_f = sys.argv[4] if len(sys.argv) > 4 else ''
+mlayer_f, mlayer_keys_f = sys.argv[4], sys.argv[5]
+cache_f = sys.argv[6] if len(sys.argv) > 6 else ''
 # 定义：内置 + 自定义（自定义优先，同名覆盖内置——用户想改默认上游）
 # _src 语义：normal=内置（不可删），private=自定义（可删）。
 # 字段级合并：private 同名条目只覆盖它提供的字段，未提供的保留 normal 值。
@@ -74,8 +80,8 @@ cache_f = sys.argv[4] if len(sys.argv) > 4 else ''
 #   · 含其它字段的 private 条目 = 整条重定义 → _src 翻 private（视为自定义预设）
 merged = {}
 srcs = {}
-for f in (normal_f, priv_f):
-    is_priv = (f == priv_f)
+for f, f_kind in ((normal_f, 'normal'), (priv_f, 'private')):
+    is_priv = (f_kind == 'private')
     try:
         d = json.load(open(f))
     except Exception:
@@ -106,6 +112,37 @@ for name, k in kd.get('llms', {}).items():
         spec = dict(k)
         spec['_src'] = 'private'
         merged[name] = spec
+# MLLM 定义（mlayernormal.json 内置，不合并 llmprivate.json — MLLM key 走 mlayer.json）
+# why 顶层缩进：这段原嵌在 llm.json 的 key 循环里，llm.json 为空时整个不执行
+# → glm46vflash 从 merged 消失、7B 列表空、panel 显示"无视觉预设"。
+try:
+    md = json.load(open(mlayer_f))
+except Exception:
+    md = {}
+for name, spec in md.get('llms', {}).items():
+    spec = dict(spec); spec.pop('key', None)
+    spec['_src'] = 'normal'
+    spec['_category'] = 'mllm'
+    if name in merged:
+        merged[name].update(spec)
+    else:
+        merged[name] = spec
+# MLLM 纯 key 文件（mlayer.json）
+if mlayer_keys_f:
+    try:
+        mkd = json.load(open(mlayer_keys_f))
+    except Exception:
+        mkd = {}
+    for name, k in mkd.get('llms', {}).items():
+        if not isinstance(k, dict):
+            continue
+        if name in merged:
+            merged[name]['key'] = k.get('key', '')
+        elif k.get('base_url'):
+            spec = dict(k)
+            spec['_src'] = 'private'
+            spec['_category'] = 'mllm'
+            merged[name] = spec
 for name, llm in merged.items():
     llm.setdefault('key', '')
 # 导出合并快照给 bridge 组件读（本机缓存，不入 git）
@@ -250,8 +287,11 @@ print(f"TOTAL:{len(llms)}")
 print(f"CURRENT:{cur}")
 PH = ('请填入', '请替换', 'your key', 'your_key', 'placeholder', 'changeme', '<your-')
 for name, llm in llms.items():
+    # MLLM 不在 LLM 菜单显示，由 7 区 MLayer 管理
+    if llm.get('_category') == 'mllm':
+        continue
     model = llm.get('model', '')
-    marker = "◀" if name == cur else " "
+    marker = "✓" if name == cur else " "
     small = llm.get('small_model', '')
     is_builtin = '1' if llm.get('_src') == 'normal' else '0'
     # 第 8 列 has_key：菜单据此标出「无 Key」的预设，避免用户以为已配好却切换失败
@@ -345,6 +385,11 @@ env_upd = {
     # auto 权限模式的分类器有自己的模型变量，不读 HAIKU（见 memory auto-mode-classifier-model）。
     # 不写这条 → 分类器固定发 claude-sonnet-5；外部 endpoint 无此模型 → fail-closed 拦一切命令。
     "CLAUDE_CODE_AUTO_MODE_MODEL": os.environ.get('SMALL_MODEL') or os.environ['MODEL_NAME'],
+    # 消 [claude-code:unrecognized_model] 警告（2.1.319 实测）：模型识别函数 Bu() 的
+    # tier_pin_env 路径认 ANTHROPIC_DEFAULT_SONNET_MODEL 等 4 个 env 的精确匹配。
+    # 主模型名写进 SONNET 槽后，请求模型名即被认出 → 不再打 unrecognized_model。
+    # 客观效果同 ANTHROPIC_MODEL（网关反正透传裸名），只是多了一个被认出的来源。
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": os.environ['MODEL_NAME'],
     # ⚠️ 不要写 CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1。
     # 实测语义（2.1.308 二进制原文）：该变量把"auto-compact keeps this session within
     # <MAX_CONTEXT_TOKENS>" 这条**整个关掉**，回到"等 API 报窗口"的旧行为。而中转
@@ -1348,9 +1393,9 @@ PYEOF
 # 动作后停顿，让用户看清结果再重渲染（防止输出堆积、clear 抖动）
 _pause_continue() {
     echo ""
-    printf "  ${DIM}按回车返回菜单...${NC}"
-    read -r _ < /dev/tty 2>/dev/null || true
-    echo ""
+    # 等用户在下一个循环看到结果（不要求额外回车）
+    # why 不 read：用户说"不要再出现需要再点击一次的情况"
+    sleep 0.6 2>/dev/null || true
 }
 
 interactive_select() {
@@ -1388,7 +1433,7 @@ interactive_select() {
             local small_str=""
             [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
             local cur_mark=" "
-            [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
+            [[ "$marker" == "✓" ]] && cur_mark="${GREEN}${marker}${NC}"
             local key_str=""
             [[ "$has_key" == "0" ]] && key_str=" ${YELLOW}[无 Key · 按 3a 录入]${NC}"
             local tag_str=""
@@ -1404,7 +1449,7 @@ interactive_select() {
             local small_str=""
             [[ -n "$small" ]] && small_str=" ${DIM}[小模型: $small]${NC}"
             local cur_mark=" "
-            [[ "$marker" == "◀" ]] && cur_mark="${GREEN}${marker}${NC}"
+            [[ "$marker" == "✓" ]] && cur_mark="${GREEN}${marker}${NC}"
             local key_str=""
             [[ "$has_key" == "0" ]] && key_str=" ${YELLOW}[无 Key · 按 3a 录入]${NC}"
             local tag_str=""

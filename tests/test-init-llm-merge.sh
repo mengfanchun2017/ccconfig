@@ -25,11 +25,21 @@ _fail() { FAIL=$((FAIL+1)); echo -e "  ${RED}❌${NC} $1${2:+ — $2}"; }
 run_merge() {
     local normal="$1" priv="$2" keys="$3" cache="$4" test_home="${5:-$WORKDIR/home}"
     mkdir -p "$test_home/.claude" "$WORKDIR/home"
+    # MLLM 层同步隔离：mlayernormal/mlayer 默认指真实文件，不挡会把 glm46vflash
+    # 混进结果 → T1/T4 断言的 preset 计数漂移（2026-11-17 实测 4≠3）
     LLM_NORMAL_FILE="$normal" LLM_PRIVATE_FILE="$priv" \
-    LLM_KEYS_FILE="$keys" LLM_MERGED_CACHE="$cache" HOME="$test_home" \
+    LLM_KEYS_FILE="$keys" LLM_MERGED_CACHE="$cache" \
+    MLAYER_NORMAL_FILE="/nonexistent/mlayernormal.json" MLAYER_KEYS_FILE="/nonexistent/mlayer.json" \
+    HOME="$test_home" \
     TEST_MODE=1 bash -c 'source "$1/lib/init-llm.sh"; _llms_merged_py' _ "$CCCONFIG_DIR" \
         2>/dev/null
 }
+
+# MLLM 合并测试用的真实内置定义路径
+_MLN="$CCCONFIG_DIR/conf/mlayernormal.json"
+_MLK="$(mktemp)"
+echo '{"llms": {"glm46vflash": {"key": "sk-mlayer-test"}}}' > "$_MLK"
+trap 'rm -rf "$WORKDIR" "$_MLK"' EXIT
 
 WORKDIR=$(mktemp -d)
 trap 'rm -rf "$WORKDIR"' EXIT
@@ -213,6 +223,45 @@ if [[ "$thin_res" == "normal 321 https://a.example" ]]; then
 else
     _fail "薄覆盖行为错" "got: [$thin_res]"
 fi
+
+# ── T8: 空 llm.json 时 MLLM 仍合并 ── 回归测试（2026-11-17 修的嵌套 bug）：
+# MLLM 块原嵌在 llm.json key 循环里，llm.json 为空 → glm46vflash 整个消失
+echo "T8 空 llm.json 兜底：MLLM 定义仍合并进结果"
+cat > "$WORKDIR/empty-keys.json" << 'JSON'
+{"llms": {}, "current": "builtin-a"}
+JSON
+empty_out=$(MLAYER_NORMAL_FILE="$_MLN" MLAYER_KEYS_FILE="/nonexistent/mlayer.json" \
+    LLM_NORMAL_FILE="$WORKDIR/normal.json" LLM_PRIVATE_FILE="$WORKDIR/private.json" \
+    LLM_KEYS_FILE="$WORKDIR/empty-keys.json" LLM_MERGED_CACHE="$WORKDIR/cache6.json" \
+    HOME="$WORKDIR/empty-home" TEST_MODE=1 \
+    bash -c 'source "$1/lib/init-llm.sh"; _llms_merged_py' _ "$CCCONFIG_DIR" 2>/dev/null \
+    | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print('HAS_MLLM' if 'glm46vflash' in d else 'NO_MLLM')")
+if [[ "$empty_out" == "HAS_MLLM" ]]; then
+    _pass "空 llm.json 时 MLLM 预设不丢（嵌套 bug 回归测试）"
+else
+    _fail "空 llm.json 丢 MLLM" "got: $empty_out"
+fi
+
+# ── T9: MLLM 三层合并 — mlayernormal 定义 + mlayer.json key ──
+echo "T9 MLLM 合并：mlayernormal 定义 + mlayer key → glm46vflash 带 _category=mllm"
+run_merge "$WORKDIR/normal.json" "$WORKDIR/private.json" "$WORKDIR/keys.json" "$WORKDIR/cache7.json" "$WORKDIR/m9-home" > /dev/null
+MLAYER_NORMAL_FILE="$_MLN" MLAYER_KEYS_FILE="$_MLK" \
+LLM_NORMAL_FILE="$WORKDIR/normal.json" LLM_PRIVATE_FILE="$WORKDIR/private.json" \
+LLM_KEYS_FILE="$WORKDIR/keys.json" LLM_MERGED_CACHE="$WORKDIR/cache7.json" \
+HOME="$WORKDIR/m9-home" TEST_MODE=1 \
+bash -c 'source "$1/lib/init-llm.sh"; _llms_merged_py' _ "$CCCONFIG_DIR" 2>/dev/null \
+| python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+g = d.get('glm46vflash', {})
+assert g.get('_category') == 'mllm', f'_category 错: {g.get("_category")}'
+assert g.get('vision_model') == 'glm-4.6v-flash', 'vision_model 丢'
+assert g.get('key') == 'sk-mlayer-test', f'key 错: {g.get("key")}'
+print('MLLOK')" \
+| { read -r r; if [[ "$r" == "MLLOK" ]]; then _pass "glm46vflash 合并（定义+key+_category）"; else _fail "MLLM 合并错" "got: $r"; fi; }
 
 echo ""
 echo "───────────────────────────────"

@@ -193,10 +193,10 @@ git_push() {
             return 0
         fi
         if echo "$output" | grep -qiE "bad credentials|401|token.*expired|invalid_token|authentication failed|unauthorized"; then
-            # Auth error → PAT 失效/过期，不重试，提示续期后才能 push
+            # Auth error → 认证失效（GCM 未登录 / PAT 过期），不重试，提示后才能 push
             do_log ""
-            do_log "❌ GitHub PAT 失效（401/auth error）— 续期后才能 push"
-            do_log "   bash ~/git/ccconfig/bin/refresh-gh-auth.sh"
+            do_log "❌ GitHub 认证失败（401/auth error）— push 暂停"
+            do_log "   配置: bash ~/git/ccconfig/maintain.sh git-auth（菜单 2C）"
             echo "$output" >&2
             return $rc
         elif echo "$output" | grep -qi "connection\|network\|Recv failure\|reset by peer\|timeout\|Could not resolve"; then
@@ -1096,6 +1096,25 @@ status_watch() {
         else
             echo -e "${RED}❌${NC} — bash init-llm.sh heal"
         fi
+    fi
+
+    # GitHub 认证（本地检查，无网络往返）
+    echo -n "  GitHub 认证 ... "
+    if [ -f "$SCRIPT_DIR/git-auth.sh" ]; then
+        source "$SCRIPT_DIR/git-auth.sh" >/dev/null 2>&1 || true
+        local _ga_path="" _ga_gcm _ga_pat
+        _ga_path=$(_find_gcm_path) || true
+        _ga_gcm=$(_gcm_status "$_ga_path")
+        _ga_pat=$(_pat_status)
+        if [[ "$_ga_gcm" == "ok" ]]; then
+            echo -e "${GREEN}✅${NC} ${GRAY}Windows GCM${NC}"
+        elif [[ "$_ga_pat" == "logged_in" ]]; then
+            echo -e "${GREEN}✅${NC} ${GRAY}GitHub PAT${NC}"
+        else
+            echo -e "${YELLOW}○${NC} ${GRAY}未配置 → ./maintain.sh git-auth${NC}"
+        fi
+    else
+        echo -e "${GRAY}－${NC}"
     fi
 
     # systemd 自启动

@@ -6,7 +6,7 @@
 #    含 settings 分层双向检查：键放错文件（.config.json 里不生效）+ 基线键缺失
 # 2. 核心依赖（check_deps_quick）
 # 3. auto-sync 状态（check_autosync）
-# 4. GitHub PAT 有效期（check_pat_expiry）
+# 4. GitHub 认证（check_git_auth，GCM + PAT 双模式）
 # 5. Git 项目状态 + MEMORY + 最后推送（check_repos）
 # 6. 飞书 lark-cli 状态（check_feishu）
 # --quick 到此为止，以下仅完整模式 --
@@ -330,26 +330,52 @@ check_autosync() {
     fi
 }
 
-# ========== 3b. PAT 认证检查（on-failure 设计：失效才提示续期，不巡检过期天数） ==========
-check_pat_expiry() {
-    echo -e "${CYAN}━━━ GitHub PAT━━━${NC}"
+# ========== 3b. GitHub 认证检查（GCM + PAT 双模式，任一可用即算 OK） ==========
+#   GCM = WSL interop 借用 Windows 凭据管理器（推荐，密钥只在 Windows，WSL 零明文）
+#   PAT = gh auth login，token 存 ~/.config/gh/hosts.yml
+# 状态查询函数来自 lib/git-auth.sh（source 时不执行其 main）。
+check_git_auth() {
+    echo -e "${CYAN}━━━ GitHub 认证━━━${NC}"
 
-    if ! gh auth status &>/dev/null 2>&1; then
-        echo -e "  ${YELLOW}○${NC}  gh 未登录"
-        return 0
-    fi
+    source "$SCRIPT_DIR/git-auth.sh" >/dev/null 2>&1 || true
 
-    # 网络抖动会偶发 timeout（github.com 直连不稳定），重试 2 次避免误报失效
-    local u="?"
-    for _ in 1 2 3; do
-        u=$(gh api user --jq '.login' 2>/dev/null) && break
-        sleep 2
-    done
-    if [ -n "$u" ] && [ "$u" != "?" ]; then
-        echo -e "  ${GREEN}✅${NC} 认证有效（$u）"
+    local gcm_path="" gcm_st pat_st pat_ok=0
+    gcm_path=$(_find_gcm_path) || true
+    gcm_st=$(_gcm_status "$gcm_path")
+    pat_st=$(_pat_status)
+
+    case "$gcm_st" in
+        ok)
+            echo -e "  ${GREEN}✅${NC} Windows GCM  ${DIM}$gcm_path${NC}" ;;
+        not_configured)
+            echo -e "  ${YELLOW}○${NC}  Windows GCM  未配置  ${DIM}（菜单 2C 配置）${NC}" ;;
+        bad_path)
+            echo -e "  ${YELLOW}○${NC}  Windows GCM  helper 已配但 exe 不可达" ;;
+    esac
+
+    case "$pat_st" in
+        logged_in)
+            # 网络抖动会偶发 timeout（github.com 直连不稳定），重试 2 次避免误报失效
+            local u=""
+            for _ in 1 2 3; do
+                u=$(gh api user --jq '.login' 2>/dev/null) && break
+                sleep 2
+            done
+            if [ -n "$u" ]; then
+                echo -e "  ${GREEN}✅${NC} GitHub PAT  ${DIM}($u)${NC}"
+                pat_ok=1
+            else
+                echo -e "  ${YELLOW}○${NC}  GitHub PAT  已登录但验证失败（token 失效或网络不通）"
+                echo -e "  ${YELLOW}     续期: bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
+            fi ;;
+        not_logged_in)
+            echo -e "  ${YELLOW}○${NC}  GitHub PAT  未登录  ${DIM}（菜单 2C 配置）${NC}" ;;
+    esac
+
+    if [[ "$gcm_st" == "ok" || "$pat_ok" -eq 1 ]]; then
+        echo -e "  ${GREEN}✓ GitHub 认证可用${NC}  ${DIM}（管理: ./maintain.sh git-auth，菜单 2C）${NC}"
     else
-        echo -e "  ${RED}❌${NC} 认证失效或网络不通"
-        echo -e "  ${YELLOW}续期: bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
+        echo -e "  ${YELLOW}⚠ 两种方式均不可用${NC}  ${DIM}（配置: ./maintain.sh git-auth，菜单 2C）${NC}"
     fi
 }
 
@@ -1015,7 +1041,7 @@ check_symlinks
 check_ccprivate_structure
 check_deps_quick
 check_autosync
-check_pat_expiry
+check_git_auth
 check_repos
 check_feishu
 

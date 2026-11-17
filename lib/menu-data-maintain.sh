@@ -52,7 +52,7 @@ MENU_ENTRIES=(
     #    本质是"把本机修到与最新版一致"，与更新同域，故从状态分区挪来。去掉"（全量）"后缀。
     "2|A|配置仓库更新（3库）|./maintain.sh self config|do_self config"
     "2|B|tool 更新（Node/Claude）|./maintain.sh upgrade all|bash \"\$LIB_DIR/update.sh\" all"
-    "2|C|GitHub PAT 刷新|./maintain.sh pat|bash \"\$CCCONFIG_DIR/bin/refresh-gh-auth.sh\""
+    "2|C|GitHub 认证管理|./maintain.sh git-auth|bash \"\$LIB_DIR/git-auth.sh\""
     "2|D|可选组件安装/补装|bash init-option.sh|bash \"\$CCCONFIG_DIR/init-option.sh\""
     "2|E|一键修复|./maintain.sh fix|do_setup"
 
