@@ -37,6 +37,10 @@ _sl_flush() {
 }
 
 setup_link() {
+    # 测试单独 eval 本函数体（不带顶层初始化）→ 自带兜底，set -u 下不炸
+    [[ -v _SL_READY ]] || _SL_READY=()
+    [[ -v _SL_ACT ]] || _SL_ACT=0
+    [[ -v _SL_WARN ]] || _SL_WARN=0
     local link="$1"
     local target="$2"
     local name="$3"
