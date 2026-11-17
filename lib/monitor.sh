@@ -1167,7 +1167,7 @@ colorize_line() {
 
     # NOISE（极暗）— 每 5min × 每仓的心跳产物，占全日志 5782 行。压到几乎看不见，
     # 但不删：它仍是排查时的「monitor 什么时候还活着」时间锚点。
-    if echo "$content" | grep -qE '(^\[[a-z_-]+\][[:space:]]+already up to date|Heartbeat sync|^Initial scan done|  (fetch|pull) err:|已链接|已存在|已就绪)'; then
+    if echo "$content" | grep -qE '(^\[[a-z_-]+\][[:space:]]+already up to date|Heartbeat sync|^Initial scan done|  (fetch|pull) err:|已链接|已存在)'; then
         echo -e "  ${TS_DIM}${ts}${NC}  ${NOISE}${content}${NC}"
         return
     fi

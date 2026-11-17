@@ -69,6 +69,21 @@ source "$CCCONFIG_DIR/lib/colors.sh" 2>/dev/null || {
     warn()    { echo -e "${YELLOW}⚠️  $1${NC}"; }
 }
 
+# 链接状态收集：正常态只计数（末尾一行汇总），动作/异常才逐行列出。
+_ST_READY=(); _ST_ACT=0; _ST_WARN=0
+_st_flush() {
+    local title="$1"
+    if [ "$_ST_ACT" -eq 0 ] && [ "$_ST_WARN" -eq 0 ]; then
+        ok "$title：${#_ST_READY[@]} 项全部已就绪"
+    else
+        local msg="$title：${#_ST_READY[@]} 已就绪"
+        [ "$_ST_ACT" -gt 0 ] && msg="$msg, $_ST_ACT 项变更"
+        [ "$_ST_WARN" -gt 0 ] && msg="$msg, $_ST_WARN 项警告"
+        if [ "$_ST_WARN" -gt 0 ]; then warn "$msg"; else ok "$msg"; fi
+    fi
+    _ST_READY=(); _ST_ACT=0; _ST_WARN=0
+}
+
 # 初始化代次水位：记录"这台机的本机配置文件是用哪一代模板生成的"。
 # settings.json/.config.json/.claudeignore 是每机独立文件，模板更新后没有任何机制
 # 知道某台机落后了 —— status 只查基线键存在性，不查内容过期。有这个标记才能告警。
@@ -90,6 +105,9 @@ mark_init_version() {
 }
 
 setup_link() {
+    [[ -v _ST_READY ]] || _ST_READY=()
+    [[ -v _ST_ACT ]] || _ST_ACT=0
+    [[ -v _ST_WARN ]] || _ST_WARN=0
     local link="$1"
     local target="$2"
     local label="$3"
@@ -104,7 +122,7 @@ setup_link() {
     # 注意只保护【健康】链接：目标缺失且链接本就断了，仍要按下面分支清理掉
     # （否则死链留着，下次运行又会被 readlink -f 判成"已链接"，回到老 bug）。
     if [ ! -e "$target" ] && [ -e "$link" ]; then
-        warn "$label: 目标不存在，跳过（保留现有健康链接，$target）"
+        _ST_WARN=$((_ST_WARN+1)); warn "$label: 目标不存在，跳过（保留现有健康链接，$target）"
         return 0
     fi
     # 必须 [ -e "$link" ] 才算健康：readlink -f 对死链也返回规范路径字符串（非空，
@@ -115,12 +133,11 @@ setup_link() {
         existing=$(readlink -f "$link" 2>/dev/null || true)
         expected=$(readlink -f "$target" 2>/dev/null || true)
         if [ "$existing" = "$expected" ] && [ -n "$existing" ]; then
-            info "$label: 已链接"
-            return 0
+            _ST_READY+=("$label"); return 0
         fi
         rm -f "$link"
     elif [ -L "$link" ]; then
-        warn "$label: 死链（目标不存在），重建"
+        _ST_WARN=$((_ST_WARN+1)); warn "$label: 死链（目标不存在），重建"
         rm -f "$link"
     elif [ -e "$link" ]; then
         rm -rf "$link"
@@ -130,14 +147,14 @@ setup_link() {
     # 这里挡的是【本就没有链接时不要新建死链】。两者缺一都会回归出 bug。
     if [ ! -e "$target" ]; then
         if $optional; then
-            info "$label: 目标不存在，跳过（$target）"
+            _ST_READY+=("$label")
         else
-            warn "$label: 目标不存在，跳过（$target）"
+            _ST_WARN=$((_ST_WARN+1)); warn "$label: 目标不存在，跳过（$target）"
         fi
         return 0
     fi
     ln -s "$target" "$link"
-    ok "$label"
+    _ST_ACT=$((_ST_ACT+1)); ok "$label"
 }
 
 # ============================================================
@@ -154,14 +171,14 @@ install_user_file() {
     local dst="$1" src_template="$2" desc="$3"
     mkdir -p "$(dirname "$dst")"
     if [ ! -f "$src_template" ]; then
-        warn "$desc: 模板缺失 $src_template，跳过"
+        _ST_WARN=$((_ST_WARN+1)); warn "$desc: 模板缺失 $src_template"
     elif [ -L "$dst" ]; then
         rm -f "$dst"
         cp "$src_template" "$dst"
-        ok "$desc: symlink 转本机文件"
+        _ST_ACT=$((_ST_ACT+1)); ok "$desc: symlink 转本机文件"
     elif [ ! -f "$dst" ]; then
         cp "$src_template" "$dst"
-        ok "$desc: 已从模板创建"
+        _ST_ACT=$((_ST_ACT+1)); ok "$desc: 已从模板创建"
     else
         # 已存在 ≠ 完整：init-ubuntu.sh 的 setup_hook 会先建出只有 hooks 的
         # settings.json、init-llm.sh 会先建出只有 env/model 的，都比本脚本早。
@@ -209,9 +226,9 @@ print(" ".join(added))
 PYEOF
         ) || added=""
         if [ -n "$added" ]; then
-            warn "$desc: 已存在，补齐缺失键（$added）"
+            _ST_ACT=$((_ST_ACT+1)); warn "$desc: 已存在，补齐缺失键（$added）"
         else
-            info "$desc: 已存在，跳过"
+            _ST_READY+=("$desc")
         fi
     fi
 }
@@ -228,6 +245,7 @@ install_user_file "$CLAUDE_DIR/.config.json"  "$_TDIR/.config.json.example"  ".c
 install_user_file "$CLAUDE_DIR/.claudeignore" "$_TDIR/.claudeignore.example" ".claudeignore"
 install_user_file "$CLAUDE_DIR/settings.json" "$_TDIR/settings.json.example" "settings.json"
 unset _TDIR
+_st_flush "用户级链接"
 
 # ============================================================
 # 2. ccprivate 私有配置 — 由 resolve_conf() 直接读 ccprivate/conf/
@@ -264,6 +282,7 @@ if [ -d "$SCRIPT_DIR/link/memory-projects" ]; then
     done
     unset _mp_dir _mp_name _mp_id
 fi
+_st_flush "用户级记忆"
 
 # ============================================================
 # 4. 运行时链接（rules/agents/commands → ccprivate，用户可自定义）
@@ -299,6 +318,7 @@ if [ -d "$SCRIPT_DIR/workflows" ]; then
     done
     unset _wf_dir _wf_name _wf_js
 fi
+_st_flush "运行时链接"
 
 # ============================================================
 # 5. ccconfig 公开部分（shell_init.sh + pre-commit hook）
