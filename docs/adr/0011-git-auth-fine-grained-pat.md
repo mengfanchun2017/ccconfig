@@ -1,6 +1,6 @@
 # 0011. GitHub git 认证统一为 fine-grained PAT + HTTPS
 
-> **Status**: ✅ Accepted（Layer 1 过期天数巡检部分由 0023 Superseded）
+> **Status**: ⚠️ 部分 Superseded（Layer 1 过期巡检 → [0023](0023-pat-expiry-on-failure-only.md)；「统一走 PAT」→ [0059](0059-git-auth-gcm-dual-mode.md) GCM 为主双模式）
 > **日期**: 2026-08-09
 > **关联**: `bootstrap-gh-auth.sh`、`init-ccprivate-repo.sh`、`init-ubuntu.sh`、`lib/monitor.sh`、`lib/status.sh`、`bin/refresh-gh-auth.sh`、`BOOTSTRAP.md`；ccprivate `rules/git.md`；`~/.gitconfig`
 > **模板**: MADR 4.0 极简版

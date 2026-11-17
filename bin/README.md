@@ -5,7 +5,7 @@
 | 脚本 | 用途 |
 |------|------|
 | `ccconfig` | 命令行入口（子命令转发到 maintain.sh / init-*.sh） |
-| `refresh-gh-auth.sh` | 刷新 fine-grained PAT（引导粘贴新 token + 验证） |
+| `refresh-gh-auth.sh` | 刷新 fine-grained PAT（引导粘贴新 token + 验证）；仅 PAT 模式，GCM 无过期概念（GCM 管理走 `maintain.sh git-auth`） |
 | `test-bootstrap.sh` | 新机引导自检（WSL 内单跑） |
 | `test-bootstrap.ps1` | 同上，Windows PowerShell 侧入口 |
 | `memory-check.sh` | MEMORY.md 过期/孤立条目检测 |

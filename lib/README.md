@@ -8,6 +8,7 @@
 | `dry-run.sh` | 干运行支持：would/run |
 | `path-helper.sh` | 路径解析：resolve_conf/find_node_bin/get_version |
 | `net.sh` | 网络探测：check_proxy/check_tcp |
+| `git-auth.sh` | GitHub 认证管理：GCM（Windows 凭据，推荐）+ PAT 双模式；maintain 菜单 2C 调用，status/monitor source 其函数（见 ADR-0059） |
 | `deps-check.sh` | 依赖检查 |
 
 ## 函数 API
