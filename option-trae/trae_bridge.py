@@ -82,8 +82,41 @@ APP_ID = "6eefa01c-1036-4c7e-9ca5-d891f63bfcd8"
 DESKTOP_CLIENT_ID = "ono9krqynydwx5"
 SOLO_CLIENT_ID = "en1oxy7wnw8j9n"
 
+def _win_user_home() -> Path:
+    """当前 Windows 用户目录（/mnt/c/Users/<name>）。
+    不写死用户名：公开仓会泄漏，换机/换用户直接断。优先问 Windows 自身。"""
+    env = os.environ.get("TRAE_USER_HOME")
+    if env:
+        return Path(env)
+    ps = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+    try:
+        if os.path.exists(ps):
+            r = subprocess.run(
+                [ps, "-NoProfile", "-Command",
+                 "[Environment]::GetFolderPath('UserProfile')"],
+                capture_output=True, text=True, timeout=15)
+            p = r.stdout.strip().replace("\r", "")
+            if p and ":" in p:
+                drive, rest = p.split(":", 1)
+                return Path(f"/mnt/{drive.lower()}{rest.replace(chr(92), '/')}")
+    except Exception:
+        pass
+    base = Path("/mnt/c/Users")
+    skip = {"Default", "Default User", "Public", "All Users"}
+    try:
+        for d in sorted(base.iterdir()):
+            if d.name in skip or not d.is_dir():
+                continue
+            if (d / ".dsh").is_dir():
+                return d
+    except Exception:
+        pass
+    return base / "<user>"
+
+
+_UHOME = _win_user_home()
 AUTH_PATH = Path(os.environ.get(
-    "TRAE_AUTH_PATH", "/mnt/c/Users/franc/.dsh/.trae-auth.cn.json"))
+    "TRAE_AUTH_PATH", str(_UHOME / ".dsh" / ".trae-auth-cn.json")))
 STORAGE_PATH = Path(os.environ.get(
     "TRAE_STORAGE_PATH",
     str(_UHOME / "AppData" / "Roaming" / "Trae CN" / "User" / "globalStorage" / "storage.json")))

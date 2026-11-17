@@ -677,7 +677,7 @@ start_watch() {
         # 补写 PIDFile，让 systemd 始终能取到 MainPID。
         # 只写 $PID_FILE，不要顺手也写 $SYSTEMD_PID_FILE：后者默认就是
         # /run/claude-auto-sync/monitor.pid，而 unit 里 RuntimeDirectoryMode=1777
-        # 让该目录全局可写 —— 手动运行一次就会把 francis 拥有的 pid 文件塞进 systemd
+        # 让该目录全局可写 —— 手动运行一次就会把当前用户拥有的 pid 文件塞进 systemd
         # 的运行时目录，systemd 随即拒绝："PID file is owned by 1000 (must be owned by 0)"。
         # systemd 模式下 unit 已设 MONITOR_PID_FILE=/run/...，$PID_FILE 本就是那个路径，
         # 写它即可满足 Type=forking；手动模式下写 $MONITOR_HOME 那份，二者互不污染。

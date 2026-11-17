@@ -124,9 +124,9 @@ MENU_ENTRIES=(
     # 结构 = 状态总览（A，只读）+ 每类能力一个配置入口（B/C，写）。
     # 配置入口学 LLM 管理：选预设（默认当前生效的）→ 显示 key 尾号 → 回车保持 / 粘新 key。
     # 不在这里列 MCP —— MCP 注册状态归 4 区，重复列出只会互相漂移。
-    "7|A|多模态状态总览（视觉/文档解析）|./maintain.sh mlayer status|do_mlayer status"
-    "7|B|配置视觉（预设 + key）|./maintain.sh mlayer vision|do_mlayer vision"
-    "7|C|配置文档解析（预设 + key）|./maintain.sh mlayer docparse|do_mlayer docparse"
+    "7|A|多模态状态总览|./maintain.sh mlayer status|do_mlayer status"
+    "7|B|配置视觉（预设+key）|./maintain.sh mlayer vision|do_mlayer vision"
+    "7|C|配置文档解析（预设+key）|./maintain.sh mlayer docparse|do_mlayer docparse"
 
     # ── 0: 退出 ──
     "0| |退出||exit 0"

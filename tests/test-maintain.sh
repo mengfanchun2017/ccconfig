@@ -122,8 +122,11 @@ for entry in "${MENU_ENTRIES[@]}"; do
         esac
         [[ -e "$full" ]] || { fail "$cat$letter action 路径不存在: $full"; missing=$((missing+1)); continue; }
     else
-        # 函数名（可带参数，取第一个 token）
-        fn=$(echo "$action" | awk '{print $1}')
+        # 复合命令（source ... && fn）取最后一个 token 当函数名；单命令取第一个。
+        # 只取首 token 会把 `source ...` 当函数名，误报未定义（1F 真实写法即此）。
+        local last; last=$(echo "$action" | awk '{print $NF}')
+        local fn; fn=$(echo "$action" | awk '{print $1}')
+        [[ "$fn" == "source" || "$fn" == "bash" ]] && fn="$last"
         declare -F "$fn" >/dev/null 2>&1 || { fail "$cat$letter action 未定义函数: $fn"; missing=$((missing+1)); continue; }
     fi
     pass "$cat$letter action OK"
