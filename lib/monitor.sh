@@ -1167,7 +1167,7 @@ colorize_line() {
 
     # NOISE（极暗）— 每 5min × 每仓的心跳产物，占全日志 5782 行。压到几乎看不见，
     # 但不删：它仍是排查时的「monitor 什么时候还活着」时间锚点。
-    if echo "$content" | grep -qE '(^\[[a-z_-]+\][[:space:]]+already up to date|Heartbeat sync|^Initial scan done|  (fetch|pull) err:)'; then
+    if echo "$content" | grep -qE '(^\[[a-z_-]+\][[:space:]]+already up to date|Heartbeat sync|^Initial scan done|  (fetch|pull) err:|已链接|已存在|已就绪)'; then
         echo -e "  ${TS_DIM}${ts}${NC}  ${NOISE}${content}${NC}"
         return
     fi
@@ -1178,8 +1178,10 @@ colorize_line() {
         return
     fi
 
-    # WARN（琥珀）— 降级但可继续：重试中、fetch/pull 失败、跳过
-    if echo "$content" | grep -qE '(WARN|Skipped|nothing to commit|attempt [0-9]+ failed|fail(ed)? after|跳过|冲突|warn —|behind remote)'; then
+    # WARN（琥珀）— 降级但可继续：重试中、fetch/pull 失败、目标缺失。
+    # 裸「跳过」必须排除：链接/配置脚本的正常态就是「已链接，跳过」，曾因此
+    # 被整片刷黄，用户误以为需要关注（2026-11-17 反馈）。
+    if echo "$content" | grep -qE '(WARN|Skipped|nothing to commit|attempt [0-9]+ failed|fail(ed)? after|目标不存在.*跳过|WARN:.*跳过|冲突|warn —|behind remote)'; then
         echo -e "  ${TS_DIM}${ts}${NC}  ${YELLOW}${content}${NC}"
         return
     fi
