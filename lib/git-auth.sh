@@ -27,6 +27,13 @@ _pause_continue() {
     echo ""
 }
 
+# ── 路径脱敏 ──
+# 公开仓库的输出不应带 Windows 用户名（/mnt/c/Users/<用户名>/...）。
+# 只把用户名段换成 <user>，其余原样，便于排查。
+_redact_user() {
+    printf '%s' "$1" | sed -E 's#/mnt/c/Users/[^/]+#/mnt/c/Users/<user>#'
+}
+
 # ── 找 GCM 路径 ──
 # 优先级：现有 gitconfig → 常见路径
 _find_gcm_path() {
@@ -200,14 +207,14 @@ do_status() {
     case "$gcm_st" in
         ok)
             echo -e "    状态: ${GREEN}已配置${NC}"
-            echo -e "    路径: ${DIM}$gcm_path${NC}"
+            echo -e "    路径: ${DIM}$(_redact_user "$gcm_path")${NC}"
             ;;
         not_configured)
             echo -e "    状态: ${YELLOW}未配置${NC}"
             ;;
         bad_path)
             echo -e "    状态: ${YELLOW}helper 配置了但 exe 不可达${NC}"
-            echo -e "    路径: ${DIM}$(git config --global --get-all "credential.https://github.com.helper" 2>/dev/null | head -1)${NC}"
+            echo -e "    路径: ${DIM}$(_redact_user "$(git config --global --get-all "credential.https://github.com.helper" 2>/dev/null | head -1)")${NC}"
             ;;
     esac
     echo ""

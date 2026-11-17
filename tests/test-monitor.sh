@@ -577,10 +577,10 @@ test_skip_push_visible() {
     # skip_push 静默返回会让未推送 commit 无限期搁浅（冲突兜底/unrelated histories）。
     # 必须显性报出未推送数量。
     local mon="$CCCONFIG_DIR/lib/monitor.sh"
-    grep -q 'skip_push 走到这里' "$mon" \
+    grep -q '跳过推送 — \${_unpushed} 个 commit 未推送' "$mon" \
         && pass "skip-push: 有显性告警分支" \
         || fail "skip-push" "skip_push 仍静默"
-    awk '/skip_push 走到这里/,/^        fi$/' "$mon" | grep -q 'rev-list --count' \
+    awk '/跳过推送 — \$\{_unpushed\} 个 commit 未推送/,/^            else$/' "$mon" | grep -q 'rev-list --count' \
         && pass "skip-push: 报告未推送 commit 数" \
         || fail "skip-push" "未量化未推送 commit"
 }
