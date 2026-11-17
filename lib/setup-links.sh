@@ -20,6 +20,22 @@ CLAUDE_DIR="$HOME/.claude"
 source "$SCRIPT_DIR/dry-run.sh"
 source "$SCRIPT_DIR/colors.sh"
 
+# 链接状态收集：正常态只计数（末尾一行汇总），动作/异常才逐行列出。
+# 避免全就绪时刷 N 行「已链接，跳过」——看不出结论，还曾被 monitor 染黄。
+_SL_READY=(); _SL_ACT=0; _SL_WARN=0
+_sl_flush() {
+    local title="$1"
+    if [ "$_SL_ACT" -eq 0 ] && [ "$_SL_WARN" -eq 0 ]; then
+        ok "$title：${#_SL_READY[@]} 项全部已就绪"
+    else
+        local msg="$title：${#_SL_READY[@]} 已就绪"
+        [ "$_SL_ACT" -gt 0 ] && msg="$msg, $_SL_ACT 项变更"
+        [ "$_SL_WARN" -gt 0 ] && msg="$msg, $_SL_WARN 项警告"
+        if [ "$_SL_WARN" -gt 0 ]; then warn "$msg"; else ok "$msg"; fi
+    fi
+    _SL_READY=(); _SL_ACT=0; _SL_WARN=0
+}
+
 setup_link() {
     local link="$1"
     local target="$2"
@@ -32,32 +48,31 @@ setup_link() {
     # 只保护【健康】链接：目标缺失且链接本就断了，仍要按下面分支清理，否则死链留着
     # 下次又被 readlink -f 判成"已链接"，回到老 bug。
     if [[ ! -e "$target" ]] && [[ -e "$link" ]]; then
-        warn "$name: 目标不存在，跳过（保留现有健康链接，$target）"
+        _SL_WARN=$((_SL_WARN+1)); warn "$name: 目标不存在，跳过（保留现有健康链接，$target）"
         return 0
     fi
     # 死链必须 [ -e ] 才排除：readlink -f 对死链返回规范路径字符串（非空），
-    # 只比字符串会把死链判成"已链接，跳过" → 永远不修
+    # 只比字符串会把死链判成"已链接" → 永远不修
     if [[ -L "$link" ]] && [[ -e "$link" ]]; then
         local existing=$(readlink -f "$link" 2>/dev/null || true)
         local expected=$(readlink -f "$target" 2>/dev/null || true)
         if [[ -n "$existing" && "$existing" = "$expected" ]]; then
-            noise "$name: 已链接，跳过"
-            return 0
+            _SL_READY+=("$name"); return 0
         fi
         run rm -f "$link"
     elif [[ -L "$link" ]]; then
-        warn "$name: 死链（目标不存在），重建"
+        _SL_WARN=$((_SL_WARN+1)); warn "$name: 死链（目标不存在），重建"
         run rm -f "$link"
     elif [[ -e "$link" ]]; then
         run rm -f "$link"
     fi
-    # 目标不存在时不建链：建出的死链会让问题更隐蔽（下次还被判"已链接，跳过"）
+    # 目标不存在时不建链：建出的死链会让问题更隐蔽（下次还被判"已链接"）
     if [[ ! -e "$target" ]]; then
-        warn "$name: 目标不存在，跳过（$target）"
+        _SL_WARN=$((_SL_WARN+1)); warn "$name: 目标不存在，跳过（$target）"
         return 0
     fi
     run ln -sf "$target" "$link"
-    ok "$name: 已链接"
+    _SL_ACT=$((_SL_ACT+1)); ok "$name: 已链接"
 }
 
 setup_symlinks() {
@@ -90,15 +105,16 @@ setup_symlinks() {
             local git_hook="$_repo/.git/hooks/pre-commit"
             if [[ -L "$git_hook" ]] && [[ -e "$git_hook" ]] && \
                [[ "$(readlink -f "$git_hook")" == "$(readlink -f "$hook_src")" ]]; then
-                noise "pre-commit hook ($(basename "$_repo")): 已链接，跳过"
+                _SL_READY+=("pre-commit hook ($(basename "$_repo"))")
             else
                 [[ -e "$git_hook" ]] && run rm -f "$git_hook"
                 run ln -sf "$hook_src" "$git_hook"
-                ok "pre-commit hook ($(basename "$_repo")): 已安装"
+                _SL_ACT=$((_SL_ACT+1)); ok "pre-commit hook ($(basename "$_repo")): 已安装"
             fi
         done
         unset _repo
     fi
+    _sl_flush "符号链接"
 }
 
 dry_run_banner
