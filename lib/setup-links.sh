@@ -41,7 +41,7 @@ setup_link() {
         local existing=$(readlink -f "$link" 2>/dev/null || true)
         local expected=$(readlink -f "$target" 2>/dev/null || true)
         if [[ -n "$existing" && "$existing" = "$expected" ]]; then
-            info "$name: 已链接，跳过"
+            noise "$name: 已链接，跳过"
             return 0
         fi
         run rm -f "$link"
@@ -61,7 +61,7 @@ setup_link() {
 }
 
 setup_symlinks() {
-    echo -e "\n${CYAN}符号链接${NC}"
+    echo -e "\n${LIGHT_BLUE}符号链接${NC}"
 
     # 清理旧 shell_aliases.sh（已重命名为 shell_init.sh）
     [[ -L "$CLAUDE_DIR/shell_aliases.sh" ]] && rm -f "$CLAUDE_DIR/shell_aliases.sh"
@@ -90,7 +90,7 @@ setup_symlinks() {
             local git_hook="$_repo/.git/hooks/pre-commit"
             if [[ -L "$git_hook" ]] && [[ -e "$git_hook" ]] && \
                [[ "$(readlink -f "$git_hook")" == "$(readlink -f "$hook_src")" ]]; then
-                info "pre-commit hook ($(basename "$_repo")): 已链接，跳过"
+                noise "pre-commit hook ($(basename "$_repo")): 已链接，跳过"
             else
                 [[ -e "$git_hook" ]] && run rm -f "$git_hook"
                 run ln -sf "$hook_src" "$git_hook"

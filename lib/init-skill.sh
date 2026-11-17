@@ -453,7 +453,7 @@ do_link_self_built() {
         fi
     done
 
-    echo -e "  symlink: ${GREEN}${linked} 新建${NC}, ${GRAY}${skipped} 跳过${NC}, ${cleaned} 修复, ${override} 覆盖, ${orphan} 清理"
+    echo -e "  symlink: ${GREEN}${linked} 新建${NC}, ${NOISE}${skipped} 跳过${NC}, ${NOISE}${cleaned} 修复${NC}, ${NOISE}${override} 覆盖${NC}, ${NOISE}${orphan} 清理${NC}"
 }
 
 # 阶段 2：（已废弃）
