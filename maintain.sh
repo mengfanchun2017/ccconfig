@@ -997,7 +997,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         _rc=0
         menu_parse "${1:-}" || _rc=$?
         if [[ $_rc -eq 3 ]]; then
-            echo "用法: bash maintain.sh [status|self|setup|upgrade|sync|monitor|deps|llm|mcp|botmux|pat|example|upgrade-ccprivate|highpriv]"
+            echo "用法: bash maintain.sh [status|self|setup|fix|upgrade|sync|monitor|deps|llm|mcp|botmux|git-auth|pat|secret|mlayer|example|upgrade-ccprivate|highpriv]"
             echo "      或菜单编号（如 2e）直接执行对应项"
             exit 1
         fi

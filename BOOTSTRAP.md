@@ -27,7 +27,7 @@ bash init-base.sh new
 ```
 
 > **init-base.sh new 自动做**：
-> 1. GitHub 认证（装 gh + gh auth + 配 git 身份）
+> 1. GitHub 认证（装 gh + 认证 + 配 git 身份；GCM 推荐 / PAT 备选，见 ADR-0059）
 > 2. ccprivate 配置仓库（建仓/克隆 + LLM key 收集 + 符号链接）
 > 3. 基础初始化（Ubuntu 环境 + LLM 写入 + 链接修复/服务，3 步）
 >
@@ -43,13 +43,14 @@ bash init-base.sh new
 > curl 在国内环境经常被 GFW 阻断 port 443，但 git clone 走自己的代理栈（~/.gitconfig 的 http.proxy 或环境变量）。
 > 两步让网络好的步骤先跑，网络差的步骤后跑，问题更容易定位。
 
-### GitHub PAT 引导说明
+### GitHub 认证引导说明
 
-执行到 GitHub 认证时，脚本引导生成 fine-grained PAT：
+认证有两种方式（ADR-0059，任一可用即 OK）：
 
-| 类型 | 适用场景 | 生成链接 |
-|------|---------|---------|
-| Fine-grained PAT | 唯一支持的方式（精细权限控制） | https://github.com/settings/personal-access-tokens/new |
+| 类型 | 适用场景 | 说明 |
+|------|---------|------|
+| Windows GCM（推荐） | WSL + 已装 Git for Windows | 密钥由 Windows 凭据管理器 DPAPI 加密，WSL 磁盘零明文、无过期；`bash maintain.sh git-auth` 配置 |
+| Fine-grained PAT（备选） | 非 WSL / 无 GCM | token 存 `~/.config/gh/hosts.yml`；`init-bootstrap.sh` 新机引导走这条 |
 
 **Fine-grained PAT 配置**：Repository access=All repositories, Contents=Read and write, Metadata=Read-only, Account 权限全部 No access
 
@@ -327,11 +328,13 @@ gh --version
 
 ## 阶段 3 — GitHub 认证
 
-> **核心思路**：一个 fine-grained PAT 覆盖所有场景（gh API + git 传输，走 HTTPS + gh credential helper）。
+> **核心思路**：认证一次覆盖所有场景（git 传输 + gh API，走 HTTPS + credential helper）。
 > SSH 是可选的 push 加速（`SETUP_SSH=1` 时才启用），默认不需要。
-> 阶段 3a 必做，3b 视情况，3c 续期流程记住即可。
+> 认证口径（ADR-0059）：**Windows GCM 推荐**（WSL 借 Windows 凭据，零明文无过期），
+> PAT 备选。新机 bootstrap 自动化程度有限，先走 3a PAT；装完用
+> `bash maintain.sh git-auth` 切/配 GCM。3b SSH 视情况，3c 续期流程记住即可。
 
-### 3a. Fine-grained PAT（必做，主路径）
+### 3a. Fine-grained PAT（备选路径，新机 bootstrap 默认）
 
 **gh auth 和 git 传输都靠这一个 token**。`init-bootstrap.sh` 整合了 gh auth + ccprivate，跑：
 
@@ -428,13 +431,11 @@ EOF
 
 > **同台机器新建 WSL？** `lib/init-ubuntu.sh` 的 `setup_ssh_github()` 会自动从 Windows 宿主目录（`/mnt/c/Users/<用户名>/.ssh/`）复制已有 key，不需要再生成。**换机器**才需要重新走一遍。
 
-### 3c. PAT 续期流程（90 天到期前 30 天可 Regenerate）
+### 3c. PAT 续期流程（仅 PAT 模式；GCM 无过期概念）
 
-> fine-grained PAT 强制 90 天过期，**不是自动续期**，必须手动去 GitHub 网页 Regenerate。
-> ccconfig 会在以下场景提醒你：
-> - `bash maintain.sh status` 启动 Claude Code 自动跑，显示 "剩余 X 天"
-> - `lib/monitor.sh` push 时检测到 401/bad credentials 触发警告
-> - 状态文件 `~/.local/share/ccconfig/pat-warn` 被 monitor 写入
+> fine-grained PAT 可选 `No expiration`（推荐）或 90 天过期；**不自动续期**，过期需去 GitHub 网页 Regenerate。
+> 采用 on-failure-only（ADR-0023）：不主动巡检过期天数，push 失败时才提醒。
+> `lib/monitor.sh` push 检测到 401/bad credentials 时提示 `maintain.sh git-auth`。
 
 **续期步骤（30 秒）**：
 
@@ -815,7 +816,7 @@ cd ~/git/ccconfig && git pull && cd ~/git/skill && git pull && cd ~/git/ccprivat
 | `gh auth login` 浏览器没自动开 | WSL 没装 `wslview` | 手动复制终端的 one-time code，访问 https://github.com/login/device |
 | `gh repo clone` 报 404 | 没登录成功 / 账号不是仓库协作者 | `gh auth status` 确认账号；如果不是协作者，联系 owner 加 |
 | `init-base.sh all` 卡在 sudo | 密码没缓存 | 输密码，或配 sudo 免密（`echo "<your-username> ALL=(ALL) NOPASSWD:ALL" \| sudo tee /etc/sudoers.d/<your-username>`） |
-| monitor 不推 | gh token 过期 / credential helper 没配 | `gh auth login` 重新登录；`gh auth setup-git` 配置 credential helper |
+| monitor 不推 | gh token 过期 / credential helper 没配 / GCM 未登录 | `bash maintain.sh git-auth`（菜单 2C）配 GCM 或 PAT；PAT 续期 `bin/refresh-gh-auth.sh` |
 | monitor 不推（走 SSH 加速时） | SSH key 没注册到 GitHub | `ssh -T git@github.com` 测试；如未认证，走阶段 3b 生成 SSH key 并添加到 GitHub |
 | WSL 报 `Could not resolve hostname` | `/etc/hosts` 没本机 hostname | `echo "127.0.1.1 $(hostname)" \| sudo tee -a /etc/hosts` |
 | WSL 内存占用过高 | WSL 2 默认占 50% 主机内存 | 在 `%USERPROFILE%\.wslconfig` 加 `memory=8GB`（见阶段 0 § 2） |

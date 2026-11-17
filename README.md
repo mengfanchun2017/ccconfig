@@ -33,7 +33,7 @@ flowchart TB
     maintain["maintain.sh
     运维入口"]
     bootstrap["bootstrap-gh-auth.sh
-    gh + GitHub 认证"]
+    gh + GitHub 认证（GCM/PAT）"]
     initOption["init-option.sh
     可选组件入口"]
   end
@@ -166,7 +166,7 @@ flowchart TB
 ccconfig/
 ├── bootstrap-gh-auth.sh      # 一行式起步（curl|bash：装 git + clone ccconfig）
 ├── init-base.sh              # 初始化统一入口
-├── maintain.sh               # 运维入口（status/self/setup/upgrade/sync/monitor/deps/llm/mcp/pat/example/upgrade-ccprivate）
+├── maintain.sh               # 运维入口（status/self/setup/upgrade/sync/monitor/deps/llm/mcp/git-auth/pat/example/upgrade-ccprivate）
 ├── init-option.sh            # 可选组件安装入口（分组菜单）
 │
 ├── lib/                      # 脚本库
@@ -227,7 +227,7 @@ ccconfig/
 ├── option-skill/             # 可选：Skill 安装（包装 lib/init-skill.sh）
 ├── option-llmswitch/         # 内部：Anthropic↔OpenAI 桥（init-llm.sh 自动管理）
 ├── bin/ccconfig              # CLI 包装（子命令转发到 maintain.sh / init-*.sh）
-├── bin/refresh-gh-auth.sh    # 刷新 fine-grained PAT
+├── bin/refresh-gh-auth.sh    # 刷新 fine-grained PAT（仅 PAT 模式；GCM 管理走 maintain.sh git-auth）
 ├── bin/test-bootstrap.sh     # 启动引导自检
 ├── bin/memory-check.sh       # Memory 过期检查
 ├── bin/check-context-budget.sh  # rules 预算实测（超限非零退出）
@@ -354,7 +354,8 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 | `bash maintain.sh self cc` | 仅 ccconfig 拉取 + 重建链接（菜单 2A 的子命令） |
 | `bash maintain.sh llm` | LLM 切换/测试/自愈 |
 | `bash maintain.sh mcp` | MCP 跨项目管理 |
-| `bash maintain.sh pat` | 刷新 fine-grained PAT |
+| `bash maintain.sh git-auth` | GitHub 认证管理（菜单 2C）：Windows GCM 推荐 / PAT 备选 |
+| `bash maintain.sh pat` | 刷新 fine-grained PAT（仅 PAT 模式） |
 | `bash maintain.sh example` | 检测 .example 模板差异 |
 | `bash maintain.sh upgrade-ccprivate` | 仅 ccprivate 结构升级（菜单 2A 的子命令） |
 | `bash maintain.sh sync --all` | 全部 git 仓库更新（拉取 + 脏库自动提交） |
@@ -370,7 +371,7 @@ curl -fsSL https://raw.githubusercontent.com/mengfanchun2017/ccconfig/main/boots
 
 ## 状态检查
 
-`maintain.sh status` 10 项检查：链接 + ccprivate 结构 / 核心依赖 / auto-sync / PAT 有效期 / 仓库（Git + Memory）/ 飞书 / MCP / 可选组件 / Skills / 模板同步。
+`maintain.sh status` 10 项检查：链接 + ccprivate 结构 / 核心依赖 / auto-sync / GitHub 认证（GCM/PAT 可用性，不联网）/ 仓库（Git + Memory）/ 飞书 / MCP / 可选组件 / Skills / 模板同步。
 
 ## 自建 Skills
 

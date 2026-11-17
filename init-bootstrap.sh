@@ -1,9 +1,13 @@
 #!/bin/bash
-# init-bootstrap.sh — ccconfig 新机器起步：gh auth + ccprivate 一体化
+# init-bootstrap.sh — ccconfig 新机器起步：GitHub 认证 + ccprivate 一体化
 #
-# 合并 bootstrap-gh-auth.sh（装 gh + GitHub 认证 + git 身份）
+# 合并 bootstrap-gh-auth.sh（装 git/gh + GitHub 认证 + git 身份）
 # 和 init-ccprivate-repo.sh（创建 ccprivate 私有配置仓库 + 符号链接）
-# 为一个脚本，PAT 认证一次，ccprivate 操作复用同一认证。
+# 为一个脚本，认证一次，ccprivate 操作复用同一认证。
+#
+# 认证口径（见 ADR-0059）：Windows GCM 推荐（WSL interop，密钥只在 Windows），
+# PAT（gh auth）备选。本脚本的新机引导仍以 gh/PAT 为主（GCM 需 Windows Git
+# for Windows + 交互登录，无法全自动化）；装完用 maintain.sh git-auth 切/配 GCM。
 #
 # 用法：
 #   bash init-bootstrap.sh                   # 交互式新建（默认）
@@ -748,7 +752,7 @@ if $DRY_RUN; then
     echo -e "${CYAN}══════════════════════${NC}"
     echo ""
     echo "  1. 装 gh（如缺失）"
-    echo "  2. GitHub 认证（PAT/Web OAuth）"
+    echo "  2. GitHub 认证（GCM 推荐 / PAT 备选，见 ADR-0059）"
     echo "  3. 配置 git 身份 + credential helper"
     echo "  4. 收集 LLM API Key + 生成 ccprivate 配置"
     echo "  5. 推送到 GitHub 私有仓库"

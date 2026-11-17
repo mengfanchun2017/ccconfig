@@ -67,6 +67,7 @@ bats tests/test-dry-run.bats
 | `test-cross-script-dryrun.sh` | 跨脚本 dry-run |
 | `test-dry-run-argv.sh` | `dry_run_parse_argv` 让 `bash lib/x.sh --dry-run` 真正生效 |
 | `test-git-pull.sh` | lib/git-pull.sh 单点拉取实现 |
+| `test-git-auth.sh` | lib/git-auth.sh GCM/PAT 双模式（脱敏 / 路径发现 / 三态 / 入口守卫） |
 | `test-interact.sh` | interact 函数 |
 | `test-init-ccprivate-repo.sh` | ccprivate 初始化 |
 | `test-mcp-pywrite.sh` | mcp-manager.sh 的 py_write 变量转义 |

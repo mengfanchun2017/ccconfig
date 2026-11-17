@@ -70,7 +70,7 @@ ccprivate/                         ccconfig/
 
 ### 1.2 克隆到本地
 
-**HTTPS（默认，走 gh credential helper）**：
+**HTTPS（默认，走 credential helper：Windows GCM 推荐 / gh auth 备选）**：
 
 ```bash
 mkdir -p ~/git && cd ~/git
