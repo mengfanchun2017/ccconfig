@@ -42,17 +42,23 @@ _find_gcm_path() {
     helpers=$(git config --global --get-all "credential.https://github.com.helper" 2>/dev/null) || true
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
-        # helper 值可能是 !"C:\...\gcm.exe"（带引号，路径含空格时必需），
-        # 直接 test -x 会因字面引号失败 → 剥掉首尾引号再判
+        # helper 值形如 !"/mnt/c/Program Files/.../gcm.exe"（带引号，路径含空格时必需）。
+        # 先剥 ! 再剥引号；引号是 shell 语法的一部分，test -x 必须拿到裸路径。
         local p="${line#!}"
         p="${p#\"}"; p="${p%\"}"
         p="${p%\'}"; p="${p#\'}"
         [[ -x "$p" ]] && { echo "$p"; return 0; }
     done <<< "$helpers"
 
-    # 2. 常见 MinGit 位置（遍历 /mnt/c/Users/ 下的所有目录）
+    # 2. 常见 MinGit 位置。排除 Default/Public/All Users/Default User ——
+    # 这些是 Windows 模板/公共目录，不是真实用户，凭据按当前 Windows 用户 DPAPI
+    # 存取，选错目录会取不到凭据。
     if [[ -d /mnt/c/Users ]]; then
         for ud in /mnt/c/Users/*/; do
+            local udn; udn=$(basename "$ud")
+            case "$udn" in
+                "Default"|"Default User"|"Public"|"All Users") continue ;;
+            esac
             local p="${ud}AppData/Local/Programs/MinGit/ucrt64/bin/git-credential-manager.exe"
             [[ -x "$p" ]] && { echo "$p"; return 0; }
         done
@@ -69,11 +75,25 @@ _find_gcm_path() {
 # 输出: ok|not_configured|bad_path
 _gcm_status() {
     local gcm_path="${1:-}"
-    local github_helper
-    github_helper=$(git config --global --get-all "credential.https://github.com.helper" 2>/dev/null | grep -v '^$' | head -1) || true
-    [[ -z "$github_helper" ]] && { echo "not_configured"; return; }
+    local helpers
+    helpers=$(git config --global --get-all "credential.https://github.com.helper" 2>/dev/null) || true
+    # 过滤空行与 gh helper（gh 配的是 !...gh-auth.exe，非 GCM）
+    local gh_lines=()
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        [[ "$line" == *"gh-auth"* || "$line" == *"gh.exe"* ]] && continue
+        gh_lines+=("$line")
+    done <<< "$helpers"
+    [[ ${#gh_lines[@]} -eq 0 ]] && { echo "not_configured"; return; }
     [[ -z "$gcm_path" ]] && { echo "bad_path"; return; }
-    echo "ok"
+    # 校验配置里的 helper 值是否真能解析到可达路径 —— 只看「配置非空」会把
+    # 指向已卸载/改名 exe 的坏 helper 误报 ok（bad_path 此前不可达正是这个漏洞）
+    local line p
+    for line in "${gh_lines[@]}"; do
+        p="${line#!}"; p="${p#\"}"; p="${p%\"}"; p="${p%\'}"; p="${p#\'}"
+        [[ -x "$p" ]] && { echo "ok"; return; }
+    done
+    echo "bad_path"
 }
 
 # ── PAT 状态（machine-readable）──
@@ -129,20 +149,23 @@ _do_gcm_setup() {
     echo -e "  GCM 路径: ${CYAN}$gcm_path${NC}"
     echo ""
 
-    # 备份
+    # 备份（.gitconfig 可能不存在；失败不阻断）
     local bak
     bak="$HOME/.gitconfig.bak.gitok-$(date +%Y%m%d%H%M%S)"
-    cp ~/.gitconfig "$bak"
-    echo -e "  ${GRAY}备份: $bak${NC}"
+    if cp ~/.gitconfig "$bak" 2>/dev/null; then
+        chmod 600 "$bak" 2>/dev/null || true
+        echo -e "  ${GRAY}备份: ${bak/#$HOME/~}${NC}"
+    else
+        echo -e "  ${GRAY}无 ~/.gitconfig，跳过备份${NC}"
+    fi
     echo ""
 
-    # 写 helper
+    # 写 helper。值必须是 !"<路径>" 带引号：git 对 ! helper 走 shell 执行，
+    # 路径含空格（如 /mnt/c/Program Files/... 或用户名含空格）不引号会被拆词
+    # 调空命令（实测 "fake: not found"）。find 时 _find_gcm_path 会剥引号还原。
     for h in github.com gist.github.com; do
         git config --global --unset-all "credential.https://$h.helper" 2>/dev/null || true
-        # 值不能带字面引号：曾写 "\"!...\"" 存成 \"!...\" → git 把 credential-!...
-        # 当命令名（实测报 "is not a git command"）。路径含空格也不需引号 ——
-        # git 对 ! helper 走 shell 执行，空格安全。
-        git config --global --add "credential.https://$h.helper" "!$gcm_path"
+        git config --global --add "credential.https://$h.helper" "!\"$gcm_path\""
         echo -e "  ${GREEN}✓${NC} credential.https://$h.helper"
     done
     echo ""

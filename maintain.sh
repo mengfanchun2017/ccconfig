@@ -981,6 +981,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         shift; bash "$LIB_DIR/git-auth.sh" "${1:-interactive}" ;;
     pat|pat-refresh)
         bash "$CCCONFIG_DIR/bin/refresh-gh-auth.sh" ;;
+    secret|secret-scan)
+        source "$LIB_DIR/pre-push-check.sh"
+        pre_push_check_toggle ;;
     example)
         shift; bash "$LIB_DIR/example-sync.sh" "$@" ;;
     mlayer)
