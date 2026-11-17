@@ -127,6 +127,9 @@ for entry in "${MENU_ENTRIES[@]}"; do
         local last; last=$(echo "$action" | awk '{print $NF}')
         local fn; fn=$(echo "$action" | awk '{print $1}')
         [[ "$fn" == "source" || "$fn" == "bash" ]] && fn="$last"
+        # source 型 action 的函数定义在被 source 的脚本里（如 pre-push-check.sh），
+        # 测试环境没 source 就判未定义 → 误报。先 source 再校验。
+        [[ "$action" == source\ * ]] && source "$CCCONFIG_DIR/lib/pre-push-check.sh" 2>/dev/null || true
         declare -F "$fn" >/dev/null 2>&1 || { fail "$cat$letter action 未定义函数: $fn"; missing=$((missing+1)); continue; }
     fi
     pass "$cat$letter action OK"

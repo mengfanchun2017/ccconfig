@@ -107,7 +107,10 @@ jobs:
                    tests/test-ccprivate-boundary.sh \
                    tests/test-ccprivate-sandbox-e2e.sh \
                    tests/test-plugin-env-parity.sh \
-                   tests/test-plugin-install-e2e.sh; do
+                   tests/test-plugin-install-e2e.sh \
+                   tests/test-mlayer.sh \
+                   tests/test-botmux-option.sh \
+                   tests/test-bridge-vision-route.sh; do
             echo "::group::$f"
             bash "$f" || { echo "FAILED: $f"; rc=1; }
             echo "::endgroup::"
