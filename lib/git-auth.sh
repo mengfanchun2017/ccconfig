@@ -77,11 +77,15 @@ _gcm_status() {
     local gcm_path="${1:-}"
     local helpers
     helpers=$(git config --global --get-all "credential.https://github.com.helper" 2>/dev/null) || true
-    # 过滤空行与 gh helper（gh 配的是 !...gh-auth.exe，非 GCM）
+    # 过滤空行与 gh helper。gh auth setup-git 写的值是 `!gh auth git-credential`
+    # （无 .exe 后缀），GCM 是 `!.../git-credential-manager.exe`，按可执行名区分。
+    # 注意 `[[ ... ]] && continue` 在 set -e 下假值会中断函数 → 用 if 包裹。
     local gh_lines=()
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
-        [[ "$line" == *"gh-auth"* || "$line" == *"gh.exe"* ]] && continue
+        if [[ "$line" == *"gh-auth"* || "$line" == *"gh.exe"* || "$line" == *"gh auth git-credential"* ]]; then
+            continue
+        fi
         gh_lines+=("$line")
     done <<< "$helpers"
     [[ ${#gh_lines[@]} -eq 0 ]] && { echo "not_configured"; return; }
