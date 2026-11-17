@@ -343,7 +343,7 @@ link_skill_dir() {
     local target="$CLAUDE_SKILLS_DIR/$name"
 
     if [[ -L "$target" ]] && [[ -e "$target" ]] && [[ "$(readlink -f "$target")" == "$(readlink -f "$skill_dir")" ]]; then
-        [[ "$quiet" != "1" ]] && info "  $name: 已链接" >&2
+        # 正常态不逐行输出（曾刷 28 行「已链接」，看不出结论）；由调用方汇总行报数
         echo "skip"
     elif [[ -L "$target" ]] && [[ ! -e "$target" ]]; then
         run rm -f "$target"
