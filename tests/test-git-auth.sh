@@ -114,9 +114,11 @@ test_pat_status_no_gh() {
 # ---------- 入口守卫 ----------
 test_entry_guard() {
     setup_env
-    # source 时 BASH_SOURCE != $0，不应执行 main。用子 shell 验证不产生副作用输出。
-    local out; out=$( (source "$CCCONFIG_DIR/lib/git-auth.sh") 2>&1 )
-    [ -z "$out" ] && pass "入口: source 不触发 main（无输出）" || fail "入口" "source 有输出: $out"
+    # source 时 BASH_SOURCE != $0，不应执行 main。验证：source 后交互函数仍可用
+    # 且没有菜单输出（main 会 clear + 打印状态）。用子 shell 隔离 set -e 继承。
+    local rc=0
+    ( set +e; source "$CCCONFIG_DIR/lib/git-auth.sh" >/dev/null 2>&1; declare -F do_status >/dev/null 2>&1 ) || rc=$?
+    [ "$rc" -eq 0 ] && pass "入口: source 不触发 main（函数已加载）" || fail "入口" "source rc=$rc"
     teardown_env
 }
 

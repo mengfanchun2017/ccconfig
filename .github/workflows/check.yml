@@ -110,7 +110,8 @@ jobs:
                    tests/test-plugin-install-e2e.sh \
                    tests/test-mlayer.sh \
                    tests/test-botmux-option.sh \
-                   tests/test-bridge-vision-route.sh; do
+                   tests/test-bridge-vision-route.sh \
+                   tests/test-git-auth.sh; do
             echo "::group::$f"
             bash "$f" || { echo "FAILED: $f"; rc=1; }
             echo "::endgroup::"

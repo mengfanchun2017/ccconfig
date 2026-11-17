@@ -61,8 +61,21 @@ setup_ccprivate() {
     # 已 clone → pull 最新做幂等补刀（init-bootstrap.sh 已 clone）
     if [[ -d "$CCPRIVATE_DIR/.git" ]]; then
         info "ccprivate 已存在，pull 最新"
-        # 幂等确保 credential helper 就绪：bootstrap 已配过，此处补刀防漂移
-        gh auth setup-git >/dev/null 2>&1 || true
+        # 幂等确保 credential helper 就绪：bootstrap 已配过，此处补刀防漂移。
+        # 但 GCM 已配时【绝不能】跑 gh auth setup-git —— 它会把 credential helper
+        # 改成 gh-auth，覆盖掉 GCM（实测：GCM 条目被清空）。认证配置统一归
+        # lib/git-auth.sh，这里只在无 GCM 时才用 gh 兜底。
+        if ! command -v gh >/dev/null 2>&1 \
+           || ! gh auth status >/dev/null 2>&1; then
+            :
+        else
+            local _gh_gcm=""
+            if [ -f "$CCCONFIG_ROOT/lib/git-auth.sh" ]; then
+                source "$CCCONFIG_ROOT/lib/git-auth.sh" >/dev/null 2>&1 || true
+                _gh_gcm=$(_gcm_status "$(_find_gcm_path 2>/dev/null || true)" 2>/dev/null || true)
+            fi
+            [ "$_gh_gcm" = "ok" ] || gh auth setup-git >/dev/null 2>&1 || true
+        fi
         # GIT_TERMINAL_PROMPT=0：credential helper 不通则直接失败，绝不卡在用户名提示
         local pull_out
         if pull_out=$(GIT_TERMINAL_PROMPT=0 git -C "$CCPRIVATE_DIR" pull --ff-only 2>&1); then
