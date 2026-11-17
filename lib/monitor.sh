@@ -129,11 +129,9 @@ check_proxy() {
     local hostport=$(echo "$proxy" | sed 's|^https\?://||;s|/$||')
     [ -z "$hostport" ] && return 0
     local host="${hostport%:*}" port="${hostport##*:}"
-    if command -v nc &>/dev/null; then
-        timeout 2 nc -z "$host" "$port" 2>/dev/null
-    else
-        return 0  # no nc, assume reachable (don't false-skip pull)
-    fi
+    # 用 bash /dev/tcp 探测，不依赖 nc（未装 nc 时旧逻辑 return 0 假设可达 →
+    # 代理死了不剥离 → 正好撞上 181-183 想避免的「走死代理 0ms refused」）
+    timeout 2 bash -c "echo > /dev/tcp/$host/$port" 2>/dev/null
 }
 
 # 是否配置了代理（任一 proxy env 非空）
