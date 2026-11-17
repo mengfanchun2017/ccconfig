@@ -31,6 +31,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import uuid
@@ -84,10 +85,11 @@ SOLO_CLIENT_ID = "en1oxy7wnw8j9n"
 AUTH_PATH = Path(os.environ.get(
     "TRAE_AUTH_PATH", "/mnt/c/Users/franc/.dsh/.trae-auth.cn.json"))
 STORAGE_PATH = Path(os.environ.get(
-    "TRAE_STORAGE_PATH", "/mnt/c/Users/franc/AppData/Roaming/Trae CN/User/globalStorage/storage.json"))
+    "TRAE_STORAGE_PATH",
+    str(_UHOME / "AppData" / "Roaming" / "Trae CN" / "User" / "globalStorage" / "storage.json")))
 PRODUCT_PATH = Path(os.environ.get(
     "TRAE_PRODUCT_PATH",
-    "/mnt/c/Users/franc/AppData/Local/Programs/Trae CN/resources/app/product.json"))
+    str(_UHOME / "AppData" / "Local" / "Programs" / "Trae CN" / "resources" / "app" / "product.json")))
 
 REFRESH_LEGACY_PATH = "/cloudide/api/v3/trae/oauth/ExchangeToken"
 REFRESH_CURRENT_PATH = "/trae/api/v3/oauth/ExchangeToken"
