@@ -192,11 +192,11 @@ git_push() {
             echo "$output"
             return 0
         fi
-        if echo "$output" | grep -qiE "bad credentials|401|token.*expired|invalid_token|authentication failed|unauthorized"; then
+        if echo "$output" | grep -qiE "bad credentials|remote:.*401|HTTP 401|status 401|token.*expired|invalid_token|authentication failed|unauthorized|could not read (Username|Password)|terminal prompts disabled|did not return a credential|credential helper.*not found|Password authentication was removed"; then
             # Auth error → 认证失效（GCM 未登录 / PAT 过期），不重试，提示后才能 push
             do_log ""
             do_log "❌ GitHub 认证失败（401/auth error）— push 暂停"
-            do_log "   配置: bash ~/git/ccconfig/maintain.sh git-auth（菜单 2C）"
+            do_log "   配置: bash $MONITOR_HOME/maintain.sh git-auth（菜单 2C）"
             echo "$output" >&2
             return $rc
         elif echo "$output" | grep -qi "connection\|network\|Recv failure\|reset by peer\|timeout\|Could not resolve"; then
@@ -1108,6 +1108,8 @@ status_watch() {
         _ga_pat=$(_pat_status)
         if [[ "$_ga_gcm" == "ok" ]]; then
             echo -e "${GREEN}✅${NC} ${GRAY}Windows GCM${NC}"
+        elif [[ "$_ga_gcm" == "bad_path" ]]; then
+            echo -e "${YELLOW}○${NC} ${GRAY}Windows GCM helper 已配但 exe 不可达 → ./maintain.sh git-auth${NC}"
         elif [[ "$_ga_pat" == "logged_in" ]]; then
             echo -e "${GREEN}✅${NC} ${GRAY}GitHub PAT${NC}"
         else
@@ -1173,7 +1175,7 @@ colorize_line() {
     fi
 
     # ERROR（柔红）— 需要动手处理：冲突、push 失败、PAT 失效
-    if echo "$content" | grep -qE '(ERROR|UNRESOLVED|push failed|UNRESOLVED|aborting|❌|401|auth error)'; then
+    if echo "$content" | grep -qE '(ERROR|UNRESOLVED|push failed|aborting|❌|remote:.*401|HTTP 401|auth error)'; then
         echo -e "  ${TS_DIM}${ts}${NC}  ${RED}${content}${NC}"
         return
     fi

@@ -350,7 +350,7 @@ check_git_auth() {
         not_configured)
             echo -e "  ${YELLOW}○${NC}  Windows GCM  未配置  ${DIM}（菜单 2C 配置）${NC}" ;;
         bad_path)
-            echo -e "  ${YELLOW}○${NC}  Windows GCM  helper 已配但 exe 不可达" ;;
+            echo -e "  ${YELLOW}○${NC}  Windows GCM  helper 已配但 exe 不可达  ${DIM}（菜单 2C 重新配置；确认 Git for Windows 安装路径）${NC}" ;;
     esac
 
     case "$pat_st" in
@@ -366,7 +366,7 @@ check_git_auth() {
                 pat_ok=1
             else
                 echo -e "  ${YELLOW}○${NC}  GitHub PAT  已登录但验证失败（token 失效或网络不通）"
-                echo -e "  ${YELLOW}     续期: bash ~/git/ccconfig/bin/refresh-gh-auth.sh${NC}"
+                echo -e "  ${YELLOW}     续期: bash $REPO_DIR/bin/refresh-gh-auth.sh${NC}"
             fi ;;
         not_logged_in)
             echo -e "  ${YELLOW}○${NC}  GitHub PAT  未登录  ${DIM}（菜单 2C 配置）${NC}" ;;
