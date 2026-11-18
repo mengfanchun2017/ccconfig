@@ -403,9 +403,10 @@ commit_and_push() {
             if [ "${fetch_failed:-0}" -eq 1 ]; then
                 :
             elif [ "${behind:-0}" -gt 0 ]; then
-                log "[$repo] up to date locally, but ${behind} commit(s) behind remote — 未整合其他终端的改动"
+                # 落后是「未整合」状态，用 ⚠ 黄警示，不能与「已是最新」同色
+                log "[$repo] ⚠ 落后其他终端 ${behind} 个提交（未整合）"
             elif [ "${just_integrated:-0}" -eq 0 ]; then
-                logq "[$repo] already up to date"
+                logq "[$repo] ✓ 已是最新"
             fi
         fi
         return 0
@@ -896,7 +897,7 @@ start_watch() {
                 gap=$((now - last_push_time))
                 if [ "$last_push_time" -eq 0 ] || [ "$gap" -ge "$min_push_gap" ]; then
                     heartbeat_ts=$now
-                    do_log "Heartbeat sync (${heartbeat_secs}s wall-clock) — 收敛其他终端的改动"
+                    do_log "Heartbeat sync (${heartbeat_secs}s) — 检查其他终端改动（有则整合，无则报已是最新）"
                     sync_repos
                     last_push_time=$(date +%s)
                 fi
@@ -1208,7 +1209,7 @@ colorize_line() {
 
     # NOISE（极暗）— 每 5min × 每仓的心跳产物，占全日志 5782 行。压到几乎看不见，
     # 但不删：它仍是排查时的「monitor 什么时候还活着」时间锚点。
-    if echo "$content" | grep -qE '(^\[[a-z_-]+\][[:space:]]+already up to date|Heartbeat sync|^Initial scan done|  (fetch|pull) err:|已链接|已存在)'; then
+    if echo "$content" | grep -qE '(^\[[a-z_-]+\][[:space:]]+already up to date|^Initial scan done|  (fetch|pull) err:|已链接|已存在)'; then
         echo -e "  ${TS_DIM}${ts}${NC}  ${NOISE}${content}${NC}"
         return
     fi
@@ -1222,13 +1223,13 @@ colorize_line() {
     # WARN（琥珀）— 降级但可继续：重试中、fetch/pull 失败、目标缺失。
     # 裸「跳过」必须排除：链接/配置脚本的正常态就是「已链接，跳过」，曾因此
     # 被整片刷黄，用户误以为需要关注（2026-11-17 反馈）。
-    if echo "$content" | grep -qE '(WARN|Skipped|nothing to commit|attempt [0-9]+ failed|fail(ed)? after|目标不存在.*跳过|WARN:.*跳过|冲突|warn —|behind remote)'; then
+    if echo "$content" | grep -qE '(WARN|Skipped|nothing to commit|attempt [0-9]+ failed|fail(ed)? after|目标不存在.*跳过|WARN:.*跳过|冲突|warn —|behind remote|落后其他终端)'; then
         echo -e "  ${TS_DIM}${ts}${NC}  ${YELLOW}${content}${NC}"
         return
     fi
 
     # SUCCESS（柔绿）— 真的产生了效果
-    if echo "$content" | grep -qE '(OK pushed|OK committed|OK pull|OK links|OK skills|OK rebase|✅|Started|Stopped|Resurrecting|整合其他终端|修复成功)'; then
+    if echo "$content" | grep -qE '(OK pushed|OK committed|OK pull|OK links|OK skills|OK rebase|✅|✓ 已是最新|Started|Stopped|Resurrecting|整合其他终端|修复成功)'; then
         echo -e "  ${TS_DIM}${ts}${NC}  ${GREEN}${content}${NC}"
         return
     fi
@@ -1261,7 +1262,7 @@ colorize_line() {
     fi
 
     # ACTIVITY（柔青）— 有动静但还没结果：检测到改动、debounce、同步中
-    if echo "$content" | grep -qE '(\* changes detected|Change detected|Debounce done|syncing |MOVED_TO|DELETED|CREATED|MODIFY|cleared stale lock|no local changes)'; then
+    if echo "$content" | grep -qE '(\* changes detected|Change detected|Debounce done|syncing |Heartbeat sync|MOVED_TO|DELETED|CREATED|MODIFY|cleared stale lock|no local changes)'; then
         echo -e "  ${TS_DIM}${ts}${NC}  ${CYAN}${content}${NC}"
         return
     fi
