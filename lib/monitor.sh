@@ -767,7 +767,7 @@ start_watch() {
     local deferred_logged=0
     # 心跳周期（秒）。它替代了原来的 12h 空闲兜底，是"对端提交本机可见"的唯一
     # 兜底通道 —— 所以按 wall-clock 计，不能按"暂无文件事件"计（见循环内注释）。
-    local heartbeat_secs=300
+    local heartbeat_secs=600
 
     inotifywait -m -r -q \
         --exclude '(\.git/|_ext/|\.snapshots/|node_modules/|\.tmp\.)' \
