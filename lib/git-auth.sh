@@ -110,6 +110,21 @@ _pat_status() {
     fi
 }
 
+# ── 取 github.com 可用代理（复用 net.sh，单点真相源）──
+# 返回代理 URL 或空。net_gh_proxy：env → 本机 Clash 7897/7890 探测。
+_gh_proxy() {
+    if [ -f "$SCRIPT_DIR/net.sh" ]; then
+        source "$SCRIPT_DIR/net.sh" >/dev/null 2>&1 || true
+        declare -F net_gh_proxy >/dev/null 2>&1 && { net_gh_proxy; return; }
+    fi
+    local p="${HTTPS_PROXY:-${https_proxy:-${HTTP_PROXY:-${http_proxy:-}}}}"
+    [ -n "$p" ] && { echo "$p"; return; }
+    for q in 7897 7890; do
+        timeout 1 bash -c "echo > /dev/tcp/127.0.0.1/$q" 2>/dev/null && { echo "http://127.0.0.1:$q"; return; }
+    done
+    echo ""
+}
+
 # ── 测试远端连通性（返回 0=可达）──
 _test_reachability() {
     # 直连。只看 http_code 不看退出码：github.com 直连慢（TLS 握手后大响应体）时
@@ -117,30 +132,43 @@ _test_reachability() {
     local code
     code=$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 15 https://github.com 2>/dev/null || true)
     [[ "$code" == "200" || "$code" == "301" || "$code" == "302" ]] && return 0
-    # 走代理
-    local proxy="http://127.0.0.1:7897"
+    # 走代理（net.sh 探测结果）
+    local proxy; proxy=$(_gh_proxy)
+    [ -n "$proxy" ] || return 1
     code=$(curl -x "$proxy" -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 15 https://github.com 2>/dev/null || true)
     [[ "$code" == "200" || "$code" == "301" || "$code" == "302" ]] && { echo "$proxy"; return 0; }
     return 1
 }
 
+# ── 验证用仓库：优先当前仓库 origin（fork 友好），回落默认公开仓 ──
+_verify_repo() {
+    local root u=""
+    root="$(dirname "$SCRIPT_DIR")"   # git-auth.sh 在 lib/ 下，仓库根是其父目录
+    u=$(git -C "$root" remote get-url origin 2>/dev/null) || u=""
+    if [ -n "$u" ]; then echo "$u"; return; fi
+    echo "https://github.com/mengfanchun2017/ccconfig.git"
+}
+
 # ── git ls-remote 验证（返回 0=认证通过）──
-_GITHUB_REPO="https://github.com/mengfanchun2017/ccconfig.git"
 _git_verify() {
     local proxy="${1:-}"
+    local repo; repo=$(_verify_repo)
     local -a args=()
     [[ -n "$proxy" ]] && args=(-c "http.proxy=$proxy" -c "https.proxy=$proxy")
     local out rc=0
-    out=$(timeout 40 git "${args[@]}" ls-remote "$_GITHUB_REPO" HEAD 2>&1) || rc=$?
+    out=$(timeout 40 git "${args[@]}" ls-remote "$repo" HEAD 2>&1) || rc=$?
     if [[ $rc -eq 0 && "$out" =~ ^[0-9a-f]{40} ]]; then
         echo "$out"
         return 0
     fi
-    # 直连失败（被墙/慢）→ 用代理重试一次
+    # 直连失败（被墙/慢）→ 用 net.sh 探测到的代理重试一次
     if [[ -z "$proxy" ]]; then
-        out=$(timeout 40 git -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 \
-            ls-remote "$_GITHUB_REPO" HEAD 2>&1) || rc=$?
-        [[ $rc -eq 0 && "$out" =~ ^[0-9a-f]{40} ]] && { echo "$out"; return 0; }
+        local p2; p2=$(_gh_proxy)
+        if [ -n "$p2" ]; then
+            out=$(timeout 40 git -c "http.proxy=$p2" -c "https.proxy=$p2" \
+                ls-remote "$repo" HEAD 2>&1) || rc=$?
+            [[ $rc -eq 0 && "$out" =~ ^[0-9a-f]{40} ]] && { echo "$out"; return 0; }
+        fi
     fi
     return 1
 }
