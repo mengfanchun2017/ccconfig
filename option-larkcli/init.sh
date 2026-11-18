@@ -84,15 +84,15 @@ install_lark_cli() {
 
     if [ -d "$pkg_dir" ]; then
         if _install_lark_cli_symlink "$pkg_dir"; then
-            good "  ✓ 已安装（symlink 已建）"
+            good "✓ 已安装（symlink 已建）"
         else
-            good "  ✓ 已安装"
+            good "✓ 已安装"
         fi
         return 0
     fi
 
     echo -n "  npm install @larksuite/cli ... "
-    if npm install -g @larksuite/cli 2>&1 && good "✅"; then
+    if npm install -g @larksuite/cli 2>&1 && good ""; then
         _install_lark_cli_symlink "$npm_root/@larksuite/cli" || warn "    ⚠ symlink 未建（手动: ln -s $npm_root/@larksuite/cli/scripts/run.js ~/.local/bin/lark-cli）"
     else
         bad "❌"
@@ -107,15 +107,16 @@ install_lark_skills() {
     local n=0
     [[ -d "$HOME/.agents/skills" ]] && n=$(ls "$HOME/.agents/skills" 2>/dev/null | grep -c '^lark-')
     if [[ "$n" -gt 0 ]]; then
-        good "  ✓ 已装 ${n} 个 lark-* skill"
+        # 行首一个绿色 ✅（good 自带），描述用字符 ✓ 标识，避免双图标/错位
+        good "✓ 已装 ${n} 个"
         return 0
     fi
-    echo -n "  npx skills add larksuite/cli -g -y ... "
+    echo -n "  安装中 (npx skills add larksuite/cli) ... "
     if npx --yes skills@latest add larksuite/cli -g -y >/dev/null 2>&1; then
         n=$(ls "$HOME/.agents/skills" 2>/dev/null | grep -c '^lark-')
-        good "✅ ${n} 个"
+        good "✓ 新装 ${n} 个"
     else
-        warn "  ⚠ 失败，手动: npx skills add larksuite/cli -g -y"
+        warn "⚠ 失败，手动: npx skills add larksuite/cli -g -y"
     fi
 }
 
