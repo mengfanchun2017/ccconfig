@@ -122,6 +122,21 @@ test_entry_guard() {
     teardown_env
 }
 
+# ---------- init-bootstrap 接线（GCM 优先链）----------
+test_init_bootstrap_gcm_wiring() {
+    local ib="$CCCONFIG_DIR/init-bootstrap.sh"
+    grep -q 'setup_gcm_auth' "$ib" \
+        && pass "init-bootstrap: 含 setup_gcm_auth" \
+        || fail "init-bootstrap" "缺 setup_gcm_auth"
+    # 主流程（create + clone 两处）都要在 gh_auth 前检查 GCM
+    local n; n=$(grep -cE '^[[:space:]]*setup_gcm_auth$' "$ib")
+    [ "$n" -ge 2 ] && pass "init-bootstrap: create/clone 两路径均检查 GCM（$n 处）" \
+        || fail "init-bootstrap" "GCM 检查仅 $n 处（应 ≥2）"
+    grep -q 'gcm_helper_active' "$ib" \
+        && pass "init-bootstrap: setup_git_ident 有 GCM 保护（不覆盖）" \
+        || fail "init-bootstrap" "setup_git_ident 会覆盖 GCM"
+}
+
 echo ""
 echo "git-auth.sh 单元测试"
 echo "════════════════════"
@@ -135,6 +150,7 @@ test_status_bad_path_or_ok
 test_status_ok
 test_pat_status_no_gh
 test_entry_guard
+test_init_bootstrap_gcm_wiring
 
 echo ""
 echo "────────────────────────────────────"
