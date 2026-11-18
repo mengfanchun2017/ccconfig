@@ -85,7 +85,7 @@ _compact_relay() {
         case "$line" in
             "──"*|"===="*|"符号链接"|"完成。验证"*|"CLI 依赖:"*|"symlink:"*|"Skills:"*|"已装 "*|"新装 "*|"符号链接："*|"全部 "[0-9]*" 项正常") continue ;;
         esac
-        do_log "[$repo]   $line"
+        do_log "[$repo]  $line"
     done
 }
 
@@ -420,7 +420,7 @@ commit_and_push() {
     info "[$repo] * changes detected (${nchanges} 个文件)"
     while IFS= read -r line; do
         [ -z "$line" ] && continue
-        do_log "[$repo]   ${line:0:2} ${line:3}"
+        do_log "[$repo]  ${line:0:2} ${line:3}"
     done <<< "$changed_files"
 
     if git -C "$repo_dir" ls-files -u 2>/dev/null | grep -q .; then
