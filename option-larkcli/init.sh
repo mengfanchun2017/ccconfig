@@ -128,7 +128,7 @@ setup_lark_cli_account() {
 
     local cf="${config_dir}/config.json"
     if [ -f "$cf" ]; then
-        good "  ✓ ${name}"
+        good "✓ ${name}"
         # 检测 auth，未授权则自动拉起
         if ! lark_user_ready "$config_dir"; then
             warn "    ○ 待授权，自动发起 OAuth 授权..."
@@ -137,7 +137,7 @@ setup_lark_cli_account() {
         return 0
     fi
     echo -n "  → ${name} ... "
-    echo "$app_secret" | lark-cli config init --app-id "$app_id" --app-secret-stdin --brand "$brand" 2>&1 && good "✅" || bad "❌"
+    echo "$app_secret" | lark-cli config init --app-id "$app_id" --app-secret-stdin --brand "$brand" 2>&1 && good "" || bad ""
     # 配置完成后检测 auth
     if [ -f "$cf" ]; then
         if ! lark_user_ready "$config_dir"; then
@@ -568,7 +568,7 @@ case "${1:-}" in
     "")
         run_lark_cli
         echo ""
-        good "✅ lark-cli 配置完成"
+        good "lark-cli 配置完成"
         echo ""
         ;;
     *)
