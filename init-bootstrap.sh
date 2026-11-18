@@ -260,9 +260,64 @@ setup_git_ident() {
     git config --global user.email "$cur_email"
     ok "Git 身份已设: $cur_name <$cur_email>"
 
-    # 配 credential helper
-    gh auth setup-git >/dev/null 2>&1 || true
-    ok "git credential helper → gh"
+    # 配 credential helper：GCM 已配则**不能**跑 gh auth setup-git ——
+    # 它会 replace-all 清空 GCM 条目（实测），把认证降级回 gh（ADR-0059）。
+    if gcm_helper_active; then
+        ok "git credential helper → Windows GCM（已配，保留）"
+    else
+        gh auth setup-git >/dev/null 2>&1 || true
+        ok "git credential helper → gh"
+    fi
+}
+
+# GCM 是否已生效（helper 值可达）。供 setup_git_ident / setup_gcm_auth 共用。
+gcm_helper_active() {
+    source "$CCCONFIG_DIR/lib/git-auth.sh" >/dev/null 2>&1 || true
+    declare -F _gcm_status >/dev/null 2>&1 || return 1
+    local p=""; p=$(_find_gcm_path 2>/dev/null) || true
+    [ "$(_gcm_status "$p" 2>/dev/null)" = "ok" ]
+}
+
+# ============================================================
+# 模块 [2.5/6]: Windows GCM 认证（优先，ADR-0059）
+# ============================================================
+# 初始化即检查配置：GCM 已装 → 直接配好（WSL 磁盘零密钥、无过期）；
+# 未装 → 提示装 Git for Windows（含 GCM），然后回落 PAT。
+# 为什么放 gh_auth 之前：GCM 不依赖 gh，配好后可少跑一套 token。
+setup_gcm_auth() {
+    if ! [ -f "$CCCONFIG_DIR/lib/git-auth.sh" ]; then
+        info "git-auth.sh 缺失，跳过 GCM 检查"
+        return 0
+    fi
+    source "$CCCONFIG_DIR/lib/git-auth.sh" >/dev/null 2>&1 || true
+    local gcm_path=""
+    gcm_path=$(_find_gcm_path) || true
+
+    if [ -n "$gcm_path" ]; then
+        echo ""
+        info "检测到 Windows GCM: ${GREEN}$(_redact_user "$gcm_path")${NC}"
+        if _do_gcm_setup "$gcm_path"; then
+            ok "GCM 已配置（推荐方式）"
+        else
+            warn "GCM 配置未完成 —— 稍后 bash maintain.sh git-auth 重试"
+        fi
+        echo ""
+        return 0
+    fi
+
+    # 未装 → 提示（winget 一键 / 下载页）
+    echo ""
+    warn "未检测到 Windows GCM（git-credential-manager.exe）"
+    echo "  GCM 是推荐认证：密钥由 Windows 凭据管理器加密，WSL 磁盘零明文、无过期。"
+    if command -v winget.exe >/dev/null 2>&1; then
+        echo "  安装（Windows 侧一键）: winget install --id Git.Git -e"
+    else
+        echo "  下载: https://git-scm.com/downloads （安装时勾选 Git Credential Manager）"
+    fi
+    echo "  装完重跑本脚本，或跑: bash maintain.sh git-auth"
+    echo "  也可跳过，继续用 GitHub PAT 认证。"
+    echo ""
+    return 0
 }
 
 # ============================================================
@@ -751,8 +806,8 @@ if $DRY_RUN; then
     echo -e "${CYAN}init-bootstrap — DRY-RUN${NC}"
     echo -e "${CYAN}══════════════════════${NC}"
     echo ""
-    echo "  1. 装 gh（如缺失）"
-    echo "  2. GitHub 认证（GCM 推荐 / PAT 备选，见 ADR-0059）"
+    echo "  1. 检查/配置 Windows GCM（推荐，ADR-0059；未装则提示安装）"
+    echo "  2. 装 gh（如缺失）+ GitHub 认证（GCM 优先，PAT 兜底）"
     echo "  3. 配置 git 身份 + credential helper"
     echo "  4. 收集 LLM API Key + 生成 ccprivate 配置"
     echo "  5. 推送到 GitHub 私有仓库"
@@ -778,6 +833,7 @@ fi
 
 # 主流程
 if $CLONE_MODE; then
+    setup_gcm_auth
     install_gh || exit 1
     gh_auth || exit 1
     setup_git_ident   # 缺这一步恢复回来的机器没有 user.name/email，auto-sync 提交会失败
@@ -785,6 +841,7 @@ if $CLONE_MODE; then
     exit $?
 fi
 
+setup_gcm_auth
 install_gh || exit 1
 gh_auth || exit 1
 setup_git_ident
