@@ -1233,6 +1233,16 @@ colorize_line() {
         return
     fi
 
+    # STEP（功能步骤总结）— "<step> ✓ ..." 绿 / "⚠ ..." 黄 / "✗/失败" 红
+    if [[ "$content" =~ ^\[[^]]+\][[:space:]]+[a-z]+[[:space:]]+✓ ]]; then
+        echo -e "  ${TS_DIM}${ts}${NC}  ${GREEN}${content}${NC}"
+        return
+    fi
+    if [[ "$content" =~ ^\[[^]]+\][[:space:]]+[a-z]+[[:space:]]+(⚠|✗) ]]; then
+        echo -e "  ${TS_DIM}${ts}${NC}  ${YELLOW}${content}${NC}"
+        return
+    fi
+
     # CHANGES（按 git 状态着色）— 用户最关心的「环境变化」：
     # M=修改(黄) A=新增(绿) D=删除(红) R=重命名(蓝) ??=未跟踪(青)
     # 格式由 commit_and_push 统一成 "[repo]   XY PATH"（XY 固定 2 字符）
