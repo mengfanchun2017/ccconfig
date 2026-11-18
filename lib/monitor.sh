@@ -385,8 +385,16 @@ commit_and_push() {
     fi
 
     echo "" | tee -a "$LOG_FILE"
-    info "[$repo] * changes detected"
-    echo "$changed_files" | while read line; do do_log "[$repo]   $line"; done
+    # 变更行规范成 "XY PATH"（XY 固定 2 字符 + 1 空格分隔）——porcelain 原样是
+    # ` M path`/`M  path`，直接拼前缀会出现 `   M path` 这类多空格错位。
+    # 颜色由 colorize_line 按状态上色（M 黄 / A 绿 / D 红 / ?? 青 / R 蓝）。
+    local nchanges=0 line
+    while IFS= read -r line; do [ -n "$line" ] && nchanges=$((nchanges + 1)); done <<< "$changed_files"
+    info "[$repo] * changes detected (${nchanges} 个文件)"
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        do_log "[$repo]   ${line:0:2} ${line:3}"
+    done <<< "$changed_files"
 
     if git -C "$repo_dir" ls-files -u 2>/dev/null | grep -q .; then
         error "[$repo] !! UNRESOLVED CONFLICTS — manual resolution needed"
@@ -1189,6 +1197,23 @@ colorize_line() {
     # SUCCESS（柔绿）— 真的产生了效果
     if echo "$content" | grep -qE '(OK pushed|OK committed|OK pull|OK links|OK skills|OK rebase|✅|Started|Stopped|Resurrecting|整合其他终端|修复成功)'; then
         echo -e "  ${TS_DIM}${ts}${NC}  ${GREEN}${content}${NC}"
+        return
+    fi
+
+    # CHANGES（按 git 状态着色）— 用户最关心的「环境变化」：
+    # M=修改(黄) A=新增(绿) D=删除(红) R=重命名(蓝) ??=未跟踪(青)
+    # 格式由 commit_and_push 统一成 "[repo]   XY PATH"（XY 固定 2 字符）
+    if [[ "$content" =~ ^\[[^]]+\][[:space:]]+([MADR? ]{2})[[:space:]]+(.+)$ ]]; then
+        local st="${BASH_REMATCH[1]}" c=$YELLOW
+        case "$st" in
+            "??"|"!!") c=$CYAN ;;
+            *A*) c=$GREEN ;;
+            *D*) c=$RED ;;
+            *R*) c=$BLUE ;;
+            *M*) c=$YELLOW ;;
+            *)    c=$GRAY ;;
+        esac
+        echo -e "  ${TS_DIM}${ts}${NC}  ${c}${content}${NC}"
         return
     fi
 
