@@ -35,6 +35,7 @@ import subprocess
 import sys
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
@@ -491,7 +492,21 @@ def _trae_tool_calls(raw) -> list:
 
 # ───────────────────────── 网关本体 ─────────────────────────
 
-app = FastAPI(title="trae-bridge")
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    global _client
+    _client = httpx.AsyncClient(
+        timeout=httpx.Timeout(300.0, connect=30.0, read=180.0, write=120.0, pool=30.0),
+        trust_env=False,
+    )
+    creds.load()
+    _log(f"upstream={CHAT_BASE} default_model={STATE['model']}")
+    yield
+    if _client is not None:
+        await _client.aclose()
+
+
+app = FastAPI(title="trae-bridge", lifespan=_lifespan)
 
 
 @app.middleware("http")
@@ -586,23 +601,6 @@ def identity() -> TraeIdentity:
     if _identity is None:
         _identity = TraeIdentity.load()
     return _identity
-
-
-@app.on_event("startup")
-async def _startup():
-    global _client
-    _client = httpx.AsyncClient(
-        timeout=httpx.Timeout(300.0, connect=30.0, read=180.0, write=120.0, pool=30.0),
-        trust_env=False,
-    )
-    creds.load()
-    _log(f"upstream={CHAT_BASE} default_model={STATE['model']}")
-
-
-@app.on_event("shutdown")
-async def _shutdown():
-    if _client is not None:
-        await _client.aclose()
 
 
 @app.get("/health")
