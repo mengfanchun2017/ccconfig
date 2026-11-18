@@ -150,7 +150,7 @@ _do_gcm_setup() {
     local gcm_path="$1"
     section "配置 Windows GCM"
 
-    echo -e "  GCM 路径: ${CYAN}$gcm_path${NC}"
+    echo -e "  GCM 路径: ${CYAN}$(_redact_user "$gcm_path")${NC}"
     echo ""
 
     # 备份（.gitconfig 可能不存在；失败不阻断）

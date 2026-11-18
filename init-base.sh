@@ -255,7 +255,7 @@ main_menu() {
         choice=$(menu_select "ccconfig 初始化" \
             "Ubuntu 环境/LLM/自启动" \
             "远程连接/SSH/tmux" \
-            "★ 新机第一步：gh auth + ccprivate" \
+            "★ 新机第一步：GitHub 认证 + ccprivate" \
             "★ 已有 ccprivate：基础初始化 3 步" \
             "可选组件(MCP/Skills/CLI)" \
             "退出")
@@ -282,7 +282,7 @@ case "${1:-menu}" in
         init_all_steps || exit 1
         ;;
     new|bootstrap)
-        # gh auth + ccprivate 一体化
+        # GitHub 认证（GCM 优先 / PAT 兜底）+ ccprivate 一体化
         if [[ "${2:-}" == "--yes" || "${2:-}" == "-y" ]]; then
             export CCP_NONINTERACTIVE=1
         fi
