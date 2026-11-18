@@ -808,7 +808,7 @@ update_llm_key() {
 
     if [[ -z "$target" ]]; then
         local items=() names=()
-        while IFS='|' read -r _ name display _ _ _ _ has_key; do
+        while IFS='|' read -r _ name display _ _ _ _ has_key tag; do
             [[ -z "$name" ]] && continue
             names+=("$name")
             [[ "$has_key" == "0" ]] && display="$display [无 Key]"
@@ -1036,7 +1036,7 @@ edit_custom_preset() {
     local target="${1:-}"
     if [[ -z "$target" ]]; then
         local items=() names=()
-        while IFS='|' read -r _ name display model _ _ is_builtin _; do
+        while IFS='|' read -r _ name display model _ _ is_builtin _ tag; do
             [[ -z "$name" ]] && continue
             [[ "$is_builtin" == "1" ]] && continue
             names+=("$name")
@@ -1126,9 +1126,9 @@ delete_preset() {
 
     if [[ -z "$target" ]]; then
         local items=() names=()
-        # 末位 _ 接住第 8 列 has_key：read 会把多余字段并进最后一个变量，
+        # 末位 tag 接住第 9 列：read 会把多余字段并进最后一个变量，
         # 少了它 is_builtin 会拿到 "1|1" → 内置预设过滤失效（会混进删除菜单）
-        while IFS='|' read -r _ name display model _ _ is_builtin _; do
+        while IFS='|' read -r _ name display model _ _ is_builtin _ tag; do
             [[ -z "$name" ]] && continue
             [[ "$is_builtin" == "1" ]] && continue
             names+=("$name")

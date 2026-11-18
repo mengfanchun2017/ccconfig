@@ -329,11 +329,12 @@ else
     _fail "ctx 写入/薄覆盖不符合预期" "custom=$t9_custom(256000) builtin_raw=$t9_builtin_raw(500) src=$t9_builtin_src(normal) thin=$t9_thin"
 fi
 
-# ── T7: list_llms 输出列契约（8 列）──
+# ── T7: list_llms 输出列契约（9 列）──
 # why：菜单渲染、删除过滤、key 更新菜单全靠按列位 read。少一个变量时 read 会把
 # 多余字段并进最后一个变量（is_builtin 拿到 "1|1"），过滤静默失效 —— 内置预设
 # 会混进「可删除的模型」。列数变了必须同步所有 read 端，用本测试兜住。
-echo "T7 list_llms 每行 8 列，is_builtin/has_key 均为 0/1"
+# 第 9 列 tag（vision/ocr 标记，c6ba193 引入）可为空或 📷/📄 组合。
+echo "T7 list_llms 每行 9 列，is_builtin/has_key 均为 0/1"
 python3 - "$LLM_KEYS_FILE" <<'PYEOF'
 import json, sys
 p = sys.argv[1]
@@ -347,7 +348,7 @@ rows = 0; bad = []; builtin_seen = False; nokey_seen = False
 for ln in sys.stdin.read().splitlines():
     if not ln or ln.startswith('TOTAL:') or ln.startswith('CURRENT:'): continue
     f = ln.split('|')
-    if len(f) != 8: bad.append('cols=%d' % len(f)); continue
+    if len(f) != 9: bad.append('cols=%d' % len(f)); continue
     rows += 1
     if f[6] not in ('0', '1'): bad.append('is_builtin=' + f[6])
     if f[7] not in ('0', '1'): bad.append('has_key=' + f[7])
