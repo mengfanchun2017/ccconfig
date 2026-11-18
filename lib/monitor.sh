@@ -1067,9 +1067,9 @@ status_watch() {
         local branch=$(git -C "$repo_dir" branch --show-current 2>/dev/null)
         local status=$(git -C "$repo_dir" status --porcelain 2>/dev/null | wc -l)
         if [ "$status" -gt 0 ]; then
-            echo -e "    ${YELLOW}$name${NC} ($branch) — $status file(s) pending"
+            echo -e "    ${YELLOW}$name${NC} ($branch) — ${YELLOW}${status} 个文件待提交${NC}"
         else
-            echo -e "    ${GREEN}$name${NC} ($branch) — clean"
+            echo -e "    ${GREEN}$name${NC} ($branch) — ${GREEN}clean${NC}"
         fi
     done
 
