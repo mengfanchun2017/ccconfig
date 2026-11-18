@@ -77,11 +77,8 @@ _compact_relay() {
         [[ "$line" =~ ^[✓✔][[:space:]]{2}[A-Za-z] ]] && continue
         # 提示行保留（无对勾，纯文字）
         case "$line" in "提示:"*) do_log "[$repo]   $line"; continue ;; esac
-        # monitor 场景只看「有动作」的行；无变化的依赖/源/目标/扫描是噪音
-        if ! printf '%s' "$raw" | grep -qE '[✅✓✔]' \
-           && ! printf '%s' "$line" | grep -qE '(新建|已链接|已安装|修复|删|新装|覆盖|清理|变更)'; then
-            continue
-        fi
+        # monitor 场景只保留带图标（✅/✓ = 有动作）的行；无变化的依赖/源/目标/扫描是噪音
+        printf '%s' "$raw" | grep -qE '[✅✓✔]' || continue
         # 剥图标（可能叠两层：✅ ✓）
         line=$(printf '%s' "$line" | sed -E 's/^([✅✓✔⚠❌]+[[:space:]]*)+//')
         [ -z "$line" ] && continue
