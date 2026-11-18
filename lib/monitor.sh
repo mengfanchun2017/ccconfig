@@ -62,6 +62,25 @@ warn()   { do_log "WARN: $1"; $QUIET_MODE && return; echo -e "${YELLOW}[SYNC]${N
 info()   { do_log "$1"; $QUIET_MODE && return; echo -e "${CYAN}[SYNC]${NC} $1"; }
 error()  { do_log "ERROR: $1"; $QUIET_MODE && return; echo -e "${RED}[SYNC]${NC} $1"; }
 
+# ── 子脚本输出紧凑化 ──
+# 子脚本（init-skill/setup-links）直接跑时打印标题+图标+总结+明细，monitor 逐行转发
+# 会与自己的总结行重复、且 [repo] 后缩进随子脚本内容漂移。这里统一：
+#   · 剥色去前导 → 过滤标题/总结/提示性行 → 去图标 → 作为「变化明细」缩进 2 空格
+#   · 每个功能由 monitor 只出一行总结（对勾一次），明细只保留真正变化项
+_compact_relay() {
+    local repo="$1" out="$2" line
+    printf '%s\n' "$out" | while IFS= read -r line; do
+        line=$(printf '%s' "$line" | strip_ansi | sed -E 's/^[[:space:]]+//')
+        [ -z "$line" ] && continue
+        case "$line" in
+            "──"*|"===="*|"符号链接"|"完成。验证"*|"CLI 依赖:"*|"symlink:"*|"Skills:"*|"已装 "*|"新装 "*|"符号链接："*) continue ;;
+        esac
+        line=$(printf '%s' "$line" | sed -E 's/^[✅✓✔⚠❌]+[[:space:]]*//')
+        [ -z "$line" ] && continue
+        do_log "[$repo]   $line"
+    done
+}
+
 # PAT 失效检测改为 on-failure-only：git_push auth error 时提示续期，不再周期巡检过期天数
 
 # ========== Git helpers ==========
@@ -409,12 +428,15 @@ commit_and_push() {
         local skill_output skill_rc
         skill_output=$(bash "$repo_dir/lib/init-skill.sh" sync 2>&1)
         skill_rc=$?
-        echo "$skill_output" | while IFS= read -r line; do do_log "[$repo] $line"; done
+        # 一行总结（对勾只出现一次）：lark-* 安装数。明细交给 _compact_relay。
+        local _sk=0
+        _sk=$(printf '%s\n' "$skill_output" | strip_ansi | grep -oE '(已装|新装) [0-9]+ 个' | head -1)
         if [ $skill_rc -eq 0 ]; then
-            log "[$repo] OK skills sync"
+            log "[$repo] skills ✓${_sk:+ $_sk}"
         else
-            warn "[$repo] skills sync failed"
+            warn "[$repo] skills sync 失败"
         fi
+        _compact_relay "$repo" "$skill_output"
     fi
 
     # 提交信息带改动摘要。session 已不再自己 commit（见 CLAUDE.md 约束），
@@ -515,12 +537,15 @@ commit_and_push() {
                 local links_output links_rc
                 links_output=$(bash "$repo_dir/lib/setup-links.sh" 2>&1)
                 links_rc=$?
-                echo "$links_output" | while IFS= read -r line; do do_log "[$repo] $line"; done
+                # 一行总结（对勾只出现一次）：已就绪/变更/警告数。明细交给 _compact_relay。
+                local _lk=0
+                _lk=$(printf '%s\n' "$links_output" | strip_ansi | grep -E '项全部已就绪|已就绪,' | head -1 | sed -E 's/^[^：]*：//')
                 if [ $links_rc -eq 0 ]; then
-                    log "[$repo] OK links"
+                    log "[$repo] links ✓${_lk:+ $_lk}"
                 else
-                    warn "[$repo] links failed"
+                    warn "[$repo] links 失败"
                 fi
+                _compact_relay "$repo" "$links_output"
             fi
         else
             # skip_push = unrelated histories / rebase conflict / secret scan hit
