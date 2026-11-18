@@ -72,11 +72,14 @@ _compact_relay() {
     printf '%s\n' "$out" | while IFS= read -r line; do
         line=$(printf '%s' "$line" | strip_ansi | sed -E 's/^[[:space:]]+//')
         [ -z "$line" ] && continue
-        case "$line" in
-            "──"*|"===="*|"符号链接"|"完成。验证"*|"CLI 依赖:"*|"symlink:"*|"Skills:"*|"已装 "*|"新装 "*|"符号链接："*) continue ;;
-        esac
-        line=$(printf '%s' "$line" | sed -E 's/^[✅✓✔⚠❌]+[[:space:]]*//')
+        # doctor 明细（"✓  name  detail"）逐项无信息量，折叠掉（status.sh 会单独展示）
+        [[ "$line" =~ ^[✓✔][[:space:]]{2}[A-Za-z] ]] && continue
+        # 剥图标（可能叠两层：✅ ✓）
+        line=$(printf '%s' "$line" | sed -E 's/^([✅✓✔⚠❌]+[[:space:]]*)+//')
         [ -z "$line" ] && continue
+        case "$line" in
+            "──"*|"===="*|"符号链接"|"完成。验证"*|"CLI 依赖:"*|"symlink:"*|"Skills:"*|"已装 "*|"新装 "*|"符号链接："*|"全部 "[0-9]*" 项正常") continue ;;
+        esac
         do_log "[$repo]   $line"
     done
 }
