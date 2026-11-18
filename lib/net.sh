@@ -10,6 +10,7 @@
 #   proxy=$(net_gh_proxy)      # 取 github.com 可用代理 URL（或空）
 #   net_gh_probe [URL]         # 探测 URL 可达性，直连失败自动换代理。0=可达
 #   github_reachable           # 布尔：github.com 主域是否可达（升级预检用）
+#   net_gh_token                    # 从 git 凭据助手取 GitHub token（GCM 等）
 #   gh_latest_tag <owner/repo> [stripv]   # release 最新 tag；0=拿到，1=取不到
 
 # 取可用代理。优先级：环境变量 → 本机 Clash 端口（7897/7890）
@@ -42,6 +43,21 @@ github_reachable() {
     net_gh_probe "https://github.com"
 }
 
+# 从 git 凭据助手取 GitHub token（GCM 等）。stdout: token；0=拿到，1=取不到。
+# 用途：带认证调 api.github.com（5000 次/小时 per-token），绕开匿名 IP 池 60/小时。
+# 本机 git 走 Windows GCM，即使 `gh` CLI 未登录也有 token 可取。
+net_gh_token() {
+    local tok
+    tok=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never \
+        printf "protocol=https\nhost=github.com\n\n" \
+        | timeout 20 git credential fill 2>/dev/null \
+        | sed -n 's/^password=//p' \
+        | head -1) || tok=""
+    [ -n "$tok" ] || return 1
+    printf '%s\n' "$tok"
+    return 0
+}
+
 # 取 release 最新 tag（默认去 v 前缀）。
 #   gh_latest_tag <owner/repo> [keepv]   → stdout: tag；0=成功，1=取不到
 #
@@ -50,26 +66,44 @@ github_reachable() {
 # `API rate limit exceeded`。401/403 的 JSON 里没有 tag_name，裸 curl 管道解析后
 # 得到空串，调用方只能笼统报「无法获取最新版本」——与"真的没发布"无法区分，
 # 这正是 maintain upgrade 里 OfficeCLI 那句报错的来源。
-# gh 已登录时走 `gh api`（5000 次/小时，per-token），彻底绕开 IP 池。
+#
+# 优先级（从稳到兜底）：
+#   1) git 凭据助手的 token 调 API —— 5000/小时，本机 gh 没登录也有 GCM 凭据
+#   2) gh api —— 已 `gh auth login` 的机器
+#   3) 匿名 curl —— 共享 IP 池，可能限流
+# 用 `/releases?per_page=1` 而非 `/releases/latest`：后者对 prerelease-only 仓库 404，
+# 前者恒返回数组（无 release 时为 []），不会把"无 release"误判成网络故障。
 gh_latest_tag() {
     local repo="$1" keepv="${2:-0}"
-    local tag=""
+    local tag="" tok resp
 
-    if command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
-        tag=$(timeout 15 gh api "repos/${repo}/releases/latest" --jq '.tag_name' 2>/dev/null) || tag=""
+    # 1) 复用 git 凭据（GCM token）→ 5000/小时
+    tok=$(net_gh_token) || tok=""
+    if [ -n "$tok" ]; then
+        resp=$(timeout 15 curl -s --connect-timeout 5 --max-time 15 \
+            -H "Authorization: Bearer $tok" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${repo}/releases?per_page=1" 2>/dev/null) || resp=""
+        tag=$(printf '%s' "$resp" | python3 -c \
+            "import json,sys;d=json.load(sys.stdin);print(d[0]['tag_name'] if isinstance(d,list) and d else '')" 2>/dev/null) || tag=""
     fi
 
-    # 兜底：匿名 curl（共享 IP 池，可能 403）。用 message 字段区分限流与真失败
+    # 2) gh api（已登录的机器）
+    if [ -z "$tag" ] && command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
+        tag=$(timeout 15 gh api "repos/${repo}/releases?per_page=1" \
+            --jq '.[0].tag_name // empty' 2>/dev/null) || tag=""
+    fi
+
+    # 3) 匿名 curl 兜底。message 字段 = 限流/凭据问题；[] = 仓库真没 release
     if [ -z "$tag" ]; then
-        local resp
-        resp=$(curl -s --connect-timeout 5 --max-time 15 \
-            "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null) || resp=""
-        # 有 message 字段 = 401/403（限流/凭据问题），不是"仓库没有 release"
+        resp=$(timeout 15 curl -s --connect-timeout 5 --max-time 15 \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${repo}/releases?per_page=1" 2>/dev/null) || resp=""
         if printf '%s' "$resp" | grep -q '"message"'; then
             return 1
         fi
         tag=$(printf '%s' "$resp" | python3 -c \
-            "import json,sys; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null) || tag=""
+            "import json,sys;d=json.load(sys.stdin);print(d[0]['tag_name'] if isinstance(d,list) and d else '')" 2>/dev/null) || tag=""
     fi
 
     [ -n "$tag" ] || return 1
