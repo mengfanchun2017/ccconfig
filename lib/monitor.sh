@@ -68,12 +68,20 @@ error()  { do_log "ERROR: $1"; $QUIET_MODE && return; echo -e "${RED}[SYNC]${NC}
 #   · 剥色去前导 → 过滤标题/总结/提示性行 → 去图标 → 作为「变化明细」缩进 2 空格
 #   · 每个功能由 monitor 只出一行总结（对勾一次），明细只保留真正变化项
 _compact_relay() {
-    local repo="$1" out="$2" line
+    local repo="$1" out="$2" line raw
     printf '%s\n' "$out" | while IFS= read -r line; do
+        raw="$line"
         line=$(printf '%s' "$line" | strip_ansi | sed -E 's/^[[:space:]]+//')
         [ -z "$line" ] && continue
-        # doctor 明细（"✓  name  detail"）逐项无信息量，折叠掉（status.sh 会单独展示）
+        # doctor 明细（"✓  name  detail"）逐项无信息量，折叠掉（status.sh 单独展示）
         [[ "$line" =~ ^[✓✔][[:space:]]{2}[A-Za-z] ]] && continue
+        # 提示行保留（无对勾，纯文字）
+        case "$line" in "提示:"*) do_log "[$repo]   $line"; continue ;; esac
+        # monitor 场景只看「有动作」的行；无变化的依赖/源/目标/扫描是噪音
+        if ! printf '%s' "$raw" | grep -qE '[✅✓✔]' \
+           && ! printf '%s' "$line" | grep -qE '(新建|已链接|已安装|修复|删|新装|覆盖|清理|变更)'; then
+            continue
+        fi
         # 剥图标（可能叠两层：✅ ✓）
         line=$(printf '%s' "$line" | sed -E 's/^([✅✓✔⚠❌]+[[:space:]]*)+//')
         [ -z "$line" ] && continue
