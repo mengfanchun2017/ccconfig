@@ -441,7 +441,7 @@ os.replace(tmp, sys.argv[1])
     done
 
     if [[ $updated -gt 0 ]]; then
-        echo ""; good "✅ 已更新 $updated 个 MCP Key"
+        echo ""; good "已更新 $updated 个 MCP Key"
         do_sync
     fi
 }

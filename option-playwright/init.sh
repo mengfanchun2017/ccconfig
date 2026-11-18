@@ -182,7 +182,7 @@ do_install() {
     info "注册 MCP 到 conf ..."
     bash "$CCCONFIG_ROOT/lib/init-mcp.sh" sync 2>&1 | tail -15 || true
     echo ""
-    good "✅ Playwright 安装完成。restart Claude session 生效。"
+    good "Playwright 安装完成。restart Claude session 生效。"
 }
 
 do_update() {

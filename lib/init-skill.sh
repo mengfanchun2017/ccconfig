@@ -484,10 +484,10 @@ do_ensure_marketplace() {
     fi
 
     if claude plugin marketplace list 2>/dev/null | grep -q "$mkt_name"; then
-        [[ "$quiet" != "1" ]] && good "  ✓ marketplace 已添加"
+        [[ "$quiet" != "1" ]] && good "✓ marketplace 已添加"
     else
         if claude plugin marketplace add "$mkt_repo" --scope user 2>&1 | tail -3; then
-            [[ "$quiet" != "1" ]] && good "  ✓ marketplace 已添加"
+            [[ "$quiet" != "1" ]] && good "✓ marketplace 已添加"
         else
             [[ "$quiet" != "1" ]] && warn "  ! marketplace 添加失败（无网络？继续）"
         fi
@@ -637,7 +637,7 @@ do_cleanup() {
         if [[ ! -e "$target" ]]; then
             local name=$(basename "$target")
             run rm -f "$target"
-            good "  ✓ 删: $name"
+            good "✓ 删: $name"
             count=$((count + 1))
         fi
     done
@@ -796,7 +796,7 @@ do_remove() {
         warn "  $skill 未安装（~/.claude/skills/$skill 不存在）"
     else
         rm -rf "$target"
-        good "  ✓ 已从 ~/.claude/skills/ 删除"
+        good "✓ 已从 ~/.claude/skills/ 删除"
     fi
 
     # 3. 从 third-party-skills.txt 中移除（清单已废弃：文件不存在时跳过，不再报"不在清单"）
@@ -805,7 +805,7 @@ do_remove() {
             local tmpfile=$(mktemp)
             grep -vE "^[^#]*  $skill\$" "$THIRD_PARTY_CONF" > "$tmpfile"
             mv "$tmpfile" "$THIRD_PARTY_CONF"
-            good "  ✓ 已从 $THIRD_PARTY_CONF 移除"
+            good "✓ 已从 $THIRD_PARTY_CONF 移除"
         else
             info "  $skill 不在 third-party-skills.txt 清单中"
         fi
