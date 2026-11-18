@@ -26,7 +26,12 @@ _SL_READY=(); _SL_ACT=0; _SL_WARN=0
 _sl_flush() {
     local title="$1"
     if [ "$_SL_ACT" -eq 0 ] && [ "$_SL_WARN" -eq 0 ]; then
-        ok "$title：${#_SL_READY[@]} 项全部已就绪"
+        # 全就绪也列出项名 —— 只报「N 项」看不出是哪些，用户要能核对具体环境
+        local _items=""
+        if [ "${#_SL_READY[@]}" -gt 0 ]; then
+            _items="（$(printf '%s, ' "${_SL_READY[@]}" | sed 's/, $//')）"
+        fi
+        ok "$title：${#_SL_READY[@]} 项全部已就绪$_items"
     else
         local msg="$title：${#_SL_READY[@]} 已就绪"
         [ "$_SL_ACT" -gt 0 ] && msg="$msg, $_SL_ACT 项变更"
