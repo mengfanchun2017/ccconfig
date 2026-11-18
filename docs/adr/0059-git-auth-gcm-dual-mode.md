@@ -53,7 +53,8 @@ ccconfig 运行在 WSL2，git 认证此前统一走 fine-grained PAT（`gh auth 
 - `lib/git-auth.sh`：GCM/PAT 双模式实现 + 交互菜单 + `status`/`gcm`/`pat`/`verify`/`check` 子命令。
 - `maintain.sh` 菜单 2C「GitHub 认证管理」、子命令 `git-auth`。
 - `lib/status.sh` `check_git_auth`、`lib/monitor.sh` 认证状态段 source 其函数。
-- `tests/test-git-auth.sh`：脱敏 / 路径发现 / 三态 / 入口守卫。
+- `init-bootstrap.sh`：`setup_gcm_auth()` 在 `gh_auth` 前检查——检测到 GCM 即自动配置（初始化即完成）；未装则给 winget/下载提示后回落 PAT。`setup_git_ident` 的 `gh auth setup-git` 加 `gcm_helper_active` 保护，不覆盖 GCM。
+- `tests/test-git-auth.sh`：脱敏 / 路径发现 / 三态 / 入口守卫 / init-bootstrap 接线。
 
 ## Related Decisions
 
