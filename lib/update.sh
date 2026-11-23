@@ -122,17 +122,27 @@ cleanup_old_snapshots() {
 
 # ========== 1. ccconfig code reload ==========
 
-# 2B（工具升级）不再主动拉取 ccconfig —— 拉代码归 2A（self config）。
-# 但如果 2A 没跑、update.sh 自身或 lib 已过期，继续用旧代码跑组件升级
-# 可能调错接口（update.sh 拉取后会 re-exec 重载，此处保留该保护）。
-# 这里只 fetch 不 pull：发现关键文件落后即提示先跑 2A。
+# 2B 升级前确保 ccconfig 代码最新：落后就自动 ff-only 快进（不覆盖本地改动），
+# 关键文件变化则 re-exec 重载。旧版只 fetch + 提示"先跑 2A"，用户得手动跑两遍。
+# fetch 结果 300s 内复用（2A 刚拉过 / monitor 每轮 fetch），省一次网络往返。
 ccconfig_reload() {
     section "ccconfig 代码 reload 检查"
 
     if ! github_reachable; then
         warn "无法连接远程（网络不通），跳过检查"; return 0
     fi
-    timeout 10 git -C "$CCCONFIG_ROOT" fetch origin main 2>/dev/null || { warn "git fetch 失败，跳过检查"; return 0; }
+
+    local fh; fh=$(git -C "$CCCONFIG_ROOT" rev-parse --git-path FETCH_HEAD 2>/dev/null || echo "")
+    local _now _age=999999
+    if [ -n "$fh" ] && [ -f "$fh" ]; then
+        _now=$(date +%s)
+        _age=$(( _now - $(stat -c %Y "$fh" 2>/dev/null || echo "$_now") ))
+    fi
+    if [ "$_age" -lt 300 ]; then
+        info "复用 ${_age}s 前的 fetch（跳过重复拉取）"
+    else
+        timeout 10 git -C "$CCCONFIG_ROOT" fetch origin main 2>/dev/null || { warn "git fetch 失败，跳过检查"; return 0; }
+    fi
 
     local local_commit remote
     local_commit=$(git -C "$CCCONFIG_ROOT" rev-parse --short HEAD 2>/dev/null)
@@ -143,14 +153,27 @@ ccconfig_reload() {
         return 0
     fi
 
+    # 落后即自动快进；本地脏/分叉导致快进失败才退回手动处理
+    local pull_output pull_status
+    set +e
+    pull_output=$(git_pull_repo "$CCCONFIG_ROOT" --ff-only 2>&1)
+    pull_status=$?
+    set -e
+    if [ $pull_status -ne 0 ]; then
+        warn "ccconfig 落后但快进失败（本地有改动/分叉）："
+        echo "$pull_output" | tail -3
+        warn "手动处理: cd $CCCONFIG_ROOT && git pull --rebase origin main"
+        return 0
+    fi
+    local after; after=$(git -C "$CCCONFIG_ROOT" rev-parse --short HEAD)
+    success "ccconfig: $local_commit → $after"
+
     local update_files
-    update_files=$(git -C "$CCCONFIG_ROOT" diff --name-only "$local_commit..origin/main" 2>/dev/null || echo "")
+    update_files=$(git -C "$CCCONFIG_ROOT" diff --name-only "$local_commit..$after" 2>/dev/null || echo "")
     if echo "$update_files" | grep -qE "update.sh|lib/path-helper.sh|conf/versions.json"; then
-        warn "ccconfig 有关键文件更新（update.sh/path-helper/versions.json），但 2B 不拉代码"
-        warn "→ 先跑 2A（./maintain.sh self config）再回来升级工具"
-    else
-        warn "ccconfig 有新提交（非关键文件）：$local_commit → $remote"
-        warn "→ 代码更新归 2A 管，本次工具升级用当前代码继续"
+        warn "关键文件已更新，重新加载..."
+        release_lock
+        exec bash "$SCRIPT_DIR/update.sh" "$CCC_UPDATE_CMD"
     fi
     return 0
 }

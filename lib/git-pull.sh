@@ -5,11 +5,12 @@
 #   maintain.sh pull_config_repo  --ff-only + 代理注入 + 分支自适应
 #   lib/monitor.sh git_pull_rebase --rebase --autostash + 死代理剥 env + 超时
 #   lib/sync.sh                   两种混用
-#   lib/update.sh self_update     --ff-only 写死 main
-#   lib/status.sh git_pull        --rebase 写死 main
-#   lib/init-skill.sh             --ff-only 写死 main || true（吞错误）
-# 不一致导致：写死 main 的在一台 master 分支仓（ccprivate）上静默失败；
-# 吞错误的把"换账号 remote 失效"藏了起来。统一到这里。
+#   lib/update.sh self_update     --ff-only 写死 main（仅服务 ccconfig，其分支固定 main）
+#   lib/status.sh git_pull        --rebase 动态取当前分支（旧版写死 main，已修）
+#   lib/init-skill.sh             --ff-only 写死 main || true（吞错误；仅服务 skill，分支为 main）
+# 不一致曾导致：写死 main 的在一台 master 分支仓（ccprivate）上静默失败。
+# 现状：pull_config_repo / monitor / status 均动态取分支；self_update / init-skill
+# 仍写死 main，因二者只服务 ccconfig / skill（分支固定 main），无 master 仓风险。
 #
 # 用法：
 #   source lib/git-pull.sh
