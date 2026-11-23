@@ -50,7 +50,7 @@ ccconfig 运行在 WSL2，git 认证此前统一走 fine-grained PAT（`gh auth 
 
 ## Implementation
 
-- `lib/git-auth.sh`：GCM/PAT 双模式实现 + 交互菜单 + `status`/`gcm`/`pat`/`verify`/`check` 子命令。
+- `lib/git-auth.sh`：GCM/PAT 双模式实现 + 交互菜单 + `status`/`gcm`/`login`/`install`/`pat`/`verify`/`check` 子命令。
 - `maintain.sh` 菜单 2C「GitHub 认证管理」、子命令 `git-auth`。
 - `lib/status.sh` `check_git_auth`、`lib/monitor.sh` 认证状态段 source 其函数。
 - `init-bootstrap.sh`：`setup_gcm_auth()` 在 `gh_auth` 前检查——检测到 GCM 即自动配置（初始化即完成）；未装则给 winget/下载提示后回落 PAT。`setup_git_ident` 的 `gh auth setup-git` 加 `gcm_helper_active` 保护，不覆盖 GCM。
@@ -65,3 +65,8 @@ ccconfig 运行在 WSL2，git 认证此前统一走 fine-grained PAT（`gh auth 
 
 - `_gcm_status` 曾只看「helper 非空 + 系统找得到 gcm.exe」→ 指向已卸载 exe 的坏 helper 被误报 ok；已改为校验 helper 值本身可达。
 - 代理探测复用 `lib/net.sh` 的 `net_gh_proxy`（env → 7897/7890），git-auth.sh 后续可统一走该入口。
+- 2026-11-23 增强（对齐 dsh-gitok 的 GCM 接管思路，但不依赖 dsh；新机器无 dsh 也能配）：
+  - `_find_gcm_path` 从「gitconfig + 2 处硬编码」扩为四层：gitconfig helper → 文件系统候选（MinGit 新旧布局 / Git for Windows / GCM 独立包 / dotnet tools）→ 慢兜底 `_find_gcm_path_slow`（`cmd.exe git --exec-path` 反推 + 注册表 `GitForWindows\InstallPath`）。慢兜底仅交互菜单用，`status` 不用（cmd/powershell 启动 1-2s 会卡菜单）。
+  - 新增 `login`：`printf "protocol=https\nhost=github.com\n\n" | <gcm> get` 触发 GCM 浏览器/设备码登录；只回显 username，password 不落盘不回显。
+  - 新增 `install`：未装 GCM 时打印安装命令 —— 推荐 `winget install Git.GCM`（用户级免管理员），备选 Git for Windows / MinGit 便携版 / PAT。**不自动装**，用户自选（GCM 优先但不强制）。
+  - `_do_gcm_setup` 验证失败区分「未登录」与「网络问题」，前者引导 `login`（此前一律误报网络问题）。

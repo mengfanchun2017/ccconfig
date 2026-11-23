@@ -34,8 +34,69 @@ _redact_user() {
     printf '%s' "$1" | sed -E 's#/mnt/c/Users/[^/]+#/mnt/c/Users/<user>#'
 }
 
-# ── 找 GCM 路径 ──
-# 优先级：现有 gitconfig → 常见路径
+# ── 路径工具 ──
+# Windows 绝对路径 → WSL /mnt/c/... 形式
+_win_to_wsl() {
+    local p="${1//\\//}"
+    if [[ "$p" =~ ^([A-Za-z]):/(.*) ]]; then
+        echo "/mnt/${BASH_REMATCH[1],,}/${BASH_REMATCH[2]}"
+    else
+        echo "$p"
+    fi
+}
+
+# 候选 exe 名（2.3.0 前旧别名 manager-core 也认，老机器可能还在用）
+_GCM_EXES=(git-credential-manager.exe git-credential-manager-core.exe)
+
+# 在候选目录里找第一个可达 exe
+_find_gcm_in_dirs() {
+    local dir exe
+    for dir in "$@"; do
+        [[ -n "$dir" && -d "$dir" ]] || continue
+        for exe in "${_GCM_EXES[@]}"; do
+            [[ -x "$dir/$exe" ]] && { echo "$dir/$exe"; return 0; }
+        done
+    done
+    return 1
+}
+
+# 候选目录：MinGit / Git for Windows / GCM 独立包 / dotnet tools。
+# 排除 Default/Public/All Users/Default User —— Windows 模板/公共目录，
+# 凭据按当前 Windows 用户 DPAPI 存取，选错目录会取不到凭据。
+_gcm_candidate_dirs() {
+    local -a dirs=()
+    local ud udn u
+    for ud in /mnt/c/Users/*/; do
+        udn=$(basename "$ud")
+        case "$udn" in
+            "Default"|"Default User"|"Public"|"All Users") continue ;;
+        esac
+        u="${ud%/}"
+        dirs+=(
+            "$u/AppData/Local/Programs/MinGit/ucrt64/bin"
+            "$u/AppData/Local/Programs/MinGit/bin"
+            "$u/AppData/Local/Programs/Git/ucrt64/bin"
+            "$u/AppData/Local/Programs/Git/mingw64/bin"
+            "$u/AppData/Local/Programs/Git/bin"
+            "$u/AppData/Local/Programs/Git Credential Manager"
+            "$u/AppData/Local/Programs/Git Credential Manager/bin"
+            "$u/.dotnet/tools"
+        )
+    done
+    dirs+=(
+        "/mnt/c/Program Files/Git/ucrt64/bin"
+        "/mnt/c/Program Files/Git/mingw64/bin"
+        "/mnt/c/Program Files/Git/bin"
+        "/mnt/c/Program Files (x86)/Git/ucrt64/bin"
+        "/mnt/c/Program Files (x86)/Git/mingw64/bin"
+        "/mnt/c/Program Files/Git Credential Manager"
+        "/mnt/c/Program Files (x86)/Git Credential Manager"
+    )
+    printf '%s\n' "${dirs[@]}"
+}
+
+# ── 找 GCM 路径（快，纯文件系统，无子进程）──
+# 优先级：现有 gitconfig → 文件系统候选
 _find_gcm_path() {
     # 1. 从现有 gitconfig 提取 helper 中的路径
     local helpers
@@ -50,24 +111,40 @@ _find_gcm_path() {
         [[ -x "$p" ]] && { echo "$p"; return 0; }
     done <<< "$helpers"
 
-    # 2. 常见 MinGit 位置。排除 Default/Public/All Users/Default User ——
-    # 这些是 Windows 模板/公共目录，不是真实用户，凭据按当前 Windows 用户 DPAPI
-    # 存取，选错目录会取不到凭据。
-    if [[ -d /mnt/c/Users ]]; then
-        for ud in /mnt/c/Users/*/; do
-            local udn; udn=$(basename "$ud")
-            case "$udn" in
-                "Default"|"Default User"|"Public"|"All Users") continue ;;
-            esac
-            local p="${ud}AppData/Local/Programs/MinGit/ucrt64/bin/git-credential-manager.exe"
-            [[ -x "$p" ]] && { echo "$p"; return 0; }
-        done
+    # 2. 文件系统候选
+    local -a dirs
+    mapfile -t dirs < <(_gcm_candidate_dirs)
+    local hit
+    hit=$(_find_gcm_in_dirs "${dirs[@]}") && { echo "$hit"; return 0; }
+
+    return 1
+}
+
+# ── 慢速兜底：问 Windows git / 注册表（有子进程，仅快探测落空时用）──
+# 放在 status 之外：cmd.exe/powershell 启动 1-2s，会把菜单卡住。
+_find_gcm_path_slow() {
+    local raw ep hit root ps
+    # ① Windows git --exec-path（cmd.exe interop；cwd 不能在 UNC，故 cd /mnt/c）
+    raw=$(cd /mnt/c 2>/dev/null && timeout 8 cmd.exe /c "git --exec-path" 2>/dev/null | tr -d '\r') || true
+    if [[ -n "$raw" ]]; then
+        ep=$(_win_to_wsl "$raw")
+        local -a cands=("$ep")
+        [[ "$ep" == */libexec/git-core ]] && cands+=("${ep%/libexec/git-core}/bin")
+        hit=$(_find_gcm_in_dirs "${cands[@]}") && { echo "$hit"; return 0; }
     fi
-
-    # 3. 全局 Git for Windows
-    local p="/mnt/c/Program Files/Git/mingw64/bin/git-credential-manager.exe"
-    [[ -x "$p" ]] && { echo "$p"; return 0; }
-
+    # ② 注册表 GitForWindows InstallPath（HKLM → HKCU）
+    for hive in HKLM HKCU; do
+        ps="(Get-ItemProperty '${hive}:\SOFTWARE\GitForWindows' -ErrorAction SilentlyContinue).InstallPath"
+        raw=$(cd /mnt/c 2>/dev/null && timeout 8 powershell.exe -NoProfile -NonInteractive \
+            -Command "$ps" 2>/dev/null | tr -d '\r') || true
+        [[ -n "$raw" ]] || continue
+        root=$(_win_to_wsl "$raw")
+        local -a cands=(
+            "$root"
+            "$root/ucrt64/bin" "$root/mingw64/bin" "$root/bin" "$root/libexec/git-core"
+        )
+        hit=$(_find_gcm_in_dirs "${cands[@]}") && { echo "$hit"; return 0; }
+    done
     return 1
 }
 
@@ -157,6 +234,7 @@ _git_verify() {
     [[ -n "$proxy" ]] && args=(-c "http.proxy=$proxy" -c "https.proxy=$proxy")
     local out rc=0
     out=$(timeout 40 git "${args[@]}" ls-remote "$repo" HEAD 2>&1) || rc=$?
+    _GIT_VERIFY_OUT="$out"
     if [[ $rc -eq 0 && "$out" =~ ^[0-9a-f]{40} ]]; then
         echo "$out"
         return 0
@@ -167,6 +245,7 @@ _git_verify() {
         if [ -n "$p2" ]; then
             out=$(timeout 40 git -c "http.proxy=$p2" -c "https.proxy=$p2" \
                 ls-remote "$repo" HEAD 2>&1) || rc=$?
+            _GIT_VERIFY_OUT="$out"
             [[ $rc -eq 0 && "$out" =~ ^[0-9a-f]{40} ]] && { echo "$out"; return 0; }
         fi
     fi
@@ -211,8 +290,14 @@ _do_gcm_setup() {
         echo -e "  ${GRAY}密钥仅存 Windows 凭据管理器（DPAPI 加密），WSL 无明文${NC}"
         return 0
     } || {
-        warn "远端验证未通过（可能是网络问题，非配置问题）"
-        echo -e "  ${GRAY}确认代理/VPN 是否开启，然后重试 verify${NC}"
+        # 区分「没登录」与「网络问题」：前者是 GCM 里没凭据，后者是链路不通。
+        if [[ "$_GIT_VERIFY_OUT" =~ (Authentication failed|could not read Username|401|Terminal prompts disabled|Bad credentials|not authorized) ]]; then
+            warn "认证未通过 —— 很可能是 GCM 里还没登录 GitHub"
+            echo -e "  ${GRAY}跑「登录 GitHub」（菜单第 2 项）或: bash lib/git-auth.sh login${NC}"
+        else
+            warn "远端验证未通过（可能是网络问题，非配置问题）"
+            echo -e "  ${GRAY}确认代理/VPN 是否开启，然后重试 verify${NC}"
+        fi
         return 1
     }
 }
@@ -248,6 +333,61 @@ _do_pat_setup() {
     rm -f "$HOME/.local/share/ccconfig/pat-warn" "$HOME/.local/share/ccconfig/pat-status"
 }
 
+# ── 触发 GCM 登录（浏览器/设备码）──
+# 用 GCM 的 get 触发一次交互：没凭据时它会弹浏览器/设备码。
+# 只读 username 行，password 不落盘、不回显。
+_do_login() {
+    local gcm_path="$1" host="${2:-github.com}"
+    section "登录 $host（GCM）"
+    echo -e "  ${GRAY}GCM 会打开浏览器（或给设备码），完成即存入 Windows 凭据管理器${NC}"
+    echo -e "  ${GRAY}密钥不经过本脚本、不落 WSL 磁盘${NC}"
+    echo ""
+
+    local out rc=0
+    out=$(printf "protocol=https\nhost=%s\n\n" "$host" | timeout 300 "$gcm_path" get 2>&1) || rc=$?
+    if [[ $rc -eq 0 ]] && grep -q '^username=' <<< "$out"; then
+        local u
+        u=$(grep -m1 '^username=' <<< "$out" | cut -d= -f2-)
+        ok "登录成功（$u）"
+        echo -e "  ${GRAY}凭据由 GCM 存入 Windows 凭据管理器（DPAPI）${NC}"
+        return 0
+    fi
+    err "登录未完成（rc=$rc）"
+    local line
+    while IFS= read -r line; do
+        [[ "$line" == password=* || -z "$line" ]] && continue
+        echo "  $line"
+    done <<< "$out"
+    echo ""
+    echo -e "  ${GRAY}常见原因：代理/VPN 未开（GCM 要访问 github.com）、浏览器未弹、超时${NC}"
+    return 1
+}
+
+# ── 未装 GCM：给安装命令（不自动执行，用户自己在 Windows 侧跑）──
+# 推荐 GCM（密钥只在 Windows），但 PAT 作为备选也给出，不强制。
+do_install_hint() {
+    section "安装 Windows GCM（未装）"
+    echo ""
+    echo -e "  ${BOLD_GRAY}GCM 是推荐方式：密钥由 Windows 凭据管理器加密，WSL 磁盘零明文、无过期。${NC}"
+    echo ""
+    echo -e "  ${GREEN}方式一（推荐）${NC} — GCM 独立包，用户级、免管理员："
+    echo -e "    ${CYAN}winget install --id Git.GCM${NC}"
+    echo ""
+    echo -e "  ${BOLD_GRAY}方式二${NC} — 完整 Git for Windows（自带 GCM）："
+    echo -e "    ${CYAN}winget install --id Git.Git -e${NC}"
+    echo -e "    ${GRAY}或下载: https://git-scm.com/downloads${NC}"
+    echo ""
+    echo -e "  ${BOLD_GRAY}无 winget 兜底${NC} — MinGit 便携版（解压即用，自带 GCM）："
+    echo -e "    ${CYAN}https://github.com/git-for-windows/git/releases${NC} ${GRAY}→ MinGit-*-64-bit.zip${NC}"
+    echo ""
+    echo -e "  ${BOLD_GRAY}方式三（备选）${NC} — 改用 GitHub PAT："
+    echo -e "    菜单选「配置 GitHub PAT」，或: ${CYAN}gh auth login${NC}"
+    echo -e "    ${GRAY}token 会明文落 ~/.config/gh/hosts.yml，有过期${NC}"
+    echo ""
+    echo -e "  装完回来跑: ${CYAN}bash maintain.sh git-auth${NC}（或重跑本菜单第 1 项）"
+    echo ""
+}
+
 # ── 公共入口 ──
 
 do_status() {
@@ -266,6 +406,11 @@ do_status() {
             ;;
         not_configured)
             echo -e "    状态: ${YELLOW}未配置${NC}"
+            if [[ -z "$gcm_path" ]]; then
+                echo -e "    ${GRAY}未找到 GCM → 菜单「安装 Windows GCM」看命令${NC}"
+            else
+                echo -e "    ${GRAY}已找到 GCM → 菜单「配置 Windows GCM」写入 helper${NC}"
+            fi
             ;;
         bad_path)
             echo -e "    状态: ${YELLOW}helper 配置了但 exe 不可达${NC}"
@@ -300,21 +445,53 @@ do_status() {
     echo ""
 }
 
+# 验证远端连通性（交互菜单用）
+_verify_interactive() {
+    echo -e "  ${YELLOW}端到端实测耗时较长（直连 + 代理，最坏 ~30s）...${NC}"
+    local proxy="" rc=0
+    proxy=$(_test_reachability) || rc=$?
+    if [[ $rc -eq 0 ]]; then
+        echo ""
+        [[ -n "$proxy" ]] \
+            && ok "GitHub 可达（走代理 $proxy）" \
+            || ok "GitHub 可达（直连）"
+        echo ""
+        local sha
+        sha=$(_git_verify "$proxy") && {
+            ok "git ls-remote 验证通过（SHA: ${sha:0:12}...）"
+        } || {
+            warn "git ls-remote 未通过（认证或网络问题）"
+        }
+    else
+        warn "GitHub 网络不可达 — 检查 VPN/代理"
+    fi
+}
+
 do_interactive() {
     while true; do
         clear 2>/dev/null || true
         do_status
 
-        local items=()
         local gcm_path; gcm_path=$(_find_gcm_path) || true
+        # 快探测落空时慢探测一次（问 Windows git / 注册表）——用户在场，可接受 1-2s；
+        # status 刻意不做，避免卡菜单。
+        [[ -z "$gcm_path" ]] && gcm_path=$(_find_gcm_path_slow) || true
         local gcm_st; gcm_st=$(_gcm_status "$gcm_path")
         local pat_st; pat_st=$(_pat_status)
 
-        [[ "$gcm_st" != "ok" ]] && items+=("配置 Windows GCM（WSL 借用 Windows 凭据）") \
-                                || items+=("配置 Windows GCM（已配，重新配置）")
-        [[ "$pat_st" != "logged_in" ]] && items+=("配置 GitHub PAT（gh auth login）") \
-                                       || items+=("配置 GitHub PAT（已登录，重新配置）")
-        items+=("验证远端连通性")
+        local items=()
+        if [[ -z "$gcm_path" ]]; then
+            items+=("安装 Windows GCM（未装，显示安装命令）")
+            items+=("配置 GitHub PAT（备选，gh auth login）")
+            items+=("验证远端连通性")
+        else
+            [[ "$gcm_st" != "ok" ]] && items+=("配置 Windows GCM（借用 Windows 凭据）") \
+                                    || items+=("配置 Windows GCM（已配，重新配置）")
+            items+=("登录 GitHub（GCM 浏览器/设备码）")
+            [[ "$pat_st" != "logged_in" ]] && items+=("配置 GitHub PAT（备选，gh auth login）") \
+                                           || items+=("配置 GitHub PAT（已登录，重新配置）")
+            items+=("验证远端连通性")
+        fi
         items+=("返回")
 
         local sel
@@ -322,45 +499,23 @@ do_interactive() {
         [[ -z "$sel" || "$sel" == "0" ]] && return 0
         (( sel == ${#items[@]} )) && return 0
 
-        case "$sel" in
-            1)
-                if [[ -z "$gcm_path" ]]; then
-                    warn "未找到 Windows GCM（git-credential-manager.exe）"
-                    echo -e "  ${GRAY}请先在 Windows 安装 Git（自带 GCM），再跑本配置${NC}"
-                    echo ""
-                    echo -e "  已知路径: /mnt/c/Users/<你>/AppData/Local/Programs/MinGit/ucrt64/bin/"
-                _pause_continue
-                    continue
-                fi
-                _do_gcm_setup "$gcm_path"
-                _pause_continue
-                ;;
-            2)
-                _do_pat_setup
-                _pause_continue
-                ;;
-            3)
-                echo -e "  ${YELLOW}端到端实测耗时较长（直连 + 代理，最坏 ~30s）...${NC}"
-                local proxy="" rc=0
-                proxy=$(_test_reachability) || rc=$?
-                if [[ $rc -eq 0 ]]; then
-                    echo ""
-                    [[ -n "$proxy" ]] \
-                        && ok "GitHub 可达（走代理 $proxy）" \
-                        || ok "GitHub 可达（直连）"
-                    echo ""
-                    local sha
-                    sha=$(_git_verify "$proxy") && {
-                        ok "git ls-remote 验证通过（SHA: ${sha:0:12}...）"
-                    } || {
-                        warn "git ls-remote 未通过（认证或网络问题）"
-                    }
-                else
-                    warn "GitHub 网络不可达 — 检查 VPN/代理"
-                fi
-                _pause_continue
-                ;;
-        esac
+        if [[ -z "$gcm_path" ]]; then
+            case "$sel" in
+                1) do_install_hint ;;
+                2) _do_pat_setup ;;
+                3) _verify_interactive ;;
+                *) continue ;;
+            esac
+        else
+            case "$sel" in
+                1) _do_gcm_setup "$gcm_path" ;;
+                2) _do_login "$gcm_path" ;;
+                3) _do_pat_setup ;;
+                4) _verify_interactive ;;
+                *) continue ;;
+            esac
+        fi
+        _pause_continue
     done
 }
 
@@ -380,11 +535,26 @@ main() {
         gcm)
             local gcm_path; gcm_path=$(_find_gcm_path) || true
             if [[ -z "$gcm_path" ]]; then
+                gcm_path=$(_find_gcm_path_slow) || true
+            fi
+            if [[ -z "$gcm_path" ]]; then
                 err "未找到 Windows GCM"
-                echo -e "  ${GRAY}请先在 Windows 安装 Git（自带 GCM）: https://git-scm.com/downloads${NC}"
+                echo -e "  ${GRAY}先装 GCM（看安装命令）: bash lib/git-auth.sh install${NC}"
                 exit 1
             fi
             _do_gcm_setup "$gcm_path" ;;
+        login)
+            local gcm_path; gcm_path=$(_find_gcm_path) || true
+            if [[ -z "$gcm_path" ]]; then
+                gcm_path=$(_find_gcm_path_slow) || true
+            fi
+            if [[ -z "$gcm_path" ]]; then
+                err "未找到 Windows GCM"
+                echo -e "  ${GRAY}先装 GCM（看安装命令）: bash lib/git-auth.sh install${NC}"
+                exit 1
+            fi
+            _do_login "$gcm_path" "${2:-github.com}" ;;
+        install)         do_install_hint ;;
         pat)             _do_pat_setup ;;
         verify)
             local proxy="" rc=0
@@ -401,7 +571,7 @@ main() {
             } ;;
         check)           do_check ;;
         *)
-            err "用法: bash lib/git-auth.sh [status|gcm|pat|verify|check]"
+            err "用法: bash lib/git-auth.sh [status|gcm|login|install|pat|verify|check]"
             exit 1 ;;
     esac
 }

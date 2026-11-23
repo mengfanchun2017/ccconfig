@@ -6,8 +6,8 @@
 # 为一个脚本，认证一次，ccprivate 操作复用同一认证。
 #
 # 认证口径（见 ADR-0059）：Windows GCM 推荐（WSL interop，密钥只在 Windows），
-# PAT（gh auth）备选。本脚本的新机引导仍以 gh/PAT 为主（GCM 需 Windows Git
-# for Windows + 交互登录，无法全自动化）；装完用 maintain.sh git-auth 切/配 GCM。
+# PAT（gh auth）备选。GCM 已装则初始化即配好（仅登录需交互）；未装则打印安装
+# 命令（不自动装），装完用 maintain.sh git-auth 接着配。
 #
 # 用法：
 #   bash init-bootstrap.sh                   # 交互式新建（默认）
@@ -282,7 +282,7 @@ gcm_helper_active() {
 # 模块 [2.5/6]: Windows GCM 认证（优先，ADR-0059）
 # ============================================================
 # 初始化即检查配置：GCM 已装 → 直接配好（WSL 磁盘零密钥、无过期）；
-# 未装 → 提示装 Git for Windows（含 GCM），然后回落 PAT。
+# 未装 → 打印安装命令（GCM 推荐、PAT 备选，不自动装），装完重跑本脚本或 git-auth。
 # 为什么放 gh_auth 之前：GCM 不依赖 gh，配好后可少跑一套 token。
 setup_gcm_auth() {
     if ! [ -f "$CCCONFIG_DIR/lib/git-auth.sh" ]; then
@@ -305,18 +305,10 @@ setup_gcm_auth() {
         return 0
     fi
 
-    # 未装 → 提示（winget 一键 / 下载页）
+    # 未装 → 打印安装命令（不自动装；GCM 推荐，PAT 备选）
     echo ""
     warn "未检测到 Windows GCM（git-credential-manager.exe）"
-    echo "  GCM 是推荐认证：密钥由 Windows 凭据管理器加密，WSL 磁盘零明文、无过期。"
-    if command -v winget.exe >/dev/null 2>&1; then
-        echo "  安装（Windows 侧一键）: winget install --id Git.Git -e"
-    else
-        echo "  下载: https://git-scm.com/downloads （安装时勾选 Git Credential Manager）"
-    fi
-    echo "  装完重跑本脚本，或跑: bash maintain.sh git-auth"
-    echo "  也可跳过，继续用 GitHub PAT 认证。"
-    echo ""
+    do_install_hint
     return 0
 }
 
