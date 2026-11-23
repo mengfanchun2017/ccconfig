@@ -3,7 +3,8 @@
 #
 # 验证多模态配置链路完整性。
 # 2026-11-17 起视觉为全局配置（ccprivate/conf/vision.json，7B 唯一配置点），
-# 与 LLM 预设正交；per-preset vision_* 字段仅作 8898 openai_bridge 回落。
+# 文档解析为全局注册表（ccprivate/conf/docparse.json，7C 管理），
+# 两者均与 LLM 预设正交；per-preset vision_* 字段仅作 8898 openai_bridge 回落。
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -57,6 +58,29 @@ ck "MinerU 配置文件存在" test -f "$MU_CONF"
 MU_TOKEN=$(python3 -c "import json; print(json.load(open('$MU_CONF')).get('token','') or '')" 2>/dev/null)
 ck "MinerU token 非空" test -n "$MU_TOKEN"
 ck "MinerU token 无占位符" bash -c "! (echo '$MU_TOKEN' | grep -q '请填入')"
+
+echo ""
+echo "== 文档解析注册表（docparse.json，7C 管理）=="
+DOC_CONF="$HOME/git/ccprivate/conf/docparse.json"
+ck "docparse.json 存在" test -f "$DOC_CONF"
+if [[ -f "$DOC_CONF" ]]; then
+    python3 - "$DOC_CONF" "$MU_CONF" <<'PYEOF'
+import json, sys, os
+d = json.load(open(sys.argv[1]))
+assert d.get('active'), "active 为空"
+bs = d.get('backends', [])
+assert bs, "backends 为空"
+names = [b.get('name') for b in bs]
+assert d['active'] in names, f"active={d['active']} 不在 backends {names}"
+# 每个后端的 conf 文件必须存在（凭证与 MCP/skill 共用，不能指向空）
+for b in bs:
+    p = os.path.join(os.path.expanduser('~/git/ccprivate/conf'), b.get('conf', ''))
+    assert os.path.exists(p), f"后端 {b['name']} 的 conf 不存在: {p}"
+# 生效后端的 token 字段可读（不校验非空：≤20 页免费档允许空）
+print("OK")
+PYEOF
+    ck "docparse.json 结构合法" test "$?" == "0"
+fi
 
 echo ""
 echo "== 预设完整性（glm46vflash 内置）=="

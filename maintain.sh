@@ -208,7 +208,8 @@ do_highpriv() {
 #
 # 数据源：
 #   视觉: ccprivate/conf/vision.json（全局唯一）provider/model/upstream/key_preset
-#   文档解析: ccprivate/conf/mineru.json（全局，后端仅 mineru）
+#   文档解析: ccprivate/conf/docparse.json（注册表：active + backends[]），
+#             各后端凭证仍在自己的 conf（mineru.json 等），7C 增删/启停/切换
 
 # 读合并配置里某预设的字段；空 → 输出空
 _ml_field() {
@@ -354,6 +355,39 @@ for b in d.get('backends',[]):
     print(f\"{b.get('name','')}|{b.get('type','')}|{b.get('conf','')}|{'1' if b.get('enabled',True) else '0'}|{'1' if b.get('name')==act else '0'}\")
 " "$_ML_DOC_CONF" 2>/dev/null
 }
+# 改注册表：<mode> <name> [val(JSON)] → stdout 新 active
+#   set_active / set_enabled(0|1) / delete / add
+# why 换 active 时优先挑 enabled 的后端：停用/删除 active 后不能留空，否则 7C 无后端可用
+_ml_doc_mutate() {
+    python3 -c "
+import json,sys,os
+mode,name,val,p=sys.argv[1],sys.argv[2],sys.argv[3] if len(sys.argv)>3 else '',sys.argv[4]
+try: d=json.load(open(p))
+except Exception: d={'active':'','backends':[]}
+bs=d.get('backends',[])
+i=next((k for k,b in enumerate(bs) if b.get('name')==name),None)
+def pick(exclude):
+    return next((b['name'] for b in bs if b.get('enabled',True) and b.get('name')!=exclude),'')
+if mode=='set_active':
+    if i is not None: d['active']=name
+elif mode=='set_enabled':
+    if i is not None:
+        bs[i]['enabled']=(val=='1')
+        if val!='1' and d.get('active')==name: d['active']=pick(name)
+elif mode=='delete':
+    if i is not None:
+        bs.pop(i)
+        if d.get('active')==name: d['active']=pick('')
+elif mode=='add':
+    e=json.loads(val)
+    if i is not None: bs[i].update(e)
+    else: bs.append(e)
+    if e.get('enabled',True) and not d.get('active'): d['active']=e.get('name','')
+tmp=p+'.tmp'
+with open(tmp,'w') as f: json.dump(d,f,indent=4,ensure_ascii=False)
+os.replace(tmp,p)
+print(d.get('active',''))" "$1" "$2" "${3:-}" "$_ML_DOC_CONF" 2>/dev/null
+}
 
 # 视觉后端清单（7B 菜单项）—— 固定两条，不做预设排列组合
 # zhipu = 外部智谱 glm-4.6v-flash（key 在 mlayer.json，免费额度限流 1305 频发）
@@ -402,12 +436,23 @@ do_mlayer() {
 
             # ――― 文档解析（全局设定）―――
             echo -e "  ${BOLD_GRAY}▎文档解析${NC}  ${DIM}(全局设定) ← 7C 配置${NC}"
-            local mu_conf="$HOME/git/ccprivate/conf/mineru.json"
-            local mu_raw=""
-            [[ -f "$mu_conf" ]] && mu_raw=$(python3 -c "import json; print(json.load(open('$mu_conf')).get('token','') or '')" 2>/dev/null)
-            local mm; mm="$(_ml_mask "$mu_raw")"
-            echo -e "    后端: ${CYAN}mineru${NC}"
-            if [[ -n "$mm" ]]; then echo -e "    token: ${GREEN}$mm${NC}"; else echo -e "    token: ${YELLOW}(未配置)${NC}"; fi
+            local dact; dact="$(_ml_doc_cfg active)"
+            local drows; drows="$(_ml_doc_list)"
+            if [[ -z "$dact" ]]; then
+                echo -e "    状态: ${YELLOW}未配置${NC}（无生效后端，7C 新增）"
+            else
+                local dn="" dt="" dc="" de="" dac=""
+                while IFS='|' read -r n t c en ac; do
+                    [[ "$n" == "$dact" ]] && { dn="$n"; dt="$t"; dc="$c"; de="$en"; dac="$ac"; }
+                done <<< "$drows"
+                local dmk; dmk="$(_ml_doc_token_read "$dn")"; dmk="$(_ml_mask "$dmk")"
+                echo -e "    生效: ${CYAN}$dn${NC}  ${DIM}type=$dt${NC}"
+                if [[ -n "$dmk" ]]; then echo -e "    token: ${GREEN}$dmk${NC}"; else echo -e "    token: ${YELLOW}(未配置)${NC}"; fi
+                local dtotal den
+                dtotal=$(printf '%s\n' "$drows" | grep -c . || true)
+                den=$(printf '%s\n' "$drows" | awk -F'|' '$4=="1"' | grep -c . || true)
+                echo -e "    后端: 共 ${dtotal:-0} 个，启用 ${den:-0} 个"
+            fi
             command -v uvx &>/dev/null \
                 && echo -e "    uvx:    ${GREEN}可用${NC}" \
                 || echo -e "    uvx:   ${RED}不可用${NC}"
@@ -446,10 +491,32 @@ do_mlayer() {
                 [[ "$p" == "$cur_p" ]] && mark="◀ "
                 items+=("$mark$desc")
             done
+            items+=("更新 key（zhipu 视觉 key）")
             items+=("返回")
+            local nch=${#_ML_VISION_CHOICES[@]}
             local sel; sel=$(menu_select "视觉后端（当前: ${cur_m:-未配置}）" "${items[@]}") || return 0
             [[ -z "$sel" || "$sel" == "0" ]] && return 0
             (( sel == ${#items[@]} )) && return 0
+
+            # 更新 key：独立入口，不必先切后端
+            if (( sel == nch + 1 )); then
+                local kp; kp="$(_ml_vision_cfg key_preset)"
+                local kraw; kraw="$(_ml_vision_key_read "${kp:-glm46vflash}")"
+                local newkey
+                newkey=$(prompt_key_plain "视觉 key（预设 ${kp:-glm46vflash}）" "$kraw")
+                if [[ -n "$newkey" ]]; then
+                    if [[ "$newkey" != "$kraw" ]]; then
+                        _ml_vision_key_write "${kp:-glm46vflash}" "$newkey" \
+                            && ok "key 已保存: $(_ml_mask "$newkey")" \
+                            || err "写入失败"
+                    else
+                        ok "key 保持不变: $(_ml_mask "$kraw")"
+                    fi
+                else
+                    info "已取消"
+                fi
+                return 0
+            fi
 
             local chosen_p chosen_m
             IFS='|' read -r chosen_p chosen_m _ <<< "${_ML_VISION_CHOICES[$((sel-1))]}"
@@ -482,66 +549,116 @@ do_mlayer() {
 
         docparse)
             section "配置文档解析"
-            local mu_conf="$HOME/git/ccprivate/conf/mineru.json"
-            local cur_tok=""
-            [[ -f "$mu_conf" ]] && cur_tok=$(python3 -c "import json; print(json.load(open('$mu_conf')).get('token','') or '')" 2>/dev/null)
-            local mm; mm="$(_ml_mask "$cur_tok")"
-
-            echo -e "  ${BOLD_GRAY}▎可用文档解析后端${NC}"
-            echo ""
-            echo -e "  ${BOLD_GREEN}1${NC}  mineru"
-            if [[ -n "$mm" ]]; then
-                echo -e "       token: ${GREEN}$mm${NC}"
-            else
-                echo -e "       token: ${YELLOW}(未配置)${NC}"
+            # 老机器升级路径：无注册表但从 mineru.json 初始化
+            if [[ ! -f "$_ML_DOC_CONF" && -f "$HOME/git/ccprivate/conf/mineru.json" ]]; then
+                _ml_doc_save "mineru" '[{"name":"mineru","type":"mineru","conf":"mineru.json","enabled":true}]'
             fi
-            command -v uvx &>/dev/null \
-                && echo -e "       uvx:   ${GREEN}可用${NC}" \
-                || echo -e "       uvx:   ${RED}不可用${NC}"
+            local rows; rows="$(_ml_doc_list)"
+            local act; act="$(_ml_doc_cfg active)"
+
+            echo -e "  ${BOLD_GRAY}▎后端列表${NC}  ${DIM}(全局，与 LLM 预设无关)${NC}"
             echo ""
-            echo -e "  ${DIM}文档解析是全局设定，不绑定 preset。启用后任何预设都可用此后端。${NC}"
+            local items=() names=()
+            while IFS='|' read -r n t c en ac; do
+                [[ -z "$n" ]] && continue
+                names+=("$n")
+                local mark="  "; [[ "$ac" == "1" ]] && mark="◀ "
+                local st="${GREEN}启用${NC}"; [[ "$en" != "1" ]] && st="${YELLOW}停用${NC}"
+                local mk; mk="$(_ml_doc_token_read "$n")"; mk="$(_ml_mask "$mk")"
+                items+=("$mark$n  [${st}]  type=$t  token=${mk:-未配置}")
+            done <<< "$rows"
+            [[ ${#items[@]} -eq 0 ]] && items+=("（无后端，选「新增」）")
+            items+=("新增后端")
+            items+=("返回")
+            local sel; sel=$(menu_select "文档解析（当前生效: ${act:-无}）" "${items[@]}") || return 0
+            [[ -z "$sel" || "$sel" == "0" ]] && return 0
+            (( sel == ${#items[@]} )) && return 0
 
-            local actions=("更新/设置 MinerU token")
-            if [[ -n "$mm" ]]; then
-                actions+=("清除 MinerU token")
+            local nback=${#names[@]}
+            if (( sel == nback + 1 )); then
+                # ── 新增后端 ──
+                local bname btype bconf btok
+                bname=$(prompt "后端名（小写字母/数字，如 mineru）")
+                [[ -z "$bname" ]] && { info "已取消"; return 0; }
+                if [[ ! "$bname" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+                    error "名字只允许小写字母/数字/下划线/短横"; return 0
+                fi
+                if python3 -c "
+import json,sys
+try: bs=json.load(open(sys.argv[1])).get('backends',[])
+except: bs=[]
+sys.exit(0 if any(b.get('name')==sys.argv[2] for b in bs) else 1)" "$_ML_DOC_CONF" "$bname" 2>/dev/null; then
+                    error "后端 '$bname' 已存在"; return 0
+                fi
+                btype=$(prompt "类型（当前支持 mineru）" "mineru")
+                bconf=$(prompt "凭证文件（相对 ccprivate/conf/）" "${bname}.json")
+                local cpath="$HOME/git/ccprivate/conf/$bconf"
+                if [[ ! -f "$cpath" ]]; then
+                    printf '{\n    "token": ""\n}\n' > "$cpath"
+                    info "已创建空凭证文件: conf/$bconf"
+                fi
+                btok=$(prompt_key_plain "token（可留空，之后在主菜单更新）" "")
+                # 先注册（_ml_doc_token_write 靠注册表定位 conf 路径），再写 token
+                _ml_doc_mutate add "$bname" "$(NAME="$bname" TYPE="$btype" CONF="$bconf" python3 -c "
+import json,os
+print(json.dumps({'name':os.environ['NAME'],'type':os.environ['TYPE'],'conf':os.environ['CONF'],'enabled':True}))")" >/dev/null
+                [[ -n "$btok" ]] && _ml_doc_token_write "$bname" "$btok"
+                ok "后端已新增: $bname"
+                return 0
             fi
-            actions+=("返回")
-            local asel; asel=$(menu_select "文档解析操作" "${actions[@]}") || return 0
-            [[ -z "$asel" || "$asel" == "0" ]] && return 0
-            (( asel == ${#actions[@]} )) && return 0
 
-            case "$asel" in
+            local target="${names[$((sel-1))]}"
+            local tn tt tc te tac
+            while IFS='|' read -r n t c en ac; do
+                [[ "$n" == "$target" ]] && { tn="$n"; tt="$t"; tc="$c"; te="$en"; tac="$ac"; }
+            done <<< "$rows"
+
+            echo ""
+            local ststr="停用"; [[ "$te" == "1" ]] && ststr="启用"
+            echo -e "  ${CYAN}$tn${NC}  type=$tt  conf=$tc  ${ststr}"
+            local tacts=("设为生效")
+            tacts+=("更新 token")
+            tacts+=("启用/停用")
+            tacts+=("删除此后端")
+            tacts+=("返回")
+            local tsel; tsel=$(menu_select "后端 $tn" "${tacts[@]}") || return 0
+            [[ -z "$tsel" || "$tsel" == "0" ]] && return 0
+            (( tsel == ${#tacts[@]} )) && return 0
+
+            case "$tsel" in
                 1)
+                    _ml_doc_mutate set_active "$tn" >/dev/null && ok "已设为生效: $tn"
+                    ;;
+                2)
+                    local cur_tok; cur_tok="$(_ml_doc_token_read "$tn")"
                     local newtok
-                    newtok=$(prompt_key_plain "MinerU token" "$cur_tok")
+                    newtok=$(prompt_key_plain "$tn token" "$cur_tok")
                     if [[ -n "$newtok" ]]; then
                         if [[ "$newtok" != "$cur_tok" ]]; then
-                            python3 -c "
-import json,sys
-p=sys.argv[1]; k=sys.argv[2]
-try: d=json.load(open(p))
-except: d={}
-d['token']=k
-json.dump(d, open(p,'w'), indent=4, ensure_ascii=False)" "$mu_conf" "$newtok" 2>/dev/null \
-                                && ok "MinerU token 已保存: $(_ml_mask "$newtok")" \
+                            _ml_doc_token_write "$tn" "$newtok" \
+                                && ok "token 已保存: $(_ml_mask "$newtok")" \
                                 || err "写入失败"
                         else
-                            ok "token 保持不变: $mm"
+                            ok "token 保持不变: $(_ml_mask "$cur_tok")"
                         fi
                     else
                         info "已取消"
                     fi
                     ;;
-                2)
-                    if confirm "确定清除 MinerU token？"; then
-                        python3 -c "
-import json
-try: d=json.load(open('$mu_conf'))
-except: d={}
-d['token']=''
-json.dump(d, open('$mu_conf','w'), indent=4, ensure_ascii=False)" 2>/dev/null \
-                            && ok "token 已清除" || err "清除失败"
+                3)
+                    if [[ "$te" == "1" ]]; then
+                        if [[ "$tac" == "1" ]]; then
+                            warn "当前生效后端不能停用（先切到别的后端）"
+                        elif _ml_doc_mutate set_enabled "$tn" 0 >/dev/null; then
+                            ok "已停用: $tn"
+                        fi
+                    else
+                        _ml_doc_mutate set_enabled "$tn" 1 >/dev/null && ok "已启用: $tn"
                     fi
+                    ;;
+                4)
+                    confirm "确定删除后端 '$tn'？（凭证文件 conf/$tc 保留不删）" n || { info "已取消"; return 0; }
+                    _ml_doc_mutate delete "$tn" >/dev/null && ok "已删除: $tn"
                     ;;
             esac
             ;;
