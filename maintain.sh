@@ -288,6 +288,73 @@ os.replace(tmp, p)
 print('ok')" "$f" "$kp" "$key" 2>/dev/null | grep -q ok
 }
 
+# 文档解析后端注册表（docparse.json，全局，7C 管理）。
+# token 不在此存 —— 各后端自己的 conf 文件持有（mineru.json 等），
+# 与 MCP(option-mineru)/fpdf skill 的读取路径共用，避免双写漂移。
+_ML_DOC_CONF="$HOME/git/ccprivate/conf/docparse.json"
+_ml_doc_cfg() {  # <field> → active / backends(JSON)
+    local field="$1"
+    [[ -f "$_ML_DOC_CONF" ]] || return 0
+    python3 -c "
+import json,sys
+try: print(json.load(open(sys.argv[1])).get(sys.argv[2],'') or '')
+except Exception: print('')" "$_ML_DOC_CONF" "$field" 2>/dev/null
+}
+_ml_doc_save() {  # <active> <backends JSON>
+    python3 -c "
+import json,sys,os
+p,a,bj=sys.argv[1],sys.argv[2],sys.argv[3]
+try: d=json.load(open(p))
+except Exception: d={}
+d['active']=a; d['backends']=json.loads(bj)
+tmp=p+'.tmp'
+with open(tmp,'w') as f: json.dump(d,f,indent=4,ensure_ascii=False)
+os.replace(tmp,p); print('ok')" "$_ML_DOC_CONF" "$1" "$2" 2>/dev/null | grep -q ok
+}
+_ml_doc_conf_path() {  # <name> → 后端 conf 绝对路径
+    local name="$1" rel
+    rel=$(python3 -c "
+import json,sys
+try:
+    for b in json.load(open(sys.argv[1])).get('backends',[]):
+        if b.get('name')==sys.argv[2]: print(b.get('conf','')); break
+except Exception: pass" "$_ML_DOC_CONF" "$name" 2>/dev/null)
+    [[ -z "$rel" ]] && return 1
+    printf '%s' "$HOME/git/ccprivate/conf/$rel"
+}
+_ml_doc_token_read() {  # <name> → token
+    local p; p="$(_ml_doc_conf_path "$1")" || return 0
+    [[ -f "$p" ]] || return 0
+    python3 -c "
+import json,sys
+try: print(json.load(open(sys.argv[1])).get('token','') or '')
+except Exception: print('')" "$p" 2>/dev/null
+}
+_ml_doc_token_write() {  # <name> <token>
+    local p; p="$(_ml_doc_conf_path "$1")" || return 1
+    [[ -f "$p" ]] || { err "后端 conf 不存在: $p"; return 1; }
+    python3 -c "
+import json,sys,os
+p,k=sys.argv[1],sys.argv[2]
+try: d=json.load(open(p))
+except Exception: d={}
+d['token']=k
+tmp=p+'.tmp'
+with open(tmp,'w') as f: json.dump(d,f,indent=4,ensure_ascii=False)
+os.replace(tmp,p); print('ok')" "$p" "$2" 2>/dev/null | grep -q ok
+}
+# 列后端：name|type|conf|enabled(1/0)|active(1/0)
+_ml_doc_list() {
+    python3 -c "
+import json,sys
+try: d=json.load(open(sys.argv[1]))
+except Exception: d={}
+act=d.get('active','')
+for b in d.get('backends',[]):
+    print(f\"{b.get('name','')}|{b.get('type','')}|{b.get('conf','')}|{'1' if b.get('enabled',True) else '0'}|{'1' if b.get('name')==act else '0'}\")
+" "$_ML_DOC_CONF" 2>/dev/null
+}
+
 # 视觉后端清单（7B 菜单项）—— 固定两条，不做预设排列组合
 # zhipu = 外部智谱 glm-4.6v-flash（key 在 mlayer.json，免费额度限流 1305 频发）
 # trae  = Trae 订阅内视觉模型（实测看图 8/8；deepseek/glm 系报参数错误不吃图）
