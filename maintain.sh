@@ -647,10 +647,15 @@ print(json.dumps({'name':os.environ['NAME'],'type':os.environ['TYPE'],'conf':os.
                     ;;
                 3)
                     if [[ "$te" == "1" ]]; then
-                        if [[ "$tac" == "1" ]]; then
-                            warn "当前生效后端不能停用（先切到别的后端）"
+                        local other=0
+                        while IFS='|' read -r n t c en ac; do
+                            [[ "$n" == "$tn" || "$en" != "1" ]] && continue
+                            other=1
+                        done <<< "$rows"
+                        if [[ "$other" == "0" ]]; then
+                            warn "没有其他已启用后端，不能停用（先启用一个或新增）"
                         elif _ml_doc_mutate set_enabled "$tn" 0 >/dev/null; then
-                            ok "已停用: $tn"
+                            ok "已停用: $tn（生效已自动切换）"
                         fi
                     else
                         _ml_doc_mutate set_enabled "$tn" 1 >/dev/null && ok "已启用: $tn"
