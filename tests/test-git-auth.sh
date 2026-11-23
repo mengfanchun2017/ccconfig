@@ -122,6 +122,62 @@ test_entry_guard() {
     teardown_env
 }
 
+# ---------- 探测/安装/登录（新增能力）----------
+test_win_to_wsl() {
+    src_git_auth
+    local got
+    got=$(_win_to_wsl 'C:\Users\franc\AppData\gcm.exe')
+    [ "$got" = "/mnt/c/Users/franc/AppData/gcm.exe" ] \
+        && pass "wsl: 盘符+反斜杠转换" || fail "wsl" "got=$got"
+    got=$(_win_to_wsl '/mnt/c/already/wsl')
+    [ "$got" = "/mnt/c/already/wsl" ] && pass "wsl: 非 Windows 路径原样" || fail "wsl" "got=$got"
+}
+
+test_slow_probe_exists() {
+    src_git_auth
+    declare -F _find_gcm_path_slow >/dev/null 2>&1 \
+        && pass "slow: _find_gcm_path_slow 已定义" || fail "slow" "缺函数"
+}
+
+test_install_hint_content() {
+    src_git_auth
+    local out; out=$(do_install_hint 2>&1)
+    grep -q 'Git.GCM' <<< "$out" && pass "install: 含 GCM 独立包命令" || fail "install" "缺 Git.GCM"
+    grep -q 'winget install --id Git.Git' <<< "$out" && pass "install: 含 Git for Windows 备选" \
+        || fail "install" "缺 Git.Git"
+    grep -q 'gh auth login' <<< "$out" && pass "install: 含 PAT 备选命令" || fail "install" "缺 PAT 备选"
+    grep -q 'winget install' <<< "$out" && ! grep -q '^\s*winget install' <<< "$out" \
+        && fail "install" "不应自动执行 winget" || pass "install: 只给命令不执行"
+}
+
+test_login_filters_password() {
+    src_git_auth
+    local fake; fake=$(mktemp)
+    printf '#!/bin/bash\necho "username=testuser"\necho "password=SECRET123"\n' > "$fake"; chmod +x "$fake"
+    local out; out=$(_do_login "$fake" 2>&1)
+    grep -q '登录成功（testuser）' <<< "$out" && pass "login: 成功识别 username" || fail "login" "$out"
+    grep -q 'SECRET123' <<< "$out" && fail "login" "password 泄露!" || pass "login: password 不外泄"
+    rm -f "$fake"
+}
+
+test_login_failure_no_username() {
+    src_git_auth
+    local fake; fake=$(mktemp)
+    printf '#!/bin/bash\necho "fatal: could not read Username"\n' > "$fake"; chmod +x "$fake"
+    local out rc=0
+    out=$(_do_login "$fake" 2>&1) || rc=$?
+    [ "$rc" -ne 0 ] && pass "login: 无 username → 失败" || fail "login" "应失败却 rc=0"
+    grep -q '登录未完成' <<< "$out" && pass "login: 失败有提示" || fail "login" "$out"
+    rm -f "$fake"
+}
+
+test_auth_fail_diagnosis() {
+    grep -q 'could not read Username' "$CCCONFIG_DIR/lib/git-auth.sh" \
+        && pass "诊断: 认证失败关键词已加" || fail "诊断" "缺关键词"
+    grep -q '_find_gcm_path_slow' "$CCCONFIG_DIR/lib/git-auth.sh" \
+        && pass "诊断: 慢探测已接线" || fail "诊断" "慢探测未接线"
+}
+
 # ---------- init-bootstrap 接线（GCM 优先链）----------
 test_init_bootstrap_gcm_wiring() {
     local ib="$CCCONFIG_DIR/init-bootstrap.sh"
@@ -150,6 +206,12 @@ test_status_bad_path_or_ok
 test_status_ok
 test_pat_status_no_gh
 test_entry_guard
+test_win_to_wsl
+test_slow_probe_exists
+test_install_hint_content
+test_login_filters_password
+test_login_failure_no_username
+test_auth_fail_diagnosis
 test_init_bootstrap_gcm_wiring
 
 echo ""
