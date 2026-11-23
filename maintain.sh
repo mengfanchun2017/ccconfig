@@ -242,6 +242,8 @@ try: print(json.load(open(sys.argv[1])).get(sys.argv[2],'') or '')
 except Exception: print('')" "$_ML_VISION_CONF" "$field" 2>/dev/null
 }
 _ml_vision_write() {
+    # $1=provider $2=model $3=key_preset（可空，zhipu 默认 glm46vflash）
+    # why 直接传 argv[4]：旧版多插了一个空串占位，导致 argv[4] 恒空、key_preset 永远落默认值
     python3 -c "
 import json, sys, os
 p = sys.argv[1]
@@ -253,7 +255,7 @@ d['upstream'] = 'https://open.bigmodel.cn/api/paas/v4' if sys.argv[2] == 'zhipu'
 tmp = p + '.tmp'
 with open(tmp, 'w') as f: json.dump(d, f, indent=4, ensure_ascii=False)
 os.replace(tmp, p)
-print('ok')" "$_ML_VISION_CONF" "$1" "$2" "" "${3:-}" 2>/dev/null | grep -q ok
+print('ok')" "$_ML_VISION_CONF" "$1" "$2" "${3:-}" 2>/dev/null | grep -q ok
 }
 
 # 视觉 key 读写（zhipu provider 用）：mlayer.json 优先，llm.json 兜底
