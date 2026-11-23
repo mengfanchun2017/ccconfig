@@ -202,21 +202,6 @@ _gh_proxy() {
     echo ""
 }
 
-# ── 测试远端连通性（返回 0=可达）──
-_test_reachability() {
-    # 直连。只看 http_code 不看退出码：github.com 直连慢（TLS 握手后大响应体）时
-    # curl 会因 --max-time 返回 28，但 -w 已写出 200 —— 判退出码会误报不可达。
-    local code
-    code=$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 15 https://github.com 2>/dev/null || true)
-    [[ "$code" == "200" || "$code" == "301" || "$code" == "302" ]] && return 0
-    # 走代理（net.sh 探测结果）
-    local proxy; proxy=$(_gh_proxy)
-    [ -n "$proxy" ] || return 1
-    code=$(curl -x "$proxy" -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 15 https://github.com 2>/dev/null || true)
-    [[ "$code" == "200" || "$code" == "301" || "$code" == "302" ]] && { echo "$proxy"; return 0; }
-    return 1
-}
-
 # ── 验证用仓库：优先当前仓库 origin（fork 友好），回落默认公开仓 ──
 _verify_repo() {
     local root u=""
@@ -297,8 +282,8 @@ _do_gcm_setup() {
         return 1
     fi
 
-    # 验证：先探代理（TCP 1s），有代理直走代理；不再单独跑 _test_reachability
-    # （它的直连+代理 curl 与 _git_verify 内部回落重复，最坏白等 ~30s）。
+    # 验证：先探代理（TCP 1s），有代理直走代理；不再单独跑可达性 curl
+    # （与 _git_verify 内部「直连失败→代理」回落重复，最坏白等 ~30s）。
     local proxy=""
     proxy=$(_gh_proxy)
     echo -e "  ${GRAY}验证中${proxy:+（走代理 $proxy}）...${NC}"

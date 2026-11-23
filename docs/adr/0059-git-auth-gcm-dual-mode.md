@@ -70,3 +70,4 @@ ccconfig 运行在 WSL2，git 认证此前统一走 fine-grained PAT（`gh auth 
   - 新增 `login`：`printf "protocol=https\nhost=github.com\n\n" | <gcm> get` 触发 GCM 浏览器/设备码登录；只回显 username，password 不落盘不回显。
   - 新增 `install`：未装 GCM 时打印安装命令 —— 推荐 `winget install Git.GCM`（用户级免管理员），备选 Git for Windows / MinGit 便携版 / PAT。**不自动装**，用户自选（GCM 优先但不强制）。
   - `_do_gcm_setup` 验证失败区分「未登录」与「网络问题」，前者引导 `login`（此前一律误报网络问题）。
+- 2026-11-24 修「配置 GCM 卡住」：原 `_do_gcm_setup` 写完 helper 后先 `_test_reachability`（直连+代理 curl 各最多 15s）再 `_git_verify`（直连 40s → 代理 40s），两处探测重复、最坏 ~110s 且无进度提示 → 用户以为死、按回车无效。改为：先 `_gcm_has_credential`（离线查凭据，无则提前引导 `login`，避免 `ls-remote` 触发 GCM 弹浏览器干等）→ `_gh_proxy`（TCP 1s，有代理直走）→ `_git_verify`（超时 40→25s）；删死代码 `_test_reachability`；加「验证中（走代理 …）」提示。实测本机 1.3–1.6s。
