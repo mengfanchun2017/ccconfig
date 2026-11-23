@@ -171,6 +171,16 @@ test_login_failure_no_username() {
     rm -f "$fake"
 }
 
+test_gcm_has_credential() {
+    src_git_auth
+    local fake; fake=$(mktemp)
+    printf '#!/bin/bash\necho "username=u"\necho "password=x"\n' > "$fake"; chmod +x "$fake"
+    _gcm_has_credential "$fake" && pass "has_cred: 有 username → 真" || fail "has_cred" "应为真"
+    printf '#!/bin/bash\nexit 1\n' > "$fake"
+    _gcm_has_credential "$fake" && fail "has_cred" "应为假" || pass "has_cred: 无 username → 假"
+    rm -f "$fake"
+}
+
 test_auth_fail_diagnosis() {
     grep -q 'could not read Username' "$CCCONFIG_DIR/lib/git-auth.sh" \
         && pass "诊断: 认证失败关键词已加" || fail "诊断" "缺关键词"
@@ -211,6 +221,7 @@ test_slow_probe_exists
 test_install_hint_content
 test_login_filters_password
 test_login_failure_no_username
+test_gcm_has_credential
 test_auth_fail_diagnosis
 test_init_bootstrap_gcm_wiring
 

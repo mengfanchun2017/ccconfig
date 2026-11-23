@@ -233,7 +233,7 @@ _git_verify() {
     local -a args=()
     [[ -n "$proxy" ]] && args=(-c "http.proxy=$proxy" -c "https.proxy=$proxy")
     local out rc=0
-    out=$(timeout 40 git "${args[@]}" ls-remote "$repo" HEAD 2>&1) || rc=$?
+    out=$(timeout 25 git "${args[@]}" ls-remote "$repo" HEAD 2>&1) || rc=$?
     _GIT_VERIFY_OUT="$out"
     if [[ $rc -eq 0 && "$out" =~ ^[0-9a-f]{40} ]]; then
         echo "$out"
@@ -243,13 +243,21 @@ _git_verify() {
     if [[ -z "$proxy" ]]; then
         local p2; p2=$(_gh_proxy)
         if [ -n "$p2" ]; then
-            out=$(timeout 40 git -c "http.proxy=$p2" -c "https.proxy=$p2" \
+            out=$(timeout 25 git -c "http.proxy=$p2" -c "https.proxy=$p2" \
                 ls-remote "$repo" HEAD 2>&1) || rc=$?
             _GIT_VERIFY_OUT="$out"
             [[ $rc -eq 0 && "$out" =~ ^[0-9a-f]{40} ]] && { echo "$out"; return 0; }
         fi
     fi
     return 1
+}
+
+# ── 离线判断 GCM 是否已有某 host 凭据（有→0，无/超时→1）──
+# 有凭据时 gcm get 纯本地秒回；无凭据会触发浏览器/设备码交互 → timeout 5 拦下。
+_gcm_has_credential() {
+    local gcm_path="$1" host="${2:-github.com}" out rc=0
+    out=$(printf "protocol=https\nhost=%s\n\n" "$host" | timeout 5 "$gcm_path" get 2>&1) || rc=$?
+    [[ $rc -eq 0 && "$out" == *"username="* ]]
 }
 
 # ── 配置 GCM ──
@@ -281,9 +289,19 @@ _do_gcm_setup() {
     done
     echo ""
 
-    # 验证
-    local proxy
-    proxy=$(_test_reachability) || true
+    # 验证前先离线看 GCM 有没有凭据：无凭据时 git ls-remote 会触发 GCM 弹浏览器，
+    # 用户在 WSL 终端看不到提示、干等 —— 提前拦下并引导 login。
+    if ! _gcm_has_credential "$gcm_path"; then
+        warn "GCM 里还没有 github.com 凭据（或首次调用弹了浏览器）"
+        echo -e "  ${GRAY}helper 已写好；先跑「登录 GitHub」（菜单第 2 项）或: bash lib/git-auth.sh login${NC}"
+        return 1
+    fi
+
+    # 验证：先探代理（TCP 1s），有代理直走代理；不再单独跑 _test_reachability
+    # （它的直连+代理 curl 与 _git_verify 内部回落重复，最坏白等 ~30s）。
+    local proxy=""
+    proxy=$(_gh_proxy)
+    echo -e "  ${GRAY}验证中${proxy:+（走代理 $proxy}）...${NC}"
     local sha
     sha=$(_git_verify "$proxy") && {
         ok "GCM 验证通过（SHA: ${sha:0:12}...）"
@@ -447,24 +465,18 @@ do_status() {
 
 # 验证远端连通性（交互菜单用）
 _verify_interactive() {
-    echo -e "  ${YELLOW}端到端实测耗时较长（直连 + 代理，最坏 ~30s）...${NC}"
-    local proxy="" rc=0
-    proxy=$(_test_reachability) || rc=$?
-    if [[ $rc -eq 0 ]]; then
-        echo ""
-        [[ -n "$proxy" ]] \
-            && ok "GitHub 可达（走代理 $proxy）" \
-            || ok "GitHub 可达（直连）"
-        echo ""
-        local sha
-        sha=$(_git_verify "$proxy") && {
-            ok "git ls-remote 验证通过（SHA: ${sha:0:12}...）"
-        } || {
-            warn "git ls-remote 未通过（认证或网络问题）"
-        }
-    else
-        warn "GitHub 网络不可达 — 检查 VPN/代理"
-    fi
+    local proxy=""; proxy=$(_gh_proxy)
+    echo -e "  ${YELLOW}端到端实测中${proxy:+（走代理 $proxy}）...${NC}"
+    local sha
+    sha=$(_git_verify "$proxy") && {
+        ok "验证通过（SHA: ${sha:0:12}...）"
+    } || {
+        if [[ "$_GIT_VERIFY_OUT" =~ (Authentication failed|could not read Username|401|Terminal prompts disabled|Bad credentials|not authorized) ]]; then
+            warn "认证未通过 —— 可能未登录，跑「登录 GitHub」"
+        else
+            warn "未通过 —— 网络不可达或认证问题（检查 VPN/代理）"
+        fi
+    }
 }
 
 do_interactive() {
@@ -557,12 +569,7 @@ main() {
         install)         do_install_hint ;;
         pat)             _do_pat_setup ;;
         verify)
-            local proxy="" rc=0
-            proxy=$(_test_reachability) || rc=$?
-            if [[ $rc -ne 0 ]]; then
-                err "GitHub 网络不可达"
-                exit 1
-            fi
+            local proxy=""; proxy=$(_gh_proxy)
             local sha; sha=$(_git_verify "$proxy") && {
                 ok "验证通过（SHA: ${sha:0:12}...）"
             } || {
